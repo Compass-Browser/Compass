@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..a2c5069d314fdcedd307b9b0b6b448108bc7737b 100644
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+ 
++#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
++
+ #include <algorithm>
+ #include <optional>
+ #include <utility>
+@@ -839,6 +841,7 @@ void VerticalTabStripRegionView::ClickEventHandler::OnMouseEvent(
+ 
+ void VerticalTabStripRegionView::AddTabStripView(
+     std::unique_ptr<views::View> view) {
++  views::View* const strata_native_tab_strip = view.get();
+   view->SetProperty(
+       views::kFlexBehaviorKey,
+       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
+@@ -877,6 +880,9 @@ void VerticalTabStripRegionView::AddTabStripView(
+               base::Unretained(this)));
+ 
+   OnCollapseStateChanged(state_controller_->GetCollapseState());
++
++  strata::InstallSidebar(content_parent, strata_native_tab_strip,
++                         browser_view()->browser());
+ }
+ 
+ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(

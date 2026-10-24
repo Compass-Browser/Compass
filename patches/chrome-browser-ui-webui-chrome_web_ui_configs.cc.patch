@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+index 139fecebd5645797d1c3f3989d664c38ac5fe241..d9dfc1f141a3cb6350b13e0b55ffe1c4a6ef9e8f 100644
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/webui/chrome_web_ui_configs.h"
+ 
++#include "strata/browser/ui/webui/strata_web_ui_registry.h"
++
+ #include "build/android_buildflags.h"
+ #include "build/branding_buildflags.h"
+ #include "build/build_config.h"
+@@ -404,6 +406,7 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(std::make_unique<SystemInfoUIConfig>());
+   map.AddWebUIConfig(std::make_unique<tabs::TabGroupHomeUIConfig>());
+   map.AddWebUIConfig(std::make_unique<TabSearchUIConfig>());
++  strata::RegisterWebUIConfigs(map);
+   map.AddWebUIConfig(std::make_unique<TabsFromOtherDevicesUIConfig>());
+   map.AddWebUIConfig(std::make_unique<TermsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<UserEducationInternalsUIConfig>());

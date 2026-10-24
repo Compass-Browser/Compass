@@ -1,0 +1,100 @@
+/* Copyright 2026 The Strata Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host {
+  box-sizing: border-box;
+  color: var(--color-tab-foreground-inactive-frame-active, inherit);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 2px;
+  height: 100%;
+  padding: 4px 8px;
+}
+
+#tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.tab,
+#newTab {
+  align-items: center;
+  border-radius: 8px;
+  cursor: default;
+  display: flex;
+  gap: 8px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  user-select: none;
+}
+
+.tab:hover,
+#newTab:hover {
+  background: var(--color-tab-background-inactive-hover-frame-active,
+                  rgba(128, 128, 128, 0.12));
+}
+
+.tab[active] {
+  background: var(--color-tab-background-active-frame-active,
+                  rgba(255, 255, 255, 0.9));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.favicon {
+  flex-shrink: 0;
+  height: 16px;
+  width: 16px;
+}
+
+.title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  font-size: 16px;
+  height: 20px;
+  line-height: 1;
+  opacity: 0;
+  padding: 0;
+  width: 20px;
+}
+
+.tab:hover .close {
+  opacity: 0.7;
+}
+
+.close:hover {
+  background: rgba(128, 128, 128, 0.2);
+  opacity: 1;
+}
+
+#newTab {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  opacity: 0.75;
+  text-align: start;
+  width: 100%;
+}
+
+.plus {
+  font-size: 16px;
+  width: 16px;
+}

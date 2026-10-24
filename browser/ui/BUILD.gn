@@ -1,0 +1,41 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Strata's browser UI. Linked into //chrome/browser/ui, which also allows our
+# includes of its headers (see patches/chrome-browser-ui-BUILD.gn.patch), the
+# same way upstream does for //chrome/browser/ui/webui/tab_search.
+source_set("ui") {
+  sources = [
+    "views/sidebar/strata_sidebar_view.cc",
+    "views/sidebar/strata_sidebar_view.h",
+    "webui/sidebar/sidebar_page_handler.cc",
+    "webui/sidebar/sidebar_page_handler.h",
+    "webui/sidebar/strata_sidebar_ui.cc",
+    "webui/sidebar/strata_sidebar_ui.h",
+    "webui/strata_web_ui_registry.cc",
+    "webui/strata_web_ui_registry.h",
+  ]
+  public_deps = [
+    "//chrome/browser:browser_public_dependencies",
+    "//strata/browser/ui/webui/sidebar:mojo_bindings",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui:browser_commands",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui:theme_source",
+    "//chrome/browser/ui/webui:webui_util",
+    "//components/favicon_base",
+    "//components/tabs:public",
+    "//content/public/browser",
+    "//strata/resources/sidebar:resources",
+    "//ui/base",
+    "//ui/views",
+    "//ui/webui",
+    "//url",
+  ]
+}

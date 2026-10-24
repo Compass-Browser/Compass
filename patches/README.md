@@ -35,5 +35,13 @@ nothing else.
 | Patch | Why |
 |---|---|
 | `BUILD.gn.patch` | Adds `//strata:strata_unittests` to `gn_all` |
-| `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
+| `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser |
+| `chrome-browser-ui-BUILD.gn.patch` | Links `//strata/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`) |
+| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | Calls `strata::InstallSidebar()` when the region adds its tab strip |
+| `chrome-browser-ui-tabs-tab_strip_prefs.cc.patch` | Vertical tabs on by default |
+| `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Strata's WebUI configs |
+| `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Strata's WebUI Mojo interfaces |
+| `chrome-chrome_paks.gni.patch` | Ships `strata_sidebar_resources.pak` |
+| `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//strata/*` to depend on Lit |
+| `tools-gritsettings-resource_ids.spec.patch` | Reserves resource IDs for the sidebar's grit file |

@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
+index 378e1a6f0c8b438ea3fc754dc9614a68d77406aa..6463f557c235f4a1b416325feaefbb7714097d63 100644
+--- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
++++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
+@@ -4,6 +4,8 @@
+ 
+ #include <memory>
+ 
++#include "strata/browser/ui/webui/strata_web_ui_registry.h"
++
+ #include "base/feature_list.h"
+ #include "base/functional/bind.h"
+ #include "chrome/browser/actor/ui/actor_overlay_ui.h"
+@@ -598,6 +600,7 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
+   registry.ForWebUI<TabSearchUI>()
+       .Add<tab_search::mojom::PageHandlerFactory>()
+       .Add<tab_search::mojom::SearchHandler>();
++  strata::PopulateWebUIInterfaceBrokers(registry);
+   registry.ForWebUI<OrganizerPanelUI>()
+       .Add<organizer_panel::mojom::PageHandlerFactory>()
+       .Add<tab_search::mojom::PageHandlerFactory>()

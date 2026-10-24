@@ -325,8 +325,9 @@ Milestones 2–4 make up the MVP.
 
 ## 15. Open questions
 
-- The sidebar renders inside the vertical tab strip region, or as a separate
-  view next to it. Decide after prototyping with the 156 region view.
+- ~~The sidebar renders inside the vertical tab strip region, or as a separate
+  view next to it.~~ Decided: inside the region, replacing only the native
+  tab strip. See [docs/design/sidebar.md](docs/design/sidebar.md).
 - What the placeholder in window A shows: a live thumbnail or a static card.
 - Whether archive is per space or global.
 - How to update on Linux: rely on distro packages and Flatpak, or ship our own

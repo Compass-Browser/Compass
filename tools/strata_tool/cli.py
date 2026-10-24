@@ -161,6 +161,11 @@ def cmd_build(layout: Layout, args) -> None:
   build(layout, args.config, args.targets or [DEFAULT_TARGET], args.jobs)
 
 
+def passthrough(extra_args):
+  """argparse.REMAINDER keeps a leading "--"; the child must not see it."""
+  return extra_args[1:] if extra_args[:1] == ['--'] else extra_args
+
+
 def cmd_run(layout: Layout, args) -> None:
   out_dir = layout.out_dir(args.config)
   binary = browser_binary(layout, out_dir)
@@ -169,14 +174,15 @@ def cmd_run(layout: Layout, args) -> None:
   profile = out_dir / 'strata-dev-profile'
   if args.fresh and profile.exists():
     shutil.rmtree(profile)
-  run([binary, '--user-data-dir=%s' % profile] + args.browser_args,
-      layout.src, check=False)
+  run([binary, '--user-data-dir=%s' % profile] +
+      passthrough(args.browser_args), layout.src, check=False)
 
 
 def cmd_test(layout: Layout, args) -> None:
   out_dir = build(layout, args.config, [TEST_TARGET], args.jobs)
   exe = TEST_TARGET + ('.exe' if sys.platform == 'win32' else '')
-  result = run([out_dir / exe] + args.test_args, layout.src, check=False)
+  result = run([out_dir / exe] + passthrough(args.test_args), layout.src,
+               check=False)
   sys.exit(result.returncode)
 
 

@@ -1,0 +1,17 @@
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index 8749c14d44f1b32abd54c21a87087f958680167d..99ab4960ce107b3c0b8527d2e9e49b08843c981a 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1804,6 +1804,12 @@
+     "includes": [12000],
+   },
+ 
++  # Strata.
++  "<(SHARED_INTERMEDIATE_DIR)/strata/resources/sidebar/resources.grd": {
++    "META": {"sizes": {"includes": [50]}},
++    "includes": [12820],
++  },
++
+   # END "everything else" section.
+   # Everything but chrome/, components/, content/, and ios/
+ 
