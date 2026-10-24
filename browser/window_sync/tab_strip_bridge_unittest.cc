@@ -368,5 +368,96 @@ TEST_F(TabStripBridgeTwoWindowTest, PinnedIsSharedAndUnloadsEverywhere) {
   EXPECT_TRUE(second_bridge().OpenNode(pinned));
 }
 
+TEST_F(TabStripBridgeTwoWindowTest, MovingTheActiveTabFallsBackToTheLastUsed) {
+  // AddTab() activates each tab: a is active, b was used before it.
+  OpenTabs({"a.test", "b.test", "c.test"});
+  tab_strip_model()->ActivateTabAt(1);  // b
+  tab_strip_model()->ActivateTabAt(0);  // a
+  OpenTabInSecond("d.test");
+
+  second_bridge().OpenNode(TodayFor("a.test"));
+  Settle();
+
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetLastCommittedURL(),
+            GURL("https://b.test/"));
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, MovingTheLastTabLeavesAPlaceholder) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("c.test");
+  SidebarNode* a = TodayFor("a.test");
+
+  second_bridge().OpenNode(a);
+  Settle();
+
+  // The first window stays open, showing a placeholder for a.
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+  tabs::TabInterface* placeholder = tab_strip_model()->GetActiveTab();
+  EXPECT_EQ(bridge().GetPlaceholderNode(placeholder), a);
+  EXPECT_EQ(bridge().GetShownNode(placeholder), a);
+  EXPECT_FALSE(bridge().GetNode(placeholder));
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("c.test", "a.test"));
+
+  // Bring it back: the placeholder goes, and the second window falls back.
+  bridge().OpenNode(a);
+  Settle();
+
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_EQ(bridge().GetTab(a), tab_strip_model()->GetActiveTab());
+  EXPECT_EQ(second_->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(
+      second_bridge().GetNode(second_->GetTabStripModel()->GetActiveTab()),
+      TodayFor("c.test"));
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, PlaceholderClosesWhenItsNodeIsRemoved) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("c.test");
+  second_bridge().OpenNode(TodayFor("a.test"));
+  Settle();
+  ASSERT_TRUE(bridge().GetPlaceholderNode(tab_strip_model()->GetActiveTab()));
+  // A background tab keeps the window open once the placeholder goes.
+  NavigateParams params(browser(), GURL("https://e.test/"),
+                        ui::PAGE_TRANSITION_TYPED);
+  params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  Navigate(&params);
+  CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
+  Settle();
+  ASSERT_EQ(tab_strip_model()->count(), 2);
+
+  space_model().Remove(TodayFor("a.test"));
+  Settle();
+
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetLastCommittedURL(),
+            GURL("https://e.test/"));
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, ClosingAWindowHandsItsTabsOver) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("b.test");
+  OpenTabInSecond("c.test");
+  tabs::TabInterface* b_tab = second_->GetTabStripModel()->GetTabAtIndex(1);
+
+  EXPECT_TRUE(HandOffTabsBeforeClose(second_.get()));
+  Settle();
+
+  EXPECT_TRUE(second_->GetTabStripModel()->empty());
+  EXPECT_EQ(tab_strip_model()->count(), 3);
+  // The same tab, not a reload, and the first window keeps its active tab.
+  EXPECT_EQ(bridge().GetTab(TodayFor("b.test")), b_tab);
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetLastCommittedURL(),
+            GURL("https://a.test/"));
+  EXPECT_EQ(space_model().today_root()->children().size(), 3u);
+}
+
+TEST_F(TabStripBridgeTest, TheLastWindowKeepsItsTabs) {
+  OpenTabs({"a.test"});
+
+  EXPECT_FALSE(HandOffTabsBeforeClose(browser()));
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
 }  // namespace
 }  // namespace strata

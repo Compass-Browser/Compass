@@ -26,6 +26,7 @@ source_set("window_sync") {
   ]
   deps = [
     "//base",
+    "//chrome/browser/lifetime",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui/browser_window",

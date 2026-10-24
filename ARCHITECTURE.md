@@ -191,10 +191,11 @@ the shared space model, not owners of tabs.
   placeholder: "Open in another window · Bring here".
 - **Per-window state** is only: active space, the selected node per space, and
   selection history. Everything else is shared.
-- **Closing a window doesn't close tabs.** Tabs belong to the space. Live tabs
-  that no window shows are moved to a hidden **parking `Browser`** per
-  profile. We don't hold detached `WebContents` ourselves, because extensions
-  assume every tab has a `windowId`. Auto-archive and tab discarding apply to
+- **Closing a window doesn't close tabs.** Tabs belong to the space. A
+  closing window hands its live tabs to another window of the profile (D13).
+  We don't hold detached `WebContents` ourselves, because extensions assume
+  every tab has a `windowId`. The last window of a profile closes its tabs
+  until Today is persisted. Auto-archive and tab discarding apply to
   parked tabs as usual.
 - On launch, open one window on the last active space. All tabs appear in the
   sidebar and load when clicked.
@@ -324,6 +325,7 @@ Milestones 2–4 make up the MVP.
 | D10 | Sync and Widevine deferred | MVP first |
 | D11 | Pin one Chromium stable tag for all platforms | Reproducible builds; one rebase per cycle |
 | D12 | Sidebar persisted as JSON via `ImportantFileWriter`, not SQLite | The pinned tree is small and cheapest to write whole; atomic and proven by bookmarks. SQLite comes in when archive and history need queries |
+| D13 | A closing window hands its tabs to another window of the profile; no parking `Browser` yet (refines D8) | A hidden window would come back visible through session restore and keep the process alive without UI on Windows and Linux. A real window gives extensions a `windowId` too |
 
 ## 15. Open questions
 

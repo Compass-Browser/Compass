@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
+index b68f089aebf83b82499611404433d430e9971f14..c374e4693748e2cc3406fc0c8380bd92d8be4efa 100644
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ 
++#include "strata/browser/window_sync/window_features.h"
++
+ #include <stdint.h>
+ 
+ #include <algorithm>
+@@ -4595,6 +4597,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
+     return views::CloseRequestResult::kCannotClose;
+   }
+ 
++  // Strata: the tabs live on in another window; the emptied window closes
++  // itself, as when its last tab is dragged out.
++  if (strata::HandOffTabsBeforeClose(browser_)) {
++    return views::CloseRequestResult::kCannotClose;
++  }
++
+   // Give beforeunload handlers, the user, or policy the chance to cancel the
+   // close before we hide the window below.
+   if (!UnloadController::From(browser_)->HandleBeforeClose()) {

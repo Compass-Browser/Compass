@@ -5,8 +5,12 @@
 #ifndef STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 #define STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 
+#include <vector>
+
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/uuid.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "strata/browser/sidebar/space_model.h"
@@ -18,13 +22,19 @@ namespace strata {
 
 class LiveTabRegistry;
 
+// The placeholder a window shows for a tab that moved to another window.
+inline constexpr char kPlaceholderHost[] = "strata-placeholder";
+inline constexpr char kPlaceholderURL[] = "chrome://strata-placeholder/";
+
 // Keeps a window's TabStripModel in line with its profile's SpaceModel. The
 // model is the source of truth: the strip holds the nodes live in this
 // window, in the tree's depth-first order. Tabs the strip gains, loses or
 // reorders on its own (links, keyboard shortcuts, extensions) are mirrored
 // into the Today section. A pinned node outlives its tab: when the tab
 // closes, the node stays, unloaded. A tab moving to another window keeps its
-// node. See docs/design/sidebar.md, slices b to d.
+// node. When a tab leaves for another window, this window falls back to its
+// previous tab, or shows a placeholder for it. See docs/design/sidebar.md,
+// slices b to d and "Window sync".
 class TabStripBridge : public TabStripModelObserver,
                        public SpaceModel::Observer {
  public:
@@ -45,6 +55,21 @@ class TabStripBridge : public TabStripModelObserver,
   // here (move on focus); an unloaded node gets a new tab. Either way it lands
   // in the foreground, at the node's place in the strip.
   tabs::TabInterface* OpenNode(SidebarNode* tab_node);
+
+  // The node a placeholder tab stands for, or null if |tab| isn't one (or its
+  // node is gone).
+  SidebarNode* GetPlaceholderNode(const tabs::TabInterface* tab) const;
+
+  // The node |tab| shows: its own, or its placeholder's.
+  SidebarNode* GetShownNode(const tabs::TabInterface* tab) const;
+
+  // Called before |tab| leaves this window. If it's the active tab, activates
+  // the previously used one, or a placeholder if there's none.
+  void PrepareToLoseTab(tabs::TabInterface* tab);
+
+  // Moves this window's tabs to |target|, in the background, and closes its
+  // placeholders. The strip ends up empty.
+  void HandOffTabsTo(TabStripBridge& target);
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -92,6 +117,15 @@ class TabStripBridge : public TabStripModelObserver,
   void SyncStripOrder();
   void ScheduleSyncStripOrder();
 
+  bool IsPlaceholder(const tabs::TabInterface* tab) const;
+  void InsertPlaceholder(SidebarNode* node);
+  // Closes placeholders that aren't active, or whose node is gone.
+  void ClosePlaceholders();
+  void ScheduleClosePlaceholders();
+
+  // Moves |tab| to the front of the most-recently-used list.
+  void MarkUsed(tabs::TabInterface* tab);
+
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   const raw_ptr<SpaceModel> space_model_;
@@ -102,6 +136,14 @@ class TabStripBridge : public TabStripModelObserver,
 
   // Set while OpenNode() inserts a tab: that tab belongs to this node.
   raw_ptr<SidebarNode> adopting_node_ = nullptr;
+  // Set while InsertPlaceholder() inserts a placeholder for this node.
+  raw_ptr<SidebarNode> placeholder_node_ = nullptr;
+
+  // This window's placeholder tabs, and the nodes they stand for.
+  base::flat_map<tabs::TabHandle, base::Uuid> placeholders_;
+
+  // This window's tabs, most recently used first. May hold stale handles.
+  std::vector<tabs::TabHandle> mru_;
 
   base::WeakPtrFactory<TabStripBridge> weak_factory_{this};
 };

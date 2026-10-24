@@ -10,13 +10,17 @@ build_webui("build") {
   grd_prefix = "strata_sidebar"
   grit_output_dir = "$root_gen_dir/strata"
 
-  static_files = [ "strata_sidebar.html" ]
+  static_files = [
+    "placeholder.html",
+    "strata_sidebar.html",
+  ]
   ts_files = [
     "app.html.ts",
     "app.ts",
     "browser_proxy.ts",
     "node.html.ts",
     "node.ts",
+    "placeholder.ts",
   ]
   css_files = [ "app.css" ]
 

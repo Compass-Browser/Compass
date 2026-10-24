@@ -312,6 +312,52 @@ test (save, then load into a new model), and bridge tests with two windows:
 shared Today, move on focus, and a tab closing in one window while the
 other window's page sees it.
 
+## Window sync: closing windows, fallback, placeholder
+
+Goal: windows are views onto the space, as ARCHITECTURE.md §7 says.
+Closing a window doesn't close its tabs, and moving a tab away never closes a
+window.
+
+**Closing a window hands its tabs to another window** of the profile: the
+most recently active one that isn't closing. They're moved, not reloaded,
+and they keep their nodes. That window's bridge puts them in tree order,
+in the background. This replaces the hidden parking `Browser` (D8, now
+D13). A hidden window brings its own problems: session restore would bring
+it back visible, and it keeps the process alive with no UI on Windows and
+Linux. Handing off to a real window gives extensions a `windowId` just
+the same. When spaces arrive (one `Browser` per window and space), the
+hidden `Browser`s of inactive spaces will hold such tabs anyway.
+
+- Hook: `BrowserView::OnWindowCloseRequested()`, before `beforeunload`
+  runs, because the tabs aren't closing. One call to
+  `strata::HandOffTabsBeforeClose()`. If it moved the tabs, the request
+  returns `kCannotClose`, and the now empty strip closes the window through
+  upstream's `TabStripEmpty()` path, the same as dragging out the last tab.
+- No hand-off when quitting (`browser_shutdown::IsTryingToQuit()`), for
+  non-normal windows, or for the last window of the profile. There the tabs
+  close as before. Keeping Today across that needs Today persistence.
+
+**Move on focus, the source side.** Before a tab leaves window A, A's
+bridge activates A's previous selection. Each bridge keeps a most recently
+used list of its tabs. If A has no other tab, it gets a **placeholder
+tab** first, so A stays open.
+
+**Placeholder:** `chrome://strata-placeholder`, a small WebUI in the same
+resource pak as the sidebar. It shows "<title> is open in another window"
+and a **Bring here** button. The bridge tracks placeholder tab → node and
+doesn't mirror placeholders into the model. The sidebar shows the node as
+active while its placeholder is. Placeholders close when:
+
+- the node comes back to this window (Bring here, or a sidebar click);
+- the window activates any other tab;
+- the node is removed.
+
+Mojo: `PlaceholderHandler { GetInfo() => (title, url); BringHere(); }`.
+
+**Tests:** bridge tests for the fallback, the placeholder lifecycle and the
+hand-off (two windows), and a browser test that closes a real window and
+checks its tab lives on in the other one.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the

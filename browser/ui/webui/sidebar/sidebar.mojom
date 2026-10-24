@@ -79,3 +79,12 @@ interface Page {
   NodeLiveChanged(string id, bool live);
   ActiveNodeChanged(string? id);
 };
+
+// Browser-side handler for chrome://strata-placeholder, the tab a window shows
+// for a tab that moved to another window.
+interface PlaceholderHandler {
+  // The tab the placeholder stands for.
+  GetInfo() => (string title, url.mojom.Url url);
+  // Moves that tab back into the placeholder's window, replacing it.
+  BringHere();
+};

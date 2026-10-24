@@ -224,7 +224,9 @@ SidebarNode* SidebarPageHandler::FindNode(const std::string& id) {
 }
 
 std::optional<std::string> SidebarPageHandler::GetActiveNodeId() {
-  const SidebarNode* node = bridge().GetNode(tab_strip_model()->GetActiveTab());
+  // A placeholder shows its node as active.
+  const SidebarNode* node =
+      bridge().GetShownNode(tab_strip_model()->GetActiveTab());
   if (!node) {
     return std::nullopt;
   }

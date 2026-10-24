@@ -9,6 +9,8 @@ source_set("ui") {
   sources = [
     "views/sidebar/strata_sidebar_view.cc",
     "views/sidebar/strata_sidebar_view.h",
+    "webui/placeholder/strata_placeholder_ui.cc",
+    "webui/placeholder/strata_placeholder_ui.h",
     "webui/sidebar/sidebar_page_handler.cc",
     "webui/sidebar/sidebar_page_handler.h",
     "webui/sidebar/strata_sidebar_ui.cc",
@@ -19,6 +21,9 @@ source_set("ui") {
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
     "//strata/browser/ui/webui/sidebar:mojo_bindings",
+
+    # BrowserView's close hook calls into it (see patches/).
+    "//strata/browser/window_sync",
   ]
   deps = [
     "//base",
@@ -32,7 +37,6 @@ source_set("ui") {
     "//components/favicon_base",
     "//components/tabs:public",
     "//content/public/browser",
-    "//strata/browser/window_sync",
     "//strata/resources/sidebar:resources",
     "//skia",
     "//ui/base",

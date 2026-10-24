@@ -1,0 +1,61 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Open in another window</title>
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        align-items: center;
+        background: var(--color-sys-base, #fff);
+        color: var(--color-sys-on-surface, #1f1f1f);
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        max-width: 420px;
+        padding: 24px;
+        text-align: center;
+      }
+
+      #title {
+        font-size: 18px;
+        font-weight: 500;
+        margin: 0 0 8px;
+        overflow-wrap: anywhere;
+      }
+
+      p {
+        margin: 0 0 20px;
+        opacity: 0.7;
+      }
+
+      button {
+        background: var(--color-sys-primary, #0b57d0);
+        border: none;
+        border-radius: 18px;
+        color: var(--color-sys-on-primary, #fff);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 500;
+        padding: 8px 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title"></h1>
+      <p>This tab is open in another window.</p>
+      <button id="bringHere">Bring here</button>
+    </main>
+    <script type="module" src="placeholder.js"></script>
+  </body>
+</html>

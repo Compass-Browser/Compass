@@ -22,6 +22,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "strata/browser/window_sync/live_tab_registry.h"
+#include "strata/browser/window_sync/window_features.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -118,6 +119,10 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
     if (!source) {
       return nullptr;
     }
+    // Leave the other window on its previous tab, or a placeholder.
+    if (WindowFeatures* source_features = WindowFeatures::From(source)) {
+      source_features->tab_strip_bridge().PrepareToLoseTab(tab);
+    }
     TabStripModel* source_strip = source->GetTabStripModel();
     std::unique_ptr<tabs::TabModel> detached =
         source_strip->DetachTabAtForInsertion(source_strip->GetIndexOfTab(tab));
@@ -137,10 +142,71 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
   return GetTab(tab_node);
 }
 
+SidebarNode* TabStripBridge::GetPlaceholderNode(
+    const tabs::TabInterface* tab) const {
+  if (!tab) {
+    return nullptr;
+  }
+  auto it = placeholders_.find(tab->GetHandle());
+  return it == placeholders_.end() ? nullptr
+                                   : space_model_->FindById(it->second);
+}
+
+SidebarNode* TabStripBridge::GetShownNode(const tabs::TabInterface* tab) const {
+  SidebarNode* node = GetNode(tab);
+  return node ? node : GetPlaceholderNode(tab);
+}
+
+void TabStripBridge::PrepareToLoseTab(tabs::TabInterface* tab) {
+  if (!tab_strip_model_ || tab_strip_model_->GetActiveTab() != tab) {
+    return;
+  }
+  for (const tabs::TabHandle& handle : mru_) {
+    tabs::TabInterface* previous = handle.Get();
+    if (!previous || previous == tab || IsPlaceholder(previous)) {
+      continue;
+    }
+    const int index = tab_strip_model_->GetIndexOfTab(previous);
+    if (index != TabStripModel::kNoTab) {
+      tab_strip_model_->ActivateTabAt(index);
+      return;
+    }
+  }
+  InsertPlaceholder(GetNode(tab));
+}
+
+void TabStripBridge::HandOffTabsTo(TabStripBridge& target) {
+  CHECK(tab_strip_model_);
+  CHECK(target.tab_strip_model_);
+  // One pass, front to back, so the target sees them in strip order. Closing
+  // a placeholder is synchronous (it has no unload handlers); the bound only
+  // guards against one that isn't.
+  for (int pass = tab_strip_model_->count();
+       pass > 0 && !tab_strip_model_->empty(); --pass) {
+    tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(0);
+    if (IsPlaceholder(tab)) {
+      tab_strip_model_->CloseWebContentsAt(0, CLOSE_NONE);
+      continue;
+    }
+    std::unique_ptr<tabs::TabModel> detached =
+        tab_strip_model_->DetachTabAtForInsertion(0);
+    target.tab_strip_model_->InsertDetachedTabAt(
+        target.tab_strip_model_->count(), std::move(detached),
+        AddTabTypes::ADD_NONE);
+  }
+}
+
 void TabStripBridge::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
+  if (selection.active_tab_changed() && selection.new_tab) {
+    MarkUsed(selection.new_tab);
+    // Using any other tab dismisses this window's placeholders.
+    if (!placeholders_.empty() && !IsPlaceholder(selection.new_tab)) {
+      ScheduleClosePlaceholders();
+    }
+  }
   if (updating_) {
     return;
   }
@@ -195,6 +261,10 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
     registry_->Unregister(tab);
     to_close.push_back(tab->GetHandle());
   }
+  if (!placeholders_.empty()) {
+    // Placeholders for this subtree have nothing left to bring back.
+    ScheduleClosePlaceholders();
+  }
   if (updating_ || to_close.empty()) {
     return;
   }
@@ -221,6 +291,11 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
 }
 
 void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
+  if (placeholder_node_) {
+    placeholders_[tab->GetHandle()] = placeholder_node_->id();
+    placeholder_node_ = nullptr;
+    return;
+  }
   // A tab may land before the pinned block (or between a split's panes);
   // put it back in the tree's order afterwards.
   ScheduleSyncStripOrder();
@@ -262,6 +337,9 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
 
 void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
                                       bool will_delete) {
+  if (placeholders_.erase(tab->GetHandle())) {
+    return;
+  }
   SidebarNode* node = GetNode(tab);
   if (!node || !will_delete) {
     return;
@@ -335,6 +413,55 @@ void TabStripBridge::SyncStripOrder() {
                                           /*select_after_move=*/false);
     }
   }
+}
+
+bool TabStripBridge::IsPlaceholder(const tabs::TabInterface* tab) const {
+  return tab && placeholders_.contains(tab->GetHandle());
+}
+
+void TabStripBridge::InsertPlaceholder(SidebarNode* node) {
+  if (!node || !tab_strip_model_) {
+    return;
+  }
+  NavigateParams params(browser_, GURL(kPlaceholderURL),
+                        ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.tabstrip_index = tab_strip_model_->count();
+  base::AutoReset<raw_ptr<SidebarNode>> placeholder(&placeholder_node_, node);
+  Navigate(&params);
+}
+
+void TabStripBridge::ClosePlaceholders() {
+  if (!tab_strip_model_) {
+    return;
+  }
+  std::vector<tabs::TabHandle> to_close;
+  for (const auto& [handle, node_id] : placeholders_) {
+    tabs::TabInterface* tab = handle.Get();
+    if (tab && (tab != tab_strip_model_->GetActiveTab() ||
+                !space_model_->FindById(node_id))) {
+      to_close.push_back(handle);
+    }
+  }
+  for (const tabs::TabHandle& handle : to_close) {
+    const int index = tab_strip_model_->GetIndexOfTab(handle.Get());
+    if (index != TabStripModel::kNoTab) {
+      tab_strip_model_->CloseWebContentsAt(index, CLOSE_NONE);
+    }
+  }
+}
+
+void TabStripBridge::ScheduleClosePlaceholders() {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&TabStripBridge::ClosePlaceholders,
+                                weak_factory_.GetWeakPtr()));
+}
+
+void TabStripBridge::MarkUsed(tabs::TabInterface* tab) {
+  std::erase(mru_, tab->GetHandle());
+  mru_.insert(mru_.begin(), tab->GetHandle());
+  // Drop handles of tabs that are gone, so the list stays short.
+  std::erase_if(mru_, [](const tabs::TabHandle& h) { return !h.Get(); });
 }
 
 void TabStripBridge::ScheduleSyncStripOrder() {

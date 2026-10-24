@@ -5,6 +5,7 @@
 #include "base/test/run_until.h"
 #include "base/values.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
@@ -235,6 +236,70 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
   const SidebarNode* folder = model.pinned_root()->children()[0].get();
   EXPECT_EQ(folder->type(), SidebarNode::Type::kFolder);
   EXPECT_EQ(folder->children()[0]->title(), u"One");
+}
+
+// Window sync across real windows (docs/design/sidebar.md, "Window sync").
+using StrataWindowSyncBrowserTest = StrataSidebarBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
+                       ClosingAWindowKeepsItsTabs) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      second, GURL("data:text/html,<title>Two</title>")));
+  content::WebContents* two =
+      second->GetTabStripModel()->GetActiveWebContents();
+
+  CloseBrowserSynchronously(second);
+
+  // The same page, moved, not reloaded.
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(model->count(), 2);
+  EXPECT_NE(model->GetIndexOfWebContents(two), TabStripModel::kNoTab);
+  EXPECT_EQ(model->GetActiveWebContents()->GetTitle(), u"One");
+}
+
+IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
+                       PlaceholderBringsTheTabBack) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  SidebarNode* one = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    for (const auto& node : model.today_root()->children()) {
+      if (node->title() == u"One") {
+        one = node.get();
+      }
+    }
+    return one != nullptr;
+  }));
+
+  // Open One from the second window: it moves there, and the first window,
+  // which has no other tab, shows a placeholder instead of closing.
+  WindowFeatures::From(second)->tab_strip_bridge().OpenNode(one);
+  ASSERT_EQ(browser()->tab_strip_model()->count(), 1);
+  content::WebContents* placeholder =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(placeholder));
+  EXPECT_EQ(true, content::EvalJs(placeholder, R"(
+    (async () => {
+      while (document.querySelector('#title').textContent !== 'One') {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+
+  ASSERT_TRUE(content::ExecJs(placeholder,
+                              "document.querySelector('#bringHere').click()"));
+
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    TabStripModel* first = browser()->tab_strip_model();
+    return first->count() == 1 &&
+           first->GetActiveWebContents()->GetTitle() == u"One";
+  }));
+  EXPECT_EQ(second->GetTabStripModel()->count(), 1);
 }
 
 }  // namespace

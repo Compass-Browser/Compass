@@ -46,6 +46,14 @@ class WindowFeatures {
   ui::ScopedUnownedUserData<WindowFeatures> scoped_data_holder_;
 };
 
+// Called when |browser|'s window is asked to close, before beforeunload
+// handlers run. Hands its tabs to the profile's most recently active other
+// window, unless the app is quitting or |browser| is the profile's last
+// normal window. Returns true if it did; the emptied window then closes on
+// its own, and the caller must not go on closing it. See
+// docs/design/sidebar.md, "Window sync".
+bool HandOffTabsBeforeClose(BrowserWindowInterface* browser);
+
 }  // namespace strata
 
 #endif  // STRATA_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
