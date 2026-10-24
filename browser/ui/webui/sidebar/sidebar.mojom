@@ -125,6 +125,12 @@ interface PageHandler {
   RestoreArchived(string id);
   RemoveArchived(string id);
   ClearArchive();
+
+  // The pointer rests on tab node |id|'s row, which spans |row_top| to
+  // |row_top| + |row_height| in the page: shows its hover card next to it, or
+  // moves the card there. Other nodes hide the card.
+  ShowHoverCard(string id, int32 row_top, int32 row_height);
+  HideHoverCard();
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,

@@ -22,6 +22,9 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
+#include "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h"
+#include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h"
+#include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,6 +34,7 @@
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
 namespace strata {
@@ -536,6 +540,56 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, KeyboardNavigation) {
   EXPECT_EQ("Three", content::EvalJs(contents,
                                      content::JsReplace(kPressKey, "Delete")));
   EXPECT_TRUE(base::test::RunUntil([&] { return tabs->count() == 2; }));
+}
+
+// Rests the pointer on the |index|th tab row, or on nothing (-1: it leaves
+// the list).
+constexpr char kHover[] = R"(
+  ((index) => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const sections = root.querySelector('#sections');
+    if (index < 0) {
+      sections.dispatchEvent(new PointerEvent('pointerleave', {
+        pointerType: 'mouse',
+      }));
+      return;
+    }
+    root.querySelectorAll('.tab')[index].dispatchEvent(
+        new PointerEvent('pointerover', {
+          pointerType: 'mouse', bubbles: true, composed: true,
+        }));
+  })($1))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, HoverCards) {
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
+  SidebarHoverCard* card = SidebarHoverCard::FromWebContents(contents);
+  ASSERT_TRUE(card);
+
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, 0)));
+  ASSERT_TRUE(base::test::RunUntil([&] { return card->IsShowing(); }));
+  views::Widget* widget = card->bubble_for_testing()->GetWidget();
+  // A new card shows its tab, not an empty frame.
+  EXPECT_EQ(card->bubble_for_testing()->GetTitleViewForTesting()->GetText(),
+            u"One");
+  // One isn't the active tab: the card has room for its preview.
+  EXPECT_TRUE(card->bubble_for_testing()->GetThumbnailViewForTesting());
+  EXPECT_TRUE(base::test::RunUntil([&] { return widget->IsVisible(); }));
+  // To the sidebar's right; its shadow may overlap the edge.
+  EXPECT_GT(widget->GetWindowBoundsInScreen().CenterPoint().x(),
+            sidebar()->GetBoundsInScreen().right());
+  const int first_y = widget->GetWindowBoundsInScreen().y();
+
+  // Moving down the list moves the card.
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, 1)));
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return widget->GetWindowBoundsInScreen().y() > first_y; }));
+  EXPECT_EQ(card->bubble_for_testing()->GetWidget(), widget);
+  EXPECT_EQ(card->bubble_for_testing()->GetTitleViewForTesting()->GetText(),
+            u"Two");
+
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, -1)));
+  EXPECT_TRUE(base::test::RunUntil([&] { return !card->IsShowing(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ArchivePanel) {

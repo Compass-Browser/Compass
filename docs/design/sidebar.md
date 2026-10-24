@@ -455,9 +455,8 @@ file URLs only). The entry opens in the foreground. The document takes every
 drag that no drop target took, with `dropEffect = 'none'`, so nothing
 navigates the sidebar's own page.
 
-**Not taken over yet:** hover cards (the native strip never showed them
-either, being hidden), dragging an entry out of the sidebar into a new
-window, and keyboard navigation between entries.
+**Not taken over yet:** dragging an entry out of the sidebar into a new
+window. Hover cards and keyboard navigation came later (see their sections).
 
 **Tests:** browser tests that the region has no `TabStripView` and a sized
 sidebar, that resizing and collapsing work, and that a dropped link opens
@@ -531,14 +530,57 @@ instead of landing back on it.
 Focus shows with `:focus-visible`, so clicks don't draw a ring. There's no
 shortcut that moves the focus from the page to the sidebar yet.
 
+## Hover cards
+
+Goal: resting the pointer on a tab shows upstream's hover card next to the
+sidebar: the full title, the domain, and a preview of a live tab.
+
+**Upstream's bubble, our anchor.** `TabHoverCardBubbleView` takes any
+`HoverCardAnchorTarget`, so the native card is reused without the native
+strip. `SidebarHoverCard` (`browser/ui/views/sidebar/`) is user data on the
+sidebar page's WebContents. It owns the bubble and an empty anchor view, a
+child of `StrataSidebarView` as wide as the sidebar and placed over the
+hovered row, so the card opens to the sidebar's right (`LEFT_TOP`). Moving
+the anchor moves the card. Upstream's `TabHoverCardController` isn't used: it
+needs a `TabStripRegionView` and native tab views.
+
+**Data.** A live tab's card comes from `tabs::TabData::FromTabInterface()`,
+as upstream's does, wherever the tab lives. An unloaded entry gets its title
+and URL. A live tab that isn't the window's active one gets a preview,
+through upstream's `TabHoverCardThumbnailObserver`; a placeholder shows until
+it arrives. A tab gets its image when it goes to the background; one that was
+never shown is captured in the background while its card is up, which takes
+a few seconds (much longer in a debug build). As upstream's controller does,
+a new card gets its content before it shows, and it's sized to its content
+each time. Previews follow upstream's rule: the `kTabHoverCardImages`
+feature and the user's setting (Settings > Appearance). Without the feature,
+tabs have no `ThumbnailTabHelper`, so there's nothing to show. Upstream turns
+the feature off on macOS only; Strata turns it on everywhere (one-line patch
+to `ui_features.cc`).
+
+**The page decides when.** It sends `ShowHoverCard(id, row_top, row_height)`
+after the pointer rests on a tab for 500 ms (upstream's delay), and right
+away while a card is up, so moving down the list moves the card. Crossing
+the gap between rows doesn't hide it. Leaving the list, pressing, dragging,
+scrolling or the row going away sends `HideHoverCard()`. A pressed tab
+doesn't show its card again until the pointer moves to another tab. Folders
+and splits as a whole have no card; panes do. The card can't take focus or
+activate the window.
+
+**Not done:** cards for keyboard focus, upstream's slide and fade
+animations, and the memory usage footer.
+
+**Tests:** a browser test drives the page's hover handling and checks the
+card shows, moves and hides. The keyboard handling is checked by driving the
+page in a browser test too.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the
   `TabStripModel` ↔ `SpaceModel` bridge.
 - **c:** pinned section, nested folders, drag and drop.
 - **d:** persistence (Today followed separately).
-- **e:** remove the hidden native strip (done; hover cards and drag-out
-  remain).
+- **e:** remove the hidden native strip (done; drag-out remains).
 
 ## Risks
 

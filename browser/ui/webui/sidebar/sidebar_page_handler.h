@@ -24,8 +24,13 @@
 class BrowserWindowInterface;
 class TabStripModel;
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace strata {
 
+class SidebarHoverCard;
 class TabStripBridge;
 
 // Serves the sidebar page its window's SpaceModel and acts on the page's
@@ -38,10 +43,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public LiveTabRegistry::Observer,
                            public TabStripModelObserver {
  public:
+  // |page_contents| is the sidebar page's, for its hover card (null in
+  // tests).
   SidebarPageHandler(
       mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver,
       mojo::PendingRemote<sidebar::mojom::Page> page,
-      BrowserWindowInterface* browser);
+      BrowserWindowInterface* browser,
+      content::WebContents* page_contents = nullptr);
   SidebarPageHandler(const SidebarPageHandler&) = delete;
   SidebarPageHandler& operator=(const SidebarPageHandler&) = delete;
   ~SidebarPageHandler() override;
@@ -74,6 +82,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void RestoreArchived(const std::string& id) override;
   void RemoveArchived(const std::string& id) override;
   void ClearArchive() override;
+  void ShowHoverCard(const std::string& id,
+                     int32_t row_top,
+                     int32_t row_height) override;
+  void HideHoverCard() override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -124,8 +136,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // has none.
   void CloseTabNode(SidebarNode* tab_node);
 
+  // The page's hover card, or null without one (in tests).
+  SidebarHoverCard* hover_card();
+
   const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<WindowFeatures> features_;
+  const raw_ptr<content::WebContents> page_contents_;
   // The space whose changes the page gets: the window's, except while it
   // switches.
   raw_ptr<SpaceModel> observed_space_ = nullptr;

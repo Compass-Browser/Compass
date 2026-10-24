@@ -17,9 +17,11 @@
 #include "base/uuid.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tabs/public/tab_interface.h"
+#include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/window_sync/window_features.h"
 
 namespace strata {
@@ -50,9 +52,11 @@ static_assert(static_cast<int>(sidebar::mojom::SpaceColor::kMaxValue) ==
 SidebarPageHandler::SidebarPageHandler(
     mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver,
     mojo::PendingRemote<sidebar::mojom::Page> page,
-    BrowserWindowInterface* browser)
+    BrowserWindowInterface* browser,
+    content::WebContents* page_contents)
     : browser_(browser),
       features_(WindowFeatures::From(browser)),
+      page_contents_(page_contents),
       receiver_(this, std::move(receiver)),
       page_(std::move(page)) {
   CHECK(features_);
@@ -272,6 +276,38 @@ void SidebarPageHandler::ClearArchive() {
   space_model().ClearArchive();
 }
 
+void SidebarPageHandler::ShowHoverCard(const std::string& id,
+                                       int32_t row_top,
+                                       int32_t row_height) {
+  SidebarHoverCard* card = hover_card();
+  if (!card) {
+    return;
+  }
+  SidebarNode* node = FindNode(id);
+  if (!node || node->type() != SidebarNode::Type::kTab || row_height <= 0) {
+    card->Hide();
+    return;
+  }
+  tabs::TabInterface* tab = registry().GetTab(node);
+  tabs::TabData data;
+  if (tab) {
+    data = tabs::TabData::FromTabInterface(tab);
+  } else {
+    data.title = node->title();
+    data.visible_url = node->url();
+    data.last_committed_url = node->url();
+  }
+  // The window's active tab is on screen already.
+  const bool show_preview = tab && tab != tab_strip_model()->GetActiveTab();
+  card->Show(data, row_top, row_height, show_preview);
+}
+
+void SidebarPageHandler::HideHoverCard() {
+  if (SidebarHoverCard* card = hover_card()) {
+    card->Hide();
+  }
+}
+
 void SidebarPageHandler::OnNodeAdded(const SidebarNode& node) {
   page_->NodeAdded(node.parent()->id().AsLowercaseString(),
                    node.parent()->GetIndexOf(&node), ToMojo(node));
@@ -418,6 +454,11 @@ std::optional<std::string> SidebarPageHandler::GetActiveNodeId() {
     return std::nullopt;
   }
   return node->id().AsLowercaseString();
+}
+
+SidebarHoverCard* SidebarPageHandler::hover_card() {
+  return page_contents_ ? SidebarHoverCard::FromWebContents(page_contents_)
+                        : nullptr;
 }
 
 void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node) {

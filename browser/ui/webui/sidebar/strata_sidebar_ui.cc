@@ -58,7 +58,8 @@ void StrataSidebarUI::CreatePageHandler(
     return;
   }
   page_handler_ = std::make_unique<SidebarPageHandler>(
-      std::move(receiver), std::move(page), browser);
+      std::move(receiver), std::move(page), browser,
+      web_ui()->GetWebContents());
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(StrataSidebarUI)

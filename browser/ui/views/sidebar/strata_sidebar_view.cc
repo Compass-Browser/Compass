@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "strata/browser/sidebar/space_list.h"
+#include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -102,6 +103,7 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
   // follows the theme and the window's active state.
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
       GetWebContents(), SK_ColorTRANSPARENT);
+  SidebarHoverCard::CreateForWebContents(GetWebContents(), this);
   LoadInitialURL(GURL(kStrataSidebarURL));
 }
 

@@ -48,6 +48,12 @@ const ARCHIVE_DELAYS: ArchiveDelay[] = [
   {hours: 0, label: 'Never'},
 ];
 
+// How long the pointer rests on a tab before its hover card shows. Once one
+// shows, moving to another tab moves it there at once. Upstream's delay.
+const HOVER_CARD_DELAY_MS = 500;
+// Crossing the gap between two rows doesn't hide the card.
+const HOVER_CARD_HIDE_DELAY_MS = 100;
+
 const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 
 // The sidebar: the window's SpaceModel, as a pinned and a Today section. The
@@ -112,6 +118,14 @@ export class StrataSidebarAppElement extends CrLitElement {
   private draggingId_: string|null = null;
   private dropTarget_: DropTarget|null = null;
 
+  // The tab the pointer rests on, whose hover card shows or is about to.
+  private hoverId_: string|null = null;
+  private hoverCardShown_: boolean = false;
+  private hoverShowTimer_: number|null = null;
+  private hoverHideTimer_: number|null = null;
+  // Pressing a tab hides its card until the pointer moves to another one.
+  private hoverPressedId_: string|null = null;
+
   override connectedCallback() {
     super.connectedCallback();
     const router = this.browserProxy_.callbackRouter;
@@ -141,6 +155,7 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.hideHoverCard_();
     document.removeEventListener('dragover', this.onDocumentDragover_);
     document.removeEventListener('drop', this.onDocumentDrop_);
     document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
@@ -552,7 +567,83 @@ export class StrataSidebarAppElement extends CrLitElement {
     e.preventDefault();
   }
 
+  protected onSectionsPointerover_(e: PointerEvent) {
+    if (e.pointerType !== 'mouse' || this.draggingId_) {
+      return;
+    }
+    const row = (e.target as Element).closest<HTMLElement>('.tab');
+    const id = row?.dataset['nodeId'] ?? null;
+    if (!row || !id) {
+      this.hoverId_ = null;
+      this.clearHoverTimers_();
+      this.hoverHideTimer_ = setTimeout(
+          () => this.hideHoverCard_(), HOVER_CARD_HIDE_DELAY_MS);
+      return;
+    }
+    if (id === this.hoverId_) {
+      return;
+    }
+    this.hoverId_ = id;
+    this.clearHoverTimers_();
+    if (id === this.hoverPressedId_) {
+      return;
+    }
+    this.hoverPressedId_ = null;
+    if (this.hoverCardShown_) {
+      this.showHoverCard_(row);
+    } else {
+      this.hoverShowTimer_ =
+          setTimeout(() => this.showHoverCard_(row), HOVER_CARD_DELAY_MS);
+    }
+  }
+
+  protected onSectionsPointerleave_() {
+    this.hideHoverCard_();
+  }
+
+  // Clicking, dragging and scrolling hide the card.
+  protected onSectionsPointerdown_() {
+    this.hoverPressedId_ = this.hoverId_;
+    this.hideHoverCard_();
+  }
+
+  protected onSectionsScroll_() {
+    this.hideHoverCard_();
+  }
+
+  private showHoverCard_(row: HTMLElement) {
+    this.hoverShowTimer_ = null;
+    if (!row.isConnected) {
+      return;
+    }
+    const rect = row.getBoundingClientRect();
+    this.browserProxy_.handler.showHoverCard(
+        row.dataset['nodeId']!, Math.round(rect.top), Math.round(rect.height));
+    this.hoverCardShown_ = true;
+  }
+
+  private hideHoverCard_() {
+    this.clearHoverTimers_();
+    this.hoverId_ = null;
+    if (this.hoverCardShown_) {
+      this.hoverCardShown_ = false;
+      this.browserProxy_.handler.hideHoverCard();
+    }
+  }
+
+  private clearHoverTimers_() {
+    if (this.hoverShowTimer_ !== null) {
+      clearTimeout(this.hoverShowTimer_);
+      this.hoverShowTimer_ = null;
+    }
+    if (this.hoverHideTimer_ !== null) {
+      clearTimeout(this.hoverHideTimer_);
+      this.hoverHideTimer_ = null;
+    }
+  }
+
   protected onDragstart_(e: DragEvent) {
+    this.hideHoverCard_();
     const row = (e.target as Element).closest<HTMLElement>('.row');
     if (!row || !e.dataTransfer) {
       return;
@@ -782,6 +873,9 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   private onNodeRemoved_(id: string) {
+    if (id === this.hoverId_) {
+      this.hideHoverCard_();
+    }
     const node = this.nodes_.get(id);
     const parent = this.parents_.get(id);
     if (!node || !parent) {

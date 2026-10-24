@@ -45,6 +45,7 @@ nothing else.
 | `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | `InitializeTabStrip()` adds the Strata sidebar in place of the native tab strip, which is never built; `GetTabData()` reads tab data from the tab; `strata::ActiveTabWatcher` reports active-tab changes; resize, collapse and hover-card lock paths no longer assume a native strip |
 | `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.h.patch` | Declares those overrides and the sidebar members |
 | `chrome-browser-ui-tabs-tab_strip_prefs.cc.patch` | Vertical tabs on by default |
+| `chrome-browser-ui-ui_features.cc.patch` | Hover card preview images on by default on macOS too (upstream turns them off there); the sidebar's hover cards show them |
 | `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Strata's WebUI configs |
 | `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Strata's WebUI Mojo interfaces |
 | `chrome-chrome_paks.gni.patch` | Ships `strata_sidebar_resources.pak` |

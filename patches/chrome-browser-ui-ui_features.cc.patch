@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/ui_features.cc b/chrome/browser/ui/ui_features.cc
+index 562d8529586fa175ca3a790b5217669c638cadbe..e9ec153fa2654a8b5e0fa2bfd6cd65677b0ec18d 100644
+--- a/chrome/browser/ui/ui_features.cc
++++ b/chrome/browser/ui/ui_features.cc
+@@ -266,13 +266,8 @@ BASE_FEATURE(kNewTabButtonContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ // Enables preview images in tab-hover cards.
+ // https://crbug.com/41439486
+-BASE_FEATURE(kTabHoverCardImages,
+-#if BUILDFLAG(IS_MAC)
+-             base::FEATURE_DISABLED_BY_DEFAULT
+-#else
+-             base::FEATURE_ENABLED_BY_DEFAULT
+-#endif
+-);
++// Strata: on everywhere; its sidebar's hover cards show previews.
++BASE_FEATURE(kTabHoverCardImages, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ BASE_FEATURE(kTabModalUsesDesktopWidget, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
