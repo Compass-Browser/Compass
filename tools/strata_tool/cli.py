@@ -18,6 +18,8 @@ from .process import CommandError, depot_tool, run
 DEFAULT_TARGET = 'chrome'
 TEST_TARGET = 'strata_unittests'
 BROWSER_TEST_TARGET = 'strata_browsertests'
+# Created by tools/setup_dev_signing.sh.
+DEV_SIGNING_IDENTITY = 'Strata Dev Signing'
 
 
 def wrapper_python(layout: Layout) -> str:
@@ -155,7 +157,30 @@ def build(layout: Layout, config: str, targets, jobs: int | None = None) -> Path
   jobs_args = ['-j', str(jobs)] if jobs else []
   run([depot_tool('autoninja'), '-C', out_dir] + jobs_args + list(targets),
       layout.src, env=layout.env())
+  if BROWSER_TEST_TARGET in targets:
+    sign_for_tcc(out_dir / BROWSER_TEST_TARGET)
   return out_dir
+
+
+def sign_for_tcc(binary: Path) -> None:
+  """Signs |binary| with the dev identity, if there is one.
+
+  macOS remembers an ad-hoc signed binary's "removable volume" permission by
+  its hash, so it asks again after every link. With a stable identity it
+  asks once.
+  """
+  if sys.platform != 'darwin' or not binary.exists():
+    return
+  if run(['security', 'find-certificate', '-c', DEV_SIGNING_IDENTITY],
+         binary.parent, check=False, capture=True, quiet=True).returncode != 0:
+    return
+  info = run(['codesign', '-dvv', binary], binary.parent, check=False,
+             capture=True, quiet=True)
+  if ('Authority=' + DEV_SIGNING_IDENTITY) in (info.stdout + info.stderr):
+    return
+  print('signing %s as "%s"' % (binary.name, DEV_SIGNING_IDENTITY))
+  run(['codesign', '--force', '--sign', DEV_SIGNING_IDENTITY, '--identifier',
+       binary.name, binary], binary.parent)
 
 
 def cmd_build(layout: Layout, args) -> None:
