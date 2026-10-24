@@ -263,7 +263,8 @@ needs no patch. It owns:
 - the profile's one `SpaceModel` (spaces come with ARCHITECTURE.md §6);
 - the `LiveTabRegistry`, which maps node ↔ `TabHandle` for every live tab
   in every window and tells observers when a node gains or loses its tab;
-- the `SidebarStore`, which persists Pinned.
+- the `SidebarStore`, which persists Pinned (and Today, see "Today
+  persistence").
 
 Each window keeps a `TabStripBridge`, now for *its own* live tabs only. Strip
 order is the depth-first order of the nodes live in that window. Today
@@ -304,8 +305,8 @@ history, so it can come in then.
 - Off-the-record profiles get a model but no store.
 - Node IDs aren't stored. They're only stable for a session.
 
-Today isn't persisted yet. Restoring it means working with session restore,
-so it comes later. Folder collapse state stays in the page.
+Today came later; see "Today persistence". Folder collapse state stays in
+the page.
 
 **Tests:** a serializer round trip (pure, in `browser/sidebar/`), a store
 test (save, then load into a new model), and bridge tests with two windows:
@@ -335,7 +336,7 @@ hidden `Browser`s of inactive spaces will hold such tabs anyway.
   upstream's `TabStripEmpty()` path, the same as dragging out the last tab.
 - No hand-off when quitting (`browser_shutdown::IsTryingToQuit()`), for
   non-normal windows, or for the last window of the profile. There the tabs
-  close as before. Keeping Today across that needs Today persistence.
+  close, and their Today entries stay, unloaded (see "Today persistence").
 
 **Move on focus, the source side.** A window never switches away from the
 tab it shows. When that tab leaves for another window, a placeholder takes
@@ -372,12 +373,55 @@ with an empty string if the capture failed.
 hand-off (two windows), and a browser test that closes a real window and
 checks its tab lives on in the other one.
 
+## Today persistence
+
+Goal: Today survives closing the last window and restarting, as
+ARCHITECTURE.md §7 describes. Entries come back unloaded and load when
+clicked.
+
+**Saved with Pinned.** The sidebar file gains a `"today"` list, next to
+`"pinned"`, in the same node format (tabs and splits). The version stays 1:
+older files have no `"today"` and load as before. Every model change
+schedules a write, still coalesced over 1 s; browsing changes titles and
+URLs often, but the file is small. Today tabs that aren't worth restoring,
+new tab and blank pages (`IsRestorableURL()`), are left out, so each launch's
+new tab page doesn't pile up.
+
+**Window closing unloads Today.** A tab that closes on its own still removes
+its Today entry. A tab that closes because its window does
+(`TabStripModel::closing_all()`, normal windows) keeps it, unloaded, like a
+pinned entry. That covers the last window of the profile and quitting; other
+windows hand their tabs off first. Restorable URLs only, as above.
+
+**Tabs Chrome restores take over their entries.** Chrome's own session
+restore ("Continue where you left off", crash recovery) and reopening a
+closed tab bring back tabs with their history. Without help, each would
+become a new Today entry next to its saved, unloaded one. A tab whose last
+committed entry `IsRestored()` takes over the first unloaded entry with its
+URL, pinned first, depth first (`RestoredTabMatcher`). The file loads in the
+background and may arrive after restore has started, so tabs restored before
+the load get their own Today entry first. Once the load is in, each moves to
+its saved entry and the extra entry goes. The strip then follows the tree's
+order again. The URL is the restored entry's while the tab hasn't loaded,
+since it has no document yet.
+
+URLs aren't unique, so two saved entries with the same URL can swap tabs.
+Both have the same page, so it shows only in history. Tagging tabs with node
+IDs through session "extra data" would be exact, but it needs two patches:
+upstream drops tab extra data when it rebuilds the session file (D14).
+
+**Tests:** serializer (Today saved, new tab and blank pages left out, folders
+in Today skipped), store (Today round trip), and bridge tests: closing the
+window unloads Today, a restored tab takes over its entry while an ordinary
+one doesn't, and tabs restored before the load move to their entries when it
+arrives (a second profile with a sidebar file written first).
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the
   `TabStripModel` ↔ `SpaceModel` bridge.
 - **c:** pinned section, nested folders, drag and drop.
-- **d:** persistence.
+- **d:** persistence (Today followed separately).
 - **e:** remove the hidden native strip and take over drag/drop and hover
   cards.
 

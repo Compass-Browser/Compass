@@ -18,13 +18,14 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "strata/browser/sidebar/space_model.h"
+#include "strata/browser/window_sync/live_tab_registry.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
 
 namespace strata {
 
-class LiveTabRegistry;
+class RestoredTabMatcher;
 
 // The placeholder a window shows for a tab that moved to another window.
 inline constexpr char kPlaceholderHost[] = "strata-placeholder";
@@ -35,16 +36,19 @@ inline constexpr char kPlaceholderURL[] = "chrome://strata-placeholder/";
 // window, in the tree's depth-first order. Tabs the strip gains, loses or
 // reorders on its own (links, keyboard shortcuts, extensions) are mirrored
 // into the Today section. A pinned node outlives its tab: when the tab
-// closes, the node stays, unloaded. A tab moving to another window keeps its
-// node. When the tab a window shows leaves for another window, the window
+// closes, the node stays, unloaded. So does a Today node whose tab closes
+// with its window. A tab moving to another window keeps its node. A tab
+// Chrome restores takes over its saved entry. When the tab a window shows leaves for another window, the window
 // keeps showing it: a placeholder with a frozen screenshot takes its place. See
 // docs/design/sidebar.md, slices b to d and "Window sync".
 class TabStripBridge : public TabStripModelObserver,
-                       public SpaceModel::Observer {
+                       public SpaceModel::Observer,
+                       public LiveTabRegistry::Observer {
  public:
   TabStripBridge(BrowserWindowInterface* browser,
                  SpaceModel* space_model,
-                 LiveTabRegistry* registry);
+                 LiveTabRegistry* registry,
+                 RestoredTabMatcher* restored_tab_matcher);
   TabStripBridge(const TabStripBridge&) = delete;
   TabStripBridge& operator=(const TabStripBridge&) = delete;
   ~TabStripBridge() override;
@@ -97,6 +101,9 @@ class TabStripBridge : public TabStripModelObserver,
                    size_t old_index) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
 
+  // LiveTabRegistry::Observer:
+  void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
+
  private:
   // Adds a Today node for |tab|, which the strip just inserted at |index|.
   void AddNodeForTab(tabs::TabInterface* tab, int index);
@@ -105,8 +112,9 @@ class TabStripBridge : public TabStripModelObserver,
   // strip back if the tab's node can't move that way.
   void MoveNodeForTab(tabs::TabInterface* tab, int to_index);
 
-  // Removes |tab|'s node, or only unloads it if it's pinned. A tab that
-  // isn't deleted (it moves to another window) keeps its node.
+  // Removes |tab|'s node, or only unloads it if it's pinned or its window is
+  // closing. A tab that isn't deleted (it moves to another window) keeps its
+  // node.
   void RemoveNodeForTab(tabs::TabInterface* tab, bool will_delete);
 
   bool IsPinned(const SidebarNode* node) const;
@@ -164,6 +172,7 @@ class TabStripBridge : public TabStripModelObserver,
   raw_ptr<TabStripModel> tab_strip_model_;
   const raw_ptr<SpaceModel> space_model_;
   const raw_ptr<LiveTabRegistry> registry_;
+  const raw_ptr<RestoredTabMatcher> restored_tab_matcher_;
 
   // Set while the bridge changes either side, so it ignores its own echoes.
   bool updating_ = false;

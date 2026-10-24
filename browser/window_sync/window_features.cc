@@ -21,7 +21,8 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
     : service_(SpaceService::Get(browser->GetProfile())),
       tab_strip_bridge_(browser,
                         &service_->space_model(),
-                        &service_->registry()),
+                        &service_->registry(),
+                        &service_->restored_tab_matcher()),
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {}
 
 WindowFeatures::~WindowFeatures() {

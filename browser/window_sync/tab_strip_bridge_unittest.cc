@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
@@ -19,8 +20,13 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/restore_type.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/referrer.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -33,6 +39,7 @@ namespace strata {
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::UnorderedElementsAre;
 using Type = SidebarNode::Type;
 
 // Hosts of |parent|'s children, with splits shown as "[pane|pane]".
@@ -111,6 +118,23 @@ class TabStripBridgeTest : public BrowserWithTestWindowTest {
       }
     }
     return nullptr;
+  }
+
+  // Adds a tab to |window| the way session restore does: with its history,
+  // not loaded.
+  void AddRestoredTab(BrowserWindowInterface* window, const GURL& url) {
+    std::unique_ptr<content::WebContents> contents =
+        content::WebContents::Create(
+            content::WebContents::CreateParams(window->GetProfile()));
+    std::vector<std::unique_ptr<content::NavigationEntry>> entries;
+    entries.push_back(content::NavigationController::CreateNavigationEntry(
+        url, content::Referrer(), std::nullopt, std::nullopt,
+        ui::PAGE_TRANSITION_LINK, /*is_renderer_initiated=*/false,
+        std::string(), window->GetProfile(), nullptr));
+    contents->GetController().Restore(0, content::RestoreType::kRestored,
+                                      &entries);
+    window->GetTabStripModel()->AppendWebContents(std::move(contents),
+                                                  /*foreground=*/false);
   }
 
   SidebarNode* TodayAt(size_t index) {
@@ -531,6 +555,76 @@ TEST_F(TabStripBridgeTest, TheLastWindowKeepsItsTabs) {
 
   EXPECT_FALSE(HandOffTabsBeforeClose(browser()));
   EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+TEST_F(TabStripBridgeTest, ClosingTheWindowUnloadsToday) {
+  OpenTabs({"a.test", "b.test"});
+  AddTab(browser(), GURL("about:blank"));
+  Settle();
+
+  tab_strip_model()->CloseAllTabs();
+  Settle();
+
+  // Blank pages aren't worth keeping.
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("a.test", "b.test"));
+  EXPECT_FALSE(bridge().GetTab(TodayAt(0)));
+  EXPECT_FALSE(bridge().GetTab(TodayAt(1)));
+
+  // Clicking an entry loads it again.
+  EXPECT_TRUE(bridge().OpenNode(TodayAt(1)));
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+TEST_F(TabStripBridgeTest, ARestoredTabTakesOverItsEntry) {
+  SidebarNode* pinned = space_model().AddTab(
+      space_model().pinned_root(), 0, GURL("https://p.test/"), u"P");
+  SidebarNode* today = space_model().AddTab(
+      space_model().today_root(), 0, GURL("https://a.test/"), u"A");
+
+  AddRestoredTab(browser(), GURL("https://a.test/"));
+  AddRestoredTab(browser(), GURL("https://p.test/"));
+  // No entry for this one, and an ordinary tab never takes one over.
+  AddRestoredTab(browser(), GURL("https://n.test/"));
+  OpenTabAt(3, "a.test");
+
+  EXPECT_THAT(Hosts(space_model().pinned_root()), ElementsAre("p.test"));
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              UnorderedElementsAre("a.test", "a.test", "n.test"));
+  EXPECT_TRUE(bridge().GetTab(today));
+  // Pinned leads the strip.
+  EXPECT_EQ(bridge().GetTab(pinned), tab_strip_model()->GetTabAtIndex(0));
+}
+
+TEST_F(TabStripBridgeTest, TabsRestoredBeforeTheLoadTakeOverTheirEntries) {
+  TestingProfile* other = profile_manager()->CreateTestingProfile("other");
+  ASSERT_TRUE(base::WriteFile(
+      other->GetPath().AppendASCII("Strata Sidebar.json"), R"({
+        "version": 1,
+        "pinned": [{"type": "tab", "title": "P", "url": "https://p.test/"}],
+        "today": [{"type": "tab", "title": "A", "url": "https://a.test/"}]
+      })"));
+  // The file loads in the background, so these come first.
+  std::unique_ptr<BrowserWindowInterface> window = CreateBrowser(
+      other, BrowserWindowInterface::TYPE_NORMAL, /*hosted_app=*/false);
+  AddRestoredTab(window.get(), GURL("https://a.test/"));
+  AddRestoredTab(window.get(), GURL("https://p.test/"));
+  Settle();
+
+  WindowFeatures* features = WindowFeatures::From(window.get());
+  SpaceModel& model = features->space_model();
+  EXPECT_THAT(Hosts(model.pinned_root()), ElementsAre("p.test"));
+  EXPECT_THAT(Hosts(model.today_root()), ElementsAre("a.test"));
+  TabStripModel* strip = window->GetTabStripModel();
+  EXPECT_EQ(features->tab_strip_bridge().GetTab(
+                model.pinned_root()->children()[0].get()),
+            strip->GetTabAtIndex(0));
+  EXPECT_EQ(features->tab_strip_bridge().GetTab(
+                model.today_root()->children()[0].get()),
+            strip->GetTabAtIndex(1));
+
+  strip->CloseAllTabs();
+  window.reset();
 }
 
 }  // namespace

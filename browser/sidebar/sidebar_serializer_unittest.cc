@@ -57,11 +57,9 @@ TEST(SidebarSerializerTest, RoundTripsThePinnedTree) {
   SidebarNode* a = model.AddTab(pinned, 1, GURL("https://a.test/"), u"A");
   SidebarNode* b = model.AddTab(pinned, 2, GURL("https://b.test/"), u"B");
   model.Split(a, b);
-  // Today isn't saved.
-  model.AddTab(model.today_root(), 0, GURL("https://t.test/"), u"T");
 
   SpaceModel restored;
-  EXPECT_EQ(DeserializePinned(SerializePinned(model), restored, 0), 2u);
+  EXPECT_EQ(DeserializeSpace(SerializeSpace(model), restored), 2u);
 
   EXPECT_EQ(Describe(restored.pinned_root()), "Work{Mail,Docs{Doc}},[A|B]");
   EXPECT_EQ(restored.pinned_root()->children()[0]->children()[0]->url(),
@@ -69,15 +67,38 @@ TEST(SidebarSerializerTest, RoundTripsThePinnedTree) {
   EXPECT_TRUE(restored.today_root()->children().empty());
 }
 
-TEST(SidebarSerializerTest, InsertsAtTheGivenIndex) {
+TEST(SidebarSerializerTest, SavesTodayWithoutNewTabPages) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  model.AddTab(today, 0, GURL("https://t.test/"), u"T");
+  model.AddTab(today, 1, GURL("chrome://newtab/"), u"New Tab");
+  SidebarNode* a = model.AddTab(today, 2, GURL("https://a.test/"), u"A");
+  SidebarNode* b = model.AddTab(today, 3, GURL("https://b.test/"), u"B");
+  model.Split(a, b);
+  SidebarNode* c = model.AddTab(today, 3, GURL("https://c.test/"), u"C");
+  SidebarNode* blank = model.AddTab(today, 4, GURL("about:blank"), u"Blank");
+  model.Split(c, blank);
+
+  SpaceModel restored;
+  EXPECT_EQ(DeserializeSpace(SerializeSpace(model), restored), 3u);
+
+  // A split left with one pane is just that pane.
+  EXPECT_EQ(Describe(restored.today_root()), "T,[A|B],C");
+  EXPECT_TRUE(restored.pinned_root()->children().empty());
+}
+
+TEST(SidebarSerializerTest, InsertsAheadOfExistingEntries) {
   SpaceModel source;
   source.AddTab(source.pinned_root(), 0, GURL("https://a.test/"), u"A");
+  source.AddTab(source.today_root(), 0, GURL("https://b.test/"), u"B");
   SpaceModel model;
   model.AddTab(model.pinned_root(), 0, GURL("https://x.test/"), u"X");
+  model.AddTab(model.today_root(), 0, GURL("https://y.test/"), u"Y");
 
-  DeserializePinned(SerializePinned(source), model, 0);
+  DeserializeSpace(SerializeSpace(source), model);
 
   EXPECT_EQ(Describe(model.pinned_root()), "A,X");
+  EXPECT_EQ(Describe(model.today_root()), "B,Y");
 }
 
 TEST(SidebarSerializerTest, SkipsWhatTheModelCantHold) {
@@ -92,16 +113,21 @@ TEST(SidebarSerializerTest, SkipsWhatTheModelCantHold) {
         {"type": "folder", "title": "No folders in splits"},
         {"type": "tab", "title": "Only"}
       ]}
+    ],
+    "today": [
+      {"type": "folder", "title": "No folders in Today"},
+      {"type": "tab", "title": "T", "url": "https://t.test/"}
     ]
   })",
                              base::JSON_PARSE_RFC);
   ASSERT_TRUE(data && data->is_dict());
   SpaceModel model;
 
-  EXPECT_EQ(DeserializePinned(data->GetDict(), model, 0), 2u);
+  EXPECT_EQ(DeserializeSpace(data->GetDict(), model), 3u);
 
   // A split left with one pane is just that pane.
   EXPECT_EQ(Describe(model.pinned_root()), "Kept,Only");
+  EXPECT_EQ(Describe(model.today_root()), "T");
 }
 
 TEST(SidebarSerializerTest, IgnoresOtherVersions) {
@@ -110,7 +136,7 @@ TEST(SidebarSerializerTest, IgnoresOtherVersions) {
       base::JSON_PARSE_RFC);
   SpaceModel model;
 
-  EXPECT_EQ(DeserializePinned(data->GetDict(), model, 0), 0u);
+  EXPECT_EQ(DeserializeSpace(data->GetDict(), model), 0u);
   EXPECT_TRUE(model.pinned_root()->children().empty());
 }
 

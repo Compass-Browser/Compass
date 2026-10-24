@@ -127,7 +127,7 @@ Performance rules for WebUI surfaces:
 Profile                         (Chromium profile: cookies, extensions, passwords, history)
  └─ Space                       (owns one sidebar tree; many spaces can share a profile)
      ├─ Pinned root             (persistent: folders, tabs, splits; folders nest)
-     └─ Today root              (ephemeral: tabs and splits; auto-archived)
+     └─ Today root              (open tabs and splits; persisted, auto-archived)
 
 SidebarNode = Folder { title, children: SidebarNode[] }
             | Tab    { url, title }
@@ -156,7 +156,7 @@ extension tab indices stay meaningful.
 Persistence: one JSON file per profile (`Strata Sidebar.json` in the profile
 directory), written atomically and in batches by `ImportantFileWriter` on a
 background sequence, the way upstream stores bookmarks (D12). It stores the
-pinned tree for now; spaces and per-window UI state follow.
+pinned tree and Today; spaces and per-window UI state follow.
 
 ## 6. Spaces and profiles
 
@@ -194,11 +194,12 @@ the shared space model, not owners of tabs.
 - **Closing a window doesn't close tabs.** Tabs belong to the space. A
   closing window hands its live tabs to another window of the profile (D13).
   We don't hold detached `WebContents` ourselves, because extensions assume
-  every tab has a `windowId`. The last window of a profile closes its tabs
-  until Today is persisted. Auto-archive and tab discarding apply to
-  parked tabs as usual.
+  every tab has a `windowId`. The last window of a profile, or quitting,
+  closes the tabs, but their Today entries stay, unloaded. Auto-archive and
+  tab discarding apply to parked tabs as usual.
 - On launch, open one window on the last active space. All tabs appear in the
-  sidebar and load when clicked.
+  sidebar and load when clicked. Tabs that Chrome's session restore brings
+  back take over their saved entries (D14).
 
 Code (planned): `browser/window_sync/`. This includes `LiveTabRegistry`
 (node → `WebContents`, host `Browser`) and the move-on-focus controller.
@@ -326,6 +327,7 @@ Milestones 2–4 make up the MVP.
 | D11 | Pin one Chromium stable tag for all platforms | Reproducible builds; one rebase per cycle |
 | D12 | Sidebar persisted as JSON via `ImportantFileWriter`, not SQLite | The pinned tree is small and cheapest to write whole; atomic and proven by bookmarks. SQLite comes in when archive and history need queries |
 | D13 | A closing window hands its tabs to another window of the profile; no parking `Browser` yet (refines D8) | A hidden window would come back visible through session restore and keep the process alive without UI on Windows and Linux. A real window gives extensions a `windowId` too |
+| D14 | Today is saved in the sidebar file; tabs Chrome restores take over saved entries by URL | Chrome's session restore keeps history and crash recovery, so we leave it alone. Tagging tabs through session "extra data" would need two patches (a rebuild of the session file drops tab extra data). URL matching is right for the common case and degrades to a duplicate entry |
 
 ## 15. Open questions
 

@@ -20,8 +20,8 @@ namespace strata {
 namespace {
 
 // Short, so little is lost if the session ends: logging out of macOS exits
-// without closing windows or destroying the profile. Pinned changes are rare
-// user actions, so this writes seldom anyway. Bookmarks use 2.5 s.
+// without closing windows or destroying the profile. Bookmarks use 2.5 s.
+// Browsing changes Today's titles and URLs often, but the file is small.
 constexpr base::TimeDelta kCommitInterval = base::Seconds(1);
 
 scoped_refptr<base::SequencedTaskRunner> CreateFileTaskRunner() {
@@ -66,26 +66,25 @@ void SidebarStore::Flush() {
 }
 
 void SidebarStore::OnNodeAdded(const SidebarNode& node) {
-  SaveIfPinned(node);
+  ScheduleSave();
 }
 
 void SidebarStore::OnNodeMoved(const SidebarNode& node,
                                const SidebarNode& old_parent,
                                size_t old_index) {
-  SaveIfPinned(node);
-  SaveIfPinned(old_parent);
+  ScheduleSave();
 }
 
 void SidebarStore::OnNodeChanged(const SidebarNode& node) {
-  SaveIfPinned(node);
+  ScheduleSave();
 }
 
 void SidebarStore::OnNodeWillBeRemoved(const SidebarNode& node) {
-  SaveIfPinned(node);
+  ScheduleSave();
 }
 
 std::optional<std::string> SidebarStore::SerializeData() {
-  return base::WriteJsonWithOptions(SerializePinned(*model_),
+  return base::WriteJsonWithOptions(SerializeSpace(*model_),
                                     base::JSONWriter::OPTIONS_PRETTY_PRINT);
 }
 
@@ -93,7 +92,7 @@ void SidebarStore::OnLoaded(base::OnceClosure done,
                             std::optional<base::Value> data) {
   if (data && data->is_dict()) {
     base::AutoReset<bool> loading(&loading_, true);
-    DeserializePinned(data->GetDict(), *model_, 0);
+    DeserializeSpace(data->GetDict(), *model_);
   }
   loaded_ = true;
   if (changed_before_load_) {
@@ -102,8 +101,8 @@ void SidebarStore::OnLoaded(base::OnceClosure done,
   std::move(done).Run();
 }
 
-void SidebarStore::SaveIfPinned(const SidebarNode& node) {
-  if (loading_ || !model_->pinned_root()->Contains(&node)) {
+void SidebarStore::ScheduleSave() {
+  if (loading_) {
     return;
   }
   if (loaded_) {

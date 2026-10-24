@@ -26,9 +26,13 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "strata/browser/sidebar/sidebar_serializer.h"
 #include "strata/browser/window_sync/live_tab_registry.h"
+#include "strata/browser/window_sync/restored_tab_matcher.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/page_transition_types.h"
@@ -54,6 +58,26 @@ std::string EncodeSnapshot(const SkBitmap& bitmap) {
     return std::string();
   }
   return "data:image/jpeg;base64," + base::Base64Encode(*jpeg);
+}
+
+// The page |contents| shows. A restored tab that hasn't loaded has no
+// document yet, only its restored history.
+GURL GetTabURL(content::WebContents* contents) {
+  const GURL& url = contents->GetLastCommittedURL();
+  if (!url.is_empty()) {
+    return url;
+  }
+  content::NavigationEntry* entry =
+      contents->GetController().GetLastCommittedEntry();
+  return entry && !entry->IsInitialEntry() ? entry->GetURL() : GURL();
+}
+
+// Whether |contents| was restored (session restore, reopening a closed tab)
+// and hasn't navigated since.
+bool IsRestoredTab(content::WebContents* contents) {
+  content::NavigationEntry* entry =
+      contents->GetController().GetLastCommittedEntry();
+  return entry && entry->IsRestored();
 }
 
 // Appends the live tabs under |node| to |tabs|, depth first.
@@ -92,25 +116,30 @@ bool CountLiveTabsBefore(const TabStripBridge& bridge,
 
 TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
                                SpaceModel* space_model,
-                               LiveTabRegistry* registry)
+                               LiveTabRegistry* registry,
+                               RestoredTabMatcher* restored_tab_matcher)
     : browser_(browser),
       tab_strip_model_(browser->GetTabStripModel()),
       space_model_(space_model),
-      registry_(registry) {
+      registry_(registry),
+      restored_tab_matcher_(restored_tab_matcher) {
   CHECK(tab_strip_model_);
   CHECK(space_model_);
   CHECK(registry_);
+  CHECK(restored_tab_matcher_);
   for (int i = 0; i < tab_strip_model_->count(); ++i) {
     AddNodeForTab(tab_strip_model_->GetTabAtIndex(i), i);
   }
   tab_strip_model_->AddObserver(this);
   space_model_->AddObserver(this);
+  registry_->AddObserver(this);
   did_become_active_subscription_ =
       browser_->RegisterDidBecomeActive(base::BindRepeating(
           &TabStripBridge::OnWindowBecameActive, base::Unretained(this)));
 }
 
 TabStripBridge::~TabStripBridge() {
+  registry_->RemoveObserver(this);
   space_model_->RemoveObserver(this);
   if (tab_strip_model_) {
     tab_strip_model_->RemoveObserver(this);
@@ -346,6 +375,14 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
           weak_factory_.GetWeakPtr(), std::move(to_close)));
 }
 
+void TabStripBridge::OnNodeLiveChanged(const SidebarNode& node, bool live) {
+  // A tab here took over another node (RestoredTabMatcher): its place in the
+  // strip follows the new node.
+  if (live && !updating_ && GetTab(&node)) {
+    ScheduleSyncStripOrder();
+  }
+}
+
 void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
   if (placeholder_node_) {
     placeholders_[tab->GetHandle()] = placeholder_node_->id();
@@ -365,11 +402,22 @@ void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
     return;
   }
   content::WebContents* contents = tab->GetContents();
+  const GURL url = GetTabURL(contents);
+  const bool restored = IsRestoredTab(contents);
   base::AutoReset<bool> updating(&updating_, true);
-  SidebarNode* node = space_model_->AddTab(
-      space_model_->today_root(), GetTodayIndexAfter(index, nullptr),
-      contents->GetLastCommittedURL(), contents->GetTitle());
+  if (restored) {
+    if (SidebarNode* entry = restored_tab_matcher_->FindEntry(url)) {
+      registry_->Register(tab, entry);
+      return;
+    }
+  }
+  SidebarNode* node = space_model_->AddTab(space_model_->today_root(),
+                                           GetTodayIndexAfter(index, nullptr),
+                                           url, contents->GetTitle());
   registry_->Register(tab, node);
+  if (restored) {
+    restored_tab_matcher_->AddUnmatched(node);
+  }
 }
 
 void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
@@ -405,7 +453,13 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
     return;
   }
   registry_->Unregister(tab);
-  if (IsPinned(node)) {
+  // Tabs close with their window when it's the last one, or when quitting
+  // (other windows hand theirs off first). Today keeps them, unloaded, like
+  // Pinned does.
+  const bool window_closing =
+      tab_strip_model_ && tab_strip_model_->closing_all() &&
+      browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+  if (IsPinned(node) || (window_closing && IsRestorableURL(node->url()))) {
     return;
   }
   base::AutoReset<bool> updating(&updating_, true);
@@ -422,8 +476,9 @@ void TabStripBridge::UpdateNode(tabs::TabInterface* tab) {
     return;
   }
   content::WebContents* contents = tab->GetContents();
-  if (node->url() != contents->GetLastCommittedURL()) {
-    space_model_->SetUrl(node, contents->GetLastCommittedURL());
+  const GURL url = GetTabURL(contents);
+  if (!url.is_empty() && node->url() != url) {
+    space_model_->SetUrl(node, url);
   }
   if (node->title() != contents->GetTitle()) {
     space_model_->SetTitle(node, contents->GetTitle());

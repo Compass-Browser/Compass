@@ -4,6 +4,7 @@
 
 #include "strata/browser/sidebar/sidebar_serializer.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,7 @@ constexpr int kVersion = 1;
 
 constexpr char kVersionKey[] = "version";
 constexpr char kPinnedKey[] = "pinned";
+constexpr char kTodayKey[] = "today";
 constexpr char kTypeKey[] = "type";
 constexpr char kTitleKey[] = "title";
 constexpr char kUrlKey[] = "url";
@@ -29,10 +31,16 @@ constexpr char kTab[] = "tab";
 constexpr char kFolder[] = "folder";
 constexpr char kSplit[] = "split";
 
-base::DictValue SerializeNode(const SidebarNode& node) {
+// Returns null for a node that isn't saved: in Today (|today|), a tab that
+// isn't restorable, or a split with no such pane.
+std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
+                                             bool today) {
   base::DictValue dict;
   switch (node.type()) {
     case SidebarNode::Type::kTab:
+      if (today && !IsRestorableURL(node.url())) {
+        return std::nullopt;
+      }
       dict.Set(kTypeKey, kTab);
       dict.Set(kUrlKey, node.url().spec());
       break;
@@ -46,14 +54,30 @@ base::DictValue SerializeNode(const SidebarNode& node) {
       NOTREACHED();
   }
   dict.Set(kTitleKey, base::UTF16ToUTF8(node.title()));
-  if (!node.children().empty()) {
-    base::ListValue children;
-    for (const auto& child : node.children()) {
-      children.Append(SerializeNode(*child));
+  base::ListValue children;
+  for (const auto& child : node.children()) {
+    if (std::optional<base::DictValue> child_dict =
+            SerializeNode(*child, today)) {
+      children.Append(std::move(*child_dict));
     }
+  }
+  if (node.type() == SidebarNode::Type::kSplit && children.empty()) {
+    return std::nullopt;
+  }
+  if (!children.empty()) {
     dict.Set(kChildrenKey, std::move(children));
   }
   return dict;
+}
+
+base::ListValue SerializeSection(const SidebarNode& root, bool today) {
+  base::ListValue entries;
+  for (const auto& node : root.children()) {
+    if (std::optional<base::DictValue> dict = SerializeNode(*node, today)) {
+      entries.Append(std::move(*dict));
+    }
+  }
+  return entries;
 }
 
 // Adds |dict| as a child of |parent| at |index|. Returns false if it was
@@ -82,7 +106,8 @@ bool DeserializeNode(const base::DictValue& dict,
 
   const base::ListValue* children = dict.FindList(kChildrenKey);
   if (*type == kFolder) {
-    if (parent->type() == SidebarNode::Type::kSplit) {
+    if (parent->type() == SidebarNode::Type::kSplit ||
+        parent == model.today_root()) {
       return false;
     }
     SidebarNode* folder = model.AddFolder(parent, index, std::move(title16));
@@ -129,35 +154,50 @@ bool DeserializeNode(const base::DictValue& dict,
   return false;
 }
 
-}  // namespace
-
-base::DictValue SerializePinned(const SpaceModel& model) {
-  base::ListValue pinned;
-  for (const auto& node : model.pinned_root()->children()) {
-    pinned.Append(SerializeNode(*node));
-  }
-  base::DictValue data;
-  data.Set(kVersionKey, kVersion);
-  data.Set(kPinnedKey, std::move(pinned));
-  return data;
-}
-
-size_t DeserializePinned(const base::DictValue& data,
-                         SpaceModel& model,
-                         size_t index) {
-  const base::ListValue* pinned = data.FindList(kPinnedKey);
-  if (data.FindInt(kVersionKey) != kVersion || !pinned) {
+// Inserts the entries of |data|'s |key| section into |root|, ahead of its own.
+size_t DeserializeSection(const base::DictValue& data,
+                          const char* key,
+                          SpaceModel& model,
+                          SidebarNode* root) {
+  const base::ListValue* entries = data.FindList(key);
+  if (!entries) {
     return 0;
   }
   size_t inserted = 0;
-  for (const base::Value& entry : *pinned) {
+  for (const base::Value& entry : *entries) {
     if (entry.is_dict() &&
-        DeserializeNode(entry.GetDict(), model, model.pinned_root(),
-                        index + inserted)) {
+        DeserializeNode(entry.GetDict(), model, root, inserted)) {
       ++inserted;
     }
   }
   return inserted;
+}
+
+}  // namespace
+
+base::DictValue SerializeSpace(const SpaceModel& model) {
+  base::DictValue data;
+  data.Set(kVersionKey, kVersion);
+  data.Set(kPinnedKey, SerializeSection(*model.pinned_root(), false));
+  data.Set(kTodayKey, SerializeSection(*model.today_root(), true));
+  return data;
+}
+
+size_t DeserializeSpace(const base::DictValue& data, SpaceModel& model) {
+  if (data.FindInt(kVersionKey) != kVersion) {
+    return 0;
+  }
+  return DeserializeSection(data, kPinnedKey, model, model.pinned_root()) +
+         DeserializeSection(data, kTodayKey, model, model.today_root());
+}
+
+bool IsRestorableURL(const GURL& url) {
+  if (!url.is_valid() || url.IsAboutBlank()) {
+    return false;
+  }
+  // chrome://newtab/ and the WebUI page it commits as.
+  return !url.SchemeIs("chrome") ||
+         (url.host() != "newtab" && url.host() != "new-tab-page");
 }
 
 }  // namespace strata

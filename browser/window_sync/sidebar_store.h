@@ -21,11 +21,10 @@
 
 namespace strata {
 
-// Keeps a SpaceModel's pinned section in a JSON file (see
-// sidebar_serializer.h). Loads it once, on a background sequence, then saves
-// every change to Pinned, coalesced. Today isn't saved. Nothing is written
-// before the load finishes, so an early save can't drop saved entries. See
-// docs/design/sidebar.md, slice d.
+// Keeps a SpaceModel in a JSON file (see sidebar_serializer.h). Loads it
+// once, on a background sequence, then saves every change, coalesced. Nothing
+// is written before the load finishes, so an early save can't drop saved
+// entries. See docs/design/sidebar.md, slice d and "Today persistence".
 class SidebarStore : public SpaceModel::Observer,
                      public base::ImportantFileWriter::DataSerializer {
  public:
@@ -35,8 +34,8 @@ class SidebarStore : public SpaceModel::Observer,
   // Writes pending changes.
   ~SidebarStore() override;
 
-  // Reads the file and adds its entries ahead of anything already pinned.
-  // |done| runs once they're in the model.
+  // Reads the file and adds its entries ahead of those already in the model.
+  // |done| runs once they're in.
   void Load(base::OnceClosure done = base::DoNothing());
 
   // Writes pending changes now.
@@ -55,7 +54,7 @@ class SidebarStore : public SpaceModel::Observer,
 
  private:
   void OnLoaded(base::OnceClosure done, std::optional<base::Value> data);
-  void SaveIfPinned(const SidebarNode& node);
+  void ScheduleSave();
 
   const raw_ref<SpaceModel> model_;
   const scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
@@ -63,7 +62,7 @@ class SidebarStore : public SpaceModel::Observer,
   // Set while loaded entries go into the model, which needn't be saved back.
   bool loading_ = false;
   bool loaded_ = false;
-  // Pinned changed before the load finished.
+  // The model changed before the load finished.
   bool changed_before_load_ = false;
 
   base::WeakPtrFactory<SidebarStore> weak_factory_{this};

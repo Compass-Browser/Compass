@@ -70,14 +70,19 @@ TEST_F(SidebarStoreTest, SavesPinnedAndLoadsItBack) {
   EXPECT_EQ(Titles(restored.pinned_root()), "a,Work");
 }
 
-TEST_F(SidebarStoreTest, TodayIsNotSaved) {
+TEST_F(SidebarStoreTest, SavesTodayAndLoadsItBack) {
   SpaceModel model;
   auto store = std::make_unique<SidebarStore>(path(), &model);
   Load(*store);
   model.AddTab(model.today_root(), 0, GURL("https://t.test/"), u"t");
+  model.AddTab(model.today_root(), 1, GURL("chrome://newtab/"), u"ntp");
   Close(std::move(store));
 
-  EXPECT_FALSE(base::PathExists(path()));
+  SpaceModel restored;
+  SidebarStore restored_store(path(), &restored);
+  Load(restored_store);
+
+  EXPECT_EQ(Titles(restored.today_root()), "t");
 }
 
 TEST_F(SidebarStoreTest, NothingIsWrittenBeforeTheLoad) {

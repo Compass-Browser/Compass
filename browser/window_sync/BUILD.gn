@@ -9,6 +9,8 @@ source_set("window_sync") {
   sources = [
     "live_tab_registry.cc",
     "live_tab_registry.h",
+    "restored_tab_matcher.cc",
+    "restored_tab_matcher.h",
     "sidebar_store.cc",
     "sidebar_store.h",
     "space_service.cc",
@@ -60,6 +62,7 @@ source_set("unit_tests") {
     "//chrome/test:test_support",
     "//chrome/test/base:browser_with_test_window_test",
     "//content/public/browser",
+    "//content/public/common",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/base",
