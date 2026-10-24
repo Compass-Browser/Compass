@@ -1,17 +1,41 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index b68f089aebf83b82499611404433d430e9971f14..c374e4693748e2cc3406fc0c8380bd92d8be4efa 100644
+index b68f089aebf83b82499611404433d430e9971f14..087ed657a1ef65b6f0cfc7c18d2923036df9fab9 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
++#include "strata/browser/ui/views/sidebar/sidebar_header.h"
 +#include "strata/browser/window_sync/window_features.h"
 +
  #include <stdint.h>
  
  #include <algorithm>
-@@ -4595,6 +4597,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
+@@ -1108,6 +1111,10 @@ BrowserView::BrowserView(BrowserWindowInterface* browser)
+ }
+ 
+ BrowserView::~BrowserView() {
++  // Strata: the toolbar takes back the controls the sidebar holds before
++  // either is destroyed.
++  strata::DetachToolbar(browser_.get());
++
+   // Remove the layout manager to avoid dangling. This needs to be earlier than
+   // other cleanups that destroy views referenced in the layout manager.
+   SetLayoutManager(nullptr);
+@@ -3064,6 +3071,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
+ }
+ 
+ bool BrowserView::IsToolbarVisible() const {
++  // Strata: the sidebar holds the toolbar's controls.
++  if (strata::ShouldHideToolbar(browser_.get())) {
++    return false;
++  }
++
+ #if BUILDFLAG(IS_MAC)
+   // Immersive full screen makes it possible to display the toolbar when
+   // kShowFullscreenToolbar is not set.
+@@ -4595,6 +4607,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
      return views::CloseRequestResult::kCannotClose;
    }
  
@@ -24,3 +48,11 @@ index b68f089aebf83b82499611404433d430e9971f14..c374e4693748e2cc3406fc0c8380bd92
    // Give beforeunload handlers, the user, or policy the chance to cancel the
    // close before we hide the window below.
    if (!UnloadController::From(browser_)->HandleBeforeClose()) {
+@@ -5029,6 +5047,7 @@ void BrowserView::AddedToWidget() {
+ #endif
+ 
+   toolbar_->Init();
++  strata::AttachToolbar(browser_.get(), toolbar_);
+ 
+   if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
+     // When the WebUI Omnibox is embedded directly in the `BrowserView` (instead

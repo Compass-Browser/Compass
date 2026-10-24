@@ -1,6 +1,7 @@
 # Command bar and toolbar-free window
 
-Status: slices 1 (command bar) and 2 (sidebar header) done; slice 3 (no toolbar) next. Builds on ARCHITECTURE.md §4 and §11 and on
+Status: slices 1 to 3 done (command bar, sidebar header, no toolbar);
+slice 4 (Favorites) next. Builds on ARCHITECTURE.md §4 and §11 and on
 [sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
 
 ## Goal
@@ -175,3 +176,94 @@ Browser tests: the header shows the buttons and the pill in the expanded
 region and hides them collapsed; back becomes enabled after a navigation
 and goes back; the pill follows the active tab's host; clicking it opens
 the command bar on the current URL.
+
+## Slice 3: no toolbar
+
+### Hiding it
+
+`BrowserView::IsToolbarVisible()` asks `strata::ShouldHideToolbar()` first
+(patch). It returns true when the window's `SidebarHeader` holds the
+toolbar's controls (see below), which is only in vertical tab mode. The
+tabbed layout then gives the toolbar no space, as it does in fullscreen. The
+`ToolbarView` is still built and keeps running: the location bar's model,
+page actions, the extensions and download controllers all live there, and
+the rest of the browser reaches them through `ToolbarButtonProvider`.
+
+The location bar can't take focus while the toolbar is hidden (upstream's
+`UpdateFocusBehavior()`). Cmd+L opens the command bar anyway.
+
+### Moving the controls
+
+Rather than rebuilding them, the header takes upstream's own views out of
+the toolbar and adds them to itself. Bubbles that anchor to them (the
+extensions menu, extension popups, the downloads bubble, the app menu) then
+appear in the sidebar with no further change:
+
+| View | Found by | Goes to |
+|---|---|---|
+| Extensions container (pinned extensions and the extensions button) | `kToolbarExtensionsContainerElementId` | the pill's row, or a row under it |
+| Pinned toolbar actions (downloads while there are any, actions the user pinned) | `kPinnedToolbarActionsContainerElementId` | next to the extensions |
+| App menu button | `VIEW_ID_APP_MENU` | the end of the pill's row |
+
+The profile menu is a submenu of the app menu, so the avatar button stays in
+the hidden toolbar. Everything else in the toolbar (home, the split tabs
+button, media, battery saver) stays hidden too.
+
+The toolbar's own code keeps its pointers to the moved views. Its
+`FlexLayout` only lays out its own children, and its responsive overflow
+controller skips elements it can't find among them.
+
+Timing: the header exists before the toolbar is initialized
+(`BrowserView::AddedToWidget()` calls `ToolbarView::Init()` after its
+children were notified), so `BrowserView` calls `strata::AttachToolbar()`
+right after `Init()` (patch). The views go back to the toolbar, at their
+old index, in two cases: when the window switches to horizontal tabs (the
+header listens to `RegisterOnModeChanged()`), and at the start of
+`~BrowserView()` through `strata::DetachToolbar()` (patch). The latter is
+needed because `BrowserView` deletes the top container (and the toolbar,
+which has members that use these views) before the vertical region.
+
+### Site info
+
+A button at the pill's left shows the page's security icon (the location
+bar model's `GetVectorIcon()`) and opens page info anchored to itself. It
+builds the bubble as `ShowPageInfoDialogImpl()` does, with its own anchor.
+It's hidden on the new tab page, which has no page info.
+
+### Where other bubbles go
+
+- **Permission prompts** use `GetPageInfoAnchorConfiguration()`: with the
+  location bar not drawn it falls back to the app menu button, which is
+  now in the sidebar next to the pill.
+- **Page action bubbles** (bookmark star, passwords, translate, zoom,
+  cookie controls, ...) go through `ToolbarView::GetBubbleAnchor()`, which
+  anchors to the top container when the location bar isn't drawn: the top
+  right of the page. Arc shows these there too, so no patch for now.
+
+### Layout
+
+Expanded: the pill row is `[pill][extensions][pinned actions][app menu]`.
+If that leaves the pill narrower than 120 DIPs, the extensions and pinned
+actions move to a row of their own under the pill, aligned right. Collapsed:
+only the app menu shows, centered in a row under upstream's layout, so the
+menu stays reachable; extensions and pinned actions are hidden.
+
+### Tests
+
+Browser tests: the toolbar isn't visible and has no height; the three views
+are in the header and drawn; the app menu opens from there; switching to
+horizontal tabs puts them back in the toolbar and shows it, and switching
+back moves them again; site info opens page info anchored to its button;
+the collapsed header shows only the app menu.
+
+### Known gaps
+
+- With the sidebar collapsed, a download or an extension popup anchors to
+  a hidden view.
+- The site info icon updates on navigation and loading changes, not on
+  `VisibleSecurityStateChanged()` alone (for example mixed content found
+  after load).
+- The permission chip in the location bar never shows; prompts are bubbles.
+- No way to focus the moved controls with the keyboard as a pane (F6 still
+  cycles to the hidden toolbar).
+

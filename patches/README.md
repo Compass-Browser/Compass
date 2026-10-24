@@ -42,7 +42,7 @@ nothing else.
 | `chrome-browser-ui-browser_window-internal-BUILD.gn.patch` | Links `//strata/browser/window_sync` into the window features |
 | `chrome-browser-ui-browser_window-internal-embedder_browser_window_features.cc.patch` | Creates `strata::WindowFeatures` in the embedder hook's `Init()` |
 | `chrome-browser-ui-browser_window-public-embedder_browser_window_features.h.patch` | The `strata::WindowFeatures` member |
-| `chrome-browser-ui-views-frame-browser_view.cc.patch` | Calls `strata::HandOffTabsBeforeClose()` when a window is asked to close |
+| `chrome-browser-ui-views-frame-browser_view.cc.patch` | Calls `strata::HandOffTabsBeforeClose()` when a window is asked to close; `IsToolbarVisible()` is false while `strata::SidebarHeader` holds the toolbar's controls (`strata::ShouldHideToolbar()`); hands the toolbar to the header after `Init()` (`strata::AttachToolbar()`) and takes it back first thing in `~BrowserView()` (`strata::DetachToolbar()`) |
 | `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | Constructs `strata::SidebarHeader` as its top container; `InitializeTabStrip()` adds the Strata sidebar in place of the native tab strip, which is never built; `GetTabData()` reads tab data from the tab; `strata::ActiveTabWatcher` reports active-tab changes; resize, collapse and hover-card lock paths no longer assume a native strip |
 | `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.h.patch` | Declares those overrides and the sidebar members |
 | `chrome-browser-ui-tabs-tab_strip_prefs.cc.patch` | Vertical tabs on by default; tab search and the Everything menu unpinned from the tab strip by default (the command bar covers them) |
