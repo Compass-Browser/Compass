@@ -1,0 +1,12 @@
+diff --git a/tools/metrics/histograms/metadata/page/histograms.xml b/tools/metrics/histograms/metadata/page/histograms.xml
+index d1f9b77322647550824101b566fe7477392c35cc..ff28f51550f67cee4e23d74185128444fe969556 100644
+--- a/tools/metrics/histograms/metadata/page/histograms.xml
++++ b/tools/metrics/histograms/metadata/page/histograms.xml
+@@ -1097,6 +1097,7 @@ chromium-metrics-reviews@google.com.
+   <variant name=".ReadingList"/>
+   <variant name=".ReloadButtonUI"/>
+   <variant name=".ShoppingInsightsSidePanel"/>
++  <variant name=".StrataCommandBar"/>
+   <variant name=".TabSearch"/>
+   <variant name=".TabsFromOtherDevicesSidePanel"/>
+   <variant name=".UserEducation"/>

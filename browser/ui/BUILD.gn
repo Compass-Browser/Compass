@@ -7,10 +7,16 @@
 # same way upstream does for //chrome/browser/ui/webui/tab_search.
 source_set("ui") {
   sources = [
+    "views/command_bar/command_bar.cc",
+    "views/command_bar/command_bar.h",
     "views/sidebar/sidebar_hover_card.cc",
     "views/sidebar/sidebar_hover_card.h",
     "views/sidebar/strata_sidebar_view.cc",
     "views/sidebar/strata_sidebar_view.h",
+    "webui/command_bar/command_bar_page_handler.cc",
+    "webui/command_bar/command_bar_page_handler.h",
+    "webui/command_bar/command_bar_ui.cc",
+    "webui/command_bar/command_bar_ui.h",
     "webui/placeholder/strata_placeholder_ui.cc",
     "webui/placeholder/strata_placeholder_ui.h",
     "webui/sidebar/sidebar_page_handler.cc",
@@ -22,6 +28,7 @@ source_set("ui") {
   ]
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
+    "//strata/browser/ui/webui/command_bar:mojo_bindings",
     "//strata/browser/ui/webui/sidebar:mojo_bindings",
 
     # BrowserView's close hook calls into it (see patches/).
@@ -29,7 +36,11 @@ source_set("ui") {
   ]
   deps = [
     "//base",
+    "//base:i18n",
+    "//chrome/app:command_ids",
+    "//chrome/app:generated_resources",
     "//chrome/browser:browser_process",
+    "//chrome/browser/autocomplete",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui:browser_commands",
     "//chrome/browser/ui:ui_features",
@@ -37,11 +48,15 @@ source_set("ui") {
     "//chrome/browser/ui/tabs",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/thumbnails",
+    "//chrome/browser/ui/views/bubble",
     "//chrome/browser/ui/views/tabs/hovercard",
     "//chrome/browser/ui/webui:favicon_source",
     "//chrome/browser/ui/webui:theme_source",
     "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/common",
     "//components/favicon_base",
+    "//components/omnibox/browser",
     "//components/prefs",
     "//components/tabs:public",
     "//content/public/browser",
@@ -59,11 +74,16 @@ source_set("ui") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "webui/sidebar/sidebar_page_handler_unittest.cc" ]
+  sources = [
+    "webui/command_bar/command_bar_page_handler_unittest.cc",
+    "webui/sidebar/sidebar_page_handler_unittest.cc",
+  ]
   deps = [
     ":ui",
     "//base",
     "//base/test:test_support",
+    "//chrome/browser/autocomplete",
+    "//chrome/browser/search_engines",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support",
@@ -81,11 +101,15 @@ source_set("unit_tests") {
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "views/sidebar/strata_sidebar_browsertest.cc" ]
+  sources = [
+    "views/command_bar/command_bar_browsertest.cc",
+    "views/sidebar/strata_sidebar_browsertest.cc",
+  ]
   deps = [
     ":ui",
     "//base",
     "//base/test:test_support",
+    "//chrome/app:command_ids",
     "//chrome/browser/ui",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/views/frame:browser_view_header",

@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
+index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..28dff996670622863b283396d7babc5d576b83e8 100644
+--- a/chrome/browser/ui/browser_command_controller.cc
++++ b/chrome/browser/ui/browser_command_controller.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/browser_command_controller.h"
+ 
++#include "strata/browser/ui/views/command_bar/command_bar.h"
++
+ #include <stddef.h>
+ 
+ #include <algorithm>
+@@ -657,6 +659,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+ 
+   DCHECK(IsCommandEnabled(id)) << "Invalid/disabled command " << id;
+ 
++  if (strata::HandleBrowserCommand(browser_, id)) {
++    return true;
++  }
++
+   return command_updater_->ExecuteCommandWithDisposition(
+       id, disposition, std::move(context), time_stamp);
+ }

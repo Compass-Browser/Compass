@@ -11,6 +11,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "components/tabs/public/tab_interface.h"
+#include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/webview/webview.h"
@@ -47,7 +48,8 @@ class SpaceShortcuts : public ui::AcceleratorTarget {
 };
 
 // Hosts chrome://strata-sidebar inside the vertical tab strip region, where
-// the native tab strip would be, and the window's space shortcuts.
+// the native tab strip would be, the window's space shortcuts and its command
+// bar.
 class StrataSidebarView : public views::WebView {
   METADATA_HEADER(StrataSidebarView, views::WebView)
 
@@ -63,6 +65,7 @@ class StrataSidebarView : public views::WebView {
 
  private:
   SpaceShortcuts space_shortcuts_;
+  CommandBar command_bar_;
 };
 
 // The sidebar the vertical tab strip region shows in place of the native tab

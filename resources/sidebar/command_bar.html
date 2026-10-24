@@ -1,0 +1,25 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Command bar</title>
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <style>
+      /* The bubble sizes itself to the page, so the width is fixed here. */
+      html,
+      body {
+        width: 640px;
+      }
+
+      body {
+        background-color: var(--color-tab-search-background);
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <strata-command-bar-app></strata-command-bar-app>
+    <script type="module" src="command_bar/app.js"></script>
+  </body>
+</html>

@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tabs/public/tab_interface.h"
+#include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/window_sync/window_features.h"
 
@@ -126,6 +127,11 @@ void SidebarPageHandler::CloseNode(const std::string& id) {
 }
 
 void SidebarPageHandler::NewTab() {
+  if (CommandBar* bar = CommandBar::From(browser_)) {
+    bar->Show(command_bar::mojom::Mode::kNewEntry);
+    return;
+  }
+  // No views (unit tests).
   chrome::NewTab(browser_, NewTabTypes::kNewTabButton);
 }
 

@@ -1,0 +1,171 @@
+// Copyright 2026 The Strata Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "strata/browser/ui/views/command_bar/command_bar.h"
+
+#include <algorithm>
+#include <utility>
+
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/platform_util.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/views/bubble/webui_bubble_dialog_view.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/generated_resources.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
+#include "strata/browser/ui/webui/command_bar/command_bar_page_handler.h"
+#include "strata/browser/ui/webui/command_bar/command_bar_ui.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/views/bubble/bubble_border.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/view.h"
+#include "ui/views/widget/widget.h"
+#include "url/gurl.h"
+
+namespace strata {
+
+namespace {
+
+using command_bar::mojom::Mode;
+
+// How far below the top of the content area the bar hangs: a sixth of its
+// height, but at least this.
+constexpr int kMinTopOffset = 48;
+
+// The text the bar starts from in current-entry mode: the active tab's URL,
+// unless it's a new tab page.
+std::u16string GetCurrentUrlText(BrowserWindowInterface* browser) {
+  tabs::TabInterface* tab = browser->GetActiveTabInterface();
+  if (!tab) {
+    return std::u16string();
+  }
+  const GURL& url = tab->GetContents()->GetVisibleURL();
+  if (url.SchemeIs(content::kChromeUIScheme) &&
+      (url.host() == chrome::kChromeUINewTabHost ||
+       url.host() == chrome::kChromeUINewTabPageHost)) {
+    return std::u16string();
+  }
+  return base::UTF8ToUTF16(url.spec());
+}
+
+}  // namespace
+
+DEFINE_USER_DATA(CommandBar);
+
+CommandBar::CommandBar(BrowserWindowInterface* browser)
+    : browser_(browser),
+      scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {}
+
+CommandBar::~CommandBar() {
+  Close();
+}
+
+// static
+CommandBar* CommandBar::From(BrowserWindowInterface* browser) {
+  return Get(browser->GetUnownedUserDataHost());
+}
+
+void CommandBar::Show(Mode mode) {
+  mode_ = mode;
+  text_ = mode == Mode::kCurrentEntry ? GetCurrentUrlText(browser_)
+                                      : std::u16string();
+  if (bubble_) {
+    // Start over in the new mode.
+    if (CommandBarPageHandler* handler = GetPageHandler()) {
+      handler->Open(mode_, text_);
+    }
+    return;
+  }
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view) {
+    return;
+  }
+  const gfx::Rect content =
+      browser_view->contents_container()->GetBoundsInScreen();
+  const gfx::Rect anchor(content.CenterPoint().x(),
+                         content.y() + std::max(kMinTopOffset,
+                                                content.height() / 6),
+                         0, 0);
+
+  WebUIContentsWrapper* contents = GetOrCreateContents();
+  auto bubble = std::make_unique<WebUIBubbleDialogView>(
+      nullptr, contents->GetWeakPtr(), anchor,
+      views::BubbleBorder::TOP_CENTER);
+  bubble->set_parent_window(platform_util::GetViewForWindow(
+      browser_->GetWindow()->GetNativeWindow()));
+  bubble_ = bubble->GetWeakPtr();
+  // Hidden until the page has shown the new state (ShowUI()).
+  views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
+
+  if (CommandBarPageHandler* handler = GetPageHandler()) {
+    handler->Open(mode_, text_);
+  }
+  // Otherwise the page is still loading; OnPageHandlerCreated() opens it.
+}
+
+void CommandBar::Close() {
+  if (bubble_ && bubble_->GetWidget()) {
+    bubble_->GetWidget()->CloseNow();
+  }
+  bubble_ = nullptr;
+}
+
+bool CommandBar::IsShowing() const {
+  return bubble_ && bubble_->GetWidget() && bubble_->GetWidget()->IsVisible();
+}
+
+void CommandBar::Preload() {
+  GetOrCreateContents();
+}
+
+void CommandBar::OnPageHandlerCreated(CommandBarPageHandler* handler) {
+  if (bubble_) {
+    handler->Open(mode_, text_);
+  }
+}
+
+content::WebContents* CommandBar::web_contents_for_testing() {
+  return contents_ ? contents_->web_contents() : nullptr;
+}
+
+WebUIContentsWrapper* CommandBar::GetOrCreateContents() {
+  if (!contents_) {
+    contents_ = std::make_unique<WebUIContentsWrapperT<CommandBarUI>>(
+        GURL(kStrataCommandBarURL), browser_->GetProfile(),
+        IDS_TASK_MANAGER_TOOL_PREFIX);
+    // The page asks for its window when it connects, which is later.
+    webui::SetBrowserWindowInterface(contents_->web_contents(), browser_);
+  }
+  return contents_.get();
+}
+
+CommandBarPageHandler* CommandBar::GetPageHandler() {
+  if (!contents_) {
+    return nullptr;
+  }
+  CommandBarUI* ui =
+      static_cast<WebUIContentsWrapperT<CommandBarUI>*>(contents_.get())
+          ->GetWebUIController();
+  return ui ? ui->page_handler() : nullptr;
+}
+
+bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
+  if (id != IDC_NEW_TAB && id != IDC_FOCUS_LOCATION) {
+    return false;
+  }
+  CommandBar* bar = CommandBar::From(browser);
+  if (!bar) {
+    return false;
+  }
+  bar->Show(id == IDC_NEW_TAB ? Mode::kNewEntry : Mode::kCurrentEntry);
+  return true;
+}
+
+}  // namespace strata

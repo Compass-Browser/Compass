@@ -1,0 +1,73 @@
+// Copyright 2026 The Strata Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module strata.command_bar.mojom;
+
+import "url/mojom/url.mojom";
+
+// What accepting an omnibox suggestion does.
+enum Mode {
+  // Opens it as a new Today entry (Cmd+T, the sidebar's New Tab row).
+  kNewEntry,
+  // Loads it in the active tab (Cmd+L).
+  kCurrentEntry,
+};
+
+enum ResultKind {
+  // An omnibox suggestion that loads a URL.
+  kNavigate,
+  // An omnibox suggestion that searches.
+  kSearch,
+  // A tab entry of one of the profile's spaces.
+  kEntry,
+  kSpace,
+  kCommand,
+};
+
+struct Result {
+  // Stable for the query the result was made for.
+  uint32 id;
+  ResultKind kind;
+  string title;
+  // The URL or the suggestion's description; may be empty.
+  string subtitle;
+  // What Enter does, as the selected row says it ("Switch to tab").
+  string action;
+  // The page whose favicon the row shows; empty for searches, spaces and
+  // commands.
+  url.mojom.Url icon_url;
+};
+
+// Bootstraps the connection; called once by the page.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// Browser-side handler for chrome://strata-command-bar. See
+// docs/design/command-bar.md.
+interface PageHandler {
+  // The page is ready to be shown.
+  ShowUI();
+  // Answered with Page.SetResults(), once or more as suggestions come in.
+  // |prevent_inline_autocomplete| is set after the user deleted text.
+  Query(string text, bool prevent_inline_autocomplete);
+  // Acts on result |id| of the latest query, then closes the bar. If the page
+  // is behind and |id| is gone, acts on the default suggestion for |text|.
+  // |new_entry| opens an omnibox suggestion as a new entry in either mode.
+  Accept(uint32 id, string text, bool new_entry);
+  Close();
+};
+
+// Implemented by the page.
+interface Page {
+  // The bar is about to show. Resets the field to |text|, all selected, and
+  // queries it.
+  Open(Mode mode, string text);
+  // The results for |text|, best first. The page ignores results for text it
+  // no longer shows. |inline_autocompletion| completes |text| as the first
+  // result would; empty for none.
+  SetResults(string text, array<Result> results,
+             string inline_autocompletion);
+};

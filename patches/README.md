@@ -37,7 +37,8 @@ nothing else.
 | `BUILD.gn.patch` | Adds `//strata:strata_unittests` to `gn_all` |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
 | `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser |
-| `chrome-browser-ui-BUILD.gn.patch` | Links `//strata/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`) |
+| `chrome-browser-ui-BUILD.gn.patch` | Links `//strata/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`); `browser_command_controller_impl` depends on the command bar |
+| `chrome-browser-ui-browser_command_controller.cc.patch` | `ExecuteCommandWithDispositionAndContext()` gives `strata::CommandBar` first refusal on New Tab and Focus Location (Cmd+T, Cmd+L), before upstream picks between its command handler and browser actions |
 | `chrome-browser-ui-browser_window-internal-BUILD.gn.patch` | Links `//strata/browser/window_sync` into the window features |
 | `chrome-browser-ui-browser_window-internal-embedder_browser_window_features.cc.patch` | Creates `strata::WindowFeatures` in the embedder hook's `Init()` |
 | `chrome-browser-ui-browser_window-public-embedder_browser_window_features.h.patch` | The `strata::WindowFeatures` member |
@@ -51,3 +52,4 @@ nothing else.
 | `chrome-chrome_paks.gni.patch` | Ships `strata_sidebar_resources.pak` |
 | `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//strata/*` to depend on Lit |
 | `tools-gritsettings-resource_ids.spec.patch` | Reserves resource IDs for the sidebar's grit file |
+| `tools-metrics-histograms-metadata-page-histograms.xml.patch` | Adds the `.StrataCommandBar` WebUIName variant, required by `WebUIContentsWrapperT`'s static_assert |

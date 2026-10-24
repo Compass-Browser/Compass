@@ -88,6 +88,7 @@ interface PageHandler {
   // node goes with it and a pinned node stays, unloaded. An unloaded node is
   // removed.
   CloseNode(string id);
+  // Opens the command bar for a new entry (docs/design/command-bar.md).
   NewTab();
 
   // Drag and drop. |index| is the slot among |new_parent_id|'s current

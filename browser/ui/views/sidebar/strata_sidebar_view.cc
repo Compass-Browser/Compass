@@ -96,7 +96,9 @@ bool SpaceShortcuts::CanHandleAccelerators() const {
 }
 
 StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
-    : views::WebView(browser->GetProfile()), space_shortcuts_(browser) {
+    : views::WebView(browser->GetProfile()),
+      space_shortcuts_(browser),
+      command_bar_(browser) {
   // The page asks for its window as soon as it connects, so set it first.
   webui::SetBrowserWindowInterface(GetWebContents(), browser);
   // Let the region's frame-colored background show through, so the sidebar
@@ -112,6 +114,8 @@ StrataSidebarView::~StrataSidebarView() = default;
 void StrataSidebarView::AddedToWidget() {
   views::WebView::AddedToWidget();
   space_shortcuts_.Register(GetFocusManager());
+  // So the first Cmd+T opens the bar at once.
+  command_bar_.Preload();
 }
 
 void StrataSidebarView::RemovedFromWidget() {

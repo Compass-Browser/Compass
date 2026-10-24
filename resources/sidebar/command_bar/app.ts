@@ -1,0 +1,218 @@
+// Copyright 2026 The Strata Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+
+import type {Result} from '../command_bar.mojom-webui.js';
+import {Mode, ResultKind} from '../command_bar.mojom-webui.js';
+
+import {getCss} from './app.css.js';
+import {getHtml} from './app.html.js';
+import {CommandBarBrowserProxy} from './browser_proxy.js';
+
+// The command bar: a field, and the browser's results for what's typed in
+// it. Enter acts on the selected result, Cmd+Enter (Ctrl+Enter outside
+// macOS) opens a suggestion as a new entry, Esc closes. The page stays loaded
+// between openings; Open() starts it over. See docs/design/command-bar.md.
+export class StrataCommandBarAppElement extends CrLitElement {
+  static get is() {
+    return 'strata-command-bar-app';
+  }
+
+  static override get styles() {
+    return getCss();
+  }
+
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
+    return {
+      mode_: {type: Number},
+      results_: {type: Array},
+      selectedIndex_: {type: Number},
+    };
+  }
+
+  protected accessor mode_: Mode = Mode.kNewEntry;
+  protected accessor results_: Result[] = [];
+  protected accessor selectedIndex_: number = 0;
+
+  private browserProxy_: CommandBarBrowserProxy =
+      CommandBarBrowserProxy.getInstance();
+  private listenerIds_: number[] = [];
+
+  // What the user typed, without the inline autocompletion.
+  private typed_: string = '';
+  // Set by Open(): the browser shows the bubble once the first results for
+  // the new text are rendered, so it opens at its final size.
+  private showPending_: boolean = false;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    const router = this.browserProxy_.callbackRouter;
+    this.listenerIds_ = [
+      router.open.addListener(this.onOpen_.bind(this)),
+      router.setResults.addListener(this.onSetResults_.bind(this)),
+    ];
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    for (const id of this.listenerIds_) {
+      this.browserProxy_.callbackRouter.removeListener(id);
+    }
+    this.listenerIds_ = [];
+  }
+
+  private get input_(): HTMLInputElement {
+    return this.shadowRoot.querySelector<HTMLInputElement>('#input')!;
+  }
+
+  private onOpen_(mode: Mode, text: string) {
+    this.mode_ = mode;
+    this.typed_ = text;
+    this.results_ = [];
+    this.selectedIndex_ = 0;
+    this.showPending_ = true;
+    const input = this.input_;
+    input.value = text;
+    input.select();
+    input.focus();
+    // Starting from the page's URL, don't complete it into another.
+    this.browserProxy_.handler.query(text, text !== '');
+  }
+
+  private async onSetResults_(
+      text: string, results: Result[], inlineAutocompletion: string) {
+    if (text !== this.typed_) {
+      return;
+    }
+    this.results_ = results;
+    this.selectedIndex_ = 0;
+
+    // Complete the text in the field, selected, while the caret is at its end.
+    const input = this.input_;
+    if (inlineAutocompletion && input.value === this.typed_ &&
+        input.selectionStart === this.typed_.length &&
+        input.selectionEnd === this.typed_.length) {
+      input.value = this.typed_ + inlineAutocompletion;
+      input.setSelectionRange(this.typed_.length, input.value.length);
+    }
+
+    if (this.showPending_) {
+      this.showPending_ = false;
+      await this.updateComplete;
+      this.browserProxy_.handler.showUI();
+      this.input_.focus();
+    }
+  }
+
+  protected onInput_(e: InputEvent) {
+    this.typed_ = this.input_.value;
+    // After a deletion, completing would put back what was just deleted.
+    this.browserProxy_.handler.query(
+        this.typed_, e.inputType.startsWith('delete'));
+  }
+
+  protected onKeydown_(e: KeyboardEvent) {
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        e.preventDefault();
+        const count = this.results_.length;
+        if (count) {
+          const step = e.key === 'ArrowDown' ? 1 : -1;
+          this.selectedIndex_ = (this.selectedIndex_ + step + count) % count;
+          this.scrollSelectedIntoView_();
+        }
+        break;
+      }
+      case 'Enter': {
+        e.preventDefault();
+        const result = this.results_[this.selectedIndex_];
+        const newEntry = navigator.platform.startsWith('Mac') ? e.metaKey :
+                                                                e.ctrlKey;
+        this.accept_(result ? result.id : 0, newEntry);
+        break;
+      }
+    }
+  }
+
+  protected onResultPointermove_(e: PointerEvent) {
+    const index = this.getResultIndex_(e);
+    if (index !== -1) {
+      this.selectedIndex_ = index;
+    }
+  }
+
+  protected onResultClick_(e: MouseEvent) {
+    const index = this.getResultIndex_(e);
+    if (index !== -1) {
+      this.accept_(this.results_[index]!.id, e.metaKey || e.ctrlKey);
+    }
+  }
+
+  private accept_(id: number, newEntry: boolean) {
+    this.browserProxy_.handler.accept(id, this.typed_, newEntry);
+  }
+
+  private getResultIndex_(e: Event): number {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.result');
+    return row ? Number(row.dataset['index']) : -1;
+  }
+
+  private async scrollSelectedIntoView_() {
+    await this.updateComplete;
+    this.shadowRoot.querySelector('.result[selected]')
+        ?.scrollIntoView({block: 'nearest'});
+  }
+
+  protected getPlaceholder_(): string {
+    return this.mode_ === Mode.kNewEntry ? 'Search or enter URL…' :
+                                           'Search, enter URL or a command…';
+  }
+
+  protected isSelected_(index: number): boolean {
+    return index === this.selectedIndex_;
+  }
+
+  protected hasFavicon_(result: Result): boolean {
+    return result.iconUrl !== '';
+  }
+
+  protected getFaviconUrl_(result: Result): string {
+    const params = new URLSearchParams({
+      size: '16',
+      scaleFactor: `${window.devicePixelRatio}x`,
+      pageUrl: result.iconUrl,
+      allowGoogleServerFallback: '0',
+    });
+    return `chrome://favicon2/?${params.toString()}`;
+  }
+
+  // The glyph rows without a favicon show.
+  protected getGlyph_(result: Result): string {
+    switch (result.kind) {
+      case ResultKind.kSearch:
+        return '⌕';
+      case ResultKind.kSpace:
+        return '◐';
+      case ResultKind.kCommand:
+        return '›';
+      default:
+        return '◦';
+    }
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'strata-command-bar-app': StrataCommandBarAppElement;
+  }
+}
+
+customElements.define(
+    StrataCommandBarAppElement.is, StrataCommandBarAppElement);

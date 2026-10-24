@@ -24,6 +24,7 @@
 #include "strata/browser/sidebar/space_model.h"
 #include "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h"
 #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h"
+#include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -144,7 +145,8 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ClickingATabActivatesIt) {
   EXPECT_TRUE(base::test::RunUntil([&] { return model->active_index() == 0; }));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, NewTabButtonOpensATab) {
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       NewTabButtonOpensTheCommandBar) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_TRUE(
       content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 1)));
@@ -153,8 +155,10 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, NewTabButtonOpensATab) {
     document.querySelector('strata-sidebar-app').shadowRoot
         .querySelector('#newTab').click();)"));
 
-  EXPECT_TRUE(base::test::RunUntil(
-      [&] { return browser()->tab_strip_model()->count() == 2; }));
+  CommandBar* bar = CommandBar::From(browser());
+  ASSERT_TRUE(bar);
+  EXPECT_TRUE(base::test::RunUntil([&] { return bar->IsShowing(); }));
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
 }
 
 // Waits until the sidebar's tab rows have the titles |titles|, in order.
