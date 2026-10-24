@@ -10,8 +10,11 @@ import type {Node} from './sidebar.mojom-webui.js';
 import {NodeType} from './sidebar.mojom-webui.js';
 
 // One sidebar entry: a tab, a split (its panes in a row) or a folder (its
-// children, indented). Renders into the light DOM, so the app's styles apply
-// and the rows of the whole tree sit in one shadow root.
+// children, indented). Renders into the light DOM, so the app's styles and
+// drag and drop handling apply to the rows of the whole tree.
+//
+// Entries carry the `row` class and a `data-node-id`; the app finds drop
+// targets by them. A split's panes aren't rows: a split moves as one entry.
 export class StrataSidebarNodeElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-node';
@@ -31,11 +34,16 @@ export class StrataSidebarNodeElement extends CrLitElement {
       // re-renders its children.
       node: {type: Object, hasChanged: () => true},
       activeId: {type: String},
+      collapsedIds: {type: Object, hasChanged: () => true},
+      editing_: {type: Boolean, state: true},
     };
   }
 
   accessor node: Node|null = null;
   accessor activeId: string|null = null;
+  // Folders the user collapsed. Owned by the app.
+  accessor collapsedIds: Set<string> = new Set();
+  protected accessor editing_: boolean = false;
 
   protected isTab_(): boolean {
     return this.node?.type === NodeType.kTab;
@@ -49,35 +57,93 @@ export class StrataSidebarNodeElement extends CrLitElement {
     return this.node?.type === NodeType.kFolder;
   }
 
-  protected isActive_(): boolean {
-    return !!this.node && this.node.id === this.activeId;
+  protected isActive_(node: Node): boolean {
+    return node.id === this.activeId;
+  }
+
+  protected isCollapsed_(): boolean {
+    return !!this.node && this.collapsedIds.has(this.node.id);
   }
 
   protected getChildren_(): Node[] {
     return this.node?.children ?? [];
   }
 
-  protected getTitle_(): string {
-    return this.node?.title || this.node?.url || 'New Tab';
+  protected getTitle_(node: Node): string {
+    return node.title || node.url || 'New Tab';
   }
 
-  protected getFaviconUrl_(): string {
+  protected getCloseLabel_(node: Node): string {
+    return node.live ? 'Close tab' : 'Remove';
+  }
+
+  protected getFaviconUrl_(node: Node): string {
     const params = new URLSearchParams({
       size: '16',
       scaleFactor: `${window.devicePixelRatio}x`,
-      pageUrl: this.node?.url ?? '',
+      pageUrl: node.url,
       allowGoogleServerFallback: '0',
     });
     return `chrome://favicon2/?${params.toString()}`;
   }
 
-  protected onTabClick_() {
-    SidebarBrowserProxy.getInstance().handler.activateNode(this.node!.id);
+  protected getNodeId_(e: Event): string {
+    return (e.currentTarget as HTMLElement).dataset['nodeId']!;
+  }
+
+  protected onTabClick_(e: Event) {
+    SidebarBrowserProxy.getInstance().handler.activateNode(this.getNodeId_(e));
   }
 
   protected onCloseClick_(e: Event) {
     e.stopPropagation();
-    SidebarBrowserProxy.getInstance().handler.closeNode(this.node!.id);
+    SidebarBrowserProxy.getInstance().handler.closeNode(this.getNodeId_(e));
+  }
+
+  protected onFolderClick_() {
+    this.fire('folder-toggle', this.node!.id);
+  }
+
+  protected onDeleteFolderClick_(e: Event) {
+    e.stopPropagation();
+    SidebarBrowserProxy.getInstance().handler.deleteNode(this.node!.id);
+  }
+
+  protected async onFolderTitleDblclick_(e: Event) {
+    e.stopPropagation();
+    this.editing_ = true;
+    await this.updateComplete;
+    const input = this.querySelector<HTMLInputElement>('.folder-title-input');
+    input?.select();
+  }
+
+  protected onTitleInputClick_(e: Event) {
+    // Clicking into the name shouldn't collapse the folder.
+    e.stopPropagation();
+  }
+
+  protected onTitleKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      this.commitRename_(e.target as HTMLInputElement);
+    } else if (e.key === 'Escape') {
+      this.editing_ = false;
+    }
+  }
+
+  protected onTitleBlur_(e: Event) {
+    this.commitRename_(e.target as HTMLInputElement);
+  }
+
+  private commitRename_(input: HTMLInputElement) {
+    if (!this.editing_) {
+      return;
+    }
+    this.editing_ = false;
+    const title = input.value.trim();
+    if (title && title !== this.node!.title) {
+      SidebarBrowserProxy.getInstance().handler.renameFolder(
+          this.node!.id, title);
+    }
   }
 }
 

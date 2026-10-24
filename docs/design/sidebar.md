@@ -190,6 +190,66 @@ create them. Splits arrive with §9, pinning with slice c.
 `BrowserWithTestWindowTest`, page handler tests for the diffs, and the
 existing browser tests.
 
+## Slice c: pinned section, folders, drag and drop
+
+Goal: pin tabs, nest them in folders, and rearrange everything by dragging.
+Persistence is slice d, so pinned entries last until the window closes.
+
+**Pinned entries outlive their tabs.** A pinned tab node can be *live* (it
+has a tab in the strip) or *unloaded*.
+
+| Action | Today entry | Pinned entry |
+|---|---|---|
+| Tab closes (×, ⌘W, page closes itself) | Node removed | Node stays, unloaded |
+| Click | Activate | Activate, or open a tab for it if unloaded |
+| × on an unloaded entry | (none) | Node removed |
+| Drag Today → Pinned / Pinned → Today | Pin / unpin; the tab stays live | |
+
+`TabStripBridge::OpenNode()` opens a tab for an unloaded node. It navigates
+to the node's URL at the node's depth-first position in the strip. The
+bridge *adopts* the inserted tab for that node instead of creating a Today
+entry. A pinned tab that navigates updates its node, as in Arc. "Back to
+pinned URL" comes later.
+
+**Strip order.** Live pinned tabs come first, then Today, depth first, as
+before. Upstream's own pinned-tab flag isn't used. After every strip-driven
+insert or move, the bridge schedules a re-sync, so a tab dropped before the
+pinned block is put back after it.
+
+**Folders.** Only in Pinned (the model already enforces this). A "New
+folder" button sits in the Pinned header. Double-click renames. Clicking a
+folder collapses or expands it. Collapse state lives in the page for now and
+becomes per-window state with persistence (slice d). Deleting a folder removes
+its subtree and closes its live tabs.
+
+**Drag and drop** happens in the page, with HTML5 drag events on the rows:
+
+- On a tab row, the top half drops before it and the bottom half after it.
+  On a folder row, the middle third drops into it.
+- Section bodies take drops at the end, and the empty Pinned section shows a
+  drop hint.
+- The page sends `MoveNode(id, new_parent_id, index)`. `index` is the slot
+  among `new_parent`'s *current* children, so the page doesn't need to know
+  how `SpaceModel::Move()` counts. The handler converts it, checks
+  `CanMove()`, and ignores invalid drops.
+
+Mojo additions:
+
+```
+MoveNode(id, new_parent_id, index)
+AddFolder(parent_id, index, title)
+RenameNode(id, title)
+DeleteNode(id)          // folders and pinned entries; closes live tabs
+```
+
+`ActivateNode()` on an unloaded tab node opens it. Whether a node is live is
+window state, kept by the bridge, not the model. `Node` gains `live`, and
+`Page.NodeLiveChanged(id, live)` reports changes, so unloaded entries can be
+dimmed. The bridge reports them through its own `TabStripBridge::Observer`.
+
+**Not in c:** creating splits by dragging (§9), dragging between windows,
+and context menus.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the

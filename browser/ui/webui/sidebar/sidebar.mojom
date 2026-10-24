@@ -21,6 +21,9 @@ struct Node {
   NodeType type;
   string title;
   url.mojom.Url url;
+  // Whether a tab node has a tab in this window. Pinned tab nodes can be
+  // unloaded; Today's are always live.
+  bool live;
   array<Node> children;
 };
 
@@ -42,12 +45,25 @@ interface PageHandler {
   // Answered with Page.SetTree(), on the same pipe as the diffs, so the page
   // sees them in order.
   RequestTree();
-  // Activates the live tab of a tab node. Ignored for other nodes.
+  // Activates a tab node's tab, opening one if the node is unloaded. Ignored
+  // for other nodes.
   ActivateNode(string id);
-  // Closes a tab node, or every pane of a split. Live tabs close through the
-  // tab strip, so beforeunload can cancel; their nodes go when the tab does.
+  // Closes a tab node's tab, or every pane's of a split. Tabs close through
+  // the tab strip, so beforeunload can cancel. When the tab is gone, a Today
+  // node goes with it and a pinned node stays, unloaded. An unloaded node is
+  // removed.
   CloseNode(string id);
   NewTab();
+
+  // Drag and drop. |index| is the slot among |new_parent_id|'s current
+  // children, counted with the node still in place. Invalid moves are
+  // ignored.
+  MoveNode(string id, string new_parent_id, uint32 index);
+  // Folders live in the pinned section; other parents are ignored.
+  AddFolder(string parent_id, uint32 index, string title);
+  RenameFolder(string id, string title);
+  // Removes a folder or pinned entry and its subtree, closing live tabs.
+  DeleteNode(string id);
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
@@ -60,5 +76,6 @@ interface Page {
   NodeMoved(string id, string new_parent_id, uint32 index);
   NodeChanged(string id, string title, url.mojom.Url url);
   NodeRemoved(string id);
+  NodeLiveChanged(string id, bool live);
   ActiveNodeChanged(string? id);
 };

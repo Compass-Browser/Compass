@@ -16,6 +16,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "strata/browser/window_sync/tab_strip_bridge.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
@@ -29,6 +30,7 @@ class WindowFeatures;
 // Slice b of docs/design/sidebar.md.
 class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public SpaceModel::Observer,
+                           public TabStripBridge::Observer,
                            public TabStripModelObserver {
  public:
   SidebarPageHandler(
@@ -44,6 +46,14 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ActivateNode(const std::string& id) override;
   void CloseNode(const std::string& id) override;
   void NewTab() override;
+  void MoveNode(const std::string& id,
+                const std::string& new_parent_id,
+                uint32_t index) override;
+  void AddFolder(const std::string& parent_id,
+                 uint32_t index,
+                 const std::string& title) override;
+  void RenameFolder(const std::string& id, const std::string& title) override;
+  void DeleteNode(const std::string& id) override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -52,6 +62,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                    size_t old_index) override;
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
+
+  // TabStripBridge::Observer:
+  void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -62,6 +75,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
  private:
   TabStripModel* tab_strip_model();
   SpaceModel& space_model();
+  TabStripBridge& bridge();
+
+  sidebar::mojom::NodePtr ToMojo(const SidebarNode& node);
 
   // The node with |id|, or null if there is none (the page can be behind).
   SidebarNode* FindNode(const std::string& id);

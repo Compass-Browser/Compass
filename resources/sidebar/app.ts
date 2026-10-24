@@ -9,9 +9,21 @@ import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import './node.js';
 import type {Node, Tree} from './sidebar.mojom-webui.js';
+import {NodeType} from './sidebar.mojom-webui.js';
+
+// Where a dragged entry would land: the slot |index| among |parent|'s
+// current children. |target| shows the drop indicator, as its `drop`
+// attribute.
+interface DropTarget {
+  parent: Node;
+  index: number;
+  target: HTMLElement;
+  position: 'before'|'after'|'into'|'end';
+}
 
 // The sidebar: the window's SpaceModel, as a pinned and a Today section. The
-// browser sends the tree once, then diffs. Slice b of docs/design/sidebar.md.
+// browser sends the tree once, then diffs. Entries are rearranged by dragging.
+// Slices b and c of docs/design/sidebar.md.
 export class StrataSidebarAppElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-app';
@@ -30,12 +42,14 @@ export class StrataSidebarAppElement extends CrLitElement {
       pinned_: {type: Object},
       today_: {type: Object},
       activeId_: {type: String},
+      collapsedIds_: {type: Object},
     };
   }
 
   protected accessor pinned_: Node|null = null;
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
+  protected accessor collapsedIds_: Set<string> = new Set();
 
   private browserProxy_: SidebarBrowserProxy =
       SidebarBrowserProxy.getInstance();
@@ -44,6 +58,9 @@ export class StrataSidebarAppElement extends CrLitElement {
   // Every node of the tree, by ID, with its parent.
   private nodes_: Map<string, Node> = new Map();
   private parents_: Map<string, Node> = new Map();
+
+  private draggingId_: string|null = null;
+  private dropTarget_: DropTarget|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -54,6 +71,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       router.nodeMoved.addListener(this.onNodeMoved_.bind(this)),
       router.nodeChanged.addListener(this.onNodeChanged_.bind(this)),
       router.nodeRemoved.addListener(this.onNodeRemoved_.bind(this)),
+      router.nodeLiveChanged.addListener(this.onNodeLiveChanged_.bind(this)),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
     ];
@@ -78,8 +96,161 @@ export class StrataSidebarAppElement extends CrLitElement {
     return this.today_?.children ?? [];
   }
 
+  protected isPinnedEmpty_(): boolean {
+    return this.getPinned_().length === 0;
+  }
+
   protected onNewTabClick_() {
     this.browserProxy_.handler.newTab();
+  }
+
+  protected onNewFolderClick_() {
+    if (this.pinned_) {
+      this.browserProxy_.handler.addFolder(
+          this.pinned_.id, this.pinned_.children.length, 'New Folder');
+    }
+  }
+
+  protected onFolderToggle_(e: CustomEvent<string>) {
+    const collapsed = new Set(this.collapsedIds_);
+    if (!collapsed.delete(e.detail)) {
+      collapsed.add(e.detail);
+    }
+    this.collapsedIds_ = collapsed;
+  }
+
+  protected onDragstart_(e: DragEvent) {
+    const row = (e.target as Element).closest<HTMLElement>('.row');
+    if (!row || !e.dataTransfer) {
+      return;
+    }
+    this.draggingId_ = row.dataset['nodeId']!;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.draggingId_);
+    row.setAttribute('dragging', '');
+  }
+
+  protected onDragover_(e: DragEvent) {
+    const drop = this.findDropTarget_(e);
+    this.showDropTarget_(drop);
+    if (drop) {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'move';
+    }
+  }
+
+  protected onDragleave_(e: DragEvent) {
+    const sections = e.currentTarget as HTMLElement;
+    if (!sections.contains(e.relatedTarget as globalThis.Node | null)) {
+      this.showDropTarget_(null);
+    }
+  }
+
+  protected onDrop_(e: DragEvent) {
+    e.preventDefault();
+    const drop = this.dropTarget_;
+    if (drop && this.draggingId_) {
+      this.browserProxy_.handler.moveNode(
+          this.draggingId_, drop.parent.id, drop.index);
+    }
+    this.endDrag_();
+  }
+
+  protected onDragend_() {
+    this.endDrag_();
+  }
+
+  private endDrag_() {
+    this.showDropTarget_(null);
+    this.shadowRoot.querySelector('[dragging]')?.removeAttribute('dragging');
+    this.draggingId_ = null;
+  }
+
+  private showDropTarget_(drop: DropTarget|null) {
+    if (this.dropTarget_?.target !== drop?.target ||
+        this.dropTarget_?.position !== drop?.position) {
+      this.dropTarget_?.target.removeAttribute('drop');
+      drop?.target.setAttribute('drop', drop.position);
+    }
+    this.dropTarget_ = drop;
+  }
+
+  // Tab rows take drops before (top half) or after (bottom half) them; folder
+  // rows also take drops into them (middle third). Anywhere else in a section
+  // drops at its end. Returns null where the dragged entry can't go; the
+  // browser checks again.
+  private findDropTarget_(e: DragEvent): DropTarget|null {
+    const dragged = this.draggingId_ && this.nodes_.get(this.draggingId_);
+    if (!dragged) {
+      return null;
+    }
+    const element = e.target as Element;
+    let drop: DropTarget|null = null;
+    const row = element.closest<HTMLElement>('.row');
+    if (row) {
+      const node = this.nodes_.get(row.dataset['nodeId']!);
+      const parent = node && this.parents_.get(node.id);
+      if (!node || !parent) {
+        return null;
+      }
+      const rect = row.getBoundingClientRect();
+      const y = (e.clientY - rect.top) / rect.height;
+      if (node.type === NodeType.kFolder && y > 1 / 3 && y < 2 / 3) {
+        drop = {
+          parent: node,
+          index: node.children.length,
+          target: row,
+          position: 'into',
+        };
+      } else {
+        const after = y >= 0.5;
+        drop = {
+          parent,
+          index: parent.children.indexOf(node) + (after ? 1 : 0),
+          target: row,
+          position: after ? 'after' : 'before',
+        };
+      }
+    } else {
+      const section = element.closest<HTMLElement>('.section');
+      const root = section?.id === 'pinned' ? this.pinned_ : this.today_;
+      if (!section || !root) {
+        return null;
+      }
+      drop = {
+        parent: root,
+        index: root.children.length,
+        target: section,
+        position: 'end',
+      };
+    }
+    return this.canDrop_(dragged, drop.parent) ? drop : null;
+  }
+
+  // Mirrors SpaceModel::CanMove() for the cases the page can see.
+  private canDrop_(dragged: Node, parent: Node): boolean {
+    for (let node: Node|undefined = parent; node;
+         node = this.parents_.get(node.id)) {
+      if (node === dragged) {
+        return false;
+      }
+    }
+    if (parent.type === NodeType.kSplit) {
+      return false;
+    }
+    if (dragged.type === NodeType.kFolder) {
+      return parent === this.pinned_ || this.isInPinned_(parent);
+    }
+    return true;
+  }
+
+  private isInPinned_(node: Node): boolean {
+    for (let n: Node|undefined = node; n; n = this.parents_.get(n.id)) {
+      if (n === this.pinned_) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private index_(node: Node, parent: Node|null) {
@@ -141,6 +312,14 @@ export class StrataSidebarAppElement extends CrLitElement {
     node.title = title;
     node.url = url;
     this.requestUpdate();
+  }
+
+  private onNodeLiveChanged_(id: string, live: boolean) {
+    const node = this.nodes_.get(id);
+    if (node) {
+      node.live = live;
+      this.requestUpdate();
+    }
   }
 
   private onNodeRemoved_(id: string) {

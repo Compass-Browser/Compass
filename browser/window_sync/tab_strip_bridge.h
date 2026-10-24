@@ -8,10 +8,13 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "strata/browser/sidebar/space_model.h"
 
+class BrowserWindowInterface;
 class TabStripModel;
 
 namespace strata {
@@ -19,12 +22,19 @@ namespace strata {
 // Keeps a window's TabStripModel and its SpaceModel in line. The model is the
 // source of truth: the strip holds the live tabs, in the tree's depth-first
 // order. Tabs the strip gains, loses or reorders on its own (links, keyboard
-// shortcuts, extensions) are mirrored into the Today section. See
-// docs/design/sidebar.md, slice b.
+// shortcuts, extensions) are mirrored into the Today section. A pinned node
+// outlives its tab: when the tab closes, the node stays, unloaded. See
+// docs/design/sidebar.md, slices b and c.
 class TabStripBridge : public TabStripModelObserver,
                        public SpaceModel::Observer {
  public:
-  TabStripBridge(TabStripModel* tab_strip_model, SpaceModel* space_model);
+  class Observer : public base::CheckedObserver {
+   public:
+    // |node| gained or lost its live tab, without the model changing.
+    virtual void OnNodeLiveChanged(const SidebarNode& node, bool live) {}
+  };
+
+  TabStripBridge(BrowserWindowInterface* browser, SpaceModel* space_model);
   TabStripBridge(const TabStripBridge&) = delete;
   TabStripBridge& operator=(const TabStripBridge&) = delete;
   ~TabStripBridge() override;
@@ -34,6 +44,13 @@ class TabStripBridge : public TabStripModelObserver,
 
   // The node of |tab|, or null if |tab| isn't in this window.
   SidebarNode* GetNode(const tabs::TabInterface* tab) const;
+
+  // Returns |tab_node|'s live tab, opening one (in the foreground, at the
+  // node's place in the strip) if it has none.
+  tabs::TabInterface* OpenNode(SidebarNode* tab_node);
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -58,7 +75,13 @@ class TabStripBridge : public TabStripModelObserver,
   // strip back if the tab's node can't move that way.
   void MoveNodeForTab(tabs::TabInterface* tab, int to_index);
 
+  // Removes |tab|'s node, or only unloads it if it's pinned.
   void RemoveNodeForTab(tabs::TabInterface* tab);
+
+  void Map(tabs::TabInterface* tab, SidebarNode* node);
+  void Unmap(tabs::TabInterface* tab);
+
+  bool IsPinned(const SidebarNode* node) const;
 
   // Copies |tab|'s title and committed URL to its node.
   void UpdateNode(tabs::TabInterface* tab);
@@ -77,6 +100,7 @@ class TabStripBridge : public TabStripModelObserver,
   void SyncStripOrder();
   void ScheduleSyncStripOrder();
 
+  const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   const raw_ptr<SpaceModel> space_model_;
 
@@ -85,6 +109,11 @@ class TabStripBridge : public TabStripModelObserver,
 
   // Set while the bridge changes either side, so it ignores its own echoes.
   bool updating_ = false;
+
+  // Set while OpenNode() inserts a tab: that tab belongs to this node.
+  raw_ptr<SidebarNode> adopting_node_ = nullptr;
+
+  base::ObserverList<Observer> observers_;
 
   base::WeakPtrFactory<TabStripBridge> weak_factory_{this};
 };

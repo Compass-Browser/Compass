@@ -11,7 +11,7 @@ namespace strata {
 DEFINE_USER_DATA(WindowFeatures);
 
 WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
-    : tab_strip_bridge_(browser->GetTabStripModel(), &space_model_),
+    : tab_strip_bridge_(browser, &space_model_),
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {}
 
 WindowFeatures::~WindowFeatures() = default;

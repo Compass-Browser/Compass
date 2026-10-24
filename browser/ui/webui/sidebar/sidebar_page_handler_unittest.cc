@@ -65,6 +65,9 @@ class FakePage : public sidebar::mojom::Page {
   void NodeRemoved(const std::string& id) override {
     events_.push_back("removed " + hosts_[id]);
   }
+  void NodeLiveChanged(const std::string& id, bool live) override {
+    events_.push_back(hosts_[id] + (live ? " live" : " unloaded"));
+  }
   void ActiveNodeChanged(const std::optional<std::string>& id) override {
     events_.push_back("active " + (id ? hosts_[*id] : "none"));
   }
@@ -132,6 +135,13 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
         ->children()[index]
         ->id()
         .AsLowercaseString();
+  }
+
+  std::string PinnedId() {
+    return space_model().pinned_root()->id().AsLowercaseString();
+  }
+  std::string TodayRootId() {
+    return space_model().today_root()->id().AsLowercaseString();
   }
 
   // Delivers Mojo messages and runs Browser's coalesced UI updates.
@@ -216,6 +226,79 @@ TEST_F(SidebarPageHandlerTest, SendsDiffsForModelMoves) {
   // The bridge follows the model.
   EXPECT_EQ(tab_strip_model()->GetWebContentsAt(0)->GetLastCommittedURL(),
             GURL("https://b.test/"));
+}
+
+TEST_F(SidebarPageHandlerTest, MoveNodeToPinnedPinsTheTab) {
+  handler_remote_->MoveNode(TodayId(1), PinnedId(), 0);
+  Settle();
+
+  ASSERT_EQ(space_model().pinned_root()->children().size(), 1u);
+  EXPECT_EQ(space_model().pinned_root()->children()[0]->url(),
+            GURL("https://b.test/"));
+  EXPECT_EQ(tab_strip_model()->GetWebContentsAt(0)->GetLastCommittedURL(),
+            GURL("https://b.test/"));
+}
+
+TEST_F(SidebarPageHandlerTest, MoveNodeCountsSlotsWithTheNodeInPlace) {
+  // Slot 2 is after b, the last entry.
+  handler_remote_->MoveNode(TodayId(0), TodayRootId(), 2);
+  Settle();
+
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("moved a.test to 1"));
+}
+
+TEST_F(SidebarPageHandlerTest, IgnoresInvalidMovesAndFolders) {
+  handler_remote_->AddFolder(TodayRootId(), 0, "Not here");
+  handler_remote_->MoveNode(TodayId(0), TodayRootId(), 7);
+  handler_remote_->MoveNode(TodayId(0), TodayId(1), 0);
+  Settle();
+
+  EXPECT_THAT(page_.TakeEvents(), IsEmpty());
+}
+
+TEST_F(SidebarPageHandlerTest, AddsAndRenamesFolders) {
+  handler_remote_->AddFolder(PinnedId(), 0, "Work");
+  Settle();
+  ASSERT_EQ(space_model().pinned_root()->children().size(), 1u);
+  SidebarNode* folder = space_model().pinned_root()->children()[0].get();
+  EXPECT_EQ(folder->type(), SidebarNode::Type::kFolder);
+
+  handler_remote_->RenameFolder(folder->id().AsLowercaseString(), "Play");
+  Settle();
+
+  EXPECT_EQ(folder->title(), u"Play");
+}
+
+TEST_F(SidebarPageHandlerTest, ActivatingAnUnloadedPinnedNodeOpensIt) {
+  handler_remote_->MoveNode(TodayId(0), PinnedId(), 0);
+  Settle();
+  const std::string pinned_id =
+      space_model().pinned_root()->children()[0]->id().AsLowercaseString();
+  handler_remote_->CloseNode(pinned_id);
+  Settle();
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+  page_.TakeEvents();
+
+  handler_remote_->ActivateNode(pinned_id);
+  Settle();
+
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+  EXPECT_EQ(tab_strip_model()->active_index(), 0);
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test live", "active a.test"));
+}
+
+TEST_F(SidebarPageHandlerTest, DeleteNodeRemovesPinnedEntriesOnly) {
+  handler_remote_->DeleteNode(TodayId(0));
+  handler_remote_->MoveNode(TodayId(1), PinnedId(), 0);
+  Settle();
+  page_.TakeEvents();
+
+  handler_remote_->DeleteNode(
+      space_model().pinned_root()->children()[0]->id().AsLowercaseString());
+  Settle();
+
+  EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
+  EXPECT_EQ(tab_strip_model()->count(), 1);
 }
 
 }  // namespace

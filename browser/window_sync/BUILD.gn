@@ -21,7 +21,10 @@ source_set("window_sync") {
   deps = [
     "//base",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/navigator",
+    "//chrome/common",
     "//content/public/browser",
+    "//ui/base",
   ]
 }
 

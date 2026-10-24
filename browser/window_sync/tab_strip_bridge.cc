@@ -10,10 +10,16 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/base/window_open_disposition.h"
 
 namespace strata {
 
@@ -31,11 +37,33 @@ void CollectLiveTabs(const TabStripBridge& bridge,
   }
 }
 
+// Counts the live tabs under |node| that come before |target|, depth first.
+// Returns true once |target| is reached.
+bool CountLiveTabsBefore(const TabStripBridge& bridge,
+                         const SidebarNode* node,
+                         const SidebarNode* target,
+                         int& count) {
+  if (node == target) {
+    return true;
+  }
+  if (bridge.GetTab(node)) {
+    ++count;
+  }
+  for (const auto& child : node->children()) {
+    if (CountLiveTabsBefore(bridge, child.get(), target, count)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
-TabStripBridge::TabStripBridge(TabStripModel* tab_strip_model,
+TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
                                SpaceModel* space_model)
-    : tab_strip_model_(tab_strip_model), space_model_(space_model) {
+    : browser_(browser),
+      tab_strip_model_(browser->GetTabStripModel()),
+      space_model_(space_model) {
   CHECK(tab_strip_model_);
   CHECK(space_model_);
   for (int i = 0; i < tab_strip_model_->count(); ++i) {
@@ -63,6 +91,40 @@ SidebarNode* TabStripBridge::GetNode(const tabs::TabInterface* tab) const {
   }
   auto it = node_for_tab_.find(tab->GetHandle());
   return it == node_for_tab_.end() ? nullptr : it->second.get();
+}
+
+tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
+  CHECK_EQ(tab_node->type(), SidebarNode::Type::kTab);
+  if (tabs::TabInterface* tab = GetTab(tab_node)) {
+    return tab;
+  }
+  if (!tab_strip_model_) {
+    return nullptr;
+  }
+  // The node's place in the strip: the live tabs before it, depth first.
+  int index = 0;
+  if (!CountLiveTabsBefore(*this, space_model_->pinned_root(), tab_node,
+                           index)) {
+    CountLiveTabsBefore(*this, space_model_->today_root(), tab_node, index);
+  }
+
+  const GURL url = tab_node->url().is_valid()
+                       ? tab_node->url()
+                       : GURL(chrome::kChromeUINewTabURL);
+  NavigateParams params(browser_, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.tabstrip_index = index;
+  base::AutoReset<raw_ptr<SidebarNode>> adopting(&adopting_node_, tab_node);
+  Navigate(&params);
+  return GetTab(tab_node);
+}
+
+void TabStripBridge::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void TabStripBridge::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 void TabStripBridge::OnTabStripModelChanged(
@@ -121,8 +183,7 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
   CollectLiveTabs(*this, &node, live_tabs);
   std::vector<tabs::TabHandle> to_close;
   for (tabs::TabInterface* tab : live_tabs) {
-    tab_for_node_.erase(GetNode(tab));
-    node_for_tab_.erase(tab->GetHandle());
+    Unmap(tab);
     to_close.push_back(tab->GetHandle());
   }
   if (updating_ || to_close.empty()) {
@@ -151,13 +212,24 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
 }
 
 void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
+  // A tab may land before the pinned block (or between a split's panes);
+  // put it back in the tree's order afterwards.
+  ScheduleSyncStripOrder();
+  if (adopting_node_) {
+    SidebarNode* node = adopting_node_;
+    adopting_node_ = nullptr;
+    Map(tab, node);
+    for (auto& observer : observers_) {
+      observer.OnNodeLiveChanged(*node, true);
+    }
+    return;
+  }
   content::WebContents* contents = tab->GetContents();
   base::AutoReset<bool> updating(&updating_, true);
   SidebarNode* node = space_model_->AddTab(
       space_model_->today_root(), GetTodayIndexAfter(index, nullptr),
       contents->GetLastCommittedURL(), contents->GetTitle());
-  node_for_tab_[tab->GetHandle()] = node;
-  tab_for_node_[node] = tab->GetHandle();
+  Map(tab, node);
 }
 
 void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
@@ -171,8 +243,12 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
     ScheduleSyncStripOrder();
     return;
   }
-  base::AutoReset<bool> updating(&updating_, true);
-  space_model_->Move(node, today, GetTodayIndexAfter(to_index, node));
+  {
+    base::AutoReset<bool> updating(&updating_, true);
+    space_model_->Move(node, today, GetTodayIndexAfter(to_index, node));
+  }
+  // The strip may have put the tab before the pinned block.
+  ScheduleSyncStripOrder();
 }
 
 void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab) {
@@ -180,9 +256,30 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab) {
   if (!node) {
     return;
   }
+  if (IsPinned(node)) {
+    Unmap(tab);
+    for (auto& observer : observers_) {
+      observer.OnNodeLiveChanged(*node, false);
+    }
+    return;
+  }
   base::AutoReset<bool> updating(&updating_, true);
   // OnNodeWillBeRemoved() drops the mapping.
   space_model_->Remove(node);
+}
+
+void TabStripBridge::Map(tabs::TabInterface* tab, SidebarNode* node) {
+  node_for_tab_[tab->GetHandle()] = node;
+  tab_for_node_[node] = tab->GetHandle();
+}
+
+void TabStripBridge::Unmap(tabs::TabInterface* tab) {
+  tab_for_node_.erase(GetNode(tab));
+  node_for_tab_.erase(tab->GetHandle());
+}
+
+bool TabStripBridge::IsPinned(const SidebarNode* node) const {
+  return space_model_->pinned_root()->Contains(node);
 }
 
 void TabStripBridge::UpdateNode(tabs::TabInterface* tab) {

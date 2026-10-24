@@ -158,5 +158,84 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   }));
 }
 
+// Drags the entry titled $1 onto $2, a CSS selector in the sidebar's shadow
+// root, at fraction $3 of the target's height, using synthetic drag events.
+constexpr char kDrag[] = R"(
+  (async (title, selector, fraction) => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const until = async (f) => {
+      while (!f()) await new Promise(r => setTimeout(r, 20));
+      return f();
+    };
+    const row = await until(() => [...root.querySelectorAll('.row')]
+        .find(r => r.title === title || r.textContent.trim() === title));
+    const target = await until(() => root.querySelector(selector));
+    const rect = target.getBoundingClientRect();
+    const init = {
+      bubbles: true, cancelable: true, composed: true,
+      dataTransfer: new DataTransfer(),
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height * fraction,
+    };
+    row.dispatchEvent(new DragEvent('dragstart', init));
+    target.dispatchEvent(new DragEvent('dragover', init));
+    target.dispatchEvent(new DragEvent('drop', init));
+    row.dispatchEvent(new DragEvent('dragend', init));
+    return true;
+  })($1, $2, $3))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragToPinnedPinsATab) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(
+                              kWaitForTitles,
+                              base::ListValue().Append("One").Append("Two"))));
+
+  ASSERT_EQ(true, content::EvalJs(contents, content::JsReplace(
+                                                kDrag, "Two", "#pinned", 0.5)));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return model.pinned_root()->children().size() == 1u; }));
+  EXPECT_EQ(model.pinned_root()->children()[0]->title(), u"Two");
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return browser()->tab_strip_model()->GetWebContentsAt(0)->GetTitle() ==
+           u"Two";
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(kWaitForTitles,
+                                             base::ListValue().Append("One"))));
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('#newFolder').click();)"));
+
+  ASSERT_EQ(true,
+            content::EvalJs(contents, content::JsReplace(kDrag, "One",
+                                                         ".folder-row", 0.5)));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return model.pinned_root()->children().size() == 1u &&
+           model.pinned_root()->children()[0]->children().size() == 1u;
+  }));
+  const SidebarNode* folder = model.pinned_root()->children()[0].get();
+  EXPECT_EQ(folder->type(), SidebarNode::Type::kFolder);
+  EXPECT_EQ(folder->children()[0]->title(), u"One");
+}
+
 }  // namespace
 }  // namespace strata

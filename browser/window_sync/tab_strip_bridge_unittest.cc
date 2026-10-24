@@ -90,6 +90,15 @@ class TabStripBridgeTest : public BrowserWithTestWindowTest {
     return hosts;
   }
 
+  // Pins Today's entry at |index| at the end of the pinned section.
+  SidebarNode* Pin(size_t index) {
+    SidebarNode* node = TodayAt(index);
+    space_model().Move(node, space_model().pinned_root(),
+                       space_model().pinned_root()->children().size());
+    Settle();
+    return node;
+  }
+
   SidebarNode* TodayAt(size_t index) {
     return space_model().today_root()->children()[index].get();
   }
@@ -198,6 +207,74 @@ TEST_F(TabStripBridgeTest, FollowsNavigation) {
   Settle();
 
   EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("z.test"));
+}
+
+TEST_F(TabStripBridgeTest, PinnedTabsLeadTheStrip) {
+  OpenTabs({"a.test", "b.test"});
+
+  Pin(1);
+
+  EXPECT_THAT(Hosts(space_model().pinned_root()), ElementsAre("b.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test", "a.test"));
+}
+
+TEST_F(TabStripBridgeTest, PinnedNodeStaysWhenItsTabCloses) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
+
+  EXPECT_THAT(Hosts(space_model().pinned_root()), ElementsAre("b.test"));
+  EXPECT_EQ(bridge().GetTab(pinned), nullptr);
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test"));
+}
+
+TEST_F(TabStripBridgeTest, OpenNodeReopensAnUnloadedPinnedNode) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
+
+  tabs::TabInterface* tab = bridge().OpenNode(pinned);
+  ASSERT_TRUE(tab);
+  CommitPendingLoad(&tab->GetContents()->GetController());
+  Settle();
+
+  EXPECT_EQ(bridge().GetTab(pinned), tab);
+  EXPECT_EQ(tab_strip_model()->GetActiveTab(), tab);
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test", "a.test"));
+  // Adopted, not mirrored into Today.
+  EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("a.test"));
+}
+
+TEST_F(TabStripBridgeTest, NewTabsLandAfterThePinnedBlock) {
+  OpenTabs({"a.test", "b.test"});
+  Pin(1);
+
+  OpenTabAt(0, "c.test");
+
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("c.test", "a.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test", "c.test", "a.test"));
+}
+
+TEST_F(TabStripBridgeTest, ReportsLiveChanges) {
+  struct Recorder : TabStripBridge::Observer {
+    void OnNodeLiveChanged(const SidebarNode& node, bool live) override {
+      changes.push_back(std::string(node.url().host()) +
+                        (live ? " live" : " unloaded"));
+    }
+    std::vector<std::string> changes;
+  } recorder;
+  bridge().AddObserver(&recorder);
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
+  bridge().OpenNode(pinned);
+  Settle();
+
+  EXPECT_THAT(recorder.changes, ElementsAre("b.test unloaded", "b.test live"));
+  bridge().RemoveObserver(&recorder);
 }
 
 }  // namespace
