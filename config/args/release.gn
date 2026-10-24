@@ -1,0 +1,13 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Builds we ship.
+is_debug = false
+is_component_build = false
+is_official_build = true
+symbol_level = 1
+
+# PGO profiles need checkout_pgo_profiles in .gclient; enable once release
+# CI fetches them.
+chrome_pgo_phase = 0

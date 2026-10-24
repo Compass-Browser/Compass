@@ -1,0 +1,28 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("sidebar") {
+  sources = [
+    "sidebar_node.cc",
+    "sidebar_node.h",
+    "space_model.cc",
+    "space_model.h",
+  ]
+  public_deps = [
+    "//base",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "space_model_unittest.cc" ]
+  deps = [
+    ":sidebar",
+    "//base",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+}

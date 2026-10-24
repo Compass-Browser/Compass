@@ -1,0 +1,12 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 29478cec8041b9cb494ae14fe6e4e2115714c023..9232ba8c2c7e570f1d7d431a5afc4c3082cf2da8 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -98,6 +98,7 @@ group("gn_all") {
+     deps = [
+       "//base:base_perftests",
+       "//base:base_unittests",
++      "//strata:strata_unittests",
+       "//build/modules",
+       "//codelabs",
+       "//components:components_unittests",

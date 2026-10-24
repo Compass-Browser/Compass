@@ -1,0 +1,9 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Everything Strata adds to the browser process. //chrome/browser depends on
+# this target (see patches/chrome-browser-BUILD.gn.patch).
+group("browser") {
+  public_deps = [ "//strata/browser/sidebar" ]
+}

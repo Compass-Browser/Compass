@@ -1,0 +1,24 @@
+diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
+index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..5f203c0a7d81192bdd1cc96e3f9fd1018c2bdb1c 100644
+--- a/chrome/app/theme/chromium/BRANDING
++++ b/chrome/app/theme/chromium/BRANDING
+@@ -1,10 +1,10 @@
+-COMPANY_FULLNAME=The Chromium Authors
+-COMPANY_SHORTNAME=The Chromium Authors
+-PRODUCT_FULLNAME=Chromium
+-PRODUCT_SHORTNAME=Chromium
+-PRODUCT_INSTALLER_FULLNAME=Chromium Installer
+-PRODUCT_INSTALLER_SHORTNAME=Chromium Installer
+-COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
+-MAC_BUNDLE_ID=org.chromium.Chromium
+-MAC_CREATOR_CODE=Cr24
++COMPANY_FULLNAME=The Strata Authors
++COMPANY_SHORTNAME=The Strata Authors
++PRODUCT_FULLNAME=Strata
++PRODUCT_SHORTNAME=Strata
++PRODUCT_INSTALLER_FULLNAME=Strata Installer
++PRODUCT_INSTALLER_SHORTNAME=Strata Installer
++COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Strata Authors. All rights reserved.
++MAC_BUNDLE_ID=org.strata-browser.Strata
++MAC_CREATOR_CODE=Strt
+ MAC_TEAM_ID=

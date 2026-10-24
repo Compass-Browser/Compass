@@ -1,0 +1,2 @@
+# Patches must stay byte-for-byte identical on every platform.
+*.patch -text

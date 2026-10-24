@@ -1,0 +1,13 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//testing/test.gni")
+
+# Reached from //:gn_all (see patches/BUILD.gn.patch).
+test("strata_unittests") {
+  deps = [
+    "//base/test:run_all_unittests",
+    "//strata/browser/sidebar:unit_tests",
+  ]
+}

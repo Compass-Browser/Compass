@@ -1,0 +1,46 @@
+# Full Chromium builds. GitHub-hosted runners don't have enough disk or CPU,
+# so this runs on self-hosted runners labelled per OS (see docs/building.md
+# for hardware). Manual until runners exist.
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        type: choice
+        options: [debug, release]
+        default: debug
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [mac, win, linux]
+    runs-on: [self-hosted, "${{ matrix.os }}", chromium]
+    timeout-minutes: 720
+    env:
+      # Keep the checkout on the runner between jobs: syncing from scratch takes hours.
+      STRATA_CHROMIUM_DIR: ${{ vars.STRATA_CHROMIUM_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: strata
+      - name: Checkout or sync Chromium
+        working-directory: strata
+        shell: bash
+        run: |
+          if python3 tools/strata info | grep -q 'checkout present: True'; then
+            python3 tools/strata sync
+          else
+            python3 tools/strata init
+          fi
+      - name: Generate
+        working-directory: strata
+        run: python3 tools/strata gen ${{ inputs.config }} --force
+      - name: Build
+        working-directory: strata
+        run: python3 tools/strata build -c ${{ inputs.config }} chrome strata_unittests
+      - name: Test
+        working-directory: strata
+        run: python3 tools/strata test -c ${{ inputs.config }}

@@ -1,0 +1,24 @@
+# Fast checks that don't need a Chromium checkout.
+name: tooling
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: strata  # The repository directory must be named "strata".
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CLI and build tooling tests
+        working-directory: strata
+        run: python -m unittest discover -s tools/tests -v

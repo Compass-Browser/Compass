@@ -1,0 +1,19 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# GN args shared by every Strata build. Imported from out/<Config>/args.gn,
+# which `strata gen` writes (it also sets cc_wrapper).
+
+# chromium_src overrides need a local compiler wrapper (build/redirect_cc.py).
+use_remoteexec = false
+
+# H.264/AAC playback, like other Chromium-based browsers.
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+
+# Widevine is deferred until we have a CDM agreement and VMP signing.
+enable_widevine = false
+
+# No Google API keys: Google services that need them stay disabled.
+use_official_google_api_keys = false

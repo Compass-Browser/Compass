@@ -1,0 +1,214 @@
+// Copyright 2026 The Strata Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "strata/browser/sidebar/space_model.h"
+
+#include <utility>
+
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/notreached.h"
+#include "base/uuid.h"
+#include "url/gurl.h"
+
+namespace strata {
+
+namespace {
+
+using Type = SidebarNode::Type;
+
+bool IsPane(const SidebarNode* node) {
+  return node->type() == Type::kTab && node->parent() &&
+         node->parent()->type() == Type::kSplit;
+}
+
+SidebarNode* FindIn(SidebarNode* node, const base::Uuid& id) {
+  if (node->id() == id) {
+    return node;
+  }
+  for (const auto& child : node->children()) {
+    if (SidebarNode* found = FindIn(child.get(), id)) {
+      return found;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+SpaceModel::SpaceModel()
+    : pinned_root_(
+          std::make_unique<SidebarNode>(Type::kRoot, std::u16string(), GURL())),
+      today_root_(std::make_unique<SidebarNode>(Type::kRoot,
+                                                std::u16string(),
+                                                GURL())) {}
+
+SpaceModel::~SpaceModel() = default;
+
+void SpaceModel::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void SpaceModel::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+SidebarNode* SpaceModel::AddFolder(SidebarNode* parent,
+                                   size_t index,
+                                   std::u16string title) {
+  return AddNode(parent, index,
+                 std::make_unique<SidebarNode>(Type::kFolder, std::move(title),
+                                               GURL()));
+}
+
+SidebarNode* SpaceModel::AddTab(SidebarNode* parent,
+                                size_t index,
+                                const GURL& url,
+                                std::u16string title) {
+  return AddNode(
+      parent, index,
+      std::make_unique<SidebarNode>(Type::kTab, std::move(title), url));
+}
+
+bool SpaceModel::CanMove(const SidebarNode* node,
+                         const SidebarNode* new_parent) const {
+  if (!node || !new_parent || node->type() == Type::kRoot ||
+      node->Contains(new_parent)) {
+    return false;
+  }
+  return node->parent() == new_parent ||
+         CanContain(new_parent, node->type());
+}
+
+void SpaceModel::Move(SidebarNode* node, SidebarNode* new_parent,
+                      size_t index) {
+  CHECK(CanMove(node, new_parent));
+  SidebarNode* old_parent = node->parent();
+  const size_t old_index = old_parent->GetIndexOf(node);
+  new_parent->Add(old_parent->Remove(node), index);
+  for (auto& observer : observers_) {
+    observer.OnNodeMoved(*node, *old_parent, old_index);
+  }
+  if (old_parent != new_parent && old_parent->type() == Type::kSplit) {
+    NormalizeSplit(old_parent);
+  }
+}
+
+bool SpaceModel::CanSplit(const SidebarNode* target,
+                          const SidebarNode* tab) const {
+  if (!target || !tab || tab->type() != Type::kTab) {
+    return false;
+  }
+  if (IsPane(target)) {
+    target = target->parent();
+  }
+  if (target->Contains(tab)) {
+    return false;
+  }
+  switch (target->type()) {
+    case Type::kTab:
+      return true;
+    case Type::kSplit:
+      return target->children().size() < kMaxSplitPanes;
+    case Type::kRoot:
+    case Type::kFolder:
+      return false;
+  }
+  NOTREACHED();
+}
+
+SidebarNode* SpaceModel::Split(SidebarNode* target, SidebarNode* tab) {
+  CHECK(CanSplit(target, tab));
+  if (IsPane(target)) {
+    target = target->parent();
+  }
+  if (target->type() == Type::kSplit) {
+    Move(tab, target, target->children().size());
+    return target;
+  }
+  SidebarNode* parent = target->parent();
+  SidebarNode* split = AddNode(
+      parent, parent->GetIndexOf(target),
+      std::make_unique<SidebarNode>(Type::kSplit, std::u16string(), GURL()));
+  Move(target, split, 0);
+  Move(tab, split, 1);
+  return split;
+}
+
+void SpaceModel::Remove(SidebarNode* node) {
+  CHECK(node);
+  CHECK_NE(node->type(), Type::kRoot);
+  for (auto& observer : observers_) {
+    observer.OnNodeWillBeRemoved(*node);
+  }
+  SidebarNode* parent = node->parent();
+  parent->Remove(node);
+  if (parent->type() == Type::kSplit) {
+    NormalizeSplit(parent);
+  }
+}
+
+void SpaceModel::SetTitle(SidebarNode* node, std::u16string title) {
+  CHECK_NE(node->type(), Type::kRoot);
+  node->title_ = std::move(title);
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*node);
+  }
+}
+
+void SpaceModel::SetUrl(SidebarNode* tab, const GURL& url) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  tab->url_ = url;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*tab);
+  }
+}
+
+SidebarNode* SpaceModel::FindById(const base::Uuid& id) {
+  if (SidebarNode* found = FindIn(pinned_root_.get(), id)) {
+    return found;
+  }
+  return FindIn(today_root_.get(), id);
+}
+
+bool SpaceModel::CanContain(const SidebarNode* parent, Type type) const {
+  switch (parent->type()) {
+    case Type::kRoot:
+      return type == Type::kTab || type == Type::kSplit ||
+             (type == Type::kFolder && parent == pinned_root_.get());
+    case Type::kFolder:
+      return type != Type::kRoot;
+    case Type::kSplit:
+      return type == Type::kTab &&
+             parent->children().size() < kMaxSplitPanes;
+    case Type::kTab:
+      return false;
+  }
+  NOTREACHED();
+}
+
+void SpaceModel::NormalizeSplit(SidebarNode* split) {
+  CHECK_EQ(split->type(), Type::kSplit);
+  if (split->children().empty()) {
+    Remove(split);
+  } else if (split->children().size() == 1) {
+    // Moving the last pane out empties the split, and Move() removes it.
+    SidebarNode* parent = split->parent();
+    Move(split->children()[0].get(), parent, parent->GetIndexOf(split));
+  }
+}
+
+SidebarNode* SpaceModel::AddNode(SidebarNode* parent,
+                                 size_t index,
+                                 std::unique_ptr<SidebarNode> node) {
+  CHECK(parent);
+  CHECK(CanContain(parent, node->type()));
+  SidebarNode* added = parent->Add(std::move(node), index);
+  for (auto& observer : observers_) {
+    observer.OnNodeAdded(*added);
+  }
+  return added;
+}
+
+}  // namespace strata
