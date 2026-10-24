@@ -310,7 +310,8 @@ IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
     return first->count() == 1 &&
            first->GetActiveWebContents()->GetTitle() == u"One";
   }));
-  EXPECT_EQ(second->GetTabStripModel()->count(), 1);
+  // Now the second window keeps showing One, as a placeholder.
+  EXPECT_EQ(second->GetTabStripModel()->count(), 2);
 }
 
 }  // namespace

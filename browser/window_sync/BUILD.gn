@@ -55,6 +55,7 @@ source_set("unit_tests") {
     "//chrome/browser/ui/browser_active_state_manager",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/navigator",
+    "//chrome/browser/ui/tabs:tab_model",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support",
     "//chrome/test/base:browser_with_test_window_test",

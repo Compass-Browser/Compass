@@ -36,9 +36,9 @@ inline constexpr char kPlaceholderURL[] = "chrome://strata-placeholder/";
 // reorders on its own (links, keyboard shortcuts, extensions) are mirrored
 // into the Today section. A pinned node outlives its tab: when the tab
 // closes, the node stays, unloaded. A tab moving to another window keeps its
-// node. When a tab leaves for another window, this window falls back to its
-// previous tab, or shows a placeholder for it. See docs/design/sidebar.md,
-// slices b to d and "Window sync".
+// node. When the tab a window shows leaves for another window, the window
+// keeps showing it: a placeholder with a frozen screenshot takes its place. See
+// docs/design/sidebar.md, slices b to d and "Window sync".
 class TabStripBridge : public TabStripModelObserver,
                        public SpaceModel::Observer {
  public:
@@ -72,8 +72,10 @@ class TabStripBridge : public TabStripModelObserver,
   // The node |tab| shows: its own, or its placeholder's.
   SidebarNode* GetShownNode(const tabs::TabInterface* tab) const;
 
-  // Called before |tab| leaves this window. If it's the active tab, activates
-  // the previously used one, or a placeholder if there's none.
+  // Called before |tab| leaves this window. If it's the active tab, a
+  // placeholder with its screenshot takes its place, so the window keeps
+  // showing it. Moves that skip this (upstream commands, extensions) get the
+  // same, a moment after the tab has gone.
   void PrepareToLoseTab(tabs::TabInterface* tab);
 
   // Moves this window's tabs to |target|, in the background, and closes its
@@ -149,13 +151,14 @@ class TabStripBridge : public TabStripModelObserver,
   void BringBackShownPlaceholder();
 
   bool IsPlaceholder(const tabs::TabInterface* tab) const;
-  void InsertPlaceholder(SidebarNode* node);
+  // Inserts and activates a placeholder for |node| at strip |index|.
+  void InsertPlaceholder(SidebarNode* node, int index);
+  // For a tab that already left: unless the window is going away or the node
+  // is back.
+  void InsertPlaceholderAfterMove(const base::Uuid& node_id, int index);
   // Closes placeholders that aren't active, or whose node is gone.
   void ClosePlaceholders();
   void ScheduleClosePlaceholders();
-
-  // Moves |tab| to the front of the most-recently-used list.
-  void MarkUsed(tabs::TabInterface* tab);
 
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
@@ -164,6 +167,8 @@ class TabStripBridge : public TabStripModelObserver,
 
   // Set while the bridge changes either side, so it ignores its own echoes.
   bool updating_ = false;
+  // Set while HandOffTabsTo() empties this closing window.
+  bool handing_off_ = false;
 
   // Set while OpenNode() inserts a tab: that tab belongs to this node.
   raw_ptr<SidebarNode> adopting_node_ = nullptr;
@@ -172,9 +177,6 @@ class TabStripBridge : public TabStripModelObserver,
 
   // This window's placeholder tabs, and the nodes they stand for.
   base::flat_map<tabs::TabHandle, base::Uuid> placeholders_;
-
-  // This window's tabs, most recently used first. May hold stale handles.
-  std::vector<tabs::TabHandle> mru_;
 
   // Screenshots for this window's placeholders, by node.
   base::flat_map<base::Uuid, Snapshot> snapshots_;

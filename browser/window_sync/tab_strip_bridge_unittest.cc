@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "content/public/browser/navigation_controller.h"
@@ -346,7 +347,9 @@ TEST_F(TabStripBridgeTwoWindowTest, OpeningANodeMovesItsTabHere) {
   EXPECT_EQ(tab->GetContents(), contents);
   EXPECT_EQ(second_->GetTabStripModel()->count(), 2);
   EXPECT_EQ(second_->GetTabStripModel()->GetActiveTab(), tab);
-  EXPECT_EQ(tab_strip_model()->count(), 1);
+  // The first window keeps showing a, as a placeholder.
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+  EXPECT_EQ(bridge().GetPlaceholderNode(tab_strip_model()->GetActiveTab()), a);
   // Moving doesn't change the tree.
   EXPECT_THAT(Hosts(space_model().today_root()),
               ElementsAre("c.test", "a.test", "b.test"));
@@ -370,18 +373,50 @@ TEST_F(TabStripBridgeTwoWindowTest, PinnedIsSharedAndUnloadsEverywhere) {
   EXPECT_TRUE(second_bridge().OpenNode(pinned));
 }
 
-TEST_F(TabStripBridgeTwoWindowTest, MovingTheActiveTabFallsBackToTheLastUsed) {
-  // AddTab() activates each tab: a is active, b was used before it.
+TEST_F(TabStripBridgeTwoWindowTest, TheWindowKeepsShowingATabThatLeft) {
+  // AddTab() activates each tab: a is active.
   OpenTabs({"a.test", "b.test", "c.test"});
-  tab_strip_model()->ActivateTabAt(1);  // b
-  tab_strip_model()->ActivateTabAt(0);  // a
   OpenTabInSecond("d.test");
+  SidebarNode* a = TodayFor("a.test");
 
-  second_bridge().OpenNode(TodayFor("a.test"));
+  second_bridge().OpenNode(a);
   Settle();
 
-  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetLastCommittedURL(),
-            GURL("https://b.test/"));
+  // No switch to b or c: a placeholder for a, where a was.
+  ASSERT_EQ(tab_strip_model()->count(), 3);
+  EXPECT_EQ(tab_strip_model()->active_index(), 0);
+  EXPECT_EQ(bridge().GetPlaceholderNode(tab_strip_model()->GetActiveTab()), a);
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, MovesOutsideTheSidebarLeaveAPlaceholder) {
+  OpenTabs({"a.test", "b.test"});
+  OpenTabInSecond("c.test");
+  SidebarNode* a = TodayFor("a.test");
+
+  // As upstream's "Move tab to new window" or an extension would.
+  std::unique_ptr<tabs::TabModel> detached =
+      tab_strip_model()->DetachTabAtForInsertion(0);
+  second_->GetTabStripModel()->InsertDetachedTabAt(0, std::move(detached),
+                                                   AddTabTypes::ADD_ACTIVE);
+  Settle();
+
+  EXPECT_EQ(second_bridge().GetTab(a),
+            second_->GetTabStripModel()->GetActiveTab());
+  ASSERT_EQ(tab_strip_model()->count(), 2);
+  EXPECT_EQ(tab_strip_model()->active_index(), 0);
+  EXPECT_EQ(bridge().GetPlaceholderNode(tab_strip_model()->GetActiveTab()), a);
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, MovingABackgroundTabLeavesNoPlaceholder) {
+  OpenTabs({"a.test", "b.test"});
+  OpenTabInSecond("c.test");
+
+  second_bridge().OpenNode(TodayFor("b.test"));
+  Settle();
+
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_EQ(bridge().GetTab(TodayFor("a.test")),
+            tab_strip_model()->GetActiveTab());
 }
 
 TEST_F(TabStripBridgeTwoWindowTest, MovingTheLastTabLeavesAPlaceholder) {
@@ -401,16 +436,17 @@ TEST_F(TabStripBridgeTwoWindowTest, MovingTheLastTabLeavesAPlaceholder) {
   EXPECT_THAT(Hosts(space_model().today_root()),
               ElementsAre("c.test", "a.test"));
 
-  // Bring it back: the placeholder goes, and the second window falls back.
+  // Bring it back: this placeholder goes, and now the second window keeps
+  // showing a, as a placeholder of its own.
   bridge().OpenNode(a);
   Settle();
 
   ASSERT_EQ(tab_strip_model()->count(), 1);
   EXPECT_EQ(bridge().GetTab(a), tab_strip_model()->GetActiveTab());
-  EXPECT_EQ(second_->GetTabStripModel()->count(), 1);
-  EXPECT_EQ(
-      second_bridge().GetNode(second_->GetTabStripModel()->GetActiveTab()),
-      TodayFor("c.test"));
+  EXPECT_EQ(second_->GetTabStripModel()->count(), 2);
+  EXPECT_EQ(second_bridge().GetPlaceholderNode(
+                second_->GetTabStripModel()->GetActiveTab()),
+            a);
 }
 
 TEST_F(TabStripBridgeTwoWindowTest, PlaceholderClosesWhenItsNodeIsRemoved) {
@@ -449,7 +485,8 @@ TEST_F(TabStripBridgeTwoWindowTest, FocusingTheWindowBringsTheTabBack) {
 
   EXPECT_EQ(bridge().GetTab(a), tab_strip_model()->GetActiveTab());
   EXPECT_EQ(tab_strip_model()->count(), 1);
-  EXPECT_EQ(second_->GetTabStripModel()->count(), 1);
+  // The second window, which showed a, now shows its placeholder.
+  EXPECT_EQ(second_->GetTabStripModel()->count(), 2);
 }
 
 TEST_F(TabStripBridgeTwoWindowTest, SnapshotRequestsAlwaysGetAnAnswer) {

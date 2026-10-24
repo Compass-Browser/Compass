@@ -337,10 +337,14 @@ hidden `Browser`s of inactive spaces will hold such tabs anyway.
   non-normal windows, or for the last window of the profile. There the tabs
   close as before. Keeping Today across that needs Today persistence.
 
-**Move on focus, the source side.** Before a tab leaves window A, A's
-bridge activates A's previous selection. Each bridge keeps a most recently
-used list of its tabs. If A has no other tab, it gets a **placeholder
-tab** first, so A stays open.
+**Move on focus, the source side.** A window never switches away from the
+tab it shows. When that tab leaves for another window, a placeholder takes
+its place in the strip and stays active, even if the window has other tabs.
+For moves through the sidebar, the bridge inserts the placeholder before the
+tab leaves. Other moves, like upstream's "Move tab to new window" or an
+extension, are caught in the strip's removal notification: the screenshot
+request goes out right away, and the placeholder follows in a task. A tab
+that wasn't shown leaves no placeholder.
 
 **Placeholder:** `chrome://strata-placeholder`, a small WebUI in the same
 resource pak as the sidebar. It shows a **frozen screenshot** of the tab,
