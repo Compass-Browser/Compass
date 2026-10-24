@@ -12,6 +12,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/json/values_util.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
@@ -38,6 +39,11 @@ constexpr char kTypeKey[] = "type";
 constexpr char kTitleKey[] = "title";
 constexpr char kUrlKey[] = "url";
 constexpr char kChildrenKey[] = "children";
+constexpr char kLastActiveKey[] = "last_active";
+constexpr char kArchiveAfterKey[] = "archive_after_hours";
+constexpr char kArchiveKey[] = "archive";
+constexpr char kArchivedAtKey[] = "archived";
+constexpr char kTabsKey[] = "tabs";
 
 // By SpaceColor value.
 constexpr auto kColorNames = std::to_array<std::string_view>({
@@ -62,6 +68,9 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       }
       dict.Set(kTypeKey, kTab);
       dict.Set(kUrlKey, node.url().spec());
+      if (!node.last_active().is_null()) {
+        dict.Set(kLastActiveKey, base::TimeToValue(node.last_active()));
+      }
       break;
     case SidebarNode::Type::kFolder:
       dict.Set(kTypeKey, kFolder);
@@ -99,6 +108,16 @@ base::ListValue SerializeSection(const SidebarNode& root, bool today) {
   return entries;
 }
 
+void SetLastActive(const base::DictValue& dict,
+                   SpaceModel& model,
+                   SidebarNode* tab) {
+  if (const base::Value* value = dict.Find(kLastActiveKey)) {
+    if (std::optional<base::Time> time = base::ValueToTime(*value)) {
+      model.SetLastActive(tab, *time);
+    }
+  }
+}
+
 // Adds |dict| as a child of |parent| at |index|. Returns false if it was
 // skipped.
 bool DeserializeNode(const base::DictValue& dict,
@@ -118,8 +137,9 @@ bool DeserializeNode(const base::DictValue& dict,
       return false;
     }
     const std::string* url = dict.FindString(kUrlKey);
-    model.AddTab(parent, index, GURL(url ? *url : std::string()),
-                 std::move(title16));
+    SetLastActive(dict, model,
+                  model.AddTab(parent, index, GURL(url ? *url : std::string()),
+                               std::move(title16)));
     return true;
   }
 
@@ -161,6 +181,7 @@ bool DeserializeNode(const base::DictValue& dict,
       panes.push_back(model.AddTab(
           parent, index + panes.size(), GURL(url ? *url : std::string()),
           pane_title ? base::UTF8ToUTF16(*pane_title) : u""));
+      SetLastActive(*pane, model, panes.back());
     }
     if (panes.empty()) {
       return false;
@@ -192,6 +213,51 @@ size_t DeserializeSection(const base::DictValue& data,
   return inserted;
 }
 
+base::ListValue SerializeArchive(const SpaceModel& model) {
+  base::ListValue entries;
+  for (const ArchivedEntry& entry : model.archive()) {
+    base::ListValue tabs;
+    for (const ArchivedEntry::Tab& tab : entry.tabs) {
+      tabs.Append(base::DictValue()
+                      .Set(kTitleKey, base::UTF16ToUTF8(tab.title))
+                      .Set(kUrlKey, tab.url.spec()));
+    }
+    entries.Append(base::DictValue()
+                       .Set(kArchivedAtKey, base::TimeToValue(entry.archived_at))
+                       .Set(kTabsKey, std::move(tabs)));
+  }
+  return entries;
+}
+
+void DeserializeArchive(const base::DictValue& data, SpaceModel& model) {
+  const base::ListValue* entries = data.FindList(kArchiveKey);
+  if (!entries) {
+    return;
+  }
+  for (const base::Value& value : *entries) {
+    const base::DictValue* dict = value.GetIfDict();
+    const base::ListValue* tabs = dict ? dict->FindList(kTabsKey) : nullptr;
+    if (!tabs) {
+      continue;
+    }
+    ArchivedEntry entry;
+    if (const base::Value* archived_at = dict->Find(kArchivedAtKey)) {
+      entry.archived_at = base::ValueToTime(*archived_at).value_or(base::Time());
+    }
+    for (const base::Value& tab : *tabs) {
+      const base::DictValue* tab_dict = tab.GetIfDict();
+      const std::string* url = tab_dict ? tab_dict->FindString(kUrlKey) : nullptr;
+      if (!url || entry.tabs.size() == kMaxSplitPanes) {
+        continue;
+      }
+      const std::string* title = tab_dict->FindString(kTitleKey);
+      entry.tabs.push_back(
+          {title ? base::UTF8ToUTF16(*title) : u"", GURL(*url)});
+    }
+    model.AddArchived(std::move(entry));
+  }
+}
+
 }  // namespace
 
 base::DictValue SerializeSpace(const SpaceModel& model) {
@@ -199,12 +265,15 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   data.Set(kIdKey, model.id().AsLowercaseString());
   data.Set(kNameKey, base::UTF16ToUTF8(model.name()));
   data.Set(kColorKey, kColorNames[static_cast<size_t>(model.color())]);
+  data.Set(kArchiveAfterKey, model.archive_after().InHours());
   data.Set(kPinnedKey, SerializeSection(*model.pinned_root(), false));
   data.Set(kTodayKey, SerializeSection(*model.today_root(), true));
+  data.Set(kArchiveKey, SerializeArchive(model));
   return data;
 }
 
 size_t DeserializeSpace(const base::DictValue& data, SpaceModel& model) {
+  DeserializeArchive(data, model);
   return DeserializeSection(data, kPinnedKey, model, model.pinned_root()) +
          DeserializeSection(data, kTodayKey, model, model.today_root());
 }
@@ -287,6 +356,11 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
           space->SetColor(static_cast<SpaceColor>(c));
         }
       }
+    }
+    // Older files have none: the default applies.
+    if (std::optional<int> hours = saved[i]->FindInt(kArchiveAfterKey);
+        hours && *hours >= 0) {
+      space->SetArchiveAfter(base::Hours(*hours));
     }
     DeserializeSpace(*saved[i], *space);
   }

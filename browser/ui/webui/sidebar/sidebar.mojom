@@ -57,12 +57,28 @@ struct Space {
   string id;
   string name;
   SpaceColor color;
+  // How long a Today entry may go unseen before it's archived; 0 for never.
+  uint32 archive_after_hours;
+};
+
+struct ArchivedTab {
+  string title;
+  url.mojom.Url url;
+};
+
+// An archived Today entry: a tab, or a split's panes.
+struct ArchivedEntry {
+  // Stable for the session only.
+  string id;
+  array<ArchivedTab> tabs;
+  // Milliseconds since the Unix epoch, as JS Date takes them.
+  double archived_at;
 };
 
 // Browser-side handler for requests from chrome://strata-sidebar.
 interface PageHandler {
-  // Answered with Page.SetSpaces() and Page.SetTree(), on the same pipe as
-  // the diffs, so the page sees them in order.
+  // Answered with Page.SetSpaces(), Page.SetTree() and Page.SetArchive(), on
+  // the same pipe as the diffs, so the page sees them in order.
   RequestTree();
   // Activates a tab node's tab, opening one if the node is unloaded. Ignored
   // for other nodes.
@@ -101,6 +117,14 @@ interface PageHandler {
   // Moves an entry and its subtree, with its live tabs, to another space: to
   // the end of the same section there.
   MoveNodeToSpace(string id, string space_id);
+  // 0 turns auto-archive off for the space. At most a year.
+  SetArchiveAfter(string space_id, uint32 hours);
+
+  // The window's space's archive. Restoring puts the entry back at the end of
+  // Today and opens it in the foreground.
+  RestoreArchived(string id);
+  RemoveArchived(string id);
+  ClearArchive();
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
@@ -118,6 +142,9 @@ interface Page {
   NodeRemoved(string id);
   NodeLiveChanged(string id, bool live);
   ActiveNodeChanged(string? id);
+  // The window's space's archived entries, most recent first. Sent after the
+  // tree, and whenever they change.
+  SetArchive(array<ArchivedEntry> entries);
 };
 
 // Browser-side handler for chrome://strata-placeholder, the tab a window shows

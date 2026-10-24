@@ -108,7 +108,15 @@ void SidebarStore::OnNodeWillMoveToSpace(const SidebarNode& node) {
   ScheduleSave();
 }
 
+void SidebarStore::OnNodeLastActiveChanged(const SidebarNode& node) {
+  ScheduleSave();
+}
+
 void SidebarStore::OnSpaceChanged(const SpaceModel& space) {
+  ScheduleSave();
+}
+
+void SidebarStore::OnArchiveChanged(const SpaceModel& space) {
   ScheduleSave();
 }
 

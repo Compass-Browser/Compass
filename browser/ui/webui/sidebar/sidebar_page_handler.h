@@ -70,6 +70,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void DeleteSpace(const std::string& id) override;
   void MoveNodeToSpace(const std::string& id,
                        const std::string& space_id) override;
+  void SetArchiveAfter(const std::string& space_id, uint32_t hours) override;
+  void RestoreArchived(const std::string& id) override;
+  void RemoveArchived(const std::string& id) override;
+  void ClearArchive() override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -79,6 +83,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnNodeWillMoveToSpace(const SidebarNode& node) override;
+  void OnArchiveChanged(const SpaceModel& space) override;
 
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
@@ -105,6 +110,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   sidebar::mojom::NodePtr ToMojo(const SidebarNode& node);
   void SendSpaces();
+  void SendArchive();
 
   // The node with |id|, or null if there is none (the page can be behind).
   SidebarNode* FindNode(const std::string& id);

@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
+#include "base/timer/timer.h"
 #include "base/uuid.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
@@ -28,7 +29,8 @@ class SidebarStore;
 // A profile's sidebar state, shared by all its windows: its spaces, which
 // nodes are live where, the store that persists them (none for off-the-record
 // profiles), a matcher per space that ties restored tabs to saved entries,
-// and the parking window that holds the live tabs of spaces no window shows.
+// the parking window that holds the live tabs of spaces no window shows, and
+// the timer that auto-archives idle Today entries.
 // Attached to the Profile as user data, so it outlives the profile's windows.
 // See docs/design/sidebar.md, slice d, and docs/design/spaces.md.
 class SpaceService : public base::SupportsUserData::Data,
@@ -71,6 +73,10 @@ class SpaceService : public base::SupportsUserData::Data,
 
   void SetParkingWindowFactoryForTesting(ParkingWindowFactory factory);
 
+  // Archives idle Today entries now (see ArchiveIdleTodayEntries()). Also
+  // runs on its own, shortly after the file loads and then periodically.
+  void ArchiveIdleEntries();
+
   base::WeakPtr<SpaceService> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
   }
@@ -93,6 +99,8 @@ class SpaceService : public base::SupportsUserData::Data,
       matchers_;
   base::flat_map<const SpaceModel*, base::Uuid> last_active_nodes_;
   bool loaded_ = false;
+  base::OneShotTimer first_archive_timer_;
+  base::RepeatingTimer archive_timer_;
 
   raw_ptr<BrowserWindowInterface> parking_window_ = nullptr;
   bool creating_parking_window_ = false;

@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "base/uuid.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -57,6 +59,9 @@ class RecordingObserver : public SpaceModel::Observer {
   }
   void OnSpaceChanged(const SpaceModel& space) override {
     events.push_back("space");
+  }
+  void OnArchiveChanged(const SpaceModel& space) override {
+    events.push_back("archive");
   }
 
   std::vector<std::string> events;
@@ -274,6 +279,121 @@ TEST_F(SpaceModelTest, NotifiesNameAndColorChanges) {
   EXPECT_EQ(model_.color(), SpaceColor::kBlue);
   EXPECT_THAT(observer.events, ElementsAre("space", "space"));
   model_.RemoveObserver(&observer);
+}
+
+TEST(SpaceModelArchiveTest, ArchivesEntriesLeftUnseen) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  const base::Time start = base::Time::Now();
+  SidebarNode* old_tab = model.AddTab(today, 0, GURL("https://old.test/"),
+                                      u"Old");
+  SidebarNode* recent = model.AddTab(today, 1, GURL("https://new.test/"),
+                                     u"New");
+  SidebarNode* unknown = model.AddTab(today, 2, GURL("https://u.test/"), u"U");
+  SidebarNode* kept = model.AddTab(today, 3, GURL("https://k.test/"), u"Kept");
+  SidebarNode* pinned = model.AddTab(model.pinned_root(), 0,
+                                     GURL("https://p.test/"), u"Pinned");
+  model.SetLastActive(old_tab, start - base::Hours(13));
+  model.SetLastActive(recent, start - base::Hours(1));
+  model.SetLastActive(kept, start - base::Days(3));
+  model.SetLastActive(pinned, start - base::Days(3));
+
+  EXPECT_EQ(model.ArchiveIdleEntries(
+                start, [&](const SidebarNode& entry) { return &entry == kept; }),
+            1u);
+
+  EXPECT_THAT(Titles(today), ElementsAre("New", "U", "Kept"));
+  EXPECT_THAT(Titles(model.pinned_root()), ElementsAre("Pinned"));
+  // A tab with no time gets one, and a full delay.
+  EXPECT_EQ(unknown->last_active(), start);
+  ASSERT_EQ(model.archive().size(), 1u);
+  EXPECT_EQ(model.archive()[0].tabs[0].title, u"Old");
+  EXPECT_EQ(model.archive()[0].tabs[0].url, GURL("https://old.test/"));
+  EXPECT_EQ(model.archive()[0].archived_at, start);
+
+  const auto keep_none = [](const SidebarNode&) { return false; };
+  EXPECT_EQ(model.ArchiveIdleEntries(start + base::Hours(11), keep_none), 2u);
+  EXPECT_THAT(Titles(today), ElementsAre("U"));
+  // Most recent first.
+  ASSERT_EQ(model.archive().size(), 3u);
+  EXPECT_EQ(model.archive()[0].tabs[0].title, u"Kept");
+  EXPECT_EQ(model.archive()[1].tabs[0].title, u"New");
+}
+
+TEST(SpaceModelArchiveTest, SplitsGoByTheirMostRecentPane) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  const base::Time start = base::Time::Now();
+  SidebarNode* a = model.AddTab(today, 0, GURL("https://a.test/"), u"A");
+  SidebarNode* b = model.AddTab(today, 1, GURL("https://b.test/"), u"B");
+  model.Split(a, b);
+  model.SetLastActive(a, start - base::Days(2));
+  model.SetLastActive(b, start - base::Hours(2));
+  const auto keep_none = [](const SidebarNode&) { return false; };
+
+  EXPECT_EQ(model.ArchiveIdleEntries(start, keep_none), 0u);
+  EXPECT_EQ(model.ArchiveIdleEntries(start + base::Hours(10), keep_none), 1u);
+
+  ASSERT_EQ(model.archive().size(), 1u);
+  ASSERT_EQ(model.archive()[0].tabs.size(), 2u);
+  SidebarNode* split = model.Unarchive(model.archive()[0].id, 0);
+  ASSERT_TRUE(split);
+  EXPECT_EQ(split->type(), Type::kSplit);
+  EXPECT_THAT(Titles(today), ElementsAre("[A|B]"));
+  EXPECT_TRUE(model.archive().empty());
+}
+
+TEST(SpaceModelArchiveTest, NeverWhenTheDelayIsZero) {
+  SpaceModel model;
+  SidebarNode* tab =
+      model.AddTab(model.today_root(), 0, GURL("https://a.test/"), u"A");
+  model.SetLastActive(tab, base::Time::Now() - base::Days(400));
+  model.SetArchiveAfter(base::TimeDelta());
+
+  EXPECT_EQ(model.ArchiveIdleEntries(base::Time::Now(),
+                                     [](const SidebarNode&) { return false; }),
+            0u);
+  EXPECT_THAT(Titles(model.today_root()), ElementsAre("A"));
+}
+
+TEST(SpaceModelArchiveTest, KeepsOnlyPagesWorthRestoring) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  const base::Time now = base::Time::Now();
+  model.Archive(model.AddTab(today, 0, GURL("chrome://newtab/"), u"NTP"), now);
+  EXPECT_TRUE(today->children().empty());
+  EXPECT_TRUE(model.archive().empty());
+
+  for (size_t i = 0; i < kMaxArchivedEntries + 5; ++i) {
+    model.Archive(model.AddTab(today, 0, GURL("https://a.test/"),
+                               base::NumberToString16(i)),
+                  now);
+  }
+  ASSERT_EQ(model.archive().size(), kMaxArchivedEntries);
+  EXPECT_EQ(model.archive()[0].tabs[0].title,
+            base::NumberToString16(kMaxArchivedEntries + 4));
+}
+
+TEST(SpaceModelArchiveTest, RemovesAndClears) {
+  SpaceModel model;
+  RecordingObserver observer;
+  model.AddObserver(&observer);
+  SidebarNode* today = model.today_root();
+  const base::Time now = base::Time::Now();
+  model.Archive(model.AddTab(today, 0, GURL("https://a.test/"), u"A"), now);
+  model.Archive(model.AddTab(today, 0, GURL("https://b.test/"), u"B"), now);
+  ASSERT_EQ(model.archive().size(), 2u);
+
+  model.RemoveArchived(model.archive()[1].id);
+  ASSERT_EQ(model.archive().size(), 1u);
+  EXPECT_EQ(model.archive()[0].tabs[0].title, u"B");
+  EXPECT_FALSE(model.Unarchive(base::Uuid::GenerateRandomV4(), 0));
+
+  observer.events.clear();
+  model.ClearArchive();
+  EXPECT_TRUE(model.archive().empty());
+  EXPECT_THAT(observer.events, ElementsAre("archive"));
+  model.RemoveObserver(&observer);
 }
 
 }  // namespace

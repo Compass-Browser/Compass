@@ -57,7 +57,9 @@ class SidebarStore : public SpaceList::Observer,
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnNodeWillMoveToSpace(const SidebarNode& node) override;
+  void OnNodeLastActiveChanged(const SidebarNode& node) override;
   void OnSpaceChanged(const SpaceModel& space) override;
+  void OnArchiveChanged(const SpaceModel& space) override;
 
   // base::ImportantFileWriter::DataSerializer:
   std::optional<std::string> SerializeData() override;

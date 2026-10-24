@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
+
 #include "base/test/run_until.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
@@ -470,6 +473,66 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
   const SidebarNode* folder = model.pinned_root()->children()[0].get();
   EXPECT_EQ(folder->type(), SidebarNode::Type::kFolder);
   EXPECT_EQ(folder->children()[0]->title(), u"One");
+}
+
+// Opens three titled tabs, One to Three, and waits for the sidebar to list
+// them. Three is active.
+void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sidebar) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser, GURL("data:text/html,<title>One</title>")));
+  for (const char* title : {"Two", "Three"}) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+        browser,
+        GURL(std::string("data:text/html,<title>") + title + "</title>"),
+        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  }
+  ASSERT_EQ(true,
+            content::EvalJs(sidebar, content::JsReplace(
+                                         kWaitForTitles, base::ListValue()
+                                                             .Append("One")
+                                                             .Append("Two")
+                                                             .Append("Three"))));
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ArchivePanel) {
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& model = features->space_model();
+  // One was last seen two days ago; Three is on screen.
+  model.SetLastActive(model.today_root()->children()[0].get(),
+                      base::Time::Now() - base::Days(2));
+
+  features->service().ArchiveIdleEntries();
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  ASSERT_TRUE(base::test::RunUntil([&] { return tabs->count() == 2; }));
+  ASSERT_EQ(model.archive().size(), 1u);
+  EXPECT_EQ(true, content::EvalJs(contents, content::JsReplace(
+                                                kWaitForTitles,
+                                                base::ListValue()
+                                                    .Append("Two")
+                                                    .Append("Three"))));
+
+  // The panel lists it; clicking it brings it back.
+  EXPECT_EQ("One", content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      root.querySelector('#archiveButton').click();
+      let entry;
+      while (!(entry = root.querySelector('.archived'))) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      const title = entry.title;
+      entry.click();
+      return title;
+    })())"));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return tabs->count() == 3 &&
+           tabs->GetActiveWebContents()->GetTitle() == u"One";
+  }));
+  EXPECT_TRUE(model.archive().empty());
 }
 
 // Window sync across real windows (docs/design/sidebar.md, "Window sync").

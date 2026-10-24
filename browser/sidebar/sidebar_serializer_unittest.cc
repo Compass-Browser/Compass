@@ -10,6 +10,7 @@
 
 #include "base/json/json_reader.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -208,6 +209,49 @@ TEST(SidebarSerializerTest, ReadsVersion1AsOneSpace) {
   EXPECT_EQ(list.spaces().size(), 1u);
   EXPECT_EQ(Describe(list.active_space().pinned_root()), "A");
   EXPECT_EQ(Describe(list.active_space().today_root()), "T");
+}
+
+TEST(SidebarSerializerTest, RoundTripsArchiveState) {
+  SpaceList list;
+  SpaceModel& model = list.active_space();
+  const base::Time viewed = base::Time::Now() - base::Hours(3);
+  SidebarNode* tab =
+      model.AddTab(model.today_root(), 0, GURL("https://t.test/"), u"T");
+  model.SetLastActive(tab, viewed);
+  SidebarNode* a = model.AddTab(model.today_root(), 1, GURL("https://a.test/"),
+                                u"A");
+  SidebarNode* b = model.AddTab(model.today_root(), 2, GURL("https://b.test/"),
+                                u"B");
+  model.Split(a, b);
+  const base::Time archived = base::Time::Now();
+  model.Archive(model.today_root()->children()[1].get(), archived);
+  model.SetArchiveAfter(base::Days(7));
+
+  SpaceList restored;
+  DeserializeSpaceList(SerializeSpaceList(list), restored);
+
+  SpaceModel& space = restored.active_space();
+  EXPECT_EQ(space.archive_after(), base::Days(7));
+  ASSERT_EQ(Describe(space.today_root()), "T");
+  EXPECT_EQ(space.today_root()->children()[0]->last_active(), viewed);
+  ASSERT_EQ(space.archive().size(), 1u);
+  EXPECT_EQ(space.archive()[0].archived_at, archived);
+  ASSERT_EQ(space.archive()[0].tabs.size(), 2u);
+  EXPECT_EQ(space.archive()[0].tabs[1].title, u"B");
+  EXPECT_EQ(space.archive()[0].tabs[1].url, GURL("https://b.test/"));
+}
+
+TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "Home", "archive_after_hours": 0},
+                                   {"name": "Work"}]})",
+      base::JSON_PARSE_RFC);
+  SpaceList list;
+
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 2u);
+
+  EXPECT_EQ(list.spaces()[0]->archive_after(), base::TimeDelta());
+  EXPECT_EQ(list.spaces()[1]->archive_after(), kDefaultArchiveAfter);
 }
 
 }  // namespace

@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/time/time.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/tab_strip_bridge.h"
@@ -111,6 +112,12 @@ void DeleteSpace(Profile* profile, SpaceModel& space);
 // true if it did; the emptied window then closes on its own, and the caller
 // must not go on closing it. See docs/design/sidebar.md, "Window sync".
 bool HandOffTabsBeforeClose(BrowserWindowInterface* browser);
+
+// Archives the Today entries of |profile|'s spaces that have gone unseen for
+// their space's delay, as of |now| (see SpaceModel::ArchiveIdleEntries()).
+// Entries shown in a window, or playing sound, stay. See
+// docs/design/sidebar.md, "Today auto-archive".
+void ArchiveIdleTodayEntries(Profile* profile, base::Time now);
 
 }  // namespace strata
 

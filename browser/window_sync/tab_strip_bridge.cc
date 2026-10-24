@@ -274,6 +274,19 @@ void TabStripBridge::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
+  if (selection.active_tab_changed()) {
+    // Auto-archive counts from when an entry was last on screen: the one the
+    // window leaves was shown until now. A new tab gets its node, and a time,
+    // below.
+    const base::Time now = base::Time::Now();
+    for (const tabs::TabInterface* tab :
+         {selection.old_tab.get(), selection.new_tab.get()}) {
+      SidebarNode* node = tab ? GetShownNode(tab) : nullptr;
+      if (node && space_model_->Contains(node)) {
+        space_model_->SetLastActive(node, now);
+      }
+    }
+  }
   if (selection.active_tab_changed() && selection.new_tab) {
     // Using any other tab dismisses this window's placeholders.
     if (!placeholders_.empty() && !IsPlaceholder(selection.new_tab)) {

@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
+#include "content/public/browser/web_contents.h"
 #include "strata/browser/sidebar/sidebar_serializer.h"
 #include "strata/browser/window_sync/sidebar_store.h"
 #include "ui/base/page_transition_types.h"
@@ -84,6 +85,37 @@ void CollectLiveTabs(const LiveTabRegistry& registry,
   for (const auto& child : node->children()) {
     CollectLiveTabs(registry, child.get(), tabs);
   }
+}
+
+// Whether |entry| shows in one of |profile|'s windows, or one of its tabs
+// plays sound.
+bool IsEntryInUse(Profile* profile,
+                  const LiveTabRegistry& registry,
+                  const SidebarNode& entry) {
+  bool shown = false;
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        WindowFeatures* features = WindowFeatures::From(browser);
+        if (features && !features->is_parking_window() &&
+            !features->is_switching()) {
+          // A placeholder shows its node too.
+          const SidebarNode* node =
+              features->tab_strip_bridge().GetShownNode(
+                  browser->GetActiveTabInterface());
+          shown = node && entry.Contains(node);
+        }
+        return !shown;
+      },
+      BrowserCollection::Order::kActivation);
+  if (shown) {
+    return true;
+  }
+  std::vector<tabs::TabHandle> tabs;
+  CollectLiveTabs(registry, &entry, tabs);
+  return std::ranges::any_of(tabs, [](const tabs::TabHandle& handle) {
+    tabs::TabInterface* tab = handle.Get();
+    return tab && tab->GetContents()->IsCurrentlyAudible();
+  });
 }
 
 void OpenNewTab(BrowserWindowInterface* browser) {
@@ -424,6 +456,15 @@ bool HandOffTabsBeforeClose(BrowserWindowInterface* browser) {
   }
   source->tab_strip_bridge().HandOffTabsTo(target->tab_strip_bridge());
   return true;
+}
+
+void ArchiveIdleTodayEntries(Profile* profile, base::Time now) {
+  SpaceService* service = SpaceService::Get(profile);
+  for (const auto& space : service->space_list().spaces()) {
+    space->ArchiveIdleEntries(now, [&](const SidebarNode& entry) {
+      return IsEntryInUse(profile, service->registry(), entry);
+    });
+  }
 }
 
 }  // namespace strata

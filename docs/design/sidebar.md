@@ -463,6 +463,52 @@ window, and keyboard navigation between entries.
 sidebar, that resizing and collapsing work, and that a dropped link opens
 in Pinned without navigating the sidebar.
 
+## Today auto-archive
+
+Goal: Today doesn't fill up with entries nobody looks at, as in Arc. An
+entry that goes unseen for its space's delay (12 hours by default) moves to
+the space's archive, from where one click brings it back.
+
+**Last active.** Each tab node has a last-active time, saved with it in the
+sidebar file. A window's bridge stamps the entry it shows when it starts
+showing it and again when it stops (the strip's active-tab change), so the
+clock starts when the entry leaves the screen. A tab with no time yet (opened
+in the background, or loaded from an older file) gets one the first time the
+archiver sees it, so it gets a full delay too. A split counts from its most
+recently shown pane.
+
+**The archiver.** `SpaceModel::ArchiveIdleEntries(now, keep)` archives every
+Today entry whose time is older than the space's delay, except those `keep`
+spares. Pinned entries are never archived. `SpaceService` runs it for every
+space 30 s after the file loads, so restored tabs have taken over their
+entries, and then every 10 minutes. It keeps entries that a window shows
+(a placeholder counts), and entries with a tab playing sound.
+
+**Archiving** records the entry's tabs (title and URL; a split keeps its
+panes) with the time, then removes the entry, which closes its live tabs
+with history, so ⌘⇧T still works. New tab and blank pages aren't recorded.
+The archive is per space (this settles the open question in
+ARCHITECTURE.md §15), newest first, and keeps the last 100 entries. It's
+saved in the sidebar file as the space's `"archive"`. It isn't searchable
+yet; that wants SQLite (D12).
+
+**Restoring** puts the entry back at the end of Today, unloaded, and opens it
+in the foreground (a split opens its first pane).
+
+**UI.** Today gets a header with an archive button. It opens a panel over the
+sections with the archived entries, their age, a × to drop one and Clear.
+The space menu gets "Archive Today tabs after": 12 hours, 24 hours, 7 days,
+30 days or never. The file stores it as `"archive_after_hours"` (0 for never).
+
+Mojo: `Space.archive_after_hours`; `PageHandler.SetArchiveAfter(space_id,
+hours)`, `RestoreArchived(id)`, `RemoveArchived(id)`, `ClearArchive()`;
+`Page.SetArchive(entries)`, sent after the tree and on every change.
+
+**Tests:** model (idle entries, splits, never, the cap, restoring),
+serializer (last active, delay and archive round trip; older files get the
+default), a bridge test (unseen tabs close and archive, the shown one stays)
+and a page handler test.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the

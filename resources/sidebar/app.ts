@@ -9,7 +9,7 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import './node.js';
-import type {Node, Space, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, Node, Space, Tree} from './sidebar.mojom-webui.js';
 import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -34,12 +34,30 @@ const SPACE_COLORS: Map<SpaceColor, {css: string, name: string}> = new Map([
   [SpaceColor.kGreen, {css: 'rgb(34, 197, 94)', name: 'Green'}],
 ]);
 
+export interface ArchiveDelay {
+  hours: number;
+  label: string;
+}
+
+// The auto-archive delays the space menu offers, in hours; 0 is never.
+const ARCHIVE_DELAYS: ArchiveDelay[] = [
+  {hours: 12, label: '12 hours'},
+  {hours: 24, label: '24 hours'},
+  {hours: 7 * 24, label: '7 days'},
+  {hours: 30 * 24, label: '30 days'},
+  {hours: 0, label: 'Never'},
+];
+
+const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
+
 // The sidebar: the window's SpaceModel, as a pinned and a Today section. The
 // browser sends the tree once, then diffs. Entries are rearranged by dragging,
 // and links dragged in open where they're dropped, or onto another space's
 // button to move there. A space's menu (right-click its button, or
 // double-click the name) renames, colors and deletes it. Slices b, c and e of
-// docs/design/sidebar.md, and docs/design/spaces.md.
+// docs/design/sidebar.md, and docs/design/spaces.md. Today entries left
+// unseen are archived; the archive button in Today's header lists them
+// ("Today auto-archive").
 export class StrataSidebarAppElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-app';
@@ -63,6 +81,8 @@ export class StrataSidebarAppElement extends CrLitElement {
       activeSpaceId_: {type: String},
       menuSpaceId_: {type: String},
       confirmingDelete_: {type: Boolean},
+      archive_: {type: Array},
+      archiveOpen_: {type: Boolean},
     };
   }
 
@@ -77,6 +97,9 @@ export class StrataSidebarAppElement extends CrLitElement {
   // Delete asks to be clicked twice.
   protected accessor confirmingDelete_: boolean = false;
   protected readonly spaceColors_: SpaceColor[] = Array.from(SPACE_COLORS.keys());
+  protected readonly archiveDelays_ = ARCHIVE_DELAYS;
+  protected accessor archive_: ArchivedEntry[] = [];
+  protected accessor archiveOpen_: boolean = false;
 
   private browserProxy_: SidebarBrowserProxy =
       SidebarBrowserProxy.getInstance();
@@ -105,6 +128,8 @@ export class StrataSidebarAppElement extends CrLitElement {
       router.nodeLiveChanged.addListener(this.onNodeLiveChanged_.bind(this)),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
+      router.setArchive.addListener(
+          (entries: ArchivedEntry[]) => this.archive_ = entries),
     ];
     // Diffs that arrive before the tree are about nodes the page doesn't know
     // yet, and the lookups below drop them. The tree already has them.
@@ -188,11 +213,102 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   private onDocumentPointerdown_ = (e: PointerEvent) => {
+    const path = e.composedPath();
     const menu = this.shadowRoot.querySelector('#spaceMenu');
-    if (menu && !e.composedPath().includes(menu)) {
+    if (menu && !path.includes(menu)) {
       this.closeSpaceMenu_();
     }
+    // The archive button toggles the panel itself.
+    const archive = this.shadowRoot.querySelector('#archive');
+    const archiveButton = this.shadowRoot.querySelector('#archiveButton');
+    if (archive && !path.includes(archive) &&
+        !(archiveButton && path.includes(archiveButton))) {
+      this.archiveOpen_ = false;
+    }
   };
+
+  protected isMenuSpaceArchiveDelay_(hours: number): boolean {
+    return this.getMenuSpace_()?.archiveAfterHours === hours;
+  }
+
+  protected onArchiveDelayChange_(e: Event) {
+    const hours = Number((e.target as HTMLSelectElement).value);
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.setArchiveAfter(this.menuSpaceId_, hours);
+    }
+  }
+
+  protected isArchiveEmpty_(): boolean {
+    return this.archive_.length === 0;
+  }
+
+  protected onArchiveButtonClick_() {
+    this.archiveOpen_ = !this.archiveOpen_;
+  }
+
+  protected onArchiveKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      this.archiveOpen_ = false;
+    }
+  }
+
+  protected getArchiveHint_(): string {
+    const hours = this.spaces_.find(space => this.isActiveSpace_(space))
+                      ?.archiveAfterHours ?? 0;
+    if (hours === 0) {
+      return 'Nothing archived. Auto-archive is off for this space.';
+    }
+    const delay = ARCHIVE_DELAYS.find(delay => delay.hours === hours)?.label ??
+        `${hours} hours`;
+    return `Nothing archived yet. Today tabs you haven't looked at for ${
+        delay} come here.`;
+  }
+
+  // A split shows its panes' titles side by side.
+  protected getArchivedTitle_(entry: ArchivedEntry): string {
+    return entry.tabs.map((tab: ArchivedTab) => tab.title || tab.url)
+        .join(' | ');
+  }
+
+  protected getArchivedUrl_(entry: ArchivedEntry): string {
+    return entry.tabs[0]?.url ?? '';
+  }
+
+  protected getArchivedAge_(entry: ArchivedEntry): string {
+    const minutes = (entry.archivedAt - Date.now()) / 60000;
+    if (minutes > -60) {
+      return RELATIVE_TIME.format(Math.round(minutes), 'minute');
+    }
+    if (minutes > -24 * 60) {
+      return RELATIVE_TIME.format(Math.round(minutes / 60), 'hour');
+    }
+    return RELATIVE_TIME.format(Math.round(minutes / (24 * 60)), 'day');
+  }
+
+  protected getFaviconUrl_(url: string): string {
+    const params = new URLSearchParams({
+      size: '16',
+      scaleFactor: `${window.devicePixelRatio}x`,
+      pageUrl: url,
+      allowGoogleServerFallback: '0',
+    });
+    return `chrome://favicon2/?${params.toString()}`;
+  }
+
+  protected onArchivedClick_(e: Event) {
+    this.browserProxy_.handler.restoreArchived(
+        (e.currentTarget as HTMLElement).dataset['archivedId']!);
+  }
+
+  protected onRemoveArchivedClick_(e: Event) {
+    e.stopPropagation();
+    this.browserProxy_.handler.removeArchived(
+        (e.currentTarget as HTMLElement).dataset['archivedId']!);
+  }
+
+  protected onClearArchiveClick_() {
+    this.browserProxy_.handler.clearArchive();
+  }
 
   protected onSpaceMenuKeydown_(e: KeyboardEvent) {
     if (e.key === 'Escape') {

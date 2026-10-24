@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "strata/browser/window_sync/sidebar_store.h"
+#include "strata/browser/window_sync/window_features.h"
 
 namespace strata {
 
@@ -25,6 +26,12 @@ const char kUserDataKey[] = "strata_space_service";
 
 constexpr base::FilePath::CharType kStoreFileName[] =
     FILE_PATH_LITERAL("Strata Sidebar.json");
+
+// The first auto-archive pass waits for session restore to hand its tabs
+// their saved entries.
+constexpr base::TimeDelta kFirstArchiveDelay = base::Seconds(30);
+// Delays are hours or more, so this is precise enough.
+constexpr base::TimeDelta kArchiveInterval = base::Minutes(10);
 
 BrowserWindowInterface* CreateParkingWindow(Profile* profile) {
   // A popup, so upstream never picks it for new tabs or links from other
@@ -129,6 +136,10 @@ void SpaceService::SetParkingWindowFactoryForTesting(
   parking_window_factory_ = std::move(factory);
 }
 
+void SpaceService::ArchiveIdleEntries() {
+  ArchiveIdleTodayEntries(profile_, base::Time::Now());
+}
+
 void SpaceService::OnSpaceAdded(SpaceModel& space) {
   auto matcher = std::make_unique<RestoredTabMatcher>(&space, &registry_);
   if (loaded_) {
@@ -147,6 +158,10 @@ void SpaceService::OnLoaded() {
   for (auto& [space, matcher] : matchers_) {
     matcher->OnLoaded();
   }
+  first_archive_timer_.Start(FROM_HERE, kFirstArchiveDelay, this,
+                             &SpaceService::ArchiveIdleEntries);
+  archive_timer_.Start(FROM_HERE, kArchiveInterval, this,
+                       &SpaceService::ArchiveIdleEntries);
 }
 
 }  // namespace strata

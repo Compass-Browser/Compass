@@ -46,6 +46,9 @@ class FakePage : public sidebar::mojom::Page {
                  const std::string& active_id) override {
     spaces_.clear();
     for (size_t i = 0; i < spaces.size(); ++i) {
+      if (spaces[i]->id == active_id) {
+        archive_after_hours_ = spaces[i]->archive_after_hours;
+      }
       const std::string& name = spaces[i]->name;
       spaces_ += (i ? "," : "") +
                  (spaces[i]->id == active_id ? "[" + name + "]" : name);
@@ -83,11 +86,19 @@ class FakePage : public sidebar::mojom::Page {
   void ActiveNodeChanged(const std::optional<std::string>& id) override {
     events_.push_back("active " + (id ? hosts_[*id] : "none"));
   }
+  void SetArchive(
+      std::vector<sidebar::mojom::ArchivedEntryPtr> entries) override {
+    archive_ = std::move(entries);
+  }
 
   sidebar::mojom::TreePtr TakeTree() { return std::move(tree_); }
   std::vector<std::string> TakeEvents() { return std::move(events_); }
   // Space names, comma separated, the window's in brackets.
   const std::string& spaces() const { return spaces_; }
+  const std::vector<sidebar::mojom::ArchivedEntryPtr>& archive() const {
+    return archive_;
+  }
+  uint32_t archive_after_hours() const { return archive_after_hours_; }
 
  private:
   void Learn(const sidebar::mojom::Node& node) {
@@ -102,6 +113,8 @@ class FakePage : public sidebar::mojom::Page {
   std::map<std::string, std::string> hosts_;
   std::vector<std::string> events_;
   std::string spaces_;
+  uint32_t archive_after_hours_ = 0;
+  std::vector<sidebar::mojom::ArchivedEntryPtr> archive_;
 };
 
 std::vector<std::string> Hosts(const sidebar::mojom::Node& parent) {
@@ -436,6 +449,41 @@ TEST_F(SidebarPageHandlerTest, DeletingTheWindowsSpaceSwitchesAway) {
   sidebar::mojom::TreePtr tree = page_.TakeTree();
   ASSERT_TRUE(tree);
   EXPECT_THAT(Hosts(*tree->today), ElementsAre("a.test", "b.test"));
+}
+
+TEST_F(SidebarPageHandlerTest, ArchivesAndRestores) {
+  const std::string id = space_model().id().AsLowercaseString();
+  EXPECT_EQ(page_.archive_after_hours(), 12u);
+  handler_remote_->SetArchiveAfter(id, 24);
+  // More than a year is ignored.
+  handler_remote_->SetArchiveAfter(id, 366 * 24);
+  Settle();
+  EXPECT_EQ(page_.archive_after_hours(), 24u);
+  EXPECT_EQ(space_model().archive_after(), base::Hours(24));
+
+  // b.test isn't shown.
+  space_model().Archive(space_model().today_root()->children()[1].get(),
+                        base::Time::Now());
+  Settle();
+  ASSERT_EQ(page_.archive().size(), 1u);
+  EXPECT_EQ(page_.archive()[0]->tabs[0]->url, GURL("https://b.test/"));
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+
+  handler_remote_->RestoreArchived(page_.archive()[0]->id);
+  Settle();
+  EXPECT_THAT(page_.archive(), IsEmpty());
+  ASSERT_EQ(space_model().today_root()->children().size(), 2u);
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("https://b.test/"));
+
+  space_model().Archive(space_model().today_root()->children()[1].get(),
+                        base::Time::Now());
+  Settle();
+  ASSERT_EQ(page_.archive().size(), 1u);
+  handler_remote_->ClearArchive();
+  Settle();
+  EXPECT_THAT(page_.archive(), IsEmpty());
 }
 
 }  // namespace

@@ -189,6 +189,38 @@ TEST_F(TabStripBridgeTest, ReordersTheStripWhenTheModelMoves) {
   EXPECT_THAT(StripHosts(), ElementsAre("c.test", "a.test", "b.test"));
 }
 
+TEST_F(TabStripBridgeTest, ArchivesTodayTabsLeftUnseen) {
+  OpenTabs({"a.test", "b.test", "c.test"});
+  tab_strip_model()->ActivateTabAt(0);
+  Settle();
+  // a.test was shown until now.
+  task_environment()->FastForwardBy(base::Hours(2));
+  const base::Time switched = base::Time::Now();
+  tab_strip_model()->ActivateTabAt(2);
+  Settle();
+  SidebarNode* a = TodayAt(0);
+  EXPECT_GE(a->last_active(), switched);
+
+  // Past the default delay for a.test and b.test, which was never shown.
+  // c.test is on screen. Jumping keeps periodic tasks from running hours'
+  // worth of times; the archive timer runs once it's due.
+  task_environment()->AdvanceClock(kDefaultArchiveAfter + base::Hours(1));
+  Settle();
+
+  EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("c.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("c.test"));
+  ASSERT_EQ(space_model().archive().size(), 2u);
+  EXPECT_EQ(space_model().archive()[1].tabs[0].url, GURL("https://a.test/"));
+
+  // Restoring brings it back unloaded, at the end of Today.
+  SidebarNode* restored =
+      space_model().Unarchive(space_model().archive()[1].id, 1);
+  ASSERT_TRUE(restored);
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("c.test", "a.test"));
+  EXPECT_FALSE(bridge().GetTab(restored));
+}
+
 TEST_F(TabStripBridgeTest, ClosesTheTabWhenItsNodeIsRemoved) {
   OpenTabs({"a.test", "b.test"});
 

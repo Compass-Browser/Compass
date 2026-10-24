@@ -39,6 +39,8 @@ sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
   }
 }
 
+constexpr uint32_t kMaxArchiveAfterHours = 365 * 24;
+
 // The handler casts between the two.
 static_assert(static_cast<int>(sidebar::mojom::SpaceColor::kMaxValue) ==
               static_cast<int>(SpaceColor::kMaxValue));
@@ -76,6 +78,7 @@ void SidebarPageHandler::RequestTree() {
   tree->today = ToMojo(*space_model().today_root());
   tree->active_id = GetActiveNodeId();
   page_->SetTree(std::move(tree));
+  SendArchive();
 }
 
 void SidebarPageHandler::ActivateNode(const std::string& id) {
@@ -230,6 +233,45 @@ void SidebarPageHandler::MoveNodeToSpace(const std::string& id,
   }
 }
 
+void SidebarPageHandler::SetArchiveAfter(const std::string& space_id,
+                                         uint32_t hours) {
+  SpaceModel* space = FindSpace(space_id);
+  if (space && hours <= kMaxArchiveAfterHours) {
+    space->SetArchiveAfter(base::Hours(hours));
+  }
+}
+
+void SidebarPageHandler::RestoreArchived(const std::string& id) {
+  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
+  if (!uuid.is_valid()) {
+    return;
+  }
+  SpaceModel& space = space_model();
+  SidebarNode* entry =
+      space.Unarchive(uuid, space.today_root()->children().size());
+  if (!entry) {
+    return;
+  }
+  // A split opens its first pane.
+  SidebarNode* tab = entry->type() == SidebarNode::Type::kSplit
+                         ? entry->children()[0].get()
+                         : entry;
+  if (tabs::TabInterface* live = bridge().OpenNode(tab)) {
+    tab_strip_model()->ActivateTabAt(tab_strip_model()->GetIndexOfTab(live));
+  }
+}
+
+void SidebarPageHandler::RemoveArchived(const std::string& id) {
+  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
+  if (uuid.is_valid()) {
+    space_model().RemoveArchived(uuid);
+  }
+}
+
+void SidebarPageHandler::ClearArchive() {
+  space_model().ClearArchive();
+}
+
 void SidebarPageHandler::OnNodeAdded(const SidebarNode& node) {
   page_->NodeAdded(node.parent()->id().AsLowercaseString(),
                    node.parent()->GetIndexOf(&node), ToMojo(node));
@@ -254,6 +296,10 @@ void SidebarPageHandler::OnNodeWillBeRemoved(const SidebarNode& node) {
 
 void SidebarPageHandler::OnNodeWillMoveToSpace(const SidebarNode& node) {
   page_->NodeRemoved(node.id().AsLowercaseString());
+}
+
+void SidebarPageHandler::OnArchiveChanged(const SpaceModel& space) {
+  SendArchive();
 }
 
 void SidebarPageHandler::OnSpaceAdded(SpaceModel& space) {
@@ -317,10 +363,26 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
     mojo_space->color = static_cast<sidebar::mojom::SpaceColor>(space->color());
+    mojo_space->archive_after_hours = space->archive_after().InHours();
     spaces.push_back(std::move(mojo_space));
   }
   page_->SetSpaces(std::move(spaces),
                    space_model().id().AsLowercaseString());
+}
+
+void SidebarPageHandler::SendArchive() {
+  std::vector<sidebar::mojom::ArchivedEntryPtr> entries;
+  for (const ArchivedEntry& entry : space_model().archive()) {
+    auto mojo_entry = sidebar::mojom::ArchivedEntry::New();
+    mojo_entry->id = entry.id.AsLowercaseString();
+    mojo_entry->archived_at = entry.archived_at.InMillisecondsFSinceUnixEpoch();
+    for (const ArchivedEntry::Tab& tab : entry.tabs) {
+      mojo_entry->tabs.push_back(sidebar::mojom::ArchivedTab::New(
+          base::UTF16ToUTF8(tab.title), tab.url));
+    }
+    entries.push_back(std::move(mojo_entry));
+  }
+  page_->SetArchive(std::move(entries));
 }
 
 sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {

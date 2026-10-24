@@ -4,12 +4,14 @@
 
 #include "strata/browser/sidebar/space_model.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/notreached.h"
 #include "base/uuid.h"
+#include "strata/browser/sidebar/sidebar_serializer.h"
 #include "url/gurl.h"
 
 namespace strata {
@@ -35,7 +37,25 @@ SidebarNode* FindIn(SidebarNode* node, const base::Uuid& id) {
   return nullptr;
 }
 
+// Appends the tabs under |node| to |tabs|: the node itself, or a split's
+// panes.
+void CollectTabs(SidebarNode* node, std::vector<SidebarNode*>& tabs) {
+  if (node->type() == Type::kTab) {
+    tabs.push_back(node);
+  }
+  for (const auto& child : node->children()) {
+    CollectTabs(child.get(), tabs);
+  }
+}
+
 }  // namespace
+
+ArchivedEntry::ArchivedEntry() = default;
+ArchivedEntry::ArchivedEntry(const ArchivedEntry&) = default;
+ArchivedEntry::ArchivedEntry(ArchivedEntry&&) = default;
+ArchivedEntry& ArchivedEntry::operator=(const ArchivedEntry&) = default;
+ArchivedEntry& ArchivedEntry::operator=(ArchivedEntry&&) = default;
+ArchivedEntry::~ArchivedEntry() = default;
 
 SpaceModel::SpaceModel()
     : id_(base::Uuid::GenerateRandomV4()),
@@ -62,6 +82,17 @@ void SpaceModel::SetColor(SpaceColor color) {
     return;
   }
   color_ = color;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
+void SpaceModel::SetArchiveAfter(base::TimeDelta archive_after) {
+  CHECK(!archive_after.is_negative());
+  if (archive_after_ == archive_after) {
+    return;
+  }
+  archive_after_ = archive_after;
   for (Observer& observer : observers_) {
     observer.OnSpaceChanged(*this);
   }
@@ -206,6 +237,130 @@ void SpaceModel::SetUrl(SidebarNode* tab, const GURL& url) {
   tab->url_ = url;
   for (auto& observer : observers_) {
     observer.OnNodeChanged(*tab);
+  }
+}
+
+void SpaceModel::SetLastActive(SidebarNode* tab, base::Time time) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  if (tab->last_active_ == time) {
+    return;
+  }
+  tab->last_active_ = time;
+  for (auto& observer : observers_) {
+    observer.OnNodeLastActiveChanged(*tab);
+  }
+}
+
+void SpaceModel::Archive(SidebarNode* entry, base::Time now) {
+  CHECK(entry);
+  CHECK_EQ(entry->parent(), today_root_.get());
+  std::vector<SidebarNode*> tabs;
+  CollectTabs(entry, tabs);
+  ArchivedEntry archived;
+  archived.archived_at = now;
+  for (const SidebarNode* tab : tabs) {
+    if (IsRestorableURL(tab->url())) {
+      archived.tabs.push_back({tab->title(), tab->url()});
+    }
+  }
+  Remove(entry);
+  if (archived.tabs.empty()) {
+    return;
+  }
+  archive_.insert(archive_.begin(), std::move(archived));
+  if (archive_.size() > kMaxArchivedEntries) {
+    archive_.resize(kMaxArchivedEntries);
+  }
+  NotifyArchiveChanged();
+}
+
+size_t SpaceModel::ArchiveIdleEntries(
+    base::Time now,
+    base::FunctionRef<bool(const SidebarNode&)> keep) {
+  if (archive_after_.is_zero()) {
+    return 0;
+  }
+  std::vector<base::Uuid> idle;
+  for (const auto& entry : today_root_->children()) {
+    std::vector<SidebarNode*> tabs;
+    CollectTabs(entry.get(), tabs);
+    base::Time last_active;
+    for (SidebarNode* tab : tabs) {
+      if (tab->last_active().is_null()) {
+        SetLastActive(tab, now);
+      }
+      last_active = std::max(last_active, tab->last_active());
+    }
+    if (!tabs.empty() && now - last_active >= archive_after_ &&
+        !keep(*entry)) {
+      idle.push_back(entry->id());
+    }
+  }
+  // Archiving closes live tabs, which can change Today, so go by ID.
+  size_t archived = 0;
+  for (const base::Uuid& id : idle) {
+    SidebarNode* entry = FindIn(today_root_.get(), id);
+    if (entry && entry->parent() == today_root_.get()) {
+      Archive(entry, now);
+      ++archived;
+    }
+  }
+  return archived;
+}
+
+SidebarNode* SpaceModel::Unarchive(const base::Uuid& id, size_t index) {
+  auto it = std::ranges::find(archive_, id, &ArchivedEntry::id);
+  if (it == archive_.end()) {
+    return nullptr;
+  }
+  const ArchivedEntry archived = std::move(*it);
+  archive_.erase(it);
+  index = std::min(index, today_root_->children().size());
+  std::vector<SidebarNode*> panes;
+  for (const ArchivedEntry::Tab& tab : archived.tabs) {
+    if (panes.size() == kMaxSplitPanes) {
+      break;
+    }
+    panes.push_back(
+        AddTab(today_root_.get(), index + panes.size(), tab.url, tab.title));
+  }
+  for (size_t i = 1; i < panes.size(); ++i) {
+    Split(panes[0], panes[i]);
+  }
+  NotifyArchiveChanged();
+  if (panes.empty()) {
+    return nullptr;
+  }
+  return panes.size() == 1 ? panes[0] : panes[0]->parent();
+}
+
+void SpaceModel::RemoveArchived(const base::Uuid& id) {
+  if (std::erase_if(archive_, [&id](const ArchivedEntry& entry) {
+        return entry.id == id;
+      })) {
+    NotifyArchiveChanged();
+  }
+}
+
+void SpaceModel::ClearArchive() {
+  if (archive_.empty()) {
+    return;
+  }
+  archive_.clear();
+  NotifyArchiveChanged();
+}
+
+void SpaceModel::AddArchived(ArchivedEntry entry) {
+  if (archive_.size() >= kMaxArchivedEntries || entry.tabs.empty()) {
+    return;
+  }
+  archive_.push_back(std::move(entry));
+  NotifyArchiveChanged();
+}
+
+void SpaceModel::NotifyArchiveChanged() {
+  for (auto& observer : observers_) {
+    observer.OnArchiveChanged(*this);
   }
 }
 

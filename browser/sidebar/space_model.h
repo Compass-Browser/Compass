@@ -8,9 +8,13 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "base/functional/function_ref.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/time/time.h"
+#include "base/uuid.h"
 #include "strata/browser/sidebar/sidebar_node.h"
 
 namespace strata {
@@ -30,6 +34,34 @@ enum class SpaceColor {
   kYellow,
   kGreen,
   kMaxValue = kGreen,
+};
+
+// How long a Today entry may go unseen before it's archived, unless the space
+// says otherwise. Arc's default.
+inline constexpr base::TimeDelta kDefaultArchiveAfter = base::Hours(12);
+
+// A space keeps its most recent archived entries; older ones are dropped.
+inline constexpr size_t kMaxArchivedEntries = 100;
+
+// A Today entry that was archived: a tab, or a split's panes. See
+// docs/design/sidebar.md, "Today auto-archive".
+struct ArchivedEntry {
+  struct Tab {
+    std::u16string title;
+    GURL url;
+  };
+
+  ArchivedEntry();
+  ArchivedEntry(const ArchivedEntry&);
+  ArchivedEntry(ArchivedEntry&&);
+  ArchivedEntry& operator=(const ArchivedEntry&);
+  ArchivedEntry& operator=(ArchivedEntry&&);
+  ~ArchivedEntry();
+
+  // Like node IDs, only stable for a session.
+  base::Uuid id = base::Uuid::GenerateRandomV4();
+  std::vector<Tab> tabs;
+  base::Time archived_at;
 };
 
 // The sidebar tree of one space: a pinned section (folders, tabs and splits;
@@ -56,8 +88,12 @@ class SpaceModel {
     // MoveToSpace()). The nodes aren't destroyed: they keep their IDs, and
     // their live tabs.
     virtual void OnNodeWillMoveToSpace(const SidebarNode& node) {}
-    // The space's name or color changed.
+    // When |node| was last shown changed.
+    virtual void OnNodeLastActiveChanged(const SidebarNode& node) {}
+    // The space's name, color or archive delay changed.
     virtual void OnSpaceChanged(const SpaceModel& space) {}
+    // Entries were archived, restored or dropped from the archive.
+    virtual void OnArchiveChanged(const SpaceModel& space) {}
   };
 
   SpaceModel();
@@ -75,6 +111,11 @@ class SpaceModel {
 
   SpaceColor color() const { return color_; }
   void SetColor(SpaceColor color);
+
+  // How long a Today entry may go unseen before ArchiveIdleEntries() archives
+  // it. Zero means never.
+  base::TimeDelta archive_after() const { return archive_after_; }
+  void SetArchiveAfter(base::TimeDelta archive_after);
 
   SidebarNode* pinned_root() { return pinned_root_.get(); }
   const SidebarNode* pinned_root() const { return pinned_root_.get(); }
@@ -127,6 +168,36 @@ class SpaceModel {
 
   void SetTitle(SidebarNode* node, std::u16string title);
   void SetUrl(SidebarNode* tab, const GURL& url);
+  void SetLastActive(SidebarNode* tab, base::Time time);
+
+  // Archived Today entries, most recent first.
+  const std::vector<ArchivedEntry>& archive() const { return archive_; }
+
+  // Moves |entry|, a Today entry, to the archive: its tabs worth restoring
+  // (see IsRestorableURL()) are recorded, then it's removed, which closes its
+  // live tabs. An entry with nothing worth restoring is only removed.
+  void Archive(SidebarNode* entry, base::Time now);
+
+  // Archives the Today entries none of whose tabs has been shown for
+  // archive_after(), as of |now|, except those |keep| returns true for (one
+  // shown in a window right now, say). Tabs with no last-active time get
+  // |now|, so they're archived a full delay later. Returns how many entries
+  // were archived.
+  size_t ArchiveIdleEntries(
+      base::Time now,
+      base::FunctionRef<bool(const SidebarNode&)> keep);
+
+  // Puts the archived entry |id| back into Today at |index|, unloaded, and
+  // returns it (a tab, or a split), or null if there's no such entry.
+  SidebarNode* Unarchive(const base::Uuid& id, size_t index);
+
+  // Drops the archived entry |id|.
+  void RemoveArchived(const base::Uuid& id);
+  void ClearArchive();
+
+  // Only while loading: appends |entry|, which is older than those already
+  // there.
+  void AddArchived(ArchivedEntry entry);
 
   SidebarNode* FindById(const base::Uuid& id);
 
@@ -135,6 +206,8 @@ class SpaceModel {
 
  private:
   bool CanContain(const SidebarNode* parent, SidebarNode::Type type) const;
+
+  void NotifyArchiveChanged();
 
   // Restores the split invariants after |split| lost a pane.
   void NormalizeSplit(SidebarNode* split);
@@ -146,6 +219,8 @@ class SpaceModel {
   base::Uuid id_;
   std::u16string name_;
   SpaceColor color_ = SpaceColor::kGrey;
+  base::TimeDelta archive_after_ = kDefaultArchiveAfter;
+  std::vector<ArchivedEntry> archive_;
   std::unique_ptr<SidebarNode> pinned_root_;
   std::unique_ptr<SidebarNode> today_root_;
   base::ObserverList<Observer> observers_;

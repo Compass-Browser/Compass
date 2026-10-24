@@ -280,7 +280,8 @@ Code (planned): `browser/pip/`, plus a macOS override for the PiP widget.
 - **Boosts:** per-site CSS/JS injection, implemented as a built-in component
   extension so it reuses Chromium's content-script machinery.
 - **Auto-archive:** configurable per space. Archived entries go to a
-  searchable archive.
+  searchable archive. The archive itself is done (sidebar.md, "Today
+  auto-archive"); search comes with the command bar.
 
 ## 12. Build configurations
 
@@ -343,6 +344,7 @@ Milestones 2–4 make up the MVP.
   view next to it.~~ Decided: inside the region, replacing only the native
   tab strip. See [docs/design/sidebar.md](docs/design/sidebar.md).
 - What the placeholder in window A shows: a live thumbnail or a static card.
-- Whether archive is per space or global.
+- ~~Whether archive is per space or global.~~ Per space. See
+  [docs/design/sidebar.md](docs/design/sidebar.md), "Today auto-archive".
 - How to update on Linux: rely on distro packages and Flatpak, or ship our own
   updater.

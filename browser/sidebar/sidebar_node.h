@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "base/uuid.h"
 #include "url/gurl.h"
 
@@ -37,6 +38,9 @@ class SidebarNode {
   Type type() const { return type_; }
   const std::u16string& title() const { return title_; }
   const GURL& url() const { return url_; }
+  // When a tab node was last shown in a window, or null if that's unknown
+  // (see SpaceModel::ArchiveIdleEntries()). Unset for other nodes.
+  base::Time last_active() const { return last_active_; }
   SidebarNode* parent() const { return parent_.get(); }
   const std::vector<std::unique_ptr<SidebarNode>>& children() const {
     return children_;
@@ -58,6 +62,7 @@ class SidebarNode {
   const Type type_;
   std::u16string title_;
   GURL url_;
+  base::Time last_active_;
   raw_ptr<SidebarNode> parent_ = nullptr;
   std::vector<std::unique_ptr<SidebarNode>> children_;
 };
