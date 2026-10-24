@@ -7,6 +7,12 @@
 # patches/chrome-browser-ui-browser_window-internal-BUILD.gn.patch).
 source_set("window_sync") {
   sources = [
+    "live_tab_registry.cc",
+    "live_tab_registry.h",
+    "sidebar_store.cc",
+    "sidebar_store.h",
+    "space_service.cc",
+    "space_service.h",
     "tab_strip_bridge.cc",
     "tab_strip_bridge.h",
     "window_features.cc",
@@ -20,8 +26,11 @@ source_set("window_sync") {
   ]
   deps = [
     "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/tab_list",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/navigator",
+    "//chrome/browser/ui/tabs:tab_model",
     "//chrome/common",
     "//content/public/browser",
     "//ui/base",
@@ -30,7 +39,10 @@ source_set("window_sync") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "tab_strip_bridge_unittest.cc" ]
+  sources = [
+    "sidebar_store_unittest.cc",
+    "tab_strip_bridge_unittest.cc",
+  ]
   deps = [
     ":window_sync",
     "//base",

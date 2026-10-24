@@ -46,12 +46,12 @@ SidebarPageHandler::SidebarPageHandler(
       page_(std::move(page)) {
   CHECK(features_);
   space_model().AddObserver(this);
-  bridge().AddObserver(this);
+  registry().AddObserver(this);
   tab_strip_model()->AddObserver(this);
 }
 
 SidebarPageHandler::~SidebarPageHandler() {
-  bridge().RemoveObserver(this);
+  registry().RemoveObserver(this);
   space_model().RemoveObserver(this);
 }
 
@@ -200,13 +200,18 @@ TabStripBridge& SidebarPageHandler::bridge() {
   return features_->tab_strip_bridge();
 }
 
+LiveTabRegistry& SidebarPageHandler::registry() {
+  return features_->registry();
+}
+
 sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {
   auto result = sidebar::mojom::Node::New();
   result->id = node.id().AsLowercaseString();
   result->type = ToMojoType(node.type());
   result->title = base::UTF16ToUTF8(node.title());
   result->url = node.url();
-  result->live = bridge().GetTab(&node) != nullptr;
+  // Live in any window: activating it here moves it here.
+  result->live = registry().GetTab(&node) != nullptr;
   for (const auto& child : node.children()) {
     result->children.push_back(ToMojo(*child));
   }

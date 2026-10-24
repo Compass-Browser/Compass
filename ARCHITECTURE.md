@@ -153,9 +153,10 @@ or archived tabs. It becomes an internal detail that holds the *live* tabs of
 one (window, space). We keep its order aligned with the sidebar so that
 extension tab indices stay meaningful.
 
-Persistence: one SQLite database per profile (`Strata Sidebar` in the profile
-directory). It stores spaces, nodes and per-window UI state. Writes are batched
-on a background sequence.
+Persistence: one JSON file per profile (`Strata Sidebar.json` in the profile
+directory), written atomically and in batches by `ImportantFileWriter` on a
+background sequence, the way upstream stores bookmarks (D12). It stores the
+pinned tree for now; spaces and per-window UI state follow.
 
 ## 6. Spaces and profiles
 
@@ -322,6 +323,7 @@ Milestones 2–4 make up the MVP.
 | D9 | A split is one entry | Moves, pins and archives as a unit; simple sync semantics |
 | D10 | Sync and Widevine deferred | MVP first |
 | D11 | Pin one Chromium stable tag for all platforms | Reproducible builds; one rebase per cycle |
+| D12 | Sidebar persisted as JSON via `ImportantFileWriter`, not SQLite | The pinned tree is small and cheapest to write whole; atomic and proven by bookmarks. SQLite comes in when archive and history need queries |
 
 ## 15. Open questions
 

@@ -46,7 +46,9 @@ class SpaceModel {
   ~SpaceModel();
 
   SidebarNode* pinned_root() { return pinned_root_.get(); }
+  const SidebarNode* pinned_root() const { return pinned_root_.get(); }
   SidebarNode* today_root() { return today_root_.get(); }
+  const SidebarNode* today_root() const { return today_root_.get(); }
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);

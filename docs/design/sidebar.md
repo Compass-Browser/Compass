@@ -250,6 +250,68 @@ dimmed. The bridge reports them through its own `TabStripBridge::Observer`.
 **Not in c:** creating splits by dragging (§9), dragging between windows,
 and context menus.
 
+## Slice d: one model per profile, persisted
+
+Goal: pinned entries and folders survive restarts and are the same in every
+window.
+
+**The model moves to the profile.** Persisting per-window models would give
+two windows two diverging copies of Pinned. So `strata::SpaceService`
+(`browser/window_sync/`) is attached to the `Profile` as user data, which
+needs no patch. It owns:
+
+- the profile's one `SpaceModel` (spaces come with ARCHITECTURE.md §6);
+- the `LiveTabRegistry`, which maps node ↔ `TabHandle` for every live tab
+  in every window and tells observers when a node gains or loses its tab;
+- the `SidebarStore`, which persists Pinned.
+
+Each window keeps a `TabStripBridge`, now for *its own* live tabs only. Strip
+order is the depth-first order of the nodes live in that window. Today
+shows the open tabs of every window, as ARCHITECTURE.md §7 describes.
+
+**Move on focus** is the part of window sync this needs. Activating a node
+whose tab lives in another window moves the tab here. It uses
+`DetachTabAtForInsertion()` and `InsertDetachedTabAt()`, the same path as
+dragging a tab between windows, so page state, media and forms survive.
+The removal there has a reason for which `WillDeleteTab()` is false, so the
+other window's bridge keeps the node. This window's bridge finds the tab in
+the registry and keeps its node. If the other window had only that tab,
+upstream closes it. A placeholder and the parking `Browser` come with full
+window sync.
+
+A tab that really closes still removes its Today node, or unloads its
+pinned node. Closing a window therefore drops its Today tabs from the
+sidebar, which matches today's behavior. The parking `Browser` will change
+that.
+
+**Persistence: JSON through `ImportantFileWriter`,** not SQLite (this changes
+ARCHITECTURE.md §5; see the decision log). Pinned is a small tree that's
+cheapest to write whole. `ImportantFileWriter` gives atomic writes,
+coalescing and a background sequence, and it's how upstream stores
+bookmarks, a similar tree. SQLite starts paying off with archive and
+history, so it can come in then.
+
+- File: `<profile>/Strata Sidebar.json`. It holds
+  `{"version": 1, "pinned": [<node>...]}`, where a node is
+  `{"type": "tab"|"folder"|"split", "title", "url", "children"}`.
+- Load: read on a background sequence when the service is created, then fill
+  Pinned. Saved entries start unloaded. Changes made before the load finishes
+  are kept, and loaded entries are inserted ahead of them.
+- Save: any change to Pinned schedules a write, coalesced over 1 s, and
+  closing a window flushes. Changes that only touch Today are ignored.
+  Logging out of macOS ends the session without closing windows or
+  destroying the profile, so the interval is kept short.
+- Off-the-record profiles get a model but no store.
+- Node IDs aren't stored. They're only stable for a session.
+
+Today isn't persisted yet. Restoring it means working with session restore,
+so it comes later. Folder collapse state stays in the page.
+
+**Tests:** a serializer round trip (pure, in `browser/sidebar/`), a store
+test (save, then load into a new model), and bridge tests with two windows:
+shared Today, move on focus, and a tab closing in one window while the
+other window's page sees it.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the

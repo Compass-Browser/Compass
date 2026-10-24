@@ -16,13 +16,14 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
-#include "strata/browser/window_sync/tab_strip_bridge.h"
+#include "strata/browser/window_sync/live_tab_registry.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
 
 namespace strata {
 
+class TabStripBridge;
 class WindowFeatures;
 
 // Serves the sidebar page its window's SpaceModel and acts on the page's
@@ -30,7 +31,7 @@ class WindowFeatures;
 // Slice b of docs/design/sidebar.md.
 class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public SpaceModel::Observer,
-                           public TabStripBridge::Observer,
+                           public LiveTabRegistry::Observer,
                            public TabStripModelObserver {
  public:
   SidebarPageHandler(
@@ -63,7 +64,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
 
-  // TabStripBridge::Observer:
+  // LiveTabRegistry::Observer:
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
 
   // TabStripModelObserver:
@@ -76,6 +77,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   TabStripModel* tab_strip_model();
   SpaceModel& space_model();
   TabStripBridge& bridge();
+  LiveTabRegistry& registry();
 
   sidebar::mojom::NodePtr ToMojo(const SidebarNode& node);
 

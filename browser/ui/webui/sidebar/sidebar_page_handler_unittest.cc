@@ -180,8 +180,10 @@ TEST_F(SidebarPageHandlerTest, ClosesNode) {
   Settle();
 
   EXPECT_EQ(tab_strip_model()->count(), 1);
-  EXPECT_THAT(page_.TakeEvents(),
-              ElementsAre("removed a.test", "active b.test"));
+  // The tab goes first, then its node.
+  EXPECT_THAT(
+      page_.TakeEvents(),
+      ElementsAre("a.test unloaded", "removed a.test", "active b.test"));
 }
 
 TEST_F(SidebarPageHandlerTest, ClosesEveryPaneOfASplit) {
@@ -210,10 +212,11 @@ TEST_F(SidebarPageHandlerTest, SendsDiffsForNewTabs) {
   AddTab(browser(), GURL("https://c.test/"));
   Settle();
 
-  // The node is added before its navigation commits, so with an empty URL.
-  // The commit then changes its URL, and then its title.
+  // The node is added before its navigation commits, so with an empty URL,
+  // and before its tab is registered. The commit then changes its URL, and
+  // then its title.
   EXPECT_THAT(page_.TakeEvents(),
-              ElementsAre("added  at 0", "active ", "changed c.test",
+              ElementsAre("added  at 0", " live", "active ", "changed c.test",
                           "changed c.test"));
 }
 

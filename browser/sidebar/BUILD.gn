@@ -6,6 +6,8 @@ source_set("sidebar") {
   sources = [
     "sidebar_node.cc",
     "sidebar_node.h",
+    "sidebar_serializer.cc",
+    "sidebar_serializer.h",
     "space_model.cc",
     "space_model.h",
   ]
@@ -17,7 +19,10 @@ source_set("sidebar") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "space_model_unittest.cc" ]
+  sources = [
+    "sidebar_serializer_unittest.cc",
+    "space_model_unittest.cc",
+  ]
   deps = [
     ":sidebar",
     "//base",

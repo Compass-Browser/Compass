@@ -4,17 +4,28 @@
 
 #include "strata/browser/window_sync/window_features.h"
 
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "strata/browser/window_sync/sidebar_store.h"
 
 namespace strata {
 
 DEFINE_USER_DATA(WindowFeatures);
 
 WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
-    : tab_strip_bridge_(browser, &space_model_),
+    : service_(SpaceService::Get(browser->GetProfile())),
+      tab_strip_bridge_(browser,
+                        &service_->space_model(),
+                        &service_->registry()),
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {}
 
-WindowFeatures::~WindowFeatures() = default;
+WindowFeatures::~WindowFeatures() {
+  // Quitting closes every window but may never destroy the profile, so don't
+  // leave pending changes to the store's destructor.
+  if (SidebarStore* store = service_->store()) {
+    store->Flush();
+  }
+}
 
 // static
 WindowFeatures* WindowFeatures::From(BrowserWindowInterface* browser) {

@@ -4,20 +4,24 @@
 
 #include "strata/browser/window_sync/tab_strip_bridge.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
+#include "strata/browser/window_sync/live_tab_registry.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -60,12 +64,15 @@ bool CountLiveTabsBefore(const TabStripBridge& bridge,
 }  // namespace
 
 TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
-                               SpaceModel* space_model)
+                               SpaceModel* space_model,
+                               LiveTabRegistry* registry)
     : browser_(browser),
       tab_strip_model_(browser->GetTabStripModel()),
-      space_model_(space_model) {
+      space_model_(space_model),
+      registry_(registry) {
   CHECK(tab_strip_model_);
   CHECK(space_model_);
+  CHECK(registry_);
   for (int i = 0; i < tab_strip_model_->count(); ++i) {
     AddNodeForTab(tab_strip_model_->GetTabAtIndex(i), i);
   }
@@ -81,16 +88,12 @@ TabStripBridge::~TabStripBridge() {
 }
 
 tabs::TabInterface* TabStripBridge::GetTab(const SidebarNode* node) const {
-  auto it = tab_for_node_.find(node);
-  return it == tab_for_node_.end() ? nullptr : it->second.Get();
+  tabs::TabInterface* tab = registry_->GetTab(node);
+  return tab && tab->GetBrowserWindowInterface() == browser_ ? tab : nullptr;
 }
 
 SidebarNode* TabStripBridge::GetNode(const tabs::TabInterface* tab) const {
-  if (!tab) {
-    return nullptr;
-  }
-  auto it = node_for_tab_.find(tab->GetHandle());
-  return it == node_for_tab_.end() ? nullptr : it->second.get();
+  return registry_->GetNode(tab);
 }
 
 tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
@@ -108,6 +111,21 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
     CountLiveTabsBefore(*this, space_model_->today_root(), tab_node, index);
   }
 
+  // Live in another window: move it here, the way tab dragging does. That
+  // window's bridge keeps the node, and AddNodeForTab() finds it.
+  if (tabs::TabInterface* tab = registry_->GetTab(tab_node)) {
+    BrowserWindowInterface* source = tab->GetBrowserWindowInterface();
+    if (!source) {
+      return nullptr;
+    }
+    TabStripModel* source_strip = source->GetTabStripModel();
+    std::unique_ptr<tabs::TabModel> detached =
+        source_strip->DetachTabAtForInsertion(source_strip->GetIndexOfTab(tab));
+    tab_strip_model_->InsertDetachedTabAt(index, std::move(detached),
+                                          AddTabTypes::ADD_ACTIVE);
+    return GetTab(tab_node);
+  }
+
   const GURL url = tab_node->url().is_valid()
                        ? tab_node->url()
                        : GURL(chrome::kChromeUINewTabURL);
@@ -117,14 +135,6 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
   base::AutoReset<raw_ptr<SidebarNode>> adopting(&adopting_node_, tab_node);
   Navigate(&params);
   return GetTab(tab_node);
-}
-
-void TabStripBridge::AddObserver(Observer* observer) {
-  observers_.AddObserver(observer);
-}
-
-void TabStripBridge::RemoveObserver(Observer* observer) {
-  observers_.RemoveObserver(observer);
 }
 
 void TabStripBridge::OnTabStripModelChanged(
@@ -142,7 +152,8 @@ void TabStripBridge::OnTabStripModelChanged(
       break;
     case TabStripModelChange::kRemoved:
       for (const auto& removed : change.GetRemove()->contents) {
-        RemoveNodeForTab(removed.tab);
+        RemoveNodeForTab(removed.tab, TabRemoveReasonUtils::WillDeleteTab(
+                                          removed.remove_reason));
       }
       break;
     case TabStripModelChange::kMoved:
@@ -166,8 +177,6 @@ void TabStripBridge::OnTabChangedAt(tabs::TabInterface* tab,
 
 void TabStripBridge::OnTabStripModelDestroyed(TabStripModel* tab_strip_model) {
   tab_strip_model_ = nullptr;
-  node_for_tab_.clear();
-  tab_for_node_.clear();
 }
 
 void TabStripBridge::OnNodeMoved(const SidebarNode& node,
@@ -183,7 +192,7 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
   CollectLiveTabs(*this, &node, live_tabs);
   std::vector<tabs::TabHandle> to_close;
   for (tabs::TabInterface* tab : live_tabs) {
-    Unmap(tab);
+    registry_->Unregister(tab);
     to_close.push_back(tab->GetHandle());
   }
   if (updating_ || to_close.empty()) {
@@ -215,13 +224,13 @@ void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
   // A tab may land before the pinned block (or between a split's panes);
   // put it back in the tree's order afterwards.
   ScheduleSyncStripOrder();
+  if (GetNode(tab)) {
+    // Moved here from another window, with its node.
+    return;
+  }
   if (adopting_node_) {
-    SidebarNode* node = adopting_node_;
+    registry_->Register(tab, adopting_node_);
     adopting_node_ = nullptr;
-    Map(tab, node);
-    for (auto& observer : observers_) {
-      observer.OnNodeLiveChanged(*node, true);
-    }
     return;
   }
   content::WebContents* contents = tab->GetContents();
@@ -229,7 +238,7 @@ void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
   SidebarNode* node = space_model_->AddTab(
       space_model_->today_root(), GetTodayIndexAfter(index, nullptr),
       contents->GetLastCommittedURL(), contents->GetTitle());
-  Map(tab, node);
+  registry_->Register(tab, node);
 }
 
 void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
@@ -251,31 +260,18 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
   ScheduleSyncStripOrder();
 }
 
-void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab) {
+void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
+                                      bool will_delete) {
   SidebarNode* node = GetNode(tab);
-  if (!node) {
+  if (!node || !will_delete) {
     return;
   }
+  registry_->Unregister(tab);
   if (IsPinned(node)) {
-    Unmap(tab);
-    for (auto& observer : observers_) {
-      observer.OnNodeLiveChanged(*node, false);
-    }
     return;
   }
   base::AutoReset<bool> updating(&updating_, true);
-  // OnNodeWillBeRemoved() drops the mapping.
   space_model_->Remove(node);
-}
-
-void TabStripBridge::Map(tabs::TabInterface* tab, SidebarNode* node) {
-  node_for_tab_[tab->GetHandle()] = node;
-  tab_for_node_[node] = tab->GetHandle();
-}
-
-void TabStripBridge::Unmap(tabs::TabInterface* tab) {
-  tab_for_node_.erase(GetNode(tab));
-  node_for_tab_.erase(tab->GetHandle());
 }
 
 bool TabStripBridge::IsPinned(const SidebarNode* node) const {

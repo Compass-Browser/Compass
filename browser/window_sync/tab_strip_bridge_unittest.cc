@@ -4,6 +4,7 @@
 
 #include "strata/browser/window_sync/tab_strip_bridge.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -97,6 +98,16 @@ class TabStripBridgeTest : public BrowserWithTestWindowTest {
                        space_model().pinned_root()->children().size());
     Settle();
     return node;
+  }
+
+  // Today's entry for |host|.
+  SidebarNode* TodayFor(const std::string& host) {
+    for (const auto& node : space_model().today_root()->children()) {
+      if (node->url().host() == host) {
+        return node.get();
+      }
+    }
+    return nullptr;
   }
 
   SidebarNode* TodayAt(size_t index) {
@@ -258,23 +269,103 @@ TEST_F(TabStripBridgeTest, NewTabsLandAfterThePinnedBlock) {
 }
 
 TEST_F(TabStripBridgeTest, ReportsLiveChanges) {
-  struct Recorder : TabStripBridge::Observer {
+  struct Recorder : LiveTabRegistry::Observer {
     void OnNodeLiveChanged(const SidebarNode& node, bool live) override {
       changes.push_back(std::string(node.url().host()) +
                         (live ? " live" : " unloaded"));
     }
     std::vector<std::string> changes;
   } recorder;
-  bridge().AddObserver(&recorder);
   OpenTabs({"a.test", "b.test"});
   SidebarNode* pinned = Pin(1);
+  WindowFeatures::From(browser())->registry().AddObserver(&recorder);
 
   tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
   bridge().OpenNode(pinned);
   Settle();
 
   EXPECT_THAT(recorder.changes, ElementsAre("b.test unloaded", "b.test live"));
-  bridge().RemoveObserver(&recorder);
+  WindowFeatures::From(browser())->registry().RemoveObserver(&recorder);
+}
+
+// Two windows of one profile share its model.
+class TabStripBridgeTwoWindowTest : public TabStripBridgeTest {
+ protected:
+  void SetUp() override {
+    TabStripBridgeTest::SetUp();
+    second_ = CreateBrowser(profile(), BrowserWindowInterface::TYPE_NORMAL,
+                            /*hosted_app=*/false);
+  }
+
+  void TearDown() override {
+    second_->GetTabStripModel()->CloseAllTabs();
+    second_.reset();
+    TabStripBridgeTest::TearDown();
+  }
+
+  void OpenTabInSecond(const std::string& host) {
+    AddTab(second_.get(), GURL("https://" + host + "/"));
+    Settle();
+  }
+
+  TabStripBridge& second_bridge() {
+    return WindowFeatures::From(second_.get())->tab_strip_bridge();
+  }
+
+  std::unique_ptr<BrowserWindowInterface> second_;
+};
+
+TEST_F(TabStripBridgeTwoWindowTest, TodayHoldsTheTabsOfBothWindows) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("b.test");
+
+  EXPECT_EQ(&WindowFeatures::From(second_.get())->space_model(),
+            &space_model());
+  // The second window's tab follows no tab of its own window, so it leads.
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("b.test", "a.test"));
+  // Each bridge sees only its own window's tabs.
+  EXPECT_TRUE(bridge().GetTab(TodayFor("a.test")));
+  EXPECT_FALSE(bridge().GetTab(TodayFor("b.test")));
+  EXPECT_TRUE(second_bridge().GetTab(TodayFor("b.test")));
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, OpeningANodeMovesItsTabHere) {
+  OpenTabs({"a.test", "b.test"});
+  OpenTabInSecond("c.test");
+  SidebarNode* a = TodayFor("a.test");
+  content::WebContents* contents = tab_strip_model()->GetWebContentsAt(0);
+
+  tabs::TabInterface* tab = second_bridge().OpenNode(a);
+  Settle();
+
+  // The same tab and page, now in the second window, with the same node.
+  ASSERT_TRUE(tab);
+  EXPECT_EQ(tab->GetContents(), contents);
+  EXPECT_EQ(second_->GetTabStripModel()->count(), 2);
+  EXPECT_EQ(second_->GetTabStripModel()->GetActiveTab(), tab);
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+  // Moving doesn't change the tree.
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("c.test", "a.test", "b.test"));
+  EXPECT_FALSE(bridge().GetTab(a));
+  EXPECT_EQ(second_bridge().GetTab(a), tab);
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, PinnedIsSharedAndUnloadsEverywhere) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("b.test");
+  SidebarNode* pinned = TodayFor("a.test");
+  space_model().Move(pinned, space_model().pinned_root(), 0);
+  Settle();
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
+
+  EXPECT_THAT(Hosts(space_model().pinned_root()), ElementsAre("a.test"));
+  EXPECT_FALSE(WindowFeatures::From(second_.get())->registry().GetTab(pinned));
+
+  // Reopening it from the second window opens it there.
+  EXPECT_TRUE(second_bridge().OpenNode(pinned));
 }
 
 }  // namespace
