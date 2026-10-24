@@ -38,13 +38,24 @@ SidebarNode* FindIn(SidebarNode* node, const base::Uuid& id) {
 }  // namespace
 
 SpaceModel::SpaceModel()
-    : pinned_root_(
+    : id_(base::Uuid::GenerateRandomV4()),
+      pinned_root_(
           std::make_unique<SidebarNode>(Type::kRoot, std::u16string(), GURL())),
       today_root_(std::make_unique<SidebarNode>(Type::kRoot,
                                                 std::u16string(),
                                                 GURL())) {}
 
 SpaceModel::~SpaceModel() = default;
+
+void SpaceModel::SetName(std::u16string name) {
+  if (name_ == name) {
+    return;
+  }
+  name_ = std::move(name);
+  for (Observer& observer : observers_) {
+    observer.OnSpaceRenamed();
+  }
+}
 
 void SpaceModel::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
@@ -170,6 +181,10 @@ SidebarNode* SpaceModel::FindById(const base::Uuid& id) {
     return found;
   }
   return FindIn(today_root_.get(), id);
+}
+
+bool SpaceModel::Contains(const SidebarNode* node) const {
+  return pinned_root_->Contains(node) || today_root_->Contains(node);
 }
 
 bool SpaceModel::CanContain(const SidebarNode* parent, Type type) const {

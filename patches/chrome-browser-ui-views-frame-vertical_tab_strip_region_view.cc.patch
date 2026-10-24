@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..00e5755796ff968189296e90f5019d8446b53a1f 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..50ef2fc1b733cac50e92b2bbae9f0f20fc60acdc 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,8 @@
@@ -45,7 +45,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..00e5755796ff968189296e90f5019d84
      return;
    }
    const auto motion =
-@@ -889,6 +894,43 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+@@ -889,6 +894,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
    return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
@@ -60,14 +60,10 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..00e5755796ff968189296e90f5019d84
 +  // native strip.
 +  AddTabStripView(std::move(sidebar));
 +  strata::InstallSidebar(strata_sidebar_, bottom_button_container_);
-+  strata_active_tab_subscription_ =
-+      browser_view()->browser()->RegisterActiveTabDidChange(base::BindRepeating(
-+          [](VerticalTabStripRegionView* region,
-+             BrowserWindowInterface* browser) {
-+            region->OnActiveTabChanged(browser->GetActiveTabInterface());
-+          },
-+          base::Unretained(this)));
-+  OnActiveTabChanged(browser_view()->browser()->GetActiveTabInterface());
++  strata_active_tab_watcher_ = std::make_unique<strata::ActiveTabWatcher>(
++      browser_view()->browser(),
++      base::BindRepeating(&VerticalTabStripRegionView::OnActiveTabChanged,
++                          base::Unretained(this)));
 +}
 +
 +const tabs::TabData& VerticalTabStripRegionView::GetTabData(
@@ -82,14 +78,14 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..00e5755796ff968189296e90f5019d84
 +  if (!strata_sidebar_) {
 +    return;
 +  }
-+  strata_active_tab_subscription_ = {};
++  strata_active_tab_watcher_.reset();
 +  RemoveTabStripView(std::exchange(strata_sidebar_, nullptr));
 +}
 +
  void VerticalTabStripRegionView::OnCollapseStateChanged(
      tabs::VerticalTabStripCollapseState state) {
    // Apply padding immediately at the start of the animation by including
-@@ -1026,7 +1068,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+@@ -1026,7 +1064,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
      return;
    }
  

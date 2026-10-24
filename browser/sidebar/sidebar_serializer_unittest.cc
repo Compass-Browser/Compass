@@ -10,6 +10,7 @@
 
 #include "base/json/json_reader.h"
 #include "base/strings/utf_string_conversions.h"
+#include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -132,12 +133,76 @@ TEST(SidebarSerializerTest, SkipsWhatTheModelCantHold) {
 
 TEST(SidebarSerializerTest, IgnoresOtherVersions) {
   std::optional<base::Value> data = base::JSONReader::Read(
-      R"({"version": 2, "pinned": [{"type": "tab", "title": "A"}]})",
+      R"({"version": 3, "pinned": [{"type": "tab", "title": "A"}]})",
       base::JSON_PARSE_RFC);
-  SpaceModel model;
+  SpaceList list;
 
-  EXPECT_EQ(DeserializeSpace(data->GetDict(), model), 0u);
-  EXPECT_TRUE(model.pinned_root()->children().empty());
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 0u);
+  EXPECT_EQ(list.spaces().size(), 1u);
+  EXPECT_TRUE(list.active_space().pinned_root()->children().empty());
+}
+
+// Names of |list|'s spaces, with the active one in brackets.
+std::string Names(const SpaceList& list) {
+  std::string names;
+  for (const auto& space : list.spaces()) {
+    std::string name = base::UTF16ToUTF8(space->name());
+    if (space.get() == &list.active_space()) {
+      name = "[" + name + "]";
+    }
+    names += (names.empty() ? "" : ",") + name;
+  }
+  return names;
+}
+
+TEST(SidebarSerializerTest, RoundTripsTheSpaceList) {
+  SpaceList list;
+  list.active_space().SetName(u"Home");
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
+  play->AddTab(play->today_root(), 0, GURL("https://p.test/"), u"P");
+  list.SetActiveSpace(*work);
+
+  SpaceList restored;
+  EXPECT_EQ(DeserializeSpaceList(SerializeSpaceList(list), restored), 3u);
+
+  EXPECT_EQ(Names(restored), "Home,[Work],Play");
+  // The active space took over the saved one's identity.
+  EXPECT_EQ(restored.active_space().id(), work->id());
+  EXPECT_EQ(Describe(restored.active_space().pinned_root()), "W");
+  EXPECT_EQ(Describe(restored.FindSpace(play->id())->today_root()), "P");
+}
+
+TEST(SidebarSerializerTest, TheActiveSpaceKeepsWhatItHadBeforeTheLoad) {
+  SpaceList saved;
+  saved.active_space().SetName(u"Home");
+  saved.active_space().AddTab(saved.active_space().today_root(), 0,
+                              GURL("https://saved.test/"), u"Saved");
+  SpaceList list;
+  // A window opened before the load.
+  list.active_space().AddTab(list.active_space().today_root(), 0,
+                             GURL("https://early.test/"), u"Early");
+
+  DeserializeSpaceList(SerializeSpaceList(saved), list);
+
+  EXPECT_EQ(Names(list), "[Home]");
+  EXPECT_EQ(Describe(list.active_space().today_root()), "Saved,Early");
+}
+
+TEST(SidebarSerializerTest, ReadsVersion1AsOneSpace) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 1,
+          "pinned": [{"type": "tab", "title": "A", "url": "https://a.test/"}],
+          "today": [{"type": "tab", "title": "T", "url": "https://t.test/"}]})",
+      base::JSON_PARSE_RFC);
+  SpaceList list;
+
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 1u);
+
+  EXPECT_EQ(list.spaces().size(), 1u);
+  EXPECT_EQ(Describe(list.active_space().pinned_root()), "A");
+  EXPECT_EQ(Describe(list.active_space().today_root()), "T");
 }
 
 }  // namespace

@@ -14,9 +14,11 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "strata/browser/window_sync/live_tab_registry.h"
+#include "strata/browser/window_sync/window_features.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
@@ -24,13 +26,14 @@ class TabStripModel;
 namespace strata {
 
 class TabStripBridge;
-class WindowFeatures;
 
 // Serves the sidebar page its window's SpaceModel and acts on the page's
 // requests. Sends the tree once, then the model's changes as they happen.
 // Slice b of docs/design/sidebar.md.
 class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public SpaceModel::Observer,
+                           public SpaceList::Observer,
+                           public WindowFeatures::Observer,
                            public LiveTabRegistry::Observer,
                            public TabStripModelObserver {
  public:
@@ -58,6 +61,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                  const std::string& title) override;
   void RenameFolder(const std::string& id, const std::string& title) override;
   void DeleteNode(const std::string& id) override;
+  void SwitchSpace(const std::string& id) override;
+  void AddSpace() override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -66,6 +71,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                    size_t old_index) override;
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
+  void OnSpaceRenamed() override;
+
+  // SpaceList::Observer:
+  void OnSpaceAdded(SpaceModel& space) override;
+
+  // WindowFeatures::Observer:
+  void OnSpaceSwitched() override;
 
   // LiveTabRegistry::Observer:
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
@@ -83,6 +95,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   LiveTabRegistry& registry();
 
   sidebar::mojom::NodePtr ToMojo(const SidebarNode& node);
+  void SendSpaces();
 
   // The node with |id|, or null if there is none (the page can be behind).
   SidebarNode* FindNode(const std::string& id);
@@ -96,6 +109,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<WindowFeatures> features_;
+  // The space whose changes the page gets: the window's, except while it
+  // switches.
+  raw_ptr<SpaceModel> observed_space_ = nullptr;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 };

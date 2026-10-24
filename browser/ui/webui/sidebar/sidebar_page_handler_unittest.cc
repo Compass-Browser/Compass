@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -39,6 +40,15 @@ class FakePage : public sidebar::mojom::Page {
   }
 
   // sidebar::mojom::Page:
+  void SetSpaces(std::vector<sidebar::mojom::SpacePtr> spaces,
+                 const std::string& active_id) override {
+    spaces_.clear();
+    for (size_t i = 0; i < spaces.size(); ++i) {
+      const std::string& name = spaces[i]->name;
+      spaces_ += (i ? "," : "") +
+                 (spaces[i]->id == active_id ? "[" + name + "]" : name);
+    }
+  }
   void SetTree(sidebar::mojom::TreePtr tree) override {
     Learn(*tree->pinned);
     Learn(*tree->today);
@@ -74,6 +84,8 @@ class FakePage : public sidebar::mojom::Page {
 
   sidebar::mojom::TreePtr TakeTree() { return std::move(tree_); }
   std::vector<std::string> TakeEvents() { return std::move(events_); }
+  // Space names, comma separated, the window's in brackets.
+  const std::string& spaces() const { return spaces_; }
 
  private:
   void Learn(const sidebar::mojom::Node& node) {
@@ -87,6 +99,7 @@ class FakePage : public sidebar::mojom::Page {
   sidebar::mojom::TreePtr tree_;
   std::map<std::string, std::string> hosts_;
   std::vector<std::string> events_;
+  std::string spaces_;
 };
 
 std::vector<std::string> Hosts(const sidebar::mojom::Node& parent) {
@@ -106,6 +119,13 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
 
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
+    // Test windows can't be created the production way.
+    WindowFeatures::From(browser())->service().SetParkingWindowFactoryForTesting(
+        base::BindLambdaForTesting([this](Profile* profile) {
+          parking_ = CreateBrowser(profile, BrowserWindowInterface::TYPE_POPUP,
+                                   /*hosted_app=*/false);
+          return parking_.get();
+        }));
     // AddTab() inserts at the front and activates.
     AddTab(browser(), GURL("https://b.test/"));
     AddTab(browser(), GURL("https://a.test/"));
@@ -119,6 +139,10 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
 
   void TearDown() override {
     handler_.reset();
+    if (parking_) {
+      parking_->GetTabStripModel()->CloseAllTabs();
+      parking_.reset();
+    }
     BrowserWithTestWindowTest::TearDown();
   }
 
@@ -155,6 +179,7 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
   FakePage page_;
   mojo::Remote<sidebar::mojom::PageHandler> handler_remote_;
   std::unique_ptr<SidebarPageHandler> handler_;
+  std::unique_ptr<BrowserWindowInterface> parking_;
 };
 
 TEST_F(SidebarPageHandlerTest, SendsTheTreeOnRequest) {
@@ -302,6 +327,34 @@ TEST_F(SidebarPageHandlerTest, DeleteNodeRemovesPinnedEntriesOnly) {
 
   EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
   EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {
+  EXPECT_EQ(page_.spaces(), "[Home]");
+
+  handler_remote_->AddSpace();
+  Settle();
+
+  EXPECT_EQ(page_.spaces(), "Home,[Space 2]");
+  sidebar::mojom::TreePtr tree = page_.TakeTree();
+  ASSERT_TRUE(tree);
+  EXPECT_TRUE(tree->pinned->children.empty());
+  // A new tab, as the space had nothing to show.
+  EXPECT_EQ(tree->today->children.size(), 1u);
+
+  const std::string first_id = WindowFeatures::From(browser())
+                                   ->service()
+                                   .space_list()
+                                   .spaces()[0]
+                                   ->id()
+                                   .AsLowercaseString();
+  handler_remote_->SwitchSpace(first_id);
+  Settle();
+
+  EXPECT_EQ(page_.spaces(), "[Home],Space 2");
+  tree = page_.TakeTree();
+  ASSERT_TRUE(tree);
+  EXPECT_THAT(Hosts(*tree->today), ElementsAre("a.test", "b.test"));
 }
 
 }  // namespace

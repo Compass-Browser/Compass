@@ -32,6 +32,7 @@ source_set("window_sync") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/tabs:tab_model",
     "//chrome/common",
@@ -48,6 +49,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "sidebar_store_unittest.cc",
+    "space_switch_unittest.cc",
     "tab_strip_bridge_unittest.cc",
   ]
   deps = [

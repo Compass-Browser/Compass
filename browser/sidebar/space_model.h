@@ -38,12 +38,22 @@ class SpaceModel {
     virtual void OnNodeChanged(const SidebarNode& node) {}
     // Called before |node| and its subtree are destroyed.
     virtual void OnNodeWillBeRemoved(const SidebarNode& node) {}
+    // The space's name changed.
+    virtual void OnSpaceRenamed() {}
   };
 
   SpaceModel();
   SpaceModel(const SpaceModel&) = delete;
   SpaceModel& operator=(const SpaceModel&) = delete;
   ~SpaceModel();
+
+  // Stable across sessions (it's saved), unlike node IDs.
+  const base::Uuid& id() const { return id_; }
+  // Only while loading: the space takes over a saved space's identity.
+  void set_id(const base::Uuid& id) { id_ = id; }
+
+  const std::u16string& name() const { return name_; }
+  void SetName(std::u16string name);
 
   SidebarNode* pinned_root() { return pinned_root_.get(); }
   const SidebarNode* pinned_root() const { return pinned_root_.get(); }
@@ -85,6 +95,9 @@ class SpaceModel {
 
   SidebarNode* FindById(const base::Uuid& id);
 
+  // Whether |node| is in this space's tree.
+  bool Contains(const SidebarNode* node) const;
+
  private:
   bool CanContain(const SidebarNode* parent, SidebarNode::Type type) const;
 
@@ -95,6 +108,8 @@ class SpaceModel {
                        size_t index,
                        std::unique_ptr<SidebarNode> node);
 
+  base::Uuid id_;
+  std::u16string name_;
   std::unique_ptr<SidebarNode> pinned_root_;
   std::unique_ptr<SidebarNode> today_root_;
   base::ObserverList<Observer> observers_;

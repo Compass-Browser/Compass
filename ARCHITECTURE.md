@@ -172,6 +172,12 @@ result without patching that invariant:
 - `Browser` objects for spaces that haven't been visited yet are created on
   first switch, not at startup.
 
+Spaces that share a profile realize this by rebinding (D15): the window keeps
+its `Browser`, and a switch moves the live tabs of the space it leaves into a
+hidden parking `Browser` and those of the space it enters back. Swapping
+windows remains for spaces with another profile. See
+[docs/design/spaces.md](docs/design/spaces.md).
+
 We rejected two alternatives: patching `Browser` to host tabs from several
 profiles (invasive, conflicts on every rebase), and building on `//content`
 directly (we'd lose extensions, autofill and the password manager).
@@ -328,6 +334,7 @@ Milestones 2–4 make up the MVP.
 | D12 | Sidebar persisted as JSON via `ImportantFileWriter`, not SQLite | The pinned tree is small and cheapest to write whole; atomic and proven by bookmarks. SQLite comes in when archive and history need queries |
 | D13 | A closing window hands its tabs to another window of the profile; no parking `Browser` yet (refines D8) | A hidden window would come back visible through session restore and keep the process alive without UI on Windows and Linux. A real window gives extensions a `windowId` too |
 | D14 | Today is saved in the sidebar file; tabs Chrome restores take over saved entries by URL | Chrome's session restore keeps history and crash recovery, so we leave it alone. Tagging tabs through session "extra data" would need two patches (a rebuild of the session file drops tab extra data). URL matching is right for the common case and degrades to a duplicate entry |
+| D15 | Spaces of one profile share a window's `Browser`; a switch moves live tabs to and from a hidden, unrestored popup parking `Browser` (realizes D6 for one profile) | A native window can't host several `Browser`s, and swapping windows flickers, splits window state and can't restore a window's space without session patches. Moving tabs keeps page state, as tab dragging does |
 
 ## 15. Open questions
 

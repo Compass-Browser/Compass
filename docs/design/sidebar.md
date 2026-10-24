@@ -441,7 +441,7 @@ horizontal, so the horizontal strip still works if someone switches back.
 | Collapse animation started only once the strip existed | Starts once the region subscribed to it |
 | Hover-card hide lock while animating or expanding on hover | Only if there's a hover-card controller (there isn't) |
 | `GetTabData()` for accessible tab and window titles read the tab view | `TabData::FromTabInterface()`, from the tab itself |
-| Active-tab changes came through the node tree | `RegisterActiveTabDidChange()`, so the omnibox popup still keeps an expanded-on-hover region collapsed |
+| Active-tab changes came through the node tree | `strata::ActiveTabWatcher`: the window's active-tab callback, plus null as soon as that tab leaves. A closing window closes its tabs without changing the active one, and the region observes the active tab's `OmniboxTabHelper`, so without that it kept a destroyed helper (a use-after-free at window close). The omnibox popup still keeps an expanded-on-hover region collapsed |
 | Native tab drags (`GetTabDragTarget()`) | No drag handler, so no native drag targets; there are no native tabs to drag |
 | Link drops: the region was the drop target while the strip existed | The sidebar page takes them (below) |
 

@@ -17,29 +17,36 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
+#include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 
 namespace strata {
 
-// Keeps a SpaceModel in a JSON file (see sidebar_serializer.h). Loads it
+// Keeps a profile's spaces in a JSON file (see sidebar_serializer.h). Loads it
 // once, on a background sequence, then saves every change, coalesced. Nothing
 // is written before the load finishes, so an early save can't drop saved
-// entries. See docs/design/sidebar.md, slice d and "Today persistence".
-class SidebarStore : public SpaceModel::Observer,
+// entries. See docs/design/sidebar.md, slice d and "Today persistence", and
+// docs/design/spaces.md.
+class SidebarStore : public SpaceList::Observer,
+                     public SpaceModel::Observer,
                      public base::ImportantFileWriter::DataSerializer {
  public:
-  SidebarStore(const base::FilePath& path, SpaceModel* model);
+  SidebarStore(const base::FilePath& path, SpaceList* list);
   SidebarStore(const SidebarStore&) = delete;
   SidebarStore& operator=(const SidebarStore&) = delete;
   // Writes pending changes.
   ~SidebarStore() override;
 
-  // Reads the file and adds its entries ahead of those already in the model.
-  // |done| runs once they're in.
+  // Reads the file into the list (see DeserializeSpaceList()). |done| runs
+  // once it's in.
   void Load(base::OnceClosure done = base::DoNothing());
 
   // Writes pending changes now.
   void Flush();
+
+  // SpaceList::Observer:
+  void OnSpaceAdded(SpaceModel& space) override;
+  void OnActiveSpaceChanged() override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -48,6 +55,7 @@ class SidebarStore : public SpaceModel::Observer,
                    size_t old_index) override;
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
+  void OnSpaceRenamed() override;
 
   // base::ImportantFileWriter::DataSerializer:
   std::optional<std::string> SerializeData() override;
@@ -56,7 +64,7 @@ class SidebarStore : public SpaceModel::Observer,
   void OnLoaded(base::OnceClosure done, std::optional<base::Value> data);
   void ScheduleSave();
 
-  const raw_ref<SpaceModel> model_;
+  const raw_ref<SpaceList> list_;
   const scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
   base::ImportantFileWriter writer_;
   // Set while loaded entries go into the model, which needn't be saved back.

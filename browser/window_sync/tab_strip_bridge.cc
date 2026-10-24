@@ -177,8 +177,10 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
     if (!source) {
       return nullptr;
     }
-    // Leave the other window on its previous tab, or a placeholder.
-    if (WindowFeatures* source_features = WindowFeatures::From(source)) {
+    // Leave the other window showing the tab, as a placeholder. The parking
+    // window shows nothing.
+    WindowFeatures* source_features = WindowFeatures::From(source);
+    if (source_features && !source_features->is_parking_window()) {
       source_features->tab_strip_bridge().PrepareToLoseTab(tab);
     }
     TabStripModel* source_strip = source->GetTabStripModel();
@@ -389,6 +391,11 @@ void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
     placeholder_node_ = nullptr;
     return;
   }
+  // Another bridge's placeholder, left from before the window switched
+  // spaces. It's about to close.
+  if (tab->GetContents()->GetLastCommittedURL() == GURL(kPlaceholderURL)) {
+    return;
+  }
   // A tab may land before the pinned block (or between a split's panes);
   // put it back in the tree's order afterwards.
   ScheduleSyncStripOrder();
@@ -453,6 +460,10 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
     return;
   }
   registry_->Unregister(tab);
+  if (!space_model_->Contains(node)) {
+    // Another space's tab, passing through while the window switches.
+    return;
+  }
   // Tabs close with their window when it's the last one, or when quitting
   // (other windows hand theirs off first). Today keeps them, unloaded, like
   // Pinned does.

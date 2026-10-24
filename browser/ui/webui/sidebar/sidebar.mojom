@@ -40,10 +40,16 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
+// A space, as the switcher shows it.
+struct Space {
+  string id;
+  string name;
+};
+
 // Browser-side handler for requests from chrome://strata-sidebar.
 interface PageHandler {
-  // Answered with Page.SetTree(), on the same pipe as the diffs, so the page
-  // sees them in order.
+  // Answered with Page.SetSpaces() and Page.SetTree(), on the same pipe as
+  // the diffs, so the page sees them in order.
   RequestTree();
   // Activates a tab node's tab, opening one if the node is unloaded. Ignored
   // for other nodes.
@@ -68,11 +74,19 @@ interface PageHandler {
   RenameFolder(string id, string title);
   // Removes a folder or pinned entry and its subtree, closing live tabs.
   DeleteNode(string id);
+
+  // Shows another space in this window; the page then gets its tree.
+  SwitchSpace(string id);
+  // Adds a space at the end and switches to it.
+  AddSpace();
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
 // in the order the model made them.
 interface Page {
+  // The profile's spaces, and the one this window shows. Sent before the
+  // tree, and whenever they change.
+  SetSpaces(array<Space> spaces, string active_id);
   // The whole tree. Replaces whatever the page had.
   SetTree(Tree tree);
   NodeAdded(string parent_id, uint32 index, Node node);

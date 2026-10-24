@@ -1,8 +1,19 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
-index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..96d549ed7bffc8e24616d4147270d67f8f9d7fe6 100644
+index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..8cd316d9c3401d6f7e915fe133784eae4ecfe4ef 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
-@@ -94,6 +94,13 @@ class VerticalTabStripRegionView final
+@@ -50,6 +50,10 @@ class Separator;
+ class View;
+ }  // namespace views
+ 
++namespace strata {
++class ActiveTabWatcher;
++}  // namespace strata
++
+ // Container for the vertical tabstrip and the other views sharing space with
+ // it, excluding the caption buttons.
+ class VerticalTabStripRegionView final
+@@ -94,6 +98,13 @@ class VerticalTabStripRegionView final
  
    bool IsPositionInWindowCaption(const gfx::Point& point) override;
  
@@ -16,14 +27,14 @@ index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..96d549ed7bffc8e24616d4147270d67f
    // These methods provide the toolbar height and exclusion width, before the
    // layout of this view, for use in calculating positioning of child views. If
    // an exclusion width is provided, nothing can be rendered within the
-@@ -257,6 +264,11 @@ class VerticalTabStripRegionView final
+@@ -257,6 +268,11 @@ class VerticalTabStripRegionView final
    bool organizer_panel_was_visible_ = false;
  
    raw_ptr<views::View> content_area_view_ = nullptr;
 +  // Strata: the sidebar, and what the native strip's node tree would have
 +  // reported (see InitializeTabStrip()).
 +  raw_ptr<views::View> strata_sidebar_ = nullptr;
-+  base::CallbackListSubscription strata_active_tab_subscription_;
++  std::unique_ptr<strata::ActiveTabWatcher> strata_active_tab_watcher_;
 +  tabs::TabData strata_tab_data_;
    raw_ptr<VerticalTabStripTopContainer> top_button_container_ = nullptr;
    raw_ptr<views::Separator> top_button_separator_ = nullptr;

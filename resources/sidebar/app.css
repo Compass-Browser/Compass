@@ -18,11 +18,75 @@
   padding: 4px 8px;
 }
 
+#spaceName {
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 16px;
+  overflow: hidden;
+  padding: 6px 10px 2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 #sections {
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: 2px;
+  min-height: 0;
   overflow-y: auto;
+}
+
+/* The space switcher, under everything else. */
+#spaces {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: auto;
+  padding: 6px 0 4px;
+}
+
+.space,
+#addSpace {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  display: flex;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  height: 24px;
+  justify-content: center;
+  opacity: 0.55;
+  padding: 0;
+  width: 24px;
+}
+
+.space {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.space:hover,
+#addSpace:hover {
+  opacity: 0.85;
+}
+
+.space[active] {
+  background: var(--color-tab-background-active-frame-active,
+                  rgba(255, 255, 255, 0.9));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  color: var(--color-tab-foreground-active-frame-active, inherit);
+  opacity: 1;
+  outline: 1.5px solid currentColor;
+  outline-offset: 2px;
+}
+
+#addSpace {
+  font-size: 16px;
 }
 
 .section,

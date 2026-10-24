@@ -278,6 +278,63 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DroppingALinkOpensIt) {
   EXPECT_EQ(contents->GetLastCommittedURL(), GURL("chrome://strata-sidebar/"));
 }
 
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  content::WebContents* one = browser()->tab_strip_model()->GetWebContentsAt(0);
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  content::WebContents* contents = sidebar_contents();
+
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('#addSpace').click();
+  )"));
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return &features->space_model() != home; }));
+  EXPECT_EQ(features->space_model().name(), u"Space 2");
+  EXPECT_NE(browser()->tab_strip_model()->GetActiveWebContents(), one);
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      while (root.querySelector('#spaceName')?.textContent !== 'Space 2' ||
+             root.querySelectorAll('.space').length !== 2) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+  // Something worth keeping in the new space, so it's parked when we leave.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>Two</title>")));
+
+  // Back to the first space: the same tab, kept alive while hidden. That
+  // empties the parking window, and Two goes to a new one.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('.space').click();
+  )"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return &features->space_model() == home; }));
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), one);
+
+  // And again.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelectorAll('.space')[1].click();
+  )"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return &features->space_model() != home; }));
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('.space').click();
+  )"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return &features->space_model() == home; }));
+  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), one);
+}
+
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));

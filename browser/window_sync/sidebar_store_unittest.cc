@@ -12,6 +12,7 @@
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
+#include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -56,30 +57,34 @@ class SidebarStoreTest : public testing::Test {
 };
 
 TEST_F(SidebarStoreTest, SavesPinnedAndLoadsItBack) {
-  SpaceModel model;
-  auto store = std::make_unique<SidebarStore>(path(), &model);
+  SpaceList list;
+  SpaceModel& model = list.active_space();
+  auto store = std::make_unique<SidebarStore>(path(), &list);
   Load(*store);
   AddPinned(model, "a");
   model.AddFolder(model.pinned_root(), 1, u"Work");
   Close(std::move(store));
 
-  SpaceModel restored;
-  SidebarStore restored_store(path(), &restored);
+  SpaceList restored_list;
+  SpaceModel& restored = restored_list.active_space();
+  SidebarStore restored_store(path(), &restored_list);
   Load(restored_store);
 
   EXPECT_EQ(Titles(restored.pinned_root()), "a,Work");
 }
 
 TEST_F(SidebarStoreTest, SavesTodayAndLoadsItBack) {
-  SpaceModel model;
-  auto store = std::make_unique<SidebarStore>(path(), &model);
+  SpaceList list;
+  SpaceModel& model = list.active_space();
+  auto store = std::make_unique<SidebarStore>(path(), &list);
   Load(*store);
   model.AddTab(model.today_root(), 0, GURL("https://t.test/"), u"t");
   model.AddTab(model.today_root(), 1, GURL("chrome://newtab/"), u"ntp");
   Close(std::move(store));
 
-  SpaceModel restored;
-  SidebarStore restored_store(path(), &restored);
+  SpaceList restored_list;
+  SpaceModel& restored = restored_list.active_space();
+  SidebarStore restored_store(path(), &restored_list);
   Load(restored_store);
 
   EXPECT_EQ(Titles(restored.today_root()), "t");
@@ -87,45 +92,71 @@ TEST_F(SidebarStoreTest, SavesTodayAndLoadsItBack) {
 
 TEST_F(SidebarStoreTest, NothingIsWrittenBeforeTheLoad) {
   {
-    SpaceModel model;
-    auto store = std::make_unique<SidebarStore>(path(), &model);
+    SpaceList list;
+    SpaceModel& model = list.active_space();
+    auto store = std::make_unique<SidebarStore>(path(), &list);
     Load(*store);
     AddPinned(model, "saved");
     Close(std::move(store));
   }
 
   // Closed before loading: the change must not replace the saved entries.
-  SpaceModel model;
-  auto store = std::make_unique<SidebarStore>(path(), &model);
+  SpaceList list;
+  SpaceModel& model = list.active_space();
+  auto store = std::make_unique<SidebarStore>(path(), &list);
   AddPinned(model, "early");
   Close(std::move(store));
 
-  SpaceModel restored;
-  SidebarStore restored_store(path(), &restored);
+  SpaceList restored_list;
+  SpaceModel& restored = restored_list.active_space();
+  SidebarStore restored_store(path(), &restored_list);
   Load(restored_store);
   EXPECT_EQ(Titles(restored.pinned_root()), "saved");
 }
 
 TEST_F(SidebarStoreTest, KeepsChangesMadeBeforeTheLoad) {
   {
-    SpaceModel model;
-    auto store = std::make_unique<SidebarStore>(path(), &model);
+    SpaceList list;
+    SpaceModel& model = list.active_space();
+    auto store = std::make_unique<SidebarStore>(path(), &list);
     Load(*store);
     AddPinned(model, "saved");
     Close(std::move(store));
   }
 
-  SpaceModel model;
-  auto store = std::make_unique<SidebarStore>(path(), &model);
+  SpaceList list;
+  SpaceModel& model = list.active_space();
+  auto store = std::make_unique<SidebarStore>(path(), &list);
   AddPinned(model, "early");
   Load(*store);
   EXPECT_EQ(Titles(model.pinned_root()), "saved,early");
   Close(std::move(store));
 
-  SpaceModel restored;
-  SidebarStore restored_store(path(), &restored);
+  SpaceList restored_list;
+  SpaceModel& restored = restored_list.active_space();
+  SidebarStore restored_store(path(), &restored_list);
   Load(restored_store);
   EXPECT_EQ(Titles(restored.pinned_root()), "saved,early");
+}
+
+TEST_F(SidebarStoreTest, SavesSpacesAndTheActiveOne) {
+  SpaceList list;
+  auto store = std::make_unique<SidebarStore>(path(), &list);
+  Load(*store);
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  AddPinned(*work, "w");
+  list.SetActiveSpace(*work);
+  work->SetName(u"Job");
+  Close(std::move(store));
+
+  SpaceList restored;
+  SidebarStore restored_store(path(), &restored);
+  Load(restored_store);
+
+  ASSERT_EQ(restored.spaces().size(), 2u);
+  EXPECT_EQ(restored.active_space().id(), work->id());
+  EXPECT_EQ(restored.active_space().name(), u"Job");
+  EXPECT_EQ(Titles(restored.active_space().pinned_root()), "w");
 }
 
 }  // namespace

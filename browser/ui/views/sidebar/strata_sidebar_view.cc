@@ -5,8 +5,10 @@
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -68,6 +70,32 @@ void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
                                views::MaximumFlexSizeRule::kPreferred));
+}
+
+ActiveTabWatcher::ActiveTabWatcher(BrowserWindowInterface* browser,
+                                   Callback callback)
+    : callback_(std::move(callback)) {
+  active_tab_subscription_ =
+      browser->RegisterActiveTabDidChange(base::BindRepeating(
+          &ActiveTabWatcher::OnActiveTabChanged, base::Unretained(this)));
+  OnActiveTabChanged(browser);
+}
+
+ActiveTabWatcher::~ActiveTabWatcher() = default;
+
+void ActiveTabWatcher::OnActiveTabChanged(BrowserWindowInterface* browser) {
+  tabs::TabInterface* tab = browser->GetActiveTabInterface();
+  will_detach_subscription_ =
+      tab ? tab->RegisterWillDetach(base::BindRepeating(
+                &ActiveTabWatcher::OnWillDetach, base::Unretained(this)))
+          : base::CallbackListSubscription();
+  callback_.Run(tab);
+}
+
+void ActiveTabWatcher::OnWillDetach(tabs::TabInterface* tab,
+                                    tabs::TabInterface::DetachReason reason) {
+  will_detach_subscription_ = {};
+  callback_.Run(nullptr);
 }
 
 }  // namespace strata

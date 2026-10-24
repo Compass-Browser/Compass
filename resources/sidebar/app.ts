@@ -8,7 +8,7 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import './node.js';
-import type {Node, Tree} from './sidebar.mojom-webui.js';
+import type {Node, Space, Tree} from './sidebar.mojom-webui.js';
 import {NodeType} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -44,6 +44,8 @@ export class StrataSidebarAppElement extends CrLitElement {
       today_: {type: Object},
       activeId_: {type: String},
       collapsedIds_: {type: Object},
+      spaces_: {type: Array},
+      activeSpaceId_: {type: String},
     };
   }
 
@@ -51,6 +53,8 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
   protected accessor collapsedIds_: Set<string> = new Set();
+  protected accessor spaces_: Space[] = [];
+  protected accessor activeSpaceId_: string = '';
 
   private browserProxy_: SidebarBrowserProxy =
       SidebarBrowserProxy.getInstance();
@@ -67,6 +71,10 @@ export class StrataSidebarAppElement extends CrLitElement {
     super.connectedCallback();
     const router = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
+      router.setSpaces.addListener((spaces: Space[], activeId: string) => {
+        this.spaces_ = spaces;
+        this.activeSpaceId_ = activeId;
+      }),
       router.setTree.addListener(this.onSetTree_.bind(this)),
       router.nodeAdded.addListener(this.onNodeAdded_.bind(this)),
       router.nodeMoved.addListener(this.onNodeMoved_.bind(this)),
@@ -91,6 +99,30 @@ export class StrataSidebarAppElement extends CrLitElement {
       this.browserProxy_.callbackRouter.removeListener(id);
     }
     this.listenerIds_ = [];
+  }
+
+  protected getActiveSpaceName_(): string {
+    return this.spaces_.find(space => this.isActiveSpace_(space))?.name ?? '';
+  }
+
+  protected isActiveSpace_(space: Space): boolean {
+    return space.id === this.activeSpaceId_;
+  }
+
+  // The switcher shows a space by its name's first letter.
+  protected getSpaceInitial_(space: Space): string {
+    return Array.from(space.name.trim())[0]?.toUpperCase() ?? '•';
+  }
+
+  protected onSpaceClick_(e: Event) {
+    const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
+    if (id !== this.activeSpaceId_) {
+      this.browserProxy_.handler.switchSpace(id);
+    }
+  }
+
+  protected onAddSpaceClick_() {
+    this.browserProxy_.handler.addSpace();
   }
 
   protected getPinned_(): Node[] {

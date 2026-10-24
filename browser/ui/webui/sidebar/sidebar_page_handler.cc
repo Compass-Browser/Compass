@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -45,17 +46,23 @@ SidebarPageHandler::SidebarPageHandler(
       receiver_(this, std::move(receiver)),
       page_(std::move(page)) {
   CHECK(features_);
-  space_model().AddObserver(this);
+  observed_space_ = &space_model();
+  observed_space_->AddObserver(this);
+  features_->service().space_list().AddObserver(this);
+  features_->AddObserver(this);
   registry().AddObserver(this);
   tab_strip_model()->AddObserver(this);
 }
 
 SidebarPageHandler::~SidebarPageHandler() {
   registry().RemoveObserver(this);
-  space_model().RemoveObserver(this);
+  features_->RemoveObserver(this);
+  features_->service().space_list().RemoveObserver(this);
+  observed_space_->RemoveObserver(this);
 }
 
 void SidebarPageHandler::RequestTree() {
+  SendSpaces();
   auto tree = sidebar::mojom::Tree::New();
   tree->pinned = ToMojo(*space_model().pinned_root());
   tree->today = ToMojo(*space_model().today_root());
@@ -168,6 +175,23 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
   }
 }
 
+void SidebarPageHandler::SwitchSpace(const std::string& id) {
+  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
+  if (SpaceModel* space =
+          uuid.is_valid() ? features_->service().space_list().FindSpace(uuid)
+                          : nullptr) {
+    features_->SwitchToSpace(*space);
+  }
+}
+
+void SidebarPageHandler::AddSpace() {
+  SpaceList& list = features_->service().space_list();
+  SpaceModel* space = list.AddSpace(
+      list.spaces().size(),
+      u"Space " + base::NumberToString16(list.spaces().size() + 1));
+  features_->SwitchToSpace(*space);
+}
+
 void SidebarPageHandler::OnNodeAdded(const SidebarNode& node) {
   page_->NodeAdded(node.parent()->id().AsLowercaseString(),
                    node.parent()->GetIndexOf(&node), ToMojo(node));
@@ -190,6 +214,21 @@ void SidebarPageHandler::OnNodeWillBeRemoved(const SidebarNode& node) {
   page_->NodeRemoved(node.id().AsLowercaseString());
 }
 
+void SidebarPageHandler::OnSpaceRenamed() {
+  SendSpaces();
+}
+
+void SidebarPageHandler::OnSpaceAdded(SpaceModel& space) {
+  SendSpaces();
+}
+
+void SidebarPageHandler::OnSpaceSwitched() {
+  observed_space_->RemoveObserver(this);
+  observed_space_ = &space_model();
+  observed_space_->AddObserver(this);
+  RequestTree();
+}
+
 void SidebarPageHandler::OnNodeLiveChanged(const SidebarNode& node, bool live) {
   page_->NodeLiveChanged(node.id().AsLowercaseString(), live);
 }
@@ -199,7 +238,8 @@ void SidebarPageHandler::OnTabStripModelChanged(
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   // The bridge observed the strip first, so a new tab already has its node.
-  if (selection.active_tab_changed()) {
+  // A switch sends the whole tree when it's done.
+  if (selection.active_tab_changed() && !features_->is_switching()) {
     page_->ActiveNodeChanged(GetActiveNodeId());
   }
 }
@@ -218,6 +258,18 @@ TabStripBridge& SidebarPageHandler::bridge() {
 
 LiveTabRegistry& SidebarPageHandler::registry() {
   return features_->registry();
+}
+
+void SidebarPageHandler::SendSpaces() {
+  std::vector<sidebar::mojom::SpacePtr> spaces;
+  for (const auto& space : features_->service().space_list().spaces()) {
+    auto mojo_space = sidebar::mojom::Space::New();
+    mojo_space->id = space->id().AsLowercaseString();
+    mojo_space->name = base::UTF16ToUTF8(space->name());
+    spaces.push_back(std::move(mojo_space));
+  }
+  page_->SetSpaces(std::move(spaces),
+                   space_model().id().AsLowercaseString());
 }
 
 sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {

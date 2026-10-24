@@ -40,15 +40,21 @@ std::optional<base::Value> ReadFile(const base::FilePath& path) {
 
 }  // namespace
 
-SidebarStore::SidebarStore(const base::FilePath& path, SpaceModel* model)
-    : model_(*model),
+SidebarStore::SidebarStore(const base::FilePath& path, SpaceList* list)
+    : list_(*list),
       file_task_runner_(CreateFileTaskRunner()),
       writer_(path, file_task_runner_, kCommitInterval, "StrataSidebar") {
-  model_->AddObserver(this);
+  list_->AddObserver(this);
+  for (const auto& space : list_->spaces()) {
+    space->AddObserver(this);
+  }
 }
 
 SidebarStore::~SidebarStore() {
-  model_->RemoveObserver(this);
+  for (const auto& space : list_->spaces()) {
+    space->RemoveObserver(this);
+  }
+  list_->RemoveObserver(this);
   Flush();
 }
 
@@ -63,6 +69,15 @@ void SidebarStore::Flush() {
   if (writer_.HasPendingWrite()) {
     writer_.DoScheduledWrite();
   }
+}
+
+void SidebarStore::OnSpaceAdded(SpaceModel& space) {
+  space.AddObserver(this);
+  ScheduleSave();
+}
+
+void SidebarStore::OnActiveSpaceChanged() {
+  ScheduleSave();
 }
 
 void SidebarStore::OnNodeAdded(const SidebarNode& node) {
@@ -83,8 +98,12 @@ void SidebarStore::OnNodeWillBeRemoved(const SidebarNode& node) {
   ScheduleSave();
 }
 
+void SidebarStore::OnSpaceRenamed() {
+  ScheduleSave();
+}
+
 std::optional<std::string> SidebarStore::SerializeData() {
-  return base::WriteJsonWithOptions(SerializeSpace(*model_),
+  return base::WriteJsonWithOptions(SerializeSpaceList(*list_),
                                     base::JSONWriter::OPTIONS_PRETTY_PRINT);
 }
 
@@ -92,7 +111,7 @@ void SidebarStore::OnLoaded(base::OnceClosure done,
                             std::optional<base::Value> data) {
   if (data && data->is_dict()) {
     base::AutoReset<bool> loading(&loading_, true);
-    DeserializeSpace(data->GetDict(), *model_);
+    DeserializeSpaceList(data->GetDict(), *list_);
   }
   loaded_ = true;
   if (changed_before_load_) {
