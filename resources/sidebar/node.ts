@@ -15,6 +15,8 @@ import {NodeType} from './sidebar.mojom-webui.js';
 //
 // Entries carry the `row` class and a `data-node-id`; the app finds drop
 // targets by them. A split's panes aren't rows: a split moves as one entry.
+// Tabs (panes included) and folder rows take keyboard focus; the app moves it
+// between them.
 export class StrataSidebarNodeElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-node';
@@ -109,8 +111,16 @@ export class StrataSidebarNodeElement extends CrLitElement {
     SidebarBrowserProxy.getInstance().handler.deleteNode(this.node!.id);
   }
 
-  protected async onFolderTitleDblclick_(e: Event) {
+  protected onFolderTitleDblclick_(e: Event) {
     e.stopPropagation();
+    this.startRename();
+  }
+
+  // Shows a folder's name as an input, selected.
+  async startRename() {
+    if (!this.isFolder_()) {
+      return;
+    }
     this.editing_ = true;
     await this.updateComplete;
     const input = this.querySelector<HTMLInputElement>('.folder-title-input');
@@ -127,6 +137,9 @@ export class StrataSidebarNodeElement extends CrLitElement {
       this.commitRename_(e.target as HTMLInputElement);
     } else if (e.key === 'Escape') {
       this.editing_ = false;
+      this.updateComplete.then(() => {
+        this.querySelector<HTMLElement>('.folder-row')?.focus();
+      });
     }
   }
 
@@ -138,7 +151,14 @@ export class StrataSidebarNodeElement extends CrLitElement {
     if (!this.editing_) {
       return;
     }
+    // Enter leaves the focus on the row; a blur leaves it where it went.
+    const hadFocus = input.matches(':focus');
     this.editing_ = false;
+    if (hadFocus) {
+      this.updateComplete.then(() => {
+        this.querySelector<HTMLElement>('.folder-row')?.focus();
+      });
+    }
     const title = input.value.trim();
     if (title && title !== this.node!.title) {
       SidebarBrowserProxy.getInstance().handler.renameFolder(

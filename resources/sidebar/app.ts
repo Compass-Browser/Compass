@@ -422,11 +422,134 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   protected onFolderToggle_(e: CustomEvent<string>) {
+    this.toggleFolder_(e.detail);
+  }
+
+  private toggleFolder_(id: string) {
     const collapsed = new Set(this.collapsedIds_);
-    if (!collapsed.delete(e.detail)) {
-      collapsed.add(e.detail);
+    if (!collapsed.delete(id)) {
+      collapsed.add(id);
     }
     this.collapsedIds_ = collapsed;
+  }
+
+  // The rows the keyboard moves between, top to bottom: tabs (panes too) and
+  // folders, as far as they show.
+  private getFocusableRows_(): HTMLElement[] {
+    return Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(
+        '#sections .tab, #sections .folder-row'));
+  }
+
+  private getRow_(id: string): HTMLElement|null {
+    return this.shadowRoot.querySelector<HTMLElement>(
+        `#sections .tab[data-node-id="${id}"], ` +
+        `#sections .folder-row[data-node-id="${id}"]`);
+  }
+
+  // Tabbing into the sidebar lands on the active entry. While a row has the
+  // focus, the list itself leaves the tab order, so Shift+Tab leaves too.
+  protected onSectionsFocusin_(e: FocusEvent) {
+    const sections = e.currentTarget as HTMLElement;
+    if (e.target !== sections) {
+      sections.tabIndex = -1;
+      return;
+    }
+    const rows = this.getFocusableRows_();
+    (this.activeId_ && this.getRow_(this.activeId_) || rows[0])?.focus();
+  }
+
+  protected onSectionsFocusout_(e: FocusEvent) {
+    const sections = e.currentTarget as HTMLElement;
+    if (!sections.contains(e.relatedTarget as globalThis.Node | null)) {
+      sections.tabIndex = 0;
+    }
+  }
+
+  // Arrows move between rows; Left and Right also collapse, expand and go to
+  // the parent folder. Enter or Space activates a tab or toggles a folder,
+  // Delete closes a tab, and F2 renames a folder.
+  protected onSectionsKeydown_(e: KeyboardEvent) {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT') {
+      return;
+    }
+    const rows = this.getFocusableRows_();
+    if (target === e.currentTarget && e.key.startsWith('Arrow')) {
+      // The list itself has the focus: go to the active entry.
+      (this.activeId_ && this.getRow_(this.activeId_) || rows[0])?.focus();
+      e.preventDefault();
+      return;
+    }
+    const index = rows.indexOf(target);
+    const id = target.dataset['nodeId'];
+    const node = id ? this.nodes_.get(id) : undefined;
+    if (index === -1 || !id || !node) {
+      return;
+    }
+    const isFolder = node.type === NodeType.kFolder;
+    const collapsed = this.collapsedIds_.has(id);
+    switch (e.key) {
+      case 'ArrowDown':
+        rows[Math.min(index + 1, rows.length - 1)]!.focus();
+        break;
+      case 'ArrowUp':
+        rows[Math.max(index - 1, 0)]!.focus();
+        break;
+      case 'Home':
+        rows[0]!.focus();
+        break;
+      case 'End':
+        rows[rows.length - 1]!.focus();
+        break;
+      case 'ArrowRight':
+        if (isFolder && collapsed) {
+          this.toggleFolder_(id);
+        } else if (isFolder && node.children.length > 0) {
+          rows[index + 1]?.focus();
+        }
+        break;
+      case 'ArrowLeft': {
+        if (isFolder && !collapsed) {
+          this.toggleFolder_(id);
+          break;
+        }
+        // A pane's split isn't a folder; go on up.
+        let parent = this.parents_.get(id);
+        while (parent && parent.type === NodeType.kSplit) {
+          parent = this.parents_.get(parent.id);
+        }
+        if (parent?.type === NodeType.kFolder) {
+          this.getRow_(parent.id)?.focus();
+        }
+        break;
+      }
+      case 'Enter':
+      case ' ':
+        if (isFolder) {
+          this.toggleFolder_(id);
+        } else {
+          this.browserProxy_.handler.activateNode(id);
+        }
+        break;
+      case 'Delete':
+      case 'Backspace':
+        if (isFolder) {
+          return;
+        }
+        // The row goes away; keep the focus in the list.
+        (rows[index + 1] ?? rows[index - 1])?.focus();
+        this.browserProxy_.handler.closeNode(id);
+        break;
+      case 'F2':
+        if (!isFolder) {
+          return;
+        }
+        target.closest('strata-sidebar-node')?.startRename();
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
   }
 
   protected onDragstart_(e: DragEvent) {

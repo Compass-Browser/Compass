@@ -495,6 +495,49 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
                                                              .Append("Three"))));
 }
 
+// Presses |key| on the focused row, and returns the title of the row focused
+// after it.
+constexpr char kPressKey[] = R"(
+  (async (key) => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    root.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+      key, bubbles: true, cancelable: true, composed: true,
+    }));
+    await new Promise(r => setTimeout(r, 0));
+    return root.activeElement?.title ?? '';
+  })($1))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, KeyboardNavigation) {
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
+  TabStripModel* tabs = browser()->tab_strip_model();
+  // Focus events need a focused page.
+  contents->Focus();
+
+  // Focusing the list lands on the active entry.
+  EXPECT_EQ("Three", content::EvalJs(contents, R"(
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    root.querySelector('#sections').focus();
+    root.activeElement.title;)"));
+  EXPECT_EQ("Two", content::EvalJs(contents,
+                                   content::JsReplace(kPressKey, "ArrowUp")));
+  EXPECT_EQ("One", content::EvalJs(contents,
+                                   content::JsReplace(kPressKey, "Home")));
+  EXPECT_EQ("Two", content::EvalJs(contents,
+                                   content::JsReplace(kPressKey, "ArrowDown")));
+
+  ASSERT_TRUE(
+      content::ExecJs(contents, content::JsReplace(kPressKey, "Enter")));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return tabs->GetActiveWebContents()->GetTitle() == u"Two";
+  }));
+
+  // Closing moves the focus to the next row.
+  EXPECT_EQ("Three", content::EvalJs(contents,
+                                     content::JsReplace(kPressKey, "Delete")));
+  EXPECT_TRUE(base::test::RunUntil([&] { return tabs->count() == 2; }));
+}
+
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ArchivePanel) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));

@@ -379,6 +379,16 @@ strata-sidebar-node {
                   rgba(128, 128, 128, 0.12));
 }
 
+#sections:focus {
+  outline: none;
+}
+
+.tab:focus-visible,
+.folder-row:focus-visible {
+  outline: 2px solid var(--color-sys-primary, #8ab4f8);
+  outline-offset: -2px;
+}
+
 .tab[active] {
   background: var(--color-tab-background-active-frame-active,
                   rgba(255, 255, 255, 0.9));

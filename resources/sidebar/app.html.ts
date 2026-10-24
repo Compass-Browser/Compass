@@ -14,7 +14,11 @@ export function getHtml(this: StrataSidebarAppElement) {
     @dblclick="${this.onSpaceNameDblclick_}">
   ${this.getActiveSpaceName_()}
 </div>
-<div id="sections" @dragstart="${this.onDragstart_}"
+<div id="sections" tabindex="0" aria-label="Tabs"
+    @focusin="${this.onSectionsFocusin_}"
+    @focusout="${this.onSectionsFocusout_}"
+    @keydown="${this.onSectionsKeydown_}"
+    @dragstart="${this.onDragstart_}"
     @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
     @drop="${this.onDrop_}" @dragend="${this.onDragend_}"
     @folder-toggle="${this.onFolderToggle_}">

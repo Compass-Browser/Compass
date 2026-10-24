@@ -509,6 +509,28 @@ serializer (last active, delay and archive round trip; older files get the
 default), a bridge test (unseen tabs close and archive, the shown one stays)
 and a page handler test.
 
+## Keyboard navigation
+
+Goal: the sidebar's entries can be used without a mouse.
+
+The page handles it alone. Tab rows (panes too) and folder rows take the
+focus (`tabindex="-1"`), and the list of sections is the one tab stop:
+tabbing into it lands on the active entry, or the first one. While a row has
+the focus, the list leaves the tab order, so Shift+Tab leaves the sidebar
+instead of landing back on it.
+
+| Key | Does |
+|---|---|
+| ↑ ↓, Home, End | Moves between rows as they show (collapsed folders' children are skipped) |
+| → | Expands a collapsed folder, or goes to its first child |
+| ← | Collapses an expanded folder, or goes to the parent folder |
+| Enter, Space | Activates a tab (the focus stays in the sidebar), or toggles a folder |
+| Delete, Backspace | Closes a tab, as its × does; the focus moves to the next row |
+| F2 | Renames a folder; Enter or Escape gives the focus back to its row |
+
+Focus shows with `:focus-visible`, so clicks don't draw a ring. There's no
+shortcut that moves the focus from the page to the sidebar yet.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the

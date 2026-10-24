@@ -11,7 +11,7 @@ export function getHtml(this: StrataSidebarNodeElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 ${this.isTab_() ? html`
-  <div class="tab row" role="tab" draggable="true"
+  <div class="tab row" role="tab" draggable="true" tabindex="-1"
       data-node-id="${this.node!.id}"
       aria-selected="${this.isActive_(this.node!)}"
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
@@ -25,7 +25,8 @@ ${this.isTab_() ? html`
 ${this.isSplit_() ? html`
   <div class="split row" draggable="true" data-node-id="${this.node!.id}">
     ${repeat(this.getChildren_(), (pane: Node) => pane.id, (pane: Node) => html`
-      <div class="tab pane" role="tab" data-node-id="${pane.id}"
+      <div class="tab pane" role="tab" tabindex="-1"
+          data-node-id="${pane.id}"
           aria-selected="${this.isActive_(pane)}"
           ?active="${this.isActive_(pane)}" ?unloaded="${!pane.live}"
           title="${this.getTitle_(pane)}" @click="${this.onTabClick_}">
@@ -38,7 +39,7 @@ ${this.isSplit_() ? html`
   </div>` : nothing}
 ${this.isFolder_() ? html`
   <div class="folder-row row" draggable="true" data-node-id="${this.node!.id}"
-      role="treeitem" aria-expanded="${!this.isCollapsed_()}"
+      role="treeitem" tabindex="-1" aria-expanded="${!this.isCollapsed_()}"
       @click="${this.onFolderClick_}">
     <span class="chevron" ?collapsed="${this.isCollapsed_()}"></span>
     ${this.editing_ ? html`
