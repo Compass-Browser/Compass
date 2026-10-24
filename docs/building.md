@@ -66,6 +66,17 @@ tools/strata test -- --gtest_filter='SpaceModel*'  # arguments go to the test bi
 python3 -m unittest discover -s tools/tests        # CLI and build-tooling tests (no checkout needed)
 ```
 
+## Trying it by hand
+
+The debug build is slow to use. For hands-on testing, build the `fast`
+config into out/Fast: optimized, no DCHECKs, still a component build.
+
+```sh
+tools/strata gen fast
+tools/strata build -c fast
+tools/strata run -c fast
+```
+
 ## Release builds
 
 ```sh

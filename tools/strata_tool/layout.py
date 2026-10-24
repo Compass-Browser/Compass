@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-CONFIGS = {'debug': 'Debug', 'release': 'Release'}
+CONFIGS = {'debug': 'Debug', 'fast': 'Fast', 'release': 'Release'}
 
 
 class Layout:

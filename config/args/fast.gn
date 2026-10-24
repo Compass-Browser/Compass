@@ -1,0 +1,12 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Trying the browser by hand: optimized and without DCHECKs, so it feels like
+# a shipped build, but a component build so it still links quickly.
+is_debug = false
+is_component_build = true
+dcheck_always_on = false
+symbol_level = 0
+blink_symbol_level = 0
+v8_symbol_level = 0
