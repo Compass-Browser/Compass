@@ -9,11 +9,13 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -74,6 +76,29 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ReplacesNativeTabStrip) {
   EXPECT_TRUE(sidebar()->GetVisible());
   EXPECT_EQ(sidebar()->GetWebContents()->GetVisibleURL(),
             GURL("chrome://strata-sidebar/"));
+  // The native strip is never built.
+  EXPECT_FALSE(FindDescendant<TabStripView>(browser_view()));
+  EXPECT_FALSE(region->GetTabStripView());
+  EXPECT_GT(sidebar()->height(), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  const int expanded_width = region->width();
+  ASSERT_GT(expanded_width, 0);
+
+  // Upstream's resize handle and collapse animation used the native strip.
+  region->OnResize(40, /*done_resizing=*/false);
+  region->OnResize(40, /*done_resizing=*/true);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return region->width() > expanded_width; }));
+
+  const int resized_width = region->width();
+  region->RequestCollapse(true);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return region->width() < resized_width; }));
+  EXPECT_TRUE(sidebar()->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ListsTabs) {
@@ -210,6 +235,47 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragToPinnedPinsATab) {
     return browser()->tab_strip_model()->GetWebContentsAt(0)->GetTitle() ==
            u"Two";
   }));
+}
+
+// Drops a link on |selector| in the sidebar, the way dragging one in from a
+// page or another app does.
+constexpr char kDropLink[] = R"(
+  (async (url, selector) => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    let target;
+    while (!(target = root.querySelector(selector))) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+    const rect = target.getBoundingClientRect();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/uri-list', url);
+    const init = {
+      bubbles: true, cancelable: true, composed: true, dataTransfer,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+    };
+    const accepted = !target.dispatchEvent(new DragEvent('dragover', init));
+    target.dispatchEvent(new DragEvent('drop', init));
+    return accepted;
+  })($1, $2))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DroppingALinkOpensIt) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  content::WebContents* contents = sidebar_contents();
+
+  ASSERT_EQ(true, content::EvalJs(contents, content::JsReplace(
+                                                kDropLink, url, "#pinned")));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return model.pinned_root()->children().size() == 1u; }));
+  EXPECT_EQ(model.pinned_root()->children()[0]->url(), url);
+  TabStripModel* tabs = browser()->tab_strip_model();
+  EXPECT_EQ(tabs->count(), 2);
+  EXPECT_EQ(tabs->GetActiveWebContents()->GetVisibleURL(), url);
+  // The sidebar itself didn't navigate.
+  EXPECT_EQ(contents->GetLastCommittedURL(), GURL("chrome://strata-sidebar/"));
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {

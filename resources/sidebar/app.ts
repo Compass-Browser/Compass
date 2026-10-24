@@ -11,7 +11,7 @@ import './node.js';
 import type {Node, Tree} from './sidebar.mojom-webui.js';
 import {NodeType} from './sidebar.mojom-webui.js';
 
-// Where a dragged entry would land: the slot |index| among |parent|'s
+// Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
 // attribute.
 interface DropTarget {
@@ -22,8 +22,9 @@ interface DropTarget {
 }
 
 // The sidebar: the window's SpaceModel, as a pinned and a Today section. The
-// browser sends the tree once, then diffs. Entries are rearranged by dragging.
-// Slices b and c of docs/design/sidebar.md.
+// browser sends the tree once, then diffs. Entries are rearranged by dragging,
+// and links dragged in open where they're dropped. Slices b, c and e of
+// docs/design/sidebar.md.
 export class StrataSidebarAppElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-app';
@@ -78,10 +79,14 @@ export class StrataSidebarAppElement extends CrLitElement {
     // Diffs that arrive before the tree are about nodes the page doesn't know
     // yet, and the lookups below drop them. The tree already has them.
     this.browserProxy_.handler.requestTree();
+    document.addEventListener('dragover', this.onDocumentDragover_);
+    document.addEventListener('drop', this.onDocumentDrop_);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener('dragover', this.onDocumentDragover_);
+    document.removeEventListener('drop', this.onDocumentDrop_);
     for (const id of this.listenerIds_) {
       this.browserProxy_.callbackRouter.removeListener(id);
     }
@@ -135,9 +140,22 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.showDropTarget_(drop);
     if (drop) {
       e.preventDefault();
-      e.dataTransfer!.dropEffect = 'move';
+      e.dataTransfer!.dropEffect = this.draggingId_ ? 'move' : 'copy';
     }
   }
+
+  // A drop the page doesn't take would navigate the sidebar to it, so the
+  // document takes every drag; only drop targets accept one.
+  private onDocumentDragover_ = (e: DragEvent) => {
+    if (!e.defaultPrevented) {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'none';
+    }
+  };
+
+  private onDocumentDrop_ = (e: DragEvent) => {
+    e.preventDefault();
+  };
 
   protected onDragleave_(e: DragEvent) {
     const sections = e.currentTarget as HTMLElement;
@@ -152,6 +170,14 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (drop && this.draggingId_) {
       this.browserProxy_.handler.moveNode(
           this.draggingId_, drop.parent.id, drop.index);
+    } else if (drop) {
+      // The first URL of the list; lines starting with # are comments.
+      const url = e.dataTransfer!.getData('text/uri-list')
+                      .split(/\r?\n/)
+                      .find(line => line && !line.startsWith('#'));
+      if (url) {
+        this.browserProxy_.handler.openLink(url, drop.parent.id, drop.index);
+      }
     }
     this.endDrag_();
   }
@@ -177,11 +203,14 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   // Tab rows take drops before (top half) or after (bottom half) them; folder
   // rows also take drops into them (middle third). Anywhere else in a section
-  // drops at its end. Returns null where the dragged entry can't go; the
-  // browser checks again.
+  // drops at its end. Returns null where the dragged entry (or link) can't
+  // go; the browser checks again.
   private findDropTarget_(e: DragEvent): DropTarget|null {
-    const dragged = this.draggingId_ && this.nodes_.get(this.draggingId_);
-    if (!dragged) {
+    const dragged =
+        this.draggingId_ ? this.nodes_.get(this.draggingId_) ?? null : null;
+    const isLink = !this.draggingId_ &&
+        !!e.dataTransfer?.types.includes('text/uri-list');
+    if (!dragged && !isLink) {
       return null;
     }
     const element = e.target as Element;
@@ -227,8 +256,9 @@ export class StrataSidebarAppElement extends CrLitElement {
     return this.canDrop_(dragged, drop.parent) ? drop : null;
   }
 
-  // Mirrors SpaceModel::CanMove() for the cases the page can see.
-  private canDrop_(dragged: Node, parent: Node): boolean {
+  // Mirrors SpaceModel::CanMove() for the cases the page can see. A link
+  // (|dragged| null) goes wherever a new tab can.
+  private canDrop_(dragged: Node|null, parent: Node): boolean {
     for (let node: Node|undefined = parent; node;
          node = this.parents_.get(node.id)) {
       if (node === dragged) {
@@ -238,7 +268,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (parent.type === NodeType.kSplit) {
       return false;
     }
-    if (dragged.type === NodeType.kFolder) {
+    if (dragged?.type === NodeType.kFolder) {
       return parent === this.pinned_ || this.isInPinned_(parent);
     }
     return true;

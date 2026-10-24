@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..a2f6176c521e282bd6f770848278fc4b840a1411 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..00e5755796ff968189296e90f5019d8446b53a1f 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,8 @@
@@ -11,21 +11,90 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..a2f6176c521e282bd6f770848278fc4b
  #include <algorithm>
  #include <optional>
  #include <utility>
-@@ -839,6 +841,7 @@ void VerticalTabStripRegionView::ClickEventHandler::OnMouseEvent(
+@@ -239,8 +241,10 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
+       if (motion == TabStripAnimations::kExpand) {
+         update_state_controller_collapsed_callback_.Run(false);
+       }
+-      hover_card_animation_lock_ =
+-          hover_card_controller()->GetHoverCardHideLock();
++      if (hover_card_controller()) {
++        hover_card_animation_lock_ =
++            hover_card_controller()->GetHoverCardHideLock();
++      }
+       if (tab_strip_view()) {
+         tab_strip_view()->SetIsAnimatingSize(true);
+       }
+@@ -700,8 +704,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
  
- void VerticalTabStripRegionView::AddTabStripView(
-     std::unique_ptr<views::View> view) {
-+  views::View* const strata_native_tab_strip = view.get();
-   view->SetProperty(
-       views::kFlexBehaviorKey,
-       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
-@@ -877,6 +880,9 @@ void VerticalTabStripRegionView::AddTabStripView(
-               base::Unretained(this)));
- 
-   OnCollapseStateChanged(state_controller_->GetCollapseState());
-+
-+  strata::InstallSidebar(content_parent, strata_native_tab_strip,
-+                         bottom_button_container_, browser_view()->browser());
+ void VerticalTabStripRegionView::OnResize(int resize_amount,
+                                           bool done_resizing) {
+-  CHECK(tab_strip_view());
+-  tab_strip_view()->SetIsAnimatingSize(!done_resizing);
++  if (tab_strip_view()) {
++    tab_strip_view()->SetIsAnimatingSize(!done_resizing);
++  }
+   if (!starting_width_on_resize_.has_value()) {
+     starting_width_on_resize_ = width();
+     state_controller_->SetIsResizing(true);
+@@ -785,7 +790,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
+   // attached. target_collapse_state_ is still set so that when
+   // SetTabStripView() is eventually called, the region view and all child
+   // views initialize directly in the target collapse state.
+-  if (!tab_strip_view()) {
++  if (!on_animation_update_subscription_) {
+     return;
+   }
+   const auto motion =
+@@ -889,6 +894,43 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+   return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
- std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
++void VerticalTabStripRegionView::InitializeTabStrip() {
++  if (strata_sidebar_) {
++    return;
++  }
++  std::unique_ptr<views::View> sidebar =
++      strata::CreateSidebar(browser_view()->browser());
++  strata_sidebar_ = sidebar.get();
++  // Subscribes to the collapse animation and expand on hover, as for the
++  // native strip.
++  AddTabStripView(std::move(sidebar));
++  strata::InstallSidebar(strata_sidebar_, bottom_button_container_);
++  strata_active_tab_subscription_ =
++      browser_view()->browser()->RegisterActiveTabDidChange(base::BindRepeating(
++          [](VerticalTabStripRegionView* region,
++             BrowserWindowInterface* browser) {
++            region->OnActiveTabChanged(browser->GetActiveTabInterface());
++          },
++          base::Unretained(this)));
++  OnActiveTabChanged(browser_view()->browser()->GetActiveTabInterface());
++}
++
++const tabs::TabData& VerticalTabStripRegionView::GetTabData(
++    const tabs::TabHandle& tab) {
++  // Callers use the result before asking again.
++  CHECK(tab.Get());
++  strata_tab_data_ = tabs::TabData::FromTabInterface(tab.Get());
++  return strata_tab_data_;
++}
++
++void VerticalTabStripRegionView::ResetTabStrip() {
++  if (!strata_sidebar_) {
++    return;
++  }
++  strata_active_tab_subscription_ = {};
++  RemoveTabStripView(std::exchange(strata_sidebar_, nullptr));
++}
++
+ void VerticalTabStripRegionView::OnCollapseStateChanged(
+     tabs::VerticalTabStripCollapseState state) {
+   // Apply padding immediately at the start of the animation by including
+@@ -1026,7 +1068,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+     return;
+   }
+ 
+-  if (!hover_card_animation_lock_) {
++  if (!hover_card_animation_lock_ && hover_card_controller()) {
+     hover_card_animation_lock_ =
+         hover_card_controller()->GetHoverCardHideLock();
+   }

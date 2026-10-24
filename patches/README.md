@@ -42,7 +42,8 @@ nothing else.
 | `chrome-browser-ui-browser_window-internal-embedder_browser_window_features.cc.patch` | Creates `strata::WindowFeatures` in the embedder hook's `Init()` |
 | `chrome-browser-ui-browser_window-public-embedder_browser_window_features.h.patch` | The `strata::WindowFeatures` member |
 | `chrome-browser-ui-views-frame-browser_view.cc.patch` | Calls `strata::HandOffTabsBeforeClose()` when a window is asked to close |
-| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | Calls `strata::InstallSidebar()` when the region adds its tab strip, and passes the bottom container |
+| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | `InitializeTabStrip()` adds the Strata sidebar in place of the native tab strip, which is never built; `GetTabData()` reads tab data from the tab; resize, collapse and hover-card lock paths no longer assume a native strip |
+| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.h.patch` | Declares those overrides and the sidebar members |
 | `chrome-browser-ui-tabs-tab_strip_prefs.cc.patch` | Vertical tabs on by default |
 | `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Strata's WebUI configs |
 | `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Strata's WebUI Mojo interfaces |

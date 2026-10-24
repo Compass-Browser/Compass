@@ -5,7 +5,6 @@
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 
 #include <memory>
-#include <optional>
 
 #include "base/check.h"
 #include "chrome/browser/profiles/profile.h"
@@ -23,6 +22,18 @@
 
 namespace strata {
 
+namespace {
+
+// Takes whatever height the region's content area has left.
+views::FlexSpecification SidebarFlex() {
+  return views::FlexSpecification(views::LayoutOrientation::kVertical,
+                                  views::MinimumFlexSizeRule::kScaleToZero,
+                                  views::MaximumFlexSizeRule::kUnbounded)
+      .WithWeight(1);
+}
+
+}  // namespace
+
 StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
     : views::WebView(browser->GetProfile()) {
   // The page asks for its window as soon as it connects, so set it first.
@@ -32,12 +43,6 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
       GetWebContents(), SK_ColorTRANSPARENT);
   LoadInitialURL(GURL(kStrataSidebarURL));
-
-  SetProperty(views::kFlexBehaviorKey,
-              views::FlexSpecification(views::LayoutOrientation::kVertical,
-                                       views::MinimumFlexSizeRule::kScaleToZero,
-                                       views::MaximumFlexSizeRule::kUnbounded)
-                  .WithWeight(1));
 }
 
 StrataSidebarView::~StrataSidebarView() = default;
@@ -45,14 +50,16 @@ StrataSidebarView::~StrataSidebarView() = default;
 BEGIN_METADATA(StrataSidebarView)
 END_METADATA
 
-void InstallSidebar(views::View* content_parent,
-                    views::View* native_tab_strip,
-                    views::View* bottom_container,
-                    BrowserWindowInterface* browser) {
-  CHECK(content_parent);
-  CHECK(native_tab_strip);
+std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser) {
+  return std::make_unique<StrataSidebarView>(browser);
+}
+
+void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
+  CHECK(views::IsViewClass<StrataSidebarView>(sidebar));
   CHECK(bottom_container);
-  native_tab_strip->SetVisible(false);
+  // The region gives its tab strip the native strip's flex rule and margins.
+  sidebar->SetProperty(views::kFlexBehaviorKey, SidebarFlex());
+  sidebar->ClearProperty(views::kMarginsKey);
 
   // Upstream lets the bottom container take all the space under the strip.
   // FlexLayout only gives zero-preferred-size views (the sidebar's WebView)
@@ -61,19 +68,6 @@ void InstallSidebar(views::View* content_parent,
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
                                views::MaximumFlexSizeRule::kPreferred));
-
-  std::optional<size_t> strip_index =
-      content_parent->GetIndexOf(native_tab_strip);
-  CHECK(strip_index.has_value());
-
-  for (views::View* child : content_parent->children()) {
-    if (views::IsViewClass<StrataSidebarView>(child)) {
-      content_parent->ReorderChildView(child, strip_index.value() + 1);
-      return;
-    }
-  }
-  content_parent->AddChildViewAt(std::make_unique<StrataSidebarView>(browser),
-                                 strip_index.value() + 1);
 }
 
 }  // namespace strata

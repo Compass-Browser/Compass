@@ -59,6 +59,10 @@ interface PageHandler {
   // children, counted with the node still in place. Invalid moves are
   // ignored.
   MoveNode(string id, string new_parent_id, uint32 index);
+  // A link dropped on the sidebar: a new entry for |url| at the slot |index|
+  // among |parent_id|'s children, opened in the foreground. Only http(s) and
+  // file URLs, and only where a tab can go.
+  OpenLink(url.mojom.Url url, string parent_id, uint32 index);
   // Folders live in the pinned section; other parents are ignored.
   AddFolder(string parent_id, uint32 index, string title);
   RenameFolder(string id, string title);

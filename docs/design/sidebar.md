@@ -38,10 +38,9 @@ only the native `TabStripView`. Everything else in the region stays upstream.**
 
 - **We keep for free:** the frame and caption-button layout, resizing,
   collapse animation, expand-on-hover, and the top and bottom containers.
-- **We hide but don't remove the native `TabStripView`.** The region's drag
-  handler, hover cards and resize code call `tab_strip_view()` and `CHECK` it.
-  It stays in the hierarchy with `SetVisible(false)` until we take over those
-  paths too. That's a later slice.
+- **The native `TabStripView` isn't built** (since slice e). Until then it
+  was hidden in place, because the region's drag, hover-card and resize code
+  assumed it. See "Slice e".
 - **Strata always uses vertical mode.** The pref default becomes `true`.
   Hiding the horizontal/vertical toggle comes later.
 
@@ -62,7 +61,7 @@ in [patches/README.md](../../patches/README.md).
 
 | Change | Patch |
 |---|---|
-| Install the sidebar when the region adds its tab strip | `vertical_tab_strip_region_view.cc`: one call to `strata::InstallSidebar()` |
+| Put the sidebar where the native tab strip would be | `vertical_tab_strip_region_view.{h,cc}`: `InitializeTabStrip()` and friends (slice e) |
 | Vertical tabs on by default | `tab_strip_prefs.cc`: 1 line |
 | Register `chrome://strata-sidebar` | `chrome_web_ui_configs.cc`: one call to `strata::RegisterWebUIConfigs()` |
 | Bind the sidebar's Mojo interfaces | `chrome_browser_interface_binders_webui_parts_desktop.cc`: one call to `strata::PopulateWebUIInterfaceBrokers()` |
@@ -416,14 +415,62 @@ window unloads Today, a restored tab takes over its entry while an ordinary
 one doesn't, and tabs restored before the load move to their entries when it
 arrives (a second profile with a sidebar file written first).
 
+## Slice e: no native tab strip
+
+Goal: the sidebar replaces the native strip instead of sitting next to a
+hidden one. Nothing builds tab views for tabs nobody sees, and nothing native
+handles input meant for the sidebar.
+
+**Hook.** Upstream builds the native strip in
+`BaseTabStripRegionView::InitializeTabStrip()`: a `RootTabCollectionNode`
+tree with a view per tab, the `TabDragHandler` and the
+`TabHoverCardController`. The vertical region now overrides
+`InitializeTabStrip()` and `ResetTabStrip()`. It creates the sidebar
+(`strata::CreateSidebar()`) and passes it to its own `AddTabStripView()`, so
+the sidebar lands where the strip would. The region then subscribes to the
+collapse animation and expand on hover as before.
+`strata::InstallSidebar()` then replaces the strip's flex rule and margins.
+`BrowserView` calls these overrides when it switches between vertical and
+horizontal, so the horizontal strip still works if someone switches back.
+
+**What assumed the native strip, and what happens now:**
+
+| Path | Now |
+|---|---|
+| Resize handle (`OnResize`) `CHECK`ed the strip | Skips the strip's animating flag |
+| Collapse animation started only once the strip existed | Starts once the region subscribed to it |
+| Hover-card hide lock while animating or expanding on hover | Only if there's a hover-card controller (there isn't) |
+| `GetTabData()` for accessible tab and window titles read the tab view | `TabData::FromTabInterface()`, from the tab itself |
+| Active-tab changes came through the node tree | `RegisterActiveTabDidChange()`, so the omnibox popup still keeps an expanded-on-hover region collapsed |
+| Native tab drags (`GetTabDragTarget()`) | No drag handler, so no native drag targets; there are no native tabs to drag |
+| Link drops: the region was the drop target while the strip existed | The sidebar page takes them (below) |
+
+Everything else in `BaseTabStripRegionView` already handled a missing node
+tree (`GetTabAnchorView()` returns null, for example).
+
+**Link drops.** A link dragged in from a page or another app opens as a new
+entry where it's dropped: before or after a row, into a folder, or at the
+end of a section (`PageHandler.OpenLink(url, parent_id, index)`, http(s) and
+file URLs only). The entry opens in the foreground. The document takes every
+drag that no drop target took, with `dropEffect = 'none'`, so nothing
+navigates the sidebar's own page.
+
+**Not taken over yet:** hover cards (the native strip never showed them
+either, being hidden), dragging an entry out of the sidebar into a new
+window, and keyboard navigation between entries.
+
+**Tests:** browser tests that the region has no `TabStripView` and a sized
+sidebar, that resizing and collapsing work, and that a dropped link opens
+in Pinned without navigating the sidebar.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the
   `TabStripModel` ↔ `SpaceModel` bridge.
 - **c:** pinned section, nested folders, drag and drop.
 - **d:** persistence (Today followed separately).
-- **e:** remove the hidden native strip and take over drag/drop and hover
-  cards.
+- **e:** remove the hidden native strip (done; hover cards and drag-out
+  remain).
 
 ## Risks
 
@@ -431,5 +478,7 @@ arrives (a second profile with a sidebar file written first).
   experiment). If it changes, the sidebar can fall back to a plain preloaded
   `WebUIContentsWrapper`, as tab search uses. That's slower to first paint but
   stable.
-- **Hiding instead of removing `TabStripView`** keeps upstream invariants
-  intact, but costs some memory and observer work. Slice e removes it.
+- **Running the region without its native strip** relies on upstream's
+  null checks for a region whose strip isn't built yet. New upstream code that
+  assumes the strip (`CHECK(root_node_)`, `GetTabData()`-style calls) will
+  crash at startup or on first use, so each rebase must run the browser tests.

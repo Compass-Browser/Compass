@@ -123,6 +123,22 @@ void SidebarPageHandler::MoveNode(const std::string& id,
   space_model().Move(node, new_parent, index);
 }
 
+void SidebarPageHandler::OpenLink(const GURL& url,
+                                  const std::string& parent_id,
+                                  uint32_t index) {
+  SidebarNode* parent = FindNode(parent_id);
+  if (!parent || index > parent->children().size() ||
+      (parent->type() != SidebarNode::Type::kRoot &&
+       parent->type() != SidebarNode::Type::kFolder) ||
+      !(url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile())) {
+    return;
+  }
+  // The page's title replaces the URL once it loads.
+  SidebarNode* node = space_model().AddTab(parent, index, url,
+                                           base::UTF8ToUTF16(url.spec()));
+  bridge().OpenNode(node);
+}
+
 void SidebarPageHandler::AddFolder(const std::string& parent_id,
                                    uint32_t index,
                                    const std::string& title) {

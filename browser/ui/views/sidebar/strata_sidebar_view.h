@@ -5,6 +5,8 @@
 #ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
 #define STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
 
+#include <memory>
+
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/webview/webview.h"
 
@@ -16,7 +18,8 @@ class View;
 
 namespace strata {
 
-// Hosts chrome://strata-sidebar inside the vertical tab strip region.
+// Hosts chrome://strata-sidebar inside the vertical tab strip region, where
+// the native tab strip would be.
 class StrataSidebarView : public views::WebView {
   METADATA_HEADER(StrataSidebarView, views::WebView)
 
@@ -27,16 +30,15 @@ class StrataSidebarView : public views::WebView {
   ~StrataSidebarView() override;
 };
 
-// Puts the sidebar where |native_tab_strip| is in |content_parent| and hides
-// the native strip, which stays in place because the region's drag, hover
-// card and resize code rely on it. |bottom_container| stops growing so the
-// sidebar gets the free space. Called from
-// VerticalTabStripRegionView::AddTabStripView() (see patches/); safe to call
-// again when the region re-adds its tab strip.
-void InstallSidebar(views::View* content_parent,
-                    views::View* native_tab_strip,
-                    views::View* bottom_container,
-                    BrowserWindowInterface* browser);
+// The sidebar the vertical tab strip region shows in place of the native tab
+// strip, which Strata never builds. Called from
+// VerticalTabStripRegionView::InitializeTabStrip() (see patches/), which adds
+// it where the native strip would go.
+std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser);
+
+// Lays out |sidebar| once the region has added it: it takes the free space,
+// so |bottom_container| stops growing.
+void InstallSidebar(views::View* sidebar, views::View* bottom_container);
 
 }  // namespace strata
 

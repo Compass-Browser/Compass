@@ -50,6 +50,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void MoveNode(const std::string& id,
                 const std::string& new_parent_id,
                 uint32_t index) override;
+  void OpenLink(const GURL& url,
+                const std::string& parent_id,
+                uint32_t index) override;
   void AddFolder(const std::string& parent_id,
                  uint32_t index,
                  const std::string& title) override;
