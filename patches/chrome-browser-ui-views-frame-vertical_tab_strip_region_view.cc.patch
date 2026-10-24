@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..a2c5069d314fdcedd307b9b0b6b448108bc7737b 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..a2f6176c521e282bd6f770848278fc4b840a1411 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,8 @@
@@ -25,7 +25,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..a2c5069d314fdcedd307b9b0b6b44810
    OnCollapseStateChanged(state_controller_->GetCollapseState());
 +
 +  strata::InstallSidebar(content_parent, strata_native_tab_strip,
-+                         browser_view()->browser());
++                         bottom_button_container_, browser_view()->browser());
  }
  
  std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(

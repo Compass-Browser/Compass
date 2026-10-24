@@ -17,6 +17,7 @@ from .process import CommandError, depot_tool, run
 
 DEFAULT_TARGET = 'chrome'
 TEST_TARGET = 'strata_unittests'
+BROWSER_TEST_TARGET = 'strata_browsertests'
 
 
 def wrapper_python(layout: Layout) -> str:
@@ -179,8 +180,9 @@ def cmd_run(layout: Layout, args) -> None:
 
 
 def cmd_test(layout: Layout, args) -> None:
-  out_dir = build(layout, args.config, [TEST_TARGET], args.jobs)
-  exe = TEST_TARGET + ('.exe' if sys.platform == 'win32' else '')
+  target = BROWSER_TEST_TARGET if args.browser else TEST_TARGET
+  out_dir = build(layout, args.config, [target], args.jobs)
+  exe = target + ('.exe' if sys.platform == 'win32' else '')
   result = run([out_dir / exe] + passthrough(args.test_args), layout.src,
                check=False)
   sys.exit(result.returncode)
@@ -246,6 +248,8 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('test', help='build and run strata_unittests')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
+  s.add_argument('--browser', action='store_true',
+                 help='run strata_browsertests (real browser windows) instead')
   add_jobs_argument(s)
   s.add_argument('test_args', nargs=argparse.REMAINDER)
   s.set_defaults(func=cmd_test)

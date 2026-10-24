@@ -41,10 +41,20 @@ END_METADATA
 
 void InstallSidebar(views::View* content_parent,
                     views::View* native_tab_strip,
+                    views::View* bottom_container,
                     BrowserWindowInterface* browser) {
   CHECK(content_parent);
   CHECK(native_tab_strip);
+  CHECK(bottom_container);
   native_tab_strip->SetVisible(false);
+
+  // Upstream lets the bottom container take all the space under the strip.
+  // FlexLayout only gives zero-preferred-size views (the sidebar's WebView)
+  // what is left over, so cap it at its preferred height.
+  bottom_container->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
+                               views::MaximumFlexSizeRule::kPreferred));
 
   std::optional<size_t> strip_index =
       content_parent->GetIndexOf(native_tab_strip);

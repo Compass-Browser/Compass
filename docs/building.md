@@ -61,6 +61,7 @@ init, or edit `../strata-chromium/.gclient` and run `strata sync`.
 
 ```sh
 tools/strata test                                  # strata_unittests
+tools/strata test --browser                        # strata_browsertests (opens real windows)
 tools/strata test -- --gtest_filter='SpaceModel*'  # arguments go to the test binary
 python3 -m unittest discover -s tools/tests        # CLI and build-tooling tests (no checkout needed)
 ```

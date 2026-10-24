@@ -29,11 +29,13 @@ class StrataSidebarView : public views::WebView {
 
 // Puts the sidebar where |native_tab_strip| is in |content_parent| and hides
 // the native strip, which stays in place because the region's drag, hover
-// card and resize code rely on it. Called from
+// card and resize code rely on it. |bottom_container| stops growing so the
+// sidebar gets the free space. Called from
 // VerticalTabStripRegionView::AddTabStripView() (see patches/); safe to call
 // again when the region re-adds its tab strip.
 void InstallSidebar(views::View* content_parent,
                     views::View* native_tab_strip,
+                    views::View* bottom_container,
                     BrowserWindowInterface* browser);
 
 }  // namespace strata
