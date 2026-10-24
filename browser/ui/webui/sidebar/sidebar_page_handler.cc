@@ -63,6 +63,7 @@ SidebarPageHandler::SidebarPageHandler(
   CHECK(features_);
   observed_space_ = &space_model();
   observed_space_->AddObserver(this);
+  favorites().AddObserver(this);
   features_->service().space_list().AddObserver(this);
   features_->AddObserver(this);
   registry().AddObserver(this);
@@ -73,12 +74,14 @@ SidebarPageHandler::~SidebarPageHandler() {
   registry().RemoveObserver(this);
   features_->RemoveObserver(this);
   features_->service().space_list().RemoveObserver(this);
+  favorites().RemoveObserver(this);
   observed_space_->RemoveObserver(this);
 }
 
 void SidebarPageHandler::RequestTree() {
   SendSpaces();
   auto tree = sidebar::mojom::Tree::New();
+  tree->favorites = ToMojo(*favorites().pinned_root());
   tree->pinned = ToMojo(*space_model().pinned_root());
   tree->today = ToMojo(*space_model().today_root());
   tree->active_id = GetActiveNodeId();
@@ -140,15 +143,25 @@ void SidebarPageHandler::MoveNode(const std::string& id,
                                   uint32_t index) {
   SidebarNode* node = FindNode(id);
   SidebarNode* new_parent = FindNode(new_parent_id);
-  if (!space_model().CanMove(node, new_parent) ||
-      index > new_parent->children().size()) {
+  if (!node || !new_parent || index > new_parent->children().size()) {
+    return;
+  }
+  SpaceModel& model = GetModelOf(node);
+  SpaceModel& target = GetModelOf(new_parent);
+  if (&model != &target) {
+    // Into or out of the favorites. The node isn't among |new_parent|'s
+    // children, so |index| needs no adjusting.
+    MoveEntry(browser_->GetProfile(), node, target, new_parent, index);
+    return;
+  }
+  if (!model.CanMove(node, new_parent)) {
     return;
   }
   // SpaceModel::Move() counts the index after the node has left its parent.
   if (node->parent() == new_parent && new_parent->GetIndexOf(node) < index) {
     --index;
   }
-  space_model().Move(node, new_parent, index);
+  model.Move(node, new_parent, index);
 }
 
 void SidebarPageHandler::OpenLink(const GURL& url,
@@ -162,8 +175,8 @@ void SidebarPageHandler::OpenLink(const GURL& url,
     return;
   }
   // The page's title replaces the URL once it loads.
-  SidebarNode* node = space_model().AddTab(parent, index, url,
-                                           base::UTF8ToUTF16(url.spec()));
+  SidebarNode* node = GetModelOf(parent).AddTab(parent, index, url,
+                                                base::UTF8ToUTF16(url.spec()));
   bridge().OpenNode(node);
 }
 
@@ -190,9 +203,12 @@ void SidebarPageHandler::RenameFolder(const std::string& id,
 
 void SidebarPageHandler::DeleteNode(const std::string& id) {
   SidebarNode* node = FindNode(id);
-  if (node && node->type() != SidebarNode::Type::kRoot &&
-      space_model().pinned_root()->Contains(node)) {
-    space_model().Remove(node);
+  if (!node || node->type() == SidebarNode::Type::kRoot) {
+    return;
+  }
+  if (space_model().pinned_root()->Contains(node) ||
+      favorites().Contains(node)) {
+    GetModelOf(node).Remove(node);
   }
 }
 
@@ -390,6 +406,14 @@ SpaceModel& SidebarPageHandler::space_model() {
   return features_->space_model();
 }
 
+SpaceModel& SidebarPageHandler::favorites() {
+  return features_->service().space_list().favorites();
+}
+
+SpaceModel& SidebarPageHandler::GetModelOf(const SidebarNode* node) {
+  return favorites().Contains(node) ? favorites() : space_model();
+}
+
 TabStripBridge& SidebarPageHandler::bridge() {
   return features_->tab_strip_bridge();
 }
@@ -443,7 +467,11 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {
 
 SidebarNode* SidebarPageHandler::FindNode(const std::string& id) {
   const base::Uuid uuid = base::Uuid::ParseLowercase(id);
-  return uuid.is_valid() ? space_model().FindById(uuid) : nullptr;
+  if (!uuid.is_valid()) {
+    return nullptr;
+  }
+  SidebarNode* node = space_model().FindById(uuid);
+  return node ? node : favorites().FindById(uuid);
 }
 
 SpaceModel* SidebarPageHandler::FindSpace(const std::string& id) {
@@ -470,7 +498,7 @@ SidebarHoverCard* SidebarPageHandler::hover_card() {
 void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node) {
   tabs::TabInterface* tab = bridge().GetTab(tab_node);
   if (!tab) {
-    space_model().Remove(tab_node);
+    GetModelOf(tab_node).Remove(tab_node);
     return;
   }
   tab_strip_model()->CloseWebContentsAt(

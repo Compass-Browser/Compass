@@ -17,7 +17,8 @@ class SpaceList;
 class SpaceModel;
 
 // The on-disk form of a profile's spaces:
-//   {"version": 2, "active": "<space id>", "spaces": [<space>...]}
+//   {"version": 2, "active": "<space id>", "spaces": [<space>...],
+//    "favorites": [<node>...]}
 //   <space> = {"id": "...", "name": "...", "color": "grey"|"blue"|...,
 //              "archive_after_hours": 12, "pinned": [<node>...],
 //              "today": [<node>...], "archive": [<archived>...]}
@@ -27,6 +28,7 @@ class SpaceModel;
 // Times are base::TimeToValue() strings. "last_active" is only on tabs that
 // have one; "archive_after_hours" is 0 for never, and missing in older files
 // (the default applies).
+// "favorites" holds tabs only, and is missing in older files.
 // Version 1 files held one space's "pinned" and "today" at the top level.
 // Today holds tabs and splits; its tabs that aren't worth restoring (see
 // IsRestorableURL()) are left out. Node IDs aren't stored; they're only stable
@@ -36,7 +38,8 @@ base::DictValue SerializeSpaceList(const SpaceList& list);
 // Reads |data| into |list| and returns how many spaces it read. |list|'s
 // active space becomes the saved active space: it takes its ID, its name (if
 // it has one) and its color, and the saved entries go in ahead of its own. The other saved spaces are added
-// around it, in the saved order. Unknown versions are ignored.
+// around it, in the saved order. Saved favorites go in ahead of |list|'s.
+// Unknown versions are ignored.
 size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list);
 
 // One space, without its version: {"id", "name", "color",

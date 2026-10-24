@@ -141,7 +141,8 @@ void SpaceService::ArchiveIdleEntries() {
 }
 
 void SpaceService::OnSpaceAdded(SpaceModel& space) {
-  auto matcher = std::make_unique<RestoredTabMatcher>(&space, &registry_);
+  auto matcher = std::make_unique<RestoredTabMatcher>(
+      &space, &space_list_.favorites(), &registry_);
   if (loaded_) {
     matcher->OnLoaded();
   }

@@ -139,7 +139,8 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
     return;
   }
   bridge_ = std::make_unique<TabStripBridge>(
-      browser_, space_, &registry(), &service_->restored_tab_matcher(*space_));
+      browser_, space_, &service_->space_list().favorites(), &registry(),
+      &service_->restored_tab_matcher(*space_));
   active_tab_subscription_ =
       browser_->RegisterActiveTabDidChange(base::BindRepeating(
           &WindowFeatures::OnActiveTabChanged, base::Unretained(this)));
@@ -188,10 +189,14 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
   TabStripModel* strip = browser_->GetTabStripModel();
   SpaceModel& leaving_space = *space_;
 
-  // 1. The strip's tabs belong to the space being left.
+  // 1. The strip's tabs belong to the space being left, except favorites'.
   std::vector<tabs::TabHandle> leaving;
   for (int i = 0; i < strip->count(); ++i) {
-    leaving.push_back(strip->GetTabAtIndex(i)->GetHandle());
+    tabs::TabInterface* tab = strip->GetTabAtIndex(i);
+    SidebarNode* node = registry().GetNode(tab);
+    if (!node || !service_->space_list().favorites().Contains(node)) {
+      leaving.push_back(tab->GetHandle());
+    }
   }
 
   // 2.
@@ -217,7 +222,8 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
 
   // 4. Every tab already has a node, so the bridge adds none.
   bridge_ = std::make_unique<TabStripBridge>(
-      browser_, space_, &registry(), &service_->restored_tab_matcher(target));
+      browser_, space_, &service_->space_list().favorites(), &registry(),
+      &service_->restored_tab_matcher(target));
 
   // 5. Show what the space showed last.
   SidebarNode* last = service_->GetLastActiveNode(target);
@@ -250,9 +256,12 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
       continue;
     }
     SidebarNode* node = registry().GetNode(tab);
-    // Placeholders, and blank Today tabs, which aren't worth keeping.
+    // Placeholders, and blank Today tabs, which aren't worth keeping. The
+    // node's URL can lag a navigation by Browser's coalesced UI update, so
+    // the tab's own URL counts too.
     if (!node || (leaving_space.today_root()->Contains(node) &&
-                  !IsRestorableURL(node->url()))) {
+                  !IsRestorableURL(node->url()) &&
+                  !IsRestorableURL(tab->GetContents()->GetVisibleURL()))) {
       if (node) {
         registry().Unregister(tab);
         leaving_space.Remove(node);
@@ -315,7 +324,27 @@ void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target) {
   SidebarNode* new_parent = source->pinned_root()->Contains(node)
                                 ? target.pinned_root()
                                 : target.today_root();
-  if (!source->CanMoveToSpace(node, target, new_parent)) {
+  MoveEntry(profile, node, target, new_parent, new_parent->children().size());
+}
+
+void MoveEntry(Profile* profile,
+               SidebarNode* node,
+               SpaceModel& target,
+               SidebarNode* new_parent,
+               size_t index) {
+  SpaceService* service = SpaceService::Get(profile);
+  SpaceList& list = service->space_list();
+  SpaceModel* source = list.favorites().Contains(node)
+                           ? &list.favorites()
+                           : list.FindSpaceOf(node);
+  if (!source || (&target != &list.favorites() &&
+                  list.FindSpace(target.id()) != &target) ||
+      !source->CanMoveToSpace(node, target, new_parent)) {
+    return;
+  }
+  // Favorites show in every window, so their tabs stay where they are.
+  if (&target == &list.favorites()) {
+    source->MoveToSpace(node, target, new_parent, index);
     return;
   }
   LiveTabRegistry& registry = service->registry();
@@ -360,7 +389,7 @@ void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target) {
     }
   }
 
-  source->MoveToSpace(node, target, new_parent, new_parent->children().size());
+  source->MoveToSpace(node, target, new_parent, index);
 
   BrowserWindowInterface* destination =
       FindWindowShowing(profile, target, nullptr);

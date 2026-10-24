@@ -180,6 +180,51 @@ TEST(SidebarSerializerTest, RoundTripsTheSpaceList) {
   EXPECT_EQ(restored.spaces()[0]->color(), SpaceColor::kGrey);
 }
 
+TEST(SidebarSerializerTest, RoundTripsFavorites) {
+  SpaceList list;
+  SpaceModel& favorites = list.favorites();
+  favorites.AddTab(favorites.pinned_root(), 0, GURL("https://a.test/"), u"A");
+  favorites.AddTab(favorites.pinned_root(), 1, GURL("https://b.test/"), u"B");
+
+  SpaceList restored;
+  // Loaded ahead of one added before the load.
+  restored.favorites().AddTab(restored.favorites().pinned_root(), 0,
+                              GURL("https://early.test/"), u"Early");
+  DeserializeSpaceList(SerializeSpaceList(list), restored);
+
+  EXPECT_EQ(Describe(restored.favorites().pinned_root()), "A,B,Early");
+  EXPECT_EQ(restored.favorites().pinned_root()->children()[1]->url(),
+            GURL("https://b.test/"));
+  EXPECT_EQ(Describe(restored.active_space().pinned_root()), "");
+}
+
+TEST(SidebarSerializerTest, FavoritesSkipAllButTabs) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "Home"}], "favorites": [
+            {"type": "folder", "title": "F", "children": []},
+            {"type": "tab", "title": "A", "url": "https://a.test/"},
+            {"type": "split", "children": [
+              {"type": "tab", "title": "B", "url": "https://b.test/"}]},
+            "junk"]})",
+      base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  SpaceList list;
+  DeserializeSpaceList(data->GetDict(), list);
+  EXPECT_EQ(Describe(list.favorites().pinned_root()), "A");
+}
+
+TEST(SidebarSerializerTest, OlderFilesHaveNoFavorites) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "Home", "pinned": [
+            {"type": "tab", "title": "P", "url": "https://p.test/"}]}]})",
+      base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  SpaceList list;
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 1u);
+  EXPECT_TRUE(list.favorites().pinned_root()->children().empty());
+  EXPECT_EQ(Describe(list.active_space().pinned_root()), "P");
+}
+
 TEST(SidebarSerializerTest, TheActiveSpaceKeepsWhatItHadBeforeTheLoad) {
   SpaceList saved;
   saved.active_space().SetName(u"Home");

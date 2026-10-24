@@ -396,5 +396,35 @@ TEST(SpaceModelArchiveTest, RemovesAndClears) {
   model.RemoveObserver(&observer);
 }
 
+TEST(SpaceModelFavoritesTest, HoldOnlyTabs) {
+  SpaceModel favorites(SpaceModel::Kind::kFavorites);
+  SidebarNode* root = favorites.pinned_root();
+  SidebarNode* a = favorites.AddTab(root, 0, GURL("https://a.test/"), u"A");
+  SidebarNode* b = favorites.AddTab(root, 1, GURL("https://b.test/"), u"B");
+
+  EXPECT_FALSE(favorites.CanSplit(a, b));
+  EXPECT_FALSE(favorites.CanMove(a, favorites.today_root()));
+
+  SpaceModel space;
+  SidebarNode* folder = space.AddFolder(space.pinned_root(), 0, u"F");
+  SidebarNode* c = space.AddTab(space.today_root(), 0, GURL("https://c.test/"),
+                                u"C");
+  SidebarNode* d = space.AddTab(space.today_root(), 1, GURL("https://d.test/"),
+                                u"D");
+  SidebarNode* split = space.Split(c, d);
+  EXPECT_FALSE(space.CanMoveToSpace(folder, favorites, root));
+  EXPECT_FALSE(space.CanMoveToSpace(split, favorites, root));
+  EXPECT_FALSE(space.CanMoveToSpace(d, favorites, favorites.today_root()));
+
+  // A pane can become a favorite; its split dissolves.
+  space.MoveToSpace(d, favorites, root, 0);
+  EXPECT_THAT(Titles(root), ElementsAre("D", "A", "B"));
+  EXPECT_THAT(Titles(space.today_root()), ElementsAre("C"));
+  // And back.
+  EXPECT_TRUE(favorites.CanMoveToSpace(d, space, folder));
+  favorites.MoveToSpace(d, space, folder, 0);
+  EXPECT_THAT(Titles(folder), ElementsAre("D"));
+}
+
 }  // namespace
 }  // namespace strata

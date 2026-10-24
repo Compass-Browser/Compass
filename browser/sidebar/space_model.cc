@@ -57,8 +57,9 @@ ArchivedEntry& ArchivedEntry::operator=(const ArchivedEntry&) = default;
 ArchivedEntry& ArchivedEntry::operator=(ArchivedEntry&&) = default;
 ArchivedEntry::~ArchivedEntry() = default;
 
-SpaceModel::SpaceModel()
-    : id_(base::Uuid::GenerateRandomV4()),
+SpaceModel::SpaceModel(Kind kind)
+    : kind_(kind),
+      id_(base::Uuid::GenerateRandomV4()),
       pinned_root_(
           std::make_unique<SidebarNode>(Type::kRoot, std::u16string(), GURL())),
       today_root_(std::make_unique<SidebarNode>(Type::kRoot,
@@ -172,7 +173,8 @@ void SpaceModel::MoveToSpace(SidebarNode* node,
 
 bool SpaceModel::CanSplit(const SidebarNode* target,
                           const SidebarNode* tab) const {
-  if (!target || !tab || tab->type() != Type::kTab) {
+  if (!target || !tab || tab->type() != Type::kTab ||
+      kind_ == Kind::kFavorites) {
     return false;
   }
   if (IsPane(target)) {
@@ -376,6 +378,9 @@ bool SpaceModel::Contains(const SidebarNode* node) const {
 }
 
 bool SpaceModel::CanContain(const SidebarNode* parent, Type type) const {
+  if (kind_ == Kind::kFavorites) {
+    return parent == pinned_root_.get() && type == Type::kTab;
+  }
   switch (parent->type()) {
     case Type::kRoot:
       return type == Type::kTab || type == Type::kSplit ||

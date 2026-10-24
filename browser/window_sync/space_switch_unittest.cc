@@ -10,8 +10,10 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
@@ -180,6 +182,70 @@ TEST_F(SpaceSwitchTest, NewWindowsOpenInTheActiveSpace) {
                           /*hosted_app=*/false);
 
   EXPECT_EQ(&WindowFeatures::From(second_.get())->space_model(), work_);
+}
+
+TEST_F(SpaceSwitchTest, FavoritesComeFirstAndStayAcrossSwitches) {
+  OpenTabs(browser(), {"a.test", "b.test", "c.test"});
+  SidebarNode* c = home_->today_root()->children()[2].get();
+  SpaceModel& favorites = list().favorites();
+
+  MoveEntry(profile(), c, favorites, favorites.pinned_root(), 0);
+  Settle();
+
+  // Same node, same tab, now first in the strip.
+  EXPECT_THAT(Hosts(favorites.pinned_root()), ElementsAre("c.test"));
+  EXPECT_THAT(Hosts(home_->today_root()), ElementsAre("a.test", "b.test"));
+  EXPECT_THAT(Hosts(strip()), ElementsAre("c.test", "a.test", "b.test"));
+  EXPECT_EQ(features().tab_strip_bridge().GetNode(strip()->GetTabAtIndex(0)),
+            c);
+
+  SwitchTo(browser(), *work_);
+
+  // Home's tabs are parked; the favorite's stays.
+  EXPECT_EQ(Hosts(strip())[0], "c.test");
+  EXPECT_THAT(Hosts(parking_->GetTabStripModel()),
+              ElementsAre("a.test", "b.test"));
+  EXPECT_EQ(features().tab_strip_bridge().GetTab(c), strip()->GetTabAtIndex(0));
+}
+
+TEST_F(SpaceSwitchTest, AClosedFavoriteStaysUnloaded) {
+  OpenTabs(browser(), {"a.test", "b.test"});
+  SidebarNode* a = home_->today_root()->children()[0].get();
+  SpaceModel& favorites = list().favorites();
+  MoveEntry(profile(), a, favorites, favorites.pinned_root(), 0);
+  Settle();
+
+  strip()->CloseWebContentsAt(0, CLOSE_NONE);
+  Settle();
+
+  ASSERT_THAT(Hosts(favorites.pinned_root()), ElementsAre("a.test"));
+  EXPECT_FALSE(features().registry().GetTab(a));
+  EXPECT_THAT(Hosts(strip()), ElementsAre("b.test"));
+
+  // Opening it puts it back first.
+  tabs::TabInterface* tab = features().tab_strip_bridge().OpenNode(a);
+  ASSERT_TRUE(tab);
+  CommitPendingLoad(&tab->GetContents()->GetController());
+  Settle();
+  EXPECT_THAT(Hosts(strip()), ElementsAre("a.test", "b.test"));
+}
+
+TEST_F(SpaceSwitchTest, AFavoriteMovedIntoAnotherSpaceLeavesTheWindow) {
+  OpenTabs(browser(), {"a.test", "b.test"});
+  SidebarNode* a = home_->today_root()->children()[0].get();
+  SpaceModel& favorites = list().favorites();
+  MoveEntry(profile(), a, favorites, favorites.pinned_root(), 0);
+  Settle();
+
+  // Work isn't shown anywhere: its tab is parked.
+  MoveEntry(profile(), a, *work_, work_->pinned_root(), 0);
+  Settle();
+
+  EXPECT_TRUE(favorites.pinned_root()->children().empty());
+  EXPECT_THAT(Hosts(work_->pinned_root()), ElementsAre("a.test"));
+  EXPECT_THAT(Hosts(strip()), ElementsAre("b.test"));
+  ASSERT_TRUE(parking_);
+  EXPECT_THAT(Hosts(parking_->GetTabStripModel()), ElementsAre("a.test"));
 }
 
 }  // namespace

@@ -117,6 +117,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
  private:
   TabStripModel* tab_strip_model();
   SpaceModel& space_model();
+  // The profile's, shown in every window.
+  SpaceModel& favorites();
+  // The favorites if they hold |node|, else the window's space.
+  SpaceModel& GetModelOf(const SidebarNode* node);
   TabStripBridge& bridge();
   LiveTabRegistry& registry();
 
@@ -124,7 +128,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void SendSpaces();
   void SendArchive();
 
-  // The node with |id|, or null if there is none (the page can be behind).
+  // The node with |id| in the window's space or the favorites, or null if
+  // there is none (the page can be behind).
   SidebarNode* FindNode(const std::string& id);
   // The space with |id|, or null.
   SpaceModel* FindSpace(const std::string& id);

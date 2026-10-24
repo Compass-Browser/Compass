@@ -1,7 +1,7 @@
 # Command bar and toolbar-free window
 
-Status: slices 1 to 3 done (command bar, sidebar header, no toolbar);
-slice 4 (Favorites) next. Builds on ARCHITECTURE.md §4 and §11 and on
+Status: slices 1 to 4 done (command bar, sidebar header, no toolbar,
+Favorites). Builds on ARCHITECTURE.md §4 and §11 and on
 [sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
 
 ## Goal
@@ -267,3 +267,86 @@ the collapsed header shows only the app menu.
 - No way to focus the moved controls with the keyboard as a pane (F6 still
   cycles to the hidden toolbar).
 
+## Slice 4: Favorites
+
+Arc's Favorites are a grid of large icons at the top of the sidebar, the
+same in every space. A favorite behaves like a pinned entry: it outlives its
+tab, shows dimmed while unloaded, and a click opens or activates it. Its tab
+doesn't change when the window switches spaces.
+
+### Model
+
+Favorites are a `SpaceModel` of their own kind (`SpaceModel::Kind::kFavorites`),
+owned by the profile's `SpaceList` next to its spaces but not one of them: it
+has no name, isn't in `spaces()` or the switcher, and `FindSpaceOf()` never
+returns it. Its pinned root holds only tabs: no folders, no splits, and
+nothing goes in its Today root. Reusing `SpaceModel` gives favorites the same
+observers, node IDs and `MoveToSpace()` as the spaces, so moving an entry
+into Favorites and back is a move between models that keeps the node, its ID
+and its live tab, as moving between spaces does.
+
+Persisted in the sidebar file as a top-level `"favorites": [<node>...]`
+(tabs only). Files without it load with no favorites, so the version stays 2.
+
+### Tabs
+
+`TabStripBridge` mirrors the favorites as well as the window's space:
+
+- Strip order: live favorites first, then Pinned, then Today.
+- A favorite's tab closing unloads the entry, as for Pinned. A favorite that
+  navigates updates its URL and title, as a pinned entry does.
+- Clicking a favorite that's live in another window moves its tab here
+  (move on focus), as for any entry.
+- Session restore: restored tabs first try to take over an unloaded
+  favorite with the same URL (a `RestoredTabMatcher` for the favorites),
+  then the space's entries.
+
+Switching spaces leaves favorites' tabs in the window: only tabs whose node
+is in the space being left move out (steps 1 and 6 of the switch). A closing
+window hands them off with its other tabs.
+
+### Adding and removing
+
+In the sidebar page:
+
+- Dragging a tab entry from Pinned or Today onto the grid makes it a
+  favorite, at the slot it's dropped on. Its tab stays where it is. Folders
+  and splits can't be dropped there.
+- Dragging a tile within the grid reorders it.
+- Dragging a tile into Pinned or Today moves it into the window's space. Its
+  live tab then follows the rules for moving an entry between spaces
+  (spaces.md, "Moving entries"): a tab live in a window showing another space
+  moves to a window showing this one, or to the parking window.
+- A tile's × closes its tab (it unloads); on an unloaded tile it removes
+  the favorite. Same as a pinned entry.
+
+`MoveNode()` handles these: it's the same call, with the favorites root or a
+favorite as one side. The page learns the favorites through `Tree.favorites`
+and the same per-node diffs (node IDs are unique across models).
+
+### UI
+
+The grid sits at the top of the sidebar page, above Pinned: square tiles
+with the favicon, four to a row at the default width, more as the sidebar
+widens. The active tile is highlighted, unloaded ones dimmed. Hovering a tile
+shows its hover card. With no favorites, the grid takes no space, and a drop
+zone ("Drop here to add to Favorites") appears only while an entry is dragged.
+
+### Tests
+
+Unit: the favorites model takes only tabs; favorites are saved and loaded
+(and an older file without them loads); the bridge puts live favorites
+first, unloads a favorite whose tab closes, and keeps favorites' tabs across
+a space switch; restored tabs take over favorites; the page handler sends
+the favorites in the tree and handles moves into, within and out of them.
+Browser test: drag a Today entry onto the grid, switch spaces, and its tab
+is still the window's; click an unloaded favorite to open it.
+
+### Known gaps
+
+- The command bar doesn't list favorites, nor has commands to add or remove
+  one.
+- Favorites have no context menu (neither has anything else yet).
+- The collapsed sidebar narrows the grid to one column of tiles, as wide as
+  the sidebar.
+- Favorites aren't in the keyboard navigation between rows.

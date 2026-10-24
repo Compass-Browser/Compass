@@ -73,6 +73,10 @@ struct ArchivedEntry {
 //  - Splits contain only tabs, at most kMaxSplitPanes of them.
 //  - A split left with one pane is replaced by that pane, in its position.
 //  - The two roots can't be moved or removed.
+//
+// A profile's Favorites are a model of their own kind: its pinned root holds
+// only tabs, and its Today root nothing. See docs/design/command-bar.md,
+// "Slice 4".
 class SpaceModel {
  public:
   class Observer : public base::CheckedObserver {
@@ -96,10 +100,17 @@ class SpaceModel {
     virtual void OnArchiveChanged(const SpaceModel& space) {}
   };
 
-  SpaceModel();
+  enum class Kind {
+    kSpace,
+    kFavorites,
+  };
+
+  explicit SpaceModel(Kind kind = Kind::kSpace);
   SpaceModel(const SpaceModel&) = delete;
   SpaceModel& operator=(const SpaceModel&) = delete;
   ~SpaceModel();
+
+  Kind kind() const { return kind_; }
 
   // Stable across sessions (it's saved), unlike node IDs.
   const base::Uuid& id() const { return id_; }
@@ -216,6 +227,7 @@ class SpaceModel {
                        size_t index,
                        std::unique_ptr<SidebarNode> node);
 
+  const Kind kind_;
   base::Uuid id_;
   std::u16string name_;
   SpaceColor color_ = SpaceColor::kGrey;

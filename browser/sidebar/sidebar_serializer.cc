@@ -30,6 +30,7 @@ constexpr int kSingleSpaceVersion = 1;
 constexpr char kVersionKey[] = "version";
 constexpr char kActiveKey[] = "active";
 constexpr char kSpacesKey[] = "spaces";
+constexpr char kFavoritesKey[] = "favorites";
 constexpr char kIdKey[] = "id";
 constexpr char kNameKey[] = "name";
 constexpr char kColorKey[] = "color";
@@ -287,6 +288,8 @@ base::DictValue SerializeSpaceList(const SpaceList& list) {
   data.Set(kVersionKey, kVersion);
   data.Set(kActiveKey, list.active_space().id().AsLowercaseString());
   data.Set(kSpacesKey, std::move(spaces));
+  data.Set(kFavoritesKey,
+           SerializeSection(*list.favorites().pinned_root(), false));
   return data;
 }
 
@@ -310,6 +313,20 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
   }
   if (saved.empty()) {
     return 0;
+  }
+
+  // Ahead of the favorites already there. Only tabs.
+  if (const base::ListValue* favorites = data.FindList(kFavoritesKey)) {
+    SpaceModel& model = list.favorites();
+    size_t inserted = 0;
+    for (const base::Value& entry : *favorites) {
+      const base::DictValue* dict = entry.GetIfDict();
+      const std::string* type = dict ? dict->FindString(kTypeKey) : nullptr;
+      if (type && *type == kTab &&
+          DeserializeNode(*dict, model, model.pinned_root(), inserted)) {
+        ++inserted;
+      }
+    }
   }
 
   size_t active_index = 0;

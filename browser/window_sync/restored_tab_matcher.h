@@ -21,13 +21,18 @@ class SpaceModel;
 // Ties tabs that Chrome restores (session restore, reopening a closed tab) to
 // the saved sidebar entries they were open on. The sidebar file brings entries
 // back unloaded, and Chrome brings back tabs with their history; a restored
-// tab takes over the first unloaded entry with its URL, pinned first, instead
-// of becoming a new Today entry. The file may load after Chrome has started
-// restoring, so tabs restored before that are matched once it's in. See
+// tab takes over the first unloaded entry with its URL (favorites, then
+// pinned, then Today) instead of becoming a new Today entry. The file may load
+// after Chrome has started restoring, so tabs restored before that are matched
+// once it's in. See
 // docs/design/sidebar.md, "Today persistence".
 class RestoredTabMatcher {
  public:
-  RestoredTabMatcher(SpaceModel* model, LiveTabRegistry* registry);
+  // Restored tabs go to |model|'s entries, or to the profile's |favorites|,
+  // which come first.
+  RestoredTabMatcher(SpaceModel* model,
+                     SpaceModel* favorites,
+                     LiveTabRegistry* registry);
   RestoredTabMatcher(const RestoredTabMatcher&) = delete;
   RestoredTabMatcher& operator=(const RestoredTabMatcher&) = delete;
   ~RestoredTabMatcher();
@@ -45,6 +50,7 @@ class RestoredTabMatcher {
 
  private:
   const raw_ref<SpaceModel> model_;
+  const raw_ref<SpaceModel> favorites_;
   const raw_ref<LiveTabRegistry> registry_;
   bool loaded_ = false;
   std::vector<base::Uuid> unmatched_;

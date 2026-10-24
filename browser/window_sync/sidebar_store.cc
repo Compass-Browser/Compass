@@ -48,9 +48,11 @@ SidebarStore::SidebarStore(const base::FilePath& path, SpaceList* list)
   for (const auto& space : list_->spaces()) {
     space->AddObserver(this);
   }
+  list_->favorites().AddObserver(this);
 }
 
 SidebarStore::~SidebarStore() {
+  list_->favorites().RemoveObserver(this);
   for (const auto& space : list_->spaces()) {
     space->RemoveObserver(this);
   }

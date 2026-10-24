@@ -31,8 +31,9 @@ SidebarNode* FindUnloaded(const LiveTabRegistry& registry,
 }  // namespace
 
 RestoredTabMatcher::RestoredTabMatcher(SpaceModel* model,
+                                       SpaceModel* favorites,
                                        LiveTabRegistry* registry)
-    : model_(*model), registry_(*registry) {}
+    : model_(*model), favorites_(*favorites), registry_(*registry) {}
 
 RestoredTabMatcher::~RestoredTabMatcher() = default;
 
@@ -40,8 +41,13 @@ SidebarNode* RestoredTabMatcher::FindEntry(const GURL& url) const {
   if (url.is_empty()) {
     return nullptr;
   }
-  SidebarNode* entry = FindUnloaded(*registry_, model_->pinned_root(), url);
-  return entry ? entry : FindUnloaded(*registry_, model_->today_root(), url);
+  for (SidebarNode* root : {favorites_->pinned_root(), model_->pinned_root(),
+                            model_->today_root()}) {
+    if (SidebarNode* entry = FindUnloaded(*registry_, root, url)) {
+      return entry;
+    }
+  }
+  return nullptr;
 }
 
 void RestoredTabMatcher::AddUnmatched(const SidebarNode* node) {

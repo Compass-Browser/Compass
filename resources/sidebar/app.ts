@@ -56,7 +56,8 @@ const HOVER_CARD_HIDE_DELAY_MS = 100;
 
 const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 
-// The sidebar: the window's SpaceModel, as a pinned and a Today section. The
+// The sidebar: the profile's favorites, as a grid of tiles, and the window's
+// SpaceModel, as a pinned and a Today section. The
 // browser sends the tree once, then diffs. Entries are rearranged by dragging,
 // and links dragged in open where they're dropped, or onto another space's
 // button to move there. A space's menu (right-click its button, or
@@ -79,6 +80,8 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   static override get properties() {
     return {
+      favorites_: {type: Object},
+      dragActive_: {type: Boolean},
       pinned_: {type: Object},
       today_: {type: Object},
       activeId_: {type: String},
@@ -92,6 +95,10 @@ export class StrataSidebarAppElement extends CrLitElement {
     };
   }
 
+  // The profile's favorites, shared by its spaces (a root of tabs).
+  protected accessor favorites_: Node|null = null;
+  // An entry is being dragged: the empty favorites show a drop zone.
+  protected accessor dragActive_: boolean = false;
   protected accessor pinned_: Node|null = null;
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
@@ -300,9 +307,9 @@ export class StrataSidebarAppElement extends CrLitElement {
     return RELATIVE_TIME.format(Math.round(minutes / (24 * 60)), 'day');
   }
 
-  protected getFaviconUrl_(url: string): string {
+  protected getFaviconUrl_(url: string, size: number = 16): string {
     const params = new URLSearchParams({
-      size: '16',
+      size: `${size}`,
       scaleFactor: `${window.devicePixelRatio}x`,
       pageUrl: url,
       allowGoogleServerFallback: '0',
@@ -411,6 +418,34 @@ export class StrataSidebarAppElement extends CrLitElement {
       this.browserProxy_.handler.moveNodeToSpace(this.draggingId_, id);
     }
     this.endDrag_();
+  }
+
+  protected getFavorites_(): Node[] {
+    return this.favorites_?.children ?? [];
+  }
+
+  protected isFavoritesEmpty_(): boolean {
+    return this.getFavorites_().length === 0;
+  }
+
+  protected isActive_(node: Node): boolean {
+    return node.id === this.activeId_;
+  }
+
+  // As for a pinned entry: closing unloads, and an unloaded one goes.
+  protected getTileCloseLabel_(node: Node): string {
+    return node.live ? 'Close' : 'Remove from Favorites';
+  }
+
+  protected onTileClick_(e: Event) {
+    this.browserProxy_.handler.activateNode(
+        (e.currentTarget as HTMLElement).dataset['nodeId']!);
+  }
+
+  protected onTileCloseClick_(e: Event) {
+    e.stopPropagation();
+    this.browserProxy_.handler.closeNode(
+        (e.currentTarget as HTMLElement).dataset['nodeId']!);
   }
 
   protected getPinned_(): Node[] {
@@ -571,7 +606,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (e.pointerType !== 'mouse' || this.draggingId_) {
       return;
     }
-    const row = (e.target as Element).closest<HTMLElement>('.tab');
+    const row = (e.target as Element).closest<HTMLElement>('.tab, .tile');
     const id = row?.dataset['nodeId'] ?? null;
     if (!row || !id) {
       this.hoverId_ = null;
@@ -644,11 +679,12 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   protected onDragstart_(e: DragEvent) {
     this.hideHoverCard_();
-    const row = (e.target as Element).closest<HTMLElement>('.row');
+    const row = (e.target as Element).closest<HTMLElement>('.row, .tile');
     if (!row || !e.dataTransfer) {
       return;
     }
     this.draggingId_ = row.dataset['nodeId']!;
+    this.dragActive_ = true;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', this.draggingId_);
     row.setAttribute('dragging', '');
@@ -710,6 +746,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.shadowRoot.querySelector('[dragging]')?.removeAttribute('dragging');
     this.shadowRoot.querySelector('.space[drop]')?.removeAttribute('drop');
     this.draggingId_ = null;
+    this.dragActive_ = false;
   }
 
   private showDropTarget_(drop: DropTarget|null) {
@@ -723,7 +760,8 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   // Tab rows take drops before (top half) or after (bottom half) them; folder
   // rows also take drops into them (middle third). Anywhere else in a section
-  // drops at its end. Returns null where the dragged entry (or link) can't
+  // drops at its end. Favorites' tiles take drops before (left half) or after
+  // (right half) them, and the rest of the grid at its end. Returns null where the dragged entry (or link) can't
   // go; the browser checks again.
   private findDropTarget_(e: DragEvent): DropTarget|null {
     const dragged =
@@ -736,7 +774,29 @@ export class StrataSidebarAppElement extends CrLitElement {
     const element = e.target as Element;
     let drop: DropTarget|null = null;
     const row = element.closest<HTMLElement>('.row');
-    if (row) {
+    const tile = element.closest<HTMLElement>('.tile');
+    const grid = element.closest<HTMLElement>('#favorites');
+    if (tile && this.favorites_) {
+      const node = this.nodes_.get(tile.dataset['nodeId']!);
+      if (!node) {
+        return null;
+      }
+      const rect = tile.getBoundingClientRect();
+      const after = e.clientX - rect.left >= rect.width / 2;
+      drop = {
+        parent: this.favorites_,
+        index: this.favorites_.children.indexOf(node) + (after ? 1 : 0),
+        target: tile,
+        position: after ? 'after' : 'before',
+      };
+    } else if (grid && this.favorites_) {
+      drop = {
+        parent: this.favorites_,
+        index: this.favorites_.children.length,
+        target: grid,
+        position: 'end',
+      };
+    } else if (row) {
       const node = this.nodes_.get(row.dataset['nodeId']!);
       const parent = node && this.parents_.get(node.id);
       if (!node || !parent) {
@@ -777,8 +837,11 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   // Mirrors SpaceModel::CanMove() for the cases the page can see. A link
-  // (|dragged| null) goes wherever a new tab can.
+  // (|dragged| null) goes wherever a new tab can. Favorites only take tabs.
   private canDrop_(dragged: Node|null, parent: Node): boolean {
+    if (parent === this.favorites_) {
+      return !dragged || dragged.type === NodeType.kTab;
+    }
     for (let node: Node|undefined = parent; node;
          node = this.parents_.get(node.id)) {
       if (node === dragged) {
@@ -824,8 +887,10 @@ export class StrataSidebarAppElement extends CrLitElement {
   private onSetTree_(tree: Tree) {
     this.nodes_.clear();
     this.parents_.clear();
+    this.index_(tree.favorites, null);
     this.index_(tree.pinned, null);
     this.index_(tree.today, null);
+    this.favorites_ = tree.favorites;
     this.pinned_ = tree.pinned;
     this.today_ = tree.today;
     this.activeId_ = tree.activeId;

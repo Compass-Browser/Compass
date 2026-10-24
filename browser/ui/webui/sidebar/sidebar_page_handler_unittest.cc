@@ -55,6 +55,7 @@ class FakePage : public sidebar::mojom::Page {
     }
   }
   void SetTree(sidebar::mojom::TreePtr tree) override {
+    Learn(*tree->favorites);
     Learn(*tree->pinned);
     Learn(*tree->today);
     tree_ = std::move(tree);
@@ -174,6 +175,13 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
         ->children()[index]
         ->id()
         .AsLowercaseString();
+  }
+
+  SpaceModel& favorites() {
+    return WindowFeatures::From(browser())->service().space_list().favorites();
+  }
+  std::string FavoritesId() {
+    return favorites().pinned_root()->id().AsLowercaseString();
   }
 
   std::string PinnedId() {
@@ -484,6 +492,74 @@ TEST_F(SidebarPageHandlerTest, ArchivesAndRestores) {
   handler_remote_->ClearArchive();
   Settle();
   EXPECT_THAT(page_.archive(), IsEmpty());
+}
+
+TEST_F(SidebarPageHandlerTest, SendsTheFavoritesInTheTree) {
+  favorites().AddTab(favorites().pinned_root(), 0, GURL("https://f.test/"),
+                     u"F");
+  sidebar::mojom::TreePtr tree = GetTree();
+  EXPECT_EQ(tree->favorites->id, FavoritesId());
+  EXPECT_THAT(Hosts(*tree->favorites), ElementsAre("f.test"));
+  EXPECT_FALSE(tree->favorites->children[0]->live);
+}
+
+TEST_F(SidebarPageHandlerTest, MovesEntriesIntoWithinAndOutOfFavorites) {
+  const std::string a = TodayId(0);
+  const std::string b = TodayId(1);
+  page_.TakeEvents();
+
+  handler_remote_->MoveNode(b, FavoritesId(), 0);
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(),
+              ElementsAre("removed b.test", "added b.test at 0"));
+  // Its tab moved to the front of the strip.
+  EXPECT_EQ(tab_strip_model()->GetWebContentsAt(0)->GetLastCommittedURL(),
+            GURL("https://b.test/"));
+
+  handler_remote_->MoveNode(a, FavoritesId(), 1);
+  Settle();
+  // Slots count with the node in place, as elsewhere: after a is 2.
+  handler_remote_->MoveNode(b, FavoritesId(), 2);
+  Settle();
+  EXPECT_THAT(Hosts(*GetTree()->favorites), ElementsAre("a.test", "b.test"));
+
+  handler_remote_->MoveNode(a, PinnedId(), 0);
+  Settle();
+  EXPECT_THAT(Hosts(*GetTree()->favorites), ElementsAre("b.test"));
+  ASSERT_EQ(space_model().pinned_root()->children().size(), 1u);
+  EXPECT_EQ(space_model().pinned_root()->children()[0]->id().AsLowercaseString(),
+            a);
+  // Its tab stayed: this window shows the space it went to.
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+}
+
+TEST_F(SidebarPageHandlerTest, FavoritesTakeOnlyTabs) {
+  handler_remote_->AddFolder(PinnedId(), 0, "Folder");
+  Settle();
+  const std::string folder =
+      space_model().pinned_root()->children()[0]->id().AsLowercaseString();
+
+  handler_remote_->MoveNode(folder, FavoritesId(), 0);
+  handler_remote_->AddFolder(FavoritesId(), 0, "Not here");
+  Settle();
+
+  EXPECT_TRUE(favorites().pinned_root()->children().empty());
+}
+
+TEST_F(SidebarPageHandlerTest, ClosingAnUnloadedFavoriteRemovesIt) {
+  const std::string b = TodayId(1);
+  handler_remote_->MoveNode(b, FavoritesId(), 0);
+  Settle();
+
+  // The first close unloads it, the second removes it.
+  handler_remote_->CloseNode(b);
+  Settle();
+  ASSERT_EQ(favorites().pinned_root()->children().size(), 1u);
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+
+  handler_remote_->CloseNode(b);
+  Settle();
+  EXPECT_TRUE(favorites().pinned_root()->children().empty());
 }
 
 }  // namespace

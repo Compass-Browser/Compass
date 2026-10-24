@@ -22,6 +22,77 @@
   position: relative;
 }
 
+/* Favorites: square tiles, four or more to a row. */
+#favorites {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  padding: 4px 0 2px;
+}
+
+/* Only a drop zone, while an entry is dragged. */
+#favorites[empty] {
+  display: block;
+}
+
+#favorites[empty]:not([dragging]) {
+  display: none;
+}
+
+#favorites[drop='end'] {
+  border-radius: 10px;
+  outline: 2px solid var(--color-sys-primary, #8ab4f8);
+}
+
+.tile {
+  align-items: center;
+  aspect-ratio: 1;
+  background: rgba(128, 128, 128, 0.14);
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  max-height: 56px;
+  position: relative;
+  user-select: none;
+}
+
+.tile:hover {
+  background: rgba(128, 128, 128, 0.22);
+}
+
+.tile[active] {
+  background: var(--color-tab-background-active-frame-active,
+                  rgba(255, 255, 255, 0.9));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.tile .favicon {
+  height: 24px;
+  width: 24px;
+}
+
+.tile[unloaded] .favicon {
+  opacity: 0.5;
+}
+
+.tile .close {
+  inset-inline-end: 0;
+  position: absolute;
+  top: 0;
+}
+
+.tile:hover .close {
+  opacity: 0.7;
+}
+
+.tile[drop='before'] {
+  box-shadow: inset 2px 0 0 var(--color-sys-primary, #8ab4f8);
+}
+
+.tile[drop='after'] {
+  box-shadow: inset -2px 0 0 var(--color-sys-primary, #8ab4f8);
+}
+
 #spaceName {
   font-size: 13px;
   font-weight: 600;

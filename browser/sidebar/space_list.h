@@ -20,7 +20,7 @@
 namespace strata {
 
 // A profile's spaces, in the switcher's order, and the active one: the space
-// new windows open in. Never empty. See docs/design/spaces.md.
+// new windows open in. Never empty. Also holds the profile's Favorites. See docs/design/spaces.md.
 class SpaceList : public SpaceModel::Observer {
  public:
   class Observer : public base::CheckedObserver {
@@ -43,7 +43,7 @@ class SpaceList : public SpaceModel::Observer {
     return spaces_;
   }
   SpaceModel* FindSpace(const base::Uuid& id) const;
-  // The space that holds |node|, or null.
+  // The space that holds |node|, or null. Never the favorites.
   SpaceModel* FindSpaceOf(const SidebarNode* node) const;
 
   // Adds a space at |index| (clamped to the end). |id| is for spaces loaded
@@ -57,6 +57,10 @@ class SpaceList : public SpaceModel::Observer {
   void RemoveSpace(SpaceModel& space);
 
   SpaceModel& active_space() const { return *active_space_; }
+
+  // The profile's Favorites, shared by its spaces (see SpaceModel::Kind).
+  SpaceModel& favorites() { return favorites_; }
+  const SpaceModel& favorites() const { return favorites_; }
   void SetActiveSpace(SpaceModel& space);
 
   void AddObserver(Observer* observer);
@@ -66,6 +70,7 @@ class SpaceList : public SpaceModel::Observer {
   void OnSpaceChanged(const SpaceModel& space) override;
 
  private:
+  SpaceModel favorites_{SpaceModel::Kind::kFavorites};
   std::vector<std::unique_ptr<SpaceModel>> spaces_;
   raw_ptr<SpaceModel> active_space_;
   base::ObserverList<Observer> observers_;

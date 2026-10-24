@@ -8,9 +8,12 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
@@ -105,13 +108,23 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
   // Upstream's resize handle and collapse animation used the native strip.
   region->OnResize(40, /*done_resizing=*/false);
   region->OnResize(40, /*done_resizing=*/true);
-  EXPECT_TRUE(base::test::RunUntil(
-      [&] { return region->width() > expanded_width; }));
+  // Layout and the collapse animation wait for frames, which an occluded
+  // window (a locked screen, say) doesn't get: lay out by hand, and snap the
+  // animation to its end.
+  views::Widget* widget = browser_view()->GetWidget();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() > expanded_width;
+  }));
 
   const int resized_width = region->width();
   region->RequestCollapse(true);
-  EXPECT_TRUE(base::test::RunUntil(
-      [&] { return region->width() < resized_width; }));
+  BrowserAnimationController::From(browser())->Reset(
+      TabStripAnimations::kVerticalTabStrip, TabStripAnimations::kCollapse);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() < resized_width;
+  }));
   EXPECT_TRUE(sidebar()->GetVisible());
 }
 
@@ -252,6 +265,64 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragToPinnedPinsATab) {
     return browser()->tab_strip_model()->GetWebContentsAt(0)->GetTitle() ==
            u"Two";
   }));
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       FavoritesStayAcrossSpacesAndReopen) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(
+                              kWaitForTitles,
+                              base::ListValue().Append("One").Append("Two"))));
+
+  ASSERT_EQ(true, content::EvalJs(contents, content::JsReplace(
+                                                kDrag, "Two", "#favorites",
+                                                0.5)));
+
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& favorites = features->service().space_list().favorites();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return favorites.pinned_root()->children().size() == 1u; }));
+  SidebarNode* two = favorites.pinned_root()->children()[0].get();
+  EXPECT_EQ(two->title(), u"Two");
+  TabStripModel* tabs = browser()->tab_strip_model();
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return tabs->GetWebContentsAt(0)->GetTitle() == u"Two"; }));
+  EXPECT_EQ(content::EvalJs(contents, R"(
+      document.querySelector('strata-sidebar-app').shadowRoot
+          .querySelector('.tile').title)"),
+            "Two");
+
+  // Another space: One leaves the window, the favorite stays.
+  SpaceList& list = features->service().space_list();
+  features->SwitchToSpace(*list.AddSpace(1, u"Work"));
+  EXPECT_TRUE(features->tab_strip_bridge().GetTab(two));
+
+  // Closed, it stays unloaded; clicking its tile opens it again.
+  tabs->CloseWebContentsAt(
+      tabs->GetIndexOfTab(features->tab_strip_bridge().GetTab(two)),
+      CLOSE_NONE);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return !features->tab_strip_bridge().GetTab(two) &&
+           content::EvalJs(contents, R"(
+               document.querySelector('strata-sidebar-app').shadowRoot
+                   .querySelector('.tile').hasAttribute('unloaded'))")
+                   .ExtractBool();
+  }));
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+      document.querySelector('strata-sidebar-app').shadowRoot
+          .querySelector('.tile').click())"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return features->tab_strip_bridge().GetTab(two); }));
+  EXPECT_EQ(tabs->GetActiveTab(), features->tab_strip_bridge().GetTab(two));
+  EXPECT_EQ(tabs->GetIndexOfTab(tabs->GetActiveTab()), 0);
 }
 
 // Drops a link on |selector| in the sidebar, the way dragging one in from a

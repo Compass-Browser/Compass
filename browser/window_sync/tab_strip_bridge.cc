@@ -116,15 +116,18 @@ bool CountLiveTabsBefore(const TabStripBridge& bridge,
 
 TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
                                SpaceModel* space_model,
+                               SpaceModel* favorites,
                                LiveTabRegistry* registry,
                                RestoredTabMatcher* restored_tab_matcher)
     : browser_(browser),
       tab_strip_model_(browser->GetTabStripModel()),
       space_model_(space_model),
+      favorites_(favorites),
       registry_(registry),
       restored_tab_matcher_(restored_tab_matcher) {
   CHECK(tab_strip_model_);
   CHECK(space_model_);
+  CHECK(favorites_);
   CHECK(registry_);
   CHECK(restored_tab_matcher_);
   for (int i = 0; i < tab_strip_model_->count(); ++i) {
@@ -132,6 +135,7 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
   }
   tab_strip_model_->AddObserver(this);
   space_model_->AddObserver(this);
+  favorites_->AddObserver(this);
   registry_->AddObserver(this);
   did_become_active_subscription_ =
       browser_->RegisterDidBecomeActive(base::BindRepeating(
@@ -140,6 +144,7 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
 
 TabStripBridge::~TabStripBridge() {
   registry_->RemoveObserver(this);
+  favorites_->RemoveObserver(this);
   space_model_->RemoveObserver(this);
   if (tab_strip_model_) {
     tab_strip_model_->RemoveObserver(this);
@@ -165,9 +170,10 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
   }
   // The node's place in the strip: the live tabs before it, depth first.
   int index = 0;
-  if (!CountLiveTabsBefore(*this, space_model_->pinned_root(), tab_node,
-                           index)) {
-    CountLiveTabsBefore(*this, space_model_->today_root(), tab_node, index);
+  for (const SidebarNode* root : GetRoots()) {
+    if (CountLiveTabsBefore(*this, root, tab_node, index)) {
+      break;
+    }
   }
 
   // Live in another window: move it here, the way tab dragging does. That
@@ -208,8 +214,7 @@ SidebarNode* TabStripBridge::GetPlaceholderNode(
     return nullptr;
   }
   auto it = placeholders_.find(tab->GetHandle());
-  return it == placeholders_.end() ? nullptr
-                                   : space_model_->FindById(it->second);
+  return it == placeholders_.end() ? nullptr : FindNode(it->second);
 }
 
 SidebarNode* TabStripBridge::GetShownNode(const tabs::TabInterface* tab) const {
@@ -343,6 +348,13 @@ void TabStripBridge::OnTabChangedAt(tabs::TabInterface* tab,
 
 void TabStripBridge::OnTabStripModelDestroyed(TabStripModel* tab_strip_model) {
   tab_strip_model_ = nullptr;
+}
+
+void TabStripBridge::OnNodeAdded(const SidebarNode& node) {
+  // A live entry that moved between the space and the favorites.
+  if (!updating_ && GetTab(&node)) {
+    ScheduleSyncStripOrder();
+  }
 }
 
 void TabStripBridge::OnNodeMoved(const SidebarNode& node,
@@ -482,7 +494,8 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
   }
   registry_->Unregister(tab);
   if (!space_model_->Contains(node)) {
-    // Another space's tab, passing through while the window switches.
+    // A favorite, which stays unloaded, or another space's tab, passing
+    // through while the window switches.
     return;
   }
   // Tabs close with their window when it's the last one, or when quitting
@@ -499,7 +512,18 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
 }
 
 bool TabStripBridge::IsPinned(const SidebarNode* node) const {
-  return space_model_->pinned_root()->Contains(node);
+  return space_model_->pinned_root()->Contains(node) ||
+         favorites_->Contains(node);
+}
+
+std::array<const SidebarNode*, 3> TabStripBridge::GetRoots() const {
+  return {favorites_->pinned_root(), space_model_->pinned_root(),
+          space_model_->today_root()};
+}
+
+SidebarNode* TabStripBridge::FindNode(const base::Uuid& id) const {
+  SidebarNode* node = space_model_->FindById(id);
+  return node ? node : favorites_->FindById(id);
 }
 
 void TabStripBridge::UpdateNode(tabs::TabInterface* tab) {
@@ -507,13 +531,18 @@ void TabStripBridge::UpdateNode(tabs::TabInterface* tab) {
   if (!node) {
     return;
   }
+  SpaceModel* model = favorites_->Contains(node) ? favorites_.get()
+                                                  : space_model_.get();
+  if (!model->Contains(node)) {
+    return;
+  }
   content::WebContents* contents = tab->GetContents();
   const GURL url = GetTabURL(contents);
   if (!url.is_empty() && node->url() != url) {
-    space_model_->SetUrl(node, url);
+    model->SetUrl(node, url);
   }
   if (node->title() != contents->GetTitle()) {
-    space_model_->SetTitle(node, contents->GetTitle());
+    model->SetTitle(node, contents->GetTitle());
   }
 }
 
@@ -549,8 +578,9 @@ void TabStripBridge::SyncStripOrder() {
     return;
   }
   std::vector<tabs::TabInterface*> order;
-  CollectLiveTabs(*this, space_model_->pinned_root(), order);
-  CollectLiveTabs(*this, space_model_->today_root(), order);
+  for (const SidebarNode* root : GetRoots()) {
+    CollectLiveTabs(*this, root, order);
+  }
 
   base::AutoReset<bool> updating(&updating_, true);
   for (size_t i = 0; i < order.size(); ++i) {
@@ -668,7 +698,7 @@ void TabStripBridge::InsertPlaceholder(SidebarNode* node, int index) {
 
 void TabStripBridge::InsertPlaceholderAfterMove(const base::Uuid& node_id,
                                                 int index) {
-  SidebarNode* node = space_model_->FindById(node_id);
+  SidebarNode* node = FindNode(node_id);
   // An empty window is closing (its last tab left); a node that's back here
   // needs no placeholder.
   if (!tab_strip_model_ || tab_strip_model_->empty() || !node || GetTab(node)) {
@@ -686,7 +716,7 @@ void TabStripBridge::ClosePlaceholders() {
   for (const auto& [handle, node_id] : placeholders_) {
     tabs::TabInterface* tab = handle.Get();
     if (tab && (tab != tab_strip_model_->GetActiveTab() ||
-                !space_model_->FindById(node_id))) {
+                !FindNode(node_id))) {
       to_close.push_back(handle);
     }
   }

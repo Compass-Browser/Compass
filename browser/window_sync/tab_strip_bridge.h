@@ -5,6 +5,7 @@
 #ifndef STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 #define STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 
+#include <array>
 #include <optional>
 #include <string>
 #include <vector>
@@ -31,14 +32,15 @@ class RestoredTabMatcher;
 inline constexpr char kPlaceholderHost[] = "strata-placeholder";
 inline constexpr char kPlaceholderURL[] = "chrome://strata-placeholder/";
 
-// Keeps a window's TabStripModel in line with its profile's SpaceModel. The
-// model is the source of truth: the strip holds the nodes live in this
-// window, in the tree's depth-first order. Tabs the strip gains, loses or
-// reorders on its own (links, keyboard shortcuts, extensions) are mirrored
-// into the Today section. A pinned node outlives its tab: when the tab
-// closes, the node stays, unloaded. So does a Today node whose tab closes
-// with its window. A tab moving to another window keeps its node. A tab
-// Chrome restores takes over its saved entry. When the tab a window shows leaves for another window, the window
+// Keeps a window's TabStripModel in line with its space's SpaceModel and the
+// profile's favorites. The models are the source of truth: the strip holds the
+// nodes live in this window, favorites first, then the space's tree depth
+// first. Tabs the strip gains, loses or reorders on its own (links,
+// keyboard shortcuts, extensions) are mirrored into the Today section. A pinned
+// node (or a favorite) outlives its tab: when the tab closes, the node stays,
+// unloaded. So does a Today node whose tab closes with its window. A tab moving
+// to another window keeps its node. A tab Chrome restores takes over its saved
+// entry. When the tab a window shows leaves for another window, the window
 // keeps showing it: a placeholder with a frozen screenshot takes its place. See
 // docs/design/sidebar.md, slices b to d and "Window sync".
 class TabStripBridge : public TabStripModelObserver,
@@ -47,6 +49,7 @@ class TabStripBridge : public TabStripModelObserver,
  public:
   TabStripBridge(BrowserWindowInterface* browser,
                  SpaceModel* space_model,
+                 SpaceModel* favorites,
                  LiveTabRegistry* registry,
                  RestoredTabMatcher* restored_tab_matcher);
   TabStripBridge(const TabStripBridge&) = delete;
@@ -96,6 +99,7 @@ class TabStripBridge : public TabStripModelObserver,
   void OnTabStripModelDestroyed(TabStripModel* tab_strip_model) override;
 
   // SpaceModel::Observer:
+  void OnNodeAdded(const SidebarNode& node) override;
   void OnNodeMoved(const SidebarNode& node,
                    const SidebarNode& old_parent,
                    size_t old_index) override;
@@ -118,7 +122,12 @@ class TabStripBridge : public TabStripModelObserver,
   // node.
   void RemoveNodeForTab(tabs::TabInterface* tab, bool will_delete);
 
+  // Pinned or a favorite: the node outlives its tab.
   bool IsPinned(const SidebarNode* node) const;
+  // The roots whose live tabs make up the strip, in strip order.
+  std::array<const SidebarNode*, 3> GetRoots() const;
+  // The node |id| in the space or the favorites, or null.
+  SidebarNode* FindNode(const base::Uuid& id) const;
 
   // Copies |tab|'s title and committed URL to its node.
   void UpdateNode(tabs::TabInterface* tab);
@@ -172,6 +181,8 @@ class TabStripBridge : public TabStripModelObserver,
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   const raw_ptr<SpaceModel> space_model_;
+  // The profile's, mirrored ahead of the space.
+  const raw_ptr<SpaceModel> favorites_;
   const raw_ptr<LiveTabRegistry> registry_;
   const raw_ptr<RestoredTabMatcher> restored_tab_matcher_;
 

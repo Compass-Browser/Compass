@@ -5,6 +5,7 @@
 #ifndef STRATA_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
 #define STRATA_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
 
+#include <cstddef>
 #include <memory>
 
 #include "base/callback_list.h"
@@ -100,6 +101,17 @@ class WindowFeatures {
 // active tab leaves shows another one. Entries that can't go there (a folder
 // into Today) stay. See docs/design/spaces.md, "Moving entries".
 void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target);
+
+// Moves |node|, an entry of one of |profile|'s spaces or one of its favorites,
+// into |new_parent| at |index| in |target|: another space or the favorites.
+// Into the favorites, its live tab stays where it is (docs/design/
+// command-bar.md, "Slice 4"); into a space, its live tabs move as for
+// MoveEntryToSpace(). Moves |target| can't take are ignored.
+void MoveEntry(Profile* profile,
+               SidebarNode* node,
+               SpaceModel& target,
+               SidebarNode* new_parent,
+               size_t index);
 
 // Deletes |space|, unless it's |profile|'s only one. Windows showing it switch
 // to the space after it (before it, if it's last) first; then its tabs close

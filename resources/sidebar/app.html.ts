@@ -10,6 +10,28 @@ import type {ArchivedEntry, Node, Space, SpaceColor} from './sidebar.mojom-webui
 export function getHtml(this: StrataSidebarAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+<div id="favorites" role="list" aria-label="Favorites"
+    ?empty="${this.isFavoritesEmpty_()}" ?dragging="${this.dragActive_}"
+    @pointerover="${this.onSectionsPointerover_}"
+    @pointerleave="${this.onSectionsPointerleave_}"
+    @pointerdown="${this.onSectionsPointerdown_}"
+    @dragstart="${this.onDragstart_}"
+    @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
+    @drop="${this.onDrop_}" @dragend="${this.onDragend_}">
+  ${this.isFavoritesEmpty_() ? html`
+    <div class="hint">Drop here to add to Favorites</div>` : nothing}
+  ${repeat(this.getFavorites_(), (node: Node) => node.id, (node: Node) => html`
+    <div class="tile" role="listitem" draggable="true"
+        data-node-id="${node.id}" title="${node.title || node.url}"
+        ?active="${this.isActive_(node)}" ?unloaded="${!node.live}"
+        @click="${this.onTileClick_}">
+      <img class="favicon" alt="" src="${this.getFaviconUrl_(node.url, 32)}">
+      <button class="close" data-node-id="${node.id}"
+          aria-label="${this.getTileCloseLabel_(node)}"
+          title="${this.getTileCloseLabel_(node)}"
+          @click="${this.onTileCloseClick_}">&times;</button>
+    </div>`)}
+</div>
 <div id="spaceName" title="Double-click to edit the space"
     @dblclick="${this.onSpaceNameDblclick_}">
   ${this.getActiveSpaceName_()}

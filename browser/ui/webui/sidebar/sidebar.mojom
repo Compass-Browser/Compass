@@ -28,6 +28,8 @@ struct Node {
 };
 
 struct Tree {
+  // The profile's favorites, the same in every space: a root of tabs.
+  Node favorites;
   Node pinned;
   Node today;
   // The node of the window's active tab, if it has one.
@@ -93,7 +95,8 @@ interface PageHandler {
 
   // Drag and drop. |index| is the slot among |new_parent_id|'s current
   // children, counted with the node still in place. Invalid moves are
-  // ignored.
+  // ignored. Moving a tab entry into the favorites root makes it a favorite,
+  // and moving a favorite into the window's space makes it an entry there.
   MoveNode(string id, string new_parent_id, uint32 index);
   // A link dropped on the sidebar: a new entry for |url| at the slot |index|
   // among |parent_id|'s children, opened in the foreground. Only http(s) and
@@ -102,7 +105,8 @@ interface PageHandler {
   // Folders live in the pinned section; other parents are ignored.
   AddFolder(string parent_id, uint32 index, string title);
   RenameFolder(string id, string title);
-  // Removes a folder or pinned entry and its subtree, closing live tabs.
+  // Removes a folder, a pinned entry or a favorite and its subtree, closing
+  // live tabs.
   DeleteNode(string id);
 
   // Shows another space in this window; the page then gets its tree.
