@@ -34,8 +34,10 @@ source_set("ui") {
     "//content/public/browser",
     "//strata/browser/window_sync",
     "//strata/resources/sidebar:resources",
+    "//skia",
     "//ui/base",
     "//ui/views",
+    "//ui/views/controls/webview",
     "//ui/webui",
     "//url",
   ]

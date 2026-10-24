@@ -12,7 +12,9 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -25,6 +27,10 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
     : views::WebView(browser->GetProfile()) {
   // The page asks for its window as soon as it connects, so set it first.
   webui::SetBrowserWindowInterface(GetWebContents(), browser);
+  // Let the region's frame-colored background show through, so the sidebar
+  // follows the theme and the window's active state.
+  views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+      GetWebContents(), SK_ColorTRANSPARENT);
   LoadInitialURL(GURL(kStrataSidebarURL));
 
   SetProperty(views::kFlexBehaviorKey,
