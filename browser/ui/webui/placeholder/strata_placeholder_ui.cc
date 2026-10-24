@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -58,6 +59,21 @@ void StrataPlaceholderUI::GetInfo(GetInfoCallback callback) {
   std::move(callback).Run(base::UTF16ToUTF8(node->title()), node->url());
 }
 
+void StrataPlaceholderUI::GetSnapshot(GetSnapshotCallback callback) {
+  TabStripBridge* bridge = GetBridge();
+  if (!bridge) {
+    std::move(callback).Run(std::string());
+    return;
+  }
+  bridge->GetSnapshot(
+      tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents()),
+      base::BindOnce(
+          [](GetSnapshotCallback callback, const std::string& data_url) {
+            std::move(callback).Run(data_url);
+          },
+          std::move(callback)));
+}
+
 void StrataPlaceholderUI::BringHere() {
   tabs::TabInterface* placeholder =
       tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
@@ -76,13 +92,20 @@ void StrataPlaceholderUI::BringHere() {
 }
 
 SidebarNode* StrataPlaceholderUI::GetNode() {
+  TabStripBridge* bridge = GetBridge();
+  return bridge ? bridge->GetPlaceholderNode(
+                      tabs::TabInterface::MaybeGetFromContents(
+                          web_ui()->GetWebContents()))
+                : nullptr;
+}
+
+TabStripBridge* StrataPlaceholderUI::GetBridge() {
   tabs::TabInterface* tab =
       tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
   BrowserWindowInterface* browser =
       tab ? tab->GetBrowserWindowInterface() : nullptr;
   WindowFeatures* features = browser ? WindowFeatures::From(browser) : nullptr;
-  return features ? features->tab_strip_bridge().GetPlaceholderNode(tab)
-                  : nullptr;
+  return features ? &features->tab_strip_bridge() : nullptr;
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(StrataPlaceholderUI)

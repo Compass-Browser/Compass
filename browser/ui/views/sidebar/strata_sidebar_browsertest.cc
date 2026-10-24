@@ -291,6 +291,17 @@ IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
       return true;
     })())"));
 
+  // It shows the tab as it was when it left.
+  EXPECT_EQ(true, content::EvalJs(placeholder, R"(
+    (async () => {
+      const img = document.querySelector('#snapshot');
+      while (!img.src) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      await img.decode();
+      return img.src.startsWith('data:image/jpeg') && img.naturalWidth > 0;
+    })())"));
+
   ASSERT_TRUE(content::ExecJs(placeholder,
                               "document.querySelector('#bringHere').click()"));
 

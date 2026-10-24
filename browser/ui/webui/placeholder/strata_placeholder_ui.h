@@ -15,6 +15,7 @@ namespace strata {
 
 class SidebarNode;
 class StrataPlaceholderUI;
+class TabStripBridge;
 
 class StrataPlaceholderUIConfig
     : public content::DefaultWebUIConfig<StrataPlaceholderUI> {
@@ -38,11 +39,14 @@ class StrataPlaceholderUI : public ui::MojoWebUIController,
 
   // sidebar::mojom::PlaceholderHandler:
   void GetInfo(GetInfoCallback callback) override;
+  void GetSnapshot(GetSnapshotCallback callback) override;
   void BringHere() override;
 
  private:
   // The node this placeholder stands for, or null if it isn't one any more.
   SidebarNode* GetNode();
+  // The bridge of the window this placeholder is in, or null.
+  TabStripBridge* GetBridge();
 
   mojo::Receiver<sidebar::mojom::PlaceholderHandler> receiver_{this};
 

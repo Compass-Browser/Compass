@@ -9,7 +9,9 @@
 #include <vector>
 
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/browser_active_state_manager/browser_active_state_manager.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -432,6 +434,41 @@ TEST_F(TabStripBridgeTwoWindowTest, PlaceholderClosesWhenItsNodeIsRemoved) {
   ASSERT_EQ(tab_strip_model()->count(), 1);
   EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetLastCommittedURL(),
             GURL("https://e.test/"));
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, FocusingTheWindowBringsTheTabBack) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("c.test");
+  SidebarNode* a = TodayFor("a.test");
+  second_bridge().OpenNode(a);
+  Settle();
+  ASSERT_EQ(bridge().GetPlaceholderNode(tab_strip_model()->GetActiveTab()), a);
+
+  BrowserActiveStateManager::From(browser())->DidBecomeActive();
+  Settle();
+
+  EXPECT_EQ(bridge().GetTab(a), tab_strip_model()->GetActiveTab());
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_EQ(second_->GetTabStripModel()->count(), 1);
+}
+
+TEST_F(TabStripBridgeTwoWindowTest, SnapshotRequestsAlwaysGetAnAnswer) {
+  OpenTabs({"a.test"});
+  OpenTabInSecond("c.test");
+  second_bridge().OpenNode(TodayFor("a.test"));
+  tabs::TabInterface* placeholder = tab_strip_model()->GetActiveTab();
+
+  // Test views have no compositor frames, so the capture comes back empty.
+  base::test::TestFuture<const std::string&> snapshot;
+  bridge().GetSnapshot(placeholder, snapshot.GetCallback());
+  Settle();
+  EXPECT_TRUE(snapshot.IsReady());
+
+  // A tab that isn't a placeholder has none.
+  base::test::TestFuture<const std::string&> none;
+  second_bridge().GetSnapshot(second_->GetTabStripModel()->GetActiveTab(),
+                              none.GetCallback());
+  EXPECT_EQ(none.Get(), "");
 }
 
 TEST_F(TabStripBridgeTwoWindowTest, ClosingAWindowHandsItsTabsOver) {

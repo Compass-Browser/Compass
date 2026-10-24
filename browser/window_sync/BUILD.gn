@@ -33,8 +33,12 @@ source_set("window_sync") {
     "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/tabs:tab_model",
     "//chrome/common",
+    "//components/viz/common",
     "//content/public/browser",
+    "//skia",
     "//ui/base",
+    "//ui/gfx",
+    "//ui/gfx/codec",
   ]
 }
 
@@ -48,6 +52,7 @@ source_set("unit_tests") {
     ":window_sync",
     "//base",
     "//base/test:test_support",
+    "//chrome/browser/ui/browser_active_state_manager",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/tabs:tab_strip",

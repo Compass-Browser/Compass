@@ -4,14 +4,22 @@
 
 import {PlaceholderHandler} from './sidebar.mojom-webui.js';
 
-// chrome://strata-placeholder: names the tab that moved to another window and
-// brings it back on request. See docs/design/sidebar.md, "Window sync".
+// chrome://strata-placeholder: a frozen screenshot of the tab that moved to
+// another window, with a way to bring it back. The window also brings it back
+// on its own when it's focused. See docs/design/sidebar.md, "Window sync".
 const handler = PlaceholderHandler.getRemote();
 
 handler.getInfo().then(({title, url}) => {
   const name = title || url || 'This tab';
   document.querySelector('#title')!.textContent = name;
   document.title = name;
+});
+
+handler.getSnapshot().then(({dataUrl}) => {
+  if (dataUrl) {
+    document.querySelector<HTMLImageElement>('#snapshot')!.src = dataUrl;
+    document.body.classList.add('has-snapshot');
+  }
 });
 
 document.querySelector('#bringHere')!.addEventListener(

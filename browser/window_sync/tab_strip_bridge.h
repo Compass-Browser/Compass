@@ -5,9 +5,13 @@
 #ifndef STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 #define STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 
+#include <optional>
+#include <string>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/containers/flat_map.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
@@ -59,6 +63,11 @@ class TabStripBridge : public TabStripModelObserver,
   // The node a placeholder tab stands for, or null if |tab| isn't one (or its
   // node is gone).
   SidebarNode* GetPlaceholderNode(const tabs::TabInterface* tab) const;
+
+  // Runs |callback| with a data: URL of the screenshot |placeholder| shows,
+  // once it's ready, or with an empty string if there's none.
+  void GetSnapshot(const tabs::TabInterface* placeholder,
+                   base::OnceCallback<void(const std::string&)> callback);
 
   // The node |tab| shows: its own, or its placeholder's.
   SidebarNode* GetShownNode(const tabs::TabInterface* tab) const;
@@ -117,6 +126,28 @@ class TabStripBridge : public TabStripModelObserver,
   void SyncStripOrder();
   void ScheduleSyncStripOrder();
 
+  // A frozen screenshot of a tab that left, shown by its placeholder.
+  struct Snapshot {
+    Snapshot();
+    Snapshot(Snapshot&&);
+    Snapshot& operator=(Snapshot&&);
+    ~Snapshot();
+
+    // Unset while capturing and encoding; empty if that failed.
+    std::optional<std::string> data_url;
+    std::vector<base::OnceCallback<void(const std::string&)>> waiters;
+  };
+
+  // Starts capturing |tab|, which is about to leave, for |node_id|'s
+  // placeholder.
+  void CaptureSnapshot(tabs::TabInterface* tab, const base::Uuid& node_id);
+  void OnSnapshotReady(const base::Uuid& node_id, std::string data_url);
+  void DropSnapshot(const base::Uuid& node_id);
+
+  // When the window becomes active on a placeholder, its tab comes back.
+  void OnWindowBecameActive(BrowserWindowInterface* browser);
+  void BringBackShownPlaceholder();
+
   bool IsPlaceholder(const tabs::TabInterface* tab) const;
   void InsertPlaceholder(SidebarNode* node);
   // Closes placeholders that aren't active, or whose node is gone.
@@ -144,6 +175,11 @@ class TabStripBridge : public TabStripModelObserver,
 
   // This window's tabs, most recently used first. May hold stale handles.
   std::vector<tabs::TabHandle> mru_;
+
+  // Screenshots for this window's placeholders, by node.
+  base::flat_map<base::Uuid, Snapshot> snapshots_;
+
+  base::CallbackListSubscription did_become_active_subscription_;
 
   base::WeakPtrFactory<TabStripBridge> weak_factory_{this};
 };

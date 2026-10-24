@@ -5,12 +5,16 @@
 #include "strata/browser/window_sync/tab_strip_bridge.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/auto_reset.h"
+#include "base/base64.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -20,15 +24,36 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "strata/browser/window_sync/live_tab_registry.h"
 #include "strata/browser/window_sync/window_features.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/gfx/codec/jpeg_codec.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace strata {
 
 namespace {
+
+// How long a tab that's leaving may take to hand over its last frame.
+constexpr base::TimeDelta kSnapshotTimeout = base::Seconds(1);
+
+// JPEG keeps a full-window screenshot small enough to pass to the page.
+constexpr int kSnapshotJpegQuality = 80;
+
+std::string EncodeSnapshot(const SkBitmap& bitmap) {
+  std::optional<std::vector<uint8_t>> jpeg =
+      gfx::JPEGCodec::Encode(bitmap, kSnapshotJpegQuality);
+  if (!jpeg) {
+    return std::string();
+  }
+  return "data:image/jpeg;base64," + base::Base64Encode(*jpeg);
+}
 
 // Appends the live tabs under |node| to |tabs|, depth first.
 void CollectLiveTabs(const TabStripBridge& bridge,
@@ -79,6 +104,9 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
   }
   tab_strip_model_->AddObserver(this);
   space_model_->AddObserver(this);
+  did_become_active_subscription_ =
+      browser_->RegisterDidBecomeActive(base::BindRepeating(
+          &TabStripBridge::OnWindowBecameActive, base::Unretained(this)));
 }
 
 TabStripBridge::~TabStripBridge() {
@@ -172,7 +200,30 @@ void TabStripBridge::PrepareToLoseTab(tabs::TabInterface* tab) {
       return;
     }
   }
-  InsertPlaceholder(GetNode(tab));
+  if (SidebarNode* node = GetNode(tab)) {
+    CaptureSnapshot(tab, node->id());
+    InsertPlaceholder(node);
+  }
+}
+
+void TabStripBridge::GetSnapshot(
+    const tabs::TabInterface* placeholder,
+    base::OnceCallback<void(const std::string&)> callback) {
+  auto placeholder_it = placeholder
+                            ? placeholders_.find(placeholder->GetHandle())
+                            : placeholders_.end();
+  if (placeholder_it == placeholders_.end()) {
+    std::move(callback).Run(std::string());
+    return;
+  }
+  auto it = snapshots_.find(placeholder_it->second);
+  if (it == snapshots_.end()) {
+    std::move(callback).Run(std::string());
+  } else if (it->second.data_url) {
+    std::move(callback).Run(*it->second.data_url);
+  } else {
+    it->second.waiters.push_back(std::move(callback));
+  }
 }
 
 void TabStripBridge::HandOffTabsTo(TabStripBridge& target) {
@@ -337,7 +388,11 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
 
 void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
                                       bool will_delete) {
-  if (placeholders_.erase(tab->GetHandle())) {
+  auto placeholder = placeholders_.find(tab->GetHandle());
+  if (placeholder != placeholders_.end()) {
+    const base::Uuid node_id = placeholder->second;
+    placeholders_.erase(placeholder);
+    DropSnapshot(node_id);
     return;
   }
   SidebarNode* node = GetNode(tab);
@@ -412,6 +467,94 @@ void TabStripBridge::SyncStripOrder() {
       tab_strip_model_->MoveWebContentsAt(from, i,
                                           /*select_after_move=*/false);
     }
+  }
+}
+
+TabStripBridge::Snapshot::Snapshot() = default;
+TabStripBridge::Snapshot::Snapshot(Snapshot&&) = default;
+TabStripBridge::Snapshot& TabStripBridge::Snapshot::operator=(Snapshot&&) =
+    default;
+TabStripBridge::Snapshot::~Snapshot() = default;
+
+void TabStripBridge::CaptureSnapshot(tabs::TabInterface* tab,
+                                     const base::Uuid& node_id) {
+  DropSnapshot(node_id);
+  snapshots_[node_id];
+  content::RenderWidgetHostView* view =
+      tab->GetContents()->GetRenderWidgetHostView();
+  if (!view) {
+    OnSnapshotReady(node_id, std::string());
+    return;
+  }
+  // The request goes out now, for the frame the tab shows here; the result
+  // comes back after the tab has moved.
+  view->CopyFromSurface(
+      gfx::Rect(), gfx::Size(), kSnapshotTimeout,
+      base::BindOnce(
+          [](base::WeakPtr<TabStripBridge> bridge, base::Uuid node_id,
+             const content::CopyFromSurfaceResult& result) {
+            if (!bridge) {
+              return;
+            }
+            if (!result.has_value() || result->bitmap.drawsNothing()) {
+              bridge->OnSnapshotReady(node_id, std::string());
+              return;
+            }
+            base::ThreadPool::PostTaskAndReplyWithResult(
+                FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+                base::BindOnce(&EncodeSnapshot, result->bitmap),
+                base::BindOnce(&TabStripBridge::OnSnapshotReady, bridge,
+                               node_id));
+          },
+          weak_factory_.GetWeakPtr(), node_id));
+}
+
+void TabStripBridge::OnSnapshotReady(const base::Uuid& node_id,
+                                     std::string data_url) {
+  auto it = snapshots_.find(node_id);
+  if (it == snapshots_.end()) {
+    // Its placeholder closed in the meantime.
+    return;
+  }
+  it->second.data_url = std::move(data_url);
+  for (auto& waiter : std::exchange(it->second.waiters, {})) {
+    std::move(waiter).Run(*it->second.data_url);
+  }
+}
+
+void TabStripBridge::DropSnapshot(const base::Uuid& node_id) {
+  auto it = snapshots_.find(node_id);
+  if (it == snapshots_.end()) {
+    return;
+  }
+  std::vector<base::OnceCallback<void(const std::string&)>> waiters =
+      std::move(it->second.waiters);
+  snapshots_.erase(it);
+  for (auto& waiter : waiters) {
+    std::move(waiter).Run(std::string());
+  }
+}
+
+void TabStripBridge::OnWindowBecameActive(BrowserWindowInterface* browser) {
+  if (tab_strip_model_ &&
+      GetPlaceholderNode(tab_strip_model_->GetActiveTab())) {
+    // Not from inside the activation notification.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&TabStripBridge::BringBackShownPlaceholder,
+                                  weak_factory_.GetWeakPtr()));
+  }
+}
+
+void TabStripBridge::BringBackShownPlaceholder() {
+  if (!tab_strip_model_ || !browser_->IsActive()) {
+    return;
+  }
+  SidebarNode* node = GetPlaceholderNode(tab_strip_model_->GetActiveTab());
+  if (!node) {
+    return;
+  }
+  if (tabs::TabInterface* tab = OpenNode(node)) {
+    tab_strip_model_->ActivateTabAt(tab_strip_model_->GetIndexOfTab(tab));
   }
 }
 

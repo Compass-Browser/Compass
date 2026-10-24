@@ -85,6 +85,9 @@ interface Page {
 interface PlaceholderHandler {
   // The tab the placeholder stands for.
   GetInfo() => (string title, url.mojom.Url url);
+  // A data: URL of a screenshot of the tab, taken as it left. Answers once
+  // it's encoded; empty if there's none.
+  GetSnapshot() => (string data_url);
   // Moves that tab back into the placeholder's window, replacing it.
   BringHere();
 };

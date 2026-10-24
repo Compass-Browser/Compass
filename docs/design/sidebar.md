@@ -343,8 +343,16 @@ used list of its tabs. If A has no other tab, it gets a **placeholder
 tab** first, so A stays open.
 
 **Placeholder:** `chrome://strata-placeholder`, a small WebUI in the same
-resource pak as the sidebar. It shows "<title> is open in another window"
-and a **Bring here** button. The bridge tracks placeholder tab → node and
+resource pak as the sidebar. It shows a **frozen screenshot** of the tab,
+taken with `CopyFromSurface()` just before the tab left. The screenshot is
+JPEG-encoded off the UI thread and kept by the bridge until the placeholder
+closes. A pill on top says "Open in another window" and has a **Bring here**
+button. If there's no screenshot, it shows the title and the button.
+
+**Back in focus, the tab comes back.** When a window becomes active while its
+active tab is a placeholder, the bridge brings the tab back automatically.
+That's move on focus from both sides: two windows side by side hand the tab
+to whichever one you use. The bridge tracks placeholder tab → node and
 doesn't mirror placeholders into the model. The sidebar shows the node as
 active while its placeholder is. Placeholders close when:
 
@@ -352,7 +360,9 @@ active while its placeholder is. Placeholders close when:
 - the window activates any other tab;
 - the node is removed.
 
-Mojo: `PlaceholderHandler { GetInfo() => (title, url); BringHere(); }`.
+Mojo: `PlaceholderHandler { GetInfo() => (title, url); GetSnapshot() =>
+(data_url); BringHere(); }`. `GetSnapshot()` answers once the encode is done,
+with an empty string if the capture failed.
 
 **Tests:** bridge tests for the fallback, the placeholder lifecycle and the
 hand-off (two windows), and a browser test that closes a real window and
