@@ -52,6 +52,12 @@ class RecordingObserver : public SpaceModel::Observer {
   void OnNodeWillBeRemoved(const SidebarNode& node) override {
     events.push_back("removed " + Name(node));
   }
+  void OnNodeWillMoveToSpace(const SidebarNode& node) override {
+    events.push_back("leaving " + Name(node));
+  }
+  void OnSpaceChanged(const SpaceModel& space) override {
+    events.push_back("space");
+  }
 
   std::vector<std::string> events;
 
@@ -212,6 +218,61 @@ TEST_F(SpaceModelTest, NotifiesObservers) {
               ElementsAre("added a", "added b", "changed A", "added split",
                           "moved A", "moved b", "removed b", "moved A",
                           "removed split"));
+  model_.RemoveObserver(&observer);
+}
+
+TEST_F(SpaceModelTest, MovesEntriesToAnotherSpaceWithTheirIds) {
+  SpaceModel other;
+  SidebarNode* work = model_.AddFolder(model_.pinned_root(), 0, u"Work");
+  SidebarNode* spec = Tab(work, "spec");
+  const base::Uuid spec_id = spec->id();
+  RecordingObserver source;
+  RecordingObserver target;
+  model_.AddObserver(&source);
+  other.AddObserver(&target);
+
+  model_.MoveToSpace(work, other, other.pinned_root(), 0);
+
+  EXPECT_TRUE(model_.pinned_root()->children().empty());
+  EXPECT_EQ(other.FindById(spec_id), spec);
+  EXPECT_THAT(Titles(other.pinned_root()), ElementsAre("Work"));
+  EXPECT_THAT(source.events, ElementsAre("leaving Work"));
+  EXPECT_THAT(target.events, ElementsAre("added Work"));
+  model_.RemoveObserver(&source);
+  other.RemoveObserver(&target);
+}
+
+TEST_F(SpaceModelTest, MovingToAnotherSpaceKeepsTheInvariants) {
+  SpaceModel other;
+  SidebarNode* folder = model_.AddFolder(model_.pinned_root(), 0, u"F");
+  SidebarNode* a = Tab(model_.today_root(), "a");
+  SidebarNode* b = Tab(model_.today_root(), "b");
+  model_.Split(a, b);
+
+  // Folders stay in Pinned, nodes go to another space, roots stay put.
+  EXPECT_FALSE(model_.CanMoveToSpace(folder, other, other.today_root()));
+  EXPECT_FALSE(model_.CanMoveToSpace(a, model_, model_.pinned_root()));
+  EXPECT_FALSE(
+      model_.CanMoveToSpace(model_.today_root(), other, other.today_root()));
+  EXPECT_FALSE(model_.CanMoveToSpace(a, other, model_.today_root()));
+
+  // A pane leaving dissolves its split.
+  model_.MoveToSpace(b, other, other.today_root(), 0);
+  EXPECT_THAT(Titles(model_.today_root()), ElementsAre("a"));
+  EXPECT_THAT(Titles(other.today_root()), ElementsAre("b"));
+}
+
+TEST_F(SpaceModelTest, NotifiesNameAndColorChanges) {
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  model_.SetName(u"Work");
+  model_.SetName(u"Work");
+  model_.SetColor(SpaceColor::kBlue);
+  model_.SetColor(SpaceColor::kBlue);
+
+  EXPECT_EQ(model_.color(), SpaceColor::kBlue);
+  EXPECT_THAT(observer.events, ElementsAre("space", "space"));
   model_.RemoveObserver(&observer);
 }
 

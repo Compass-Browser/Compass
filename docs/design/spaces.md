@@ -1,6 +1,6 @@
 # Spaces
 
-Status: slice 1 done. Builds on ARCHITECTURE.md §6 (D6) and the
+Status: slices 1 and 2 done. Builds on ARCHITECTURE.md §6 (D6) and the
 sidebar slices in [sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
 
 ## Goal
@@ -12,10 +12,11 @@ space and stay alive while it isn't shown.
 
 ## Slices
 
-1. **Spaces in one profile** (this document): several spaces, persisted,
-   a switcher, switching a window between them.
-2. Rename, colors and per-space theme, deleting a space, moving an entry to
-   another space.
+1. **Spaces in one profile**: several spaces, persisted, a switcher,
+   switching a window between them.
+2. **Editing spaces**: rename, colors, deleting a space, moving an entry to
+   another space, keyboard shortcuts. A theme for the whole window per space
+   is left for later.
 3. Spaces with different profiles.
 
 ## How D6 is realized
@@ -103,6 +104,39 @@ switch.
   (known gap; fixing it needs a session patch).
 - Closing a window hands its tabs only to a window of the same space.
 
+## Moving entries
+
+`MoveEntryToSpace()` (window_features.h), from dragging an entry onto
+another space's button. `SpaceModel::MoveToSpace()` hands the node and its
+subtree to the other model as they are: same objects, same IDs, so the
+`LiveTabRegistry` keeps pairing them with their tabs. The source model's
+observers see `OnNodeWillMoveToSpace()` (the page drops the entry, bridges
+close placeholders for it, nothing closes tabs); the target's see
+`OnNodeAdded()`. A pinned entry goes to the end of the other space's Pinned,
+a Today entry to the end of its Today.
+
+The live tabs then leave windows showing the old space, the same way a switch
+moves them (step 6): to a window showing the new space, else to the parking
+window. Parked tabs stay parked. A window whose active tab leaves first
+activates the nearest tab that stays, or opens a new tab, so it never puts up
+a placeholder for it.
+
+## Deleting a space
+
+`DeleteSpace()` (window_features.h). The last space can't be deleted. Every
+window showing it (closing or not, so no bridge outlives its model) switches
+to the space after it, or before it if it's last. Its live tabs are then all
+in the parking window, where they close. Then `SpaceList::RemoveSpace()`
+destroys it: the store, the service (matchers, last active entries) and the
+pages hear `OnSpaceWillBeRemoved()` first.
+
+## Shortcuts
+
+Ctrl+1 to Ctrl+9 switch the window to the first nine spaces (Ctrl+Shift
+outside macOS, where Ctrl+number picks tabs). `StrataSidebarView` registers
+them with the window's focus manager, so they work while the sidebar is
+collapsed. Pages get the keys first, as with upstream's own shortcuts.
+
 ## UI
 
 The sidebar shows the space's name at the top, and at the bottom a row of
@@ -111,6 +145,14 @@ switches to it. Mojo: `Page.SetSpaces(spaces, active_id)`, sent with the
 tree and when the list changes; `PageHandler.SwitchSpace(id)` and
 `AddSpace()`. When the window switches, the handler moves to the new space's
 model and sends a fresh tree.
+
+Right-clicking a space button, or double-clicking the space name, opens the
+space's menu: its name, eight colors and "Delete space" (click twice). The
+color (`SpaceColor`, saved by name as `"color"` in the file) tints the
+sidebar's background and the space's button. Grey, the default, doesn't
+tint. `SpaceList` relays name and color changes of any space
+(`OnSpaceUpdated()`), so every window's switcher follows. Mojo:
+`RenameSpace()`, `SetSpaceColor()`, `DeleteSpace()`, `MoveNodeToSpace()`.
 
 ## Known gaps (slice 1)
 
@@ -121,6 +163,10 @@ model and sends a fresh tree.
 - A parked page that calls `window.focus()` could show the parking window.
 - Several windows on different spaces: see Startup.
 - No animation on switch.
+- Only the sidebar is tinted; the window frame and toolbar keep the theme.
+- Spaces can't be reordered.
+- Deleting a space closes parked tabs without asking, even ones with
+  beforeunload handlers.
 
 ## Tests
 
@@ -130,3 +176,9 @@ live in parking, the same tabs come back, blank tabs close), a switch to an
 empty space, and hand-off between windows of different spaces; page handler
 tests for the space list and the fresh tree after a switch; a browser test
 that clicks a space button.
+
+Slice 2: model tests for moving between spaces and colors, `SpaceList`
+removal and relayed changes, store round trips of colors, removals and moves,
+handler tests for rename, color, moving an entry with its tab and deleting
+(the window's own space, another one, not the last), and browser tests for
+the menu, dragging onto a space and the shortcuts.

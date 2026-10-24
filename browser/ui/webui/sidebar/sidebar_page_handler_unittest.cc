@@ -16,9 +16,11 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -353,6 +355,85 @@ TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {
 
   EXPECT_EQ(page_.spaces(), "[Home],Space 2");
   tree = page_.TakeTree();
+  ASSERT_TRUE(tree);
+  EXPECT_THAT(Hosts(*tree->today), ElementsAre("a.test", "b.test"));
+}
+
+TEST_F(SidebarPageHandlerTest, RenamesAndColorsSpaces) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+
+  handler_remote_->RenameSpace(id, "  Work ");
+  handler_remote_->RenameSpace(id, " ");
+  handler_remote_->SetSpaceColor(id, sidebar::mojom::SpaceColor::kGreen);
+  Settle();
+
+  EXPECT_EQ(page_.spaces(), "[Work]");
+  EXPECT_EQ(home.name(), u"Work");
+  EXPECT_EQ(home.color(), SpaceColor::kGreen);
+}
+
+TEST_F(SidebarPageHandlerTest, MovesAnEntryAndItsTabToAnotherSpace) {
+  SpaceList& list = WindowFeatures::From(browser())->service().space_list();
+  SpaceModel& home = space_model();
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  tabs::TabInterface* a = tab_strip_model()->GetActiveTab();
+  page_.TakeEvents();
+
+  // The window's active tab.
+  handler_remote_->MoveNodeToSpace(TodayId(0), work->id().AsLowercaseString());
+  Settle();
+
+  // The window shows b; a waits in the parking window, still a's.
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("active b.test", "removed a.test"));
+  ASSERT_EQ(home.today_root()->children().size(), 1u);
+  ASSERT_EQ(work->today_root()->children().size(), 1u);
+  SidebarNode* moved = work->today_root()->children()[0].get();
+  EXPECT_EQ(moved->url(), GURL("https://a.test/"));
+  EXPECT_EQ(WindowFeatures::From(browser())->registry().GetTab(moved), a);
+  ASSERT_TRUE(parking_);
+  EXPECT_EQ(a->GetBrowserWindowInterface(), parking_.get());
+
+  // It comes back with the space.
+  handler_remote_->SwitchSpace(work->id().AsLowercaseString());
+  Settle();
+  EXPECT_EQ(tab_strip_model()->GetActiveTab(), a);
+}
+
+TEST_F(SidebarPageHandlerTest, DeletesSpacesButNotTheLastOne) {
+  SpaceList& list = WindowFeatures::From(browser())->service().space_list();
+  const std::string home_id = space_model().id().AsLowercaseString();
+  handler_remote_->AddSpace();
+  Settle();
+  ASSERT_EQ(page_.spaces(), "Home,[Space 2]");
+  ASSERT_TRUE(parking_);
+  EXPECT_EQ(parking_->GetTabStripModel()->count(), 2);
+
+  // Another space: its parked tabs close.
+  handler_remote_->DeleteSpace(home_id);
+  Settle();
+  EXPECT_EQ(page_.spaces(), "[Space 2]");
+  EXPECT_EQ(list.spaces().size(), 1u);
+  EXPECT_TRUE(!parking_ || parking_->GetTabStripModel()->empty());
+
+  // The last one stays.
+  handler_remote_->DeleteSpace(space_model().id().AsLowercaseString());
+  Settle();
+  EXPECT_EQ(page_.spaces(), "[Space 2]");
+}
+
+TEST_F(SidebarPageHandlerTest, DeletingTheWindowsSpaceSwitchesAway) {
+  const std::string home_id = space_model().id().AsLowercaseString();
+  handler_remote_->AddSpace();
+  Settle();
+  page_.TakeTree();
+
+  handler_remote_->DeleteSpace(space_model().id().AsLowercaseString());
+  Settle();
+
+  EXPECT_EQ(page_.spaces(), "[Home]");
+  EXPECT_EQ(space_model().id().AsLowercaseString(), home_id);
+  sidebar::mojom::TreePtr tree = page_.TakeTree();
   ASSERT_TRUE(tree);
   EXPECT_THAT(Hosts(*tree->today), ElementsAre("a.test", "b.test"));
 }

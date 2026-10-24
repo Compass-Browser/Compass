@@ -53,7 +53,17 @@ void SpaceModel::SetName(std::u16string name) {
   }
   name_ = std::move(name);
   for (Observer& observer : observers_) {
-    observer.OnSpaceRenamed();
+    observer.OnSpaceChanged(*this);
+  }
+}
+
+void SpaceModel::SetColor(SpaceColor color) {
+  if (color_ == color) {
+    return;
+  }
+  color_ = color;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
   }
 }
 
@@ -103,6 +113,29 @@ void SpaceModel::Move(SidebarNode* node, SidebarNode* new_parent,
   }
   if (old_parent != new_parent && old_parent->type() == Type::kSplit) {
     NormalizeSplit(old_parent);
+  }
+}
+
+bool SpaceModel::CanMoveToSpace(const SidebarNode* node,
+                                const SpaceModel& target,
+                                const SidebarNode* new_parent) const {
+  return node && new_parent && &target != this && Contains(node) &&
+         node->type() != Type::kRoot && target.Contains(new_parent) &&
+         target.CanContain(new_parent, node->type());
+}
+
+void SpaceModel::MoveToSpace(SidebarNode* node,
+                             SpaceModel& target,
+                             SidebarNode* new_parent,
+                             size_t index) {
+  CHECK(CanMoveToSpace(node, target, new_parent));
+  for (auto& observer : observers_) {
+    observer.OnNodeWillMoveToSpace(*node);
+  }
+  SidebarNode* parent = node->parent();
+  target.AddNode(new_parent, index, parent->Remove(node));
+  if (parent->type() == Type::kSplit) {
+    NormalizeSplit(parent);
   }
 }
 

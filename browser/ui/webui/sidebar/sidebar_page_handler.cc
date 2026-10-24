@@ -8,8 +8,12 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/uuid.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -34,6 +38,10 @@ sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
       return sidebar::mojom::NodeType::kSplit;
   }
 }
+
+// The handler casts between the two.
+static_assert(static_cast<int>(sidebar::mojom::SpaceColor::kMaxValue) ==
+              static_cast<int>(SpaceColor::kMaxValue));
 
 }  // namespace
 
@@ -176,10 +184,7 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
 }
 
 void SidebarPageHandler::SwitchSpace(const std::string& id) {
-  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
-  if (SpaceModel* space =
-          uuid.is_valid() ? features_->service().space_list().FindSpace(uuid)
-                          : nullptr) {
+  if (SpaceModel* space = FindSpace(id)) {
     features_->SwitchToSpace(*space);
   }
 }
@@ -190,6 +195,39 @@ void SidebarPageHandler::AddSpace() {
       list.spaces().size(),
       u"Space " + base::NumberToString16(list.spaces().size() + 1));
   features_->SwitchToSpace(*space);
+}
+
+void SidebarPageHandler::RenameSpace(const std::string& id,
+                                     const std::string& name) {
+  SpaceModel* space = FindSpace(id);
+  std::u16string name16;
+  base::TrimWhitespace(base::UTF8ToUTF16(name), base::TRIM_ALL, &name16);
+  if (space && !name16.empty()) {
+    space->SetName(std::move(name16));
+  }
+}
+
+void SidebarPageHandler::SetSpaceColor(const std::string& id,
+                                       sidebar::mojom::SpaceColor color) {
+  // Mojo has validated |color|.
+  if (SpaceModel* space = FindSpace(id)) {
+    space->SetColor(static_cast<SpaceColor>(color));
+  }
+}
+
+void SidebarPageHandler::DeleteSpace(const std::string& id) {
+  if (SpaceModel* space = FindSpace(id)) {
+    strata::DeleteSpace(browser_->GetProfile(), *space);
+  }
+}
+
+void SidebarPageHandler::MoveNodeToSpace(const std::string& id,
+                                         const std::string& space_id) {
+  SidebarNode* node = FindNode(id);
+  SpaceModel* space = FindSpace(space_id);
+  if (node && space) {
+    MoveEntryToSpace(browser_->GetProfile(), node, *space);
+  }
 }
 
 void SidebarPageHandler::OnNodeAdded(const SidebarNode& node) {
@@ -214,12 +252,24 @@ void SidebarPageHandler::OnNodeWillBeRemoved(const SidebarNode& node) {
   page_->NodeRemoved(node.id().AsLowercaseString());
 }
 
-void SidebarPageHandler::OnSpaceRenamed() {
-  SendSpaces();
+void SidebarPageHandler::OnNodeWillMoveToSpace(const SidebarNode& node) {
+  page_->NodeRemoved(node.id().AsLowercaseString());
 }
 
 void SidebarPageHandler::OnSpaceAdded(SpaceModel& space) {
   SendSpaces();
+}
+
+void SidebarPageHandler::OnSpaceUpdated(const SpaceModel& space) {
+  SendSpaces();
+}
+
+void SidebarPageHandler::OnSpaceWillBeRemoved(SpaceModel& space) {
+  // Windows showing it have switched away; the list still has it.
+  CHECK_NE(&space, observed_space_);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&SidebarPageHandler::SendSpaces,
+                                weak_factory_.GetWeakPtr()));
 }
 
 void SidebarPageHandler::OnSpaceSwitched() {
@@ -266,6 +316,7 @@ void SidebarPageHandler::SendSpaces() {
     auto mojo_space = sidebar::mojom::Space::New();
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
+    mojo_space->color = static_cast<sidebar::mojom::SpaceColor>(space->color());
     spaces.push_back(std::move(mojo_space));
   }
   page_->SetSpaces(std::move(spaces),
@@ -289,6 +340,12 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {
 SidebarNode* SidebarPageHandler::FindNode(const std::string& id) {
   const base::Uuid uuid = base::Uuid::ParseLowercase(id);
   return uuid.is_valid() ? space_model().FindById(uuid) : nullptr;
+}
+
+SpaceModel* SidebarPageHandler::FindSpace(const std::string& id) {
+  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
+  return uuid.is_valid() ? features_->service().space_list().FindSpace(uuid)
+                         : nullptr;
 }
 
 std::optional<std::string> SidebarPageHandler::GetActiveNodeId() {

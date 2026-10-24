@@ -5,9 +5,11 @@
 #include "strata/browser/sidebar/sidebar_serializer.h"
 
 #include <algorithm>
+#include <array>
 #include <iterator>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/notreached.h"
@@ -29,12 +31,20 @@ constexpr char kActiveKey[] = "active";
 constexpr char kSpacesKey[] = "spaces";
 constexpr char kIdKey[] = "id";
 constexpr char kNameKey[] = "name";
+constexpr char kColorKey[] = "color";
 constexpr char kPinnedKey[] = "pinned";
 constexpr char kTodayKey[] = "today";
 constexpr char kTypeKey[] = "type";
 constexpr char kTitleKey[] = "title";
 constexpr char kUrlKey[] = "url";
 constexpr char kChildrenKey[] = "children";
+
+// By SpaceColor value.
+constexpr auto kColorNames = std::to_array<std::string_view>({
+    "grey", "blue", "purple", "pink", "red", "orange", "yellow", "green",
+});
+static_assert(kColorNames.size() ==
+              static_cast<size_t>(SpaceColor::kMaxValue) + 1);
 
 constexpr char kTab[] = "tab";
 constexpr char kFolder[] = "folder";
@@ -188,6 +198,7 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   base::DictValue data;
   data.Set(kIdKey, model.id().AsLowercaseString());
   data.Set(kNameKey, base::UTF16ToUTF8(model.name()));
+  data.Set(kColorKey, kColorNames[static_cast<size_t>(model.color())]);
   data.Set(kPinnedKey, SerializeSection(*model.pinned_root(), false));
   data.Set(kTodayKey, SerializeSection(*model.today_root(), true));
   return data;
@@ -268,6 +279,14 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
       space = list.AddSpace(index, std::move(name16),
                             fresh_id ? std::optional<base::Uuid>(id)
                                      : std::nullopt);
+    }
+    // Unknown colors (from a later version) stay the default.
+    if (const std::string* color = saved[i]->FindString(kColorKey)) {
+      for (size_t c = 0; c < kColorNames.size(); ++c) {
+        if (*color == kColorNames[c]) {
+          space->SetColor(static_cast<SpaceColor>(c));
+        }
+      }
     }
     DeserializeSpace(*saved[i], *space);
   }

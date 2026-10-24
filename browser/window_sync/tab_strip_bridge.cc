@@ -340,6 +340,14 @@ void TabStripBridge::OnNodeMoved(const SidebarNode& node,
   }
 }
 
+void TabStripBridge::OnNodeWillMoveToSpace(const SidebarNode& node) {
+  // Its tabs keep the node, and MoveEntryToSpace() moves them out. Placeholders
+  // for it have nothing left to bring back here.
+  if (!placeholders_.empty()) {
+    ScheduleClosePlaceholders();
+  }
+}
+
 void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
   std::vector<tabs::TabInterface*> live_tabs;
   CollectLiveTabs(*this, &node, live_tabs);

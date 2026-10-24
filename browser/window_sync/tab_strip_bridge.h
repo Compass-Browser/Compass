@@ -100,6 +100,7 @@ class TabStripBridge : public TabStripModelObserver,
                    const SidebarNode& old_parent,
                    size_t old_index) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
+  void OnNodeWillMoveToSpace(const SidebarNode& node) override;
 
   // LiveTabRegistry::Observer:
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;

@@ -18,6 +18,20 @@ namespace strata {
 // Matches upstream split tabs (MultiContentsView). See ARCHITECTURE.md §9.
 inline constexpr size_t kMaxSplitPanes = 2;
 
+// A space's color, from a fixed palette. The sidebar is tinted with it. Saved
+// by name (see sidebar_serializer.cc), so values can be reordered.
+enum class SpaceColor {
+  kGrey,
+  kBlue,
+  kPurple,
+  kPink,
+  kRed,
+  kOrange,
+  kYellow,
+  kGreen,
+  kMaxValue = kGreen,
+};
+
 // The sidebar tree of one space: a pinned section (folders, tabs and splits;
 // folders nest) and a today section (tabs and splits). Every window shows the
 // same SpaceModel. The model knows nothing about WebContents or windows.
@@ -38,8 +52,12 @@ class SpaceModel {
     virtual void OnNodeChanged(const SidebarNode& node) {}
     // Called before |node| and its subtree are destroyed.
     virtual void OnNodeWillBeRemoved(const SidebarNode& node) {}
-    // The space's name changed.
-    virtual void OnSpaceRenamed() {}
+    // Called before |node| and its subtree move to another space (see
+    // MoveToSpace()). The nodes aren't destroyed: they keep their IDs, and
+    // their live tabs.
+    virtual void OnNodeWillMoveToSpace(const SidebarNode& node) {}
+    // The space's name or color changed.
+    virtual void OnSpaceChanged(const SpaceModel& space) {}
   };
 
   SpaceModel();
@@ -54,6 +72,9 @@ class SpaceModel {
 
   const std::u16string& name() const { return name_; }
   void SetName(std::u16string name);
+
+  SpaceColor color() const { return color_; }
+  void SetColor(SpaceColor color);
 
   SidebarNode* pinned_root() { return pinned_root_.get(); }
   const SidebarNode* pinned_root() const { return pinned_root_.get(); }
@@ -77,6 +98,20 @@ class SpaceModel {
   // Moves |node| into |new_parent| at |index|, counted after |node| has left
   // its current parent.
   void Move(SidebarNode* node, SidebarNode* new_parent, size_t index);
+
+  // Whether |node| may move to |target| space, into |new_parent| (one of
+  // |target|'s nodes).
+  bool CanMoveToSpace(const SidebarNode* node,
+                      const SpaceModel& target,
+                      const SidebarNode* new_parent) const;
+
+  // Moves |node| and its subtree into |target|'s |new_parent| at |index|.
+  // This model's observers see OnNodeWillMoveToSpace(), |target|'s see
+  // OnNodeAdded().
+  void MoveToSpace(SidebarNode* node,
+                   SpaceModel& target,
+                   SidebarNode* new_parent,
+                   size_t index);
 
   // Whether |tab| can be shown side by side with |target|.
   bool CanSplit(const SidebarNode* target, const SidebarNode* tab) const;
@@ -110,6 +145,7 @@ class SpaceModel {
 
   base::Uuid id_;
   std::u16string name_;
+  SpaceColor color_ = SpaceColor::kGrey;
   std::unique_ptr<SidebarNode> pinned_root_;
   std::unique_ptr<SidebarNode> today_root_;
   base::ObserverList<Observer> observers_;

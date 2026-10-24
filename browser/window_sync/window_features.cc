@@ -4,6 +4,7 @@
 
 #include "strata/browser/window_sync/window_features.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -53,6 +54,43 @@ bool IsUsableNormalWindow(BrowserWindowInterface* browser) {
   return browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
          !browser->capabilities()->IsAttemptingToCloseBrowser() && features &&
          !features->is_parking_window();
+}
+
+// A usable normal window of |profile| other than |except| that shows |space|,
+// the most recently active first, or null.
+BrowserWindowInterface* FindWindowShowing(Profile* profile,
+                                          const SpaceModel& space,
+                                          BrowserWindowInterface* except) {
+  BrowserWindowInterface* found = nullptr;
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* other) {
+        if (other != except && IsUsableNormalWindow(other) &&
+            &WindowFeatures::From(other)->space_model() == &space) {
+          found = other;
+        }
+        return !found;
+      },
+      BrowserCollection::Order::kActivation);
+  return found;
+}
+
+// Adds |node|'s live tabs, and those of its subtree, to |tabs|.
+void CollectLiveTabs(const LiveTabRegistry& registry,
+                     const SidebarNode* node,
+                     std::vector<tabs::TabHandle>& tabs) {
+  if (tabs::TabInterface* tab = registry.GetTab(node)) {
+    tabs.push_back(tab->GetHandle());
+  }
+  for (const auto& child : node->children()) {
+    CollectLiveTabs(registry, child.get(), tabs);
+  }
+}
+
+void OpenNewTab(BrowserWindowInterface* browser) {
+  NavigateParams params(browser, GURL(chrome::kChromeUINewTabURL),
+                        ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
 }
 
 }  // namespace
@@ -163,10 +201,7 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
     if (entry) {
       shown = bridge_->OpenNode(entry);
     } else {
-      NavigateParams params(browser_, GURL(chrome::kChromeUINewTabURL),
-                            ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-      params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-      Navigate(&params);
+      OpenNewTab(browser_);
     }
   }
   if (shown && strip->GetIndexOfTab(shown) != TabStripModel::kNoTab) {
@@ -236,18 +271,128 @@ void WindowFeatures::OnWindowBecameActive(BrowserWindowInterface* browser) {
 
 BrowserWindowInterface* WindowFeatures::FindOtherWindowShowing(
     const SpaceModel& space) {
-  BrowserWindowInterface* found = nullptr;
-  ProfileBrowserCollection::GetForProfile(browser_->GetProfile())
-      ->ForEach(
-          [&](BrowserWindowInterface* other) {
-            if (other != browser_ && IsUsableNormalWindow(other) &&
-                &WindowFeatures::From(other)->space_model() == &space) {
-              found = other;
-            }
-            return !found;
-          },
-          BrowserCollection::Order::kActivation);
-  return found;
+  return FindWindowShowing(browser_->GetProfile(), space, browser_);
+}
+
+void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target) {
+  SpaceService* service = SpaceService::Get(profile);
+  SpaceModel* source = service->space_list().FindSpaceOf(node);
+  if (!source || service->space_list().FindSpace(target.id()) != &target) {
+    return;
+  }
+  SidebarNode* new_parent = source->pinned_root()->Contains(node)
+                                ? target.pinned_root()
+                                : target.today_root();
+  if (!source->CanMoveToSpace(node, target, new_parent)) {
+    return;
+  }
+  LiveTabRegistry& registry = service->registry();
+  std::vector<tabs::TabHandle> moving;
+  CollectLiveTabs(registry, node, moving);
+
+  // The tabs that leave a window mustn't be the one it shows: a placeholder
+  // would take its place. Show another tab, or a new one.
+  auto is_moving = [&](const tabs::TabInterface* tab) {
+    return std::ranges::any_of(moving, [&](const tabs::TabHandle& handle) {
+      return handle.Get() == tab;
+    });
+  };
+  for (const tabs::TabHandle& handle : moving) {
+    tabs::TabInterface* tab = handle.Get();
+    BrowserWindowInterface* window = tab->GetBrowserWindowInterface();
+    WindowFeatures* features = window ? WindowFeatures::From(window) : nullptr;
+    if (!features || features->is_parking_window() ||
+        window->GetActiveTabInterface() != tab) {
+      continue;
+    }
+    // The nearest tab before it that stays, else the first after it.
+    TabStripModel* strip = window->GetTabStripModel();
+    const int active = strip->GetIndexOfTab(tab);
+    int staying = TabStripModel::kNoTab;
+    for (int i = 0; i < strip->count(); ++i) {
+      if (is_moving(strip->GetTabAtIndex(i))) {
+        continue;
+      }
+      if (i > active) {
+        if (staying == TabStripModel::kNoTab) {
+          staying = i;
+        }
+        break;
+      }
+      staying = i;
+    }
+    if (staying == TabStripModel::kNoTab) {
+      OpenNewTab(window);
+    } else {
+      strip->ActivateTabAt(staying);
+    }
+  }
+
+  source->MoveToSpace(node, target, new_parent, new_parent->children().size());
+
+  BrowserWindowInterface* destination =
+      FindWindowShowing(profile, target, nullptr);
+  for (const tabs::TabHandle& handle : moving) {
+    tabs::TabInterface* tab = handle.Get();
+    BrowserWindowInterface* window = tab ? tab->GetBrowserWindowInterface()
+                                         : nullptr;
+    WindowFeatures* features = window ? WindowFeatures::From(window) : nullptr;
+    // Parked tabs stay parked: the parking window holds every space's.
+    if (!features || features->is_parking_window() ||
+        &features->space_model() == &target) {
+      continue;
+    }
+    if (!destination) {
+      destination = service->GetOrCreateParkingWindow();
+    }
+    TabStripModel* strip = window->GetTabStripModel();
+    TabStripModel* destination_strip = destination->GetTabStripModel();
+    destination_strip->InsertDetachedTabAt(
+        destination_strip->count(),
+        strip->DetachTabAtForInsertion(strip->GetIndexOfTab(tab)),
+        AddTabTypes::ADD_NONE);
+  }
+}
+
+void DeleteSpace(Profile* profile, SpaceModel& space) {
+  SpaceService* service = SpaceService::Get(profile);
+  SpaceList& list = service->space_list();
+  const auto& spaces = list.spaces();
+  auto it = std::ranges::find(spaces, &space, &std::unique_ptr<SpaceModel>::get);
+  if (it == spaces.end() || spaces.size() < 2) {
+    return;
+  }
+  SpaceModel& fallback = it + 1 != spaces.end() ? **(it + 1) : **(it - 1);
+
+  // Every window bound to it, closing or not, so no bridge outlives it.
+  std::vector<WindowFeatures*> showing;
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        WindowFeatures* features = WindowFeatures::From(browser);
+        if (features && !features->is_parking_window() &&
+            &features->space_model() == &space) {
+          showing.push_back(features);
+        }
+        return true;
+      },
+      BrowserCollection::Order::kActivation);
+  for (WindowFeatures* features : showing) {
+    features->SwitchToSpace(fallback);
+  }
+
+  // Its live tabs are all parked now.
+  if (BrowserWindowInterface* parking = service->parking_window()) {
+    TabStripModel* strip = parking->GetTabStripModel();
+    for (int i = strip->count() - 1; i >= 0; --i) {
+      tabs::TabInterface* tab = strip->GetTabAtIndex(i);
+      SidebarNode* node = service->registry().GetNode(tab);
+      if (node && space.Contains(node)) {
+        service->registry().Unregister(tab);
+        strip->CloseWebContentsAt(i, CLOSE_NONE);
+      }
+    }
+  }
+  list.RemoveSpace(space);
 }
 
 bool HandOffTabsBeforeClose(BrowserWindowInterface* browser) {

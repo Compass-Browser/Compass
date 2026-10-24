@@ -18,6 +18,7 @@
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
+class Profile;
 
 namespace strata {
 
@@ -90,6 +91,19 @@ class WindowFeatures {
   // be used: it never registers itself.
   ui::ScopedUnownedUserData<WindowFeatures> scoped_data_holder_;
 };
+
+// Moves |node|, an entry of one of |profile|'s spaces, to |target|: a pinned
+// entry to the end of |target|'s Pinned, a Today entry to the end of its
+// Today. Its live tabs go with it, out of windows showing the space it left,
+// to a window showing |target| or to the parking window. A window whose
+// active tab leaves shows another one. Entries that can't go there (a folder
+// into Today) stay. See docs/design/spaces.md, "Moving entries".
+void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target);
+
+// Deletes |space|, unless it's |profile|'s only one. Windows showing it switch
+// to the space after it (before it, if it's last) first; then its tabs close
+// and its entries go. See docs/design/spaces.md, "Deleting a space".
+void DeleteSpace(Profile* profile, SpaceModel& space);
 
 // Called when |browser|'s window is asked to close, before beforeunload
 // handlers run. Hands its tabs to the most recently active other window of

@@ -4,6 +4,7 @@
 
 #include "base/test/run_until.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -16,10 +17,15 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/accelerators/accelerator.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 #include "url/gurl.h"
@@ -298,7 +304,8 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
   EXPECT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
       const root = document.querySelector('strata-sidebar-app').shadowRoot;
-      while (root.querySelector('#spaceName')?.textContent !== 'Space 2' ||
+      const name = () => root.querySelector('#spaceName')?.textContent.trim();
+      while (name() !== 'Space 2' ||
              root.querySelectorAll('.space').length !== 2) {
         await new Promise(r => setTimeout(r, 20));
       }
@@ -333,6 +340,110 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return &features->space_model() == home; }));
   EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), one);
+}
+
+// Switches |browser|'s window to its space at |index| (0 to 8) with the
+// keyboard shortcut. Returns whether the shortcut was taken.
+bool PressSpaceShortcut(views::View* browser_view, int index) {
+#if BUILDFLAG(IS_MAC)
+  constexpr int kModifiers = ui::EF_CONTROL_DOWN;
+#else
+  constexpr int kModifiers = ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN;
+#endif
+  return browser_view->GetFocusManager()->ProcessAccelerator(ui::Accelerator(
+      static_cast<ui::KeyboardCode>(ui::VKEY_1 + index), kModifiers));
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       DragOntoASpaceMovesTheEntryAndShortcutsSwitch) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  content::WebContents* two = browser()->tab_strip_model()->GetActiveWebContents();
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+
+  ASSERT_EQ(true, content::EvalJs(sidebar_contents(),
+                                  content::JsReplace(kDrag, "Two",
+                                                     ".space[title='Work']",
+                                                     0.5)));
+
+  // Two moved, with its tab; the window shows One.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return work->today_root()->children().size() == 1u; }));
+  EXPECT_EQ(work->today_root()->children()[0]->title(), u"Two");
+  EXPECT_EQ(home->today_root()->children().size(), 1u);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents()->GetTitle(),
+            u"One");
+
+  // Ctrl+2 goes to Work, where Two is still the same page.
+  EXPECT_TRUE(PressSpaceShortcut(browser_view(), 1));
+  EXPECT_EQ(&features->space_model(), work);
+  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), two);
+  EXPECT_TRUE(PressSpaceShortcut(browser_view(), 0));
+  EXPECT_EQ(&features->space_model(), home);
+  // There's no third space.
+  EXPECT_FALSE(PressSpaceShortcut(browser_view(), 2));
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('#addSpace').click();
+  )"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return &features->space_model() != home; }));
+  SpaceModel* added = &features->space_model();
+
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      const button = await until(() => root.querySelectorAll('.space')[1]);
+      button.dispatchEvent(new MouseEvent(
+          'contextmenu', {bubbles: true, cancelable: true, composed: true}));
+      const input = await until(() => root.querySelector('#spaceNameInput'));
+      input.value = 'Work';
+      input.dispatchEvent(new Event('change'));
+      root.querySelector('.swatch[title="Blue"]').click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return added->name() == u"Work" && added->color() == SpaceColor::kBlue;
+  }));
+
+  // Delete wants a second click. The window goes back to Home.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      // Reopened from the name, which also starts over.
+      root.querySelector('#spaceName').dispatchEvent(new MouseEvent(
+          'dblclick', {bubbles: true, composed: true}));
+      const remove = await until(() => root.querySelector('#deleteSpace'));
+      remove.click();
+      await until(() => remove.hasAttribute('confirming'));
+      remove.click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return features->service().space_list().spaces().size() == 1u;
+  }));
+  EXPECT_EQ(&features->space_model(), home);
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {

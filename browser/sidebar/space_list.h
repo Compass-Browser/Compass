@@ -21,11 +21,15 @@ namespace strata {
 
 // A profile's spaces, in the switcher's order, and the active one: the space
 // new windows open in. Never empty. See docs/design/spaces.md.
-class SpaceList {
+class SpaceList : public SpaceModel::Observer {
  public:
   class Observer : public base::CheckedObserver {
    public:
     virtual void OnSpaceAdded(SpaceModel& space) {}
+    // |space|'s name or color changed.
+    virtual void OnSpaceUpdated(const SpaceModel& space) {}
+    // Called before |space| is destroyed. It's no longer active.
+    virtual void OnSpaceWillBeRemoved(SpaceModel& space) {}
     virtual void OnActiveSpaceChanged() {}
   };
 
@@ -33,7 +37,7 @@ class SpaceList {
   SpaceList();
   SpaceList(const SpaceList&) = delete;
   SpaceList& operator=(const SpaceList&) = delete;
-  ~SpaceList();
+  ~SpaceList() override;
 
   const std::vector<std::unique_ptr<SpaceModel>>& spaces() const {
     return spaces_;
@@ -48,11 +52,18 @@ class SpaceList {
                        std::u16string name,
                        std::optional<base::Uuid> id = std::nullopt);
 
+  // Removes and destroys |space|, which mustn't be the only one. If it's
+  // active, the space after it becomes active (the one before, if it's last).
+  void RemoveSpace(SpaceModel& space);
+
   SpaceModel& active_space() const { return *active_space_; }
   void SetActiveSpace(SpaceModel& space);
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
+
+  // SpaceModel::Observer:
+  void OnSpaceChanged(const SpaceModel& space) override;
 
  private:
   std::vector<std::unique_ptr<SpaceModel>> spaces_;

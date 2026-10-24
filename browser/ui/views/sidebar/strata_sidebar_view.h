@@ -9,20 +9,45 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/webview/webview.h"
 
 class BrowserWindowInterface;
 
 namespace views {
+class FocusManager;
 class View;
 }  // namespace views
 
 namespace strata {
 
+// Switches |browser|'s window to its Nth space on Ctrl+N (N = 1 to 9;
+// Ctrl+Shift+N outside macOS, where Ctrl+N picks tabs), while registered with
+// the window's focus manager. Pages get the keys first.
+class SpaceShortcuts : public ui::AcceleratorTarget {
+ public:
+  explicit SpaceShortcuts(BrowserWindowInterface* browser);
+  SpaceShortcuts(const SpaceShortcuts&) = delete;
+  SpaceShortcuts& operator=(const SpaceShortcuts&) = delete;
+  ~SpaceShortcuts() override;
+
+  void Register(views::FocusManager* focus_manager);
+  void Unregister();
+
+  // ui::AcceleratorTarget:
+  bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
+  bool CanHandleAccelerators() const override;
+
+ private:
+  const raw_ptr<BrowserWindowInterface> browser_;
+  raw_ptr<views::FocusManager> focus_manager_ = nullptr;
+};
+
 // Hosts chrome://strata-sidebar inside the vertical tab strip region, where
-// the native tab strip would be.
+// the native tab strip would be, and the window's space shortcuts.
 class StrataSidebarView : public views::WebView {
   METADATA_HEADER(StrataSidebarView, views::WebView)
 
@@ -31,6 +56,13 @@ class StrataSidebarView : public views::WebView {
   StrataSidebarView(const StrataSidebarView&) = delete;
   StrataSidebarView& operator=(const StrataSidebarView&) = delete;
   ~StrataSidebarView() override;
+
+  // views::WebView:
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
+
+ private:
+  SpaceShortcuts space_shortcuts_;
 };
 
 // The sidebar the vertical tab strip region shows in place of the native tab

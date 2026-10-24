@@ -76,6 +76,12 @@ void SidebarStore::OnSpaceAdded(SpaceModel& space) {
   ScheduleSave();
 }
 
+void SidebarStore::OnSpaceWillBeRemoved(SpaceModel& space) {
+  space.RemoveObserver(this);
+  // The write happens later, without it.
+  ScheduleSave();
+}
+
 void SidebarStore::OnActiveSpaceChanged() {
   ScheduleSave();
 }
@@ -98,7 +104,11 @@ void SidebarStore::OnNodeWillBeRemoved(const SidebarNode& node) {
   ScheduleSave();
 }
 
-void SidebarStore::OnSpaceRenamed() {
+void SidebarStore::OnNodeWillMoveToSpace(const SidebarNode& node) {
+  ScheduleSave();
+}
+
+void SidebarStore::OnSpaceChanged(const SpaceModel& space) {
   ScheduleSave();
 }
 

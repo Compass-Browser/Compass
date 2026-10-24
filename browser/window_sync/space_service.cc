@@ -137,6 +137,11 @@ void SpaceService::OnSpaceAdded(SpaceModel& space) {
   matchers_[&space] = std::move(matcher);
 }
 
+void SpaceService::OnSpaceWillBeRemoved(SpaceModel& space) {
+  matchers_.erase(&space);
+  last_active_nodes_.erase(&space);
+}
+
 void SpaceService::OnLoaded() {
   loaded_ = true;
   for (auto& [space, matcher] : matchers_) {

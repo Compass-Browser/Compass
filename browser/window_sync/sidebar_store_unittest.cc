@@ -12,6 +12,7 @@
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
+#include "base/uuid.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -157,6 +158,31 @@ TEST_F(SidebarStoreTest, SavesSpacesAndTheActiveOne) {
   EXPECT_EQ(restored.active_space().id(), work->id());
   EXPECT_EQ(restored.active_space().name(), u"Job");
   EXPECT_EQ(Titles(restored.active_space().pinned_root()), "w");
+}
+
+TEST_F(SidebarStoreTest, SavesRemovalsAndMovesBetweenSpaces) {
+  SpaceList list;
+  auto store = std::make_unique<SidebarStore>(path(), &list);
+  Load(*store);
+  SpaceModel& home = list.active_space();
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  AddPinned(*work, "w");
+  work->MoveToSpace(work->pinned_root()->children()[0].get(), home,
+                    home.pinned_root(), 0);
+  play->SetColor(SpaceColor::kRed);
+  const base::Uuid work_id = work->id();
+  list.RemoveSpace(*work);
+  Close(std::move(store));
+
+  SpaceList restored;
+  SidebarStore restored_store(path(), &restored);
+  Load(restored_store);
+
+  ASSERT_EQ(restored.spaces().size(), 2u);
+  EXPECT_EQ(Titles(restored.active_space().pinned_root()), "w");
+  EXPECT_EQ(restored.FindSpace(play->id())->color(), SpaceColor::kRed);
+  EXPECT_FALSE(restored.FindSpace(work_id));
 }
 
 }  // namespace

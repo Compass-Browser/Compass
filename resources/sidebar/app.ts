@@ -3,13 +3,14 @@
 // found in the LICENSE file.
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import './node.js';
 import type {Node, Space, Tree} from './sidebar.mojom-webui.js';
-import {NodeType} from './sidebar.mojom-webui.js';
+import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
@@ -21,10 +22,24 @@ interface DropTarget {
   position: 'before'|'after'|'into'|'end';
 }
 
+// What each space color looks like, and its name. Grey spaces aren't tinted.
+const SPACE_COLORS: Map<SpaceColor, {css: string, name: string}> = new Map([
+  [SpaceColor.kGrey, {css: 'rgb(128, 128, 128)', name: 'Grey'}],
+  [SpaceColor.kBlue, {css: 'rgb(59, 130, 246)', name: 'Blue'}],
+  [SpaceColor.kPurple, {css: 'rgb(139, 92, 246)', name: 'Purple'}],
+  [SpaceColor.kPink, {css: 'rgb(236, 72, 153)', name: 'Pink'}],
+  [SpaceColor.kRed, {css: 'rgb(239, 68, 68)', name: 'Red'}],
+  [SpaceColor.kOrange, {css: 'rgb(249, 115, 22)', name: 'Orange'}],
+  [SpaceColor.kYellow, {css: 'rgb(234, 179, 8)', name: 'Yellow'}],
+  [SpaceColor.kGreen, {css: 'rgb(34, 197, 94)', name: 'Green'}],
+]);
+
 // The sidebar: the window's SpaceModel, as a pinned and a Today section. The
 // browser sends the tree once, then diffs. Entries are rearranged by dragging,
-// and links dragged in open where they're dropped. Slices b, c and e of
-// docs/design/sidebar.md.
+// and links dragged in open where they're dropped, or onto another space's
+// button to move there. A space's menu (right-click its button, or
+// double-click the name) renames, colors and deletes it. Slices b, c and e of
+// docs/design/sidebar.md, and docs/design/spaces.md.
 export class StrataSidebarAppElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-app';
@@ -46,6 +61,8 @@ export class StrataSidebarAppElement extends CrLitElement {
       collapsedIds_: {type: Object},
       spaces_: {type: Array},
       activeSpaceId_: {type: String},
+      menuSpaceId_: {type: String},
+      confirmingDelete_: {type: Boolean},
     };
   }
 
@@ -55,6 +72,11 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected accessor collapsedIds_: Set<string> = new Set();
   protected accessor spaces_: Space[] = [];
   protected accessor activeSpaceId_: string = '';
+  // The space whose menu is open, if any.
+  protected accessor menuSpaceId_: string|null = null;
+  // Delete asks to be clicked twice.
+  protected accessor confirmingDelete_: boolean = false;
+  protected readonly spaceColors_: SpaceColor[] = Array.from(SPACE_COLORS.keys());
 
   private browserProxy_: SidebarBrowserProxy =
       SidebarBrowserProxy.getInstance();
@@ -89,20 +111,131 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.browserProxy_.handler.requestTree();
     document.addEventListener('dragover', this.onDocumentDragover_);
     document.addEventListener('drop', this.onDocumentDrop_);
+    document.addEventListener('pointerdown', this.onDocumentPointerdown_);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener('dragover', this.onDocumentDragover_);
     document.removeEventListener('drop', this.onDocumentDrop_);
+    document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
     for (const id of this.listenerIds_) {
       this.browserProxy_.callbackRouter.removeListener(id);
     }
     this.listenerIds_ = [];
   }
 
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    // The window's space tints the whole sidebar.
+    const active = this.spaces_.find(space => this.isActiveSpace_(space));
+    this.style.setProperty(
+        '--space-tint',
+        active && active.color !== SpaceColor.kGrey ?
+            this.getSpaceColor_(active.color) :
+            'transparent');
+  }
+
   protected getActiveSpaceName_(): string {
     return this.spaces_.find(space => this.isActiveSpace_(space))?.name ?? '';
+  }
+
+  protected getSpaceColor_(color: SpaceColor): string {
+    return (SPACE_COLORS.get(color) ?? SPACE_COLORS.get(SpaceColor.kGrey)!).css;
+  }
+
+  protected getColorName_(color: SpaceColor): string {
+    return SPACE_COLORS.get(color)?.name ?? '';
+  }
+
+  protected getMenuSpace_(): Space|null {
+    return this.spaces_.find(space => space.id === this.menuSpaceId_) ?? null;
+  }
+
+  protected isMenuSpaceColor_(color: SpaceColor): boolean {
+    return this.getMenuSpace_()?.color === color;
+  }
+
+  protected canDeleteSpace_(): boolean {
+    return this.spaces_.length > 1;
+  }
+
+  protected getDeleteLabel_(): string {
+    return this.confirmingDelete_ ? 'Click again to delete' : 'Delete space';
+  }
+
+  private openSpaceMenu_(id: string) {
+    this.menuSpaceId_ = id;
+    this.confirmingDelete_ = false;
+    this.updateComplete.then(() => {
+      this.shadowRoot.querySelector<HTMLInputElement>('#spaceNameInput')
+          ?.select();
+    });
+  }
+
+  private closeSpaceMenu_() {
+    this.menuSpaceId_ = null;
+    this.confirmingDelete_ = false;
+  }
+
+  protected onSpaceContextmenu_(e: MouseEvent) {
+    e.preventDefault();
+    this.openSpaceMenu_((e.currentTarget as HTMLElement).dataset['spaceId']!);
+  }
+
+  protected onSpaceNameDblclick_() {
+    this.openSpaceMenu_(this.activeSpaceId_);
+  }
+
+  private onDocumentPointerdown_ = (e: PointerEvent) => {
+    const menu = this.shadowRoot.querySelector('#spaceMenu');
+    if (menu && !e.composedPath().includes(menu)) {
+      this.closeSpaceMenu_();
+    }
+  };
+
+  protected onSpaceMenuKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      this.closeSpaceMenu_();
+    }
+  }
+
+  protected onSpaceNameKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      this.renameMenuSpace_(e.target as HTMLInputElement);
+      this.closeSpaceMenu_();
+    }
+  }
+
+  protected onSpaceNameChange_(e: Event) {
+    this.renameMenuSpace_(e.target as HTMLInputElement);
+  }
+
+  private renameMenuSpace_(input: HTMLInputElement) {
+    const space = this.getMenuSpace_();
+    const name = input.value.trim();
+    if (space && name && name !== space.name) {
+      this.browserProxy_.handler.renameSpace(space.id, name);
+    }
+  }
+
+  protected onSwatchClick_(e: Event) {
+    const color =
+        Number((e.currentTarget as HTMLElement).dataset['color']) as SpaceColor;
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceColor(this.menuSpaceId_, color);
+    }
+  }
+
+  protected onDeleteSpaceClick_() {
+    if (!this.confirmingDelete_) {
+      this.confirmingDelete_ = true;
+      return;
+    }
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.deleteSpace(this.menuSpaceId_);
+    }
+    this.closeSpaceMenu_();
   }
 
   protected isActiveSpace_(space: Space): boolean {
@@ -123,6 +256,30 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   protected onAddSpaceClick_() {
     this.browserProxy_.handler.addSpace();
+  }
+
+  // Entries dragged onto another space's button move there.
+  protected onSpaceDragover_(e: DragEvent) {
+    const button = e.currentTarget as HTMLElement;
+    if (!this.draggingId_ || button.dataset['spaceId'] === this.activeSpaceId_) {
+      return;
+    }
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'move';
+    button.setAttribute('drop', '');
+  }
+
+  protected onSpaceDragleave_(e: DragEvent) {
+    (e.currentTarget as HTMLElement).removeAttribute('drop');
+  }
+
+  protected onSpaceDrop_(e: DragEvent) {
+    e.preventDefault();
+    const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
+    if (this.draggingId_ && id !== this.activeSpaceId_) {
+      this.browserProxy_.handler.moveNodeToSpace(this.draggingId_, id);
+    }
+    this.endDrag_();
   }
 
   protected getPinned_(): Node[] {
@@ -221,6 +378,7 @@ export class StrataSidebarAppElement extends CrLitElement {
   private endDrag_() {
     this.showDropTarget_(null);
     this.shadowRoot.querySelector('[dragging]')?.removeAttribute('dragging');
+    this.shadowRoot.querySelector('.space[drop]')?.removeAttribute('drop');
     this.draggingId_ = null;
   }
 

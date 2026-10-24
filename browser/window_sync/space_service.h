@@ -77,6 +77,7 @@ class SpaceService : public base::SupportsUserData::Data,
 
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
+  void OnSpaceWillBeRemoved(SpaceModel& space) override;
 
  private:
   explicit SpaceService(Profile* profile);

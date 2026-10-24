@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -63,6 +64,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void DeleteNode(const std::string& id) override;
   void SwitchSpace(const std::string& id) override;
   void AddSpace() override;
+  void RenameSpace(const std::string& id, const std::string& name) override;
+  void SetSpaceColor(const std::string& id,
+                     sidebar::mojom::SpaceColor color) override;
+  void DeleteSpace(const std::string& id) override;
+  void MoveNodeToSpace(const std::string& id,
+                       const std::string& space_id) override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -71,10 +78,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                    size_t old_index) override;
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
-  void OnSpaceRenamed() override;
+  void OnNodeWillMoveToSpace(const SidebarNode& node) override;
 
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
+  void OnSpaceUpdated(const SpaceModel& space) override;
+  void OnSpaceWillBeRemoved(SpaceModel& space) override;
 
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
@@ -99,6 +108,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   // The node with |id|, or null if there is none (the page can be behind).
   SidebarNode* FindNode(const std::string& id);
+  // The space with |id|, or null.
+  SpaceModel* FindSpace(const std::string& id);
 
   // The node of the window's active tab, as an ID for the page.
   std::optional<std::string> GetActiveNodeId();
@@ -114,6 +125,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   raw_ptr<SpaceModel> observed_space_ = nullptr;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
+
+  base::WeakPtrFactory<SidebarPageHandler> weak_factory_{this};
 };
 
 }  // namespace strata

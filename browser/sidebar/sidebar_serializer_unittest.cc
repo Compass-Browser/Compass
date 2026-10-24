@@ -162,6 +162,8 @@ TEST(SidebarSerializerTest, RoundTripsTheSpaceList) {
   SpaceModel* play = list.AddSpace(2, u"Play");
   work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
   play->AddTab(play->today_root(), 0, GURL("https://p.test/"), u"P");
+  work->SetColor(SpaceColor::kGreen);
+  play->SetColor(SpaceColor::kPink);
   list.SetActiveSpace(*work);
 
   SpaceList restored;
@@ -172,6 +174,9 @@ TEST(SidebarSerializerTest, RoundTripsTheSpaceList) {
   EXPECT_EQ(restored.active_space().id(), work->id());
   EXPECT_EQ(Describe(restored.active_space().pinned_root()), "W");
   EXPECT_EQ(Describe(restored.FindSpace(play->id())->today_root()), "P");
+  EXPECT_EQ(restored.active_space().color(), SpaceColor::kGreen);
+  EXPECT_EQ(restored.FindSpace(play->id())->color(), SpaceColor::kPink);
+  EXPECT_EQ(restored.spaces()[0]->color(), SpaceColor::kGrey);
 }
 
 TEST(SidebarSerializerTest, TheActiveSpaceKeepsWhatItHadBeforeTheLoad) {

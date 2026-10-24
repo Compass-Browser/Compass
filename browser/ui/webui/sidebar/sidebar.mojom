@@ -40,10 +40,23 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
+// Mirrors strata::SpaceColor.
+enum SpaceColor {
+  kGrey,
+  kBlue,
+  kPurple,
+  kPink,
+  kRed,
+  kOrange,
+  kYellow,
+  kGreen,
+};
+
 // A space, as the switcher shows it.
 struct Space {
   string id;
   string name;
+  SpaceColor color;
 };
 
 // Browser-side handler for requests from chrome://strata-sidebar.
@@ -79,6 +92,15 @@ interface PageHandler {
   SwitchSpace(string id);
   // Adds a space at the end and switches to it.
   AddSpace();
+  // Empty names are ignored.
+  RenameSpace(string id, string name);
+  SetSpaceColor(string id, SpaceColor color);
+  // Deletes a space with its entries and tabs, unless it's the last one.
+  // Windows showing it switch to its neighbor first.
+  DeleteSpace(string id);
+  // Moves an entry and its subtree, with its live tabs, to another space: to
+  // the end of the same section there.
+  MoveNodeToSpace(string id, string space_id);
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,

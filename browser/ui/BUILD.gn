@@ -40,6 +40,8 @@ source_set("ui") {
     "//strata/resources/sidebar:resources",
     "//skia",
     "//ui/base",
+    "//ui/events",
+    "//ui/events:events_base",
     "//ui/views",
     "//ui/views/controls/webview",
     "//ui/webui",
