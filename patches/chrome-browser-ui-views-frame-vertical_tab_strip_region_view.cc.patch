@@ -1,17 +1,27 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..50ef2fc1b733cac50e92b2bbae9f0f20fc60acdc 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..9120816595a9cc7d6142114caac791c95f7d3b78 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
  
++#include "strata/browser/ui/views/sidebar/sidebar_header.h"
 +#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 +
  #include <algorithm>
  #include <optional>
  #include <utility>
-@@ -239,8 +241,10 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
+@@ -120,7 +123,7 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
+ 
+   // Create child views.
+   top_button_container_ =
+-      AddChildView(std::make_unique<VerticalTabStripTopContainer>(
++      AddChildView(strata::CreateSidebarHeader(
+           state_controller_, root_action_item, browser_view->browser()));
+ 
+   auto content_area_view = std::make_unique<views::FlexLayoutView>();
+@@ -239,8 +242,10 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
        if (motion == TabStripAnimations::kExpand) {
          update_state_controller_collapsed_callback_.Run(false);
        }
@@ -24,7 +34,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..50ef2fc1b733cac50e92b2bbae9f0f20
        if (tab_strip_view()) {
          tab_strip_view()->SetIsAnimatingSize(true);
        }
-@@ -700,8 +704,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
+@@ -700,8 +705,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
  
  void VerticalTabStripRegionView::OnResize(int resize_amount,
                                            bool done_resizing) {
@@ -36,7 +46,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..50ef2fc1b733cac50e92b2bbae9f0f20
    if (!starting_width_on_resize_.has_value()) {
      starting_width_on_resize_ = width();
      state_controller_->SetIsResizing(true);
-@@ -785,7 +790,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
+@@ -785,7 +791,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
    // attached. target_collapse_state_ is still set so that when
    // SetTabStripView() is eventually called, the region view and all child
    // views initialize directly in the target collapse state.
@@ -45,7 +55,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..50ef2fc1b733cac50e92b2bbae9f0f20
      return;
    }
    const auto motion =
-@@ -889,6 +894,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+@@ -889,6 +895,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
    return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
@@ -85,7 +95,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..50ef2fc1b733cac50e92b2bbae9f0f20
  void VerticalTabStripRegionView::OnCollapseStateChanged(
      tabs::VerticalTabStripCollapseState state) {
    // Apply padding immediately at the start of the animation by including
-@@ -1026,7 +1064,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+@@ -1026,7 +1065,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
      return;
    }
  

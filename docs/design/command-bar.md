@@ -1,6 +1,6 @@
 # Command bar and toolbar-free window
 
-Status: slice 1 done (command bar); slice 2 (sidebar header) next. Builds on ARCHITECTURE.md §4 and §11 and on
+Status: slices 1 (command bar) and 2 (sidebar header) done; slice 3 (no toolbar) next. Builds on ARCHITECTURE.md §4 and §11 and on
 [sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
 
 ## Goal
@@ -119,3 +119,59 @@ it's checked by hand.
 - Hovering selects a row, so a pointer resting where the bubble appears
   selects that row instead of the default suggestion.
 - No `OmniboxLog` is reported (see Accepting).
+
+## Slice 2: sidebar header
+
+### Where it lives
+
+Upstream's vertical tab strip region already has a top row: the traffic
+lights (as the caption-button exclusion), the collapse button and the combo
+button (Everything menu and tab search). Its layout,
+`VerticalTabStripTopContainer::CalculateProposedLayout()`, is written out
+per button, so adding buttons to it would be a large patch that conflicts on
+every update. Instead `strata::SidebarHeader` subclasses the container and
+overrides that method: it takes upstream's layout and adds its own views
+around it. The region patch constructs it in place of the upstream class
+(one line).
+
+The header's views are native, not part of the sidebar page: slice 3 puts
+site info and the extensions button on the pill, and their bubbles anchor
+to views.
+
+### Contents
+
+- **Back, forward, reload**: upstream's `BackForwardButton` (with its
+  history menu on long press or right click) and `ReloadButton` (with its
+  stop mode and menu), wired as `ToolbarView` wires them: back and forward
+  run `IDC_BACK`/`IDC_FORWARD`, and the header observes the commands'
+  enabled state. Reload switches to stop while the active tab loads.
+- **URL pill**: a full-width button under the row showing the active tab's
+  host (`www.` dropped), or its full URL for schemes without a host, and
+  "Search or enter URL" for a new tab page. Clicking it opens the command
+  bar on the current URL, as Cmd+L does.
+
+### Layout
+
+When the region is collapsed the header adds nothing and upstream's layout
+stands. Expanded:
+
+- The nav buttons sit at the right end of the top row, centered on the
+  collapse button's center, to the left of the combo button if that has
+  any visible part. If they don't fit between the collapse button and that
+  edge, they move to a row of their own under upstream's layout.
+- The pill takes a row under everything else, with the region's horizontal
+  padding.
+
+The combo button's two parts (Everything menu, tab search) are user prefs.
+Strata defaults both to unpinned (tab_strip_prefs patch): the command bar
+covers tab search. Pinning one again from its context menu brings it back
+next to the nav buttons.
+
+The toolbar is still shown in this slice; slice 3 hides it.
+
+### Tests
+
+Browser tests: the header shows the buttons and the pill in the expanded
+region and hides them collapsed; back becomes enabled after a navigation
+and goes back; the pill follows the active tab's host; clicking it opens
+the command bar on the current URL.
