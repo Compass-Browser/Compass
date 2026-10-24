@@ -13,6 +13,7 @@ test("strata_unittests") {
     "//chrome/test:test_support_unit",
     "//strata/browser/sidebar:unit_tests",
     "//strata/browser/ui:unit_tests",
+    "//strata/browser/window_sync:unit_tests",
   ]
 }
 

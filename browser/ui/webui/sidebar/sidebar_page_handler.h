@@ -5,7 +5,8 @@
 #ifndef STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
 #define STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
 
-#include <vector>
+#include <optional>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -13,6 +14,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
 
 class BrowserWindowInterface;
@@ -20,10 +22,13 @@ class TabStripModel;
 
 namespace strata {
 
-// Serves the sidebar page the tabs of the window it is hosted in, and acts on
-// its requests. Slice a of docs/design/sidebar.md: reads TabStripModel
-// directly; SpaceModel takes over in slice b.
+class WindowFeatures;
+
+// Serves the sidebar page its window's SpaceModel and acts on the page's
+// requests. Sends the tree once, then the model's changes as they happen.
+// Slice b of docs/design/sidebar.md.
 class SidebarPageHandler : public sidebar::mojom::PageHandler,
+                           public SpaceModel::Observer,
                            public TabStripModelObserver {
  public:
   SidebarPageHandler(
@@ -35,28 +40,41 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   ~SidebarPageHandler() override;
 
   // sidebar::mojom::PageHandler:
-  void GetTabs(GetTabsCallback callback) override;
-  void ActivateTab(int32_t tab_id) override;
-  void CloseTab(int32_t tab_id) override;
+  void RequestTree() override;
+  void ActivateNode(const std::string& id) override;
+  void CloseNode(const std::string& id) override;
   void NewTab() override;
 
+  // SpaceModel::Observer:
+  void OnNodeAdded(const SidebarNode& node) override;
+  void OnNodeMoved(const SidebarNode& node,
+                   const SidebarNode& old_parent,
+                   size_t old_index) override;
+  void OnNodeChanged(const SidebarNode& node) override;
+  void OnNodeWillBeRemoved(const SidebarNode& node) override;
+
   // TabStripModelObserver:
-  void OnTabStripModelChanged(TabStripModel* tab_strip_model,
-                              const TabStripModelChange& change,
-                              const TabStripSelectionChange& selection) override;
-  void OnTabChangedAt(tabs::TabInterface* tab,
-                      TabChangeType change_type) override;
+  void OnTabStripModelChanged(
+      TabStripModel* tab_strip_model,
+      const TabStripModelChange& change,
+      const TabStripSelectionChange& selection) override;
 
  private:
   TabStripModel* tab_strip_model();
-  std::vector<sidebar::mojom::TabPtr> GetTabList();
+  SpaceModel& space_model();
 
-  // Returns the index of the tab with |tab_id|, or TabStripModel::kNoTab.
-  int GetIndexOfTab(int32_t tab_id);
+  // The node with |id|, or null if there is none (the page can be behind).
+  SidebarNode* FindNode(const std::string& id);
 
-  void SendTabs();
+  // The node of the window's active tab, as an ID for the page.
+  std::optional<std::string> GetActiveNodeId();
+
+  // Closes |tab_node|'s live tab through the strip, or removes the node if it
+  // has none.
+  void CloseTabNode(SidebarNode* tab_node);
 
   const raw_ptr<BrowserWindowInterface> browser_;
+  const raw_ptr<WindowFeatures> features_;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 };

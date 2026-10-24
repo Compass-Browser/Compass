@@ -6,13 +6,29 @@ module strata.sidebar.mojom;
 
 import "url/mojom/url.mojom";
 
-// One open tab of the window that hosts the sidebar.
-struct Tab {
-  // tabs::TabHandle raw value. Stable for the tab's lifetime.
-  int32 id;
+// Mirrors strata::SidebarNode::Type.
+enum NodeType {
+  kRoot,
+  kFolder,
+  kTab,
+  kSplit,
+};
+
+// One entry of the window's SpaceModel, with its subtree.
+struct Node {
+  // The node's UUID. Stable for its lifetime.
+  string id;
+  NodeType type;
   string title;
   url.mojom.Url url;
-  bool active;
+  array<Node> children;
+};
+
+struct Tree {
+  Node pinned;
+  Node today;
+  // The node of the window's active tab, if it has one.
+  string? active_id;
 };
 
 // Bootstraps the connection; called once by the page.
@@ -23,14 +39,26 @@ interface PageHandlerFactory {
 
 // Browser-side handler for requests from chrome://strata-sidebar.
 interface PageHandler {
-  GetTabs() => (array<Tab> tabs);
-  ActivateTab(int32 tab_id);
-  CloseTab(int32 tab_id);
+  // Answered with Page.SetTree(), on the same pipe as the diffs, so the page
+  // sees them in order.
+  RequestTree();
+  // Activates the live tab of a tab node. Ignored for other nodes.
+  ActivateNode(string id);
+  // Closes a tab node, or every pane of a split. Live tabs close through the
+  // tab strip, so beforeunload can cancel; their nodes go when the tab does.
+  CloseNode(string id);
   NewTab();
 };
 
-// Implemented by the page; the browser pushes updates through it.
+// Implemented by the page; the browser pushes the model's changes through it,
+// in the order the model made them.
 interface Page {
-  // The full tab list. Sent on any change; diffs come with SpaceModel.
-  TabsChanged(array<Tab> tabs);
+  // The whole tree. Replaces whatever the page had.
+  SetTree(Tree tree);
+  NodeAdded(string parent_id, uint32 index, Node node);
+  // |index| is counted after the node left its old parent.
+  NodeMoved(string id, string new_parent_id, uint32 index);
+  NodeChanged(string id, string title, url.mojom.Url url);
+  NodeRemoved(string id);
+  ActiveNodeChanged(string? id);
 };

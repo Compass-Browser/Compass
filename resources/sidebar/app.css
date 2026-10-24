@@ -18,11 +18,48 @@
   padding: 4px 8px;
 }
 
-#tabs {
+#sections {
   display: flex;
   flex-direction: column;
   gap: 2px;
   overflow-y: auto;
+}
+
+.section,
+.folder-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.divider {
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+  margin: 4px 6px;
+}
+
+/* Panes of a split share one row. */
+.split {
+  display: flex;
+  gap: 2px;
+}
+
+strata-sidebar-node {
+  display: block;
+}
+
+.split > strata-sidebar-node {
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-title {
+  font-weight: 500;
+  opacity: 0.75;
+  padding: 6px 10px;
+}
+
+.folder-children {
+  padding-inline-start: 12px;
 }
 
 .tab,

@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h b/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h
+index 67af5a42c04eec3fec5364b13d7715fac7bf5e68..2c08b6953e3931b58173ebdf3e8ec1b6117bfb19 100644
+--- a/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h
++++ b/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h
+@@ -5,11 +5,17 @@
+ #ifndef CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_EMBEDDER_BROWSER_WINDOW_FEATURES_H_
+ #define CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_EMBEDDER_BROWSER_WINDOW_FEATURES_H_
+ 
++#include <memory>
++
+ #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+ 
+ class BrowserView;
+ class BrowserWindowInterface;
+ 
++namespace strata {
++class WindowFeatures;
++}
++
+ // This class should only be used by Chromium embedders, where it will own
+ // embedder-specific browser window features.
+ // Chromium features themselves should not be added to this class, rather to
+@@ -44,6 +50,7 @@ class EmbedderBrowserWindowFeatures {
+ 
+  private:
+   // Embedder-specific feature members:
++  std::unique_ptr<strata::WindowFeatures> strata_window_features_;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_EMBEDDER_BROWSER_WINDOW_FEATURES_H_

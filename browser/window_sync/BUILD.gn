@@ -1,0 +1,46 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Live tabs of the sidebar's nodes. Linked into
+# //chrome/browser/ui/browser_window/internal, which owns WindowFeatures (see
+# patches/chrome-browser-ui-browser_window-internal-BUILD.gn.patch).
+source_set("window_sync") {
+  sources = [
+    "tab_strip_bridge.cc",
+    "tab_strip_bridge.h",
+    "window_features.cc",
+    "window_features.h",
+  ]
+  public_deps = [
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//components/tabs:public",
+    "//strata/browser/sidebar",
+    "//ui/base/unowned_user_data",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/ui/browser_window",
+    "//content/public/browser",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "tab_strip_bridge_unittest.cc" ]
+  deps = [
+    ":window_sync",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/navigator",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/test:test_support",
+    "//chrome/test/base:browser_with_test_window_test",
+    "//content/public/browser",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/base",
+    "//url",
+  ]
+}

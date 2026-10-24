@@ -7,10 +7,11 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
-import type {Tab} from './sidebar.mojom-webui.js';
+import './node.js';
+import type {Node, Tree} from './sidebar.mojom-webui.js';
 
-// The sidebar: the window's tabs, top to bottom. Slice a of
-// docs/design/sidebar.md.
+// The sidebar: the window's SpaceModel, as a pinned and a Today section. The
+// browser sends the tree once, then diffs. Slice b of docs/design/sidebar.md.
 export class StrataSidebarAppElement extends CrLitElement {
   static get is() {
     return 'strata-sidebar-app';
@@ -26,62 +27,131 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   static override get properties() {
     return {
-      tabs_: {type: Array},
+      pinned_: {type: Object},
+      today_: {type: Object},
+      activeId_: {type: String},
     };
   }
 
-  protected accessor tabs_: Tab[] = [];
+  protected accessor pinned_: Node|null = null;
+  protected accessor today_: Node|null = null;
+  protected accessor activeId_: string|null = null;
 
   private browserProxy_: SidebarBrowserProxy =
       SidebarBrowserProxy.getInstance();
-  private tabsChangedListenerId_: number|null = null;
+  private listenerIds_: number[] = [];
+
+  // Every node of the tree, by ID, with its parent.
+  private nodes_: Map<string, Node> = new Map();
+  private parents_: Map<string, Node> = new Map();
 
   override connectedCallback() {
     super.connectedCallback();
-    this.tabsChangedListenerId_ =
-        this.browserProxy_.callbackRouter.tabsChanged.addListener(
-            (tabs: Tab[]) => this.tabs_ = tabs);
-    this.browserProxy_.handler.getTabs().then(({tabs}) => this.tabs_ = tabs);
+    const router = this.browserProxy_.callbackRouter;
+    this.listenerIds_ = [
+      router.setTree.addListener(this.onSetTree_.bind(this)),
+      router.nodeAdded.addListener(this.onNodeAdded_.bind(this)),
+      router.nodeMoved.addListener(this.onNodeMoved_.bind(this)),
+      router.nodeChanged.addListener(this.onNodeChanged_.bind(this)),
+      router.nodeRemoved.addListener(this.onNodeRemoved_.bind(this)),
+      router.activeNodeChanged.addListener(
+          (id: string|null) => this.activeId_ = id),
+    ];
+    // Diffs that arrive before the tree are about nodes the page doesn't know
+    // yet, and the lookups below drop them. The tree already has them.
+    this.browserProxy_.handler.requestTree();
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
-    if (this.tabsChangedListenerId_ !== null) {
-      this.browserProxy_.callbackRouter.removeListener(
-          this.tabsChangedListenerId_);
-      this.tabsChangedListenerId_ = null;
+    for (const id of this.listenerIds_) {
+      this.browserProxy_.callbackRouter.removeListener(id);
     }
+    this.listenerIds_ = [];
   }
 
-  protected getTitle_(tab: Tab): string {
-    return tab.title || tab.url;
+  protected getPinned_(): Node[] {
+    return this.pinned_?.children ?? [];
   }
 
-  protected getFaviconUrl_(tab: Tab): string {
-    const params = new URLSearchParams({
-      size: '16',
-      scaleFactor: `${window.devicePixelRatio}x`,
-      pageUrl: tab.url,
-      allowGoogleServerFallback: '0',
-    });
-    return `chrome://favicon2/?${params.toString()}`;
-  }
-
-  protected onTabClick_(e: Event) {
-    this.browserProxy_.handler.activateTab(this.getTabId_(e));
-  }
-
-  protected onCloseClick_(e: Event) {
-    e.stopPropagation();
-    this.browserProxy_.handler.closeTab(this.getTabId_(e));
+  protected getToday_(): Node[] {
+    return this.today_?.children ?? [];
   }
 
   protected onNewTabClick_() {
     this.browserProxy_.handler.newTab();
   }
 
-  private getTabId_(e: Event): number {
-    return Number((e.currentTarget as HTMLElement).dataset['tabId']);
+  private index_(node: Node, parent: Node|null) {
+    this.nodes_.set(node.id, node);
+    if (parent) {
+      this.parents_.set(node.id, parent);
+    }
+    for (const child of node.children) {
+      this.index_(child, node);
+    }
+  }
+
+  private unindex_(node: Node) {
+    this.nodes_.delete(node.id);
+    this.parents_.delete(node.id);
+    for (const child of node.children) {
+      this.unindex_(child);
+    }
+  }
+
+  private onSetTree_(tree: Tree) {
+    this.nodes_.clear();
+    this.parents_.clear();
+    this.index_(tree.pinned, null);
+    this.index_(tree.today, null);
+    this.pinned_ = tree.pinned;
+    this.today_ = tree.today;
+    this.activeId_ = tree.activeId;
+  }
+
+  private onNodeAdded_(parentId: string, index: number, node: Node) {
+    const parent = this.nodes_.get(parentId);
+    if (!parent || this.nodes_.has(node.id)) {
+      return;
+    }
+    parent.children.splice(index, 0, node);
+    this.index_(node, parent);
+    this.requestUpdate();
+  }
+
+  private onNodeMoved_(id: string, newParentId: string, index: number) {
+    const node = this.nodes_.get(id);
+    const oldParent = this.parents_.get(id);
+    const newParent = this.nodes_.get(newParentId);
+    if (!node || !oldParent || !newParent) {
+      return;
+    }
+    oldParent.children.splice(oldParent.children.indexOf(node), 1);
+    newParent.children.splice(index, 0, node);
+    this.parents_.set(id, newParent);
+    this.requestUpdate();
+  }
+
+  private onNodeChanged_(id: string, title: string, url: string) {
+    const node = this.nodes_.get(id);
+    if (!node) {
+      return;
+    }
+    node.title = title;
+    node.url = url;
+    this.requestUpdate();
+  }
+
+  private onNodeRemoved_(id: string) {
+    const node = this.nodes_.get(id);
+    const parent = this.parents_.get(id);
+    if (!node || !parent) {
+      return;
+    }
+    parent.children.splice(parent.children.indexOf(node), 1);
+    this.unindex_(node);
+    this.requestUpdate();
   }
 }
 

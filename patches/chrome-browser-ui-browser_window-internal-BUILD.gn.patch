@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/browser_window/internal/BUILD.gn b/chrome/browser/ui/browser_window/internal/BUILD.gn
+index 0aef559d48ee6fcef6e2e2587aea58ad60ed7b11..49fb4175a306f12a3938c948b96bec02eb7e0817 100644
+--- a/chrome/browser/ui/browser_window/internal/BUILD.gn
++++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
+@@ -74,6 +74,7 @@ source_set("internal") {
+     ]
+ 
+     deps += [
++      "//strata/browser/window_sync",
+       "//chrome/browser:global_features",
+       "//chrome/browser/actor/ui",
+       "//chrome/browser/autocomplete:aim_eligibility_service",

@@ -124,6 +124,72 @@ within one frame. Resizing and collapse still work.
 activation works, plus unit tests for the page handler with a
 `TestTabStripModelDelegate`.
 
+## Slice b: SpaceModel is the source of truth
+
+Goal: the sidebar renders the `SpaceModel` tree instead of the tab strip.
+The tab strip becomes a mirror of the live tabs.
+
+**Ownership.** `strata::WindowFeatures` (`browser/window_sync/`) owns one
+`SpaceModel` and one `TabStripBridge` per window. It's a member of upstream's
+`EmbedderBrowserWindowFeatures`, the per-window slot Chromium reserves for
+embedders. That takes two small patches: a member in the header, and creation
+in `Init()`.
+
+The model is **per window** for now. ARCHITECTURE.md §7 shares one model
+across all windows of a space. Without move-on-focus, though, a tab that's
+live in another window couldn't be activated from this one. Moving the model
+up to the profile, together with `LiveTabRegistry`, is a window-sync change.
+The bridge already takes a `SpaceModel*`, so only the owner changes.
+
+**`TabStripBridge`** maps `tabs::TabHandle` ↔ node ID for the live tabs of
+one window. It keeps the two sides in line:
+
+| Strip event | Model change |
+|---|---|
+| Tab inserted | New Today tab, right after the Today entry that holds the tab before it (or first) |
+| Tab moved, and its node is a direct child of Today | Same move in Today |
+| Tab moved, node elsewhere (a split, later pinned) | None. The strip is put back. |
+| Tab removed | Node removed (a split left with one pane dissolves) |
+| Title or URL changed | `SetTitle` / `SetUrl` |
+
+| Model event | Strip change |
+|---|---|
+| Node moved | Live tabs reordered to match the tree (depth-first) |
+| Node removed | Its live tabs are closed |
+
+After every change, the live tabs in the strip are in the tree's depth-first
+order. Extension tab indices stay meaningful (ARCHITECTURE.md §5). A
+re-entrancy guard stops the bridge from reacting to its own changes.
+
+**Closing from the sidebar** goes through the strip (`CloseWebContentsAt`),
+so `beforeunload` can still cancel it. The node is removed only when the tab
+is actually gone. Closing an entry without a live tab removes it from the
+model.
+
+**Mojo.** The page gets the tree once, then diffs. All of them come through
+`Page`, so they arrive in order. A `GetTree()` reply would come on the other
+pipe and could pass a diff.
+
+```
+RequestTree()  →  SetTree(Tree tree)      // pinned and today roots, active node
+NodeAdded(parent_id, index, Node node)
+NodeMoved(id, new_parent_id, index)
+NodeChanged(id, title, url)
+NodeRemoved(id)
+ActiveNodeChanged(id?)
+```
+
+Node IDs are the model's UUIDs as strings. Which node is active is per window,
+so it stays out of the model.
+
+**Not in b:** upstream split tabs and tab groups aren't mirrored yet. Upstream
+pinned tabs aren't either, and the hidden native strip is the only way to
+create them. Splits arrive with §9, pinning with slice c.
+
+**Tests:** bridge unit tests (both directions, guard, splits dissolving) on
+`BrowserWithTestWindowTest`, page handler tests for the diffs, and the
+existing browser tests.
+
 ## Later slices
 
 - **b:** `SpaceModel` becomes the data source, using the

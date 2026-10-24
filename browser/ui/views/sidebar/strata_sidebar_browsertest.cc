@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
-
 #include "base/test/run_until.h"
+#include "base/values.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -14,6 +13,9 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "strata/browser/sidebar/space_model.h"
+#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
+#include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -93,7 +95,8 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ClickingATabActivatesIt) {
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_EQ(model->active_index(), 1);
   content::WebContents* contents = sidebar_contents();
-  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 2)));
+  ASSERT_TRUE(
+      content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 2)));
 
   ASSERT_TRUE(content::ExecJs(contents, R"(
     document.querySelector('strata-sidebar-app').shadowRoot
@@ -104,7 +107,8 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ClickingATabActivatesIt) {
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, NewTabButtonOpensATab) {
   content::WebContents* contents = sidebar_contents();
-  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 1)));
+  ASSERT_TRUE(
+      content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 1)));
 
   ASSERT_TRUE(content::ExecJs(contents, R"(
     document.querySelector('strata-sidebar-app').shadowRoot
@@ -112,6 +116,46 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, NewTabButtonOpensATab) {
 
   EXPECT_TRUE(base::test::RunUntil(
       [&] { return browser()->tab_strip_model()->count() == 2; }));
+}
+
+// Waits until the sidebar's tab rows have the titles |titles|, in order.
+constexpr char kWaitForTitles[] = R"(
+  (async (titles) => {
+    const current = () => [...(document.querySelector('strata-sidebar-app')
+        ?.shadowRoot?.querySelectorAll('.tab') ?? [])].map(r => r.title);
+    while (JSON.stringify(current()) !== JSON.stringify(titles)) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return true;
+  })($1))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       ModelMovesReorderSidebarAndStrip) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(
+                              kWaitForTitles,
+                              base::ListValue().Append("One").Append("Two"))));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  model.Move(model.today_root()->children()[1].get(), model.today_root(), 0);
+
+  EXPECT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(
+                              kWaitForTitles,
+                              base::ListValue().Append("Two").Append("One"))));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return browser()->tab_strip_model()->GetWebContentsAt(0)->GetTitle() ==
+           u"Two";
+  }));
 }
 
 }  // namespace
