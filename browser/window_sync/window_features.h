@@ -30,6 +30,10 @@
 class BrowserWindowInterface;
 class Profile;
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace gfx {
 class Rect;
 }  // namespace gfx
@@ -241,6 +245,11 @@ void SetSwapPresenter(SwapPresenter presenter);
 // true if it did; the emptied window then closes on its own, and the caller
 // must not go on closing it. See docs/design/sidebar.md, "Window sync".
 bool HandOffTabsBeforeClose(BrowserWindowInterface* browser);
+
+// Whether |contents| is a tab in its profile's parking window: alive, but in
+// no window the user can see. Upstream's auto picture-in-picture counts a tab
+// moved there as switched away from (see docs/design/picture-in-picture.md).
+bool IsInParkingWindow(content::WebContents* contents);
 
 // Archives the Today entries of |profile|'s spaces that have gone unseen for
 // their space's delay, as of |now| (see SpaceModel::ArchiveIdleEntries()).

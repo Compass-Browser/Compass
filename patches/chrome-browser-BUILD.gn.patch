@@ -1,8 +1,16 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 33a6696fd803af080bb0a7d71b66e06d6950f86d..287a7c5919078430a9e9820f397bdc680c2193c2 100644
+index 33a6696fd803af080bb0a7d71b66e06d6950f86d..822aadafecdb7a084d4ae285d49aeabb4a5e17c9 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -2062,6 +2062,7 @@ source_set("browser") {
+@@ -881,6 +881,7 @@ source_set("core") {
+   }
+ 
+   deps = [
++    "//strata/browser:feature_overrides",
+     ":active_use_util",
+     ":after_startup_task_utils",
+     ":bad_message",
+@@ -2062,6 +2063,7 @@ source_set("browser") {
    ]
  
    deps = [

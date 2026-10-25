@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..23f7362a07ad051bd955cdeaad599c592cf11f32 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+@@ -693,9 +693,16 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+   // tab switch, it should have closed already by now.  Either it received a
+   // notification from its tab strip helper, or we notified it, depending on
+   // which one of us was notified by our respective tab strip helper.
+-  if (PictureInPictureWindowManager::GetInstance()->GetWebContents() !=
+-      nullptr) {
+-    return false;
++  //
++  // Strata: except another tab's autopip. The last tab switched away from
++  // takes over; a pip window the user opened stays.
++  if (content::WebContents* pip_contents =
++          PictureInPictureWindowManager::GetInstance()->GetWebContents()) {
++    AutoPictureInPictureTabHelper* owner = FromWebContents(pip_contents);
++    if (pip_contents == web_contents() || !owner ||
++        !owner->IsInAutoPictureInPicture()) {
++      return false;
++    }
+   }
+ 
+   // Since nobody has a pip window, we shouldn't think we do.

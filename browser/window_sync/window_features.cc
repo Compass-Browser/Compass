@@ -959,6 +959,14 @@ bool HandOffTabsBeforeClose(BrowserWindowInterface* browser) {
   return true;
 }
 
+bool IsInParkingWindow(content::WebContents* contents) {
+  tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(contents);
+  BrowserWindowInterface* browser =
+      tab ? tab->GetBrowserWindowInterface() : nullptr;
+  WindowFeatures* features = browser ? WindowFeatures::From(browser) : nullptr;
+  return features && features->is_parking_window();
+}
+
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now) {
   SpaceService* service = SpaceService::Get(profile);
   for (const auto& space : service->space_list().spaces()) {

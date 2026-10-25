@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc
+index 1c541e7122130b1e808449dd99b7053379a3b1c7..24fd6ff7a7dbefd9d692b2e9f0774364cba77c57 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc
+@@ -10,6 +10,7 @@
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "components/tabs/public/split_tab_data.h"
+ #include "components/tabs/public/tab_interface.h"
++#include "strata/browser/window_sync/window_features.h"
+ 
+ // static
+ std::unique_ptr<AutoPictureInPictureTabObserverHelperBase>
+@@ -68,6 +69,15 @@ void AutoPictureInPictureTabStripObserverHelper::OnTabStripModelChanged(
+     return;
+   }
+ 
++  // Strata: a tab moved into the hidden parking window (a profile swap) has
++  // been switched away from.
++  if (is_tab_activated_ &&
++      strata::IsInParkingWindow(GetObservedWebContents())) {
++    is_tab_activated_ = false;
++    RunCallback(false);
++    return;
++  }
++
+   auto* current_tab_strip_model = GetCurrentTabStripModel();
+   if (current_tab_strip_model != observed_tab_strip_model_) {
+     ObserveTabStripModel(current_tab_strip_model);

@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..2e5a8aa11376bb7fc4976b49ad17a190dc953976 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -1744,6 +1744,12 @@ void VideoOverlayWindowViews::ShowInactive() {
+ #endif
+ 
+   views::Widget::SetVisibleOnAllWorkspaces(true);
++#if BUILDFLAG(IS_MAC)
++  // Strata: float over other apps' fullscreen spaces too, and take clicks
++  // without activating the browser, as glic's floating window does.
++  views::Widget::SetActivationIndependence(true);
++  views::Widget::SetCanAppearInExistingFullscreenSpaces(true);
++#endif
+ #if BUILDFLAG(IS_CHROMEOS)
+   non_client_view()->frame_view()->UpdateWindowRoundedCorners();
+ #endif

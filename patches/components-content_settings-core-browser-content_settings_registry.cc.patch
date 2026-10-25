@@ -1,0 +1,16 @@
+diff --git a/components/content_settings/core/browser/content_settings_registry.cc b/components/content_settings/core/browser/content_settings_registry.cc
+index 53b0e2ca5589c7a053b63f4978446caed4c9fbe6..6855791c8318b99fca3fff2ccde979facc6a86f4 100644
+--- a/components/content_settings/core/browser/content_settings_registry.cc
++++ b/components/content_settings/core/browser/content_settings_registry.cc
+@@ -639,8 +639,10 @@ void ContentSettingsRegistry::Init() {
+            ContentSettingsInfo::INHERIT_IN_INCOGNITO,
+            PermissionSettingsInfo::EXCEPTIONS_ON_SECURE_ORIGINS_ONLY);
+ 
++  // Strata: allowed by default. Playing videos go into picture-in-picture
++  // when their tab is left, with no prompt and no media engagement needed.
+   Register(ContentSettingsType::AUTO_PICTURE_IN_PICTURE,
+-           "auto-picture-in-picture", CONTENT_SETTING_ASK,
++           "auto-picture-in-picture", CONTENT_SETTING_ALLOW,
+            WebsiteSettingsInfo::UNSYNCABLE, /*allowlisted_primary_schemes=*/{},
+            /*valid_settings=*/
+            {CONTENT_SETTING_ALLOW, CONTENT_SETTING_BLOCK, CONTENT_SETTING_ASK},

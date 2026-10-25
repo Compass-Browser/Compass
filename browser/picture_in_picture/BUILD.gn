@@ -1,0 +1,28 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Auto picture-in-picture is upstream's, set up by //strata/browser:
+# feature_overrides and a few patches (docs/design/picture-in-picture.md).
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "auto_pip_browsertest.cc" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/picture_in_picture",
+    "//chrome/browser/profiles:profile_test_util",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui:recently_audible_helper",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//strata/browser/sidebar",
+    "//strata/browser/window_sync",
+    "//testing/gtest",
+    "//url",
+  ]
+}

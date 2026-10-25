@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/picture_in_picture/BUILD.gn b/chrome/browser/picture_in_picture/BUILD.gn
+index 7fb62932ff13244780f1efbb8e457ee2a37ba233..ed93604963ad6011b6d328bcb23694f82b65d420 100644
+--- a/chrome/browser/picture_in_picture/BUILD.gn
++++ b/chrome/browser/picture_in_picture/BUILD.gn
+@@ -163,6 +163,7 @@ source_set("impl") {
+       "//components/unified_consent",
+       "//components/url_formatter",
+       "//net",
++      "//strata/browser/window_sync",
+       "//third_party/blink/public/common:headers",
+       "//ui/views",
+     ]

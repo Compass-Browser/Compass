@@ -7,3 +7,17 @@
 group("browser") {
   public_deps = [ "//strata/browser/sidebar" ]
 }
+
+# Strata's feature defaults. //chrome/browser:core, which sets up the
+# feature list, depends on this target (see
+# patches/chrome-browser-BUILD.gn.patch).
+source_set("feature_overrides") {
+  sources = [
+    "feature_overrides.cc",
+    "feature_overrides.h",
+  ]
+  deps = [
+    "//components/variations",
+    "//third_party/blink/public/common",
+  ]
+}
