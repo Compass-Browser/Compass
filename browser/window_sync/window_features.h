@@ -7,21 +7,29 @@
 
 #include <cstddef>
 #include <memory>
+#include <vector>
 
 #include "base/callback_list.h"
+#include "base/functional/callback.h"
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "components/tabs/public/tab_interface.h"
 #include "strata/browser/sidebar/space_model.h"
+#include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/tab_strip_bridge.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
 class Profile;
+
+namespace gfx {
+class Rect;
+}  // namespace gfx
 
 namespace strata {
 
@@ -41,6 +49,9 @@ class WindowFeatures {
     // A swipe in the sidebar started, moved or stopped pulling in another
     // space (see SetSpacePreview()).
     virtual void OnSpacePreviewChanged() {}
+    // The window swapped to another profile's space and is about to empty
+    // and close (SwitchWindowToSpace()). It has no bridge from now on.
+    virtual void OnSwappedAway() {}
   };
 
   explicit WindowFeatures(BrowserWindowInterface* browser);
@@ -56,8 +67,12 @@ class WindowFeatures {
   LiveTabRegistry& registry() { return service_->registry(); }
 
   bool is_parking_window() const { return is_parking_window_; }
-  // Set during SwitchToSpace(), while the window has no bridge for a moment.
-  bool is_switching() const { return switching_; }
+  // Set during SwitchToSpace(), while the window has no bridge for a moment,
+  // and for good once the window swapped away.
+  bool is_switching() const { return switching_ || swapped_away_; }
+  // The window swapped to another profile's (SwitchWindowToSpace()): it has
+  // no tabs and no bridge, and is closing.
+  bool swapped_away() const { return swapped_away_; }
   // Not for the parking window.
   TabStripBridge& tab_strip_bridge() {
     CHECK(bridge_);
@@ -69,6 +84,14 @@ class WindowFeatures {
   // |space| come back from the parking window. See docs/design/spaces.md,
   // "Switching, step by step".
   void SwitchToSpace(SpaceModel& space);
+
+  // For a window just opened on its space, with no tabs, by a swap (see
+  // SwitchWindowToSpace()): steps 3 to 5 of a switch. The space's parked tabs
+  // come in, and the entry it showed last is shown.
+  void EnterSpace();
+  // The other half of a swap: every tab leaves, favorites' too, as in step 6
+  // of a switch, and the emptied window closes.
+  void LeaveForSwap();
 
   // A swipe in the sidebar is pulling in |space|, |progress| (0 to 1) of the
   // way, before it switches; null ends it. SwitchToSpace() ends it too,
@@ -85,6 +108,16 @@ class WindowFeatures {
   void OnActiveTabChanged(BrowserWindowInterface* browser);
   void OnWindowBecameActive(BrowserWindowInterface* browser);
 
+  // Steps 3 to 5 of a switch, for the space the window now shows.
+  void EnterCurrentSpace();
+  // Step 6 of a switch: |leaving| go to another window showing their space
+  // (favorites' to the parking window), else to the parking window; blank
+  // Today tabs and placeholders close. |keep_one| keeps the strip from
+  // emptying.
+  void MoveTabsOut(const std::vector<tabs::TabHandle>& leaving,
+                   SpaceModel& leaving_space,
+                   bool keep_one);
+
   // Another normal window of the profile that shows |space|, or null.
   BrowserWindowInterface* FindOtherWindowShowing(const SpaceModel& space);
 
@@ -94,6 +127,7 @@ class WindowFeatures {
   raw_ptr<SpaceModel> space_;
   const bool is_parking_window_;
   bool switching_ = false;
+  bool swapped_away_ = false;
   // By ID: the space can be deleted mid-swipe.
   base::Uuid preview_space_id_;
   double preview_progress_ = 0;
@@ -138,6 +172,29 @@ void MoveEntry(Profile* profile,
 // to the space after it (before it, if it's last) first; then its tabs close
 // and its entries go. See docs/design/spaces.md, "Deleting a space".
 void DeleteSpace(Profile* profile, SpaceModel& space);
+
+// Shows |space|, one of |profile|'s spaces, in |browser|'s window. A space of
+// the window's profile rebinds the window (SwitchToSpace()). One of another
+// profile swaps it: a window of that profile opens on |space| at the same
+// bounds, and |browser| empties and closes. Returns the window now showing
+// |space|, or null if it couldn't. See docs/design/spaces.md, slice 3.
+BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
+                                            Profile* profile,
+                                            SpaceModel& space);
+
+// The spaces |browser|'s window can switch to, in the switcher's order: every
+// listed profile's (SpaceDirectory), or only its profile's in an
+// off-the-record window.
+std::vector<SpaceDirectory::Entry> GetSwitchableSpaces(
+    BrowserWindowInterface* browser);
+// The one of those with |id|, or an empty entry.
+SpaceDirectory::Entry FindSwitchableSpace(BrowserWindowInterface* browser,
+                                          const base::Uuid& id);
+
+// Opens the windows of swaps. Tests can't create real windows.
+using SwapWindowFactory = base::RepeatingCallback<
+    BrowserWindowInterface*(Profile*, const gfx::Rect& bounds, bool maximized)>;
+void SetSwapWindowFactoryForTesting(SwapWindowFactory factory);
 
 // Called when |browser|'s window is asked to close, before beforeunload
 // handlers run. Hands its tabs to the most recently active other window of

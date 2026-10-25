@@ -20,6 +20,7 @@
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "strata/browser/window_sync/live_tab_registry.h"
+#include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "ui/menus/simple_menu_model.h"
 
@@ -42,6 +43,7 @@ class TabStripBridge;
 class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public SpaceModel::Observer,
                            public SpaceList::Observer,
+                           public SpaceDirectory::Observer,
                            public WindowFeatures::Observer,
                            public LiveTabRegistry::Observer,
                            public TabStripModelObserver {
@@ -134,8 +136,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void OnSpaceUpdated(const SpaceModel& space) override;
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
 
+  // SpaceDirectory::Observer:
+  void OnDirectoryChanged() override;
+
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
+  void OnSwappedAway() override;
 
   // LiveTabRegistry::Observer:
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
@@ -157,14 +163,21 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   LiveTabRegistry& registry();
 
   sidebar::mojom::NodePtr ToMojo(const SidebarNode& node);
+  // With |registry|'s live tabs: another profile's, for its spaces.
+  sidebar::mojom::NodePtr ToMojo(const SidebarNode& node,
+                                 const LiveTabRegistry& registry);
   void SendSpaces();
   void SendArchive();
 
   // The node with |id| in the window's space or the favorites, or null if
   // there is none (the page can be behind).
   SidebarNode* FindNode(const std::string& id);
-  // The space with |id|, or null.
+  // The window's profile's space with |id|, or null.
   SpaceModel* FindSpace(const std::string& id);
+  // The space with |id| of any profile the switcher lists, or an empty entry.
+  SpaceDirectory::Entry FindAnySpace(const std::string& id);
+  // Null if the page lists only the profile's spaces.
+  SpaceDirectory* directory();
 
   // The node of the window's active tab, as an ID for the page.
   std::optional<std::string> GetActiveNodeId();
@@ -187,6 +200,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // The space whose changes the page gets: the window's, except while it
   // switches.
   raw_ptr<SpaceModel> observed_space_ = nullptr;
+  // Whether the page lists every profile's spaces: not in off-the-record
+  // windows.
+  bool uses_directory_ = false;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 

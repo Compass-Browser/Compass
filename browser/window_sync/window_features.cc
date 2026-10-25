@@ -10,13 +10,17 @@
 #include <vector>
 
 #include "base/auto_reset.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -27,8 +31,12 @@
 #include "content/public/browser/web_contents.h"
 #include "strata/browser/sidebar/sidebar_serializer.h"
 #include "strata/browser/window_sync/sidebar_store.h"
+#include "strata/browser/window_sync/space_directory.h"
+#include "ui/base/base_window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
 namespace strata {
@@ -67,7 +75,7 @@ bool IsUsableNormalWindow(BrowserWindowInterface* browser) {
   WindowFeatures* features = WindowFeatures::From(browser);
   return browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
          !browser->capabilities()->IsAttemptingToCloseBrowser() && features &&
-         !features->is_parking_window();
+         !features->is_parking_window() && !features->swapped_away();
 }
 
 // A usable normal window of |profile| other than |except| that shows |space|,
@@ -131,6 +139,26 @@ bool IsEntryInUse(Profile* profile,
   });
 }
 
+SwapWindowFactory& GetSwapWindowFactory() {
+  static base::NoDestructor<SwapWindowFactory> factory;
+  return *factory;
+}
+
+BrowserWindowInterface* CreateSwapWindow(Profile* profile,
+                                         const gfx::Rect& bounds,
+                                         bool maximized) {
+  if (const SwapWindowFactory& factory = GetSwapWindowFactory()) {
+    return factory.Run(profile, bounds, maximized);
+  }
+  BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_NORMAL,
+                                   profile, /*from_user_gesture=*/true);
+  params.initial_bounds = bounds;
+  params.initial_show_state = maximized ? ui::mojom::WindowShowState::kMaximized
+                                        : ui::mojom::WindowShowState::kDefault;
+  params.should_trigger_session_restore = false;
+  return CreateBrowserWindow(std::move(params));
+}
+
 void OpenNewTab(BrowserWindowInterface* browser) {
   NavigateParams params(browser, GURL(chrome::kChromeUINewTabURL),
                         ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
@@ -172,19 +200,37 @@ WindowFeatures::~WindowFeatures() {
   if (SidebarStore* store = service_->store()) {
     store->Flush();
   }
-  // With the profile's last window gone, nothing can show the parked tabs.
+  // With the last window that could show the parked tabs gone, close them:
+  // the profile's own last window, or for a listed profile, the last window
+  // of every listed profile (any of them can switch to its spaces).
+  Profile* profile = browser_->GetProfile();
+  const bool listed = SpaceDirectory::IsListed(profile);
   bool other_window = false;
-  ProfileBrowserCollection::GetForProfile(browser_->GetProfile())
-      ->ForEach(
-          [&](BrowserWindowInterface* other) {
-            other_window = other != browser_ && IsUsableNormalWindow(other);
-            return !other_window;
-          },
-          BrowserCollection::Order::kActivation);
-  if (!other_window && service_->parking_window()) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&SpaceService::CloseParkingWindow,
-                                  service_->GetWeakPtr()));
+  GlobalBrowserCollection::GetInstance()->ForEach(
+      [&](BrowserWindowInterface* other) {
+        other_window =
+            other != browser_ && IsUsableNormalWindow(other) &&
+            (other->GetProfile() == profile ||
+             (listed && SpaceDirectory::IsListed(other->GetProfile())));
+        return !other_window;
+      },
+      BrowserCollection::Order::kActivation);
+  if (other_window) {
+    return;
+  }
+  base::flat_set<SpaceService*> services = {service_.get()};
+  if (SpaceDirectory* directory = listed ? SpaceDirectory::GetIfExists()
+                                         : nullptr) {
+    for (const SpaceDirectory::Entry& entry : directory->GetSpaces()) {
+      services.insert(SpaceService::Get(entry.profile));
+    }
+  }
+  for (SpaceService* service : services) {
+    if (service->parking_window()) {
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(&SpaceService::CloseParkingWindow,
+                                    service->GetWeakPtr()));
+    }
   }
 }
 
@@ -215,6 +261,52 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
   // 2.
   bridge_.reset();
   space_ = &target;
+
+  // 3. to 5.
+  EnterCurrentSpace();
+
+  // 6. The old space's tabs move out. The window no longer shows any of them,
+  // so the bridge puts up no placeholders.
+  MoveTabsOut(leaving, leaving_space, /*keep_one=*/true);
+
+  service_->space_list().SetActiveSpace(target);
+  switching_ = false;
+  preview_space_id_ = base::Uuid();
+  preview_progress_ = 0;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceSwitched();
+  }
+}
+
+void WindowFeatures::EnterSpace() {
+  CHECK(!is_parking_window_);
+  base::AutoReset<bool> switching(&switching_, true);
+  bridge_.reset();
+  EnterCurrentSpace();
+  switching_ = false;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceSwitched();
+  }
+}
+
+void WindowFeatures::LeaveForSwap() {
+  CHECK(!is_parking_window_);
+  swapped_away_ = true;
+  bridge_.reset();
+  for (Observer& observer : observers_) {
+    observer.OnSwappedAway();
+  }
+  TabStripModel* strip = browser_->GetTabStripModel();
+  std::vector<tabs::TabHandle> leaving;
+  for (int i = 0; i < strip->count(); ++i) {
+    leaving.push_back(strip->GetTabAtIndex(i)->GetHandle());
+  }
+  MoveTabsOut(leaving, *space_, /*keep_one=*/false);
+}
+
+void WindowFeatures::EnterCurrentSpace() {
+  SpaceModel& target = *space_;
+  TabStripModel* strip = browser_->GetTabStripModel();
 
   // 3. The target space's parked tabs come back, in the background.
   std::vector<tabs::TabInterface*> arrived;
@@ -258,14 +350,17 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
   if (shown && strip->GetIndexOfTab(shown) != TabStripModel::kNoTab) {
     strip->ActivateTabAt(strip->GetIndexOfTab(shown));
   }
+}
 
-  // 6. The old space's tabs move out. The window no longer shows any of them,
-  // so the bridge puts up no placeholders.
+void WindowFeatures::MoveTabsOut(const std::vector<tabs::TabHandle>& leaving,
+                                 SpaceModel& leaving_space,
+                                 bool keep_one) {
+  TabStripModel* strip = browser_->GetTabStripModel();
   BrowserWindowInterface* destination = FindOtherWindowShowing(leaving_space);
   for (const tabs::TabHandle& handle : leaving) {
     tabs::TabInterface* tab = handle.Get();
     const int index = tab ? strip->GetIndexOfTab(tab) : TabStripModel::kNoTab;
-    if (index == TabStripModel::kNoTab || strip->count() == 1) {
+    if (index == TabStripModel::kNoTab || (keep_one && strip->count() == 1)) {
       continue;
     }
     SidebarNode* node = registry().GetNode(tab);
@@ -282,21 +377,17 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
       strip->CloseWebContentsAt(index, CLOSE_NONE);
       continue;
     }
-    if (!destination) {
-      destination = service_->GetOrCreateParkingWindow();
+    // Favorites' tabs (only on a swap) go to the parking window: every
+    // window of the profile shows them, so none is theirs.
+    BrowserWindowInterface* to =
+        leaving_space.Contains(node) ? destination : nullptr;
+    if (!to) {
+      to = service_->GetOrCreateParkingWindow();
     }
-    TabStripModel* destination_strip = destination->GetTabStripModel();
+    TabStripModel* destination_strip = to->GetTabStripModel();
     destination_strip->InsertDetachedTabAt(destination_strip->count(),
                                            strip->DetachTabAtForInsertion(index),
                                            AddTabTypes::ADD_NONE);
-  }
-
-  service_->space_list().SetActiveSpace(target);
-  switching_ = false;
-  preview_space_id_ = base::Uuid();
-  preview_progress_ = 0;
-  for (Observer& observer : observers_) {
-    observer.OnSpaceSwitched();
   }
 }
 
@@ -312,9 +403,16 @@ void WindowFeatures::SetSpacePreview(SpaceModel* space, double progress) {
 }
 
 SpaceModel* WindowFeatures::preview_space() {
-  return preview_space_id_.is_valid()
-             ? service_->space_list().FindSpace(preview_space_id_)
-             : nullptr;
+  if (!preview_space_id_.is_valid()) {
+    return nullptr;
+  }
+  if (SpaceModel* space = service_->space_list().FindSpace(preview_space_id_)) {
+    return space;
+  }
+  // Another profile's.
+  SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+  return directory ? directory->FindSpace(preview_space_id_).space.get()
+                   : nullptr;
 }
 
 void WindowFeatures::AddObserver(Observer* observer) {
@@ -504,6 +602,71 @@ void DeleteSpace(Profile* profile, SpaceModel& space) {
     }
   }
   list.RemoveSpace(space);
+}
+
+BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
+                                            Profile* profile,
+                                            SpaceModel& space) {
+  WindowFeatures* features = WindowFeatures::From(browser);
+  if (!features || features->is_parking_window() ||
+      features->swapped_away() ||
+      SpaceService::Get(profile)->space_list().FindSpace(space.id()) !=
+          &space) {
+    return nullptr;
+  }
+  if (profile == browser->GetProfile()) {
+    features->SwitchToSpace(space);
+    return browser;
+  }
+  if (!SpaceDirectory::IsListed(profile) ||
+      !SpaceDirectory::IsListed(browser->GetProfile())) {
+    return nullptr;
+  }
+  // 1. The profile's next window opens on |space|.
+  SpaceService::Get(profile)->space_list().SetActiveSpace(space);
+  // 2.
+  ui::BaseWindow* old_window = browser->GetWindow();
+  BrowserWindowInterface* window =
+      CreateSwapWindow(profile, old_window->GetRestoredBounds(),
+                       old_window->IsMaximized());
+  WindowFeatures* new_features = WindowFeatures::From(window);
+  CHECK(&new_features->space_model() == &space);
+  // 3.
+  new_features->EnterSpace();
+  // 4. It covers the old window exactly.
+  window->GetWindow()->Show();
+  // 5. Once empty, the old window closes on its own.
+  features->LeaveForSwap();
+  return window;
+}
+
+std::vector<SpaceDirectory::Entry> GetSwitchableSpaces(
+    BrowserWindowInterface* browser) {
+  Profile* profile = browser->GetProfile();
+  if (SpaceDirectory* directory = SpaceDirectory::IsListed(profile)
+                                      ? SpaceDirectory::Get()
+                                      : nullptr) {
+    return directory->GetSpaces();
+  }
+  std::vector<SpaceDirectory::Entry> spaces;
+  for (const auto& space : SpaceService::Get(profile)->space_list().spaces()) {
+    spaces.push_back({profile, space.get()});
+  }
+  return spaces;
+}
+
+SpaceDirectory::Entry FindSwitchableSpace(BrowserWindowInterface* browser,
+                                          const base::Uuid& id) {
+  for (const SpaceDirectory::Entry& entry : GetSwitchableSpaces(browser)) {
+    if (entry.space->id() == id) {
+      return entry;
+    }
+  }
+  return {};
+}
+
+void SetSwapWindowFactoryForTesting(SwapWindowFactory factory) {
+  GetSwapWindowFactory() = std::move(factory);
 }
 
 bool HandOffTabsBeforeClose(BrowserWindowInterface* browser) {

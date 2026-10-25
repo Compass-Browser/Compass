@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "strata/browser/window_sync/sidebar_store.h"
+#include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/window_features.h"
 
 namespace strata {
@@ -60,9 +61,17 @@ SpaceService::SpaceService(Profile* profile)
   } else {
     OnLoaded();
   }
+  if (SpaceDirectory::IsListed(profile)) {
+    if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+      directory->OnServiceCreated(profile, this);
+    }
+  }
 }
 
 SpaceService::~SpaceService() {
+  if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
+    directory->OnServiceDestroyed(this);
+  }
   // The store observes the list, so it goes first.
   store_.reset();
   space_list_.RemoveObserver(this);
@@ -163,6 +172,9 @@ void SpaceService::OnLoaded() {
                              &SpaceService::ArchiveIdleEntries);
   archive_timer_.Start(FROM_HERE, kArchiveInterval, this,
                        &SpaceService::ArchiveIdleEntries);
+  if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
+    directory->OnServiceLoaded();
+  }
 }
 
 }  // namespace strata

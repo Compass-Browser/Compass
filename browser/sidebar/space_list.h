@@ -30,6 +30,8 @@ class SpaceList : public SpaceModel::Observer {
     virtual void OnSpaceUpdated(const SpaceModel& space) {}
     // Called before |space| is destroyed. It's no longer active.
     virtual void OnSpaceWillBeRemoved(SpaceModel& space) {}
+    // A space was removed and destroyed.
+    virtual void OnSpaceRemoved() {}
     virtual void OnActiveSpaceChanged() {}
   };
 

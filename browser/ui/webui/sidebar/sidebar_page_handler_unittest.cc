@@ -10,18 +10,23 @@
 #include <string>
 #include <vector>
 
+#include "base/strings/string_split.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
+#include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,6 +34,7 @@
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
@@ -39,6 +45,7 @@ using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::UnorderedElementsAre;
 
 using Command = SidebarPageHandler::MenuCommand;
 
@@ -58,7 +65,9 @@ class FakePage : public sidebar::mojom::Page {
       if (spaces[i]->id == active_id) {
         archive_after_hours_ = spaces[i]->archive_after_hours;
       }
-      const std::string& name = spaces[i]->name;
+      // Another profile's are starred.
+      const std::string name =
+          spaces[i]->name + (spaces[i]->own_profile ? "" : "*");
       spaces_ += (i ? "," : "") +
                  (spaces[i]->id == active_id ? "[" + name + "]" : name);
     }
@@ -106,7 +115,8 @@ class FakePage : public sidebar::mojom::Page {
 
   sidebar::mojom::TreePtr TakeTree() { return std::move(tree_); }
   std::vector<std::string> TakeEvents() { return std::move(events_); }
-  // Space names, comma separated, the window's in brackets.
+  // Space names, comma separated, the window's in brackets, other profiles'
+  // starred.
   const std::string& spaces() const { return spaces_; }
   const std::vector<sidebar::mojom::ArchivedEntryPtr>& archive() const {
     return archive_;
@@ -798,6 +808,50 @@ TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {
   menu->ActivatedAt(*menu->GetIndexOfCommandId(Command::kCloseTab));
   Settle();
   EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+// Slice 3 of docs/design/spaces.md.
+TEST_F(SidebarPageHandlerTest, ListsAndSwapsToAnotherProfilesSpace) {
+  TestingProfile* other = profile_manager()->CreateTestingProfile("other");
+  SpaceList& other_list = SpaceService::Get(other)->space_list();
+  SpaceModel* work = other_list.AddSpace(1, u"Work");
+  work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
+  Settle();
+
+  EXPECT_THAT(base::SplitString(page_.spaces(), ",", base::KEEP_WHITESPACE,
+                                base::SPLIT_WANT_ALL),
+              UnorderedElementsAre("[Home]", "Home*", "Work*"));
+
+  // Its tree, for a swipe, with its own entries.
+  base::test::TestFuture<sidebar::mojom::TreePtr> tree;
+  handler_remote_->GetSpaceTree(work->id().AsLowercaseString(),
+                                tree.GetCallback());
+  ASSERT_TRUE(tree.Get());
+  EXPECT_THAT(Hosts(*tree.Get()->pinned), ElementsAre("w.test"));
+
+  // Entries can't go there.
+  handler_remote_->MoveNodeToSpace(TodayId(0), work->id().AsLowercaseString());
+  Settle();
+  EXPECT_THAT(work->today_root()->children(), IsEmpty());
+  EXPECT_EQ(space_model().today_root()->children().size(), 2u);
+
+  std::unique_ptr<BrowserWindowInterface> swapped;
+  SetSwapWindowFactoryForTesting(base::BindLambdaForTesting(
+      [&](Profile* profile, const gfx::Rect& bounds, bool maximized) {
+        swapped = CreateBrowser(profile, BrowserWindowInterface::TYPE_NORMAL,
+                                /*hosted_app=*/false);
+        return swapped.get();
+      }));
+  handler_remote_->SwitchSpace(work->id().AsLowercaseString());
+  Settle();
+  SetSwapWindowFactoryForTesting({});
+
+  ASSERT_TRUE(swapped);
+  EXPECT_EQ(&WindowFeatures::From(swapped.get())->space_model(), work);
+  EXPECT_EQ(swapped->GetTabStripModel()->count(), 1);
+  EXPECT_TRUE(tab_strip_model()->empty());
+  handler_.reset();
+  swapped->GetTabStripModel()->CloseAllTabs();
 }
 
 }  // namespace

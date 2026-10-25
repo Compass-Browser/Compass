@@ -13,6 +13,8 @@ source_set("window_sync") {
     "restored_tab_matcher.h",
     "sidebar_store.cc",
     "sidebar_store.h",
+    "space_directory.cc",
+    "space_directory.h",
     "space_service.cc",
     "space_service.h",
     "tab_strip_bridge.cc",
@@ -28,8 +30,12 @@ source_set("window_sync") {
   ]
   deps = [
     "//base",
+    "//chrome/browser:browser_process",
     "//chrome/browser/lifetime",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_manager",
+    "//chrome/browser/profiles:profile_util",
+    "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
@@ -49,6 +55,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "sidebar_store_unittest.cc",
+    "space_swap_unittest.cc",
     "space_switch_unittest.cc",
     "tab_strip_bridge_unittest.cc",
   ]

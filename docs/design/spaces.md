@@ -1,6 +1,6 @@
 # Spaces
 
-Status: slices 1 and 2 done. Builds on ARCHITECTURE.md §6 (D6) and the
+Status: slices 1, 2 and 3 done. Builds on ARCHITECTURE.md §6 (D6) and the
 sidebar slices in [sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
 
 ## Goal
@@ -17,7 +17,8 @@ space and stay alive while it isn't shown.
 2. **Editing spaces**: rename, colors, deleting a space, moving an entry to
    another space, keyboard shortcuts. A theme for the whole window per space
    is left for later.
-3. Spaces with different profiles.
+3. **Spaces with other profiles**: the switcher lists the spaces of every
+   profile, and switching to one of another profile swaps the window.
 
 ## How D6 is realized
 
@@ -224,6 +225,86 @@ turns the slides off, and `gfx::Animation::ShouldRenderRichAnimation()` the
 tint's fade.
 
 
+## Slice 3: spaces with other profiles
+
+Every space belongs to a profile: its tabs, cookies, history and favorites are
+that profile's. The switcher lists the spaces of every profile, and a window
+can switch to any of them. Switching to a space of the window's own profile
+rebinds, as before. Switching to one of another profile swaps the window.
+
+### Which spaces
+
+- Every profile in upstream's `ProfileAttributesStorage`, except the guest
+  profile and profiles omitted from the profile list, in the order upstream's
+  profile menu shows them. Each profile's spaces follow in its own order. A profile has at
+  least one space, so each adds at least its "Home".
+- `SpaceDirectory` (`browser/window_sync/space_directory.h`), browser-wide,
+  loads those profiles (`ProfileManager::LoadProfileByPath()`) the first
+  time a window asks for it, and holds a `ScopedProfileKeepAlive` for each
+  (a new `kStrataSpaces` origin, patch): a profile whose last window closed
+  would otherwise be destroyed (`kDestroyProfileOnBrowserClose`), and its
+  spaces would leave the switcher with their parked tabs. It relays the
+  `SpaceList` changes of every profile to the pages, and adds profiles that
+  are created later. A profile whose loading fails is left out.
+- Off-the-record windows list their own profile's spaces only, and other
+  windows never list theirs.
+
+### Swapping the window
+
+`SwitchWindowToSpace(browser, space)` (window_features.h) rebinds when
+`space` is the window's profile's. Otherwise:
+
+1. The other profile's active space becomes `space`, so its next window opens
+   there.
+2. A normal window of that profile opens at the old window's bounds (its
+   restored bounds, and maximized if the old one is), without session
+   restore. Its `WindowFeatures` binds to `space`.
+3. `WindowFeatures::EnterSpace()`, steps 3 to 5 of a switch: `space`'s
+   parked tabs come in, and the entry it showed last is shown.
+4. The new window shows and becomes key. It covers the old one exactly, so
+   nothing flickers.
+5. The old window's tabs leave as in step 6 of a switch, all of them,
+   favorites' tabs included: to another window showing its space, else to
+   its profile's parking window. Blank pages close. The emptied window
+   closes on its own.
+
+The page goes with its window, so a click on another profile's space swaps
+at once, without a slide; the new window's sidebar opens on the space. A
+swipe toward one runs as usual (its preview and tint come from that profile)
+and swaps when it switches.
+
+### Parking across profiles
+
+A profile's parked tabs now stay as long as any window can switch to them:
+parking windows close when the last normal window of every listed profile
+closes, not their own profile's last. Closing a window still hands its tabs
+only to a window of the same space, and closes them if there's none.
+
+### Profiles in the UI
+
+`Space` (mojom) gains `profile_name` and `own_profile`, and `SetSpaces()`
+sends every listed profile's spaces. The switcher puts a gap between
+profiles, and a button's tooltip and the space menu name the profile. "+"
+adds a space to the window's profile. An entry can't move to another
+profile's space (its tab can't): dragging onto such a button shows no drop
+target, and "Move to Space" offers only the profile's own spaces. Swipe
+previews and the tint work for any space (`GetSpaceTree()` and
+`PreviewSpace()` look spaces up through the directory). Ctrl+1–9 count
+across profiles. The command bar offers every profile's spaces, but only the
+window's profile's entries.
+
+### Known gaps (slice 3)
+
+- A fullscreen window swaps to a non-fullscreen one.
+- The sidebar's width and collapsed state are per profile, so they can
+  change on a swap.
+- Spaces can't move to another profile, and entries can't move between
+  profiles.
+- Profiles are listed in the profile menu's order, which the switcher can't
+  change.
+- With several profiles, upstream may show its profile picker at startup.
+- The swap has no animation of its own: the new window opens on its space.
+
 ## Known gaps (slice 1)
 
 - A space with no name (only from files written before spaces were named)
@@ -251,3 +332,10 @@ removal and relayed changes, store round trips of colors, removals and moves,
 handler tests for rename, color, moving an entry with its tab and deleting
 (the window's own space, another one, not the last), and browser tests for
 the menu, dragging onto a space and the shortcuts.
+
+Slice 3: `SpaceSwapTest` (directory order, off-the-record windows, a swap
+parking the old window's tabs, swapping back, parked tabs outliving their
+profile's last window, a switch within the profile still rebinding), a page
+handler test (other profiles' spaces listed and previewed, entries kept from
+them, a swap), and the `AnotherProfilesSpaceSwapsTheWindow` browser test
+(click to swap, same bounds, Ctrl+number back across profiles).

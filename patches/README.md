@@ -54,3 +54,6 @@ nothing else.
 | `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//strata/*` to depend on Lit |
 | `tools-gritsettings-resource_ids.spec.patch` | Reserves resource IDs for the sidebar's grit file |
 | `tools-metrics-histograms-metadata-page-histograms.xml.patch` | Adds the `.StrataCommandBar` WebUIName variant, required by `WebUIContentsWrapperT`'s static_assert |
+| `chrome-browser-profiles-keep_alive-profile_keep_alive_types.h.patch` | Adds the `kStrataSpaces` keep-alive origin: `strata::SpaceDirectory` keeps profiles whose spaces show in the switcher loaded (D17) |
+| `chrome-browser-profiles-keep_alive-profile_keep_alive_types.cc.patch` | Prints `kStrataSpaces` |
+| `tools-metrics-histograms-metadata-profile-enums.xml.patch` | Adds `kStrataSpaces` to the `ProfileKeepAliveOrigin` histogram enum |

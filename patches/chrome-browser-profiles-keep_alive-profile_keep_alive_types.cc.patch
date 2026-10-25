@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+index 210e73b316090c7a064689092c19f33b4b2b602e..2ae0dbdbfeb740e25b7a8df1250cf7f19b154bb9 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+@@ -93,6 +93,8 @@ std::ostream& operator<<(std::ostream& out,
+       return out << "kFetchKeepAlive";
+     case ProfileKeepAliveOrigin::kOmniboxEverywhere:
+       return out << "kOmniboxEverywhere";
++    case ProfileKeepAliveOrigin::kStrataSpaces:
++      return out << "kStrataSpaces";
+   }
+   NOTREACHED();
+ }

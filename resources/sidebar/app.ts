@@ -299,8 +299,12 @@ export class StrataSidebarAppElement extends CrLitElement {
     return this.getMenuSpace_()?.color === color;
   }
 
+  // Not a profile's last space.
   protected canDeleteSpace_(): boolean {
-    return this.spaces_.length > 1;
+    const space = this.getMenuSpace_();
+    return !!space &&
+        this.spaces_.filter(other => other.profileName === space.profileName)
+            .length > 1;
   }
 
   protected getDeleteLabel_(): string {
@@ -477,6 +481,24 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   // The switcher shows a space by its name's first letter.
+  // Whether the switcher lists spaces of more than one profile.
+  protected hasOtherProfiles_(): boolean {
+    return this.spaces_.some(space => !space.ownProfile);
+  }
+
+  protected getSpaceTitle_(space: Space): string {
+    return this.hasOtherProfiles_() ?
+        `${space.name} · ${space.profileName}` :
+        space.name;
+  }
+
+  // Whether |space| begins another profile's spaces, after some.
+  protected isProfileStart_(space: Space): boolean {
+    const index = this.spaces_.indexOf(space);
+    return index > 0 &&
+        this.spaces_[index - 1]!.profileName !== space.profileName;
+  }
+
   protected getSpaceInitial_(space: Space): string {
     return Array.from(space.name.trim())[0]?.toUpperCase() ?? '•';
   }
@@ -487,6 +509,11 @@ export class StrataSidebarAppElement extends CrLitElement {
     const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
     const target = this.spaces_.find(space => space.id === id);
     if (!target || id === this.activeSpaceId_) {
+      return;
+    }
+    // Another profile's swaps the window, which takes this page with it.
+    if (!target.ownProfile) {
+      this.browserProxy_.handler.switchSpace(id);
       return;
     }
     const from = this.spaces_.findIndex(space => this.isActiveSpace_(space));
@@ -520,10 +547,16 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.browserProxy_.handler.addSpace();
   }
 
-  // Entries dragged onto another space's button move there.
+  // Entries dragged onto another space's button move there, but not to
+  // another profile's space: their tabs can't.
+  protected isDropSpace_(id: string): boolean {
+    return id !== this.activeSpaceId_ &&
+        !!this.spaces_.find(space => space.id === id)?.ownProfile;
+  }
+
   protected onSpaceDragover_(e: DragEvent) {
     const button = e.currentTarget as HTMLElement;
-    if (!this.draggingId_ || button.dataset['spaceId'] === this.activeSpaceId_) {
+    if (!this.draggingId_ || !this.isDropSpace_(button.dataset['spaceId']!)) {
       return;
     }
     e.preventDefault();
@@ -538,7 +571,7 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected onSpaceDrop_(e: DragEvent) {
     e.preventDefault();
     const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
-    if (this.draggingId_ && id !== this.activeSpaceId_) {
+    if (this.draggingId_ && this.isDropSpace_(id)) {
       this.browserProxy_.handler.moveNodeToSpace(this.draggingId_, id);
     }
     this.endDrag_();

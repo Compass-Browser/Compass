@@ -81,6 +81,9 @@ void SpaceList::RemoveSpace(SpaceModel& space) {
   // Observers may have changed the list.
   std::erase_if(spaces_,
                 [&](const auto& entry) { return entry.get() == &space; });
+  for (Observer& observer : observers_) {
+    observer.OnSpaceRemoved();
+  }
 }
 
 void SpaceList::SetActiveSpace(SpaceModel& space) {

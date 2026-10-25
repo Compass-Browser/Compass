@@ -27,6 +27,8 @@
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "strata/browser/window_sync/space_directory.h"
+#include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -126,6 +128,12 @@ SidebarPageHandler::SidebarPageHandler(
   observed_space_->AddObserver(this);
   favorites().AddObserver(this);
   features_->service().space_list().AddObserver(this);
+  if (SpaceDirectory::IsListed(browser_->GetProfile())) {
+    if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+      uses_directory_ = true;
+      directory->AddObserver(this);
+    }
+  }
   features_->AddObserver(this);
   registry().AddObserver(this);
   tab_strip_model()->AddObserver(this);
@@ -138,6 +146,9 @@ SidebarPageHandler::~SidebarPageHandler() {
   }
   registry().RemoveObserver(this);
   features_->RemoveObserver(this);
+  if (SpaceDirectory* directory = this->directory()) {
+    directory->RemoveObserver(this);
+  }
   features_->service().space_list().RemoveObserver(this);
   favorites().RemoveObserver(this);
   observed_space_->RemoveObserver(this);
@@ -278,24 +289,30 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
 }
 
 void SidebarPageHandler::SwitchSpace(const std::string& id) {
-  if (SpaceModel* space = FindSpace(id)) {
-    features_->SwitchToSpace(*space);
+  SpaceDirectory::Entry entry = FindAnySpace(id);
+  if (entry.space) {
+    // Another profile's swaps the window, which closes with this handler.
+    SwitchWindowToSpace(browser_, entry.profile, *entry.space);
   }
 }
 
 void SidebarPageHandler::GetSpaceTree(const std::string& id,
                                       GetSpaceTreeCallback callback) {
-  SpaceModel* space = FindSpace(id);
-  if (!space) {
+  SpaceDirectory::Entry entry = FindAnySpace(id);
+  if (!entry.space) {
     std::move(callback).Run(nullptr);
     return;
   }
+  // Another profile's space has its own favorites and tabs.
+  SpaceService& service = *SpaceService::Get(entry.profile);
+  const LiveTabRegistry& registry = service.registry();
   auto tree = sidebar::mojom::Tree::New();
-  tree->favorites = ToMojo(*favorites().pinned_root());
-  tree->pinned = ToMojo(*space->pinned_root());
-  tree->today = ToMojo(*space->today_root());
+  tree->favorites =
+      ToMojo(*service.space_list().favorites().pinned_root(), registry);
+  tree->pinned = ToMojo(*entry.space->pinned_root(), registry);
+  tree->today = ToMojo(*entry.space->today_root(), registry);
   // What the switch would show, for the preview to highlight.
-  if (SidebarNode* shown = PredictShownEntry(features_->service(), *space)) {
+  if (SidebarNode* shown = PredictShownEntry(service, *entry.space)) {
     tree->active_id = shown->id().AsLowercaseString();
   }
   std::move(callback).Run(std::move(tree));
@@ -303,7 +320,8 @@ void SidebarPageHandler::GetSpaceTree(const std::string& id,
 
 void SidebarPageHandler::PreviewSpace(const std::optional<std::string>& id,
                                       double progress) {
-  features_->SetSpacePreview(id ? FindSpace(*id) : nullptr, progress);
+  features_->SetSpacePreview(id ? FindAnySpace(*id).space.get() : nullptr,
+                             progress);
 }
 
 void SidebarPageHandler::AddSpace() {
@@ -316,7 +334,7 @@ void SidebarPageHandler::AddSpace() {
 
 void SidebarPageHandler::RenameSpace(const std::string& id,
                                      const std::string& name) {
-  SpaceModel* space = FindSpace(id);
+  SpaceModel* space = FindAnySpace(id).space;
   std::u16string name16;
   base::TrimWhitespace(base::UTF8ToUTF16(name), base::TRIM_ALL, &name16);
   if (space && !name16.empty()) {
@@ -327,14 +345,15 @@ void SidebarPageHandler::RenameSpace(const std::string& id,
 void SidebarPageHandler::SetSpaceColor(const std::string& id,
                                        sidebar::mojom::SpaceColor color) {
   // Mojo has validated |color|.
-  if (SpaceModel* space = FindSpace(id)) {
+  if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetColor(static_cast<SpaceColor>(color));
   }
 }
 
 void SidebarPageHandler::DeleteSpace(const std::string& id) {
-  if (SpaceModel* space = FindSpace(id)) {
-    strata::DeleteSpace(browser_->GetProfile(), *space);
+  SpaceDirectory::Entry entry = FindAnySpace(id);
+  if (entry.space) {
+    strata::DeleteSpace(entry.profile, *entry.space);
   }
 }
 
@@ -349,7 +368,7 @@ void SidebarPageHandler::MoveNodeToSpace(const std::string& id,
 
 void SidebarPageHandler::SetArchiveAfter(const std::string& space_id,
                                          uint32_t hours) {
-  SpaceModel* space = FindSpace(space_id);
+  SpaceModel* space = FindAnySpace(space_id).space;
   if (space && hours <= kMaxArchiveAfterHours) {
     space->SetArchiveAfter(base::Hours(hours));
   }
@@ -584,19 +603,31 @@ void SidebarPageHandler::OnArchiveChanged(const SpaceModel& space) {
 }
 
 void SidebarPageHandler::OnSpaceAdded(SpaceModel& space) {
-  SendSpaces();
+  // The directory relays the list's changes too.
+  if (!uses_directory_) {
+    SendSpaces();
+  }
 }
 
 void SidebarPageHandler::OnSpaceUpdated(const SpaceModel& space) {
-  SendSpaces();
+  if (!uses_directory_) {
+    SendSpaces();
+  }
 }
 
 void SidebarPageHandler::OnSpaceWillBeRemoved(SpaceModel& space) {
   // Windows showing it have switched away; the list still has it.
   CHECK_NE(&space, observed_space_);
+  if (uses_directory_) {
+    return;
+  }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&SidebarPageHandler::SendSpaces,
                                 weak_factory_.GetWeakPtr()));
+}
+
+void SidebarPageHandler::OnDirectoryChanged() {
+  SendSpaces();
 }
 
 void SidebarPageHandler::OnSpaceSwitched() {
@@ -604,6 +635,11 @@ void SidebarPageHandler::OnSpaceSwitched() {
   observed_space_ = &space_model();
   observed_space_->AddObserver(this);
   RequestTree();
+}
+
+void SidebarPageHandler::OnSwappedAway() {
+  // The window has no bridge left to act through, and closes in a moment.
+  receiver_.reset();
 }
 
 void SidebarPageHandler::OnNodeLiveChanged(const SidebarNode& node, bool live) {
@@ -646,9 +682,22 @@ LiveTabRegistry& SidebarPageHandler::registry() {
 }
 
 void SidebarPageHandler::SendSpaces() {
+  Profile* own_profile = browser_->GetProfile();
+  std::vector<SpaceDirectory::Entry> entries;
+  if (SpaceDirectory* directory = this->directory()) {
+    entries = directory->GetSpaces();
+  } else {
+    for (const auto& space : features_->service().space_list().spaces()) {
+      entries.push_back({own_profile, space.get()});
+    }
+  }
   std::vector<sidebar::mojom::SpacePtr> spaces;
-  for (const auto& space : features_->service().space_list().spaces()) {
+  for (const SpaceDirectory::Entry& entry : entries) {
+    const SpaceModel* space = entry.space;
     auto mojo_space = sidebar::mojom::Space::New();
+    mojo_space->profile_name =
+        base::UTF16ToUTF8(SpaceDirectory::GetProfileName(entry.profile));
+    mojo_space->own_profile = entry.profile == own_profile;
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
     mojo_space->color = static_cast<sidebar::mojom::SpaceColor>(space->color());
@@ -675,15 +724,21 @@ void SidebarPageHandler::SendArchive() {
 }
 
 sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {
+  return ToMojo(node, registry());
+}
+
+sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
+    const SidebarNode& node,
+    const LiveTabRegistry& registry) {
   auto result = sidebar::mojom::Node::New();
   result->id = node.id().AsLowercaseString();
   result->type = ToMojoType(node.type());
   result->title = base::UTF16ToUTF8(node.title());
   result->url = node.url();
   // Live in any window: activating it here moves it here.
-  result->live = registry().GetTab(&node) != nullptr;
+  result->live = registry.GetTab(&node) != nullptr;
   for (const auto& child : node.children()) {
-    result->children.push_back(ToMojo(*child));
+    result->children.push_back(ToMojo(*child, registry));
   }
   return result;
 }
@@ -701,6 +756,21 @@ SpaceModel* SidebarPageHandler::FindSpace(const std::string& id) {
   const base::Uuid uuid = base::Uuid::ParseLowercase(id);
   return uuid.is_valid() ? features_->service().space_list().FindSpace(uuid)
                          : nullptr;
+}
+
+SpaceDirectory::Entry SidebarPageHandler::FindAnySpace(const std::string& id) {
+  if (SpaceModel* space = FindSpace(id)) {
+    return {browser_->GetProfile(), space};
+  }
+  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
+  SpaceDirectory* directory = this->directory();
+  return uuid.is_valid() && directory ? directory->FindSpace(uuid)
+                                      : SpaceDirectory::Entry();
+}
+
+SpaceDirectory* SidebarPageHandler::directory() {
+  // Gone with the profile manager, during shutdown.
+  return uses_directory_ ? SpaceDirectory::GetIfExists() : nullptr;
 }
 
 std::optional<std::string> SidebarPageHandler::GetActiveNodeId() {

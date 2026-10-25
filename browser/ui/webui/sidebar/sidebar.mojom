@@ -61,6 +61,12 @@ struct Space {
   SpaceColor color;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
+  // The name of the profile it belongs to.
+  string profile_name;
+  // Whether it belongs to the window's profile. Entries can't move to the
+  // others, and switching to one swaps the window (docs/design/spaces.md,
+  // slice 3).
+  bool own_profile;
 };
 
 struct ArchivedTab {
@@ -109,7 +115,8 @@ interface PageHandler {
   // live tabs.
   DeleteNode(string id);
 
-  // Shows another space in this window; the page then gets its tree.
+  // Shows another space in this window; the page then gets its tree. A space
+  // of another profile swaps the window instead: this page closes with it.
   SwitchSpace(string id);
   // Adds a space at the end and switches to it.
   AddSpace();
@@ -154,8 +161,9 @@ interface PageHandler {
 // Implemented by the page; the browser pushes the model's changes through it,
 // in the order the model made them.
 interface Page {
-  // The profile's spaces, and the one this window shows. Sent before the
-  // tree, and whenever they change.
+  // Every profile's spaces (only the profile's own in an off-the-record
+  // window), and the one this window shows. Sent before the tree, and
+  // whenever they change.
   SetSpaces(array<Space> spaces, string active_id);
   // The whole tree. Replaces whatever the page had.
   SetTree(Tree tree);

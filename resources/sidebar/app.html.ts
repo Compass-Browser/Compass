@@ -108,6 +108,9 @@ export function getHtml(this: StrataSidebarAppElement) {
 ${this.getMenuSpace_() ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
+    <div id="spaceProfile" ?hidden="${!this.hasOtherProfiles_()}">
+      ${this.getMenuSpace_()!.profileName}
+    </div>
     <input id="spaceNameInput" aria-label="Space name"
         .value="${this.getMenuSpace_()!.name}"
         @keydown="${this.onSpaceNameKeydown_}"
@@ -169,8 +172,10 @@ ${this.archiveOpen_ ? html`
 <div id="spaces" role="tablist" aria-label="Spaces">
   ${repeat(this.spaces_, (space: Space) => space.id, (space: Space) => html`
     <button class="space" role="tab" data-space-id="${space.id}"
-        title="${space.name}" aria-label="${space.name}"
+        title="${this.getSpaceTitle_(space)}"
+        aria-label="${this.getSpaceTitle_(space)}"
         style="--space-color: ${this.getSpaceColor_(space.color)}"
+        ?profile-start="${this.isProfileStart_(space)}"
         aria-selected="${this.isActiveSpace_(space)}"
         ?active="${this.isActiveSpace_(space)}"
         @click="${this.onSpaceClick_}"

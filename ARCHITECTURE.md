@@ -174,8 +174,8 @@ result without patching that invariant:
 
 Spaces that share a profile realize this by rebinding (D15): the window keeps
 its `Browser`, and a switch moves the live tabs of the space it leaves into a
-hidden parking `Browser` and those of the space it enters back. Swapping
-windows remains for spaces with another profile. See
+hidden parking `Browser` and those of the space it enters back. Spaces with
+another profile swap windows (D17). See
 [docs/design/spaces.md](docs/design/spaces.md).
 
 We rejected two alternatives: patching `Browser` to host tabs from several
@@ -337,6 +337,7 @@ Milestones 2–4 make up the MVP.
 | D14 | Today is saved in the sidebar file; tabs Chrome restores take over saved entries by URL | Chrome's session restore keeps history and crash recovery, so we leave it alone. Tagging tabs through session "extra data" would need two patches (a rebuild of the session file drops tab extra data). URL matching is right for the common case and degrades to a duplicate entry |
 | D15 | Spaces of one profile share a window's `Browser`; a switch moves live tabs to and from a hidden, unrestored popup parking `Browser` (realizes D6 for one profile) | A native window can't host several `Browser`s, and swapping windows flickers, splits window state and can't restore a window's space without session patches. Moving tabs keeps page state, as tab dragging does |
 | D16 | Entries move between spaces as the same node objects (`SpaceModel::MoveToSpace()`), not as copies | Node IDs and the registry's node ↔ tab pairs stay valid, so live tabs follow their entry without being closed and reopened |
+| D17 | Spaces of another profile swap the window: a window of that profile opens at the same bounds and the old one empties into its profile's parking window. `SpaceDirectory` lists every profile's spaces and keeps those profiles loaded (`kStrataSpaces` keep-alive) | A `Browser` has one profile (§6), so rebinding can't cross profiles. Without the keep-alive, a profile whose last window swapped away would be destroyed, with its parked tabs and its spaces in the switcher |
 
 ## 15. Open questions
 

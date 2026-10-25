@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+index 5582ae1d0febd9ad2d9ecc9d62c64390b89fb992..5ba4b184bcbd869ca6b2d296c42d8c49b5a8fffc 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+@@ -190,7 +190,10 @@ enum class ProfileKeepAliveOrigin {
+   // alive.
+   kOmniboxEverywhere = 46,
+ 
+-  kMaxValue = kOmniboxEverywhere,
++  // Strata: keeps profiles whose spaces show in the switcher loaded.
++  kStrataSpaces = 47,
++
++  kMaxValue = kStrataSpaces,
+ };
+ // LINT.ThenChange(/tools/metrics/histograms/metadata/profile/enums.xml)
+ 

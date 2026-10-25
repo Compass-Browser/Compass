@@ -39,6 +39,7 @@
 #include "strata/browser/sidebar/sidebar_node.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
+#include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
@@ -384,15 +385,21 @@ void CommandBarPageHandler::AddSpaceItems(std::vector<Item>& items) {
     return;
   }
   const std::vector<std::u16string> words = GetWords(text_);
-  for (const auto& space : features->service().space_list().spaces()) {
-    if (space.get() == &features->space_model() ||
+  // Every profile's (docs/design/spaces.md, slice 3).
+  for (const SpaceDirectory::Entry& entry : GetSwitchableSpaces(browser_)) {
+    const SpaceModel* space = entry.space;
+    if (space == &features->space_model() ||
         !ContainsAll(base::i18n::ToLower(space->name()), words)) {
       continue;
     }
     Item item;
     item.kind = ResultKind::kSpace;
     item.title = space->name();
-    item.action = "Switch to space";
+    item.action = entry.profile == browser_->GetProfile()
+                      ? "Switch to space"
+                      : "Switch to space in " +
+                            base::UTF16ToUTF8(
+                                SpaceDirectory::GetProfileName(entry.profile));
     item.space_id = space->id();
     AssignId(item, "s:" + space->id().AsLowercaseString());
     items.push_back(std::move(item));
@@ -522,11 +529,13 @@ void CommandBarPageHandler::AcceptEntry(const Item& item) {
 }
 
 void CommandBarPageHandler::AcceptSpace(const base::Uuid& space_id) {
-  WindowFeatures* features = WindowFeatures::From(browser_);
-  if (SpaceModel* space =
-          features ? features->service().space_list().FindSpace(space_id)
-                   : nullptr) {
-    features->SwitchToSpace(*space);
+  if (!WindowFeatures::From(browser_)) {
+    return;
+  }
+  // Another profile's swaps the window.
+  SpaceDirectory::Entry entry = FindSwitchableSpace(browser_, space_id);
+  if (entry.space) {
+    SwitchWindowToSpace(browser_, entry.profile, *entry.space);
   }
 }
 

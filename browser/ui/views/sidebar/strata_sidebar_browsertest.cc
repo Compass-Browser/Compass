@@ -5,15 +5,21 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
@@ -36,15 +42,19 @@
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
+#include "strata/browser/window_sync/space_directory.h"
+#include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/base_window.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -534,6 +544,93 @@ bool PressSpaceShortcut(views::View* browser_view, int index) {
   return browser_view->GetFocusManager()->ProcessAccelerator(ui::Accelerator(
       static_cast<ui::KeyboardCode>(ui::VKEY_1 + index), kModifiers));
 }
+
+// Slice 3 of docs/design/spaces.md: a space of another profile swaps the
+// window, and the tabs left behind wait in their profile's parking window.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       AnotherProfilesSpaceSwapsTheWindow) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  content::WebContents* one = browser()->tab_strip_model()->GetWebContentsAt(0);
+  Profile* profile = browser()->GetProfile();
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  SpaceModel& other_home = SpaceService::Get(&other)->space_list().active_space();
+  const gfx::Rect bounds = browser()->GetWindow()->GetRestoredBounds();
+  content::WebContents* contents = sidebar_contents();
+
+  // The switcher lists both profiles' spaces; click the other's. Its ID
+  // changes once the profile's file has loaded, so look it up each time.
+  constexpr char kSpaceButton[] = R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('.space[data-space-id="' + $1 + '"]'))";
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(
+               contents,
+               "!!" + content::JsReplace(kSpaceButton,
+                                         other_home.id().AsLowercaseString()))
+        .ExtractBool();
+  }));
+  ASSERT_TRUE(content::ExecJs(
+      contents, content::JsReplace(kSpaceButton,
+                                   other_home.id().AsLowercaseString()) +
+                    ".click()"));
+
+  BrowserWindowInterface* swapped = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          if (window->GetProfile() == &other &&
+              window->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+            swapped = window;
+          }
+          return !swapped;
+        });
+    return swapped != nullptr;
+  }));
+  SetBrowser(swapped);
+  EXPECT_EQ(&WindowFeatures::From(swapped)->space_model(), &other_home);
+  EXPECT_EQ(swapped->GetWindow()->GetRestoredBounds(), bounds);
+  // The old window closes; its tab waits, alive, in its profile.
+  BrowserWindowInterface* parking =
+      SpaceService::Get(profile)->parking_window();
+  ASSERT_TRUE(parking);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    int normal = 0;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          normal += window->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+          return true;
+        });
+    return normal == 1;
+  }));
+  EXPECT_EQ(parking->GetTabStripModel()->GetWebContentsAt(0), one);
+
+  // Ctrl+1 counts across profiles; the first profile's Home is first or
+  // after the other's, as the profile menu orders them.
+  const std::vector<SpaceDirectory::Entry> spaces =
+      GetSwitchableSpaces(swapped);
+  ASSERT_EQ(spaces.size(), 2u);
+  const int index = spaces[0].profile == profile ? 0 : 1;
+  views::View* view = BrowserView::GetBrowserViewForBrowser(swapped);
+  ASSERT_TRUE(PressSpaceShortcut(view, index));
+  BrowserWindowInterface* back = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          if (window->GetProfile() == profile &&
+              window->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+            back = window;
+          }
+          return !back;
+        });
+    return back != nullptr;
+  }));
+  SetBrowser(back);
+  EXPECT_EQ(back->GetTabStripModel()->GetActiveWebContents(), one);
+}
+
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
                        DragOntoASpaceMovesTheEntryAndShortcutsSwitch) {

@@ -138,6 +138,7 @@ source_set("browser_tests") {
     "//base/test:test_support",
     "//chrome/app:command_ids",
     "//chrome/browser/extensions:test_support",
+    "//chrome/browser/profiles:profile_test_util",
     "//chrome/browser/ui",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/views/frame:browser_view_header",

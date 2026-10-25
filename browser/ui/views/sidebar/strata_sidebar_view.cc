@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
@@ -19,6 +20,7 @@
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
+#include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator_manager.h"
@@ -83,13 +85,15 @@ bool SpaceShortcuts::AcceleratorPressed(const ui::Accelerator& accelerator) {
   if (!features || features->is_parking_window()) {
     return false;
   }
-  const auto& spaces = features->service().space_list().spaces();
+  // Counted across profiles, as the switcher shows them.
+  const std::vector<SpaceDirectory::Entry> spaces =
+      GetSwitchableSpaces(browser_);
   const size_t index = accelerator.key_code() - ui::VKEY_1;
   if (index >= spaces.size()) {
     // Nothing there; let the key go on.
     return false;
   }
-  features->SwitchToSpace(*spaces[index]);
+  SwitchWindowToSpace(browser_, spaces[index].profile, *spaces[index].space);
   return true;
 }
 
