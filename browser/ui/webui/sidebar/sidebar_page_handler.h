@@ -11,6 +11,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_attributes_storage_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -44,6 +47,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public SpaceModel::Observer,
                            public SpaceList::Observer,
                            public SpaceDirectory::Observer,
+                           public ProfileAttributesStorageObserver,
                            public WindowFeatures::Observer,
                            public LiveTabRegistry::Observer,
                            public TabStripModelObserver {
@@ -98,6 +102,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void RenameSpace(const std::string& id, const std::string& name) override;
   void SetSpaceColor(const std::string& id,
                      sidebar::mojom::SpaceColor color) override;
+  void SetSpaceProfile(const std::string& id,
+                       const std::optional<std::string>& profile_id) override;
   void DeleteSpace(const std::string& id) override;
   void MoveNodeToSpace(const std::string& id,
                        const std::string& space_id) override;
@@ -139,6 +145,15 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // SpaceDirectory::Observer:
   void OnDirectoryChanged() override;
 
+  // ProfileAttributesStorageObserver, for the profiles a space can be
+  // assigned to:
+  void OnProfileAdded(const base::FilePath& profile_path) override;
+  void OnProfileWasRemoved(const base::FilePath& profile_path,
+                           const std::u16string& profile_name) override;
+  void OnProfileNameChanged(const base::FilePath& profile_path,
+                            const std::u16string& old_profile_name) override;
+  void OnProfileIsOmittedChanged(const base::FilePath& profile_path) override;
+
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
   void OnSwappedAway() override;
@@ -161,6 +176,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   SpaceModel& GetModelOf(const SidebarNode* node);
   TabStripBridge& bridge();
   LiveTabRegistry& registry();
+
+  // Stops following the models and the window, for good: on destruction, or
+  // once the window swapped away.
+  void StopObserving();
 
   sidebar::mojom::NodePtr ToMojo(const SidebarNode& node);
   // With |registry|'s live tabs: another profile's, for its spaces.
@@ -198,11 +217,14 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   const raw_ptr<WindowFeatures> features_;
   const raw_ptr<content::WebContents> page_contents_;
   // The space whose changes the page gets: the window's, except while it
-  // switches.
+  // switches. Null once the handler stopped observing.
   raw_ptr<SpaceModel> observed_space_ = nullptr;
   // Whether the page lists every profile's spaces: not in off-the-record
   // windows.
   bool uses_directory_ = false;
+  base::ScopedObservation<ProfileAttributesStorage,
+                          ProfileAttributesStorageObserver>
+      profiles_observation_{this};
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 

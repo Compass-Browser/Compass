@@ -27,6 +27,10 @@
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile_attributes_entry.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -128,10 +132,12 @@ SidebarPageHandler::SidebarPageHandler(
   observed_space_->AddObserver(this);
   favorites().AddObserver(this);
   features_->service().space_list().AddObserver(this);
-  if (SpaceDirectory::IsListed(browser_->GetProfile())) {
+  if (SpaceDirectory::IsListable(browser_->GetProfile())) {
     if (SpaceDirectory* directory = SpaceDirectory::Get()) {
       uses_directory_ = true;
       directory->AddObserver(this);
+      profiles_observation_.Observe(&g_browser_process->profile_manager()
+                                         ->GetProfileAttributesStorage());
     }
   }
   features_->AddObserver(this);
@@ -141,17 +147,27 @@ SidebarPageHandler::SidebarPageHandler(
 
 SidebarPageHandler::~SidebarPageHandler() {
   // A swipe the page was in the middle of.
-  if (features_->preview_space()) {
+  if (observed_space_ && features_->preview_space()) {
     features_->SetSpacePreview(nullptr, 0);
+  }
+  StopObserving();
+}
+
+void SidebarPageHandler::StopObserving() {
+  if (!observed_space_) {
+    return;
   }
   registry().RemoveObserver(this);
   features_->RemoveObserver(this);
   if (SpaceDirectory* directory = this->directory()) {
     directory->RemoveObserver(this);
   }
+  profiles_observation_.Reset();
   features_->service().space_list().RemoveObserver(this);
   favorites().RemoveObserver(this);
   observed_space_->RemoveObserver(this);
+  observed_space_ = nullptr;
+  tab_strip_model()->RemoveObserver(this);
 }
 
 void SidebarPageHandler::RequestTree() {
@@ -348,6 +364,27 @@ void SidebarPageHandler::SetSpaceColor(const std::string& id,
   if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetColor(static_cast<SpaceColor>(color));
   }
+}
+
+void SidebarPageHandler::SetSpaceProfile(
+    const std::string& id,
+    const std::optional<std::string>& profile_id) {
+  SpaceDirectory::Entry entry = FindAnySpace(id);
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  if (!entry.space || !directory() || !profile_manager) {
+    return;
+  }
+  std::optional<base::FilePath> path;
+  if (profile_id) {
+    const base::FilePath name = base::FilePath::FromUTF8Unsafe(*profile_id);
+    // A directory name, nothing more.
+    if (name.empty() || name.BaseName() != name ||
+        name.ReferencesParent()) {
+      return;
+    }
+    path = profile_manager->user_data_dir().Append(name);
+  }
+  AssignSpaceToProfile(entry.space->id(), std::move(path));
 }
 
 void SidebarPageHandler::DeleteSpace(const std::string& id) {
@@ -630,6 +667,27 @@ void SidebarPageHandler::OnDirectoryChanged() {
   SendSpaces();
 }
 
+void SidebarPageHandler::OnProfileAdded(const base::FilePath& profile_path) {
+  SendSpaces();
+}
+
+void SidebarPageHandler::OnProfileWasRemoved(
+    const base::FilePath& profile_path,
+    const std::u16string& profile_name) {
+  SendSpaces();
+}
+
+void SidebarPageHandler::OnProfileNameChanged(
+    const base::FilePath& profile_path,
+    const std::u16string& old_profile_name) {
+  SendSpaces();
+}
+
+void SidebarPageHandler::OnProfileIsOmittedChanged(
+    const base::FilePath& profile_path) {
+  SendSpaces();
+}
+
 void SidebarPageHandler::OnSpaceSwitched() {
   observed_space_->RemoveObserver(this);
   observed_space_ = &space_model();
@@ -639,7 +697,9 @@ void SidebarPageHandler::OnSpaceSwitched() {
 
 void SidebarPageHandler::OnSwappedAway() {
   // The window has no bridge left to act through, and closes in a moment.
+  // Its space can go before it does (moved to another profile).
   receiver_.reset();
+  StopObserving();
 }
 
 void SidebarPageHandler::OnNodeLiveChanged(const SidebarNode& node, bool live) {
@@ -695,6 +755,8 @@ void SidebarPageHandler::SendSpaces() {
   for (const SpaceDirectory::Entry& entry : entries) {
     const SpaceModel* space = entry.space;
     auto mojo_space = sidebar::mojom::Space::New();
+    mojo_space->profile_id =
+        entry.profile->GetOriginalProfile()->GetBaseName().AsUTF8Unsafe();
     mojo_space->profile_name =
         base::UTF16ToUTF8(SpaceDirectory::GetProfileName(entry.profile));
     mojo_space->own_profile = entry.profile == own_profile;
@@ -704,8 +766,22 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->archive_after_hours = space->archive_after().InHours();
     spaces.push_back(std::move(mojo_space));
   }
-  page_->SetSpaces(std::move(spaces),
-                   space_model().id().AsLowercaseString());
+  // The profiles a space can be assigned to, as the profile menu lists them.
+  std::vector<sidebar::mojom::ProfileOptionPtr> profiles;
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  if (directory() && profile_manager) {
+    for (ProfileAttributesEntry* profile :
+         profile_manager->GetProfileAttributesStorage()
+             .GetAllProfilesAttributesSortedForDisplay()) {
+      if (!profile->IsOmitted()) {
+        profiles.push_back(sidebar::mojom::ProfileOption::New(
+            profile->GetPath().BaseName().AsUTF8Unsafe(),
+            base::UTF16ToUTF8(profile->GetName())));
+      }
+    }
+  }
+  page_->SetSpaces(std::move(spaces), space_model().id().AsLowercaseString(),
+                   std::move(profiles));
 }
 
 void SidebarPageHandler::SendArchive() {

@@ -8,9 +8,14 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
@@ -27,16 +32,38 @@ namespace {
 
 SpaceDirectory* g_directory = nullptr;
 
+constexpr base::FilePath::CharType kFileName[] =
+    FILE_PATH_LITERAL("Strata Spaces.json");
+constexpr base::TimeDelta kCommitInterval = base::Seconds(1);
+
+// {"version": 1, "profiles": [<profile directory name>], "order": [<id>]}
+constexpr char kVersionKey[] = "version";
+constexpr char kProfilesKey[] = "profiles";
+constexpr char kOrderKey[] = "order";
+
+std::optional<base::Value> ReadFile(const base::FilePath& path) {
+  std::string contents;
+  if (!base::ReadFileToString(path, &contents)) {
+    return std::nullopt;
+  }
+  return base::JSONReader::Read(contents, base::JSON_PARSE_RFC);
+}
+
 }  // namespace
 
-struct SpaceDirectory::Member {
-  raw_ptr<Profile> profile;
-  // Null until the profile's service is created.
-  raw_ptr<SpaceService> service;
-  std::unique_ptr<ScopedProfileKeepAlive> keep_alive;
-};
+SpaceDirectory::Member::Member() = default;
+SpaceDirectory::Member::~Member() = default;
 
-SpaceDirectory::SpaceDirectory() = default;
+SpaceDirectory::SpaceDirectory(ProfileManager* profile_manager)
+    : user_data_dir_(profile_manager->user_data_dir()),
+      writer_(user_data_dir_.Append(kFileName),
+              base::ThreadPool::CreateSequencedTaskRunner(
+                  {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+                   base::TaskShutdownBehavior::BLOCK_SHUTDOWN}),
+              kCommitInterval,
+              "StrataSpaces") {
+  profile_manager_observation_.Observe(profile_manager);
+}
 
 SpaceDirectory::~SpaceDirectory() {
   for (auto& [path, member] : members_) {
@@ -55,13 +82,14 @@ SpaceDirectory* SpaceDirectory::Get() {
   if (!profile_manager) {
     return nullptr;
   }
-  g_directory = new SpaceDirectory();
-  g_directory->profile_manager_observation_.Observe(profile_manager);
-  // Not now: the first caller may be a service being constructed, which
-  // OnProfileAdded() would otherwise construct again.
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&SpaceDirectory::AddProfiles,
-                                g_directory->weak_factory_.GetWeakPtr()));
+  g_directory = new SpaceDirectory(profile_manager);
+  // Answers later, so the first caller (a service being constructed) is done
+  // by then.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&ReadFile, g_directory->writer_.path()),
+      base::BindOnce(&SpaceDirectory::OnFileLoaded,
+                     g_directory->weak_factory_.GetWeakPtr()));
   return g_directory;
 }
 
@@ -71,18 +99,9 @@ SpaceDirectory* SpaceDirectory::GetIfExists() {
 }
 
 // static
-bool SpaceDirectory::IsListed(const Profile* profile) {
-  if (profile->IsOffTheRecord() || profile->IsGuestSession() ||
-      profile->IsSystemProfile()) {
-    return false;
-  }
-  ProfileManager* profile_manager =
-      g_browser_process ? g_browser_process->profile_manager() : nullptr;
-  ProfileAttributesEntry* entry =
-      profile_manager ? profile_manager->GetProfileAttributesStorage()
-                            .GetProfileAttributesWithPath(profile->GetPath())
-                      : nullptr;
-  return !entry || !entry->IsOmitted();
+bool SpaceDirectory::IsListable(const Profile* profile) {
+  return !profile->IsOffTheRecord() && !profile->IsGuestSession() &&
+         !profile->IsSystemProfile();
 }
 
 // static
@@ -98,25 +117,8 @@ std::u16string SpaceDirectory::GetProfileName(const Profile* profile) {
 }
 
 std::vector<SpaceDirectory::Entry> SpaceDirectory::GetSpaces() const {
-  // The profile menu's order; profiles it doesn't know (in tests) last.
-  std::vector<const Member*> ordered;
-  if (ProfileManager* profile_manager = g_browser_process->profile_manager()) {
-    for (ProfileAttributesEntry* entry :
-         profile_manager->GetProfileAttributesStorage()
-             .GetAllProfilesAttributesSortedForDisplay()) {
-      auto it = members_.find(entry->GetPath());
-      if (it != members_.end()) {
-        ordered.push_back(it->second.get());
-      }
-    }
-  }
-  for (const auto& [path, member] : members_) {
-    if (!std::ranges::contains(ordered, member.get())) {
-      ordered.push_back(member.get());
-    }
-  }
   std::vector<Entry> spaces;
-  for (const Member* member : ordered) {
+  for (const auto& [path, member] : members_) {
     if (!member->service) {
       continue;
     }
@@ -124,6 +126,10 @@ std::vector<SpaceDirectory::Entry> SpaceDirectory::GetSpaces() const {
       spaces.push_back({member->profile, space.get()});
     }
   }
+  auto position = [&](const Entry& entry) {
+    return std::ranges::find(order_, entry.space->id()) - order_.begin();
+  };
+  std::ranges::stable_sort(spaces, {}, position);
   return spaces;
 }
 
@@ -139,53 +145,74 @@ SpaceDirectory::Entry SpaceDirectory::FindSpace(const base::Uuid& id) const {
   return {};
 }
 
-void SpaceDirectory::AddProfiles() {
-  ProfileManager* profile_manager =
-      profile_manager_observation_.GetSource();
-  for (Profile* profile : profile_manager->GetLoadedProfiles()) {
-    OnProfileAdded(profile);
+bool SpaceDirectory::IsListed(const Profile* profile) const {
+  return listed_.contains(profile->GetPath());
+}
+
+void SpaceDirectory::List(Profile* profile) {
+  if (!IsListable(profile) || IsListed(profile)) {
+    return;
   }
-  // The others report through OnProfileAdded() once loaded.
-  for (ProfileAttributesEntry* entry :
-       profile_manager->GetProfileAttributesStorage()
-           .GetAllProfilesAttributes()) {
-    if (!entry->IsOmitted() &&
-        !profile_manager->GetProfileByPath(entry->GetPath())) {
-      profile_manager->LoadProfileByPath(entry->GetPath(), /*incognito=*/false,
-                                         base::DoNothing());
+  listed_.insert(profile->GetPath());
+  Attach(profile);
+  Changed();
+}
+
+void SpaceDirectory::Unlist(Profile* profile) {
+  if (!listed_.erase(profile->GetPath())) {
+    return;
+  }
+  auto it = members_.find(profile->GetPath());
+  if (it != members_.end() && it->second->service) {
+    for (const auto& space : it->second->service->space_list().spaces()) {
+      std::erase(order_, space->id());
     }
   }
+  Detach(profile->GetPath());
+  Changed();
+}
+
+void SpaceDirectory::PlaceAfter(const SpaceModel& space,
+                                const SpaceModel& anchor) {
+  std::erase(order_, space.id());
+  auto it = std::ranges::find(order_, anchor.id());
+  order_.insert(it == order_.end() ? it : it + 1, space.id());
+  Changed();
 }
 
 void SpaceDirectory::OnServiceCreated(Profile* profile, SpaceService* service) {
-  std::unique_ptr<Member>& member = members_[profile->GetPath()];
-  if (!member) {
-    member = std::make_unique<Member>();
-    member->profile = profile;
-    // Null for a profile already on its way out.
-    member->keep_alive = ScopedProfileKeepAlive::TryAcquire(
-        profile, ProfileKeepAliveOrigin::kStrataSpaces);
+  if (IsListed(profile) && !members_.contains(profile->GetPath())) {
+    Attach(profile, service);
+    Changed();
   }
-  member->service = service;
-  service->space_list().AddObserver(this);
-  NotifyChanged();
 }
 
-void SpaceDirectory::OnServiceDestroyed(SpaceService* service) {
-  for (auto it = members_.begin(); it != members_.end(); ++it) {
-    if (it->second->service == service) {
-      service->space_list().RemoveObserver(this);
-      // The profile is going: its keep-alive is moot.
-      members_.erase(it);
-      NotifyChanged();
+void SpaceDirectory::OnServiceLoaded(SpaceService* service) {
+  for (auto& [path, member] : members_) {
+    if (member->service == service) {
+      // The provisional space took its saved ID, and the saved spaces came in.
+      AppendSpaces(service);
+      Changed();
       return;
     }
   }
 }
 
-void SpaceDirectory::OnServiceLoaded() {
-  // The provisional space took its saved ID, and the saved spaces came in.
-  NotifyChanged();
+void SpaceDirectory::OnServiceDestroyed(SpaceService* service) {
+  for (auto& [path, member] : members_) {
+    if (member->service == service) {
+      // The profile is going. It stays listed, for the next run.
+      Detach(base::FilePath(path));
+      Changed();
+      return;
+    }
+  }
+}
+
+void SpaceDirectory::Flush() {
+  if (writer_.HasPendingWrite()) {
+    writer_.DoScheduledWrite();
+  }
 }
 
 void SpaceDirectory::AddObserver(Observer* observer) {
@@ -198,24 +225,17 @@ void SpaceDirectory::RemoveObserver(Observer* observer) {
 
 void SpaceDirectory::OnProfileAdded(Profile* profile) {
   if (IsListed(profile) && !members_.contains(profile->GetPath())) {
-    // Registers itself through OnServiceCreated().
-    SpaceService::Get(profile);
+    Attach(profile);
+    Changed();
   }
 }
 
 void SpaceDirectory::OnProfileMarkedForPermanentDeletion(Profile* profile) {
-  auto it = members_.find(profile->GetPath());
-  if (it == members_.end()) {
-    return;
-  }
-  if (it->second->service) {
-    it->second->service->space_list().RemoveObserver(this);
-  }
-  members_.erase(it);
-  NotifyChanged();
+  Unlist(profile);
 }
 
 void SpaceDirectory::OnProfileManagerDestroying() {
+  Flush();
   // The browser process may no longer return the manager going away.
   profile_manager_observation_.Reset();
   g_directory = nullptr;
@@ -223,18 +243,147 @@ void SpaceDirectory::OnProfileManagerDestroying() {
 }
 
 void SpaceDirectory::OnSpaceAdded(SpaceModel& space) {
-  NotifyChanged();
+  for (auto& [path, member] : members_) {
+    if (member->service &&
+        member->service->space_list().FindSpace(space.id()) == &space) {
+      // Spaces a file brings in are placed once it has loaded.
+      if (member->service->loaded() &&
+          !std::ranges::contains(order_, space.id())) {
+        order_.push_back(space.id());
+      }
+      break;
+    }
+  }
+  Changed();
 }
 
 void SpaceDirectory::OnSpaceUpdated(const SpaceModel& space) {
-  NotifyChanged();
+  Changed();
+}
+
+void SpaceDirectory::OnSpaceWillBeRemoved(SpaceModel& space) {
+  std::erase(order_, space.id());
 }
 
 void SpaceDirectory::OnSpaceRemoved() {
-  NotifyChanged();
+  Changed();
 }
 
-void SpaceDirectory::NotifyChanged() {
+std::optional<std::string> SpaceDirectory::SerializeData() {
+  base::ListValue profiles;
+  for (const base::FilePath& path : listed_) {
+    if (path.DirName() == user_data_dir_) {
+      profiles.Append(path.BaseName().AsUTF8Unsafe());
+    }
+  }
+  base::ListValue order;
+  for (const base::Uuid& id : order_) {
+    order.Append(id.AsLowercaseString());
+  }
+  return base::WriteJsonWithOptions(
+      base::DictValue()
+          .Set(kVersionKey, 1)
+          .Set(kProfilesKey, std::move(profiles))
+          .Set(kOrderKey, std::move(order)),
+      base::JSONWriter::OPTIONS_PRETTY_PRINT);
+}
+
+void SpaceDirectory::OnFileLoaded(std::optional<base::Value> data) {
+  std::vector<base::Uuid> order;
+  if (data && data->is_dict()) {
+    if (const base::ListValue* profiles =
+            data->GetDict().FindList(kProfilesKey)) {
+      for (const base::Value& name : *profiles) {
+        if (name.is_string()) {
+          listed_.insert(user_data_dir_.Append(
+              base::FilePath::FromUTF8Unsafe(name.GetString())));
+        }
+      }
+    }
+    if (const base::ListValue* ids = data->GetDict().FindList(kOrderKey)) {
+      for (const base::Value& id : *ids) {
+        base::Uuid uuid = id.is_string()
+                              ? base::Uuid::ParseLowercase(id.GetString())
+                              : base::Uuid();
+        if (uuid.is_valid() && !std::ranges::contains(order, uuid)) {
+          order.push_back(uuid);
+        }
+      }
+    }
+  }
+  // Spaces placed before the file came in go after the saved ones.
+  for (const base::Uuid& id : order_) {
+    if (!std::ranges::contains(order, id)) {
+      order.push_back(id);
+    }
+  }
+  order_ = std::move(order);
+  file_loaded_ = true;
+  LoadListedProfiles();
+  Changed();
+}
+
+void SpaceDirectory::LoadListedProfiles() {
+  ProfileManager* profile_manager = profile_manager_observation_.GetSource();
+  if (!profile_manager) {
+    return;
+  }
+  for (auto it = listed_.begin(); it != listed_.end();) {
+    if (Profile* profile = profile_manager->GetProfileByPath(*it)) {
+      Attach(profile);
+      ++it;
+    } else if (profile_manager->LoadProfileByPath(*it, /*incognito=*/false,
+                                                  base::DoNothing())) {
+      // OnProfileAdded() attaches it.
+      ++it;
+    } else {
+      // Deleted since.
+      it = listed_.erase(it);
+    }
+  }
+}
+
+void SpaceDirectory::Attach(Profile* profile, SpaceService* service) {
+  std::unique_ptr<Member>& member = members_[profile->GetPath()];
+  if (member) {
+    return;
+  }
+  member = std::make_unique<Member>();
+  member->profile = profile;
+  // Null for a profile already on its way out.
+  member->keep_alive = ScopedProfileKeepAlive::TryAcquire(
+      profile, ProfileKeepAliveOrigin::kStrataSpaces);
+  // A service under construction passes itself: Get() would make another.
+  member->service = service ? service : SpaceService::Get(profile);
+  member->service->space_list().AddObserver(this);
+  if (member->service->loaded()) {
+    AppendSpaces(member->service);
+  }
+}
+
+void SpaceDirectory::Detach(const base::FilePath& path) {
+  auto it = members_.find(path);
+  if (it == members_.end()) {
+    return;
+  }
+  if (it->second->service) {
+    it->second->service->space_list().RemoveObserver(this);
+  }
+  members_.erase(it);
+}
+
+void SpaceDirectory::AppendSpaces(SpaceService* service) {
+  for (const auto& space : service->space_list().spaces()) {
+    if (!std::ranges::contains(order_, space->id())) {
+      order_.push_back(space->id());
+    }
+  }
+}
+
+void SpaceDirectory::Changed() {
+  if (file_loaded_) {
+    writer_.ScheduleWrite(this);
+  }
   for (Observer& observer : observers_) {
     observer.OnDirectoryChanged();
   }

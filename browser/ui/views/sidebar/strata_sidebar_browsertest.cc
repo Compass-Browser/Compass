@@ -556,6 +556,8 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   Profile& other = profiles::testing::CreateProfileSync(
       profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  // Listed as if it had a window, with its Home.
+  SpaceDirectory::Get()->List(&other);
   SpaceModel& other_home = SpaceService::Get(&other)->space_list().active_space();
   const gfx::Rect bounds = browser()->GetWindow()->GetRestoredBounds();
   content::WebContents* contents = sidebar_contents();
@@ -629,6 +631,59 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   }));
   SetBrowser(back);
   EXPECT_EQ(back->GetTabStripModel()->GetActiveWebContents(), one);
+}
+
+// Assigning the window's space to another profile from the space menu, as in
+// Arc: the window swaps to that profile and reloads the page it showed.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuAssignsAProfile) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  content::WebContents* contents = sidebar_contents();
+
+  ASSERT_TRUE(content::ExecJs(
+      contents,
+      content::JsReplace(R"(
+        (async (id) => {
+          const root = document.querySelector('strata-sidebar-app').shadowRoot;
+          const until = async (f) => {
+            while (!f()) await new Promise(r => setTimeout(r, 20));
+            return f();
+          };
+          root.querySelector('.space').dispatchEvent(new MouseEvent(
+              'contextmenu', {bubbles: true, cancelable: true, composed: true}));
+          const select = await until(() =>
+              [...root.querySelectorAll('#spaceProfile option')]
+                  .find(option => option.value === id)?.parentElement);
+          select.value = id;
+          select.dispatchEvent(new Event('change'));
+        })($1))",
+                         other.GetBaseName().AsUTF8Unsafe())));
+
+  BrowserWindowInterface* swapped = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          if (window->GetProfile() == &other &&
+              window->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+            swapped = window;
+          }
+          return !swapped;
+        });
+    return swapped != nullptr;
+  }));
+  SetBrowser(swapped);
+  // The same space, now the other profile's, alone in the switcher: the
+  // first profile had no other space, and the new one's own Home stays out.
+  SpaceDirectory* directory = SpaceDirectory::Get();
+  ASSERT_EQ(directory->GetSpaces().size(), 1u);
+  EXPECT_EQ(directory->GetSpaces()[0].profile, &other);
+  EXPECT_EQ(&WindowFeatures::From(swapped)->space_model(),
+            directory->GetSpaces()[0].space);
+  EXPECT_EQ(swapped->GetTabStripModel()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("data:text/html,<title>One</title>"));
 }
 
 

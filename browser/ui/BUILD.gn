@@ -49,6 +49,8 @@ source_set("ui") {
     "//chrome/browser/autocomplete",
     "//chrome/browser/predictors",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_manager",
+    "//chrome/browser/profiles:profile_util",
     "//chrome/browser/ui:browser_commands",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui:ui_features",

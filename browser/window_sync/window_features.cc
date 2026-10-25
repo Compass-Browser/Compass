@@ -14,8 +14,11 @@
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
@@ -166,6 +169,93 @@ void OpenNewTab(BrowserWindowInterface* browser) {
   Navigate(&params);
 }
 
+// The spaces |profile|'s windows can switch to, in the switcher's order.
+std::vector<SpaceDirectory::Entry> GetSpacesOf(Profile* profile) {
+  SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+  if (directory && directory->IsListed(profile)) {
+    return directory->GetSpaces();
+  }
+  std::vector<SpaceDirectory::Entry> spaces;
+  for (const auto& space : SpaceService::Get(profile)->space_list().spaces()) {
+    spaces.push_back({profile, space.get()});
+  }
+  return spaces;
+}
+
+// Closes the parked tabs of |space|'s entries.
+void CloseParkedTabs(SpaceService& service, const SpaceModel& space) {
+  BrowserWindowInterface* parking = service.parking_window();
+  if (!parking) {
+    return;
+  }
+  TabStripModel* strip = parking->GetTabStripModel();
+  for (int i = strip->count() - 1; i >= 0; --i) {
+    tabs::TabInterface* tab = strip->GetTabAtIndex(i);
+    SidebarNode* node = service.registry().GetNode(tab);
+    if (node && space.Contains(node)) {
+      service.registry().Unregister(tab);
+      strip->CloseWebContentsAt(i, CLOSE_NONE);
+    }
+  }
+}
+
+// Removes |space|, which no window shows, from |profile|. Its last space
+// can't go from its list, so the profile leaves the switcher instead, with a
+// fresh space in place of |space| for when a window of it opens again.
+void RemoveSpaceFromProfile(Profile* profile, SpaceModel& space) {
+  SpaceService* service = SpaceService::Get(profile);
+  SpaceList& list = service->space_list();
+  if (list.spaces().size() < 2) {
+    if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
+      directory->Unlist(profile);
+    }
+    list.AddSpace(list.spaces().size(), u"Home");
+    // Nothing can show what's left in its parking window: favorites' tabs.
+    service->CloseParkingWindow();
+  }
+  list.RemoveSpace(space);
+}
+
+// Moves every window of |profile| showing |space|, closing or not, so no
+// bridge outlives it, to |to|: rebinding, or swapping to another profile's
+// space. A closing window can't swap: it rebinds to another space of its
+// profile if there is one, else just empties.
+void MoveWindowsOff(Profile* profile,
+                    SpaceModel& space,
+                    SpaceDirectory::Entry to) {
+  std::vector<BrowserWindowInterface*> showing;
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        WindowFeatures* features = WindowFeatures::From(browser);
+        if (features && !features->is_parking_window() &&
+            !features->swapped_away() && &features->space_model() == &space) {
+          showing.push_back(browser);
+        }
+        return true;
+      },
+      BrowserCollection::Order::kActivation);
+  for (BrowserWindowInterface* browser : showing) {
+    WindowFeatures* features = WindowFeatures::From(browser);
+    if (to.profile == profile) {
+      features->SwitchToSpace(*to.space);
+    } else if (!browser->capabilities()->IsAttemptingToCloseBrowser()) {
+      SwitchWindowToSpace(browser, to.profile, *to.space);
+    } else {
+      SpaceModel* other = nullptr;
+      for (const auto& own : SpaceService::Get(profile)->space_list().spaces()) {
+        if (own.get() != &space) {
+          other = own.get();
+        }
+      }
+      if (other) {
+        features->SwitchToSpace(*other);
+      } else {
+        features->LeaveForSwap();
+      }
+    }
+  }
+}
+
 }  // namespace
 
 DEFINE_USER_DATA(WindowFeatures);
@@ -176,8 +266,16 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
       space_(&service_->space_list().active_space()),
       is_parking_window_(service_->creating_parking_window()),
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {
+  service_->space_list().AddObserver(this);
   if (is_parking_window_) {
     return;
+  }
+  // A window of a profile lists its spaces in the switcher.
+  if (browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+      SpaceDirectory::IsListable(browser->GetProfile())) {
+    if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+      directory->List(browser->GetProfile());
+    }
   }
   bridge_ = std::make_unique<TabStripBridge>(
       browser_, space_, &service_->space_list().favorites(), &registry(),
@@ -191,6 +289,7 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
 }
 
 WindowFeatures::~WindowFeatures() {
+  service_->space_list().RemoveObserver(this);
   if (is_parking_window_) {
     service_->OnParkingWindowDestroyed(browser_);
     return;
@@ -204,14 +303,14 @@ WindowFeatures::~WindowFeatures() {
   // the profile's own last window, or for a listed profile, the last window
   // of every listed profile (any of them can switch to its spaces).
   Profile* profile = browser_->GetProfile();
-  const bool listed = SpaceDirectory::IsListed(profile);
+  const bool listed = SpaceDirectory::IsListable(profile);
   bool other_window = false;
   GlobalBrowserCollection::GetInstance()->ForEach(
       [&](BrowserWindowInterface* other) {
         other_window =
             other != browser_ && IsUsableNormalWindow(other) &&
             (other->GetProfile() == profile ||
-             (listed && SpaceDirectory::IsListed(other->GetProfile())));
+             (listed && SpaceDirectory::IsListable(other->GetProfile())));
         return !other_window;
       },
       BrowserCollection::Order::kActivation);
@@ -423,6 +522,15 @@ void WindowFeatures::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
+void WindowFeatures::OnSpaceWillBeRemoved(SpaceModel& space) {
+  // Windows showing a space switch away before it goes, except one that
+  // swapped away and is closing: it takes the space the list falls back to.
+  if (&space == space_) {
+    CHECK(swapped_away_ || is_parking_window_);
+    space_ = &service_->space_list().active_space();
+  }
+}
+
 void WindowFeatures::OnActiveTabChanged(BrowserWindowInterface* browser) {
   if (!bridge_) {
     // Mid-switch.
@@ -566,42 +674,139 @@ void MoveEntry(Profile* profile,
 void DeleteSpace(Profile* profile, SpaceModel& space) {
   SpaceService* service = SpaceService::Get(profile);
   SpaceList& list = service->space_list();
-  const auto& spaces = list.spaces();
-  auto it = std::ranges::find(spaces, &space, &std::unique_ptr<SpaceModel>::get);
+  if (list.FindSpace(space.id()) != &space) {
+    return;
+  }
+  // Windows showing it go to its neighbor in the switcher, which can be
+  // another profile's. Not the last space of all.
+  std::vector<SpaceDirectory::Entry> spaces = GetSpacesOf(profile);
+  auto it = std::ranges::find(spaces, &space, &SpaceDirectory::Entry::space);
   if (it == spaces.end() || spaces.size() < 2) {
     return;
   }
-  SpaceModel& fallback = it + 1 != spaces.end() ? **(it + 1) : **(it - 1);
-
-  // Every window bound to it, closing or not, so no bridge outlives it.
-  std::vector<WindowFeatures*> showing;
-  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
-      [&](BrowserWindowInterface* browser) {
-        WindowFeatures* features = WindowFeatures::From(browser);
-        if (features && !features->is_parking_window() &&
-            &features->space_model() == &space) {
-          showing.push_back(features);
-        }
-        return true;
-      },
-      BrowserCollection::Order::kActivation);
-  for (WindowFeatures* features : showing) {
-    features->SwitchToSpace(fallback);
-  }
+  const SpaceDirectory::Entry fallback = it + 1 != spaces.end() ? *(it + 1)
+                                                                : *(it - 1);
+  MoveWindowsOff(profile, space, fallback);
 
   // Its live tabs are all parked now.
-  if (BrowserWindowInterface* parking = service->parking_window()) {
-    TabStripModel* strip = parking->GetTabStripModel();
-    for (int i = strip->count() - 1; i >= 0; --i) {
-      tabs::TabInterface* tab = strip->GetTabAtIndex(i);
-      SidebarNode* node = service->registry().GetNode(tab);
-      if (node && space.Contains(node)) {
-        service->registry().Unregister(tab);
-        strip->CloseWebContentsAt(i, CLOSE_NONE);
-      }
+  CloseParkedTabs(*service, space);
+  RemoveSpaceFromProfile(profile, space);
+}
+
+void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
+  SpaceService* source = SpaceService::Get(from);
+  SpaceDirectory* directory = SpaceDirectory::Get();
+  if (from == to || !directory || !SpaceDirectory::IsListable(from) ||
+      !SpaceDirectory::IsListable(to) ||
+      source->space_list().FindSpace(space.id()) != &space) {
+    return;
+  }
+  const bool was_listed = directory->IsListed(to);
+  directory->List(to);
+  SpaceService* target = SpaceService::Get(to);
+
+  // 1. Its copy in |to|, where it was in the switcher.
+  SpaceList& target_list = target->space_list();
+  SpaceModel& moved =
+      *target_list.AddSpace(target_list.spaces().size(), space.name());
+  moved.SetColor(space.color());
+  moved.SetArchiveAfter(space.archive_after());
+  for (const ArchivedEntry& entry : space.archive()) {
+    moved.AddArchived(entry);
+  }
+  directory->PlaceAfter(moved, space);
+
+  // 2. Live tabs can't change profile: they close, and their entries stay,
+  // unloaded. Unregistered first, so closing leaves the entries.
+  LiveTabRegistry& registry = source->registry();
+  std::vector<tabs::TabHandle> tabs;
+  CollectLiveTabs(registry, space.pinned_root(), tabs);
+  CollectLiveTabs(registry, space.today_root(), tabs);
+  for (const tabs::TabHandle& handle : tabs) {
+    registry.Unregister(handle.Get());
+  }
+
+  // 3. The entries move: the same nodes, as between spaces of a profile.
+  SidebarNode* last = source->GetLastActiveNode(space);
+  for (auto [from_root, to_root] :
+       {std::pair(space.pinned_root(), moved.pinned_root()),
+        std::pair(space.today_root(), moved.today_root())}) {
+    while (!from_root->children().empty()) {
+      space.MoveToSpace(from_root->children().front().get(), moved, to_root,
+                        to_root->children().size());
     }
   }
-  list.RemoveSpace(space);
+  if (last) {
+    target->SetLastActiveNode(moved, *last);
+  }
+  // A profile new to the switcher comes with this space only, not with the
+  // empty one it starts with (a new profile's "Home"). No window shows those:
+  // a window lists its profile.
+  if (!was_listed) {
+    std::vector<SpaceModel*> empty;
+    for (const auto& other : target_list.spaces()) {
+      if (other.get() != &moved && other->pinned_root()->children().empty() &&
+          other->today_root()->children().empty() &&
+          other->archive().empty()) {
+        empty.push_back(other.get());
+      }
+    }
+    for (SpaceModel* other : empty) {
+      target_list.RemoveSpace(*other);
+    }
+  }
+
+  // 4. Windows showing it swap to it: the new window loads the entry it
+  // showed. The old one's tabs, now without entries, close.
+  MoveWindowsOff(from, space, {to, &moved});
+
+  // 5. The rest of its tabs, parked or elsewhere.
+  for (const tabs::TabHandle& handle : tabs) {
+    tabs::TabInterface* tab = handle.Get();
+    BrowserWindowInterface* window =
+        tab ? tab->GetBrowserWindowInterface() : nullptr;
+    if (window) {
+      TabStripModel* strip = window->GetTabStripModel();
+      strip->CloseWebContentsAt(strip->GetIndexOfTab(tab), CLOSE_NONE);
+    }
+  }
+  RemoveSpaceFromProfile(from, space);
+}
+
+void AssignSpaceToProfile(const base::Uuid& space_id,
+                          std::optional<base::FilePath> profile_path) {
+  // Then once its sidebar file is in, so its spaces are known.
+  auto assign = base::BindOnce(
+      [](const base::Uuid& space_id, Profile* to) {
+        if (!to) {
+          return;
+        }
+        SpaceService::Get(to)->RunWhenLoaded(base::BindOnce(
+            [](const base::Uuid& space_id, base::WeakPtr<Profile> to) {
+              SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+              SpaceDirectory::Entry entry =
+                  directory ? directory->FindSpace(space_id)
+                            : SpaceDirectory::Entry();
+              if (to && entry.space) {
+                MoveSpaceToProfile(entry.profile, *entry.space, to.get());
+              }
+            },
+            space_id, to->GetWeakPtr()));
+      },
+      space_id);
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  if (!profile_path) {
+    ProfileAttributesStorage& storage =
+        profile_manager->GetProfileAttributesStorage();
+    ProfileManager::CreateMultiProfileAsync(
+        storage.ChooseNameForNewProfile(),
+        storage.ChooseAvatarIconIndexForNewProfile(), /*is_hidden=*/false,
+        std::move(assign));
+    return;
+  }
+  // Runs |assign| with null if it fails.
+  profile_manager->LoadProfileByPath(*profile_path, /*incognito=*/false,
+                                     std::move(assign));
 }
 
 BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
@@ -618,8 +823,8 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
     features->SwitchToSpace(space);
     return browser;
   }
-  if (!SpaceDirectory::IsListed(profile) ||
-      !SpaceDirectory::IsListed(browser->GetProfile())) {
+  if (!SpaceDirectory::IsListable(profile) ||
+      !SpaceDirectory::IsListable(browser->GetProfile())) {
     return nullptr;
   }
   // 1. The profile's next window opens on |space|.
@@ -643,9 +848,9 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
 std::vector<SpaceDirectory::Entry> GetSwitchableSpaces(
     BrowserWindowInterface* browser) {
   Profile* profile = browser->GetProfile();
-  if (SpaceDirectory* directory = SpaceDirectory::IsListed(profile)
-                                      ? SpaceDirectory::Get()
-                                      : nullptr) {
+  SpaceDirectory* directory =
+      SpaceDirectory::IsListable(profile) ? SpaceDirectory::Get() : nullptr;
+  if (directory && directory->IsListed(profile)) {
     return directory->GetSpaces();
   }
   std::vector<SpaceDirectory::Entry> spaces;

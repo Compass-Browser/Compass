@@ -7,9 +7,11 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
@@ -38,7 +40,7 @@ namespace strata {
 // EmbedderBrowserWindowFeatures (see patches/) and created before the window's
 // views. The profile's parking window gets these too, without a bridge: its
 // tabs keep the nodes they had. See docs/design/spaces.md.
-class WindowFeatures {
+class WindowFeatures : public SpaceList::Observer {
  public:
   DECLARE_USER_DATA(WindowFeatures);
 
@@ -57,7 +59,7 @@ class WindowFeatures {
   explicit WindowFeatures(BrowserWindowInterface* browser);
   WindowFeatures(const WindowFeatures&) = delete;
   WindowFeatures& operator=(const WindowFeatures&) = delete;
-  ~WindowFeatures();
+  ~WindowFeatures() override;
 
   static WindowFeatures* From(BrowserWindowInterface* browser);
 
@@ -103,6 +105,9 @@ class WindowFeatures {
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
+
+  // SpaceList::Observer:
+  void OnSpaceWillBeRemoved(SpaceModel& space) override;
 
  private:
   void OnActiveTabChanged(BrowserWindowInterface* browser);
@@ -168,10 +173,26 @@ void MoveEntry(Profile* profile,
                SidebarNode* new_parent,
                size_t index);
 
-// Deletes |space|, unless it's |profile|'s only one. Windows showing it switch
-// to the space after it (before it, if it's last) first; then its tabs close
-// and its entries go. See docs/design/spaces.md, "Deleting a space".
+// Deletes |space|, one of |profile|'s, unless it's the switcher's only space.
+// Windows showing it switch to the space after it in the switcher (before it,
+// if it's last), swapping if that's another profile's; then its tabs close
+// and its entries go. A profile whose last space goes leaves the switcher.
+// See docs/design/spaces.md, "Deleting a space".
 void DeleteSpace(Profile* profile, SpaceModel& space);
+
+// Assigns |space|, one of |from|'s, to |to|, as Arc does: a space of |to|
+// takes its place in the switcher with its name, color, entries and archive.
+// Its live tabs can't change profile: they close, their entries stay, and
+// windows showing it swap to a window of |to| that loads the entry it showed.
+// |from| leaves the switcher if that was its last space. See
+// docs/design/spaces.md, "Assigning a profile".
+void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to);
+
+// MoveSpaceToProfile() for space |space_id| and the profile at
+// |profile_path|, or a new profile if there's none, once that profile and its
+// sidebar file have loaded. Does nothing if either is gone by then.
+void AssignSpaceToProfile(const base::Uuid& space_id,
+                          std::optional<base::FilePath> profile_path);
 
 // Shows |space|, one of |profile|'s spaces, in |browser|'s window. A space of
 // the window's profile rebinds the window (SwitchToSpace()). One of another

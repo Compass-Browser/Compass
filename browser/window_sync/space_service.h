@@ -6,6 +6,7 @@
 #define STRATA_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
@@ -52,6 +53,10 @@ class SpaceService : public base::SupportsUserData::Data,
   LiveTabRegistry& registry() { return registry_; }
   RestoredTabMatcher& restored_tab_matcher(const SpaceModel& space);
   SidebarStore* store() { return store_.get(); }
+  // Whether its file has loaded (always, off the record).
+  bool loaded() const { return loaded_; }
+  // Runs |callback| once the file has loaded: now, if it has.
+  void RunWhenLoaded(base::OnceClosure callback);
 
   // The entry |space| showed last, if it still exists.
   SidebarNode* GetLastActiveNode(SpaceModel& space);
@@ -99,6 +104,7 @@ class SpaceService : public base::SupportsUserData::Data,
       matchers_;
   base::flat_map<const SpaceModel*, base::Uuid> last_active_nodes_;
   bool loaded_ = false;
+  std::vector<base::OnceClosure> when_loaded_;
   base::OneShotTimer first_archive_timer_;
   base::RepeatingTimer archive_timer_;
 

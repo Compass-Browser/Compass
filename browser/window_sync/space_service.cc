@@ -61,7 +61,7 @@ SpaceService::SpaceService(Profile* profile)
   } else {
     OnLoaded();
   }
-  if (SpaceDirectory::IsListed(profile)) {
+  if (SpaceDirectory::IsListable(profile)) {
     if (SpaceDirectory* directory = SpaceDirectory::Get()) {
       directory->OnServiceCreated(profile, this);
     }
@@ -104,6 +104,14 @@ SidebarNode* SpaceService::GetLastActiveNode(SpaceModel& space) {
 void SpaceService::SetLastActiveNode(const SpaceModel& space,
                                      const SidebarNode& node) {
   last_active_nodes_[&space] = node.id();
+}
+
+void SpaceService::RunWhenLoaded(base::OnceClosure callback) {
+  if (loaded_) {
+    std::move(callback).Run();
+  } else {
+    when_loaded_.push_back(std::move(callback));
+  }
 }
 
 BrowserWindowInterface* SpaceService::GetOrCreateParkingWindow() {
@@ -173,7 +181,10 @@ void SpaceService::OnLoaded() {
   archive_timer_.Start(FROM_HERE, kArchiveInterval, this,
                        &SpaceService::ArchiveIdleEntries);
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
-    directory->OnServiceLoaded();
+    directory->OnServiceLoaded(this);
+  }
+  for (base::OnceClosure& callback : std::exchange(when_loaded_, {})) {
+    std::move(callback).Run();
   }
 }
 

@@ -5,7 +5,7 @@
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ArchiveDelay, Preview, StrataSidebarAppElement} from './app.js';
-import type {ArchivedEntry, Node, Space, SpaceColor} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, Node, ProfileOption, Space, SpaceColor} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: StrataSidebarAppElement) {
   // clang-format off
@@ -108,9 +108,6 @@ export function getHtml(this: StrataSidebarAppElement) {
 ${this.getMenuSpace_() ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
-    <div id="spaceProfile" ?hidden="${!this.hasOtherProfiles_()}">
-      ${this.getMenuSpace_()!.profileName}
-    </div>
     <input id="spaceNameInput" aria-label="Space name"
         .value="${this.getMenuSpace_()!.name}"
         @keydown="${this.onSpaceNameKeydown_}"
@@ -134,6 +131,17 @@ ${this.getMenuSpace_() ? html`
               ?selected="${this.isMenuSpaceArchiveDelay_(delay.hours)}">
             ${delay.label}
           </option>`)}
+      </select>
+    </label>
+    <label id="spaceProfile" ?hidden="${this.profiles_.length === 0}">
+      Profile
+      <select @change="${this.onSpaceProfileChange_}">
+        ${this.profiles_.map((profile: ProfileOption) => html`
+          <option value="${profile.id}"
+              ?selected="${this.isMenuSpaceProfile_(profile)}">
+            ${profile.name}
+          </option>`)}
+        <option value="">New profile…</option>
       </select>
     </label>
     <button id="deleteSpace" role="menuitem"
@@ -175,7 +183,6 @@ ${this.archiveOpen_ ? html`
         title="${this.getSpaceTitle_(space)}"
         aria-label="${this.getSpaceTitle_(space)}"
         style="--space-color: ${this.getSpaceColor_(space.color)}"
-        ?profile-start="${this.isProfileStart_(space)}"
         aria-selected="${this.isActiveSpace_(space)}"
         ?active="${this.isActiveSpace_(space)}"
         @click="${this.onSpaceClick_}"

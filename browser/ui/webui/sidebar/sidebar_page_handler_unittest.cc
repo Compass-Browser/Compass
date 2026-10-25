@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "base/strings/string_split.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "base/test/task_environment.h"
@@ -26,6 +25,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
+#include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -45,7 +45,6 @@ using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::Not;
-using ::testing::UnorderedElementsAre;
 
 using Command = SidebarPageHandler::MenuCommand;
 
@@ -59,7 +58,10 @@ class FakePage : public sidebar::mojom::Page {
 
   // sidebar::mojom::Page:
   void SetSpaces(std::vector<sidebar::mojom::SpacePtr> spaces,
-                 const std::string& active_id) override {
+                 const std::string& active_id,
+                 std::vector<sidebar::mojom::ProfileOptionPtr> profiles)
+      override {
+    profiles_ = std::move(profiles);
     spaces_.clear();
     for (size_t i = 0; i < spaces.size(); ++i) {
       if (spaces[i]->id == active_id) {
@@ -122,6 +124,9 @@ class FakePage : public sidebar::mojom::Page {
     return archive_;
   }
   uint32_t archive_after_hours() const { return archive_after_hours_; }
+  const std::vector<sidebar::mojom::ProfileOptionPtr>& profiles() const {
+    return profiles_;
+  }
 
  private:
   void Learn(const sidebar::mojom::Node& node) {
@@ -137,6 +142,7 @@ class FakePage : public sidebar::mojom::Page {
   std::vector<std::string> events_;
   std::string spaces_;
   uint32_t archive_after_hours_ = 0;
+  std::vector<sidebar::mojom::ProfileOptionPtr> profiles_;
   std::vector<sidebar::mojom::ArchivedEntryPtr> archive_;
 };
 
@@ -813,14 +819,17 @@ TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {
 // Slice 3 of docs/design/spaces.md.
 TEST_F(SidebarPageHandlerTest, ListsAndSwapsToAnotherProfilesSpace) {
   TestingProfile* other = profile_manager()->CreateTestingProfile("other");
+  // Listed as if it had a window.
+  SpaceDirectory::Get()->List(other);
   SpaceList& other_list = SpaceService::Get(other)->space_list();
   SpaceModel* work = other_list.AddSpace(1, u"Work");
   work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
   Settle();
 
-  EXPECT_THAT(base::SplitString(page_.spaces(), ",", base::KEEP_WHITESPACE,
-                                base::SPLIT_WANT_ALL),
-              UnorderedElementsAre("[Home]", "Home*", "Work*"));
+  // One list, in the order the spaces came.
+  EXPECT_EQ(page_.spaces(), "[Home],Home*,Work*");
+  // Every profile can take a space.
+  EXPECT_EQ(page_.profiles().size(), 2u);
 
   // Its tree, for a swipe, with its own entries.
   base::test::TestFuture<sidebar::mojom::TreePtr> tree;
@@ -852,6 +861,29 @@ TEST_F(SidebarPageHandlerTest, ListsAndSwapsToAnotherProfilesSpace) {
   EXPECT_TRUE(tab_strip_model()->empty());
   handler_.reset();
   swapped->GetTabStripModel()->CloseAllTabs();
+}
+
+TEST_F(SidebarPageHandlerTest, AssignsASpaceToAnotherProfile) {
+  TestingProfile* other = profile_manager()->CreateTestingProfile("other");
+  SpaceModel* work = WindowFeatures::From(browser())
+                         ->service()
+                         .space_list()
+                         .AddSpace(1, u"Work");
+  work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
+  Settle();
+  ASSERT_EQ(page_.spaces(), "[Home],Work");
+
+  handler_remote_->SetSpaceProfile(work->id().AsLowercaseString(),
+                                   other->GetBaseName().AsUTF8Unsafe());
+  Settle();
+
+  // In its place, now the other profile's; that profile's own empty Home
+  // stays out.
+  EXPECT_EQ(page_.spaces(), "[Home],Work*");
+  SpaceList& other_list = SpaceService::Get(other)->space_list();
+  ASSERT_EQ(other_list.spaces().size(), 1u);
+  EXPECT_THAT(other_list.spaces()[0]->pinned_root()->children(),
+              testing::SizeIs(1));
 }
 
 }  // namespace

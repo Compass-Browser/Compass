@@ -10,7 +10,7 @@ import {SidebarBrowserProxy} from './browser_proxy.js';
 import './node.js';
 import type {StrataSidebarPreviewElement} from './preview.js';
 import './preview.js';
-import type {ArchivedEntry, ArchivedTab, Node, Space, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
 import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -156,6 +156,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       activeId_: {type: String},
       collapsedIds_: {type: Object},
       spaces_: {type: Array},
+      profiles_: {type: Array},
       activeSpaceId_: {type: String},
       menuSpaceId_: {type: String},
       confirmingDelete_: {type: Boolean},
@@ -174,6 +175,8 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected accessor activeId_: string|null = null;
   protected accessor collapsedIds_: Set<string> = new Set();
   protected accessor spaces_: Space[] = [];
+  // The profiles a space can be assigned to; none off the record.
+  protected accessor profiles_: ProfileOption[] = [];
   protected accessor activeSpaceId_: string = '';
   // The space whose menu is open, if any.
   protected accessor menuSpaceId_: string|null = null;
@@ -299,12 +302,8 @@ export class StrataSidebarAppElement extends CrLitElement {
     return this.getMenuSpace_()?.color === color;
   }
 
-  // Not a profile's last space.
   protected canDeleteSpace_(): boolean {
-    const space = this.getMenuSpace_();
-    return !!space &&
-        this.spaces_.filter(other => other.profileName === space.profileName)
-            .length > 1;
+    return this.spaces_.length > 1;
   }
 
   protected getDeleteLabel_(): string {
@@ -481,7 +480,7 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   // The switcher shows a space by its name's first letter.
-  // Whether the switcher lists spaces of more than one profile.
+  // Whether the switcher's spaces use more than one profile.
   protected hasOtherProfiles_(): boolean {
     return this.spaces_.some(space => !space.ownProfile);
   }
@@ -492,11 +491,19 @@ export class StrataSidebarAppElement extends CrLitElement {
         space.name;
   }
 
-  // Whether |space| begins another profile's spaces, after some.
-  protected isProfileStart_(space: Space): boolean {
-    const index = this.spaces_.indexOf(space);
-    return index > 0 &&
-        this.spaces_[index - 1]!.profileName !== space.profileName;
+  protected isMenuSpaceProfile_(profile: ProfileOption): boolean {
+    return this.getMenuSpace_()?.profileId === profile.id;
+  }
+
+  // Assigns the menu's space to the chosen profile, or a new one ('').
+  protected onSpaceProfileChange_(e: Event) {
+    const space = this.getMenuSpace_();
+    const id = (e.target as HTMLSelectElement).value;
+    if (!space || id === space.profileId) {
+      return;
+    }
+    this.browserProxy_.handler.setSpaceProfile(space.id, id || null);
+    this.closeSpaceMenu_();
   }
 
   protected getSpaceInitial_(space: Space): string {
@@ -1408,12 +1415,14 @@ export class StrataSidebarAppElement extends CrLitElement {
     setTimeout(doSwitch, 50);
   }
 
-  private onSetSpaces_(spaces: Space[], activeId: string) {
+  private onSetSpaces_(
+      spaces: Space[], activeId: string, profiles: ProfileOption[]) {
     const previousId = this.activeSpaceId_;
     if (previousId && activeId !== previousId) {
       this.onActiveSpaceChanged_(previousId, activeId, spaces);
     }
     this.spaces_ = spaces;
+    this.profiles_ = profiles;
     this.activeSpaceId_ = activeId;
     this.refreshPreviews_();
   }

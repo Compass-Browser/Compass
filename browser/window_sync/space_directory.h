@@ -7,16 +7,20 @@
 
 #include <map>
 #include <memory>
+#include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/files/important_file_writer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/uuid.h"
+#include "base/values.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "strata/browser/sidebar/space_list.h"
 
@@ -29,16 +33,23 @@ namespace strata {
 class SpaceModel;
 class SpaceService;
 
-// The spaces of every profile the switcher lists, browser-wide. Loads those
-// profiles on first use and keeps them loaded, so a space's parked tabs stay
-// while no window of its profile is open. Off-the-record, guest and omitted
-// profiles aren't listed. See docs/design/spaces.md, slice 3.
-class SpaceDirectory : public ProfileManagerObserver, public SpaceList::Observer {
+// The switcher's spaces, browser-wide, as in Arc: one list in the user's
+// order, each space belonging to a profile. A space's entries live in its
+// profile's SpaceList and file; this keeps the order and which profiles have
+// spaces (listed profiles), in "Strata Spaces.json" in the user data
+// directory. Listed profiles are loaded on first use and kept loaded, so a
+// space's parked tabs stay while no window of its profile is open. A profile
+// is listed once a window of it opens, or a space is assigned to it, and stops
+// being listed when its last space goes. Off-the-record, guest and system
+// profiles are never listed. See docs/design/spaces.md, slice 3.
+class SpaceDirectory : public ProfileManagerObserver,
+                       public SpaceList::Observer,
+                       public base::ImportantFileWriter::DataSerializer {
  public:
   class Observer : public base::CheckedObserver {
    public:
-    // A profile's spaces joined or left the directory, or one of them was
-    // added, removed, renamed or recolored.
+    // The list changed: a space was added, removed, moved, renamed or
+    // recolored, or changed profile.
     virtual void OnDirectoryChanged() {}
   };
 
@@ -52,29 +63,41 @@ class SpaceDirectory : public ProfileManagerObserver, public SpaceList::Observer
   SpaceDirectory& operator=(const SpaceDirectory&) = delete;
   ~SpaceDirectory() override;
 
-  // Creates the directory on first use, which starts loading every listed
-  // profile. Null without a profile manager, and once it's being destroyed.
+  // Creates the directory on first use, which starts loading its file and
+  // then the listed profiles. Null without a profile manager. Goes with the
+  // profile manager.
   static SpaceDirectory* Get();
   // Doesn't create it.
   static SpaceDirectory* GetIfExists();
 
-  // Whether |profile|'s spaces are listed.
-  static bool IsListed(const Profile* profile);
+  // Whether |profile| can have spaces in the list: not off-the-record, guest
+  // or system profiles.
+  static bool IsListable(const Profile* profile);
   // |profile|'s name, as upstream's profile menu shows it.
   static std::u16string GetProfileName(const Profile* profile);
 
-  // Every listed profile's spaces, in the switcher's order: profiles as
-  // upstream's profile menu orders them, each profile's spaces in its order.
+  // The listed profiles' spaces, in the user's order.
   std::vector<Entry> GetSpaces() const;
-  // The space with |id| in a listed profile, or an empty entry.
+  // The listed space with |id|, or an empty entry.
   Entry FindSpace(const base::Uuid& id) const;
 
-  // Called by the SpaceService of a listed profile as it's created and
-  // destroyed.
+  bool IsListed(const Profile* profile) const;
+  // Lists |profile|'s spaces, at the end, if it can be listed.
+  void List(Profile* profile);
+  // Stops listing |profile|'s spaces. For a profile whose last space went.
+  void Unlist(Profile* profile);
+
+  // Puts |space| right after |anchor| in the list.
+  void PlaceAfter(const SpaceModel& space, const SpaceModel& anchor);
+
+  // Called by every SpaceService of a listable profile as it's created,
+  // finishes loading its file, and is destroyed.
   void OnServiceCreated(Profile* profile, SpaceService* service);
+  void OnServiceLoaded(SpaceService* service);
   void OnServiceDestroyed(SpaceService* service);
-  // Called by a listed profile's SpaceService once its file has loaded.
-  void OnServiceLoaded();
+
+  // Writes pending changes now.
+  void Flush();
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -87,19 +110,46 @@ class SpaceDirectory : public ProfileManagerObserver, public SpaceList::Observer
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
   void OnSpaceUpdated(const SpaceModel& space) override;
+  void OnSpaceWillBeRemoved(SpaceModel& space) override;
   void OnSpaceRemoved() override;
 
+  // base::ImportantFileWriter::DataSerializer:
+  std::optional<std::string> SerializeData() override;
+
  private:
-  struct Member;
+  // A listed, loaded profile.
+  struct Member {
+    Member();
+    ~Member();
+    raw_ptr<Profile> profile;
+    // Null until the profile's service is created.
+    raw_ptr<SpaceService> service;
+    std::unique_ptr<ScopedProfileKeepAlive> keep_alive;
+  };
 
-  SpaceDirectory();
+  explicit SpaceDirectory(ProfileManager* profile_manager);
 
-  // Lists the loaded profiles, and loads the others.
-  void AddProfiles();
-  void NotifyChanged();
+  void OnFileLoaded(std::optional<base::Value> data);
+  // Loads the listed profiles that aren't, and attaches the loaded ones.
+  void LoadListedProfiles();
+  // Keeps a listed, loaded |profile| loaded and follows its spaces. A
+  // service under construction passes itself.
+  void Attach(Profile* profile, SpaceService* service = nullptr);
+  void Detach(const base::FilePath& path);
+  // Adds the spaces of |service| missing from the order, at the end.
+  void AppendSpaces(SpaceService* service);
+  void Changed();
 
-  // By profile path.
+  const base::FilePath user_data_dir_;
+  // Listed profiles by path, loaded or not.
+  std::set<base::FilePath> listed_;
+  // The loaded ones.
   std::map<base::FilePath, std::unique_ptr<Member>> members_;
+  // Space IDs in the user's order. Spaces missing from it go last.
+  std::vector<base::Uuid> order_;
+  bool file_loaded_ = false;
+
+  base::ImportantFileWriter writer_;
   base::ObserverList<Observer> observers_;
   base::ScopedObservation<ProfileManager, ProfileManagerObserver>
       profile_manager_observation_{this};

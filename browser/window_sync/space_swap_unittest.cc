@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -103,26 +104,130 @@ class SpaceSwapTest : public BrowserWithTestWindowTest {
   BrowserWindowInterface* parking() {
     return SpaceService::Get(profile())->parking_window();
   }
+  SpaceDirectory& directory() { return *SpaceDirectory::Get(); }
+  // The other profile has no window: it's listed once asked.
+  void ListOther() {
+    directory().List(other_profile_);
+    Settle();
+  }
+  // The last window a swap opened, or null.
+  BrowserWindowInterface* swapped() {
+    for (auto it = windows_.rbegin(); it != windows_.rend(); ++it) {
+      if ((*it)->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+        return it->get();
+      }
+    }
+    return nullptr;
+  }
+  std::vector<SpaceModel*> Spaces() {
+    std::vector<SpaceModel*> spaces;
+    for (const SpaceDirectory::Entry& entry : directory().GetSpaces()) {
+      spaces.push_back(entry.space);
+    }
+    return spaces;
+  }
 
   raw_ptr<TestingProfile> other_profile_ = nullptr;
   raw_ptr<SpaceModel> other_home_ = nullptr;
   std::vector<std::unique_ptr<BrowserWindowInterface>> windows_;
 };
 
-TEST_F(SpaceSwapTest, ListsEveryProfilesSpaces) {
-  SpaceModel* work = other_list().AddSpace(1, u"Work");
+TEST_F(SpaceSwapTest, ListsProfilesWithWindowsInOneOrder) {
+  SpaceModel* home = &list().active_space();
+  // A profile without a window or a space in the list isn't in it.
+  EXPECT_THAT(Spaces(), ElementsAre(home));
+  EXPECT_FALSE(directory().IsListed(other_profile_));
 
-  std::vector<SpaceDirectory::Entry> spaces = GetSwitchableSpaces(browser());
+  ListOther();
+  SpaceModel* work = list().AddSpace(1, u"Work");
 
-  ASSERT_EQ(spaces.size(), 3u);
-  // Each profile's spaces together, in their order.
-  const bool own_first = spaces[0].profile == profile();
-  const size_t other = own_first ? 1 : 0;
-  EXPECT_EQ(spaces[other].space, other_home_);
-  EXPECT_EQ(spaces[other + 1].space, work);
-  EXPECT_EQ(spaces[own_first ? 0 : 2].space, &list().active_space());
-  EXPECT_EQ(FindSwitchableSpace(browser(), work->id()).profile,
+  // One list: spaces join at its end, whatever their profile.
+  EXPECT_THAT(Spaces(), ElementsAre(home, other_home_.get(), work));
+  EXPECT_EQ(FindSwitchableSpace(browser(), other_home_->id()).profile,
             other_profile_.get());
+}
+
+TEST_F(SpaceSwapTest, MovingASpaceToAProfileReloadsItThere) {
+  OpenTabs(browser(), {"a.test", "b.test"});
+  browser()->GetTabStripModel()->ActivateTabAt(1);
+  Settle();
+  SpaceModel* home = &list().active_space();
+  const std::string name = base::UTF16ToUTF8(home->name());
+
+  MoveSpaceToProfile(profile(), *home, other_profile_);
+  Settle();
+
+  // The other profile's empty Home stayed out: only the moved space is in
+  // the list, now the other profile's, with its entries.
+  ASSERT_EQ(Spaces().size(), 1u);
+  SpaceModel* moved = Spaces()[0];
+  EXPECT_EQ(directory().FindSpace(moved->id()).profile, other_profile_.get());
+  EXPECT_EQ(base::UTF16ToUTF8(moved->name()), name);
+  EXPECT_EQ(other_list().spaces().size(), 1u);
+  ASSERT_EQ(moved->today_root()->children().size(), 2u);
+  // The profile it left has no space in the list any more.
+  EXPECT_FALSE(directory().IsListed(profile()));
+  // The window swapped: the new one loads the entry it showed, in the other
+  // profile. The old tabs closed.
+  BrowserWindowInterface* window = swapped();
+  ASSERT_TRUE(window);
+  EXPECT_EQ(window->GetProfile(), other_profile_.get());
+  ASSERT_EQ(window->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(window->GetTabStripModel()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("https://b.test/"));
+  EXPECT_EQ(WindowFeatures::From(window)->tab_strip_bridge().GetNode(
+                window->GetTabStripModel()->GetActiveTab()),
+            moved->today_root()->children()[1].get());
+  EXPECT_TRUE(browser()->GetTabStripModel()->empty());
+}
+
+TEST_F(SpaceSwapTest, AMovedSpaceKeepsItsPlace) {
+  SpaceModel* home = &list().active_space();
+  SpaceModel* work = list().AddSpace(1, u"Work");
+  SpaceModel* play = list().AddSpace(2, u"Play");
+  ListOther();
+  ASSERT_THAT(Spaces(), ElementsAre(home, work, play, other_home_.get()));
+  work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
+
+  MoveSpaceToProfile(profile(), *work, other_profile_);
+  Settle();
+
+  std::vector<SpaceModel*> spaces = Spaces();
+  ASSERT_EQ(spaces.size(), 4u);
+  EXPECT_EQ(spaces[0], home);
+  EXPECT_EQ(directory().FindSpace(spaces[1]->id()).profile,
+            other_profile_.get());
+  EXPECT_EQ(spaces[1]->name(), u"Work");
+  EXPECT_EQ(spaces[1]->pinned_root()->children().size(), 1u);
+  EXPECT_EQ(spaces[2], play);
+  // Both profiles keep spaces: both stay listed.
+  EXPECT_TRUE(directory().IsListed(profile()));
+  EXPECT_EQ(list().spaces().size(), 2u);
+}
+
+TEST_F(SpaceSwapTest, DeletingAProfilesLastSpaceUnlistsIt) {
+  ListOther();
+  ASSERT_EQ(Spaces().size(), 2u);
+
+  DeleteSpace(other_profile_, *other_home_);
+  Settle();
+
+  EXPECT_THAT(Spaces(), ElementsAre(&list().active_space()));
+  EXPECT_FALSE(directory().IsListed(other_profile_));
+}
+
+TEST_F(SpaceSwapTest, DeletingTheShownSpaceSwapsToItsNeighbor) {
+  ListOther();
+  SpaceModel* home = &list().active_space();
+  ASSERT_THAT(Spaces(), ElementsAre(home, other_home_.get()));
+
+  DeleteSpace(profile(), *home);
+  Settle();
+
+  ASSERT_TRUE(swapped());
+  EXPECT_EQ(&WindowFeatures::From(swapped())->space_model(), other_home_);
+  EXPECT_THAT(Spaces(), ElementsAre(other_home_.get()));
+  EXPECT_FALSE(directory().IsListed(profile()));
 }
 
 TEST_F(SpaceSwapTest, OffTheRecordWindowsListOnlyTheirOwn) {
@@ -144,6 +249,7 @@ TEST_F(SpaceSwapTest, OffTheRecordWindowsListOnlyTheirOwn) {
 }
 
 TEST_F(SpaceSwapTest, SwapsTheWindowAndParksItsTabs) {
+  ListOther();
   OpenTabs(browser(), {"a.test", "b.test"});
   SpaceModel* work = other_list().AddSpace(1, u"Work");
   work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
@@ -171,6 +277,7 @@ TEST_F(SpaceSwapTest, SwapsTheWindowAndParksItsTabs) {
 }
 
 TEST_F(SpaceSwapTest, SwappingBackBringsTheTabsBack) {
+  ListOther();
   OpenTabs(browser(), {"a.test", "b.test"});
   browser()->GetTabStripModel()->ActivateTabAt(1);
   content::WebContents* b = browser()->GetTabStripModel()->GetWebContentsAt(1);
@@ -195,6 +302,7 @@ TEST_F(SpaceSwapTest, SwappingBackBringsTheTabsBack) {
 }
 
 TEST_F(SpaceSwapTest, ParkedTabsStayWhileAnotherProfilesWindowIsOpen) {
+  ListOther();
   OpenTabs(browser(), {"a.test"});
   BrowserWindowInterface* window =
       SwitchWindowToSpace(browser(), other_profile_, *other_home_);
