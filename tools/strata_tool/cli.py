@@ -208,8 +208,12 @@ def cmd_test(layout: Layout, args) -> None:
   target = BROWSER_TEST_TARGET if args.browser else TEST_TARGET
   out_dir = build(layout, args.config, [target], args.jobs)
   exe = target + ('.exe' if sys.platform == 'win32' else '')
-  result = run([out_dir / exe] + passthrough(args.test_args), layout.src,
-               check=False)
+  test_args = passthrough(args.test_args)
+  # Headless browser windows never show or take focus, so tests run in the
+  # background. --headed shows them, for watching or debugging a test.
+  if args.browser and not args.headed:
+    test_args = ['--headless'] + test_args
+  result = run([out_dir / exe] + test_args, layout.src, check=False)
   sys.exit(result.returncode)
 
 
@@ -275,6 +279,9 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
   s.add_argument('--browser', action='store_true',
                  help='run strata_browsertests (real browser windows) instead')
+  s.add_argument('--headed', action='store_true',
+                 help='with --browser: show the browser windows (by default '
+                 'they run headless, without taking focus)')
   add_jobs_argument(s)
   s.add_argument('test_args', nargs=argparse.REMAINDER)
   s.set_defaults(func=cmd_test)
