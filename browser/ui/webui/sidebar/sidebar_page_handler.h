@@ -5,6 +5,7 @@
 #ifndef STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
 #define STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -20,6 +21,7 @@
 #include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "strata/browser/window_sync/live_tab_registry.h"
 #include "strata/browser/window_sync/window_features.h"
+#include "ui/menus/simple_menu_model.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
@@ -30,6 +32,7 @@ class WebContents;
 
 namespace strata {
 
+class SidebarContextMenu;
 class SidebarHoverCard;
 class TabStripBridge;
 
@@ -43,8 +46,26 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public LiveTabRegistry::Observer,
                            public TabStripModelObserver {
  public:
-  // |page_contents| is the sidebar page's, for its hover card (null in
-  // tests).
+  // What the entries' context menus offer (docs/design/sidebar.md, "Context
+  // menus").
+  enum MenuCommand {
+    kCopyLink = 1,
+    kDuplicate,
+    kReload,
+    kPin,
+    kUnpin,
+    kAddToFavorites,
+    kNewFolder,
+    kRename,
+    kMoveToSpace,
+    kCloseTab,
+    kRemove,
+    // Then one per space in the "Move to Space" submenu, in their order.
+    kMoveToSpaceFirst = 100,
+  };
+
+  // |page_contents| is the sidebar page's, for its hover card and context
+  // menus (null in tests).
   SidebarPageHandler(
       mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver,
       mojo::PendingRemote<sidebar::mojom::Page> page,
@@ -86,6 +107,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                      int32_t row_top,
                      int32_t row_height) override;
   void HideHoverCard() override;
+  void ShowContextMenu(const std::string& id, int32_t x, int32_t y) override;
+
+  // Node |id|'s context menu, or null if it has none. Its commands act on the
+  // node, if it's still there, while this handler lives.
+  std::unique_ptr<ui::SimpleMenuModel> CreateContextMenu(const std::string& id);
+  // Carries out |command|, other than a move to a space, on node |id|.
+  void ExecuteMenuCommand(const std::string& id, int command);
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -141,8 +169,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // has none.
   void CloseTabNode(SidebarNode* tab_node);
 
+  // Opens a copy of tab node |node| in the foreground, as a Today entry.
+  void DuplicateNode(SidebarNode* node);
+
   // The page's hover card, or null without one (in tests).
   SidebarHoverCard* hover_card();
+  // Runs the page's context menus, or null without one (in tests).
+  SidebarContextMenu* context_menu();
 
   const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<WindowFeatures> features_;

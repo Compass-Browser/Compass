@@ -151,6 +151,9 @@ export class StrataSidebarAppElement extends CrLitElement {
           (id: string|null) => this.activeId_ = id),
       router.setArchive.addListener(
           (entries: ArchivedEntry[]) => this.archive_ = entries),
+      router.startRename.addListener((id: string) => {
+        this.getRow_(id)?.closest('strata-sidebar-node')?.startRename();
+      }),
     ];
     // Diffs that arrive before the tree are about nodes the page doesn't know
     // yet, and the lookups below drop them. The tree already has them.
@@ -158,6 +161,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     document.addEventListener('dragover', this.onDocumentDragover_);
     document.addEventListener('drop', this.onDocumentDrop_);
     document.addEventListener('pointerdown', this.onDocumentPointerdown_);
+    document.addEventListener('contextmenu', this.onDocumentContextmenu_);
   }
 
   override disconnectedCallback() {
@@ -166,6 +170,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     document.removeEventListener('dragover', this.onDocumentDragover_);
     document.removeEventListener('drop', this.onDocumentDrop_);
     document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
+    document.removeEventListener('contextmenu', this.onDocumentContextmenu_);
     for (const id of this.listenerIds_) {
       this.browserProxy_.callbackRouter.removeListener(id);
     }
@@ -699,6 +704,34 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected onSectionsPointerleave_() {
     this.hideHoverCard_();
   }
+
+  // Right-clicking an entry (or the context menu key on one) opens its menu,
+  // a native one the browser builds.
+  protected onEntriesContextmenu_(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const row = target.closest<HTMLElement>('[data-node-id]');
+    if (!row || target instanceof HTMLInputElement) {
+      return;
+    }
+    e.preventDefault();
+    this.hideHoverCard_();
+    // From the keyboard, the event's point needn't be on the row: open the
+    // menu under it.
+    const rect = row.getBoundingClientRect();
+    const onRow = e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top && e.clientY <= rect.bottom;
+    this.browserProxy_.handler.showContextMenu(
+        row.dataset['nodeId']!, Math.round(onRow ? e.clientX : rect.left),
+        Math.round(onRow ? e.clientY : rect.bottom));
+  }
+
+  // The page's own menu (Back, Reload, Inspect) doesn't belong in the
+  // sidebar. Text fields keep theirs.
+  private onDocumentContextmenu_ = (e: MouseEvent) => {
+    if (!(e.composedPath()[0] instanceof HTMLInputElement)) {
+      e.preventDefault();
+    }
+  };
 
   // Clicking, dragging and scrolling hide the card.
   protected onSectionsPointerdown_() {

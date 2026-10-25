@@ -249,7 +249,7 @@ window state, kept by the bridge, not the model. `Node` gains `live`, and
 dimmed. The bridge reports them through its own `TabStripBridge::Observer`.
 
 **Not in c:** creating splits by dragging (§9), dragging between windows,
-and context menus.
+and context menus (they came later; see "Context menus").
 
 ## Slice d: one model per profile, persisted
 
@@ -578,6 +578,65 @@ animations, and the memory usage footer.
 **Tests:** a browser test drives the page's hover handling and checks the
 card shows, moves and hides. The keyboard handling is checked by driving the
 page in a browser test too.
+
+## Context menus
+
+Goal: right-clicking an entry offers what can be done with it, as in Arc,
+without dragging or hunting for buttons.
+
+**Native menus, built by the browser.** The page only says where it was
+right-clicked: `PageHandler.ShowContextMenu(id, x, y)`, for the row or tile
+under the pointer (a pane's own ID inside a split), in page coordinates.
+`SidebarPageHandler::CreateContextMenu()` builds a `ui::SimpleMenuModel` for
+the node, and `SidebarContextMenu` (`browser/ui/views/sidebar/`, user data on
+the sidebar page's WebContents, like the hover card) runs it with upstream's
+`views::MenuRunner` at that point, converted to the screen. A native menu
+isn't clipped by the narrow sidebar, looks like the platform's and handles the
+keyboard and accessibility itself. The menu's commands go back to the handler
+by node ID, so a node that went away while the menu was up is left alone, and
+so is everything once the handler is gone.
+
+The page's own menu (Back, Reload, Inspect) never shows in the sidebar; text
+fields (a folder's or space's name) keep theirs. The context menu key opens
+an entry's menu under its row.
+
+| Entry | Menu |
+|---|---|
+| Today tab | Copy Link, Duplicate, Reload · Pin, Add to Favorites, Move to Space ▸ · Close Tab |
+| Pinned tab | Copy Link, Duplicate, Reload · Unpin, Add to Favorites, Move to Space ▸ · Close Tab, Remove from Pinned |
+| Favorite | Copy Link, Duplicate, Reload · Close Tab, Remove from Favorites |
+| Folder | New Folder, Rename, Move to Space ▸ · Delete Folder |
+| Split | Pin or Unpin, Move to Space ▸ · Close Split |
+| Pane | Copy Link, Reload · Close Tab |
+
+- **Reload** and **Close Tab** only for live tabs. An unloaded Today entry
+  gets **Remove** instead, as its × does.
+- **Pin** adds to the end of Pinned; **Unpin** puts the entry at the top of
+  Today, which keeps its tab where it was in the strip.
+- **Move to Space** lists the other spaces and is left out with only one. It
+  moves as dragging onto a space button does (`MoveEntryToSpace()`).
+- **Duplicate** copies a tab that's live in this window with its history
+  (`chrome::DuplicateTabAt()`); the bridge puts the copy's Today entry after
+  it. Otherwise it opens a new Today entry for the URL, after the entry in
+  Today, or at the top, in the foreground.
+- **Rename** asks the page to edit the folder's name in place
+  (`Page.StartRename(id)`), as a double-click does. **New Folder** adds
+  "New Folder" at the end of the folder.
+
+Labels are English literals for now, like the rest of Strata's UI; they move
+to a grit file when the UI is localized.
+
+**Not yet:** menus for the section headers and empty space (New Folder, New
+Tab), Mute, Copy Link of a split, and opening in a new window (which needs
+drag-out's window creation).
+
+**Tests:** page handler tests build each kind of menu and choose its
+commands (pin, unpin, remove, favorites, move to space, duplicate live and
+unloaded, copy link, folder commands, a node gone before the choice). A
+browser test right-clicks rows in the page and checks the menu, its
+position and Rename (`SidebarContextMenu::SetShowCallbackForTesting()`
+hands the model over instead of running a native menu, which would block the
+test).
 
 ## Later slices
 

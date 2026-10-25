@@ -444,6 +444,5 @@ aren't offered for a favorite.
 
 ### Known gaps
 
-- Favorites have no context menu (neither has anything else yet).
 - The collapsed sidebar narrows the grid to one column of tiles, as wide as
   the sidebar.

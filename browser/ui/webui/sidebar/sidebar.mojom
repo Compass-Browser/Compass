@@ -136,6 +136,11 @@ interface PageHandler {
   // moves the card there. Other nodes hide the card.
   ShowHoverCard(string id, int32 row_top, int32 row_height);
   HideHoverCard();
+
+  // The page was right-clicked on node |id|'s row or tile, at |x|, |y| in the
+  // page: shows the node's context menu there (docs/design/sidebar.md,
+  // "Context menus").
+  ShowContextMenu(string id, int32 x, int32 y);
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
@@ -156,6 +161,9 @@ interface Page {
   // The window's space's archived entries, most recent first. Sent after the
   // tree, and whenever they change.
   SetArchive(array<ArchivedEntry> entries);
+  // Rename was chosen in folder |id|'s context menu: shows its name for
+  // editing, as a double-click does.
+  StartRename(string id);
 };
 
 // Browser-side handler for chrome://strata-placeholder, the tab a window shows

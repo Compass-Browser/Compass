@@ -25,13 +25,22 @@
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/clipboard/clipboard.h"
+#include "ui/base/clipboard/clipboard_buffer.h"
+#include "ui/base/clipboard/test/test_clipboard.h"
+#include "ui/base/models/menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
 namespace strata {
 namespace {
 
+using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
+using ::testing::Not;
+
+using Command = SidebarPageHandler::MenuCommand;
 
 // Records what the browser pushes to the page, one line per call. Nodes are
 // named by their URL's host, which the tests keep unique.
@@ -90,6 +99,9 @@ class FakePage : public sidebar::mojom::Page {
   void SetArchive(
       std::vector<sidebar::mojom::ArchivedEntryPtr> entries) override {
     archive_ = std::move(entries);
+  }
+  void StartRename(const std::string& id) override {
+    events_.push_back("rename " + id);
   }
 
   sidebar::mojom::TreePtr TakeTree() { return std::move(tree_); }
@@ -189,6 +201,28 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
   }
   std::string TodayRootId() {
     return space_model().today_root()->id().AsLowercaseString();
+  }
+
+  // The commands of node |id|'s context menu, separators left out.
+  std::vector<int> MenuCommands(const std::string& id) {
+    std::vector<int> commands;
+    std::unique_ptr<ui::SimpleMenuModel> menu = handler_->CreateContextMenu(id);
+    for (size_t i = 0; menu && i < menu->GetItemCount(); ++i) {
+      if (menu->GetTypeAt(i) != ui::MenuModel::TYPE_SEPARATOR) {
+        commands.push_back(menu->GetCommandIdAt(i));
+      }
+    }
+    return commands;
+  }
+
+  // Chooses |command| in node |id|'s context menu.
+  void Choose(const std::string& id, int command) {
+    std::unique_ptr<ui::SimpleMenuModel> menu = handler_->CreateContextMenu(id);
+    ASSERT_TRUE(menu);
+    std::optional<size_t> index = menu->GetIndexOfCommandId(command);
+    ASSERT_TRUE(index) << "No command " << command;
+    menu->ActivatedAt(*index);
+    Settle();
   }
 
   // Delivers Mojo messages and runs Browser's coalesced UI updates.
@@ -560,6 +594,165 @@ TEST_F(SidebarPageHandlerTest, ClosingAnUnloadedFavoriteRemovesIt) {
   handler_remote_->CloseNode(b);
   Settle();
   EXPECT_TRUE(favorites().pinned_root()->children().empty());
+}
+
+TEST_F(SidebarPageHandlerTest, TodayEntryMenu) {
+  EXPECT_THAT(MenuCommands(TodayId(0)),
+              ElementsAre(Command::kCopyLink, Command::kDuplicate,
+                          Command::kReload, Command::kPin,
+                          Command::kAddToFavorites, Command::kCloseTab));
+  EXPECT_THAT(MenuCommands(TodayRootId()), IsEmpty());
+  EXPECT_THAT(MenuCommands("not-a-uuid"), IsEmpty());
+
+  Choose(TodayId(0), Command::kCloseTab);
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_EQ(space_model().today_root()->children().size(), 1u);
+}
+
+TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
+  const std::string b = TodayId(1);
+  Choose(b, Command::kPin);
+  ASSERT_EQ(space_model().pinned_root()->children().size(), 1u);
+  EXPECT_EQ(space_model().pinned_root()->children()[0]->id().AsLowercaseString(),
+            b);
+  EXPECT_THAT(MenuCommands(b),
+              ElementsAre(Command::kCopyLink, Command::kDuplicate,
+                          Command::kReload, Command::kUnpin,
+                          Command::kAddToFavorites, Command::kCloseTab,
+                          Command::kRemove));
+
+  // Closing a pinned tab leaves the entry; Remove takes it.
+  Choose(b, Command::kCloseTab);
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kCloseTab)));
+  EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kReload)));
+
+  // Unpinned entries go to the top of Today.
+  Choose(b, Command::kUnpin);
+  EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
+  EXPECT_EQ(TodayId(0), b);
+  // Unloaded in Today, it can only be removed.
+  EXPECT_THAT(MenuCommands(b), Contains(Command::kCloseTab));
+  Choose(b, Command::kCloseTab);
+  EXPECT_EQ(space_model().today_root()->children().size(), 1u);
+}
+
+TEST_F(SidebarPageHandlerTest, RemovesPinnedEntriesFromTheMenu) {
+  const std::string a = TodayId(0);
+  Choose(a, Command::kPin);
+  Choose(a, Command::kRemove);
+
+  EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+TEST_F(SidebarPageHandlerTest, AddsToAndRemovesFromFavoritesFromTheMenu) {
+  const std::string b = TodayId(1);
+  Choose(b, Command::kAddToFavorites);
+  ASSERT_EQ(favorites().pinned_root()->children().size(), 1u);
+  // Favorites aren't pinned or moved between spaces.
+  EXPECT_THAT(MenuCommands(b),
+              ElementsAre(Command::kCopyLink, Command::kDuplicate,
+                          Command::kReload, Command::kCloseTab,
+                          Command::kRemove));
+
+  Choose(b, Command::kRemove);
+  EXPECT_THAT(favorites().pinned_root()->children(), IsEmpty());
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+TEST_F(SidebarPageHandlerTest, MovesToAnotherSpaceFromTheMenu) {
+  EXPECT_THAT(MenuCommands(TodayId(0)), Not(Contains(Command::kMoveToSpace)));
+  SpaceList& list = WindowFeatures::From(browser())->service().space_list();
+  SpaceModel* work = list.AddSpace(list.spaces().size(), u"Work");
+  const std::string a = TodayId(0);
+
+  std::unique_ptr<ui::SimpleMenuModel> menu = handler_->CreateContextMenu(a);
+  std::optional<size_t> index = menu->GetIndexOfCommandId(Command::kMoveToSpace);
+  ASSERT_TRUE(index);
+  ui::MenuModel* spaces = menu->GetSubmenuModelAt(*index);
+  // Only the other spaces.
+  ASSERT_EQ(spaces->GetItemCount(), 1u);
+  EXPECT_EQ(spaces->GetLabelAt(0), u"Work");
+  spaces->ActivatedAt(0);
+  Settle();
+
+  EXPECT_EQ(space_model().today_root()->children().size(), 1u);
+  ASSERT_EQ(work->today_root()->children().size(), 1u);
+  EXPECT_EQ(work->today_root()->children()[0]->url(), GURL("https://a.test/"));
+}
+
+TEST_F(SidebarPageHandlerTest, DuplicatesEntriesFromTheMenu) {
+  // A live tab is copied next to it.
+  Choose(TodayId(0), Command::kDuplicate);
+  EXPECT_EQ(tab_strip_model()->count(), 3);
+  EXPECT_THAT(Hosts(*GetTree()->today),
+              ElementsAre("a.test", "a.test", "b.test"));
+
+  // An unloaded one gets a new entry, opened.
+  const std::string b = TodayId(2);
+  Choose(b, Command::kPin);
+  Choose(b, Command::kCloseTab);
+  ASSERT_EQ(tab_strip_model()->count(), 2);
+  Choose(b, Command::kDuplicate);
+  EXPECT_EQ(tab_strip_model()->count(), 3);
+  EXPECT_THAT(Hosts(*GetTree()->today),
+              ElementsAre("b.test", "a.test", "a.test"));
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("https://b.test/"));
+}
+
+TEST_F(SidebarPageHandlerTest, CopiesLinksFromTheMenu) {
+  ui::TestClipboard::CreateForCurrentThread();
+  Choose(TodayId(1), Command::kCopyLink);
+
+  std::u16string text;
+  ui::Clipboard::GetForCurrentThread()->ReadText(
+      ui::ClipboardBuffer::kCopyPaste, std::nullopt,
+      base::BindLambdaForTesting(
+          [&](std::u16string result) { text = std::move(result); }));
+  EXPECT_EQ(text, u"https://b.test/");
+  ui::Clipboard::DestroyClipboardForCurrentThread();
+}
+
+TEST_F(SidebarPageHandlerTest, FolderMenu) {
+  handler_remote_->AddFolder(PinnedId(), 0, "Work");
+  Settle();
+  SidebarNode* folder = space_model().pinned_root()->children()[0].get();
+  const std::string id = folder->id().AsLowercaseString();
+  EXPECT_THAT(MenuCommands(id),
+              ElementsAre(Command::kNewFolder, Command::kRename,
+                          Command::kRemove));
+  page_.TakeEvents();
+
+  Choose(id, Command::kRename);
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("rename " + id));
+
+  Choose(id, Command::kNewFolder);
+  ASSERT_EQ(folder->children().size(), 1u);
+  EXPECT_EQ(folder->children()[0]->type(), SidebarNode::Type::kFolder);
+
+  Choose(id, Command::kRemove);
+  EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
+}
+
+TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {
+  const std::string a = TodayId(0);
+  std::unique_ptr<ui::SimpleMenuModel> menu = handler_->CreateContextMenu(a);
+  handler_remote_->CloseNode(a);
+  Settle();
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+
+  menu->ActivatedAt(*menu->GetIndexOfCommandId(Command::kDuplicate));
+  Settle();
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+
+  // Nor once the handler is gone.
+  menu = handler_->CreateContextMenu(TodayId(0));
+  handler_.reset();
+  menu->ActivatedAt(*menu->GetIndexOfCommandId(Command::kCloseTab));
+  Settle();
+  EXPECT_EQ(tab_strip_model()->count(), 1);
 }
 
 }  // namespace

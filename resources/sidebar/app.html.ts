@@ -18,6 +18,7 @@ export function getHtml(this: StrataSidebarAppElement) {
     @focusin="${this.onFavoritesFocusin_}"
     @focusout="${this.onSectionsFocusout_}"
     @keydown="${this.onFavoritesKeydown_}"
+    @contextmenu="${this.onEntriesContextmenu_}"
     @dragstart="${this.onDragstart_}"
     @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
     @drop="${this.onDrop_}" @dragend="${this.onDragend_}">
@@ -43,6 +44,7 @@ export function getHtml(this: StrataSidebarAppElement) {
     @focusin="${this.onSectionsFocusin_}"
     @focusout="${this.onSectionsFocusout_}"
     @keydown="${this.onSectionsKeydown_}"
+    @contextmenu="${this.onEntriesContextmenu_}"
     @pointerover="${this.onSectionsPointerover_}"
     @pointerleave="${this.onSectionsPointerleave_}"
     @pointerdown="${this.onSectionsPointerdown_}"

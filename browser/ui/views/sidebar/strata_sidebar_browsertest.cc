@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
 #include <string>
+#include <string_view>
 
+#include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -17,6 +20,8 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+#include "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h"
+#include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -26,19 +31,20 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
-#include "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h"
-#include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/animation/animation.h"
-#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/models/menu_model.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_test_api.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -608,6 +614,101 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
   const SidebarNode* folder = model.pinned_root()->children()[0].get();
   EXPECT_EQ(folder->type(), SidebarNode::Type::kFolder);
   EXPECT_EQ(folder->children()[0]->title(), u"One");
+}
+
+// Right-clicks the first element matching selector $1 in the sidebar page,
+// in its middle. Returns whether the page took the event (its own menu
+// doesn't show).
+constexpr char kRightClick[] = R"(
+  (() => {
+    const target = document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector($1);
+    const rect = target.getBoundingClientRect();
+    return !target.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true, composed: true, cancelable: true, button: 2,
+      clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+    }));
+  })())";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ContextMenus) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(kWaitForTitles,
+                                             base::ListValue().Append("One"))));
+  ui::MenuModel* menu = nullptr;
+  gfx::Point point;
+  SidebarContextMenu::SetShowCallbackForTesting(base::BindLambdaForTesting(
+      [&](ui::MenuModel* model, const gfx::Point& at) {
+        menu = model;
+        point = at;
+      }));
+  auto label_index = [&](std::u16string_view label) -> std::optional<size_t> {
+    for (size_t i = 0; i < menu->GetItemCount(); ++i) {
+      if (menu->GetLabelAt(i) == label) {
+        return i;
+      }
+    }
+    return std::nullopt;
+  };
+
+  // A tab's menu opens where it was clicked, over its row.
+  EXPECT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kRightClick, ".tab")));
+  ASSERT_TRUE(base::test::RunUntil([&] { return menu != nullptr; }));
+  const int row_top = content::EvalJs(contents, R"(
+    Math.round(document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('.tab').getBoundingClientRect().top))")
+                          .ExtractInt();
+  EXPECT_GT(point.y(), row_top);
+  EXPECT_TRUE(sidebar()->GetLocalBounds().Contains(point));
+  std::optional<size_t> pin = label_index(u"Pin");
+  ASSERT_TRUE(pin);
+  menu->ActivatedAt(*pin);
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return model.pinned_root()->children().size() == 1u; }));
+
+  // Rename in a folder's menu edits its name in place.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('#newFolder').click();)"));
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      while (!root.querySelector('.folder-row')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+    })())"));
+  menu = nullptr;
+  EXPECT_EQ(true, content::EvalJs(contents, content::JsReplace(
+                                                kRightClick, ".folder-row")));
+  ASSERT_TRUE(base::test::RunUntil([&] { return menu != nullptr; }));
+  std::optional<size_t> rename = label_index(u"Rename");
+  ASSERT_TRUE(rename);
+  menu->ActivatedAt(*rename);
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      while (root.activeElement?.className !== 'folder-title-input') {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+
+  // Elsewhere, there's no menu, not even the page's own.
+  menu = nullptr;
+  EXPECT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kRightClick, "#newTab")));
+  // The next menu is the pinned tab's.
+  EXPECT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kRightClick, ".tab")));
+  ASSERT_TRUE(base::test::RunUntil([&] { return menu != nullptr; }));
+  EXPECT_TRUE(label_index(u"Unpin"));
+
+  SidebarContextMenu::SetShowCallbackForTesting({});
 }
 
 // Opens three titled tabs, One to Three, and waits for the sidebar to list

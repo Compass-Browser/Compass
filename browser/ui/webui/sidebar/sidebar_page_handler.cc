@@ -21,9 +21,17 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/reload_type.h"
+#include "content/public/browser/web_contents.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/window_sync/window_features.h"
+#include "ui/base/clipboard/clipboard_buffer.h"
+#include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/models/menu_separator_types.h"
+#include "ui/gfx/geometry/point.h"
 
 namespace strata {
 
@@ -47,6 +55,59 @@ constexpr uint32_t kMaxArchiveAfterHours = 365 * 24;
 // The handler casts between the two.
 static_assert(static_cast<int>(sidebar::mojom::SpaceColor::kMaxValue) ==
               static_cast<int>(SpaceColor::kMaxValue));
+
+// A node's context menu. Commands go to the handler by the node's ID, so a
+// node that's gone by then is left alone.
+class NodeMenu : public ui::SimpleMenuModel,
+                 public ui::SimpleMenuModel::Delegate {
+ public:
+  NodeMenu(base::WeakPtr<SidebarPageHandler> handler, std::string id)
+      : ui::SimpleMenuModel(this),
+        handler_(std::move(handler)),
+        id_(std::move(id)),
+        spaces_menu_(this) {}
+  NodeMenu(const NodeMenu&) = delete;
+  NodeMenu& operator=(const NodeMenu&) = delete;
+  ~NodeMenu() override = default;
+
+  // Adds "Move to Space" with |spaces| other than the window's, if there are
+  // any.
+  void AddMoveToSpace(const std::vector<std::unique_ptr<SpaceModel>>& spaces,
+                      const SpaceModel& current) {
+    for (const auto& space : spaces) {
+      if (space.get() == &current) {
+        continue;
+      }
+      spaces_menu_.AddItem(
+          SidebarPageHandler::kMoveToSpaceFirst + space_ids_.size(),
+          space->name());
+      space_ids_.push_back(space->id().AsLowercaseString());
+    }
+    if (!space_ids_.empty()) {
+      AddSubMenu(SidebarPageHandler::kMoveToSpace, u"Move to Space",
+                 &spaces_menu_);
+    }
+  }
+
+  // ui::SimpleMenuModel::Delegate:
+  void ExecuteCommand(int command_id, int event_flags) override {
+    if (!handler_) {
+      return;
+    }
+    if (command_id >= SidebarPageHandler::kMoveToSpaceFirst) {
+      handler_->MoveNodeToSpace(
+          id_, space_ids_.at(command_id - SidebarPageHandler::kMoveToSpaceFirst));
+      return;
+    }
+    handler_->ExecuteMenuCommand(id_, command_id);
+  }
+
+ private:
+  const base::WeakPtr<SidebarPageHandler> handler_;
+  const std::string id_;
+  ui::SimpleMenuModel spaces_menu_;
+  std::vector<std::string> space_ids_;
+};
 
 }  // namespace
 
@@ -330,6 +391,141 @@ void SidebarPageHandler::HideHoverCard() {
   }
 }
 
+void SidebarPageHandler::ShowContextMenu(const std::string& id,
+                                         int32_t x,
+                                         int32_t y) {
+  SidebarContextMenu* menu = context_menu();
+  if (!menu) {
+    return;
+  }
+  if (std::unique_ptr<ui::SimpleMenuModel> model = CreateContextMenu(id)) {
+    HideHoverCard();
+    menu->Show(std::move(model), gfx::Point(x, y));
+  }
+}
+
+std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
+    const std::string& id) {
+  SidebarNode* node = FindNode(id);
+  if (!node || node->type() == SidebarNode::Type::kRoot) {
+    return nullptr;
+  }
+  auto menu = std::make_unique<NodeMenu>(weak_factory_.GetWeakPtr(), id);
+  const bool favorite = favorites().Contains(node);
+  const bool pinned = space_model().pinned_root()->Contains(node);
+  const SpaceList& space_list = features_->service().space_list();
+
+  if (node->type() == SidebarNode::Type::kFolder) {
+    menu->AddItem(kNewFolder, u"New Folder");
+    menu->AddItem(kRename, u"Rename");
+    menu->AddMoveToSpace(space_list.spaces(), space_model());
+    menu->AddSeparator(ui::NORMAL_SEPARATOR);
+    menu->AddItem(kRemove, u"Delete Folder");
+    return menu;
+  }
+
+  // A split acts as one entry; its panes only as tabs.
+  const bool entry = node->parent()->type() != SidebarNode::Type::kSplit;
+  bool live = registry().GetTab(node) != nullptr;
+  for (const auto& pane : node->children()) {
+    live |= registry().GetTab(pane.get()) != nullptr;
+  }
+  if (node->type() == SidebarNode::Type::kTab) {
+    menu->AddItem(kCopyLink, u"Copy Link");
+    if (entry) {
+      menu->AddItem(kDuplicate, u"Duplicate");
+    }
+    if (live) {
+      menu->AddItem(kReload, u"Reload");
+    }
+  }
+  if (entry && !favorite) {
+    menu->AddSeparator(ui::NORMAL_SEPARATOR);
+    menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+    if (node->type() == SidebarNode::Type::kTab) {
+      menu->AddItem(kAddToFavorites, u"Add to Favorites");
+    }
+    menu->AddMoveToSpace(space_list.spaces(), space_model());
+  }
+  menu->AddSeparator(ui::NORMAL_SEPARATOR);
+  if (live) {
+    menu->AddItem(kCloseTab, node->type() == SidebarNode::Type::kSplit
+                                 ? u"Close Split"
+                                 : u"Close Tab");
+  }
+  if (favorite) {
+    menu->AddItem(kRemove, u"Remove from Favorites");
+  } else if (pinned && entry) {
+    menu->AddItem(kRemove, u"Remove from Pinned");
+  } else if (!live) {
+    // Closing an unloaded Today entry removes it, as its × does.
+    menu->AddItem(kCloseTab, u"Remove");
+  }
+  return menu;
+}
+
+void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
+                                            int command) {
+  SidebarNode* node = FindNode(id);
+  if (!node) {
+    return;
+  }
+  SpaceModel& space = space_model();
+  switch (command) {
+    case kCopyLink:
+      ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
+          .WriteText(base::UTF8ToUTF16(node->url().spec()));
+      break;
+    case kDuplicate:
+      if (node->type() == SidebarNode::Type::kTab) {
+        DuplicateNode(node);
+      }
+      break;
+    case kReload:
+      if (tabs::TabInterface* tab = registry().GetTab(node)) {
+        tab->GetContents()->GetController().Reload(content::ReloadType::NORMAL,
+                                                   /*check_for_repost=*/true);
+      }
+      break;
+    case kPin:
+      // To the end of Pinned.
+      if (space.Contains(node) && space.CanMove(node, space.pinned_root())) {
+        space.Move(node, space.pinned_root(),
+                   space.pinned_root()->children().size());
+      }
+      break;
+    case kUnpin:
+      // To the top of Today, next to where it was.
+      if (space.Contains(node) && space.CanMove(node, space.today_root())) {
+        space.Move(node, space.today_root(), 0);
+      }
+      break;
+    case kAddToFavorites:
+      if (space.Contains(node)) {
+        MoveEntry(browser_->GetProfile(), node, favorites(),
+                  favorites().pinned_root(),
+                  favorites().pinned_root()->children().size());
+      }
+      break;
+    case kNewFolder:
+      if (node->type() == SidebarNode::Type::kFolder) {
+        space.AddFolder(node, node->children().size(), u"New Folder");
+      }
+      break;
+    case kRename:
+      if (node->type() == SidebarNode::Type::kFolder) {
+        page_->StartRename(id);
+      }
+      break;
+    case kCloseTab:
+      CloseNode(id);
+      break;
+    case kRemove:
+      DeleteNode(id);
+      break;
+  }
+}
+
 void SidebarPageHandler::OnNodeAdded(const SidebarNode& node) {
   page_->NodeAdded(node.parent()->id().AsLowercaseString(),
                    node.parent()->GetIndexOf(&node), ToMojo(node));
@@ -490,9 +686,36 @@ std::optional<std::string> SidebarPageHandler::GetActiveNodeId() {
   return node->id().AsLowercaseString();
 }
 
+SidebarContextMenu* SidebarPageHandler::context_menu() {
+  return page_contents_ ? SidebarContextMenu::FromWebContents(page_contents_)
+                        : nullptr;
+}
+
 SidebarHoverCard* SidebarPageHandler::hover_card() {
   return page_contents_ ? SidebarHoverCard::FromWebContents(page_contents_)
                         : nullptr;
+}
+
+void SidebarPageHandler::DuplicateNode(SidebarNode* node) {
+  // A tab here is copied with its history; the bridge puts the copy's entry
+  // after the tab's.
+  if (tabs::TabInterface* tab = bridge().GetTab(node)) {
+    const int index = tab_strip_model()->GetIndexOfTab(tab);
+    if (chrome::CanDuplicateTabAt(browser_, index)) {
+      chrome::DuplicateTabAt(browser_, index);
+    }
+    return;
+  }
+  // Unloaded, or live in another window: a new entry for its URL, after it
+  // in Today, or first.
+  SidebarNode* today = space_model().today_root();
+  const size_t index =
+      node->parent() == today ? today->GetIndexOf(node) + 1 : 0;
+  SidebarNode* copy =
+      space_model().AddTab(today, index, node->url(), node->title());
+  if (tabs::TabInterface* live = bridge().OpenNode(copy)) {
+    tab_strip_model()->ActivateTabAt(tab_strip_model()->GetIndexOfTab(live));
+  }
 }
 
 void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node) {

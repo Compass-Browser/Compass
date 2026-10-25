@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "strata/browser/sidebar/space_list.h"
+#include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
@@ -110,6 +111,7 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
       GetWebContents(), SK_ColorTRANSPARENT);
   SidebarHoverCard::CreateForWebContents(GetWebContents(), this);
+  SidebarContextMenu::CreateForWebContents(GetWebContents(), this);
   LoadInitialURL(GURL(kStrataSidebarURL));
 }
 
