@@ -52,6 +52,7 @@
   justify-content: center;
   max-height: 56px;
   position: relative;
+  transition: background-color 120ms, transform 100ms;
   user-select: none;
 }
 
@@ -102,12 +103,58 @@
   white-space: nowrap;
 }
 
+/* The window's space: its name and entries, which slide sideways when it
+ * switches (see app.ts, "Switching spaces slides"). Edge to edge, so what
+ * slides out is clipped at the sidebar's edges. */
+#stage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  margin-inline: -8px;
+  min-height: 0;
+  /* Not even scrollable by script: the previews wait past its edges. */
+  overflow: clip;
+  position: relative;
+}
+
+#spacePane {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding-inline: 8px;
+}
+
+#stage[sliding] #sections {
+  overflow: hidden;
+}
+
+/* The neighboring spaces, built and waiting off to the side for a swipe. */
+strata-sidebar-preview[side='previous'] {
+  transform: translateX(-100%);
+}
+
+strata-sidebar-preview[side='next'] {
+  transform: translateX(100%);
+}
+
+/* Copies of entries that went away, fading where they were. */
+#ghosts {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
 #sections {
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
   gap: 2px;
   min-height: 0;
+  /* Entries never scroll sideways; a pixel too wide shouldn't show a
+   * scrollbar. */
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -118,7 +165,6 @@
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
-  margin-top: auto;
   padding: 6px 0 4px;
 }
 
@@ -137,7 +183,13 @@
   justify-content: center;
   opacity: 0.55;
   padding: 0;
+  transition: background-color 200ms, opacity 200ms, transform 100ms;
   width: 24px;
+}
+
+.space:active,
+#addSpace:active {
+  transform: scale(0.92);
 }
 
 .space {
@@ -186,6 +238,19 @@
   position: absolute;
   right: 8px;
   z-index: 1;
+}
+
+#spaceMenu,
+#archive {
+  animation: pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
+  transform-origin: bottom center;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
 }
 
 #spaceNameInput {
@@ -439,7 +504,13 @@ strata-sidebar-node {
   gap: 8px;
   height: 32px;
   padding: 0 6px 0 10px;
+  transition: background-color 120ms, transform 100ms;
   user-select: none;
+}
+
+.tab:active,
+.tile:active {
+  transform: scale(0.98);
 }
 
 .tab:hover,
@@ -526,6 +597,7 @@ strata-sidebar-node {
   line-height: 1;
   opacity: 0;
   padding: 0;
+  transition: background-color 120ms, opacity 120ms;
   width: 20px;
 }
 
@@ -574,4 +646,11 @@ strata-sidebar-node {
 .plus {
   font-size: 16px;
   width: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }

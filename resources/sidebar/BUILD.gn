@@ -26,10 +26,13 @@ build_webui("build") {
     "node.html.ts",
     "node.ts",
     "placeholder.ts",
+    "preview.html.ts",
+    "preview.ts",
   ]
   css_files = [
     "app.css",
     "command_bar/app.css",
+    "preview.css",
   ]
 
   webui_context_type = "trusted"

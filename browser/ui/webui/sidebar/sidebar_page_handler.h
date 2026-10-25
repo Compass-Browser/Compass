@@ -99,6 +99,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void DeleteSpace(const std::string& id) override;
   void MoveNodeToSpace(const std::string& id,
                        const std::string& space_id) override;
+  void GetSpaceTree(const std::string& id,
+                    GetSpaceTreeCallback callback) override;
+  void PreviewSpace(const std::optional<std::string>& id,
+                    double progress) override;
   void SetArchiveAfter(const std::string& space_id, uint32_t hours) override;
   void RestoreArchived(const std::string& id) override;
   void RemoveArchived(const std::string& id) override;

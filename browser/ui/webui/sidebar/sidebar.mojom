@@ -122,6 +122,14 @@ interface PageHandler {
   // Moves an entry and its subtree, with its live tabs, to another space: to
   // the end of the same section there.
   MoveNodeToSpace(string id, string space_id);
+  // Space |id|'s pinned and Today entries, for a swipe to show before it
+  // switches (docs/design/spaces.md, "Swiping"), with the entry the switch
+  // would show as its active one. Null for an unknown space.
+  GetSpaceTree(string id) => (Tree? tree);
+  // A swipe is pulling in space |id|, |progress| (0 to 1) of the way: the
+  // sidebar's tint blends toward its color. Null ends the swipe without
+  // switching, and the tint fades back. SwitchSpace() ends it too.
+  PreviewSpace(string? id, double progress);
   // 0 turns auto-archive off for the space. At most a year.
   SetArchiveAfter(string space_id, uint32 hours);
 

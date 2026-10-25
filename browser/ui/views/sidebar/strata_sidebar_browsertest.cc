@@ -159,6 +159,43 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintCoversTheWholeRegion) {
   }));
 }
 
+// A swipe blends the tint toward the space it pulls in; letting go goes back,
+// and switching takes the new space's color. Animations are off here, so
+// fades end at once.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintFollowsASwipe) {
+  auto* tint = FindDescendant<SidebarTint>(browser_view());
+  ASSERT_TRUE(tint);
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& home = features->space_model();
+  home.SetColor(SpaceColor::kBlue);
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  work->SetColor(SpaceColor::kGreen);
+  const SkColor blue = *tint->GetTintForTesting();
+
+  features->SetSpacePreview(work, 0.5);
+  ASSERT_TRUE(tint->GetTintForTesting());
+  const SkColor halfway = *tint->GetTintForTesting();
+  EXPECT_NE(halfway, blue);
+  EXPECT_GT(SkColorGetG(halfway), SkColorGetG(blue));
+  EXPECT_LT(SkColorGetB(halfway), SkColorGetB(blue));
+
+  features->SetSpacePreview(nullptr, 0);
+  EXPECT_EQ(*tint->GetTintForTesting(), blue);
+
+  // A grey space has no tint: the blend fades it out.
+  work->SetColor(SpaceColor::kGrey);
+  features->SetSpacePreview(work, 0.5);
+  EXPECT_LT(SkColorGetA(*tint->GetTintForTesting()), SkColorGetA(blue));
+
+  work->SetColor(SpaceColor::kGreen);
+  features->SwitchToSpace(*work);
+  EXPECT_FALSE(features->preview_space());
+  ASSERT_TRUE(tint->GetTintForTesting());
+  EXPECT_EQ(SkColorSetA(*tint->GetTintForTesting(), SK_AlphaOPAQUE),
+            *GetSpaceTint(SpaceColor::kGreen));
+  EXPECT_FALSE(tint->IsAnimatingForTesting());
+}
+
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);

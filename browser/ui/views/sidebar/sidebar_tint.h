@@ -14,6 +14,8 @@
 #include "strata/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/gfx/animation/animation_delegate.h"
+#include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
 
@@ -29,8 +31,11 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color);
 // and the margins around it) with the window's space color, over the
 // region's background and under its children. Ignored by the region's
 // layout: it follows the region's bounds and the shape of its background.
-// See docs/design/spaces.md, "Space colors".
+// A swipe in the sidebar blends in the color of the space it pulls in
+// (WindowFeatures::SetSpacePreview()), and other changes fade. See
+// docs/design/spaces.md, "Space colors" and "Swiping".
 class SidebarTint : public views::View,
+                    public gfx::AnimationDelegate,
                     public views::ViewObserver,
                     public WindowFeatures::Observer,
                     public SpaceList::Observer {
@@ -48,9 +53,13 @@ class SidebarTint : public views::View,
 
   // The color painted now, if any.
   std::optional<SkColor> GetTintForTesting() const;
+  bool IsAnimatingForTesting() const { return animation_.is_animating(); }
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
+
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
 
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
@@ -58,12 +67,24 @@ class SidebarTint : public views::View,
 
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
+  void OnSpacePreviewChanged() override;
 
   // SpaceList::Observer:
   void OnSpaceUpdated(const SpaceModel& space) override;
 
  private:
+  // The color for the window's space, blended toward the swiped-in space's;
+  // transparent for none.
+  SkColor GetTargetColor() const;
+  // Fades from the color painted now to the target, or jumps there.
+  void UpdateColor(bool animate);
+
   raw_ptr<WindowFeatures> features_;
+  // Painted now; transparent for none.
+  SkColor color_ = SK_ColorTRANSPARENT;
+  // Where the fade started.
+  SkColor from_ = SK_ColorTRANSPARENT;
+  gfx::LinearAnimation animation_;
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{
       this};
   base::ScopedObservation<WindowFeatures, WindowFeatures::Observer>

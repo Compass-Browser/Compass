@@ -4,7 +4,7 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ArchiveDelay, StrataSidebarAppElement} from './app.js';
+import type {ArchiveDelay, Preview, StrataSidebarAppElement} from './app.js';
 import type {ArchivedEntry, Node, Space, SpaceColor} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: StrataSidebarAppElement) {
@@ -23,7 +23,9 @@ export function getHtml(this: StrataSidebarAppElement) {
     @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
     @drop="${this.onDrop_}" @dragend="${this.onDragend_}">
   ${this.isFavoritesEmpty_() ? html`
-    <div class="hint">Drop here to add to Favorites</div>` : nothing}
+    <div class="hint" data-flip="favorites-hint">
+      Drop here to add to Favorites
+    </div>` : nothing}
   ${repeat(this.getFavorites_(), (node: Node) => node.id, (node: Node) => html`
     <div class="tile" role="listitem" draggable="true" tabindex="-1"
         data-node-id="${node.id}" title="${node.title || node.url}"
@@ -36,58 +38,73 @@ export function getHtml(this: StrataSidebarAppElement) {
           @click="${this.onTileCloseClick_}">&times;</button>
     </div>`)}
 </div>
-<div id="spaceName" title="Double-click to edit the space"
-    @dblclick="${this.onSpaceNameDblclick_}">
-  ${this.getActiveSpaceName_()}
-</div>
-<div id="sections" tabindex="0" aria-label="Tabs"
-    @focusin="${this.onSectionsFocusin_}"
-    @focusout="${this.onSectionsFocusout_}"
-    @keydown="${this.onSectionsKeydown_}"
-    @contextmenu="${this.onEntriesContextmenu_}"
-    @pointerover="${this.onSectionsPointerover_}"
-    @pointerleave="${this.onSectionsPointerleave_}"
-    @pointerdown="${this.onSectionsPointerdown_}"
-    @scroll="${this.onSectionsScroll_}"
-    @dragstart="${this.onDragstart_}"
-    @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
-    @drop="${this.onDrop_}" @dragend="${this.onDragend_}"
-    @folder-toggle="${this.onFolderToggle_}">
-  <div class="section-header">
-    <span>Pinned</span>
-    <button id="newFolder" aria-label="New folder" title="New folder"
-        @click="${this.onNewFolderClick_}">+</button>
-  </div>
-  <div id="pinned" class="section" role="tree">
-    ${this.isPinnedEmpty_() ? html`
-      <div class="hint">Drag tabs here to pin them</div>` : nothing}
-    ${repeat(this.getPinned_(), (node: Node) => node.id, (node: Node) => html`
-      <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
-          .collapsedIds="${this.collapsedIds_}">
-      </strata-sidebar-node>`)}
-  </div>
-  <div class="divider"></div>
-  <div class="section-header">
-    <span>Today</span>
-    <button id="archiveButton" aria-label="Archived tabs" title="Archived tabs"
-        aria-expanded="${this.archiveOpen_}" ?open="${this.archiveOpen_}"
-        @click="${this.onArchiveButtonClick_}">
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <rect x="2" y="3" width="12" height="3.5" rx="1"></rect>
-        <path d="M3 6.5v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-6M6.5 9h3"></path>
-      </svg>
+<div id="stage">
+  <div id="spacePane">
+    <div id="spaceName" title="Double-click to edit the space"
+        @dblclick="${this.onSpaceNameDblclick_}">
+      ${this.getActiveSpaceName_()}
+    </div>
+    <div id="sections" tabindex="0" aria-label="Tabs"
+        @focusin="${this.onSectionsFocusin_}"
+        @focusout="${this.onSectionsFocusout_}"
+        @keydown="${this.onSectionsKeydown_}"
+        @contextmenu="${this.onEntriesContextmenu_}"
+        @pointerover="${this.onSectionsPointerover_}"
+        @pointerleave="${this.onSectionsPointerleave_}"
+        @pointerdown="${this.onSectionsPointerdown_}"
+        @scroll="${this.onSectionsScroll_}"
+        @dragstart="${this.onDragstart_}"
+        @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
+        @drop="${this.onDrop_}" @dragend="${this.onDragend_}"
+        @folder-toggle="${this.onFolderToggle_}">
+      <div class="section-header" data-flip="pinned-header">
+        <span>Pinned</span>
+        <button id="newFolder" aria-label="New folder" title="New folder"
+            @click="${this.onNewFolderClick_}">+</button>
+      </div>
+      <div id="pinned" class="section" role="tree">
+        ${this.isPinnedEmpty_() ? html`
+          <div class="hint" data-flip="pinned-hint">
+            Drag tabs here to pin them
+          </div>` : nothing}
+        ${repeat(this.getPinned_(), (node: Node) => node.id,
+                 (node: Node) => html`
+          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+              .collapsedIds="${this.collapsedIds_}">
+          </strata-sidebar-node>`)}
+      </div>
+      <div class="divider" data-flip="divider"></div>
+      <div class="section-header" data-flip="today-header">
+        <span>Today</span>
+        <button id="archiveButton" aria-label="Archived tabs"
+            title="Archived tabs" aria-expanded="${this.archiveOpen_}"
+            ?open="${this.archiveOpen_}"
+            @click="${this.onArchiveButtonClick_}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="2" y="3" width="12" height="3.5" rx="1"></rect>
+            <path d="M3 6.5v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-6M6.5 9h3"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="today" class="section" role="tablist">
+        ${repeat(this.getToday_(), (node: Node) => node.id,
+                 (node: Node) => html`
+          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+              .collapsedIds="${this.collapsedIds_}">
+          </strata-sidebar-node>`)}
+      </div>
+    </div>
+    <button id="newTab" data-flip="new-tab" @click="${this.onNewTabClick_}">
+      <span class="plus">+</span>New Tab
     </button>
   </div>
-  <div id="today" class="section" role="tablist">
-    ${repeat(this.getToday_(), (node: Node) => node.id, (node: Node) => html`
-      <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
-          .collapsedIds="${this.collapsedIds_}">
-      </strata-sidebar-node>`)}
-  </div>
+  ${repeat(this.previews_, (preview: Preview) => preview.space.id,
+           (preview: Preview) => html`
+    <strata-sidebar-preview side="${preview.side}" aria-hidden="true"
+        .space="${preview.space}" .tree="${preview.tree}"
+        .collapsedIds="${this.collapsedIds_}">
+    </strata-sidebar-preview>`)}
 </div>
-<button id="newTab" @click="${this.onNewTabClick_}">
-  <span class="plus">+</span>New Tab
-</button>
 ${this.getMenuSpace_() ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
@@ -166,6 +183,7 @@ ${this.archiveOpen_ ? html`
   <button id="addSpace" aria-label="New space" title="New space"
       @click="${this.onAddSpaceClick_}">+</button>
 </div>
+<div id="ghosts" aria-hidden="true"></div>
 <!--_html_template_end_-->`;
   // clang-format on
 }

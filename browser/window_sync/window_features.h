@@ -14,6 +14,7 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/tab_strip_bridge.h"
@@ -37,6 +38,9 @@ class WindowFeatures {
    public:
     // The window now shows another space, with a new bridge.
     virtual void OnSpaceSwitched() {}
+    // A swipe in the sidebar started, moved or stopped pulling in another
+    // space (see SetSpacePreview()).
+    virtual void OnSpacePreviewChanged() {}
   };
 
   explicit WindowFeatures(BrowserWindowInterface* browser);
@@ -66,6 +70,14 @@ class WindowFeatures {
   // "Switching, step by step".
   void SwitchToSpace(SpaceModel& space);
 
+  // A swipe in the sidebar is pulling in |space|, |progress| (0 to 1) of the
+  // way, before it switches; null ends it. SwitchToSpace() ends it too,
+  // without OnSpacePreviewChanged(). See docs/design/spaces.md, "Swiping".
+  void SetSpacePreview(SpaceModel* space, double progress);
+  // The space being pulled in, or null; gone spaces aren't.
+  SpaceModel* preview_space();
+  double preview_progress() const { return preview_progress_; }
+
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
@@ -82,6 +94,9 @@ class WindowFeatures {
   raw_ptr<SpaceModel> space_;
   const bool is_parking_window_;
   bool switching_ = false;
+  // By ID: the space can be deleted mid-swipe.
+  base::Uuid preview_space_id_;
+  double preview_progress_ = 0;
   // Null for the parking window.
   std::unique_ptr<TabStripBridge> bridge_;
 
@@ -93,6 +108,12 @@ class WindowFeatures {
   // be used: it never registers itself.
   ui::ScopedUnownedUserData<WindowFeatures> scoped_data_holder_;
 };
+
+// The entry a window switching to |space| would show, as far as can be told
+// beforehand (SwitchToSpace(), step 5): its last active entry if that has a
+// tab, else its first entry with one, else the one it would open. Null when
+// it would open a new tab. For the sidebar's previews.
+SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space);
 
 // Moves |node|, an entry of one of |profile|'s spaces, to |target|: a pinned
 // entry to the end of |target|'s Pinned, a Today entry to the end of its

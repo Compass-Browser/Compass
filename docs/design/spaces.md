@@ -169,6 +169,61 @@ header above it and the region's margin below it stayed frame-colored.
 page's `SPACE_COLORS`, which still colors the space buttons and the menu's
 swatches.
 
+The tint fades over 280 ms (`gfx::LinearAnimation`, eased out, blending
+premultiplied with `gfx::Tween::ColorValueBetween()`, so a grey space fades
+the tint out rather than through black) whenever the window's space or its
+color changes. While a swipe pulls in another space, the tint is the blend
+of the two colors at the swipe's progress (next section), with no fade.
+
+### Swiping
+
+A two-finger horizontal swipe on the sidebar pulls in the next space
+(fingers to the left) or the previous one, as in Arc. The page sees the
+trackpad as wheel events (`onWheel_()`, non-passive on the app):
+
+- The first event of a gesture picks its axis. Vertical gestures scroll as
+  usual; a horizontal one swallows its events. A gesture ends after 150 ms
+  without events; macOS momentum after the fingers lift is part of it.
+- The window's name and entries (`#spacePane`, inside `#stage`, which clips
+  them at the sidebar's edges) move with the fingers. The space being
+  pulled in comes in next to them: a `<strata-sidebar-preview>`, which
+  renders a tree from `PageHandler.GetSpaceTree()` in its own shadow root,
+  inert. The previous and the next space's previews are always built,
+  waiting just past the stage's edges (`side`), so a swipe never shows one
+  empty or loading favicons. The page refetches every other space's tree
+  when the spaces, the window's tree or its entries' set change, and when a
+  swipe starts; the space just left keeps the tree it showed. The previews
+  change only between slides. They show what the switch will: the entry it
+  will show is highlighted (`PredictShownEntry()`, step 5 above, sent as
+  the tree's `active_id`), and a space with no entries shows the new tab
+  the browser will open there, since blank tabs close when the window
+  leaves a space. Past the first or the last space the entries
+  only give a little (rubber band, at most 32 px).
+- Each frame, `PageHandler.PreviewSpace(id, progress)` tells
+  `WindowFeatures::SetSpacePreview()`, and `SidebarTint` paints the blend.
+- Half the width switches at once; a gesture that stops past a quarter
+  switches too, and one short of it goes back (and the tint fades back).
+  Switching animates the rest of the way, calls `SwitchSpace()`, and
+  swallows the rest of the gesture. Once the new tree has arrived and the
+  preview is in place, the live pane, now showing it, takes the preview's
+  place. A switch the browser hasn't confirmed in 2 s is undone.
+
+A click on a space button slides the same way at once, from zero: a space
+further away than a neighbor first takes that side's preview, from its
+cached tree. In both cases the page drives the tint through
+`PreviewSpace()` frame by frame along the slide, and calls `SwitchSpace()`
+once the slide's first frame is out, since switching keeps the browser busy
+for a moment; once the browser has switched, it fades the tint itself.
+
+Switches from elsewhere (Ctrl+1–9, a new or deleted space) slide too: when `SetSpaces()` names another active space, the page waits for
+its tree; then a copy of the old pane (in a shadow root of its own, like the
+FLIP copies in sidebar.md, "Motion") slides out while the live pane slides
+in, from the right for a later space and from the left for an earlier one.
+The favorites stay put: they're the profile's. `prefers-reduced-motion`
+turns the slides off, and `gfx::Animation::ShouldRenderRichAnimation()` the
+tint's fade.
+
+
 ## Known gaps (slice 1)
 
 - A space with no name (only from files written before spaces were named)
@@ -177,7 +232,6 @@ swatches.
   popup.
 - A parked page that calls `window.focus()` could show the parking window.
 - Several windows on different spaces: see Startup.
-- No animation on switch.
 - Only the sidebar is tinted; the window frame and toolbar keep the theme.
 - Spaces can't be reordered.
 - Deleting a space closes parked tabs without asking, even ones with

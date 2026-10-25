@@ -414,6 +414,51 @@ TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {
   EXPECT_THAT(Hosts(*tree->today), ElementsAre("a.test", "b.test"));
 }
 
+TEST_F(SidebarPageHandlerTest, SendsAnotherSpacesTreeAndPreviewsIt) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  const std::string work_id = work->id().AsLowercaseString();
+  handler_remote_->MoveNodeToSpace(TodayId(1), work_id);
+  Settle();
+
+  // For a swipe to show before it switches.
+  sidebar::mojom::TreePtr tree;
+  handler_remote_->GetSpaceTree(
+      work_id, base::BindLambdaForTesting(
+                   [&](sidebar::mojom::TreePtr t) { tree = std::move(t); }));
+  Settle();
+  ASSERT_TRUE(tree);
+  EXPECT_THAT(Hosts(*tree->today), ElementsAre("b.test"));
+  // The entry the switch would show: b, whose tab waits in the parking
+  // window.
+  EXPECT_EQ(tree->active_id, tree->today->children[0]->id);
+  bool answered = false;
+  handler_remote_->GetSpaceTree(
+      "not-a-space", base::BindLambdaForTesting([&](sidebar::mojom::TreePtr t) {
+        answered = true;
+        EXPECT_FALSE(t);
+      }));
+  Settle();
+  EXPECT_TRUE(answered);
+
+  // The tint follows the swipe.
+  handler_remote_->PreviewSpace(work_id, 0.4);
+  Settle();
+  EXPECT_EQ(features->preview_space(), work);
+  EXPECT_DOUBLE_EQ(features->preview_progress(), 0.4);
+  // Not the window's own space.
+  handler_remote_->PreviewSpace(space_model().id().AsLowercaseString(), 0.5);
+  Settle();
+  EXPECT_FALSE(features->preview_space());
+  // Switching ends it.
+  handler_remote_->PreviewSpace(work_id, 0.9);
+  handler_remote_->SwitchSpace(work_id);
+  Settle();
+  EXPECT_EQ(&features->space_model(), work);
+  EXPECT_FALSE(features->preview_space());
+  EXPECT_EQ(features->preview_progress(), 0);
+}
+
 TEST_F(SidebarPageHandlerTest, RenamesAndColorsSpaces) {
   SpaceModel& home = space_model();
   const std::string id = home.id().AsLowercaseString();

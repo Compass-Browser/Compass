@@ -8,6 +8,8 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import './node.js';
+import type {StrataSidebarPreviewElement} from './preview.js';
+import './preview.js';
 import type {ArchivedEntry, ArchivedTab, Node, Space, Tree} from './sidebar.mojom-webui.js';
 import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
 
@@ -56,6 +58,73 @@ const HOVER_CARD_HIDE_DELAY_MS = 100;
 
 const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 
+// Entries glide to where they moved, and fade in and out
+// (docs/design/sidebar.md, "Motion").
+const FLIP_MS = 220;
+const FADE_MS = 160;
+const EASE_OUT = 'cubic-bezier(0.2, 0, 0, 1)';
+
+// Switching spaces slides the old space's entries out and the new one's in,
+// while the tint fades (SidebarTint's kFadeDuration). A two-finger swipe
+// moves them with the fingers (docs/design/spaces.md, "Swiping").
+const SLIDE_MS = 280;
+// Wheel events this far apart end a gesture. Momentum after the fingers lift
+// keeps it going.
+const WHEEL_QUIET_MS = 150;
+// Of the sidebar's width: a swipe this far switches at once; one that stops
+// short of the other switches if it's past the second, and goes back if not.
+const SWIPE_SWITCH = 0.5;
+const SWIPE_SETTLE = 0.25;
+// Past the first or the last space, the entries only give a little.
+const SWIPE_RESISTANCE = 0.2;
+const SWIPE_RESISTANCE_MAX_PX = 32;
+// A switch the browser hasn't confirmed by then didn't happen.
+const SWITCH_TIMEOUT_MS = 2000;
+
+// A two-finger swipe across the sidebar.
+interface Swipe {
+  // How far the fingers moved the entries, in pixels; negative pulls in the
+  // next space.
+  offset: number;
+  // The space pulled in: the next (1), the previous (-1) or none yet (0).
+  direction: number;
+  // Null past the first or the last space.
+  target: Space|null;
+}
+
+// A switch to another space, as it slides.
+interface Slide {
+  // Where the new space comes from: the right (1) or the left (-1).
+  direction: number;
+  // The page slid the new space's preview in before the browser switched (a
+  // swipe, or a click on a space button).
+  fromPreview: boolean;
+  // The browser has switched; the tint is its own again.
+  switched: boolean;
+  // The tree for the new space has arrived.
+  hasTree: boolean;
+  animations: Animation[];
+}
+
+// A space next to the window's, built off to the side for a swipe to pull
+// in.
+export interface Preview {
+  space: Space;
+  // Null until it arrives: only the name shows.
+  tree: Tree|null;
+  side: 'previous'|'next';
+}
+
+// Which way the wheel events of a gesture go. `done`: the swipe is over, and
+// the rest of the gesture (its momentum) is swallowed.
+type WheelAxis = 'x'|'y'|'done';
+
+// Where an animated element was before a change, and the element.
+interface FlipFirst {
+  rect: DOMRect;
+  element: HTMLElement;
+}
+
 // The sidebar: the profile's favorites, as a grid of tiles, and the window's
 // SpaceModel, as a pinned and a Today section. The
 // browser sends the tree once, then diffs. Entries are rearranged by dragging,
@@ -92,6 +161,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       confirmingDelete_: {type: Boolean},
       archive_: {type: Array},
       archiveOpen_: {type: Boolean},
+      previews_: {type: Array},
     };
   }
 
@@ -113,6 +183,9 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
   protected accessor archiveOpen_: boolean = false;
+  // The spaces before and after the window's, kept built so a swipe shows
+  // them at once. They change only between slides.
+  protected accessor previews_: Preview[] = [];
 
   private browserProxy_: SidebarBrowserProxy =
       SidebarBrowserProxy.getInstance();
@@ -133,14 +206,31 @@ export class StrataSidebarAppElement extends CrLitElement {
   // Pressing a tab hides its card until the pointer moves to another one.
   private hoverPressedId_: string|null = null;
 
+  // Where the entries were before the change being rendered, by node ID or
+  // `data-flip`, while their animation waits for the next frame.
+  private flipFirst_: Map<string, FlipFirst>|null = null;
+  private flipAnimations_: Animation[] = [];
+
+  private wheelAxis_: WheelAxis|null = null;
+  private wheelQuietTimer_: number|null = null;
+  private swipe_: Swipe|null = null;
+  private swipeFrame_: number|null = null;
+  // Other spaces' trees, for the previews, by space ID. Refetched whenever
+  // the window's space or the spaces change.
+  private spaceTrees_: Map<string, Tree> = new Map();
+  // A switch the browser was asked for, or told the page about.
+  private slide_: Slide|null = null;
+  private slideTimer_: number|null = null;
+  // The old space's entries, as they slide out.
+  private slideGhost_: HTMLElement|null = null;
+  // A swipe that stopped short, going back.
+  private settleAnimations_: Animation[] = [];
+
   override connectedCallback() {
     super.connectedCallback();
     const router = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
-      router.setSpaces.addListener((spaces: Space[], activeId: string) => {
-        this.spaces_ = spaces;
-        this.activeSpaceId_ = activeId;
-      }),
+      router.setSpaces.addListener(this.onSetSpaces_.bind(this)),
       router.setTree.addListener(this.onSetTree_.bind(this)),
       router.nodeAdded.addListener(this.onNodeAdded_.bind(this)),
       router.nodeMoved.addListener(this.onNodeMoved_.bind(this)),
@@ -162,6 +252,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     document.addEventListener('drop', this.onDocumentDrop_);
     document.addEventListener('pointerdown', this.onDocumentPointerdown_);
     document.addEventListener('contextmenu', this.onDocumentContextmenu_);
+    this.addEventListener('wheel', this.onWheel_, {passive: false});
   }
 
   override disconnectedCallback() {
@@ -171,6 +262,17 @@ export class StrataSidebarAppElement extends CrLitElement {
     document.removeEventListener('drop', this.onDocumentDrop_);
     document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
     document.removeEventListener('contextmenu', this.onDocumentContextmenu_);
+    this.removeEventListener('wheel', this.onWheel_);
+    this.clearWheelQuietTimer_();
+    if (this.swipeFrame_ !== null) {
+      cancelAnimationFrame(this.swipeFrame_);
+      this.swipeFrame_ = null;
+    }
+    if (this.swipe_) {
+      this.browserProxy_.handler.previewSpace(null, 0);
+      this.swipe_ = null;
+    }
+    this.endSlide_();
     for (const id of this.listenerIds_) {
       this.browserProxy_.callbackRouter.removeListener(id);
     }
@@ -379,11 +481,39 @@ export class StrataSidebarAppElement extends CrLitElement {
     return Array.from(space.name.trim())[0]?.toUpperCase() ?? '•';
   }
 
-  protected onSpaceClick_(e: Event) {
+  // Slides the space's preview in at once, as a swipe would, rather than
+  // after the browser has switched.
+  protected async onSpaceClick_(e: Event) {
     const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
-    if (id !== this.activeSpaceId_) {
-      this.browserProxy_.handler.switchSpace(id);
+    const target = this.spaces_.find(space => space.id === id);
+    if (!target || id === this.activeSpaceId_) {
+      return;
     }
+    const from = this.spaces_.findIndex(space => this.isActiveSpace_(space));
+    const direction = this.spaces_.indexOf(target) > from ? 1 : -1;
+    if (this.swipe_ || this.slide_ || from === -1 || !this.motionAllowed_()) {
+      this.browserProxy_.handler.switchSpace(id);
+      return;
+    }
+    if (this.getNeighborSpace_(direction) !== target) {
+      // Further away: its preview takes the neighbor's place.
+      const side = direction > 0 ? 'next' : 'previous';
+      this.previews_ = [
+        ...this.previews_.filter(preview => preview.side !== side),
+        {space: target, side, tree: this.spaceTrees_.get(id) ?? null},
+      ];
+      await this.updateComplete;
+      await (this.getPreview_(direction) as CrLitElement | null)
+          ?.updateComplete;
+    }
+    const preview = this.getPreview_(direction) as
+        StrataSidebarPreviewElement | null;
+    if (this.swipe_ || this.slide_ || id === this.activeSpaceId_ ||
+        preview?.space?.id !== id) {
+      this.browserProxy_.handler.switchSpace(id);
+      return;
+    }
+    this.slideTo_(target, direction, preview, 0);
   }
 
   protected onAddSpaceClick_() {
@@ -470,6 +600,7 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   private toggleFolder_(id: string) {
+    this.prepareFlip_();
     const collapsed = new Set(this.collapsedIds_);
     if (!collapsed.delete(id)) {
       collapsed.add(id);
@@ -774,6 +905,610 @@ export class StrataSidebarAppElement extends CrLitElement {
     }
   }
 
+  private motionAllowed_(): boolean {
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  private getStage_(): HTMLElement {
+    return this.shadowRoot.querySelector<HTMLElement>('#stage')!;
+  }
+
+  private getSpacePane_(): HTMLElement {
+    return this.shadowRoot.querySelector<HTMLElement>('#spacePane')!;
+  }
+
+  // The preview of the space |direction| (1 or -1) away, if any.
+  private getPreview_(direction: number): HTMLElement|null {
+    return direction ? this.shadowRoot.querySelector<HTMLElement>(
+                           `strata-sidebar-preview[side="${
+                               direction > 0 ? 'next' : 'previous'}"]`) :
+                       null;
+  }
+
+  // Shows the neighbors' trees as far as they're known. Not mid-slide: the
+  // preview sliding in must stay until the live pane takes its place.
+  private updatePreviews_() {
+    if (this.slide_) {
+      return;
+    }
+    const previews: Preview[] = [];
+    for (const [direction, side] of [[-1, 'previous'], [1, 'next']] as const) {
+      const space = this.getNeighborSpace_(direction);
+      if (space) {
+        previews.push(
+            {space, side, tree: this.spaceTrees_.get(space.id) ?? null});
+      }
+    }
+    this.previews_ = previews;
+  }
+
+  // Fetches the other spaces' trees again, for entries that changed there.
+  // The neighbors show theirs; a click further away shows its own.
+  private refreshPreviews_() {
+    for (const space of this.spaces_) {
+      if (this.isActiveSpace_(space)) {
+        continue;
+      }
+      this.browserProxy_.handler.getSpaceTree(space.id).then(({tree}) => {
+        if (tree) {
+          this.spaceTrees_.set(space.id, tree);
+        } else {
+          this.spaceTrees_.delete(space.id);
+        }
+        this.updatePreviews_();
+      });
+    }
+    this.updatePreviews_();
+  }
+
+  // Back to where the swipe found them.
+  private clearSwipeStyles_() {
+    for (const element of [
+           this.getSpacePane_(),
+           ...this.shadowRoot.querySelectorAll<HTMLElement>(
+               'strata-sidebar-preview'),
+         ]) {
+      element.style.removeProperty('transform');
+      element.style.removeProperty('opacity');
+    }
+  }
+
+  // A copy of |source| to animate in its place, appended to |container|. It
+  // lives in a shadow root of its own, with the app's styles, so the app's
+  // queries (and tests') don't find its rows. Returns its host and the copy.
+  private makeGhost_(source: HTMLElement, container: HTMLElement):
+      {host: HTMLElement, copy: HTMLElement} {
+    const host = document.createElement('div');
+    host.inert = true;
+    const root = host.attachShadow({mode: 'open'});
+    root.adoptedStyleSheets = this.shadowRoot.adoptedStyleSheets;
+    for (const style of this.shadowRoot.querySelectorAll('style')) {
+      root.append(style.cloneNode(true));
+    }
+    const copy = source.cloneNode(true) as HTMLElement;
+    // Copies of entries would render again, empty: keep what they show, in
+    // plain elements.
+    for (const node of copy.querySelectorAll('strata-sidebar-node')) {
+      const element = document.createElement('div');
+      element.append(...node.childNodes);
+      node.replaceWith(element);
+    }
+    root.append(copy);
+    container.append(host);
+    return {host, copy};
+  }
+
+  // Call before a change to the entries: once it's rendered, those that
+  // moved glide from where they were (FLIP), new ones fade in and gone ones
+  // fade out. Changes within a frame animate together.
+  private prepareFlip_() {
+    if (this.flipFirst_ || this.slide_ || this.swipe_ ||
+        !this.motionAllowed_()) {
+      return;
+    }
+    const first = new Map<string, FlipFirst>();
+    for (const [key, element] of this.getFlipElements_()) {
+      first.set(key, {rect: element.getBoundingClientRect(), element});
+    }
+    this.flipFirst_ = first;
+    // The entries render in microtasks, before the frame.
+    requestAnimationFrame(() => this.playFlip_());
+  }
+
+  // Tiles and rows by node ID, and the sections' other parts by `data-flip`.
+  private getFlipElements_(): Map<string, HTMLElement> {
+    const elements = new Map<string, HTMLElement>();
+    for (const element of this.shadowRoot.querySelectorAll<HTMLElement>(
+             '#favorites .tile, #spacePane .row, [data-flip]')) {
+      const key = element.dataset['flip'] ?? element.dataset['nodeId'];
+      if (key) {
+        elements.set(key, element);
+      }
+    }
+    return elements;
+  }
+
+  private playFlip_() {
+    const first = this.flipFirst_;
+    this.flipFirst_ = null;
+    if (!first) {
+      return;
+    }
+    // Moving again mid-glide starts from where it got to: |first| was
+    // measured with the transforms.
+    for (const animation of this.flipAnimations_) {
+      animation.cancel();
+    }
+    this.flipAnimations_ = [];
+    const last = this.getFlipElements_();
+    for (const [key, element] of last) {
+      const from = first.get(key)?.rect;
+      const to = element.getBoundingClientRect();
+      if (!from) {
+        this.flipAnimations_.push(element.animate(
+            [
+              {opacity: 0, transform: 'translateY(-4px)'},
+              {opacity: 1, transform: 'none'},
+            ],
+            {duration: FADE_MS, easing: EASE_OUT}));
+        continue;
+      }
+      if (to.width === 0 || from.width === 0) {
+        continue;
+      }
+      if (Math.abs(from.width - to.width) > to.width / 2 ||
+          Math.abs(from.height - to.height) > to.height / 2) {
+        // A row that became a tile, or the other way: it grows out of where
+        // it was.
+        const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+        const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+        this.flipAnimations_.push(element.animate(
+            [
+              {opacity: 0, transform: `translate(${dx}px, ${dy}px) scale(0.6)`},
+              {opacity: 1, transform: 'none'},
+            ],
+            {duration: FLIP_MS, easing: EASE_OUT}));
+        continue;
+      }
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+        continue;
+      }
+      this.flipAnimations_.push(element.animate(
+          [{transform: `translate(${dx}px, ${dy}px)`}, {transform: 'none'}],
+          {duration: FLIP_MS, easing: EASE_OUT}));
+    }
+    for (const [key, {rect, element}] of first) {
+      if (!last.has(key) && rect.width > 0) {
+        this.fadeOut_(element, rect);
+      }
+    }
+  }
+
+  // A copy of |element|, gone, fades where it was, at |rect|.
+  private fadeOut_(element: HTMLElement, rect: DOMRect) {
+    const origin = this.getBoundingClientRect();
+    const {host} = this.makeGhost_(
+        element, this.shadowRoot.querySelector<HTMLElement>('#ghosts')!);
+    Object.assign(host.style, {
+      display: 'block',
+      height: `${rect.height}px`,
+      left: `${rect.left - origin.left}px`,
+      padding: '0',
+      position: 'absolute',
+      top: `${rect.top - origin.top}px`,
+      width: `${rect.width}px`,
+    });
+    host.animate([{opacity: 1}, {opacity: 0, transform: 'scale(0.96)'}],
+                 {duration: FADE_MS, easing: EASE_OUT})
+        .finished.then(() => host.remove(), () => host.remove());
+  }
+
+  // Two fingers across the sidebar pull in the next or the previous space.
+  // Vertical scrolling and pinch zoom (ctrlKey) go on as usual.
+  private onWheel_ = (e: WheelEvent) => {
+    if (e.ctrlKey) {
+      return;
+    }
+    this.clearWheelQuietTimer_();
+    this.wheelQuietTimer_ =
+        setTimeout(() => this.onWheelQuiet_(), WHEEL_QUIET_MS);
+    if (!this.wheelAxis_) {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) {
+        this.wheelAxis_ = 'y';
+      } else if (
+          this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
+          this.draggingId_) {
+        this.wheelAxis_ = 'done';
+      } else {
+        this.wheelAxis_ = 'x';
+        this.startSwipe_();
+      }
+    }
+    if (this.wheelAxis_ === 'y') {
+      return;
+    }
+    e.preventDefault();
+    if (this.wheelAxis_ === 'x' && this.swipe_) {
+      const scale = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
+      this.swipe_.offset -= e.deltaX * scale;
+      this.updateSwipe_();
+    }
+  };
+
+  private clearWheelQuietTimer_() {
+    if (this.wheelQuietTimer_ !== null) {
+      clearTimeout(this.wheelQuietTimer_);
+      this.wheelQuietTimer_ = null;
+    }
+  }
+
+  // The gesture ended: a swipe past SWIPE_SETTLE switches, one short of it
+  // goes back.
+  private onWheelQuiet_() {
+    this.wheelQuietTimer_ = null;
+    this.wheelAxis_ = null;
+    const swipe = this.swipe_;
+    if (swipe) {
+      this.endSwipe_(
+          !!swipe.target &&
+          Math.abs(this.getSwipeShift_(swipe)) >=
+              SWIPE_SETTLE * this.getStage_().clientWidth);
+    }
+  }
+
+  // While the entries slide, the lists don't scroll: their scrollbars would
+  // flash.
+  private setSliding_(sliding: boolean) {
+    this.getStage_().toggleAttribute('sliding', sliding);
+  }
+
+  private startSwipe_() {
+    this.hideHoverCard_();
+    this.setSliding_(true);
+    for (const animation of this.settleAnimations_) {
+      animation.cancel();
+    }
+    this.settleAnimations_ = [];
+    this.swipe_ = {offset: 0, direction: 0, target: null};
+    // Usually there already; this catches up on what changed there.
+    this.refreshPreviews_();
+  }
+
+  // The space |direction| (1 or -1) away from the window's, if any.
+  private getNeighborSpace_(direction: number): Space|null {
+    const index = this.spaces_.findIndex(space => this.isActiveSpace_(space));
+    return direction && index !== -1 ?
+        this.spaces_[index + direction] ?? null :
+        null;
+  }
+
+  // How far the entries moved: with the fingers, up to the sidebar's width,
+  // or only a little past the first and the last space.
+  private getSwipeShift_(swipe: Swipe): number {
+    if (!swipe.target) {
+      return Math.sign(swipe.offset) *
+          Math.min(Math.abs(swipe.offset) * SWIPE_RESISTANCE,
+                   SWIPE_RESISTANCE_MAX_PX);
+    }
+    const width = this.getStage_().clientWidth;
+    return Math.max(-width, Math.min(width, swipe.offset));
+  }
+
+  private updateSwipe_() {
+    const swipe = this.swipe_!;
+    const direction = Math.sign(-swipe.offset);
+    if (direction !== swipe.direction) {
+      swipe.direction = direction;
+      swipe.target = this.getNeighborSpace_(direction);
+      this.clearSwipeStyles_();
+    }
+    if (swipe.target &&
+        Math.abs(swipe.offset) >=
+            SWIPE_SWITCH * this.getStage_().clientWidth) {
+      // The rest of the gesture is the switch's.
+      this.wheelAxis_ = 'done';
+      this.endSwipe_(/*commit=*/ true);
+      return;
+    }
+    if (this.swipeFrame_ === null) {
+      this.swipeFrame_ = requestAnimationFrame(() => {
+        this.swipeFrame_ = null;
+        this.applySwipe_();
+      });
+    }
+  }
+
+  private applySwipe_() {
+    const swipe = this.swipe_;
+    if (!swipe) {
+      return;
+    }
+    const shift = this.getSwipeShift_(swipe);
+    const width = this.getStage_().clientWidth;
+    const progress = swipe.target ? Math.abs(shift) / width : 0;
+    const pane = this.getSpacePane_();
+    pane.style.transform = `translateX(${shift}px)`;
+    pane.style.opacity = `${1 - progress / 2}`;
+    const preview = this.getPreview_(swipe.direction);
+    if (preview) {
+      preview.style.transform =
+          `translateX(${shift + swipe.direction * width}px)`;
+      preview.style.opacity = `${0.5 + progress / 2}`;
+    }
+    // The tint follows.
+    this.browserProxy_.handler.previewSpace(swipe.target?.id ?? null, progress);
+  }
+
+  // Lets go of the swipe: switches to the space it pulled in, the rest of the
+  // way, or goes back.
+  private endSwipe_(commit: boolean) {
+    const swipe = this.swipe_;
+    if (!swipe) {
+      return;
+    }
+    this.swipe_ = null;
+    if (this.swipeFrame_ !== null) {
+      cancelAnimationFrame(this.swipeFrame_);
+      this.swipeFrame_ = null;
+    }
+    const width = this.getStage_().clientWidth;
+    const shift = this.getSwipeShift_(swipe);
+    const progress = swipe.target ? Math.abs(shift) / width : 0;
+    const direction = swipe.direction;
+    const pane = this.getSpacePane_();
+    const preview = swipe.target ? this.getPreview_(direction) : null;
+    // The animations take over from where the frames left them.
+    this.clearSwipeStyles_();
+    const paneFrom = {
+      opacity: 1 - progress / 2,
+      transform: `translateX(${shift}px)`,
+    };
+    const previewFrom = {
+      opacity: 0.5 + progress / 2,
+      transform: `translateX(${shift + direction * width}px)`,
+    };
+    const options: KeyframeAnimationOptions = {
+      duration: this.motionAllowed_() ? SLIDE_MS : 0,
+      easing: EASE_OUT,
+      fill: 'forwards',
+    };
+    if (commit && swipe.target) {
+      this.slideTo_(swipe.target, direction, preview, shift);
+      return;
+    }
+    this.browserProxy_.handler.previewSpace(null, 0);
+    this.settleAnimations_ = [pane.animate(
+        [paneFrom, {opacity: 1, transform: 'none'}],
+        {...options, fill: 'none'})];
+    if (!preview) {
+      this.settleAnimations_[0]!.finished.then(() => {
+        if (!this.swipe_ && !this.slide_) {
+          this.setSliding_(false);
+        }
+      }, () => {});
+      return;
+    }
+    const back = preview.animate(
+        [
+          previewFrom,
+          {opacity: 0.5, transform: `translateX(${direction * width}px)`},
+        ],
+        options);
+    this.settleAnimations_.push(back);
+    back.finished.then(() => {
+      if (!this.swipe_ && !this.slide_) {
+        // Off to the side again.
+        back.cancel();
+        this.setSliding_(false);
+      }
+    }, () => {});
+  }
+
+  // Switches to |target|: slides its preview (null without one) in from
+  // |shift| pixels along, the window's entries out, and the tint along,
+  // then asks the browser. The live pane takes the preview's place once the
+  // new tree is there (playSlide_()).
+  private slideTo_(
+      target: Space, direction: number, preview: HTMLElement|null,
+      shift: number) {
+    const width = this.getStage_().clientWidth;
+    const progress = Math.abs(shift) / width;
+    const options: KeyframeAnimationOptions = {
+      duration: this.motionAllowed_() ? SLIDE_MS : 0,
+      easing: EASE_OUT,
+      fill: 'forwards',
+    };
+    const animations = [this.getSpacePane_().animate(
+        [
+          {opacity: 1 - progress / 2, transform: `translateX(${shift}px)`},
+          {opacity: 0.5, transform: `translateX(${-direction * width}px)`},
+        ],
+        options)];
+    if (preview) {
+      animations.push(preview.animate(
+          [
+            {
+              opacity: 0.5 + progress / 2,
+              transform: `translateX(${shift + direction * width}px)`,
+            },
+            {opacity: 1, transform: 'none'},
+          ],
+          options));
+    }
+    this.endSlide_();
+    this.setSliding_(true);
+    const slide: Slide = {
+      direction,
+      fromPreview: true,
+      switched: false,
+      hasTree: false,
+      animations,
+    };
+    this.slide_ = slide;
+    this.slideTimer_ = setTimeout(() => this.endSlide_(), SWITCH_TIMEOUT_MS);
+    // The tint goes with the slide, frame by frame, until the browser has
+    // switched and fades it itself.
+    const tint = () => {
+      if (this.slide_ !== slide || slide.switched) {
+        return;
+      }
+      const timing = animations[0]!.effect?.getComputedTiming();
+      this.browserProxy_.handler.previewSpace(
+          target.id, progress + (1 - progress) * (timing?.progress ?? 1));
+      if (animations[0]!.playState === 'running') {
+        requestAnimationFrame(tint);
+      }
+    };
+    requestAnimationFrame(tint);
+    // Switching keeps the browser busy for a moment: once the slide has
+    // started. A hidden page gets no frames; it switches anyway.
+    let switched = false;
+    const doSwitch = () => {
+      if (!switched) {
+        switched = true;
+        this.browserProxy_.handler.switchSpace(target.id);
+      }
+    };
+    requestAnimationFrame(() => setTimeout(doSwitch));
+    setTimeout(doSwitch, 50);
+  }
+
+  private onSetSpaces_(spaces: Space[], activeId: string) {
+    const previousId = this.activeSpaceId_;
+    if (previousId && activeId !== previousId) {
+      this.onActiveSpaceChanged_(previousId, activeId, spaces);
+    }
+    this.spaces_ = spaces;
+    this.activeSpaceId_ = activeId;
+    this.refreshPreviews_();
+  }
+
+  // The window switched spaces. Unless a swipe slid the new space in
+  // already, it slides in when its tree arrives: from the right if it comes
+  // after the old one, else from the left.
+  private onActiveSpaceChanged_(
+      previousId: string, activeId: string, spaces: Space[]) {
+    // The space left is a neighbor now, or soon: keep what it showed.
+    if (this.favorites_ && this.pinned_ && this.today_) {
+      this.spaceTrees_.set(previousId, {
+        favorites: this.favorites_,
+        pinned: this.pinned_,
+        today: this.today_,
+        // What it shows when the window comes back to it.
+        activeId: this.activeId_,
+      });
+    }
+    if (this.slide_?.fromPreview && !this.slide_.hasTree) {
+      this.slide_.switched = true;
+      return;
+    }
+    if (this.swipe_) {
+      // Ctrl+1–9 mid-swipe.
+      this.swipe_ = null;
+      this.wheelAxis_ = 'done';
+      this.clearSwipeStyles_();
+    }
+    this.endSlide_();
+    this.setSliding_(true);
+    const oldIndex = this.spaces_.findIndex(space => space.id === previousId);
+    const newIndex = spaces.findIndex(space => space.id === activeId);
+    this.slide_ = {
+      direction: newIndex >= oldIndex ? 1 : -1,
+      fromPreview: false,
+      switched: true,
+      hasTree: false,
+      animations: [],
+    };
+    this.slideTimer_ = setTimeout(() => this.endSlide_(), SWITCH_TIMEOUT_MS);
+  }
+
+  // The new space's tree is about to replace the old one's.
+  private playSlide_(slide: Slide) {
+    slide.hasTree = true;
+    if (slide.fromPreview) {
+      // Its preview is where its entries go: they take its place once it's
+      // there.
+      Promise.all(slide.animations.map(animation => animation.finished))
+          .then(() => {
+            if (this.slide_ === slide) {
+              this.endSlide_();
+            }
+          }, () => {});
+      return;
+    }
+    if (!this.motionAllowed_()) {
+      this.endSlide_();
+      return;
+    }
+    const stage = this.getStage_();
+    const pane = this.getSpacePane_();
+    const {host, copy} = this.makeGhost_(pane, stage);
+    Object.assign(host.style, {
+      height: `${pane.offsetHeight}px`,
+      left: '0',
+      padding: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    });
+    const sections = copy.querySelector<HTMLElement>('#sections')!;
+    sections.style.overflow = 'hidden';
+    sections.scrollTop = this.getSections_().scrollTop;
+    this.slideGhost_ = host;
+    const shift = slide.direction * stage.clientWidth;
+    const options = {duration: SLIDE_MS, easing: EASE_OUT};
+    slide.animations = [
+      host.animate(
+          [
+            {opacity: 1, transform: 'none'},
+            {opacity: 0.5, transform: `translateX(${-shift}px)`},
+          ],
+          {...options, fill: 'forwards'}),
+      pane.animate(
+          [
+            {opacity: 0.5, transform: `translateX(${shift}px)`},
+            {opacity: 1, transform: 'none'},
+          ],
+          options),
+    ];
+    Promise.all(slide.animations.map(animation => animation.finished))
+        .then(() => {
+          if (this.slide_ === slide) {
+            this.endSlide_();
+          }
+        }, () => {});
+  }
+
+  // Puts the entries where the switch leaves them, at once: the new space's
+  // in place. A swipe's switch that never came leaves the old space's.
+  private endSlide_() {
+    if (this.slideTimer_ !== null) {
+      clearTimeout(this.slideTimer_);
+      this.slideTimer_ = null;
+    }
+    const slide = this.slide_;
+    this.slide_ = null;
+    if (!slide) {
+      return;
+    }
+    if (!this.swipe_) {
+      this.setSliding_(false);
+    }
+    for (const animation of slide.animations) {
+      animation.cancel();
+    }
+    this.slideGhost_?.remove();
+    this.slideGhost_ = null;
+    if (slide.fromPreview && !slide.hasTree) {
+      this.browserProxy_.handler.previewSpace(null, 0);
+    }
+    // The previews slid in or out go back to the side, for the new
+    // neighbors.
+    this.updatePreviews_();
+  }
+
   protected onDragstart_(e: DragEvent) {
     this.hideHoverCard_();
     const row = (e.target as Element).closest<HTMLElement>('.row, .tile');
@@ -982,6 +1717,10 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   private onSetTree_(tree: Tree) {
+    if (this.slide_ && !this.slide_.hasTree) {
+      this.playSlide_(this.slide_);
+    }
+    this.refreshPreviews_();
     this.nodes_.clear();
     this.parents_.clear();
     this.index_(tree.favorites, null);
@@ -998,6 +1737,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (!parent || this.nodes_.has(node.id)) {
       return;
     }
+    this.prepareFlip_();
     parent.children.splice(index, 0, node);
     this.index_(node, parent);
     this.requestUpdate();
@@ -1010,6 +1750,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (!node || !oldParent || !newParent) {
       return;
     }
+    this.prepareFlip_();
     oldParent.children.splice(oldParent.children.indexOf(node), 1);
     newParent.children.splice(index, 0, node);
     this.parents_.set(id, newParent);
@@ -1043,8 +1784,11 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (!node || !parent) {
       return;
     }
+    this.prepareFlip_();
     parent.children.splice(parent.children.indexOf(node), 1);
     this.unindex_(node);
+    // Maybe to a neighbor (Move to Space).
+    this.refreshPreviews_();
     this.requestUpdate();
   }
 }

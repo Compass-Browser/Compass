@@ -48,6 +48,19 @@ SidebarNode* FindFirstTab(SidebarNode* node) {
   return nullptr;
 }
 
+// The first tab node under |node| (itself included) that has a tab.
+SidebarNode* FindFirstLiveTab(SidebarNode* node, LiveTabRegistry& registry) {
+  if (node->type() == SidebarNode::Type::kTab) {
+    return registry.GetTab(node) ? node : nullptr;
+  }
+  for (const auto& child : node->children()) {
+    if (SidebarNode* tab = FindFirstLiveTab(child.get(), registry)) {
+      return tab;
+    }
+  }
+  return nullptr;
+}
+
 // Whether |browser| is a window the user can see tabs in: not the parking
 // window, and not closing.
 bool IsUsableNormalWindow(BrowserWindowInterface* browser) {
@@ -280,9 +293,28 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
 
   service_->space_list().SetActiveSpace(target);
   switching_ = false;
+  preview_space_id_ = base::Uuid();
+  preview_progress_ = 0;
   for (Observer& observer : observers_) {
     observer.OnSpaceSwitched();
   }
+}
+
+void WindowFeatures::SetSpacePreview(SpaceModel* space, double progress) {
+  if (space == space_) {
+    space = nullptr;
+  }
+  preview_space_id_ = space ? space->id() : base::Uuid();
+  preview_progress_ = space ? std::clamp(progress, 0.0, 1.0) : 0;
+  for (Observer& observer : observers_) {
+    observer.OnSpacePreviewChanged();
+  }
+}
+
+SpaceModel* WindowFeatures::preview_space() {
+  return preview_space_id_.is_valid()
+             ? service_->space_list().FindSpace(preview_space_id_)
+             : nullptr;
 }
 
 void WindowFeatures::AddObserver(Observer* observer) {
@@ -313,6 +345,24 @@ void WindowFeatures::OnWindowBecameActive(BrowserWindowInterface* browser) {
 BrowserWindowInterface* WindowFeatures::FindOtherWindowShowing(
     const SpaceModel& space) {
   return FindWindowShowing(browser_->GetProfile(), space, browser_);
+}
+
+SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space) {
+  LiveTabRegistry& registry = service.registry();
+  SidebarNode* last = service.GetLastActiveNode(space);
+  if (last && registry.GetTab(last)) {
+    return last;
+  }
+  for (SidebarNode* root : {space.pinned_root(), space.today_root()}) {
+    if (SidebarNode* tab = FindFirstLiveTab(root, registry)) {
+      return tab;
+    }
+  }
+  if (last) {
+    return last;
+  }
+  SidebarNode* first = FindFirstTab(space.pinned_root());
+  return first ? first : FindFirstTab(space.today_root());
 }
 
 void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target) {

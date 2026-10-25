@@ -11,6 +11,7 @@
 #include "strata/browser/window_sync/space_service.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
@@ -24,6 +25,14 @@ namespace {
 
 // How much of the space color shows over the frame color.
 constexpr SkAlpha kTintAlpha = 0x24;  // 14%
+
+// The fade between two spaces' colors; the page's slide takes as long.
+constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
+
+SkColor ToTintColor(SpaceColor color) {
+  const std::optional<SkColor> tint = GetSpaceTint(color);
+  return tint ? SkColorSetA(*tint, kTintAlpha) : SK_ColorTRANSPARENT;
+}
 
 }  // namespace
 
@@ -50,13 +59,17 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color) {
 }
 
 SidebarTint::SidebarTint(BrowserWindowInterface* browser)
-    : features_(WindowFeatures::From(browser)) {
+    : features_(WindowFeatures::From(browser)),
+      animation_(kFadeDuration,
+                 gfx::LinearAnimation::kDefaultFrameRate,
+                 this) {
   SetProperty(views::kViewIgnoredByLayoutKey, true);
   SetCanProcessEventsWithinSubtree(false);
   GetViewAccessibility().SetIsIgnored(true);
   if (features_) {
     features_observation_.Observe(features_.get());
     space_list_observation_.Observe(&features_->service().space_list());
+    color_ = GetTargetColor();
   }
 }
 
@@ -73,22 +86,16 @@ SidebarTint* SidebarTint::Install(views::View* region,
 }
 
 std::optional<SkColor> SidebarTint::GetTintForTesting() const {
-  if (!features_) {
-    return std::nullopt;
-  }
-  const std::optional<SkColor> color =
-      GetSpaceTint(features_->space_model().color());
-  return color ? std::optional(SkColorSetA(*color, kTintAlpha)) : std::nullopt;
+  return SkColorGetA(color_) ? std::optional(color_) : std::nullopt;
 }
 
 void SidebarTint::OnPaint(gfx::Canvas* canvas) {
-  const std::optional<SkColor> tint = GetTintForTesting();
-  if (!tint) {
+  if (!SkColorGetA(color_)) {
     return;
   }
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
-  flags.setColor(*tint);
+  flags.setColor(color_);
   // In the region's coordinates, which are ours: the region's background
   // has custom corners.
   const views::Background* background = parent()->background();
@@ -101,6 +108,14 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
   }
 }
 
+void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
+  color_ = gfx::Tween::ColorValueBetween(
+      gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
+                                 animation->GetCurrentValue()),
+      from_, GetTargetColor());
+  SchedulePaint();
+}
+
 void SidebarTint::OnViewBoundsChanged(views::View* observed_view) {
   SetBoundsRect(observed_view->GetLocalBounds());
 }
@@ -110,13 +125,45 @@ void SidebarTint::OnViewIsDeleting(views::View* observed_view) {
 }
 
 void SidebarTint::OnSpaceSwitched() {
-  SchedulePaint();
+  UpdateColor(/*animate=*/true);
+}
+
+// The finger moves the blend; letting go without switching fades back.
+void SidebarTint::OnSpacePreviewChanged() {
+  UpdateColor(/*animate=*/!features_->preview_space());
 }
 
 void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
-  if (features_ && &space == &features_->space_model()) {
-    SchedulePaint();
+  if (features_ && (&space == &features_->space_model() ||
+                    &space == features_->preview_space())) {
+    UpdateColor(/*animate=*/true);
   }
+}
+
+SkColor SidebarTint::GetTargetColor() const {
+  if (!features_) {
+    return SK_ColorTRANSPARENT;
+  }
+  const SkColor color = ToTintColor(features_->space_model().color());
+  SpaceModel* preview = features_->preview_space();
+  return preview ? gfx::Tween::ColorValueBetween(
+                       features_->preview_progress(), color,
+                       ToTintColor(preview->color()))
+                 : color;
+}
+
+void SidebarTint::UpdateColor(bool animate) {
+  const SkColor target = GetTargetColor();
+  if (animate && target != color_ &&
+      gfx::Animation::ShouldRenderRichAnimation()) {
+    from_ = color_;
+    animation_.Stop();
+    animation_.Start();
+    return;
+  }
+  animation_.Stop();
+  color_ = target;
+  SchedulePaint();
 }
 
 BEGIN_METADATA(SidebarTint)

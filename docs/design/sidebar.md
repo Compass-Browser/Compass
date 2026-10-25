@@ -638,7 +638,36 @@ position and Rename (`SidebarContextMenu::SetShowCallbackForTesting()`
 hands the model over instead of running a native menu, which would block the
 test).
 
-## Later slices
+## Motion
+
+Entries move instead of jumping. Before the page applies a diff
+(`NodeAdded`, `NodeMoved`, `NodeRemoved`) or collapses a folder, it measures
+every tile and row (by node ID) and the sections' other parts (section
+headers, the divider, hints and New Tab, by `data-flip`):
+`prepareFlip_()`. On the next frame, after Lit and the
+`<strata-sidebar-node>`s have rendered, `playFlip_()` measures again and
+plays FLIP animations (Web Animations, 220 ms):
+
+- Moved: a translate from the old position. Pinning or unpinning (context
+  menu, drag) is a `NodeMoved` across sections, so the row glides from Today
+  up into Pinned while the rows between make room. Lit's `repeat` makes a new
+  element for a node that changes parent; the key is the node ID, so it
+  doesn't matter.
+- A row that becomes a tile or the other way (Add to Favorites): it grows
+  out of the old position's center, fading in.
+- New: fades in from 4 px above.
+- Gone: a copy fades out where it was. Copies live in `#ghosts`, a host with
+  its own shadow root (the app's style sheets adopted), so the app's queries
+  and the browser tests' don't see their rows.
+
+Diffs within one frame animate together. A change mid-animation starts from
+where the entry got to (the first measurement includes transforms). Nothing
+animates while spaces slide (spaces.md, "Swiping") or with
+`prefers-reduced-motion`, which also turns off the CSS transitions (row
+hover and active backgrounds, a slight press scale, the space menu and the
+archive popping in).
+
+
 
 - **b:** `SpaceModel` becomes the data source, using the
   `TabStripModel` ↔ `SpaceModel` bridge.

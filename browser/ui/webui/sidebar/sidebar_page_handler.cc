@@ -132,6 +132,10 @@ SidebarPageHandler::SidebarPageHandler(
 }
 
 SidebarPageHandler::~SidebarPageHandler() {
+  // A swipe the page was in the middle of.
+  if (features_->preview_space()) {
+    features_->SetSpacePreview(nullptr, 0);
+  }
   registry().RemoveObserver(this);
   features_->RemoveObserver(this);
   features_->service().space_list().RemoveObserver(this);
@@ -277,6 +281,29 @@ void SidebarPageHandler::SwitchSpace(const std::string& id) {
   if (SpaceModel* space = FindSpace(id)) {
     features_->SwitchToSpace(*space);
   }
+}
+
+void SidebarPageHandler::GetSpaceTree(const std::string& id,
+                                      GetSpaceTreeCallback callback) {
+  SpaceModel* space = FindSpace(id);
+  if (!space) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+  auto tree = sidebar::mojom::Tree::New();
+  tree->favorites = ToMojo(*favorites().pinned_root());
+  tree->pinned = ToMojo(*space->pinned_root());
+  tree->today = ToMojo(*space->today_root());
+  // What the switch would show, for the preview to highlight.
+  if (SidebarNode* shown = PredictShownEntry(features_->service(), *space)) {
+    tree->active_id = shown->id().AsLowercaseString();
+  }
+  std::move(callback).Run(std::move(tree));
+}
+
+void SidebarPageHandler::PreviewSpace(const std::optional<std::string>& id,
+                                      double progress) {
+  features_->SetSpacePreview(id ? FindSpace(*id) : nullptr, progress);
 }
 
 void SidebarPageHandler::AddSpace() {
