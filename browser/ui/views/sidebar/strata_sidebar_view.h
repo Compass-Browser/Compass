@@ -59,11 +59,14 @@ class StrataSidebarView : public views::WebView {
   StrataSidebarView& operator=(const StrataSidebarView&) = delete;
   ~StrataSidebarView() override;
 
+  BrowserWindowInterface* browser() const { return browser_; }
+
   // views::WebView:
   void AddedToWidget() override;
   void RemovedFromWidget() override;
 
  private:
+  const raw_ptr<BrowserWindowInterface> browser_;
   SpaceShortcuts space_shortcuts_;
   CommandBar command_bar_;
 };
@@ -75,7 +78,8 @@ class StrataSidebarView : public views::WebView {
 std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser);
 
 // Lays out |sidebar| once the region has added it: it takes the free space,
-// and |bottom_container| (upstream's New Tab button) is hidden.
+// and |bottom_container| (upstream's New Tab button) is hidden. Tints the
+// whole region with the window's space color (SidebarTint).
 void InstallSidebar(views::View* sidebar, views::View* bottom_container);
 
 // Reports |browser|'s active tab, as the native strip's node tree did for the

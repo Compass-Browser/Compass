@@ -154,6 +154,21 @@ tint. `SpaceList` relays name and color changes of any space
 (`OnSpaceUpdated()`), so every window's switcher follows. Mojo:
 `RenameSpace()`, `SetSpaceColor()`, `DeleteSpace()`, `MoveNodeToSpace()`.
 
+### Space colors
+
+The tint is native, not the page's: `SidebarTint` (sidebar_tint.cc), the
+first child of the vertical tab strip region, ignored by its layout, paints
+the window's space color at 14% over the region's frame-colored background,
+clipped to that background's shape, and follows the region's bounds. So the
+header, the page (whose background is transparent) and the margins around
+it are one color. A tint drawn by the page stopped at the page's edges: the
+header above it and the region's margin below it stayed frame-colored.
+`InstallSidebar()` adds it. It repaints when the window switches spaces
+(`WindowFeatures::Observer`) or its space's color changes
+(`SpaceList::Observer`). The palette is in both `GetSpaceTint()` and the
+page's `SPACE_COLORS`, which still colors the space buttons and the menu's
+swatches.
+
 ## Known gaps (slice 1)
 
 - A space with no name (only from files written before spaces were named)

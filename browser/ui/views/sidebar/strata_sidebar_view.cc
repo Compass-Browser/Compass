@@ -12,9 +12,11 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -97,12 +99,14 @@ bool SpaceShortcuts::CanHandleAccelerators() const {
 
 StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
     : views::WebView(browser->GetProfile()),
+      browser_(browser),
       space_shortcuts_(browser),
       command_bar_(browser) {
   // The page asks for its window as soon as it connects, so set it first.
   webui::SetBrowserWindowInterface(GetWebContents(), browser);
-  // Let the region's frame-colored background show through, so the sidebar
-  // follows the theme and the window's active state.
+  // Let the region's frame-colored background, and the tint over it, show
+  // through, so the sidebar follows the theme, the window's active state and
+  // its space's color.
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
       GetWebContents(), SK_ColorTRANSPARENT);
   SidebarHoverCard::CreateForWebContents(GetWebContents(), this);
@@ -147,6 +151,15 @@ void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
   // It only holds upstream's New Tab button, which the page's New Tab row
   // replaces. Hidden, FlexLayout gives it no space.
   bottom_container->SetVisible(false);
+
+  // One color from the header to the bottom edge, not just behind the page.
+  views::View* region = sidebar->parent();
+  while (region && !views::IsViewClass<VerticalTabStripRegionView>(region)) {
+    region = region->parent();
+  }
+  CHECK(region);
+  SidebarTint::Install(region,
+                       views::AsViewClass<StrataSidebarView>(sidebar)->browser());
 }
 
 ActiveTabWatcher::ActiveTabWatcher(BrowserWindowInterface* browser,

@@ -8,9 +8,8 @@
  * #css_wrapper_metadata_end */
 
 :host {
-  /* The window's space color, set by the app; transparent for grey. */
-  --space-tint: transparent;
-  background: color-mix(in srgb, var(--space-tint) 14%, transparent);
+  /* No background: the region behind the page is tinted with the window's
+   * space color natively (SidebarTint), header included. */
   box-sizing: border-box;
   color: var(--color-tab-foreground-inactive-frame-active, inherit);
   display: flex;

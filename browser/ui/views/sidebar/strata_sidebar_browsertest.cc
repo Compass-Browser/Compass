@@ -30,6 +30,7 @@
 #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -111,6 +112,45 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ReplacesNativeTabStrip) {
   auto* bottom = FindDescendant<VerticalTabStripBottomContainer>(region);
   ASSERT_TRUE(bottom);
   EXPECT_FALSE(bottom->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintCoversTheWholeRegion) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  auto* tint = FindDescendant<SidebarTint>(region);
+  ASSERT_TRUE(tint);
+  // Behind everything else in the region, header included.
+  EXPECT_EQ(region->GetIndexOf(tint), 0u);
+  views::Widget* widget = browser_view()->GetWidget();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return !region->bounds().IsEmpty() &&
+           tint->bounds() == region->GetLocalBounds();
+  }));
+  // Down to the region's bottom edge, under the margin below the page.
+  EXPECT_GT(tint->bounds().bottom(),
+            views::View::ConvertRectToTarget(sidebar(), region,
+                                             sidebar()->GetLocalBounds())
+                .bottom());
+
+  // Grey spaces aren't tinted; others are, with their color.
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  space.SetColor(SpaceColor::kGrey);
+  EXPECT_FALSE(tint->GetTintForTesting());
+  space.SetColor(SpaceColor::kBlue);
+  ASSERT_TRUE(tint->GetTintForTesting());
+  EXPECT_EQ(SkColorSetA(*tint->GetTintForTesting(), SK_AlphaOPAQUE),
+            *GetSpaceTint(SpaceColor::kBlue));
+  EXPECT_LT(SkColorGetA(*tint->GetTintForTesting()), SK_AlphaOPAQUE);
+
+  // It follows the region when it resizes.
+  const int width = region->width();
+  region->OnResize(40, /*done_resizing=*/true);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() != width &&
+           tint->bounds() == region->GetLocalBounds();
+  }));
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {

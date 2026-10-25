@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -23,6 +22,7 @@ interface DropTarget {
 }
 
 // What each space color looks like, and its name. Grey spaces aren't tinted.
+// SidebarTint (sidebar_tint.cc) tints the region with the same colors.
 const SPACE_COLORS: Map<SpaceColor, {css: string, name: string}> = new Map([
   [SpaceColor.kGrey, {css: 'rgb(128, 128, 128)', name: 'Grey'}],
   [SpaceColor.kBlue, {css: 'rgb(59, 130, 246)', name: 'Blue'}],
@@ -170,17 +170,6 @@ export class StrataSidebarAppElement extends CrLitElement {
       this.browserProxy_.callbackRouter.removeListener(id);
     }
     this.listenerIds_ = [];
-  }
-
-  override updated(changedProperties: PropertyValues<this>) {
-    super.updated(changedProperties);
-    // The window's space tints the whole sidebar.
-    const active = this.spaces_.find(space => this.isActiveSpace_(space));
-    this.style.setProperty(
-        '--space-tint',
-        active && active.color !== SpaceColor.kGrey ?
-            this.getSpaceColor_(active.color) :
-            'transparent');
   }
 
   protected getActiveSpaceName_(): string {
