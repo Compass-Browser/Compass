@@ -277,29 +277,40 @@ only: the empty spaces it starts with are dropped.
 
 ### Swapping the window
 
+A `Browser` belongs to one profile for life, and a tab can't move to
+another profile's window, so a window can't change profile. A swap makes
+two windows look like one changing space.
+
 `SwitchWindowToSpace(browser, profile, space)` (window_features.h) rebinds
 when `space` is the window's profile's. Otherwise:
 
-1. The other profile's active space becomes `space`, so its next window opens
-   there.
-2. A normal window of that profile opens at the old window's bounds (its
-   restored bounds, and maximized if the old one is), without session
-   restore. Its `WindowFeatures` binds to `space`.
+1. The old window begins swapping (`BeginSwap()`): its page stops taking
+   requests and observing (`OnSwappedAway()`), frozen where its slide ended,
+   and it can't swap again. The other profile's active space becomes `space`,
+   so its next window opens there.
+2. A normal window of that profile opens at the old window's bounds, in its
+   state (maximized or fullscreen), without session restore, with the old
+   window's sidebar width and collapsed state. Its `WindowFeatures` binds to
+   `space`.
 3. `WindowFeatures::EnterSpace()`, steps 3 to 5 of a switch: `space`'s
    parked tabs come in, and the entry it showed last is shown.
-4. The new window shows and becomes key. It covers the old one exactly, so
-   nothing flickers.
+4. The swap presenter (`sidebar_swap.cc`, set by the views layer) shows the
+   new window over the old one, transparent and without the window
+   animation: it renders, and the old window shows through. Once its sidebar
+   and active page have painted and that frame is on screen (at most 750 ms
+   later), it turns opaque in the same moment the old window hides.
 5. `LeaveForSwap()`: the old window's tabs leave as in step 6 of a switch,
    all of them, favorites' tabs included: to another window showing its
-   space, else to its profile's parking window. Blank pages close. Its page
-   stops taking requests and observing (`OnSwappedAway()`), and the emptied
-   window closes on its own. If its space goes before it does, it takes the
-   space its profile falls back to.
+   space, else to its profile's parking window. Blank pages close. The
+   emptied window closes on its own. If its space goes before then (it was
+   moved to another profile), its bridge goes, and it takes the space its
+   profile falls back to.
 
-The page goes with its window, so a click on another profile's space swaps
-at once, without a slide; the new window's sidebar opens on the space. A
-swipe toward one runs as usual (its preview and tint come from that profile)
-and swaps when it switches.
+In the page, a click on another profile's space slides like any other, but
+switches when the slide has ended, not as it starts: the new window opens on
+the space, showing what the slide ended on, so the slide seems to run in one
+window. A swipe works the same way. The old window's tint blends toward the
+new space's color along the slide.
 
 ### Deleting
 
@@ -328,15 +339,15 @@ every listed space, but only the window's profile's entries.
 
 ### Known gaps (slice 3)
 
-- A fullscreen window swaps to a non-fullscreen one.
-- The sidebar's width and collapsed state are per profile, so they can
-  change on a swap.
+- A fullscreen window's swap shows macOS's fullscreen animation: the new
+  window goes fullscreen in a Space of its own.
+- To the OS, extensions and Mission Control, the swapped window is another
+  window.
 - Assigning a profile reloads only the page the space showed; its other tabs
   come back unloaded, and their page state is lost.
 - Entries can't move between spaces of different profiles.
 - Spaces can't be reordered yet, so the list's order is the order they came.
 - With several profiles, upstream may show its profile picker at startup.
-- The swap has no animation of its own: the new window opens on its space.
 
 ## Known gaps (slice 1)
 

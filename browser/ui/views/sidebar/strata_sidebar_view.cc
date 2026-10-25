@@ -18,6 +18,7 @@
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "strata/browser/ui/views/sidebar/sidebar_swap.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/space_directory.h"
@@ -109,6 +110,7 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
       command_bar_(browser) {
   // The page asks for its window as soon as it connects, so set it first.
   webui::SetBrowserWindowInterface(GetWebContents(), browser);
+  InstallSwapPresenter();
   // Let the region's frame-colored background, and the tint over it, show
   // through, so the sidebar follows the theme, the window's active state and
   // its space's color.

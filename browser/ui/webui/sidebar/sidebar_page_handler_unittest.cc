@@ -34,6 +34,7 @@
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
@@ -846,7 +847,8 @@ TEST_F(SidebarPageHandlerTest, ListsAndSwapsToAnotherProfilesSpace) {
 
   std::unique_ptr<BrowserWindowInterface> swapped;
   SetSwapWindowFactoryForTesting(base::BindLambdaForTesting(
-      [&](Profile* profile, const gfx::Rect& bounds, bool maximized) {
+      [&](Profile* profile, const gfx::Rect& bounds,
+            ui::mojom::WindowShowState show_state) {
         swapped = CreateBrowser(profile, BrowserWindowInterface::TYPE_NORMAL,
                                 /*hosted_app=*/false);
         return swapped.get();

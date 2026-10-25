@@ -30,6 +30,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "strata/browser/sidebar/sidebar_serializer.h"
@@ -147,19 +148,40 @@ SwapWindowFactory& GetSwapWindowFactory() {
   return *factory;
 }
 
-BrowserWindowInterface* CreateSwapWindow(Profile* profile,
-                                         const gfx::Rect& bounds,
-                                         bool maximized) {
+BrowserWindowInterface* CreateSwapWindow(
+    Profile* profile,
+    const gfx::Rect& bounds,
+    ui::mojom::WindowShowState show_state) {
   if (const SwapWindowFactory& factory = GetSwapWindowFactory()) {
-    return factory.Run(profile, bounds, maximized);
+    return factory.Run(profile, bounds, show_state);
   }
   BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_NORMAL,
                                    profile, /*from_user_gesture=*/true);
   params.initial_bounds = bounds;
-  params.initial_show_state = maximized ? ui::mojom::WindowShowState::kMaximized
-                                        : ui::mojom::WindowShowState::kDefault;
+  params.initial_show_state = show_state;
   params.should_trigger_session_restore = false;
   return CreateBrowserWindow(std::move(params));
+}
+
+SwapPresenter& GetSwapPresenter() {
+  static base::NoDestructor<SwapPresenter> presenter;
+  return *presenter;
+}
+
+// The old window's sidebar, as the new one should start: same width, and
+// collapsed or not.
+void CopySidebarState(BrowserWindowInterface* from, BrowserWindowInterface* to) {
+  tabs::VerticalTabStripStateController* old_state =
+      tabs::VerticalTabStripStateController::From(from);
+  tabs::VerticalTabStripStateController* new_state =
+      tabs::VerticalTabStripStateController::From(to);
+  if (!old_state || !new_state) {
+    return;
+  }
+  new_state->SetUncollapsedWidth(old_state->GetUncollapsedWidth());
+  if (new_state->IsCollapsed() != old_state->IsCollapsed()) {
+    new_state->RequestCollapse(old_state->IsCollapsed());
+  }
 }
 
 void OpenNewTab(BrowserWindowInterface* browser) {
@@ -388,13 +410,17 @@ void WindowFeatures::EnterSpace() {
   }
 }
 
-void WindowFeatures::LeaveForSwap() {
+void WindowFeatures::BeginSwap() {
   CHECK(!is_parking_window_);
   swapped_away_ = true;
-  bridge_.reset();
   for (Observer& observer : observers_) {
     observer.OnSwappedAway();
   }
+}
+
+void WindowFeatures::LeaveForSwap() {
+  CHECK(swapped_away_);
+  bridge_.reset();
   TabStripModel* strip = browser_->GetTabStripModel();
   std::vector<tabs::TabHandle> leaving;
   for (int i = 0; i < strip->count(); ++i) {
@@ -527,6 +553,9 @@ void WindowFeatures::OnSpaceWillBeRemoved(SpaceModel& space) {
   // swapped away and is closing: it takes the space the list falls back to.
   if (&space == space_) {
     CHECK(swapped_away_ || is_parking_window_);
+    // A bridge on it would outlive it. The window shows its tabs until the
+    // swap ends; nothing mirrors them any more.
+    bridge_.reset();
     space_ = &service_->space_list().active_space();
   }
 }
@@ -760,12 +789,14 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   // showed. The old one's tabs, now without entries, close.
   MoveWindowsOff(from, space, {to, &moved});
 
-  // 5. The rest of its tabs, parked or elsewhere.
+  // 5. The rest of its tabs, parked or elsewhere. Those of a window swapping
+  // away stay until the new window shows, then close with it.
   for (const tabs::TabHandle& handle : tabs) {
     tabs::TabInterface* tab = handle.Get();
     BrowserWindowInterface* window =
         tab ? tab->GetBrowserWindowInterface() : nullptr;
-    if (window) {
+    WindowFeatures* features = window ? WindowFeatures::From(window) : nullptr;
+    if (window && !(features && features->swapped_away())) {
       TabStripModel* strip = window->GetTabStripModel();
       strip->CloseWebContentsAt(strip->GetIndexOfTab(tab), CLOSE_NONE);
     }
@@ -829,20 +860,43 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
   }
   // 1. The profile's next window opens on |space|.
   SpaceService::Get(profile)->space_list().SetActiveSpace(space);
+  // The old window takes no more requests, and no second swap.
+  features->BeginSwap();
   // 2.
   ui::BaseWindow* old_window = browser->GetWindow();
+  const ui::mojom::WindowShowState show_state =
+      old_window->IsFullscreen()  ? ui::mojom::WindowShowState::kFullscreen
+      : old_window->IsMaximized() ? ui::mojom::WindowShowState::kMaximized
+                                  : ui::mojom::WindowShowState::kDefault;
   BrowserWindowInterface* window =
-      CreateSwapWindow(profile, old_window->GetRestoredBounds(),
-                       old_window->IsMaximized());
+      CreateSwapWindow(profile, old_window->GetRestoredBounds(), show_state);
   WindowFeatures* new_features = WindowFeatures::From(window);
   CHECK(&new_features->space_model() == &space);
+  CopySidebarState(browser, window);
   // 3.
   new_features->EnterSpace();
-  // 4. It covers the old window exactly.
-  window->GetWindow()->Show();
-  // 5. Once empty, the old window closes on its own.
-  features->LeaveForSwap();
+  // 4. and 5. It takes the old window's place once it has painted; then the
+  // old window empties, and closes on its own.
+  base::OnceClosure leave = base::BindOnce(
+      [](base::WeakPtr<BrowserWindowInterface> old) {
+        WindowFeatures* old_features =
+            old ? WindowFeatures::From(old.get()) : nullptr;
+        if (old_features) {
+          old_features->LeaveForSwap();
+        }
+      },
+      browser->GetWeakPtr());
+  if (const SwapPresenter& presenter = GetSwapPresenter()) {
+    presenter.Run(browser, window, std::move(leave));
+  } else {
+    window->GetWindow()->Show();
+    std::move(leave).Run();
+  }
   return window;
+}
+
+void SetSwapPresenter(SwapPresenter presenter) {
+  GetSwapPresenter() = std::move(presenter);
 }
 
 std::vector<SpaceDirectory::Entry> GetSwitchableSpaces(

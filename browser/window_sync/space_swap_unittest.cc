@@ -24,6 +24,7 @@
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
@@ -64,7 +65,8 @@ class SpaceSwapTest : public BrowserWithTestWindowTest {
           }));
     }
     SetSwapWindowFactoryForTesting(base::BindLambdaForTesting(
-        [this](Profile* profile, const gfx::Rect& bounds, bool maximized) {
+        [this](Profile* profile, const gfx::Rect& bounds,
+            ui::mojom::WindowShowState show_state) {
           windows_.push_back(CreateBrowser(profile,
                                            BrowserWindowInterface::TYPE_NORMAL,
                                            /*hosted_app=*/false));

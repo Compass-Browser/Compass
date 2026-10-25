@@ -518,11 +518,6 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (!target || id === this.activeSpaceId_) {
       return;
     }
-    // Another profile's swaps the window, which takes this page with it.
-    if (!target.ownProfile) {
-      this.browserProxy_.handler.switchSpace(id);
-      return;
-    }
     const from = this.spaces_.findIndex(space => this.isActiveSpace_(space));
     const direction = this.spaces_.indexOf(target) > from ? 1 : -1;
     if (this.swipe_ || this.slide_ || from === -1 || !this.motionAllowed_()) {
@@ -1402,8 +1397,6 @@ export class StrataSidebarAppElement extends CrLitElement {
       }
     };
     requestAnimationFrame(tint);
-    // Switching keeps the browser busy for a moment: once the slide has
-    // started. A hidden page gets no frames; it switches anyway.
     let switched = false;
     const doSwitch = () => {
       if (!switched) {
@@ -1411,6 +1404,15 @@ export class StrataSidebarAppElement extends CrLitElement {
         this.browserProxy_.handler.switchSpace(target.id);
       }
     };
+    if (!target.ownProfile) {
+      // Another profile's swaps the window: once the slide has ended, so the
+      // new window, which opens on the space, takes over where it stopped.
+      animations[0]!.finished.then(doSwitch, doSwitch);
+      setTimeout(doSwitch, SLIDE_MS + 100);
+      return;
+    }
+    // Switching keeps the browser busy for a moment: once the slide has
+    // started. A hidden page gets no frames; it switches anyway.
     requestAnimationFrame(() => setTimeout(doSwitch));
     setTimeout(doSwitch, 50);
   }

@@ -594,10 +594,12 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   SetBrowser(swapped);
   EXPECT_EQ(&WindowFeatures::From(swapped)->space_model(), &other_home);
   EXPECT_EQ(swapped->GetWindow()->GetRestoredBounds(), bounds);
-  // The old window closes; its tab waits, alive, in its profile.
+  // Once it has painted, the old window empties and closes; its tab waits,
+  // alive, in its profile.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return SpaceService::Get(profile)->parking_window(); }));
   BrowserWindowInterface* parking =
       SpaceService::Get(profile)->parking_window();
-  ASSERT_TRUE(parking);
   ASSERT_TRUE(base::test::RunUntil([&] {
     int normal = 0;
     GlobalBrowserCollection::GetInstance()->ForEach(

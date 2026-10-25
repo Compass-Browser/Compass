@@ -20,6 +20,7 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
@@ -51,8 +52,9 @@ class WindowFeatures : public SpaceList::Observer {
     // A swipe in the sidebar started, moved or stopped pulling in another
     // space (see SetSpacePreview()).
     virtual void OnSpacePreviewChanged() {}
-    // The window swapped to another profile's space and is about to empty
-    // and close (SwitchWindowToSpace()). It has no bridge from now on.
+    // The window is swapping to another profile's space and is about to
+    // empty and close (SwitchWindowToSpace()). Its bridge and space can go
+    // from now on.
     virtual void OnSwappedAway() {}
   };
 
@@ -72,8 +74,8 @@ class WindowFeatures : public SpaceList::Observer {
   // Set during SwitchToSpace(), while the window has no bridge for a moment,
   // and for good once the window swapped away.
   bool is_switching() const { return switching_ || swapped_away_; }
-  // The window swapped to another profile's (SwitchWindowToSpace()): it has
-  // no tabs and no bridge, and is closing.
+  // The window is swapping to another profile's space
+  // (SwitchWindowToSpace()): it's about to empty and close.
   bool swapped_away() const { return swapped_away_; }
   // Not for the parking window.
   TabStripBridge& tab_strip_bridge() {
@@ -91,8 +93,12 @@ class WindowFeatures : public SpaceList::Observer {
   // SwitchWindowToSpace()): steps 3 to 5 of a switch. The space's parked tabs
   // come in, and the entry it showed last is shown.
   void EnterSpace();
-  // The other half of a swap: every tab leaves, favorites' too, as in step 6
-  // of a switch, and the emptied window closes.
+  // The other half of a swap, in two steps. BeginSwap(): the window is
+  // swapping away; its page stops taking requests (OnSwappedAway()), and it
+  // can't swap again. It shows its tabs until the new window has taken its
+  // place. LeaveForSwap(): every tab leaves, favorites' too, as in step 6 of a
+  // switch, and the emptied window closes.
+  void BeginSwap();
   void LeaveForSwap();
 
   // A swipe in the sidebar is pulling in |space|, |progress| (0 to 1) of the
@@ -213,9 +219,21 @@ SpaceDirectory::Entry FindSwitchableSpace(BrowserWindowInterface* browser,
                                           const base::Uuid& id);
 
 // Opens the windows of swaps. Tests can't create real windows.
-using SwapWindowFactory = base::RepeatingCallback<
-    BrowserWindowInterface*(Profile*, const gfx::Rect& bounds, bool maximized)>;
+using SwapWindowFactory = base::RepeatingCallback<BrowserWindowInterface*(
+    Profile*,
+    const gfx::Rect& bounds,
+    ui::mojom::WindowShowState show_state)>;
 void SetSwapWindowFactoryForTesting(SwapWindowFactory factory);
+
+// Puts |window|, which a swap just opened with its tabs, in |old|'s place:
+// shows it without a flicker once it has painted, then runs |leave|, which
+// empties |old|. Set by the views layer (docs/design/spaces.md, "Swapping
+// the window"); without one, |window| shows at once.
+using SwapPresenter =
+    base::RepeatingCallback<void(BrowserWindowInterface* old,
+                                 BrowserWindowInterface* window,
+                                 base::OnceClosure leave)>;
+void SetSwapPresenter(SwapPresenter presenter);
 
 // Called when |browser|'s window is asked to close, before beforeunload
 // handlers run. Hands its tabs to the most recently active other window of

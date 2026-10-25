@@ -41,6 +41,7 @@ source_set("window_sync") {
     "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/tabs:tab_model",
+    "//chrome/browser/ui/tabs:tabs",
     "//chrome/common",
     "//components/viz/common",
     "//content/public/browser",
