@@ -289,6 +289,14 @@ actions move to a row of their own under the pill, aligned right. Collapsed:
 only the app menu shows, centered in a row under upstream's layout, so the
 menu stays reachable; extensions and pinned actions are hidden.
 
+The extensions and pinned actions size themselves (an animating layout)
+to the space their parent reports as available, and drop icons that don't
+fit. A `FillLayout` slot reports its own size, so the header's layout gives
+each slot an available width (the header's, the extensions sharing it with
+the pinned actions). Without that, a container that started small (an
+extension already pinned at startup) could never grow, and its icons stayed
+hidden.
+
 Expanded on hover, the region is still collapsed but as wide as expanded,
 so the header lays out as expanded below upstream's collapsed row, as the
 page does (the switch is at `kCollapseSnapWidth`, as upstream's).
@@ -313,7 +321,8 @@ extensions slot expands the collapsed sidebar, laid out as expanded, until
 the anchor goes; permission prompts anchor to site info (the app menu
 while collapsed); the toolbar's bubble anchors, page action anchors and a
 `LocationBarBubbleDelegateView` anchored in the location bar end up on the
-pill, the latter with a top left arrow.
+pill, the latter with a top left arrow; an extension pinned before the
+window opens shows its icon (a `PRE_` test installs it, with animations on).
 
 The header and sidebar fixtures turn rich animations off, so motions end
 as they start. With frames (an unlocked screen),

@@ -7,14 +7,19 @@
 #include <optional>
 #include <string>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/function_ref.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
@@ -25,6 +30,7 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/toolbar/back_forward_button.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_action_view.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -36,6 +42,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "extensions/common/extension.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
@@ -124,9 +131,13 @@ class SidebarHeaderBrowserTest : public InProcessBrowserTest {
   // Motions end as they start. With frames (an unlocked screen), Reset()
   // would end a running motion without stopping its animator, whose next
   // frame then fails a CHECK.
-  gfx::AnimationTestApi::RenderModeResetter animation_mode_ =
-      gfx::AnimationTestApi::SetRichAnimationRenderMode(
-          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  explicit SidebarHeaderBrowserTest(
+      gfx::Animation::RichAnimationRenderMode animation_mode =
+          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED)
+      : animation_mode_(
+            gfx::AnimationTestApi::SetRichAnimationRenderMode(animation_mode)) {}
+
+  gfx::AnimationTestApi::RenderModeResetter animation_mode_;
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -454,6 +465,57 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
   views::View* app_menu = browser_view()->GetViewByID(VIEW_ID_APP_MENU);
   EXPECT_EQ(GetToolbarBubbleAnchor(views::BubbleAnchor(app_menu)).GetIfView(),
             app_menu);
+}
+
+// Animated, as in the app: the extensions container animates its size.
+class SidebarHeaderAnimatedBrowserTest : public SidebarHeaderBrowserTest {
+ protected:
+  SidebarHeaderAnimatedBrowserTest()
+      : SidebarHeaderBrowserTest(
+            gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED) {}
+
+  // An extension with an action, kept in the profile so it loads again
+  // after the restart.
+  base::FilePath WriteExtension() {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    base::FilePath dir =
+        browser()->GetProfile()->GetPath().AppendASCII("pinned_extension");
+    EXPECT_TRUE(base::CreateDirectory(dir));
+    EXPECT_TRUE(base::WriteFile(dir.AppendASCII("manifest.json"), R"({
+      "name": "Pinned", "version": "1", "manifest_version": 3,
+      "action": {}
+    })"));
+    return dir;
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderAnimatedBrowserTest,
+                       PRE_PinnedExtensionShowsAtStartup) {
+  scoped_refptr<const extensions::Extension> extension =
+      extensions::ChromeTestExtensionLoader(browser()->GetProfile())
+          .LoadExtension(WriteExtension());
+  ASSERT_TRUE(extension);
+  // Test builds may pin new extensions already.
+  ToolbarActionsModel* model = ToolbarActionsModel::Get(browser()->GetProfile());
+  if (!model->IsActionPinned(extension->id())) {
+    model->SetActionVisibility(extension->id(), true);
+  }
+}
+
+// Already pinned when the window opens, the icon starts at zero width. The
+// container only grows into the space its parent says is available: its
+// slot's own size would keep it there.
+IN_PROC_BROWSER_TEST_F(SidebarHeaderAnimatedBrowserTest,
+                       PinnedExtensionShowsAtStartup) {
+  views::View* extensions = toolbar_controls()[0];
+  ToolbarActionView* icon = nullptr;
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    icon = FindDescendant<ToolbarActionView>(extensions);
+    return icon && icon->IsDrawn() && icon->width() > 0;
+  }));
+  ASSERT_TRUE(icon);
+  EXPECT_TRUE(
+      header()->GetBoundsInScreen().Contains(icon->GetBoundsInScreen()));
 }
 
 }  // namespace

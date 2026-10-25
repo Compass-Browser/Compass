@@ -325,7 +325,18 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
   // middle two on a row of their own when they leave the pill too narrow.
   const int pill_y = bottom + kPillMargin;
   const int pill_center_y = pill_y + kPillHeight / 2;
-  auto place = [&](views::View* slot, int right_edge, int row_center_y) {
+  // The extensions and pinned actions size themselves to the space their
+  // parent says is available (FillLayout: the slot's own size), and drop
+  // icons that don't fit. Tell them how much they could have, or they could
+  // never grow: the header's width, the extensions sharing it with the
+  // pinned actions.
+  const gfx::Size pinned_size = GetSlotSize(pinned_actions_slot_);
+  const int pinned_available = width;
+  const int extensions_available =
+      pinned_size.IsEmpty() ? width
+                            : width - pinned_size.width() - kButtonGap;
+  auto place = [&](views::View* slot, int right_edge, int row_center_y,
+                   int available_width) {
     const gfx::Size size = GetSlotSize(slot);
     const bool visible = !size.IsEmpty();
     layout.child_layouts.emplace_back(
@@ -333,11 +344,12 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
         visible ? gfx::Rect(right_edge - size.width(),
                             row_center_y - size.height() / 2, size.width(),
                             size.height())
-                : gfx::Rect());
+                : gfx::Rect(),
+        views::SizeBounds(available_width, {}));
     return visible ? right_edge - size.width() - kButtonGap : right_edge;
   };
 
-  int pill_right = place(app_menu_slot_, width, pill_center_y);
+  int pill_right = place(app_menu_slot_, width, pill_center_y, width);
   int trailing_width = 0;
   int trailing_height = 0;
   for (views::View* slot : {extensions_slot_.get(), pinned_actions_slot_.get()}) {
@@ -349,14 +361,17 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
   }
   int content_bottom = pill_y + kPillHeight;
   if (pill_right - trailing_width >= kPillMinWidth) {
-    pill_right = place(pinned_actions_slot_, pill_right, pill_center_y);
-    pill_right = place(extensions_slot_, pill_right, pill_center_y);
+    pill_right = place(pinned_actions_slot_, pill_right, pill_center_y,
+                       pinned_available);
+    pill_right = place(extensions_slot_, pill_right, pill_center_y,
+                       extensions_available);
   } else {
     // A row under the pill, aligned right.
     const int row_center_y =
         content_bottom + kPillMargin + trailing_height / 2;
     place(extensions_slot_,
-          place(pinned_actions_slot_, width, row_center_y), row_center_y);
+          place(pinned_actions_slot_, width, row_center_y, pinned_available),
+          row_center_y, extensions_available);
     content_bottom += kPillMargin + trailing_height;
   }
   // place() leaves a gap after the last slot it placed.
