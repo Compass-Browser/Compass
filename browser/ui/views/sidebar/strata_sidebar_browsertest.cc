@@ -617,6 +617,56 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, KeyboardNavigation) {
   EXPECT_TRUE(base::test::RunUntil([&] { return tabs->count() == 2; }));
 }
 
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FavoritesKeyboardNavigation) {
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& space = features->space_model();
+  SpaceModel& favorites = features->service().space_list().favorites();
+  for (const char16_t* title : {u"One", u"Two"}) {
+    SidebarNode* node = nullptr;
+    for (const auto& child : space.today_root()->children()) {
+      if (child->title() == title) {
+        node = child.get();
+      }
+    }
+    ASSERT_TRUE(node);
+    MoveEntry(browser()->GetProfile(), node, favorites, favorites.pinned_root(),
+              favorites.pinned_root()->children().size());
+  }
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(contents, R"(
+        document.querySelector('strata-sidebar-app').shadowRoot
+            .querySelectorAll('.tile').length)")
+               .ExtractInt() == 2;
+  }));
+  contents->Focus();
+
+  // The list lands on the active entry; Up goes into the grid.
+  EXPECT_EQ("Three", content::EvalJs(contents, R"(
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    root.querySelector('#sections').focus();
+    root.activeElement.title;)"));
+  EXPECT_EQ("Two", content::EvalJs(contents,
+                                   content::JsReplace(kPressKey, "ArrowUp")));
+  EXPECT_EQ("One", content::EvalJs(
+                       contents, content::JsReplace(kPressKey, "ArrowLeft")));
+  EXPECT_EQ("Two", content::EvalJs(
+                       contents, content::JsReplace(kPressKey, "ArrowRight")));
+  // Two tiles fit in one row: Down leaves the grid.
+  EXPECT_EQ("Three", content::EvalJs(
+                         contents, content::JsReplace(kPressKey, "ArrowDown")));
+  EXPECT_EQ("One", content::EvalJs(contents,
+                                   content::JsReplace(kPressKey, "Home")));
+
+  ASSERT_TRUE(
+      content::ExecJs(contents, content::JsReplace(kPressKey, "Enter")));
+  TabStripModel* tabs = browser()->tab_strip_model();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return tabs->GetActiveWebContents()->GetTitle() == u"One";
+  }));
+}
+
 // Rests the pointer on the |index|th tab row, or on nothing (-1: it leaves
 // the list).
 constexpr char kHover[] = R"(

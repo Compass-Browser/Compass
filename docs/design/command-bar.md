@@ -73,14 +73,20 @@ per change:
   several passes; each one resends the list. The default match is first,
   and Enter takes it. Its inline autocompletion is shown selected in the
   field, as in the omnibox.
-- **Entries**: tab nodes of the profile's spaces whose title or URL
-  contains every word of the query, the window's space first, at most five.
-  Shown as "Switch to". Choosing one in another space switches the window
-  there first.
+- **Entries**: favorites and tab nodes of the profile's spaces whose title
+  or URL contains every word of the query, at most five: favorites first,
+  then the window's space, then the others. Shown as "Switch to". Choosing
+  one in another space switches the window there first; choosing a
+  favorite opens or activates it in this window, as a click on its tile
+  does.
 - **Spaces**: whose name contains the query. Choosing one switches to it.
 - **Commands**: a fixed list (new space, pin or unpin the current entry,
-  copy URL, reload, history, downloads, extensions, settings), matched by
-  name. Commands that need an entry are left out when there's none.
+  add it to or remove it from Favorites, copy URL, reload, history,
+  downloads, extensions, settings), matched by name. Commands that need an
+  entry are left out when there's none. Pin and unpin are left out for a
+  favorite. "Add to Favorites" puts the entry at the end of the grid (a
+  pane leaves its split); its tab stays. "Remove from Favorites" moves it to
+  the top of the window's Today, as unpinning does.
 
 Order: the default omnibox match, entries, the other omnibox matches,
 spaces, commands. With an empty query in new-entry mode the list is the
@@ -332,6 +338,24 @@ widens. The active tile is highlighted, unloaded ones dimmed. Hovering a tile
 shows its hover card. With no favorites, the grid takes no space, and a drop
 zone ("Drop here to add to Favorites") appears only while an entry is dragged.
 
+### Keyboard
+
+Tiles join the sidebar's keyboard navigation (sidebar.md, "Keyboard
+navigation") as rows before Pinned: they take the focus (`tabindex="-1"`),
+the sidebar stays one tab stop, and tabbing in lands on the active entry
+even when it's a favorite. Leaving the grid or the list by Tab leaves the
+sidebar.
+
+| Key on a tile | Does |
+|---|---|
+| ← → | Previous or next tile |
+| ↑ ↓ | The tile above or below; ↓ from the grid's last row goes to the first row of Pinned (from a shorter last row's column, to the last tile first) |
+| Home, End | First tile, last row of the list |
+| Enter, Space | Opens or activates it |
+| Delete, Backspace | As its ×: closes its tab, or removes an unloaded favorite |
+
+↑ from the first row of Pinned goes to the last tile.
+
 ### Tests
 
 Unit: the favorites model takes only tabs; favorites are saved and loaded
@@ -339,14 +363,15 @@ Unit: the favorites model takes only tabs; favorites are saved and loaded
 first, unloads a favorite whose tab closes, and keeps favorites' tabs across
 a space switch; restored tabs take over favorites; the page handler sends
 the favorites in the tree and handles moves into, within and out of them.
-Browser test: drag a Today entry onto the grid, switch spaces, and its tab
-is still the window's; click an unloaded favorite to open it.
+Browser tests: drag a Today entry onto the grid, switch spaces, and its tab
+is still the window's; click an unloaded favorite to open it; move between
+tiles and into Pinned with the arrows, and Enter on a tile activates it.
+Command bar unit tests: favorites are listed first and accepting one opens
+it without switching spaces; add and remove move the entry; pin and unpin
+aren't offered for a favorite.
 
 ### Known gaps
 
-- The command bar doesn't list favorites, nor has commands to add or remove
-  one.
 - Favorites have no context menu (neither has anything else yet).
 - The collapsed sidebar narrows the grid to one column of tiles, as wide as
   the sidebar.
-- Favorites aren't in the keyboard navigation between rows.

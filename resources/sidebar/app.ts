@@ -483,21 +483,27 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.collapsedIds_ = collapsed;
   }
 
-  // The rows the keyboard moves between, top to bottom: tabs (panes too) and
-  // folders, as far as they show.
+  // The rows the keyboard moves between, top to bottom: favorites' tiles,
+  // then tabs (panes too) and folders, as far as they show.
   private getFocusableRows_(): HTMLElement[] {
     return Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(
-        '#sections .tab, #sections .folder-row'));
+        '#favorites .tile, #sections .tab, #sections .folder-row'));
   }
 
   private getRow_(id: string): HTMLElement|null {
     return this.shadowRoot.querySelector<HTMLElement>(
+        `#favorites .tile[data-node-id="${id}"], ` +
         `#sections .tab[data-node-id="${id}"], ` +
         `#sections .folder-row[data-node-id="${id}"]`);
   }
 
-  // Tabbing into the sidebar lands on the active entry. While a row has the
-  // focus, the list itself leaves the tab order, so Shift+Tab leaves too.
+  private getSections_(): HTMLElement {
+    return this.shadowRoot.querySelector<HTMLElement>('#sections')!;
+  }
+
+  // Tabbing into the sidebar lands on the active entry. While a row or a
+  // tile has the focus, the list itself leaves the tab order, so Shift+Tab
+  // leaves too.
   protected onSectionsFocusin_(e: FocusEvent) {
     const sections = e.currentTarget as HTMLElement;
     if (e.target !== sections) {
@@ -508,11 +514,80 @@ export class StrataSidebarAppElement extends CrLitElement {
     (this.activeId_ && this.getRow_(this.activeId_) || rows[0])?.focus();
   }
 
+  protected onFavoritesFocusin_() {
+    this.getSections_().tabIndex = -1;
+  }
+
+  // Shared by the grid and the list: the focus left both.
   protected onSectionsFocusout_(e: FocusEvent) {
-    const sections = e.currentTarget as HTMLElement;
-    if (!sections.contains(e.relatedTarget as globalThis.Node | null)) {
-      sections.tabIndex = 0;
+    const next = e.relatedTarget as globalThis.Node | null;
+    const favorites = this.shadowRoot.querySelector('#favorites')!;
+    if (!this.getSections_().contains(next) && !favorites.contains(next)) {
+      this.getSections_().tabIndex = 0;
     }
+  }
+
+  // Arrows move in the grid, and Down from its last row on into the list.
+  // Enter or Space activates a favorite, and Delete acts as its ×.
+  protected onFavoritesKeydown_(e: KeyboardEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('tile')) {
+      return;
+    }
+    const rows = this.getFocusableRows_();
+    const tiles = rows.filter(row => row.classList.contains('tile'));
+    const index = tiles.indexOf(target);
+    const id = target.dataset['nodeId'];
+    if (index === -1 || !id) {
+      return;
+    }
+    // The first row's tiles share its top.
+    const columns =
+        tiles.filter(tile => tile.offsetTop === tiles[0]!.offsetTop).length;
+    const lastRow = Math.floor((tiles.length - 1) / columns);
+    switch (e.key) {
+      case 'ArrowLeft':
+        tiles[Math.max(index - 1, 0)]!.focus();
+        break;
+      case 'ArrowRight':
+        tiles[Math.min(index + 1, tiles.length - 1)]!.focus();
+        break;
+      case 'ArrowUp':
+        tiles[index - columns]?.focus();
+        break;
+      case 'ArrowDown':
+        if (index + columns < tiles.length) {
+          tiles[index + columns]!.focus();
+        } else if (Math.floor(index / columns) < lastRow) {
+          // Nothing below in a shorter last row.
+          tiles[tiles.length - 1]!.focus();
+        } else {
+          rows[tiles.length]?.focus();
+        }
+        break;
+      case 'Home':
+        rows[0]!.focus();
+        break;
+      case 'End':
+        rows[rows.length - 1]!.focus();
+        break;
+      case 'Enter':
+      case ' ':
+        this.browserProxy_.handler.activateNode(id);
+        break;
+      case 'Delete':
+      case 'Backspace':
+        // A live favorite only unloads; an unloaded one goes away.
+        if (!this.nodes_.get(id)?.live) {
+          (tiles[index + 1] ?? tiles[index - 1] ?? rows[tiles.length])
+              ?.focus();
+        }
+        this.browserProxy_.handler.closeNode(id);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
   }
 
   // Arrows move between rows; Left and Right also collapse, expand and go to

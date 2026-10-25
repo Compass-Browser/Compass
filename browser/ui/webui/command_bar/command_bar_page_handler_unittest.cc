@@ -171,6 +171,9 @@ class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
   SidebarNode* TodayEntry(size_t index) {
     return space_model().today_root()->children()[index].get();
   }
+  SpaceModel& favorites() {
+    return WindowFeatures::From(browser())->service().space_list().favorites();
+  }
 
   FakePage page_;
   mojo::Remote<command_bar::mojom::PageHandler> handler_remote_;
@@ -188,7 +191,8 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
   EXPECT_EQ(page_.text(), "");
   EXPECT_THAT(page_.LocalResults(),
               ElementsAre("entry b.test", "entry a.test", "command New space",
-                          "command Pin tab", "command Copy URL",
+                          "command Pin tab", "command Add to Favorites",
+                          "command Copy URL",
                           "command Reload", "command History",
                           "command Downloads", "command Extensions",
                           "command Settings"));
@@ -244,6 +248,71 @@ TEST_F(CommandBarPageHandlerTest, NamesTheSpaceOfOtherSpacesEntries) {
       [](const auto& result) { return result->kind; });
   EXPECT_EQ((*entry)->subtitle, "Work · https://c.test/");
   EXPECT_EQ((*entry)->action, "Open");
+}
+
+TEST_F(CommandBarPageHandlerTest, ListsFavoritesFirstAndOpensThemInPlace) {
+  // b is the second Today entry.
+  SidebarNode* b = TodayEntry(1);
+  ASSERT_EQ(b->url(), GURL("https://b.test/"));
+  MoveEntry(profile(), b, favorites(), favorites().pinned_root(), 0);
+  Settle();
+
+  OpenAndQuery(Mode::kNewEntry, "test");
+
+  EXPECT_THAT(page_.LocalResults(), ElementsAre("entry b.test", "entry a.test"));
+  const auto entry = std::ranges::find(
+      page_.results(), ResultKind::kEntry,
+      [](const auto& result) { return result->kind; });
+  EXPECT_EQ((*entry)->subtitle, "Favorites · https://b.test/");
+
+  // From another space, the favorite opens in it: no switch back.
+  SpaceList& list = WindowFeatures::From(browser())->service().space_list();
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  WindowFeatures::From(browser())->SwitchToSpace(*work);
+  Settle();
+  OpenAndQuery(Mode::kNewEntry, "b.test");
+  // Not the omnibox's suggestion titled the same.
+  const auto favorite = std::ranges::find(
+      page_.results(), ResultKind::kEntry,
+      [](const auto& result) { return result->kind; });
+  ASSERT_NE(favorite, page_.results().end());
+
+  handler_remote_->Accept((*favorite)->id, "b.test", false);
+  Settle();
+
+  EXPECT_EQ(&space_model(), work);
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("https://b.test/"));
+}
+
+TEST_F(CommandBarPageHandlerTest, AddsAndRemovesTheActiveEntryFromFavorites) {
+  OpenAndQuery(Mode::kNewEntry, "favorites");
+  ASSERT_THAT(page_.LocalResults(), ElementsAre("command Add to Favorites"));
+
+  handler_remote_->Accept(page_.IdOf("Add to Favorites"), "favorites", false);
+  Settle();
+
+  ASSERT_EQ(favorites().pinned_root()->children().size(), 1u);
+  EXPECT_EQ(favorites().pinned_root()->children()[0]->url(),
+            GURL("https://a.test/"));
+  // Its tab stays.
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+
+  // A favorite isn't pinned or unpinned.
+  OpenAndQuery(Mode::kNewEntry, "pin");
+  EXPECT_THAT(page_.LocalResults(), IsEmpty());
+
+  OpenAndQuery(Mode::kNewEntry, "favorites");
+  ASSERT_THAT(page_.LocalResults(),
+              ElementsAre("command Remove from Favorites"));
+
+  handler_remote_->Accept(page_.IdOf("Remove from Favorites"), "favorites",
+                          false);
+  Settle();
+
+  EXPECT_TRUE(favorites().pinned_root()->children().empty());
+  EXPECT_EQ(TodayEntry(0)->url(), GURL("https://a.test/"));
+  EXPECT_EQ(tab_strip_model()->count(), 2);
 }
 
 TEST_F(CommandBarPageHandlerTest, KeepsIdsWithinAQuery) {

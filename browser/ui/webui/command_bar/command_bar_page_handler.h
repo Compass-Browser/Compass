@@ -35,6 +35,8 @@ enum class CommandBarCommand {
   kNewSpace,
   kPinEntry,
   kUnpinEntry,
+  kAddFavorite,
+  kRemoveFavorite,
   kCopyUrl,
   kReload,
   kHistory,
@@ -90,9 +92,10 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
     // Omnibox suggestions: the match and its line in the controller's result.
     std::optional<AutocompleteMatch> match;
     size_t match_line = 0;
-    // Entries and spaces.
+    // Entries and spaces. A favorite has no space.
     base::Uuid node_id;
     base::Uuid space_id;
+    bool favorite = false;
     CommandBarCommand command = CommandBarCommand::kNewSpace;
   };
 
@@ -111,7 +114,7 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   void AcceptMatch(const AutocompleteMatch& match,
                    size_t line,
                    bool new_entry);
-  void AcceptEntry(const base::Uuid& node_id, const base::Uuid& space_id);
+  void AcceptEntry(const Item& item);
   void AcceptSpace(const base::Uuid& space_id);
   void RunCommand(CommandBarCommand command);
   bool IsCommandAvailable(CommandBarCommand command) const;
@@ -120,6 +123,7 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   SidebarNode* GetActiveNode() const;
   // Whether |node| (or the split or folder holding it) is in Pinned.
   bool IsPinned(const SidebarNode& node) const;
+  bool IsFavorite(const SidebarNode& node) const;
 
   const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<TopChromeWebUIController> controller_;

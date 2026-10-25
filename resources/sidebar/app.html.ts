@@ -15,13 +15,16 @@ export function getHtml(this: StrataSidebarAppElement) {
     @pointerover="${this.onSectionsPointerover_}"
     @pointerleave="${this.onSectionsPointerleave_}"
     @pointerdown="${this.onSectionsPointerdown_}"
+    @focusin="${this.onFavoritesFocusin_}"
+    @focusout="${this.onSectionsFocusout_}"
+    @keydown="${this.onFavoritesKeydown_}"
     @dragstart="${this.onDragstart_}"
     @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
     @drop="${this.onDrop_}" @dragend="${this.onDragend_}">
   ${this.isFavoritesEmpty_() ? html`
     <div class="hint">Drop here to add to Favorites</div>` : nothing}
   ${repeat(this.getFavorites_(), (node: Node) => node.id, (node: Node) => html`
-    <div class="tile" role="listitem" draggable="true"
+    <div class="tile" role="listitem" draggable="true" tabindex="-1"
         data-node-id="${node.id}" title="${node.title || node.url}"
         ?active="${this.isActive_(node)}" ?unloaded="${!node.live}"
         @click="${this.onTileClick_}">

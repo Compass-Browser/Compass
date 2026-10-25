@@ -59,6 +59,8 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kNewSpace, u"New space"},
     {CommandBarCommand::kPinEntry, u"Pin tab"},
     {CommandBarCommand::kUnpinEntry, u"Unpin tab"},
+    {CommandBarCommand::kAddFavorite, u"Add to Favorites"},
+    {CommandBarCommand::kRemoveFavorite, u"Remove from Favorites"},
     {CommandBarCommand::kCopyUrl, u"Copy URL"},
     {CommandBarCommand::kReload, u"Reload"},
     {CommandBarCommand::kHistory, u"History"},
@@ -201,7 +203,7 @@ void CommandBarPageHandler::Accept(uint32_t id,
       AcceptMatch(*item.match, item.match_line, new_entry);
       break;
     case ResultKind::kEntry:
-      AcceptEntry(item.node_id, item.space_id);
+      AcceptEntry(item);
       break;
     case ResultKind::kSpace:
       AcceptSpace(item.space_id);
@@ -294,7 +296,8 @@ void CommandBarPageHandler::AddEntryItems(std::vector<Item>& items) {
   }
   const std::vector<std::u16string> words = GetWords(text_);
   const SpaceModel& own_space = features->space_model();
-  std::vector<const SpaceModel*> spaces = {&own_space};
+  std::vector<const SpaceModel*> spaces = {
+      &features->service().space_list().favorites(), &own_space};
   for (const auto& space : features->service().space_list().spaces()) {
     if (space.get() != &own_space) {
       spaces.push_back(space.get());
@@ -340,6 +343,7 @@ CommandBarPageHandler::Item CommandBarPageHandler::EntryItem(
     const SidebarNode& node,
     const SpaceModel& space) {
   WindowFeatures* features = WindowFeatures::From(browser_);
+  const bool favorite = space.kind() == SpaceModel::Kind::kFavorites;
   const bool own_space = &features->space_model() == &space;
   const bool live = features->registry().GetTab(&node);
 
@@ -347,13 +351,16 @@ CommandBarPageHandler::Item CommandBarPageHandler::EntryItem(
   item.kind = ResultKind::kEntry;
   item.title = GetEntryTitle(node);
   item.subtitle = base::UTF8ToUTF16(node.url().spec());
-  if (!own_space) {
+  if (favorite) {
+    item.subtitle = u"Favorites · " + item.subtitle;
+  } else if (!own_space) {
     item.subtitle = space.name() + u" · " + item.subtitle;
   }
   item.action = live ? "Switch to tab" : "Open";
   item.icon_url = node.url();
   item.node_id = node.id();
   item.space_id = space.id();
+  item.favorite = favorite;
   AssignId(item, "e:" + node.id().AsLowercaseString());
   return item;
 }
@@ -426,19 +433,22 @@ void CommandBarPageHandler::AcceptMatch(const AutocompleteMatch& match,
   Navigate(&params);
 }
 
-void CommandBarPageHandler::AcceptEntry(const base::Uuid& node_id,
-                                        const base::Uuid& space_id) {
+void CommandBarPageHandler::AcceptEntry(const Item& item) {
   WindowFeatures* features = WindowFeatures::From(browser_);
+  if (!features) {
+    return;
+  }
+  SpaceList& list = features->service().space_list();
+  // Favorites are in every space: no switch.
   SpaceModel* space =
-      features ? features->service().space_list().FindSpace(space_id)
-               : nullptr;
+      item.favorite ? &list.favorites() : list.FindSpace(item.space_id);
   if (!space) {
     return;
   }
-  if (space != &features->space_model()) {
+  if (!item.favorite && space != &features->space_model()) {
     features->SwitchToSpace(*space);
   }
-  SidebarNode* node = space->FindById(node_id);
+  SidebarNode* node = space->FindById(item.node_id);
   if (!node || node->type() != SidebarNode::Type::kTab) {
     return;
   }
@@ -495,6 +505,19 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
       }
       break;
     }
+    case CommandBarCommand::kAddFavorite: {
+      SpaceModel& favorites = features->service().space_list().favorites();
+      MoveEntry(browser_->GetProfile(), GetActiveNode(), favorites,
+                favorites.pinned_root(),
+                favorites.pinned_root()->children().size());
+      break;
+    }
+    case CommandBarCommand::kRemoveFavorite: {
+      SpaceModel& space = features->space_model();
+      MoveEntry(browser_->GetProfile(), GetActiveNode(), space,
+                space.today_root(), 0);
+      break;
+    }
     case CommandBarCommand::kCopyUrl:
       chrome::ExecuteCommand(browser_, IDC_COPY_URL);
       break;
@@ -524,11 +547,25 @@ bool CommandBarPageHandler::IsCommandAvailable(
       return features && !features->is_parking_window();
     case CommandBarCommand::kPinEntry: {
       const SidebarNode* node = GetActiveNode();
-      return node && !IsPinned(*node);
+      return node && !IsFavorite(*node) && !IsPinned(*node);
     }
     case CommandBarCommand::kUnpinEntry: {
       const SidebarNode* node = GetActiveNode();
       return node && IsPinned(*node);
+    }
+    case CommandBarCommand::kAddFavorite: {
+      const SidebarNode* node = GetActiveNode();
+      if (!node || IsFavorite(*node)) {
+        return false;
+      }
+      const SpaceModel& favorites =
+          features->service().space_list().favorites();
+      return features->space_model().CanMoveToSpace(node, favorites,
+                                                    favorites.pinned_root());
+    }
+    case CommandBarCommand::kRemoveFavorite: {
+      const SidebarNode* node = GetActiveNode();
+      return node && IsFavorite(*node);
     }
     case CommandBarCommand::kCopyUrl:
     case CommandBarCommand::kReload:
@@ -553,6 +590,14 @@ SidebarNode* CommandBarPageHandler::GetActiveNode() const {
 bool CommandBarPageHandler::IsPinned(const SidebarNode& node) const {
   return WindowFeatures::From(browser_)->space_model().pinned_root()->Contains(
       &node);
+}
+
+bool CommandBarPageHandler::IsFavorite(const SidebarNode& node) const {
+  return WindowFeatures::From(browser_)
+      ->service()
+      .space_list()
+      .favorites()
+      .Contains(&node);
 }
 
 }  // namespace strata

@@ -530,6 +530,9 @@ instead of landing back on it.
 Focus shows with `:focus-visible`, so clicks don't draw a ring. There's no
 shortcut that moves the focus from the page to the sidebar yet.
 
+Favorites tiles come before these rows; see command-bar.md, "Slice 4",
+"Keyboard".
+
 ## Hover cards
 
 Goal: resting the pointer on a tab shows upstream's hover card next to the
