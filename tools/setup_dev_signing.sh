@@ -10,6 +10,8 @@
 # binary by its hash, which changes on every link). Run once, on macOS.
 
 set -eu
+# The system LibreSSL: a Homebrew OpenSSL 3 writes .p12 files that
+# `security import` rejects.
 
 NAME="Strata Dev Signing"
 if security find-certificate -c "$NAME" >/dev/null 2>&1; then
@@ -31,10 +33,10 @@ basicConstraints = critical,CA:false
 keyUsage = critical,digitalSignature
 extendedKeyUsage = critical,codeSigning
 EOF
-openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
   -keyout "$dir/key.pem" -out "$dir/cert.pem" -config "$dir/cert.cnf"
-pass=$(openssl rand -hex 12)
-openssl pkcs12 -export -inkey "$dir/key.pem" -in "$dir/cert.pem" \
+pass=$(/usr/bin/openssl rand -hex 12)
+/usr/bin/openssl pkcs12 -export -inkey "$dir/key.pem" -in "$dir/cert.pem" \
   -name "$NAME" -out "$dir/id.p12" -passout "pass:$pass"
 security import "$dir/id.p12" -k "$HOME/Library/Keychains/login.keychain-db" \
   -P "$pass" -T /usr/bin/codesign
