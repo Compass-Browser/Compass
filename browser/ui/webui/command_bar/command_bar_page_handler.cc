@@ -17,6 +17,8 @@
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
+#include "chrome/browser/predictors/autocomplete_action_predictor.h"
+#include "chrome/browser/predictors/autocomplete_action_predictor_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -27,7 +29,11 @@
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/omnibox_event_global_tracker.h"
+#include "components/omnibox/browser/omnibox_log.h"
+#include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/shortcuts_backend.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "strata/browser/sidebar/sidebar_node.h"
@@ -139,6 +145,9 @@ CommandBarPageHandler::~CommandBarPageHandler() {
 
 void CommandBarPageHandler::Open(Mode mode, const std::u16string& text) {
   mode_ = mode;
+  // The page queries |text| first; that isn't an edit.
+  text_ = text;
+  ids_.clear();
   first_edit_time_ = base::TimeTicks();
   page_->Open(mode, base::UTF16ToUTF8(text));
 }
@@ -154,8 +163,12 @@ void CommandBarPageHandler::Query(const std::string& text,
   const std::u16string text16 = base::UTF8ToUTF16(text);
   if (text16 != text_) {
     ids_.clear();
+    if (first_edit_time_.is_null()) {
+      first_edit_time_ = base::TimeTicks::Now();
+    }
   }
   text_ = text16;
+  just_deleted_ = prevent_inline_autocomplete;
 
   if (base::TrimWhitespace(text_, base::TRIM_ALL).empty()) {
     autocomplete_->Stop(AutocompleteStopReason::kClobbered);
@@ -188,7 +201,7 @@ void CommandBarPageHandler::Accept(uint32_t id,
           ->Classify(text16, false, true, GetPageClassification(mode_),
                      &match, nullptr);
       if (match.destination_url.is_valid()) {
-        AcceptMatch(match, 0, new_entry);
+        AcceptMatch(match, std::nullopt, new_entry);
       }
     }
     Close();
@@ -413,7 +426,7 @@ void CommandBarPageHandler::AssignId(Item& item, const std::string& key) {
 }
 
 void CommandBarPageHandler::AcceptMatch(const AutocompleteMatch& match,
-                                        size_t line,
+                                        std::optional<size_t> line,
                                         bool new_entry) {
   // Teach the shortcuts provider, as the omnibox does.
   if (scoped_refptr<ShortcutsBackend> shortcuts =
@@ -421,16 +434,66 @@ void CommandBarPageHandler::AcceptMatch(const AutocompleteMatch& match,
     shortcuts->AddOrUpdateShortcut(text_, match);
   }
 
+  const WindowOpenDisposition disposition =
+      new_entry || mode_ == Mode::kNewEntry ||
+              !browser_->GetActiveTabInterface()
+          ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+          : WindowOpenDisposition::CURRENT_TAB;
+  if (line) {
+    LogMatch(match, *line, disposition);
+  }
+
   NavigateParams params(
       browser_, match.destination_url,
       ui::PageTransitionFromInt(match.transition |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
-  params.disposition = new_entry || mode_ == Mode::kNewEntry ||
-                               !browser_->GetActiveTabInterface()
-                           ? WindowOpenDisposition::NEW_FOREGROUND_TAB
-                           : WindowOpenDisposition::CURRENT_TAB;
+  params.disposition = disposition;
   params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&params);
+}
+
+void CommandBarPageHandler::LogMatch(const AutocompleteMatch& match,
+                                     size_t line,
+                                     WindowOpenDisposition disposition) {
+  const AutocompleteInput& input = autocomplete_->input();
+  const base::TimeTicks now = base::TimeTicks::Now();
+  // As the omnibox does when the user didn't edit: "unknown".
+  base::TimeDelta since_first_edit = base::Milliseconds(-1);
+  base::TimeDelta since_default_match_changed = base::Milliseconds(-1);
+  if (!first_edit_time_.is_null() && !input.IsZeroSuggest()) {
+    since_first_edit = now - first_edit_time_;
+    since_default_match_changed =
+        std::min(now - autocomplete_->last_time_default_match_changed(),
+                 since_first_edit);
+  }
+  Profile* profile = browser_->GetProfile();
+  OmniboxLog log(
+      input.IsZeroSuggest() ? std::u16string() : text_, just_deleted_,
+      input.type(), /*in_keyword_mode=*/false,
+      metrics::OmniboxEventProto::INVALID, /*is_popup_open=*/true,
+      OmniboxPopupSelection(line), disposition, /*is_paste_and_go=*/false,
+      SessionID::InvalidValue(), GetPageClassification(mode_),
+      since_first_edit,
+      match.allowed_to_be_default_match ? match.inline_autocompletion.length()
+                                        : std::u16string::npos,
+      since_default_match_changed, autocomplete_->result(),
+      match.destination_url, profile->IsOffTheRecord(),
+      input.IsZeroSuggest(), match.session);
+  // Only a load in place knows its tab yet.
+  if (disposition == WindowOpenDisposition::CURRENT_TAB) {
+    if (tabs::TabInterface* tab = browser_->GetActiveTabInterface()) {
+      log.tab_id = sessions::SessionTabHelper::IdForTab(tab->GetContents());
+    }
+  }
+  log.input_state = input.input_state();
+  autocomplete_->AddProviderAndTriggeringLogs(&log);
+
+  if (predictors::AutocompleteActionPredictor* predictor =
+          predictors::AutocompleteActionPredictorFactory::GetForProfile(
+              profile)) {
+    predictor->OnOmniboxOpenedUrl(log);
+  }
+  OmniboxEventGlobalTracker::GetInstance()->OnURLOpened(&log);
 }
 
 void CommandBarPageHandler::AcceptEntry(const Item& item) {

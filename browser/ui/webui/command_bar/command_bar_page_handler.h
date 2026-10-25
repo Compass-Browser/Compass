@@ -111,9 +111,16 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   // Gives |item| the ID it had earlier in this query, or a new one.
   void AssignId(Item& item, const std::string& key);
 
+  // |line| is the match's line in the controller's result, for the omnibox
+  // log; none for a match that isn't from it.
   void AcceptMatch(const AutocompleteMatch& match,
-                   size_t line,
+                   std::optional<size_t> line,
                    bool new_entry);
+  // Reports the opening of |match| to the omnibox's listeners, as
+  // OmniboxEditModel::OpenMatch() does.
+  void LogMatch(const AutocompleteMatch& match,
+                size_t line,
+                WindowOpenDisposition disposition);
   void AcceptEntry(const Item& item);
   void AcceptSpace(const base::Uuid& space_id);
   void RunCommand(CommandBarCommand command);
@@ -133,8 +140,10 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
 
   command_bar::mojom::Mode mode_ = command_bar::mojom::Mode::kNewEntry;
   std::u16string text_;
+  // Whether the latest query followed a deletion.
+  bool just_deleted_ = false;
   // When the user first changed the text since the bar opened, for the
-  // omnibox log.
+  // omnibox log; null if they haven't.
   base::TimeTicks first_edit_time_;
   std::vector<Item> items_;
   // IDs given out in this query, by result.

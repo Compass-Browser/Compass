@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -19,6 +21,8 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/search_test_utils.h"
+#include "components/omnibox/browser/omnibox_event_global_tracker.h"
+#include "components/omnibox/browser/omnibox_log.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -397,6 +401,35 @@ TEST_F(CommandBarPageHandlerTest, NewEntryFlagOpensANewTabInCurrentMode) {
   Settle();
 
   EXPECT_EQ(tab_strip_model()->count(), 3);
+}
+
+TEST_F(CommandBarPageHandlerTest, ReportsTheOmniboxLog) {
+  std::vector<std::string> logs;
+  base::CallbackListSubscription subscription =
+      OmniboxEventGlobalTracker::GetInstance()->RegisterCallback(
+          base::BindLambdaForTesting([&](OmniboxLog* log) {
+            logs.push_back(base::UTF16ToUTF8(log->text) + " line " +
+                           base::NumberToString(log->selection.line) + " " +
+                           log->final_destination_url.spec());
+            EXPECT_EQ(log->disposition,
+                      WindowOpenDisposition::NEW_FOREGROUND_TAB);
+            EXPECT_GE(log->elapsed_time_since_user_first_modified_omnibox,
+                      base::TimeDelta());
+          }));
+  OpenAndQuery(Mode::kNewEntry, "c.test");
+  ASSERT_FALSE(page_.results().empty());
+
+  handler_remote_->Accept(page_.results()[0]->id, "c.test", false);
+  Settle();
+
+  EXPECT_THAT(logs, ElementsAre("c.test line 0 http://c.test/"));
+
+  // Entries, commands and stale IDs aren't omnibox suggestions.
+  OpenAndQuery(Mode::kNewEntry, "reload");
+  handler_remote_->Accept(page_.IdOf("Reload"), "reload", false);
+  handler_remote_->Accept(/*id=*/9999, "d.test", false);
+  Settle();
+  EXPECT_EQ(logs.size(), 1u);
 }
 
 TEST_F(CommandBarPageHandlerTest, AcceptingAStaleIdUsesTheText) {

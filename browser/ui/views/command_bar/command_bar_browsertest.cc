@@ -16,6 +16,11 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "content/public/browser/keyboard_event_processing_result.h"
+#include "content/public/browser/web_contents_delegate.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -130,6 +135,55 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, OpeningAgainStartsOver) {
   EXPECT_EQ(OpenWith(IDC_NEW_TAB), contents);
   EXPECT_EQ(content::EvalJs(contents, kFieldText), "");
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+}
+
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, EscapeCloses) {
+  content::WebContents* contents = OpenWith(IDC_NEW_TAB);
+  ASSERT_TRUE(contents);
+
+  // As the renderer host does with a key press: the bubble takes Esc before
+  // the page sees it.
+  input::NativeWebKeyboardEvent escape(
+      blink::WebInputEvent::Type::kRawKeyDown,
+      blink::WebInputEvent::kNoModifiers, base::TimeTicks::Now());
+  escape.windows_key_code = ui::VKEY_ESCAPE;
+  EXPECT_EQ(contents->GetDelegate()->PreHandleKeyboardEvent(contents, escape),
+            content::KeyboardEventProcessingResult::HANDLED);
+
+  EXPECT_TRUE(base::test::RunUntil([&] { return !bar()->IsShowing(); }));
+  // Nothing was opened.
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+}
+
+// Sends a pointermove at screen position ($2, $3), moved by $4 pixels, to
+// the $1th row, and returns the selected row's index.
+constexpr char kPointerMove[] = R"(
+  (async (index, x, y, movement) => {
+    const root = document.querySelector('strata-command-bar-app').shadowRoot;
+    while (root.querySelectorAll('.result').length <= index) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+    root.querySelectorAll('.result')[index].dispatchEvent(
+        new PointerEvent('pointermove', {
+          screenX: x, screenY: y, movementX: movement,
+          bubbles: true, composed: true,
+        }));
+    await new Promise(r => setTimeout(r, 0));
+    return Number(root.querySelector('.result[selected]').dataset.index);
+  })($1, $2, $3, $4))";
+
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, HoverNeedsRealMovement) {
+  content::WebContents* contents = OpenWith(IDC_NEW_TAB);
+  ASSERT_TRUE(contents);
+
+  // Rows appearing under a resting pointer: no movement, no selection.
+  EXPECT_EQ(0, content::EvalJs(contents, content::JsReplace(
+                                             kPointerMove, 2, 100, 100, 0)));
+  EXPECT_EQ(0, content::EvalJs(contents, content::JsReplace(
+                                             kPointerMove, 2, 120, 100, 0)));
+  // The pointer moves.
+  EXPECT_EQ(2, content::EvalJs(contents, content::JsReplace(
+                                             kPointerMove, 2, 140, 100, 20)));
 }
 
 }  // namespace

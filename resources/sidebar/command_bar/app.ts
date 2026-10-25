@@ -49,6 +49,11 @@ export class StrataCommandBarAppElement extends CrLitElement {
   // Set by Open(): the browser shows the bubble once the first results for
   // the new text are rendered, so it opens at its final size.
   private showPending_: boolean = false;
+  // The pointer's screen position at its last event since Open(), or null.
+  // Rows that change under a resting pointer get a pointermove without
+  // movement, which mustn't select them (docs/design/command-bar.md,
+  // "Pointer").
+  private pointerPosition_: {x: number, y: number}|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -77,6 +82,7 @@ export class StrataCommandBarAppElement extends CrLitElement {
     this.results_ = [];
     this.selectedIndex_ = 0;
     this.showPending_ = true;
+    this.pointerPosition_ = null;
     const input = this.input_;
     input.value = text;
     input.select();
@@ -142,6 +148,12 @@ export class StrataCommandBarAppElement extends CrLitElement {
   }
 
   protected onResultPointermove_(e: PointerEvent) {
+    const last = this.pointerPosition_;
+    this.pointerPosition_ = {x: e.screenX, y: e.screenY};
+    if (!last || (last.x === e.screenX && last.y === e.screenY) ||
+        (e.movementX === 0 && e.movementY === 0)) {
+      return;
+    }
     const index = this.getResultIndex_(e);
     if (index !== -1) {
       this.selectedIndex_ = index;

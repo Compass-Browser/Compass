@@ -99,21 +99,43 @@ window's Today entries, most recent first, then the commands.
   Today entry) in new-entry mode, in the active tab otherwise. The typed
   text and match go to the profile's `ShortcutsBackend`, so the shortcuts
   provider learns from it as it does for the omnibox; history learns from
-  the navigation itself. No `OmniboxLog` is reported yet.
+  the navigation itself. An `OmniboxLog` goes to the
+  `OmniboxEventGlobalTracker` (omnibox metrics, the extensions omnibox API)
+  and the `AutocompleteActionPredictor`, as `OmniboxEditModel::OpenMatch()`
+  sends it: the text, the selected line in the controller's result, the
+  disposition, the page classification, the time since the first edit
+  after opening and since the default match last changed (-1 ms, "unknown",
+  when the user didn't edit), and the providers' logs. Search prefetch and
+  prerender aren't used, so their part of the log is skipped. A stale ID
+  (the page behind, see `Accept()`) has no result to log and reports
+  nothing.
 - Cmd+Enter on an omnibox match opens it as a new entry in either mode.
 - An entry is activated (opened if unloaded) in this window.
 
 The bubble closes after any accept, and when the window loses focus.
 
+### Pointer
+
+Hovering a row selects it, but only after the pointer has really moved
+while the bar is open. Blink sends a `pointermove` without movement when
+the rows change under a resting pointer (the bubble appearing under it, a
+new pass of results), and that mustn't take the selection away from the
+default suggestion. The page remembers the pointer's screen position from
+the first event after opening; a move selects only from a different
+position, and only with a nonzero `movementX` or `movementY`.
+
 ### Tests
 
 `CommandBarPageHandlerTest` (unit): result order for empty and typed
-queries, other spaces' entries, stable IDs within a query, and accepting
-each kind of result, including a stale ID. `CommandBarBrowserTest`: Cmd+T
-then a URL and Enter makes a Today entry, Cmd+L starts from the page's URL
-and loads in place, and opening again starts over. Esc is handled by the
-bubble natively, which a synthetic key event in the page can't reach, so
-it's checked by hand.
+queries, other spaces' entries, stable IDs within a query, accepting each
+kind of result, including a stale ID, and the omnibox log of an accepted
+suggestion. `CommandBarBrowserTest`: Cmd+T then a URL and Enter makes a
+Today entry, Cmd+L starts from the page's URL and loads in place, opening
+again starts over, Esc closes it without a new tab, and a pointer event
+without movement doesn't change the selection. The Esc test hands the key
+to the contents' delegate (the bubble's wrapper), which closes it before
+the renderer sees it; `SimulateKeyPress()` never reached it with the test
+window in the background.
 
 ### Known gaps
 
@@ -123,9 +145,6 @@ it's checked by hand.
   commands as browser actions. Anything that invokes the
   New Tab action item directly (upstream's app menu redesign, if enabled)
   still opens a plain new tab.
-- Hovering selects a row, so a pointer resting where the bubble appears
-  selects that row instead of the default suggestion.
-- No `OmniboxLog` is reported (see Accepting).
 
 ## Slice 2: sidebar header
 
