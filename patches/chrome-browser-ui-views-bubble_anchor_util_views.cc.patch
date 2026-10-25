@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/views/bubble_anchor_util_views.cc b/chrome/browser/ui/views/bubble_anchor_util_views.cc
+index bd418d544526cbb657425b8788c3f999d065f228..6ab3b7a41a3fc732ae205edc4d4e4c25e5461892 100644
+--- a/chrome/browser/ui/views/bubble_anchor_util_views.cc
++++ b/chrome/browser/ui/views/bubble_anchor_util_views.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
+ 
++#include "strata/browser/ui/views/sidebar/sidebar_header.h"
++
+ #include "base/feature_list.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+@@ -36,6 +38,11 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
+     BrowserWindowInterface* browser,
+     Anchor anchor) {
+   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (anchor == Anchor::kLocationBar) {
++    if (auto config = strata::GetPageInfoAnchorConfiguration(browser)) {
++      return *config;
++    }
++  }
+   auto* location_bar_view =
+       browser_view ? browser_view->GetLocationBarView() : nullptr;
+ 

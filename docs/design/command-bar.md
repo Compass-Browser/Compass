@@ -257,13 +257,29 @@ It's hidden on the new tab page, which has no page info.
 
 ### Where other bubbles go
 
-- **Permission prompts** use `GetPageInfoAnchorConfiguration()`: with the
-  location bar not drawn it falls back to the app menu button, which is
-  now in the sidebar next to the pill.
+- **Permission prompts** use `GetPageInfoAnchorConfiguration()`, which asks
+  `strata::GetPageInfoAnchorConfiguration()` first (patch): the site info
+  button with an arrow at the top left, where Chrome's permission chip
+  would be, or the pill on pages without site info. Collapsed, neither is
+  drawn and upstream falls back to the app menu. The chip itself lives in
+  the hidden location bar and never shows; upstream then uses bubbles, as
+  in fullscreen.
 - **Page action bubbles** (bookmark star, passwords, translate, zoom,
-  cookie controls, ...) go through `ToolbarView::GetBubbleAnchor()`, which
-  anchors to the top container when the location bar isn't drawn: the top
-  right of the page. Arc shows these there too, so no patch for now.
+  cookie controls, ...) anchor to icons in the hidden location bar, or to
+  the top container when `ToolbarView::GetBubbleAnchor()` finds the
+  location bar not drawn: the top right of the page. Three patches pass
+  those anchors through `strata::GetToolbarBubbleAnchor()`, which swaps an
+  anchor inside the hidden toolbar (or the top container) for the pill, or
+  the app menu while collapsed: `ToolbarView::GetBubbleAnchor()`,
+  `ToolbarView::GetPageActionBubbleAnchor()` and the
+  `LocationBarBubbleDelegateView` constructor, which most page action
+  bubbles derive from. The constructor also takes the arrow from
+  `strata::GetToolbarBubbleArrow()`: top left once it anchors to the pill,
+  since the pill is at the window's left. Bubbles built elsewhere keep
+  their own arrow (top right), and upstream flips it if the bubble would
+  leave the screen.
+- **Bubbles anchored to the extensions or pinned actions** (the downloads
+  bubble, an extension's popup) while collapsed: see Layout.
 
 ### Layout
 
@@ -273,22 +289,50 @@ actions move to a row of their own under the pill, aligned right. Collapsed:
 only the app menu shows, centered in a row under upstream's layout, so the
 menu stays reachable; extensions and pinned actions are hidden.
 
+Expanded on hover, the region is still collapsed but as wide as expanded,
+so the header lays out as expanded below upstream's collapsed row, as the
+page does (the switch is at `kCollapseSnapWidth`, as upstream's).
+
+A bubble that anchors to a hidden button would point at nothing, so while
+collapsed the header expands the sidebar for it. It watches the buttons
+under the extensions and pinned actions slots
+(`Button::AddAnchorCountChangedCallback()`, rescanned when views come and
+go under the slots): while any of them has an anchored bubble or menu, it
+holds a `kKeepExpanded` lock on the region, which expands it on hover
+whatever the setting. The bubble follows its anchor as the sidebar
+expands, and the sidebar collapses again when it closes.
+
 ### Tests
 
 Browser tests: the toolbar isn't visible and has no height; the three views
 are in the header and drawn; the app menu opens from there; switching to
 horizontal tabs puts them back in the toolbar and shows it, and switching
 back moves them again; site info opens page info anchored to its button;
-the collapsed header shows only the app menu.
+the collapsed header shows only the app menu; anchoring to a button in the
+extensions slot expands the collapsed sidebar, laid out as expanded, until
+the anchor goes; permission prompts anchor to site info (the app menu
+while collapsed); the toolbar's bubble anchors, page action anchors and a
+`LocationBarBubbleDelegateView` anchored in the location bar end up on the
+pill, the latter with a top left arrow.
+
+The header and sidebar fixtures turn rich animations off, so motions end
+as they start. With frames (an unlocked screen),
+`BrowserAnimationController::Reset()` with the motion that is playing ends
+it without stopping its animator, and the next frame fails
+`CHECK(current_motion_)`.
 
 ### Known gaps
 
-- With the sidebar collapsed, a download or an extension popup anchors to
-  a hidden view.
 - The site info icon updates on navigation and loading changes, not on
   `VisibleSecurityStateChanged()` alone (for example mixed content found
   after load).
-- The permission chip in the location bar never shows; prompts are bubbles.
+- The permission chip in the location bar never shows; prompts are
+  bubbles under site info. A quiet prompt (`PermissionPromptQuietIcon`, for
+  notifications from abusive sites) is an icon in the hidden location bar,
+  so it doesn't show at all, as in fullscreen.
+- Bubbles that anchor to the top container or a location bar icon but
+  aren't `LocationBarBubbleDelegateView`s keep their top right arrow, so
+  they reach left of the pill (off the window when the sidebar is narrow).
 - No way to focus the moved controls with the keyboard as a pane (F6 still
   cycles to the hidden toolbar).
 

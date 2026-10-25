@@ -4,23 +4,29 @@
 
 #include "strata/browser/ui/views/sidebar/sidebar_header.h"
 
+#include <optional>
 #include <string>
 
 #include "base/functional/function_ref.h"
 #include "base/test/run_until.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
+#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/toolbar/back_forward_button.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
+#include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -34,9 +40,13 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/bubble/bubble_border.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/view_class_properties.h"
@@ -60,6 +70,26 @@ T* FindDescendant(views::View* root) {
   }
   return nullptr;
 }
+
+// The first button under |root|, or null.
+views::Button* FindButton(views::View* root) {
+  if (auto* button = views::Button::AsButton(root)) {
+    return button;
+  }
+  for (views::View* child : root->children()) {
+    if (views::Button* match = FindButton(child)) {
+      return match;
+    }
+  }
+  return nullptr;
+}
+
+// A page action bubble, as upstream's derive from LocationBarBubbleDelegateView.
+class TestLocationBarBubble : public LocationBarBubbleDelegateView {
+ public:
+  TestLocationBarBubble(views::View* anchor, content::WebContents* contents)
+      : LocationBarBubbleDelegateView(anchor, contents) {}
+};
 
 views::View* FindByElementId(views::View* root, ui::ElementIdentifier id) {
   if (root->GetProperty(views::kElementIdentifierKey) == id) {
@@ -91,6 +121,13 @@ void Click(views::Button* button) {
 
 class SidebarHeaderBrowserTest : public InProcessBrowserTest {
  protected:
+  // Motions end as they start. With frames (an unlocked screen), Reset()
+  // would end a running motion without stopping its animator, whose next
+  // frame then fails a CHECK.
+  gfx::AnimationTestApi::RenderModeResetter animation_mode_ =
+      gfx::AnimationTestApi::SetRichAnimationRenderMode(
+          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
@@ -339,6 +376,84 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, CollapsedShowsOnlyTheAppMenu) {
         << view->GetClassName();
   }
   EXPECT_TRUE(controls[2]->IsDrawn());
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       AnchoredBubbleExpandsTheCollapsedSidebar) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  // The extensions container holds a button even without extensions.
+  views::Button* button = FindButton(toolbar_controls()[0]);
+  ASSERT_TRUE(button);
+  Collapse(region, true);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return !header()->pill_for_testing()->GetVisible();
+  }));
+  ASSERT_FALSE(region->is_expanded_on_hover());
+
+  // As a bubble anchoring to it does (the downloads bubble, an extension's
+  // popup).
+  std::optional<views::Button::ScopedAnchorHighlight> highlight(
+      button->AddAnchorHighlight());
+  EXPECT_TRUE(region->is_expanded_on_hover());
+  // Laid out as expanded, so the button's slot shows again.
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return header()->pill_for_testing()->IsDrawn();
+  }));
+
+  highlight.reset();
+  EXPECT_FALSE(region->is_expanded_on_hover());
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return !header()->pill_for_testing()->GetVisible();
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       PermissionPromptsAnchorToSiteInfo) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::ImageButton* site_info = header()->site_info_button_for_testing();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return site_info->IsDrawn(); }));
+
+  bubble_anchor_util::AnchorConfiguration config =
+      bubble_anchor_util::GetPageInfoAnchorConfiguration(browser());
+  EXPECT_EQ(config.anchor.GetIfView(), site_info);
+  EXPECT_EQ(config.highlighted_element,
+            SidebarHeader::kSiteInfoButtonElementId);
+  EXPECT_EQ(config.bubble_arrow, views::BubbleBorder::TOP_LEFT);
+
+  // Collapsed, upstream's fallback: the app menu, which stays drawn.
+  Collapse(region, true);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return !site_info->IsDrawn(); }));
+  config = bubble_anchor_util::GetPageInfoAnchorConfiguration(browser());
+  EXPECT_EQ(config.anchor.GetIfView(),
+            browser_view()->GetViewByID(VIEW_ID_APP_MENU));
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       PageActionBubblesAnchorToThePill) {
+  views::View* pill = header()->pill_for_testing();
+  ToolbarButtonProvider* toolbar = browser_view_impl()->toolbar_button_provider();
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->IsDrawn(); }));
+
+  // Upstream's fallback for a location bar that isn't drawn.
+  EXPECT_EQ(toolbar->GetBubbleAnchor(std::nullopt).GetIfView(), pill);
+  // A location bar icon.
+  EXPECT_EQ(toolbar->GetPageActionBubbleAnchor(kActionBookmarkThisTab)
+                .GetIfView(),
+            pill);
+  // A page action bubble anchored in the hidden location bar.
+  TestLocationBarBubble bubble(browser_view_impl()->GetLocationBarView(),
+                               browser()->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ(bubble.GetAnchorView(), pill);
+  EXPECT_EQ(bubble.arrow(), views::BubbleBorder::TOP_LEFT);
+
+  // Pinned toolbar actions are drawn in the header: theirs stay.
+  views::View* app_menu = browser_view()->GetViewByID(VIEW_ID_APP_MENU);
+  EXPECT_EQ(GetToolbarBubbleAnchor(views::BubbleAnchor(app_menu)).GetIfView(),
+            app_menu);
 }
 
 }  // namespace

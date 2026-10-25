@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+index f9bb38f92374559f70077dfcb24c2010d1b7efba..65df81a402c915f4e421f56921d3a8f8c476ad3b 100644
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ 
++#include "strata/browser/ui/views/sidebar/sidebar_header.h"
++
+ #include <algorithm>
+ #include <memory>
+ #include <utility>
+@@ -2037,7 +2039,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
+   if (anchor_not_drawn && browser_view_) {
+     auto* top_container = browser_view_->top_container();
+     CHECK(top_container);
+-    return views::BubbleAnchor(top_container);
++    return strata::GetToolbarBubbleAnchor(views::BubbleAnchor(top_container));
+   }
+   return anchor;
+ }
+@@ -2047,7 +2049,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
+   page_actions::PageActionViewInterface* view =
+       GetPageActionViewInterface(action_id);
+   if (view) {
+-    return view->GetBubbleAnchor();
++    return strata::GetToolbarBubbleAnchor(view->GetBubbleAnchor());
+   }
+   return views::BubbleAnchor();
+ }

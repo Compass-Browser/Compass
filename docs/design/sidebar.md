@@ -37,7 +37,9 @@ hosted inside the content area of `VerticalTabStripRegionView`. It replaces
 only the native `TabStripView`. Everything else in the region stays upstream.**
 
 - **We keep for free:** the frame and caption-button layout, resizing,
-  collapse animation, expand-on-hover, and the top and bottom containers.
+  collapse animation, expand-on-hover, and the top container. The bottom
+  container only holds upstream's New Tab button, which the page's New Tab
+  row replaces, so `InstallSidebar()` hides it.
 - **The native `TabStripView` isn't built** (since slice e). Until then it
   was hidden in place, because the region's drag, hover-card and resize code
   assumed it. See "Slice e".

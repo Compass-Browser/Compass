@@ -22,6 +22,9 @@
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/top_container_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
@@ -46,6 +49,7 @@
 #include "ui/gfx/text_constants.h"
 #include "ui/views/background.h"
 #include "ui/views/bubble/bubble_border.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button.h"
@@ -110,6 +114,39 @@ gfx::Size GetSlotSize(const views::View* slot) {
     return gfx::Size();
   }
   return slot->GetPreferredSize();
+}
+
+void CollectButtons(views::View* view, std::vector<views::Button*>& buttons) {
+  if (auto* button = views::Button::AsButton(view)) {
+    buttons.push_back(button);
+  }
+  for (views::View* child : view->children()) {
+    CollectButtons(child, buttons);
+  }
+}
+
+// The header of the window |anchor| is in, if it holds that window's toolbar
+// controls and |anchor| is in the hidden toolbar or is the top container.
+SidebarHeader* GetHeaderForToolbarAnchor(const views::BubbleAnchor& anchor) {
+  const views::View* view = anchor.GetIfView();
+  if (!view || !view->GetWidget()) {
+    return nullptr;
+  }
+  BrowserView* browser_view = BrowserView::GetBrowserViewForNativeWindow(
+      view->GetWidget()->GetNativeWindow());
+  if (!browser_view) {
+    return nullptr;
+  }
+  SidebarHeader* header = SidebarHeader::From(browser_view->browser());
+  if (!header || !header->HoldsToolbarControls()) {
+    return nullptr;
+  }
+  const bool in_toolbar =
+      browser_view->toolbar() && browser_view->toolbar()->Contains(view);
+  if (!in_toolbar && view != browser_view->top_container()) {
+    return nullptr;
+  }
+  return header->GetBubbleAnchorView() ? header : nullptr;
 }
 
 // The child layout of |view| in |layout|, or null.
@@ -186,6 +223,8 @@ SidebarHeader::~SidebarHeader() {
   // BrowserView gives the controls back first (DetachToolbar()): the toolbar
   // uses them until it is destroyed.
   CHECK(moved_views_.empty());
+  watched_buttons_.clear();
+  expand_lock_.reset();
   browser_->GetTabStripModel()->RemoveObserver(this);
   for (int command : {IDC_BACK, IDC_FORWARD, IDC_RELOAD}) {
     chrome::RemoveCommandObserver(browser_, command, this);
@@ -217,7 +256,10 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
   const int width = layout.host_size.width();
   int bottom = layout.host_size.height();
 
-  if (state_controller_->IsCollapsed()) {
+  // Expanded on hover (or held expanded for a bubble), the region is
+  // collapsed but as wide as expanded: lay out as expanded, as the page does.
+  if (state_controller_->IsCollapsed() &&
+      width < VerticalTabStripRegionView::kCollapseSnapWidth) {
     for (views::View* view : {static_cast<views::View*>(back_.get()),
                               static_cast<views::View*>(forward_.get()),
                               static_cast<views::View*>(reload_.get()),
@@ -341,6 +383,101 @@ bool SidebarHeader::IsPositionInWindowCaption(const gfx::Point& point) {
     }
   }
   return VerticalTabStripTopContainer::IsPositionInWindowCaption(point);
+}
+
+void SidebarHeader::ViewHierarchyChanged(
+    const views::ViewHierarchyChangedDetails& details) {
+  VerticalTabStripTopContainer::ViewHierarchyChanged(details);
+  // Called for changes anywhere under the header, before a removal.
+  if (!extensions_slot_ || !pinned_actions_slot_) {
+    return;
+  }
+  if (extensions_slot_->Contains(details.parent) ||
+      pinned_actions_slot_->Contains(details.parent)) {
+    WatchSlotButtons(details.is_add ? nullptr : details.child.get());
+  }
+}
+
+views::View* SidebarHeader::GetBubbleAnchorView() {
+  if (pill_->IsDrawn()) {
+    return pill_;
+  }
+  if (!app_menu_slot_->children().empty() &&
+      app_menu_slot_->children().front()->IsDrawn()) {
+    return app_menu_slot_->children().front();
+  }
+  return nullptr;
+}
+
+std::optional<bubble_anchor_util::AnchorConfiguration>
+SidebarHeader::GetPageInfoAnchorConfiguration() {
+  if (!HoldsToolbarControls()) {
+    return std::nullopt;
+  }
+  if (site_info_->IsDrawn()) {
+    return bubble_anchor_util::AnchorConfiguration{
+        views::BubbleAnchor(site_info_.get()), kSiteInfoButtonElementId,
+        views::BubbleBorder::TOP_LEFT};
+  }
+  if (pill_->IsDrawn()) {
+    return bubble_anchor_util::AnchorConfiguration{
+        views::BubbleAnchor(pill_.get()), std::nullopt,
+        views::BubbleBorder::TOP_LEFT};
+  }
+  return std::nullopt;
+}
+
+void SidebarHeader::WatchSlotButtons(const views::View* removed) {
+  std::vector<views::Button*> buttons;
+  CollectButtons(extensions_slot_, buttons);
+  CollectButtons(pinned_actions_slot_, buttons);
+  if (removed) {
+    std::erase_if(buttons, [removed](views::Button* button) {
+      return removed->Contains(button);
+    });
+  }
+  std::erase_if(watched_buttons_, [&](const auto& watched) {
+    return !std::ranges::contains(buttons, watched->button.get());
+  });
+  for (views::Button* button : buttons) {
+    if (std::ranges::contains(watched_buttons_, button,
+                              [](const auto& watched) {
+                                return watched->button.get();
+                              })) {
+      continue;
+    }
+    auto watched = std::make_unique<WatchedButton>();
+    watched->button = button;
+    watched->subscription = button->AddAnchorCountChangedCallback(
+        base::BindRepeating(&SidebarHeader::OnAnchorCountChanged,
+                            base::Unretained(this), watched.get()));
+    watched_buttons_.push_back(std::move(watched));
+  }
+  UpdateExpandLock();
+}
+
+void SidebarHeader::OnAnchorCountChanged(WatchedButton* watched,
+                                         size_t count) {
+  watched->anchored = count > 0;
+  UpdateExpandLock();
+}
+
+void SidebarHeader::UpdateExpandLock() {
+  const bool anchored = std::ranges::any_of(
+      watched_buttons_, [](const auto& watched) { return watched->anchored; });
+  if (!anchored) {
+    expand_lock_.reset();
+    return;
+  }
+  if (expand_lock_) {
+    return;
+  }
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->tab_strip_view()) {
+    // Expanding on hover ignores the setting under this lock.
+    expand_lock_ = browser_view->tab_strip_view()->GetExpandOnHoverLock(
+        ExpandOnHoverLockType::kKeepExpanded);
+  }
 }
 
 void SidebarHeader::EnabledStateChangedForCommand(int id, bool enabled) {
@@ -502,6 +639,24 @@ std::unique_ptr<VerticalTabStripTopContainer> CreateSidebarHeader(
     BrowserWindowInterface* browser) {
   return std::make_unique<SidebarHeader>(state_controller, root_action_item,
                                          browser);
+}
+
+views::BubbleAnchor GetToolbarBubbleAnchor(const views::BubbleAnchor& anchor) {
+  SidebarHeader* header = GetHeaderForToolbarAnchor(anchor);
+  return header ? views::BubbleAnchor(header->GetBubbleAnchorView()) : anchor;
+}
+
+views::BubbleBorder::Arrow GetToolbarBubbleArrow(
+    const views::BubbleAnchor& anchor,
+    views::BubbleBorder::Arrow arrow) {
+  return GetHeaderForToolbarAnchor(anchor) ? views::BubbleBorder::TOP_LEFT
+                                           : arrow;
+}
+
+std::optional<bubble_anchor_util::AnchorConfiguration>
+GetPageInfoAnchorConfiguration(BrowserWindowInterface* browser) {
+  SidebarHeader* header = browser ? SidebarHeader::From(browser) : nullptr;
+  return header ? header->GetPageInfoAnchorConfiguration() : std::nullopt;
 }
 
 bool ShouldHideToolbar(BrowserWindowInterface* browser) {

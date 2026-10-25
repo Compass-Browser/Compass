@@ -144,6 +144,9 @@ void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
                                views::MaximumFlexSizeRule::kPreferred));
+  // It only holds upstream's New Tab button, which the page's New Tab row
+  // replaces. Hidden, FlexLayout gives it no space.
+  bottom_container->SetVisible(false);
 }
 
 ActiveTabWatcher::ActiveTabWatcher(BrowserWindowInterface* browser,

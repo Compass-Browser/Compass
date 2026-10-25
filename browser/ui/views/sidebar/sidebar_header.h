@@ -6,6 +6,7 @@
 #define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/command_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -21,6 +23,7 @@
 
 class BackForwardButton;
 class BrowserWindowInterface;
+class ExpandOnHoverLock;
 class ReloadButton;
 class ToolbarView;
 
@@ -33,6 +36,8 @@ class VerticalTabStripStateController;
 }  // namespace tabs
 
 namespace views {
+class BubbleAnchor;
+class Button;
 class ImageButton;
 class LabelButton;
 }  // namespace views
@@ -44,8 +49,9 @@ namespace strata {
 // right end and, under it, a pill with the active tab's host that opens the
 // command bar, with a site info button at its left. In vertical tab mode it
 // also holds the toolbar's extensions, pinned actions and app menu, and the
-// toolbar is hidden. Collapsed, only the app menu shows. See
-// docs/design/command-bar.md, "Slice 2" and "Slice 3".
+// toolbar is hidden. Collapsed, only the app menu shows, and a bubble that
+// anchors to the extensions or pinned actions expands the sidebar until it
+// closes. See docs/design/command-bar.md, "Slice 2" and "Slice 3".
 class SidebarHeader : public VerticalTabStripTopContainer,
                       public CommandObserver,
                       public TabStripModelObserver {
@@ -75,6 +81,15 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // Whether the toolbar's controls are here, so the toolbar is hidden.
   bool HoldsToolbarControls() const { return !moved_views_.empty(); }
 
+  // Where bubbles go that upstream anchors to the hidden toolbar: the pill,
+  // or the app menu while the sidebar is collapsed. Null if neither is drawn.
+  views::View* GetBubbleAnchorView();
+  // Where bubbles go that upstream aligns with the location bar's page info
+  // icon (permission prompts): the site info button, else the pill. Nullopt
+  // while neither is drawn, so upstream falls back to the app menu.
+  std::optional<bubble_anchor_util::AnchorConfiguration>
+  GetPageInfoAnchorConfiguration();
+
   BackForwardButton* back_button_for_testing() { return back_; }
   BackForwardButton* forward_button_for_testing() { return forward_; }
   ReloadButton* reload_button_for_testing() { return reload_; }
@@ -85,6 +100,8 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
   bool IsPositionInWindowCaption(const gfx::Point& point) override;
+  void ViewHierarchyChanged(
+      const views::ViewHierarchyChangedDetails& details) override;
 
   // CommandObserver:
   void EnabledStateChangedForCommand(int id, bool enabled) override;
@@ -104,11 +121,27 @@ class SidebarHeader : public VerticalTabStripTopContainer,
     size_t toolbar_index;
   };
 
+  // A button in the extensions or pinned actions slot, and whether a bubble
+  // or menu anchors to it.
+  struct WatchedButton {
+    raw_ptr<views::Button> button;
+    bool anchored = false;
+    base::CallbackListSubscription subscription;
+  };
+
   // Moves the toolbar's extensions, pinned actions and app menu into their
   // slots, or back to the toolbar.
   void TakeToolbarControls();
   void ReturnToolbarControls();
   void OnModeChanged(tabs::VerticalTabStripStateController* controller);
+
+  // Watches the buttons under the extensions and pinned actions slots, minus
+  // those under |removed| (a subtree about to leave them).
+  void WatchSlotButtons(const views::View* removed);
+  void OnAnchorCountChanged(WatchedButton* watched, size_t count);
+  // Keeps the sidebar expanded while a watched button is anchored: collapsed,
+  // its slot is hidden and the bubble would point at nothing.
+  void UpdateExpandLock();
 
   // Shows the active tab's URL in the pill, its security icon on the site
   // info button and its loading state on reload.
@@ -136,6 +169,8 @@ class SidebarHeader : public VerticalTabStripTopContainer,
 
   raw_ptr<ToolbarView> toolbar_ = nullptr;
   std::vector<MovedView> moved_views_;
+  std::vector<std::unique_ptr<WatchedButton>> watched_buttons_;
+  std::unique_ptr<ExpandOnHoverLock> expand_lock_;
   base::CallbackListSubscription mode_subscription_;
   ui::ScopedUnownedUserData<SidebarHeader> scoped_data_holder_;
 };
@@ -153,6 +188,20 @@ std::unique_ptr<VerticalTabStripTopContainer> CreateSidebarHeader(
 bool ShouldHideToolbar(BrowserWindowInterface* browser);
 void AttachToolbar(BrowserWindowInterface* browser, ToolbarView* toolbar);
 void DetachToolbar(BrowserWindowInterface* browser);
+
+// Hooks for bubbles (see patches/). |anchor| as upstream picked it, or the
+// header's bubble anchor if |anchor| is in a toolbar the header has hidden
+// (a location bar icon, say) or is that window's top container (upstream's
+// fallback when the location bar isn't drawn). The arrow goes with it: one
+// on the pill's left, since the pill is at the window's left.
+views::BubbleAnchor GetToolbarBubbleAnchor(const views::BubbleAnchor& anchor);
+views::BubbleBorder::Arrow GetToolbarBubbleArrow(
+    const views::BubbleAnchor& anchor,
+    views::BubbleBorder::Arrow arrow);
+// For bubble_anchor_util::GetPageInfoAnchorConfiguration(): see
+// SidebarHeader::GetPageInfoAnchorConfiguration().
+std::optional<bubble_anchor_util::AnchorConfiguration>
+GetPageInfoAnchorConfiguration(BrowserWindowInterface* browser);
 
 }  // namespace strata
 

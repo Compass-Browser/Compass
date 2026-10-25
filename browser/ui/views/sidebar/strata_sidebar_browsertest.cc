@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
@@ -32,6 +33,8 @@
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -70,6 +73,13 @@ constexpr char kWaitForTabRows[] = R"(
 
 class StrataSidebarBrowserTest : public InProcessBrowserTest {
  protected:
+  // Motions end as they start. With frames (an unlocked screen), Reset()
+  // would end a running motion without stopping its animator, whose next
+  // frame then fails a CHECK.
+  gfx::AnimationTestApi::RenderModeResetter animation_mode_ =
+      gfx::AnimationTestApi::SetRichAnimationRenderMode(
+          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+
   views::View* browser_view() {
     return BrowserView::GetBrowserViewForBrowser(browser());
   }
@@ -97,6 +107,10 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ReplacesNativeTabStrip) {
   EXPECT_FALSE(FindDescendant<TabStripView>(browser_view()));
   EXPECT_FALSE(region->GetTabStripView());
   EXPECT_GT(sidebar()->height(), 0);
+  // Upstream's New Tab button under the strip is hidden: the page has its own.
+  auto* bottom = FindDescendant<VerticalTabStripBottomContainer>(region);
+  ASSERT_TRUE(bottom);
+  EXPECT_FALSE(bottom->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
@@ -126,6 +140,8 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
     return region->width() < resized_width;
   }));
   EXPECT_TRUE(sidebar()->GetVisible());
+  EXPECT_FALSE(
+      FindDescendant<VerticalTabStripBottomContainer>(region)->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ListsTabs) {
