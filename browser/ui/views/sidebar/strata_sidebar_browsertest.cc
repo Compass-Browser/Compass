@@ -49,6 +49,8 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/base_window.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/animation/animation.h"
@@ -204,6 +206,64 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintFollowsASwipe) {
   EXPECT_EQ(SkColorSetA(*tint->GetTintForTesting(), SK_AlphaOPAQUE),
             *GetSpaceTint(SpaceColor::kGreen));
   EXPECT_FALSE(tint->IsAnimatingForTesting());
+}
+
+// The space color seeds the window's theme: its frame color follows the
+// space, not during a swipe, and a grey space keeps the profile's theme.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, WindowThemeFollowsTheSpace) {
+  views::Widget* widget = browser_view()->GetWidget();
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& home = features->space_model();
+  auto frame_color = [&] {
+    return widget->GetColorProvider()->GetColor(ui::kColorFrameActive);
+  };
+  // The sidebar page's colors, from chrome://theme/colors.css.
+  content::WebContents* contents = sidebar_contents();
+  constexpr char kActiveRowColor[] = R"(
+    getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-tab-background-active-frame-active'))";
+  ASSERT_EQ(home.color(), SpaceColor::kGrey);
+  EXPECT_FALSE(widget->user_color_override());
+  const SkColor grey_frame = frame_color();
+  const std::string grey_row =
+      content::EvalJs(contents, kActiveRowColor).ExtractString();
+  ASSERT_FALSE(grey_row.empty());
+
+  home.SetColor(SpaceColor::kBlue);
+  EXPECT_EQ(widget->user_color_override(), GetSpaceTint(SpaceColor::kBlue));
+  const SkColor blue_frame = frame_color();
+  EXPECT_NE(blue_frame, grey_frame);
+  // Bluish.
+  EXPECT_GT(SkColorGetB(blue_frame), SkColorGetR(blue_frame));
+  // The page reloads its colors (ColorChangeUpdater).
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(contents, kActiveRowColor).ExtractString() !=
+           grey_row;
+  }));
+
+  // A swipe toward another space leaves the theme alone; the switch takes
+  // the new space's.
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  work->SetColor(SpaceColor::kGreen);
+  features->SetSpacePreview(work, 0.5);
+  EXPECT_EQ(widget->user_color_override(), GetSpaceTint(SpaceColor::kBlue));
+  features->SwitchToSpace(*work);
+  EXPECT_EQ(widget->user_color_override(), GetSpaceTint(SpaceColor::kGreen));
+  EXPECT_GT(SkColorGetG(frame_color()), SkColorGetB(frame_color()));
+
+  // Grey: the profile's theme again.
+  work->SetColor(SpaceColor::kGrey);
+  EXPECT_FALSE(widget->user_color_override());
+  EXPECT_EQ(frame_color(), grey_frame);
+
+  // Off the record keeps its own colors.
+  BrowserWindowInterface* incognito = CreateIncognitoBrowser();
+  WindowFeatures* incognito_features = WindowFeatures::From(incognito);
+  ASSERT_TRUE(incognito_features);
+  incognito_features->space_model().SetColor(SpaceColor::kBlue);
+  EXPECT_FALSE(BrowserView::GetBrowserViewForBrowser(incognito)
+                   ->GetWidget()
+                   ->user_color_override());
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {

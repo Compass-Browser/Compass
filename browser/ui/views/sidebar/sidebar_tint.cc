@@ -7,6 +7,11 @@
 #include <memory>
 
 #include "cc/paint/paint_flags.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -59,7 +64,8 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color) {
 }
 
 SidebarTint::SidebarTint(BrowserWindowInterface* browser)
-    : features_(WindowFeatures::From(browser)),
+    : browser_(browser),
+      features_(WindowFeatures::From(browser)),
       animation_(kFadeDuration,
                  gfx::LinearAnimation::kDefaultFrameRate,
                  this) {
@@ -108,6 +114,10 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
   }
 }
 
+void SidebarTint::AddedToWidget() {
+  UpdateWindowTheme();
+}
+
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
   color_ = gfx::Tween::ColorValueBetween(
       gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
@@ -126,6 +136,7 @@ void SidebarTint::OnViewIsDeleting(views::View* observed_view) {
 
 void SidebarTint::OnSpaceSwitched() {
   UpdateColor(/*animate=*/true);
+  UpdateWindowTheme();
 }
 
 // The finger moves the blend; letting go without switching fades back.
@@ -137,6 +148,9 @@ void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
   if (features_ && (&space == &features_->space_model() ||
                     &space == features_->preview_space())) {
     UpdateColor(/*animate=*/true);
+  }
+  if (features_ && &space == &features_->space_model()) {
+    UpdateWindowTheme();
   }
 }
 
@@ -164,6 +178,25 @@ void SidebarTint::UpdateColor(bool animate) {
   animation_.Stop();
   color_ = target;
   SchedulePaint();
+}
+
+void SidebarTint::UpdateWindowTheme() {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  views::Widget* widget = browser_view ? browser_view->GetWidget() : nullptr;
+  if (!widget || !features_) {
+    return;
+  }
+  // Off the record keeps its grey; an extension theme paints its own colors.
+  Profile* profile = browser_->GetProfile();
+  const ThemeService* theme_service =
+      ThemeServiceFactory::GetForProfile(profile);
+  const bool keep_theme =
+      profile->IsOffTheRecord() ||
+      (theme_service && theme_service->UsingExtensionTheme());
+  // Rebuilds the window's colors if the seed changed.
+  widget->SetUserColorOverride(
+      keep_theme ? std::nullopt
+                 : GetSpaceTint(features_->space_model().color()));
 }
 
 BEGIN_METADATA(SidebarTint)

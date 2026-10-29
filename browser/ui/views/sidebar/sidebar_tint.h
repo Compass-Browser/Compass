@@ -32,8 +32,14 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color);
 // region's background and under its children. Ignored by the region's
 // layout: it follows the region's bounds and the shape of its background.
 // A swipe in the sidebar blends in the color of the space it pulls in
-// (WindowFeatures::SetSpacePreview()), and other changes fade. See
-// docs/design/spaces.md, "Space colors" and "Swiping".
+// (WindowFeatures::SetSpacePreview()), and other changes fade.
+//
+// It also themes the window: the space color is the window's theme seed
+// (Widget::SetUserColorOverride()), so the frame, the page's margins, menus,
+// bubbles and WebUI take colors from it, as from a profile's theme color.
+// Not while a swipe is under way, and not for off-the-record windows or
+// extension themes. See docs/design/spaces.md, "Space colors", "Window
+// theme" and "Swiping".
 class SidebarTint : public views::View,
                     public gfx::AnimationDelegate,
                     public views::ViewObserver,
@@ -57,6 +63,7 @@ class SidebarTint : public views::View,
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
+  void AddedToWidget() override;
 
   // gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
@@ -78,7 +85,10 @@ class SidebarTint : public views::View,
   SkColor GetTargetColor() const;
   // Fades from the color painted now to the target, or jumps there.
   void UpdateColor(bool animate);
+  // Seeds the window's theme with its space's color.
+  void UpdateWindowTheme();
 
+  const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<WindowFeatures> features_;
   // Painted now; transparent for none.
   SkColor color_ = SK_ColorTRANSPARENT;

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Result} from '../command_bar.mojom-webui.js';
@@ -57,6 +58,8 @@ export class StrataCommandBarAppElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    // Follows the window's theme, which follows its space.
+    ColorChangeUpdater.forDocument().start();
     const router = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
       router.open.addListener(this.onOpen_.bind(this)),

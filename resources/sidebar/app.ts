@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './app.css.js';
@@ -229,6 +230,9 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    // The window's theme follows its space (docs/design/spaces.md, "Window
+    // theme"): reload colors.css when it changes.
+    ColorChangeUpdater.forDocument().start();
     const router = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
       router.setSpaces.addListener(this.onSetSpaces_.bind(this)),

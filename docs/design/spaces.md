@@ -16,7 +16,7 @@ space and stay alive while it isn't shown.
    switching a window between them.
 2. **Editing spaces**: rename, colors, deleting a space, moving an entry to
    another space, keyboard shortcuts. A theme for the whole window per space
-   is left for later.
+   came later (see "Window theme").
 3. **Spaces with other profiles**: the switcher lists the spaces of every
    profile, and switching to one of another profile swaps the window.
 
@@ -175,6 +175,38 @@ premultiplied with `gfx::Tween::ColorValueBetween()`, so a grey space fades
 the tint out rather than through black) whenever the window's space or its
 color changes. While a swipe pulls in another space, the tint is the blend
 of the two colors at the swipe's progress (next section), with no fade.
+
+### Window theme
+
+The space color also themes the window, as Arc does. `SidebarTint` sets it
+as the window's theme seed with upstream's
+`Widget::SetUserColorOverride()`, which `BrowserWidget::GetColorProviderKey()`
+applies after the profile's theme (as an accent color). Chrome then derives
+the window's colors from it as it does for a profile's "Customize Chrome"
+color: the frame and the region's background, the header's pill, menus,
+bubbles and the WebUI pages in the window. No patch is needed. Grey clears
+the override, so the window has the profile's theme. Off-the-record
+windows and profiles with an extension theme keep their own colors.
+
+It's set when the tint is added to the window, when the window switches
+spaces and when its space's color changes. Not during a swipe: a new seed
+rebuilds every color in the window, too slow for each wheel event, so the
+swipe blends only the tint, and the theme changes when the switch lands.
+The tint stays on top, 14% of the color over the themed region.
+
+The sidebar, command bar and placeholder pages read the theme through
+`chrome://theme/colors.css`, built from their WebContents' color provider,
+which is the window's. They start upstream's `ColorChangeUpdater`, which
+reloads that style sheet when the window's colors change; without it the
+page kept the colors it loaded with (a grey active row on a blue sidebar).
+
+Upstream's tab group "focus mode" sets the same override from the tab strip
+controllers. Strata doesn't mirror tab groups, so it doesn't clash.
+
+**Tests:** `WindowThemeFollowsTheSpace`: the override and the frame color
+follow the space's color and a switch, not a swipe; grey goes back to the
+profile's frame color; the sidebar page's colors change with it; an
+off-the-record window isn't themed.
 
 ### Swiping
 
@@ -357,7 +389,9 @@ every listed space, but only the window's profile's entries.
   popup.
 - A parked page that calls `window.focus()` could show the parking window.
 - Several windows on different spaces: see Startup.
-- Only the sidebar is tinted; the window frame and toolbar keep the theme.
+- The theme changes at once when the window switches spaces; only the
+  tint fades. A change of the profile's theme to or from an extension theme
+  applies at the next switch or color change.
 - Spaces can't be reordered.
 - Deleting a space closes parked tabs without asking, even ones with
   beforeunload handlers.
