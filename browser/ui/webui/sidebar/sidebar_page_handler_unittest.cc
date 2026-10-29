@@ -95,9 +95,13 @@ class FakePage : public sidebar::mojom::Page {
   }
   void NodeChanged(const std::string& id,
                    const std::string& title,
-                   const GURL& url) override {
+                   const GURL& url,
+                   bool collapsed) override {
     hosts_[id] = std::string(url.host());
-    events_.push_back("changed " + hosts_[id]);
+    // Folders have no host: their title, and whether they're collapsed.
+    events_.push_back("changed " +
+                      (url.is_empty() ? title + (collapsed ? " collapsed" : "")
+                                      : hosts_[id]));
   }
   void NodeRemoved(const std::string& id) override {
     events_.push_back("removed " + hosts_[id]);
@@ -369,6 +373,38 @@ TEST_F(SidebarPageHandlerTest, AddsAndRenamesFolders) {
   Settle();
 
   EXPECT_EQ(folder->title(), u"Play");
+}
+
+TEST_F(SidebarPageHandlerTest, CollapsesFolders) {
+  SidebarNode* folder =
+      space_model().AddFolder(space_model().pinned_root(), 0, u"Work");
+  const std::string id = folder->id().AsLowercaseString();
+  Settle();
+  page_.TakeEvents();
+
+  handler_remote_->SetFolderCollapsed(id, true);
+  Settle();
+  EXPECT_TRUE(folder->collapsed());
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("changed Work collapsed"));
+
+  // The tree carries it, for a page that loads later.
+  handler_remote_->RequestTree();
+  Settle();
+  sidebar::mojom::TreePtr tree = page_.TakeTree();
+  ASSERT_TRUE(tree);
+  ASSERT_EQ(tree->pinned->children.size(), 1u);
+  EXPECT_TRUE(tree->pinned->children[0]->collapsed);
+
+  // Again is a no-op; only folders collapse.
+  handler_remote_->SetFolderCollapsed(id, true);
+  handler_remote_->SetFolderCollapsed(TodayId(0), true);
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), IsEmpty());
+
+  handler_remote_->SetFolderCollapsed(id, false);
+  Settle();
+  EXPECT_FALSE(folder->collapsed());
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("changed Work"));
 }
 
 TEST_F(SidebarPageHandlerTest, ActivatingAnUnloadedPinnedNodeOpensIt) {

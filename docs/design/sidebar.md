@@ -219,8 +219,7 @@ pinned block is put back after it.
 
 **Folders.** Only in Pinned (the model already enforces this). A "New
 folder" button sits in the Pinned header. Double-click renames. Clicking a
-folder collapses or expands it. Collapse state lives in the page for now and
-becomes per-window state with persistence (slice d). Deleting a folder removes
+folder collapses or expands it (see "Folder collapse state"). Deleting a folder removes
 its subtree and closes its live tabs.
 
 **Drag and drop** happens in the page, with HTML5 drag events on the rows:
@@ -306,8 +305,8 @@ history, so it can come in then.
 - Off-the-record profiles get a model but no store.
 - Node IDs aren't stored. They're only stable for a session.
 
-Today came later; see "Today persistence". Folder collapse state stays in
-the page.
+Today came later; see "Today persistence". Folder collapse state came
+later too; see "Folder collapse state".
 
 **Tests:** a serializer round trip (pure, in `browser/sidebar/`), a store
 test (save, then load into a new model), and bridge tests with two windows:
@@ -637,6 +636,33 @@ browser test right-clicks rows in the page and checks the menu, its
 position and Rename (`SidebarContextMenu::SetShowCallbackForTesting()`
 hands the model over instead of running a native menu, which would block the
 test).
+
+## Folder collapse state
+
+Whether a folder is collapsed is part of the model, as in Arc: a
+`SidebarNode::collapsed()` flag on folders, set with
+`SpaceModel::SetCollapsed()`, which notifies `OnNodeChanged()`. So it is
+the same in every window of the profile, and the store saves it with
+Pinned (`"collapsed": true` on a folder; absent means expanded, so older
+files load as before). A folder keeps it when it moves to another space,
+and a swipe's preview of another space shows that space's folders as
+they are.
+
+The page reads `Node.collapsed` (sent in the tree and in `NodeChanged`).
+Clicking a folder, or ← and → on it, flips the flag on the page's own node
+at once, so the motion starts on that frame, then calls
+`SetFolderCollapsed()`. The echo changes nothing there; other windows
+animate the change when their `NodeChanged` arrives.
+
+Per-window collapse state, which the slice c plan suggested, was dropped:
+windows of a profile show the same tree, and one state per folder is what
+Arc does.
+
+**Tests:** model (`FoldersCollapse`), serializer round trip
+(`RoundTripsFolderCollapseState`), handler (`CollapsesFolders`) and the
+browser test `FolderCollapseIsShared` (clicking collapses it in the model;
+a second window shows it collapsed; expanding in the model expands both
+pages).
 
 ## Motion
 

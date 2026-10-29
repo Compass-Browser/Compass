@@ -69,8 +69,7 @@ export function getHtml(this: StrataSidebarAppElement) {
           </div>` : nothing}
         ${repeat(this.getPinned_(), (node: Node) => node.id,
                  (node: Node) => html`
-          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
-              .collapsedIds="${this.collapsedIds_}">
+          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}">
           </strata-sidebar-node>`)}
       </div>
       <div class="divider" data-flip="divider"></div>
@@ -89,8 +88,7 @@ export function getHtml(this: StrataSidebarAppElement) {
       <div id="today" class="section" role="tablist">
         ${repeat(this.getToday_(), (node: Node) => node.id,
                  (node: Node) => html`
-          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
-              .collapsedIds="${this.collapsedIds_}">
+          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}">
           </strata-sidebar-node>`)}
       </div>
     </div>
@@ -101,8 +99,7 @@ export function getHtml(this: StrataSidebarAppElement) {
   ${repeat(this.previews_, (preview: Preview) => preview.space.id,
            (preview: Preview) => html`
     <strata-sidebar-preview side="${preview.side}" aria-hidden="true"
-        .space="${preview.space}" .tree="${preview.tree}"
-        .collapsedIds="${this.collapsedIds_}">
+        .space="${preview.space}" .tree="${preview.tree}">
     </strata-sidebar-preview>`)}
 </div>
 ${this.getMenuSpace_() ? html`

@@ -807,6 +807,57 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
   EXPECT_EQ(folder->children()[0]->title(), u"One");
 }
 
+// Waits until the sidebar page's first folder row says it's collapsed ($1)
+// or expanded, with its children hidden or shown to match.
+constexpr char kWaitForFolder[] = R"(
+  (async () => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const matches = () => {
+      const row = root.querySelector('.folder-row');
+      return row &&
+          row.getAttribute('aria-expanded') === String(!$1) &&
+          !root.querySelector('.folder-children') === $1;
+    };
+    while (!matches()) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return true;
+  })())";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FolderCollapseIsShared) {
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  SidebarNode* folder = model.AddFolder(model.pinned_root(), 0, u"Work");
+  model.AddTab(folder, 0, GURL("https://a.test/"), u"Inside");
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true, content::EvalJs(
+                      contents, content::JsReplace(kWaitForFolder, false)));
+
+  // Clicking the folder collapses it in the model, which saves it.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('.folder-row').click();)"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return folder->collapsed(); }));
+  EXPECT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kWaitForFolder, true)));
+
+  // Another window shows it collapsed too.
+  BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
+  content::WebContents* second_contents =
+      FindDescendant<StrataSidebarView>(
+          BrowserView::GetBrowserViewForBrowser(second))
+          ->GetWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(second_contents));
+  EXPECT_EQ(true, content::EvalJs(second_contents,
+                                  content::JsReplace(kWaitForFolder, true)));
+
+  // Expanding it anywhere expands it everywhere.
+  model.SetCollapsed(folder, false);
+  EXPECT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kWaitForFolder, false)));
+  EXPECT_EQ(true, content::EvalJs(second_contents,
+                                  content::JsReplace(kWaitForFolder, false)));
+}
+
 // Right-clicks the first element matching selector $1 in the sidebar page,
 // in its middle. Returns whether the page took the event (its own menu
 // doesn't show).

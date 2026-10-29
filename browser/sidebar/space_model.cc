@@ -242,6 +242,17 @@ void SpaceModel::SetUrl(SidebarNode* tab, const GURL& url) {
   }
 }
 
+void SpaceModel::SetCollapsed(SidebarNode* folder, bool collapsed) {
+  CHECK_EQ(folder->type(), Type::kFolder);
+  if (folder->collapsed_ == collapsed) {
+    return;
+  }
+  folder->collapsed_ = collapsed;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
 void SpaceModel::SetLastActive(SidebarNode* tab, base::Time time) {
   CHECK_EQ(tab->type(), Type::kTab);
   if (tab->last_active_ == time) {

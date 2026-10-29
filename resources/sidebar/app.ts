@@ -154,7 +154,6 @@ export class StrataSidebarAppElement extends CrLitElement {
       pinned_: {type: Object},
       today_: {type: Object},
       activeId_: {type: String},
-      collapsedIds_: {type: Object},
       spaces_: {type: Array},
       profiles_: {type: Array},
       activeSpaceId_: {type: String},
@@ -173,7 +172,6 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected accessor pinned_: Node|null = null;
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
-  protected accessor collapsedIds_: Set<string> = new Set();
   protected accessor spaces_: Space[] = [];
   // The profiles a space can be assigned to; none off the record.
   protected accessor profiles_: ProfileOption[] = [];
@@ -634,13 +632,16 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.toggleFolder_(e.detail);
   }
 
+  // Shown at once, then saved by the browser, which tells the other windows.
   private toggleFolder_(id: string) {
-    this.prepareFlip_();
-    const collapsed = new Set(this.collapsedIds_);
-    if (!collapsed.delete(id)) {
-      collapsed.add(id);
+    const node = this.nodes_.get(id);
+    if (!node || node.type !== NodeType.kFolder) {
+      return;
     }
-    this.collapsedIds_ = collapsed;
+    this.prepareFlip_();
+    node.collapsed = !node.collapsed;
+    this.requestUpdate();
+    this.browserProxy_.handler.setFolderCollapsed(id, node.collapsed);
   }
 
   // The rows the keyboard moves between, top to bottom: favorites' tiles,
@@ -772,7 +773,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       return;
     }
     const isFolder = node.type === NodeType.kFolder;
-    const collapsed = this.collapsedIds_.has(id);
+    const collapsed = node.collapsed;
     switch (e.key) {
       case 'ArrowDown':
         rows[Math.min(index + 1, rows.length - 1)]!.focus();
@@ -1801,13 +1802,19 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.requestUpdate();
   }
 
-  private onNodeChanged_(id: string, title: string, url: string) {
+  private onNodeChanged_(
+      id: string, title: string, url: string, collapsed: boolean) {
     const node = this.nodes_.get(id);
     if (!node) {
       return;
     }
+    if (node.collapsed !== collapsed) {
+      // Another window collapsed or expanded it.
+      this.prepareFlip_();
+    }
     node.title = title;
     node.url = url;
+    node.collapsed = collapsed;
     this.requestUpdate();
   }
 

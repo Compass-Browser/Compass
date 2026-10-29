@@ -24,6 +24,8 @@ struct Node {
   // Whether a tab node has a tab in this window. Pinned tab nodes can be
   // unloaded; Today's are always live.
   bool live;
+  // Whether a folder shows only its own row. The same in every window.
+  bool collapsed;
   array<Node> children;
 };
 
@@ -119,6 +121,8 @@ interface PageHandler {
   // Folders live in the pinned section; other parents are ignored.
   AddFolder(string parent_id, uint32 index, string title);
   RenameFolder(string id, string title);
+  // Collapses or expands a folder, in every window. Saved.
+  SetFolderCollapsed(string id, bool collapsed);
   // Removes a folder, a pinned entry or a favorite and its subtree, closing
   // live tabs.
   DeleteNode(string id);
@@ -184,7 +188,7 @@ interface Page {
   NodeAdded(string parent_id, uint32 index, Node node);
   // |index| is counted after the node left its old parent.
   NodeMoved(string id, string new_parent_id, uint32 index);
-  NodeChanged(string id, string title, url.mojom.Url url);
+  NodeChanged(string id, string title, url.mojom.Url url, bool collapsed);
   NodeRemoved(string id);
   NodeLiveChanged(string id, bool live);
   ActiveNodeChanged(string? id);

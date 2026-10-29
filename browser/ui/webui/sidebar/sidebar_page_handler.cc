@@ -293,6 +293,14 @@ void SidebarPageHandler::RenameFolder(const std::string& id,
   }
 }
 
+void SidebarPageHandler::SetFolderCollapsed(const std::string& id,
+                                            bool collapsed) {
+  SidebarNode* node = FindNode(id);
+  if (node && node->type() == SidebarNode::Type::kFolder) {
+    space_model().SetCollapsed(node, collapsed);
+  }
+}
+
 void SidebarPageHandler::DeleteNode(const std::string& id) {
   SidebarNode* node = FindNode(id);
   if (!node || node->type() == SidebarNode::Type::kRoot) {
@@ -624,7 +632,8 @@ void SidebarPageHandler::OnNodeMoved(const SidebarNode& node,
 
 void SidebarPageHandler::OnNodeChanged(const SidebarNode& node) {
   page_->NodeChanged(node.id().AsLowercaseString(),
-                     base::UTF16ToUTF8(node.title()), node.url());
+                     base::UTF16ToUTF8(node.title()), node.url(),
+                     node.collapsed());
 }
 
 void SidebarPageHandler::OnNodeWillBeRemoved(const SidebarNode& node) {
@@ -813,6 +822,7 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   result->url = node.url();
   // Live in any window: activating it here moves it here.
   result->live = registry.GetTab(&node) != nullptr;
+  result->collapsed = node.collapsed();
   for (const auto& child : node.children()) {
     result->children.push_back(ToMojo(*child, registry));
   }

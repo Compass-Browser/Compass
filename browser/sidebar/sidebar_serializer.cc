@@ -41,6 +41,7 @@ constexpr char kTitleKey[] = "title";
 constexpr char kUrlKey[] = "url";
 constexpr char kChildrenKey[] = "children";
 constexpr char kLastActiveKey[] = "last_active";
+constexpr char kCollapsedKey[] = "collapsed";
 constexpr char kArchiveAfterKey[] = "archive_after_hours";
 constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
@@ -75,6 +76,9 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       break;
     case SidebarNode::Type::kFolder:
       dict.Set(kTypeKey, kFolder);
+      if (node.collapsed()) {
+        dict.Set(kCollapsedKey, true);
+      }
       break;
     case SidebarNode::Type::kSplit:
       dict.Set(kTypeKey, kSplit);
@@ -151,6 +155,7 @@ bool DeserializeNode(const base::DictValue& dict,
       return false;
     }
     SidebarNode* folder = model.AddFolder(parent, index, std::move(title16));
+    model.SetCollapsed(folder, dict.FindBool(kCollapsedKey).value_or(false));
     if (children) {
       for (const base::Value& child : *children) {
         if (child.is_dict()) {

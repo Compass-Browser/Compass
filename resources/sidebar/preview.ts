@@ -20,6 +20,7 @@ const NEW_TAB: Node = {
   title: 'New tab',
   url: 'chrome://newtab/',
   live: true,
+  collapsed: false,
   children: [],
 };
 
@@ -44,13 +45,11 @@ export class StrataSidebarPreviewElement extends CrLitElement {
       space: {type: Object},
       // Null until it arrives: only the name shows.
       tree: {type: Object},
-      collapsedIds: {type: Object},
     };
   }
 
   accessor space: Space|null = null;
   accessor tree: Tree|null = null;
-  accessor collapsedIds: Set<string> = new Set();
 
   protected getName_(): string {
     return this.space?.name ?? '';

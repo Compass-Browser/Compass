@@ -41,6 +41,9 @@ class SidebarNode {
   // When a tab node was last shown in a window, or null if that's unknown
   // (see SpaceModel::ArchiveIdleEntries()). Unset for other nodes.
   base::Time last_active() const { return last_active_; }
+  // Whether a folder shows only its own row. Shared by every window, and
+  // saved. False for other nodes.
+  bool collapsed() const { return collapsed_; }
   SidebarNode* parent() const { return parent_.get(); }
   const std::vector<std::unique_ptr<SidebarNode>>& children() const {
     return children_;
@@ -63,6 +66,7 @@ class SidebarNode {
   std::u16string title_;
   GURL url_;
   base::Time last_active_;
+  bool collapsed_ = false;
   raw_ptr<SidebarNode> parent_ = nullptr;
   std::vector<std::unique_ptr<SidebarNode>> children_;
 };

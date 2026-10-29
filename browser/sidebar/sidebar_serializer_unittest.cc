@@ -69,6 +69,24 @@ TEST(SidebarSerializerTest, RoundTripsThePinnedTree) {
   EXPECT_TRUE(restored.today_root()->children().empty());
 }
 
+TEST(SidebarSerializerTest, RoundTripsFolderCollapseState) {
+  SpaceModel model;
+  SidebarNode* work = model.AddFolder(model.pinned_root(), 0, u"Work");
+  SidebarNode* docs = model.AddFolder(work, 0, u"Docs");
+  model.AddFolder(model.pinned_root(), 1, u"Play");
+  model.SetCollapsed(docs, true);
+  model.SetCollapsed(work, true);
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  ASSERT_EQ(Describe(restored.pinned_root()), "Work{Docs{}},Play{}");
+  const SidebarNode* restored_work = restored.pinned_root()->children()[0].get();
+  EXPECT_TRUE(restored_work->collapsed());
+  EXPECT_TRUE(restored_work->children()[0]->collapsed());
+  EXPECT_FALSE(restored.pinned_root()->children()[1]->collapsed());
+}
+
 TEST(SidebarSerializerTest, SavesTodayWithoutNewTabPages) {
   SpaceModel model;
   SidebarNode* today = model.today_root();

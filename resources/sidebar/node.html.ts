@@ -56,8 +56,7 @@ ${this.isFolder_() ? html`
     <div class="folder-children" role="group">
       ${repeat(this.getChildren_(), (child: Node) => child.id,
                (child: Node) => html`
-        <strata-sidebar-node .node="${child}" .activeId="${this.activeId}"
-            .collapsedIds="${this.collapsedIds}">
+        <strata-sidebar-node .node="${child}" .activeId="${this.activeId}">
         </strata-sidebar-node>`)}
     </div>` : nothing}` : nothing}
 <!--_html_template_end_-->`;

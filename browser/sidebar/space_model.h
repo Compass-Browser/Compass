@@ -180,6 +180,8 @@ class SpaceModel {
   void SetTitle(SidebarNode* node, std::u16string title);
   void SetUrl(SidebarNode* tab, const GURL& url);
   void SetLastActive(SidebarNode* tab, base::Time time);
+  // Observers see OnNodeChanged().
+  void SetCollapsed(SidebarNode* folder, bool collapsed);
 
   // Archived Today entries, most recent first.
   const std::vector<ArchivedEntry>& archive() const { return archive_; }

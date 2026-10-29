@@ -209,6 +209,24 @@ TEST_F(SpaceModelTest, FindsNodesById) {
   EXPECT_EQ(model_.FindById(base::Uuid::GenerateRandomV4()), nullptr);
 }
 
+TEST_F(SpaceModelTest, FoldersCollapse) {
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  SidebarNode* folder = model_.AddFolder(model_.pinned_root(), 0, u"Work");
+  EXPECT_FALSE(folder->collapsed());
+
+  model_.SetCollapsed(folder, true);
+  model_.SetCollapsed(folder, true);
+  EXPECT_TRUE(folder->collapsed());
+  model_.SetCollapsed(folder, false);
+  EXPECT_FALSE(folder->collapsed());
+
+  // Unchanged state isn't announced.
+  EXPECT_THAT(observer.events,
+              ElementsAre("added Work", "changed Work", "changed Work"));
+  model_.RemoveObserver(&observer);
+}
+
 TEST_F(SpaceModelTest, NotifiesObservers) {
   RecordingObserver observer;
   model_.AddObserver(&observer);

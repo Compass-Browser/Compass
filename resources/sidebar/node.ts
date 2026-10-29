@@ -36,15 +36,12 @@ export class StrataSidebarNodeElement extends CrLitElement {
       // re-renders its children.
       node: {type: Object, hasChanged: () => true},
       activeId: {type: String},
-      collapsedIds: {type: Object, hasChanged: () => true},
       editing_: {type: Boolean, state: true},
     };
   }
 
   accessor node: Node|null = null;
   accessor activeId: string|null = null;
-  // Folders the user collapsed. Owned by the app.
-  accessor collapsedIds: Set<string> = new Set();
   protected accessor editing_: boolean = false;
 
   protected isTab_(): boolean {
@@ -64,7 +61,7 @@ export class StrataSidebarNodeElement extends CrLitElement {
   }
 
   protected isCollapsed_(): boolean {
-    return !!this.node && this.collapsedIds.has(this.node.id);
+    return !!this.node?.collapsed;
   }
 
   protected getChildren_(): Node[] {
