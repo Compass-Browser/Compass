@@ -60,6 +60,7 @@
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view_class_properties.h"
@@ -301,16 +302,12 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
   const int width = layout.host_size.width();
   int bottom = layout.host_size.height();
 
-  // Expanded on hover (or held expanded for a bubble), the region is
-  // collapsed but as wide as expanded: lay out as expanded, as the page does.
-  if (state_controller_->IsCollapsed() &&
-      width < VerticalTabStripRegionView::kCollapseSnapWidth) {
+  if (IsLaidOutCollapsed(width)) {
     for (views::View* view : {static_cast<views::View*>(back_.get()),
                               static_cast<views::View*>(forward_.get()),
                               static_cast<views::View*>(reload_.get()),
                               static_cast<views::View*>(pill_.get()),
                               static_cast<views::View*>(site_info_.get()),
-                              static_cast<views::View*>(content_settings_.get()),
                               extensions_slot_.get(),
                               pinned_actions_slot_.get()}) {
       layout.child_layouts.emplace_back(view, false, gfx::Rect());
@@ -326,6 +323,20 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
     }
     layout.child_layouts.emplace_back(app_menu_slot_.get(), show_menu,
                                       bounds);
+    // The content setting icons stay as indicators, in a column under it
+    // (UpdateContentSettingsOrientation()).
+    const gfx::Size icons_size = content_settings_->GetPreferredSize();
+    const bool show_icons = icons_size.height() > 0;
+    gfx::Rect icons_bounds;
+    if (show_icons) {
+      icons_bounds =
+          gfx::Rect((width - icons_size.width()) / 2,
+                    layout.host_size.height() + kButtonGap, icons_size.width(),
+                    icons_size.height());
+      layout.host_size.set_height(icons_bounds.bottom() + kButtonGap);
+    }
+    layout.child_layouts.emplace_back(content_settings_.get(), show_icons,
+                                      icons_bounds);
     return layout;
   }
 
@@ -439,6 +450,11 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
   return layout;
 }
 
+void SidebarHeader::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+  VerticalTabStripTopContainer::OnBoundsChanged(previous_bounds);
+  UpdateContentSettingsOrientation();
+}
+
 bool SidebarHeader::IsPositionInWindowCaption(const gfx::Point& point) {
   for (views::View* view :
        {static_cast<views::View*>(back_), static_cast<views::View*>(forward_),
@@ -501,14 +517,45 @@ void SidebarHeader::UpdateContentSettingsIcons() {
 }
 
 bool SidebarHeader::FocusToolbarControls() {
-  if (!HoldsToolbarControls()) {
+  return HoldsToolbarControls() && SetPaneFocus(back_);
+}
+
+bool SidebarHeader::FocusAppMenu() {
+  if (!HoldsToolbarControls() || app_menu_slot_->children().empty()) {
     return false;
   }
+  return SetPaneFocus(app_menu_slot_->children().front());
+}
+
+bool SidebarHeader::IsLaidOutCollapsed(int width) const {
+  // Expanded on hover (or held expanded for a bubble), the region is
+  // collapsed but as wide as expanded: lay out as expanded, as the page does.
+  return state_controller_->IsCollapsed() &&
+         width < VerticalTabStripRegionView::kCollapseSnapWidth;
+}
+
+void SidebarHeader::UpdateContentSettingsOrientation() {
+  const bool collapsed = IsLaidOutCollapsed(width());
+  auto* layout =
+      static_cast<views::BoxLayout*>(content_settings_->GetLayoutManager());
+  const auto orientation = collapsed ? views::BoxLayout::Orientation::kVertical
+                                     : views::BoxLayout::Orientation::kHorizontal;
+  if (layout->GetOrientation() == orientation) {
+    return;
+  }
+  // Invalidates the layout, so the header is laid out again with the icons'
+  // new size.
+  layout->SetOrientation(orientation);
+  UpdatePillInsets();
+}
+
+bool SidebarHeader::SetPaneFocus(views::View* view) {
   // The region is the pane, as F6 finds it: Escape goes back to where focus
   // was, as from the toolbar.
-  for (views::View* view = parent(); view; view = view->parent()) {
-    if (auto* pane = views::AsViewClass<views::AccessiblePaneView>(view)) {
-      return pane->SetPaneFocus(back_);
+  for (views::View* ancestor = parent(); ancestor;
+       ancestor = ancestor->parent()) {
+    if (auto* pane = views::AsViewClass<views::AccessiblePaneView>(ancestor)) {
+      return pane->SetPaneFocus(view);
     }
   }
   return false;
@@ -806,6 +853,11 @@ GetPageInfoAnchorConfiguration(BrowserWindowInterface* browser) {
 bool FocusToolbarControls(BrowserWindowInterface* browser) {
   SidebarHeader* header = browser ? SidebarHeader::From(browser) : nullptr;
   return header && header->FocusToolbarControls();
+}
+
+bool FocusAppMenu(BrowserWindowInterface* browser) {
+  SidebarHeader* header = browser ? SidebarHeader::From(browser) : nullptr;
+  return header && header->FocusAppMenu();
 }
 
 void UpdateContentSettingsIcons(BrowserWindowInterface* browser) {

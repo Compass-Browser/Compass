@@ -54,7 +54,8 @@ namespace strata {
 // command bar, with a site info button at its left and the location bar's
 // content setting icons (blocked pop-ups, a quiet permission prompt, ...) at
 // its right. In vertical tab mode it also holds the toolbar's extensions,
-// pinned actions and app menu, and the toolbar is hidden. Collapsed, only the app menu shows, and a bubble that
+// pinned actions and app menu, and the toolbar is hidden. Collapsed, only the
+// app menu and the content setting icons show, and a bubble that
 // anchors to the extensions or pinned actions expands the sidebar until it
 // closes. See docs/design/command-bar.md, "Slice 2" and "Slice 3".
 class SidebarHeader : public VerticalTabStripTopContainer,
@@ -104,6 +105,9 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // Gives the sidebar pane focus, starting at the back button, as focusing
   // the toolbar does. False if it can't take focus.
   bool FocusToolbarControls();
+  // Gives the sidebar pane focus on the app menu button, as focusing the
+  // toolbar's app menu does. False if it can't take focus.
+  bool FocusAppMenu();
 
   BackForwardButton* back_button_for_testing() { return back_; }
   BackForwardButton* forward_button_for_testing() { return forward_; }
@@ -117,6 +121,7 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // VerticalTabStripTopContainer:
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   bool IsPositionInWindowCaption(const gfx::Point& point) override;
   void ViewHierarchyChanged(
       const views::ViewHierarchyChangedDetails& details) override;
@@ -170,6 +175,15 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // Keeps the sidebar expanded while a watched button is anchored: collapsed,
   // its slot is hidden and the bubble would point at nothing.
   void UpdateExpandLock();
+
+  // Whether the header lays out as collapsed at |width|: only the app menu
+  // and the content setting icons show, in a column.
+  bool IsLaidOutCollapsed(int width) const;
+  // Stacks the content setting icons in a column while laid out collapsed,
+  // and in a row in the pill otherwise.
+  void UpdateContentSettingsOrientation();
+  // Gives the region pane focus, starting at |view|.
+  bool SetPaneFocus(views::View* view);
 
   // Shows the active tab's URL in the pill, its security icon on the site
   // info button and its loading state on reload.
@@ -248,6 +262,10 @@ void UpdateContentSettingsIcons(BrowserWindowInterface* browser);
 // the window toolbar"): focuses the header if it holds the toolbar's
 // controls. False to let the toolbar take focus.
 bool FocusToolbarControls(BrowserWindowInterface* browser);
+// For ToolbarView::SetPaneFocusAndFocusAppMenu() (IDC_FOCUS_MENU_BAR: Alt+F,
+// F10; not on macOS): focuses the header's app menu if it holds the
+// toolbar's controls. False to let the toolbar take focus.
+bool FocusAppMenu(BrowserWindowInterface* browser);
 
 }  // namespace strata
 

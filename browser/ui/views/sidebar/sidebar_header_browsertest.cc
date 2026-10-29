@@ -602,6 +602,72 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, FocusToolbarFocusesTheHeader) {
       << focus_manager->GetFocusedView()->GetClassName();
 }
 
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       CollapsedShowsContentSettingIcons) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  WebAppContentSettingsContainer* icons =
+      header()->content_settings_for_testing();
+  views::View* app_menu = toolbar_controls()[2];
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  ASSERT_TRUE(content::ExecJs(
+      browser()->tab_strip_model()->GetActiveWebContents(),
+      "window.open('/title2.html')", content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return icons->IsDrawn(); }));
+
+  // A column under the app menu, inside the collapsed header.
+  Collapse(region, true);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return !header()->pill_for_testing()->GetVisible() && icons->IsDrawn() &&
+           icons->bounds().y() >= app_menu->parent()->bounds().bottom();
+  }));
+  EXPECT_TRUE(app_menu->IsDrawn());
+  EXPECT_GE(icons->x(), 0);
+  EXPECT_LE(icons->bounds().right(), header()->width());
+  ContentSettingImageView* icon = nullptr;
+  for (ContentSettingImageView* view : icons->get_content_setting_views()) {
+    if (view->IsDrawn()) {
+      icon = view;
+    }
+  }
+  ASSERT_TRUE(icon);
+  EXPECT_TRUE(header()->GetBoundsInScreen().Contains(icon->GetBoundsInScreen()));
+  // Its bubble still opens toward the page.
+  ASSERT_TRUE(icon->ShowBubbleImpl());
+  ASSERT_TRUE(icon->GetBubbleWidget());
+  EXPECT_TRUE(views::BubbleBorder::is_arrow_on_left(
+      icon->GetBubbleViewForTesting()->arrow()));
+  icon->GetBubbleWidget()->CloseNow();
+
+  // Back in the pill.
+  Collapse(region, false);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return header()->pill_for_testing()->GetVisible() && icons->IsDrawn();
+  }));
+  EXPECT_TRUE(header()->pill_for_testing()->GetBoundsInScreen().Contains(
+      icon->GetBoundsInScreen()));
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, FocusMenuBarFocusesTheAppMenu) {
+  views::FocusManager* focus_manager =
+      browser_view()->GetWidget()->GetFocusManager();
+  views::View* app_menu = toolbar_controls()[2];
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return app_menu->IsDrawn(); }));
+  views::View* page = browser_view_impl()->contents_web_view_for_testing();
+  page->RequestFocus();
+  ASSERT_EQ(focus_manager->GetFocusedView(), page);
+
+  // Alt+F, F10 (not on macOS) focus the app menu in the header; again gives
+  // focus back to the page (upstream's WebContents::RestoreFocus(), which
+  // may leave no focused view).
+  chrome::ExecuteCommand(browser(), IDC_FOCUS_MENU_BAR);
+  EXPECT_EQ(focus_manager->GetFocusedView(), app_menu);
+  EXPECT_TRUE(header()->Contains(app_menu));
+  chrome::ExecuteCommand(browser(), IDC_FOCUS_MENU_BAR);
+  EXPECT_FALSE(app_menu->HasFocus());
+}
+
 // Animated, as in the app: the extensions container animates its size.
 class SidebarHeaderAnimatedBrowserTest : public SidebarHeaderBrowserTest {
  protected:

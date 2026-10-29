@@ -305,6 +305,8 @@ header does on active tab changes. The pill's text makes room for the icons
 that show. Upstream's left-hand activity indicators (the permission
 dashboard) aren't used: as in web apps, camera and microphone show as icons
 here too. Clicking an icon opens its bubble, which opens toward the page.
+Collapsed, the pill is hidden but the icons stay, as indicators, in a column
+under the app menu (see Layout).
 
 ### Keyboard
 
@@ -314,7 +316,12 @@ hidden toolbar and lands in the header. Focusing the toolbar
 (`IDC_FOCUS_TOOLBAR`, macOS's "Move focus to the window toolbar") gives the
 region pane focus starting at the back button (patch:
 `ToolbarView::FocusToolbar()` asks `strata::FocusToolbarControls()` first).
-Escape returns focus to where it was.
+Escape returns focus to where it was. Focusing the app menu
+(`IDC_FOCUS_MENU_BAR`: Alt+F, F10; not on macOS) gives the region pane
+focus on the header's app menu button (patch:
+`ToolbarView::SetPaneFocusAndFocusAppMenu()` asks `strata::FocusAppMenu()`
+first), collapsed too; pressing it again returns focus to the page, as
+upstream does.
 
 ### Layout
 
@@ -322,7 +329,10 @@ Expanded: the pill row is `[pill][extensions][pinned actions][app menu]`.
 If that leaves the pill narrower than 120 DIPs, the extensions and pinned
 actions move to a row of their own under the pill, aligned right. Collapsed:
 only the app menu shows, centered in a row under upstream's layout, so the
-menu stays reachable; extensions and pinned actions are hidden.
+menu stays reachable, and under it the content setting icons that show, in
+a centered column (their container's `BoxLayout` turns vertical when the
+header's bounds say it lays out collapsed, which lays it out again);
+extensions and pinned actions are hidden.
 
 The extensions and pinned actions size themselves (an animating layout)
 to the space their parent reports as available, and drop icons that don't
@@ -351,7 +361,9 @@ Browser tests: the toolbar isn't visible and has no height; the three views
 are in the header and drawn; the app menu opens from there; switching to
 horizontal tabs puts them back in the toolbar and shows it, and switching
 back moves them again; site info opens page info anchored to its button;
-the collapsed header shows only the app menu; anchoring to a button in the
+the collapsed header shows only the app menu, plus the content setting
+icons in a column under it (back in the pill once expanded); `IDC_FOCUS_MENU_BAR`
+focuses the header's app menu; anchoring to a button in the
 extensions slot expands the collapsed sidebar, laid out as expanded, until
 the anchor goes; permission prompts anchor to site info (the app menu
 while collapsed); the toolbar's bubble anchors, page action anchors and a
@@ -372,10 +384,8 @@ it without stopping its animator, and the next frame fails
   after load).
 - The permission chip in the location bar never shows; prompts are
   bubbles under site info, and quiet prompts are icons in the pill.
-- Collapsed, the pill and its content setting icons are hidden, so a quiet
-  prompt or a blocked pop-up has no indicator until the sidebar expands.
-- `IDC_FOCUS_MENU_BAR` (Alt+F, F10; not on macOS) still tries the hidden
-  toolbar's app menu.
+- Collapsed with expand on hover, the sidebar expands as the pointer
+  reaches a content setting icon, so the icon is clicked in the pill.
 
 ## Slice 4: Favorites
 

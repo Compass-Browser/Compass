@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index f9bb38f92374559f70077dfcb24c2010d1b7efba..a6b35e948677fa8745b1031a677f28f5e7a1e2c9 100644
+index f9bb38f92374559f70077dfcb24c2010d1b7efba..efcefcebff7dc4b7c63db672fa8ad46a93770ad5 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,18 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..a6b35e948677fa8745b1031a677f28f5
  #include <algorithm>
  #include <memory>
  #include <utility>
-@@ -2000,6 +2002,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
+@@ -1267,6 +1269,10 @@ void ToolbarView::ResetTabState(WebContents* tab) {
+ }
+ 
+ void ToolbarView::SetPaneFocusAndFocusAppMenu() {
++  // Strata: the sidebar header holds the app menu while this is hidden.
++  if (strata::FocusAppMenu(browser_)) {
++    return;
++  }
+   AppMenuControl* app_menu_control = GetAppMenuControl();
+   if (app_menu_control) {
+     app_menu_control->Focus(GetAsAccessiblePaneView());
+@@ -2000,6 +2006,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
  }
  
  void ToolbarView::FocusToolbar() {
@@ -22,7 +33,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..a6b35e948677fa8745b1031a677f28f5
    SetPaneFocus(nullptr);
    if (toolbar_webview_) {
      toolbar_webview_->AdjustForToolbarFocus();
-@@ -2037,7 +2043,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
+@@ -2037,7 +2047,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
    if (anchor_not_drawn && browser_view_) {
      auto* top_container = browser_view_->top_container();
      CHECK(top_container);
@@ -31,7 +42,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..a6b35e948677fa8745b1031a677f28f5
    }
    return anchor;
  }
-@@ -2047,7 +2053,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
+@@ -2047,7 +2057,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
    page_actions::PageActionViewInterface* view =
        GetPageActionViewInterface(action_id);
    if (view) {
