@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index f9bb38f92374559f70077dfcb24c2010d1b7efba..65df81a402c915f4e421f56921d3a8f8c476ad3b 100644
+index f9bb38f92374559f70077dfcb24c2010d1b7efba..a6b35e948677fa8745b1031a677f28f5e7a1e2c9 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,18 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..65df81a402c915f4e421f56921d3a8f8
  #include <algorithm>
  #include <memory>
  #include <utility>
-@@ -2037,7 +2039,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
+@@ -2000,6 +2002,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
+ }
+ 
+ void ToolbarView::FocusToolbar() {
++  // Strata: the sidebar header holds the controls while this is hidden.
++  if (strata::FocusToolbarControls(browser_)) {
++    return;
++  }
+   SetPaneFocus(nullptr);
+   if (toolbar_webview_) {
+     toolbar_webview_->AdjustForToolbarFocus();
+@@ -2037,7 +2043,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
    if (anchor_not_drawn && browser_view_) {
      auto* top_container = browser_view_->top_container();
      CHECK(top_container);
@@ -20,7 +31,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..65df81a402c915f4e421f56921d3a8f8
    }
    return anchor;
  }
-@@ -2047,7 +2049,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
+@@ -2047,7 +2053,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
    page_actions::PageActionViewInterface* view =
        GetPageActionViewInterface(action_id);
    if (view) {

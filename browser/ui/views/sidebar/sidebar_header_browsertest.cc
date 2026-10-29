@@ -16,7 +16,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
@@ -24,6 +26,7 @@
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
@@ -34,6 +37,8 @@
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
+#include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_content_settings_container.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/prefs/pref_service.h"
@@ -60,6 +65,8 @@
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/focus/focus_manager.h"
+#include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
 namespace strata {
@@ -96,6 +103,21 @@ class TestLocationBarBubble : public LocationBarBubbleDelegateView {
  public:
   TestLocationBarBubble(views::View* anchor, content::WebContents* contents)
       : LocationBarBubbleDelegateView(anchor, contents) {}
+};
+
+// A bubble built without LocationBarBubbleDelegateView, as upstream's
+// extension popups, downloads bubble and others are, and its widget.
+struct TestBubble {
+  TestBubble(views::View* anchor, views::BubbleBorder::Arrow arrow)
+      : delegate(std::make_unique<views::BubbleDialogDelegate>(anchor, arrow)) {
+    delegate->SetContentsView(std::make_unique<views::View>());
+    // Bubbles go through ChromeViewsDelegate when their widget is created.
+    widget = views::BubbleDialogDelegate::CreateBubble(delegate.get());
+  }
+  ~TestBubble() { widget.reset(); }
+
+  std::unique_ptr<views::BubbleDialogDelegate> delegate;
+  std::unique_ptr<views::Widget> widget;
 };
 
 views::View* FindByElementId(views::View* root, ui::ElementIdentifier id) {
@@ -465,6 +487,119 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
   views::View* app_menu = browser_view()->GetViewByID(VIEW_ID_APP_MENU);
   EXPECT_EQ(GetToolbarBubbleAnchor(views::BubbleAnchor(app_menu)).GetIfView(),
             app_menu);
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       BubblesAnchoredInTheHeaderOpenTowardThePage) {
+  views::View* pill = header()->pill_for_testing();
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->IsDrawn(); }));
+
+  // Anchored in the hidden location bar: moves to the pill.
+  {
+    TestBubble bubble(browser_view_impl()->GetLocationBarView(),
+                      views::BubbleBorder::TOP_RIGHT);
+    EXPECT_EQ(bubble.delegate->GetAnchorView(), pill);
+    EXPECT_EQ(bubble.delegate->arrow(), views::BubbleBorder::TOP_LEFT);
+  }
+
+  // Anchored in the header (the app menu, an extension's button): stays, but
+  // opens toward the page.
+  views::View* app_menu = browser_view()->GetViewByID(VIEW_ID_APP_MENU);
+  {
+    TestBubble bubble(app_menu, views::BubbleBorder::TOP_RIGHT);
+    EXPECT_EQ(bubble.delegate->GetAnchorView(), app_menu);
+    EXPECT_EQ(bubble.delegate->arrow(), views::BubbleBorder::TOP_LEFT);
+  }
+  EXPECT_EQ(TestBubble(app_menu, views::BubbleBorder::TOP_CENTER)
+                .delegate->arrow(),
+            views::BubbleBorder::TOP_LEFT);
+  EXPECT_EQ(TestBubble(app_menu, views::BubbleBorder::RIGHT_TOP)
+                .delegate->arrow(),
+            views::BubbleBorder::LEFT_TOP);
+
+  // Anchored elsewhere: untouched.
+  views::View* contents = browser_view_impl()->contents_web_view_for_testing();
+  {
+    TestBubble bubble(contents, views::BubbleBorder::TOP_RIGHT);
+    EXPECT_EQ(bubble.delegate->GetAnchorView(), contents);
+    EXPECT_EQ(bubble.delegate->arrow(), views::BubbleBorder::TOP_RIGHT);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, ContentSettingIconsInThePill) {
+  views::LabelButton* pill = header()->pill_for_testing();
+  WebAppContentSettingsContainer* icons =
+      header()->content_settings_for_testing();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->IsDrawn(); }));
+  EXPECT_FALSE(icons->IsDrawn());
+  const int text_right = pill->GetInsets().right();
+
+  // A pop-up without a user gesture is blocked, and the location bar would
+  // show its icon.
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(contents, "window.open('/title2.html')",
+                              content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  ContentSettingImageView* icon = nullptr;
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    for (ContentSettingImageView* view : icons->get_content_setting_views()) {
+      if (view->IsDrawn()) {
+        icon = view;
+      }
+    }
+    return icon != nullptr;
+  }));
+  EXPECT_EQ(icon->GetType(), ContentSettingImageModel::ImageType::kPopups);
+  EXPECT_TRUE(pill->GetBoundsInScreen().Contains(icon->GetBoundsInScreen()));
+  // The pill's text makes room for it.
+  EXPECT_GT(pill->GetInsets().right(), text_right);
+  EXPECT_LE(pill->GetBoundsInScreen().right() - pill->GetInsets().right(),
+            icon->GetBoundsInScreen().x());
+
+  // Its bubble anchors to the icons (as upstream's do to their parent) and
+  // opens toward the page.
+  ASSERT_TRUE(icon->ShowBubbleImpl());
+  ASSERT_TRUE(icon->GetBubbleWidget());
+  EXPECT_EQ(icon->GetBubbleViewForTesting()->GetAnchorView(), icons);
+  EXPECT_TRUE(views::BubbleBorder::is_arrow_on_left(
+      icon->GetBubbleViewForTesting()->arrow()));
+  icon->GetBubbleWidget()->CloseNow();
+
+  // Gone with the tab's state.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title3.html")));
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return !icons->IsDrawn() && pill->GetInsets().right() == text_right;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, FocusToolbarFocusesTheHeader) {
+  views::FocusManager* focus_manager =
+      browser_view()->GetWidget()->GetFocusManager();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title2.html")));
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return header()->back_button_for_testing()->GetEnabled();
+  }));
+  browser_view_impl()->contents_web_view_for_testing()->RequestFocus();
+
+  // macOS's "Move focus to the window toolbar".
+  chrome::ExecuteCommand(browser(), IDC_FOCUS_TOOLBAR);
+  EXPECT_EQ(focus_manager->GetFocusedView(),
+            header()->back_button_for_testing());
+
+  // The next pane (F6) from the page lands in the header too: the hidden
+  // toolbar is skipped.
+  browser_view_impl()->contents_web_view_for_testing()->RequestFocus();
+  ASSERT_TRUE(focus_manager->RotatePaneFocus(
+      views::FocusManager::Direction::kForward,
+      views::FocusManager::FocusCycleWrapping::kEnabled));
+  EXPECT_TRUE(header()->Contains(focus_manager->GetFocusedView()))
+      << focus_manager->GetFocusedView()->GetClassName();
 }
 
 // Animated, as in the app: the extensions container animates its size.

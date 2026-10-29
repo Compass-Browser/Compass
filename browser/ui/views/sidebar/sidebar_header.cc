@@ -9,11 +9,13 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -32,6 +34,7 @@
 #include "chrome/browser/ui/views/toolbar/back_forward_button.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_content_settings_container.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/omnibox/browser/location_bar_model.h"
@@ -44,11 +47,15 @@
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/window_open_disposition_utils.h"
+#include "ui/color/color_provider.h"
 #include "ui/events/event.h"
+#include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessible_pane_view.h"
 #include "ui/views/background.h"
 #include "ui/views/bubble/bubble_border.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
@@ -56,7 +63,9 @@
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_delegate.h"
 #include "url/url_constants.h"
 
 namespace strata {
@@ -149,6 +158,38 @@ SidebarHeader* GetHeaderForToolbarAnchor(const views::BubbleAnchor& anchor) {
   return header->GetBubbleAnchorView() ? header : nullptr;
 }
 
+// The header of the window |view| is in, if it holds the toolbar controls
+// and contains |view|.
+SidebarHeader* GetHeaderContaining(const views::View* view) {
+  if (!view || !view->GetWidget()) {
+    return nullptr;
+  }
+  BrowserView* browser_view = BrowserView::GetBrowserViewForNativeWindow(
+      view->GetWidget()->GetNativeWindow());
+  SidebarHeader* header =
+      browser_view ? SidebarHeader::From(browser_view->browser()) : nullptr;
+  return header && header->HoldsToolbarControls() && header->Contains(view)
+             ? header
+             : nullptr;
+}
+
+// |arrow| with the bubble opening toward the window's trailing side, where
+// the page is: the arrow on the leading side.
+views::BubbleBorder::Arrow GetLeadingArrow(views::BubbleBorder::Arrow arrow) {
+  using views::BubbleBorder;
+  if (!BubbleBorder::has_arrow(arrow) || BubbleBorder::is_arrow_on_left(arrow)) {
+    return arrow;
+  }
+  switch (arrow) {
+    case BubbleBorder::TOP_CENTER:
+      return BubbleBorder::TOP_LEFT;
+    case BubbleBorder::BOTTOM_CENTER:
+      return BubbleBorder::BOTTOM_LEFT;
+    default:
+      return BubbleBorder::horizontal_mirror(arrow);
+  }
+}
+
 // The child layout of |view| in |layout|, or null.
 const views::ChildLayout* FindChildLayout(const views::ProposedLayout& layout,
                                           const views::View* view) {
@@ -201,6 +242,10 @@ SidebarHeader::SidebarHeader(
   site_info->SetProperty(views::kElementIdentifierKey,
                          kSiteInfoButtonElementId);
   site_info_ = AddChildView(std::move(site_info));
+  // Hidden until an icon shows: an empty container still lays out.
+  content_settings_ =
+      AddChildView(std::make_unique<WebAppContentSettingsContainer>(
+          browser_, this, this));
 
   extensions_slot_ = AddChildView(CreateSlot());
   pinned_actions_slot_ = AddChildView(CreateSlot());
@@ -265,6 +310,7 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
                               static_cast<views::View*>(reload_.get()),
                               static_cast<views::View*>(pill_.get()),
                               static_cast<views::View*>(site_info_.get()),
+                              static_cast<views::View*>(content_settings_.get()),
                               extensions_slot_.get(),
                               pinned_actions_slot_.get()}) {
       layout.child_layouts.emplace_back(view, false, gfx::Rect());
@@ -383,6 +429,12 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
       site_info_.get(), show_site_info_,
       gfx::Rect(kSiteInfoInset, pill_center_y - kSiteInfoSize / 2,
                 kSiteInfoSize, kSiteInfoSize));
+  const gfx::Size icons_size = content_settings_->GetPreferredSize();
+  layout.child_layouts.emplace_back(
+      content_settings_.get(), icons_size.width() > 0,
+      gfx::Rect(pill_bounds.right() - kSiteInfoInset - icons_size.width(),
+                pill_center_y - icons_size.height() / 2, icons_size.width(),
+                icons_size.height()));
   layout.host_size.set_height(content_bottom + kPillMargin);
   return layout;
 }
@@ -391,7 +443,8 @@ bool SidebarHeader::IsPositionInWindowCaption(const gfx::Point& point) {
   for (views::View* view :
        {static_cast<views::View*>(back_), static_cast<views::View*>(forward_),
         static_cast<views::View*>(reload_), static_cast<views::View*>(pill_),
-        static_cast<views::View*>(site_info_), extensions_slot_.get(),
+        static_cast<views::View*>(site_info_),
+        static_cast<views::View*>(content_settings_), extensions_slot_.get(),
         pinned_actions_slot_.get(), app_menu_slot_.get()}) {
     if (view->GetVisible() && view->bounds().Contains(point)) {
       return false;
@@ -440,6 +493,25 @@ SidebarHeader::GetPageInfoAnchorConfiguration() {
         views::BubbleBorder::TOP_LEFT};
   }
   return std::nullopt;
+}
+
+void SidebarHeader::UpdateContentSettingsIcons() {
+  content_settings_->UpdateContentSettingViewsVisibility();
+  UpdatePillInsets();
+}
+
+bool SidebarHeader::FocusToolbarControls() {
+  if (!HoldsToolbarControls()) {
+    return false;
+  }
+  // The region is the pane, as F6 finds it: Escape goes back to where focus
+  // was, as from the toolbar.
+  for (views::View* view = parent(); view; view = view->parent()) {
+    if (auto* pane = views::AsViewClass<views::AccessiblePaneView>(view)) {
+      return pane->SetPaneFocus(back_);
+    }
+  }
+  return false;
 }
 
 void SidebarHeader::WatchSlotButtons(const views::View* removed) {
@@ -525,6 +597,32 @@ void SidebarHeader::OnTabChangedAt(tabs::TabInterface* tab,
   }
 }
 
+SkColor SidebarHeader::GetIconLabelBubbleSurroundingForegroundColor() const {
+  return GetColorProvider() ? GetColorProvider()->GetColor(kColorOmniboxText)
+                            : gfx::kPlaceholderColor;
+}
+
+SkColor SidebarHeader::GetIconLabelBubbleBackgroundColor() const {
+  return GetColorProvider()
+             ? GetColorProvider()->GetColor(kColorLocationBarBackground)
+             : gfx::kPlaceholderColor;
+}
+
+bool SidebarHeader::ShouldHideContentSettingImage() {
+  // The location bar shows them while it has the toolbar's controls.
+  return !HoldsToolbarControls();
+}
+
+content::WebContents* SidebarHeader::GetContentSettingWebContents() {
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  return tab ? tab->GetContents() : nullptr;
+}
+
+ContentSettingBubbleModelDelegate*
+SidebarHeader::GetContentSettingBubbleModelDelegate() {
+  return BrowserContentSettingBubbleModelDelegate::From(browser_);
+}
+
 void SidebarHeader::SetToolbar(ToolbarView* toolbar) {
   if (!toolbar) {
     ReturnToolbarControls();
@@ -605,18 +703,26 @@ void SidebarHeader::UpdateForActiveTab() {
         site_info_, model->GetVectorIcon(), kSiteInfoIconSize,
         views::IconColors(color, color));
   }
-  // The border changes with |show_site_info_|, which lays the header out.
-  const int text_left = show_site_info_
-                            ? kSiteInfoInset + kSiteInfoSize + kSiteInfoInset
-                            : kPillHorizontalPadding;
-  if (!pill_->GetBorder() || pill_->GetInsets().left() != text_left) {
-    pill_->SetBorder(views::CreateEmptyBorder(
-        gfx::Insets::TLBR(0, text_left, 0, kPillHorizontalPadding)));
-  }
+  UpdateContentSettingsIcons();
   reload_->ChangeMode(contents && contents->IsLoading()
                           ? ReloadButton::Mode::kStop
                           : ReloadButton::Mode::kReload,
                       /*force=*/false);
+}
+
+void SidebarHeader::UpdatePillInsets() {
+  const int text_left = show_site_info_
+                            ? kSiteInfoInset + kSiteInfoSize + kSiteInfoInset
+                            : kPillHorizontalPadding;
+  const int icons_width = content_settings_->GetPreferredSize().width();
+  const int text_right = icons_width > 0
+                             ? kSiteInfoInset + icons_width + kSiteInfoInset
+                             : kPillHorizontalPadding;
+  // A new border lays the header out.
+  const gfx::Insets insets = gfx::Insets::TLBR(0, text_left, 0, text_right);
+  if (!pill_->GetBorder() || pill_->GetInsets() != insets) {
+    pill_->SetBorder(views::CreateEmptyBorder(insets));
+  }
 }
 
 void SidebarHeader::OnPillPressed() {
@@ -668,10 +774,44 @@ views::BubbleBorder::Arrow GetToolbarBubbleArrow(
                                            : arrow;
 }
 
+void AdjustBubbleForSidebar(views::WidgetDelegate* delegate) {
+  views::BubbleDialogDelegate* bubble =
+      delegate ? delegate->AsBubbleDialogDelegate() : nullptr;
+  if (!bubble || !bubble->GetAnchorView()) {
+    return;
+  }
+  const views::BubbleAnchor anchor(bubble->GetAnchorView());
+  if (GetHeaderForToolbarAnchor(anchor)) {
+    bubble->SetAnchorView(GetToolbarBubbleAnchor(anchor).GetIfView());
+  }
+  if (!GetHeaderContaining(bubble->GetAnchorView())) {
+    return;
+  }
+  // arrow() is mirrored in RTL, and SetArrow() mirrors it again.
+  const views::BubbleBorder::Arrow arrow =
+      base::i18n::IsRTL() ? views::BubbleBorder::horizontal_mirror(bubble->arrow())
+                          : bubble->arrow();
+  const views::BubbleBorder::Arrow leading = GetLeadingArrow(arrow);
+  if (leading != arrow) {
+    bubble->SetArrow(leading);
+  }
+}
+
 std::optional<bubble_anchor_util::AnchorConfiguration>
 GetPageInfoAnchorConfiguration(BrowserWindowInterface* browser) {
   SidebarHeader* header = browser ? SidebarHeader::From(browser) : nullptr;
   return header ? header->GetPageInfoAnchorConfiguration() : std::nullopt;
+}
+
+bool FocusToolbarControls(BrowserWindowInterface* browser) {
+  SidebarHeader* header = browser ? SidebarHeader::From(browser) : nullptr;
+  return header && header->FocusToolbarControls();
+}
+
+void UpdateContentSettingsIcons(BrowserWindowInterface* browser) {
+  if (SidebarHeader* header = browser ? SidebarHeader::From(browser) : nullptr) {
+    header->UpdateContentSettingsIcons();
+  }
 }
 
 bool ShouldHideToolbar(BrowserWindowInterface* browser) {

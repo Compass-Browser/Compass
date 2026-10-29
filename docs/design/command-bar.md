@@ -275,11 +275,46 @@ It's hidden on the new tab page, which has no page info.
   `LocationBarBubbleDelegateView` constructor, which most page action
   bubbles derive from. The constructor also takes the arrow from
   `strata::GetToolbarBubbleArrow()`: top left once it anchors to the pill,
-  since the pill is at the window's left. Bubbles built elsewhere keep
-  their own arrow (top right), and upstream flips it if the bubble would
-  leave the screen.
+  since the pill is at the window's left.
+- **Every other bubble** passes through `strata::AdjustBubbleForSidebar()`
+  when its widget is created (patch: `ChromeViewsDelegate::OnBeforeWidgetInit()`,
+  which sees every widget before its frame exists). A bubble still anchored
+  in the hidden toolbar, or to the top container, moves to the header's
+  bubble anchor as above. A bubble anchored anywhere in the header (the
+  pill, an extension's button, the downloads button, the app menu, a content
+  setting icon) gets its arrow on the leading side, so it opens toward the
+  page: right becomes left, and a top or bottom center arrow becomes left.
+  This covers bubbles that pick their own anchor and arrow (extension
+  popups, the downloads bubble, `ToolbarView::GetBubbleAnchor()` callers
+  that aren't `LocationBarBubbleDelegateView`s). Bubbles that change their
+  anchor after they show aren't seen again.
 - **Bubbles anchored to the extensions or pinned actions** (the downloads
   bubble, an extension's popup) while collapsed: see Layout.
+
+### Content setting icons
+
+The location bar's content setting icons (pop-ups or cookies blocked,
+camera in use, a quiet permission prompt for notifications from abusive
+sites, ...) show inside the pill at its right, in upstream's
+`WebAppContentSettingsContainer`: web app windows hide the location bar too
+and show these icons in their frame. The header is the icons' delegate (the
+active tab's contents, the browser's bubble model delegate) and hides them
+while it doesn't hold the toolbar's controls. `LocationBarView` updates them
+whenever it updates its own (patch: `RefreshContentSettingViews()`), and the
+header does on active tab changes. The pill's text makes room for the icons
+that show. Upstream's left-hand activity indicators (the permission
+dashboard) aren't used: as in web apps, camera and microphone show as icons
+here too. Clicking an icon opens its bubble, which opens toward the page.
+
+### Keyboard
+
+The header is inside the vertical tab strip region, which is an accessible
+pane: the next pane shortcut (F6, Cmd+Option+Down on macOS) skips the
+hidden toolbar and lands in the header. Focusing the toolbar
+(`IDC_FOCUS_TOOLBAR`, macOS's "Move focus to the window toolbar") gives the
+region pane focus starting at the back button (patch:
+`ToolbarView::FocusToolbar()` asks `strata::FocusToolbarControls()` first).
+Escape returns focus to where it was.
 
 ### Layout
 
@@ -336,14 +371,11 @@ it without stopping its animator, and the next frame fails
   `VisibleSecurityStateChanged()` alone (for example mixed content found
   after load).
 - The permission chip in the location bar never shows; prompts are
-  bubbles under site info. A quiet prompt (`PermissionPromptQuietIcon`, for
-  notifications from abusive sites) is an icon in the hidden location bar,
-  so it doesn't show at all, as in fullscreen.
-- Bubbles that anchor to the top container or a location bar icon but
-  aren't `LocationBarBubbleDelegateView`s keep their top right arrow, so
-  they reach left of the pill (off the window when the sidebar is narrow).
-- No way to focus the moved controls with the keyboard as a pane (F6 still
-  cycles to the hidden toolbar).
+  bubbles under site info, and quiet prompts are icons in the pill.
+- Collapsed, the pill and its content setting icons are hidden, so a quiet
+  prompt or a blocked pop-up has no indicator until the sidebar expands.
+- `IDC_FOCUS_MENU_BAR` (Alt+F, F10; not on macOS) still tries the hidden
+  toolbar's app menu.
 
 ## Slice 4: Favorites
 

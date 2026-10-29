@@ -52,6 +52,9 @@ nothing else.
 | `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | Constructs `strata::SidebarHeader` as its top container; `InitializeTabStrip()` adds the Strata sidebar in place of the native tab strip, which is never built; `GetTabData()` reads tab data from the tab; `strata::ActiveTabWatcher` reports active-tab changes; resize, collapse and hover-card lock paths no longer assume a native strip |
 | `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.h.patch` | Declares those overrides and the sidebar members |
 | `chrome-browser-ui-tabs-tab_strip_prefs.cc.patch` | Vertical tabs on by default; tab search and the Everything menu unpinned from the tab strip by default (the command bar covers them) |
+| `chrome-browser-ui-views-chrome_views_delegate.cc.patch` | `OnBeforeWidgetInit()` calls `strata::AdjustBubbleForSidebar()`: every bubble still anchored in the hidden toolbar moves to the sidebar header, and bubbles anchored in the header open toward the page |
+| `chrome-browser-ui-views-location_bar-location_bar_view.cc.patch` | `RefreshContentSettingViews()` also updates the header's content setting icons (`strata::UpdateContentSettingsIcons()`), as it does the web app frame's |
+| `chrome-browser-ui-views-toolbar-toolbar_view.cc.patch` | Bubble anchors in the hidden toolbar go to the header (`strata::GetToolbarBubbleAnchor()`); `FocusToolbar()` focuses the header instead (`strata::FocusToolbarControls()`) |
 | `chrome-browser-ui-views-tabs-vertical-vertical_tab_strip_top_container.h.patch` | Makes `IsPositionInWindowCaption()` virtual, so `strata::SidebarHeader`'s buttons don't drag the window |
 | `chrome-browser-ui-ui_features.cc.patch` | Hover card preview images on by default on macOS too (upstream turns them off there); the sidebar's hover cards show them |
 | `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Strata's WebUI configs |

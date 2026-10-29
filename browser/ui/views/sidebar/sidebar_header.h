@@ -13,8 +13,10 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/command_observer.h"
+#include "chrome/browser/ui/content_settings/content_setting_image_view_delegate.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
+#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -26,6 +28,7 @@ class BrowserWindowInterface;
 class ExpandOnHoverLock;
 class ReloadButton;
 class ToolbarView;
+class WebAppContentSettingsContainer;
 
 namespace actions {
 class ActionItem;
@@ -40,6 +43,7 @@ class BubbleAnchor;
 class Button;
 class ImageButton;
 class LabelButton;
+class WidgetDelegate;
 }  // namespace views
 
 namespace strata {
@@ -47,14 +51,17 @@ namespace strata {
 // The vertical tab strip region's top: upstream's row (traffic lights,
 // collapse button, combo button) plus back, forward and reload at the row's
 // right end and, under it, a pill with the active tab's host that opens the
-// command bar, with a site info button at its left. In vertical tab mode it
-// also holds the toolbar's extensions, pinned actions and app menu, and the
-// toolbar is hidden. Collapsed, only the app menu shows, and a bubble that
+// command bar, with a site info button at its left and the location bar's
+// content setting icons (blocked pop-ups, a quiet permission prompt, ...) at
+// its right. In vertical tab mode it also holds the toolbar's extensions,
+// pinned actions and app menu, and the toolbar is hidden. Collapsed, only the app menu shows, and a bubble that
 // anchors to the extensions or pinned actions expands the sidebar until it
 // closes. See docs/design/command-bar.md, "Slice 2" and "Slice 3".
 class SidebarHeader : public VerticalTabStripTopContainer,
                       public CommandObserver,
-                      public TabStripModelObserver {
+                      public TabStripModelObserver,
+                      public IconLabelBubbleView::Delegate,
+                      public ContentSettingImageViewDelegate {
   METADATA_HEADER(SidebarHeader, VerticalTabStripTopContainer)
 
  public:
@@ -90,11 +97,22 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   std::optional<bubble_anchor_util::AnchorConfiguration>
   GetPageInfoAnchorConfiguration();
 
+  // Updates the content setting icons from the active tab, as the location
+  // bar updates its own.
+  void UpdateContentSettingsIcons();
+
+  // Gives the sidebar pane focus, starting at the back button, as focusing
+  // the toolbar does. False if it can't take focus.
+  bool FocusToolbarControls();
+
   BackForwardButton* back_button_for_testing() { return back_; }
   BackForwardButton* forward_button_for_testing() { return forward_; }
   ReloadButton* reload_button_for_testing() { return reload_; }
   views::LabelButton* pill_for_testing() { return pill_; }
   views::ImageButton* site_info_button_for_testing() { return site_info_; }
+  WebAppContentSettingsContainer* content_settings_for_testing() {
+    return content_settings_;
+  }
 
   // VerticalTabStripTopContainer:
   views::ProposedLayout CalculateProposedLayout(
@@ -113,6 +131,16 @@ class SidebarHeader : public VerticalTabStripTopContainer,
       const TabStripSelectionChange& selection) override;
   void OnTabChangedAt(tabs::TabInterface* tab,
                       TabChangeType change_type) override;
+
+  // IconLabelBubbleView::Delegate:
+  SkColor GetIconLabelBubbleSurroundingForegroundColor() const override;
+  SkColor GetIconLabelBubbleBackgroundColor() const override;
+
+  // ContentSettingImageViewDelegate:
+  bool ShouldHideContentSettingImage() override;
+  content::WebContents* GetContentSettingWebContents() override;
+  ContentSettingBubbleModelDelegate* GetContentSettingBubbleModelDelegate()
+      override;
 
  private:
   // A toolbar view held here, and where it was in the toolbar.
@@ -146,6 +174,9 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // Shows the active tab's URL in the pill, its security icon on the site
   // info button and its loading state on reload.
   void UpdateForActiveTab();
+  // Makes room in the pill for the site info button and the content setting
+  // icons that show.
+  void UpdatePillInsets();
   void OnPillPressed();
   void OnSiteInfoPressed();
 
@@ -159,6 +190,8 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   raw_ptr<ReloadButton> reload_ = nullptr;
   raw_ptr<views::LabelButton> pill_ = nullptr;
   raw_ptr<views::ImageButton> site_info_ = nullptr;
+  // Inside the pill, at its right.
+  raw_ptr<WebAppContentSettingsContainer> content_settings_ = nullptr;
   // Whether the active tab has page info to show.
   bool show_site_info_ = false;
   // Hold the toolbar's views while they are here. The layout shows and hides
@@ -198,10 +231,23 @@ views::BubbleAnchor GetToolbarBubbleAnchor(const views::BubbleAnchor& anchor);
 views::BubbleBorder::Arrow GetToolbarBubbleArrow(
     const views::BubbleAnchor& anchor,
     views::BubbleBorder::Arrow arrow);
+// For ChromeViewsDelegate::OnBeforeWidgetInit(), so it covers every bubble,
+// however it picked its anchor: a bubble still anchored in a toolbar the
+// header has hidden (or its top container) moves to the header's bubble
+// anchor, and one anchored in the header opens toward the page, with its
+// arrow on the leading side. No-op for other widgets.
+void AdjustBubbleForSidebar(views::WidgetDelegate* delegate);
 // For bubble_anchor_util::GetPageInfoAnchorConfiguration(): see
 // SidebarHeader::GetPageInfoAnchorConfiguration().
 std::optional<bubble_anchor_util::AnchorConfiguration>
 GetPageInfoAnchorConfiguration(BrowserWindowInterface* browser);
+// For LocationBarView::RefreshContentSettingViews(): see
+// SidebarHeader::UpdateContentSettingsIcons().
+void UpdateContentSettingsIcons(BrowserWindowInterface* browser);
+// For ToolbarView::FocusToolbar() (IDC_FOCUS_TOOLBAR, macOS's "Move focus to
+// the window toolbar"): focuses the header if it holds the toolbar's
+// controls. False to let the toolbar take focus.
+bool FocusToolbarControls(BrowserWindowInterface* browser);
 
 }  // namespace strata
 
