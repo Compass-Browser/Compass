@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "base/functional/bind.h"
+#include "base/numerics/safe_conversions.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -13,6 +15,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+#include "chrome/browser/ui/views/frame/themed_background.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -82,12 +85,12 @@ SidebarTint::SidebarTint(BrowserWindowInterface* browser)
 SidebarTint::~SidebarTint() = default;
 
 // static
-SidebarTint* SidebarTint::Install(views::View* region,
+SidebarTint* SidebarTint::Install(views::View* host,
                                   BrowserWindowInterface* browser) {
-  auto* tint = region->AddChildViewAt(std::make_unique<SidebarTint>(browser),
-                                      0);
-  tint->region_observation_.Observe(region);
-  tint->SetBoundsRect(region->GetLocalBounds());
+  auto* tint =
+      host->AddChildViewAt(std::make_unique<SidebarTint>(browser), 0);
+  tint->region_observation_.Observe(host);
+  tint->SetBoundsRect(host->GetLocalBounds());
   return tint;
 }
 
@@ -96,18 +99,33 @@ std::optional<SkColor> SidebarTint::GetTintForTesting() const {
 }
 
 void SidebarTint::OnPaint(gfx::Canvas* canvas) {
+  // In the host's coordinates, which are ours: the region's background has
+  // custom corners. The browser view has no background, so for the window
+  // frame the tint first paints the frame color the region's background
+  // paints, rather than leave the frame view's, which differs.
+  const views::Background* background = parent()->background();
+  const auto* corners =
+      background ? background->AsA<CustomCornersBackground>() : nullptr;
+  if (!corners) {
+    if (BrowserView* browser_view =
+            BrowserView::GetBrowserViewForBrowser(browser_)) {
+      ThemedBackground::PaintBackground(canvas, this, browser_view,
+                                        ThemedBackground::kFrameTheme);
+    }
+  }
   if (!SkColorGetA(color_)) {
     return;
   }
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
   flags.setColor(color_);
-  // In the region's coordinates, which are ours: the region's background
-  // has custom corners.
-  const views::Background* background = parent()->background();
-  const auto* corners =
-      background ? background->AsA<CustomCornersBackground>() : nullptr;
   if (corners) {
+    // As opaque as the region's background: where it lets the frame show
+    // through (the glass frame), the frame's tint shows too, and a second
+    // one would double it.
+    flags.setColor(SkColorSetA(
+        color_, base::ClampRound(SkColorGetA(color_) *
+                                 corners->primary_color().opacity)));
     canvas->DrawPath(corners->GetBackgroundPath(), flags);
   } else {
     canvas->DrawRect(gfx::RectF(GetLocalBounds()), flags);
@@ -116,6 +134,10 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
 
 void SidebarTint::AddedToWidget() {
   UpdateWindowTheme();
+  // The frame color follows the window's activation.
+  paint_as_active_subscription_ =
+      GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
+          &SidebarTint::SchedulePaint, base::Unretained(this)));
 }
 
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {

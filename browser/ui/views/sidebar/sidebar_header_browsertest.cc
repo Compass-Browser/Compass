@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
+#include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
@@ -288,14 +289,15 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, CollapsingHidesTheHeader) {
   views::View* pill = header()->pill_for_testing();
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->GetVisible(); }));
 
+  // Collapsed, the region hides the whole header.
   Collapse(region, true);
   EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return !pill->GetVisible() &&
-           !header()->back_button_for_testing()->GetVisible();
+    return !header()->GetVisible() &&
+           !header()->back_button_for_testing()->IsDrawn();
   }));
 
   Collapse(region, false);
-  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->GetVisible(); }));
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->IsDrawn(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, HoldsTheToolbarControls) {
@@ -380,18 +382,19 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, SiteInfoOpensPageInfo) {
             site_info);
 }
 
-IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, CollapsedShowsOnlyTheAppMenu) {
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, CollapsedDrawsNoControls) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
   const std::vector<views::View*> controls = toolbar_controls();
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return controls[2]->IsDrawn(); }));
 
+  // Collapsed, the sidebar is only the window frame's edge.
   Collapse(region, true);
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), 
-      [&] { return !header()->pill_for_testing()->GetVisible(); }));
-  EXPECT_TRUE(controls[2]->IsDrawn());
-  EXPECT_FALSE(controls[0]->IsDrawn());
-  EXPECT_FALSE(controls[1]->IsDrawn());
+      [&] { return !header()->GetVisible(); }));
+  for (views::View* view : controls) {
+    EXPECT_FALSE(view->IsDrawn()) << view->GetClassName();
+  }
   EXPECT_FALSE(header()->site_info_button_for_testing()->IsDrawn());
   // Still hidden, and its controls still here.
   EXPECT_FALSE(browser_view_impl()->IsToolbarVisible());
@@ -420,7 +423,7 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
   ASSERT_TRUE(button);
   Collapse(region, true);
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return !header()->pill_for_testing()->GetVisible();
+    return !header()->GetVisible();
   }));
   ASSERT_FALSE(region->is_expanded_on_hover());
 
@@ -437,8 +440,23 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
   highlight.reset();
   EXPECT_FALSE(region->is_expanded_on_hover());
   EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return !header()->pill_for_testing()->GetVisible();
+    return !header()->GetVisible();
   }));
+
+  // So does a bubble that upstream anchors to the hidden toolbar, which goes
+  // to the pill.
+  views::View* anchor =
+      GetToolbarBubbleAnchor(
+          views::BubbleAnchor(browser_view_impl()->top_container()))
+          .GetIfView();
+  ASSERT_EQ(anchor, header()->pill_for_testing());
+  highlight.emplace(header()->pill_for_testing()->AddAnchorHighlight());
+  EXPECT_TRUE(region->is_expanded_on_hover());
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return header()->pill_for_testing()->IsDrawn();
+  }));
+  highlight.reset();
+  EXPECT_FALSE(region->is_expanded_on_hover());
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
@@ -457,12 +475,12 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
             SidebarHeader::kSiteInfoButtonElementId);
   EXPECT_EQ(config.bubble_arrow, views::BubbleBorder::TOP_LEFT);
 
-  // Collapsed, upstream's fallback: the app menu, which stays drawn.
+  // Collapsed, nothing of the header is drawn: upstream's fallback, a
+  // corner of the page, as in fullscreen.
   Collapse(region, true);
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return !site_info->IsDrawn(); }));
   config = bubble_anchor_util::GetPageInfoAnchorConfiguration(browser());
-  EXPECT_EQ(config.anchor.GetIfView(),
-            browser_view()->GetViewByID(VIEW_ID_APP_MENU));
+  EXPECT_TRUE(config.anchor.IsNull());
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
@@ -603,12 +621,11 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, FocusToolbarFocusesTheHeader) {
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
-                       CollapsedShowsContentSettingIcons) {
+                       CollapsedHidesContentSettingIcons) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
   WebAppContentSettingsContainer* icons =
       header()->content_settings_for_testing();
-  views::View* app_menu = toolbar_controls()[2];
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
   ASSERT_TRUE(content::ExecJs(
@@ -616,15 +633,6 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
       "window.open('/title2.html')", content::EXECUTE_SCRIPT_NO_USER_GESTURE));
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return icons->IsDrawn(); }));
 
-  // A column under the app menu, inside the collapsed header.
-  Collapse(region, true);
-  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return !header()->pill_for_testing()->GetVisible() && icons->IsDrawn() &&
-           icons->bounds().y() >= app_menu->parent()->bounds().bottom();
-  }));
-  EXPECT_TRUE(app_menu->IsDrawn());
-  EXPECT_GE(icons->x(), 0);
-  EXPECT_LE(icons->bounds().right(), header()->width());
   ContentSettingImageView* icon = nullptr;
   for (ContentSettingImageView* view : icons->get_content_setting_views()) {
     if (view->IsDrawn()) {
@@ -632,13 +640,10 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
     }
   }
   ASSERT_TRUE(icon);
-  EXPECT_TRUE(header()->GetBoundsInScreen().Contains(icon->GetBoundsInScreen()));
-  // Its bubble still opens toward the page.
-  ASSERT_TRUE(icon->ShowBubbleImpl());
-  ASSERT_TRUE(icon->GetBubbleWidget());
-  EXPECT_TRUE(views::BubbleBorder::is_arrow_on_left(
-      icon->GetBubbleViewForTesting()->arrow()));
-  icon->GetBubbleWidget()->CloseNow();
+
+  // Collapsed, the sidebar is only the window frame's edge.
+  Collapse(region, true);
+  EXPECT_TRUE(RunUntilLaidOut(browser_view(), [&] { return !icons->IsDrawn(); }));
 
   // Back in the pill.
   Collapse(region, false);

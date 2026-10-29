@@ -90,7 +90,7 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   bool HoldsToolbarControls() const { return !moved_views_.empty(); }
 
   // Where bubbles go that upstream anchors to the hidden toolbar: the pill,
-  // or the app menu while the sidebar is collapsed. Null if neither is drawn.
+  // also while the sidebar is collapsed (see UpdateExpandLock()).
   views::View* GetBubbleAnchorView();
   // Where bubbles go that upstream aligns with the location bar's page info
   // icon (permission prompts): the site info button, else the pill. Nullopt
@@ -168,12 +168,12 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   void ReturnToolbarControls();
   void OnModeChanged(tabs::VerticalTabStripStateController* controller);
 
-  // Watches the buttons under the extensions and pinned actions slots, minus
-  // those under |removed| (a subtree about to leave them).
-  void WatchSlotButtons(const views::View* removed);
+  // Watches the header's buttons, minus those under |removed| (a subtree
+  // about to leave it).
+  void WatchButtons(const views::View* removed);
   void OnAnchorCountChanged(WatchedButton* watched, size_t count);
   // Keeps the sidebar expanded while a watched button is anchored: collapsed,
-  // its slot is hidden and the bubble would point at nothing.
+  // the header isn't drawn and the bubble would point at nothing.
   void UpdateExpandLock();
 
   // Whether the header lays out as collapsed at |width|: only the app menu

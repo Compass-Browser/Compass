@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "strata/browser/sidebar/space_list.h"
+#include "strata/browser/ui/views/frame/window_frame.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/sidebar_swap.h"
@@ -166,8 +167,14 @@ void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
     region = region->parent();
   }
   CHECK(region);
-  SidebarTint::Install(region,
-                       views::AsViewClass<StrataSidebarView>(sidebar)->browser());
+  BrowserWindowInterface* browser =
+      views::AsViewClass<StrataSidebarView>(sidebar)->browser();
+  // The region adds the sidebar again when vertical tabs come back.
+  if (!WindowFrame::FromRegion(region)) {
+    SidebarTint::Install(region, browser);
+  }
+  // The frame around the page, the same color.
+  WindowFrame::Install(region, browser);
 }
 
 ActiveTabWatcher::ActiveTabWatcher(BrowserWindowInterface* browser,

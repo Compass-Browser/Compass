@@ -178,8 +178,8 @@ to views.
 
 ### Layout
 
-When the region is collapsed the header adds nothing and upstream's layout
-stands. Expanded:
+When the region is collapsed it hides the header with the rest of the
+sidebar (window-frame.md). Expanded:
 
 - The nav buttons sit at the right end of the top row, centered on the
   collapse button's center, to the left of the combo button if that has
@@ -260,8 +260,9 @@ It's hidden on the new tab page, which has no page info.
 - **Permission prompts** use `GetPageInfoAnchorConfiguration()`, which asks
   `strata::GetPageInfoAnchorConfiguration()` first (patch): the site info
   button with an arrow at the top left, where Chrome's permission chip
-  would be, or the pill on pages without site info. Collapsed, neither is
-  drawn and upstream falls back to the app menu. The chip itself lives in
+  would be, or the pill on pages without site info. Collapsed, nothing of
+  the header is drawn and upstream falls back to a corner of the page, as
+  in fullscreen. The chip itself lives in
   the hidden location bar and never shows; upstream then uses bubbles, as
   in fullscreen.
 - **Page action bubbles** (bookmark star, passwords, translate, zoom,
@@ -269,8 +270,8 @@ It's hidden on the new tab page, which has no page info.
   the top container when `ToolbarView::GetBubbleAnchor()` finds the
   location bar not drawn: the top right of the page. Three patches pass
   those anchors through `strata::GetToolbarBubbleAnchor()`, which swaps an
-  anchor inside the hidden toolbar (or the top container) for the pill, or
-  the app menu while collapsed: `ToolbarView::GetBubbleAnchor()`,
+  anchor inside the hidden toolbar (or the top container) for the pill,
+  collapsed too (see Layout): `ToolbarView::GetBubbleAnchor()`,
   `ToolbarView::GetPageActionBubbleAnchor()` and the
   `LocationBarBubbleDelegateView` constructor, which most page action
   bubbles derive from. The constructor also takes the arrow from
@@ -288,8 +289,7 @@ It's hidden on the new tab page, which has no page info.
   popups, the downloads bubble, `ToolbarView::GetBubbleAnchor()` callers
   that aren't `LocationBarBubbleDelegateView`s). Bubbles that change their
   anchor after they show aren't seen again.
-- **Bubbles anchored to the extensions or pinned actions** (the downloads
-  bubble, an extension's popup) while collapsed: see Layout.
+- **Bubbles anchored anywhere in the header** while collapsed: see Layout.
 
 ### Content setting icons
 
@@ -305,8 +305,7 @@ header does on active tab changes. The pill's text makes room for the icons
 that show. Upstream's left-hand activity indicators (the permission
 dashboard) aren't used: as in web apps, camera and microphone show as icons
 here too. Clicking an icon opens its bubble, which opens toward the page.
-Collapsed, the pill is hidden but the icons stay, as indicators, in a column
-under the app menu (see Layout).
+Collapsed, they hide with the header (window-frame.md).
 
 ### Keyboard
 
@@ -320,19 +319,20 @@ Escape returns focus to where it was. Focusing the app menu
 (`IDC_FOCUS_MENU_BAR`: Alt+F, F10; not on macOS) gives the region pane
 focus on the header's app menu button (patch:
 `ToolbarView::SetPaneFocusAndFocusAppMenu()` asks `strata::FocusAppMenu()`
-first), collapsed too; pressing it again returns focus to the page, as
-upstream does.
+first); pressing it again returns focus to the page, as upstream does.
+Collapsed, the header isn't drawn, so neither works (window-frame.md).
 
 ### Layout
 
 Expanded: the pill row is `[pill][extensions][pinned actions][app menu]`.
 If that leaves the pill narrower than 120 DIPs, the extensions and pinned
-actions move to a row of their own under the pill, aligned right. Collapsed:
-only the app menu shows, centered in a row under upstream's layout, so the
-menu stays reachable, and under it the content setting icons that show, in
-a centered column (their container's `BoxLayout` turns vertical when the
-header's bounds say it lays out collapsed, which lays it out again);
-extensions and pinned actions are hidden.
+actions move to a row of their own under the pill, aligned right.
+Collapsed, the region hides the header (window-frame.md); while it narrows
+toward that, below `kCollapseSnapWidth`, the header lays out collapsed:
+only the app menu, centered in a row under upstream's layout, and under it
+the content setting icons that show, in a centered column (their
+container's `BoxLayout` turns vertical when the header's bounds say it lays
+out collapsed, which lays it out again).
 
 The extensions and pinned actions size themselves (an animating layout)
 to the space their parent reports as available, and drop icons that don't
@@ -347,10 +347,10 @@ so the header lays out as expanded below upstream's collapsed row, as the
 page does (the switch is at `kCollapseSnapWidth`, as upstream's).
 
 A bubble that anchors to a hidden button would point at nothing, so while
-collapsed the header expands the sidebar for it. It watches the buttons
-under the extensions and pinned actions slots
-(`Button::AddAnchorCountChangedCallback()`, rescanned when views come and
-go under the slots): while any of them has an anchored bubble or menu, it
+collapsed the header expands the sidebar for it. It watches every button
+in the header (`Button::AddAnchorCountChangedCallback()`, rescanned when
+views come and go under it; bubbles highlight their anchor button while
+shown): while any of them has an anchored bubble or menu, it
 holds a `kKeepExpanded` lock on the region, which expands it on hover
 whatever the setting. The bubble follows its anchor as the sidebar
 expands, and the sidebar collapses again when it closes.
@@ -361,12 +361,12 @@ Browser tests: the toolbar isn't visible and has no height; the three views
 are in the header and drawn; the app menu opens from there; switching to
 horizontal tabs puts them back in the toolbar and shows it, and switching
 back moves them again; site info opens page info anchored to its button;
-the collapsed header shows only the app menu, plus the content setting
-icons in a column under it (back in the pill once expanded); `IDC_FOCUS_MENU_BAR`
-focuses the header's app menu; anchoring to a button in the
-extensions slot expands the collapsed sidebar, laid out as expanded, until
-the anchor goes; permission prompts anchor to site info (the app menu
-while collapsed); the toolbar's bubble anchors, page action anchors and a
+collapsed, none of the header's controls or content setting icons are
+drawn (back in the pill once expanded); `IDC_FOCUS_MENU_BAR` focuses the
+header's app menu; anchoring to a button in the extensions slot, or to the
+pill, expands the collapsed sidebar, laid out as expanded, until the anchor
+goes; permission prompts anchor to site info (upstream's corner of the
+page while collapsed); the toolbar's bubble anchors, page action anchors and a
 `LocationBarBubbleDelegateView` anchored in the location bar end up on the
 pill, the latter with a top left arrow; an extension pinned before the
 window opens shows its icon (a `PRE_` test installs it, with animations on).
@@ -384,8 +384,6 @@ it without stopping its animator, and the next frame fails
   after load).
 - The permission chip in the location bar never shows; prompts are
   bubbles under site info, and quiet prompts are icons in the pill.
-- Collapsed with expand on hover, the sidebar expands as the pointer
-  reaches a content setting icon, so the icon is clicked in the pill.
 
 ## Slice 4: Favorites
 

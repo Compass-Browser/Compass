@@ -79,7 +79,8 @@ std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser);
 
 // Lays out |sidebar| once the region has added it: it takes the free space,
 // and |bottom_container| (upstream's New Tab button) is hidden. Tints the
-// whole region with the window's space color (SidebarTint).
+// whole region with the window's space color (SidebarTint) and gives the
+// window its frame (WindowFrame).
 void InstallSidebar(views::View* sidebar, views::View* bottom_container);
 
 // Reports |browser|'s active tab, as the native strip's node tree did for the

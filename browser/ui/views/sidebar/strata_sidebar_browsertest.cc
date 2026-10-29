@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
 #include "chrome/browser/ui/views/tabs/hovercard/fade_label_view.h"
@@ -38,6 +39,8 @@
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "strata/browser/ui/views/frame/content_frame.h"
+#include "strata/browser/ui/views/frame/window_frame.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
@@ -48,6 +51,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/base_window.h"
+#include "ui/base/hit_test.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
@@ -57,10 +61,12 @@
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/window/non_client_view.h"
 #include "url/gurl.h"
 
 namespace strata {
@@ -292,9 +298,86 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
     widget->LayoutRootViewIfNecessary();
     return region->width() < resized_width;
   }));
-  EXPECT_TRUE(sidebar()->GetVisible());
+  // Only the window frame's edge.
+  EXPECT_EQ(region->width(), kCollapsedSidebarWidth);
+  EXPECT_FALSE(sidebar()->IsDrawn());
   EXPECT_FALSE(
       FindDescendant<VerticalTabStripBottomContainer>(region)->GetVisible());
+
+  region->RequestCollapse(false);
+  BrowserAnimationController::From(browser())->Reset(
+      TabStripAnimations::kVerticalTabStrip, TabStripAnimations::kExpand);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() == resized_width;
+  }));
+  EXPECT_TRUE(sidebar()->IsDrawn());
+}
+
+// The page sits in a round-cornered card inside a frame of the space's color,
+// which drags the window. Collapsed, the sidebar is the frame's leading edge
+// and the caption buttons hide.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, WindowFrame) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::Widget* widget = browser_view()->GetWidget();
+  MultiContentsView* card =
+      BrowserView::GetBrowserViewForBrowser(browser())->multi_contents_view();
+  auto layout = [&] {
+    widget->LayoutRootViewIfNecessary();
+    return card->bounds();
+  };
+
+  gfx::Rect bounds = layout();
+  EXPECT_EQ(bounds.x(), region->bounds().right());
+  EXPECT_GE(bounds.y(), kContentFrameInset);
+  EXPECT_EQ(browser_view()->width() - bounds.right(), kContentFrameInset);
+  EXPECT_EQ(browser_view()->height() - bounds.bottom(), kContentFrameInset);
+  EXPECT_EQ(card->GetBackgroundRadii(),
+            gfx::RoundedCornersF(kContentCornerRadius));
+
+  // The frame is tinted as the sidebar is, from under the browser view's
+  // children.
+  WindowFeatures::From(browser())->space_model().SetColor(SpaceColor::kBlue);
+  auto* frame_tint =
+      views::AsViewClass<SidebarTint>(browser_view()->children().front());
+  ASSERT_TRUE(frame_tint);
+  EXPECT_EQ(frame_tint->bounds(), browser_view()->GetLocalBounds());
+  EXPECT_TRUE(frame_tint->GetTintForTesting());
+  EXPECT_EQ(frame_tint->GetTintForTesting(),
+            FindDescendant<SidebarTint>(region)->GetTintForTesting());
+
+  // The frame drags the window; the page doesn't.
+  auto hit_test = [&](gfx::Point point) {
+    views::View::ConvertPointToWidget(browser_view(), &point);
+    return widget->non_client_view()->NonClientHitTest(point);
+  };
+  EXPECT_EQ(hit_test(gfx::Point(bounds.CenterPoint().x(),
+                                browser_view()->height() - 2)),
+            HTCAPTION);
+  EXPECT_EQ(hit_test(gfx::Point(browser_view()->width() - 2,
+                                bounds.CenterPoint().y())),
+            HTCAPTION);
+  EXPECT_EQ(hit_test(bounds.CenterPoint()), HTCLIENT);
+
+  WindowFrame* frame = WindowFrame::FromRegion(region);
+  ASSERT_TRUE(frame);
+  EXPECT_FALSE(frame->AreCaptionButtonsHiddenForTesting());
+  region->RequestCollapse(true);
+  BrowserAnimationController::From(browser())->Reset(
+      TabStripAnimations::kVerticalTabStrip, TabStripAnimations::kCollapse);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return layout().x() == kCollapsedSidebarWidth; }));
+  EXPECT_EQ(region->bounds(), gfx::Rect(0, 0, kCollapsedSidebarWidth,
+                                        browser_view()->height()));
+  EXPECT_TRUE(frame->AreCaptionButtonsHiddenForTesting());
+
+  region->RequestCollapse(false);
+  BrowserAnimationController::From(browser())->Reset(
+      TabStripAnimations::kVerticalTabStrip, TabStripAnimations::kExpand);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return layout().x() > kCollapsedSidebarWidth; }));
+  EXPECT_FALSE(frame->AreCaptionButtonsHiddenForTesting());
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ListsTabs) {

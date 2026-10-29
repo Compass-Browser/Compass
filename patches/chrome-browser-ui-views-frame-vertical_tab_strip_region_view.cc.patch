@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..9120816595a9cc7d6142114caac791c95f7d3b78 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..863a2137dc2e4f57c10351e8639f6a3296ae3523 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,9 @@
@@ -34,7 +34,21 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..9120816595a9cc7d6142114caac791c9
        if (tab_strip_view()) {
          tab_strip_view()->SetIsAnimatingSize(true);
        }
-@@ -700,8 +705,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
+@@ -453,6 +458,13 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
+                                     .bounds = organizer_bounds});
+   }
+ 
++  // Strata: collapsed, only the window frame's edge shows.
++  if (layout.host_size.width() <= kCollapsedWidth) {
++    for (auto& child_layout : layout.child_layouts) {
++      child_layout.visible = false;
++    }
++  }
++
+   return layout;
+ }
+ 
+@@ -700,8 +712,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
  
  void VerticalTabStripRegionView::OnResize(int resize_amount,
                                            bool done_resizing) {
@@ -46,7 +60,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..9120816595a9cc7d6142114caac791c9
    if (!starting_width_on_resize_.has_value()) {
      starting_width_on_resize_ = width();
      state_controller_->SetIsResizing(true);
-@@ -785,7 +791,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
+@@ -785,7 +798,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
    // attached. target_collapse_state_ is still set so that when
    // SetTabStripView() is eventually called, the region view and all child
    // views initialize directly in the target collapse state.
@@ -55,7 +69,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..9120816595a9cc7d6142114caac791c9
      return;
    }
    const auto motion =
-@@ -889,6 +895,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+@@ -889,6 +902,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
    return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
@@ -95,7 +109,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..9120816595a9cc7d6142114caac791c9
  void VerticalTabStripRegionView::OnCollapseStateChanged(
      tabs::VerticalTabStripCollapseState state) {
    // Apply padding immediately at the start of the animation by including
-@@ -1026,7 +1065,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+@@ -1026,7 +1072,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
      return;
    }
  

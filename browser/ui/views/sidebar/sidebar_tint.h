@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "strata/browser/sidebar/space_list.h"
@@ -31,6 +32,8 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color);
 // and the margins around it) with the window's space color, over the
 // region's background and under its children. Ignored by the region's
 // layout: it follows the region's bounds and the shape of its background.
+// Another one, under the browser view's children, tints the window frame
+// around the page (WindowFrame) over the frame's color, so the two match.
 // A swipe in the sidebar blends in the color of the space it pulls in
 // (WindowFeatures::SetSpacePreview()), and other changes fade.
 //
@@ -53,8 +56,9 @@ class SidebarTint : public views::View,
   SidebarTint& operator=(const SidebarTint&) = delete;
   ~SidebarTint() override;
 
-  // Adds a tint to |region|, behind its other children.
-  static SidebarTint* Install(views::View* region,
+  // Adds a tint to |host|, behind its other children: the region, or the
+  // browser view for the window frame around the page (WindowFrame).
+  static SidebarTint* Install(views::View* host,
                               BrowserWindowInterface* browser);
 
   // The color painted now, if any.
@@ -95,6 +99,7 @@ class SidebarTint : public views::View,
   // Where the fade started.
   SkColor from_ = SK_ColorTRANSPARENT;
   gfx::LinearAnimation animation_;
+  base::CallbackListSubscription paint_as_active_subscription_;
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{
       this};
   base::ScopedObservation<WindowFeatures, WindowFeatures::Observer>

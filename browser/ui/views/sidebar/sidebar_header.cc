@@ -251,6 +251,7 @@ SidebarHeader::SidebarHeader(
   extensions_slot_ = AddChildView(CreateSlot());
   pinned_actions_slot_ = AddChildView(CreateSlot());
   app_menu_slot_ = AddChildView(CreateSlot());
+  WatchButtons(nullptr);
 
   mode_subscription_ = state_controller_->RegisterOnModeChanged(
       base::BindRepeating(&SidebarHeader::OnModeChanged,
@@ -472,25 +473,20 @@ bool SidebarHeader::IsPositionInWindowCaption(const gfx::Point& point) {
 void SidebarHeader::ViewHierarchyChanged(
     const views::ViewHierarchyChangedDetails& details) {
   VerticalTabStripTopContainer::ViewHierarchyChanged(details);
-  // Called for changes anywhere under the header, before a removal.
-  if (!extensions_slot_ || !pinned_actions_slot_) {
+  // Called for changes anywhere under the header, before a removal. Once
+  // the slots are there, the constructor is done adding buttons.
+  if (!extensions_slot_ || !pinned_actions_slot_ || !app_menu_slot_) {
     return;
   }
-  if (extensions_slot_->Contains(details.parent) ||
-      pinned_actions_slot_->Contains(details.parent)) {
-    WatchSlotButtons(details.is_add ? nullptr : details.child.get());
+  if (Contains(details.parent)) {
+    WatchButtons(details.is_add ? nullptr : details.child.get());
   }
 }
 
 views::View* SidebarHeader::GetBubbleAnchorView() {
-  if (pill_->IsDrawn()) {
-    return pill_;
-  }
-  if (!app_menu_slot_->children().empty() &&
-      app_menu_slot_->children().front()->IsDrawn()) {
-    return app_menu_slot_->children().front();
-  }
-  return nullptr;
+  // Collapsed, the pill isn't drawn, but a bubble anchored to it shows the
+  // sidebar until it closes (UpdateExpandLock()), and follows the pill there.
+  return pill_;
 }
 
 std::optional<bubble_anchor_util::AnchorConfiguration>
@@ -561,10 +557,9 @@ bool SidebarHeader::SetPaneFocus(views::View* view) {
   return false;
 }
 
-void SidebarHeader::WatchSlotButtons(const views::View* removed) {
+void SidebarHeader::WatchButtons(const views::View* removed) {
   std::vector<views::Button*> buttons;
-  CollectButtons(extensions_slot_, buttons);
-  CollectButtons(pinned_actions_slot_, buttons);
+  CollectButtons(this, buttons);
   if (removed) {
     std::erase_if(buttons, [removed](views::Button* button) {
       return removed->Contains(button);

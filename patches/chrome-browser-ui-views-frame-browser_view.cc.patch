@@ -1,18 +1,19 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index b68f089aebf83b82499611404433d430e9971f14..087ed657a1ef65b6f0cfc7c18d2923036df9fab9 100644
+index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff0901aab13f 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,9 @@
+@@ -4,6 +4,10 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
++#include "strata/browser/ui/views/frame/window_frame.h"
 +#include "strata/browser/ui/views/sidebar/sidebar_header.h"
 +#include "strata/browser/window_sync/window_features.h"
 +
  #include <stdint.h>
  
  #include <algorithm>
-@@ -1108,6 +1111,10 @@ BrowserView::BrowserView(BrowserWindowInterface* browser)
+@@ -1108,6 +1112,10 @@ BrowserView::BrowserView(BrowserWindowInterface* browser)
  }
  
  BrowserView::~BrowserView() {
@@ -23,7 +24,7 @@ index b68f089aebf83b82499611404433d430e9971f14..087ed657a1ef65b6f0cfc7c18d292303
    // Remove the layout manager to avoid dangling. This needs to be earlier than
    // other cleanups that destroy views referenced in the layout manager.
    SetLayoutManager(nullptr);
-@@ -3064,6 +3071,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
+@@ -3064,6 +3072,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
  }
  
  bool BrowserView::IsToolbarVisible() const {
@@ -35,7 +36,7 @@ index b68f089aebf83b82499611404433d430e9971f14..087ed657a1ef65b6f0cfc7c18d292303
  #if BUILDFLAG(IS_MAC)
    // Immersive full screen makes it possible to display the toolbar when
    // kShowFullscreenToolbar is not set.
-@@ -4595,6 +4607,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
+@@ -4595,6 +4608,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
      return views::CloseRequestResult::kCannotClose;
    }
  
@@ -48,7 +49,18 @@ index b68f089aebf83b82499611404433d430e9971f14..087ed657a1ef65b6f0cfc7c18d292303
    // Give beforeunload handlers, the user, or policy the chance to cancel the
    // close before we hide the window below.
    if (!UnloadController::From(browser_)->HandleBeforeClose()) {
-@@ -5029,6 +5047,7 @@ void BrowserView::AddedToWidget() {
+@@ -4736,6 +4755,10 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+         // controls before finally falling back to HTCAPTION.
+         return HTNOWHERE;
+       }
++      // Strata: the frame around the page drags the window.
++      if (strata::IsOnWindowFrame(this, point_in_browser_view_coords)) {
++        return HTNOWHERE;
++      }
+     }
+   } else if (GetTabStripVisible()) {
+     // Determine if the Horizontal TabStrip exists and is capable of being
+@@ -5029,6 +5052,7 @@ void BrowserView::AddedToWidget() {
  #endif
  
    toolbar_->Init();

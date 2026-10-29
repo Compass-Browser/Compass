@@ -1,0 +1,11 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The window frame's measurements. Upstream's browser view layout and the
+# vertical tab strip region read them (see patches/), so this depends on
+# nothing of Chrome's.
+source_set("content_frame") {
+  sources = [ "content_frame.h" ]
+  public_deps = [ "//ui/gfx/geometry" ]
+}

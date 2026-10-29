@@ -9,6 +9,8 @@ source_set("ui") {
   sources = [
     "views/command_bar/command_bar.cc",
     "views/command_bar/command_bar.h",
+    "views/frame/window_frame.cc",
+    "views/frame/window_frame.h",
     "views/sidebar/sidebar_context_menu.cc",
     "views/sidebar/sidebar_context_menu.h",
     "views/sidebar/sidebar_header.cc",
@@ -41,6 +43,9 @@ source_set("ui") {
 
     # BrowserView's close hook calls into it (see patches/).
     "//strata/browser/window_sync",
+
+    # The vertical tab strip region's header reads it (see patches/).
+    "//strata/browser/ui/views/frame:content_frame",
   ]
   deps = [
     "//base",
@@ -64,6 +69,7 @@ source_set("ui") {
     "//chrome/browser/ui/thumbnails",
     "//chrome/browser/ui/views/bubble",
     "//chrome/browser/ui/views/frame:browser_view_header",
+    "//chrome/browser/ui/views/frame:themed_background",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/location_bar:icon_label_bubble",
     "//chrome/browser/ui/views/page_info",
@@ -99,6 +105,9 @@ source_set("ui") {
     "//ui/webui",
     "//url",
   ]
+  if (is_mac) {
+    sources += [ "views/frame/window_frame_mac.mm" ]
+  }
 }
 
 source_set("unit_tests") {
@@ -149,6 +158,8 @@ source_set("browser_tests") {
     "//chrome/browser/ui",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/views/frame:browser_view_header",
+    "//chrome/browser/ui/views/frame:multi_contents_view",
+    "//chrome/browser/ui/views/frame:top_container_view",
     "//chrome/browser/ui/views/animations",
     "//chrome/browser/ui/views/page_info",
     "//chrome/browser/ui/views/tabs/hovercard",
