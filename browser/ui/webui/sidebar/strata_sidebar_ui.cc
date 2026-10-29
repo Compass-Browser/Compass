@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/theme_source.h"
@@ -60,6 +61,24 @@ void StrataSidebarUI::CreatePageHandler(
   page_handler_ = std::make_unique<SidebarPageHandler>(
       std::move(receiver), std::move(page), browser,
       web_ui()->GetWebContents());
+  page_handler_->set_tree_shown_callback(base::BindRepeating(
+      &StrataSidebarUI::OnTreeShown, base::Unretained(this)));
+}
+
+void StrataSidebarUI::RunWhenTreeShown(base::OnceClosure callback) {
+  if (tree_shown_) {
+    std::move(callback).Run();
+    return;
+  }
+  tree_shown_callbacks_.push_back(std::move(callback));
+}
+
+void StrataSidebarUI::OnTreeShown() {
+  tree_shown_ = true;
+  for (base::OnceClosure& callback :
+       std::exchange(tree_shown_callbacks_, {})) {
+    std::move(callback).Run();
+  }
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(StrataSidebarUI)

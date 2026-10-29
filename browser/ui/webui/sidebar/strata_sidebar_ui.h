@@ -6,6 +6,9 @@
 #define STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_SIDEBAR_UI_H_
 
 #include <memory>
+#include <vector>
+
+#include "base/functional/callback.h"
 
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -42,12 +45,19 @@ class StrataSidebarUI : public ui::MojoWebUIController,
   void BindInterface(
       mojo::PendingReceiver<sidebar::mojom::PageHandlerFactory> receiver);
 
+  // Runs |callback| once the page has taken its first tree: now if it has.
+  void RunWhenTreeShown(base::OnceClosure callback);
+
  private:
+  void OnTreeShown();
+
   // sidebar::mojom::PageHandlerFactory:
   void CreatePageHandler(
       mojo::PendingRemote<sidebar::mojom::Page> page,
       mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver) override;
 
+  bool tree_shown_ = false;
+  std::vector<base::OnceClosure> tree_shown_callbacks_;
   std::unique_ptr<SidebarPageHandler> page_handler_;
   mojo::Receiver<sidebar::mojom::PageHandlerFactory> page_factory_receiver_{
       this};

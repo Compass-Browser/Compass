@@ -8,7 +8,9 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -81,8 +83,14 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   SidebarPageHandler& operator=(const SidebarPageHandler&) = delete;
   ~SidebarPageHandler() override;
 
+  // Run whenever the page has taken a tree.
+  void set_tree_shown_callback(base::RepeatingClosure callback) {
+    tree_shown_callback_ = std::move(callback);
+  }
+
   // sidebar::mojom::PageHandler:
   void RequestTree() override;
+  void TreeShown() override;
   void ActivateNode(const std::string& id) override;
   void CloseNode(const std::string& id) override;
   void NewTab() override;
@@ -226,6 +234,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   base::ScopedObservation<ProfileAttributesStorage,
                           ProfileAttributesStorageObserver>
       profiles_observation_{this};
+  base::RepeatingClosure tree_shown_callback_;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 

@@ -1,0 +1,38 @@
+diff --git a/ui/views/widget/widget.cc b/ui/views/widget/widget.cc
+index 35d5b656d91fad27a065d3d33e8fb76e4fdf281b..eb11c1bcb7becdef17d44d314bc3c77c3e3444a8 100644
+--- a/ui/views/widget/widget.cc
++++ b/ui/views/widget/widget.cc
+@@ -1564,6 +1564,33 @@ void* Widget::GetNativeWindowProperty(const char* name) const {
+                         : nullptr;
+ }
+ 
++void Widget::ExchangeContentsWith(Widget& other) {
++  CHECK(non_client_view_);
++  CHECK(other.non_client_view_);
++  root_view_->RemoveChildView(non_client_view_);
++  other.root_view_->RemoveChildView(other.non_client_view_);
++  // The client views live in the frame views, which are replaced below: take
++  // them out. Adding the non-client views back puts them in the new ones.
++  for (NonClientView* view : {non_client_view_.get(),
++                              other.non_client_view_.get()}) {
++    ClientView* client_view = view->client_view();
++    if (client_view->parent()) {
++      client_view->parent()->RemoveChildView(client_view);
++    }
++  }
++  std::swap(non_client_view_, other.non_client_view_);
++  WidgetDelegate* delegate = other.widget_delegate_.get();
++  WidgetDelegate* other_delegate = widget_delegate_.get();
++  widget_delegate_ = delegate->AttachWidgetAndGetHandle(this);
++  other.widget_delegate_ = other_delegate->AttachWidgetAndGetHandle(&other);
++  // Frame views are made for one widget and its delegate: new ones, before
++  // the views are added and ask for them.
++  non_client_view_->SetFrameView(CreateFrameView());
++  other.non_client_view_->SetFrameView(other.CreateFrameView());
++  root_view_->SetContentsView(non_client_view_);
++  other.root_view_->SetContentsView(other.non_client_view_);
++}
++
+ void Widget::UpdateWindowTitle() {
+   if (!native_widget_ || !non_client_view_) {
+     return;

@@ -1779,6 +1779,9 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.pinned_ = tree.pinned;
     this.today_ = tree.today;
     this.activeId_ = tree.activeId;
+    // Lit renders it in microtasks, before the renderer paints or answers the
+    // browser's next request.
+    this.browserProxy_.handler.treeShown();
   }
 
   private onNodeAdded_(parentId: string, index: number, node: Node) {

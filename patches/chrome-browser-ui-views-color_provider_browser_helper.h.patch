@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/views/color_provider_browser_helper.h b/chrome/browser/ui/views/color_provider_browser_helper.h
+index 6131bec43e8522f3d89860336c48c425148b0c28..8ba3eecd17c765be7ee0634430129096b1bc478c 100644
+--- a/chrome/browser/ui/views/color_provider_browser_helper.h
++++ b/chrome/browser/ui/views/color_provider_browser_helper.h
+@@ -40,6 +40,11 @@ class ColorProviderBrowserHelper : public TabStripModelObserver {
+       const TabStripModelChange& change,
+       const TabStripSelectionChange& selection) override;
+ 
++  // Strata: the window's contents moved to another widget
++  // (strata::BrowserViewExchange). Its tabs, and those inserted from now on,
++  // take colors from |source|.
++  void SetColorProviderSource(ui::ColorProviderSource* source);
++
+   ui::ColorProviderSource* color_provider_source() {
+     return color_provider_source_;
+   }
+@@ -49,7 +54,7 @@ class ColorProviderBrowserHelper : public TabStripModelObserver {
+ 
+  private:
+   const raw_ptr<TabStripModel> tab_strip_model_;
+-  const raw_ptr<ui::ColorProviderSource> color_provider_source_;
++  raw_ptr<ui::ColorProviderSource> color_provider_source_;
+   ui::ScopedUnownedUserData<ColorProviderBrowserHelper> scoped_data_holder_;
+ };
+ 

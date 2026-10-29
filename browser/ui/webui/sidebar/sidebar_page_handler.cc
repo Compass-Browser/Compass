@@ -181,6 +181,12 @@ void SidebarPageHandler::RequestTree() {
   SendArchive();
 }
 
+void SidebarPageHandler::TreeShown() {
+  if (tree_shown_callback_) {
+    tree_shown_callback_.Run();
+  }
+}
+
 void SidebarPageHandler::ActivateNode(const std::string& id) {
   SidebarNode* node = FindNode(id);
   if (!node || node->type() != SidebarNode::Type::kTab) {

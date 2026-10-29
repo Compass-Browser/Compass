@@ -1,0 +1,29 @@
+diff --git a/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.cc b/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.cc
+index 2692110fe172fa7f96eee1ca0e9eb81697cc5036..cb9fdff3206ea0091b0be324842cf2726e6619a5 100644
+--- a/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.cc
++++ b/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.cc
+@@ -76,12 +76,24 @@ bool ExtensionKeybindingRegistryViews::RegisterAccelerator(
+     const std::string& command_name) {
+   focus_manager_->RegisterAccelerator(accelerator,
+                                       kExtensionAcceleratorPriority, this);
++  registered_.insert(accelerator);
+   return true;
+ }
+ 
+ void ExtensionKeybindingRegistryViews::UnregisterAccelerator(
+     const ui::Accelerator& accelerator) {
+   focus_manager_->UnregisterAccelerator(accelerator, this);
++  registered_.erase(accelerator);
++}
++
++void ExtensionKeybindingRegistryViews::SetFocusManager(
++    views::FocusManager* focus_manager) {
++  focus_manager_->UnregisterAccelerators(this);
++  focus_manager_ = focus_manager;
++  for (const ui::Accelerator& accelerator : registered_) {
++    focus_manager_->RegisterAccelerator(accelerator,
++                                        kExtensionAcceleratorPriority, this);
++  }
+ }
+ 
+ void ExtensionKeybindingRegistryViews::OnShortcutHandlingSuspended(

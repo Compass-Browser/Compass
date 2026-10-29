@@ -1,0 +1,32 @@
+diff --git a/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h b/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h
+index e0ecb9f0c3bc41a637eeab2d148581f3543deeb7..0ecc8714165f2df6f31589cd1b42399bf123a0bd 100644
+--- a/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h
++++ b/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSION_KEYBINDING_REGISTRY_VIEWS_H_
+ 
+ #include <optional>
++#include <set>
+ 
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/extensions/extension_keybinding_registry.h"
+@@ -64,6 +65,10 @@ class ExtensionKeybindingRegistryViews
+ 
+   void OnHostActivationChanged(bool active);
+ 
++  // Strata: the window's contents moved to another widget
++  // (strata::BrowserViewExchange). Moves the shortcuts to its focus manager.
++  void SetFocusManager(views::FocusManager* focus_manager);
++
+  private:
+   // Overridden from ExtensionKeybindingRegistry:
+   bool PopulateCommands(const extensions::Extension* extension,
+@@ -80,6 +85,8 @@ class ExtensionKeybindingRegistryViews
+   // Weak pointer back to the focus manager to use to register and unregister
+   // accelerators with. Not owned by us.
+   raw_ptr<views::FocusManager> focus_manager_;
++  // What's registered with |focus_manager_|, for SetFocusManager().
++  std::set<ui::Accelerator> registered_;
+ 
+   // Only set for the window-scoped instance created by
+   // BrowserWindowFeatures.

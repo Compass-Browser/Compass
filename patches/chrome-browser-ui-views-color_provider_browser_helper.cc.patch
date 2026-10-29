@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/views/color_provider_browser_helper.cc b/chrome/browser/ui/views/color_provider_browser_helper.cc
+index 9569989a8816fb48bc095bad67c8ae5b44cab0a9..8ffd4075b9d3e1c143a143df47999e619d98dabf 100644
+--- a/chrome/browser/ui/views/color_provider_browser_helper.cc
++++ b/chrome/browser/ui/views/color_provider_browser_helper.cc
+@@ -42,6 +42,15 @@ ColorProviderBrowserHelper::ColorProviderBrowserHelper(
+ 
+ ColorProviderBrowserHelper::~ColorProviderBrowserHelper() = default;
+ 
++void ColorProviderBrowserHelper::SetColorProviderSource(
++    ui::ColorProviderSource* source) {
++  CHECK(source);
++  color_provider_source_ = source;
++  for (int i = 0; i < tab_strip_model_->count(); ++i) {
++    tab_strip_model_->GetWebContentsAt(i)->SetColorProviderSource(source);
++  }
++}
++
+ ColorProviderBrowserHelper* ColorProviderBrowserHelper::From(
+     BrowserWindowInterface* browser_window_interface) {
+   return Get(browser_window_interface->GetUnownedUserDataHost());

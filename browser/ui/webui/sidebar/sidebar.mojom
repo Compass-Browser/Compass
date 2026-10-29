@@ -98,6 +98,8 @@ interface PageHandler {
   // Answered with Page.SetSpaces(), Page.SetTree() and Page.SetArchive(), on
   // the same pipe as the diffs, so the page sees them in order.
   RequestTree();
+  // The page has taken the tree of Page.SetTree(); sent after each one.
+  TreeShown();
   // Activates a tab node's tab, opening one if the node is unloaded. Ignored
   // for other nodes.
   ActivateNode(string id);

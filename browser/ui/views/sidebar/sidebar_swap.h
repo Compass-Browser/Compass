@@ -5,6 +5,8 @@
 #ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
 #define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
 
+#include "base/time/time.h"
+
 namespace strata {
 
 // Makes window swaps (SwitchWindowToSpace(), window_features.h) look like one
@@ -14,6 +16,10 @@ namespace strata {
 // kMaxSwapWait later). See docs/design/spaces.md, "Swapping the window".
 // Idempotent.
 void InstallSwapPresenter();
+
+// How long an exchange waits for the new sidebar's tree (the debug build is
+// slower than kMaxTreeWait allows).
+void SetMaxTreeWaitForTesting(base::TimeDelta wait);
 
 }  // namespace strata
 

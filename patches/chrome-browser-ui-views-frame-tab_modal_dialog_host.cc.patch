@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/views/frame/tab_modal_dialog_host.cc b/chrome/browser/ui/views/frame/tab_modal_dialog_host.cc
+index 7ad0e2b5aa68192110b721666509c2bc97d285da..3c02be9d4abcc985ef4dccd6fa81ea127cde2851 100644
+--- a/chrome/browser/ui/views/frame/tab_modal_dialog_host.cc
++++ b/chrome/browser/ui/views/frame/tab_modal_dialog_host.cc
+@@ -106,6 +106,8 @@ gfx::Size TabModalDialogHost::GetMaximumDialogSize() {
+ }
+ 
+ void TabModalDialogHost::OnViewAddedToWidget(views::View* observed_view) {
++  // The view can move to another widget (strata::BrowserViewExchange).
++  widget_observation_.Reset();
+   widget_observation_.Observe(contents_container_view_->GetWidget());
+ }
+ 

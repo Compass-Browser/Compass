@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.h b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
+index 2d84f6ff903e9d13ec3c1be83e3e110a12e243ef..5e0bedbab58a1829327d2d8ef0ca1a2cd91f900d 100644
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.h
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
+@@ -37,6 +37,10 @@ class FrameTimingDetails;
+ //  BrowserNativeWidgetMac is a NativeWidgetMac subclass that provides
+ //  the window frame for the Chrome browser window.
+ //
++namespace strata {
++class BrowserViewExchange;
++}  // namespace strata
++
+ class BrowserNativeWidgetMac : public views::NativeWidgetMac,
+                                public BrowserNativeWidget,
+                                public CommandObserver {
+@@ -105,6 +109,7 @@ class BrowserNativeWidgetMac : public views::NativeWidgetMac,
+   void EnabledStateChangedForCommand(int id, bool enabled) override;
+ 
+  private:
++  friend class strata::BrowserViewExchange;
+   bool IsGlassEligible() const;
+   void UpdateGlassEligibility(bool is_glass_eligible);
+   void UpdateBackgroundGeometry();

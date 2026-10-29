@@ -13,6 +13,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/infobars/simple_alert_infobar_creator.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
@@ -32,7 +33,11 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/infobars/content/content_infobar_manager.h"
+#include "components/infobars/core/infobar_delegate.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_ui.h"
+#include "content/public/browser/web_ui_controller.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -43,8 +48,10 @@
 #include "strata/browser/ui/views/frame/window_frame.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "strata/browser/ui/views/sidebar/sidebar_swap.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
+#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -776,6 +783,161 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   }));
   SetBrowser(back);
   EXPECT_EQ(back->GetTabStripModel()->GetActiveWebContents(), one);
+}
+
+// Spike, docs/design/profiles-in-place.md: a space of another profile shows
+// in the same native window (the BrowserViews are exchanged), and back.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       AnotherProfilesSpaceKeepsTheNativeWindow) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  content::WebContents* one = browser()->tab_strip_model()->GetWebContentsAt(0);
+  Profile* profile = browser()->GetProfile();
+  const gfx::NativeWindow native = browser()->GetWindow()->GetNativeWindow();
+  views::Widget* widget = views::Widget::GetWidgetForNativeWindow(native);
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  SpaceDirectory::Get()->List(&other);
+  SpaceModel& other_home = SpaceService::Get(&other)->space_list().active_space();
+
+  SetMaxTreeWaitForTesting(base::Seconds(10));
+  BrowserWindowInterface* swapped =
+      SwitchWindowToSpace(browser(), &other, other_home);
+  ASSERT_TRUE(swapped);
+  EXPECT_EQ(swapped->GetProfile(), &other);
+  // Its view takes the native window once its sidebar has the tree, so the
+  // sidebar never shows empty.
+  bool had_tree = false;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    if (swapped->GetWindow()->GetNativeWindow() != native) {
+      return false;
+    }
+    content::WebContents* contents =
+        FindDescendant<StrataSidebarView>(
+            BrowserView::GetBrowserViewForBrowser(swapped))
+            ->GetWebContents();
+    contents->GetWebUI()->GetController()->GetAs<StrataSidebarUI>()
+        ->RunWhenTreeShown(base::BindLambdaForTesting([&] { had_tree = true; }));
+    return true;
+  }));
+  EXPECT_TRUE(had_tree);
+  EXPECT_EQ(BrowserView::GetBrowserViewForNativeWindow(native),
+            BrowserView::GetBrowserViewForBrowser(swapped));
+  EXPECT_EQ(static_cast<Profile*>(
+                widget->GetNativeWindowProperty(Profile::kProfileKey)),
+            &other);
+  EXPECT_EQ(widget->widget_delegate(),
+            static_cast<views::WidgetDelegate*>(
+                BrowserView::GetBrowserViewForBrowser(swapped)));
+  // The old window empties into its parking window and closes.
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    int normal = 0;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          normal += window->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+          return true;
+        });
+    return normal == 1;
+  }));
+  SetBrowser(swapped);
+  BrowserWindowInterface* parking =
+      SpaceService::Get(profile)->parking_window();
+  ASSERT_TRUE(parking);
+  EXPECT_EQ(parking->GetTabStripModel()->GetWebContentsAt(0), one);
+
+  // The new profile's window works in it: navigating, accelerators.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      swapped, GURL("data:text/html,<title>Two</title>")));
+  EXPECT_EQ(swapped->GetTabStripModel()->GetActiveWebContents()
+                ->GetBrowserContext(),
+            &other);
+  widget->LayoutRootViewIfNecessary();
+  EXPECT_FALSE(BrowserView::GetBrowserViewForBrowser(swapped)
+                   ->GetBoundsInScreen()
+                   .IsEmpty());
+
+  // And back, by shortcut: the accelerators moved with the view.
+  const std::vector<SpaceDirectory::Entry> spaces =
+      GetSwitchableSpaces(swapped);
+  ASSERT_EQ(spaces.size(), 2u);
+  const int index = spaces[0].profile == profile ? 0 : 1;
+  ASSERT_TRUE(PressSpaceShortcut(
+      BrowserView::GetBrowserViewForBrowser(swapped), index));
+  BrowserWindowInterface* back = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          if (window->GetProfile() == profile &&
+              window->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+            back = window;
+          }
+          return !back;
+        });
+    return back != nullptr;
+  }));
+  SetBrowser(back);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return back->GetWindow()->GetNativeWindow() == native; }));
+  EXPECT_EQ(back->GetTabStripModel()->GetActiveWebContents(), one);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    int normal = 0;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          normal += window->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+          return true;
+        });
+    return normal == 1;
+  }));
+}
+
+// Switching between two profiles' spaces several times in a row, each switch
+// as soon as the window shows the last one, before the old view has left. The
+// other profile's tab has an infobar, which shows in a window built hidden and
+// must leave that window's focus manager when it closes.
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+                       SwitchingProfilesBackAndForth) {
+  SetMaxTreeWaitForTesting(base::Seconds(10));
+  Profile* profile = browser()->GetProfile();
+  const gfx::NativeWindow native = browser()->GetWindow()->GetNativeWindow();
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  SpaceDirectory::Get()->List(&other);
+  SpaceModel& home = SpaceService::Get(profile)->space_list().active_space();
+  SpaceModel& other_home = SpaceService::Get(&other)->space_list().active_space();
+
+  BrowserWindowInterface* shown = browser();
+  for (int i = 1; i <= 6; ++i) {
+    BrowserWindowInterface* next =
+        i % 2 ? SwitchWindowToSpace(shown, &other, other_home)
+              : SwitchWindowToSpace(shown, profile, home);
+    ASSERT_TRUE(next) << i;
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return next->GetWindow()->GetNativeWindow() == native; }))
+        << i;
+    shown = next;
+    SetBrowser(shown);
+    if (i == 1) {
+      CreateSimpleAlertInfoBar(
+          infobars::ContentInfoBarManager::FromWebContents(
+              shown->GetTabStripModel()->GetActiveWebContents()),
+          infobars::InfoBarDelegate::TEST_INFOBAR, nullptr, u"Infobar",
+          /*auto_expire=*/false, /*should_animate=*/false);
+    }
+  }
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    int normal = 0;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          normal += window->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+          return true;
+        });
+    return normal == 1;
+  }));
+  EXPECT_EQ(shown->GetProfile(), profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      shown, GURL("data:text/html,<title>After</title>")));
 }
 
 // Assigning the window's space to another profile from the space menu, as in
