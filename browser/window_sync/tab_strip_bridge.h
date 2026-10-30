@@ -64,7 +64,8 @@ class TabStripBridge : public TabStripModelObserver,
 
   // Returns |tab_node|'s tab in this window. A tab in another window moves
   // here (move on focus); an unloaded node gets a new tab. Either way it lands
-  // in the foreground, at the node's place in the strip.
+  // in the foreground, at the node's place in the strip. A pane brings the
+  // rest of its split, in the background, so the split shows.
   tabs::TabInterface* OpenNode(SidebarNode* tab_node);
 
   // The node a placeholder tab stands for, or null if |tab| isn't one (or its
@@ -97,6 +98,7 @@ class TabStripBridge : public TabStripModelObserver,
   void OnTabChangedAt(tabs::TabInterface* tab,
                       TabChangeType change_type) override;
   void OnTabStripModelDestroyed(TabStripModel* tab_strip_model) override;
+  void OnSplitTabChanged(const SplitTabChange& change) override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -112,6 +114,25 @@ class TabStripBridge : public TabStripModelObserver,
  private:
   // Adds a Today node for |tab|, which the strip just inserted at |index|.
   void AddNodeForTab(tabs::TabInterface* tab, int index);
+
+  // OpenNode() for one tab node, in the foreground or not.
+  tabs::TabInterface* OpenTabNode(SidebarNode* tab_node, bool foreground);
+
+  // Splits (docs/design/sidebar.md, "Split tabs"). The model's splits whose
+  // panes are both live here are upstream splits too, and the other way
+  // round. The model split of |a| and |b|'s nodes, or null.
+  SidebarNode* GetModelSplit(const tabs::TabInterface* a,
+                             const tabs::TabInterface* b) const;
+  // Upstream split |a| and |b| (in strip order): the model follows.
+  void MirrorUpstreamSplit(tabs::TabInterface* a, tabs::TabInterface* b);
+  // An upstream split of these tabs ended. If both are still here, the user
+  // separated them, and the model follows. Pinned panes that closed keep
+  // their split.
+  void OnUpstreamSplitRemoved(std::vector<tabs::TabHandle> tabs);
+  // Ends the upstream splits that aren't model splits.
+  void RemoveUnmirroredSplits();
+  // Makes upstream splits of the model splits live here.
+  void CreateMirroredSplits();
 
   // Where the node of |tab|, just inserted at |index|, goes if it's a link
   // opened in the background (Cmd+click, middle click) from a page in the

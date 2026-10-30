@@ -1372,6 +1372,34 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FoldersInToday) {
             u"Three");
 }
 
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SplitsShowSideBySide) {
+  content::WebContents* contents = sidebar_contents();
+  OpenThreeTabs(browser(), contents);
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  MultiContentsView* view =
+      BrowserView::GetBrowserViewForBrowser(browser())->multi_contents_view();
+  ASSERT_FALSE(view->IsInSplitView());
+
+  // One and Three, the active tab: the window shows both, and the sidebar
+  // one row for them.
+  model.Split(model.today_root()->children()[0].get(),
+              model.today_root()->children()[2].get());
+  ASSERT_TRUE(base::test::RunUntil([&] { return view->IsInSplitView(); }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      while (root.querySelectorAll('#today .split .pane').length !== 2) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+
+  // Separated, it's one page again.
+  model.Unsplit(model.today_root()->children()[0].get());
+  ASSERT_TRUE(base::test::RunUntil([&] { return !view->IsInSplitView(); }));
+  EXPECT_EQ(model.today_root()->children().size(), 3u);
+}
+
 // Double-clicks the tab row titled $1, types $2 into its name and presses
 // Enter. Returns the row's title once it shows $3.
 constexpr char kRenameTab[] = R"(

@@ -5,6 +5,7 @@
 #include "strata/browser/window_sync/tab_strip_bridge.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -23,9 +24,12 @@
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/split_tabs/split_tab_visual_data.h"
+#include "components/tabs/public/split_tab_data.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -105,6 +109,18 @@ void CollectLiveTabs(const TabStripBridge& bridge,
   }
 }
 
+// Appends the splits under |node| to |splits|.
+void CollectSplits(const SidebarNode* node,
+                   std::vector<const SidebarNode*>& splits) {
+  for (const auto& child : node->children()) {
+    if (child->type() == SidebarNode::Type::kSplit) {
+      splits.push_back(child.get());
+    } else {
+      CollectSplits(child.get(), splits);
+    }
+  }
+}
+
 // Counts the live tabs under |node| that come before |target|, depth first.
 // Returns true once |target| is reached.
 bool CountLiveTabsBefore(const TabStripBridge& bridge,
@@ -175,6 +191,31 @@ SidebarNode* TabStripBridge::GetNode(const tabs::TabInterface* tab) const {
 
 tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
   CHECK_EQ(tab_node->type(), SidebarNode::Type::kTab);
+  tabs::TabInterface* tab = OpenTabNode(tab_node, /*foreground=*/true);
+  SidebarNode* split = tab_node->parent();
+  if (!tab || split->type() != SidebarNode::Type::kSplit) {
+    return tab;
+  }
+  // Panes can go while tabs open, so go by ID.
+  std::vector<base::Uuid> panes;
+  for (const auto& pane : split->children()) {
+    if (pane.get() != tab_node && !GetTab(pane.get())) {
+      panes.push_back(pane->id());
+    }
+  }
+  for (const base::Uuid& id : panes) {
+    if (SidebarNode* pane = FindNode(id)) {
+      OpenTabNode(pane, /*foreground=*/false);
+    }
+  }
+  if (!panes.empty()) {
+    ScheduleSyncStripOrder();
+  }
+  return GetTab(tab_node);
+}
+
+tabs::TabInterface* TabStripBridge::OpenTabNode(SidebarNode* tab_node,
+                                                bool foreground) {
   if (tabs::TabInterface* tab = GetTab(tab_node)) {
     return tab;
   }
@@ -205,8 +246,9 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
     TabStripModel* source_strip = source->GetTabStripModel();
     std::unique_ptr<tabs::TabModel> detached =
         source_strip->DetachTabAtForInsertion(source_strip->GetIndexOfTab(tab));
-    tab_strip_model_->InsertDetachedTabAt(index, std::move(detached),
-                                          AddTabTypes::ADD_ACTIVE);
+    tab_strip_model_->InsertDetachedTabAt(
+        index, std::move(detached),
+        foreground ? AddTabTypes::ADD_ACTIVE : AddTabTypes::ADD_NONE);
     return GetTab(tab_node);
   }
 
@@ -214,7 +256,8 @@ tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
                        ? tab_node->url()
                        : GURL(chrome::kChromeUINewTabURL);
   NavigateParams params(browser_, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = foreground ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+                                  : WindowOpenDisposition::NEW_BACKGROUND_TAB;
   params.tabstrip_index = index;
   base::AutoReset<raw_ptr<SidebarNode>> adopting(&adopting_node_, tab_node);
   Navigate(&params);
@@ -361,6 +404,145 @@ void TabStripBridge::OnTabChangedAt(tabs::TabInterface* tab,
 
 void TabStripBridge::OnTabStripModelDestroyed(TabStripModel* tab_strip_model) {
   tab_strip_model_ = nullptr;
+}
+
+void TabStripBridge::OnSplitTabChanged(const SplitTabChange& change) {
+  if (updating_ || !tab_strip_model_) {
+    return;
+  }
+  switch (change.type) {
+    case SplitTabChange::Type::kAdded: {
+      const SplitTabChange::AddedChange* added = change.GetAddedChange();
+      // A split moving in from another window is a model split already.
+      if (added->reason() != SplitTabChange::SplitTabAddReason::
+                                 kInsertedFromAnotherTabstrip &&
+          added->tabs().size() == 2u) {
+        MirrorUpstreamSplit(added->tabs()[0].first, added->tabs()[1].first);
+      }
+      break;
+    }
+    case SplitTabChange::Type::kContentsChanged: {
+      // A pane replaced by another tab.
+      const SplitTabChange::ContentsChange* contents =
+          change.GetContentsChange();
+      if (contents->new_tabs().size() == 2u) {
+        MirrorUpstreamSplit(contents->new_tabs()[0].first,
+                            contents->new_tabs()[1].first);
+      }
+      break;
+    }
+    case SplitTabChange::Type::kRemoved: {
+      const SplitTabChange::RemovedChange* removed = change.GetRemovedChange();
+      if (removed->reason() !=
+          SplitTabChange::SplitTabRemoveReason::kSplitTabRemoved) {
+        break;
+      }
+      // It also ends when one of its tabs closes, before the tab goes: wait
+      // and see which.
+      std::vector<tabs::TabHandle> handles;
+      for (const auto& [tab, index] : removed->tabs()) {
+        handles.push_back(tab->GetHandle());
+      }
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(&TabStripBridge::OnUpstreamSplitRemoved,
+                                    weak_factory_.GetWeakPtr(),
+                                    std::move(handles)));
+      break;
+    }
+    case SplitTabChange::Type::kVisualsChanged:
+      break;
+  }
+}
+
+SidebarNode* TabStripBridge::GetModelSplit(const tabs::TabInterface* a,
+                                           const tabs::TabInterface* b) const {
+  SidebarNode* node_a = GetNode(a);
+  SidebarNode* node_b = GetNode(b);
+  if (!node_a || !node_b || node_a == node_b ||
+      node_a->parent() != node_b->parent() ||
+      node_a->parent()->type() != SidebarNode::Type::kSplit) {
+    return nullptr;
+  }
+  return node_a->parent();
+}
+
+void TabStripBridge::MirrorUpstreamSplit(tabs::TabInterface* a,
+                                         tabs::TabInterface* b) {
+  // Whatever the model can't hold goes back to how the model has it.
+  ScheduleSyncStripOrder();
+  if (GetModelSplit(a, b)) {
+    return;
+  }
+  SidebarNode* node_a = GetNode(a);
+  SidebarNode* node_b = GetNode(b);
+  if (!node_a || !node_b || !space_model_->Contains(node_a) ||
+      !space_model_->Contains(node_b)) {
+    return;
+  }
+  base::AutoReset<bool> updating(&updating_, true);
+  for (SidebarNode* node : {node_a, node_b}) {
+    if (node->parent()->type() == SidebarNode::Type::kSplit) {
+      space_model_->Unsplit(node->parent());
+    }
+  }
+  if (space_model_->CanSplit(node_a, node_b)) {
+    space_model_->Split(node_a, node_b);
+  }
+}
+
+void TabStripBridge::OnUpstreamSplitRemoved(
+    std::vector<tabs::TabHandle> handles) {
+  if (!tab_strip_model_ || handles.size() != 2u) {
+    return;
+  }
+  tabs::TabInterface* a = handles[0].Get();
+  tabs::TabInterface* b = handles[1].Get();
+  if (!a || !b || tab_strip_model_->GetIndexOfTab(a) == TabStripModel::kNoTab ||
+      tab_strip_model_->GetIndexOfTab(b) == TabStripModel::kNoTab ||
+      (a->GetSplit() && a->GetSplit() == b->GetSplit())) {
+    return;
+  }
+  if (SidebarNode* split = GetModelSplit(a, b)) {
+    base::AutoReset<bool> updating(&updating_, true);
+    space_model_->Unsplit(split);
+  }
+}
+
+void TabStripBridge::RemoveUnmirroredSplits() {
+  for (const split_tabs::SplitTabId& split_id :
+       tab_strip_model_->ListSplits()) {
+    const std::vector<tabs::TabInterface*> tabs =
+        tab_strip_model_->GetSplitData(split_id)->ListTabs();
+    if (tabs.size() != 2u || !GetModelSplit(tabs[0], tabs[1])) {
+      tab_strip_model_->RemoveSplit(split_id);
+    }
+  }
+}
+
+void TabStripBridge::CreateMirroredSplits() {
+  std::vector<const SidebarNode*> splits;
+  CollectSplits(space_model_->pinned_root(), splits);
+  CollectSplits(space_model_->today_root(), splits);
+  for (const SidebarNode* split : splits) {
+    if (split->children().size() != 2u) {
+      continue;
+    }
+    tabs::TabInterface* a = GetTab(split->children()[0].get());
+    tabs::TabInterface* b = GetTab(split->children()[1].get());
+    if (!a || !b || (a->GetSplit() && a->GetSplit() == b->GetSplit())) {
+      continue;
+    }
+    const int index_a = tab_strip_model_->GetIndexOfTab(a);
+    const int index_b = tab_strip_model_->GetIndexOfTab(b);
+    // The strip has them side by side by now (SyncStripOrder()).
+    if (std::abs(index_a - index_b) != 1) {
+      continue;
+    }
+    tab_strip_model_->AddToNewSplit({index_a, index_b},
+                                    split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource::
+                                        kTabContextMenu);
+  }
 }
 
 void TabStripBridge::OnNodeAdded(const SidebarNode& node) {
@@ -558,8 +740,15 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
     return;
   }
   SidebarNode* today = space_model_->today_root();
+  if (node->parent()->type() == SidebarNode::Type::kSplit && !tab->GetSplit()) {
+    // Moved out of its split, which upstream then ended: separate them here
+    // too, and go on with the move.
+    base::AutoReset<bool> updating(&updating_, true);
+    space_model_->Unsplit(node->parent());
+  }
   if (node->parent() != today) {
-    // Splits (and later pinned entries) keep their place; undo the move.
+    // Pinned entries, folders' and splits' tabs keep their place; undo the
+    // move.
     ScheduleSyncStripOrder();
     return;
   }
@@ -675,13 +864,31 @@ void TabStripBridge::SyncStripOrder() {
   }
 
   base::AutoReset<bool> updating(&updating_, true);
+  // Every upstream split left is a model split, whose tabs are next to each
+  // other in |order|: it moves whole, so no move lands inside one.
+  RemoveUnmirroredSplits();
   for (size_t i = 0; i < order.size(); ++i) {
     const int from = tab_strip_model_->GetIndexOfTab(order[i]);
+    if (std::optional<split_tabs::SplitTabId> split = order[i]->GetSplit()) {
+      const int first = tab_strip_model_->GetIndexOfTab(
+          tab_strip_model_->GetSplitData(*split)->ListTabs()[0]);
+      if (first != static_cast<int>(i)) {
+        tab_strip_model_->MoveSplitTo(*split, i, /*pinned=*/false,
+                                      /*group_id=*/std::nullopt);
+      }
+      // Its tabs in the model's order.
+      if (tab_strip_model_->GetTabAtIndex(i) != order[i]) {
+        tab_strip_model_->ReverseTabsInSplit(*split);
+      }
+      ++i;
+      continue;
+    }
     if (from != static_cast<int>(i)) {
       tab_strip_model_->MoveWebContentsAt(from, i,
                                           /*select_after_move=*/false);
     }
   }
+  CreateMirroredSplits();
 }
 
 TabStripBridge::Snapshot::Snapshot() = default;

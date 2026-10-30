@@ -747,9 +747,11 @@ TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
   ASSERT_EQ(space_model().pinned_root()->children().size(), 1u);
   EXPECT_EQ(space_model().pinned_root()->children()[0]->id().AsLowercaseString(),
             b);
+  // a is the window's active entry: b can show next to it.
   EXPECT_THAT(MenuCommands(b),
-              ElementsAre(Command::kRename, Command::kCopyLink,
-                          Command::kDuplicate, Command::kReload, Command::kUnpin,
+              ElementsAre(Command::kOpenInSplit, Command::kRename,
+                          Command::kCopyLink, Command::kDuplicate,
+                          Command::kReload, Command::kUnpin,
                           Command::kAddToFavorites, Command::kCloseTab,
                           Command::kRemove));
 
@@ -898,6 +900,26 @@ TEST_F(SidebarPageHandlerTest, RenamesTabs) {
   Settle();
   EXPECT_TRUE(folder->custom_title().empty());
   EXPECT_EQ(folder->title(), u"Work");
+}
+
+TEST_F(SidebarPageHandlerTest, SplitsAndSeparatesFromTheMenu) {
+  // a is active; b opens next to it.
+  const std::string b = TodayId(1);
+  EXPECT_THAT(MenuCommands(TodayId(0)), Not(Contains(Command::kOpenInSplit)));
+  Choose(b, Command::kOpenInSplit);
+  ASSERT_EQ(space_model().today_root()->children().size(), 1u);
+  SidebarNode* split = space_model().today_root()->children()[0].get();
+  ASSERT_EQ(split->type(), SidebarNode::Type::kSplit);
+  tabs::TabInterface* a = tab_strip_model()->GetTabAtIndex(0);
+  ASSERT_TRUE(a->GetSplit());
+  EXPECT_EQ(a->GetSplit(), tab_strip_model()->GetTabAtIndex(1)->GetSplit());
+
+  // A pane's menu, or the split's, separates them.
+  EXPECT_THAT(MenuCommands(b), Contains(Command::kSeparate));
+  Choose(split->id().AsLowercaseString(), Command::kSeparate);
+  EXPECT_EQ(space_model().today_root()->children().size(), 2u);
+  EXPECT_FALSE(a->GetSplit());
+  EXPECT_EQ(tab_strip_model()->count(), 2);
 }
 
 TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {

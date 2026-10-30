@@ -68,6 +68,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     kMoveToSpace,
     kCloseTab,
     kRemove,
+    kOpenInSplit,
+    kSeparate,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
   };

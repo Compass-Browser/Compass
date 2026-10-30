@@ -174,6 +174,9 @@ class SpaceModel {
   // split.
   SidebarNode* Split(SidebarNode* target, SidebarNode* tab);
 
+  // Puts |split|'s panes in its place, in order, as standalone tabs.
+  void Unsplit(SidebarNode* split);
+
   // Removes |node| and its subtree.
   void Remove(SidebarNode* node);
 

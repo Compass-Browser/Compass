@@ -224,6 +224,14 @@ SidebarNode* SpaceModel::Split(SidebarNode* target, SidebarNode* tab) {
   return split;
 }
 
+void SpaceModel::Unsplit(SidebarNode* split) {
+  CHECK_EQ(split->type(), Type::kSplit);
+  // The first pane leaving makes NormalizeSplit() move the last one out
+  // after it, and remove the split.
+  SidebarNode* parent = split->parent();
+  Move(split->children()[0].get(), parent, parent->GetIndexOf(split));
+}
+
 void SpaceModel::Remove(SidebarNode* node) {
   CHECK(node);
   CHECK_NE(node->type(), Type::kRoot);

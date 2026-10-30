@@ -16,12 +16,14 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/restore_type.h"
@@ -263,17 +265,85 @@ TEST_F(TabStripBridgeTest, ClosingAPaneDissolvesTheSplit) {
               ElementsAre("c.test", "b.test"));
 }
 
-TEST_F(TabStripBridgeTest, UndoesStripMovesOutOfASplit) {
+TEST_F(TabStripBridgeTest, StripMovesOutOfASplitSeparateIt) {
   OpenTabs({"a.test", "b.test", "c.test"});
   space_model().Split(TodayAt(0), TodayAt(1));
   Settle();
+  ASSERT_TRUE(tab_strip_model()->GetTabAtIndex(0)->GetSplit());
 
+  // Upstream ends a split whose tab moves out of it (an extension, say).
   tab_strip_model()->MoveWebContentsAt(0, 2, /*select_after_move=*/false);
   Settle();
 
   EXPECT_THAT(Hosts(space_model().today_root()),
-              ElementsAre("[a.test|b.test]", "c.test"));
-  EXPECT_THAT(StripHosts(), ElementsAre("a.test", "b.test", "c.test"));
+              ElementsAre("b.test", "c.test", "a.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test", "c.test", "a.test"));
+}
+
+TEST_F(TabStripBridgeTest, ModelSplitsSplitTheWindow) {
+  OpenTabs({"a.test", "b.test", "c.test"});
+
+  // Not side by side in the strip: the strip follows the model first.
+  space_model().Split(TodayAt(0), TodayAt(2));
+  Settle();
+
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "b.test"));
+  tabs::TabInterface* a = tab_strip_model()->GetTabAtIndex(0);
+  tabs::TabInterface* c = tab_strip_model()->GetTabAtIndex(1);
+  ASSERT_TRUE(a->GetSplit());
+  EXPECT_EQ(a->GetSplit(), c->GetSplit());
+  EXPECT_FALSE(tab_strip_model()->GetTabAtIndex(2)->GetSplit());
+
+  // Separating in the model ends it.
+  space_model().Unsplit(TodayAt(0));
+  Settle();
+  EXPECT_FALSE(a->GetSplit());
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("a.test", "c.test", "b.test"));
+}
+
+TEST_F(TabStripBridgeTest, UpstreamSplitsSplitTheModel) {
+  OpenTabs({"a.test", "b.test", "c.test"});
+
+  tab_strip_model()->AddToNewSplit({0, 2}, split_tabs::SplitTabVisualData(),
+                                   split_tabs::SplitTabCreatedSource::
+                                       kToolbarButton);
+  Settle();
+
+  ASSERT_EQ(space_model().today_root()->children().size(), 2u);
+  EXPECT_EQ(TodayAt(0)->type(), Type::kSplit);
+  EXPECT_EQ(StripHosts().back(), "b.test");
+
+  // Separated upstream: the model follows, the tabs stay.
+  tab_strip_model()->RemoveSplit(*tab_strip_model()->GetTabAtIndex(0)->GetSplit());
+  Settle();
+  EXPECT_EQ(space_model().today_root()->children().size(), 3u);
+  EXPECT_EQ(tab_strip_model()->count(), 3);
+}
+
+TEST_F(TabStripBridgeTest, ClosingAPinnedPaneKeepsItsSplit) {
+  OpenTabs({"a.test", "b.test", "c.test"});
+  Pin(0);
+  Pin(0);
+  space_model().Split(space_model().pinned_root()->children()[0].get(),
+                      space_model().pinned_root()->children()[1].get());
+  Settle();
+  ASSERT_TRUE(tab_strip_model()->GetTabAtIndex(0)->GetSplit());
+
+  tab_strip_model()->CloseWebContentsAt(1, CLOSE_NONE);
+  Settle();
+
+  ASSERT_EQ(space_model().pinned_root()->children().size(), 1u);
+  const SidebarNode* split = space_model().pinned_root()->children()[0].get();
+  EXPECT_EQ(split->type(), Type::kSplit);
+
+  // Opening a pane brings the other one, and they split again.
+  bridge().OpenNode(split->children()[1].get());
+  Settle();
+  EXPECT_EQ(tab_strip_model()->count(), 3);
+  ASSERT_TRUE(tab_strip_model()->GetTabAtIndex(0)->GetSplit());
+  EXPECT_EQ(tab_strip_model()->GetTabAtIndex(0)->GetSplit(),
+            tab_strip_model()->GetTabAtIndex(1)->GetSplit());
 }
 
 TEST_F(TabStripBridgeTest, LinksGatherWithTheirOpenerInAFolder) {

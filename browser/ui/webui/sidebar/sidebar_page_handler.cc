@@ -555,6 +555,18 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
   for (const auto& pane : node->children()) {
     live |= registry().GetTab(pane.get()) != nullptr;
   }
+  // Shown next to the window's active entry, or separated.
+  SidebarNode* shown = bridge().GetShownNode(tab_strip_model()->GetActiveTab());
+  if (node->type() == SidebarNode::Type::kSplit ||
+      node->parent()->type() == SidebarNode::Type::kSplit) {
+    menu->AddItem(kSeparate, u"Separate Tabs");
+    menu->AddSeparator(ui::NORMAL_SEPARATOR);
+  } else if (entry && !favorite && shown && shown != node &&
+             space_model().Contains(shown) &&
+             space_model().CanSplit(shown, node)) {
+    menu->AddItem(kOpenInSplit, u"Open in Split View");
+    menu->AddSeparator(ui::NORMAL_SEPARATOR);
+  }
   if (node->type() == SidebarNode::Type::kTab) {
     // A favorite's tile shows no name.
     if (!favorite) {
@@ -647,6 +659,26 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
         page_->StartRename(id);
       }
       break;
+    case kOpenInSplit: {
+      SidebarNode* shown =
+          bridge().GetShownNode(tab_strip_model()->GetActiveTab());
+      if (shown && shown != node && space.Contains(shown) &&
+          space.Contains(node) && space.CanSplit(shown, node)) {
+        space.Split(shown, node);
+        // Brings the other pane, and the bridge splits the window.
+        ActivateNode(id);
+      }
+      break;
+    }
+    case kSeparate: {
+      SidebarNode* split = node->type() == SidebarNode::Type::kSplit
+                               ? node
+                               : node->parent();
+      if (split->type() == SidebarNode::Type::kSplit && space.Contains(split)) {
+        space.Unsplit(split);
+      }
+      break;
+    }
     case kCloseTab:
       CloseNode(id);
       break;

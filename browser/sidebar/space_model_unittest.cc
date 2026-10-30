@@ -148,6 +148,19 @@ TEST_F(SpaceModelTest, SplitRespectsPaneLimit) {
   EXPECT_FALSE(model_.CanSplit(a, a));
 }
 
+TEST_F(SpaceModelTest, UnsplitPutsThePanesInItsPlace) {
+  Tab(model_.today_root(), "x");
+  SidebarNode* a = Tab(model_.today_root(), "a");
+  SidebarNode* b = Tab(model_.today_root(), "b");
+  Tab(model_.today_root(), "y");
+  SidebarNode* split = model_.Split(a, b);
+  ASSERT_THAT(Titles(model_.today_root()), ElementsAre("x", "[a|b]", "y"));
+
+  model_.Unsplit(split);
+
+  EXPECT_THAT(Titles(model_.today_root()), ElementsAre("x", "a", "b", "y"));
+}
+
 TEST_F(SpaceModelTest, SplitsCannotNestOrHoldFolders) {
   SidebarNode* folder = model_.AddFolder(model_.pinned_root(), 0, u"f");
   SidebarNode* a = Tab(model_.pinned_root(), "a");

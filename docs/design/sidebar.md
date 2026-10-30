@@ -686,6 +686,41 @@ moves it with its tabs.
 `RoundTripsTodayFolders`, `SidebarPageHandlerTest.FoldersInToday` and the
 browser test `FoldersInToday`.
 
+## Split tabs
+
+A split entry (`SidebarNode::Type::kSplit`, two panes, saved since slice
+c) is upstream's split view when it's open: the window shows both panes
+side by side. The bridge keeps the two in step (`TabStripBridge`):
+
+- Model to strip: after every strip sync, the upstream splits that aren't
+  a model split end (`RemoveUnmirroredSplits()`), the strip follows the
+  tree with each split moved whole (`MoveSplitTo()`, panes in the model's
+  order), and each model split whose panes are both live here becomes an
+  upstream split (`CreateMirroredSplits()`, `AddToNewSplit()`).
+- Strip to model: a split made upstream (the split view button, "Open
+  link in split view", an extension) splits the two entries in the model,
+  where the first one was; a pane replaced upstream changes the model's
+  split. A split ended upstream with both tabs still in the window
+  separates the entries; one that ended because a tab closed doesn't, so
+  a pinned split stays a split while unloaded. A tab moved out of its
+  split in the strip leaves it in the model too.
+- Opening a pane (clicking it, or the split's active pane coming back)
+  opens the other pane in the background, so the split shows at once
+  (`OpenNode()`).
+
+The context menu has "Open in Split View" on an entry that can go next to
+the window's active entry (it splits them and shows the split), and
+"Separate Tabs" on a split or a pane (`SpaceModel::Unsplit()`).
+
+Not yet: making a split by dragging an entry onto another or onto the
+page, and the upstream split's layout and ratio (not saved).
+
+**Tests:** `UnsplitPutsThePanesInItsPlace`, the bridge's
+`ModelSplitsSplitTheWindow`, `UpstreamSplitsSplitTheModel`,
+`StripMovesOutOfASplitSeparateIt`, `ClosingAPinnedPaneKeepsItsSplit`, the
+handler's `SplitsAndSeparatesFromTheMenu`, and the browser test
+`SplitsShowSideBySide`.
+
 ## Link folders
 
 Links opened in the background from a page in the sidebar (Cmd+click,
