@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
-#define STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_COMPASS_SIDEBAR_VIEW_H_
+#define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_COMPASS_SIDEBAR_VIEW_H_
 
 #include <initializer_list>
 #include <memory>
@@ -15,7 +15,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/tabs/public/tab_interface.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/webview/webview.h"
@@ -31,7 +31,7 @@ class FocusManager;
 class View;
 }  // namespace views
 
-namespace strata {
+namespace compass {
 
 // Switches |browser|'s window to its Nth space on Ctrl+N (N = 1 to 9;
 // Ctrl+Shift+N outside macOS, where Ctrl+N picks tabs), while registered with
@@ -55,19 +55,19 @@ class SpaceShortcuts : public ui::AcceleratorTarget {
   raw_ptr<views::FocusManager> focus_manager_ = nullptr;
 };
 
-// Hosts chrome://strata-sidebar inside the vertical tab strip region, where
+// Hosts chrome://compass-sidebar inside the vertical tab strip region, where
 // the native tab strip would be, the window's space shortcuts and its command
 // bar. It owns its page, which a switch to another profile's space hands to
 // the new window's sidebar (TakePageFrom(), docs/design/profiles-in-place.md):
 // the page can be another profile's.
-class StrataSidebarView : public views::WebView, public ProfileObserver {
-  METADATA_HEADER(StrataSidebarView, views::WebView)
+class CompassSidebarView : public views::WebView, public ProfileObserver {
+  METADATA_HEADER(CompassSidebarView, views::WebView)
 
  public:
-  explicit StrataSidebarView(BrowserWindowInterface* browser);
-  StrataSidebarView(const StrataSidebarView&) = delete;
-  StrataSidebarView& operator=(const StrataSidebarView&) = delete;
-  ~StrataSidebarView() override;
+  explicit CompassSidebarView(BrowserWindowInterface* browser);
+  CompassSidebarView(const CompassSidebarView&) = delete;
+  CompassSidebarView& operator=(const CompassSidebarView&) = delete;
+  ~CompassSidebarView() override;
 
   BrowserWindowInterface* browser() const { return browser_; }
 
@@ -81,7 +81,7 @@ class StrataSidebarView : public views::WebView, public ProfileObserver {
   void LoadPage();
   // Takes |other|'s page, which then shows this window's tree; |other| is
   // left without one.
-  void TakePageFrom(StrataSidebarView& other);
+  void TakePageFrom(CompassSidebarView& other);
 
   // ProfileObserver:
   void OnProfileWillBeDestroyed(Profile* profile) override;
@@ -106,7 +106,7 @@ class StrataSidebarView : public views::WebView, public ProfileObserver {
 };
 
 // The sidebar the vertical tab strip region shows in place of the native tab
-// strip, which Strata never builds. Called from
+// strip, which Compass never builds. Called from
 // VerticalTabStripRegionView::InitializeTabStrip() (see patches/), which adds
 // it where the native strip would go.
 std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser);
@@ -153,6 +153,6 @@ class ActiveTabWatcher {
   base::CallbackListSubscription will_detach_subscription_;
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_SIDEBAR_COMPASS_SIDEBAR_VIEW_H_

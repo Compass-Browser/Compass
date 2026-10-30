@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTEXT_MENU_H_
-#define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTEXT_MENU_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTEXT_MENU_H_
+#define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTEXT_MENU_H_
 
 #include <memory>
 
@@ -21,12 +21,12 @@ class MenuRunner;
 class View;
 }  // namespace views
 
-namespace strata {
+namespace compass {
 
 // Runs the context menus of the sidebar's entries: native menus, at the point
 // in the sidebar the page was right-clicked. The page says where, and the page
 // handler builds the menu (SidebarPageHandler::ShowContextMenu()). Lives on
-// the sidebar page's WebContents, which StrataSidebarView owns. See
+// the sidebar page's WebContents, which CompassSidebarView owns. See
 // docs/design/sidebar.md, "Context menus".
 class SidebarContextMenu
     : public content::WebContentsUserData<SidebarContextMenu> {
@@ -59,6 +59,6 @@ class SidebarContextMenu
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTEXT_MENU_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTEXT_MENU_H_

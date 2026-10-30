@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module strata.command_bar.mojom;
+module compass.command_bar.mojom;
 
 import "url/mojom/url.mojom";
 
@@ -45,7 +45,7 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
-// Browser-side handler for chrome://strata-command-bar. See
+// Browser-side handler for chrome://compass-command-bar. See
 // docs/design/command-bar.md.
 interface PageHandler {
   // The page is ready to be shown.

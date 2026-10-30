@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/sidebar_store.h"
+#include "compass/browser/window_sync/sidebar_store.h"
 
 #include <memory>
 #include <string>
@@ -13,12 +13,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/uuid.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 // Titles of |parent|'s children, comma separated.
@@ -56,6 +56,25 @@ class SidebarStoreTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   base::ScopedTempDir dir_;
 };
+
+TEST(ReadJsonFileTest, TakesOverTheFileFromBeforeTheRename) {
+  base::ScopedTempDir dir;
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  const base::FilePath legacy = dir.GetPath().AppendASCII("Strata Sidebar.json");
+  const base::FilePath path = dir.GetPath().AppendASCII("Compass Sidebar.json");
+  ASSERT_TRUE(base::WriteFile(legacy, R"({"version": 2})"));
+
+  std::optional<base::Value> value = ReadJsonFile(path);
+
+  ASSERT_TRUE(value && value->is_dict());
+  EXPECT_EQ(value->GetDict().FindInt("version"), 2);
+  EXPECT_TRUE(base::PathExists(path));
+  EXPECT_FALSE(base::PathExists(legacy));
+
+  // The new file wins from then on.
+  ASSERT_TRUE(base::WriteFile(legacy, R"({"version": 1})"));
+  EXPECT_EQ(ReadJsonFile(path)->GetDict().FindInt("version"), 2);
+}
 
 TEST_F(SidebarStoreTest, SavesPinnedAndLoadsItBack) {
   SpaceList list;
@@ -186,4 +205,4 @@ TEST_F(SidebarStoreTest, SavesRemovalsAndMovesBetweenSpaces) {
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

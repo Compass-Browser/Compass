@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/sidebar_node.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -12,7 +12,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 
-namespace strata {
+namespace compass {
 
 SidebarNode::SidebarNode(Type type, std::u16string title, GURL url)
     : id_(base::Uuid::GenerateRandomV4()),
@@ -56,4 +56,4 @@ std::unique_ptr<SidebarNode> SidebarNode::Remove(const SidebarNode* child) {
   return removed;
 }
 
-}  // namespace strata
+}  // namespace compass

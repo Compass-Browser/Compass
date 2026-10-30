@@ -1,12 +1,12 @@
 diff --git a/tools/metrics/histograms/metadata/profile/enums.xml b/tools/metrics/histograms/metadata/profile/enums.xml
-index e5bcc98644391ccca56ecd123343d36065e46830..8e55e4e8bc560fd96e0d2dead37522370aa8aaa2 100644
+index e5bcc98644391ccca56ecd123343d36065e46830..2d1545c0aef2743c69199942965542374e49ddfc 100644
 --- a/tools/metrics/histograms/metadata/profile/enums.xml
 +++ b/tools/metrics/histograms/metadata/profile/enums.xml
 @@ -430,6 +430,7 @@ chromium-metrics-reviews@google.com.
    <int value="44" label="kWebAppDatabaseCorruptionRecovery"/>
    <int value="45" label="kFetchKeepAlive"/>
    <int value="46" label="kOmniboxEverywhere"/>
-+  <int value="47" label="kStrataSpaces"/>
++  <int value="47" label="kCompassSpaces"/>
  </enum>
  
  <!-- LINT.IfChange(ProfileLockStatus) -->

@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_
-#define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_
+#define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_
 
 #include <memory>
 #include <optional>
@@ -48,7 +48,7 @@ class LabelButton;
 class WidgetDelegate;
 }  // namespace views
 
-namespace strata {
+namespace compass {
 
 // The vertical tab strip region's top: upstream's row (traffic lights,
 // collapse button, combo button) plus back, forward and reload at the row's
@@ -285,6 +285,6 @@ bool FocusToolbarControls(BrowserWindowInterface* browser);
 // toolbar's controls. False to let the toolbar take focus.
 bool FocusAppMenu(BrowserWindowInterface* browser);
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HEADER_H_

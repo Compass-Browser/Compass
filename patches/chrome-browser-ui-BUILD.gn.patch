@@ -1,13 +1,13 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 238f8625e42d8703c72c266c36e32bbfb2113095..ebd141b4f14a95f74ab00bffa598ed9ea7936560 100644
+index 238f8625e42d8703c72c266c36e32bbfb2113095..5c98ad673163f54f49084d48457cd9f0b0deb726 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -657,6 +657,8 @@ if (!is_android) {
        "//chrome/browser:browser_public_dependencies",
      ]
      deps = [
-+      # Strata offers commands to its command bar first.
-+      "//strata/browser/ui",
++      # Compass offers commands to its command bar first.
++      "//compass/browser/ui",
        ":accelerator_table",
        ":browser_actions",
        ":browser_commands",
@@ -15,7 +15,7 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..ebd141b4f14a95f74ab00bffa598ed9e
      # New dependencies inside of //chrome/browser that generate header files
      # should be added to //chrome/browser:browser_generated_files.
      ":accelerator_utils_headers",
-+    "//strata/browser/ui",
++    "//compass/browser/ui",
      ":browser_live_tab_context",
      ":crypto_module_password_dialog",
      ":download_close_type",
@@ -24,8 +24,8 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..ebd141b4f14a95f74ab00bffa598ed9e
        # plural_string_handler.h from //chrome/browser/ui.
        "//chrome/browser/ui/webui/tab_search",
 +
-+      # Strata's sidebar includes browser views and commands.
-+      "//strata/browser/ui",
++      # Compass's sidebar includes browser views and commands.
++      "//compass/browser/ui",
      ]
  
      if (is_win || is_chromeos) {

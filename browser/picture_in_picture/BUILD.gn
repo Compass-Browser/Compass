@@ -1,8 +1,8 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Auto picture-in-picture is upstream's, set up by //strata/browser:
+# Auto picture-in-picture is upstream's, set up by //compass/browser:
 # feature_overrides and a few patches (docs/design/picture-in-picture.md).
 source_set("browser_tests") {
   testonly = true
@@ -20,8 +20,8 @@ source_set("browser_tests") {
     "//chrome/test:test_support_ui",
     "//content/public/browser",
     "//content/test:test_support",
-    "//strata/browser/sidebar",
-    "//strata/browser/window_sync",
+    "//compass/browser/sidebar",
+    "//compass/browser/window_sync",
     "//testing/gtest",
     "//url",
   ]

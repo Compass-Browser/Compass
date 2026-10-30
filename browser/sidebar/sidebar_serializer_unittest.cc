@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
 
 #include <algorithm>
 #include <optional>
@@ -11,12 +11,12 @@
 #include "base/json/json_reader.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 using Type = SidebarNode::Type;
@@ -354,4 +354,4 @@ TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

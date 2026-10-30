@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/webui/sidebar/sidebar_page_handler.h"
+#include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
 #include <utility>
 #include <vector>
@@ -24,22 +24,22 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/web_contents.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
-#include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
-#include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
+#include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/space_service.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
 #include "ui/gfx/geometry/point.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -353,7 +353,7 @@ void SidebarPageHandler::SwitchSpace(const std::string& id) {
   SpaceDirectory::Entry entry = FindAnySpace(id);
   if (entry.space) {
     // Another profile's swaps the window, whose next handler takes the page
-    // (StrataSidebarUI).
+    // (CompassSidebarUI).
     SwitchWindowToSpace(browser_, entry.profile, *entry.space);
   }
 }
@@ -436,7 +436,7 @@ void SidebarPageHandler::SetSpaceProfile(
 void SidebarPageHandler::DeleteSpace(const std::string& id) {
   SpaceDirectory::Entry entry = FindAnySpace(id);
   if (entry.space) {
-    strata::DeleteSpace(entry.profile, *entry.space);
+    compass::DeleteSpace(entry.profile, *entry.space);
   }
 }
 
@@ -1017,4 +1017,4 @@ void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node) {
       CLOSE_USER_GESTURE | CLOSE_CREATE_HISTORICAL_TAB);
 }
 
-}  // namespace strata
+}  // namespace compass

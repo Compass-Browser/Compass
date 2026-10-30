@@ -21,26 +21,26 @@ jobs:
     timeout-minutes: 720
     env:
       # Keep the checkout on the runner between jobs: syncing from scratch takes hours.
-      STRATA_CHROMIUM_DIR: ${{ vars.STRATA_CHROMIUM_DIR }}
+      COMPASS_CHROMIUM_DIR: ${{ vars.COMPASS_CHROMIUM_DIR }}
     steps:
       - uses: actions/checkout@v4
         with:
-          path: strata
+          path: compass
       - name: Checkout or sync Chromium
-        working-directory: strata
+        working-directory: compass
         shell: bash
         run: |
-          if python3 tools/strata info | grep -q 'checkout present: True'; then
-            python3 tools/strata sync
+          if python3 tools/compass info | grep -q 'checkout present: True'; then
+            python3 tools/compass sync
           else
-            python3 tools/strata init
+            python3 tools/compass init
           fi
       - name: Generate
-        working-directory: strata
-        run: python3 tools/strata gen ${{ inputs.config }} --force
+        working-directory: compass
+        run: python3 tools/compass gen ${{ inputs.config }} --force
       - name: Build
-        working-directory: strata
-        run: python3 tools/strata build -c ${{ inputs.config }} chrome strata_unittests
+        working-directory: compass
+        run: python3 tools/compass build -c ${{ inputs.config }} chrome compass_unittests
       - name: Test
-        working-directory: strata
-        run: python3 tools/strata test -c ${{ inputs.config }}
+        working-directory: compass
+        run: python3 tools/compass test -c ${{ inputs.config }}

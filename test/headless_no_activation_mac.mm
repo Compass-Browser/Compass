@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// In a headless browser test (`strata test --browser` passes --headless), the
+// In a headless browser test (`compass test --browser` passes --headless), the
 // app is never active, so tests running in the background don't take the
 // user's focus: macOS brings a newly launched app to the front, and showing a
 // window activates it (NativeWidgetNSWindowBridge). Windows still show, as for
@@ -11,10 +11,10 @@
 
 #import <AppKit/AppKit.h>
 
-@interface StrataNoAppActivation : NSObject
+@interface CompassNoAppActivation : NSObject
 @end
 
-@implementation StrataNoAppActivation
+@implementation CompassNoAppActivation
 
 + (void)load {
   if (![NSProcessInfo.processInfo.arguments containsObject:@"--headless"]) {

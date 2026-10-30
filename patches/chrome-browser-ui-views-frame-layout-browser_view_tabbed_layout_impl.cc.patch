@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792b3aed86e 100644
+index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6d1a7f0a7 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
  
  #include "chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.h"
  
-+#include "strata/browser/ui/views/frame/content_frame.h"
++#include "compass/browser/ui/views/frame/content_frame.h"
 +
  #include <algorithm>
  #include <memory>
@@ -16,7 +16,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
    // Now that the proper default value is set, calculate all of the corner
    // animation values.
 -  int leading_exclusion_height = GetCollapsedVerticalTabStripRelativeTop();
-+  // Strata: the collapsed sidebar is the frame's edge from top to bottom, and
++  // Compass: the collapsed sidebar is the frame's edge from top to bottom, and
 +  // shown on hover it holds the caption buttons, as expanded.
 +  int leading_exclusion_height = 0;
    VerticalTabStripAnimation animation;
@@ -26,11 +26,11 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
                      layout_data_->tab_strip_type == TabStripType::kVertical);
    }
  
-+  // Strata: beside the sidebar, the page sits in a card inside the frame.
++  // Compass: beside the sidebar, the page sits in a card inside the frame.
 +  if (layout_data_->tab_strip_type == TabStripType::kVertical) {
-+    params = params.WithInsets(strata::GetContentFrameInsets());
++    params = params.WithInsets(compass::GetContentFrameInsets());
 +    unclipped_contents_region.Inset(
-+        gfx::Insets().set_right(strata::kContentFrameInset));
++        gfx::Insets().set_right(compass::kContentFrameInset));
 +  }
 +
    if (IsParentedTo(views().vertical_tab_strip_background_blur_backdrop,
@@ -43,7 +43,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
 -    const bool top_corner_visible =
 -        layout_data_->tab_strip_type == TabStripType::kVertical &&
 -        vertical_tab_strip_animation.top_corner > 0.0;
-+    // Strata: the card has its own corners.
++    // Compass: the card has its own corners.
 +    const bool top_corner_visible = false;
  
      // The top corner is drawn when the tabstrip goes all the way to the top.
@@ -63,7 +63,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
    // especially obvious in split view, where turning the separator off provides
    // the required top padding.
    const auto& separator_info = layout_data_->separator_info;
-+  // Strata: the card has no separator.
++  // Compass: the card has no separator.
    views().multi_contents_view->SetShouldShowTopSeparator(
 -      separator_info.multi_contents_separator);
 +      separator_info.multi_contents_separator &&
@@ -75,10 +75,10 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
      }
      views().multi_contents_view->SetBackgroundRadii(content_corners);
    }
-+  // Strata: the card's corners.
++  // Compass: the card's corners.
 +  if (layout_data_->tab_strip_type == TabStripType::kVertical) {
 +    views().multi_contents_view->SetBackgroundRadii(
-+        gfx::RoundedCornersF(strata::kContentCornerRadius));
++        gfx::RoundedCornersF(compass::kContentCornerRadius));
 +  } else if (!in_glass_mode()) {
 +    views().multi_contents_view->SetBackgroundRadii(gfx::RoundedCornersF());
 +  }
@@ -89,7 +89,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
            vertical_tabs_bottom_corner_size;
      }
  
-+    // Strata: the region and the frame around the page are one surface.
++    // Compass: the region and the frame around the page are one surface.
 +    vertical_tabs_corners[CornerOrientation::kTopTrailing] = {};
      vertical_tabs_background->SetCorners(vertical_tabs_corners);
  
@@ -98,7 +98,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..30002d2293618afd1fcab737b100b792
      if (animation.expand_on_hover_width > 0.0) {
        vertical_tabs_outline.bottom = true;
      }
-+    // Strata: only the sidebar shown on hover, over the page, has an edge.
++    // Compass: only the sidebar shown on hover, over the page, has an edge.
 +    vertical_tabs_outline.trailing = animation.expand_on_hover_width > 0.0;
 +    vertical_tabs_outline.top = false;
 +    vertical_tabs_outline.bottom = false;

@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_RESTORED_TAB_MATCHER_H_
-#define STRATA_BROWSER_WINDOW_SYNC_RESTORED_TAB_MATCHER_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_RESTORED_TAB_MATCHER_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_RESTORED_TAB_MATCHER_H_
 
 #include <vector>
 
@@ -12,7 +12,7 @@
 
 class GURL;
 
-namespace strata {
+namespace compass {
 
 class LiveTabRegistry;
 class SidebarNode;
@@ -56,6 +56,6 @@ class RestoredTabMatcher {
   std::vector<base::Uuid> unmatched_;
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_RESTORED_TAB_MATCHER_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_RESTORED_TAB_MATCHER_H_

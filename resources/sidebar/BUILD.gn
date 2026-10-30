@@ -1,20 +1,20 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import("//ui/webui/resources/tools/build_webui.gni")
 
-# chrome://strata-sidebar, and the other Strata pages (the placeholder, the
+# chrome://compass-sidebar, and the other Compass pages (the placeholder, the
 # command bar). Produces :resources, whose pak is added to Chrome's resources
 # (see patches/chrome-chrome_paks.gni.patch).
 build_webui("build") {
-  grd_prefix = "strata_sidebar"
-  grit_output_dir = "$root_gen_dir/strata"
+  grd_prefix = "compass_sidebar"
+  grit_output_dir = "$root_gen_dir/compass"
 
   static_files = [
     "command_bar.html",
     "placeholder.html",
-    "strata_sidebar.html",
+    "compass_sidebar.html",
   ]
   ts_files = [
     "app.html.ts",
@@ -46,11 +46,11 @@ build_webui("build") {
   ]
 
   mojo_files_deps = [
-    "//strata/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
-    "//strata/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
   ]
   mojo_files = [
-    "$root_gen_dir/strata/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
-    "$root_gen_dir/strata/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
+    "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
+    "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
   ]
 }

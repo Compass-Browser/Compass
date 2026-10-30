@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/ui_features.cc b/chrome/browser/ui/ui_features.cc
-index 562d8529586fa175ca3a790b5217669c638cadbe..e9ec153fa2654a8b5e0fa2bfd6cd65677b0ec18d 100644
+index 562d8529586fa175ca3a790b5217669c638cadbe..5096f647382ac05c54d7f030415472332a0dc6e1 100644
 --- a/chrome/browser/ui/ui_features.cc
 +++ b/chrome/browser/ui/ui_features.cc
 @@ -266,13 +266,8 @@ BASE_FEATURE(kNewTabButtonContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -13,7 +13,7 @@ index 562d8529586fa175ca3a790b5217669c638cadbe..e9ec153fa2654a8b5e0fa2bfd6cd6567
 -             base::FEATURE_ENABLED_BY_DEFAULT
 -#endif
 -);
-+// Strata: on everywhere; its sidebar's hover cards show previews.
++// Compass: on everywhere; its sidebar's hover cards show previews.
 +BASE_FEATURE(kTabHoverCardImages, base::FEATURE_ENABLED_BY_DEFAULT);
  
  BASE_FEATURE(kTabModalUsesDesktopWidget, base::FEATURE_DISABLED_BY_DEFAULT);

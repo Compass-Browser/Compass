@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
-#define STRATA_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
+#define COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
@@ -20,7 +20,7 @@ namespace views {
 class Widget;
 }  // namespace views
 
-namespace strata {
+namespace compass {
 
 // The frame of the space's color around the page's card, as in Arc
 // (content_frame.h sets its measurements; upstream's browser view layout
@@ -74,6 +74,6 @@ bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point);
 // Sets |widget|'s caption buttons' opacity, hidden at 0. Only macOS has any.
 void SetCaptionButtonsOpacity(views::Widget* widget, float opacity);
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_

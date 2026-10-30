@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_
-#define STRATA_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_
 
 #include <memory>
 #include <vector>
@@ -15,15 +15,15 @@
 #include "base/supports_user_data.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/live_tab_registry.h"
-#include "strata/browser/window_sync/restored_tab_matcher.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/window_sync/restored_tab_matcher.h"
 
 class BrowserWindowInterface;
 class Profile;
 
-namespace strata {
+namespace compass {
 
 class SidebarStore;
 
@@ -118,6 +118,6 @@ class SpaceService : public base::SupportsUserData::Data,
   base::WeakPtrFactory<SpaceService> weak_factory_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_SPACE_SERVICE_H_

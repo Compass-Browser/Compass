@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {StrataSidebarNodeElement} from './node.js';
+import type {CompassSidebarNodeElement} from './node.js';
 import type {Node} from './sidebar.mojom-webui.js';
 
-export function getHtml(this: StrataSidebarNodeElement) {
+export function getHtml(this: CompassSidebarNodeElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 ${this.isTab_() ? html`
@@ -70,9 +70,9 @@ ${this.isFolder_() ? html`
     <div class="folder-children" role="group">
       ${repeat(this.getChildren_(), (child: Node) => child.id,
                (child: Node) => html`
-        <strata-sidebar-node .node="${child}" .activeId="${this.activeId}"
+        <compass-sidebar-node .node="${child}" .activeId="${this.activeId}"
             .profileId="${this.profileId}">
-        </strata-sidebar-node>`)}
+        </compass-sidebar-node>`)}
     </div>` : nothing}` : nothing}
 <!--_html_template_end_-->`;
   // clang-format on

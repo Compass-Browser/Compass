@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/feature_overrides.h"
+#include "compass/browser/feature_overrides.h"
 
 #include "components/variations/feature_overrides.h"
 #include "third_party/blink/public/common/features.h"
 
-namespace strata {
+namespace compass {
 
 void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // A playing, audible video goes into picture-in-picture when its tab is
@@ -17,4 +17,4 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
       blink::features::kBrowserInitiatedAutomaticPictureInPicture);
 }
 
-}  // namespace strata
+}  // namespace compass

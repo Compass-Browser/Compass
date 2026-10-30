@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/global_keyboard_shortcuts_mac.mm b/chrome/browser/global_keyboard_shortcuts_mac.mm
-index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..97fe75d6ea218b883050eede248bc06a65b51155 100644
+index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..00f696b70e22dd0ad99264192182d61a765e146d 100644
 --- a/chrome/browser/global_keyboard_shortcuts_mac.mm
 +++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
 @@ -24,6 +24,7 @@
  #include "ui/base/ui_base_features.h"
  #include "ui/events/event_constants.h"
  #include "ui/events/keycodes/keyboard_code_conversion_mac.h"
-+#include "strata/browser/ui/cocoa/shortcuts_mac.h"
++#include "compass/browser/ui/cocoa/shortcuts_mac.h"
  
  namespace {
  
@@ -14,7 +14,7 @@ index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..97fe75d6ea218b883050eede248bc06a
                        IDC_DEBUG_PRINT_VIEW_TREE_DETAILS});
      }
  
-+    strata::AdjustShortcutsNotInMenu(keys);
++    compass::AdjustShortcutsNotInMenu(keys);
      return keys;
    }());
    return *keys;

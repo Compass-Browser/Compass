@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_SIDEBAR_UI_H_
-#define STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_SIDEBAR_UI_H_
+#ifndef COMPASS_BROWSER_UI_WEBUI_SIDEBAR_COMPASS_SIDEBAR_UI_H_
+#define COMPASS_BROWSER_UI_WEBUI_SIDEBAR_COMPASS_SIDEBAR_UI_H_
 
 #include <memory>
 #include <vector>
@@ -15,34 +15,34 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 
-namespace strata {
+namespace compass {
 
-inline constexpr char kStrataSidebarHost[] = "strata-sidebar";
-inline constexpr char kStrataSidebarURL[] = "chrome://strata-sidebar/";
+inline constexpr char kCompassSidebarHost[] = "compass-sidebar";
+inline constexpr char kCompassSidebarURL[] = "chrome://compass-sidebar/";
 
 class SidebarPageHandler;
-class StrataSidebarUI;
+class CompassSidebarUI;
 
-class StrataSidebarUIConfig
-    : public content::DefaultWebUIConfig<StrataSidebarUI> {
+class CompassSidebarUIConfig
+    : public content::DefaultWebUIConfig<CompassSidebarUI> {
  public:
-  StrataSidebarUIConfig();
+  CompassSidebarUIConfig();
 };
 
-// chrome://strata-sidebar: the sidebar page shown in the vertical tab strip
-// region. Its host (StrataSidebarView) sets the window it belongs to with
+// chrome://compass-sidebar: the sidebar page shown in the vertical tab strip
+// region. Its host (CompassSidebarView) sets the window it belongs to with
 // webui::SetBrowserWindowInterface(), and sets it again when the page moves
 // to another window. See docs/design/sidebar.md.
-class StrataSidebarUI : public ui::MojoWebUIController,
+class CompassSidebarUI : public ui::MojoWebUIController,
                         public sidebar::mojom::PageHandlerFactory {
  public:
-  explicit StrataSidebarUI(content::WebUI* web_ui);
-  StrataSidebarUI(const StrataSidebarUI&) = delete;
-  StrataSidebarUI& operator=(const StrataSidebarUI&) = delete;
-  ~StrataSidebarUI() override;
+  explicit CompassSidebarUI(content::WebUI* web_ui);
+  CompassSidebarUI(const CompassSidebarUI&) = delete;
+  CompassSidebarUI& operator=(const CompassSidebarUI&) = delete;
+  ~CompassSidebarUI() override;
 
   void BindInterface(
       mojo::PendingReceiver<sidebar::mojom::PageHandlerFactory> receiver);
@@ -75,6 +75,6 @@ class StrataSidebarUI : public ui::MojoWebUIController,
   WEB_UI_CONTROLLER_TYPE_DECL();
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_SIDEBAR_UI_H_
+#endif  // COMPASS_BROWSER_UI_WEBUI_SIDEBAR_COMPASS_SIDEBAR_UI_H_

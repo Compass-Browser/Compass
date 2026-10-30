@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,7 +25,7 @@
 #include "ui/gfx/animation/animation_test_api.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 // The command the key with |key_code| and |modifiers| runs, as when typed:
@@ -55,10 +55,10 @@ constexpr NSEventModifierFlags kCommand = NSEventModifierFlagCommand;
 constexpr NSEventModifierFlags kCommandShift =
     NSEventModifierFlagCommand | NSEventModifierFlagShift;
 
-class StrataShortcutsBrowserTest : public InProcessBrowserTest {
+class CompassShortcutsBrowserTest : public InProcessBrowserTest {
  protected:
   // The sidebar collapses as it starts to, without frames (see
-  // strata_sidebar_browsertest.cc).
+  // compass_sidebar_browsertest.cc).
   gfx::AnimationTestApi::RenderModeResetter animation_mode_ =
       gfx::AnimationTestApi::SetRichAnimationRenderMode(
           gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
@@ -66,7 +66,7 @@ class StrataShortcutsBrowserTest : public InProcessBrowserTest {
 
 // Cmd+Shift+C copies the page's link, Cmd+S opens or closes the sidebar and
 // Cmd+Shift+R reloads without the cache.
-IN_PROC_BROWSER_TEST_F(StrataShortcutsBrowserTest, ArcShortcuts) {
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
   EXPECT_EQ(CommandForKeys(kVK_ANSI_C, kCommandShift), IDC_COPY_URL);
   EXPECT_EQ(CommandForKeys(kVK_ANSI_S, kCommand),
             IDC_TOGGLE_VERTICAL_TABS_COLLAPSE);
@@ -79,7 +79,7 @@ IN_PROC_BROWSER_TEST_F(StrataShortcutsBrowserTest, ArcShortcuts) {
   EXPECT_EQ(CommandForKeys(kVK_ANSI_L, kCommandShift), NO_COMMAND);
 }
 
-IN_PROC_BROWSER_TEST_F(StrataShortcutsBrowserTest, CopyLinkCopiesThePageURL) {
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CopyLinkCopiesThePageURL) {
   // Not the user's own clipboard.
   ui::TestClipboard* clipboard = ui::TestClipboard::CreateForCurrentThread();
   const GURL url("data:text/html,<p>Hello");
@@ -92,7 +92,7 @@ IN_PROC_BROWSER_TEST_F(StrataShortcutsBrowserTest, CopyLinkCopiesThePageURL) {
   ui::Clipboard::DestroyClipboardForCurrentThread();
 }
 
-IN_PROC_BROWSER_TEST_F(StrataShortcutsBrowserTest, ToggleSidebar) {
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ToggleSidebar) {
   auto* controller = tabs::VerticalTabStripStateController::From(browser());
   ASSERT_TRUE(controller);
   const bool collapsed = controller->IsCollapsed();
@@ -103,4 +103,4 @@ IN_PROC_BROWSER_TEST_F(StrataShortcutsBrowserTest, ToggleSidebar) {
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

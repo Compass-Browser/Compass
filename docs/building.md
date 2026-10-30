@@ -1,6 +1,6 @@
-# Building Strata
+# Building Compass
 
-Strata builds the same way Chromium does, with a thin CLI (`tools/strata`) on
+Compass builds the same way Chromium does, with a thin CLI (`tools/compass`) on
 top. If something here is unclear, Chromium's own docs are authoritative:
 [mac](https://chromium.googlesource.com/chromium/src/+/main/docs/mac_build_instructions.md),
 [windows](https://chromium.googlesource.com/chromium/src/+/main/docs/windows_build_instructions.md),
@@ -15,13 +15,13 @@ top. If something here is unclear, Chromium's own docs are authoritative:
 | CPU | 8 cores | 16–32 cores |
 
 A first full build takes roughly 1 hour on a fast 32-core machine, and 4–8
-hours on a laptop. Incremental builds after changing Strata code take seconds
+hours on a laptop. Incremental builds after changing Compass code take seconds
 to minutes.
 
 **Memory:** some Chromium files need 1–2 GB each to compile. By default the
 build runs one job per core, which can exhaust a 16 GB machine badly enough
 to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
-`tools/strata build -j 6`, or `export STRATA_JOBS=6` to make it the default.
+`tools/compass build -j 6`, or `export COMPASS_JOBS=6` to make it the default.
 
 ## Prerequisites
 
@@ -37,32 +37,32 @@ to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
 - Visual Studio 2022 with "Desktop development with C++", the MFC/ATL
   components, and the Windows 11 SDK, including *Debugging Tools for Windows*.
 - Git for Windows, and Python 3 on `PATH`.
-- Developer Mode isn't required: `//strata` is linked into the checkout with
+- Developer Mode isn't required: `//compass` is linked into the checkout with
   a directory junction.
 
 **Linux**
-- After `strata init`, run
-  `../strata-chromium/src/build/install-build-deps.sh`.
+- After `compass init`, run
+  `../compass-chromium/src/build/install-build-deps.sh`.
 
 ## First build
 
 ```sh
-tools/strata init          # depot_tools, Chromium at config/chromium_version, patches
-tools/strata gen debug     # out/Debug (add --cpu arm64|x64 to cross-compile)
-tools/strata build         # target `chrome`
-tools/strata run           # dev profile in out/Debug/strata-dev-profile (--fresh to reset)
+tools/compass init          # depot_tools, Chromium at config/chromium_version, patches
+tools/compass gen debug     # out/Debug (add --cpu arm64|x64 to cross-compile)
+tools/compass build         # target `chrome`
+tools/compass run           # dev profile in out/Debug/compass-dev-profile (--fresh to reset)
 ```
 
-`strata init` checks out Chromium for the host OS only. To build for another
+`compass init` checks out Chromium for the host OS only. To build for another
 OS from the same checkout, add `--target-os win` (for example) on the first
-init, or edit `../strata-chromium/.gclient` and run `strata sync`.
+init, or edit `../compass-chromium/.gclient` and run `compass sync`.
 
 ## Tests
 
 ```sh
-tools/strata test                                  # strata_unittests
-tools/strata test --browser                        # strata_browsertests (opens real windows)
-tools/strata test -- --gtest_filter='SpaceModel*'  # arguments go to the test binary
+tools/compass test                                  # compass_unittests
+tools/compass test --browser                        # compass_browsertests (opens real windows)
+tools/compass test -- --gtest_filter='SpaceModel*'  # arguments go to the test binary
 python3 -m unittest discover -s tools/tests        # CLI and build-tooling tests (no checkout needed)
 ```
 
@@ -72,28 +72,28 @@ The debug build is slow to use. For hands-on testing, build the `fast`
 config into out/Fast: optimized, no DCHECKs, still a component build.
 
 ```sh
-tools/strata gen fast
-tools/strata build -c fast
-tools/strata run -c fast
+tools/compass gen fast
+tools/compass build -c fast
+tools/compass run -c fast
 ```
 
 ## Release builds
 
 ```sh
-tools/strata gen release
-tools/strata build -c release chrome
+tools/compass gen release
+tools/compass build -c release chrome
 ```
 
 Signing, notarization and installers are set up in CI, not locally.
 
 ## Troubleshooting
 
-- **A change to an override isn't picked up:** run `strata build` rather than
-  plain `autoninja`. `strata build` touches upstream files when overrides are
+- **A change to an override isn't picked up:** run `compass build` rather than
+  plain `autoninja`. `compass build` touches upstream files when overrides are
   added or removed.
 - **`gn gen` says an argument has no effect:** Chromium renamed or removed
   it. Update `config/args/*.gn`.
-- **A Chromium build script rejects a path under `src/strata`:** some
+- **A Chromium build script rejects a path under `src/compass`:** some
   scripts resolve symlinks. Switch to the in-tree layout: clone this
-  repository directly into `../strata-chromium/src/strata`. The CLI detects
+  repository directly into `../compass-chromium/src/compass`. The CLI detects
   it automatically.

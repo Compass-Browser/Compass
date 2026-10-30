@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,9 +28,9 @@ const NEW_TAB: Node = {
 // Another space's entries, as the sidebar would show them: what a swipe pulls
 // in before the window switches (docs/design/spaces.md, "Swiping"). Only to
 // look at. Its own shadow root keeps its rows out of the app's queries.
-export class StrataSidebarPreviewElement extends CrLitElement {
+export class CompassSidebarPreviewElement extends CrLitElement {
   static get is() {
-    return 'strata-sidebar-preview';
+    return 'compass-sidebar-preview';
   }
 
   static override get styles() {
@@ -81,9 +81,9 @@ export class StrataSidebarPreviewElement extends CrLitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'strata-sidebar-preview': StrataSidebarPreviewElement;
+    'compass-sidebar-preview': CompassSidebarPreviewElement;
   }
 }
 
 customElements.define(
-    StrataSidebarPreviewElement.is, StrataSidebarPreviewElement);
+    CompassSidebarPreviewElement.is, CompassSidebarPreviewElement);

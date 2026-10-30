@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h b/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h
-index 67af5a42c04eec3fec5364b13d7715fac7bf5e68..2c08b6953e3931b58173ebdf3e8ec1b6117bfb19 100644
+index 67af5a42c04eec3fec5364b13d7715fac7bf5e68..deb021de624232f6571819d0413ef03972bab0ea 100644
 --- a/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h
 +++ b/chrome/browser/ui/browser_window/public/embedder_browser_window_features.h
 @@ -5,11 +5,17 @@
@@ -13,7 +13,7 @@ index 67af5a42c04eec3fec5364b13d7715fac7bf5e68..2c08b6953e3931b58173ebdf3e8ec1b6
  class BrowserView;
  class BrowserWindowInterface;
  
-+namespace strata {
++namespace compass {
 +class WindowFeatures;
 +}
 +
@@ -24,7 +24,7 @@ index 67af5a42c04eec3fec5364b13d7715fac7bf5e68..2c08b6953e3931b58173ebdf3e8ec1b6
  
   private:
    // Embedder-specific feature members:
-+  std::unique_ptr<strata::WindowFeatures> strata_window_features_;
++  std::unique_ptr<compass::WindowFeatures> compass_window_features_;
  };
  
  #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_EMBEDDER_BROWSER_WINDOW_FEATURES_H_

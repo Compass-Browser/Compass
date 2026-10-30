@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/sidebar_swap.h"
+#include "compass/browser/ui/views/sidebar/sidebar_swap.h"
 
 #include <memory>
 #include <utility>
@@ -23,19 +23,19 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
-#include "strata/browser/ui/views/frame/browser_view_exchange.h"
-#include "strata/browser/ui/views/sidebar/sidebar_header.h"
-#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
-#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
-#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/ui/views/frame/browser_view_exchange.h"
+#include "compass/browser/ui/views/sidebar/sidebar_header.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
+#include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/compositor_lock.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -51,12 +51,12 @@ base::TimeDelta g_max_tree_wait = kMaxTreeWait;
 
 bool g_installed = false;
 
-StrataSidebarView* FindSidebar(views::View* view) {
-  if (auto* sidebar = views::AsViewClass<StrataSidebarView>(view)) {
+CompassSidebarView* FindSidebar(views::View* view) {
+  if (auto* sidebar = views::AsViewClass<CompassSidebarView>(view)) {
     return sidebar;
   }
   for (views::View* child : view->children()) {
-    if (StrataSidebarView* sidebar = FindSidebar(child)) {
+    if (CompassSidebarView* sidebar = FindSidebar(child)) {
       return sidebar;
     }
   }
@@ -104,8 +104,8 @@ class ExchangeTransition : public content::WebContentsObserver,
     BrowserView* view = BrowserView::GetBrowserViewForBrowser(window_.get());
     BrowserView* old_view =
         old_ ? BrowserView::GetBrowserViewForBrowser(old_.get()) : nullptr;
-    StrataSidebarView* sidebar = view ? FindSidebar(view) : nullptr;
-    StrataSidebarView* old_sidebar = old_view ? FindSidebar(old_view) : nullptr;
+    CompassSidebarView* sidebar = view ? FindSidebar(view) : nullptr;
+    CompassSidebarView* old_sidebar = old_view ? FindSidebar(old_view) : nullptr;
     if (!sidebar) {
       Exchange();
       return;
@@ -214,8 +214,8 @@ class ExchangeTransition : public content::WebContentsObserver,
 
   void WaitForTree() {
     content::WebUI* web_ui = web_contents()->GetWebUI();
-    StrataSidebarUI* ui =
-        web_ui ? web_ui->GetController()->GetAs<StrataSidebarUI>() : nullptr;
+    CompassSidebarUI* ui =
+        web_ui ? web_ui->GetController()->GetAs<CompassSidebarUI>() : nullptr;
     if (!ui) {
       return;
     }
@@ -243,8 +243,8 @@ class ExchangeTransition : public content::WebContentsObserver,
       return;
     }
     BrowserViewExchange::Exchange(*old_view, *view);
-    StrataSidebarView* old_sidebar = FindSidebar(old_view);
-    if (StrataSidebarView* sidebar = FindSidebar(view);
+    CompassSidebarView* old_sidebar = FindSidebar(old_view);
+    if (CompassSidebarView* sidebar = FindSidebar(view);
         takes_page_ && sidebar && old_sidebar) {
       // Shown already, as the slide ended: it stays put, and shows the new
       // window's tree once it has it.
@@ -266,7 +266,7 @@ class ExchangeTransition : public content::WebContentsObserver,
     if (ui::Compositor* compositor = view->GetWidget()->GetCompositor()) {
       lock_ = compositor->GetCompositorLock(this, kMaxSwapWait);
     }
-    StrataSidebarView* sidebar = FindSidebar(view);
+    CompassSidebarView* sidebar = FindSidebar(view);
     tabs::TabInterface* tab = window_->GetActiveTabInterface();
     for (auto [contents, first_paint] :
          {std::pair(sidebar ? sidebar->GetWebContents() : nullptr, false),
@@ -305,7 +305,7 @@ class ExchangeTransition : public content::WebContentsObserver,
     BrowserView* view =
         window_ ? BrowserView::GetBrowserViewForBrowser(window_.get())
                 : nullptr;
-    if (StrataSidebarView* sidebar = view ? FindSidebar(view) : nullptr) {
+    if (CompassSidebarView* sidebar = view ? FindSidebar(view) : nullptr) {
       sidebar->PreloadCommandBar();
     }
     delete this;
@@ -343,4 +343,4 @@ void InstallSwapPresenter() {
   }));
 }
 
-}  // namespace strata
+}  // namespace compass

@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import {getFaviconUrl} from './favicon.js';
 import './node.js';
-import type {StrataSidebarPreviewElement} from './preview.js';
+import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
 import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
@@ -62,7 +62,7 @@ const HOVER_CARD_HIDE_DELAY_MS = 100;
 const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 
 // The drag data of a space button dragged along the switcher.
-const SPACE_DRAG_TYPE = 'application/x-strata-space';
+const SPACE_DRAG_TYPE = 'application/x-compass-space';
 
 // Entries glide to where they moved, and fade in and out
 // (docs/design/sidebar.md, "Motion").
@@ -140,9 +140,9 @@ interface FlipFirst {
 // docs/design/sidebar.md, and docs/design/spaces.md. Today entries left
 // unseen are archived; the archive button in Today's header lists them
 // ("Today auto-archive").
-export class StrataSidebarAppElement extends CrLitElement {
+export class CompassSidebarAppElement extends CrLitElement {
   static get is() {
-    return 'strata-sidebar-app';
+    return 'compass-sidebar-app';
   }
 
   static override get styles() {
@@ -256,7 +256,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       router.setArchive.addListener(
           (entries: ArchivedEntry[]) => this.archive_ = entries),
       router.startRename.addListener((id: string) => {
-        this.getRow_(id)?.closest('strata-sidebar-node')?.startRename(id);
+        this.getRow_(id)?.closest('compass-sidebar-node')?.startRename(id);
       }),
     ];
     // Diffs that arrive before the tree are about nodes the page doesn't know
@@ -549,7 +549,7 @@ export class StrataSidebarAppElement extends CrLitElement {
           ?.updateComplete;
     }
     const preview = this.getPreview_(direction) as
-        StrataSidebarPreviewElement | null;
+        CompassSidebarPreviewElement | null;
     if (this.swipe_ || this.slide_ || id === this.activeSpaceId_ ||
         preview?.space?.id !== id) {
       this.browserProxy_.handler.switchSpace(id);
@@ -895,7 +895,7 @@ export class StrataSidebarAppElement extends CrLitElement {
         this.browserProxy_.handler.closeNode(id);
         break;
       case 'F2':
-        target.closest('strata-sidebar-node')?.startRename(id);
+        target.closest('compass-sidebar-node')?.startRename(id);
         break;
       default:
         return;
@@ -1021,7 +1021,7 @@ export class StrataSidebarAppElement extends CrLitElement {
   // The preview of the space |direction| (1 or -1) away, if any.
   private getPreview_(direction: number): HTMLElement|null {
     return direction ? this.shadowRoot.querySelector<HTMLElement>(
-                           `strata-sidebar-preview[side="${
+                           `compass-sidebar-preview[side="${
                                direction > 0 ? 'next' : 'previous'}"]`) :
                        null;
   }
@@ -1067,7 +1067,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     for (const element of [
            this.getSpacePane_(),
            ...this.shadowRoot.querySelectorAll<HTMLElement>(
-               'strata-sidebar-preview'),
+               'compass-sidebar-preview'),
          ]) {
       element.style.removeProperty('transform');
       element.style.removeProperty('opacity');
@@ -1089,7 +1089,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     const copy = source.cloneNode(true) as HTMLElement;
     // Copies of entries would render again, empty: keep what they show, in
     // plain elements.
-    for (const node of copy.querySelectorAll('strata-sidebar-node')) {
+    for (const node of copy.querySelectorAll('compass-sidebar-node')) {
       const element = document.createElement('div');
       element.append(...node.childNodes);
       node.replaceWith(element);
@@ -1956,8 +1956,8 @@ export class StrataSidebarAppElement extends CrLitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'strata-sidebar-app': StrataSidebarAppElement;
+    'compass-sidebar-app': CompassSidebarAppElement;
   }
 }
 
-customElements.define(StrataSidebarAppElement.is, StrataSidebarAppElement);
+customElements.define(CompassSidebarAppElement.is, CompassSidebarAppElement);

@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@ import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Result} from '../command_bar.mojom-webui.js';
 
-import type {StrataCommandBarAppElement} from './app.js';
+import type {CompassCommandBarAppElement} from './app.js';
 
-export function getHtml(this: StrataCommandBarAppElement) {
+export function getHtml(this: CompassCommandBarAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="field">

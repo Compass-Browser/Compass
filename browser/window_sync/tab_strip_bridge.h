@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
-#define STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 
 #include <array>
 #include <optional>
@@ -18,19 +18,19 @@
 #include "base/uuid.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/tabs/public/tab_interface.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
 
-namespace strata {
+namespace compass {
 
 class RestoredTabMatcher;
 
 // The placeholder a window shows for a tab that moved to another window.
-inline constexpr char kPlaceholderHost[] = "strata-placeholder";
-inline constexpr char kPlaceholderURL[] = "chrome://strata-placeholder/";
+inline constexpr char kPlaceholderHost[] = "compass-placeholder";
+inline constexpr char kPlaceholderURL[] = "chrome://compass-placeholder/";
 
 // Keeps a window's TabStripModel in line with its space's SpaceModel and the
 // profile's favorites. The models are the source of truth: the strip holds the
@@ -255,6 +255,6 @@ class TabStripBridge : public TabStripModelObserver,
   base::WeakPtrFactory<TabStripBridge> weak_factory_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_

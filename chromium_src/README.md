@@ -8,7 +8,7 @@ nearby lines.
 ## How it works
 
 `build/redirect_cc.py` wraps every C/C++/Objective-C compile (GN's
-`cc_wrapper`, set by `strata gen`):
+`cc_wrapper`, set by `compass gen`):
 
 - **Source files** (`.cc`, `.mm`, …): if `chromium_src/<path>` exists, it is
   compiled instead of `src/<path>`.
@@ -21,7 +21,7 @@ the wrapper puts on the include path:
 
 ```cpp
 // chromium_src/chrome/browser/ui/browser.cc
-#include "strata/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 
 // Rename the upstream function so we can wrap it.
 #define CreateBrowser CreateBrowser_ChromiumImpl
@@ -30,21 +30,21 @@ the wrapper puts on the include path:
 
 Browser* Browser::CreateBrowser(const CreateParams& params) {
   Browser* browser = CreateBrowser_ChromiumImpl(params);
-  strata::LiveTabRegistry::OnBrowserCreated(browser);
+  compass::LiveTabRegistry::OnBrowserCreated(browser);
   return browser;
 }
 ```
 
 The `#define` trick also has to cover the declaration, so the matching header
 usually needs a one-line override too. Keep overrides small and put real logic
-in `//strata`.
+in `//compass`.
 
 ## Rules
 
-- Mirror the upstream path exactly. `strata build` warns about overrides whose
+- Mirror the upstream path exactly. `compass build` warns about overrides whose
   upstream file doesn't exist. That usually means the file moved in a rebase,
   and the override is being silently ignored.
-- Adding or deleting an override makes `strata build` touch the upstream file,
+- Adding or deleting an override makes `compass build` touch the upstream file,
   so ninja rebuilds what depends on it. For a widely included header, that
   can be a large rebuild.
 - Remote execution (`use_remoteexec`) isn't compatible with the wrapper, and

@@ -1,12 +1,12 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module strata.sidebar.mojom;
+module compass.sidebar.mojom;
 
 import "url/mojom/url.mojom";
 
-// Mirrors strata::SidebarNode::Type.
+// Mirrors compass::SidebarNode::Type.
 enum NodeType {
   kRoot,
   kFolder,
@@ -46,7 +46,7 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
-// Mirrors strata::SpaceColor.
+// Mirrors compass::SpaceColor.
 enum SpaceColor {
   kGrey,
   kBlue,
@@ -95,7 +95,7 @@ struct ArchivedEntry {
   double archived_at;
 };
 
-// Browser-side handler for requests from chrome://strata-sidebar.
+// Browser-side handler for requests from chrome://compass-sidebar.
 interface PageHandler {
   // Answered with Page.SetSpaces(), Page.SetTree() and Page.SetArchive(), on
   // the same pipe as the diffs, so the page sees them in order.
@@ -215,7 +215,7 @@ interface Page {
   StartRename(string id);
 };
 
-// Browser-side handler for chrome://strata-placeholder, the tab a window shows
+// Browser-side handler for chrome://compass-placeholder, the tab a window shows
 // for a tab that moved to another window.
 interface PlaceholderHandler {
   // The tab the placeholder stands for.

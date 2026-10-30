@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/chrome_views_delegate.cc b/chrome/browser/ui/views/chrome_views_delegate.cc
-index 8704f190c55a26ec3ebf577fb044ed1e2fb04044..8676f1036043c252722ae98d9d894b6c4881c7f1 100644
+index 8704f190c55a26ec3ebf577fb044ed1e2fb04044..81f6b4c1e4860a08ea24c40635bee49c0d57d09d 100644
 --- a/chrome/browser/ui/views/chrome_views_delegate.cc
 +++ b/chrome/browser/ui/views/chrome_views_delegate.cc
 @@ -4,6 +4,8 @@
  
  #include "chrome/browser/ui/views/chrome_views_delegate.h"
  
-+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
++#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +
  #include <memory>
  
@@ -15,8 +15,8 @@ index 8704f190c55a26ec3ebf577fb044ed1e2fb04044..8676f1036043c252722ae98d9d894b6c
    }
  #endif  // BUILDFLAG(IS_CHROMEOS)
  
-+  // Strata: bubbles anchored to the hidden toolbar go to the sidebar header.
-+  strata::AdjustBubbleForSidebar(params->delegate);
++  // Compass: bubbles anchored to the hidden toolbar go to the sidebar header.
++  compass::AdjustBubbleForSidebar(params->delegate);
 +
    // We need to determine opacity if it's not already specified.
    if (params->opacity == views::Widget::InitParams::WindowOpacity::kInferred) {

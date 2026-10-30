@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
-#define STRATA_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
 
 #include <optional>
 #include <string>
@@ -17,10 +17,15 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
 
-namespace strata {
+namespace compass {
+
+// Reads the JSON file at |path|, "Compass <name>.json". Compass was called
+// Strata: if |path| doesn't exist but "Strata <name>.json" next to it does,
+// that one is moved to |path| first. Blocking; for a file sequence.
+std::optional<base::Value> ReadJsonFile(const base::FilePath& path);
 
 // Keeps a profile's spaces in a JSON file (see sidebar_serializer.h). Loads it
 // once, on a background sequence, then saves every change, coalesced. Nothing
@@ -81,6 +86,6 @@ class SidebarStore : public SpaceList::Observer,
   base::WeakPtrFactory<SidebarStore> weak_factory_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_

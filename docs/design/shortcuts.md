@@ -4,7 +4,7 @@ Status: done (macOS). Based on Chromium 156.0.8078.48.
 
 ## Goal
 
-Arc's shortcuts where they differ from Chrome's. Where one is taken, Strata's
+Arc's shortcuts where they differ from Chrome's. Where one is taken, Compass's
 wins and upstream's command loses it.
 
 | Keys | Does | Upstream had |
@@ -20,12 +20,12 @@ Cmd+T and Cmd+L open the command bar (command-bar.md "Keyboard").
 On macOS, a shortcut is either a main menu item's key equivalent, which
 comes from `AcceleratorsCocoa` for command items, or one of
 `GetShortcutsNotPresentInMainMenu()` (`global_keyboard_shortcuts_mac.mm`).
-Both call into `strata/browser/ui/cocoa/shortcuts_mac.h` once they're built:
+Both call into `compass/browser/ui/cocoa/shortcuts_mac.h` once they're built:
 `AdjustMenuAccelerators()` and `AdjustShortcutsNotInMenu()`. There's no menu
 item for Copy URL, so Cmd+Shift+C is in the second list, in place of inspect
 element.
 
-Tests: `StrataShortcutsBrowserTest` resolves key events through
+Tests: `CompassShortcutsBrowserTest` resolves key events through
 `CommandForKeyEvent()`, as typing does, and runs the commands.
 
 Other platforms' shortcuts (`accelerator_table.cc`) are unchanged.

@@ -13,7 +13,7 @@ the sidebar over the page, with the traffic lights.
 
 ## Measurements
 
-`strata/browser/ui/views/frame/content_frame.h`, a header with no
+`compass/browser/ui/views/frame/content_frame.h`, a header with no
 dependencies, which upstream's layout and the region header include:
 
 | Constant | Value | |
@@ -65,7 +65,7 @@ pill, collapsed too (`SidebarHeader::GetBubbleAnchorView()`). Page info and
 permission prompts take upstream's fallback when nothing of the header is
 drawn: a corner of the page, as in fullscreen.
 
-`strata::WindowFrame` (owned by the region as a class property, installed
+`compass::WindowFrame` (owned by the region as a class property, installed
 by `InstallSidebar()`) watches the region's bounds and fades the caption
 buttons (`-[NSWindow standardWindowButton:]`'s `alphaValue`,
 `window_frame_mac.mm`) with its width, from opaque at the expanded width
@@ -79,10 +79,10 @@ for expand on hover). Laying the sidebar out again at every width reflowed
 its rows and squeezed the header. Instead, as in Arc, the sidebar slides:
 while the width animates, the region gives its header and its contents
 (the sidebar page) their expanded width, shifted left by what the region
-lacks (`strata::GetSidebarSlideOffset()`, region `.cc` patch in
+lacks (`compass::GetSidebarSlideOffset()`, region `.cc` patch in
 `CalculateProposedLayout()`), so they move out of the window's leading
 edge, or in, at one size. Closing, they also fade with the width
-(`strata::FadeSidebarContents()`, from the region's `Layout()`); they get
+(`compass::FadeSidebarContents()`, from the region's `Layout()`); they get
 a layer only while fading. The page card grows and shrinks with the region
 as before.
 
@@ -102,7 +102,7 @@ swipes together; the window theme seed still comes from the space color
 
 The frame drags the window like a title bar: `BrowserView::NonClientHitTest()`
 (patch) returns `HTNOWHERE`, which the macOS frame view turns into
-`HTCAPTION`, for points where `strata::IsOnWindowFrame()` finds no child of
+`HTCAPTION`, for points where `compass::IsOnWindowFrame()` finds no child of
 the browser view but the tint. The collapsed region's strip stays client
 area, for hovering.
 

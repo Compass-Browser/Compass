@@ -1,4 +1,4 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,7 +27,7 @@ source_set("window_sync") {
     "//components/split_tabs",
     "//components/tab_groups",
     "//components/tabs:public",
-    "//strata/browser/sidebar",
+    "//compass/browser/sidebar",
     "//ui/base/unowned_user_data",
   ]
   deps = [

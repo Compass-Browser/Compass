@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-index bac174d0b227aa593d369b6e2e7f7b58179f2c16..128eb4e23a0a65c506a2ad47ceff58377462fcf5 100644
+index bac174d0b227aa593d369b6e2e7f7b58179f2c16..4c59077082bd6e07df8a1bcf3aa475ddf908b51a 100644
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
 @@ -4,6 +4,8 @@
  
  #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
  
-+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
++#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +
  #include <algorithm>
  #include <memory>
@@ -15,8 +15,8 @@ index bac174d0b227aa593d369b6e2e7f7b58179f2c16..128eb4e23a0a65c506a2ad47ceff5837
      }
    }
  
-+  // Strata: the sidebar header shows them while the location bar is hidden.
-+  strata::UpdateContentSettingsIcons(browser_);
++  // Compass: the sidebar header shows them while the location bar is hidden.
++  compass::UpdateContentSettingsIcons(browser_);
 +
    bool visibility_changed = false;
    bool dashboard_updated = false;

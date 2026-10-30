@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_SIDEBAR_SPACE_MODEL_H_
-#define STRATA_BROWSER_SIDEBAR_SPACE_MODEL_H_
+#ifndef COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
+#define COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 
 #include <cstddef>
 #include <memory>
@@ -15,9 +15,9 @@
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
-#include "strata/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/sidebar_node.h"
 
-namespace strata {
+namespace compass {
 
 // Matches upstream split tabs (MultiContentsView). See ARCHITECTURE.md §9.
 inline constexpr size_t kMaxSplitPanes = 2;
@@ -247,6 +247,6 @@ class SpaceModel {
   base::ObserverList<Observer> observers_;
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_SIDEBAR_SPACE_MODEL_H_
+#endif  // COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_

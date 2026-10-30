@@ -32,7 +32,7 @@ the pill) opens it on the current page's URL.
 
 ### Hosting
 
-The bar is `chrome://strata-command-bar`, a top-chrome WebUI shown with
+The bar is `chrome://compass-command-bar`, a top-chrome WebUI shown with
 upstream's `WebUIBubbleManager`, as tab search is. That gives us a page
 kept alive between openings (open is instant after the first), a bubble
 sized to the page, focus handling and Esc to close. Each window has one
@@ -43,12 +43,12 @@ it opens.
 
 `WebUIContentsWrapperT` checks the controller's name against the
 `WebUIName` histogram variants, so a one-line patch adds
-`.StrataCommandBar` there.
+`.CompassCommandBar` there.
 
 ### Opening it
 
 `BrowserCommandController::ExecuteCommandWithDispositionAndContext()` gets
-a hook (patch) that offers each command to `strata::HandleBrowserCommand()`
+a hook (patch) that offers each command to `compass::HandleBrowserCommand()`
 first. It sits there, not in `HandleCommandWithDisposition()`, because with
 upstream's `UseActionsForBrowserCommands` the command runs as a browser
 action and never reaches the latter. It takes:
@@ -155,7 +155,7 @@ lights (as the caption-button exclusion), the collapse button and the combo
 button (Everything menu and tab search). Its layout,
 `VerticalTabStripTopContainer::CalculateProposedLayout()`, is written out
 per button, so adding buttons to it would be a large patch that conflicts on
-every update. Instead `strata::SidebarHeader` subclasses the container and
+every update. Instead `compass::SidebarHeader` subclasses the container and
 overrides that method: it takes upstream's layout and adds its own views
 around it. The region patch constructs it in place of the upstream class
 (one line).
@@ -189,7 +189,7 @@ sidebar (window-frame.md). Expanded:
   padding.
 
 The combo button's two parts (Everything menu, tab search) are user prefs.
-Strata defaults both to unpinned (tab_strip_prefs patch): the command bar
+Compass defaults both to unpinned (tab_strip_prefs patch): the command bar
 covers tab search. Pinning one again from its context menu brings it back
 next to the nav buttons.
 
@@ -206,7 +206,7 @@ the command bar on the current URL.
 
 ### Hiding it
 
-`BrowserView::IsToolbarVisible()` asks `strata::ShouldHideToolbar()` first
+`BrowserView::IsToolbarVisible()` asks `compass::ShouldHideToolbar()` first
 (patch). It returns true when the window's `SidebarHeader` holds the
 toolbar's controls (see below), which is only in vertical tab mode. The
 tabbed layout then gives the toolbar no space, as it does in fullscreen. The
@@ -240,11 +240,11 @@ controller skips elements it can't find among them.
 
 Timing: the header exists before the toolbar is initialized
 (`BrowserView::AddedToWidget()` calls `ToolbarView::Init()` after its
-children were notified), so `BrowserView` calls `strata::AttachToolbar()`
+children were notified), so `BrowserView` calls `compass::AttachToolbar()`
 right after `Init()` (patch). The views go back to the toolbar, at their
 old index, in two cases: when the window switches to horizontal tabs (the
 header listens to `RegisterOnModeChanged()`), and at the start of
-`~BrowserView()` through `strata::DetachToolbar()` (patch). The latter is
+`~BrowserView()` through `compass::DetachToolbar()` (patch). The latter is
 needed because `BrowserView` deletes the top container (and the toolbar,
 which has members that use these views) before the vertical region.
 
@@ -258,7 +258,7 @@ It's hidden on the new tab page, which has no page info.
 ### Where other bubbles go
 
 - **Permission prompts** use `GetPageInfoAnchorConfiguration()`, which asks
-  `strata::GetPageInfoAnchorConfiguration()` first (patch): the site info
+  `compass::GetPageInfoAnchorConfiguration()` first (patch): the site info
   button with an arrow at the top left, where Chrome's permission chip
   would be, or the pill on pages without site info. Collapsed, nothing of
   the header is drawn and upstream falls back to a corner of the page, as
@@ -269,15 +269,15 @@ It's hidden on the new tab page, which has no page info.
   cookie controls, ...) anchor to icons in the hidden location bar, or to
   the top container when `ToolbarView::GetBubbleAnchor()` finds the
   location bar not drawn: the top right of the page. Three patches pass
-  those anchors through `strata::GetToolbarBubbleAnchor()`, which swaps an
+  those anchors through `compass::GetToolbarBubbleAnchor()`, which swaps an
   anchor inside the hidden toolbar (or the top container) for the pill,
   collapsed too (see Layout): `ToolbarView::GetBubbleAnchor()`,
   `ToolbarView::GetPageActionBubbleAnchor()` and the
   `LocationBarBubbleDelegateView` constructor, which most page action
   bubbles derive from. The constructor also takes the arrow from
-  `strata::GetToolbarBubbleArrow()`: top left once it anchors to the pill,
+  `compass::GetToolbarBubbleArrow()`: top left once it anchors to the pill,
   since the pill is at the window's left.
-- **Every other bubble** passes through `strata::AdjustBubbleForSidebar()`
+- **Every other bubble** passes through `compass::AdjustBubbleForSidebar()`
   when its widget is created (patch: `ChromeViewsDelegate::OnBeforeWidgetInit()`,
   which sees every widget before its frame exists). A bubble still anchored
   in the hidden toolbar, or to the top container, moves to the header's
@@ -314,11 +314,11 @@ pane: the next pane shortcut (F6, Cmd+Option+Down on macOS) skips the
 hidden toolbar and lands in the header. Focusing the toolbar
 (`IDC_FOCUS_TOOLBAR`, macOS's "Move focus to the window toolbar") gives the
 region pane focus starting at the back button (patch:
-`ToolbarView::FocusToolbar()` asks `strata::FocusToolbarControls()` first).
+`ToolbarView::FocusToolbar()` asks `compass::FocusToolbarControls()` first).
 Escape returns focus to where it was. Focusing the app menu
 (`IDC_FOCUS_MENU_BAR`: Alt+F, F10; not on macOS) gives the region pane
 focus on the header's app menu button (patch:
-`ToolbarView::SetPaneFocusAndFocusAppMenu()` asks `strata::FocusAppMenu()`
+`ToolbarView::SetPaneFocusAndFocusAppMenu()` asks `compass::FocusAppMenu()`
 first); pressing it again returns focus to the page, as upstream does.
 Collapsed, the header isn't drawn, so neither works (window-frame.md).
 

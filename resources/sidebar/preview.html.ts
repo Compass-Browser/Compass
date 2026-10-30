@@ -1,14 +1,14 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {StrataSidebarPreviewElement} from './preview.js';
+import type {CompassSidebarPreviewElement} from './preview.js';
 import type {Node} from './sidebar.mojom-webui.js';
 
 // The live pane's markup (app.html.ts), without its handlers.
-export function getHtml(this: StrataSidebarPreviewElement) {
+export function getHtml(this: CompassSidebarPreviewElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="spaceName">${this.getName_()}</div>
@@ -22,9 +22,9 @@ ${this.tree ? html`
       ${this.isPinnedEmpty_() ? html`
         <div class="hint">Drag tabs here to pin them</div>` : nothing}
       ${repeat(this.getPinned_(), (node: Node) => node.id, (node: Node) => html`
-        <strata-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
+        <compass-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
             .profileId="${this.space?.profileId ?? null}">
-        </strata-sidebar-node>`)}
+        </compass-sidebar-node>`)}
     </div>
     <div class="divider"></div>
     <div class="section-header">
@@ -38,9 +38,9 @@ ${this.tree ? html`
     </div>
     <div class="section">
       ${repeat(this.getToday_(), (node: Node) => node.id, (node: Node) => html`
-        <strata-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
+        <compass-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
             .profileId="${this.space?.profileId ?? null}">
-        </strata-sidebar-node>`)}
+        </compass-sidebar-node>`)}
     </div>
   </div>
   <div id="newTab"><span class="plus">+</span>New Tab</div>` : nothing}

@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/webui/sidebar/strata_favicon_source.h"
+#include "compass/browser/ui/webui/sidebar/compass_favicon_source.h"
 
 #include <utility>
 
@@ -17,7 +17,7 @@
 #include "net/base/url_util.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -37,16 +37,16 @@ Profile* FindProfile(const std::string& id) {
 
 }  // namespace
 
-StrataFaviconSource::StrataFaviconSource(Profile* profile)
+CompassFaviconSource::CompassFaviconSource(Profile* profile)
     : profile_(profile->GetOriginalProfile()) {}
 
-StrataFaviconSource::~StrataFaviconSource() = default;
+CompassFaviconSource::~CompassFaviconSource() = default;
 
-std::string StrataFaviconSource::GetSource() {
-  return kStrataFaviconHost;
+std::string CompassFaviconSource::GetSource() {
+  return kCompassFaviconHost;
 }
 
-void StrataFaviconSource::StartDataRequest(
+void CompassFaviconSource::StartDataRequest(
     const GURL& url,
     const content::WebContents::Getter& wc_getter,
     GotDataCallback callback) {
@@ -70,25 +70,25 @@ void StrataFaviconSource::StartDataRequest(
                                          std::move(callback));
 }
 
-std::string StrataFaviconSource::GetMimeType(const GURL& url) {
+std::string CompassFaviconSource::GetMimeType(const GURL& url) {
   return "image/png";
 }
 
-bool StrataFaviconSource::AllowCaching() {
+bool CompassFaviconSource::AllowCaching() {
   return false;
 }
 
-bool StrataFaviconSource::ShouldReplaceExistingSource() {
+bool CompassFaviconSource::ShouldReplaceExistingSource() {
   // Each sidebar adds one; the first keeps serving.
   return false;
 }
 
-void StrataFaviconSource::OnProfileWillBeDestroyed(Profile* profile) {
+void CompassFaviconSource::OnProfileWillBeDestroyed(Profile* profile) {
   profile_observations_.RemoveObservation(profile);
   sources_.erase(profile);
 }
 
-FaviconSource& StrataFaviconSource::GetSourceFor(Profile* profile) {
+FaviconSource& CompassFaviconSource::GetSourceFor(Profile* profile) {
   std::unique_ptr<FaviconSource>& source = sources_[profile];
   if (!source) {
     source = std::make_unique<FaviconSource>(
@@ -100,4 +100,4 @@ FaviconSource& StrataFaviconSource::GetSourceFor(Profile* profile) {
   return *source;
 }
 
-}  // namespace strata
+}  // namespace compass

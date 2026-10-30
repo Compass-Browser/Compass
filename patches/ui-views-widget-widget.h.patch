@@ -1,12 +1,12 @@
 diff --git a/ui/views/widget/widget.h b/ui/views/widget/widget.h
-index b0896143e16f0fed556672d7c5645800d2c26a4e..d1bf95d8606057e352dd6983a043fbe6e3c73b2b 100644
+index b0896143e16f0fed556672d7c5645800d2c26a4e..d573892ff5ff55ad656df8aca3393742161edffe 100644
 --- a/ui/views/widget/widget.h
 +++ b/ui/views/widget/widget.h
 @@ -1234,6 +1234,12 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
    // Tell the window that something caused the frame type to change.
    void FrameTypeChanged();
  
-+  // Strata: exchanges this widget's delegate and non-client view (with its
++  // Compass: exchanges this widget's delegate and non-client view (with its
 +  // client view) with |other|'s, both already initialized. The native windows
 +  // stay where they are; each widget makes a new frame view for the
 +  // non-client view it receives.

@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,15 +55,15 @@
 #include "components/keyed_service/core/service_access_type.h"
 #include "base/strings/escape.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
-#include "strata/browser/ui/views/sidebar/sidebar_swap.h"
-#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
-#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/space_service.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/sidebar/sidebar_swap.h"
+#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
+#include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image.h"
@@ -78,7 +78,7 @@
 #include "ui/views/widget/widget_observer.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 template <typename T>
@@ -94,8 +94,8 @@ T* FindDescendant(views::View* root) {
   return nullptr;
 }
 
-StrataSidebarView* FindSidebar(views::View* view) {
-  return FindDescendant<StrataSidebarView>(view);
+CompassSidebarView* FindSidebar(views::View* view) {
+  return FindDescendant<CompassSidebarView>(view);
 }
 
 int CountNormalWindows() {
@@ -152,7 +152,7 @@ class LeavingWidgetWatch : public views::WidgetObserver {
       this};
 };
 
-class StrataProfileSwitchBrowserTest : public InProcessBrowserTest {
+class CompassProfileSwitchBrowserTest : public InProcessBrowserTest {
  protected:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -212,7 +212,7 @@ class StrataProfileSwitchBrowserTest : public InProcessBrowserTest {
 
 // Cmd+T in the window after a switch opens the command bar of the new
 // profile, and its tab is the new profile's.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        CommandBarAndNewTabUseTheNewProfile) {
   ASSERT_TRUE(embedded_test_server()->Start());
   BrowserWindowInterface* shown = SwitchToOther(browser());
@@ -234,7 +234,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   const GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(R"(
     (async (text) => {
-      const root = document.querySelector('strata-command-bar-app').shadowRoot;
+      const root = document.querySelector('compass-command-bar-app').shadowRoot;
       const input = root.querySelector('#input');
       input.value = text;
       input.dispatchEvent(new InputEvent('input', {inputType: 'insertText'}));
@@ -254,7 +254,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // A bubble open in the window when it switches goes out of sight with its
 // view, and closes with it.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        BubbleOpenAtTheSwitchCloses) {
   CommandBar* old_bar = CommandBar::From(browser());
   ASSERT_TRUE(old_bar);
@@ -283,7 +283,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // A page keeps its state across switches: its tab waits in the parking
 // window, alive.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        FormValueSurvivesSwitches) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<input id=field>")));
@@ -307,7 +307,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 // closes it with the window it opened in (ModalDialogHostObserverViews), as
 // when its tab is dragged out of a window that then closes: the old window
 // closes after a switch to another profile.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        TabModalDialogLeavesWithItsWindow) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -342,7 +342,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 }
 
 // The window stays fullscreen across switches, and the view shown knows it.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest, FullscreenIsKept) {
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest, FullscreenIsKept) {
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
   ASSERT_TRUE(browser()->GetWindow()->IsFullscreen());
 
@@ -362,7 +362,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest, FullscreenIsKept) {
 }
 
 // Pages take their colors from the window they show in.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        PageColorsComeFromTheShownWindow) {
   BrowserWindowInterface* shown = SwitchToOther(browser());
   ASSERT_TRUE(shown);
@@ -375,7 +375,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // To extensions the window is the new profile's: windows.getAll() in that
 // profile lists it, and the old profile's no longer does.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        ExtensionsSeeTheNewProfilesWindow) {
   auto get_all = [](Profile* profile) {
     auto function = base::MakeRefCounted<extensions::WindowsGetAllFunction>();
@@ -406,7 +406,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // An extension shortcut of the new profile works in the window: it moved to
 // the native window's focus manager with the view, and leaves with it.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        ExtensionShortcutsMoveWithTheView) {
   extensions::TestExtensionDir dir;
   dir.WriteManifest(R"({
@@ -444,7 +444,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // The last used profile follows the window, for new windows from the Dock
 // and the next launch.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        LastUsedProfileFollows) {
   BrowserWindowInterface* shown = SwitchToOther(browser());
   ASSERT_TRUE(shown);
@@ -458,7 +458,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 // Two windows on the first profile's Home; one switches to the other
 // profile. Its tabs go to the other window on Home, not to parking, and that
 // window keeps working.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        TabsGoToAnotherWindowOnTheSpace) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -484,7 +484,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 // The window keeps its sidebar page through switches to another profile's
 // space and back: the new window's handler takes it, and it shows that
 // window's space.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        SwitchesKeepTheSidebarPage) {
   content::WebContents* page =
       FindSidebar(BrowserView::GetBrowserViewForBrowser(browser()))
@@ -505,7 +505,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
     EXPECT_EQ(page->GetBrowserContext(), profile_.get());
     EXPECT_EQ(true, content::EvalJs(page, content::JsReplace(R"(
       (async (name) => {
-        const shown = () => document.querySelector('strata-sidebar-app')
+        const shown = () => document.querySelector('compass-sidebar-app')
             ?.shadowRoot?.querySelector('#spaceName')?.textContent?.trim();
         while (shown() !== name) {
           await new Promise(r => setTimeout(r, 20));
@@ -521,7 +521,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 // The page renders while it moves: it goes hidden as it leaves the old
 // window, and without a frame for the new one the window would keep its last
 // frame until kMaxSwapWait.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        TheMovingPageKeepsRendering) {
   content::WebContents* page =
       FindSidebar(BrowserView::GetBrowserViewForBrowser(browser()))
@@ -542,7 +542,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // A page whose profile goes (unlisted, as when its last space goes, then
 // unloaded) gives way to one of the window's own profile.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        PageOutlivingItsProfileIsReplaced) {
   // The other profile's window switches to this profile's space and takes
   // its page along.
@@ -559,7 +559,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   // The new window takes the old one's place, which closes.
   ASSERT_TRUE(
       base::test::RunUntil([&] { return CountNormalWindows() == normal; }));
-  StrataSidebarView* sidebar =
+  CompassSidebarView* sidebar =
       FindSidebar(BrowserView::GetBrowserViewForBrowser(shown));
   ASSERT_EQ(sidebar->GetWebContents(), page);
   ASSERT_EQ(page->GetBrowserContext(), other_.get());
@@ -579,7 +579,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   home_->SetName(u"Here");
   EXPECT_EQ(true, content::EvalJs(own, R"(
     (async () => {
-      const shown = () => document.querySelector('strata-sidebar-app')
+      const shown = () => document.querySelector('compass-sidebar-app')
           ?.shadowRoot?.querySelector('#spaceName')?.textContent?.trim();
       while (shown() !== 'Here') {
         await new Promise(r => setTimeout(r, 20));
@@ -590,7 +590,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 
 // The sidebar shows another profile's icons: its spaces' previews, and the
 // window's own entries after a switch, which keeps the page.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
                        IconsComeFromTheirProfile) {
   const GURL page_url("https://icons.test/");
   HistoryServiceFactory::GetForProfile(other_,
@@ -622,7 +622,7 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   const std::string query = "size=16&scaleFactor=1x&pageUrl=" +
                             base::EscapeQueryParamValue(page_url.spec(), true);
   const std::string other_icon =
-      "chrome://strata-favicon/?profile=" +
+      "chrome://compass-favicon/?profile=" +
       other_->GetPath().BaseName().AsUTF8Unsafe() + "&" + query;
   EXPECT_TRUE(base::test::RunUntil([&] {
     return content::EvalJs(page, content::JsReplace(kPixel, other_icon)) ==
@@ -630,10 +630,10 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   }));
   // Not in the page's own profile.
   EXPECT_NE(content::EvalJs(page, content::JsReplace(
-                                      kPixel, "chrome://strata-favicon/?" +
+                                      kPixel, "chrome://compass-favicon/?" +
                                                   query)),
             base::Value(base::ListValue().Append(255).Append(0).Append(0)));
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

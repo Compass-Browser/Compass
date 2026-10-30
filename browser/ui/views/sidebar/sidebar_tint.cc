@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 
 #include <memory>
 
@@ -16,7 +16,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
-#include "strata/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/animation/tween.h"
@@ -27,7 +27,7 @@
 #include "ui/views/background.h"
 #include "ui/views/view_class_properties.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -241,4 +241,4 @@ void SidebarTint::UpdateWindowTheme() {
 BEGIN_METADATA(SidebarTint)
 END_METADATA
 
-}  // namespace strata
+}  // namespace compass

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Compiler wrapper that applies //strata/chromium_src overrides.
+"""Compiler wrapper that applies //compass/chromium_src overrides.
 
 GN runs every C-family compile as `<cc_wrapper> <compiler> <args...>` from
 the output directory (src/out/<Config>). For each compile this wrapper:
 
-  1. Compiles strata/chromium_src/<path> instead of <path> if an override
+  1. Compiles compass/chromium_src/<path> instead of <path> if an override
      exists. The override includes the original as "src/<path>".
-  2. Puts strata/chromium_src first on the include path, so an overriding
+  2. Puts compass/chromium_src first on the include path, so an overriding
      header wins everywhere, and the checkout root last, so "src/..." in an
      override resolves without shadowing projects that use "src/" themselves.
 
@@ -40,7 +40,7 @@ def rewrite_command(command, out_dir, src_dir=None):
   Chromium's command lines, so builds stay reproducible.
   """
   src_dir = src_dir or os.path.normpath(os.path.join(out_dir, '..', '..'))
-  overrides_dir = os.path.join(src_dir, 'strata', 'chromium_src')
+  overrides_dir = os.path.join(src_dir, 'compass', 'chromium_src')
 
   args = list(command[1:])
   source_index = find_source_index(args)
@@ -72,7 +72,7 @@ def main(argv):
     return 2
   out_dir = os.getcwd()
   command = rewrite_command(argv[1:], out_dir,
-                            os.environ.get('STRATA_CHROMIUM_SRC'))
+                            os.environ.get('COMPASS_CHROMIUM_SRC'))
   if sys.platform == 'win32':
     return subprocess.call(command)
   os.execvp(command[0], command)

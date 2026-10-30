@@ -1,6 +1,6 @@
 # Patches
 
-Small changes to upstream Chromium files that can't be done in `//strata` or
+Small changes to upstream Chromium files that can't be done in `//compass` or
 with a `chromium_src` override. There's one patch per file, named after its
 path with `/` replaced by `-`.
 
@@ -13,69 +13,69 @@ path with `/` replaced by `-`.
 
 ```sh
 # 1. Edit the upstream file directly in the checkout.
-$EDITOR ../strata-chromium/src/chrome/browser/BUILD.gn
+$EDITOR ../compass-chromium/src/chrome/browser/BUILD.gn
 
 # 2. Regenerate patches/ from everything that differs from the pinned tag.
-tools/strata patches export            # add --repo v8 for a nested repo
+tools/compass patches export            # add --repo v8 for a nested repo
 
-# 3. Commit the patch together with the //strata code that needs it.
+# 3. Commit the patch together with the //compass code that needs it.
 ```
 
-Other commands: `strata patches status | apply | revert`. Applying is
+Other commands: `compass patches status | apply | revert`. Applying is
 idempotent, so patches that are already applied are skipped.
 
 ## Keep patches tiny
 
 Every line here can conflict on each monthly Chromium update. A good patch
-adds a hook (a dependency, a call into `//strata`, a friend declaration) and
+adds a hook (a dependency, a call into `//compass`, a friend declaration) and
 nothing else.
 
 ## Current patches
 
 | Patch | Why |
 |---|---|
-| `BUILD.gn.patch` | Adds `//strata:strata_unittests` to `gn_all` |
+| `BUILD.gn.patch` | Adds `//compass:compass_unittests` to `gn_all` |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
 | `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`) |
-| `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser, and `//strata/browser:feature_overrides` and `//strata/browser/ui/cocoa:shortcuts` into `:core` |
-| `chrome-browser-global_keyboard_shortcuts_mac.mm.patch` | The shortcuts outside the main menu go through `strata::AdjustShortcutsNotInMenu()`: Cmd+Shift+C copies the page's link (docs/design/shortcuts.md) |
-| `chrome-browser-ui-cocoa-accelerators_cocoa.mm.patch` | The main menu's key equivalents go through `strata::AdjustMenuAccelerators()`: Cmd+S opens or closes the sidebar, Save Page As has none |
-| `chrome-browser-ui-cocoa-BUILD.gn.patch` | Lets `accelerators_cocoa.mm` depend on `//strata/browser/ui/cocoa:shortcuts` |
-| `chrome-browser-chrome_browser_field_trials.cc.patch` | Registers Strata's feature defaults (`strata::RegisterFeatureOverrides()`): browser-initiated auto picture-in-picture on |
+| `chrome-browser-BUILD.gn.patch` | Links `//compass/browser` into the browser, and `//compass/browser:feature_overrides` and `//compass/browser/ui/cocoa:shortcuts` into `:core` |
+| `chrome-browser-global_keyboard_shortcuts_mac.mm.patch` | The shortcuts outside the main menu go through `compass::AdjustShortcutsNotInMenu()`: Cmd+Shift+C copies the page's link (docs/design/shortcuts.md) |
+| `chrome-browser-ui-cocoa-accelerators_cocoa.mm.patch` | The main menu's key equivalents go through `compass::AdjustMenuAccelerators()`: Cmd+S opens or closes the sidebar, Save Page As has none |
+| `chrome-browser-ui-cocoa-BUILD.gn.patch` | Lets `accelerators_cocoa.mm` depend on `//compass/browser/ui/cocoa:shortcuts` |
+| `chrome-browser-chrome_browser_field_trials.cc.patch` | Registers Compass's feature defaults (`compass::RegisterFeatureOverrides()`): browser-initiated auto picture-in-picture on |
 | `components-content_settings-core-browser-content_settings_registry.cc.patch` | Auto picture-in-picture allowed by default: no prompt, no media engagement needed (docs/design/picture-in-picture.md) |
 | `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_helper.cc.patch` | Auto picture-in-picture replaces another tab's auto picture-in-picture, so the tab left last shows |
-| `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_strip_observer_helper.cc.patch` | A tab moved into the parking window (`strata::IsInParkingWindow()`) counts as switched away from |
-| `chrome-browser-picture_in_picture-BUILD.gn.patch` | Lets that helper depend on `//strata/browser/window_sync` |
+| `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_strip_observer_helper.cc.patch` | A tab moved into the parking window (`compass::IsInParkingWindow()`) counts as switched away from |
+| `chrome-browser-picture_in_picture-BUILD.gn.patch` | Lets that helper depend on `//compass/browser/window_sync` |
 | `chrome-browser-ui-views-overlay-video_overlay_window_views.cc.patch` | On macOS the picture-in-picture window shows over other apps' fullscreen spaces and takes clicks without activating the browser |
-| `chrome-browser-ui-BUILD.gn.patch` | Links `//strata/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`); `browser_command_controller_impl` depends on the command bar |
-| `chrome-browser-ui-browser_command_controller.cc.patch` | `ExecuteCommandWithDispositionAndContext()` gives `strata::CommandBar` first refusal on New Tab and Focus Location (Cmd+T, Cmd+L), before upstream picks between its command handler and browser actions |
-| `chrome-browser-ui-browser_window-internal-BUILD.gn.patch` | Links `//strata/browser/window_sync` into the window features |
-| `chrome-browser-ui-browser_window-internal-embedder_browser_window_features.cc.patch` | Creates `strata::WindowFeatures` in the embedder hook's `Init()` |
-| `chrome-browser-ui-browser_window-public-embedder_browser_window_features.h.patch` | The `strata::WindowFeatures` member |
-| `chrome-browser-ui-views-frame-browser_view.cc.patch` | Calls `strata::HandOffTabsBeforeClose()` when a window is asked to close; `IsToolbarVisible()` is false while `strata::SidebarHeader` holds the toolbar's controls (`strata::ShouldHideToolbar()`); hands the toolbar to the header after `Init()` (`strata::AttachToolbar()`) and takes it back first thing in `~BrowserView()` (`strata::DetachToolbar()`); `NonClientHitTest()` lets the window frame around the page drag the window (`strata::IsOnWindowFrame()`) |
-| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | Constructs `strata::SidebarHeader` as its top container; `InitializeTabStrip()` adds the Strata sidebar in place of the native tab strip, which is never built; `GetTabData()` reads tab data from the tab; `strata::ActiveTabWatcher` reports active-tab changes; resize, collapse and hover-card lock paths no longer assume a native strip; at the collapsed width its children are hidden (docs/design/window-frame.md) |
-| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.h.patch` | Declares those overrides and the sidebar members; `kCollapsedWidth` is `strata::kCollapsedSidebarWidth`, the window frame's edge |
-| `chrome-browser-ui-views-frame-layout-browser_view_tabbed_layout_impl.cc.patch` | The window frame (docs/design/window-frame.md): insets the page beside the vertical region by `strata::GetContentFrameInsets()` and rounds its corners; no top separator, floating corner pieces, concave region corner or region outline (except shown on hover); the collapsed region starts at the window's top |
-| `chrome-browser-ui-views-frame-BUILD.gn.patch` | Lets that layout depend on `//strata/browser/ui/views/frame:content_frame` |
+| `chrome-browser-ui-BUILD.gn.patch` | Links `//compass/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`); `browser_command_controller_impl` depends on the command bar |
+| `chrome-browser-ui-browser_command_controller.cc.patch` | `ExecuteCommandWithDispositionAndContext()` gives `compass::CommandBar` first refusal on New Tab and Focus Location (Cmd+T, Cmd+L), before upstream picks between its command handler and browser actions |
+| `chrome-browser-ui-browser_window-internal-BUILD.gn.patch` | Links `//compass/browser/window_sync` into the window features |
+| `chrome-browser-ui-browser_window-internal-embedder_browser_window_features.cc.patch` | Creates `compass::WindowFeatures` in the embedder hook's `Init()` |
+| `chrome-browser-ui-browser_window-public-embedder_browser_window_features.h.patch` | The `compass::WindowFeatures` member |
+| `chrome-browser-ui-views-frame-browser_view.cc.patch` | Calls `compass::HandOffTabsBeforeClose()` when a window is asked to close; `IsToolbarVisible()` is false while `compass::SidebarHeader` holds the toolbar's controls (`compass::ShouldHideToolbar()`); hands the toolbar to the header after `Init()` (`compass::AttachToolbar()`) and takes it back first thing in `~BrowserView()` (`compass::DetachToolbar()`); `NonClientHitTest()` lets the window frame around the page drag the window (`compass::IsOnWindowFrame()`) |
+| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.cc.patch` | Constructs `compass::SidebarHeader` as its top container; `InitializeTabStrip()` adds the Compass sidebar in place of the native tab strip, which is never built; `GetTabData()` reads tab data from the tab; `compass::ActiveTabWatcher` reports active-tab changes; resize, collapse and hover-card lock paths no longer assume a native strip; at the collapsed width its children are hidden (docs/design/window-frame.md) |
+| `chrome-browser-ui-views-frame-vertical_tab_strip_region_view.h.patch` | Declares those overrides and the sidebar members; `kCollapsedWidth` is `compass::kCollapsedSidebarWidth`, the window frame's edge |
+| `chrome-browser-ui-views-frame-layout-browser_view_tabbed_layout_impl.cc.patch` | The window frame (docs/design/window-frame.md): insets the page beside the vertical region by `compass::GetContentFrameInsets()` and rounds its corners; no top separator, floating corner pieces, concave region corner or region outline (except shown on hover); the collapsed region starts at the window's top |
+| `chrome-browser-ui-views-frame-BUILD.gn.patch` | Lets that layout depend on `//compass/browser/ui/views/frame:content_frame` |
 | `chrome-browser-ui-tabs-tab_strip_prefs.cc.patch` | Vertical tabs on by default; tab search and the Everything menu unpinned from the tab strip by default (the command bar covers them) |
-| `chrome-browser-ui-views-chrome_views_delegate.cc.patch` | `OnBeforeWidgetInit()` calls `strata::AdjustBubbleForSidebar()`: every bubble still anchored in the hidden toolbar moves to the sidebar header, and bubbles anchored in the header open toward the page |
-| `chrome-browser-ui-views-location_bar-location_bar_view.cc.patch` | `RefreshContentSettingViews()` also updates the header's content setting icons (`strata::UpdateContentSettingsIcons()`), as it does the web app frame's |
-| `chrome-browser-ui-views-toolbar-toolbar_view.cc.patch` | Bubble anchors in the hidden toolbar go to the header (`strata::GetToolbarBubbleAnchor()`); `FocusToolbar()` and `SetPaneFocusAndFocusAppMenu()` focus the header instead (`strata::FocusToolbarControls()`, `strata::FocusAppMenu()`) |
-| `chrome-browser-ui-views-tabs-vertical-vertical_tab_strip_top_container.h.patch` | Makes `IsPositionInWindowCaption()` virtual, so `strata::SidebarHeader`'s buttons don't drag the window |
+| `chrome-browser-ui-views-chrome_views_delegate.cc.patch` | `OnBeforeWidgetInit()` calls `compass::AdjustBubbleForSidebar()`: every bubble still anchored in the hidden toolbar moves to the sidebar header, and bubbles anchored in the header open toward the page |
+| `chrome-browser-ui-views-location_bar-location_bar_view.cc.patch` | `RefreshContentSettingViews()` also updates the header's content setting icons (`compass::UpdateContentSettingsIcons()`), as it does the web app frame's |
+| `chrome-browser-ui-views-toolbar-toolbar_view.cc.patch` | Bubble anchors in the hidden toolbar go to the header (`compass::GetToolbarBubbleAnchor()`); `FocusToolbar()` and `SetPaneFocusAndFocusAppMenu()` focus the header instead (`compass::FocusToolbarControls()`, `compass::FocusAppMenu()`) |
+| `chrome-browser-ui-views-tabs-vertical-vertical_tab_strip_top_container.h.patch` | Makes `IsPositionInWindowCaption()` virtual, so `compass::SidebarHeader`'s buttons don't drag the window |
 | `chrome-browser-ui-ui_features.cc.patch` | Hover card preview images on by default on macOS too (upstream turns them off there); the sidebar's hover cards show them |
-| `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Strata's WebUI configs |
-| `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Strata's WebUI Mojo interfaces |
-| `chrome-chrome_paks.gni.patch` | Ships `strata_sidebar_resources.pak` |
-| `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//strata/*` to depend on Lit |
+| `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Compass's WebUI configs |
+| `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Compass's WebUI Mojo interfaces |
+| `chrome-chrome_paks.gni.patch` | Ships `compass_sidebar_resources.pak` |
+| `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//compass/*` to depend on Lit |
 | `tools-gritsettings-resource_ids.spec.patch` | Reserves resource IDs for the sidebar's grit file |
-| `tools-metrics-histograms-metadata-page-histograms.xml.patch` | Adds the `.StrataCommandBar` WebUIName variant, required by `WebUIContentsWrapperT`'s static_assert |
-| `chrome-browser-profiles-keep_alive-profile_keep_alive_types.h.patch` | Adds the `kStrataSpaces` keep-alive origin: `strata::SpaceDirectory` keeps profiles whose spaces show in the switcher loaded (D17) |
-| `chrome-browser-profiles-keep_alive-profile_keep_alive_types.cc.patch` | Prints `kStrataSpaces` |
-| `tools-metrics-histograms-metadata-profile-enums.xml.patch` | Adds `kStrataSpaces` to the `ProfileKeepAliveOrigin` histogram enum |
+| `tools-metrics-histograms-metadata-page-histograms.xml.patch` | Adds the `.CompassCommandBar` WebUIName variant, required by `WebUIContentsWrapperT`'s static_assert |
+| `chrome-browser-profiles-keep_alive-profile_keep_alive_types.h.patch` | Adds the `kCompassSpaces` keep-alive origin: `compass::SpaceDirectory` keeps profiles whose spaces show in the switcher loaded (D17) |
+| `chrome-browser-profiles-keep_alive-profile_keep_alive_types.cc.patch` | Prints `kCompassSpaces` |
+| `tools-metrics-histograms-metadata-profile-enums.xml.patch` | Adds `kCompassSpaces` to the `ProfileKeepAliveOrigin` histogram enum |
 | `ui-views-widget-widget.h.patch`, `ui-views-widget-widget.cc.patch` | `Widget::ExchangeContentsWith()`: two widgets swap non-client views and delegates, with new frame views (profiles in place, D18) |
-| `chrome-browser-ui-views-frame-browser_view.h.patch`, `-browser_widget.h.patch`, `-browser_root_view.h.patch` | `friend class strata::BrowserViewExchange`, which re-points their `BrowserView` members |
+| `chrome-browser-ui-views-frame-browser_view.h.patch`, `-browser_widget.h.patch`, `-browser_root_view.h.patch` | `friend class compass::BrowserViewExchange`, which re-points their `BrowserView` members |
 | `chrome-browser-ui-views-frame-browser_native_widget_mac.h.patch`, `.mm.patch` | The same friend, and `RebindTouchBar()`: the touch bar for the view now in the window |
 | `chrome-browser-ui-views-frame-tab_modal_dialog_host.cc.patch` | Re-observes the widget when the contents move to another one, instead of observing twice |
 | `chrome-browser-ui-views-extensions-extension_keybinding_registry_views.h.patch`, `.cc.patch` | `SetFocusManager()`: extension shortcuts follow the view to its new widget |
 | `chrome-browser-ui-views-color_provider_browser_helper.h.patch`, `.cc.patch` | `SetColorProviderSource()`: pages take colors from the widget the view is in |
-| `chrome-browser-ui-browser_web_contents_delegate-browser_web_contents_delegate.cc.patch` | `ActivateContents()` asks `strata::RevealParkedTab()` first: a parked tab (picture-in-picture's "back to tab", `window.focus()`) shows in the window the user was in, in its space, never in the parking window |
+| `chrome-browser-ui-browser_web_contents_delegate-browser_web_contents_delegate.cc.patch` | `ActivateContents()` asks `compass::RevealParkedTab()` first: a parked tab (picture-in-picture's "back to tab", `window.focus()`) shows in the window the user was in, in its space, never in the parking window |

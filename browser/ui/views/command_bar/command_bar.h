@@ -1,16 +1,16 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
-#define STRATA_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
+#define COMPASS_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
 
 #include <memory>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "strata/browser/ui/webui/command_bar/command_bar.mojom.h"
+#include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
@@ -21,11 +21,11 @@ namespace content {
 class WebContents;
 }  // namespace content
 
-namespace strata {
+namespace compass {
 
 class CommandBarPageHandler;
 
-// A window's command bar: chrome://strata-command-bar in a bubble centered
+// A window's command bar: chrome://compass-command-bar in a bubble centered
 // over the top of the content area. The page stays loaded between openings,
 // so it opens at once. Owned by the window's sidebar view. See
 // docs/design/command-bar.md.
@@ -70,11 +70,11 @@ class CommandBar {
   ui::ScopedUnownedUserData<CommandBar> scoped_data_holder_;
 };
 
-// Offers browser command |id| to Strata before upstream runs it. Called from
-// BrowserCommandController (see patches/). Returns true if Strata handled it:
+// Offers browser command |id| to Compass before upstream runs it. Called from
+// BrowserCommandController (see patches/). Returns true if Compass handled it:
 // IDC_NEW_TAB and IDC_FOCUS_LOCATION open the command bar.
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id);
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_

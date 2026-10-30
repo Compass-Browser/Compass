@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
-#define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
+#define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
@@ -24,14 +24,14 @@ namespace tabs {
 struct TabData;
 }  // namespace tabs
 
-namespace strata {
+namespace compass {
 
 class SidebarHoverCardTarget;
 
 // The hover card of the sidebar's entries: upstream's tab hover card bubble
 // (title, domain, a preview of a live tab), next to the hovered row. The page
 // says which row that is (SidebarPageHandler::ShowHoverCard()). Lives on the
-// sidebar page's WebContents, which StrataSidebarView owns. See
+// sidebar page's WebContents, which CompassSidebarView owns. See
 // docs/design/sidebar.md, "Hover cards".
 class SidebarHoverCard
     : public content::WebContentsUserData<SidebarHoverCard>,
@@ -83,6 +83,6 @@ class SidebarHoverCard
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_

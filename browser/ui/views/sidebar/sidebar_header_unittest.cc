@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/sidebar_header.h"
+#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 TEST(SidebarHeaderTest, PillText) {
@@ -27,4 +27,4 @@ TEST(SidebarHeaderTest, PillText) {
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

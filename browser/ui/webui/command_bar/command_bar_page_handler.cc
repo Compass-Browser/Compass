@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/webui/command_bar/command_bar_page_handler.h"
+#include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 
 #include <algorithm>
 #include <utility>
@@ -36,16 +36,16 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
-#include "strata/browser/sidebar/sidebar_node.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -673,4 +673,4 @@ bool CommandBarPageHandler::IsFavorite(const SidebarNode& node) const {
       .Contains(&node);
 }
 
-}  // namespace strata
+}  // namespace compass

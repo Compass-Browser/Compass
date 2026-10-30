@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,20 +41,20 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
-#include "strata/browser/ui/views/frame/content_frame.h"
-#include "strata/browser/ui/views/frame/window_frame.h"
-#include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
-#include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
-#include "strata/browser/ui/views/sidebar/sidebar_swap.h"
-#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
-#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
-#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/space_service.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/frame/content_frame.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
+#include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "compass/browser/ui/views/sidebar/sidebar_swap.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
+#include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -77,7 +77,7 @@
 #include "ui/views/window/non_client_view.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 template <typename T>
@@ -96,7 +96,7 @@ T* FindDescendant(views::View* root) {
 // Waits until the sidebar page has rendered |count| tab rows.
 constexpr char kWaitForTabRows[] = R"(
   (async (count) => {
-    const rows = () => document.querySelector('strata-sidebar-app')
+    const rows = () => document.querySelector('compass-sidebar-app')
         ?.shadowRoot?.querySelectorAll('.tab') ?? [];
     while (rows().length !== count) {
       await new Promise(r => setTimeout(r, 20));
@@ -104,7 +104,7 @@ constexpr char kWaitForTabRows[] = R"(
     return [...rows()].map(r => r.title);
   })($1))";
 
-class StrataSidebarBrowserTest : public InProcessBrowserTest {
+class CompassSidebarBrowserTest : public InProcessBrowserTest {
  protected:
   // Motions end as they start. With frames (an unlocked screen), Reset()
   // would end a running motion without stopping its animator, whose next
@@ -117,8 +117,8 @@ class StrataSidebarBrowserTest : public InProcessBrowserTest {
     return BrowserView::GetBrowserViewForBrowser(browser());
   }
 
-  StrataSidebarView* sidebar() {
-    return FindDescendant<StrataSidebarView>(browser_view());
+  CompassSidebarView* sidebar() {
+    return FindDescendant<CompassSidebarView>(browser_view());
   }
 
   content::WebContents* sidebar_contents() {
@@ -128,14 +128,14 @@ class StrataSidebarBrowserTest : public InProcessBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ReplacesNativeTabStrip) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ReplacesNativeTabStrip) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
   ASSERT_TRUE(sidebar());
   EXPECT_TRUE(region->Contains(sidebar()));
   EXPECT_TRUE(sidebar()->GetVisible());
   EXPECT_EQ(sidebar()->GetWebContents()->GetVisibleURL(),
-            GURL("chrome://strata-sidebar/"));
+            GURL("chrome://compass-sidebar/"));
   // The native strip is never built.
   EXPECT_FALSE(FindDescendant<TabStripView>(browser_view()));
   EXPECT_FALSE(region->GetTabStripView());
@@ -146,7 +146,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ReplacesNativeTabStrip) {
   EXPECT_FALSE(bottom->GetVisible());
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintCoversTheWholeRegion) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintCoversTheWholeRegion) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
   auto* tint = FindDescendant<SidebarTint>(region);
@@ -188,7 +188,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintCoversTheWholeRegion) {
 // A swipe blends the tint toward the space it pulls in; letting go goes back,
 // and switching takes the new space's color. Animations are off here, so
 // fades end at once.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintFollowsASwipe) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintFollowsASwipe) {
   auto* tint = FindDescendant<SidebarTint>(browser_view());
   ASSERT_TRUE(tint);
   WindowFeatures* features = WindowFeatures::From(browser());
@@ -224,7 +224,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, TintFollowsASwipe) {
 
 // The space color seeds the window's theme: its frame color follows the
 // space, not during a swipe, and a grey space keeps the profile's theme.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, WindowThemeFollowsTheSpace) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowThemeFollowsTheSpace) {
   views::Widget* widget = browser_view()->GetWidget();
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel& home = features->space_model();
@@ -280,7 +280,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, WindowThemeFollowsTheSpace) {
                    ->user_color_override());
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, CollapsesAndResizes) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
   const int expanded_width = region->width();
@@ -325,7 +325,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, CollapsesAndResizes) {
 // The page sits in a round-cornered card inside a frame of the space's color,
 // which drags the window. Collapsed, the sidebar is the frame's leading edge
 // and the caption buttons hide.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, WindowFrame) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowFrame) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
   views::Widget* widget = browser_view()->GetWidget();
@@ -388,7 +388,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, WindowFrame) {
   EXPECT_FALSE(frame->AreCaptionButtonsHiddenForTesting());
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ListsTabs) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ListsTabs) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
@@ -401,7 +401,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ListsTabs) {
             2u);
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ClickingATabActivatesIt) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ClickingATabActivatesIt) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
@@ -412,20 +412,20 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ClickingATabActivatesIt) {
       content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 2)));
 
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelectorAll('.tab')[0].click();)"));
 
   EXPECT_TRUE(base::test::RunUntil([&] { return model->active_index() == 0; }));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        NewTabButtonOpensTheCommandBar) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_TRUE(
       content::ExecJs(contents, content::JsReplace(kWaitForTabRows, 1)));
 
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('#newTab').click();)"));
 
   CommandBar* bar = CommandBar::From(browser());
@@ -437,7 +437,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 // Waits until the sidebar's tab rows have the titles |titles|, in order.
 constexpr char kWaitForTitles[] = R"(
   (async (titles) => {
-    const current = () => [...(document.querySelector('strata-sidebar-app')
+    const current = () => [...(document.querySelector('compass-sidebar-app')
         ?.shadowRoot?.querySelectorAll('.tab') ?? [])].map(r => r.title);
     while (JSON.stringify(current()) !== JSON.stringify(titles)) {
       await new Promise(r => setTimeout(r, 20));
@@ -445,7 +445,7 @@ constexpr char kWaitForTitles[] = R"(
     return true;
   })($1))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        ModelMovesReorderSidebarAndStrip) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -478,7 +478,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 // root, at fraction $3 of the target's height, using synthetic drag events.
 constexpr char kDrag[] = R"(
   (async (title, selector, fraction) => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     const until = async (f) => {
       while (!f()) await new Promise(r => setTimeout(r, 20));
       return f();
@@ -500,7 +500,7 @@ constexpr char kDrag[] = R"(
     return true;
   })($1, $2, $3))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragToPinnedPinsATab) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragToPinnedPinsATab) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
@@ -527,7 +527,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragToPinnedPinsATab) {
   }));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        FavoritesStayAcrossSpacesAndReopen) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -556,7 +556,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   EXPECT_TRUE(base::test::RunUntil(
       [&] { return tabs->GetWebContentsAt(0)->GetTitle() == u"Two"; }));
   EXPECT_EQ(content::EvalJs(contents, R"(
-      document.querySelector('strata-sidebar-app').shadowRoot
+      document.querySelector('compass-sidebar-app').shadowRoot
           .querySelector('.tile').title)"),
             "Two");
 
@@ -572,12 +572,12 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   ASSERT_TRUE(base::test::RunUntil([&] {
     return !features->tab_strip_bridge().GetTab(two) &&
            content::EvalJs(contents, R"(
-               document.querySelector('strata-sidebar-app').shadowRoot
+               document.querySelector('compass-sidebar-app').shadowRoot
                    .querySelector('.tile').hasAttribute('unloaded'))")
                    .ExtractBool();
   }));
   ASSERT_TRUE(content::ExecJs(contents, R"(
-      document.querySelector('strata-sidebar-app').shadowRoot
+      document.querySelector('compass-sidebar-app').shadowRoot
           .querySelector('.tile').click())"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return features->tab_strip_bridge().GetTab(two); }));
@@ -589,7 +589,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 // page or another app does.
 constexpr char kDropLink[] = R"(
   (async (url, selector) => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     let target;
     while (!(target = root.querySelector(selector))) {
       await new Promise(r => setTimeout(r, 20));
@@ -607,7 +607,7 @@ constexpr char kDropLink[] = R"(
     return accepted;
   })($1, $2))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DroppingALinkOpensIt) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DroppingALinkOpensIt) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url = embedded_test_server()->GetURL("/title1.html");
   content::WebContents* contents = sidebar_contents();
@@ -623,10 +623,10 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DroppingALinkOpensIt) {
   EXPECT_EQ(tabs->count(), 2);
   EXPECT_EQ(tabs->GetActiveWebContents()->GetVisibleURL(), url);
   // The sidebar itself didn't navigate.
-  EXPECT_EQ(contents->GetLastCommittedURL(), GURL("chrome://strata-sidebar/"));
+  EXPECT_EQ(contents->GetLastCommittedURL(), GURL("chrome://compass-sidebar/"));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SwitchesSpaces) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
   content::WebContents* one = browser()->tab_strip_model()->GetWebContentsAt(0);
@@ -635,7 +635,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
   content::WebContents* contents = sidebar_contents();
 
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('#addSpace').click();
   )"));
 
@@ -645,7 +645,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
   EXPECT_NE(browser()->tab_strip_model()->GetActiveWebContents(), one);
   EXPECT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       const name = () => root.querySelector('#spaceName')?.textContent.trim();
       while (name() !== 'Space 2' ||
              root.querySelectorAll('.space').length !== 2) {
@@ -660,7 +660,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
   // Back to the first space: the same tab, kept alive while hidden. That
   // empties the parking window, and Two goes to a new one.
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('.space').click();
   )"));
   ASSERT_TRUE(base::test::RunUntil(
@@ -670,13 +670,13 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SwitchesSpaces) {
 
   // And again.
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelectorAll('.space')[1].click();
   )"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return &features->space_model() != home; }));
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('.space').click();
   )"));
   ASSERT_TRUE(base::test::RunUntil(
@@ -698,7 +698,7 @@ bool PressSpaceShortcut(views::View* browser_view, int index) {
 
 // Slice 3 of docs/design/spaces.md: a space of another profile swaps the
 // window, and the tabs left behind wait in their profile's parking window.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        AnotherProfilesSpaceSwapsTheWindow) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -716,7 +716,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   // The switcher lists both profiles' spaces; click the other's. Its ID
   // changes once the profile's file has loaded, so look it up each time.
   constexpr char kSpaceButton[] = R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('.space[data-space-id="' + $1 + '"]'))";
   ASSERT_TRUE(base::test::RunUntil([&] {
     return content::EvalJs(
@@ -788,7 +788,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 
 // Spike, docs/design/profiles-in-place.md: a space of another profile shows
 // in the same native window (the BrowserViews are exchanged), and back.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        AnotherProfilesSpaceKeepsTheNativeWindow) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -815,10 +815,10 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
       return false;
     }
     content::WebContents* contents =
-        FindDescendant<StrataSidebarView>(
+        FindDescendant<CompassSidebarView>(
             BrowserView::GetBrowserViewForBrowser(swapped))
             ->GetWebContents();
-    contents->GetWebUI()->GetController()->GetAs<StrataSidebarUI>()
+    contents->GetWebUI()->GetController()->GetAs<CompassSidebarUI>()
         ->RunWhenTreeShown(base::BindLambdaForTesting([&] { had_tree = true; }));
     return true;
   }));
@@ -896,7 +896,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 // as soon as the window shows the last one, before the old view has left. The
 // other profile's tab has an infobar, which shows in a window built hidden and
 // must leave that window's focus manager when it closes.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        SwitchingProfilesBackAndForth) {
   SetMaxTreeWaitForTesting(base::Seconds(10));
   Profile* profile = browser()->GetProfile();
@@ -943,7 +943,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 
 // Assigning the window's space to another profile from the space menu, as in
 // Arc: the window swaps to that profile and reloads the page it showed.
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuAssignsAProfile) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuAssignsAProfile) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
   ProfileManager* profile_manager = g_browser_process->profile_manager();
@@ -955,7 +955,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuAssignsAProfile) {
       contents,
       content::JsReplace(R"(
         (async (id) => {
-          const root = document.querySelector('strata-sidebar-app').shadowRoot;
+          const root = document.querySelector('compass-sidebar-app').shadowRoot;
           const until = async (f) => {
             while (!f()) await new Promise(r => setTimeout(r, 20));
             return f();
@@ -995,7 +995,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuAssignsAProfile) {
 }
 
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        DragOntoASpaceMovesTheEntryAndShortcutsSwitch) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -1036,7 +1036,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
 // its width, using synthetic drag events.
 constexpr char kDragSpace[] = R"(
   (async (from, to, fraction) => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     const until = async (f) => {
       while (!f()) await new Promise(r => setTimeout(r, 20));
       return f();
@@ -1061,7 +1061,7 @@ constexpr char kDragSpace[] = R"(
     return marked ?? 'none';
   })($1, $2, $3))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DraggingASpaceReordersThem) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DraggingASpaceReordersThem) {
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceList& list = features->service().space_list();
   SpaceModel* home = &features->space_model();
@@ -1095,12 +1095,12 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DraggingASpaceReordersThem) {
   EXPECT_EQ(&features->space_model(), play);
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) {
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel* home = &features->space_model();
   content::WebContents* contents = sidebar_contents();
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('#addSpace').click();
   )"));
   ASSERT_TRUE(base::test::RunUntil(
@@ -1109,7 +1109,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) 
 
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       const until = async (f) => {
         while (!f()) await new Promise(r => setTimeout(r, 20));
         return f();
@@ -1130,7 +1130,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) 
   // Delete wants a second click. The window goes back to Home.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       const until = async (f) => {
         while (!f()) await new Promise(r => setTimeout(r, 20));
         return f();
@@ -1150,7 +1150,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) 
   EXPECT_EQ(&features->space_model(), home);
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragIntoAFolder) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
   content::WebContents* contents = sidebar_contents();
@@ -1159,7 +1159,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
                 contents, content::JsReplace(kWaitForTitles,
                                              base::ListValue().Append("One"))));
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('#newFolder').click();)"));
 
   ASSERT_EQ(true,
@@ -1180,7 +1180,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DragIntoAFolder) {
 // or expanded, with its children hidden or shown to match.
 constexpr char kWaitForFolder[] = R"(
   (async () => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     const matches = () => {
       const row = root.querySelector('.folder-row');
       return row &&
@@ -1193,7 +1193,7 @@ constexpr char kWaitForFolder[] = R"(
     return true;
   })())";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FolderCollapseIsShared) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, FolderCollapseIsShared) {
   SpaceModel& model = WindowFeatures::From(browser())->space_model();
   SidebarNode* folder = model.AddFolder(model.pinned_root(), 0, u"Work");
   model.AddTab(folder, 0, GURL("https://a.test/"), u"Inside");
@@ -1203,7 +1203,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FolderCollapseIsShared) {
 
   // Clicking the folder collapses it in the model, which saves it.
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('.folder-row').click();)"));
   ASSERT_TRUE(base::test::RunUntil([&] { return folder->collapsed(); }));
   EXPECT_EQ(true, content::EvalJs(contents,
@@ -1212,7 +1212,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FolderCollapseIsShared) {
   // Another window shows it collapsed too.
   BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
   content::WebContents* second_contents =
-      FindDescendant<StrataSidebarView>(
+      FindDescendant<CompassSidebarView>(
           BrowserView::GetBrowserViewForBrowser(second))
           ->GetWebContents();
   ASSERT_TRUE(content::WaitForLoadStop(second_contents));
@@ -1232,7 +1232,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FolderCollapseIsShared) {
 // doesn't show).
 constexpr char kRightClick[] = R"(
   (() => {
-    const target = document.querySelector('strata-sidebar-app').shadowRoot
+    const target = document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector($1);
     const rect = target.getBoundingClientRect();
     return !target.dispatchEvent(new MouseEvent('contextmenu', {
@@ -1241,7 +1241,7 @@ constexpr char kRightClick[] = R"(
     }));
   })())";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ContextMenus) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ContextMenus) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
   content::WebContents* contents = sidebar_contents();
@@ -1270,7 +1270,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ContextMenus) {
                                   content::JsReplace(kRightClick, ".tab")));
   ASSERT_TRUE(base::test::RunUntil([&] { return menu != nullptr; }));
   const int row_top = content::EvalJs(contents, R"(
-    Math.round(document.querySelector('strata-sidebar-app').shadowRoot
+    Math.round(document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('.tab').getBoundingClientRect().top))")
                           .ExtractInt();
   EXPECT_GT(point.y(), row_top);
@@ -1284,11 +1284,11 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ContextMenus) {
 
   // Rename in a folder's menu edits its name in place.
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('#newFolder').click();)"));
   ASSERT_TRUE(content::ExecJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       while (!root.querySelector('.folder-row')) {
         await new Promise(r => setTimeout(r, 20));
       }
@@ -1302,7 +1302,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ContextMenus) {
   menu->ActivatedAt(*rename);
   EXPECT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       while (!root.activeElement?.classList.contains('folder-title-input')) {
         await new Promise(r => setTimeout(r, 20));
       }
@@ -1342,11 +1342,11 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
                                                              .Append("Three"))));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FoldersInToday) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, FoldersInToday) {
   content::WebContents* contents = sidebar_contents();
   OpenThreeTabs(browser(), contents);
   ASSERT_TRUE(content::ExecJs(contents, R"(
-    document.querySelector('strata-sidebar-app').shadowRoot
+    document.querySelector('compass-sidebar-app').shadowRoot
         .querySelector('#newTodayFolder').click();)"));
 
   // Into the folder, at the top of Today: its tab leads the strip.
@@ -1372,7 +1372,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FoldersInToday) {
             u"Three");
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SplitsShowSideBySide) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SplitsShowSideBySide) {
   content::WebContents* contents = sidebar_contents();
   OpenThreeTabs(browser(), contents);
   SpaceModel& model = WindowFeatures::From(browser())->space_model();
@@ -1387,7 +1387,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SplitsShowSideBySide) {
   ASSERT_TRUE(base::test::RunUntil([&] { return view->IsInSplitView(); }));
   EXPECT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       while (root.querySelectorAll('#today .split .pane').length !== 2) {
         await new Promise(r => setTimeout(r, 20));
       }
@@ -1400,7 +1400,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SplitsShowSideBySide) {
   EXPECT_EQ(model.today_root()->children().size(), 3u);
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DropOnATabSplitsThem) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DropOnATabSplitsThem) {
   content::WebContents* contents = sidebar_contents();
   OpenThreeTabs(browser(), contents);
 
@@ -1426,7 +1426,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DropOnATabSplitsThem) {
 // Enter. Returns the row's title once it shows $3.
 constexpr char kRenameTab[] = R"(
   (async (title, name, shown) => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     const until = async (f) => {
       while (!f()) await new Promise(r => setTimeout(r, 20));
       return f();
@@ -1443,7 +1443,7 @@ constexpr char kRenameTab[] = R"(
         .textContent.trim();
   })($1, $2, $3))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DoubleClickRenamesATab) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DoubleClickRenamesATab) {
   content::WebContents* contents = sidebar_contents();
   OpenThreeTabs(browser(), contents);
   SpaceModel& model = WindowFeatures::From(browser())->space_model();
@@ -1466,7 +1466,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DoubleClickRenamesATab) {
 // after it.
 constexpr char kPressKey[] = R"(
   (async (key) => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     root.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
       key, bubbles: true, cancelable: true, composed: true,
     }));
@@ -1474,7 +1474,7 @@ constexpr char kPressKey[] = R"(
     return root.activeElement?.title ?? '';
   })($1))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, KeyboardNavigation) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, KeyboardNavigation) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
   TabStripModel* tabs = browser()->tab_strip_model();
@@ -1483,7 +1483,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, KeyboardNavigation) {
 
   // Focusing the list lands on the active entry.
   EXPECT_EQ("Three", content::EvalJs(contents, R"(
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     root.querySelector('#sections').focus();
     root.activeElement.title;)"));
   EXPECT_EQ("Two", content::EvalJs(contents,
@@ -1505,7 +1505,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, KeyboardNavigation) {
   EXPECT_TRUE(base::test::RunUntil([&] { return tabs->count() == 2; }));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FavoritesKeyboardNavigation) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, FavoritesKeyboardNavigation) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
   WindowFeatures* features = WindowFeatures::From(browser());
@@ -1524,7 +1524,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FavoritesKeyboardNavigation) {
   }
   ASSERT_TRUE(base::test::RunUntil([&] {
     return content::EvalJs(contents, R"(
-        document.querySelector('strata-sidebar-app').shadowRoot
+        document.querySelector('compass-sidebar-app').shadowRoot
             .querySelectorAll('.tile').length)")
                .ExtractInt() == 2;
   }));
@@ -1532,7 +1532,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FavoritesKeyboardNavigation) {
 
   // The list lands on the active entry; Up goes into the grid.
   EXPECT_EQ("Three", content::EvalJs(contents, R"(
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     root.querySelector('#sections').focus();
     root.activeElement.title;)"));
   EXPECT_EQ("Two", content::EvalJs(contents,
@@ -1559,7 +1559,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FavoritesKeyboardNavigation) {
 // the list).
 constexpr char kHover[] = R"(
   ((index) => {
-    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const root = document.querySelector('compass-sidebar-app').shadowRoot;
     const sections = root.querySelector('#sections');
     if (index < 0) {
       sections.dispatchEvent(new PointerEvent('pointerleave', {
@@ -1573,7 +1573,7 @@ constexpr char kHover[] = R"(
         }));
   })($1))";
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, HoverCards) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, HoverCards) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
   SidebarHoverCard* card = SidebarHoverCard::FromWebContents(contents);
@@ -1605,7 +1605,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, HoverCards) {
   EXPECT_TRUE(base::test::RunUntil([&] { return !card->IsShowing(); }));
 }
 
-IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ArchivePanel) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ArchivePanel) {
   content::WebContents* contents = sidebar_contents();
   ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), contents));
   WindowFeatures* features = WindowFeatures::From(browser());
@@ -1628,7 +1628,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ArchivePanel) {
   // The panel lists it; clicking it brings it back.
   EXPECT_EQ("One", content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('strata-sidebar-app').shadowRoot;
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
       root.querySelector('#archiveButton').click();
       let entry;
       while (!(entry = root.querySelector('.archived'))) {
@@ -1646,9 +1646,9 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ArchivePanel) {
 }
 
 // Window sync across real windows (docs/design/sidebar.md, "Window sync").
-using StrataWindowSyncBrowserTest = StrataSidebarBrowserTest;
+using CompassWindowSyncBrowserTest = CompassSidebarBrowserTest;
 
-IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassWindowSyncBrowserTest,
                        ClosingAWindowKeepsItsTabs) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -1667,7 +1667,7 @@ IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
   EXPECT_EQ(model->GetActiveWebContents()->GetTitle(), u"One");
 }
 
-IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
+IN_PROC_BROWSER_TEST_F(CompassWindowSyncBrowserTest,
                        PlaceholderBringsTheTabBack) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
@@ -1722,4 +1722,4 @@ IN_PROC_BROWSER_TEST_F(StrataWindowSyncBrowserTest,
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

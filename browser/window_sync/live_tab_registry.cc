@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 
 #include "base/check.h"
-#include "strata/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/sidebar_node.h"
 
-namespace strata {
+namespace compass {
 
 LiveTabRegistry::LiveTabRegistry() = default;
 
@@ -58,4 +58,4 @@ void LiveTabRegistry::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-}  // namespace strata
+}  // namespace compass

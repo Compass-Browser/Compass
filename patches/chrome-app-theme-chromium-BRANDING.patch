@@ -1,5 +1,5 @@
 diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
-index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..5f203c0a7d81192bdd1cc96e3f9fd1018c2bdb1c 100644
+index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..a83dcdbefbb441c4bf9631dca826483ec3d6ebfa 100644
 --- a/chrome/app/theme/chromium/BRANDING
 +++ b/chrome/app/theme/chromium/BRANDING
 @@ -1,10 +1,10 @@
@@ -12,13 +12,13 @@ index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..5f203c0a7d81192bdd1cc96e3f9fd101
 -COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
 -MAC_BUNDLE_ID=org.chromium.Chromium
 -MAC_CREATOR_CODE=Cr24
-+COMPANY_FULLNAME=The Strata Authors
-+COMPANY_SHORTNAME=The Strata Authors
-+PRODUCT_FULLNAME=Strata
-+PRODUCT_SHORTNAME=Strata
-+PRODUCT_INSTALLER_FULLNAME=Strata Installer
-+PRODUCT_INSTALLER_SHORTNAME=Strata Installer
-+COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Strata Authors. All rights reserved.
-+MAC_BUNDLE_ID=org.strata-browser.Strata
-+MAC_CREATOR_CODE=Strt
++COMPANY_FULLNAME=The Compass Authors
++COMPANY_SHORTNAME=The Compass Authors
++PRODUCT_FULLNAME=Compass
++PRODUCT_SHORTNAME=Compass
++PRODUCT_INSTALLER_FULLNAME=Compass Installer
++PRODUCT_INSTALLER_SHORTNAME=Compass Installer
++COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Compass Authors. All rights reserved.
++MAC_BUNDLE_ID=org.compass-browser.Compass
++MAC_CREATOR_CODE=Cmps
  MAC_TEAM_ID=

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h b/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h
-index e0ecb9f0c3bc41a637eeab2d148581f3543deeb7..0ecc8714165f2df6f31589cd1b42399bf123a0bd 100644
+index e0ecb9f0c3bc41a637eeab2d148581f3543deeb7..9e22ae14a4c49ff6af57715458dc04536446dd79 100644
 --- a/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h
 +++ b/chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h
 @@ -6,6 +6,7 @@
@@ -14,8 +14,8 @@ index e0ecb9f0c3bc41a637eeab2d148581f3543deeb7..0ecc8714165f2df6f31589cd1b42399b
  
    void OnHostActivationChanged(bool active);
  
-+  // Strata: the window's contents moved to another widget
-+  // (strata::BrowserViewExchange). Moves the shortcuts to its focus manager.
++  // Compass: the window's contents moved to another widget
++  // (compass::BrowserViewExchange). Moves the shortcuts to its focus manager.
 +  void SetFocusManager(views::FocusManager* focus_manager);
 +
   private:

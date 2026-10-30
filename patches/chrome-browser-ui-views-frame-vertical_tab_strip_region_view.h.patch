@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
-index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..5d23b8a93e70d96a0bf01e009588e9476ec70732 100644
+index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..cf95d0a1b2312017e1a21681c96216c2f3b4eb14 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
 @@ -19,6 +19,7 @@
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
  #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
  #include "chrome/browser/ui/views/frame/base_tab_strip_region_view.h"
-+#include "strata/browser/ui/views/frame/content_frame.h"
++#include "compass/browser/ui/views/frame/content_frame.h"
  #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
  #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.h"
  #include "chrome/browser/ui/views/tabs/organizer/organizer_panel_host.h"
@@ -14,9 +14,9 @@ index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..5d23b8a93e70d96a0bf01e009588e947
  class View;
  }  // namespace views
  
-+namespace strata {
++namespace compass {
 +class ActiveTabWatcher;
-+}  // namespace strata
++}  // namespace compass
 +
  // Container for the vertical tabstrip and the other views sharing space with
  // it, excluding the caption buttons.
@@ -26,8 +26,8 @@ index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..5d23b8a93e70d96a0bf01e009588e947
    // view.
    static constexpr int kUncollapsedMaxWidth = 400;
 -  static constexpr int kCollapsedWidth = 56;
-+  // Strata: collapsed, the sidebar is only the window frame's edge.
-+  static constexpr int kCollapsedWidth = strata::kCollapsedSidebarWidth;
++  // Compass: collapsed, the sidebar is only the window frame's edge.
++  static constexpr int kCollapsedWidth = compass::kCollapsedSidebarWidth;
    // TODO(crbug.com/465833741): Determine snapping behavior.
    static constexpr int kCollapseSnapWidth =
        (kUncollapsedMinWidth + kCollapsedWidth) / 2;
@@ -35,11 +35,11 @@ index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..5d23b8a93e70d96a0bf01e009588e947
  
    bool IsPositionInWindowCaption(const gfx::Point& point) override;
  
-+  // Strata: the sidebar takes the native tab strip's place, so the native
++  // Compass: the sidebar takes the native tab strip's place, so the native
 +  // tree (tab views, drag handler, hover cards) is never built.
 +  void InitializeTabStrip() override;
 +  void ResetTabStrip() override;
-+  // Strata: read from the tab, as there are no tab views to ask.
++  // Compass: read from the tab, as there are no tab views to ask.
 +  const tabs::TabData& GetTabData(const tabs::TabHandle& tab) override;
 +
    // These methods provide the toolbar height and exclusion width, before the
@@ -49,11 +49,11 @@ index 52ee4b9479a2a1ca3a59dd83fec819d80fa63868..5d23b8a93e70d96a0bf01e009588e947
    bool organizer_panel_was_visible_ = false;
  
    raw_ptr<views::View> content_area_view_ = nullptr;
-+  // Strata: the sidebar, and what the native strip's node tree would have
++  // Compass: the sidebar, and what the native strip's node tree would have
 +  // reported (see InitializeTabStrip()).
-+  raw_ptr<views::View> strata_sidebar_ = nullptr;
-+  std::unique_ptr<strata::ActiveTabWatcher> strata_active_tab_watcher_;
-+  tabs::TabData strata_tab_data_;
++  raw_ptr<views::View> compass_sidebar_ = nullptr;
++  std::unique_ptr<compass::ActiveTabWatcher> compass_active_tab_watcher_;
++  tabs::TabData compass_tab_data_;
    raw_ptr<VerticalTabStripTopContainer> top_button_container_ = nullptr;
    raw_ptr<views::Separator> top_button_separator_ = nullptr;
    raw_ptr<VerticalTabStripBottomContainer> bottom_button_container_ = nullptr;

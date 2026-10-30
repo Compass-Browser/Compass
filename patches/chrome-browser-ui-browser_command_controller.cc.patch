@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
-index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..28dff996670622863b283396d7babc5d576b83e8 100644
+index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..1967f6ee788a0a4efe8a201e4f5adfac3233bd2b 100644
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
 @@ -4,6 +4,8 @@
  
  #include "chrome/browser/ui/browser_command_controller.h"
  
-+#include "strata/browser/ui/views/command_bar/command_bar.h"
++#include "compass/browser/ui/views/command_bar/command_bar.h"
 +
  #include <stddef.h>
  
@@ -15,7 +15,7 @@ index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..28dff996670622863b283396d7babc5d
  
    DCHECK(IsCommandEnabled(id)) << "Invalid/disabled command " << id;
  
-+  if (strata::HandleBrowserCommand(browser_, id)) {
++  if (compass::HandleBrowserCommand(browser_, id)) {
 +    return true;
 +  }
 +

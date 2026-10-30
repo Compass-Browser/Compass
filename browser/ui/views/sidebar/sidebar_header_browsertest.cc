@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/sidebar_header.h"
+#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 
 #include <optional>
 #include <string>
@@ -51,7 +51,7 @@
 #include "extensions/common/extension.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_test_api.h"
@@ -70,7 +70,7 @@
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 template <typename T>
@@ -278,7 +278,7 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PillOpensTheCommandBar) {
 
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return bar->IsShowing(); }));
   EXPECT_EQ(content::EvalJs(bar->web_contents_for_testing(), R"(
-      document.querySelector('strata-command-bar-app').shadowRoot
+      document.querySelector('compass-command-bar-app').shadowRoot
           .querySelector('#input').value)"),
             url.spec());
 }
@@ -725,4 +725,4 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderAnimatedBrowserTest,
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

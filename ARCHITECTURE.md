@@ -1,12 +1,14 @@
-# Strata architecture
+# Compass architecture
 
-Strata is an open-source, cross-platform browser built on a full Chromium
+Compass is an open-source, cross-platform browser built on a full Chromium
 fork. It keeps Chromium's engine, extension system and security model, and
 replaces the tab strip with an Arc-style sidebar: spaces, profiles, pinned
 tabs, nested folders, split view, window sync and automatic picture-in-picture.
 
-> "Strata" is a working codename. Renaming touches `patches/chrome-app-theme-chromium-BRANDING.patch`,
-> the `strata` CLI and the `//strata` source root.
+> Compass was called Strata until 2026-10-30. Renaming touches
+> `patches/chrome-app-theme-chromium-BRANDING.patch`, the `compass` CLI, the
+> `//compass` source root, and the saved files' names (which read the old
+> ones, see `ReadJsonFile()`).
 
 ## 1. Goals and non-goals
 
@@ -28,7 +30,7 @@ tabs, nested folders, split view, window sync and automatic picture-in-picture.
 ## 2. Base: a pinned Chromium stable
 
 - `config/chromium_version` pins one Chromium stable tag for every platform.
-- `strata update-chromium <version>` moves to a new tag: revert patches, fetch,
+- `compass update-chromium <version>` moves to a new tag: revert patches, fetch,
   sync DEPS, re-apply patches with a 3-way merge, report conflicts.
 - Chrome stable moves every 4 weeks, with security respins in between. Each
   rebase is a routine task, so it has to stay cheap. That's what the next
@@ -40,32 +42,32 @@ Three mechanisms, in order of preference. Use the first one that works.
 
 | # | Mechanism | Where | When |
 |---|---|---|---|
-| 1 | **New code in `//strata`** | `browser/`, `resources/`, … | All features. Most code lives here. |
+| 1 | **New code in `//compass`** | `browser/`, `resources/`, … | All features. Most code lives here. |
 | 2 | **`chromium_src` overrides** | `chromium_src/<path in src>` | You need to change upstream behaviour without editing the file: wrap, rename or extend a function. |
 | 3 | **Patches** | `patches/*.patch` | Small edits that can't be done any other way: BUILD.gn hooks, a single line in a header, branding. |
 
 ### Layout on disk
 
 ```
-~/src/strata/            ← this repository (small; open it in your IDE)
-~/src/strata-chromium/   ← created by `strata init` (~100 GB with builds)
+~/src/compass/            ← this repository (small; open it in your IDE)
+~/src/compass-chromium/   ← created by `compass init` (~100 GB with builds)
   ├─ .gclient
   ├─ depot_tools/
   └─ src/                       ← Chromium checkout at the pinned tag
-      └─ strata → ~/src/strata   (symlink; a junction on Windows)
+      └─ compass → ~/src/compass   (symlink; a junction on Windows)
 ```
 
-The repository directory must be named `strata` in lowercase. Includes are
-spelled `strata/...`, and clang rejects a differently cased directory behind
-the link (`-Wnonportable-include-path`). `strata init` and `strata gen` check
+The repository directory must be named `compass` in lowercase. Includes are
+spelled `compass/...`, and clang rejects a differently cased directory behind
+the link (`-Wnonportable-include-path`). `compass init` and `compass gen` check
 this.
 
 The Chromium checkout lives next to the repository, not inside it. Nesting it
 would create a symlink cycle that IDE indexers and file watchers follow
-forever. Override the location with `STRATA_CHROMIUM_DIR`.
+forever. Override the location with `COMPASS_CHROMIUM_DIR`.
 
 The CLI also supports the Brave-style in-tree layout: if this repository is
-cloned directly to `<checkout>/src/strata`, it detects that and uses it as is.
+cloned directly to `<checkout>/src/compass`, it detects that and uses it as is.
 Use that layout if a Chromium build script rejects a source path that
 resolves outside `src/`.
 
@@ -81,7 +83,7 @@ GN's `cc_wrapper`. For each compile it does two things:
    `chromium_src/<path>.h` takes precedence over `src/<path>.h` everywhere.
 
 Ninja tracks overrides through the depfile once they're in use. Adding or
-deleting an override isn't visible to ninja, so `strata build` touches the
+deleting an override isn't visible to ninja, so `compass build` touches the
 matching upstream file to force a rebuild. Details and an example are in
 [`chromium_src/README.md`](chromium_src/README.md).
 
@@ -89,10 +91,10 @@ matching upstream file to force a rebuild. Details and an example are in
 
 One patch per upstream file, named after its path
 (`chrome/browser/BUILD.gn` → `chrome-browser-BUILD.gn.patch`). Edit the file in
-`src/`, then run `strata patches export`. Patches for nested repositories
+`src/`, then run `compass patches export`. Patches for nested repositories
 (`v8`, `third_party/skia`, …) live in a matching subdirectory of `patches/`.
 Keep each patch to a few lines that are unlikely to conflict: add a hook that
-calls into `//strata`, rather than moving logic into the patch.
+calls into `//compass`, rather than moving logic into the patch.
 
 ## 4. UI architecture
 
@@ -153,7 +155,7 @@ or archived tabs. It becomes an internal detail that holds the *live* tabs of
 one (window, space). We keep its order aligned with the sidebar so that
 extension tab indices stay meaningful.
 
-Persistence: one JSON file per profile (`Strata Sidebar.json` in the profile
+Persistence: one JSON file per profile (`Compass Sidebar.json` in the profile
 directory), written atomically and in batches by `ImportantFileWriter` on a
 background sequence, the way upstream stores bookmarks (D12). It stores the
 pinned tree and Today; spaces and per-window UI state follow.
@@ -285,7 +287,7 @@ Code (planned): `browser/pip/`, plus a macOS override for the PiP widget.
 
 ## 12. Build configurations
 
-`strata gen <config>` writes `out/<Config>/args.gn`, which imports
+`compass gen <config>` writes `out/<Config>/args.gn`, which imports
 `config/args/common.gn` plus `config/args/<config>.gn`, and adds the
 `cc_wrapper` line.
 
@@ -323,7 +325,7 @@ Milestones 2–4 make up the MVP.
 |---|---|---|
 | D1 | Full Chromium fork, not Electron or CEF | Full extension support, Google sign-in works, our own security cadence |
 | D2 | Views shell + WebUI surfaces, not native UI per OS | One UI codebase; proven by Chrome's side panel and Vivaldi |
-| D3 | New code in `//strata`, then `chromium_src`, then patches | Keeps rebases cheap |
+| D3 | New code in `//compass`, then `chromium_src`, then patches | Keeps rebases cheap |
 | D4 | Checkout next to the repo, linked in | Avoids symlink cycles; the repo stays IDE-friendly |
 | D5 | Sidebar tree is the source of truth, not `TabStripModel` | Nested folders, unloaded pinned entries, archive |
 | D6 | One `Browser` per (window, space) | Spaces with different profiles without patching `Browser` |
@@ -337,8 +339,8 @@ Milestones 2–4 make up the MVP.
 | D14 | Today is saved in the sidebar file; tabs Chrome restores take over saved entries by URL | Chrome's session restore keeps history and crash recovery, so we leave it alone. Tagging tabs through session "extra data" would need two patches (a rebuild of the session file drops tab extra data). URL matching is right for the common case and degrades to a duplicate entry |
 | D15 | Spaces of one profile share a window's `Browser`; a switch moves live tabs to and from a hidden, unrestored popup parking `Browser` (realizes D6 for one profile) | A native window can't host several `Browser`s, and swapping windows flickers, splits window state and can't restore a window's space without session patches. Moving tabs keeps page state, as tab dragging does |
 | D16 | Entries move between spaces as the same node objects (`SpaceModel::MoveToSpace()`), not as copies | Node IDs and the registry's node ↔ tab pairs stay valid, so live tabs follow their entry without being closed and reopened |
-| D17 | As in Arc, spaces form one browser-wide list, each assigned to a profile (`SpaceDirectory`, `Strata Spaces.json`; entries stay in their profile's file). A space of another profile swaps the window: a window of that profile opens at the same bounds and the old one empties into its profile's parking window. Assigning another profile moves the entries and reloads the shown page there. Listed profiles stay loaded (`kStrataSpaces` keep-alive) | A `Browser` has one profile (§6), so rebinding can't cross profiles, and tabs can't change profile. Without the keep-alive, a profile whose last window swapped away would be destroyed, with its parked tabs |
-| D18 | A switch to another profile's space keeps the native window: the other profile's `Browser` is built hidden, then the two windows' `BrowserView`s exchange native windows (`strata::BrowserViewExchange`, `Widget::ExchangeContentsWith()` patch); the old view empties into its parking window and closes with the hidden one (supersedes D17's visible window swap) | Same NSWindow, macOS Space and fullscreen, no second window flashing. Re-profiling a live `Browser` was ruled out: ~15 window features and the views built on them cache the profile at construction (docs/design/profiles-in-place.md, "Spike findings"). Every `Browser` keeps its profile, so no upstream bookkeeping changes |
+| D17 | As in Arc, spaces form one browser-wide list, each assigned to a profile (`SpaceDirectory`, `Compass Spaces.json`; entries stay in their profile's file). A space of another profile swaps the window: a window of that profile opens at the same bounds and the old one empties into its profile's parking window. Assigning another profile moves the entries and reloads the shown page there. Listed profiles stay loaded (`kCompassSpaces` keep-alive) | A `Browser` has one profile (§6), so rebinding can't cross profiles, and tabs can't change profile. Without the keep-alive, a profile whose last window swapped away would be destroyed, with its parked tabs |
+| D18 | A switch to another profile's space keeps the native window: the other profile's `Browser` is built hidden, then the two windows' `BrowserView`s exchange native windows (`compass::BrowserViewExchange`, `Widget::ExchangeContentsWith()` patch); the old view empties into its parking window and closes with the hidden one (supersedes D17's visible window swap) | Same NSWindow, macOS Space and fullscreen, no second window flashing. Re-profiling a live `Browser` was ruled out: ~15 window features and the views built on them cache the profile at construction (docs/design/profiles-in-place.md, "Spike findings"). Every `Browser` keeps its profile, so no upstream bookkeeping changes |
 
 ## 15. Open questions
 

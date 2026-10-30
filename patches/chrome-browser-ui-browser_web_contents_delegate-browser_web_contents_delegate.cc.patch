@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..461d22333ee8ca9bd50f39c95362ebaa87a08fb8 100644
+index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..bee4f69990cb4600e15330228116473aa15eb465 100644
 --- a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 +++ b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 @@ -113,6 +113,8 @@
  #include "chrome/browser/ui/overscroll_pref_manager.h"
  #endif  // defined(USE_AURA)
  
-+#include "strata/browser/window_sync/window_features.h"
++#include "compass/browser/window_sync/window_features.h"
 +
  #if BUILDFLAG(IS_CHROMEOS)
  #include "chrome/browser/ui/settings_window_manager_chromeos.h"
@@ -15,8 +15,8 @@ index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..461d22333ee8ca9bd50f39c95362ebaa
  
  void BrowserWebContentsDelegate::ActivateContents(
      content::WebContents* contents) {
-+  // Strata: a parked tab shows in a window the user sees, in its space.
-+  if (strata::RevealParkedTab(contents)) {
++  // Compass: a parked tab shows in a window the user sees, in its space.
++  if (compass::RevealParkedTab(contents)) {
 +    return;
 +  }
    // A WebContents can ask to activate after it's been removed from the

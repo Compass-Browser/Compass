@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
-#define STRATA_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
 
 #include <cstddef>
 #include <memory>
@@ -21,10 +21,10 @@
 #include "base/uuid.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/space_service.h"
-#include "strata/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
@@ -38,9 +38,9 @@ namespace gfx {
 class Rect;
 }  // namespace gfx
 
-namespace strata {
+namespace compass {
 
-// Strata's per-window state: the space the window shows, and the bridge
+// Compass's per-window state: the space the window shows, and the bridge
 // between the window's tab strip and that space. Owned by upstream's
 // EmbedderBrowserWindowFeatures (see patches/) and created before the window's
 // views. The profile's parking window gets these too, without a bridge: its
@@ -270,6 +270,6 @@ bool RevealParkedTab(content::WebContents* contents);
 // docs/design/sidebar.md, "Today auto-archive".
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now);
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_

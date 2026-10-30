@@ -1,8 +1,8 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Strata's shortcuts on macOS. Upstream's main menu accelerators and its
+# Compass's shortcuts on macOS. Upstream's main menu accelerators and its
 # shortcuts outside the menu call into it (see patches/), so this depends on
 # little of Chrome's.
 source_set("shortcuts") {

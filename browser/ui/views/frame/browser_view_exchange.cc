@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/frame/browser_view_exchange.h"
+#include "compass/browser/ui/views/frame/browser_view_exchange.h"
 
 #include <utility>
 #include <vector>
@@ -28,7 +28,7 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/window/non_client_view.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -190,4 +190,4 @@ void BrowserViewExchange::SetNativeWidgetView(BrowserWidget& widget,
                                               BrowserView* view) {}
 #endif
 
-}  // namespace strata
+}  // namespace compass

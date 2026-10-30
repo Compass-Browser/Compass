@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
 .DS_Store
-/strata-chromium/
+/compass-chromium/
 *.orig
 *.rej

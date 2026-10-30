@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/frame/BUILD.gn
-index d1973034eed485334dad8980883d3647be2e4759..883b0d613de964493f31365713db18bbb448ae4d 100644
+index d1973034eed485334dad8980883d3647be2e4759..3f6cf31766c9f2034f7cd31c02df6f8c5ce89583 100644
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
 @@ -2463,6 +2463,9 @@ source_set("browser_view_tabbed_layout_impl") {
@@ -7,8 +7,8 @@ index d1973034eed485334dad8980883d3647be2e4759..883b0d613de964493f31365713db18bb
      "//chrome/browser/ui/views/side_panel",
      "//chrome/browser/ui/views/tabs/organizer",
 +
-+    # Strata's window frame insets the page.
-+    "//strata/browser/ui/views/frame:content_frame",
++    # Compass's window frame insets the page.
++    "//compass/browser/ui/views/frame:content_frame",
      "//ui/base:features",
      "//ui/compositor",
    ]

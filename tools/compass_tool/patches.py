@@ -1,4 +1,4 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Applying, reverting and exporting patches to upstream files.
@@ -116,7 +116,7 @@ def export(patches_dir: Path, src: Path,
   repos.update(src / repo for repo in extra_repos)
   for repo in sorted(repos):
     target_dir = patches_dir / repo.relative_to(src)
-    exclude = ('strata',) if repo == src else ()
+    exclude = ('compass',) if repo == src else ()
     wanted = set()
     for path in changed_files(repo, exclude):
       content = diff(repo, path)

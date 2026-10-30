@@ -21,15 +21,15 @@ already opens picture-in-picture when its tab stops being the active tab of
 its strip, and closes it when the tab comes back. Out of the box it only
 works for sites that register an `enterpictureinpicture` media session
 handler, and only after a permission prompt or with high media engagement.
-Strata changes five things:
+Compass changes five things:
 
-| Upstream | Strata | Where |
+| Upstream | Compass | Where |
 |---|---|---|
-| Browser-initiated auto pip (any page's playing video, no handler needed) is off | On | `strata::RegisterFeatureOverrides()` (`browser/feature_overrides.cc`), called from `ChromeBrowserFieldTrials::RegisterFeatureOverrides()`; `--disable-features=BrowserInitiatedAutomaticPictureInPicture` still turns it off |
+| Browser-initiated auto pip (any page's playing video, no handler needed) is off | On | `compass::RegisterFeatureOverrides()` (`browser/feature_overrides.cc`), called from `ChromeBrowserFieldTrials::RegisterFeatureOverrides()`; `--disable-features=BrowserInitiatedAutomaticPictureInPicture` still turns it off |
 | `AUTO_PICTURE_IN_PICTURE` content setting defaults to Ask: a prompt in the pip window, and no auto pip without high media engagement | Defaults to Allow: no prompt, no engagement check. Blocking a site still works | `content_settings_registry.cc` patch |
 | Auto pip never replaces an open pip window | It replaces another tab's *auto* pip, so the tab left last shows. A pip window the user opened stays | `auto_picture_in_picture_tab_helper.cc` patch, `IsEligibleForAutoPictureInPicture()` |
-| A tab moved into a popup window keeps its "active" state | A tab moved into the profile's parking window counts as left | `auto_picture_in_picture_tab_strip_observer_helper.cc` patch, `strata::IsInParkingWindow()` |
-| "Back to tab" activates the tab in its `Browser` | A parked tab's space is shown in the window the user was in | `browser_web_contents_delegate.cc` patch, `strata::RevealParkedTab()` (below) |
+| A tab moved into a popup window keeps its "active" state | A tab moved into the profile's parking window counts as left | `auto_picture_in_picture_tab_strip_observer_helper.cc` patch, `compass::IsInParkingWindow()` |
+| "Back to tab" activates the tab in its `Browser` | A parked tab's space is shown in the window the user was in | `browser_web_contents_delegate.cc` patch, `compass::RevealParkedTab()` (below) |
 
 The rest of upstream's conditions stay: the tab must have been audible
 recently (so muted videos and muted tabs don't show), hold audio focus, pass
@@ -49,7 +49,7 @@ A swap to another profile's space (`LeaveForSwap()`) detaches every tab
 from the old window and parks it, with no activation change in a normal
 strip. Upstream's tab strip helper ignores popup windows (the parking
 window is one), so it would keep thinking the tab is shown. The patch
-checks `strata::IsInParkingWindow()` on every tab strip change it sees
+checks `compass::IsInParkingWindow()` on every tab strip change it sees
 while the tab is away from a normal strip, and reports the tab as left.
 
 ## Back to tab
@@ -58,7 +58,7 @@ As in Arc, the window's "back to tab" button (and a page calling
 `window.focus()`) shows the tab wherever it is. Upstream activates the tab
 in its own `Browser`, which for a parked tab is the hidden parking window:
 it would show that window. `BrowserWebContentsDelegate::ActivateContents()`
-(patch) first asks `strata::RevealParkedTab()`: for a tab in a parking
+(patch) first asks `compass::RevealParkedTab()`: for a tab in a parking
 window, the window the user was in last (of any listed profile) switches to
 the tab's space, swapping to its profile if needed
 (`SwitchWindowToSpace()`), and activates the tab, as a click on its entry

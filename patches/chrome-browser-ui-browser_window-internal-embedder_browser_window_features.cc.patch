@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/browser_window/internal/embedder_browser_window_features.cc b/chrome/browser/ui/browser_window/internal/embedder_browser_window_features.cc
-index a2c0889f7003c1f1b70c76beb1e6b481d8ac649e..14441d828d4a78c37566b0655e8a4e0244f9682b 100644
+index a2c0889f7003c1f1b70c76beb1e6b481d8ac649e..0d94de10ce36c0c3502483c1d0587e060c203428 100644
 --- a/chrome/browser/ui/browser_window/internal/embedder_browser_window_features.cc
 +++ b/chrome/browser/ui/browser_window/internal/embedder_browser_window_features.cc
 @@ -6,6 +6,7 @@
  
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
-+#include "strata/browser/window_sync/window_features.h"
++#include "compass/browser/window_sync/window_features.h"
  
  DEFINE_USER_DATA(EmbedderBrowserWindowFeatures);
  
@@ -15,7 +15,7 @@ index a2c0889f7003c1f1b70c76beb1e6b481d8ac649e..14441d828d4a78c37566b0655e8a4e02
  
  void EmbedderBrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 -  // Embedder implementation goes here.
-+  strata_window_features_ = std::make_unique<strata::WindowFeatures>(browser);
++  compass_window_features_ = std::make_unique<compass::WindowFeatures>(browser);
  }
  
  void EmbedderBrowserWindowFeatures::InitPostWindowConstruction(

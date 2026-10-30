@@ -1,4 +1,4 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from strata_tool import overrides, patches  # noqa: E402
-from strata_tool.layout import detect  # noqa: E402
+from compass_tool import overrides, patches  # noqa: E402
+from compass_tool.layout import detect  # noqa: E402
 
 
 def git(repo, *args):
@@ -45,10 +45,10 @@ class PatchesTest(unittest.TestCase):
 
   def modify(self):
     (self.src / 'chrome' / 'BUILD.gn').write_text(
-        'deps = [\n  "//strata/browser",\n  ":a",\n]\n')
+        'deps = [\n  "//compass/browser",\n  ":a",\n]\n')
     (self.src / 'chrome' / 'new.h').write_text('// added\n')
-    (self.src / 'strata').mkdir()
-    (self.src / 'strata' / 'ignored.cc').write_text('')
+    (self.src / 'compass').mkdir()
+    (self.src / 'compass' / 'ignored.cc').write_text('')
 
   def test_export_writes_one_patch_per_file(self):
     self.modify()
@@ -62,12 +62,12 @@ class PatchesTest(unittest.TestCase):
 
     self.assertEqual(self.quietly(patches.revert, self.patches_dir, self.src),
                      [])
-    self.assertNotIn('strata', (self.src / 'chrome' / 'BUILD.gn').read_text())
+    self.assertNotIn('compass', (self.src / 'chrome' / 'BUILD.gn').read_text())
     self.assertFalse((self.src / 'chrome' / 'new.h').exists())
 
     self.assertEqual(self.quietly(patches.apply, self.patches_dir, self.src),
                      [])
-    self.assertIn('//strata/browser',
+    self.assertIn('//compass/browser',
                   (self.src / 'chrome' / 'BUILD.gn').read_text())
     self.assertTrue((self.src / 'chrome' / 'new.h').exists())
 
@@ -143,21 +143,21 @@ class OverridesTest(unittest.TestCase):
 class LayoutTest(unittest.TestCase):
 
   def test_linked_layout_defaults_to_sibling_directory(self):
-    layout = detect(Path('/work/Strata'), environ={})
+    layout = detect(Path('/work/Compass'), environ={})
     self.assertFalse(layout.in_tree)
-    self.assertEqual(layout.src, Path('/work/strata-chromium/src'))
+    self.assertEqual(layout.src, Path('/work/compass-chromium/src'))
 
   def test_environment_overrides_chromium_dir(self):
-    layout = detect(Path('/work/Strata'),
-                    environ={'STRATA_CHROMIUM_DIR': '/big/disk/cr'})
+    layout = detect(Path('/work/Compass'),
+                    environ={'COMPASS_CHROMIUM_DIR': '/big/disk/cr'})
     self.assertEqual(layout.src, Path('/big/disk/cr/src'))
 
   def test_detects_in_tree_layout(self):
     with tempfile.TemporaryDirectory() as tmp:
       src = Path(tmp) / 'src'
-      (src / 'strata').mkdir(parents=True)
+      (src / 'compass').mkdir(parents=True)
       (src / '.gn').write_text('')
-      layout = detect(src / 'strata', environ={})
+      layout = detect(src / 'compass', environ={})
       self.assertTrue(layout.in_tree)
       self.assertEqual(layout.src, src)
 

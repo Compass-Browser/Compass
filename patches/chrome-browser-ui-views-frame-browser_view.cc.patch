@@ -1,14 +1,14 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff0901aab13f 100644
+index b68f089aebf83b82499611404433d430e9971f14..03c9e5f7fbcc32e3cb9e3b4e2fc967df95073fad 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -4,6 +4,10 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
-+#include "strata/browser/ui/views/frame/window_frame.h"
-+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
-+#include "strata/browser/window_sync/window_features.h"
++#include "compass/browser/ui/views/frame/window_frame.h"
++#include "compass/browser/ui/views/sidebar/sidebar_header.h"
++#include "compass/browser/window_sync/window_features.h"
 +
  #include <stdint.h>
  
@@ -17,9 +17,9 @@ index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff09
  }
  
  BrowserView::~BrowserView() {
-+  // Strata: the toolbar takes back the controls the sidebar holds before
++  // Compass: the toolbar takes back the controls the sidebar holds before
 +  // either is destroyed.
-+  strata::DetachToolbar(browser_.get());
++  compass::DetachToolbar(browser_.get());
 +
    // Remove the layout manager to avoid dangling. This needs to be earlier than
    // other cleanups that destroy views referenced in the layout manager.
@@ -28,8 +28,8 @@ index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff09
  }
  
  bool BrowserView::IsToolbarVisible() const {
-+  // Strata: the sidebar holds the toolbar's controls.
-+  if (strata::ShouldHideToolbar(browser_.get())) {
++  // Compass: the sidebar holds the toolbar's controls.
++  if (compass::ShouldHideToolbar(browser_.get())) {
 +    return false;
 +  }
 +
@@ -40,9 +40,9 @@ index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff09
      return views::CloseRequestResult::kCannotClose;
    }
  
-+  // Strata: the tabs live on in another window; the emptied window closes
++  // Compass: the tabs live on in another window; the emptied window closes
 +  // itself, as when its last tab is dragged out.
-+  if (strata::HandOffTabsBeforeClose(browser_)) {
++  if (compass::HandOffTabsBeforeClose(browser_)) {
 +    return views::CloseRequestResult::kCannotClose;
 +  }
 +
@@ -53,8 +53,8 @@ index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff09
          // controls before finally falling back to HTCAPTION.
          return HTNOWHERE;
        }
-+      // Strata: the frame around the page drags the window.
-+      if (strata::IsOnWindowFrame(this, point_in_browser_view_coords)) {
++      // Compass: the frame around the page drags the window.
++      if (compass::IsOnWindowFrame(this, point_in_browser_view_coords)) {
 +        return HTNOWHERE;
 +      }
      }
@@ -64,7 +64,7 @@ index b68f089aebf83b82499611404433d430e9971f14..c99899455aea6f61da84495b5f10ff09
  #endif
  
    toolbar_->Init();
-+  strata::AttachToolbar(browser_.get(), toolbar_);
++  compass::AttachToolbar(browser_.get(), toolbar_);
  
    if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
      // When the WebUI Omnibox is embedded directly in the `BrowserView` (instead

@@ -1,14 +1,14 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index 6c4807bbaaf0a8e12e1a2df8545b4b55f491c297..b8071e69c92538636dc23f06624886b3bcec2420 100644
+index 6c4807bbaaf0a8e12e1a2df8545b4b55f491c297..4f2b3d382026f3b79bbd8b2977c0bd42ff5d1187 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
 @@ -126,6 +126,10 @@ class NativeViewHost;
  class WebView;
  }  // namespace views
  
-+namespace strata {
++namespace compass {
 +class BrowserViewExchange;
-+}  // namespace strata
++}  // namespace compass
 +
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserView
@@ -17,7 +17,7 @@ index 6c4807bbaaf0a8e12e1a2df8545b4b55f491c297..b8071e69c92538636dc23f06624886b3
    void DeleteBrowserWindow() final;
  
   private:
-+  friend class strata::BrowserViewExchange;
++  friend class compass::BrowserViewExchange;
    // Do not friend BrowserViewLayout. Use the BrowserViewLayoutDelegate
    // interface to keep these two classes decoupled and testable.
    friend class BrowserViewLayoutDelegateImpl;

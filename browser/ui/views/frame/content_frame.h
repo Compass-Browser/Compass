@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_
-#define STRATA_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_
+#define COMPASS_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_
 
 #include "ui/gfx/geometry/insets.h"
 
-namespace strata {
+namespace compass {
 
 // As in Arc, the page sits in a rounded card inside a frame of the space's
 // color: the window's edges and the sidebar. See docs/design/window-frame.md.
@@ -30,6 +30,6 @@ inline constexpr gfx::Insets GetContentFrameInsets() {
                            kContentFrameInset);
 }
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_

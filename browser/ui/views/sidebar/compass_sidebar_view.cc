@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
+#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
 
 #include <algorithm>
 #include <memory>
@@ -17,21 +17,21 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "content/public/browser/navigation_controller.h"
-#include "strata/browser/ui/views/frame/content_frame.h"
+#include "compass/browser/ui/views/frame/content_frame.h"
 #include "ui/base/class_property.h"
 #include "ui/compositor/layer.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/page_transition_types.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/ui/views/frame/window_frame.h"
-#include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
-#include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
-#include "strata/browser/ui/views/sidebar/sidebar_swap.h"
-#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
-#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
+#include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "compass/browser/ui/views/sidebar/sidebar_swap.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator_manager.h"
 #include "ui/events/event_constants.h"
@@ -45,7 +45,7 @@
 #include "ui/views/view_utils.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -112,7 +112,7 @@ bool SpaceShortcuts::CanHandleAccelerators() const {
   return true;
 }
 
-StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
+CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
     // It owns its page itself, to hand it over.
     : views::WebView(nullptr),
       browser_(browser),
@@ -126,20 +126,20 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
   }
 }
 
-StrataSidebarView::~StrataSidebarView() {
+CompassSidebarView::~CompassSidebarView() {
   // The WebView lets go of it before it goes.
   Detach();
 }
 
-void StrataSidebarView::PreloadCommandBar() {
+void CompassSidebarView::PreloadCommandBar() {
   command_bar_.Preload();
 }
 
-void StrataSidebarView::LoadPage() {
+void CompassSidebarView::LoadPage() {
   if (contents_) {
     return;
   }
-  const GURL url(kStrataSidebarURL);
+  const GURL url(kCompassSidebarURL);
   Profile* profile = browser_->GetProfile();
   content::WebContents::CreateParams params(profile);
   params.site_instance = content::SiteInstance::CreateForURL(profile, url);
@@ -149,20 +149,20 @@ void StrataSidebarView::LoadPage() {
                                      std::string());
 }
 
-void StrataSidebarView::TakePageFrom(StrataSidebarView& other) {
+void CompassSidebarView::TakePageFrom(CompassSidebarView& other) {
   if (std::unique_ptr<content::WebContents> contents = other.Detach()) {
     Detach();
     Attach(std::move(contents));
   }
 }
 
-void StrataSidebarView::OnProfileWillBeDestroyed(Profile* profile) {
+void CompassSidebarView::OnProfileWillBeDestroyed(Profile* profile) {
   // The page's profile goes: one of the window's takes its place.
   Detach();
   LoadPage();
 }
 
-void StrataSidebarView::Attach(std::unique_ptr<content::WebContents> contents) {
+void CompassSidebarView::Attach(std::unique_ptr<content::WebContents> contents) {
   contents_ = std::move(contents);
   content::WebContents* web_contents = contents_.get();
   // As the WebView does with its own: keys the page doesn't handle go to the
@@ -182,11 +182,11 @@ void StrataSidebarView::Attach(std::unique_ptr<content::WebContents> contents) {
     page_profile_observation_.Observe(page_profile);
   }
   // The page asks for its window as soon as it connects, and a page that
-  // moved here binds to this window now (StrataSidebarUI).
+  // moved here binds to this window now (CompassSidebarUI).
   webui::SetBrowserWindowInterface(web_contents, browser_);
 }
 
-std::unique_ptr<content::WebContents> StrataSidebarView::Detach() {
+std::unique_ptr<content::WebContents> CompassSidebarView::Detach() {
   if (!contents_) {
     return nullptr;
   }
@@ -199,7 +199,7 @@ std::unique_ptr<content::WebContents> StrataSidebarView::Detach() {
   return std::move(contents_);
 }
 
-void StrataSidebarView::AddedToWidget() {
+void CompassSidebarView::AddedToWidget() {
   views::WebView::AddedToWidget();
   space_shortcuts_.Register(GetFocusManager());
   // So the first Cmd+T opens the bar at once. A swap's window does it once it
@@ -209,16 +209,16 @@ void StrataSidebarView::AddedToWidget() {
   }
 }
 
-void StrataSidebarView::RemovedFromWidget() {
+void CompassSidebarView::RemovedFromWidget() {
   space_shortcuts_.Unregister();
   views::WebView::RemovedFromWidget();
 }
 
-BEGIN_METADATA(StrataSidebarView)
+BEGIN_METADATA(CompassSidebarView)
 END_METADATA
 
 std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser) {
-  return std::make_unique<StrataSidebarView>(browser);
+  return std::make_unique<CompassSidebarView>(browser);
 }
 
 namespace {
@@ -264,7 +264,7 @@ void FadeSidebarContents(std::initializer_list<views::View*> views,
 }
 
 void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
-  CHECK(views::IsViewClass<StrataSidebarView>(sidebar));
+  CHECK(views::IsViewClass<CompassSidebarView>(sidebar));
   CHECK(bottom_container);
   // The region gives its tab strip the native strip's flex rule and margins.
   sidebar->SetProperty(views::kFlexBehaviorKey, SidebarFlex());
@@ -288,7 +288,7 @@ void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
   }
   CHECK(region);
   BrowserWindowInterface* browser =
-      views::AsViewClass<StrataSidebarView>(sidebar)->browser();
+      views::AsViewClass<CompassSidebarView>(sidebar)->browser();
   // The region adds the sidebar again when vertical tabs come back.
   if (!WindowFrame::FromRegion(region)) {
     SidebarTint::Install(region, browser);
@@ -323,4 +323,4 @@ void ActiveTabWatcher::OnWillDetach(tabs::TabInterface* tab,
   callback_.Run(nullptr);
 }
 
-}  // namespace strata
+}  // namespace compass

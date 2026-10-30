@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/cocoa/shortcuts_mac.h"
+#include "compass/browser/ui/cocoa/shortcuts_mac.h"
 
 #include <Carbon/Carbon.h>
 
@@ -11,7 +11,7 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 
-namespace strata {
+namespace compass {
 
 void AdjustMenuAccelerators(std::map<int, ui::Accelerator>& accelerators) {
   accelerators.erase(IDC_SAVE_PAGE);
@@ -30,4 +30,4 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

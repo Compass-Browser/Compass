@@ -1,9 +1,11 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/sidebar_store.h"
+#include "compass/browser/window_sync/sidebar_store.h"
 
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/auto_reset.h"
@@ -13,9 +15,9 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "strata/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -30,7 +32,18 @@ scoped_refptr<base::SequencedTaskRunner> CreateFileTaskRunner() {
        base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
 }
 
-std::optional<base::Value> ReadFile(const base::FilePath& path) {
+}  // namespace
+
+std::optional<base::Value> ReadJsonFile(const base::FilePath& path) {
+  constexpr std::string_view kPrefix = "Compass ";
+  const std::string name = path.BaseName().AsUTF8Unsafe();
+  if (!base::PathExists(path) && name.starts_with(kPrefix)) {
+    const base::FilePath legacy = path.DirName().Append(
+        base::FilePath::FromUTF8Unsafe("Strata " + name.substr(kPrefix.size())));
+    if (base::PathExists(legacy)) {
+      base::Move(legacy, path);
+    }
+  }
   std::string contents;
   if (!base::ReadFileToString(path, &contents)) {
     return std::nullopt;
@@ -38,12 +51,10 @@ std::optional<base::Value> ReadFile(const base::FilePath& path) {
   return base::JSONReader::Read(contents, base::JSON_PARSE_RFC);
 }
 
-}  // namespace
-
 SidebarStore::SidebarStore(const base::FilePath& path, SpaceList* list)
     : list_(*list),
       file_task_runner_(CreateFileTaskRunner()),
-      writer_(path, file_task_runner_, kCommitInterval, "StrataSidebar") {
+      writer_(path, file_task_runner_, kCommitInterval, "CompassSidebar") {
   list_->AddObserver(this);
   for (const auto& space : list_->spaces()) {
     space->AddObserver(this);
@@ -62,7 +73,7 @@ SidebarStore::~SidebarStore() {
 
 void SidebarStore::Load(base::OnceClosure done) {
   file_task_runner_->PostTaskAndReplyWithResult(
-      FROM_HERE, base::BindOnce(&ReadFile, writer_.path()),
+      FROM_HERE, base::BindOnce(&ReadJsonFile, writer_.path()),
       base::BindOnce(&SidebarStore::OnLoaded, weak_factory_.GetWeakPtr(),
                      std::move(done)));
 }
@@ -155,4 +166,4 @@ void SidebarStore::ScheduleSave() {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

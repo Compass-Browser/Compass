@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
-#define STRATA_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
 
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
@@ -11,7 +11,7 @@
 #include "base/observer_list_types.h"
 #include "components/tabs/public/tab_interface.h"
 
-namespace strata {
+namespace compass {
 
 class SidebarNode;
 
@@ -48,6 +48,6 @@ class LiveTabRegistry {
   base::ObserverList<Observer> observers_;
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_

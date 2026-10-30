@@ -1,13 +1,13 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 33a6696fd803af080bb0a7d71b66e06d6950f86d..27b2bf4cf79cfe9d2d626f52f874808a2d7c3ac1 100644
+index 33a6696fd803af080bb0a7d71b66e06d6950f86d..f387295b3027f295090a7849bdfdf757a52af49e 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
 @@ -881,6 +881,8 @@ source_set("core") {
    }
  
    deps = [
-+    "//strata/browser:feature_overrides",
-+    "//strata/browser/ui/cocoa:shortcuts",
++    "//compass/browser:feature_overrides",
++    "//compass/browser/ui/cocoa:shortcuts",
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
@@ -15,7 +15,7 @@ index 33a6696fd803af080bb0a7d71b66e06d6950f86d..27b2bf4cf79cfe9d2d626f52f874808a
    ]
  
    deps = [
-+    "//strata/browser",
++    "//compass/browser",
      ":bad_message",
      ":browser_features",
      ":browser_process",

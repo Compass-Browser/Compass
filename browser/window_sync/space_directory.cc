@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_directory.h"
 
 #include <algorithm>
 #include <utility>
@@ -23,31 +23,24 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/space_service.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/window_sync/space_service.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
 SpaceDirectory* g_directory = nullptr;
 
 constexpr base::FilePath::CharType kFileName[] =
-    FILE_PATH_LITERAL("Strata Spaces.json");
+    FILE_PATH_LITERAL("Compass Spaces.json");
 constexpr base::TimeDelta kCommitInterval = base::Seconds(1);
 
 // {"version": 1, "profiles": [<profile directory name>], "order": [<id>]}
 constexpr char kVersionKey[] = "version";
 constexpr char kProfilesKey[] = "profiles";
 constexpr char kOrderKey[] = "order";
-
-std::optional<base::Value> ReadFile(const base::FilePath& path) {
-  std::string contents;
-  if (!base::ReadFileToString(path, &contents)) {
-    return std::nullopt;
-  }
-  return base::JSONReader::Read(contents, base::JSON_PARSE_RFC);
-}
 
 }  // namespace
 
@@ -61,7 +54,7 @@ SpaceDirectory::SpaceDirectory(ProfileManager* profile_manager)
                   {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
                    base::TaskShutdownBehavior::BLOCK_SHUTDOWN}),
               kCommitInterval,
-              "StrataSpaces") {
+              "CompassSpaces") {
   profile_manager_observation_.Observe(profile_manager);
 }
 
@@ -87,7 +80,7 @@ SpaceDirectory* SpaceDirectory::Get() {
   // by then.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&ReadFile, g_directory->writer_.path()),
+      base::BindOnce(&ReadJsonFile, g_directory->writer_.path()),
       base::BindOnce(&SpaceDirectory::OnFileLoaded,
                      g_directory->weak_factory_.GetWeakPtr()));
   return g_directory;
@@ -383,7 +376,7 @@ void SpaceDirectory::Attach(Profile* profile, SpaceService* service) {
   member->profile = profile;
   // Null for a profile already on its way out.
   member->keep_alive = ScopedProfileKeepAlive::TryAcquire(
-      profile, ProfileKeepAliveOrigin::kStrataSpaces);
+      profile, ProfileKeepAliveOrigin::kCompassSpaces);
   // A service under construction passes itself: Get() would make another.
   member->service = service ? service : SpaceService::Get(profile);
   member->service->space_list().AddObserver(this);
@@ -420,4 +413,4 @@ void SpaceDirectory::Changed() {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_WINDOW_SYNC_SPACE_DIRECTORY_H_
-#define STRATA_BROWSER_WINDOW_SYNC_SPACE_DIRECTORY_H_
+#ifndef COMPASS_BROWSER_WINDOW_SYNC_SPACE_DIRECTORY_H_
+#define COMPASS_BROWSER_WINDOW_SYNC_SPACE_DIRECTORY_H_
 
 #include <map>
 #include <memory>
@@ -22,13 +22,13 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
-#include "strata/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_list.h"
 
 class Profile;
 class ProfileManager;
 class ScopedProfileKeepAlive;
 
-namespace strata {
+namespace compass {
 
 class SpaceModel;
 class SpaceService;
@@ -36,7 +36,7 @@ class SpaceService;
 // The switcher's spaces, browser-wide, as in Arc: one list in the user's
 // order, each space belonging to a profile. A space's entries live in its
 // profile's SpaceList and file; this keeps the order and which profiles have
-// spaces (listed profiles), in "Strata Spaces.json" in the user data
+// spaces (listed profiles), in "Compass Spaces.json" in the user data
 // directory. Listed profiles are loaded on first use and kept loaded, so a
 // space's parked tabs stay while no window of its profile is open. A profile
 // is listed once a window of it opens, or a space is assigned to it, and stops
@@ -160,6 +160,6 @@ class SpaceDirectory : public ProfileManagerObserver,
   base::WeakPtrFactory<SpaceDirectory> weak_factory_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_WINDOW_SYNC_SPACE_DIRECTORY_H_
+#endif  // COMPASS_BROWSER_WINDOW_SYNC_SPACE_DIRECTORY_H_

@@ -1,14 +1,14 @@
 diff --git a/chrome/browser/ui/views/frame/browser_root_view.h b/chrome/browser/ui/views/frame/browser_root_view.h
-index 6bff662b1f477b699ac53c152886e3a0579273e6..6bf2e19c5d159ced3b4620e4bd89adbe609f5ddf 100644
+index 6bff662b1f477b699ac53c152886e3a0579273e6..520d04984a96ac04c78f3f1c66c81274050c8092 100644
 --- a/chrome/browser/ui/views/frame/browser_root_view.h
 +++ b/chrome/browser/ui/views/frame/browser_root_view.h
 @@ -26,6 +26,10 @@ class OSExchangeData;
  // actually it doesn't. The tabstrip is only as high as a tab. To enable
  // dropping above the tabstrip BrowserRootView forwards drop events to the
  // TabStrip.
-+namespace strata {
++namespace compass {
 +class BrowserViewExchange;
-+}  // namespace strata
++}  // namespace compass
 +
  class BrowserRootView : public views::internal::RootView {
    METADATA_HEADER(BrowserRootView, views::internal::RootView)
@@ -17,7 +17,7 @@ index 6bff662b1f477b699ac53c152886e3a0579273e6..6bf2e19c5d159ced3b4620e4bd89adbe
    void PaintChildren(const views::PaintInfo& paint_info) override;
  
   private:
-+  friend class strata::BrowserViewExchange;
++  friend class compass::BrowserViewExchange;
    friend class BrowserRootViewBrowserTest;
    FRIEND_TEST_ALL_PREFIXES(BrowserRootViewBrowserTest, ClearDropInfo);
    FRIEND_TEST_ALL_PREFIXES(BrowserRootViewBrowserTest, DropOrderingCorrect);

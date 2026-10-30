@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/space_service.h"
 
 #include <utility>
 
@@ -15,18 +15,18 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "strata/browser/window_sync/sidebar_store.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/window_features.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
-const char kUserDataKey[] = "strata_space_service";
+const char kUserDataKey[] = "compass_space_service";
 
 constexpr base::FilePath::CharType kStoreFileName[] =
-    FILE_PATH_LITERAL("Strata Sidebar.json");
+    FILE_PATH_LITERAL("Compass Sidebar.json");
 
 // The first auto-archive pass waits for session restore to hand its tabs
 // their saved entries.
@@ -188,4 +188,4 @@ void SpaceService::OnLoaded() {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

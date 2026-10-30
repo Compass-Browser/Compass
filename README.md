@@ -1,4 +1,4 @@
-# Strata
+# Compass
 
 An open-source, cross-platform browser built on Chromium, with an Arc-style
 sidebar: spaces, profiles, pinned tabs, nested folders, split view, window
@@ -16,37 +16,37 @@ sync and automatic picture-in-picture.
 
 ```sh
 # Prerequisites: see docs/building.md (Xcode / Visual Studio / build deps).
-tools/strata init            # depot_tools + Chromium at config/chromium_version (~1 h, ~60 GB)
-tools/strata gen debug       # out/Debug with Strata's GN args
-tools/strata build           # build Strata (first build: hours)
-tools/strata run             # launch with a dev profile (--fresh to reset it)
-tools/strata test            # build and run strata_unittests
+tools/compass init            # depot_tools + Chromium at config/chromium_version (~1 h, ~60 GB)
+tools/compass gen debug       # out/Debug with Compass's GN args
+tools/compass build           # build Compass (first build: hours)
+tools/compass run             # launch with a dev profile (--fresh to reset it)
+tools/compass test            # build and run compass_unittests
 ```
 
-The Chromium checkout goes in `../strata-chromium` next to this repository.
-Set `STRATA_CHROMIUM_DIR` to put it somewhere else.
+The Chromium checkout goes in `../compass-chromium` next to this repository.
+Set `COMPASS_CHROMIUM_DIR` to put it somewhere else.
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| `browser/` | Strata's C++ browser code (`//strata/browser`) |
+| `browser/` | Compass's C++ browser code (`//compass/browser`) |
 | `chromium_src/` | Compile-time overrides of upstream files |
 | `patches/` | Minimal patches to upstream files, one per file |
 | `config/` | Pinned Chromium version and GN args |
 | `build/` | Build integration (`redirect_cc.py`) |
-| `tools/` | The `strata` CLI and its tests |
+| `tools/` | The `compass` CLI and its tests |
 | `docs/` | Contributor docs |
 
 ## Status
 
 Done in the scaffold:
 
-- [x] `strata` CLI: init, sync, patches, gen, build, run, test, update-chromium
+- [x] `compass` CLI: init, sync, patches, gen, build, run, test, update-chromium
 - [x] `chromium_src` override mechanism (compiler wrapper), with tests
-- [x] Patches: branding, wiring `//strata/browser` into Chrome, `strata_unittests` in `gn_all`
+- [x] Patches: branding, wiring `//compass/browser` into Chrome, `compass_unittests` in `gn_all`
 - [x] `SpaceModel`: sidebar tree with folders, tabs and splits, with unit tests
-- [ ] First successful Chromium build with Strata (needs a contributor machine)
+- [ ] First successful Chromium build with Compass (needs a contributor machine)
 - [ ] WebUI sidebar, window sync, spaces, PiP, …: see the roadmap in ARCHITECTURE.md §13
 
 ## License

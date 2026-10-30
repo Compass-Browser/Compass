@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/sidebar/sidebar_header.h"
+#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 
 #include <algorithm>
 #include <array>
@@ -44,7 +44,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
@@ -72,7 +72,7 @@
 #include "ui/views/widget/widget_delegate.h"
 #include "url/url_constants.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -932,4 +932,4 @@ void DetachToolbar(BrowserWindowInterface* browser) {
 BEGIN_METADATA(SidebarHeader)
 END_METADATA
 
-}  // namespace strata
+}  // namespace compass

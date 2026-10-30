@@ -134,7 +134,7 @@ pages hear `OnSpaceWillBeRemoved()` first.
 ## Shortcuts
 
 Ctrl+1 to Ctrl+9 switch the window to the first nine spaces (Ctrl+Shift
-outside macOS, where Ctrl+number picks tabs). `StrataSidebarView` registers
+outside macOS, where Ctrl+number picks tabs). `CompassSidebarView` registers
 them with the window's focus manager, so they work while the sidebar is
 collapsed. Pages get the keys first, as with upstream's own shortcuts.
 
@@ -201,7 +201,7 @@ reloads that style sheet when the window's colors change; without it the
 page kept the colors it loaded with (a grey active row on a blue sidebar).
 
 Upstream's tab group "focus mode" sets the same override from the tab strip
-controllers. Strata doesn't mirror tab groups, so it doesn't clash.
+controllers. Compass doesn't mirror tab groups, so it doesn't clash.
 
 **Tests:** `WindowThemeFollowsTheSpace`: the override and the frame color
 follow the space's color and a switch, not a swipe; grey goes back to the
@@ -219,7 +219,7 @@ trackpad as wheel events (`onWheel_()`, non-passive on the app):
   without events; macOS momentum after the fingers lift is part of it.
 - The window's name and entries (`#spacePane`, inside `#stage`, which clips
   them at the sidebar's edges) move with the fingers. The space being
-  pulled in comes in next to them: a `<strata-sidebar-preview>`, which
+  pulled in comes in next to them: a `<compass-sidebar-preview>`, which
   renders a tree from `PageHandler.GetSpaceTree()` in its own shadow root,
   inert. The previous and the next space's previews are always built,
   waiting just past the stage's edges (`side`), so a swipe never shows one
@@ -269,11 +269,11 @@ swaps the window.
 
 - `SpaceDirectory` (`browser/window_sync/space_directory.h`), browser-wide,
   keeps the order of the spaces and which profiles have spaces (listed
-  profiles), in `Strata Spaces.json` in the user data directory:
+  profiles), in `Compass Spaces.json` in the user data directory:
   `{"version": 1, "profiles": [<profile directory name>], "order": [<id>]}`.
   A space's entries stay in its profile's `SpaceList` and sidebar file.
 - It loads the listed profiles when first used and holds a
-  `ScopedProfileKeepAlive` for each (a new `kStrataSpaces` origin, patch): a
+  `ScopedProfileKeepAlive` for each (a new `kCompassSpaces` origin, patch): a
   profile whose last window swapped away would otherwise be destroyed
   (`kDestroyProfileOnBrowserClose`), with its parked tabs.
 - A profile is listed once a normal window of it opens (from upstream's
@@ -329,7 +329,7 @@ when `space` is the window's profile's. Otherwise:
 4. The swap presenter (`sidebar_swap.cc`, set by the views layer) never
    shows the new window. Once its sidebar page has the tree, the two
    windows' `BrowserView`s exchange native windows
-   (`strata::BrowserViewExchange`): the shown NSWindow now holds the new
+   (`compass::BrowserViewExchange`): the shown NSWindow now holds the new
    profile's view, and the old view goes to the hidden one. The shown window
    keeps its last frame (a compositor lock) until the sidebar and the active
    page have painted, at most 750 ms. Same NSWindow, macOS Space and
@@ -363,7 +363,7 @@ the gap shows where. The slots next to the space itself show nothing and
 don't move it. The page calls `MoveSpace(id, index)`, the slot counted with
 the space still in place, as `MoveNode()` does for entries. In a listed
 profile's window it moves in `SpaceDirectory`'s order (any profile's space,
-saved in `Strata Spaces.json`); the profile's own `SpaceList` keeps its
+saved in `Compass Spaces.json`); the profile's own `SpaceList` keeps its
 order. Off the record, it moves in the profile's `SpaceList`
 (`SpaceList::MoveSpace()`, saved in the sidebar file). Every window's
 switcher follows, the buttons glide to their places (FLIP, as entries do),

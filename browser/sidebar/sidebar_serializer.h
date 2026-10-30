@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_SIDEBAR_SIDEBAR_SERIALIZER_H_
-#define STRATA_BROWSER_SIDEBAR_SIDEBAR_SERIALIZER_H_
+#ifndef COMPASS_BROWSER_SIDEBAR_SIDEBAR_SERIALIZER_H_
+#define COMPASS_BROWSER_SIDEBAR_SIDEBAR_SERIALIZER_H_
 
 #include <cstddef>
 
@@ -11,7 +11,7 @@
 
 class GURL;
 
-namespace strata {
+namespace compass {
 
 class SpaceList;
 class SpaceModel;
@@ -58,6 +58,6 @@ size_t DeserializeSpace(const base::DictValue& data, SpaceModel& model);
 // and blank pages aren't.
 bool IsRestorableURL(const GURL& url);
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_SIDEBAR_SIDEBAR_SERIALIZER_H_
+#endif  // COMPASS_BROWSER_SIDEBAR_SIDEBAR_SERIALIZER_H_

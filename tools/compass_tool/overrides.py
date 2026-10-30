@@ -1,4 +1,4 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Keeps ninja aware of chromium_src overrides being added or removed.
@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import List, Set
 
-STAMP = '.strata_overrides.json'
+STAMP = '.compass_overrides.json'
 IGNORED_NAMES = {'README.md', '.DS_Store'}
 
 

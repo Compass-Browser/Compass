@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
 
 #include <string>
 
@@ -22,24 +22,24 @@
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 namespace {
 
 // The field's text.
 constexpr char kFieldText[] = R"(
-  document.querySelector('strata-command-bar-app').shadowRoot
+  document.querySelector('compass-command-bar-app').shadowRoot
       .querySelector('#input').value)";
 
 // Types $1 into the field, waits until the first result is for it, and
 // presses Enter.
 constexpr char kTypeAndEnter[] = R"(
   (async (text) => {
-    const root = document.querySelector('strata-command-bar-app').shadowRoot;
+    const root = document.querySelector('compass-command-bar-app').shadowRoot;
     const input = root.querySelector('#input');
     input.value = text;
     input.dispatchEvent(new InputEvent('input', {inputType: 'insertText'}));
@@ -159,7 +159,7 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, EscapeCloses) {
 // the $1th row, and returns the selected row's index.
 constexpr char kPointerMove[] = R"(
   (async (index, x, y, movement) => {
-    const root = document.querySelector('strata-command-bar-app').shadowRoot;
+    const root = document.querySelector('compass-command-bar-app').shadowRoot;
     while (root.querySelectorAll('.result').length <= index) {
       await new Promise(r => setTimeout(r, 20));
     }
@@ -187,4 +187,4 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, HoverNeedsRealMovement) {
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

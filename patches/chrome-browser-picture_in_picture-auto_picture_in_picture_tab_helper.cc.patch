@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..23f7362a07ad051bd955cdeaad599c592cf11f32 100644
+index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..9959c8b6a0fba6f5e38e620e060773a25bf9b2ab 100644
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 @@ -693,9 +693,16 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
@@ -10,7 +10,7 @@ index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..23f7362a07ad051bd955cdeaad599c59
 -      nullptr) {
 -    return false;
 +  //
-+  // Strata: except another tab's autopip. The last tab switched away from
++  // Compass: except another tab's autopip. The last tab switched away from
 +  // takes over; a pip window the user opened stays.
 +  if (content::WebContents* pip_contents =
 +          PictureInPictureWindowManager::GetInstance()->GetWebContents()) {

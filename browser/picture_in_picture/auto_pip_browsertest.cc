@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,21 +26,21 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/space_service.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-// Auto picture-in-picture as Strata sets it up: see
+// Auto picture-in-picture as Compass sets it up: see
 // docs/design/picture-in-picture.md.
 
-namespace strata {
+namespace compass {
 namespace {
 
-class StrataAutoPipBrowserTest : public InProcessBrowserTest {
+class CompassAutoPipBrowserTest : public InProcessBrowserTest {
  protected:
   // A page with a looping video that doesn't ask for auto picture-in-picture.
   // A file URL: upstream allows https and file.
@@ -105,7 +105,7 @@ class StrataAutoPipBrowserTest : public InProcessBrowserTest {
 
 // Leaving a tab with a playing video shows it in picture-in-picture, with no
 // prompt and no media engagement; coming back hides it.
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, LeavingAndComingBack) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, LeavingAndComingBack) {
   content::WebContents* video = OpenPlayingVideo(browser());
 
   OpenBlankTab(browser());
@@ -117,7 +117,7 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, LeavingAndComingBack) {
 }
 
 // Of two tabs playing, the one left last shows.
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, TheTabLeftLastShows) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, TheTabLeftLastShows) {
   content::WebContents* first = OpenPlayingVideo(browser());
   content::WebContents* second = OpenPlayingVideo(browser());
   ASSERT_TRUE(base::test::RunUntil([&] { return IsInAutoPip(first); }));
@@ -134,7 +134,7 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, TheTabLeftLastShows) {
 }
 
 // Muted videos stay put.
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, MutedVideoDoesNotShow) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, MutedVideoDoesNotShow) {
   OpenPlayingVideo(browser(), /*muted=*/true);
   OpenBlankTab(browser());
   // Long enough for the URL check (at most 500 ms) and the request.
@@ -146,7 +146,7 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, MutedVideoDoesNotShow) {
 }
 
 // Switching spaces leaves the shown tab too.
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, SwitchingSpaces) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, SwitchingSpaces) {
   content::WebContents* video = OpenPlayingVideo(browser());
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel* home = &features->space_model();
@@ -162,7 +162,7 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, SwitchingSpaces) {
 
 // So does swapping the window to another profile's space, which parks the
 // tab (docs/design/spaces.md, slice 3).
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, SwappingProfiles) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, SwappingProfiles) {
   content::WebContents* video = OpenPlayingVideo(browser());
   Profile* profile = browser()->GetProfile();
   ProfileManager* profile_manager = g_browser_process->profile_manager();
@@ -190,7 +190,7 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, SwappingProfiles) {
 
 // The window's "back to tab" button, as in Arc: the tab's window switches
 // back to its space, and the hidden parking window never shows.
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, BackToTabSwitchesSpaces) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, BackToTabSwitchesSpaces) {
   content::WebContents* video = OpenPlayingVideo(browser());
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel* home = &features->space_model();
@@ -211,7 +211,7 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, BackToTabSwitchesSpaces) {
 }
 
 // Also when the tab is another profile's: the window switches profiles.
-IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, BackToTabSwitchesProfiles) {
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, BackToTabSwitchesProfiles) {
   content::WebContents* video = OpenPlayingVideo(browser());
   Profile* profile = browser()->GetProfile();
   ProfileManager* profile_manager = g_browser_process->profile_manager();
@@ -246,4 +246,4 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, BackToTabSwitchesProfiles) {
 }
 
 }  // namespace
-}  // namespace strata
+}  // namespace compass

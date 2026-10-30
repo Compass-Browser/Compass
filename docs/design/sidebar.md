@@ -32,7 +32,7 @@ in the same frame as the native UI. This is the same approach as our plan
 
 ## Decision
 
-**The sidebar is a WebUI (`chrome://strata-sidebar`)
+**The sidebar is a WebUI (`chrome://compass-sidebar`)
 hosted inside the content area of `VerticalTabStripRegionView`. It replaces
 only the native `TabStripView`. Everything else in the region stays upstream.**
 
@@ -43,7 +43,7 @@ only the native `TabStripView`. Everything else in the region stays upstream.**
 - **The native `TabStripView` isn't built** (since slice e). Until then it
   was hidden in place, because the region's drag, hover-card and resize code
   assumed it. See "Slice e".
-- **Strata always uses vertical mode.** The pref default becomes `true`.
+- **Compass always uses vertical mode.** The pref default becomes `true`.
   Hiding the horizontal/vertical toggle comes later.
 
 Alternatives we rejected:
@@ -65,16 +65,16 @@ in [patches/README.md](../../patches/README.md).
 |---|---|
 | Put the sidebar where the native tab strip would be | `vertical_tab_strip_region_view.{h,cc}`: `InitializeTabStrip()` and friends (slice e) |
 | Vertical tabs on by default | `tab_strip_prefs.cc`: 1 line |
-| Register `chrome://strata-sidebar` | `chrome_web_ui_configs.cc`: one call to `strata::RegisterWebUIConfigs()` |
-| Bind the sidebar's Mojo interfaces | `chrome_browser_interface_binders_webui_parts_desktop.cc`: one call to `strata::PopulateWebUIInterfaceBrokers()` |
-| Link `//strata/browser/ui` into `//chrome/browser/ui` | `chrome/browser/ui/BUILD.gn`: dep plus `allow_circular_includes_from`, same as `tab_search` |
+| Register `chrome://compass-sidebar` | `chrome_web_ui_configs.cc`: one call to `compass::RegisterWebUIConfigs()` |
+| Bind the sidebar's Mojo interfaces | `chrome_browser_interface_binders_webui_parts_desktop.cc`: one call to `compass::PopulateWebUIInterfaceBrokers()` |
+| Link `//compass/browser/ui` into `//chrome/browser/ui` | `chrome/browser/ui/BUILD.gn`: dep plus `allow_circular_includes_from`, same as `tab_search` |
 | Ship the resource pak | `chrome/chrome_paks.gni`: 2 lines |
-| Allow `//strata/*` to use Lit | `third_party/lit/v3_0/BUILD.gn`: visibility list |
+| Allow `//compass/*` to use Lit | `third_party/lit/v3_0/BUILD.gn`: visibility list |
 | Reserve resource IDs | `tools/gritsettings/resource_ids.spec`: one entry |
 
 ## Hosting in slice a
 
-For now the sidebar is a plain `views::WebView` loading `chrome://strata-sidebar`
+For now the sidebar is a plain `views::WebView` loading `chrome://compass-sidebar`
 (a `MojoWebUIController`), not a preloaded top-chrome WebUI. The top-chrome
 path needs a `.top-chrome` host and an entry in the WebUI-name allowlist
 generated from `tools/metrics/histograms/metadata/page/histograms.xml`. That's
@@ -82,12 +82,12 @@ one more patch, so it's deferred until first-paint latency matters. The page
 finds its window through the upstream `webui::SetBrowserWindowInterface()` /
 `GetBrowserWindowInterface()` embedding-context API.
 
-## Code layout (new, in `//strata`)
+## Code layout (new, in `//compass`)
 
 ```
-browser/ui/views/sidebar/strata_sidebar_view.{h,cc}   Views host (views::WebView) + InstallSidebar()
-browser/ui/webui/sidebar/strata_sidebar_ui.{h,cc}     MojoWebUIController + config
-browser/ui/webui/strata_web_ui_registry.{h,cc}        Config and Mojo binder registration hooks
+browser/ui/views/sidebar/compass_sidebar_view.{h,cc}   Views host (views::WebView) + InstallSidebar()
+browser/ui/webui/sidebar/compass_sidebar_ui.{h,cc}     MojoWebUIController + config
+browser/ui/webui/compass_web_ui_registry.{h,cc}        Config and Mojo binder registration hooks
 browser/ui/webui/sidebar/sidebar.mojom                PageHandlerFactory / PageHandler / Page
 browser/ui/webui/sidebar/sidebar_page_handler.{h,cc}  Bridges the browser to the page
 resources/sidebar/                                    Lit + TypeScript UI, built with build_webui()
@@ -130,7 +130,7 @@ activation works, plus unit tests for the page handler with a
 Goal: the sidebar renders the `SpaceModel` tree instead of the tab strip.
 The tab strip becomes a mirror of the live tabs.
 
-**Ownership.** `strata::WindowFeatures` (`browser/window_sync/`) owns one
+**Ownership.** `compass::WindowFeatures` (`browser/window_sync/`) owns one
 `SpaceModel` and one `TabStripBridge` per window. It's a member of upstream's
 `EmbedderBrowserWindowFeatures`, the per-window slot Chromium reserves for
 embedders. That takes two small patches: a member in the header, and creation
@@ -256,7 +256,7 @@ Goal: pinned entries and folders survive restarts and are the same in every
 window.
 
 **The model moves to the profile.** Persisting per-window models would give
-two windows two diverging copies of Pinned. So `strata::SpaceService`
+two windows two diverging copies of Pinned. So `compass::SpaceService`
 (`browser/window_sync/`) is attached to the `Profile` as user data, which
 needs no patch. It owns:
 
@@ -292,7 +292,7 @@ coalescing and a background sequence, and it's how upstream stores
 bookmarks, a similar tree. SQLite starts paying off with archive and
 history, so it can come in then.
 
-- File: `<profile>/Strata Sidebar.json`. It holds
+- File: `<profile>/Compass Sidebar.json`. It holds
   `{"version": 1, "pinned": [<node>...]}`, where a node is
   `{"type": "tab"|"folder"|"split", "title", "url", "children"}`.
 - Load: read on a background sequence when the service is created, then fill
@@ -331,7 +331,7 @@ hidden `Browser`s of inactive spaces will hold such tabs anyway.
 
 - Hook: `BrowserView::OnWindowCloseRequested()`, before `beforeunload`
   runs, because the tabs aren't closing. One call to
-  `strata::HandOffTabsBeforeClose()`. If it moved the tabs, the request
+  `compass::HandOffTabsBeforeClose()`. If it moved the tabs, the request
   returns `kCannotClose`, and the now empty strip closes the window through
   upstream's `TabStripEmpty()` path, the same as dragging out the last tab.
 - No hand-off when quitting (`browser_shutdown::IsTryingToQuit()`), for
@@ -347,7 +347,7 @@ extension, are caught in the strip's removal notification: the screenshot
 request goes out right away, and the placeholder follows in a task. A tab
 that wasn't shown leaves no placeholder.
 
-**Placeholder:** `chrome://strata-placeholder`, a small WebUI in the same
+**Placeholder:** `chrome://compass-placeholder`, a small WebUI in the same
 resource pak as the sidebar. It shows a **frozen screenshot** of the tab,
 taken with `CopyFromSurface()` just before the tab left. The screenshot is
 JPEG-encoded off the UI thread and kept by the bridge until the placeholder
@@ -427,10 +427,10 @@ handles input meant for the sidebar.
 tree with a view per tab, the `TabDragHandler` and the
 `TabHoverCardController`. The vertical region now overrides
 `InitializeTabStrip()` and `ResetTabStrip()`. It creates the sidebar
-(`strata::CreateSidebar()`) and passes it to its own `AddTabStripView()`, so
+(`compass::CreateSidebar()`) and passes it to its own `AddTabStripView()`, so
 the sidebar lands where the strip would. The region then subscribes to the
 collapse animation and expand on hover as before.
-`strata::InstallSidebar()` then replaces the strip's flex rule and margins.
+`compass::InstallSidebar()` then replaces the strip's flex rule and margins.
 `BrowserView` calls these overrides when it switches between vertical and
 horizontal, so the horizontal strip still works if someone switches back.
 
@@ -442,7 +442,7 @@ horizontal, so the horizontal strip still works if someone switches back.
 | Collapse animation started only once the strip existed | Starts once the region subscribed to it |
 | Hover-card hide lock while animating or expanding on hover | Only if there's a hover-card controller (there isn't) |
 | `GetTabData()` for accessible tab and window titles read the tab view | `TabData::FromTabInterface()`, from the tab itself |
-| Active-tab changes came through the node tree | `strata::ActiveTabWatcher`: the window's active-tab callback, plus null as soon as that tab leaves. A closing window closes its tabs without changing the active one, and the region observes the active tab's `OmniboxTabHelper`, so without that it kept a destroyed helper (a use-after-free at window close). The omnibox popup still keeps an expanded-on-hover region collapsed |
+| Active-tab changes came through the node tree | `compass::ActiveTabWatcher`: the window's active-tab callback, plus null as soon as that tab leaves. A closing window closes its tabs without changing the active one, and the region observes the active tab's `OmniboxTabHelper`, so without that it kept a destroyed helper (a use-after-free at window close). The omnibox popup still keeps an expanded-on-hover region collapsed |
 | Native tab drags (`GetTabDragTarget()`) | No drag handler, so no native drag targets; there are no native tabs to drag |
 | Link drops: the region was the drop target while the strip existed | The sidebar page takes them (below) |
 
@@ -543,7 +543,7 @@ sidebar: the full title, the domain, and a preview of a live tab.
 `HoverCardAnchorTarget`, so the native card is reused without the native
 strip. `SidebarHoverCard` (`browser/ui/views/sidebar/`) is user data on the
 sidebar page's WebContents. It owns the bubble and an empty anchor view, a
-child of `StrataSidebarView` as wide as the sidebar and placed over the
+child of `CompassSidebarView` as wide as the sidebar and placed over the
 hovered row, so the card opens to the sidebar's right (`LEFT_TOP`). Moving
 the anchor moves the card. Upstream's `TabHoverCardController` isn't used: it
 needs a `TabStripRegionView` and native tab views.
@@ -559,7 +559,7 @@ a new card gets its content before it shows, and it's sized to its content
 each time. Previews follow upstream's rule: the `kTabHoverCardImages`
 feature and the user's setting (Settings > Appearance). Without the feature,
 tabs have no `ThumbnailTabHelper`, so there's nothing to show. Upstream turns
-the feature off on macOS only; Strata turns it on everywhere (one-line patch
+the feature off on macOS only; Compass turns it on everywhere (one-line patch
 to `ui_features.cc`).
 
 **The page decides when.** It sends `ShowHoverCard(id, row_top, row_height)`
@@ -622,7 +622,7 @@ an entry's menu under its row.
   (`Page.StartRename(id)`), as a double-click does. **New Folder** adds
   "New Folder" at the end of the folder.
 
-Labels are English literals for now, like the rest of Strata's UI; they move
+Labels are English literals for now, like the rest of Compass's UI; they move
 to a grit file when the UI is localized.
 
 **Not yet:** menus for the section headers and empty space (New Folder, New
@@ -688,7 +688,7 @@ browser test `FoldersInToday`.
 
 ## Tab groups
 
-Strata has folders, not tab groups. A group made upstream (an extension's
+Compass has folders, not tab groups. A group made upstream (an extension's
 `chrome.tabs.group()`, a page's or menu's "Add to group", session restore
 of an older profile) becomes a Today folder, and the group ends:
 `TabStripBridge::ConvertGroups()`, half a second after the change (so an
@@ -807,7 +807,7 @@ Entries move instead of jumping. Before the page applies a diff
 every tile and row (by node ID) and the sections' other parts (section
 headers, the divider, hints and New Tab, by `data-flip`):
 `prepareFlip_()`. On the next frame, after Lit and the
-`<strata-sidebar-node>`s have rendered, `playFlip_()` measures again and
+`<compass-sidebar-node>`s have rendered, `playFlip_()` measures again and
 plays FLIP animations (Web Animations, 220 ms):
 
 - Moved: a translate from the old position. Pinning or unpinning (context

@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_list.h"
 
 #include <algorithm>
 #include <utility>
@@ -10,7 +10,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 
-namespace strata {
+namespace compass {
 
 SpaceList::SpaceList() {
   spaces_.push_back(std::make_unique<SpaceModel>());
@@ -130,4 +130,4 @@ void SpaceList::OnSpaceChanged(const SpaceModel& space) {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

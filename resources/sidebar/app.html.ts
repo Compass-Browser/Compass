@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ArchiveDelay, Preview, StrataSidebarAppElement} from './app.js';
+import type {ArchiveDelay, Preview, CompassSidebarAppElement} from './app.js';
 import type {ArchivedEntry, Node, ProfileOption, Space, SpaceColor} from './sidebar.mojom-webui.js';
 
-export function getHtml(this: StrataSidebarAppElement) {
+export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="favorites" role="list" aria-label="Favorites"
@@ -70,9 +70,9 @@ export function getHtml(this: StrataSidebarAppElement) {
           </div>` : nothing}
         ${repeat(this.getPinned_(), (node: Node) => node.id,
                  (node: Node) => html`
-          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+          <compass-sidebar-node .node="${node}" .activeId="${this.activeId_}"
               .profileId="${this.getProfileId_()}">
-          </strata-sidebar-node>`)}
+          </compass-sidebar-node>`)}
       </div>
       <div class="divider" data-flip="divider"></div>
       <div class="section-header" data-flip="today-header">
@@ -93,9 +93,9 @@ export function getHtml(this: StrataSidebarAppElement) {
       <div id="today" class="section" role="tablist">
         ${repeat(this.getToday_(), (node: Node) => node.id,
                  (node: Node) => html`
-          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+          <compass-sidebar-node .node="${node}" .activeId="${this.activeId_}"
               .profileId="${this.getProfileId_()}">
-          </strata-sidebar-node>`)}
+          </compass-sidebar-node>`)}
       </div>
     </div>
     <button id="newTab" data-flip="new-tab" @click="${this.onNewTabClick_}">
@@ -104,9 +104,9 @@ export function getHtml(this: StrataSidebarAppElement) {
   </div>
   ${repeat(this.previews_, (preview: Preview) => preview.space.id,
            (preview: Preview) => html`
-    <strata-sidebar-preview side="${preview.side}" aria-hidden="true"
+    <compass-sidebar-preview side="${preview.side}" aria-hidden="true"
         .space="${preview.space}" .tree="${preview.tree}">
-    </strata-sidebar-preview>`)}
+    </compass-sidebar-preview>`)}
 </div>
 ${this.getMenuSpace_() ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"

@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_FAVICON_SOURCE_H_
-#define STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_FAVICON_SOURCE_H_
+#ifndef COMPASS_BROWSER_UI_WEBUI_SIDEBAR_COMPASS_FAVICON_SOURCE_H_
+#define COMPASS_BROWSER_UI_WEBUI_SIDEBAR_COMPASS_FAVICON_SOURCE_H_
 
 #include <memory>
 #include <string>
@@ -17,23 +17,23 @@
 class FaviconSource;
 class Profile;
 
-namespace strata {
+namespace compass {
 
-inline constexpr char kStrataFaviconHost[] = "strata-favicon";
+inline constexpr char kCompassFaviconHost[] = "compass-favicon";
 
-// chrome://strata-favicon/?profile=<id>&<chrome://favicon2 parameters>: the
+// chrome://compass-favicon/?profile=<id>&<chrome://favicon2 parameters>: the
 // icon in profile <id> (a directory name, as the sidebar's ProfileOption IDs),
 // or in the page's own profile without one or if it isn't loaded. The sidebar
 // shows other profiles' entries (their spaces' previews, and the window's own
 // after a switch, which keeps the page), whose icons chrome://favicon2 only
 // finds in the page's profile.
-class StrataFaviconSource : public content::URLDataSource,
+class CompassFaviconSource : public content::URLDataSource,
                             public ProfileObserver {
  public:
-  explicit StrataFaviconSource(Profile* profile);
-  StrataFaviconSource(const StrataFaviconSource&) = delete;
-  StrataFaviconSource& operator=(const StrataFaviconSource&) = delete;
-  ~StrataFaviconSource() override;
+  explicit CompassFaviconSource(Profile* profile);
+  CompassFaviconSource(const CompassFaviconSource&) = delete;
+  CompassFaviconSource& operator=(const CompassFaviconSource&) = delete;
+  ~CompassFaviconSource() override;
 
   // content::URLDataSource:
   std::string GetSource() override;
@@ -57,6 +57,6 @@ class StrataFaviconSource : public content::URLDataSource,
       profile_observations_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_WEBUI_SIDEBAR_STRATA_FAVICON_SOURCE_H_
+#endif  // COMPASS_BROWSER_UI_WEBUI_SIDEBAR_COMPASS_FAVICON_SOURCE_H_

@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_SIDEBAR_SPACE_LIST_H_
-#define STRATA_BROWSER_SIDEBAR_SPACE_LIST_H_
+#ifndef COMPASS_BROWSER_SIDEBAR_SPACE_LIST_H_
+#define COMPASS_BROWSER_SIDEBAR_SPACE_LIST_H_
 
 #include <cstddef>
 #include <memory>
@@ -15,9 +15,9 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/uuid.h"
-#include "strata/browser/sidebar/space_model.h"
+#include "compass/browser/sidebar/space_model.h"
 
-namespace strata {
+namespace compass {
 
 // A profile's spaces, in the switcher's order, and the active one: the space
 // new windows open in. Never empty. Also holds the profile's Favorites. See docs/design/spaces.md.
@@ -84,6 +84,6 @@ class SpaceList : public SpaceModel::Observer {
   base::ObserverList<Observer> observers_;
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_SIDEBAR_SPACE_LIST_H_
+#endif  // COMPASS_BROWSER_SIDEBAR_SPACE_LIST_H_

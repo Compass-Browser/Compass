@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
 
 #include <algorithm>
 #include <utility>
@@ -19,8 +19,8 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
-#include "strata/browser/ui/webui/command_bar/command_bar_page_handler.h"
-#include "strata/browser/ui/webui/command_bar/command_bar_ui.h"
+#include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
+#include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
@@ -28,7 +28,7 @@
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -138,7 +138,7 @@ content::WebContents* CommandBar::web_contents_for_testing() {
 WebUIContentsWrapper* CommandBar::GetOrCreateContents() {
   if (!contents_) {
     contents_ = std::make_unique<WebUIContentsWrapperT<CommandBarUI>>(
-        GURL(kStrataCommandBarURL), browser_->GetProfile(),
+        GURL(kCompassCommandBarURL), browser_->GetProfile(),
         IDS_TASK_MANAGER_TOOL_PREFIX);
     // The page asks for its window when it connects, which is later.
     webui::SetBrowserWindowInterface(contents_->web_contents(), browser_);
@@ -168,4 +168,4 @@ bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
   return true;
 }
 
-}  // namespace strata
+}  // namespace compass

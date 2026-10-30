@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -38,10 +38,10 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "strata/browser/sidebar/sidebar_serializer.h"
-#include "strata/browser/window_sync/live_tab_registry.h"
-#include "strata/browser/window_sync/restored_tab_matcher.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/window_sync/restored_tab_matcher.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
@@ -50,7 +50,7 @@
 #include "ui/gfx/range/range.h"
 #include "ui/gfx/geometry/size.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -1125,4 +1125,4 @@ void TabStripBridge::ScheduleSyncStripOrder() {
                                 weak_factory_.GetWeakPtr()));
 }
 
-}  // namespace strata
+}  // namespace compass

@@ -1,18 +1,18 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
-#define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
+#define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
 
 #include <optional>
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/animation_delegate.h"
@@ -22,7 +22,7 @@
 
 class BrowserWindowInterface;
 
-namespace strata {
+namespace compass {
 
 // The color a space tints the sidebar with, or nullopt for none (grey). The
 // sidebar page's palette (resources/sidebar/app.ts) shows the same colors.
@@ -117,6 +117,6 @@ class SidebarTint : public views::View,
       space_list_observation_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_

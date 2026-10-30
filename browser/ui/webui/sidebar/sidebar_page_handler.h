@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
-#define STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
+#ifndef COMPASS_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
+#define COMPASS_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
 
 #include <memory>
 #include <optional>
@@ -21,12 +21,12 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/ui/webui/sidebar/sidebar.mojom.h"
-#include "strata/browser/window_sync/live_tab_registry.h"
-#include "strata/browser/window_sync/space_directory.h"
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "ui/menus/simple_menu_model.h"
 
 class BrowserWindowInterface;
@@ -36,7 +36,7 @@ namespace content {
 class WebContents;
 }  // namespace content
 
-namespace strata {
+namespace compass {
 
 class SidebarContextMenu;
 class SidebarHoverCard;
@@ -258,6 +258,6 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   base::WeakPtrFactory<SidebarPageHandler> weak_factory_{this};
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_
+#endif  // COMPASS_BROWSER_UI_WEBUI_SIDEBAR_SIDEBAR_PAGE_HANDLER_H_

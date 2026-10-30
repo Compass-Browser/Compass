@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/chrome_browser_field_trials.cc b/chrome/browser/chrome_browser_field_trials.cc
-index bb7f9dd0eb6269ff5f8e179c0b9b4cc28dd34c3c..d5bde4a4f5bf29f65869fff231b97e59c89db80c 100644
+index bb7f9dd0eb6269ff5f8e179c0b9b4cc28dd34c3c..7b9185f72ff5b2bcb60e7f5a0e8cf258ce497eef 100644
 --- a/chrome/browser/chrome_browser_field_trials.cc
 +++ b/chrome/browser/chrome_browser_field_trials.cc
 @@ -28,6 +28,7 @@
  #include "components/site_isolation/features.h"
  #include "components/variations/feature_overrides.h"
  #include "components/version_info/version_info.h"
-+#include "strata/browser/feature_overrides.h"
++#include "compass/browser/feature_overrides.h"
  #include "third_party/blink/public/common/features.h"
  
  #if BUILDFLAG(IS_ANDROID)
@@ -15,7 +15,7 @@ index bb7f9dd0eb6269ff5f8e179c0b9b4cc28dd34c3c..d5bde4a4f5bf29f65869fff231b97e59
    // or to a finch trial that enables it for all form factors.
  #endif  // BUILDFLAG(IS_ANDROID)
 +
-+  strata::RegisterFeatureOverrides(feature_overrides);
++  compass::RegisterFeatureOverrides(feature_overrides);
  }
  
  void ChromeBrowserFieldTrials::EnableRuntimeMutableFeatures(

@@ -1,8 +1,8 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Strata's browser UI. Linked into //chrome/browser/ui, which also allows our
+# Compass's browser UI. Linked into //chrome/browser/ui, which also allows our
 # includes of its headers (see patches/chrome-browser-ui-BUILD.gn.patch), the
 # same way upstream does for //chrome/browser/ui/webui/tab_search.
 source_set("ui") {
@@ -23,33 +23,33 @@ source_set("ui") {
     "views/sidebar/sidebar_swap.h",
     "views/sidebar/sidebar_tint.cc",
     "views/sidebar/sidebar_tint.h",
-    "views/sidebar/strata_sidebar_view.cc",
-    "views/sidebar/strata_sidebar_view.h",
+    "views/sidebar/compass_sidebar_view.cc",
+    "views/sidebar/compass_sidebar_view.h",
     "webui/command_bar/command_bar_page_handler.cc",
     "webui/command_bar/command_bar_page_handler.h",
     "webui/command_bar/command_bar_ui.cc",
     "webui/command_bar/command_bar_ui.h",
-    "webui/placeholder/strata_placeholder_ui.cc",
-    "webui/placeholder/strata_placeholder_ui.h",
+    "webui/placeholder/compass_placeholder_ui.cc",
+    "webui/placeholder/compass_placeholder_ui.h",
     "webui/sidebar/sidebar_page_handler.cc",
     "webui/sidebar/sidebar_page_handler.h",
-    "webui/sidebar/strata_favicon_source.cc",
-    "webui/sidebar/strata_favicon_source.h",
-    "webui/sidebar/strata_sidebar_ui.cc",
-    "webui/sidebar/strata_sidebar_ui.h",
-    "webui/strata_web_ui_registry.cc",
-    "webui/strata_web_ui_registry.h",
+    "webui/sidebar/compass_favicon_source.cc",
+    "webui/sidebar/compass_favicon_source.h",
+    "webui/sidebar/compass_sidebar_ui.cc",
+    "webui/sidebar/compass_sidebar_ui.h",
+    "webui/compass_web_ui_registry.cc",
+    "webui/compass_web_ui_registry.h",
   ]
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
-    "//strata/browser/ui/webui/command_bar:mojo_bindings",
-    "//strata/browser/ui/webui/sidebar:mojo_bindings",
+    "//compass/browser/ui/webui/command_bar:mojo_bindings",
+    "//compass/browser/ui/webui/sidebar:mojo_bindings",
 
     # BrowserView's close hook calls into it (see patches/).
-    "//strata/browser/window_sync",
+    "//compass/browser/window_sync",
 
     # The vertical tab strip region's header reads it (see patches/).
-    "//strata/browser/ui/views/frame:content_frame",
+    "//compass/browser/ui/views/frame:content_frame",
   ]
   deps = [
     "//base",
@@ -95,7 +95,7 @@ source_set("ui") {
     "//components/tabs:public",
     "//components/url_formatter",
     "//content/public/browser",
-    "//strata/resources/sidebar:resources",
+    "//compass/resources/sidebar:resources",
     "//skia",
     "//ui/base",
     "//ui/base/clipboard",
@@ -136,8 +136,8 @@ source_set("unit_tests") {
     "//chrome/test/base:browser_with_test_window_test",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
-    "//strata/browser/sidebar",
-    "//strata/browser/window_sync",
+    "//compass/browser/sidebar",
+    "//compass/browser/window_sync",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/base/clipboard",
@@ -154,7 +154,7 @@ source_set("browser_tests") {
     "views/command_bar/command_bar_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
-    "views/sidebar/strata_sidebar_browsertest.cc",
+    "views/sidebar/compass_sidebar_browsertest.cc",
   ]
   deps = [
     ":ui",
@@ -184,8 +184,8 @@ source_set("browser_tests") {
     "//content/public/browser",
     "//content/test:test_support",
     "//net:test_support",
-    "//strata/browser/sidebar",
-    "//strata/browser/window_sync",
+    "//compass/browser/sidebar",
+    "//compass/browser/window_sync",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/events",

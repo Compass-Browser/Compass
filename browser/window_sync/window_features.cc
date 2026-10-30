@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/window_features.h"
+#include "compass/browser/window_sync/window_features.h"
 
 #include <algorithm>
 #include <memory>
@@ -33,9 +33,9 @@
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
-#include "strata/browser/sidebar/sidebar_serializer.h"
-#include "strata/browser/window_sync/sidebar_store.h"
-#include "strata/browser/window_sync/space_directory.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/window_sync/space_directory.h"
 #include "ui/base/base_window.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/page_transition_types.h"
@@ -43,7 +43,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -1037,4 +1037,4 @@ void ArchiveIdleTodayEntries(Profile* profile, base::Time now) {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

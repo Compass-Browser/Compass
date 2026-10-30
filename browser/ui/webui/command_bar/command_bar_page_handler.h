@@ -1,9 +1,9 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_WEBUI_COMMAND_BAR_COMMAND_BAR_PAGE_HANDLER_H_
-#define STRATA_BROWSER_UI_WEBUI_COMMAND_BAR_COMMAND_BAR_PAGE_HANDLER_H_
+#ifndef COMPASS_BROWSER_UI_WEBUI_COMMAND_BAR_COMMAND_BAR_PAGE_HANDLER_H_
+#define COMPASS_BROWSER_UI_WEBUI_COMMAND_BAR_COMMAND_BAR_PAGE_HANDLER_H_
 
 #include <map>
 #include <memory>
@@ -20,12 +20,12 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "strata/browser/ui/webui/command_bar/command_bar.mojom.h"
+#include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 
 class BrowserWindowInterface;
 class TopChromeWebUIController;
 
-namespace strata {
+namespace compass {
 
 class SidebarNode;
 class SpaceModel;
@@ -151,6 +151,6 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   uint32_t next_id_ = 1;
 };
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_WEBUI_COMMAND_BAR_COMMAND_BAR_PAGE_HANDLER_H_
+#endif  // COMPASS_BROWSER_UI_WEBUI_COMMAND_BAR_COMMAND_BAR_PAGE_HANDLER_H_

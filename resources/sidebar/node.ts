@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,9 +18,9 @@ import {NodeType} from './sidebar.mojom-webui.js';
 // targets by them. A split's panes aren't rows: a split moves as one entry.
 // Tabs (panes included) and folder rows take keyboard focus; the app moves it
 // between them.
-export class StrataSidebarNodeElement extends CrLitElement {
+export class CompassSidebarNodeElement extends CrLitElement {
   static get is() {
-    return 'strata-sidebar-node';
+    return 'compass-sidebar-node';
   }
 
   override render() {
@@ -198,8 +198,8 @@ export class StrataSidebarNodeElement extends CrLitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'strata-sidebar-node': StrataSidebarNodeElement;
+    'compass-sidebar-node': CompassSidebarNodeElement;
   }
 }
 
-customElements.define(StrataSidebarNodeElement.is, StrataSidebarNodeElement);
+customElements.define(CompassSidebarNodeElement.is, CompassSidebarNodeElement);

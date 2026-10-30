@@ -1,13 +1,13 @@
 diff --git a/third_party/lit/v3_0/BUILD.gn b/third_party/lit/v3_0/BUILD.gn
-index a75e73285cf865a2ae9f2c4e937f63e8b188f10d..6b6c323b39155cd5363738750d0100df623f3c51 100644
+index a75e73285cf865a2ae9f2c4e937f63e8b188f10d..8d15fa778fc79c3395371b9f19ef14824848edc7 100644
 --- a/third_party/lit/v3_0/BUILD.gn
 +++ b/third_party/lit/v3_0/BUILD.gn
 @@ -13,6 +13,9 @@ ts_library("build_ts") {
    visibility = [
      ":build_bundle",
  
-+    # Strata's WebUI surfaces.
-+    "//strata/*",
++    # Compass's WebUI surfaces.
++    "//compass/*",
 +
      # Lit has officially being declared as the preferred framework (over
      # Polymer) for new WebUI code, see [1] and [2]

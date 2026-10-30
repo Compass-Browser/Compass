@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/frame/browser_view_exchange.h"
+#include "compass/browser/ui/views/frame/browser_view_exchange.h"
 
 #include "chrome/browser/ui/views/frame/browser_native_widget_mac.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 
-namespace strata {
+namespace compass {
 
 // static
 void BrowserViewExchange::SetNativeWidgetView(BrowserWidget& widget,
@@ -18,4 +18,4 @@ void BrowserViewExchange::SetNativeWidgetView(BrowserWidget& widget,
   native_widget->RebindTouchBar();
 }
 
-}  // namespace strata
+}  // namespace compass

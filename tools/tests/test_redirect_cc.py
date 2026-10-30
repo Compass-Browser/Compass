@@ -1,4 +1,4 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -25,7 +25,7 @@ class RewriteCommandTest(unittest.TestCase):
     (self.src / 'chrome').mkdir()
     (self.src / 'chrome' / 'a.cc').write_text('')
     (self.src / 'chrome' / 'b.cc').write_text('')
-    overrides = self.src / 'strata' / 'chromium_src' / 'chrome'
+    overrides = self.src / 'compass' / 'chromium_src' / 'chrome'
     overrides.mkdir(parents=True)
     (overrides / 'a.cc').write_text('')
 
@@ -39,7 +39,7 @@ class RewriteCommandTest(unittest.TestCase):
     result = self.rewrite(['clang++', '-DX', '-c', '../../chrome/a.cc',
                            '-o', 'obj/a.o'])
     self.assertEqual(result[0], 'clang++')
-    self.assertIn('../../strata/chromium_src/chrome/a.cc', result)
+    self.assertIn('../../compass/chromium_src/chrome/a.cc', result)
     self.assertNotIn('../../chrome/a.cc', result)
 
   def test_keeps_upstream_without_override(self):
@@ -48,8 +48,8 @@ class RewriteCommandTest(unittest.TestCase):
 
   def test_overrides_come_first_on_include_path(self):
     result = self.rewrite(['clang++', '-I../..', '-c', '../../chrome/b.cc'])
-    self.assertEqual(result[1], '-I../../strata/chromium_src')
-    self.assertLess(result.index('-I../../strata/chromium_src'),
+    self.assertEqual(result[1], '-I../../compass/chromium_src')
+    self.assertLess(result.index('-I../../compass/chromium_src'),
                     result.index('-I../..'))
 
   def test_checkout_root_comes_last_on_include_path(self):
@@ -62,9 +62,9 @@ class RewriteCommandTest(unittest.TestCase):
   def test_uses_msvc_style_include_for_clang_cl(self):
     result = self.rewrite(['C:/llvm/bin/clang-cl.exe', '/c',
                            '../../chrome/a.cc'])
-    self.assertEqual(result[1], '/I../../strata/chromium_src')
+    self.assertEqual(result[1], '/I../../compass/chromium_src')
     self.assertEqual(result[-1], '/I../../..')
-    self.assertIn('../../strata/chromium_src/chrome/a.cc', result)
+    self.assertIn('../../compass/chromium_src/chrome/a.cc', result)
 
   def test_leaves_non_compile_commands_alone(self):
     command = ['clang++', '-shared', '-o', 'libx.so', 'obj/a.o']

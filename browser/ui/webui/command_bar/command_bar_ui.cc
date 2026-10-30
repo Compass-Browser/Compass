@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/webui/command_bar/command_bar_ui.h"
+#include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 
 #include <utility>
 
@@ -16,17 +16,17 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
-#include "strata/browser/ui/views/command_bar/command_bar.h"
-#include "strata/browser/ui/webui/command_bar/command_bar_page_handler.h"
-#include "strata/grit/strata_sidebar_resources.h"
-#include "strata/grit/strata_sidebar_resources_map.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
+#include "compass/grit/compass_sidebar_resources.h"
+#include "compass/grit/compass_sidebar_resources_map.h"
 #include "ui/webui/webui_util.h"
 
-namespace strata {
+namespace compass {
 
 CommandBarUIConfig::CommandBarUIConfig()
     : DefaultTopChromeWebUIConfig(content::kChromeUIScheme,
-                                  kStrataCommandBarHost) {}
+                                  kCompassCommandBarHost) {}
 
 bool CommandBarUIConfig::ShouldAutoResizeHost() {
   // The bubble grows and shrinks with the results.
@@ -38,9 +38,9 @@ CommandBarUI::CommandBarUI(content::WebUI* web_ui)
   Profile* profile = Profile::FromWebUI(web_ui);
   // The page is built with the sidebar's resources.
   content::WebUIDataSource* source =
-      content::WebUIDataSource::CreateAndAdd(profile, kStrataCommandBarHost);
-  webui::SetupWebUIDataSource(source, kStrataSidebarResources,
-                              IDR_STRATA_SIDEBAR_COMMAND_BAR_HTML);
+      content::WebUIDataSource::CreateAndAdd(profile, kCompassCommandBarHost);
+  webui::SetupWebUIDataSource(source, kCompassSidebarResources,
+                              IDR_COMPASS_SIDEBAR_COMMAND_BAR_HTML);
 
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(
@@ -74,4 +74,4 @@ void CommandBarUI::CreatePageHandler(
 
 WEB_UI_CONTROLLER_TYPE_IMPL(CommandBarUI)
 
-}  // namespace strata
+}  // namespace compass

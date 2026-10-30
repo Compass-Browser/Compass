@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
 
 #include <algorithm>
 
@@ -11,15 +11,15 @@
 #include "base/check.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-#include "strata/browser/ui/views/frame/content_frame.h"
-#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/ui/views/frame/content_frame.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "ui/base/class_property.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/views/widget/widget.h"
 
-DEFINE_UI_CLASS_PROPERTY_TYPE(strata::WindowFrame*)
+DEFINE_UI_CLASS_PROPERTY_TYPE(compass::WindowFrame*)
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -109,4 +109,4 @@ bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point) {
 void SetCaptionButtonsOpacity(views::Widget* widget, float opacity) {}
 #endif
 
-}  // namespace strata
+}  // namespace compass

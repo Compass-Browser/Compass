@@ -42,7 +42,7 @@ and a rebuild path for it.
 
 ## The switch, step by step
 
-`strata::ReprofileWindow(browser, new_profile)` (new,
+`compass::ReprofileWindow(browser, new_profile)` (new,
 `browser/ui/views/frame/window_reprofiler.{h,cc}`), called by
 `SwitchWindowToSpace()` where it used to swap:
 
@@ -85,7 +85,7 @@ WebUIs the window hosts (sidebar, command bar) belong to a profile:
   between them, so the page stays. `SidebarPageHandler` and
   `WindowFeatures` rebind to the new profile's `SpaceService` (registry,
   bridge, favorites). The `WebContents` stays in the profile it was created
-  in, which never goes away (`kStrataSpaces` keep-alive). If the spike shows
+  in, which never goes away (`kCompassSpaces` keep-alive). If the spike shows
   that pinning a profile-A WebUI into a B window is a problem (devtools,
   extensions, theme), recreate the sidebar `WebView` in B at step 4, behind
   the frozen frame.
@@ -104,7 +104,7 @@ loads, so nothing flashes. (Until 2026-10-30 each window had its own page:
 the new window's was preloaded per profile, `SidebarPreloader`, and the
 exchange waited for its tree and for the slide's end.)
 
-- **Owning the page.** `StrataSidebarView` owns its page's `WebContents`
+- **Owning the page.** `CompassSidebarView` owns its page's `WebContents`
   itself (the `WebView` has no browser context to make one) and is its
   delegate, as a `WebView` is of its own. A swap's window
   (`IsCreatingSwapWindow()`) starts without a page; `ExchangeTransition`
@@ -115,7 +115,7 @@ exchange waited for its tree and for the slide's end.)
 - **The handler.** The page connects once. At `BeginSwap()` the old
   window's `SidebarPageHandler` stops observing and pauses its receiver; the
   page's calls wait. `TakePageFrom()` sets the page's window
-  (`webui::SetBrowserWindowInterface()`), and `StrataSidebarUI`, which
+  (`webui::SetBrowserWindowInterface()`), and `CompassSidebarUI`, which
   follows it (`RegisterBrowserWindowInterfaceChanged`), takes the pipes from
   the old handler (`TakePipes()`) for one bound to the new window, which
   sends spaces, tree and archive (`RequestTree()`). To the page, the switch
@@ -128,8 +128,8 @@ exchange waited for its tree and for the slide's end.)
   (`SidebarTint::ContinueFrom()`).
 - **Another profile's page.** The page stays in the profile it was made in.
   Its colors come from the window (`colors.css` is made from the hosting
-  widget's color provider). Icons come from `chrome://strata-favicon`
-  (`StrataFaviconSource`), which serves `chrome://favicon2` requests from the
+  widget's color provider). Icons come from `chrome://compass-favicon`
+  (`CompassFaviconSource`), which serves `chrome://favicon2` requests from the
   profile the page names (`profile=` a space's `profileId`): the live pane
   asks for the window's profile, a preview for its space's. When the page's
   profile is about to go (unlisted and unloaded), the sidebar loads a page
@@ -142,7 +142,7 @@ is held for the page: a page still loading waits at most
 only waits for a frame.
 
 The command bar's page, which a window loads as it opens, waits in a swap's
-window until the exchange is done (`StrataSidebarView::PreloadCommandBar()`),
+window until the exchange is done (`CompassSidebarView::PreloadCommandBar()`),
 so its renderer doesn't launch during the switch.
 
 ## Header and favorites across a switch
@@ -182,7 +182,7 @@ at once.
 
 Two things need care:
 
-- **Strata's registries are per profile.** The window's `TabStripBridge`
+- **Compass's registries are per profile.** The window's `TabStripBridge`
   and its entry in the old `SpaceService` (and `LiveTabRegistry` lookups of
   "which window shows this space") must be dropped in step 3 and made in the
   new one in step 4, or a click in another window could pick a window that
@@ -192,14 +192,14 @@ Two things need care:
 
 ## Patches
 
-Kept small by putting the sequence in `//strata` and giving it access:
+Kept small by putting the sequence in `//compass` and giving it access:
 
 | Patch | Change |
 |---|---|
-| `chrome/browser/ui/browser.h` | `profile_` not `const`; `friend class strata::WindowReprofiler;` |
-| `chrome/browser/ui/browser.cc` | `TabStripEmpty()` returns early while `strata::IsReprofiling(this)` |
+| `chrome/browser/ui/browser.h` | `profile_` not `const`; `friend class compass::WindowReprofiler;` |
+| `chrome/browser/ui/browser.cc` | `TabStripEmpty()` returns early while `compass::IsReprofiling(this)` |
 | `chrome/browser/ui/browser_manager_service.{h,cc}` | `ReleaseBrowser(BrowserWindowInterface*)` → `unique_ptr`, the counterpart of `AddBrowser()` |
-| `chrome/browser/ui/views/frame/browser_view.h` | `friend class strata::WindowReprofiler;` (toolbar, bookmark bar, side panel members) |
+| `chrome/browser/ui/views/frame/browser_view.h` | `friend class compass::WindowReprofiler;` (toolbar, bookmark bar, side panel members) |
 | `chrome/browser/ui/browser_window/public/browser_window_features.h` | `friend` for teardown and re-`Init()`, if the spike shows a full rebuild works |
 | `chrome/browser/ui/views/location_bar/location_bar_view.h` and others that hold `const raw_ptr<Profile>` | only if the spike finds views we can't simply recreate |
 
@@ -228,7 +228,7 @@ list, assignment and keep-alive parts; its swap is superseded by D18.
    `BrowserWindowFeatures` rebuild can't work and the partial list is
    unbounded; then D17's swap stays.
 1. **Re-profile core.** The patches above, `WindowReprofiler`, the switch
-   wired into `SwitchWindowToSpace()`. Strata's `WindowFeatures` rebinds to
+   wired into `SwitchWindowToSpace()`. Compass's `WindowFeatures` rebinds to
    the new `SpaceService`. Tests below.
 2. **Window UI follows.** Header slots reattached, extension toolbar of the
    new profile, theme, app menu items (bookmarks, history, profile),
@@ -248,9 +248,9 @@ list, assignment and keep-alive parts; its swap is superseded by D18.
 ## Tests
 
 The list below was the first idea's. What the exchange has
-(`StrataProfileSwitchBrowserTest` in
+(`CompassProfileSwitchBrowserTest` in
 `browser/ui/views/frame/profile_switch_browsertest.cc`, and in
-`strata_sidebar_browsertest.cc`, `auto_pip_browsertest.cc`, headless):
+`compass_sidebar_browsertest.cc`, `auto_pip_browsertest.cc`, headless):
 
 - The same native window, widget delegate and `kProfileKey` after a switch
   and back, and shortcuts moved with the view
@@ -327,7 +327,7 @@ The user picked 1. Its prototype keeps everything Chrome builds for a window
 as it is and moves it: the other profile's window is built as the swap
 builds it today (a real `Browser`, never shown), then the two windows'
 `BrowserView`s **exchange native windows**
-(`strata::BrowserViewExchange`, `browser/ui/views/frame/`). The shown
+(`compass::BrowserViewExchange`, `browser/ui/views/frame/`). The shown
 NSWindow gets the new profile's view; the old view lands in the hidden
 window and empties and closes the way `LeaveForSwap()` already does. Every
 `Browser`'s profile stays fixed, so none of the bookkeeping above changes.

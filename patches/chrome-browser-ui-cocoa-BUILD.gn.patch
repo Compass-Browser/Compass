@@ -1,13 +1,13 @@
 diff --git a/chrome/browser/ui/cocoa/BUILD.gn b/chrome/browser/ui/cocoa/BUILD.gn
-index e1f0771d90bf33139fa5aeb2c1a784edd4f51341..cee98f5af952f565e41ddbe8786e34e0da53b05b 100644
+index e1f0771d90bf33139fa5aeb2c1a784edd4f51341..2364de7f2206ab414aa68cbc2e44e02b2c105a65 100644
 --- a/chrome/browser/ui/cocoa/BUILD.gn
 +++ b/chrome/browser/ui/cocoa/BUILD.gn
 @@ -123,6 +123,8 @@ source_set("cocoa") {
    ]
  
    deps = [
-+    # Strata's shortcuts over upstream's.
-+    "//strata/browser/ui/cocoa:shortcuts",
++    # Compass's shortcuts over upstream's.
++    "//compass/browser/ui/cocoa:shortcuts",
      "//chrome/app:command_ids",
      "//chrome/app/theme:chrome_unscaled_resources_grit",
      "//chrome/browser:app_controller_mac",

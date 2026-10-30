@@ -1,13 +1,13 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..2fd83d80c789bca8b0ab674ba74da695e8622391 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f7ff8303c 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,9 @@
  
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
  
-+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
-+#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
++#include "compass/browser/ui/views/sidebar/sidebar_header.h"
++#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
 +
  #include <algorithm>
  #include <optional>
@@ -17,7 +17,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..2fd83d80c789bca8b0ab674ba74da695
    // Create child views.
    top_button_container_ =
 -      AddChildView(std::make_unique<VerticalTabStripTopContainer>(
-+      AddChildView(strata::CreateSidebarHeader(
++      AddChildView(compass::CreateSidebarHeader(
            state_controller_, root_action_item, browser_view->browser()));
  
    auto content_area_view = std::make_unique<views::FlexLayoutView>();
@@ -38,17 +38,17 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..2fd83d80c789bca8b0ab674ba74da695
                                      .bounds = organizer_bounds});
    }
  
-+  // Strata: collapsed, only the window frame's edge shows.
++  // Compass: collapsed, only the window frame's edge shows.
 +  if (layout.host_size.width() <= kCollapsedWidth) {
 +    for (auto& child_layout : layout.child_layouts) {
 +      child_layout.visible = false;
 +    }
 +  }
 +
-+  // Strata: while the width animates, the header and the sidebar keep their
++  // Compass: while the width animates, the header and the sidebar keep their
 +  // expanded width and slide out of the window (or in), rather than laying
 +  // out again at every width. Layout() fades them as they go.
-+  const int slide = strata::GetSidebarSlideOffset(
++  const int slide = compass::GetSidebarSlideOffset(
 +      layout.host_size.width(), target_collapse_state_.uncollapsed_width,
 +      IsAnimatingSize());
 +  for (auto& child_layout : layout.child_layouts) {
@@ -65,8 +65,8 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..2fd83d80c789bca8b0ab674ba74da695
  void VerticalTabStripRegionView::Layout(PassKey) {
    LayoutSuperclass<BaseTabStripRegionView>(this);
  
-+  // Strata: the sliding contents fade out as the sidebar closes.
-+  strata::FadeSidebarContents(
++  // Compass: the sliding contents fade out as the sidebar closes.
++  compass::FadeSidebarContents(
 +      {top_button_container_.get(), content_area_view_.get()}, width(),
 +      target_collapse_state_.uncollapsed_width,
 +      IsAnimatingSize() && BrowserAnimationController::From(
@@ -104,17 +104,17 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..2fd83d80c789bca8b0ab674ba74da695
  }
  
 +void VerticalTabStripRegionView::InitializeTabStrip() {
-+  if (strata_sidebar_) {
++  if (compass_sidebar_) {
 +    return;
 +  }
 +  std::unique_ptr<views::View> sidebar =
-+      strata::CreateSidebar(browser_view()->browser());
-+  strata_sidebar_ = sidebar.get();
++      compass::CreateSidebar(browser_view()->browser());
++  compass_sidebar_ = sidebar.get();
 +  // Subscribes to the collapse animation and expand on hover, as for the
 +  // native strip.
 +  AddTabStripView(std::move(sidebar));
-+  strata::InstallSidebar(strata_sidebar_, bottom_button_container_);
-+  strata_active_tab_watcher_ = std::make_unique<strata::ActiveTabWatcher>(
++  compass::InstallSidebar(compass_sidebar_, bottom_button_container_);
++  compass_active_tab_watcher_ = std::make_unique<compass::ActiveTabWatcher>(
 +      browser_view()->browser(),
 +      base::BindRepeating(&VerticalTabStripRegionView::OnActiveTabChanged,
 +                          base::Unretained(this)));
@@ -124,16 +124,16 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..2fd83d80c789bca8b0ab674ba74da695
 +    const tabs::TabHandle& tab) {
 +  // Callers use the result before asking again.
 +  CHECK(tab.Get());
-+  strata_tab_data_ = tabs::TabData::FromTabInterface(tab.Get());
-+  return strata_tab_data_;
++  compass_tab_data_ = tabs::TabData::FromTabInterface(tab.Get());
++  return compass_tab_data_;
 +}
 +
 +void VerticalTabStripRegionView::ResetTabStrip() {
-+  if (!strata_sidebar_) {
++  if (!compass_sidebar_) {
 +    return;
 +  }
-+  strata_active_tab_watcher_.reset();
-+  RemoveTabStripView(std::exchange(strata_sidebar_, nullptr));
++  compass_active_tab_watcher_.reset();
++  RemoveTabStripView(std::exchange(compass_sidebar_, nullptr));
 +}
 +
  void VerticalTabStripRegionView::OnCollapseStateChanged(

@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc b/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc
-index d472cb9cba6ca3190c0e585a74375890d5fdde2c..545632d14b338d9d475244e67ea24ba3cc7593ab 100644
+index d472cb9cba6ca3190c0e585a74375890d5fdde2c..1f31c68368fa192e2fbd925a91c085a9d44dbf4e 100644
 --- a/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc
 @@ -4,6 +4,8 @@
  
  #include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
  
-+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
++#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +
  #include "base/check_is_test.h"
  #include "base/functional/bind.h"
@@ -18,8 +18,8 @@ index d472cb9cba6ca3190c0e585a74375890d5fdde2c..545632d14b338d9d475244e67ea24ba3
 -    : BubbleDialogDelegateView(anchor,
 -                               views::BubbleBorder::TOP_RIGHT,
 +    : BubbleDialogDelegateView(
-+          strata::GetToolbarBubbleAnchor(anchor),
-+          strata::GetToolbarBubbleArrow(anchor, views::BubbleBorder::TOP_RIGHT),
++          compass::GetToolbarBubbleAnchor(anchor),
++          compass::GetToolbarBubbleArrow(anchor, views::BubbleBorder::TOP_RIGHT),
                                 views::BubbleBorder::DIALOG_SHADOW,
                                 autosize),
        WebContentsObserver(web_contents) {

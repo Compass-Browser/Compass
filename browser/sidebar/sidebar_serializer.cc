@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
 
 #include <algorithm>
 #include <array>
@@ -16,11 +16,11 @@
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
-#include "strata/browser/sidebar/space_list.h"
-#include "strata/browser/sidebar/space_model.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -405,4 +405,4 @@ bool IsRestorableURL(const GURL& url) {
          (url.host() != "newtab" && url.host() != "new-tab-page");
 }
 
-}  // namespace strata
+}  // namespace compass

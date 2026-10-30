@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index f9bb38f92374559f70077dfcb24c2010d1b7efba..efcefcebff7dc4b7c63db672fa8ad46a93770ad5 100644
+index f9bb38f92374559f70077dfcb24c2010d1b7efba..81e324aee4b96b47d41b26024b40e8293f63eda9 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
 @@ -4,6 +4,8 @@
  
  #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
  
-+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
++#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +
  #include <algorithm>
  #include <memory>
@@ -15,8 +15,8 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..efcefcebff7dc4b7c63db672fa8ad46a
  }
  
  void ToolbarView::SetPaneFocusAndFocusAppMenu() {
-+  // Strata: the sidebar header holds the app menu while this is hidden.
-+  if (strata::FocusAppMenu(browser_)) {
++  // Compass: the sidebar header holds the app menu while this is hidden.
++  if (compass::FocusAppMenu(browser_)) {
 +    return;
 +  }
    AppMenuControl* app_menu_control = GetAppMenuControl();
@@ -26,8 +26,8 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..efcefcebff7dc4b7c63db672fa8ad46a
  }
  
  void ToolbarView::FocusToolbar() {
-+  // Strata: the sidebar header holds the controls while this is hidden.
-+  if (strata::FocusToolbarControls(browser_)) {
++  // Compass: the sidebar header holds the controls while this is hidden.
++  if (compass::FocusToolbarControls(browser_)) {
 +    return;
 +  }
    SetPaneFocus(nullptr);
@@ -38,7 +38,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..efcefcebff7dc4b7c63db672fa8ad46a
      auto* top_container = browser_view_->top_container();
      CHECK(top_container);
 -    return views::BubbleAnchor(top_container);
-+    return strata::GetToolbarBubbleAnchor(views::BubbleAnchor(top_container));
++    return compass::GetToolbarBubbleAnchor(views::BubbleAnchor(top_container));
    }
    return anchor;
  }
@@ -47,7 +47,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..efcefcebff7dc4b7c63db672fa8ad46a
        GetPageActionViewInterface(action_id);
    if (view) {
 -    return view->GetBubbleAnchor();
-+    return strata::GetToolbarBubbleAnchor(view->GetBubbleAnchor());
++    return compass::GetToolbarBubbleAnchor(view->GetBubbleAnchor());
    }
    return views::BubbleAnchor();
  }

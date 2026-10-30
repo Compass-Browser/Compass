@@ -1,4 +1,4 @@
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Where everything lives on disk."""
@@ -15,11 +15,11 @@ CONFIGS = {'debug': 'Debug', 'fast': 'Fast', 'release': 'Release'}
 
 
 class Layout:
-  """Paths for one Strata checkout.
+  """Paths for one Compass checkout.
 
   Two layouts are supported:
-    linked:  <repo>/ next to <chromium_dir>/src, with src/strata -> <repo>
-    in-tree: the repo is cloned directly to <chromium_dir>/src/strata
+    linked:  <repo>/ next to <chromium_dir>/src, with src/compass -> <repo>
+    in-tree: the repo is cloned directly to <chromium_dir>/src/compass
   """
 
   def __init__(self, root: Path, chromium_dir: Path, in_tree: bool):
@@ -65,9 +65,14 @@ class Layout:
 
 def detect(root: Path = REPO_ROOT, environ=None) -> Layout:
   environ = os.environ if environ is None else environ
-  if root.name == 'strata' and (root.parent / '.gn').is_file():
+  if root.name == 'compass' and (root.parent / '.gn').is_file():
     return Layout(root, root.parent.parent, in_tree=True)
-  chromium_dir = environ.get('STRATA_CHROMIUM_DIR')
+  chromium_dir = environ.get('COMPASS_CHROMIUM_DIR')
   if chromium_dir:
     return Layout(root, Path(chromium_dir).expanduser().resolve(), False)
-  return Layout(root, root.parent / 'strata-chromium', in_tree=False)
+  chromium_dir = root.parent / 'compass-chromium'
+  # Checkouts made before the project became Compass (Strata).
+  legacy_dir = root.parent / 'strata-chromium'
+  if not chromium_dir.exists() and legacy_dir.exists():
+    chromium_dir = legacy_dir
+  return Layout(root, chromium_dir, in_tree=False)

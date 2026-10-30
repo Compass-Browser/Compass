@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/webui/placeholder/strata_placeholder_ui.h"
+#include "compass/browser/ui/webui/placeholder/compass_placeholder_ui.h"
 
 #include <memory>
 #include <utility>
@@ -19,38 +19,38 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
-#include "strata/browser/sidebar/sidebar_node.h"
-#include "strata/browser/window_sync/tab_strip_bridge.h"
-#include "strata/browser/window_sync/window_features.h"
-#include "strata/grit/strata_sidebar_resources.h"
-#include "strata/grit/strata_sidebar_resources_map.h"
+#include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "compass/grit/compass_sidebar_resources.h"
+#include "compass/grit/compass_sidebar_resources_map.h"
 #include "ui/webui/webui_util.h"
 
-namespace strata {
+namespace compass {
 
-StrataPlaceholderUIConfig::StrataPlaceholderUIConfig()
+CompassPlaceholderUIConfig::CompassPlaceholderUIConfig()
     : DefaultWebUIConfig(content::kChromeUIScheme, kPlaceholderHost) {}
 
-StrataPlaceholderUI::StrataPlaceholderUI(content::WebUI* web_ui)
+CompassPlaceholderUI::CompassPlaceholderUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui) {
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source =
       content::WebUIDataSource::CreateAndAdd(profile, kPlaceholderHost);
   // Shares the sidebar's resource pak; only the default page differs.
-  webui::SetupWebUIDataSource(source, kStrataSidebarResources,
-                              IDR_STRATA_SIDEBAR_PLACEHOLDER_HTML);
+  webui::SetupWebUIDataSource(source, kCompassSidebarResources,
+                              IDR_COMPASS_SIDEBAR_PLACEHOLDER_HTML);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 
-StrataPlaceholderUI::~StrataPlaceholderUI() = default;
+CompassPlaceholderUI::~CompassPlaceholderUI() = default;
 
-void StrataPlaceholderUI::BindInterface(
+void CompassPlaceholderUI::BindInterface(
     mojo::PendingReceiver<sidebar::mojom::PlaceholderHandler> receiver) {
   receiver_.reset();
   receiver_.Bind(std::move(receiver));
 }
 
-void StrataPlaceholderUI::GetInfo(GetInfoCallback callback) {
+void CompassPlaceholderUI::GetInfo(GetInfoCallback callback) {
   SidebarNode* node = GetNode();
   if (!node) {
     std::move(callback).Run(std::string(), GURL());
@@ -59,7 +59,7 @@ void StrataPlaceholderUI::GetInfo(GetInfoCallback callback) {
   std::move(callback).Run(base::UTF16ToUTF8(node->title()), node->url());
 }
 
-void StrataPlaceholderUI::GetSnapshot(GetSnapshotCallback callback) {
+void CompassPlaceholderUI::GetSnapshot(GetSnapshotCallback callback) {
   TabStripBridge* bridge = GetBridge();
   if (!bridge) {
     std::move(callback).Run(std::string());
@@ -74,7 +74,7 @@ void StrataPlaceholderUI::GetSnapshot(GetSnapshotCallback callback) {
           std::move(callback)));
 }
 
-void StrataPlaceholderUI::BringHere() {
+void CompassPlaceholderUI::BringHere() {
   tabs::TabInterface* placeholder =
       tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
   SidebarNode* node = GetNode();
@@ -91,7 +91,7 @@ void StrataPlaceholderUI::BringHere() {
   }
 }
 
-SidebarNode* StrataPlaceholderUI::GetNode() {
+SidebarNode* CompassPlaceholderUI::GetNode() {
   TabStripBridge* bridge = GetBridge();
   return bridge ? bridge->GetPlaceholderNode(
                       tabs::TabInterface::MaybeGetFromContents(
@@ -99,7 +99,7 @@ SidebarNode* StrataPlaceholderUI::GetNode() {
                 : nullptr;
 }
 
-TabStripBridge* StrataPlaceholderUI::GetBridge() {
+TabStripBridge* CompassPlaceholderUI::GetBridge() {
   tabs::TabInterface* tab =
       tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
   BrowserWindowInterface* browser =
@@ -108,6 +108,6 @@ TabStripBridge* StrataPlaceholderUI::GetBridge() {
   return features ? &features->tab_strip_bridge() : nullptr;
 }
 
-WEB_UI_CONTROLLER_TYPE_IMPL(StrataPlaceholderUI)
+WEB_UI_CONTROLLER_TYPE_IMPL(CompassPlaceholderUI)
 
-}  // namespace strata
+}  // namespace compass

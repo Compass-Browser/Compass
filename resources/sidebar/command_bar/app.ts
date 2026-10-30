@@ -1,4 +1,4 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,9 +16,9 @@ import {CommandBarBrowserProxy} from './browser_proxy.js';
 // it. Enter acts on the selected result, Cmd+Enter (Ctrl+Enter outside
 // macOS) opens a suggestion as a new entry, Esc closes. The page stays loaded
 // between openings; Open() starts it over. See docs/design/command-bar.md.
-export class StrataCommandBarAppElement extends CrLitElement {
+export class CompassCommandBarAppElement extends CrLitElement {
   static get is() {
-    return 'strata-command-bar-app';
+    return 'compass-command-bar-app';
   }
 
   static override get styles() {
@@ -225,9 +225,9 @@ export class StrataCommandBarAppElement extends CrLitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'strata-command-bar-app': StrataCommandBarAppElement;
+    'compass-command-bar-app': CompassCommandBarAppElement;
   }
 }
 
 customElements.define(
-    StrataCommandBarAppElement.is, StrataCommandBarAppElement);
+    CompassCommandBarAppElement.is, CompassCommandBarAppElement);

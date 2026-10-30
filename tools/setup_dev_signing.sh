@@ -1,10 +1,11 @@
 #!/bin/sh
-# Copyright 2026 The Strata Authors
+# Copyright 2026 The Compass Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# Creates a self-signed code signing identity, "Strata Dev Signing", in the
-# login keychain. `strata build` and `strata test` sign strata_browsertests
+# Creates a self-signed code signing identity, "Strata Dev Signing" (named
+# before the project became Compass; existing keychains have it), in the
+# login keychain. `compass build` and `compass test` sign compass_browsertests
 # with it after each build, so macOS keeps the "removable volume" permission
 # across relinks instead of asking again (it remembers an ad-hoc signed
 # binary by its hash, which changes on every link). Run once, on macOS.
@@ -40,5 +41,5 @@ pass=$(/usr/bin/openssl rand -hex 12)
   -name "$NAME" -out "$dir/id.p12" -passout "pass:$pass"
 security import "$dir/id.p12" -k "$HOME/Library/Keychains/login.keychain-db" \
   -P "$pass" -T /usr/bin/codesign
-echo "Added \"$NAME\". The next \`strata test --browser\` signs with it;"
+echo "Added \"$NAME\". The next \`compass test --browser\` signs with it;"
 echo "click Allow once more, and macOS should remember it from then on."

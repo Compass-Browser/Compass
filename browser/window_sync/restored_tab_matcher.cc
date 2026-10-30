@@ -1,14 +1,14 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/window_sync/restored_tab_matcher.h"
+#include "compass/browser/window_sync/restored_tab_matcher.h"
 
-#include "strata/browser/sidebar/space_model.h"
-#include "strata/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 #include "url/gurl.h"
 
-namespace strata {
+namespace compass {
 
 namespace {
 
@@ -74,4 +74,4 @@ void RestoredTabMatcher::OnLoaded() {
   }
 }
 
-}  // namespace strata
+}  // namespace compass

@@ -1,8 +1,8 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
+#include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
 
 #include <tuple>
 #include <utility>
@@ -19,47 +19,47 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
-#include "strata/browser/ui/webui/sidebar/sidebar_page_handler.h"
-#include "strata/browser/ui/webui/sidebar/strata_favicon_source.h"
-#include "strata/grit/strata_sidebar_resources.h"
-#include "strata/grit/strata_sidebar_resources_map.h"
+#include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
+#include "compass/browser/ui/webui/sidebar/compass_favicon_source.h"
+#include "compass/grit/compass_sidebar_resources.h"
+#include "compass/grit/compass_sidebar_resources_map.h"
 #include "ui/webui/webui_util.h"
 
-namespace strata {
+namespace compass {
 
-StrataSidebarUIConfig::StrataSidebarUIConfig()
-    : DefaultWebUIConfig(content::kChromeUIScheme, kStrataSidebarHost) {}
+CompassSidebarUIConfig::CompassSidebarUIConfig()
+    : DefaultWebUIConfig(content::kChromeUIScheme, kCompassSidebarHost) {}
 
-StrataSidebarUI::StrataSidebarUI(content::WebUI* web_ui)
+CompassSidebarUI::CompassSidebarUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui) {
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source =
-      content::WebUIDataSource::CreateAndAdd(profile, kStrataSidebarHost);
-  webui::SetupWebUIDataSource(source, kStrataSidebarResources,
-                              IDR_STRATA_SIDEBAR_STRATA_SIDEBAR_HTML);
+      content::WebUIDataSource::CreateAndAdd(profile, kCompassSidebarHost);
+  webui::SetupWebUIDataSource(source, kCompassSidebarResources,
+                              IDR_COMPASS_SIDEBAR_COMPASS_SIDEBAR_HTML);
 
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(
                    profile, chrome::FaviconUrlFormat::kFavicon2));
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
-  // Icons of every profile's entries (strata_favicon_source.h).
+  // Icons of every profile's entries (compass_favicon_source.h).
   content::URLDataSource::Add(profile,
-                              std::make_unique<StrataFaviconSource>(profile));
+                              std::make_unique<CompassFaviconSource>(profile));
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ImgSrc,
       "img-src chrome://resources chrome://theme chrome://favicon2 "
-      "chrome://strata-favicon blob: data: 'self';");
+      "chrome://compass-favicon blob: data: 'self';");
 }
 
-StrataSidebarUI::~StrataSidebarUI() = default;
+CompassSidebarUI::~CompassSidebarUI() = default;
 
-void StrataSidebarUI::BindInterface(
+void CompassSidebarUI::BindInterface(
     mojo::PendingReceiver<sidebar::mojom::PageHandlerFactory> receiver) {
   page_factory_receiver_.reset();
   page_factory_receiver_.Bind(std::move(receiver));
 }
 
-void StrataSidebarUI::CreatePageHandler(
+void CompassSidebarUI::CreatePageHandler(
     mojo::PendingRemote<sidebar::mojom::Page> page,
     mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver) {
   pending_page_ = std::move(page);
@@ -70,12 +70,12 @@ void StrataSidebarUI::CreatePageHandler(
   // omnibox, never gets one.
   browser_changed_subscription_ = webui::RegisterBrowserWindowInterfaceChanged(
       web_ui()->GetWebContents(),
-      base::BindRepeating(&StrataSidebarUI::MaybeCreatePageHandler,
+      base::BindRepeating(&CompassSidebarUI::MaybeCreatePageHandler,
                           base::Unretained(this)));
   MaybeCreatePageHandler();
 }
 
-void StrataSidebarUI::MaybeCreatePageHandler() {
+void CompassSidebarUI::MaybeCreatePageHandler() {
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
   if (!browser) {
@@ -96,13 +96,13 @@ void StrataSidebarUI::MaybeCreatePageHandler() {
       std::move(pending_receiver_), std::move(pending_page_), browser,
       web_ui()->GetWebContents());
   page_handler_->set_tree_shown_callback(base::BindRepeating(
-      &StrataSidebarUI::OnTreeShown, base::Unretained(this)));
+      &CompassSidebarUI::OnTreeShown, base::Unretained(this)));
   if (moved) {
     page_handler_->RequestTree();
   }
 }
 
-void StrataSidebarUI::RunWhenTreeShown(base::OnceClosure callback) {
+void CompassSidebarUI::RunWhenTreeShown(base::OnceClosure callback) {
   if (tree_shown_) {
     std::move(callback).Run();
     return;
@@ -110,7 +110,7 @@ void StrataSidebarUI::RunWhenTreeShown(base::OnceClosure callback) {
   tree_shown_callbacks_.push_back(std::move(callback));
 }
 
-void StrataSidebarUI::OnTreeShown() {
+void CompassSidebarUI::OnTreeShown() {
   tree_shown_ = true;
   for (base::OnceClosure& callback :
        std::exchange(tree_shown_callbacks_, {})) {
@@ -118,6 +118,6 @@ void StrataSidebarUI::OnTreeShown() {
   }
 }
 
-WEB_UI_CONTROLLER_TYPE_IMPL(StrataSidebarUI)
+WEB_UI_CONTROLLER_TYPE_IMPL(CompassSidebarUI)
 
-}  // namespace strata
+}  // namespace compass

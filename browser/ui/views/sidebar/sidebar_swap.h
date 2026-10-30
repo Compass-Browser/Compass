@@ -1,13 +1,13 @@
-// Copyright 2026 The Strata Authors
+// Copyright 2026 The Compass Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
-#define STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
+#define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
 
 #include "base/time/time.h"
 
-namespace strata {
+namespace compass {
 
 // Makes a switch to another profile's space (SwitchWindowToSpace(),
 // window_features.h) happen in the same native window: once the new
@@ -21,6 +21,6 @@ void InstallSwapPresenter();
 // slower than kMaxTreeWait allows).
 void SetMaxTreeWaitForTesting(base::TimeDelta wait);
 
-}  // namespace strata
+}  // namespace compass
 
-#endif  // STRATA_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_SWAP_H_
