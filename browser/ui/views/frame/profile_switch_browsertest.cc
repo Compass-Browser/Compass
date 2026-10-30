@@ -35,6 +35,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/profile_destruction_waiter.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/browser_context.h"
@@ -537,6 +538,54 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   // Until the switch ends.
   EXPECT_TRUE(base::test::RunUntil([&] { return !page->IsBeingCaptured(); }));
   SetBrowser(shown);
+}
+
+// A page whose profile goes (unlisted, as when its last space goes, then
+// unloaded) gives way to one of the window's own profile.
+IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+                       PageOutlivingItsProfileIsReplaced) {
+  // The other profile's window switches to this profile's space and takes
+  // its page along.
+  BrowserWindowInterface* other_window = CreateBrowser(other_);
+  content::WebContents* page =
+      FindSidebar(BrowserView::GetBrowserViewForBrowser(other_window))
+          ->GetWebContents();
+  ASSERT_TRUE(page);
+  ASSERT_TRUE(content::WaitForLoadStop(page));
+  const int normal = CountNormalWindows();
+  BrowserWindowInterface* shown =
+      SwitchWindowToSpace(other_window, profile_, *home_);
+  ASSERT_TRUE(shown);
+  // The new window takes the old one's place, which closes.
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return CountNormalWindows() == normal; }));
+  StrataSidebarView* sidebar =
+      FindSidebar(BrowserView::GetBrowserViewForBrowser(shown));
+  ASSERT_EQ(sidebar->GetWebContents(), page);
+  ASSERT_EQ(page->GetBrowserContext(), other_.get());
+
+  // Nothing keeps the other profile loaded any more.
+  ProfileDestructionWaiter destroyed(other_);
+  SpaceDirectory::Get()->Unlist(other_);
+  other_home_ = nullptr;
+  other_ = nullptr;
+  destroyed.Wait();
+
+  content::WebContents* own = sidebar->GetWebContents();
+  ASSERT_TRUE(own);
+  EXPECT_EQ(own->GetBrowserContext(), profile_.get());
+  EXPECT_EQ(webui::GetBrowserWindowInterface(own), shown);
+  ASSERT_TRUE(content::WaitForLoadStop(own));
+  home_->SetName(u"Here");
+  EXPECT_EQ(true, content::EvalJs(own, R"(
+    (async () => {
+      const shown = () => document.querySelector('strata-sidebar-app')
+          ?.shadowRoot?.querySelector('#spaceName')?.textContent?.trim();
+      while (shown() !== 'Here') {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
 }
 
 // The sidebar shows another profile's icons: its spaces' previews, and the
