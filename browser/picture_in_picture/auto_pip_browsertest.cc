@@ -18,6 +18,8 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/tabs/public/tab_interface.h"
+#include "ui/base/base_window.h"
 #include "chrome/test/base/chrome_test_path_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -184,6 +186,63 @@ IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, SwappingProfiles) {
   SetBrowser(back);
   ASSERT_TRUE(base::test::RunUntil([&] { return !PipContents(); }));
   EXPECT_EQ(back->GetTabStripModel()->GetActiveWebContents(), video);
+}
+
+// The window's "back to tab" button, as in Arc: the tab's window switches
+// back to its space, and the hidden parking window never shows.
+IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, BackToTabSwitchesSpaces) {
+  content::WebContents* video = OpenPlayingVideo(browser());
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  features->SwitchToSpace(*work);
+  ASSERT_TRUE(base::test::RunUntil([&] { return IsInAutoPip(video); }));
+  ASSERT_TRUE(IsInParkingWindow(video));
+
+  ASSERT_TRUE(PictureInPictureWindowManager::GetInstance()
+                  ->ExitPictureInPictureViaWindowUi(
+                      PictureInPictureWindowManager::UiBehavior::
+                          kCloseWindowAndFocusOpener));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !PipContents(); }));
+  EXPECT_EQ(&features->space_model(), home);
+  EXPECT_EQ(browser()->GetTabStripModel()->GetActiveWebContents(), video);
+  BrowserWindowInterface* parking = features->service().parking_window();
+  EXPECT_TRUE(!parking || !parking->GetWindow()->IsVisible());
+}
+
+// Also when the tab is another profile's: the window switches profiles.
+IN_PROC_BROWSER_TEST_F(StrataAutoPipBrowserTest, BackToTabSwitchesProfiles) {
+  content::WebContents* video = OpenPlayingVideo(browser());
+  Profile* profile = browser()->GetProfile();
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  SpaceDirectory::Get()->List(&other);
+  SpaceModel& other_home =
+      SpaceService::Get(&other)->space_list().active_space();
+  BrowserWindowInterface* swapped =
+      SwitchWindowToSpace(browser(), &other, other_home);
+  ASSERT_TRUE(swapped);
+  SetBrowser(swapped);
+  ASSERT_TRUE(base::test::RunUntil([&] { return IsInAutoPip(video); }));
+
+  ASSERT_TRUE(PictureInPictureWindowManager::GetInstance()
+                  ->ExitPictureInPictureViaWindowUi(
+                      PictureInPictureWindowManager::UiBehavior::
+                          kCloseWindowAndFocusOpener));
+  BrowserWindowInterface* back = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(video);
+    back = tab ? tab->GetBrowserWindowInterface() : nullptr;
+    return back && !IsInParkingWindow(video) &&
+           back->GetTabStripModel()->GetActiveWebContents() == video;
+  }));
+  SetBrowser(back);
+  EXPECT_EQ(back->GetProfile(), profile);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !PipContents(); }));
+  BrowserWindowInterface* parking =
+      SpaceService::Get(profile)->parking_window();
+  EXPECT_TRUE(!parking || !parking->GetWindow()->IsVisible());
 }
 
 }  // namespace

@@ -251,6 +251,15 @@ bool HandOffTabsBeforeClose(BrowserWindowInterface* browser);
 // moved there as switched away from (see docs/design/picture-in-picture.md).
 bool IsInParkingWindow(content::WebContents* contents);
 
+// Shows |contents|, a tab in its profile's parking window, as a click on its
+// entry would: the window the user was in last switches to the tab's space
+// (another profile's too) and activates it. For pages and picture-in-picture
+// windows asking to focus their tab (BrowserWebContentsDelegate::
+// ActivateContents()), which would otherwise show the parking window. Returns
+// false for any other tab. See docs/design/picture-in-picture.md, "Back to
+// tab".
+bool RevealParkedTab(content::WebContents* contents);
+
 // Archives the Today entries of |profile|'s spaces that have gone unseen for
 // their space's delay, as of |now| (see SpaceModel::ArchiveIdleEntries()).
 // Entries shown in a window, or playing sound, stay. See

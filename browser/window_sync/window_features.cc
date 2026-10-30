@@ -967,6 +967,60 @@ bool IsInParkingWindow(content::WebContents* contents) {
   return features && features->is_parking_window();
 }
 
+bool RevealParkedTab(content::WebContents* contents) {
+  if (!IsInParkingWindow(contents)) {
+    return false;
+  }
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(contents);
+  Profile* profile = tab->GetBrowserWindowInterface()->GetProfile();
+  SpaceService* service = SpaceService::Get(profile);
+  SidebarNode* node = service->registry().GetNode(tab);
+  if (!node) {
+    // Never shows the parking window.
+    return true;
+  }
+  // The window the user was in last, of any listed profile.
+  BrowserWindowInterface* window = nullptr;
+  GlobalBrowserCollection::GetInstance()->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        if (IsUsableNormalWindow(browser) &&
+            !browser->GetProfile()->IsOffTheRecord() &&
+            (browser->GetProfile() == profile ||
+             (SpaceDirectory::IsListable(profile) &&
+              SpaceDirectory::IsListable(browser->GetProfile())))) {
+          window = browser;
+        }
+        return !window;
+      },
+      BrowserCollection::Order::kActivation);
+  if (!window) {
+    return true;
+  }
+  // A favorite shows in every space of its profile.
+  SpaceModel* space = service->space_list().FindSpaceOf(node);
+  if (!space) {
+    space = window->GetProfile() == profile
+                ? &WindowFeatures::From(window)->space_model()
+                : &service->space_list().active_space();
+  }
+  // Before a switch to another profile: the window that comes in takes the
+  // native window, and must not show on its own.
+  window->GetWindow()->Activate();
+  if (window->GetProfile() != profile ||
+      &WindowFeatures::From(window)->space_model() != space) {
+    window = SwitchWindowToSpace(window, profile, *space);
+    if (!window) {
+      return true;
+    }
+  }
+  if (tabs::TabInterface* shown =
+          WindowFeatures::From(window)->tab_strip_bridge().OpenNode(node)) {
+    TabStripModel* strip = window->GetTabStripModel();
+    strip->ActivateTabAt(strip->GetIndexOfTab(shown));
+  }
+  return true;
+}
+
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now) {
   SpaceService* service = SpaceService::Get(profile);
   for (const auto& space : service->space_list().spaces()) {

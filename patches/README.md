@@ -68,3 +68,10 @@ nothing else.
 | `chrome-browser-profiles-keep_alive-profile_keep_alive_types.h.patch` | Adds the `kStrataSpaces` keep-alive origin: `strata::SpaceDirectory` keeps profiles whose spaces show in the switcher loaded (D17) |
 | `chrome-browser-profiles-keep_alive-profile_keep_alive_types.cc.patch` | Prints `kStrataSpaces` |
 | `tools-metrics-histograms-metadata-profile-enums.xml.patch` | Adds `kStrataSpaces` to the `ProfileKeepAliveOrigin` histogram enum |
+| `ui-views-widget-widget.h.patch`, `ui-views-widget-widget.cc.patch` | `Widget::ExchangeContentsWith()`: two widgets swap non-client views and delegates, with new frame views (profiles in place, D18) |
+| `chrome-browser-ui-views-frame-browser_view.h.patch`, `-browser_widget.h.patch`, `-browser_root_view.h.patch` | `friend class strata::BrowserViewExchange`, which re-points their `BrowserView` members |
+| `chrome-browser-ui-views-frame-browser_native_widget_mac.h.patch`, `.mm.patch` | The same friend, and `RebindTouchBar()`: the touch bar for the view now in the window |
+| `chrome-browser-ui-views-frame-tab_modal_dialog_host.cc.patch` | Re-observes the widget when the contents move to another one, instead of observing twice |
+| `chrome-browser-ui-views-extensions-extension_keybinding_registry_views.h.patch`, `.cc.patch` | `SetFocusManager()`: extension shortcuts follow the view to its new widget |
+| `chrome-browser-ui-views-color_provider_browser_helper.h.patch`, `.cc.patch` | `SetColorProviderSource()`: pages take colors from the widget the view is in |
+| `chrome-browser-ui-browser_web_contents_delegate-browser_web_contents_delegate.cc.patch` | `ActivateContents()` asks `strata::RevealParkedTab()` first: a parked tab (picture-in-picture's "back to tab", `window.focus()`) shows in the window the user was in, in its space, never in the parking window |
