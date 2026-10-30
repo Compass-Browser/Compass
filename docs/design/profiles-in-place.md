@@ -145,6 +145,18 @@ The command bar's page, which a window loads as it opens, waits in a swap's
 window until the exchange is done (`StrataSidebarView::PreloadCommandBar()`),
 so its renderer doesn't launch during the switch.
 
+## Header and favorites across a switch
+
+Profiles have their own extensions and favorites. When a switch exchanges
+the windows, the new header grows or shrinks from the old header's height
+to its own (`SidebarHeader::ContinueFrom()`, called next to the tints'
+hand-over in `ExchangeTransition::Exchange()`): a profile with more
+extensions opens its extra row over the slide's 280 ms instead of pushing
+the page down at once, and its extensions and pinned actions fade in. In
+the page, a tree whose favorites differ from the ones shown fades the new
+tiles in and glides the space below them from where it was
+(`glideFavorites_()`).
+
 ## Window sync
 
 A tab only ever moves between windows showing the same space (§7), and a

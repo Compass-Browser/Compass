@@ -24,6 +24,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "strata/browser/ui/views/frame/browser_view_exchange.h"
+#include "strata/browser/ui/views/sidebar/sidebar_header.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
@@ -254,6 +255,12 @@ class ExchangeTransition : public content::WebContentsObserver,
     std::vector<SidebarTint*> old_tints = FindTints(old_view);
     for (size_t i = 0; i < tints.size() && i < old_tints.size(); ++i) {
       tints[i]->ContinueFrom(*old_tints[i]);
+    }
+    // And the header, whose extensions differ.
+    SidebarHeader* header = SidebarHeader::From(window_.get());
+    SidebarHeader* old_header = old_ ? SidebarHeader::From(old_.get()) : nullptr;
+    if (header && old_header) {
+      header->ContinueFrom(*old_header);
     }
 
     if (ui::Compositor* compositor = view->GetWidget()->GetCompositor()) {

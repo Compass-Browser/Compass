@@ -1847,6 +1847,14 @@ export class StrataSidebarAppElement extends CrLitElement {
       this.playSlide_(this.slide_);
     }
     this.refreshPreviews_();
+    // Another profile's favorites (a switch to its space): its tiles fade in
+    // and the space under them glides to its new place, rather than jumping.
+    const ids = (root: Node|null) =>
+        root?.children.map(node => node.id).join() ?? '';
+    const stageTop = this.favorites_ && this.motionAllowed_() &&
+            ids(this.favorites_) !== ids(tree.favorites) ?
+        this.getStage_().getBoundingClientRect().top :
+        null;
     this.nodes_.clear();
     this.parents_.clear();
     this.index_(tree.favorites, null);
@@ -1856,9 +1864,25 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.pinned_ = tree.pinned;
     this.today_ = tree.today;
     this.activeId_ = tree.activeId;
+    if (stageTop !== null) {
+      this.updateComplete.then(() => this.glideFavorites_(stageTop));
+    }
     // Lit renders it in microtasks, before the renderer paints or answers the
     // browser's next request.
     this.browserProxy_.handler.treeShown();
+  }
+
+  private glideFavorites_(oldStageTop: number) {
+    const options = {duration: SLIDE_MS, easing: EASE_OUT};
+    const stage = this.getStage_();
+    const shift = oldStageTop - stage.getBoundingClientRect().top;
+    if (Math.abs(shift) >= 0.5) {
+      stage.animate(
+          [{transform: `translateY(${shift}px)`}, {transform: 'none'}],
+          options);
+    }
+    this.shadowRoot.querySelector<HTMLElement>('#favorites')
+        ?.animate([{opacity: 0}, {opacity: 1}], options);
   }
 
   private onNodeAdded_(parentId: string, index: number, node: Node) {

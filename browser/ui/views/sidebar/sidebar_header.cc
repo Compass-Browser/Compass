@@ -46,6 +46,9 @@
 #include "content/public/common/url_constants.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
+#include "ui/compositor/scoped_layer_animation_settings.h"
+#include "ui/gfx/animation/tween.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/color/color_provider.h"
 #include "ui/events/event.h"
@@ -72,6 +75,10 @@
 namespace strata {
 
 namespace {
+
+// How long the header takes to settle after a switch to another profile's
+// space: the sidebar's slide (SLIDE_MS in the page).
+constexpr base::TimeDelta kContinueDuration = base::Milliseconds(280);
 
 // Space between the nav buttons, and between them and their neighbors.
 constexpr int kButtonGap = 2;
@@ -448,7 +455,51 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
                 pill_center_y - icons_size.height() / 2, icons_size.width(),
                 icons_size.height()));
   layout.host_size.set_height(content_bottom + kPillMargin);
+  if (continue_animation_.is_animating()) {
+    // What doesn't fit yet is clipped.
+    layout.host_size.set_height(continue_animation_.CurrentValueBetween(
+        continue_from_height_, layout.host_size.height()));
+  }
   return layout;
+}
+
+void SidebarHeader::ContinueFrom(const SidebarHeader& old) {
+  if (!gfx::Animation::ShouldRenderRichAnimation()) {
+    return;
+  }
+  continue_from_height_ = old.height();
+  continue_animation_.SetSlideDuration(kContinueDuration);
+  continue_animation_.SetTweenType(gfx::Tween::EASE_OUT);
+  continue_animation_.Reset(0);
+  continue_animation_.Show();
+  for (views::View* slot : {extensions_slot_.get(),
+                            pinned_actions_slot_.get()}) {
+    if (!slot) {
+      continue;
+    }
+    slot->SetPaintToLayer();
+    slot->layer()->SetFillsBoundsOpaquely(false);
+    slot->layer()->SetOpacity(0.f);
+    ui::ScopedLayerAnimationSettings settings(slot->layer()->GetAnimator());
+    settings.SetTransitionDuration(kContinueDuration);
+    settings.SetTweenType(gfx::Tween::EASE_OUT);
+    slot->layer()->SetOpacity(1.f);
+  }
+  PreferredSizeChanged();
+}
+
+void SidebarHeader::AnimationProgressed(const gfx::Animation* animation) {
+  PreferredSizeChanged();
+}
+
+void SidebarHeader::AnimationEnded(const gfx::Animation* animation) {
+  for (views::View* slot : {extensions_slot_.get(),
+                            pinned_actions_slot_.get()}) {
+    if (slot && slot->layer()) {
+      slot->DestroyLayer();
+    }
+  }
+  PreferredSizeChanged();
 }
 
 void SidebarHeader::OnBoundsChanged(const gfx::Rect& previous_bounds) {

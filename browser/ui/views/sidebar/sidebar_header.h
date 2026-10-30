@@ -21,6 +21,8 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+#include "ui/gfx/animation/animation_delegate.h"
+#include "ui/gfx/animation/slide_animation.h"
 #include "url/gurl.h"
 
 class BackForwardButton;
@@ -59,6 +61,7 @@ namespace strata {
 // anchors to the extensions or pinned actions expands the sidebar until it
 // closes. See docs/design/command-bar.md, "Slice 2" and "Slice 3".
 class SidebarHeader : public VerticalTabStripTopContainer,
+                      public gfx::AnimationDelegate,
                       public CommandObserver,
                       public TabStripModelObserver,
                       public IconLabelBubbleView::Delegate,
@@ -102,6 +105,12 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // bar updates its own.
   void UpdateContentSettingsIcons();
 
+  // After a switch to another profile's space (sidebar_swap.cc): this
+  // window's header grows or shrinks from |old|'s height to its own, and
+  // its extensions and pinned actions fade in, instead of the page under it
+  // jumping.
+  void ContinueFrom(const SidebarHeader& old);
+
   // Gives the sidebar pane focus, starting at the back button, as focusing
   // the toolbar does. False if it can't take focus.
   bool FocusToolbarControls();
@@ -125,6 +134,10 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   bool IsPositionInWindowCaption(const gfx::Point& point) override;
   void ViewHierarchyChanged(
       const views::ViewHierarchyChangedDetails& details) override;
+
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
+  void AnimationEnded(const gfx::Animation* animation) override;
 
   // CommandObserver:
   void EnabledStateChangedForCommand(int id, bool enabled) override;
@@ -213,6 +226,11 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   raw_ptr<views::View> extensions_slot_ = nullptr;
   raw_ptr<views::View> pinned_actions_slot_ = nullptr;
   raw_ptr<views::View> app_menu_slot_ = nullptr;
+
+  // ContinueFrom(): the height it grows from, while |continue_animation_|
+  // runs.
+  int continue_from_height_ = 0;
+  gfx::SlideAnimation continue_animation_{this};
 
   raw_ptr<ToolbarView> toolbar_ = nullptr;
   std::vector<MovedView> moved_views_;
