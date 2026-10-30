@@ -12,6 +12,8 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/time/time.h"
@@ -36,6 +38,8 @@
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_ui.h"
+#include "content/public/browser/web_ui_controller.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/api_test_utils.h"
@@ -45,7 +49,10 @@
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
+#include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
 #include "strata/browser/ui/views/sidebar/sidebar_swap.h"
+#include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
+#include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -55,11 +62,26 @@
 #include "ui/base/models/dialog_model.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/view.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_observer.h"
 #include "url/gurl.h"
 
 namespace strata {
 namespace {
+
+StrataSidebarView* FindSidebar(views::View* view) {
+  if (auto* sidebar = views::AsViewClass<StrataSidebarView>(view)) {
+    return sidebar;
+  }
+  for (views::View* child : view->children()) {
+    if (StrataSidebarView* sidebar = FindSidebar(child)) {
+      return sidebar;
+    }
+  }
+  return nullptr;
+}
 
 int CountNormalWindows() {
   int normal = 0;
@@ -70,6 +92,50 @@ int CountNormalWindows() {
       });
   return normal;
 }
+
+// Whether a widget of the window that switches away ever shows over the view
+// that took the native window. A switch can finish, and close the old window
+// with its widgets, before a test looks again, so this follows the widget's
+// changes as they happen.
+class LeavingWidgetWatch : public views::WidgetObserver {
+ public:
+  LeavingWidgetWatch(views::Widget* widget,
+                     BrowserWindowInterface* old_window,
+                     gfx::NativeWindow native)
+      : old_window_(old_window->GetWeakPtr()), native_(native) {
+    observation_.Observe(widget);
+  }
+
+  bool shown_over_new_view() const { return shown_over_new_view_; }
+  bool destroyed() const { return destroyed_; }
+
+  // views::WidgetObserver:
+  void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override {
+    Check(widget);
+  }
+  // Not checked: it goes with the old window, whose view is going too.
+  void OnWidgetDestroying(views::Widget* widget) override {
+    destroyed_ = true;
+    observation_.Reset();
+  }
+
+  void Check(views::Widget* widget) {
+    const bool exchanged =
+        !old_window_ || old_window_->GetWindow()->GetNativeWindow() != native_;
+    if (exchanged && widget->IsVisible() &&
+        widget->parent() == views::Widget::GetWidgetForNativeWindow(native_)) {
+      shown_over_new_view_ = true;
+    }
+  }
+
+ private:
+  base::WeakPtr<BrowserWindowInterface> old_window_;
+  gfx::NativeWindow native_;
+  bool shown_over_new_view_ = false;
+  bool destroyed_ = false;
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
+      this};
+};
 
 class StrataProfileSwitchBrowserTest : public InProcessBrowserTest {
  protected:
@@ -182,13 +248,16 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   views::Widget* old_bar_widget = views::Widget::GetTopLevelWidgetForNativeView(
       old_bar->web_contents_for_testing()->GetNativeView());
   ASSERT_TRUE(old_bar_widget);
+  LeavingWidgetWatch watch(old_bar_widget, browser(), native_);
 
   BrowserWindowInterface* shown = SwitchToOther(browser(), /*settle=*/false);
   ASSERT_TRUE(shown);
-  // Never over the new profile's view.
-  EXPECT_NE(old_bar_widget->parent(), widget());
-  EXPECT_FALSE(old_bar_widget->IsVisible());
+  if (!watch.destroyed()) {
+    watch.Check(old_bar_widget);
+  }
   ASSERT_TRUE(base::test::RunUntil([&] { return CountNormalWindows() == 1; }));
+  // Never over the new profile's view.
+  EXPECT_FALSE(watch.shown_over_new_view());
 
   // The new window's bar works.
   CommandBar* bar = CommandBar::From(shown);
@@ -238,15 +307,17 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   base::WeakPtr<views::Widget> alive = dialog->GetWeakPtr();
   ASSERT_TRUE(base::test::RunUntil([&] { return dialog->IsVisible(); }));
   EXPECT_EQ(dialog->parent(), widget());
+  LeavingWidgetWatch watch(dialog, browser(), native_);
 
   BrowserWindowInterface* shown =
       SwitchToOther(browser(), /*settle=*/false);
   ASSERT_TRUE(shown);
-  // Out of sight at once.
-  ASSERT_TRUE(alive);
-  EXPECT_NE(dialog->parent(), widget());
-  EXPECT_FALSE(dialog->IsVisible());
+  if (alive) {
+    watch.Check(dialog);
+  }
   ASSERT_TRUE(base::test::RunUntil([&] { return CountNormalWindows() == 1; }));
+  // Out of sight at once, then closed with the old window.
+  EXPECT_FALSE(watch.shown_over_new_view());
   EXPECT_FALSE(alive);
 
   shown = SwitchBack(shown);
@@ -392,6 +463,38 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
       second->GetTabStripModel()->GetIndexOfWebContents(one));
   EXPECT_EQ(second->GetTabStripModel()->GetActiveWebContents(), one);
   EXPECT_EQ(second->GetProfile(), profile_.get());
+}
+
+
+// A switch takes the other profile's preloaded sidebar, whose page connected
+// without a window and gets one then, and the profile left gets one in turn.
+IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+                       SwitchTakesThePreloadedSidebar) {
+  SidebarPreloader* preloader = SidebarPreloader::Get();
+  preloader->Refill();
+  content::WebContents* preloaded = preloader->GetForTesting(other_);
+  ASSERT_TRUE(preloaded);
+  // Only a window of another profile could switch to this one's spaces.
+  EXPECT_FALSE(preloader->GetForTesting(profile_));
+  EXPECT_TRUE(content::WaitForLoadStop(preloaded));
+  // No window, so no page handler yet.
+  auto* ui = preloaded->GetWebUI()->GetController()->GetAs<StrataSidebarUI>();
+  ASSERT_TRUE(ui);
+  bool tree_shown = false;
+  ui->RunWhenTreeShown(base::BindLambdaForTesting([&] { tree_shown = true; }));
+  EXPECT_FALSE(tree_shown);
+
+  BrowserWindowInterface* shown = SwitchToOther(browser());
+  ASSERT_TRUE(shown);
+  StrataSidebarView* sidebar = FindSidebar(
+      BrowserView::GetBrowserViewForBrowser(shown));
+  ASSERT_TRUE(sidebar);
+  EXPECT_EQ(sidebar->GetWebContents(), preloaded);
+  EXPECT_TRUE(base::test::RunUntil([&] { return tree_shown; }));
+
+  preloader->Refill();
+  EXPECT_FALSE(preloader->GetForTesting(other_));
+  EXPECT_TRUE(preloader->GetForTesting(profile_));
 }
 
 }  // namespace

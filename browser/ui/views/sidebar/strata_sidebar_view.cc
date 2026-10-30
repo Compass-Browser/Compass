@@ -15,10 +15,12 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "content/public/browser/web_contents.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/ui/views/frame/window_frame.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
 #include "strata/browser/ui/views/sidebar/sidebar_swap.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
@@ -109,7 +111,14 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
       browser_(browser),
       space_shortcuts_(browser),
       command_bar_(browser) {
-  // The page asks for its window as soon as it connects, so set it first.
+  // The profile's preloaded sidebar, if there is one, has its renderer and
+  // page loaded already (a switch to another profile's space).
+  preloaded_contents_ = SidebarPreloader::Get()->Take(browser->GetProfile());
+  if (preloaded_contents_) {
+    SetWebContents(preloaded_contents_.get());
+  }
+  // The page asks for its window as soon as it connects, so set it first. A
+  // preloaded page connected without one, and binds now.
   webui::SetBrowserWindowInterface(GetWebContents(), browser);
   InstallSwapPresenter();
   // Let the region's frame-colored background, and the tint over it, show
@@ -119,16 +128,33 @@ StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
       GetWebContents(), SK_ColorTRANSPARENT);
   SidebarHoverCard::CreateForWebContents(GetWebContents(), this);
   SidebarContextMenu::CreateForWebContents(GetWebContents(), this);
-  LoadInitialURL(GURL(kStrataSidebarURL));
+  if (!preloaded_contents_) {
+    LoadInitialURL(GURL(kStrataSidebarURL));
+  }
 }
 
-StrataSidebarView::~StrataSidebarView() = default;
+StrataSidebarView::~StrataSidebarView() {
+  // The WebView lets go of it before it goes.
+  if (preloaded_contents_) {
+    SetWebContents(nullptr);
+  }
+}
+
+void StrataSidebarView::PreloadCommandBar() {
+  command_bar_.Preload();
+}
 
 void StrataSidebarView::AddedToWidget() {
   views::WebView::AddedToWidget();
   space_shortcuts_.Register(GetFocusManager());
-  // So the first Cmd+T opens the bar at once.
-  command_bar_.Preload();
+  // So the first Cmd+T opens the bar at once. A swap's window does it once it
+  // has taken the old one's place (sidebar_swap.cc).
+  if (!IsCreatingSwapWindow()) {
+    command_bar_.Preload();
+  }
+  // So a switch from here to another profile's space finds its sidebar
+  // loaded.
+  SidebarPreloader::Get()->RefillLater();
 }
 
 void StrataSidebarView::RemovedFromWidget() {

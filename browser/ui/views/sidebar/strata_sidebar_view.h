@@ -18,6 +18,10 @@
 
 class BrowserWindowInterface;
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace views {
 class FocusManager;
 class View;
@@ -61,12 +65,20 @@ class StrataSidebarView : public views::WebView {
 
   BrowserWindowInterface* browser() const { return browser_; }
 
+  // Loads the command bar's page now, unless it has. A swap's window waits
+  // until it has taken the old one's place, so it doesn't load at the same
+  // time as the sidebar and the page.
+  void PreloadCommandBar();
+
   // views::WebView:
   void AddedToWidget() override;
   void RemovedFromWidget() override;
 
  private:
   const raw_ptr<BrowserWindowInterface> browser_;
+  // A preloaded sidebar (SidebarPreloader) it took, if it did; otherwise the
+  // WebView owns its own.
+  std::unique_ptr<content::WebContents> preloaded_contents_;
   SpaceShortcuts space_shortcuts_;
   CommandBar command_bar_;
 };

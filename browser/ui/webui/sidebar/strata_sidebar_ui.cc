@@ -52,14 +52,27 @@ void StrataSidebarUI::BindInterface(
 void StrataSidebarUI::CreatePageHandler(
     mojo::PendingRemote<sidebar::mojom::Page> page,
     mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver) {
+  pending_page_ = std::move(page);
+  pending_receiver_ = std::move(receiver);
+  // A preloaded page has no window until a sidebar takes it; its calls wait
+  // in the pipe until then. A page opened outside the sidebar host, e.g.
+  // typed into the omnibox, never gets one.
+  browser_changed_subscription_ = webui::RegisterBrowserWindowInterfaceChanged(
+      web_ui()->GetWebContents(),
+      base::BindRepeating(&StrataSidebarUI::MaybeCreatePageHandler,
+                          base::Unretained(this)));
+  MaybeCreatePageHandler();
+}
+
+void StrataSidebarUI::MaybeCreatePageHandler() {
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
-  if (!browser) {
-    // Opened outside the sidebar host, e.g. typed into the omnibox.
+  if (!browser || !pending_receiver_) {
     return;
   }
+  browser_changed_subscription_ = {};
   page_handler_ = std::make_unique<SidebarPageHandler>(
-      std::move(receiver), std::move(page), browser,
+      std::move(pending_receiver_), std::move(pending_page_), browser,
       web_ui()->GetWebContents());
   page_handler_->set_tree_shown_callback(base::BindRepeating(
       &StrataSidebarUI::OnTreeShown, base::Unretained(this)));

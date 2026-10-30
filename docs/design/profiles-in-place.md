@@ -95,6 +95,42 @@ WebUIs the window hosts (sidebar, command bar) belong to a profile:
 Off-the-record windows never re-profile (they list their own spaces only, as
 today), and a window never re-profiles to or from guest or system profiles.
 
+## Preloaded sidebars
+
+Each switch builds the new profile's window, whose sidebar is a new
+`WebContents`. The profile's previous sidebar renderer went away with its
+last window, and chrome://strata-sidebar isn't process-per-site, so every
+switch launched a renderer: about 2.2 s of the switch in the debug build
+(measured 2026-10-30). `strata::SidebarPreloader`
+(`browser/ui/views/sidebar/sidebar_preloader.{h,cc}`) keeps one hidden
+sidebar loaded per profile that a switch could go to, as upstream's
+`WebUIContentsPreloadManager` does for tab search:
+
+- **Which profiles.** Each listed profile with an open normal window of
+  another profile (any of those windows could switch to it). A single
+  profile, or one with all the windows, has none.
+- **When.** `RefillLater()` refills 2 s after a sidebar joins a window and
+  after a switch has finished, so the preload doesn't compete with what is
+  painting. The switch took the new profile's; the profile left may now need
+  one.
+- **Taking it.** `StrataSidebarView` takes its profile's preloaded contents
+  if there is one (not crashed, on the sidebar's URL), owns it and lets the
+  `WebView` go of it before it dies. Hover card and context menu helpers are
+  made then, as for its own.
+- **The page's window.** The preloaded page connects with no window, so
+  `StrataSidebarUI::CreatePageHandler()` keeps the page and receiver until
+  `webui::SetBrowserWindowInterface()` gives it one
+  (`RegisterBrowserWindowInterfaceChanged`). Its calls (`requestTree`) wait
+  in the pipe until then, so the exchange still waits for its tree.
+- **Lifetime.** Browser-wide (a `NoDestructor`, like upstream's), observing
+  each profile it preloaded for: `OnProfileWillBeDestroyed()` drops that
+  profile's. Nothing loads once the app is quitting.
+
+The command bar's page, which a window loads as it opens, waits in a swap's
+window until the exchange is done (`IsCreatingSwapWindow()`,
+`StrataSidebarView::PreloadCommandBar()`), so its renderer doesn't launch
+during the switch either.
+
 ## Window sync
 
 A tab only ever moves between windows showing the same space (§7), and a
@@ -198,7 +234,9 @@ The list below was the first idea's. What the exchange has
   is the new profile's (`CommandBarAndNewTabUseTheNewProfile`).
 - A bubble open at the switch closes (`BubbleOpenAtTheSwitchCloses`); a
   tab-modal dialog goes out of sight with its view, and upstream closes it
-  when the old window closes (`TabModalDialogLeavesWithItsWindow`).
+  when the old window closes (`TabModalDialogLeavesWithItsWindow`). The switch can finish, and the old window close, before a
+  test polls again, so both follow the widget's visibility changes
+  (`LeavingWidgetWatch`).
 - Page state across two round trips (`FormValueSurvivesSwitches`).
 - Fullscreen kept, and left as usual afterwards (`FullscreenIsKept`).
 - Pages take colors from the shown widget
@@ -210,6 +248,9 @@ The list below was the first idea's. What the exchange has
   leaves with its view (`ExtensionShortcutsMoveWithTheView`).
 - Two windows on a space, one switches: its tabs go to the other
   (`TabsGoToAnotherWindowOnTheSpace`).
+- A switch takes the other profile's preloaded sidebar, which then gets its
+  page handler and tree, and the profile left gets one
+  (`SwitchTakesThePreloadedSidebar`).
 - Picture-in-picture's "back to tab" switches the window back to a parked
   tab's profile (`BackToTabSwitchesProfiles`).
 

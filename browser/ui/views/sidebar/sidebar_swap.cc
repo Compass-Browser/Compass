@@ -22,6 +22,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "strata/browser/ui/views/frame/browser_view_exchange.h"
+#include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -216,6 +217,16 @@ class ExchangeTransition : public content::WebContentsObserver,
 
   void Finish() {
     std::move(leave_).Run();
+    // What the window put off so as not to slow the switch down.
+    BrowserView* view =
+        window_ ? BrowserView::GetBrowserViewForBrowser(window_.get())
+                : nullptr;
+    if (StrataSidebarView* sidebar = view ? FindSidebar(view) : nullptr) {
+      sidebar->PreloadCommandBar();
+    }
+    // The new window's profile used its preloaded sidebar, and the profile
+    // left may now need one.
+    SidebarPreloader::Get()->RefillLater();
     delete this;
   }
 

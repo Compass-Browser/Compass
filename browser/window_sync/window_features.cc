@@ -148,10 +148,13 @@ SwapWindowFactory& GetSwapWindowFactory() {
   return *factory;
 }
 
+bool g_creating_swap_window = false;
+
 BrowserWindowInterface* CreateSwapWindow(
     Profile* profile,
     const gfx::Rect& bounds,
     ui::mojom::WindowShowState show_state) {
+  base::AutoReset<bool> creating(&g_creating_swap_window, true);
   if (const SwapWindowFactory& factory = GetSwapWindowFactory()) {
     return factory.Run(profile, bounds, show_state);
   }
@@ -893,6 +896,10 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
     std::move(leave).Run();
   }
   return window;
+}
+
+bool IsCreatingSwapWindow() {
+  return g_creating_swap_window;
 }
 
 void SetSwapPresenter(SwapPresenter presenter) {

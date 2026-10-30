@@ -19,6 +19,8 @@ source_set("ui") {
     "views/sidebar/sidebar_header.h",
     "views/sidebar/sidebar_hover_card.cc",
     "views/sidebar/sidebar_hover_card.h",
+    "views/sidebar/sidebar_preloader.cc",
+    "views/sidebar/sidebar_preloader.h",
     "views/sidebar/sidebar_swap.cc",
     "views/sidebar/sidebar_swap.h",
     "views/sidebar/sidebar_tint.cc",

@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/functional/callback.h"
 
 #include "content/public/browser/webui_config.h"
@@ -33,7 +34,8 @@ class StrataSidebarUIConfig
 
 // chrome://strata-sidebar: the sidebar page shown in the vertical tab strip
 // region. Its host (StrataSidebarView) sets the window it belongs to with
-// webui::SetBrowserWindowInterface(). See docs/design/sidebar.md.
+// webui::SetBrowserWindowInterface(); a preloaded page (SidebarPreloader)
+// gets it later. See docs/design/sidebar.md.
 class StrataSidebarUI : public ui::MojoWebUIController,
                         public sidebar::mojom::PageHandlerFactory {
  public:
@@ -50,12 +52,18 @@ class StrataSidebarUI : public ui::MojoWebUIController,
 
  private:
   void OnTreeShown();
+  // Binds the page handler once the page has asked for it and has a window.
+  void MaybeCreatePageHandler();
 
   // sidebar::mojom::PageHandlerFactory:
   void CreatePageHandler(
       mojo::PendingRemote<sidebar::mojom::Page> page,
       mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver) override;
 
+  // What the page sent, until it has a window.
+  mojo::PendingRemote<sidebar::mojom::Page> pending_page_;
+  mojo::PendingReceiver<sidebar::mojom::PageHandler> pending_receiver_;
+  base::CallbackListSubscription browser_changed_subscription_;
   bool tree_shown_ = false;
   std::vector<base::OnceClosure> tree_shown_callbacks_;
   std::unique_ptr<SidebarPageHandler> page_handler_;

@@ -229,6 +229,10 @@ using SwapWindowFactory = base::RepeatingCallback<BrowserWindowInterface*(
     ui::mojom::WindowShowState show_state)>;
 void SetSwapWindowFactoryForTesting(SwapWindowFactory factory);
 
+// Whether the window being built is a swap's, which opens hidden and only
+// shows once it has taken the old window's place.
+bool IsCreatingSwapWindow();
+
 // Puts |window|, which a swap just opened with its tabs, in |old|'s place:
 // shows it without a flicker once it has painted, then runs |leave|, which
 // empties |old|. Set by the views layer (docs/design/spaces.md, "Swapping
