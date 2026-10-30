@@ -4,10 +4,13 @@
 
 #include "strata/browser/ui/views/frame/window_frame.h"
 
+#include <algorithm>
+
 #include <memory>
 
 #include "base/check.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "strata/browser/ui/views/frame/content_frame.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "ui/base/class_property.h"
@@ -41,7 +44,7 @@ WindowFrame* WindowFrame::FromRegion(views::View* region) {
 }
 
 WindowFrame::WindowFrame(views::View* region, BrowserWindowInterface* browser)
-    : region_(region) {
+    : region_(region), browser_(browser) {
   // The browser view holds the region and the page; under both, the tint
   // colors the frame as the region's colors the sidebar.
   CHECK(region->parent());
@@ -72,15 +75,28 @@ void WindowFrame::UpdateCaptionButtons() {
     return;
   }
   // The region is laid out this narrow only collapsed and not shown on hover
-  // (empty, it's yet to be laid out).
-  const bool hidden = region_->GetVisible() && region_->width() > 0 &&
-                      region_->width() <= kCollapsedSidebarWidth &&
-                      !widget->IsFullscreen();
-  if (hidden == caption_buttons_hidden_) {
+  // (empty, it's yet to be laid out). In between, it's opening or closing.
+  float opacity = 1.f;
+  if (region_->GetVisible() && region_->width() > 0 &&
+      !widget->IsFullscreen()) {
+    const tabs::VerticalTabStripStateController* controller =
+        tabs::VerticalTabStripStateController::From(browser_);
+    const int range =
+        (controller ? controller->GetUncollapsedWidth() : 0) -
+        kCollapsedSidebarWidth;
+    opacity = range > 0 ? std::clamp(static_cast<float>(region_->width() -
+                                                        kCollapsedSidebarWidth) /
+                                         range,
+                                     0.f, 1.f)
+                        : (region_->width() <= kCollapsedSidebarWidth ? 0.f
+                                                                       : 1.f);
+  }
+  if (opacity == caption_buttons_opacity_) {
     return;
   }
-  caption_buttons_hidden_ = hidden;
-  SetCaptionButtonsHidden(widget, hidden);
+  caption_buttons_opacity_ = opacity;
+  caption_buttons_hidden_ = opacity == 0.f;
+  SetCaptionButtonsOpacity(widget, opacity);
 }
 
 bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point) {
@@ -90,7 +106,7 @@ bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point) {
 }
 
 #if !BUILDFLAG(IS_MAC)
-void SetCaptionButtonsHidden(views::Widget* widget, bool hidden) {}
+void SetCaptionButtonsOpacity(views::Widget* widget, float opacity) {}
 #endif
 
 }  // namespace strata

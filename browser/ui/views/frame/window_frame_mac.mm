@@ -11,13 +11,15 @@
 
 namespace strata {
 
-void SetCaptionButtonsHidden(views::Widget* widget, bool hidden) {
+void SetCaptionButtonsOpacity(views::Widget* widget, float opacity) {
   // Null for a window in another process (an app shim's), which browser
   // windows never are.
   NSWindow* window = widget->GetNativeWindow().GetNativeNSWindow();
   for (NSWindowButton type :
        {NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton}) {
-    [window standardWindowButton:type].hidden = hidden;
+    NSButton* button = [window standardWindowButton:type];
+    button.alphaValue = opacity;
+    button.hidden = opacity == 0;
   }
 }
 

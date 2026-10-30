@@ -66,10 +66,11 @@ permission prompts take upstream's fallback when nothing of the header is
 drawn: a corner of the page, as in fullscreen.
 
 `strata::WindowFrame` (owned by the region as a class property, installed
-by `InstallSidebar()`) watches the region's bounds and hides the caption
-buttons (`-[NSWindow standardWindowButton:]`, `window_frame_mac.mm`) while
-the region is at the collapsed width, visible and not fullscreen. Shown on
-hover, the region is wider, so they come back.
+by `InstallSidebar()`) watches the region's bounds and fades the caption
+buttons (`-[NSWindow standardWindowButton:]`'s `alphaValue`,
+`window_frame_mac.mm`) with its width, from opaque at the expanded width
+to hidden at the collapsed width, so they go and come with the sidebar's
+slide (Cmd+S, the collapse button, hover). Not in fullscreen.
 
 ## Opening and closing
 
