@@ -4,6 +4,7 @@
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {TimeDelta} from '//resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -81,6 +82,8 @@ const SWIPE_RESISTANCE = 0.2;
 const SWIPE_RESISTANCE_MAX_PX = 32;
 // A switch the browser hasn't confirmed by then didn't happen.
 const SWITCH_TIMEOUT_MS = 2000;
+// For a switch with no slide to wait for.
+const NO_SLIDE: TimeDelta = {microseconds: 0n};
 
 // A two-finger swipe across the sidebar.
 interface Swipe {
@@ -523,7 +526,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     const from = this.spaces_.findIndex(space => this.isActiveSpace_(space));
     const direction = this.spaces_.indexOf(target) > from ? 1 : -1;
     if (this.swipe_ || this.slide_ || from === -1 || !this.motionAllowed_()) {
-      this.browserProxy_.handler.switchSpace(id);
+      this.browserProxy_.handler.switchSpace(id, NO_SLIDE);
       return;
     }
     if (this.getNeighborSpace_(direction) !== target) {
@@ -541,7 +544,7 @@ export class StrataSidebarAppElement extends CrLitElement {
         StrataSidebarPreviewElement | null;
     if (this.swipe_ || this.slide_ || id === this.activeSpaceId_ ||
         preview?.space?.id !== id) {
-      this.browserProxy_.handler.switchSpace(id);
+      this.browserProxy_.handler.switchSpace(id, NO_SLIDE);
       return;
     }
     this.slideTo_(target, direction, preview, 0);
@@ -1406,16 +1409,15 @@ export class StrataSidebarAppElement extends CrLitElement {
     const doSwitch = () => {
       if (!switched) {
         switched = true;
-        this.browserProxy_.handler.switchSpace(target.id);
+        // Another profile's swaps the window: the browser builds the new
+        // one while the slide plays, and it takes over where the slide ends.
+        const timing = animations[0]!.effect?.getComputedTiming();
+        const left = Math.max(
+            0, Number(timing?.endTime ?? 0) - Number(timing?.localTime ?? 0));
+        this.browserProxy_.handler.switchSpace(
+            target.id, {microseconds: BigInt(Math.round(left * 1000))});
       }
     };
-    if (!target.ownProfile) {
-      // Another profile's swaps the window: once the slide has ended, so the
-      // new window, which opens on the space, takes over where it stopped.
-      animations[0]!.finished.then(doSwitch, doSwitch);
-      setTimeout(doSwitch, SLIDE_MS + 100);
-      return;
-    }
     // Switching keeps the browser busy for a moment: once the slide has
     // started. A hidden page gets no frames; it switches anyway.
     requestAnimationFrame(() => setTimeout(doSwitch));

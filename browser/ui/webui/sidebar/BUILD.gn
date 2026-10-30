@@ -6,6 +6,9 @@ import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_bindings") {
   sources = [ "sidebar.mojom" ]
-  public_deps = [ "//url/mojom:url_mojom_gurl" ]
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//url/mojom:url_mojom_gurl",
+  ]
   webui_module_path = "/"
 }

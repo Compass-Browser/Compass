@@ -7,6 +7,7 @@
 // docs/design/profiles-in-place.md, "Tests".
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,7 @@
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
 #include "strata/browser/ui/views/sidebar/sidebar_swap.h"
+#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/space_directory.h"
@@ -71,16 +73,21 @@
 namespace strata {
 namespace {
 
-StrataSidebarView* FindSidebar(views::View* view) {
-  if (auto* sidebar = views::AsViewClass<StrataSidebarView>(view)) {
-    return sidebar;
+template <typename T>
+T* FindDescendant(views::View* root) {
+  if (auto* match = views::AsViewClass<T>(root)) {
+    return match;
   }
-  for (views::View* child : view->children()) {
-    if (StrataSidebarView* sidebar = FindSidebar(child)) {
-      return sidebar;
+  for (views::View* child : root->children()) {
+    if (T* match = FindDescendant<T>(child)) {
+      return match;
     }
   }
   return nullptr;
+}
+
+StrataSidebarView* FindSidebar(views::View* view) {
+  return FindDescendant<StrataSidebarView>(view);
 }
 
 int CountNormalWindows() {
@@ -519,6 +526,37 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
     ASSERT_TRUE(sidebar);
     EXPECT_EQ(sidebar->GetWebContents(), preloaded) << "switch " << i;
   }
+}
+
+
+// A switch asked for as the sidebar's slide starts builds the new window
+// during the slide and exchanges once it has ended; the leaving window's
+// tint, which the page can no longer move, finishes the blend itself.
+IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+                       ExchangeWaitsForTheSlide) {
+  other_home_->SetColor(SpaceColor::kGreen);
+  SidebarTint* tint = FindDescendant<SidebarTint>(
+      BrowserView::GetBrowserViewForBrowser(browser()));
+  ASSERT_TRUE(tint);
+  WindowFeatures::From(browser())->SetSpacePreview(other_home_, 0.2);
+
+  constexpr base::TimeDelta kSlide = base::Seconds(3);
+  const base::TimeTicks start = base::TimeTicks::Now();
+  BrowserWindowInterface* shown =
+      SwitchWindowToSpace(browser(), other_, *other_home_, kSlide);
+  ASSERT_TRUE(shown);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    std::optional<SkColor> color = tint->GetTintForTesting();
+    return color && SkColorSetA(*color, SK_AlphaOPAQUE) ==
+                        *GetSpaceTint(SpaceColor::kGreen);
+  }));
+  EXPECT_NE(shown->GetWindow()->GetNativeWindow(), native_);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return shown->GetWindow()->GetNativeWindow() == native_; }));
+  EXPECT_GE(base::TimeTicks::Now() - start, kSlide);
+  SetBrowser(shown);
+  ASSERT_TRUE(base::test::RunUntil([&] { return CountNormalWindows() == 1; }));
 }
 
 }  // namespace

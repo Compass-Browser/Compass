@@ -134,6 +134,11 @@ still loading waited for a first paint, up to `kMaxSwapWait` (750 ms). It
 now waits at most `kMaxPagePaintWait` (200 ms) and paints in place, and a
 page that has loaded only waits for a frame.
 
+The sidebar's slide (280 ms) used to run before the switch started; the
+switch now starts with it, and the exchange waits for its end (spaces.md,
+"In the page"), so building the window and the tree wait happen during the
+slide (`ExchangeWaitsForTheSlide`).
+
 The command bar's page, which a window loads as it opens, waits in a swap's
 window until the exchange is done (`IsCreatingSwapWindow()`,
 `StrataSidebarView::PreloadCommandBar()`), so its renderer doesn't launch

@@ -166,6 +166,15 @@ void SidebarTint::OnSpacePreviewChanged() {
   UpdateColor(/*animate=*/!features_->preview_space());
 }
 
+// The page's slide goes on, but its handler is gone: the tint finishes the
+// blend itself, about as long as the slide has left.
+void SidebarTint::OnSwappedAway() {
+  if (SpaceModel* preview = features_->preview_space()) {
+    swap_color_ = ToTintColor(preview->color());
+    UpdateColor(/*animate=*/true);
+  }
+}
+
 void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
   if (features_ && (&space == &features_->space_model() ||
                     &space == features_->preview_space())) {
@@ -179,6 +188,9 @@ void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
 SkColor SidebarTint::GetTargetColor() const {
   if (!features_) {
     return SK_ColorTRANSPARENT;
+  }
+  if (swap_color_) {
+    return *swap_color_;
   }
   const SkColor color = ToTintColor(features_->space_model().color());
   SpaceModel* preview = features_->preview_space();

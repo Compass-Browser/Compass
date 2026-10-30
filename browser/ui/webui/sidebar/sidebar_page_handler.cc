@@ -4,6 +4,7 @@
 
 #include "strata/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -318,11 +319,13 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
   }
 }
 
-void SidebarPageHandler::SwitchSpace(const std::string& id) {
+void SidebarPageHandler::SwitchSpace(const std::string& id,
+                                     base::TimeDelta slide_left) {
   SpaceDirectory::Entry entry = FindAnySpace(id);
   if (entry.space) {
     // Another profile's swaps the window, which closes with this handler.
-    SwitchWindowToSpace(browser_, entry.profile, *entry.space);
+    SwitchWindowToSpace(browser_, entry.profile, *entry.space,
+                        std::max(slide_left, base::TimeDelta()));
   }
 }
 

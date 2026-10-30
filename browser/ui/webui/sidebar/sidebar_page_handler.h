@@ -106,7 +106,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void RenameFolder(const std::string& id, const std::string& title) override;
   void SetFolderCollapsed(const std::string& id, bool collapsed) override;
   void DeleteNode(const std::string& id) override;
-  void SwitchSpace(const std::string& id) override;
+  void SwitchSpace(const std::string& id, base::TimeDelta slide_left) override;
   void AddSpace() override;
   void RenameSpace(const std::string& id, const std::string& name) override;
   void SetSpaceColor(const std::string& id,

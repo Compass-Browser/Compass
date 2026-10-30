@@ -69,9 +69,11 @@ class ExchangeTransition : public content::WebContentsObserver,
  public:
   ExchangeTransition(BrowserWindowInterface* old,
                      BrowserWindowInterface* window,
+                     base::TimeDelta hold,
                      base::OnceClosure leave)
       : old_(old->GetWeakPtr()),
         window_(window->GetWeakPtr()),
+        not_before_(base::TimeTicks::Now() + hold),
         leave_(std::move(leave)) {}
   ExchangeTransition(const ExchangeTransition&) = delete;
   ExchangeTransition& operator=(const ExchangeTransition&) = delete;
@@ -179,8 +181,21 @@ class ExchangeTransition : public content::WebContentsObserver,
     if (!ui) {
       return;
     }
-    ui->RunWhenTreeShown(base::BindOnce(&ExchangeTransition::Exchange,
-                                        weak_factory_.GetWeakPtr()));
+    ui->RunWhenTreeShown(base::BindOnce(
+        &ExchangeTransition::ExchangeAfterSlide, weak_factory_.GetWeakPtr()));
+  }
+
+  // The old window's sidebar slides until |not_before_|; the new one starts
+  // where the slide ends.
+  void ExchangeAfterSlide() {
+    const base::TimeDelta slide_left = not_before_ - base::TimeTicks::Now();
+    if (!slide_left.is_positive()) {
+      Exchange();
+      return;
+    }
+    timeout_.Start(FROM_HERE, slide_left,
+                   base::BindOnce(&ExchangeTransition::Exchange,
+                                  base::Unretained(this)));
   }
 
   void Exchange() {
@@ -254,6 +269,7 @@ class ExchangeTransition : public content::WebContentsObserver,
 
   base::WeakPtr<BrowserWindowInterface> old_;
   base::WeakPtr<BrowserWindowInterface> window_;
+  const base::TimeTicks not_before_;
   base::OnceClosure leave_;
   base::OneShotTimer timeout_;
   bool exchanged_ = false;
@@ -277,8 +293,9 @@ void InstallSwapPresenter() {
   g_installed = true;
   SetSwapPresenter(base::BindRepeating([](BrowserWindowInterface* old,
                                           BrowserWindowInterface* window,
+                                          base::TimeDelta hold,
                                           base::OnceClosure leave) {
-    (new ExchangeTransition(old, window, std::move(leave)))->Start();
+    (new ExchangeTransition(old, window, hold, std::move(leave)))->Start();
   }));
 }
 

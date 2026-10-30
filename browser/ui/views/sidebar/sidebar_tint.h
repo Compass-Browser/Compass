@@ -79,6 +79,7 @@ class SidebarTint : public views::View,
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
   void OnSpacePreviewChanged() override;
+  void OnSwappedAway() override;
 
   // SpaceList::Observer:
   void OnSpaceUpdated(const SpaceModel& space) override;
@@ -98,6 +99,9 @@ class SidebarTint : public views::View,
   SkColor color_ = SK_ColorTRANSPARENT;
   // Where the fade started.
   SkColor from_ = SK_ColorTRANSPARENT;
+  // Once the window swaps away mid-slide, the color of the space it slides
+  // to, which the page can no longer blend toward.
+  std::optional<SkColor> swap_color_;
   gfx::LinearAnimation animation_;
   base::CallbackListSubscription paint_as_active_subscription_;
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{
