@@ -497,5 +497,29 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   EXPECT_TRUE(preloader->GetForTesting(profile_));
 }
 
+
+// After every switch, the profile left gets a preloaded sidebar again, and
+// the next switch back takes it.
+IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+                       EverySwitchFindsAPreloadedSidebar) {
+  SidebarPreloader* preloader = SidebarPreloader::Get();
+  preloader->SetRefillDelayForTesting(base::Milliseconds(10));
+  BrowserWindowInterface* shown = browser();
+  for (int i = 0; i < 4; ++i) {
+    const bool to_other = i % 2 == 0;
+    Profile* target = to_other ? other_.get() : profile_.get();
+    ASSERT_TRUE(
+        base::test::RunUntil([&] { return preloader->GetForTesting(target); }))
+        << "switch " << i;
+    content::WebContents* preloaded = preloader->GetForTesting(target);
+    shown = to_other ? SwitchToOther(shown) : SwitchBack(shown);
+    ASSERT_TRUE(shown);
+    StrataSidebarView* sidebar =
+        FindSidebar(BrowserView::GetBrowserViewForBrowser(shown));
+    ASSERT_TRUE(sidebar);
+    EXPECT_EQ(sidebar->GetWebContents(), preloaded) << "switch " << i;
+  }
+}
+
 }  // namespace
 }  // namespace strata

@@ -30,8 +30,8 @@ namespace strata {
 namespace {
 
 // Long enough for a window that just opened, or a switch that just finished,
-// to have painted.
-constexpr base::TimeDelta kRefillDelay = base::Seconds(2);
+// to have painted, and short enough to be ready for a switch right back.
+constexpr base::TimeDelta kRefillDelay = base::Seconds(1);
 
 }  // namespace
 
@@ -71,6 +71,10 @@ void SidebarPreloader::Refill() {
   SpaceDirectory* directory = SpaceDirectory::GetIfExists();
   if (!directory || browser_shutdown::IsTryingToQuit()) {
     return;
+  }
+  if (!observing_directory_) {
+    observing_directory_ = true;
+    directory->AddObserver(this);
   }
   // The profiles a window could switch from.
   base::flat_set<Profile*> window_profiles;
@@ -112,6 +116,10 @@ void SidebarPreloader::SetRefillDelayForTesting(base::TimeDelta delay) {
 void SidebarPreloader::OnProfileWillBeDestroyed(Profile* profile) {
   profile_observations_.RemoveObservation(profile);
   preloaded_.erase(profile);
+}
+
+void SidebarPreloader::OnDirectoryChanged() {
+  RefillLater();
 }
 
 void SidebarPreloader::Preload(Profile* profile) {

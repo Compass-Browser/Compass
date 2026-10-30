@@ -109,10 +109,11 @@ sidebar loaded per profile that a switch could go to, as upstream's
 - **Which profiles.** Each listed profile with an open normal window of
   another profile (any of those windows could switch to it). A single
   profile, or one with all the windows, has none.
-- **When.** `RefillLater()` refills 2 s after a sidebar joins a window and
-  after a switch has finished, so the preload doesn't compete with what is
-  painting. The switch took the new profile's; the profile left may now need
-  one.
+- **When.** `RefillLater()` refills 1 s after a sidebar joins a window,
+  after a switch has finished, and after the space directory changes (other
+  profiles load after the first window, at startup), so the preload doesn't
+  compete with what is painting. The switch took the new profile's; the
+  profile left may now need one.
 - **Taking it.** `StrataSidebarView` takes its profile's preloaded contents
   if there is one (not crashed, on the sidebar's URL), owns it and lets the
   `WebView` go of it before it dies. Hover card and context menu helpers are
@@ -125,6 +126,13 @@ sidebar loaded per profile that a switch could go to, as upstream's
 - **Lifetime.** Browser-wide (a `NoDestructor`, like upstream's), observing
   each profile it preloaded for: `OnProfileWillBeDestroyed()` drops that
   profile's. Nothing loads once the app is quitting.
+
+Measured in the fast build (2026-10-30), a switch with a preloaded sidebar
+spends ~40 ms building the window, ~15 ms waiting for the tree and ~20 ms in
+the exchange. What was left was the last frame held for the page: a page
+still loading waited for a first paint, up to `kMaxSwapWait` (750 ms). It
+now waits at most `kMaxPagePaintWait` (200 ms) and paints in place, and a
+page that has loaded only waits for a frame.
 
 The command bar's page, which a window loads as it opens, waits in a swap's
 window until the exchange is done (`IsCreatingSwapWindow()`,
@@ -250,7 +258,8 @@ The list below was the first idea's. What the exchange has
   (`TabsGoToAnotherWindowOnTheSpace`).
 - A switch takes the other profile's preloaded sidebar, which then gets its
   page handler and tree, and the profile left gets one
-  (`SwitchTakesThePreloadedSidebar`).
+  (`SwitchTakesThePreloadedSidebar`); four switches back and forth each find
+  one (`EverySwitchFindsAPreloadedSidebar`).
 - Picture-in-picture's "back to tab" switches the window back to a parked
   tab's profile (`BackToTabSwitchesProfiles`).
 

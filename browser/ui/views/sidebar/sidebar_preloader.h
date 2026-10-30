@@ -13,6 +13,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/profiles/profile_observer.h"
+#include "strata/browser/window_sync/space_directory.h"
 
 class Profile;
 
@@ -29,7 +30,8 @@ namespace strata {
 // gets one when taken (StrataSidebarUI). As upstream's
 // WebUIContentsPreloadManager does for tab search. See
 // docs/design/profiles-in-place.md, "Preloaded sidebars".
-class SidebarPreloader : public ProfileObserver {
+class SidebarPreloader : public ProfileObserver,
+                         public SpaceDirectory::Observer {
  public:
   static SidebarPreloader* Get();
 
@@ -41,7 +43,8 @@ class SidebarPreloader : public ProfileObserver {
   std::unique_ptr<content::WebContents> Take(Profile* profile);
 
   // Refills after kRefillDelay, so it doesn't compete with what is opening
-  // now. Called when a window opens, and when a switch has finished.
+  // now. Called when a window opens, when a switch has finished, and when
+  // the directory changes (a profile listed or loaded later).
   void RefillLater();
   // Preloads for every profile that needs it and has none: each listed
   // profile with an open window of another profile.
@@ -54,6 +57,9 @@ class SidebarPreloader : public ProfileObserver {
   // ProfileObserver:
   void OnProfileWillBeDestroyed(Profile* profile) override;
 
+  // SpaceDirectory::Observer:
+  void OnDirectoryChanged() override;
+
  private:
   friend class base::NoDestructor<SidebarPreloader>;
 
@@ -65,6 +71,9 @@ class SidebarPreloader : public ProfileObserver {
   base::flat_map<Profile*, std::unique_ptr<content::WebContents>> preloaded_;
   base::ScopedMultiSourceObservation<Profile, ProfileObserver>
       profile_observations_{this};
+  // The directory goes with the profile manager, at the end; this never
+  // goes, so it doesn't stop observing.
+  bool observing_directory_ = false;
   base::TimeDelta refill_delay_;
   base::OneShotTimer refill_timer_;
 };

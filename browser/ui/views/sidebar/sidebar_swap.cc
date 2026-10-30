@@ -36,9 +36,11 @@ namespace strata {
 
 namespace {
 
-// Long enough for a page loading from the network to show something; the
-// window never holds its last frame longer.
+// The window never holds its last frame longer.
 constexpr base::TimeDelta kMaxSwapWait = base::Milliseconds(750);
+// A page still loading paints in place after this: the window doesn't wait
+// for the network, as Arc's doesn't.
+constexpr base::TimeDelta kMaxPagePaintWait = base::Milliseconds(200);
 // A sidebar built hidden takes its tree in ~0.5 s in an optimized build, and
 // the window doesn't change until it has.
 constexpr base::TimeDelta kMaxTreeWait = base::Seconds(2);
@@ -113,16 +115,40 @@ class ExchangeTransition : public content::WebContentsObserver,
   // what it shows now.
   class PaintWaiter : public content::WebContentsObserver {
    public:
-    // Unless |first_paint|, a frame is enough: the sidebar has its tree, and
-    // its first paint, made hidden, may never be reported.
+    // A frame is enough for what has its content: the sidebar, which has its
+    // tree, and a page that has loaded. A first paint made hidden may never
+    // be reported. A page (|first_paint|) still loading waits for its first
+    // paint or, failing that, a frame once it has loaded; a page waits at
+    // most kMaxPagePaintWait.
     PaintWaiter(content::WebContents* contents,
                 bool first_paint,
                 base::OnceClosure painted)
         : painted_(std::move(painted)) {
-      if (first_paint && !contents->CompletedFirstVisuallyNonEmptyPaint()) {
+      if (first_paint) {
+        deadline_.Start(FROM_HERE, kMaxPagePaintWait,
+                        base::BindOnce(&PaintWaiter::Painted,
+                                       base::Unretained(this)));
+      }
+      if (first_paint && !contents->CompletedFirstVisuallyNonEmptyPaint() &&
+          contents->IsLoading()) {
         Observe(contents);
         return;
       }
+      WaitForFrame(contents);
+    }
+
+    void DidFirstVisuallyNonEmptyPaint() override { Painted(); }
+    void DidStopLoading() override {
+      content::WebContents* contents = web_contents();
+      Observe(nullptr);
+      WaitForFrame(contents);
+    }
+    void WebContentsDestroyed() override { Painted(); }
+
+    bool waiting() const { return !painted_.is_null(); }
+
+   private:
+    void WaitForFrame(content::WebContents* contents) {
       contents->GetPrimaryMainFrame()->InsertVisualStateCallback(
           base::BindOnce(
               [](base::WeakPtr<PaintWaiter> waiter, bool) {
@@ -133,13 +159,8 @@ class ExchangeTransition : public content::WebContentsObserver,
               weak_factory_.GetWeakPtr()));
     }
 
-    void DidFirstVisuallyNonEmptyPaint() override { Painted(); }
-    void WebContentsDestroyed() override { Painted(); }
-
-    bool waiting() const { return !painted_.is_null(); }
-
-   private:
     void Painted() {
+      deadline_.Stop();
       Observe(nullptr);
       if (painted_) {
         std::move(painted_).Run();
@@ -147,6 +168,7 @@ class ExchangeTransition : public content::WebContentsObserver,
     }
 
     base::OnceClosure painted_;
+    base::OneShotTimer deadline_;
     base::WeakPtrFactory<PaintWaiter> weak_factory_{this};
   };
 
