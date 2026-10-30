@@ -42,6 +42,7 @@ constexpr char kUrlKey[] = "url";
 constexpr char kChildrenKey[] = "children";
 constexpr char kLastActiveKey[] = "last_active";
 constexpr char kCollapsedKey[] = "collapsed";
+constexpr char kCustomTitleKey[] = "custom_title";
 constexpr char kArchiveAfterKey[] = "archive_after_hours";
 constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
@@ -72,6 +73,9 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       dict.Set(kUrlKey, node.url().spec());
       if (!node.last_active().is_null()) {
         dict.Set(kLastActiveKey, base::TimeToValue(node.last_active()));
+      }
+      if (!node.custom_title().empty()) {
+        dict.Set(kCustomTitleKey, base::UTF16ToUTF8(node.custom_title()));
       }
       break;
     case SidebarNode::Type::kFolder:
@@ -113,13 +117,17 @@ base::ListValue SerializeSection(const SidebarNode& root, bool today) {
   return entries;
 }
 
-void SetLastActive(const base::DictValue& dict,
-                   SpaceModel& model,
-                   SidebarNode* tab) {
+// A tab's saved state besides its URL and title.
+void SetTabState(const base::DictValue& dict,
+                 SpaceModel& model,
+                 SidebarNode* tab) {
   if (const base::Value* value = dict.Find(kLastActiveKey)) {
     if (std::optional<base::Time> time = base::ValueToTime(*value)) {
       model.SetLastActive(tab, *time);
     }
+  }
+  if (const std::string* custom_title = dict.FindString(kCustomTitleKey)) {
+    model.SetCustomTitle(tab, base::UTF8ToUTF16(*custom_title));
   }
 }
 
@@ -142,9 +150,9 @@ bool DeserializeNode(const base::DictValue& dict,
       return false;
     }
     const std::string* url = dict.FindString(kUrlKey);
-    SetLastActive(dict, model,
-                  model.AddTab(parent, index, GURL(url ? *url : std::string()),
-                               std::move(title16)));
+    SetTabState(dict, model,
+                model.AddTab(parent, index, GURL(url ? *url : std::string()),
+                             std::move(title16)));
     return true;
   }
 
@@ -187,7 +195,7 @@ bool DeserializeNode(const base::DictValue& dict,
       panes.push_back(model.AddTab(
           parent, index + panes.size(), GURL(url ? *url : std::string()),
           pane_title ? base::UTF8ToUTF16(*pane_title) : u""));
-      SetLastActive(*pane, model, panes.back());
+      SetTabState(*pane, model, panes.back());
     }
     if (panes.empty()) {
       return false;

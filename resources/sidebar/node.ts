@@ -39,14 +39,15 @@ export class StrataSidebarNodeElement extends CrLitElement {
       activeId: {type: String},
       // Whose icons the entries show: the tree's profile.
       profileId: {type: String},
-      editing_: {type: Boolean, state: true},
+      editingId_: {type: String, state: true},
     };
   }
 
   accessor node: Node|null = null;
   accessor activeId: string|null = null;
   accessor profileId: string|null = null;
-  protected accessor editing_: boolean = false;
+  // The node whose name shows as an input: this folder or tab, or a pane.
+  protected accessor editingId_: string|null = null;
 
   protected isTab_(): boolean {
     return this.node?.type === NodeType.kTab;
@@ -73,7 +74,11 @@ export class StrataSidebarNodeElement extends CrLitElement {
   }
 
   protected getTitle_(node: Node): string {
-    return node.title || node.url || 'New Tab';
+    return node.customTitle || node.title || node.url || 'New Tab';
+  }
+
+  protected isEditing_(node: Node): boolean {
+    return node.id === this.editingId_;
   }
 
   protected getCloseLabel_(node: Node): string {
@@ -108,56 +113,85 @@ export class StrataSidebarNodeElement extends CrLitElement {
 
   protected onFolderTitleDblclick_(e: Event) {
     e.stopPropagation();
-    this.startRename();
+    this.startRename(this.node!.id);
   }
 
-  // Shows a folder's name as an input, selected.
-  async startRename() {
-    if (!this.isFolder_()) {
+  // As in Arc, double-clicking a tab names it.
+  protected onTabDblclick_(e: Event) {
+    e.stopPropagation();
+    this.startRename(this.getNodeId_(e));
+  }
+
+  // Shows the name of this folder or tab, or of pane |id|, as an input,
+  // selected.
+  async startRename(id: string) {
+    const node = this.node?.id === id ?
+        this.node :
+        this.getChildren_().find(pane => pane.id === id && this.isSplit_());
+    if (!node || node.type === NodeType.kSplit) {
       return;
     }
-    this.editing_ = true;
+    this.editingId_ = id;
     await this.updateComplete;
-    const input = this.querySelector<HTMLInputElement>('.folder-title-input');
-    input?.select();
+    this.querySelector<HTMLInputElement>('.title-input')?.select();
   }
 
   protected onTitleInputClick_(e: Event) {
-    // Clicking into the name shouldn't collapse the folder.
+    // Clicking into the name shouldn't collapse the folder or activate the
+    // tab.
+    e.stopPropagation();
+  }
+
+  protected onTitleInputDblclick_(e: Event) {
+    // Selecting a word in the name shouldn't start another rename.
     e.stopPropagation();
   }
 
   protected onTitleKeydown_(e: KeyboardEvent) {
+    // Keys typed into the name aren't the list's.
+    e.stopPropagation();
     if (e.key === 'Enter') {
       this.commitRename_(e.target as HTMLInputElement);
     } else if (e.key === 'Escape') {
-      this.editing_ = false;
-      this.updateComplete.then(() => {
-        this.querySelector<HTMLElement>('.folder-row')?.focus();
-      });
+      const id = this.editingId_;
+      this.editingId_ = null;
+      this.updateComplete.then(() => this.focusRow_(id));
     }
+  }
+
+  private focusRow_(id: string|null) {
+    this.querySelector<HTMLElement>(
+            `.folder-row[data-node-id="${id}"], .tab[data-node-id="${id}"]`)
+        ?.focus();
   }
 
   protected onTitleBlur_(e: Event) {
     this.commitRename_(e.target as HTMLInputElement);
   }
 
+  // A folder needs a name; a tab without one goes back to its page's title.
   private commitRename_(input: HTMLInputElement) {
-    if (!this.editing_) {
+    const id = this.editingId_;
+    const node = this.node?.id === id ?
+        this.node :
+        this.getChildren_().find(pane => pane.id === id);
+    if (!id || !node) {
       return;
     }
     // Enter leaves the focus on the row; a blur leaves it where it went.
     const hadFocus = input.matches(':focus');
-    this.editing_ = false;
+    this.editingId_ = null;
     if (hadFocus) {
-      this.updateComplete.then(() => {
-        this.querySelector<HTMLElement>('.folder-row')?.focus();
-      });
+      this.updateComplete.then(() => this.focusRow_(id));
     }
     const title = input.value.trim();
-    if (title && title !== this.node!.title) {
-      SidebarBrowserProxy.getInstance().handler.renameFolder(
-          this.node!.id, title);
+    const handler = SidebarBrowserProxy.getInstance().handler;
+    if (node.type === NodeType.kFolder) {
+      if (title && title !== node.title) {
+        handler.renameFolder(id, title);
+      }
+    } else if (title !== this.getTitle_(node)) {
+      handler.renameTab(id, title === node.title ? '' : title);
     }
   }
 }

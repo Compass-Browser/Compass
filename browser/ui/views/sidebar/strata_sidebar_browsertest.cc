@@ -1303,7 +1303,7 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, ContextMenus) {
   EXPECT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
       const root = document.querySelector('strata-sidebar-app').shadowRoot;
-      while (root.activeElement?.className !== 'folder-title-input') {
+      while (!root.activeElement?.classList.contains('folder-title-input')) {
         await new Promise(r => setTimeout(r, 20));
       }
       return true;
@@ -1340,6 +1340,46 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
                                                              .Append("One")
                                                              .Append("Two")
                                                              .Append("Three"))));
+}
+
+// Double-clicks the tab row titled $1, types $2 into its name and presses
+// Enter. Returns the row's title once it shows $3.
+constexpr char kRenameTab[] = R"(
+  (async (title, name, shown) => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const until = async (f) => {
+      while (!f()) await new Promise(r => setTimeout(r, 20));
+      return f();
+    };
+    const row = await until(() => [...root.querySelectorAll('.tab.row')]
+        .find(r => r.title === title));
+    row.dispatchEvent(new MouseEvent('dblclick', {bubbles: true}));
+    const input = await until(() => root.activeElement?.classList.contains(
+        'tab-title-input') && root.activeElement);
+    input.value = name;
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}));
+    return (await until(() => [...root.querySelectorAll('.tab.row')]
+        .find(r => r.title === shown))).querySelector('.title')
+        .textContent.trim();
+  })($1, $2, $3))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DoubleClickRenamesATab) {
+  content::WebContents* contents = sidebar_contents();
+  OpenThreeTabs(browser(), contents);
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  SidebarNode* two = model.today_root()->children()[1].get();
+  ASSERT_EQ(two->title(), u"Two");
+
+  EXPECT_EQ("Second", content::EvalJs(contents,
+                                      content::JsReplace(kRenameTab, "Two",
+                                                         "Second", "Second")));
+  EXPECT_EQ(two->custom_title(), u"Second");
+
+  // An empty name goes back to the page's title.
+  EXPECT_EQ("Two", content::EvalJs(contents, content::JsReplace(
+                                                 kRenameTab, "Second", "",
+                                                 "Two")));
+  EXPECT_TRUE(two->custom_title().empty());
 }
 
 // Presses |key| on the focused row, and returns the title of the row focused

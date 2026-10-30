@@ -178,6 +178,8 @@ class SpaceModel {
   void Remove(SidebarNode* node);
 
   void SetTitle(SidebarNode* node, std::u16string title);
+  // Names a tab; empty goes back to its page's title.
+  void SetCustomTitle(SidebarNode* tab, std::u16string title);
   void SetUrl(SidebarNode* tab, const GURL& url);
   void SetLastActive(SidebarNode* tab, base::Time time);
   // Observers see OnNodeChanged().

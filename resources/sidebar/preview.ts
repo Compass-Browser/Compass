@@ -18,6 +18,7 @@ const NEW_TAB: Node = {
   id: 'preview-new-tab',
   type: NodeType.kTab,
   title: 'New tab',
+  customTitle: '',
   url: 'chrome://newtab/',
   live: true,
   collapsed: false,

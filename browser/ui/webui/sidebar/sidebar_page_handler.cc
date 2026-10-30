@@ -299,6 +299,17 @@ void SidebarPageHandler::RenameFolder(const std::string& id,
   }
 }
 
+void SidebarPageHandler::RenameTab(const std::string& id,
+                                   const std::string& title) {
+  SidebarNode* node = FindNode(id);
+  if (!node || node->type() != SidebarNode::Type::kTab) {
+    return;
+  }
+  std::u16string title16;
+  base::TrimWhitespace(base::UTF8ToUTF16(title), base::TRIM_ALL, &title16);
+  GetModelOf(node).SetCustomTitle(node, std::move(title16));
+}
+
 void SidebarPageHandler::SetFolderCollapsed(const std::string& id,
                                             bool collapsed) {
   SidebarNode* node = FindNode(id);
@@ -541,6 +552,10 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
     live |= registry().GetTab(pane.get()) != nullptr;
   }
   if (node->type() == SidebarNode::Type::kTab) {
+    // A favorite's tile shows no name.
+    if (!favorite) {
+      menu->AddItem(kRename, u"Rename");
+    }
     menu->AddItem(kCopyLink, u"Copy Link");
     if (entry) {
       menu->AddItem(kDuplicate, u"Duplicate");
@@ -623,7 +638,8 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
       }
       break;
     case kRename:
-      if (node->type() == SidebarNode::Type::kFolder) {
+      if (node->type() == SidebarNode::Type::kFolder ||
+          node->type() == SidebarNode::Type::kTab) {
         page_->StartRename(id);
       }
       break;
@@ -651,7 +667,8 @@ void SidebarPageHandler::OnNodeMoved(const SidebarNode& node,
 
 void SidebarPageHandler::OnNodeChanged(const SidebarNode& node) {
   page_->NodeChanged(node.id().AsLowercaseString(),
-                     base::UTF16ToUTF8(node.title()), node.url(),
+                     base::UTF16ToUTF8(node.title()),
+                     base::UTF16ToUTF8(node.custom_title()), node.url(),
                      node.collapsed());
 }
 
@@ -852,6 +869,7 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   result->id = node.id().AsLowercaseString();
   result->type = ToMojoType(node.type());
   result->title = base::UTF16ToUTF8(node.title());
+  result->custom_title = base::UTF16ToUTF8(node.custom_title());
   result->url = node.url();
   // Live in any window: activating it here moves it here.
   result->live = registry.GetTab(&node) != nullptr;

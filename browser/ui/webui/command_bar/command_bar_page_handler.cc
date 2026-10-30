@@ -111,8 +111,8 @@ void ForEachTab(const SidebarNode& node, Visit&& visit) {
 }
 
 std::u16string GetEntryTitle(const SidebarNode& node) {
-  return node.title().empty() ? base::UTF8ToUTF16(node.url().spec())
-                              : node.title();
+  return node.display_title().empty() ? base::UTF8ToUTF16(node.url().spec())
+                                      : node.display_title();
 }
 
 }  // namespace
@@ -323,10 +323,11 @@ void CommandBarPageHandler::AddEntryItems(std::vector<Item>& items) {
     for (const SidebarNode* root : {space->pinned_root(), space->today_root()}) {
       ForEachTab(*root, [&](const SidebarNode& node) {
         if (count == kMaxEntries ||
-            !ContainsAll(base::i18n::ToLower(node.title() + u" " +
-                                             base::UTF8ToUTF16(
-                                                 node.url().spec())),
-                         words)) {
+            !ContainsAll(
+                base::i18n::ToLower(node.custom_title() + u" " + node.title() +
+                                    u" " +
+                                    base::UTF8ToUTF16(node.url().spec())),
+                words)) {
           return;
         }
         items.push_back(EntryItem(node, *space));

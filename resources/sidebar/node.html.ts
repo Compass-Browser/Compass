@@ -15,9 +15,16 @@ ${this.isTab_() ? html`
       data-node-id="${this.node!.id}"
       aria-selected="${this.isActive_(this.node!)}"
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
-      title="${this.getTitle_(this.node!)}" @click="${this.onTabClick_}">
+      title="${this.getTitle_(this.node!)}" @click="${this.onTabClick_}"
+      @dblclick="${this.onTabDblclick_}">
     <img class="favicon" src="${this.getFaviconUrl_(this.node!)}" alt="">
-    <span class="title">${this.getTitle_(this.node!)}</span>
+    ${this.isEditing_(this.node!) ? html`
+      <input class="title-input tab-title-input"
+          .value="${this.getTitle_(this.node!)}" aria-label="Tab name"
+          @click="${this.onTitleInputClick_}"
+          @dblclick="${this.onTitleInputDblclick_}"
+          @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
+      <span class="title">${this.getTitle_(this.node!)}</span>`}
     <button class="close" data-node-id="${this.node!.id}"
         aria-label="${this.getCloseLabel_(this.node!)}"
         @click="${this.onCloseClick_}">&times;</button>
@@ -29,9 +36,16 @@ ${this.isSplit_() ? html`
           data-node-id="${pane.id}"
           aria-selected="${this.isActive_(pane)}"
           ?active="${this.isActive_(pane)}" ?unloaded="${!pane.live}"
-          title="${this.getTitle_(pane)}" @click="${this.onTabClick_}">
+          title="${this.getTitle_(pane)}" @click="${this.onTabClick_}"
+          @dblclick="${this.onTabDblclick_}">
         <img class="favicon" src="${this.getFaviconUrl_(pane)}" alt="">
-        <span class="title">${this.getTitle_(pane)}</span>
+        ${this.isEditing_(pane) ? html`
+          <input class="title-input tab-title-input"
+              .value="${this.getTitle_(pane)}" aria-label="Tab name"
+              @click="${this.onTitleInputClick_}"
+              @dblclick="${this.onTitleInputDblclick_}"
+              @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
+          <span class="title">${this.getTitle_(pane)}</span>`}
         <button class="close" data-node-id="${pane.id}"
             aria-label="${this.getCloseLabel_(pane)}"
             @click="${this.onCloseClick_}">&times;</button>
@@ -42,8 +56,8 @@ ${this.isFolder_() ? html`
       role="treeitem" tabindex="-1" aria-expanded="${!this.isCollapsed_()}"
       @click="${this.onFolderClick_}">
     <span class="chevron" ?collapsed="${this.isCollapsed_()}"></span>
-    ${this.editing_ ? html`
-      <input class="folder-title-input" .value="${this.node!.title}"
+    ${this.isEditing_(this.node!) ? html`
+      <input class="title-input folder-title-input" .value="${this.node!.title}"
           aria-label="Folder name" @click="${this.onTitleInputClick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title" @dblclick="${this.onFolderTitleDblclick_}">

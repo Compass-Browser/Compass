@@ -87,6 +87,27 @@ TEST(SidebarSerializerTest, RoundTripsFolderCollapseState) {
   EXPECT_FALSE(restored.pinned_root()->children()[1]->collapsed());
 }
 
+TEST(SidebarSerializerTest, RoundTripsCustomTitles) {
+  SpaceModel model;
+  SidebarNode* pinned = model.pinned_root();
+  SidebarNode* mail =
+      model.AddTab(pinned, 0, GURL("https://mail.test/"), u"Mail (3)");
+  SidebarNode* a = model.AddTab(pinned, 1, GURL("https://a.test/"), u"A");
+  SidebarNode* b = model.AddTab(pinned, 2, GURL("https://b.test/"), u"B");
+  model.Split(a, b);
+  model.SetCustomTitle(mail, u"Inbox");
+  model.SetCustomTitle(b, u"Bee");
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  ASSERT_EQ(Describe(restored.pinned_root()), "Mail (3),[A|B]");
+  const auto& entries = restored.pinned_root()->children();
+  EXPECT_EQ(entries[0]->custom_title(), u"Inbox");
+  EXPECT_TRUE(entries[1]->children()[0]->custom_title().empty());
+  EXPECT_EQ(entries[1]->children()[1]->custom_title(), u"Bee");
+}
+
 TEST(SidebarSerializerTest, SavesTodayWithoutNewTabPages) {
   SpaceModel model;
   SidebarNode* today = model.today_root();

@@ -255,7 +255,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       router.setArchive.addListener(
           (entries: ArchivedEntry[]) => this.archive_ = entries),
       router.startRename.addListener((id: string) => {
-        this.getRow_(id)?.closest('strata-sidebar-node')?.startRename();
+        this.getRow_(id)?.closest('strata-sidebar-node')?.startRename(id);
       }),
     ];
     // Diffs that arrive before the tree are about nodes the page doesn't know
@@ -816,7 +816,7 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   // Arrows move between rows; Left and Right also collapse, expand and go to
   // the parent folder. Enter or Space activates a tab or toggles a folder,
-  // Delete closes a tab, and F2 renames a folder.
+  // Delete closes a tab, and F2 renames a tab or folder.
   protected onSectionsKeydown_(e: KeyboardEvent) {
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT') {
@@ -890,10 +890,7 @@ export class StrataSidebarAppElement extends CrLitElement {
         this.browserProxy_.handler.closeNode(id);
         break;
       case 'F2':
-        if (!isFolder) {
-          return;
-        }
-        target.closest('strata-sidebar-node')?.startRename();
+        target.closest('strata-sidebar-node')?.startRename(id);
         break;
       default:
         return;
@@ -1872,7 +1869,8 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   private onNodeChanged_(
-      id: string, title: string, url: string, collapsed: boolean) {
+      id: string, title: string, customTitle: string, url: string,
+      collapsed: boolean) {
     const node = this.nodes_.get(id);
     if (!node) {
       return;
@@ -1882,6 +1880,7 @@ export class StrataSidebarAppElement extends CrLitElement {
       this.prepareFlip_();
     }
     node.title = title;
+    node.customTitle = customTitle;
     node.url = url;
     node.collapsed = collapsed;
     this.requestUpdate();

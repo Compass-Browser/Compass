@@ -234,6 +234,17 @@ void SpaceModel::SetTitle(SidebarNode* node, std::u16string title) {
   }
 }
 
+void SpaceModel::SetCustomTitle(SidebarNode* tab, std::u16string title) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  if (tab->custom_title_ == title) {
+    return;
+  }
+  tab->custom_title_ = std::move(title);
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*tab);
+  }
+}
+
 void SpaceModel::SetUrl(SidebarNode* tab, const GURL& url) {
   CHECK_EQ(tab->type(), Type::kTab);
   tab->url_ = url;

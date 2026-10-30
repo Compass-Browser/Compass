@@ -95,6 +95,7 @@ class FakePage : public sidebar::mojom::Page {
   }
   void NodeChanged(const std::string& id,
                    const std::string& title,
+                   const std::string& custom_title,
                    const GURL& url,
                    bool collapsed) override {
     hosts_[id] = std::string(url.host());
@@ -696,8 +697,8 @@ TEST_F(SidebarPageHandlerTest, ClosingAnUnloadedFavoriteRemovesIt) {
 
 TEST_F(SidebarPageHandlerTest, TodayEntryMenu) {
   EXPECT_THAT(MenuCommands(TodayId(0)),
-              ElementsAre(Command::kCopyLink, Command::kDuplicate,
-                          Command::kReload, Command::kPin,
+              ElementsAre(Command::kRename, Command::kCopyLink,
+                          Command::kDuplicate, Command::kReload, Command::kPin,
                           Command::kAddToFavorites, Command::kCloseTab));
   EXPECT_THAT(MenuCommands(TodayRootId()), IsEmpty());
   EXPECT_THAT(MenuCommands("not-a-uuid"), IsEmpty());
@@ -714,8 +715,8 @@ TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
   EXPECT_EQ(space_model().pinned_root()->children()[0]->id().AsLowercaseString(),
             b);
   EXPECT_THAT(MenuCommands(b),
-              ElementsAre(Command::kCopyLink, Command::kDuplicate,
-                          Command::kReload, Command::kUnpin,
+              ElementsAre(Command::kRename, Command::kCopyLink,
+                          Command::kDuplicate, Command::kReload, Command::kUnpin,
                           Command::kAddToFavorites, Command::kCloseTab,
                           Command::kRemove));
 
@@ -832,6 +833,38 @@ TEST_F(SidebarPageHandlerTest, FolderMenu) {
 
   Choose(id, Command::kRemove);
   EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
+}
+
+TEST_F(SidebarPageHandlerTest, RenamesTabs) {
+  const std::string a = TodayId(0);
+  SidebarNode* node = space_model().today_root()->children()[0].get();
+  page_.TakeEvents();
+
+  Choose(a, Command::kRename);
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("rename " + a));
+
+  handler_remote_->RenameTab(a, "  Inbox ");
+  Settle();
+  EXPECT_EQ(node->custom_title(), u"Inbox");
+  EXPECT_EQ(GetTree()->today->children[0]->custom_title, "Inbox");
+  // The page's title goes on changing underneath.
+  space_model().SetTitle(node, u"Mail (3)");
+  EXPECT_EQ(node->display_title(), u"Inbox");
+
+  // A blank name goes back to the page's title.
+  handler_remote_->RenameTab(a, " ");
+  Settle();
+  EXPECT_TRUE(node->custom_title().empty());
+  EXPECT_EQ(node->display_title(), u"Mail (3)");
+
+  // Only tabs.
+  handler_remote_->AddFolder(PinnedId(), 0, "Work");
+  Settle();
+  SidebarNode* folder = space_model().pinned_root()->children()[0].get();
+  handler_remote_->RenameTab(folder->id().AsLowercaseString(), "Job");
+  Settle();
+  EXPECT_TRUE(folder->custom_title().empty());
+  EXPECT_EQ(folder->title(), u"Work");
 }
 
 TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {

@@ -664,6 +664,29 @@ browser test `FolderCollapseIsShared` (clicking collapses it in the model;
 a second window shows it collapsed; expanding in the model expands both
 pages).
 
+## Renaming tabs
+
+As in Arc, a tab entry (pinned, Today or a split's pane) can be given a
+name: double-click its row, press F2 on it, or choose Rename in its context
+menu (not on favorites, whose tiles show no name). The name shows as an
+input, selected; Enter or leaving it keeps it, Escape drops it. An empty
+name, or the page's own title, removes the name.
+
+The name is `SidebarNode::custom_title()`, next to `title()`, the page's
+title, which the bridge keeps updating underneath. `display_title()` is
+the name if there is one. `SpaceModel::SetCustomTitle()` notifies
+`OnNodeChanged()`, so every window shows it, and the store saves it as
+`"custom_title"` on the tab (also on panes). The page gets
+`Node.customTitle` in the tree and in `NodeChanged`, and calls
+`RenameTab(id, title)`. The command bar shows the name and matches both
+it and the page title. Hover cards show the page's own title.
+
+Not kept: an archived entry comes back with its page title only, and a
+duplicated entry has no name.
+
+**Tests:** `RoundTripsCustomTitles`, `SidebarPageHandlerTest.RenamesTabs`,
+the menu tests, and the browser test `DoubleClickRenamesATab`.
+
 ## Motion
 
 Entries move instead of jumping. Before the page applies a diff

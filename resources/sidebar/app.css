@@ -593,7 +593,7 @@ strata-sidebar-node {
   transform: none;
 }
 
-.folder-title-input {
+.title-input {
   background: rgba(128, 128, 128, 0.15);
   border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 4px;

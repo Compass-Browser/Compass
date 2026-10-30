@@ -36,7 +36,15 @@ class SidebarNode {
 
   const base::Uuid& id() const { return id_; }
   Type type() const { return type_; }
+  // A tab's page title, a folder's name.
   const std::u16string& title() const { return title_; }
+  // The name the user gave a tab, or empty. Kept while its page's title
+  // changes, and saved.
+  const std::u16string& custom_title() const { return custom_title_; }
+  // What the sidebar shows: the custom title, else the title.
+  const std::u16string& display_title() const {
+    return custom_title_.empty() ? title_ : custom_title_;
+  }
   const GURL& url() const { return url_; }
   // When a tab node was last shown in a window, or null if that's unknown
   // (see SpaceModel::ArchiveIdleEntries()). Unset for other nodes.
@@ -64,6 +72,7 @@ class SidebarNode {
   const base::Uuid id_;
   const Type type_;
   std::u16string title_;
+  std::u16string custom_title_;
   GURL url_;
   base::Time last_active_;
   bool collapsed_ = false;
