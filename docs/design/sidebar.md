@@ -686,6 +686,24 @@ moves it with its tabs.
 `RoundTripsTodayFolders`, `SidebarPageHandlerTest.FoldersInToday` and the
 browser test `FoldersInToday`.
 
+## Tab groups
+
+Strata has folders, not tab groups. A group made upstream (an extension's
+`chrome.tabs.group()`, a page's or menu's "Add to group", session restore
+of an older profile) becomes a Today folder, and the group ends:
+`TabStripBridge::ConvertGroups()`, half a second after the change (so an
+extension can name the group first), makes a folder where the group's
+first Today entry was, named after the group ("Group" if it has no name),
+collapsed if the group was, moves the group's Today entries into it in
+strip order (a split whole), and takes the tabs out of the group
+(`RemoveFromGroup()`). Pinned entries in a group only leave the group.
+
+Keeping groups alive next to folders would fight the strip's order:
+upstream puts a tab moved into a group's range into the group. So
+extensions see the group end; its color isn't kept (folders have none).
+
+**Tests:** `TabStripBridgeTest.TabGroupsBecomeFolders`.
+
 ## Split tabs
 
 A split entry (`SidebarNode::Type::kSplit`, two panes, saved since slice

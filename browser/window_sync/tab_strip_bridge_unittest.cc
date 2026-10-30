@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -24,6 +25,9 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/split_tabs/split_tab_visual_data.h"
+#include "components/tab_groups/tab_group_color.h"
+#include "components/tab_groups/tab_group_id.h"
+#include "components/tab_groups/tab_group_visual_data.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/restore_type.h"
@@ -396,6 +400,29 @@ TEST_F(TabStripBridgeTest, ForegroundAndTypedTabsDontMakeFolders) {
   for (const auto& entry : space_model().today_root()->children()) {
     EXPECT_NE(entry->type(), Type::kFolder);
   }
+}
+
+TEST_F(TabStripBridgeTest, TabGroupsBecomeFolders) {
+  OpenTabs({"a.test", "b.test", "c.test", "d.test"});
+  ASSERT_TRUE(tab_strip_model()->SupportsTabGroups());
+
+  const tab_groups::TabGroupId group =
+      tab_strip_model()->AddToNewGroup({1, 2});
+  tab_strip_model()->ChangeTabGroupVisuals(
+      group, tab_groups::TabGroupVisualData(
+                 u"Trip", tab_groups::TabGroupColorId::kBlue,
+                 /*is_collapsed=*/true));
+  Settle();
+
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("a.test", "{b.test,c.test}", "d.test"));
+  const SidebarNode* folder = TodayAt(1);
+  EXPECT_EQ(folder->title(), u"Trip");
+  EXPECT_TRUE(folder->collapsed());
+  // The group is gone; the tabs stay, in the tree's order.
+  EXPECT_TRUE(tab_strip_model()->group_model()->ListTabGroups().empty());
+  EXPECT_THAT(StripHosts(),
+              ElementsAre("a.test", "b.test", "c.test", "d.test"));
 }
 
 TEST_F(TabStripBridgeTest, NewTabFollowsTheTabBeforeIt) {

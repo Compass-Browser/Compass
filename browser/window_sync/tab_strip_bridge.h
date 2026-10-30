@@ -99,6 +99,12 @@ class TabStripBridge : public TabStripModelObserver,
                       TabChangeType change_type) override;
   void OnTabStripModelDestroyed(TabStripModel* tab_strip_model) override;
   void OnSplitTabChanged(const SplitTabChange& change) override;
+  void TabGroupedStateChanged(TabStripModel* tab_strip_model,
+                              std::optional<tab_groups::TabGroupId> old_group,
+                              std::optional<tab_groups::TabGroupId> new_group,
+                              tabs::TabInterface* tab,
+                              int index) override;
+  void OnTabGroupChanged(const TabGroupChange& change) override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -129,6 +135,11 @@ class TabStripBridge : public TabStripModelObserver,
   // separated them, and the model follows. Pinned panes that closed keep
   // their split.
   void OnUpstreamSplitRemoved(std::vector<tabs::TabHandle> tabs);
+  // Tab groups (docs/design/sidebar.md, "Tab groups"): each upstream group
+  // becomes a Today folder, and the group ends.
+  void ScheduleConvertGroups();
+  void ConvertGroups();
+
   // Ends the upstream splits that aren't model splits.
   void RemoveUnmirroredSplits();
   // Makes upstream splits of the model splits live here.
@@ -229,6 +240,9 @@ class TabStripBridge : public TabStripModelObserver,
   // Today folders made for links opened from pinned entries and favorites,
   // by the opener's node.
   base::flat_map<base::Uuid, base::Uuid> link_folders_;
+
+  // Set while a ConvertGroups() task is pending.
+  bool convert_groups_scheduled_ = false;
 
   // This window's placeholder tabs, and the nodes they stand for.
   base::flat_map<tabs::TabHandle, base::Uuid> placeholders_;

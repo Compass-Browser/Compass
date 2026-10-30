@@ -25,11 +25,14 @@
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/split_tabs/split_tab_visual_data.h"
+#include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/split_tab_data.h"
+#include "components/tabs/public/tab_group.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -44,6 +47,7 @@
 #include "ui/base/window_open_disposition.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/range/range.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace strata {
@@ -61,6 +65,9 @@ std::u16string GetLinkFolderTitle(const SidebarNode& opener) {
   }
   return base::UTF8ToUTF16(tab->url().host());
 }
+
+// How long an upstream tab group lives before it becomes a folder.
+constexpr base::TimeDelta kConvertGroupsDelay = base::Milliseconds(500);
 
 // How long a tab that's leaving may take to hand over its last frame.
 constexpr base::TimeDelta kSnapshotTimeout = base::Seconds(1);
@@ -452,6 +459,85 @@ void TabStripBridge::OnSplitTabChanged(const SplitTabChange& change) {
     case SplitTabChange::Type::kVisualsChanged:
       break;
   }
+}
+
+void TabStripBridge::TabGroupedStateChanged(
+    TabStripModel* tab_strip_model,
+    std::optional<tab_groups::TabGroupId> old_group,
+    std::optional<tab_groups::TabGroupId> new_group,
+    tabs::TabInterface* tab,
+    int index) {
+  if (!updating_ && new_group) {
+    ScheduleConvertGroups();
+  }
+}
+
+void TabStripBridge::OnTabGroupChanged(const TabGroupChange& change) {
+  if (!updating_) {
+    ScheduleConvertGroups();
+  }
+}
+
+void TabStripBridge::ScheduleConvertGroups() {
+  if (convert_groups_scheduled_) {
+    return;
+  }
+  convert_groups_scheduled_ = true;
+  // A moment later, so whoever made the group (an extension, say) can name
+  // it first.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&TabStripBridge::ConvertGroups,
+                     weak_factory_.GetWeakPtr()),
+      kConvertGroupsDelay);
+}
+
+void TabStripBridge::ConvertGroups() {
+  convert_groups_scheduled_ = false;
+  if (!tab_strip_model_ || !tab_strip_model_->SupportsTabGroups()) {
+    return;
+  }
+  SidebarNode* today = space_model_->today_root();
+  base::AutoReset<bool> updating(&updating_, true);
+  for (const tab_groups::TabGroupId& group_id :
+       tab_strip_model_->group_model()->ListTabGroups()) {
+    const TabGroup* group =
+        tab_strip_model_->group_model()->GetTabGroup(group_id);
+    const gfx::Range range = group->ListTabs();
+    std::vector<int> indices;
+    // Its Today entries, a split once, in strip order. Pinned entries stay
+    // pinned; they only leave the group.
+    std::vector<SidebarNode*> entries;
+    for (size_t i = range.start(); i < range.end(); ++i) {
+      indices.push_back(static_cast<int>(i));
+      SidebarNode* node = GetNode(tab_strip_model_->GetTabAtIndex(i));
+      if (!node || !today->Contains(node)) {
+        continue;
+      }
+      if (node->parent()->type() == SidebarNode::Type::kSplit) {
+        node = node->parent();
+      }
+      if (!std::ranges::contains(entries, node)) {
+        entries.push_back(node);
+      }
+    }
+    if (!entries.empty()) {
+      // Where its first entry is, at the top level of Today.
+      const SidebarNode* place = entries[0];
+      while (place->parent() != today) {
+        place = place->parent();
+      }
+      const std::u16string& title = group->visual_data()->title();
+      SidebarNode* folder = space_model_->AddFolder(
+          today, today->GetIndexOf(place), title.empty() ? u"Group" : title);
+      for (SidebarNode* entry : entries) {
+        space_model_->Move(entry, folder, folder->children().size());
+      }
+      space_model_->SetCollapsed(folder, group->visual_data()->is_collapsed());
+    }
+    tab_strip_model_->RemoveFromGroup(indices);
+  }
+  ScheduleSyncStripOrder();
 }
 
 SidebarNode* TabStripBridge::GetModelSplit(const tabs::TabInterface* a,

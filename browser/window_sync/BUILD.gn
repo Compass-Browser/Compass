@@ -25,6 +25,7 @@ source_set("window_sync") {
   public_deps = [
     "//chrome/browser/ui/tabs:tab_strip",
     "//components/split_tabs",
+    "//components/tab_groups",
     "//components/tabs:public",
     "//strata/browser/sidebar",
     "//ui/base/unowned_user_data",
