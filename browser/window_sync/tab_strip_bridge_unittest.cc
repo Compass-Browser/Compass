@@ -42,11 +42,18 @@ using ::testing::ElementsAre;
 using ::testing::UnorderedElementsAre;
 using Type = SidebarNode::Type;
 
-// Hosts of |parent|'s children, with splits shown as "[pane|pane]".
+// Hosts of |parent|'s children, with splits shown as "[pane|pane]" and
+// folders as "{child,child}".
 std::vector<std::string> Hosts(const SidebarNode* parent) {
   std::vector<std::string> hosts;
   for (const auto& child : parent->children()) {
-    if (child->type() == Type::kSplit) {
+    if (child->type() == Type::kFolder) {
+      std::string folder;
+      for (const std::string& host : Hosts(child.get())) {
+        folder += (folder.empty() ? "" : ",") + host;
+      }
+      hosts.push_back("{" + folder + "}");
+    } else if (child->type() == Type::kSplit) {
       std::string split;
       for (const auto& pane : child->children()) {
         split += (split.empty() ? "" : "|") + std::string(pane->url().host());
@@ -82,6 +89,17 @@ class TabStripBridgeTest : public BrowserWithTestWindowTest {
                           ui::PAGE_TRANSITION_TYPED);
     params.tabstrip_index = index;
     params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    Navigate(&params);
+    CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
+    Settle();
+  }
+
+  // Opens a link in the background from the active tab, as Cmd+click does.
+  void OpenLinkInBackground(const std::string& host) {
+    NavigateParams params(browser(), GURL("https://" + host + "/"),
+                          ui::PAGE_TRANSITION_LINK);
+    params.source_contents = tab_strip_model()->GetActiveWebContents();
+    params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
     Navigate(&params);
     CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
     Settle();
@@ -256,6 +274,58 @@ TEST_F(TabStripBridgeTest, UndoesStripMovesOutOfASplit) {
   EXPECT_THAT(Hosts(space_model().today_root()),
               ElementsAre("[a.test|b.test]", "c.test"));
   EXPECT_THAT(StripHosts(), ElementsAre("a.test", "b.test", "c.test"));
+}
+
+TEST_F(TabStripBridgeTest, LinksGatherWithTheirOpenerInAFolder) {
+  OpenTabs({"a.test", "b.test"});
+  tab_strip_model()->ActivateTabAt(0);
+
+  OpenLinkInBackground("c.test");
+  OpenLinkInBackground("d.test");
+
+  // The opener's folder takes its place, named after it; links follow it in
+  // the order they were opened.
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{a.test,c.test,d.test}", "b.test"));
+  EXPECT_FALSE(TodayAt(0)->title().empty());
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "d.test",
+                                        "b.test"));
+  // The opener stays active.
+  EXPECT_EQ(tab_strip_model()->active_index(), 0);
+
+  // A link from a tab in the folder stays in it.
+  tab_strip_model()->ActivateTabAt(2);
+  OpenLinkInBackground("e.test");
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{a.test,c.test,d.test,e.test}", "b.test"));
+}
+
+TEST_F(TabStripBridgeTest, LinksFromPinnedEntriesGatherAtTheTopOfToday) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(0);
+  tab_strip_model()->ActivateTabAt(0);
+
+  OpenLinkInBackground("c.test");
+  OpenLinkInBackground("d.test");
+
+  EXPECT_THAT(Hosts(space_model().pinned_root()), ElementsAre("a.test"));
+  EXPECT_EQ(space_model().pinned_root()->children()[0].get(), pinned);
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{c.test,d.test}", "b.test"));
+}
+
+TEST_F(TabStripBridgeTest, ForegroundAndTypedTabsDontMakeFolders) {
+  OpenTabs({"a.test"});
+  OpenTabAt(1, "b.test");
+  NavigateParams params(browser(), GURL("https://c.test/"),
+                        ui::PAGE_TRANSITION_LINK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
+  Settle();
+
+  for (const auto& entry : space_model().today_root()->children()) {
+    EXPECT_NE(entry->type(), Type::kFolder);
+  }
 }
 
 TEST_F(TabStripBridgeTest, NewTabFollowsTheTabBeforeIt) {

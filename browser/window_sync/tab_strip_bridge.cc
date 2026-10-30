@@ -12,6 +12,7 @@
 #include "base/auto_reset.h"
 #include "base/base64.h"
 #include "base/check.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -44,6 +45,18 @@
 namespace strata {
 
 namespace {
+
+// A link folder is named after the page its links came from.
+std::u16string GetLinkFolderTitle(const SidebarNode& opener) {
+  const SidebarNode* tab = opener.type() == SidebarNode::Type::kSplit &&
+                                   !opener.children().empty()
+                               ? opener.children()[0].get()
+                               : &opener;
+  if (!tab->display_title().empty()) {
+    return tab->display_title();
+  }
+  return base::UTF8ToUTF16(tab->url().host());
+}
 
 // How long a tab that's leaving may take to hand over its last frame.
 constexpr base::TimeDelta kSnapshotTimeout = base::Seconds(1);
@@ -451,13 +464,92 @@ void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
       return;
     }
   }
-  SidebarNode* node = space_model_->AddTab(space_model_->today_root(),
-                                           GetTodayIndexAfter(index, nullptr),
-                                           url, contents->GetTitle());
+  SidebarNode* parent = space_model_->today_root();
+  size_t parent_index = 0;
+  if (!restored && GetLinkFolderPlace(tab, index, parent, parent_index)) {
+    // The strip follows the tree.
+    ScheduleSyncStripOrder();
+  } else {
+    parent_index = GetTodayIndexAfter(index, nullptr);
+  }
+  SidebarNode* node =
+      space_model_->AddTab(parent, parent_index, url, contents->GetTitle());
   registry_->Register(tab, node);
   if (restored) {
     restored_tab_matcher_->AddUnmatched(node);
   }
+}
+
+bool TabStripBridge::GetLinkFolderPlace(tabs::TabInterface* tab,
+                                        int index,
+                                        SidebarNode*& folder,
+                                        size_t& folder_index) {
+  if (index == tab_strip_model_->active_index()) {
+    return false;
+  }
+  content::NavigationEntry* entry =
+      tab->GetContents()->GetController().GetPendingEntry();
+  if (!entry) {
+    entry = tab->GetContents()->GetController().GetLastCommittedEntry();
+  }
+  if (!entry || !ui::PageTransitionCoreTypeIs(entry->GetTransitionType(),
+                                              ui::PAGE_TRANSITION_LINK)) {
+    return false;
+  }
+  tabs::TabInterface* opener = tab_strip_model_->GetOpenerOfTabAt(index);
+  SidebarNode* opener_node = opener ? GetNode(opener) : nullptr;
+  if (!opener_node) {
+    return false;
+  }
+  // A split's pane opens next to its split.
+  SidebarNode* opener_entry = opener_node;
+  if (opener_entry->parent()->type() == SidebarNode::Type::kSplit) {
+    opener_entry = opener_entry->parent();
+  }
+  SidebarNode* today = space_model_->today_root();
+
+  // After the tab before it in the strip, if that's in the folder already
+  // (an earlier link of the same opener), else after the opener.
+  const auto place_after_previous = [&](SidebarNode* in, size_t fallback) {
+    folder = in;
+    folder_index = fallback;
+    SidebarNode* previous =
+        index > 0 ? GetNode(tab_strip_model_->GetTabAtIndex(index - 1))
+                  : nullptr;
+    while (previous && previous->parent() != in &&
+           previous->parent() != today) {
+      previous = previous->parent();
+    }
+    if (previous && previous->parent() == in) {
+      folder_index = in->GetIndexOf(previous) + 1;
+    }
+  };
+
+  base::AutoReset<bool> updating(&updating_, true);
+  if (today->Contains(opener_entry)) {
+    SidebarNode* parent = opener_entry->parent();
+    if (parent->type() != SidebarNode::Type::kFolder) {
+      // The opener's own folder takes its place.
+      parent = space_model_->AddFolder(today, today->GetIndexOf(opener_entry),
+                                       GetLinkFolderTitle(*opener_entry));
+      space_model_->Move(opener_entry, parent, 0);
+    }
+    place_after_previous(parent, parent->GetIndexOf(opener_entry) + 1);
+    return true;
+  }
+  // Pinned entries and favorites stay put; their links gather in a folder
+  // at the top of Today.
+  auto it = link_folders_.find(opener_node->id());
+  SidebarNode* existing =
+      it != link_folders_.end() ? space_model_->FindById(it->second) : nullptr;
+  if (!existing || !today->Contains(existing) ||
+      existing->type() != SidebarNode::Type::kFolder) {
+    existing = space_model_->AddFolder(today, 0,
+                                       GetLinkFolderTitle(*opener_entry));
+    link_folders_[opener_node->id()] = existing->id();
+  }
+  place_after_previous(existing, existing->children().size());
+  return true;
 }
 
 void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {

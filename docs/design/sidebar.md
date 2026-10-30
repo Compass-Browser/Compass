@@ -686,6 +686,36 @@ moves it with its tabs.
 `RoundTripsTodayFolders`, `SidebarPageHandlerTest.FoldersInToday` and the
 browser test `FoldersInToday`.
 
+## Link folders
+
+Links opened in the background from a page in the sidebar (Cmd+click,
+middle click, "Open Link in New Tab") gather with that page in a Today
+folder, so a page's tabs stay together:
+
+- The opener in Today, not in a folder: a folder named after it (its name
+  or title, else its host) takes its place, holding the opener and then the
+  link. A split opener goes in whole.
+- The opener in a Today folder (made this way or by hand): the link joins
+  that folder.
+- The opener pinned or a favorite: it stays put; its links gather in a
+  folder at the top of Today, named after it, which later links reuse
+  while it's there (`TabStripBridge::link_folders_`, per window, not
+  saved).
+- Within the folder, a link goes after the one the opener opened before
+  (the tab before it in the strip, which upstream already puts after the
+  opener's other links), else right after the opener.
+
+`TabStripBridge::GetLinkFolderPlace()` decides, when the strip inserts the
+tab: not active, a `PAGE_TRANSITION_LINK` navigation, and an opener with a
+node (upstream sets the opener for links). Foreground links (target=_blank,
+Cmd+Shift+click), typed URLs, the command bar and restored tabs open as
+before. The strip then follows the tree. There's no setting to turn it off
+yet.
+
+**Tests:** `TabStripBridgeTest.LinksGatherWithTheirOpenerInAFolder`,
+`LinksFromPinnedEntriesGatherAtTheTopOfToday`,
+`ForegroundAndTypedTabsDontMakeFolders`.
+
 ## Renaming tabs
 
 As in Arc, a tab entry (pinned, Today or a split's pane) can be given a

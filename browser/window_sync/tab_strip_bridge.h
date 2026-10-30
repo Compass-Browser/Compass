@@ -113,6 +113,15 @@ class TabStripBridge : public TabStripModelObserver,
   // Adds a Today node for |tab|, which the strip just inserted at |index|.
   void AddNodeForTab(tabs::TabInterface* tab, int index);
 
+  // Where the node of |tab|, just inserted at |index|, goes if it's a link
+  // opened in the background (Cmd+click, middle click) from a page in the
+  // sidebar: with its opener, in a Today folder, made if needed. Returns
+  // false to place it as usual. See docs/design/sidebar.md, "Link folders".
+  bool GetLinkFolderPlace(tabs::TabInterface* tab,
+                          int index,
+                          SidebarNode*& folder,
+                          size_t& folder_index);
+
   // Mirrors a strip move of |tab| to |to_index| into the model, or puts the
   // strip back if the tab's node can't move that way.
   void MoveNodeForTab(tabs::TabInterface* tab, int to_index);
@@ -195,6 +204,10 @@ class TabStripBridge : public TabStripModelObserver,
   raw_ptr<SidebarNode> adopting_node_ = nullptr;
   // Set while InsertPlaceholder() inserts a placeholder for this node.
   raw_ptr<SidebarNode> placeholder_node_ = nullptr;
+
+  // Today folders made for links opened from pinned entries and favorites,
+  // by the opener's node.
+  base::flat_map<base::Uuid, base::Uuid> link_folders_;
 
   // This window's placeholder tabs, and the nodes they stand for.
   base::flat_map<tabs::TabHandle, base::Uuid> placeholders_;
