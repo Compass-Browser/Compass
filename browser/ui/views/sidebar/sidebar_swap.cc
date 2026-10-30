@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -26,6 +27,7 @@
 #include "strata/browser/window_sync/window_features.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/compositor_lock.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
@@ -82,6 +84,18 @@ class ExchangeTransition : public content::WebContentsObserver,
       Exchange();
       return;
     }
+    // A hidden window's pages render as background ones do, slowly and
+    // without frames; these render as if shown, so the window can change
+    // sooner, and paint once it has.
+    tabs::TabInterface* tab = window_->GetActiveTabInterface();
+    for (content::WebContents* contents :
+         {sidebar->GetWebContents(), tab ? tab->GetContents() : nullptr}) {
+      if (contents) {
+        captures_.push_back(contents->IncrementCapturerCount(
+            gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
+            /*is_activity=*/false));
+      }
+    }
     Observe(sidebar->GetWebContents());
     WaitForTree();
   }
@@ -98,9 +112,13 @@ class ExchangeTransition : public content::WebContentsObserver,
   // what it shows now.
   class PaintWaiter : public content::WebContentsObserver {
    public:
-    PaintWaiter(content::WebContents* contents, base::OnceClosure painted)
+    // Unless |first_paint|, a frame is enough: the sidebar has its tree, and
+    // its first paint, made hidden, may never be reported.
+    PaintWaiter(content::WebContents* contents,
+                bool first_paint,
+                base::OnceClosure painted)
         : painted_(std::move(painted)) {
-      if (!contents->CompletedFirstVisuallyNonEmptyPaint()) {
+      if (first_paint && !contents->CompletedFirstVisuallyNonEmptyPaint()) {
         Observe(contents);
         return;
       }
@@ -165,13 +183,14 @@ class ExchangeTransition : public content::WebContentsObserver,
     }
     StrataSidebarView* sidebar = FindSidebar(view);
     tabs::TabInterface* tab = window_->GetActiveTabInterface();
-    for (content::WebContents* contents :
-         {sidebar ? sidebar->GetWebContents() : nullptr,
-          tab ? tab->GetContents() : nullptr}) {
+    for (auto [contents, first_paint] :
+         {std::pair(sidebar ? sidebar->GetWebContents() : nullptr, false),
+          std::pair(tab ? tab->GetContents() : nullptr, true)}) {
       if (contents) {
         waiters_.push_back(std::make_unique<PaintWaiter>(
-            contents, base::BindOnce(&ExchangeTransition::MaybeUnlock,
-                                     base::Unretained(this))));
+            contents, first_paint,
+            base::BindOnce(&ExchangeTransition::MaybeUnlock,
+                           base::Unretained(this))));
       }
     }
     MaybeUnlock();
@@ -208,6 +227,7 @@ class ExchangeTransition : public content::WebContentsObserver,
   bool unlocked_ = false;
   std::unique_ptr<ui::CompositorLock> lock_;
   std::vector<std::unique_ptr<PaintWaiter>> waiters_;
+  std::vector<base::ScopedClosureRunner> captures_;
   base::WeakPtrFactory<ExchangeTransition> weak_factory_{this};
 };
 
