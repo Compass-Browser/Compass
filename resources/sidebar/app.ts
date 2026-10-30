@@ -4,11 +4,11 @@
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {TimeDelta} from '//resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
+import {getFaviconUrl} from './favicon.js';
 import './node.js';
 import type {StrataSidebarPreviewElement} from './preview.js';
 import './preview.js';
@@ -82,8 +82,6 @@ const SWIPE_RESISTANCE = 0.2;
 const SWIPE_RESISTANCE_MAX_PX = 32;
 // A switch the browser hasn't confirmed by then didn't happen.
 const SWITCH_TIMEOUT_MS = 2000;
-// For a switch with no slide to wait for.
-const NO_SLIDE: TimeDelta = {microseconds: 0n};
 
 // A two-finger swipe across the sidebar.
 interface Swipe {
@@ -412,13 +410,15 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   protected getFaviconUrl_(url: string, size: number = 16): string {
-    const params = new URLSearchParams({
-      size: `${size}`,
-      scaleFactor: `${window.devicePixelRatio}x`,
-      pageUrl: url,
-      allowGoogleServerFallback: '0',
-    });
-    return `chrome://favicon2/?${params.toString()}`;
+    return getFaviconUrl(url, size, this.getProfileId_());
+  }
+
+  // The window's profile, whose entries the live pane shows: after a switch
+  // to another profile's space, not the page's own.
+  protected getProfileId_(): string|null {
+    return this.spaces_.find(space => space.id === this.activeSpaceId_)
+               ?.profileId ??
+        null;
   }
 
   protected onArchivedClick_(e: Event) {
@@ -526,7 +526,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     const from = this.spaces_.findIndex(space => this.isActiveSpace_(space));
     const direction = this.spaces_.indexOf(target) > from ? 1 : -1;
     if (this.swipe_ || this.slide_ || from === -1 || !this.motionAllowed_()) {
-      this.browserProxy_.handler.switchSpace(id, NO_SLIDE);
+      this.browserProxy_.handler.switchSpace(id);
       return;
     }
     if (this.getNeighborSpace_(direction) !== target) {
@@ -544,7 +544,7 @@ export class StrataSidebarAppElement extends CrLitElement {
         StrataSidebarPreviewElement | null;
     if (this.swipe_ || this.slide_ || id === this.activeSpaceId_ ||
         preview?.space?.id !== id) {
-      this.browserProxy_.handler.switchSpace(id, NO_SLIDE);
+      this.browserProxy_.handler.switchSpace(id);
       return;
     }
     this.slideTo_(target, direction, preview, 0);
@@ -1409,13 +1409,9 @@ export class StrataSidebarAppElement extends CrLitElement {
     const doSwitch = () => {
       if (!switched) {
         switched = true;
-        // Another profile's swaps the window: the browser builds the new
-        // one while the slide plays, and it takes over where the slide ends.
-        const timing = animations[0]!.effect?.getComputedTiming();
-        const left = Math.max(
-            0, Number(timing?.endTime ?? 0) - Number(timing?.localTime ?? 0));
-        this.browserProxy_.handler.switchSpace(
-            target.id, {microseconds: BigInt(Math.round(left * 1000))});
+        // Another profile's swaps the window, which keeps this page: the
+        // new window's tree comes as within a profile.
+        this.browserProxy_.handler.switchSpace(target.id);
       }
     };
     // Switching keeps the browser busy for a moment: once the slide has

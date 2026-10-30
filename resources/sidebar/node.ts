@@ -5,6 +5,7 @@
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {SidebarBrowserProxy} from './browser_proxy.js';
+import {getFaviconUrl} from './favicon.js';
 import {getHtml} from './node.html.js';
 import type {Node} from './sidebar.mojom-webui.js';
 import {NodeType} from './sidebar.mojom-webui.js';
@@ -36,12 +37,15 @@ export class StrataSidebarNodeElement extends CrLitElement {
       // re-renders its children.
       node: {type: Object, hasChanged: () => true},
       activeId: {type: String},
+      // Whose icons the entries show: the tree's profile.
+      profileId: {type: String},
       editing_: {type: Boolean, state: true},
     };
   }
 
   accessor node: Node|null = null;
   accessor activeId: string|null = null;
+  accessor profileId: string|null = null;
   protected accessor editing_: boolean = false;
 
   protected isTab_(): boolean {
@@ -77,13 +81,7 @@ export class StrataSidebarNodeElement extends CrLitElement {
   }
 
   protected getFaviconUrl_(node: Node): string {
-    const params = new URLSearchParams({
-      size: '16',
-      scaleFactor: `${window.devicePixelRatio}x`,
-      pageUrl: node.url,
-      allowGoogleServerFallback: '0',
-    });
-    return `chrome://favicon2/?${params.toString()}`;
+    return getFaviconUrl(node.url, 16, this.profileId);
   }
 
   protected getNodeId_(e: Event): string {

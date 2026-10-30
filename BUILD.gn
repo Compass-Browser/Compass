@@ -28,6 +28,10 @@ test("strata_browsertests") {
     "//strata/browser/ui:browser_tests",
   ]
   if (is_mac) {
+    # Headless runs don't take the user's focus.
+    sources = [ "test/headless_no_activation_mac.mm" ]
+    frameworks = [ "AppKit.framework" ]
+
     # Resources live in the framework bundle on mac, as for upstream
     # browser_tests.
     data_deps = [

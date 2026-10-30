@@ -83,6 +83,15 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   SidebarPageHandler& operator=(const SidebarPageHandler&) = delete;
   ~SidebarPageHandler() override;
 
+  BrowserWindowInterface* browser() const { return browser_; }
+
+  // The page's pipes, for the handler of the window the page moves to (a
+  // switch to another profile's space keeps the page). Calls the page made
+  // since the switch started wait in them.
+  std::pair<mojo::PendingReceiver<sidebar::mojom::PageHandler>,
+            mojo::PendingRemote<sidebar::mojom::Page>>
+  TakePipes();
+
   // Run whenever the page has taken a tree.
   void set_tree_shown_callback(base::RepeatingClosure callback) {
     tree_shown_callback_ = std::move(callback);
@@ -106,7 +115,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void RenameFolder(const std::string& id, const std::string& title) override;
   void SetFolderCollapsed(const std::string& id, bool collapsed) override;
   void DeleteNode(const std::string& id) override;
-  void SwitchSpace(const std::string& id, base::TimeDelta slide_left) override;
+  void SwitchSpace(const std::string& id) override;
   void AddSpace() override;
   void RenameSpace(const std::string& id, const std::string& name) override;
   void SetSpaceColor(const std::string& id,

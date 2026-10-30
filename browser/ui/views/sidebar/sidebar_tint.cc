@@ -94,6 +94,11 @@ SidebarTint* SidebarTint::Install(views::View* host,
   return tint;
 }
 
+void SidebarTint::ContinueFrom(const SidebarTint& other) {
+  color_ = other.color_;
+  UpdateColor(/*animate=*/true);
+}
+
 std::optional<SkColor> SidebarTint::GetTintForTesting() const {
   return SkColorGetA(color_) ? std::optional(color_) : std::nullopt;
 }

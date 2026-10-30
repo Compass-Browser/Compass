@@ -10,6 +10,9 @@
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -53,8 +56,10 @@ class SpaceShortcuts : public ui::AcceleratorTarget {
 
 // Hosts chrome://strata-sidebar inside the vertical tab strip region, where
 // the native tab strip would be, the window's space shortcuts and its command
-// bar.
-class StrataSidebarView : public views::WebView {
+// bar. It owns its page, which a switch to another profile's space hands to
+// the new window's sidebar (TakePageFrom(), docs/design/profiles-in-place.md):
+// the page can be another profile's.
+class StrataSidebarView : public views::WebView, public ProfileObserver {
   METADATA_HEADER(StrataSidebarView, views::WebView)
 
  public:
@@ -70,15 +75,31 @@ class StrataSidebarView : public views::WebView {
   // time as the sidebar and the page.
   void PreloadCommandBar();
 
+  // Loads a page of the window's profile, unless it has a page. A swap's
+  // window starts without one, to take the old window's.
+  void LoadPage();
+  // Takes |other|'s page, which then shows this window's tree; |other| is
+  // left without one.
+  void TakePageFrom(StrataSidebarView& other);
+
+  // ProfileObserver:
+  void OnProfileWillBeDestroyed(Profile* profile) override;
+
   // views::WebView:
   void AddedToWidget() override;
   void RemovedFromWidget() override;
 
  private:
+  // Shows |contents| and binds its page to this window.
+  void Attach(std::unique_ptr<content::WebContents> contents);
+  std::unique_ptr<content::WebContents> Detach();
+
   const raw_ptr<BrowserWindowInterface> browser_;
-  // A preloaded sidebar (SidebarPreloader) it took, if it did; otherwise the
-  // WebView owns its own.
-  std::unique_ptr<content::WebContents> preloaded_contents_;
+  // The page, of the window's profile or, after a switch, of another.
+  std::unique_ptr<content::WebContents> contents_;
+  // The page's profile, while it isn't the window's: the page goes with it.
+  base::ScopedObservation<Profile, ProfileObserver> page_profile_observation_{
+      this};
   SpaceShortcuts space_shortcuts_;
   CommandBar command_bar_;
 };

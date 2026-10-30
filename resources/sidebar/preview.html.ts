@@ -22,7 +22,8 @@ ${this.tree ? html`
       ${this.isPinnedEmpty_() ? html`
         <div class="hint">Drag tabs here to pin them</div>` : nothing}
       ${repeat(this.getPinned_(), (node: Node) => node.id, (node: Node) => html`
-        <strata-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}">
+        <strata-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
+            .profileId="${this.space?.profileId ?? null}">
         </strata-sidebar-node>`)}
     </div>
     <div class="divider"></div>
@@ -37,7 +38,8 @@ ${this.tree ? html`
     </div>
     <div class="section">
       ${repeat(this.getToday_(), (node: Node) => node.id, (node: Node) => html`
-        <strata-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}">
+        <strata-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
+            .profileId="${this.space?.profileId ?? null}">
         </strata-sidebar-node>`)}
     </div>
   </div>

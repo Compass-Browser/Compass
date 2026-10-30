@@ -62,6 +62,11 @@ class SidebarTint : public views::View,
                               BrowserWindowInterface* browser);
 
   // The color painted now, if any.
+  // Fades from what |other| paints now to this one's color: the window that
+  // takes |other|'s place in a switch to another profile's space goes on
+  // where its tint was.
+  void ContinueFrom(const SidebarTint& other);
+
   std::optional<SkColor> GetTintForTesting() const;
   bool IsAnimatingForTesting() const { return animation_.is_animating(); }
 

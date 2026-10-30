@@ -23,6 +23,7 @@ build_webui("build") {
     "command_bar/app.html.ts",
     "command_bar/app.ts",
     "command_bar/browser_proxy.ts",
+    "favicon.ts",
     "node.html.ts",
     "node.ts",
     "placeholder.ts",

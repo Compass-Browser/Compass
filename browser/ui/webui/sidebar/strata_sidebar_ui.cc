@@ -4,6 +4,7 @@
 
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 
+#include <tuple>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -17,7 +18,9 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "strata/browser/ui/webui/sidebar/sidebar_page_handler.h"
+#include "strata/browser/ui/webui/sidebar/strata_favicon_source.h"
 #include "strata/grit/strata_sidebar_resources.h"
 #include "strata/grit/strata_sidebar_resources_map.h"
 #include "ui/webui/webui_util.h"
@@ -39,6 +42,13 @@ StrataSidebarUI::StrataSidebarUI(content::WebUI* web_ui)
       profile, std::make_unique<FaviconSource>(
                    profile, chrome::FaviconUrlFormat::kFavicon2));
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
+  // Icons of every profile's entries (strata_favicon_source.h).
+  content::URLDataSource::Add(profile,
+                              std::make_unique<StrataFaviconSource>(profile));
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ImgSrc,
+      "img-src chrome://resources chrome://theme chrome://favicon2 "
+      "chrome://strata-favicon blob: data: 'self';");
 }
 
 StrataSidebarUI::~StrataSidebarUI() = default;
@@ -54,9 +64,10 @@ void StrataSidebarUI::CreatePageHandler(
     mojo::PendingReceiver<sidebar::mojom::PageHandler> receiver) {
   pending_page_ = std::move(page);
   pending_receiver_ = std::move(receiver);
-  // A preloaded page has no window until a sidebar takes it; its calls wait
-  // in the pipe until then. A page opened outside the sidebar host, e.g.
-  // typed into the omnibox, never gets one.
+  // The handler binds once the page has a window, and again whenever it
+  // moves to another (MaybeCreatePageHandler()); its calls wait in the pipe
+  // until then. A page opened outside the sidebar host, e.g. typed into the
+  // omnibox, never gets one.
   browser_changed_subscription_ = webui::RegisterBrowserWindowInterfaceChanged(
       web_ui()->GetWebContents(),
       base::BindRepeating(&StrataSidebarUI::MaybeCreatePageHandler,
@@ -67,15 +78,28 @@ void StrataSidebarUI::CreatePageHandler(
 void StrataSidebarUI::MaybeCreatePageHandler() {
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
-  if (!browser || !pending_receiver_) {
+  if (!browser) {
     return;
   }
-  browser_changed_subscription_ = {};
+  const bool moved = page_handler_ && page_handler_->browser() != browser;
+  if (moved) {
+    // The new window's handler takes the page's pipes, and sends it the
+    // window's tree: to the page, the switch ends as within a profile.
+    std::tie(pending_receiver_, pending_page_) = page_handler_->TakePipes();
+    page_handler_.reset();
+    tree_shown_ = false;
+  }
+  if (!pending_receiver_) {
+    return;
+  }
   page_handler_ = std::make_unique<SidebarPageHandler>(
       std::move(pending_receiver_), std::move(pending_page_), browser,
       web_ui()->GetWebContents());
   page_handler_->set_tree_shown_callback(base::BindRepeating(
       &StrataSidebarUI::OnTreeShown, base::Unretained(this)));
+  if (moved) {
+    page_handler_->RequestTree();
+  }
 }
 
 void StrataSidebarUI::RunWhenTreeShown(base::OnceClosure callback) {

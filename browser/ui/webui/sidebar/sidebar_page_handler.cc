@@ -4,7 +4,6 @@
 
 #include "strata/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
-#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -319,13 +318,12 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
   }
 }
 
-void SidebarPageHandler::SwitchSpace(const std::string& id,
-                                     base::TimeDelta slide_left) {
+void SidebarPageHandler::SwitchSpace(const std::string& id) {
   SpaceDirectory::Entry entry = FindAnySpace(id);
   if (entry.space) {
-    // Another profile's swaps the window, which closes with this handler.
-    SwitchWindowToSpace(browser_, entry.profile, *entry.space,
-                        std::max(slide_left, base::TimeDelta()));
+    // Another profile's swaps the window, whose next handler takes the page
+    // (StrataSidebarUI).
+    SwitchWindowToSpace(browser_, entry.profile, *entry.space);
   }
 }
 
@@ -715,9 +713,17 @@ void SidebarPageHandler::OnSpaceSwitched() {
 
 void SidebarPageHandler::OnSwappedAway() {
   // The window has no bridge left to act through, and closes in a moment.
-  // Its space can go before it does (moved to another profile).
-  receiver_.reset();
+  // Its space can go before it does (moved to another profile). The page's
+  // calls wait for the new window's handler (TakePipes()).
+  receiver_.Pause();
   StopObserving();
+}
+
+std::pair<mojo::PendingReceiver<sidebar::mojom::PageHandler>,
+          mojo::PendingRemote<sidebar::mojom::Page>>
+SidebarPageHandler::TakePipes() {
+  StopObserving();
+  return {receiver_.Unbind(), page_.Unbind()};
 }
 
 void SidebarPageHandler::OnNodeLiveChanged(const SidebarNode& node, bool live) {

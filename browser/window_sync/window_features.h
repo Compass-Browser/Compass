@@ -208,14 +208,10 @@ void AssignSpaceToProfile(const base::Uuid& space_id,
 // the window's profile rebinds the window (SwitchToSpace()). One of another
 // profile swaps it: a window of that profile opens on |space| at the same
 // bounds, and |browser| empties and closes. Returns the window now showing
-// |space|, or null if it couldn't. A swap's new window takes the old one's
-// place no sooner than |hold| from now (the sidebar's slide runs until then).
-// See docs/design/spaces.md, slice 3.
-BrowserWindowInterface* SwitchWindowToSpace(
-    BrowserWindowInterface* browser,
-    Profile* profile,
-    SpaceModel& space,
-    base::TimeDelta hold = base::TimeDelta());
+// |space|, or null if it couldn't. See docs/design/spaces.md, slice 3.
+BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
+                                            Profile* profile,
+                                            SpaceModel& space);
 
 // The spaces |browser|'s window can switch to, in the switcher's order: every
 // listed profile's (SpaceDirectory), or only its profile's in an
@@ -237,15 +233,13 @@ void SetSwapWindowFactoryForTesting(SwapWindowFactory factory);
 // shows once it has taken the old window's place.
 bool IsCreatingSwapWindow();
 
-// Puts |window|, which a swap just opened with its tabs, in |old|'s place,
-// no sooner than |hold| from now: shows it without a flicker once it has
-// painted, then runs |leave|, which empties |old|. Set by the views layer
-// (docs/design/spaces.md, "Swapping the window"); without one, |window|
-// shows at once.
+// Puts |window|, which a swap just opened with its tabs, in |old|'s place:
+// shows it without a flicker once it has painted, then runs |leave|, which
+// empties |old|. Set by the views layer (docs/design/spaces.md, "Swapping
+// the window"); without one, |window| shows at once.
 using SwapPresenter =
     base::RepeatingCallback<void(BrowserWindowInterface* old,
                                  BrowserWindowInterface* window,
-                                 base::TimeDelta hold,
                                  base::OnceClosure leave)>;
 void SetSwapPresenter(SwapPresenter presenter);
 

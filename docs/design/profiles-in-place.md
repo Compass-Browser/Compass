@@ -95,54 +95,55 @@ WebUIs the window hosts (sidebar, command bar) belong to a profile:
 Off-the-record windows never re-profile (they list their own spaces only, as
 today), and a window never re-profiles to or from guest or system profiles.
 
-## Preloaded sidebars
+## One sidebar page
 
-Each switch builds the new profile's window, whose sidebar is a new
-`WebContents`. The profile's previous sidebar renderer went away with its
-last window, and chrome://strata-sidebar isn't process-per-site, so every
-switch launched a renderer: about 2.2 s of the switch in the debug build
-(measured 2026-10-30). `strata::SidebarPreloader`
-(`browser/ui/views/sidebar/sidebar_preloader.{h,cc}`) keeps one hidden
-sidebar loaded per profile that a switch could go to, as upstream's
-`WebUIContentsPreloadManager` does for tab search:
+The window keeps its sidebar page through a switch to another profile's
+space, as Arc's keeps its sidebar: the page slides to the space as in any
+switch, and the new window's handler sends it that window's tree. Nothing
+loads, so nothing flashes. (Until 2026-10-30 each window had its own page:
+the new window's was preloaded per profile, `SidebarPreloader`, and the
+exchange waited for its tree and for the slide's end.)
 
-- **Which profiles.** Each listed profile with an open normal window of
-  another profile (any of those windows could switch to it). A single
-  profile, or one with all the windows, has none.
-- **When.** `RefillLater()` refills 1 s after a sidebar joins a window,
-  after a switch has finished, and after the space directory changes (other
-  profiles load after the first window, at startup), so the preload doesn't
-  compete with what is painting. The switch took the new profile's; the
-  profile left may now need one.
-- **Taking it.** `StrataSidebarView` takes its profile's preloaded contents
-  if there is one (not crashed, on the sidebar's URL), owns it and lets the
-  `WebView` go of it before it dies. Hover card and context menu helpers are
-  made then, as for its own.
-- **The page's window.** The preloaded page connects with no window, so
-  `StrataSidebarUI::CreatePageHandler()` keeps the page and receiver until
-  `webui::SetBrowserWindowInterface()` gives it one
-  (`RegisterBrowserWindowInterfaceChanged`). Its calls (`requestTree`) wait
-  in the pipe until then, so the exchange still waits for its tree.
-- **Lifetime.** Browser-wide (a `NoDestructor`, like upstream's), observing
-  each profile it preloaded for: `OnProfileWillBeDestroyed()` drops that
-  profile's. Nothing loads once the app is quitting.
+- **Owning the page.** `StrataSidebarView` owns its page's `WebContents`
+  itself (the `WebView` has no browser context to make one) and is its
+  delegate, as a `WebView` is of its own. A swap's window
+  (`IsCreatingSwapWindow()`) starts without a page; `ExchangeTransition`
+  moves the old window's to it right after the exchange
+  (`TakePageFrom()`), which remakes the hover card and context menu helpers
+  for the new view. Without a page to take, the new window loads its own and
+  the exchange waits for its tree, as before.
+- **The handler.** The page connects once. At `BeginSwap()` the old
+  window's `SidebarPageHandler` stops observing and pauses its receiver; the
+  page's calls wait. `TakePageFrom()` sets the page's window
+  (`webui::SetBrowserWindowInterface()`), and `StrataSidebarUI`, which
+  follows it (`RegisterBrowserWindowInterfaceChanged`), takes the pipes from
+  the old handler (`TakePipes()`) for one bound to the new window, which
+  sends spaces, tree and archive (`RequestTree()`). To the page, the switch
+  ends as within a profile: the tree arrives mid-slide.
+- **When.** The page asks for the switch as its slide starts; building the
+  window, the exchange and the page's move happen in that task, so the rest
+  of the window changes at once while the page goes on sliding in its own
+  renderer (the compositor lock holds the window's frame, not the page's).
+  The new window's tints go on from the old window's color
+  (`SidebarTint::ContinueFrom()`).
+- **Another profile's page.** The page stays in the profile it was made in.
+  Its colors come from the window (`colors.css` is made from the hosting
+  widget's color provider). Icons come from `chrome://strata-favicon`
+  (`StrataFaviconSource`), which serves `chrome://favicon2` requests from the
+  profile the page names (`profile=` a space's `profileId`): the live pane
+  asks for the window's profile, a preview for its space's. When the page's
+  profile is about to go (unlisted and unloaded), the sidebar loads a page
+  of the window's own profile in its place.
 
-Measured in the fast build (2026-10-30), a switch with a preloaded sidebar
-spends ~40 ms building the window, ~15 ms waiting for the tree and ~20 ms in
-the exchange. What was left was the last frame held for the page: a page
-still loading waited for a first paint, up to `kMaxSwapWait` (750 ms). It
-now waits at most `kMaxPagePaintWait` (200 ms) and paints in place, and a
-page that has loaded only waits for a frame.
-
-The sidebar's slide (280 ms) used to run before the switch started; the
-switch now starts with it, and the exchange waits for its end (spaces.md,
-"In the page"), so building the window and the tree wait happen during the
-slide (`ExchangeWaitsForTheSlide`).
+Measured in the fast build (2026-10-30, with per-window pages), a switch
+spent ~40 ms building the window and ~20 ms in the exchange. The last frame
+is held for the page: a page still loading waits at most
+`kMaxPagePaintWait` (200 ms) and paints in place, and a page that has loaded
+only waits for a frame.
 
 The command bar's page, which a window loads as it opens, waits in a swap's
-window until the exchange is done (`IsCreatingSwapWindow()`,
-`StrataSidebarView::PreloadCommandBar()`), so its renderer doesn't launch
-during the switch either.
+window until the exchange is done (`StrataSidebarView::PreloadCommandBar()`),
+so its renderer doesn't launch during the switch.
 
 ## Window sync
 
@@ -261,10 +262,10 @@ The list below was the first idea's. What the exchange has
   leaves with its view (`ExtensionShortcutsMoveWithTheView`).
 - Two windows on a space, one switches: its tabs go to the other
   (`TabsGoToAnotherWindowOnTheSpace`).
-- A switch takes the other profile's preloaded sidebar, which then gets its
-  page handler and tree, and the profile left gets one
-  (`SwitchTakesThePreloadedSidebar`); four switches back and forth each find
-  one (`EverySwitchFindsAPreloadedSidebar`).
+- Four switches back and forth keep one sidebar page, which shows each new
+  window's space and stays in its own profile (`SwitchesKeepTheSidebarPage`).
+- Another profile's icons come from that profile
+  (`IconsComeFromTheirProfile`).
 - Picture-in-picture's "back to tab" switches the window back to a parked
   tab's profile (`BackToTabSwitchesProfiles`).
 

@@ -46,19 +46,26 @@
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/test/test_extension_dir.h"
+#include "chrome/browser/favicon/favicon_service_factory.h"
+#include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "components/favicon/core/favicon_service.h"
+#include "components/history/core/browser/history_service.h"
+#include "components/keyed_service/core/service_access_type.h"
+#include "base/strings/escape.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
 #include "strata/browser/ui/views/command_bar/command_bar.h"
-#include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
 #include "strata/browser/ui/views/sidebar/sidebar_swap.h"
-#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/image/image.h"
 #include "ui/base/base_window.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/models/dialog_model.h"
@@ -473,90 +480,88 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
 }
 
 
-// A switch takes the other profile's preloaded sidebar, whose page connected
-// without a window and gets one then, and the profile left gets one in turn.
+// The window keeps its sidebar page through switches to another profile's
+// space and back: the new window's handler takes it, and it shows that
+// window's space.
 IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
-                       SwitchTakesThePreloadedSidebar) {
-  SidebarPreloader* preloader = SidebarPreloader::Get();
-  preloader->Refill();
-  content::WebContents* preloaded = preloader->GetForTesting(other_);
-  ASSERT_TRUE(preloaded);
-  // Only a window of another profile could switch to this one's spaces.
-  EXPECT_FALSE(preloader->GetForTesting(profile_));
-  EXPECT_TRUE(content::WaitForLoadStop(preloaded));
-  // No window, so no page handler yet.
-  auto* ui = preloaded->GetWebUI()->GetController()->GetAs<StrataSidebarUI>();
-  ASSERT_TRUE(ui);
-  bool tree_shown = false;
-  ui->RunWhenTreeShown(base::BindLambdaForTesting([&] { tree_shown = true; }));
-  EXPECT_FALSE(tree_shown);
-
-  BrowserWindowInterface* shown = SwitchToOther(browser());
-  ASSERT_TRUE(shown);
-  StrataSidebarView* sidebar = FindSidebar(
-      BrowserView::GetBrowserViewForBrowser(shown));
-  ASSERT_TRUE(sidebar);
-  EXPECT_EQ(sidebar->GetWebContents(), preloaded);
-  EXPECT_TRUE(base::test::RunUntil([&] { return tree_shown; }));
-
-  preloader->Refill();
-  EXPECT_FALSE(preloader->GetForTesting(other_));
-  EXPECT_TRUE(preloader->GetForTesting(profile_));
-}
-
-
-// After every switch, the profile left gets a preloaded sidebar again, and
-// the next switch back takes it.
-IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
-                       EverySwitchFindsAPreloadedSidebar) {
-  SidebarPreloader* preloader = SidebarPreloader::Get();
-  preloader->SetRefillDelayForTesting(base::Milliseconds(10));
+                       SwitchesKeepTheSidebarPage) {
+  content::WebContents* page =
+      FindSidebar(BrowserView::GetBrowserViewForBrowser(browser()))
+          ->GetWebContents();
+  ASSERT_TRUE(page);
+  other_home_->SetName(u"Elsewhere");
+  home_->SetName(u"Here");
   BrowserWindowInterface* shown = browser();
   for (int i = 0; i < 4; ++i) {
     const bool to_other = i % 2 == 0;
-    Profile* target = to_other ? other_.get() : profile_.get();
-    ASSERT_TRUE(
-        base::test::RunUntil([&] { return preloader->GetForTesting(target); }))
-        << "switch " << i;
-    content::WebContents* preloaded = preloader->GetForTesting(target);
     shown = to_other ? SwitchToOther(shown) : SwitchBack(shown);
     ASSERT_TRUE(shown);
-    StrataSidebarView* sidebar =
-        FindSidebar(BrowserView::GetBrowserViewForBrowser(shown));
-    ASSERT_TRUE(sidebar);
-    EXPECT_EQ(sidebar->GetWebContents(), preloaded) << "switch " << i;
+    EXPECT_EQ(FindSidebar(BrowserView::GetBrowserViewForBrowser(shown))
+                  ->GetWebContents(),
+              page)
+        << "switch " << i;
+    EXPECT_EQ(webui::GetBrowserWindowInterface(page), shown);
+    EXPECT_EQ(page->GetBrowserContext(), profile_.get());
+    EXPECT_EQ(true, content::EvalJs(page, content::JsReplace(R"(
+      (async (name) => {
+        const shown = () => document.querySelector('strata-sidebar-app')
+            ?.shadowRoot?.querySelector('#spaceName')?.textContent?.trim();
+        while (shown() !== name) {
+          await new Promise(r => setTimeout(r, 20));
+        }
+        return true;
+      })($1))",
+                                                       to_other ? "Elsewhere"
+                                                                : "Here")))
+        << "switch " << i;
   }
 }
 
-
-// A switch asked for as the sidebar's slide starts builds the new window
-// during the slide and exchanges once it has ended; the leaving window's
-// tint, which the page can no longer move, finishes the blend itself.
+// The sidebar shows another profile's icons: its spaces' previews, and the
+// window's own entries after a switch, which keeps the page.
 IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
-                       ExchangeWaitsForTheSlide) {
-  other_home_->SetColor(SpaceColor::kGreen);
-  SidebarTint* tint = FindDescendant<SidebarTint>(
-      BrowserView::GetBrowserViewForBrowser(browser()));
-  ASSERT_TRUE(tint);
-  WindowFeatures::From(browser())->SetSpacePreview(other_home_, 0.2);
+                       IconsComeFromTheirProfile) {
+  const GURL page_url("https://icons.test/");
+  HistoryServiceFactory::GetForProfile(other_,
+                                       ServiceAccessType::EXPLICIT_ACCESS)
+      ->AddPage(page_url, base::Time::Now(), history::SOURCE_BROWSED);
+  SkBitmap red;
+  red.allocN32Pixels(16, 16);
+  red.eraseColor(SK_ColorRED);
+  FaviconServiceFactory::GetForProfile(other_,
+                                       ServiceAccessType::EXPLICIT_ACCESS)
+      ->SetFavicons({page_url}, GURL("https://icons.test/favicon.ico"),
+                    favicon_base::IconType::kFavicon,
+                    gfx::Image::CreateFrom1xBitmap(red));
 
-  constexpr base::TimeDelta kSlide = base::Seconds(3);
-  const base::TimeTicks start = base::TimeTicks::Now();
-  BrowserWindowInterface* shown =
-      SwitchWindowToSpace(browser(), other_, *other_home_, kSlide);
-  ASSERT_TRUE(shown);
-  ASSERT_TRUE(base::test::RunUntil([&] {
-    std::optional<SkColor> color = tint->GetTintForTesting();
-    return color && SkColorSetA(*color, SK_AlphaOPAQUE) ==
-                        *GetSpaceTint(SpaceColor::kGreen);
+  content::WebContents* page =
+      FindSidebar(BrowserView::GetBrowserViewForBrowser(browser()))
+          ->GetWebContents();
+  // The middle pixel of the icon at |url|.
+  constexpr char kPixel[] = R"(
+    (async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = new OffscreenCanvas(16, 16);
+      const context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0, 16, 16);
+      return [...context.getImageData(8, 8, 1, 1).data.slice(0, 3)];
+    })($1))";
+  const std::string query = "size=16&scaleFactor=1x&pageUrl=" +
+                            base::EscapeQueryParamValue(page_url.spec(), true);
+  const std::string other_icon =
+      "chrome://strata-favicon/?profile=" +
+      other_->GetPath().BaseName().AsUTF8Unsafe() + "&" + query;
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(page, content::JsReplace(kPixel, other_icon)) ==
+           base::Value(base::ListValue().Append(255).Append(0).Append(0));
   }));
-  EXPECT_NE(shown->GetWindow()->GetNativeWindow(), native_);
-
-  ASSERT_TRUE(base::test::RunUntil(
-      [&] { return shown->GetWindow()->GetNativeWindow() == native_; }));
-  EXPECT_GE(base::TimeTicks::Now() - start, kSlide);
-  SetBrowser(shown);
-  ASSERT_TRUE(base::test::RunUntil([&] { return CountNormalWindows() == 1; }));
+  // Not in the page's own profile.
+  EXPECT_NE(content::EvalJs(page, content::JsReplace(
+                                      kPixel, "chrome://strata-favicon/?" +
+                                                  query)),
+            base::Value(base::ListValue().Append(255).Append(0).Append(0)));
 }
 
 }  // namespace

@@ -15,12 +15,14 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/page_transition_types.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/ui/views/frame/window_frame.h"
 #include "strata/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "strata/browser/ui/views/sidebar/sidebar_hover_card.h"
-#include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
 #include "strata/browser/ui/views/sidebar/sidebar_swap.h"
 #include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
@@ -107,41 +109,90 @@ bool SpaceShortcuts::CanHandleAccelerators() const {
 }
 
 StrataSidebarView::StrataSidebarView(BrowserWindowInterface* browser)
-    : views::WebView(browser->GetProfile()),
+    // It owns its page itself, to hand it over.
+    : views::WebView(nullptr),
       browser_(browser),
       space_shortcuts_(browser),
       command_bar_(browser) {
-  // The profile's preloaded sidebar, if there is one, has its renderer and
-  // page loaded already (a switch to another profile's space).
-  preloaded_contents_ = SidebarPreloader::Get()->Take(browser->GetProfile());
-  if (preloaded_contents_) {
-    SetWebContents(preloaded_contents_.get());
-  }
-  // The page asks for its window as soon as it connects, so set it first. A
-  // preloaded page connected without one, and binds now.
-  webui::SetBrowserWindowInterface(GetWebContents(), browser);
   InstallSwapPresenter();
-  // Let the region's frame-colored background, and the tint over it, show
-  // through, so the sidebar follows the theme, the window's active state and
-  // its space's color.
-  views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
-      GetWebContents(), SK_ColorTRANSPARENT);
-  SidebarHoverCard::CreateForWebContents(GetWebContents(), this);
-  SidebarContextMenu::CreateForWebContents(GetWebContents(), this);
-  if (!preloaded_contents_) {
-    LoadInitialURL(GURL(kStrataSidebarURL));
+  // A swap's window takes the page of the window it replaces
+  // (sidebar_swap.cc).
+  if (!IsCreatingSwapWindow()) {
+    LoadPage();
   }
 }
 
 StrataSidebarView::~StrataSidebarView() {
   // The WebView lets go of it before it goes.
-  if (preloaded_contents_) {
-    SetWebContents(nullptr);
-  }
+  Detach();
 }
 
 void StrataSidebarView::PreloadCommandBar() {
   command_bar_.Preload();
+}
+
+void StrataSidebarView::LoadPage() {
+  if (contents_) {
+    return;
+  }
+  const GURL url(kStrataSidebarURL);
+  Profile* profile = browser_->GetProfile();
+  content::WebContents::CreateParams params(profile);
+  params.site_instance = content::SiteInstance::CreateForURL(profile, url);
+  Attach(content::WebContents::Create(params));
+  contents_->GetController().LoadURL(url, content::Referrer(),
+                                     ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
+                                     std::string());
+}
+
+void StrataSidebarView::TakePageFrom(StrataSidebarView& other) {
+  if (std::unique_ptr<content::WebContents> contents = other.Detach()) {
+    Detach();
+    Attach(std::move(contents));
+  }
+}
+
+void StrataSidebarView::OnProfileWillBeDestroyed(Profile* profile) {
+  // The page's profile goes: one of the window's takes its place.
+  Detach();
+  LoadPage();
+}
+
+void StrataSidebarView::Attach(std::unique_ptr<content::WebContents> contents) {
+  contents_ = std::move(contents);
+  content::WebContents* web_contents = contents_.get();
+  // As the WebView does with its own: keys the page doesn't handle go to the
+  // window.
+  web_contents->SetDelegate(this);
+  // Let the region's frame-colored background, and the tint over it, show
+  // through, so the sidebar follows the theme, the window's active state and
+  // its space's color.
+  views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+      web_contents, SK_ColorTRANSPARENT);
+  SidebarHoverCard::CreateForWebContents(web_contents, this);
+  SidebarContextMenu::CreateForWebContents(web_contents, this);
+  SetWebContents(web_contents);
+  Profile* page_profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  if (page_profile != browser_->GetProfile()) {
+    page_profile_observation_.Observe(page_profile);
+  }
+  // The page asks for its window as soon as it connects, and a page that
+  // moved here binds to this window now (StrataSidebarUI).
+  webui::SetBrowserWindowInterface(web_contents, browser_);
+}
+
+std::unique_ptr<content::WebContents> StrataSidebarView::Detach() {
+  if (!contents_) {
+    return nullptr;
+  }
+  page_profile_observation_.Reset();
+  SetWebContents(nullptr);
+  contents_->SetDelegate(nullptr);
+  // Made for this view.
+  contents_->RemoveUserData(SidebarHoverCard::UserDataKey());
+  contents_->RemoveUserData(SidebarContextMenu::UserDataKey());
+  return std::move(contents_);
 }
 
 void StrataSidebarView::AddedToWidget() {
@@ -152,9 +203,6 @@ void StrataSidebarView::AddedToWidget() {
   if (!IsCreatingSwapWindow()) {
     command_bar_.Preload();
   }
-  // So a switch from here to another profile's space finds its sidebar
-  // loaded.
-  SidebarPreloader::Get()->RefillLater();
 }
 
 void StrataSidebarView::RemovedFromWidget() {

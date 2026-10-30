@@ -69,7 +69,8 @@ export function getHtml(this: StrataSidebarAppElement) {
           </div>` : nothing}
         ${repeat(this.getPinned_(), (node: Node) => node.id,
                  (node: Node) => html`
-          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}">
+          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+              .profileId="${this.getProfileId_()}">
           </strata-sidebar-node>`)}
       </div>
       <div class="divider" data-flip="divider"></div>
@@ -88,7 +89,8 @@ export function getHtml(this: StrataSidebarAppElement) {
       <div id="today" class="section" role="tablist">
         ${repeat(this.getToday_(), (node: Node) => node.id,
                  (node: Node) => html`
-          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}">
+          <strata-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+              .profileId="${this.getProfileId_()}">
           </strata-sidebar-node>`)}
       </div>
     </div>

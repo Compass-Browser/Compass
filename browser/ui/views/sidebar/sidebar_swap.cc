@@ -13,16 +13,18 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "components/tabs/public/tab_interface.h"
-#include "content/public/browser/web_contents.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "strata/browser/ui/views/frame/browser_view_exchange.h"
-#include "strata/browser/ui/views/sidebar/sidebar_preloader.h"
+#include "strata/browser/ui/views/sidebar/sidebar_tint.h"
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 #include "strata/browser/ui/webui/sidebar/strata_sidebar_ui.h"
 #include "strata/browser/window_sync/window_features.h"
@@ -60,20 +62,35 @@ StrataSidebarView* FindSidebar(views::View* view) {
   return nullptr;
 }
 
+// |view|'s tints, in tree order.
+void CollectTints(views::View* view, std::vector<SidebarTint*>& tints) {
+  if (auto* tint = views::AsViewClass<SidebarTint>(view)) {
+    tints.push_back(tint);
+  }
+  for (views::View* child : view->children()) {
+    CollectTints(child, tints);
+  }
+}
+
+std::vector<SidebarTint*> FindTints(views::View* view) {
+  std::vector<SidebarTint*> tints;
+  CollectTints(view, tints);
+  return tints;
+}
+
 // The new profile's window, built hidden, gives its view to the shown native
-// window (docs/design/profiles-in-place.md). Its sidebar takes the tree first,
-// and the shown window keeps its last frame until the sidebar and the page
-// have painted in it. Owns itself.
+// window (docs/design/profiles-in-place.md). Its sidebar takes the old one's
+// page, which slides to the new space as the switch starts and takes the new
+// tree once it has the window, as within a profile; the shown window keeps
+// its last frame until the page has painted in it. Owns itself.
 class ExchangeTransition : public content::WebContentsObserver,
                            public ui::CompositorLockClient {
  public:
   ExchangeTransition(BrowserWindowInterface* old,
                      BrowserWindowInterface* window,
-                     base::TimeDelta hold,
                      base::OnceClosure leave)
       : old_(old->GetWeakPtr()),
         window_(window->GetWeakPtr()),
-        not_before_(base::TimeTicks::Now() + hold),
         leave_(std::move(leave)) {}
   ExchangeTransition(const ExchangeTransition&) = delete;
   ExchangeTransition& operator=(const ExchangeTransition&) = delete;
@@ -84,10 +101,20 @@ class ExchangeTransition : public content::WebContentsObserver,
                    base::BindOnce(&ExchangeTransition::Exchange,
                                   base::Unretained(this)));
     BrowserView* view = BrowserView::GetBrowserViewForBrowser(window_.get());
+    BrowserView* old_view =
+        old_ ? BrowserView::GetBrowserViewForBrowser(old_.get()) : nullptr;
     StrataSidebarView* sidebar = view ? FindSidebar(view) : nullptr;
-    if (!sidebar || !sidebar->GetWebContents()) {
+    StrataSidebarView* old_sidebar = old_view ? FindSidebar(old_view) : nullptr;
+    if (!sidebar) {
       Exchange();
       return;
+    }
+    takes_page_ = old_sidebar && old_sidebar->GetWebContents() &&
+                  !sidebar->GetWebContents();
+    if (!takes_page_) {
+      // No page to take: the window loads its own, and changes once it has
+      // its tree.
+      sidebar->LoadPage();
     }
     // A hidden window's pages render as background ones do, slowly and
     // without frames; these render as if shown, so the window can change
@@ -100,6 +127,13 @@ class ExchangeTransition : public content::WebContentsObserver,
             gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
             /*is_activity=*/false));
       }
+    }
+    if (takes_page_) {
+      // The page goes on sliding, in its own renderer, and takes the new
+      // tree mid-slide as within a profile: the rest of the window needn't
+      // wait for it.
+      Exchange();
+      return;
     }
     Observe(sidebar->GetWebContents());
     WaitForTree();
@@ -181,21 +215,8 @@ class ExchangeTransition : public content::WebContentsObserver,
     if (!ui) {
       return;
     }
-    ui->RunWhenTreeShown(base::BindOnce(
-        &ExchangeTransition::ExchangeAfterSlide, weak_factory_.GetWeakPtr()));
-  }
-
-  // The old window's sidebar slides until |not_before_|; the new one starts
-  // where the slide ends.
-  void ExchangeAfterSlide() {
-    const base::TimeDelta slide_left = not_before_ - base::TimeTicks::Now();
-    if (!slide_left.is_positive()) {
-      Exchange();
-      return;
-    }
-    timeout_.Start(FROM_HERE, slide_left,
-                   base::BindOnce(&ExchangeTransition::Exchange,
-                                  base::Unretained(this)));
+    ui->RunWhenTreeShown(base::BindOnce(&ExchangeTransition::Exchange,
+                                        weak_factory_.GetWeakPtr()));
   }
 
   void Exchange() {
@@ -210,11 +231,27 @@ class ExchangeTransition : public content::WebContentsObserver,
     BrowserView* view =
         window_ ? BrowserView::GetBrowserViewForBrowser(window_.get())
                 : nullptr;
-    if (!old_view || !view) {
+    // Not while either window closes (when quitting, for one).
+    if (!old_view || !view || browser_shutdown::IsTryingToQuit() ||
+        old_->capabilities()->IsAttemptingToCloseBrowser() ||
+        window_->capabilities()->IsAttemptingToCloseBrowser()) {
       Finish();
       return;
     }
     BrowserViewExchange::Exchange(*old_view, *view);
+    StrataSidebarView* old_sidebar = FindSidebar(old_view);
+    if (StrataSidebarView* sidebar = FindSidebar(view);
+        takes_page_ && sidebar && old_sidebar) {
+      // Shown already, as the slide ended: it stays put, and shows the new
+      // window's tree once it has it.
+      sidebar->TakePageFrom(*old_sidebar);
+    }
+    // The tints (the region's and the frame's) go on from the old window's.
+    std::vector<SidebarTint*> tints = FindTints(view);
+    std::vector<SidebarTint*> old_tints = FindTints(old_view);
+    for (size_t i = 0; i < tints.size() && i < old_tints.size(); ++i) {
+      tints[i]->ContinueFrom(*old_tints[i]);
+    }
 
     if (ui::Compositor* compositor = view->GetWidget()->GetCompositor()) {
       lock_ = compositor->GetCompositorLock(this, kMaxSwapWait);
@@ -261,17 +298,15 @@ class ExchangeTransition : public content::WebContentsObserver,
     if (StrataSidebarView* sidebar = view ? FindSidebar(view) : nullptr) {
       sidebar->PreloadCommandBar();
     }
-    // The new window's profile used its preloaded sidebar, and the profile
-    // left may now need one.
-    SidebarPreloader::Get()->RefillLater();
     delete this;
   }
 
   base::WeakPtr<BrowserWindowInterface> old_;
   base::WeakPtr<BrowserWindowInterface> window_;
-  const base::TimeTicks not_before_;
   base::OnceClosure leave_;
   base::OneShotTimer timeout_;
+  // The new window takes the old one's sidebar page.
+  bool takes_page_ = false;
   bool exchanged_ = false;
   bool unlocked_ = false;
   std::unique_ptr<ui::CompositorLock> lock_;
@@ -293,9 +328,8 @@ void InstallSwapPresenter() {
   g_installed = true;
   SetSwapPresenter(base::BindRepeating([](BrowserWindowInterface* old,
                                           BrowserWindowInterface* window,
-                                          base::TimeDelta hold,
                                           base::OnceClosure leave) {
-    (new ExchangeTransition(old, window, hold, std::move(leave)))->Start();
+    (new ExchangeTransition(old, window, std::move(leave)))->Start();
   }));
 }
 

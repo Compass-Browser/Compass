@@ -342,15 +342,12 @@ when `space` is the window's profile's. Otherwise:
    profile falls back to.
 
 In the page, a click on another profile's space slides like any other and
-asks for the switch as the slide starts, with how long it has left
-(`SwitchSpace(id, slide_left)`): the browser builds the new window and its
-sidebar takes its tree while the slide plays, and the exchange waits until
-the slide has ended (`ExchangeTransition::ExchangeAfterSlide()`). The new
-window shows what the slide ended on, so the slide seems to run in one
-window. A swipe works the same way. The old window's tint blends toward the
-new space's color along the slide; once the switch starts, the page's
-handler is gone, so `SidebarTint::OnSwappedAway()` finishes the blend on its
-own.
+asks for the switch as the slide starts. The window keeps the page
+(profiles-in-place.md, "One sidebar page"): the new window's handler sends it
+the space's tree mid-slide, as within a profile, so the slide runs on in one
+page. A swipe works the same way. The tint blends toward the new space's
+color along the slide; the new window's tints go on from where the old
+window's were.
 
 ### Deleting
 

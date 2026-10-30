@@ -34,8 +34,8 @@ class StrataSidebarUIConfig
 
 // chrome://strata-sidebar: the sidebar page shown in the vertical tab strip
 // region. Its host (StrataSidebarView) sets the window it belongs to with
-// webui::SetBrowserWindowInterface(); a preloaded page (SidebarPreloader)
-// gets it later. See docs/design/sidebar.md.
+// webui::SetBrowserWindowInterface(), and sets it again when the page moves
+// to another window. See docs/design/sidebar.md.
 class StrataSidebarUI : public ui::MojoWebUIController,
                         public sidebar::mojom::PageHandlerFactory {
  public:
@@ -52,7 +52,9 @@ class StrataSidebarUI : public ui::MojoWebUIController,
 
  private:
   void OnTreeShown();
-  // Binds the page handler once the page has asked for it and has a window.
+  // Binds the page handler once the page has asked for it and has a window,
+  // and again for the window it moves to (a switch to another profile's
+  // space keeps the page, docs/design/profiles-in-place.md).
   void MaybeCreatePageHandler();
 
   // sidebar::mojom::PageHandlerFactory:

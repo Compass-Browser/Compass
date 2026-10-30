@@ -845,8 +845,7 @@ void AssignSpaceToProfile(const base::Uuid& space_id,
 
 BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
                                             Profile* profile,
-                                            SpaceModel& space,
-                                            base::TimeDelta hold) {
+                                            SpaceModel& space) {
   WindowFeatures* features = WindowFeatures::From(browser);
   if (!features || features->is_parking_window() ||
       features->swapped_away() ||
@@ -891,7 +890,7 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
       },
       browser->GetWeakPtr());
   if (const SwapPresenter& presenter = GetSwapPresenter()) {
-    presenter.Run(browser, window, hold, std::move(leave));
+    presenter.Run(browser, window, std::move(leave));
   } else {
     window->GetWindow()->Show();
     std::move(leave).Run();

@@ -458,7 +458,7 @@ TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {
                                    .spaces()[0]
                                    ->id()
                                    .AsLowercaseString();
-  handler_remote_->SwitchSpace(first_id, base::TimeDelta());
+  handler_remote_->SwitchSpace(first_id);
   Settle();
 
   EXPECT_EQ(page_.spaces(), "[Home],Space 2");
@@ -505,7 +505,7 @@ TEST_F(SidebarPageHandlerTest, SendsAnotherSpacesTreeAndPreviewsIt) {
   EXPECT_FALSE(features->preview_space());
   // Switching ends it.
   handler_remote_->PreviewSpace(work_id, 0.9);
-  handler_remote_->SwitchSpace(work_id, base::TimeDelta());
+  handler_remote_->SwitchSpace(work_id);
   Settle();
   EXPECT_EQ(&features->space_model(), work);
   EXPECT_FALSE(features->preview_space());
@@ -548,8 +548,7 @@ TEST_F(SidebarPageHandlerTest, MovesAnEntryAndItsTabToAnotherSpace) {
   EXPECT_EQ(a->GetBrowserWindowInterface(), parking_.get());
 
   // It comes back with the space.
-  handler_remote_->SwitchSpace(work->id().AsLowercaseString(),
-                               base::TimeDelta());
+  handler_remote_->SwitchSpace(work->id().AsLowercaseString());
   Settle();
   EXPECT_EQ(tab_strip_model()->GetActiveTab(), a);
 }
@@ -890,8 +889,7 @@ TEST_F(SidebarPageHandlerTest, ListsAndSwapsToAnotherProfilesSpace) {
                                 /*hosted_app=*/false);
         return swapped.get();
       }));
-  handler_remote_->SwitchSpace(work->id().AsLowercaseString(),
-                               base::TimeDelta());
+  handler_remote_->SwitchSpace(work->id().AsLowercaseString());
   Settle();
   SetSwapWindowFactoryForTesting({});
 

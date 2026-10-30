@@ -4,7 +4,6 @@
 
 module strata.sidebar.mojom;
 
-import "mojo/public/mojom/base/time.mojom";
 import "url/mojom/url.mojom";
 
 // Mirrors strata::SidebarNode::Type.
@@ -131,10 +130,8 @@ interface PageHandler {
   DeleteNode(string id);
 
   // Shows another space in this window; the page then gets its tree. A space
-  // of another profile swaps the window instead: this page closes with it,
-  // and the new window takes its place no sooner than |slide_left| from now,
-  // once the page's slide has ended.
-  SwitchSpace(string id, mojo_base.mojom.TimeDelta slide_left);
+  // of another profile swaps the window instead: this page closes with it.
+  SwitchSpace(string id);
   // Adds a space at the end and switches to it.
   AddSpace();
   // Empty names are ignored.
