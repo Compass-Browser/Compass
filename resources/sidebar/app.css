@@ -21,11 +21,13 @@
   position: relative;
 }
 
-/* Favorites: square tiles, four or more to a row. */
+/* Favorites: as in Arc, tiles share each row's whole width, four or more
+ * to a row (more as the sidebar widens); a shorter last row's tiles grow to
+ * fill it too. */
 #favorites {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
   padding: 4px 0 2px;
 }
 
@@ -45,12 +47,14 @@
 
 .tile {
   align-items: center;
-  aspect-ratio: 1;
   background: rgba(128, 128, 128, 0.14);
   border-radius: 10px;
+  box-sizing: border-box;
   display: flex;
+  flex: 1 1 48px;
+  height: 48px;
   justify-content: center;
-  max-height: 56px;
+  min-width: 48px;
   position: relative;
   transition: background-color 120ms, transform 100ms;
   user-select: none;

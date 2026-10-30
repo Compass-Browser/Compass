@@ -5,6 +5,7 @@
 #ifndef STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
 #define STRATA_BROWSER_UI_VIEWS_SIDEBAR_STRATA_SIDEBAR_VIEW_H_
 
+#include <initializer_list>
 #include <memory>
 
 #include "base/callback_list.h"
@@ -115,6 +116,19 @@ std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser);
 // whole region with the window's space color (SidebarTint) and gives the
 // window its frame (WindowFrame).
 void InstallSidebar(views::View* sidebar, views::View* bottom_container);
+
+// Opening and closing (docs/design/window-frame.md, "Opening and closing"):
+// while the region's width animates, its header and sidebar keep the
+// expanded width and slide. How far left they go at region |width|, or 0
+// when it isn't animating.
+int GetSidebarSlideOffset(int width, int expanded_width, bool animating);
+
+// Fades |views| with the region's |width| while the sidebar closes
+// (|closing|), and back to opaque otherwise. They get a layer only for that.
+void FadeSidebarContents(std::initializer_list<views::View*> views,
+                         int width,
+                         int expanded_width,
+                         bool closing);
 
 // Reports |browser|'s active tab, as the native strip's node tree did for the
 // region: now, whenever it changes, and null as soon as the active tab leaves

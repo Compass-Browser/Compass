@@ -71,6 +71,20 @@ buttons (`-[NSWindow standardWindowButton:]`, `window_frame_mac.mm`) while
 the region is at the collapsed width, visible and not fullscreen. Shown on
 hover, the region is wider, so they come back.
 
+## Opening and closing
+
+Upstream animates the region's width between expanded and collapsed (and
+for expand on hover). Laying the sidebar out again at every width reflowed
+its rows and squeezed the header. Instead, as in Arc, the sidebar slides:
+while the width animates, the region gives its header and its contents
+(the sidebar page) their expanded width, shifted left by what the region
+lacks (`strata::GetSidebarSlideOffset()`, region `.cc` patch in
+`CalculateProposedLayout()`), so they move out of the window's leading
+edge, or in, at one size. Closing, they also fade with the width
+(`strata::FadeSidebarContents()`, from the region's `Layout()`); they get
+a layer only while fading. The page card grows and shrinks with the region
+as before.
+
 ## Color
 
 The frame is the same color as the sidebar: a second `SidebarTint`, under
@@ -106,14 +120,11 @@ falls back to upstream's corner while collapsed.
 
 - Expand on hover keeps upstream's delay (350 ms, or its velocity
   heuristic); Arc shows the sidebar at once at the edge.
-- There's no keyboard shortcut to collapse or expand (Arc uses Cmd+S, which
-  Chrome uses to save the page).
 - Collapsed, focusing the toolbar or the app menu from the keyboard
   (`IDC_FOCUS_TOOLBAR`, `IDC_FOCUS_MENU_BAR`) does nothing: the header
   isn't drawn, so its buttons can't take focus. F6 still reaches the page.
 - The card has no shadow. Infobars, the bookmarks bar and side panels sit
   inside the frame but outside the card, with square corners.
 - Right to left layouts aren't mirrored (the inset is on the right).
-- During upstream's collapse animation the header briefly lays out
-  collapsed (the app menu over a column of content setting icons) before it
-  hides.
+- The page card still lays out at every width of the animation (upstream's
+  `MultiContentsView`), as in Arc.

@@ -4,6 +4,7 @@
 
 #include "strata/browser/ui/views/sidebar/strata_sidebar_view.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -16,6 +17,9 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "content/public/browser/navigation_controller.h"
+#include "strata/browser/ui/views/frame/content_frame.h"
+#include "ui/base/class_property.h"
+#include "ui/compositor/layer.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/page_transition_types.h"
@@ -215,6 +219,48 @@ END_METADATA
 
 std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser) {
   return std::make_unique<StrataSidebarView>(browser);
+}
+
+namespace {
+
+// Set on views that FadeSidebarContents() gave a layer, which it takes back.
+DEFINE_UI_CLASS_PROPERTY_KEY(bool, kHasFadeLayerKey, false)
+
+}  // namespace
+
+int GetSidebarSlideOffset(int width, int expanded_width, bool animating) {
+  return animating ? std::max(0, expanded_width - width) : 0;
+}
+
+void FadeSidebarContents(std::initializer_list<views::View*> views,
+                         int width,
+                         int expanded_width,
+                         bool closing) {
+  const int range = expanded_width - kCollapsedSidebarWidth;
+  const float opacity =
+      closing && range > 0
+          ? std::clamp(static_cast<float>(width - kCollapsedSidebarWidth) /
+                           range,
+                       0.f, 1.f)
+          : 1.f;
+  for (views::View* view : views) {
+    if (!view) {
+      continue;
+    }
+    if (opacity == 1.f && view->GetProperty(kHasFadeLayerKey)) {
+      view->DestroyLayer();
+      view->ClearProperty(kHasFadeLayerKey);
+      continue;
+    }
+    if (opacity < 1.f && !view->layer()) {
+      view->SetPaintToLayer();
+      view->layer()->SetFillsBoundsOpaquely(false);
+      view->SetProperty(kHasFadeLayerKey, true);
+    }
+    if (view->layer()) {
+      view->layer()->SetOpacity(opacity);
+    }
+  }
 }
 
 void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
