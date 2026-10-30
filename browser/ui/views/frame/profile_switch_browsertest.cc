@@ -16,9 +16,11 @@
 #include "base/test/run_until.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/api/tabs/tabs_api.h"
+#include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -38,6 +40,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/test/test_extension_dir.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "strata/browser/sidebar/space_list.h"
 #include "strata/browser/sidebar/space_model.h"
@@ -48,7 +51,10 @@
 #include "strata/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/base_window.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/base/models/dialog_model.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
@@ -310,6 +316,44 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
             std::vector<int>{extensions::ExtensionTabUtil::GetWindowId(
                 shown)});
   EXPECT_TRUE(get_all(profile_).empty());
+}
+
+// An extension shortcut of the new profile works in the window: it moved to
+// the native window's focus manager with the view, and leaves with it.
+IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+                       ExtensionShortcutsMoveWithTheView) {
+  extensions::TestExtensionDir dir;
+  dir.WriteManifest(R"({
+    "name": "Shortcut",
+    "version": "1",
+    "manifest_version": 3,
+    "background": {"service_worker": "worker.js"},
+    "commands": {
+      "run": {
+        "suggested_key": {"default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y"},
+        "description": "Run"
+      }
+    }
+  })");
+  dir.WriteFile(FILE_PATH_LITERAL("worker.js"), "");
+  ASSERT_TRUE(extensions::ChromeTestExtensionLoader(other_).LoadExtension(
+      dir.UnpackedPath()));
+#if BUILDFLAG(IS_MAC)
+  const ui::Accelerator shortcut(ui::VKEY_Y,
+                                 ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN);
+#else
+  const ui::Accelerator shortcut(ui::VKEY_Y,
+                                 ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN);
+#endif
+  EXPECT_FALSE(widget()->GetFocusManager()->IsAcceleratorRegistered(shortcut));
+
+  BrowserWindowInterface* shown = SwitchToOther(browser());
+  ASSERT_TRUE(shown);
+  EXPECT_TRUE(widget()->GetFocusManager()->IsAcceleratorRegistered(shortcut));
+
+  shown = SwitchBack(shown);
+  ASSERT_TRUE(shown);
+  EXPECT_FALSE(widget()->GetFocusManager()->IsAcceleratorRegistered(shortcut));
 }
 
 // The last used profile follows the window, for new windows from the Dock

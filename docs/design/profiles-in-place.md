@@ -206,14 +206,15 @@ The list below was the first idea's. What the exchange has
 - `windows.getAll()` lists the window in the new profile only
   (`ExtensionsSeeTheNewProfilesWindow`).
 - The last used profile follows (`LastUsedProfileFollows`).
+- An extension shortcut of the new profile is registered in the window and
+  leaves with its view (`ExtensionShortcutsMoveWithTheView`).
 - Two windows on a space, one switches: its tabs go to the other
   (`TabsGoToAnotherWindowOnTheSpace`).
 - Picture-in-picture's "back to tab" switches the window back to a parked
   tab's profile (`BackToTabSwitchesProfiles`).
 
 Not covered by a test: session restore of a window that switched profiles
-(`--restore-last-session` by hand), an extension shortcut after the
-exchange (the registry's focus manager is rebound in `Rebind()`), downloads
+(`--restore-last-session` by hand), downloads
 (the profile's, not the window's: a test with a held response timed out
 before the switch, in its own setup).
 
