@@ -1400,6 +1400,28 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SplitsShowSideBySide) {
   EXPECT_EQ(model.today_root()->children().size(), 3u);
 }
 
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DropOnATabSplitsThem) {
+  content::WebContents* contents = sidebar_contents();
+  OpenThreeTabs(browser(), contents);
+
+  // One onto the middle of Three, its right half: Three, then One.
+  ASSERT_EQ(true, content::EvalJs(
+                      contents, content::JsReplace(
+                                    kDrag, "One",
+                                    "#today .tab.row[title='Three']", 0.5)));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return model.today_root()->children().size() == 2u; }));
+  const SidebarNode* split = model.today_root()->children()[1].get();
+  ASSERT_EQ(split->type(), SidebarNode::Type::kSplit);
+  EXPECT_EQ(split->children()[0]->title(), u"Three");
+  EXPECT_EQ(split->children()[1]->title(), u"One");
+  MultiContentsView* view =
+      BrowserView::GetBrowserViewForBrowser(browser())->multi_contents_view();
+  ASSERT_TRUE(base::test::RunUntil([&] { return view->IsInSplitView(); }));
+}
+
 // Double-clicks the tab row titled $1, types $2 into its name and presses
 // Enter. Returns the row's title once it shows $3.
 constexpr char kRenameTab[] = R"(

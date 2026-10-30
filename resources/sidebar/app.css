@@ -664,6 +664,23 @@ strata-sidebar-node {
   box-shadow: inset 0 -2px 0 var(--color-sys-primary, #8ab4f8);
 }
 
+/* Side by side with the tab dropped on, on that side. */
+.row[drop='split-left'] {
+  background: linear-gradient(to right,
+      color-mix(in srgb, var(--color-sys-primary, #8ab4f8) 30%,
+                transparent) 50%,
+      transparent 50%);
+  box-shadow: inset 2px 0 0 var(--color-sys-primary, #8ab4f8);
+}
+
+.row[drop='split-right'] {
+  background: linear-gradient(to left,
+      color-mix(in srgb, var(--color-sys-primary, #8ab4f8) 30%,
+                transparent) 50%,
+      transparent 50%);
+  box-shadow: inset -2px 0 0 var(--color-sys-primary, #8ab4f8);
+}
+
 .row[drop='into'] {
   outline: 2px solid var(--color-sys-primary, #8ab4f8);
   outline-offset: -2px;

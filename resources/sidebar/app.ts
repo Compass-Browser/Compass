@@ -18,11 +18,12 @@ import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
 // attribute.
+// A split drop has the tab dropped on as |parent|.
 interface DropTarget {
   parent: Node;
   index: number;
   target: HTMLElement;
-  position: 'before'|'after'|'into'|'end';
+  position: 'before'|'after'|'into'|'end'|'split-left'|'split-right';
 }
 
 // What each space color looks like, and its name. Grey spaces aren't tinted.
@@ -1664,7 +1665,10 @@ export class StrataSidebarAppElement extends CrLitElement {
   protected onDrop_(e: DragEvent) {
     e.preventDefault();
     const drop = this.dropTarget_;
-    if (drop && this.draggingId_) {
+    if (drop && this.draggingId_ && drop.position.startsWith('split-')) {
+      this.browserProxy_.handler.splitNode(
+          this.draggingId_, drop.parent.id, drop.position === 'split-left');
+    } else if (drop && this.draggingId_) {
       this.browserProxy_.handler.moveNode(
           this.draggingId_, drop.parent.id, drop.index);
     } else if (drop) {
@@ -1748,6 +1752,19 @@ export class StrataSidebarAppElement extends CrLitElement {
       }
       const rect = row.getBoundingClientRect();
       const y = (e.clientY - rect.top) / rect.height;
+      // A tab on another tab's middle half: side by side, on the side it's
+      // dropped on.
+      if (dragged && this.canSplit_(dragged, node) && y > 1 / 4 &&
+          y < 3 / 4) {
+        const rtl = getComputedStyle(row).direction === 'rtl';
+        const left = (e.clientX - rect.left < rect.width / 2) !== rtl;
+        return {
+          parent: node,
+          index: 0,
+          target: row,
+          position: left ? 'split-left' : 'split-right',
+        };
+      }
       if (node.type === NodeType.kFolder && y > 1 / 3 && y < 2 / 3) {
         drop = {
           parent: node,
@@ -1778,6 +1795,15 @@ export class StrataSidebarAppElement extends CrLitElement {
       };
     }
     return this.canDrop_(dragged, drop.parent) ? drop : null;
+  }
+
+  // Mirrors SpaceModel::CanSplit() for a tab entry dragged onto a tab entry,
+  // outside the favorites.
+  private canSplit_(dragged: Node, target: Node): boolean {
+    return dragged !== target && dragged.type === NodeType.kTab &&
+        target.type === NodeType.kTab &&
+        this.parents_.get(dragged.id) !== this.favorites_ &&
+        this.parents_.get(target.id) !== this.favorites_;
   }
 
   // Mirrors SpaceModel::CanMove() for the cases the page can see. A link

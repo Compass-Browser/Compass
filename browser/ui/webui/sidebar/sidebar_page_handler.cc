@@ -310,6 +310,24 @@ void SidebarPageHandler::RenameTab(const std::string& id,
   GetModelOf(node).SetCustomTitle(node, std::move(title16));
 }
 
+void SidebarPageHandler::SplitNode(const std::string& id,
+                                   const std::string& target_id,
+                                   bool first) {
+  SidebarNode* node = FindNode(id);
+  SidebarNode* target = FindNode(target_id);
+  SpaceModel& space = space_model();
+  if (!node || !target || !space.Contains(node) || !space.Contains(target) ||
+      !space.CanSplit(target, node)) {
+    return;
+  }
+  SidebarNode* split = space.Split(target, node);
+  if (first) {
+    space.Move(node, split, 0);
+  }
+  // Shows the split, its other pane too.
+  ActivateNode(id);
+}
+
 void SidebarPageHandler::SetFolderCollapsed(const std::string& id,
                                             bool collapsed) {
   SidebarNode* node = FindNode(id);

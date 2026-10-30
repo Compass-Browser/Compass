@@ -922,6 +922,27 @@ TEST_F(SidebarPageHandlerTest, SplitsAndSeparatesFromTheMenu) {
   EXPECT_EQ(tab_strip_model()->count(), 2);
 }
 
+TEST_F(SidebarPageHandlerTest, DroppingATabOnAnotherSplitsThem) {
+  const std::string a = TodayId(0);
+  const std::string b = TodayId(1);
+
+  // b dropped on a's left half: b, then a.
+  handler_remote_->SplitNode(b, a, /*first=*/true);
+  Settle();
+
+  ASSERT_EQ(space_model().today_root()->children().size(), 1u);
+  const SidebarNode* split = space_model().today_root()->children()[0].get();
+  ASSERT_EQ(split->type(), SidebarNode::Type::kSplit);
+  EXPECT_EQ(split->children()[0]->id().AsLowercaseString(), b);
+  EXPECT_EQ(split->children()[1]->id().AsLowercaseString(), a);
+  EXPECT_TRUE(tab_strip_model()->GetTabAtIndex(0)->GetSplit());
+
+  // Not onto itself, nor a third pane.
+  handler_remote_->SplitNode(a, a, /*first=*/false);
+  Settle();
+  EXPECT_EQ(split->children().size(), 2u);
+}
+
 TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {
   const std::string a = TodayId(0);
   std::unique_ptr<ui::SimpleMenuModel> menu = handler_->CreateContextMenu(a);

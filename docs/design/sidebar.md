@@ -730,14 +730,22 @@ The context menu has "Open in Split View" on an entry that can go next to
 the window's active entry (it splits them and shows the split), and
 "Separate Tabs" on a split or a pane (`SpaceModel::Unsplit()`).
 
-Not yet: making a split by dragging an entry onto another or onto the
-page, and the upstream split's layout and ratio (not saved).
+Dragging a tab entry onto the middle half of another tab entry's row (not
+favorites) splits them: dropped on the row's left half, the dragged tab
+goes on the left, on the right half on the right (mirrored right to left).
+The row shows that half highlighted. The top and bottom quarters still
+drop before and after. The page calls `SplitNode(id, target_id, first)`,
+which splits and shows the split.
+
+Not yet: dragging onto the page itself, and the upstream split's layout
+and ratio (not saved).
 
 **Tests:** `UnsplitPutsThePanesInItsPlace`, the bridge's
 `ModelSplitsSplitTheWindow`, `UpstreamSplitsSplitTheModel`,
 `StripMovesOutOfASplitSeparateIt`, `ClosingAPinnedPaneKeepsItsSplit`, the
-handler's `SplitsAndSeparatesFromTheMenu`, and the browser test
-`SplitsShowSideBySide`.
+handler's `SplitsAndSeparatesFromTheMenu` and
+`DroppingATabOnAnotherSplitsThem`, and the browser tests
+`SplitsShowSideBySide` and `DropOnATabSplitsThem`.
 
 ## Link folders
 

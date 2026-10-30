@@ -118,6 +118,10 @@ interface PageHandler {
   // ignored. Moving a tab entry into the favorites root makes it a favorite,
   // and moving a favorite into the window's space makes it an entry there.
   MoveNode(string id, string new_parent_id, uint32 index);
+  // A tab dropped on another tab: they show side by side, |id| on the left
+  // if |first|, else on the right. Ignored where SpaceModel::CanSplit() says
+  // no.
+  SplitNode(string id, string target_id, bool first);
   // A link dropped on the sidebar: a new entry for |url| at the slot |index|
   // among |parent_id|'s children, opened in the foreground. Only http(s) and
   // file URLs, and only where a tab can go.
