@@ -108,6 +108,22 @@ TEST(SidebarSerializerTest, RoundTripsCustomTitles) {
   EXPECT_EQ(entries[1]->children()[1]->custom_title(), u"Bee");
 }
 
+TEST(SidebarSerializerTest, RoundTripsTodayFolders) {
+  SpaceModel model;
+  SidebarNode* trip = model.AddFolder(model.today_root(), 0, u"Trip");
+  model.AddTab(trip, 0, GURL("https://map.test/"), u"Map");
+  // A new tab page isn't saved, but its folder is.
+  SidebarNode* empty = model.AddFolder(model.today_root(), 1, u"Later");
+  model.AddTab(empty, 0, GURL("chrome://newtab/"), u"New Tab");
+  model.SetCollapsed(trip, true);
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  EXPECT_EQ(Describe(restored.today_root()), "Trip{Map},Later{}");
+  EXPECT_TRUE(restored.today_root()->children()[0]->collapsed());
+}
+
 TEST(SidebarSerializerTest, SavesTodayWithoutNewTabPages) {
   SpaceModel model;
   SidebarNode* today = model.today_root();
@@ -156,7 +172,6 @@ TEST(SidebarSerializerTest, SkipsWhatTheModelCantHold) {
       ]}
     ],
     "today": [
-      {"type": "folder", "title": "No folders in Today"},
       {"type": "tab", "title": "T", "url": "https://t.test/"}
     ]
   })",

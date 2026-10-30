@@ -684,10 +684,14 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.browserProxy_.handler.newTab();
   }
 
-  protected onNewFolderClick_() {
-    if (this.pinned_) {
+  // At the end of Pinned, or the top of Today, where new entries go.
+  protected onNewFolderClick_(e: Event) {
+    const today = (e.currentTarget as HTMLElement).dataset['section'] ===
+        'today';
+    const root = today ? this.today_ : this.pinned_;
+    if (root) {
       this.browserProxy_.handler.addFolder(
-          this.pinned_.id, this.pinned_.children.length, 'New Folder');
+          root.id, today ? 0 : root.children.length, 'New Folder');
     }
   }
 
@@ -1791,19 +1795,7 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (parent.type === NodeType.kSplit) {
       return false;
     }
-    if (dragged?.type === NodeType.kFolder) {
-      return parent === this.pinned_ || this.isInPinned_(parent);
-    }
     return true;
-  }
-
-  private isInPinned_(node: Node): boolean {
-    for (let n: Node|undefined = node; n; n = this.parents_.get(n.id)) {
-      if (n === this.pinned_) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private index_(node: Node, parent: Node|null) {

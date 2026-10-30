@@ -122,7 +122,7 @@ interface PageHandler {
   // among |parent_id|'s children, opened in the foreground. Only http(s) and
   // file URLs, and only where a tab can go.
   OpenLink(url.mojom.Url url, string parent_id, uint32 index);
-  // Folders live in the pinned section; other parents are ignored.
+  // In Pinned or Today, at the top or in a folder; other parents are ignored.
   AddFolder(string parent_id, uint32 index, string title);
   RenameFolder(string id, string title);
   // Names a tab (a pane too); an empty or blank name goes back to the page's
@@ -130,8 +130,8 @@ interface PageHandler {
   RenameTab(string id, string title);
   // Collapses or expands a folder, in every window. Saved.
   SetFolderCollapsed(string id, bool collapsed);
-  // Removes a folder, a pinned entry or a favorite and its subtree, closing
-  // live tabs.
+  // Removes a folder (Pinned or Today), a pinned entry or a favorite and its
+  // subtree, closing live tabs.
   DeleteNode(string id);
 
   // Shows another space in this window; the page then gets its tree. A space

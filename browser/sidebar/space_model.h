@@ -188,12 +188,14 @@ class SpaceModel {
   // Archived Today entries, most recent first.
   const std::vector<ArchivedEntry>& archive() const { return archive_; }
 
-  // Moves |entry|, a Today entry, to the archive: its tabs worth restoring
-  // (see IsRestorableURL()) are recorded, then it's removed, which closes its
-  // live tabs. An entry with nothing worth restoring is only removed.
+  // Moves |entry|, a Today entry (a tab or split, maybe in a folder), to the
+  // archive: its tabs worth restoring (see IsRestorableURL()) are recorded,
+  // then it's removed, which closes its live tabs. An entry with nothing
+  // worth restoring is only removed.
   void Archive(SidebarNode* entry, base::Time now);
 
-  // Archives the Today entries none of whose tabs has been shown for
+  // Archives the Today entries (in folders too; folders stay, even emptied)
+  // none of whose tabs has been shown for
   // archive_after(), as of |now|, except those |keep| returns true for (one
   // shown in a window right now, say). Tabs with no last-active time get
   // |now|, so they're archived a full delay later. Returns how many entries

@@ -158,8 +158,7 @@ bool DeserializeNode(const base::DictValue& dict,
 
   const base::ListValue* children = dict.FindList(kChildrenKey);
   if (*type == kFolder) {
-    if (parent->type() == SidebarNode::Type::kSplit ||
-        parent == model.today_root()) {
+    if (parent->type() == SidebarNode::Type::kSplit) {
       return false;
     }
     SidebarNode* folder = model.AddFolder(parent, index, std::move(title16));

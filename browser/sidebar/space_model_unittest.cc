@@ -90,14 +90,16 @@ TEST_F(SpaceModelTest, StartsEmpty) {
   EXPECT_FALSE(model_.CanMove(model_.pinned_root(), model_.today_root()));
 }
 
-TEST_F(SpaceModelTest, FoldersNestInPinnedOnly) {
+TEST_F(SpaceModelTest, FoldersNestInPinnedAndToday) {
   SidebarNode* work = model_.AddFolder(model_.pinned_root(), 0, u"Work");
   SidebarNode* docs = model_.AddFolder(work, 0, u"Docs");
   Tab(docs, "spec");
+  SidebarNode* reading = model_.AddFolder(model_.today_root(), 0, u"Reading");
 
   EXPECT_THAT(Titles(model_.pinned_root()), ElementsAre("Work"));
   EXPECT_THAT(Titles(docs), ElementsAre("spec"));
-  EXPECT_FALSE(model_.CanMove(work, model_.today_root()));
+  EXPECT_TRUE(model_.CanMove(work, model_.today_root()));
+  EXPECT_TRUE(model_.CanMove(docs, reading));
   EXPECT_FALSE(model_.CanMove(work, docs));  // Into its own descendant.
   EXPECT_TRUE(model_.CanMove(docs, model_.pinned_root()));
 }
@@ -272,8 +274,8 @@ TEST_F(SpaceModelTest, MovingToAnotherSpaceKeepsTheInvariants) {
   SidebarNode* b = Tab(model_.today_root(), "b");
   model_.Split(a, b);
 
-  // Folders stay in Pinned, nodes go to another space, roots stay put.
-  EXPECT_FALSE(model_.CanMoveToSpace(folder, other, other.today_root()));
+  // Nodes go to another space, roots stay put.
+  EXPECT_TRUE(model_.CanMoveToSpace(folder, other, other.today_root()));
   EXPECT_FALSE(model_.CanMoveToSpace(a, model_, model_.pinned_root()));
   EXPECT_FALSE(
       model_.CanMoveToSpace(model_.today_root(), other, other.today_root()));
@@ -336,6 +338,30 @@ TEST(SpaceModelArchiveTest, ArchivesEntriesLeftUnseen) {
   ASSERT_EQ(model.archive().size(), 3u);
   EXPECT_EQ(model.archive()[0].tabs[0].title, u"Kept");
   EXPECT_EQ(model.archive()[1].tabs[0].title, u"New");
+}
+
+TEST(SpaceModelArchiveTest, ArchivesEntriesInFoldersOneByOne) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  const base::Time start = base::Time::Now();
+  SidebarNode* folder = model.AddFolder(today, 0, u"Trip");
+  SidebarNode* old_tab =
+      model.AddTab(folder, 0, GURL("https://old.test/"), u"Old");
+  SidebarNode* recent =
+      model.AddTab(folder, 1, GURL("https://new.test/"), u"New");
+  model.SetLastActive(old_tab, start - base::Days(2));
+  model.SetLastActive(recent, start - base::Hours(1));
+  const auto keep_none = [](const SidebarNode&) { return false; };
+
+  EXPECT_EQ(model.ArchiveIdleEntries(start, keep_none), 1u);
+  EXPECT_THAT(Titles(today), ElementsAre("Trip"));
+  EXPECT_THAT(Titles(folder), ElementsAre("New"));
+
+  // The folder stays, emptied.
+  EXPECT_EQ(model.ArchiveIdleEntries(start + base::Days(1), keep_none), 1u);
+  EXPECT_THAT(Titles(today), ElementsAre("Trip"));
+  EXPECT_TRUE(folder->children().empty());
+  EXPECT_EQ(model.archive().size(), 2u);
 }
 
 TEST(SpaceModelArchiveTest, SplitsGoByTheirMostRecentPane) {

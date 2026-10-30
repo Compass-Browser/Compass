@@ -664,6 +664,28 @@ browser test `FolderCollapseIsShared` (clicking collapses it in the model;
 a second window shows it collapsed; expanding in the model expands both
 pages).
 
+## Folders in Today
+
+Today has folders too, as Arc does: "+" in Today's header adds one at the
+top (where new entries go), and folders nest, drag, collapse, rename and
+move between spaces as Pinned's do. `SpaceModel::CanContain()` lets a
+folder go in either root; a folder's menu also has Pin or Unpin, which
+moves it with its tabs.
+
+- Tabs in a Today folder stay live and Today's: closing one removes its
+  entry, as anywhere in Today. Deleting a Today folder closes its tabs.
+- The strip follows the tree's order (`CollectLiveTabs()` walks folders);
+  a tab moved in the strip that sits in a folder keeps its place, as a
+  split's panes do.
+- Auto-archive goes by entry, tab or split, inside folders too; folders
+  aren't archived and stay when emptied (`ArchiveIdleEntries()`).
+- The store saves Today folders like Pinned's, empty ones too; older
+  builds skip them.
+
+**Tests:** `FoldersNestInPinnedAndToday`, `ArchivesEntriesInFoldersOneByOne`,
+`RoundTripsTodayFolders`, `SidebarPageHandlerTest.FoldersInToday` and the
+browser test `FoldersInToday`.
+
 ## Renaming tabs
 
 As in Arc, a tab entry (pinned, Today or a split's pane) can be given a

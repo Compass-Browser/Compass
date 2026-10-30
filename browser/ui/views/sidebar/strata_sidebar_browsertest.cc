@@ -1342,6 +1342,36 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
                                                              .Append("Three"))));
 }
 
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, FoldersInToday) {
+  content::WebContents* contents = sidebar_contents();
+  OpenThreeTabs(browser(), contents);
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('strata-sidebar-app').shadowRoot
+        .querySelector('#newTodayFolder').click();)"));
+
+  // Into the folder, at the top of Today: its tab leads the strip.
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kDrag, "Three",
+                                                     "#today .folder-row",
+                                                     0.5)));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return model.today_root()->children().size() == 3u &&
+           model.today_root()->children()[0]->children().size() == 1u;
+  }));
+  const SidebarNode* folder = model.today_root()->children()[0].get();
+  EXPECT_EQ(folder->type(), SidebarNode::Type::kFolder);
+  EXPECT_EQ(folder->children()[0]->title(), u"Three");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return browser()->tab_strip_model()->GetWebContentsAt(0)->GetTitle() ==
+           u"Three";
+  }));
+  // Still live, still the active tab.
+  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents()->GetTitle(),
+            u"Three");
+}
+
 // Double-clicks the tab row titled $1, types $2 into its name and presses
 // Enter. Returns the row's title once it shows $3.
 constexpr char kRenameTab[] = R"(

@@ -283,7 +283,7 @@ void SidebarPageHandler::AddFolder(const std::string& parent_id,
                                    const std::string& title) {
   SidebarNode* parent = FindNode(parent_id);
   if (!parent || index > parent->children().size() ||
-      !space_model().pinned_root()->Contains(parent) ||
+      !space_model().Contains(parent) ||
       (parent->type() != SidebarNode::Type::kRoot &&
        parent->type() != SidebarNode::Type::kFolder)) {
     return;
@@ -323,8 +323,10 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
   if (!node || node->type() == SidebarNode::Type::kRoot) {
     return;
   }
+  // Today's tabs close instead; a Today folder goes with its tabs.
   if (space_model().pinned_root()->Contains(node) ||
-      favorites().Contains(node)) {
+      favorites().Contains(node) ||
+      node->type() == SidebarNode::Type::kFolder) {
     GetModelOf(node).Remove(node);
   }
 }
@@ -539,6 +541,8 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
   if (node->type() == SidebarNode::Type::kFolder) {
     menu->AddItem(kNewFolder, u"New Folder");
     menu->AddItem(kRename, u"Rename");
+    menu->AddSeparator(ui::NORMAL_SEPARATOR);
+    menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
     menu->AddMoveToSpace(space_list.spaces(), space_model());
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
     menu->AddItem(kRemove, u"Delete Folder");

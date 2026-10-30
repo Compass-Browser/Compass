@@ -355,7 +355,9 @@ TEST_F(SidebarPageHandlerTest, MoveNodeCountsSlotsWithTheNodeInPlace) {
 }
 
 TEST_F(SidebarPageHandlerTest, IgnoresInvalidMovesAndFolders) {
-  handler_remote_->AddFolder(TodayRootId(), 0, "Not here");
+  // Not in a tab, nor past the end.
+  handler_remote_->AddFolder(TodayId(0), 0, "Not here");
+  handler_remote_->AddFolder(TodayRootId(), 9, "Nor here");
   handler_remote_->MoveNode(TodayId(0), TodayRootId(), 7);
   handler_remote_->MoveNode(TodayId(0), TodayId(1), 0);
   Settle();
@@ -437,6 +439,37 @@ TEST_F(SidebarPageHandlerTest, DeleteNodeRemovesPinnedEntriesOnly) {
   Settle();
 
   EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
+  EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+TEST_F(SidebarPageHandlerTest, FoldersInToday) {
+  handler_remote_->AddFolder(TodayRootId(), 0, "Trip");
+  Settle();
+  ASSERT_EQ(space_model().today_root()->children().size(), 3u);
+  SidebarNode* folder = space_model().today_root()->children()[0].get();
+  ASSERT_EQ(folder->type(), SidebarNode::Type::kFolder);
+  const std::string id = folder->id().AsLowercaseString();
+
+  // Tabs go in, live, and keep the strip in the tree's order.
+  handler_remote_->MoveNode(TodayId(2), id, 0);
+  Settle();
+  ASSERT_EQ(folder->children().size(), 1u);
+  EXPECT_EQ(folder->children()[0]->url(), GURL("https://b.test/"));
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+  EXPECT_EQ(tab_strip_model()->GetWebContentsAt(0)->GetVisibleURL(),
+            GURL("https://b.test/"));
+
+  // It can be pinned and unpinned.
+  EXPECT_THAT(MenuCommands(id), Contains(Command::kPin));
+  Choose(id, Command::kPin);
+  EXPECT_EQ(space_model().pinned_root()->children()[0].get(), folder);
+  Choose(id, Command::kUnpin);
+  EXPECT_EQ(space_model().today_root()->children()[0].get(), folder);
+
+  // Deleting it closes its tabs.
+  handler_remote_->DeleteNode(id);
+  Settle();
+  EXPECT_EQ(space_model().today_root()->children().size(), 1u);
   EXPECT_EQ(tab_strip_model()->count(), 1);
 }
 
@@ -821,7 +854,7 @@ TEST_F(SidebarPageHandlerTest, FolderMenu) {
   const std::string id = folder->id().AsLowercaseString();
   EXPECT_THAT(MenuCommands(id),
               ElementsAre(Command::kNewFolder, Command::kRename,
-                          Command::kRemove));
+                          Command::kUnpin, Command::kRemove));
   page_.TakeEvents();
 
   Choose(id, Command::kRename);

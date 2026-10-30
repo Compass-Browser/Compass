@@ -59,7 +59,8 @@ export function getHtml(this: StrataSidebarAppElement) {
         @folder-toggle="${this.onFolderToggle_}">
       <div class="section-header" data-flip="pinned-header">
         <span>Pinned</span>
-        <button id="newFolder" aria-label="New folder" title="New folder"
+        <button id="newFolder" class="new-folder" data-section="pinned"
+            aria-label="New folder" title="New folder"
             @click="${this.onNewFolderClick_}">+</button>
       </div>
       <div id="pinned" class="section" role="tree">
@@ -76,6 +77,9 @@ export function getHtml(this: StrataSidebarAppElement) {
       <div class="divider" data-flip="divider"></div>
       <div class="section-header" data-flip="today-header">
         <span>Today</span>
+        <button id="newTodayFolder" class="new-folder" data-section="today"
+            aria-label="New folder in Today" title="New folder"
+            @click="${this.onNewFolderClick_}">+</button>
         <button id="archiveButton" aria-label="Archived tabs"
             title="Archived tabs" aria-expanded="${this.archiveOpen_}"
             ?open="${this.archiveOpen_}"

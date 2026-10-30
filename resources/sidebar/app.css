@@ -374,7 +374,7 @@ strata-sidebar-preview[side='next'] {
   text-transform: uppercase;
 }
 
-#newFolder {
+.new-folder {
   background: none;
   border: none;
   border-radius: 4px;
@@ -386,7 +386,12 @@ strata-sidebar-preview[side='next'] {
   width: 20px;
 }
 
-#newFolder:hover,
+/* Next to the archive button. */
+#newTodayFolder {
+  margin-inline-start: auto;
+}
+
+.new-folder:hover,
 #archiveButton:hover,
 #archiveButton[open] {
   background: rgba(128, 128, 128, 0.2);

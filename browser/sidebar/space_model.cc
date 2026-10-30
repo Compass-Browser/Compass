@@ -48,6 +48,17 @@ void CollectTabs(SidebarNode* node, std::vector<SidebarNode*>& tabs) {
   }
 }
 
+// The entries under |node|: tabs and splits, in folders too.
+void CollectEntries(SidebarNode* node, std::vector<SidebarNode*>& entries) {
+  for (const auto& child : node->children()) {
+    if (child->type() == Type::kFolder) {
+      CollectEntries(child.get(), entries);
+    } else {
+      entries.push_back(child.get());
+    }
+  }
+}
+
 }  // namespace
 
 ArchivedEntry::ArchivedEntry() = default;
@@ -277,7 +288,10 @@ void SpaceModel::SetLastActive(SidebarNode* tab, base::Time time) {
 
 void SpaceModel::Archive(SidebarNode* entry, base::Time now) {
   CHECK(entry);
-  CHECK_EQ(entry->parent(), today_root_.get());
+  CHECK(today_root_->Contains(entry));
+  // Folders aren't archived; their entries are, one by one.
+  CHECK(entry->type() == Type::kTab || entry->type() == Type::kSplit);
+  CHECK_NE(entry->parent()->type(), Type::kSplit);
   std::vector<SidebarNode*> tabs;
   CollectTabs(entry, tabs);
   ArchivedEntry archived;
@@ -305,9 +319,11 @@ size_t SpaceModel::ArchiveIdleEntries(
     return 0;
   }
   std::vector<base::Uuid> idle;
-  for (const auto& entry : today_root_->children()) {
+  std::vector<SidebarNode*> entries;
+  CollectEntries(today_root_.get(), entries);
+  for (SidebarNode* entry : entries) {
     std::vector<SidebarNode*> tabs;
-    CollectTabs(entry.get(), tabs);
+    CollectTabs(entry, tabs);
     base::Time last_active;
     for (SidebarNode* tab : tabs) {
       if (tab->last_active().is_null()) {
@@ -324,7 +340,8 @@ size_t SpaceModel::ArchiveIdleEntries(
   size_t archived = 0;
   for (const base::Uuid& id : idle) {
     SidebarNode* entry = FindIn(today_root_.get(), id);
-    if (entry && entry->parent() == today_root_.get()) {
+    if (entry && entry->type() != Type::kFolder &&
+        entry->parent()->type() != Type::kSplit) {
       Archive(entry, now);
       ++archived;
     }
@@ -406,7 +423,7 @@ bool SpaceModel::CanContain(const SidebarNode* parent, Type type) const {
   switch (parent->type()) {
     case Type::kRoot:
       return type == Type::kTab || type == Type::kSplit ||
-             (type == Type::kFolder && parent == pinned_root_.get());
+             type == Type::kFolder;
     case Type::kFolder:
       return type != Type::kRoot;
     case Type::kSplit:
