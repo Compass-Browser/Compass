@@ -118,10 +118,13 @@ class ExchangeTransition : public content::WebContentsObserver,
     }
     // A hidden window's pages render as background ones do, slowly and
     // without frames; these render as if shown, so the window can change
-    // sooner, and paint once it has.
+    // sooner, and paint once it has. The page that moves goes hidden as it
+    // leaves the old window, and would have no frame for the new one.
     tabs::TabInterface* tab = window_->GetActiveTabInterface();
     for (content::WebContents* contents :
-         {sidebar->GetWebContents(), tab ? tab->GetContents() : nullptr}) {
+         {takes_page_ ? old_sidebar->GetWebContents()
+                      : sidebar->GetWebContents(),
+          tab ? tab->GetContents() : nullptr}) {
       if (contents) {
         captures_.push_back(contents->IncrementCapturerCount(
             gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,

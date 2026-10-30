@@ -517,6 +517,28 @@ IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
   }
 }
 
+// The page renders while it moves: it goes hidden as it leaves the old
+// window, and without a frame for the new one the window would keep its last
+// frame until kMaxSwapWait.
+IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
+                       TheMovingPageKeepsRendering) {
+  content::WebContents* page =
+      FindSidebar(BrowserView::GetBrowserViewForBrowser(browser()))
+          ->GetWebContents();
+  ASSERT_TRUE(page);
+  ASSERT_FALSE(page->IsBeingCaptured());
+  BrowserWindowInterface* shown =
+      SwitchWindowToSpace(browser(), other_, *other_home_);
+  ASSERT_TRUE(shown);
+  EXPECT_EQ(FindSidebar(BrowserView::GetBrowserViewForBrowser(shown))
+                ->GetWebContents(),
+            page);
+  EXPECT_TRUE(page->IsBeingCaptured());
+  // Until the switch ends.
+  EXPECT_TRUE(base::test::RunUntil([&] { return !page->IsBeingCaptured(); }));
+  SetBrowser(shown);
+}
+
 // The sidebar shows another profile's icons: its spaces' previews, and the
 // window's own entries after a switch, which keeps the page.
 IN_PROC_BROWSER_TEST_F(StrataProfileSwitchBrowserTest,
