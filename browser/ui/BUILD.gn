@@ -186,6 +186,7 @@ source_set("browser_tests") {
     "//net:test_support",
     "//strata/browser/sidebar",
     "//strata/browser/window_sync",
+    "//testing/gmock",
     "//testing/gtest",
     "//ui/events",
     "//ui/gfx/geometry",

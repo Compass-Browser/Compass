@@ -32,6 +32,8 @@ class SpaceList : public SpaceModel::Observer {
     virtual void OnSpaceWillBeRemoved(SpaceModel& space) {}
     // A space was removed and destroyed.
     virtual void OnSpaceRemoved() {}
+    // |space| moved to another place in the list.
+    virtual void OnSpaceMoved(const SpaceModel& space) {}
     virtual void OnActiveSpaceChanged() {}
   };
 
@@ -57,6 +59,10 @@ class SpaceList : public SpaceModel::Observer {
   // Removes and destroys |space|, which mustn't be the only one. If it's
   // active, the space after it becomes active (the one before, if it's last).
   void RemoveSpace(SpaceModel& space);
+
+  // Moves |space| to the slot |index| among the spaces, counted with it still
+  // in place (clamped to the end).
+  void MoveSpace(SpaceModel& space, size_t index);
 
   SpaceModel& active_space() const { return *active_space_; }
 

@@ -179,6 +179,7 @@ ${this.archiveOpen_ ? html`
 <div id="spaces" role="tablist" aria-label="Spaces">
   ${repeat(this.spaces_, (space: Space) => space.id, (space: Space) => html`
     <button class="space" role="tab" data-space-id="${space.id}"
+        data-flip="space-${space.id}" draggable="true"
         title="${this.getSpaceTitle_(space)}"
         aria-label="${this.getSpaceTitle_(space)}"
         style="--space-color: ${this.getSpaceColor_(space.color)}"
@@ -186,6 +187,8 @@ ${this.archiveOpen_ ? html`
         ?active="${this.isActiveSpace_(space)}"
         @click="${this.onSpaceClick_}"
         @contextmenu="${this.onSpaceContextmenu_}"
+        @dragstart="${this.onSpaceDragstart_}"
+        @dragend="${this.onDragend_}"
         @dragover="${this.onSpaceDragover_}"
         @dragleave="${this.onSpaceDragleave_}"
         @drop="${this.onSpaceDrop_}">

@@ -901,6 +901,24 @@ TEST_F(SidebarPageHandlerTest, ListsAndSwapsToAnotherProfilesSpace) {
   swapped->GetTabStripModel()->CloseAllTabs();
 }
 
+TEST_F(SidebarPageHandlerTest, ReordersSpacesAcrossProfiles) {
+  TestingProfile* other = profile_manager()->CreateTestingProfile("other");
+  SpaceDirectory::Get()->List(other);
+  SpaceModel* work =
+      SpaceService::Get(other)->space_list().AddSpace(1, u"Work");
+  Settle();
+  ASSERT_EQ(page_.spaces(), "[Home],Home*,Work*");
+
+  // Another profile's space to the front, the window's own to the end.
+  handler_remote_->MoveSpace(work->id().AsLowercaseString(), 0);
+  handler_remote_->MoveSpace(space_model().id().AsLowercaseString(), 3);
+  // Unknown spaces are ignored.
+  handler_remote_->MoveSpace("nope", 0);
+  Settle();
+
+  EXPECT_EQ(page_.spaces(), "Work*,Home*,[Home]");
+}
+
 TEST_F(SidebarPageHandlerTest, AssignsASpaceToAnotherProfile) {
   TestingProfile* other = profile_manager()->CreateTestingProfile("other");
   SpaceModel* work = WindowFeatures::From(browser())

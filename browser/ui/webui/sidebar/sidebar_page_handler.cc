@@ -409,6 +409,18 @@ void SidebarPageHandler::DeleteSpace(const std::string& id) {
   }
 }
 
+void SidebarPageHandler::MoveSpace(const std::string& id, uint32_t index) {
+  SpaceDirectory::Entry entry = FindAnySpace(id);
+  if (!entry.space) {
+    return;
+  }
+  if (SpaceDirectory* directory = this->directory()) {
+    directory->MoveSpace(*entry.space, index);
+  } else {
+    features_->service().space_list().MoveSpace(*entry.space, index);
+  }
+}
+
 void SidebarPageHandler::MoveNodeToSpace(const std::string& id,
                                          const std::string& space_id) {
   SidebarNode* node = FindNode(id);
@@ -663,6 +675,12 @@ void SidebarPageHandler::OnSpaceAdded(SpaceModel& space) {
 }
 
 void SidebarPageHandler::OnSpaceUpdated(const SpaceModel& space) {
+  if (!uses_directory_) {
+    SendSpaces();
+  }
+}
+
+void SidebarPageHandler::OnSpaceMoved(const SpaceModel& space) {
   if (!uses_directory_) {
     SendSpaces();
   }

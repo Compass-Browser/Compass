@@ -55,6 +55,7 @@
 #include "strata/browser/window_sync/space_directory.h"
 #include "strata/browser/window_sync/space_service.h"
 #include "strata/browser/window_sync/window_features.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/base_window.h"
@@ -1029,6 +1030,69 @@ IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest,
   EXPECT_EQ(&features->space_model(), home);
   // There's no third space.
   EXPECT_FALSE(PressSpaceShortcut(browser_view(), 2));
+}
+
+// Drags the space button titled $1 onto the one titled $2, at fraction $3 of
+// its width, using synthetic drag events.
+constexpr char kDragSpace[] = R"(
+  (async (from, to, fraction) => {
+    const root = document.querySelector('strata-sidebar-app').shadowRoot;
+    const until = async (f) => {
+      while (!f()) await new Promise(r => setTimeout(r, 20));
+      return f();
+    };
+    // No template literals: JsReplace() takes their $ for a placeholder.
+    const button = (title) => [...root.querySelectorAll('.space')]
+        .find(b => b.title === title);
+    const source = await until(() => button(from));
+    const target = await until(() => button(to));
+    const rect = target.getBoundingClientRect();
+    const init = {
+      bubbles: true, cancelable: true, composed: true,
+      dataTransfer: new DataTransfer(),
+      clientX: rect.left + rect.width * fraction,
+      clientY: rect.top + rect.height / 2,
+    };
+    source.dispatchEvent(new DragEvent('dragstart', init));
+    target.dispatchEvent(new DragEvent('dragover', init));
+    const marked = target.getAttribute('reorder');
+    target.dispatchEvent(new DragEvent('drop', init));
+    source.dispatchEvent(new DragEvent('dragend', init));
+    return marked ?? 'none';
+  })($1, $2, $3))";
+
+IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, DraggingASpaceReordersThem) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceList& list = features->service().space_list();
+  SpaceModel* home = &features->space_model();
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  auto order = [&] {
+    std::vector<SpaceModel*> spaces;
+    for (const SpaceDirectory::Entry& entry :
+         GetSwitchableSpaces(browser())) {
+      spaces.push_back(entry.space);
+    }
+    return spaces;
+  };
+  ASSERT_THAT(order(), testing::ElementsAre(home, work, play));
+
+  // Before Home: first.
+  EXPECT_EQ("before", content::EvalJs(sidebar_contents(),
+                                      content::JsReplace(kDragSpace, "Play",
+                                                         "Home", 0.25)));
+  ASSERT_TRUE(base::test::RunUntil([&] { return order()[0] == play; }));
+  EXPECT_THAT(order(), testing::ElementsAre(play, home, work));
+
+  // Right after itself: nothing to show, nothing moves.
+  EXPECT_EQ("none", content::EvalJs(sidebar_contents(),
+                                    content::JsReplace(kDragSpace, "Home",
+                                                       "Work", 0.25)));
+  EXPECT_THAT(order(), testing::ElementsAre(play, home, work));
+
+  // Ctrl+1 follows the new order.
+  EXPECT_TRUE(PressSpaceShortcut(browser_view(), 0));
+  EXPECT_EQ(&features->space_model(), play);
 }
 
 IN_PROC_BROWSER_TEST_F(StrataSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) {

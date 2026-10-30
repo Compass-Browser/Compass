@@ -123,6 +123,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void SetSpaceProfile(const std::string& id,
                        const std::optional<std::string>& profile_id) override;
   void DeleteSpace(const std::string& id) override;
+  void MoveSpace(const std::string& id, uint32_t index) override;
   void MoveNodeToSpace(const std::string& id,
                        const std::string& space_id) override;
   void GetSpaceTree(const std::string& id,
@@ -159,6 +160,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void OnSpaceAdded(SpaceModel& space) override;
   void OnSpaceUpdated(const SpaceModel& space) override;
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
+  void OnSpaceMoved(const SpaceModel& space) override;
 
   // SpaceDirectory::Observer:
   void OnDirectoryChanged() override;

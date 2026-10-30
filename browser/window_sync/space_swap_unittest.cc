@@ -207,6 +207,28 @@ TEST_F(SpaceSwapTest, AMovedSpaceKeepsItsPlace) {
   EXPECT_EQ(list().spaces().size(), 2u);
 }
 
+TEST_F(SpaceSwapTest, ReordersSpacesAcrossProfiles) {
+  SpaceModel* home = &list().active_space();
+  SpaceModel* work = list().AddSpace(1, u"Work");
+  ListOther();
+  ASSERT_THAT(Spaces(), ElementsAre(home, work, other_home_.get()));
+
+  directory().MoveSpace(*other_home_, 1);
+  EXPECT_THAT(Spaces(), ElementsAre(home, other_home_.get(), work));
+  directory().MoveSpace(*home, 3);
+  EXPECT_THAT(Spaces(), ElementsAre(other_home_.get(), work, home));
+  // Next to itself, it stays.
+  directory().MoveSpace(*work, 2);
+  EXPECT_THAT(Spaces(), ElementsAre(other_home_.get(), work, home));
+
+  // The profile keeps its own order; the file has the new one.
+  EXPECT_EQ(list().spaces()[0].get(), home);
+  const std::optional<std::string> data = directory().SerializeData();
+  ASSERT_TRUE(data);
+  EXPECT_LT(data->find(other_home_->id().AsLowercaseString()),
+            data->find(home->id().AsLowercaseString()));
+}
+
 TEST_F(SpaceSwapTest, DeletingAProfilesLastSpaceUnlistsIt) {
   ListOther();
   ASSERT_EQ(Spaces().size(), 2u);

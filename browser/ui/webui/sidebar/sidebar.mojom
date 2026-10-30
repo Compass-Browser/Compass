@@ -144,6 +144,9 @@ interface PageHandler {
   // Deletes a space with its entries and tabs, unless it's the last one.
   // Windows showing it switch to its neighbor first.
   DeleteSpace(string id);
+  // Moves a space in the switcher's list, in every window. |index| is the
+  // slot among the spaces SetSpaces() sent, counted with it still in place.
+  MoveSpace(string id, uint32 index);
   // Moves an entry and its subtree, with its live tabs, to another space: to
   // the end of the same section there.
   MoveNodeToSpace(string id, string space_id);

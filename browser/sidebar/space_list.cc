@@ -86,6 +86,25 @@ void SpaceList::RemoveSpace(SpaceModel& space) {
   }
 }
 
+void SpaceList::MoveSpace(SpaceModel& space, size_t index) {
+  auto it =
+      std::ranges::find(spaces_, &space, &std::unique_ptr<SpaceModel>::get);
+  CHECK(it != spaces_.end());
+  const size_t from = it - spaces_.begin();
+  index = std::min(index, spaces_.size());
+  // The slots right before and after it leave it in place.
+  if (index == from || index == from + 1) {
+    return;
+  }
+  std::unique_ptr<SpaceModel> moved = std::move(*it);
+  spaces_.erase(it);
+  spaces_.insert(spaces_.begin() + (index > from ? index - 1 : index),
+                 std::move(moved));
+  for (Observer& observer : observers_) {
+    observer.OnSpaceMoved(space);
+  }
+}
+
 void SpaceList::SetActiveSpace(SpaceModel& space) {
   CHECK(FindSpace(space.id()) == &space);
   if (active_space_ == &space) {

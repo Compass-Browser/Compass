@@ -84,6 +84,10 @@ void SidebarStore::OnSpaceWillBeRemoved(SpaceModel& space) {
   ScheduleSave();
 }
 
+void SidebarStore::OnSpaceMoved(const SpaceModel& space) {
+  ScheduleSave();
+}
+
 void SidebarStore::OnActiveSpaceChanged() {
   ScheduleSave();
 }

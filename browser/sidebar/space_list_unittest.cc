@@ -29,6 +29,9 @@ class Recorder : public SpaceList::Observer {
   void OnSpaceWillBeRemoved(SpaceModel& space) override {
     events.push_back("removed " + base::UTF16ToUTF8(space.name()));
   }
+  void OnSpaceMoved(const SpaceModel& space) override {
+    events.push_back("moved " + base::UTF16ToUTF8(space.name()));
+  }
 
   std::vector<std::string> events;
 };
@@ -115,6 +118,39 @@ TEST(SpaceListTest, RemovingAnotherSpaceKeepsTheActiveOne) {
   ASSERT_EQ(list.spaces().size(), 1u);
   EXPECT_EQ(&list.active_space(), home);
   EXPECT_EQ(list.FindSpace(home->id()), home);
+}
+
+TEST(SpaceListTest, MovesSpacesBySlot) {
+  SpaceList list;
+  SpaceModel* home = &list.active_space();
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  Recorder recorder;
+  list.AddObserver(&recorder);
+  auto spaces = [&] {
+    std::vector<SpaceModel*> result;
+    for (const auto& space : list.spaces()) {
+      result.push_back(space.get());
+    }
+    return result;
+  };
+
+  // Slots are counted with the space in place: the ones next to it are no-ops.
+  list.MoveSpace(*work, 1);
+  list.MoveSpace(*work, 2);
+  EXPECT_THAT(spaces(), ElementsAre(home, work, play));
+
+  list.MoveSpace(*home, 3);
+  EXPECT_THAT(spaces(), ElementsAre(work, play, home));
+  list.MoveSpace(*home, 0);
+  EXPECT_THAT(spaces(), ElementsAre(home, work, play));
+  list.MoveSpace(*work, 100);
+  EXPECT_THAT(spaces(), ElementsAre(home, play, work));
+
+  EXPECT_EQ(&list.active_space(), home);
+  EXPECT_THAT(recorder.events,
+              ElementsAre("moved Home", "moved Home", "moved Work"));
+  list.RemoveObserver(&recorder);
 }
 
 }  // namespace

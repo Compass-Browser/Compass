@@ -60,6 +60,9 @@ const HOVER_CARD_HIDE_DELAY_MS = 100;
 
 const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 
+// The drag data of a space button dragged along the switcher.
+const SPACE_DRAG_TYPE = 'application/x-strata-space';
+
 // Entries glide to where they moved, and fade in and out
 // (docs/design/sidebar.md, "Motion").
 const FLIP_MS = 220;
@@ -200,6 +203,10 @@ export class StrataSidebarAppElement extends CrLitElement {
 
   private draggingId_: string|null = null;
   private dropTarget_: DropTarget|null = null;
+  // A space button dragged along the switcher, and the slot it would drop
+  // in, counted with it in place.
+  private draggingSpaceId_: string|null = null;
+  private spaceDropIndex_: number|null = null;
 
   // The tab the pointer rests on, whose hover card shows or is about to.
   private hoverId_: string|null = null;
@@ -561,8 +568,50 @@ export class StrataSidebarAppElement extends CrLitElement {
         !!this.spaces_.find(space => space.id === id)?.ownProfile;
   }
 
+  protected onSpaceDragstart_(e: DragEvent) {
+    this.hideHoverCard_();
+    const button = e.currentTarget as HTMLElement;
+    if (!e.dataTransfer) {
+      return;
+    }
+    this.draggingSpaceId_ = button.dataset['spaceId']!;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(SPACE_DRAG_TYPE, this.draggingSpaceId_);
+    button.setAttribute('dragging', '');
+  }
+
+  // A space dragged over a button goes before it (its leading half) or after
+  // it. Its own slots show nothing.
+  private showSpaceDrop_(e: DragEvent, button: HTMLElement) {
+    const index =
+        this.spaces_.findIndex(space => space.id === button.dataset['spaceId']);
+    const from =
+        this.spaces_.findIndex(space => space.id === this.draggingSpaceId_);
+    const rect = button.getBoundingClientRect();
+    const rtl = getComputedStyle(button).direction === 'rtl';
+    const after = (e.clientX - rect.left >= rect.width / 2) !== rtl;
+    const slot = index + (after ? 1 : 0);
+    this.clearSpaceDrop_();
+    if (index !== -1 && from !== -1 && slot !== from && slot !== from + 1) {
+      button.setAttribute('reorder', after ? 'after' : 'before');
+      this.spaceDropIndex_ = slot;
+    }
+  }
+
+  private clearSpaceDrop_() {
+    this.shadowRoot.querySelector('.space[reorder]')?.removeAttribute(
+        'reorder');
+    this.spaceDropIndex_ = null;
+  }
+
   protected onSpaceDragover_(e: DragEvent) {
     const button = e.currentTarget as HTMLElement;
+    if (this.draggingSpaceId_) {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'move';
+      this.showSpaceDrop_(e, button);
+      return;
+    }
     if (!this.draggingId_ || !this.isDropSpace_(button.dataset['spaceId']!)) {
       return;
     }
@@ -572,13 +621,20 @@ export class StrataSidebarAppElement extends CrLitElement {
   }
 
   protected onSpaceDragleave_(e: DragEvent) {
-    (e.currentTarget as HTMLElement).removeAttribute('drop');
+    const button = e.currentTarget as HTMLElement;
+    button.removeAttribute('drop');
+    if (button.hasAttribute('reorder')) {
+      this.clearSpaceDrop_();
+    }
   }
 
   protected onSpaceDrop_(e: DragEvent) {
     e.preventDefault();
     const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
-    if (this.draggingId_ && this.isDropSpace_(id)) {
+    if (this.draggingSpaceId_ && this.spaceDropIndex_ !== null) {
+      this.browserProxy_.handler.moveSpace(
+          this.draggingSpaceId_, this.spaceDropIndex_);
+    } else if (this.draggingId_ && this.isDropSpace_(id)) {
       this.browserProxy_.handler.moveNodeToSpace(this.draggingId_, id);
     }
     this.endDrag_();
@@ -1426,6 +1482,12 @@ export class StrataSidebarAppElement extends CrLitElement {
     if (previousId && activeId !== previousId) {
       this.onActiveSpaceChanged_(previousId, activeId, spaces);
     }
+    // Reordered: the buttons glide to their places.
+    const ids = (list: Space[]) => list.map(space => space.id);
+    if (ids(spaces).join() !== ids(this.spaces_).join() &&
+        ids(spaces).sort().join() === ids(this.spaces_).sort().join()) {
+      this.prepareFlip_();
+    }
     this.spaces_ = spaces;
     this.profiles_ = profiles;
     this.activeSpaceId_ = activeId;
@@ -1624,7 +1686,9 @@ export class StrataSidebarAppElement extends CrLitElement {
     this.showDropTarget_(null);
     this.shadowRoot.querySelector('[dragging]')?.removeAttribute('dragging');
     this.shadowRoot.querySelector('.space[drop]')?.removeAttribute('drop');
+    this.clearSpaceDrop_();
     this.draggingId_ = null;
+    this.draggingSpaceId_ = null;
     this.dragActive_ = false;
   }
 

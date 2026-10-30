@@ -89,6 +89,10 @@ class SpaceDirectory : public ProfileManagerObserver,
 
   // Puts |space| right after |anchor| in the list.
   void PlaceAfter(const SpaceModel& space, const SpaceModel& anchor);
+  // Moves |space| to the slot |index| among GetSpaces(), counted with it
+  // still in place (clamped to the end). Its profile's SpaceList keeps its own
+  // order.
+  void MoveSpace(const SpaceModel& space, size_t index);
 
   // Called by every SpaceService of a listable profile as it's created,
   // finishes loading its file, and is destroyed.

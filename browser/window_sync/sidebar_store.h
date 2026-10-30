@@ -47,6 +47,7 @@ class SidebarStore : public SpaceList::Observer,
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
+  void OnSpaceMoved(const SpaceModel& space) override;
   void OnActiveSpaceChanged() override;
 
   // SpaceModel::Observer:

@@ -180,6 +180,37 @@ void SpaceDirectory::PlaceAfter(const SpaceModel& space,
   Changed();
 }
 
+void SpaceDirectory::MoveSpace(const SpaceModel& space, size_t index) {
+  std::vector<base::Uuid> shown;
+  for (const Entry& entry : GetSpaces()) {
+    shown.push_back(entry.space->id());
+  }
+  auto it = std::ranges::find(shown, space.id());
+  if (it == shown.end()) {
+    return;
+  }
+  const size_t from = it - shown.begin();
+  index = std::min(index, shown.size());
+  if (index == from || index == from + 1) {
+    return;
+  }
+  // Every shown space gets a place, so the anchor below has one.
+  for (const base::Uuid& id : shown) {
+    if (!std::ranges::contains(order_, id)) {
+      order_.push_back(id);
+    }
+  }
+  std::erase(order_, space.id());
+  // Before the space now in that slot, or after the last one shown. Spaces of
+  // profiles not loaded keep their places among the others.
+  if (index < shown.size()) {
+    order_.insert(std::ranges::find(order_, shown[index]), space.id());
+  } else {
+    order_.insert(std::ranges::find(order_, shown.back()) + 1, space.id());
+  }
+  Changed();
+}
+
 void SpaceDirectory::OnServiceCreated(Profile* profile, SpaceService* service) {
   if (IsListed(profile) && !members_.contains(profile->GetPath())) {
     Attach(profile, service);

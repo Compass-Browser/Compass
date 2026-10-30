@@ -194,6 +194,31 @@ strata-sidebar-preview[side='next'] {
 
 .space {
   background: color-mix(in srgb, var(--space-color) 35%, transparent);
+  position: relative;
+}
+
+.space[dragging] {
+  opacity: 0.3;
+}
+
+/* A space dragged along the switcher drops before or after this one: a bar
+ * in the gap. */
+.space[reorder]::before {
+  background: var(--color-sys-primary, #8ab4f8);
+  border-radius: 1px;
+  content: '';
+  height: 18px;
+  position: absolute;
+  top: 3px;
+  width: 2px;
+}
+
+.space[reorder='before']::before {
+  inset-inline-start: -4px;
+}
+
+.space[reorder='after']::before {
+  inset-inline-end: -4px;
 }
 
 /* An entry dragged over another space. */

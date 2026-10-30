@@ -355,6 +355,21 @@ window's were.
 neighbor in the list, swapping if that's another profile's. Only the list's
 last space can't be deleted. A profile whose last space goes leaves the list.
 
+### Reordering
+
+Dragging a space button along the switcher moves the space: it drops before
+the button it's over (the button's leading half) or after it, and a bar in
+the gap shows where. The slots next to the space itself show nothing and
+don't move it. The page calls `MoveSpace(id, index)`, the slot counted with
+the space still in place, as `MoveNode()` does for entries. In a listed
+profile's window it moves in `SpaceDirectory`'s order (any profile's space,
+saved in `Strata Spaces.json`); the profile's own `SpaceList` keeps its
+order. Off the record, it moves in the profile's `SpaceList`
+(`SpaceList::MoveSpace()`, saved in the sidebar file). Every window's
+switcher follows, the buttons glide to their places (FLIP, as entries do),
+and Ctrl+1–9, swipes and slide directions follow the new order. Spaces of
+listed profiles that aren't loaded keep their places in the saved order.
+
 ### Parking across profiles
 
 A profile's parked tabs stay as long as any window can switch to them:
@@ -381,7 +396,6 @@ every listed space, but only the window's profile's entries.
 - Assigning a profile reloads only the page the space showed; its other tabs
   come back unloaded, and their page state is lost.
 - Entries can't move between spaces of different profiles.
-- Spaces can't be reordered yet, so the list's order is the order they came.
 - With several profiles, upstream may show its profile picker at startup.
 
 ## Known gaps (slice 1)
@@ -395,7 +409,6 @@ every listed space, but only the window's profile's entries.
 - The theme changes at once when the window switches spaces; only the
   tint fades. A change of the profile's theme to or from an extension theme
   applies at the next switch or color change.
-- Spaces can't be reordered.
 - Deleting a space closes parked tabs without asking, even ones with
   beforeunload handlers.
 
@@ -422,3 +435,9 @@ their profile's last window), page handler tests (listing, previews, entries
 kept from other profiles, swapping, assigning a profile), and the
 `AnotherProfilesSpaceSwapsTheWindow` and `SpaceMenuAssignsAProfile` browser
 tests.
+
+Reordering: `SpaceListTest.MovesSpacesBySlot`,
+`SpaceSwapTest.ReordersSpacesAcrossProfiles` (and the saved order),
+`SidebarPageHandlerTest.ReordersSpacesAcrossProfiles`, and the
+`DraggingASpaceReordersThem` browser test (drop marker, a no-op slot,
+Ctrl+1 following the order).
