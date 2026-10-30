@@ -1,0 +1,19 @@
+diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
+index d98c86e5dace91937c62c5428084686c666ab0d4..ee0547fe91d35597a1d508fec5f070d20f6730fb 100644
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -670,12 +670,12 @@ if (is_win) {
+   }
+ 
+   bundle_data("chrome_app_icon") {
+-    sources = [ "app/theme/$branding_path_component/mac/app.icns" ]
++    sources = [ "//strata/assets/mac/app.icns" ]
+     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+   }
+ 
+   bundle_data("chrome_asset_catalog") {
+-    sources = [ "app/theme/$branding_path_component/mac/Assets.car" ]
++    sources = [ "//strata/assets/mac/Assets.car" ]
+     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+   }
+ 

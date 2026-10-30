@@ -36,6 +36,7 @@ nothing else.
 |---|---|
 | `BUILD.gn.patch` | Adds `//strata:strata_unittests` to `gn_all` |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
+| `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`) |
 | `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser, and `//strata/browser:feature_overrides` and `//strata/browser/ui/cocoa:shortcuts` into `:core` |
 | `chrome-browser-global_keyboard_shortcuts_mac.mm.patch` | The shortcuts outside the main menu go through `strata::AdjustShortcutsNotInMenu()`: Cmd+Shift+C copies the page's link (docs/design/shortcuts.md) |
 | `chrome-browser-ui-cocoa-accelerators_cocoa.mm.patch` | The main menu's key equivalents go through `strata::AdjustMenuAccelerators()`: Cmd+S opens or closes the sidebar, Save Page As has none |
