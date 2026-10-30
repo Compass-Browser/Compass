@@ -36,7 +36,10 @@ nothing else.
 |---|---|
 | `BUILD.gn.patch` | Adds `//strata:strata_unittests` to `gn_all` |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
-| `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser, and `//strata/browser:feature_overrides` into `:core` |
+| `chrome-browser-BUILD.gn.patch` | Links `//strata/browser` into the browser, and `//strata/browser:feature_overrides` and `//strata/browser/ui/cocoa:shortcuts` into `:core` |
+| `chrome-browser-global_keyboard_shortcuts_mac.mm.patch` | The shortcuts outside the main menu go through `strata::AdjustShortcutsNotInMenu()`: Cmd+Shift+C copies the page's link (docs/design/shortcuts.md) |
+| `chrome-browser-ui-cocoa-accelerators_cocoa.mm.patch` | The main menu's key equivalents go through `strata::AdjustMenuAccelerators()`: Cmd+S opens or closes the sidebar, Save Page As has none |
+| `chrome-browser-ui-cocoa-BUILD.gn.patch` | Lets `accelerators_cocoa.mm` depend on `//strata/browser/ui/cocoa:shortcuts` |
 | `chrome-browser-chrome_browser_field_trials.cc.patch` | Registers Strata's feature defaults (`strata::RegisterFeatureOverrides()`): browser-initiated auto picture-in-picture on |
 | `components-content_settings-core-browser-content_settings_registry.cc.patch` | Auto picture-in-picture allowed by default: no prompt, no media engagement needed (docs/design/picture-in-picture.md) |
 | `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_helper.cc.patch` | Auto picture-in-picture replaces another tab's auto picture-in-picture, so the tab left last shows |

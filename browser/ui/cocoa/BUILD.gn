@@ -1,0 +1,19 @@
+# Copyright 2026 The Strata Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Strata's shortcuts on macOS. Upstream's main menu accelerators and its
+# shortcuts outside the menu call into it (see patches/), so this depends on
+# little of Chrome's.
+source_set("shortcuts") {
+  sources = [
+    "shortcuts_mac.h",
+    "shortcuts_mac.mm",
+  ]
+  public_deps = [ "//ui/base" ]
+  deps = [
+    "//chrome/app:command_ids",
+    "//ui/events:events_base",
+  ]
+  frameworks = [ "Carbon.framework" ]
+}

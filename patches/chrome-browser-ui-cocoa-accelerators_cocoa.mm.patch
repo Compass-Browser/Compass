@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/cocoa/accelerators_cocoa.mm b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
+index 12d6be60e250efa15872027b297baab899e250c9..c95fa55f325a1a9062426046bf3a259c3cedb6a9 100644
+--- a/chrome/browser/ui/cocoa/accelerators_cocoa.mm
++++ b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
+@@ -16,6 +16,7 @@
+ #include "build/branding_buildflags.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "printing/buildflags/buildflags.h"
++#include "strata/browser/ui/cocoa/shortcuts_mac.h"
+ #import "ui/base/accelerators/platform_accelerator_cocoa.h"
+ #import "ui/events/cocoa/cocoa_event_utils.h"
+ #import "ui/events/keycodes/keyboard_code_conversion_mac.h"
+@@ -151,6 +152,8 @@
+       std::make_pair(IDC_FULLSCREEN, AcceleratorForEnterFullscreen()));
+   DCHECK(result.second);
+ 
++  strata::AdjustMenuAccelerators(accelerators_);
++
+   if (!base::i18n::IsRTL()) {
+     return;
+   }

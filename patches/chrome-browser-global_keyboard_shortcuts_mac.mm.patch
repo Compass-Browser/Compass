@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/global_keyboard_shortcuts_mac.mm b/chrome/browser/global_keyboard_shortcuts_mac.mm
+index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..97fe75d6ea218b883050eede248bc06a65b51155 100644
+--- a/chrome/browser/global_keyboard_shortcuts_mac.mm
++++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
+@@ -24,6 +24,7 @@
+ #include "ui/base/ui_base_features.h"
+ #include "ui/events/event_constants.h"
+ #include "ui/events/keycodes/keyboard_code_conversion_mac.h"
++#include "strata/browser/ui/cocoa/shortcuts_mac.h"
+ 
+ namespace {
+ 
+@@ -174,6 +175,7 @@ CommandForKeyEventResult ShortcutCommand(int cmd) {
+                       IDC_DEBUG_PRINT_VIEW_TREE_DETAILS});
+     }
+ 
++    strata::AdjustShortcutsNotInMenu(keys);
+     return keys;
+   }());
+   return *keys;

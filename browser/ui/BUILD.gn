@@ -194,4 +194,12 @@ source_set("browser_tests") {
     "//ui/views:test_support",
     "//url",
   ]
+  if (is_mac) {
+    sources += [ "cocoa/shortcuts_mac_browsertest.mm" ]
+    deps += [
+      "//ui/base/clipboard:clipboard_test_support",
+      "//ui/events:events_base",
+    ]
+    frameworks = [ "Carbon.framework" ]
+  }
 }
