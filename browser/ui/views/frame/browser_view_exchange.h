@@ -17,6 +17,7 @@ namespace strata {
 // docs/design/profiles-in-place.md. Upstream's window classes friend this.
 class BrowserViewExchange {
  public:
+  // |a| is the shown one: its bubbles close.
   static void Exchange(BrowserView& a, BrowserView& b);
 
  private:

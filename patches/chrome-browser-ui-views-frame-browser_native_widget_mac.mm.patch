@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
+index 818924fc76681c38faad1c2082b686cbf67f3cdd..fc50375e8ec8524e7410d3535b4b0caaa10d4bcc 100644
+--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
+@@ -755,6 +755,17 @@ - (NSTouchBar*)makeTouchBar {
+   return ns_window;
+ }
+ 
++void BrowserNativeWidgetMac::RebindTouchBar() {
++  NativeWidgetMacNSWindow* ns_window =
++      base::apple::ObjCCastStrict<NativeWidgetMacNSWindow>(
++          GetNativeWindow().GetNativeNSWindow());
++  touch_bar_delegate_ = [[BrowserWindowTouchBarViewsDelegate alloc]
++      initWithBrowser:browser_view_->browser()
++               window:ns_window];
++  [ns_window setWindowTouchBarDelegate:touch_bar_delegate_];
++  ns_window.touchBar = nil;
++}
++
+ remote_cocoa::ApplicationHost*
+ BrowserNativeWidgetMac::GetRemoteCocoaApplicationHost() {
+   if (auto* host = GetHostForBrowser(browser_view_)) {

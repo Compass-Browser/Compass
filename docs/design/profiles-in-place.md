@@ -1,8 +1,8 @@
 # Profiles in place
 
-Status: spike working on branch `spike/reprofile` (2026-10-29): the
-`BrowserView` exchange below ("Direction taken"). The plan up to "Spike
-findings" is the first idea, kept for the record. Replaces the window swap of spaces slice 3 (D17,
+Status: done (2026-10-30) as the `BrowserView` exchange below ("Direction
+taken"), D18. The plan up to "Spike findings" is the first idea, kept for
+the record. Replaces the window swap of spaces slice 3 (D17,
 `sidebar_swap.cc`). Based on Chromium 156.0.8078.48.
 
 ## Goal
@@ -147,10 +147,12 @@ exercises each rebuilt part (below) is what catches drift.
 
 ## Removed
 
-`sidebar_swap.cc`, `BeginSwap()`/`LeaveForSwap()`, the transparent second
-window, the "switch at the end of the slide" special case in the page
-(cross-profile switches slide and switch like same-profile ones). D17 keeps
-the list, assignment and keep-alive parts; its swap is superseded by D18.
+First idea: `sidebar_swap.cc`, `BeginSwap()`/`LeaveForSwap()`, the
+transparent second window, the "switch at the end of the slide" special
+case in the page. With the exchange, only the transparent second window
+went (`SwapTransition`): the other profile's window is still built, hidden,
+and `BeginSwap()`/`LeaveForSwap()` still empty the old one. D17 keeps the
+list, assignment and keep-alive parts; its swap is superseded by D18.
 
 ## Slices
 
@@ -183,31 +185,37 @@ the list, assignment and keep-alive parts; its swap is superseded by D18.
 
 ## Tests
 
-Browser tests (`StrataReprofileBrowserTest`, headless):
+The list below was the first idea's. What the exchange has
+(`StrataProfileSwitchBrowserTest` in
+`browser/ui/views/frame/profile_switch_browsertest.cc`, and in
+`strata_sidebar_browsertest.cc`, `auto_pip_browsertest.cc`, headless):
 
-- The same `BrowserWidget`/native window and `SessionID` after a switch to
-  another profile's space and back; `browser->profile()` follows.
-- Parked tabs of both profiles survive several round trips, with page state
-  (a form value).
-- The old profile's `BrowserManagerService` no longer owns the window, the
-  new one does; keep-alives move.
-- Omnibox suggestions and the command bar come from the new profile's
-  history; Cmd+T opens a tab in the new profile.
-- Extensions container shows the new profile's extensions; `windows.getAll()`
-  in each profile (test extensions in both).
-- Session: quit in profile B, relaunch, the window is B's.
-- Window fullscreen kept across the switch (by eye in the fast build; the
-  test checks `IsFullscreen()`).
-- Window sync: two windows on a space of profile A; one switches to a space
-  of B. Clicking an A entry live in the switched window from the other one
-  doesn't reach it (the tab went to the other window or parking); clicking a
-  B entry from a third window on that B space moves the tab across. Closing
-  the B window hands its tabs to the third window.
-- A bubble open at the switch closes without a crash; a download in progress
-  in A keeps going.
+- The same native window, widget delegate and `kProfileKey` after a switch
+  and back, and shortcuts moved with the view
+  (`AnotherProfilesSpaceKeepsTheNativeWindow`); six switches in a row with an
+  infobar (`SwitchingProfilesBackAndForth`).
+- Cmd+T opens the new profile's command bar in the shown window, and its tab
+  is the new profile's (`CommandBarAndNewTabUseTheNewProfile`).
+- A bubble open at the switch closes (`BubbleOpenAtTheSwitchCloses`); a
+  tab-modal dialog goes out of sight with its view, and upstream closes it
+  when the old window closes (`TabModalDialogLeavesWithItsWindow`).
+- Page state across two round trips (`FormValueSurvivesSwitches`).
+- Fullscreen kept, and left as usual afterwards (`FullscreenIsKept`).
+- Pages take colors from the shown widget
+  (`PageColorsComeFromTheShownWindow`).
+- `windows.getAll()` lists the window in the new profile only
+  (`ExtensionsSeeTheNewProfilesWindow`).
+- The last used profile follows (`LastUsedProfileFollows`).
+- Two windows on a space, one switches: its tabs go to the other
+  (`TabsGoToAnotherWindowOnTheSpace`).
+- Picture-in-picture's "back to tab" switches the window back to a parked
+  tab's profile (`BackToTabSwitchesProfiles`).
 
-Update `SpaceSwapTest` and `AnotherProfilesSpaceSwapsTheWindow` (now: no new
-window appears).
+Not covered by a test: session restore of a window that switched profiles
+(`--restore-last-session` by hand), an extension shortcut after the
+exchange (the registry's focus manager is rebound in `Rebind()`), downloads
+(the profile's, not the window's: a test with a held response timed out
+before the switch, in its own setup).
 
 ## Spike findings (static, 2026-10-29)
 
@@ -268,9 +276,27 @@ What ties a native window to its view, and how the exchange redoes it:
 | `widget_observation_`, activation | re-observed; activation replayed |
 | Immersive fullscreen overlay widgets (Mac) | reparented |
 
-Not handled yet: the touch bar (`_browser` in the NSWindow subclass), glass
-frame subscriptions (feature off), immersive mode controller state,
-bubbles anchored at the moment of the exchange.
+| Child widgets (bubbles, tab-modal dialogs, find bar, overlays) | each moves with its view: the shown view's go to the hidden window, out of sight; its bubbles (not tab-modal dialogs) close |
+| `BrowserView::paint_as_active_subscription_` (the browser's active state) | registered with the new widget; the new browser becomes the last active one if the old one was, as `Show()` does |
+| Immersive fullscreen (Mac) | turned off for the leaving view; the view that comes in hears `FullscreenStateChanging()`/`Changed()` and turns it on |
+| Touch bar delegate (`_browser` in `BrowserNativeWidgetMac`) | `RebindTouchBar()` (patch) |
+
+A tab-modal dialog (a JavaScript alert too) open in the shown view closes
+when the old window closes after the switch: upstream's
+`ModalDialogHostObserverViews` closes it with the window it opened in, as it
+does when the tab is dragged out of a window that then closes. Its tab
+comes back without it. Same-profile space switches keep it (the window stays).
+
+Not handled: glass frame subscriptions in `BrowserNativeWidgetMac` (the
+feature is off), and its back/forward command observers (only for PWAs).
+The find bar of a view built hidden would keep that window's focus
+manager, but a view built hidden never opens one.
+
+The log line `Requested load of chrome://newtab/ for incorrect profile type`
+seen on switches is upstream's: `WebContentsImpl::UpdateWebContentsVisibility()`
+looks up the new tab page's WebUI config by its committed URL
+(chrome://newtab/) whenever its visibility changes. No tab opens in the
+wrong profile (`CommandBarAndNewTabUseTheNewProfile`).
 
 What changes for the user: the same NSWindow, macOS Space and fullscreen.
 To extensions and the session the window is still another window

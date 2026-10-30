@@ -9,12 +9,12 @@
 
 namespace strata {
 
-// Makes window swaps (SwitchWindowToSpace(), window_features.h) look like one
-// window changing space: the new window goes up transparent over the old one,
-// without animations, and turns opaque in the same moment the old one hides,
-// once its sidebar and page have painted and that frame is on screen (at most
-// kMaxSwapWait later). See docs/design/spaces.md, "Swapping the window".
-// Idempotent.
+// Makes a switch to another profile's space (SwitchWindowToSpace(),
+// window_features.h) happen in the same native window: once the new
+// profile's window, built hidden, has its sidebar tree, its BrowserView takes
+// the shown native window (BrowserViewExchange), which keeps its last frame
+// until the sidebar and the page have painted (at most kMaxSwapWait). See
+// docs/design/profiles-in-place.md. Idempotent.
 void InstallSwapPresenter();
 
 // How long an exchange waits for the new sidebar's tree (the debug build is

@@ -310,8 +310,8 @@ only: the empty spaces it starts with are dropped.
 ### Swapping the window
 
 A `Browser` belongs to one profile for life, and a tab can't move to
-another profile's window, so a window can't change profile. A swap makes
-two windows look like one changing space.
+another profile's window, so a `Browser` can't change profile. A swap
+builds the other profile's `Browser` and gives it the native window (D18).
 
 `SwitchWindowToSpace(browser, profile, space)` (window_features.h) rebinds
 when `space` is the window's profile's. Otherwise:
@@ -326,11 +326,14 @@ when `space` is the window's profile's. Otherwise:
    `space`.
 3. `WindowFeatures::EnterSpace()`, steps 3 to 5 of a switch: `space`'s
    parked tabs come in, and the entry it showed last is shown.
-4. The swap presenter (`sidebar_swap.cc`, set by the views layer) shows the
-   new window over the old one, transparent and without the window
-   animation: it renders, and the old window shows through. Once its sidebar
-   and active page have painted and that frame is on screen (at most 750 ms
-   later), it turns opaque in the same moment the old window hides.
+4. The swap presenter (`sidebar_swap.cc`, set by the views layer) never
+   shows the new window. Once its sidebar page has the tree, the two
+   windows' `BrowserView`s exchange native windows
+   (`strata::BrowserViewExchange`): the shown NSWindow now holds the new
+   profile's view, and the old view goes to the hidden one. The shown window
+   keeps its last frame (a compositor lock) until the sidebar and the active
+   page have painted, at most 750 ms. Same NSWindow, macOS Space and
+   fullscreen. See docs/design/profiles-in-place.md.
 5. `LeaveForSwap()`: the old window's tabs leave as in step 6 of a switch,
    all of them, favorites' tabs included: to another window showing its
    space, else to its profile's parking window. Blank pages close. The
@@ -371,10 +374,8 @@ every listed space, but only the window's profile's entries.
 
 ### Known gaps (slice 3)
 
-- A fullscreen window's swap shows macOS's fullscreen animation: the new
-  window goes fullscreen in a Space of its own.
-- To the OS, extensions and Mission Control, the swapped window is another
-  window.
+- To extensions and the session, the window is another window after a
+  switch to another profile (a new `windowId`): it is that profile's.
 - Assigning a profile reloads only the page the space showed; its other tabs
   come back unloaded, and their page state is lost.
 - Entries can't move between spaces of different profiles.

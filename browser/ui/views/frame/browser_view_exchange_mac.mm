@@ -12,8 +12,10 @@ namespace strata {
 // static
 void BrowserViewExchange::SetNativeWidgetView(BrowserWidget& widget,
                                               BrowserView* view) {
-  static_cast<BrowserNativeWidgetMac*>(widget.browser_native_widget_.get())
-      ->browser_view_ = view;
+  auto* native_widget =
+      static_cast<BrowserNativeWidgetMac*>(widget.browser_native_widget_.get());
+  native_widget->browser_view_ = view;
+  native_widget->RebindTouchBar();
 }
 
 }  // namespace strata
