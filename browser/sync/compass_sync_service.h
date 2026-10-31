@@ -64,6 +64,9 @@ class CompassSyncService : public KeyedService,
                            public base::PowerSuspendObserver,
                            public PairingHost::Delegate {
  public:
+  // SyncController's, not DeviceInfoTracker's (both bases have one).
+  using Observer = SyncController::Observer;
+
   // |sync_service| is null if sync is disabled for the profile.
   CompassSyncService(Profile* profile,
                      syncer::SyncService* sync_service,
