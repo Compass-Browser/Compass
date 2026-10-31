@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
@@ -66,7 +65,7 @@ class FakePairingServer {
       Delete(*open_slot_);
     }
     int number = 1;
-    while (base::Contains(slots_, number)) {
+    while (slots_.contains(number)) {
       ++number;
     }
     slots_[number].expires = base::TimeTicks::Now() + kSlotLifetime;
