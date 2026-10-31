@@ -90,12 +90,10 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
                            size_t index) = 0;
     // Whether |entry| (a Today tab or split) is the tab the focused window
     // shows: another device closing it doesn't close it here.
-    virtual bool IsShownInFocusedWindow(const SidebarNode& entry) {
-      return false;
-    }
+    virtual bool IsShownInFocusedWindow(const SidebarNode& entry);
     // Whether |entry| is shown in a window or plays sound, as the archiver
     // spares: another device archiving it doesn't archive it here.
-    virtual bool IsInUse(const SidebarNode& entry) { return false; }
+    virtual bool IsInUse(const SidebarNode& entry);
     // Hands |from|'s live tab, if it has one, to |to|, if it has none.
     virtual void TransferLiveTab(const SidebarNode& from, SidebarNode& to) {}
   };

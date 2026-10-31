@@ -260,6 +260,15 @@ std::vector<syncer::UniquePosition> AssignPositions(
 
 }  // namespace internal
 
+bool CompassSpacesSyncBridge::Delegate::IsShownInFocusedWindow(
+    const SidebarNode& entry) {
+  return false;
+}
+
+bool CompassSpacesSyncBridge::Delegate::IsInUse(const SidebarNode& entry) {
+  return false;
+}
+
 CompassSpacesSyncBridge::CompassSpacesSyncBridge(
     std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
     syncer::OnceDataTypeStoreFactory create_store,
