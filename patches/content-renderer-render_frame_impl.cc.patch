@@ -1,0 +1,17 @@
+diff --git a/content/renderer/render_frame_impl.cc b/content/renderer/render_frame_impl.cc
+index 8d7c579bafe1b0a9dfd9a7496246228c8bbf8730..85b22709dd5472d8f5cf2e672e69661e26bda819 100644
+--- a/content/renderer/render_frame_impl.cc
++++ b/content/renderer/render_frame_impl.cc
+@@ -5828,6 +5828,12 @@ void RenderFrameImpl::BeginNavigation(
+   // that will end up in a different tab/window, and BeginNavigation handles
+   // everything else.
+   if (info->navigation_policy == blink::kWebNavigationPolicyDownload) {
++    // Compass: an Option+clicked link goes to the browser as an OpenURL with
++    // SAVE_TO_DISK, which peeks at it or downloads it.
++    if (url.SchemeIsHTTPOrHTTPS() && !IsHttpPost(info->url_request)) {
++      OpenURL(std::move(info));
++      return;
++    }
+     mojo::PendingRemote<blink::mojom::BlobURLToken> blob_url_token =
+         CloneBlobURLToken(info->blob_url_token);
+ 

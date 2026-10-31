@@ -13,6 +13,8 @@ source_set("ui") {
     "views/frame/browser_view_exchange.h",
     "views/frame/window_frame.cc",
     "views/frame/window_frame.h",
+    "views/peek/peek.cc",
+    "views/peek/peek.h",
     "views/sidebar/sidebar_context_menu.cc",
     "views/sidebar/sidebar_context_menu.h",
     "views/sidebar/sidebar_header.cc",
@@ -53,6 +55,9 @@ source_set("ui") {
   ]
   deps = [
     "//compass/common:url",
+    "//chrome/app/vector_icons",
+    "//components/download/public/common:public",
+    "//components/vector_icons",
     "//base",
     "//base:i18n",
     "//chrome/app:command_ids",
@@ -154,6 +159,7 @@ source_set("browser_tests") {
   sources = [
     "views/command_bar/command_bar_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
+    "views/peek/peek_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
     "views/sidebar/compass_sidebar_browsertest.cc",
   ]

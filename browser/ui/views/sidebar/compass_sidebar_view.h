@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/peek/peek.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/webview/webview.h"
@@ -103,6 +104,7 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
       this};
   SpaceShortcuts space_shortcuts_;
   CommandBar command_bar_;
+  Peek peek_;
 };
 
 // The sidebar the vertical tab strip region shows in place of the native tab

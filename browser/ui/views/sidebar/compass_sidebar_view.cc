@@ -117,7 +117,8 @@ CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
     : views::WebView(nullptr),
       browser_(browser),
       space_shortcuts_(browser),
-      command_bar_(browser) {
+      command_bar_(browser),
+      peek_(browser) {
   InstallSwapPresenter();
   // A swap's window takes the page of the window it replaces
   // (sidebar_swap.cc).

@@ -1,17 +1,31 @@
 diff --git a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..bee4f69990cb4600e15330228116473aa15eb465 100644
+index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..0900cb51d7c3670c1c8bde3f46d31072940570eb 100644
 --- a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 +++ b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-@@ -113,6 +113,8 @@
+@@ -113,6 +113,9 @@
  #include "chrome/browser/ui/overscroll_pref_manager.h"
  #endif  // defined(USE_AURA)
  
++#include "compass/browser/ui/views/peek/peek.h"
 +#include "compass/browser/window_sync/window_features.h"
 +
  #if BUILDFLAG(IS_CHROMEOS)
  #include "chrome/browser/ui/settings_window_manager_chromeos.h"
  #endif
-@@ -743,6 +745,10 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
+@@ -548,6 +551,12 @@ content::WebContents* BrowserWebContentsDelegate::OpenURLFromTab(
+                                   std::move(navigation_handle_callback));
+   }
+ 
++  // Compass: Option+click on a link peeks at it (or downloads it).
++  if (params.disposition == WindowOpenDisposition::SAVE_TO_DISK && source) {
++    compass::PeekOrDownload(&browser_.get(), source, params);
++    return nullptr;
++  }
++
+   // If the source is already split, navigate the other pane instead of
+   // creating a new tab. Return |source| so that WebContentsImpl::OpenURL()
+   // sees new_contents == this and skips the DidOpenRequestedURL notification,
+@@ -743,6 +752,10 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
  
  void BrowserWebContentsDelegate::ActivateContents(
      content::WebContents* contents) {
