@@ -193,7 +193,7 @@ class CompassSyncNotifierTest : public testing::Test {
         base::BindLambdaForTesting([this]() { return client_id_; }),
         base::BindLambdaForTesting(
             [this](syncer::DataTypeSet types) { refreshes_.push_back(types); }),
-        network::TestNetworkConnectionTracker::GetInstance());
+        network_.get());
   }
 
   // The open stream starts with |status|, and says hello.
