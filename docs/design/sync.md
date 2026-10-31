@@ -422,6 +422,33 @@ none blocking:
 4. The framing of messages 3 and 4 ("then") and the denial encoding were
    open; fixed here as above.
 
+### Slice 2 run on the MacBook
+
+2026-10-31, out/Debug, branch `sync/slice-2-chain` at `0499ea3`, against
+the slice 1 server on the Mac mini. Evidence in
+`~/compass-sync-slice2-evidence.tgz` on the MacBook.
+
+- Fixes the run needed: a hand-written patch with a missing context line
+  (all patches regenerated with `git diff --full-index`), two test compile
+  errors (`base/containers/contains.h` is gone in 156; a missing
+  `pref_registry_simple.h`), a missing test helper, and the setup-handle
+  deadlock (see "Passphrase" above).
+- 42 unit tests pass. No crash or DCHECK in any instance.
+- A started a chain, set the passphrase before any data type ran, then
+  synced. B joined by recovery code and got A's bookmark and password
+  (about 20 s with a refresh); B's reached A (about 27 s). Passwords land
+  in the profile store.
+- Pairing: right code + Allow → C joins and has the data after a restart;
+  wrong code → both sides fail, D stays off; Deny → D stays off. With a
+  wrong code, B says "The other device ended pairing" instead of "wrong
+  code": the contract change "a closed slot says why" fixes it (later).
+- Running types: Bookmarks, Preferences, Priority Preferences, Passwords,
+  Autofill, Autofill Profiles, Extensions, Extension settings, Search
+  Engines, Sessions, Device Info, Reading List. The unwanted ones and
+  History don't run. Custom passphrase on every instance.
+- No Google host from sync (same set as with sync off); the server logged
+  no errors.
+
 ### Change notifications
 
 Chromium learns about remote changes through FCM invalidations, which need
@@ -625,10 +652,11 @@ Upstream's sync settings are replaced by a page of our own,
    (that changes passwords/bookmarks behaviour: separate account store);
    which types start and which fail without Google; that nothing calls
    Google endpoints (watch the network log). Write the findings here.
-1. **Server, minimal**: go-sync fork in `server/`, SQLite storage, Ed25519
+1. **Server, minimal** (done 2026-10-31, merged into `sync-main`): go-sync fork in `server/`, SQLite storage, Ed25519
    auth, pairing slots and relay, Docker image, Go tests. A `compass sync-server` CLI command runs it
    locally for development.
-2. **Chain + Chromium types**: seed, recovery code, pairing (SPAKE2,
+2. **Chain + Chromium types** (done 2026-10-31, "Slice 2 run on the
+   MacBook"; History moved to 2b): seed, recovery code, pairing (SPAKE2,
    unit tests for wrong code and expiry), HKDF derivations, the auth
    route from slice 0, server URL pref, custom passphrase, Google-only types
    off (through `compass::RegisterFeatureOverrides()` where a feature flag
