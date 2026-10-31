@@ -258,8 +258,14 @@ compass-sidebar-preview[side='next'] {
   opacity: 1;
 }
 
-#addSpace {
-  font-size: 16px;
+/* Drawn, not a "+" character, whose glyph sits below the center. */
+#addSpace svg {
+  fill: none;
+  height: 14px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  width: 14px;
 }
 
 /* A space's menu, over the bottom of the sidebar. */
@@ -402,14 +408,16 @@ compass-sidebar-preview[side='next'] {
   text-align: center;
 }
 
+/* Even sizes, so they sit on whole pixels in the 24px buttons. */
 .space-symbol {
   fill: currentColor;
-  height: 17px;
-  width: 17px;
+  height: 18px;
+  width: 18px;
 }
 
 .space-initial {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1;
 }
 
 /* Emoji glyphs fill their em box, so they're set smaller than the letters
@@ -417,6 +425,8 @@ compass-sidebar-preview[side='next'] {
 .space-emoji {
   font-size: 11px;
   line-height: 1;
+  /* Emoji glyphs sit a little low in their line. */
+  transform: translateY(-0.5px);
   /* The glyph itself, over a shadow that's its silhouette. Hiding the glyph
    * with the fill color, not `color`, keeps currentColor the text's. */
   -webkit-text-fill-color: currentColor;

@@ -213,7 +213,9 @@ theme chip shows the same three stops, diagonally (`--space-color`,
 `--space-color-2`, `--space-color-3`). The switcher's buttons show no color
 (the user asked for no circle or background, 2026-10-31): just the icon,
 emoji or letter, the window's space at full opacity, the others dimmed.
-Symbols are 17px, letters 13px and emoji 11px, which look about as big.
+Symbols are 18px, letters 14px and emoji 11px (nudged up half a pixel),
+which look about as big; even sizes sit on whole pixels in the 24px
+buttons. The + is drawn (a "+" character sat 1.25px below the others).
 Other spaces' emoji are a silhouette in the text color, as their symbols
 and letters are (the glyph's fill transparent over a text shadow in
 `currentColor`; `color: transparent` would make `currentColor` transparent

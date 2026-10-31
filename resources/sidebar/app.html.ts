@@ -232,7 +232,11 @@ ${this.archiveOpen_ ? html`
             this.getSpaceIconText_(space)}</span>`}
     </button>`)}
   <button id="addSpace" aria-label="New space" title="New space"
-      @click="${this.onAddSpaceClick_}">+</button>
+      @click="${this.onAddSpaceClick_}">
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 3v10M3 8h10"></path>
+    </svg>
+  </button>
 </div>
 <div id="ghosts" aria-hidden="true"></div>
 <!--_html_template_end_-->`;
