@@ -79,6 +79,23 @@ def require_checkout(layout: Layout) -> None:
                        layout.src)
 
 
+def require_buildable_layout(layout: Layout,
+                             platform: str = sys.platform) -> None:
+  """Siso on Windows can't see through the src/compass junction."""
+  if platform != 'win32' or layout.in_tree:
+    return
+  link = layout.src / 'compass'
+  raise CommandError(
+      'on Windows the build needs the in-tree layout: siso does not follow '
+      'the directory junction %s (it reports "../../compass/BUILD.gn not '
+      'exist"). Move the repository into the checkout, from outside it:\n'
+      '  rmdir "%s"\n'
+      '  move "%s" "%s"\n'
+      '  mklink /J "%s" "%s"   (optional: keeps the old path working)\n'
+      'then run compass from %s.' %
+      (link, link, layout.root, link, layout.root, link, link))
+
+
 def cmd_info(layout: Layout, _args) -> None:
   print('repository:       %s' % layout.root)
   print('chromium dir:     %s' % layout.chromium_dir)
@@ -136,6 +153,7 @@ def cmd_patches(layout: Layout, args) -> None:
 def cmd_gen(layout: Layout, args) -> None:
   require_lowercase_name(layout)
   require_checkout(layout)
+  require_buildable_layout(layout)
   out_dir = layout.out_dir(args.config)
   args_file = out_dir / 'args.gn'
   if args.force or not args_file.exists():
@@ -165,6 +183,7 @@ def sync_patches(layout: Layout) -> None:
 def build(layout: Layout, config: str, targets, jobs: int | None = None,
           skip_patches: bool = False) -> Path:
   require_checkout(layout)
+  require_buildable_layout(layout)
   out_dir = layout.out_dir(config)
   if not (out_dir / 'args.gn').exists():
     raise CommandError('%s is not set up; run `compass gen %s`' %

@@ -7,9 +7,30 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from compass_tool.cli import browser_test_args  # noqa: E402
+from compass_tool.cli import (browser_test_args,  # noqa: E402
+                              require_buildable_layout)
+from compass_tool.layout import Layout  # noqa: E402
+from compass_tool.process import CommandError  # noqa: E402
 
 KEEP_GPU = '--disable-features=MacDisclaimGpuTccResponsibility'
+
+
+class BuildableLayoutTest(unittest.TestCase):
+
+  def layout(self, in_tree):
+    return Layout(Path('/w/compass'), Path('/w/compass-chromium'), in_tree)
+
+  def test_windows_rejects_linked_layout(self):
+    with self.assertRaises(CommandError) as raised:
+      require_buildable_layout(self.layout(False), 'win32')
+    self.assertIn('in-tree', str(raised.exception))
+
+  def test_windows_accepts_in_tree_layout(self):
+    require_buildable_layout(self.layout(True), 'win32')
+
+  def test_other_platforms_accept_linked_layout(self):
+    require_buildable_layout(self.layout(False), 'darwin')
+    require_buildable_layout(self.layout(False), 'linux')
 
 
 class BrowserTestArgsTest(unittest.TestCase):
