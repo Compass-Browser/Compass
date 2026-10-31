@@ -11,6 +11,8 @@ source_set("arc_import") {
     "arc_sidebar.h",
     "profile_copy.cc",
     "profile_copy.h",
+    "sidebar_import.cc",
+    "sidebar_import.h",
   ]
   deps = [
     "//crypto",
@@ -28,6 +30,7 @@ source_set("unit_tests") {
   sources = [
     "arc_sidebar_unittest.cc",
     "profile_copy_unittest.cc",
+    "sidebar_import_unittest.cc",
   ]
   deps = [
     ":arc_import",

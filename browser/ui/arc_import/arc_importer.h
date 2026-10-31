@@ -7,9 +7,11 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "compass/browser/arc_import/profile_copy.h"
 
 class Profile;
@@ -37,7 +39,7 @@ void SetArcKeychainPasswordForTesting(std::optional<std::string> password);
 
 struct ProfileImport {
   // The loaded Compass profile, or null if the import failed.
-  raw_ptr<Profile> profile = nullptr;
+  raw_ptr<::Profile> profile = nullptr;
   CopyResult copy;
 };
 
@@ -49,6 +51,27 @@ struct ProfileImport {
 void ImportArcProfile(const std::string& arc_dir,
                       const std::u16string& name,
                       base::OnceCallback<void(ProfileImport)> callback);
+
+struct ArcImportResult {
+  ArcImportResult();
+  ArcImportResult(ArcImportResult&&);
+  ArcImportResult& operator=(ArcImportResult&&);
+  ~ArcImportResult();
+
+  // False if Arc's sidebar couldn't be read; profiles may still have failed.
+  bool ok = false;
+  // The Compass profiles made, in Arc's order.
+  std::vector<raw_ptr<::Profile>> profiles;
+  // Arc profile folders that failed (copy, Keychain, load).
+  std::vector<std::string> failed;
+};
+
+// Imports everything from Arc: each of its profiles (ImportArcProfile()),
+// then that profile's spaces, Pinned and Today entries and favorites
+// (AddArcSidebar()), and lists the profile so its spaces show in the
+// switcher. Profiles one after another. Arc must not be running. On the UI
+// thread.
+void ImportFromArc(base::OnceCallback<void(ArcImportResult)> callback);
 
 // Merges an Arc profile's Preferences and Secure Preferences into one
 // dictionary without Arc's signatures, records where it came from

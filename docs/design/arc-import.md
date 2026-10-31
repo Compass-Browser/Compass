@@ -157,9 +157,22 @@ drop get added to Compass before the import is finished. From Arc's files:
     re-encrypted with an Arc test key) plus Arc-signed preferences, imports
     it, and checks the cookie through the network service, the home page,
     and that nothing was reset.
-- Next (3): the sidebar: spaces, Pinned, Today, Favorites of each imported
-  profile. Then (4) the page. A run on a real Arc profile waits for Arc to
-  be quit.
+- Slice 3 (sidebar) done: `compass::arc::AddArcSidebar()`
+  (`browser/arc_import/sidebar_import.cc`, model only) adds a profile's Arc
+  spaces with their names and colors, Pinned (folders kept) and Today
+  (folders and splits kept; a split takes two panes, more tabs follow it),
+  tabs with Arc's saved title (else the host) and the user's own title as
+  the custom title, and the favorites (tabs only; folders flattened). A new
+  profile's untouched "Home" space becomes the first Arc space. Pinned
+  entries keep Arc's last active time; Today's count as used at the import,
+  or Today's 12 h auto-archive would take them at once. Entries come in
+  unloaded. `compass::arc::ImportFromArc()` reads the sidebar and Local
+  State, imports Arc's profiles one after another, adds each one's sidebar
+  once its `SpaceService` has loaded, and lists the profile in
+  `SpaceDirectory` so its spaces show in the switcher.
+  `SidebarImportTest.*` (5), `ArcImporterBrowserTest.ImportsProfilesAndSpaces`,
+  `NoSidebarNoImport`.
+- Next (4): the page. A run on a real Arc profile waits for Arc to be quit.
 
 ## Open questions
 

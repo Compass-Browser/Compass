@@ -19,6 +19,11 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "compass/browser/arc_import/arc_crypto.h"
+#include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/prefs/pref_service.h"
@@ -167,6 +172,92 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, FailsWithoutArcsKey) {
   ProfileImport result = Import();
   EXPECT_FALSE(result.profile);
   EXPECT_FALSE(result.copy.ok);
+}
+
+// Arc's sidebar for two profiles: "Your Arc" (Default) with two spaces and a
+// favorite, "Work" (Profile 1) with one space.
+constexpr char kSidebar[] = R"json({"sidebar": {"containers": [{"global": {}}, {
+  "spaces": [
+    "s1", {"id": "s1", "title": "Personal", "profile": {"default": true},
+           "containerIDs": ["pinned", "p1", "unpinned", "u1"]},
+    "s2", {"id": "s2", "title": "Job",
+           "profile": {"custom": {"_0": {"directoryBasename": "Profile 1"}}},
+           "containerIDs": ["pinned", "p2", "unpinned", "u2"]},
+    "s3", {"id": "s3", "title": "Hobbies", "profile": {"default": true},
+           "containerIDs": ["pinned", "p3", "unpinned", "u3"]}
+  ],
+  "items": [
+    "p1", {"id": "p1", "data": {"itemContainer": {}}, "childrenIds": ["t1"]},
+    "t1", {"id": "t1", "data": {"tab": {"savedURL": "https://news.test/",
+           "savedTitle": "News"}}},
+    "u1", {"id": "u1", "data": {"itemContainer": {}}, "childrenIds": []},
+    "p2", {"id": "p2", "data": {"itemContainer": {}}, "childrenIds": []},
+    "u2", {"id": "u2", "data": {"itemContainer": {}}, "childrenIds": ["t2"]},
+    "t2", {"id": "t2", "data": {"tab": {"savedURL": "https://jira.test/"}}},
+    "p3", {"id": "p3", "data": {"itemContainer": {}}, "childrenIds": []},
+    "u3", {"id": "u3", "data": {"itemContainer": {}}, "childrenIds": []},
+    "top1", {"id": "top1", "data": {"itemContainer": {}},
+             "childrenIds": ["t3"]},
+    "t3", {"id": "t3", "data": {"tab": {"savedURL": "https://mail.test/",
+           "savedTitle": "Mail"}}}
+  ],
+  "topAppsContainerIDs": [{"default": true}, "top1"]
+}]}})json";
+
+constexpr char kLocalState[] = R"json({"profile": {"info_cache": {
+  "Default": {"name": "Your Arc"}, "Profile 1": {"name": "Work"}}}})json";
+
+IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    const ArcPaths paths = GetArcPaths();
+    for (const char* dir : {"Default", "Profile 1"}) {
+      ASSERT_TRUE(base::CreateDirectory(paths.user_data.Append(dir)));
+      ASSERT_TRUE(base::WriteFile(
+          paths.user_data.Append(dir).Append("Preferences"), "{}"));
+    }
+    ASSERT_TRUE(base::WriteFile(paths.sidebar, kSidebar));
+    ASSERT_TRUE(base::WriteFile(paths.user_data.Append("Local State"),
+                                kLocalState));
+  }
+
+  base::test::TestFuture<ArcImportResult> future;
+  ImportFromArc(future.GetCallback());
+  ArcImportResult result = future.Take();
+  ASSERT_TRUE(result.ok);
+  EXPECT_TRUE(result.failed.empty());
+  ASSERT_EQ(result.profiles.size(), 2u);
+
+  // "Your Arc": its two spaces (the first in the new profile's own place),
+  // a pinned tab, and the favorite.
+  ::Profile* personal = result.profiles[0];
+  SpaceList& personal_spaces = SpaceService::Get(personal)->space_list();
+  ASSERT_EQ(personal_spaces.spaces().size(), 2u);
+  EXPECT_EQ(personal_spaces.spaces()[0]->name(), u"Personal");
+  EXPECT_EQ(personal_spaces.spaces()[1]->name(), u"Hobbies");
+  ASSERT_EQ(personal_spaces.spaces()[0]->pinned_root()->children().size(), 1u);
+  EXPECT_EQ(personal_spaces.spaces()[0]->pinned_root()->children()[0]->url(),
+            GURL("https://news.test/"));
+  ASSERT_EQ(personal_spaces.favorites().pinned_root()->children().size(), 1u);
+
+  // "Work": its space and Today tab.
+  ::Profile* work = result.profiles[1];
+  SpaceList& work_spaces = SpaceService::Get(work)->space_list();
+  ASSERT_EQ(work_spaces.spaces().size(), 1u);
+  EXPECT_EQ(work_spaces.spaces()[0]->name(), u"Job");
+  EXPECT_EQ(work_spaces.spaces()[0]->today_root()->children().size(), 1u);
+
+  // Both show in the switcher.
+  EXPECT_TRUE(SpaceDirectory::Get()->IsListed(personal));
+  EXPECT_TRUE(SpaceDirectory::Get()->IsListed(work));
+}
+
+IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, NoSidebarNoImport) {
+  base::test::TestFuture<ArcImportResult> future;
+  ImportFromArc(future.GetCallback());
+  ArcImportResult result = future.Take();
+  EXPECT_FALSE(result.ok);
+  EXPECT_TRUE(result.profiles.empty());
 }
 
 }  // namespace
