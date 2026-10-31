@@ -824,8 +824,8 @@ void CompassSyncService::OnJoinFinished(const GURL& server_url,
   }
   const bool others = !GetOtherLocalProfiles().empty();
   if (others && !chain.empty()) {
-    // The user maps this device's other profiles to the chain's first
-    // (SetProfileMapping()).
+    // Nothing is saved until the user has mapped this device's other
+    // profiles to the chain's (SetProfileMapping()).
     PendingJoin join;
     join.server_url = server_url;
     join.seed = *seed;
@@ -841,19 +841,20 @@ void CompassSyncService::OnJoinFinished(const GURL& server_url,
   // once the first sync brings it).
   FinishJoin(server_url, *seed, chain, /*mapping=*/{},
              /*profiles_pending=*/others,
-            base::BindOnce(
-                [](base::WeakPtr<CompassSyncService> self, bool ok,
-                   std::string error) {
-                  if (self) {
-                    self->SetPairing(
-                        {ok ? PairingStep::kDone : PairingStep::kFailed,
-                         {},
-                         {},
-                         ok ? JoinResultMessage(PairingJoiner::Result::kJoined)
-                            : error});
-                  }
-                },
-                weak_factory_.GetWeakPtr()));
+             base::BindOnce(
+                 [](base::WeakPtr<CompassSyncService> self, bool ok,
+                    std::string error) {
+                   if (self) {
+                     self->SetPairing(
+                         {ok ? PairingStep::kDone : PairingStep::kFailed,
+                          {},
+                          {},
+                          ok ? JoinResultMessage(
+                                   PairingJoiner::Result::kJoined)
+                             : error});
+                   }
+                 },
+                 weak_factory_.GetWeakPtr()));
 }
 
 void CompassSyncService::CancelPairing() {
@@ -936,10 +937,12 @@ CompassSyncService::GetLocalChainProfiles() const {
   };
   add(profile_, GetProfileUuid(), /*home=*/true);
   for (Profile* profile : GetListableProfiles()) {
-    PrefService* prefs = profile->GetPrefs();
-    if (profile != profile_.get() && !prefs->GetString(prefs::kSeed).empty() &&
-        prefs->GetBoolean(prefs::kProfileAccount)) {
-      add(profile, prefs->GetString(prefs::kProfileUuid), /*home=*/false);
+    PrefService* profile_prefs = profile->GetPrefs();
+    if (profile != profile_.get() &&
+        !profile_prefs->GetString(prefs::kSeed).empty() &&
+        profile_prefs->GetBoolean(prefs::kProfileAccount)) {
+      add(profile, profile_prefs->GetString(prefs::kProfileUuid),
+          /*home=*/false);
     }
   }
   return profiles;
@@ -991,9 +994,9 @@ void CompassSyncService::ApplyChainNames() {
   for (const ChainProfile& chain_profile : chain_profiles_) {
     Profile* local = nullptr;
     for (Profile* profile : GetListableProfiles()) {
-      PrefService* prefs = profile->GetPrefs();
-      if (!prefs->GetString(prefs::kSeed).empty() &&
-          prefs->GetString(prefs::kProfileUuid) == chain_profile.uuid) {
+      PrefService* profile_prefs = profile->GetPrefs();
+      if (!profile_prefs->GetString(prefs::kSeed).empty() &&
+          profile_prefs->GetString(prefs::kProfileUuid) == chain_profile.uuid) {
         local = profile;
         break;
       }
@@ -1084,20 +1087,21 @@ void CompassSyncService::EnrollProfile(Profile* profile,
   if (uuid.empty() || !HasSeed()) {
     return;
   }
-  PrefService* prefs = profile->GetPrefs();
+  PrefService* profile_prefs = profile->GetPrefs();
   // The seed as this profile stores it: os_crypt's key is the same for every
   // profile.
-  prefs->SetString(prefs::kSeed, prefs_->GetString(prefs::kSeed));
-  prefs->SetString(prefs::kServerUrl, prefs_->GetString(prefs::kServerUrl));
-  prefs->SetString(prefs::kProfileUuid, uuid);
-  prefs->SetBoolean(prefs::kProfileAccount, true);
-  prefs->ClearPref(prefs::kProfilesPending);
-  prefs->SetBoolean(syncer::prefs::kEnableLocalSyncBackend, true);
-  if (prefs->GetFilePath(syncer::prefs::kLocalSyncBackendDir).empty()) {
-    prefs->SetFilePath(syncer::prefs::kLocalSyncBackendDir,
+  profile_prefs->SetString(prefs::kSeed, prefs_->GetString(prefs::kSeed));
+  profile_prefs->SetString(prefs::kServerUrl,
+                           prefs_->GetString(prefs::kServerUrl));
+  profile_prefs->SetString(prefs::kProfileUuid, uuid);
+  profile_prefs->SetBoolean(prefs::kProfileAccount, true);
+  profile_prefs->ClearPref(prefs::kProfilesPending);
+  profile_prefs->SetBoolean(syncer::prefs::kEnableLocalSyncBackend, true);
+  if (profile_prefs->GetFilePath(syncer::prefs::kLocalSyncBackendDir).empty()) {
+    profile_prefs->SetFilePath(syncer::prefs::kLocalSyncBackendDir,
                        profile->GetPath().Append(kLocalSyncDirName));
   }
-  prefs->CommitPendingWrite();
+  profile_prefs->CommitPendingWrite();
   {
     ScopedDictPrefUpdate dirs(prefs_, prefs::kProfileDirs);
     dirs->Set(uuid, profile->GetPath().BaseName().AsUTF8Unsafe());
