@@ -12,8 +12,15 @@ left behind; keep it and it becomes a Today entry without reloading.
 
 - **Option+click** a link (upstream downloads it). Arc puts Peek on
   Shift+click; Compass keeps Shift+click for a new window, as upstream.
+- **Links from pinned tabs and favorites** that open a new tab with a plain
+  click (`target=_blank`, `window.open()` on a click) peek too, as in Arc,
+  so a pinned app stays put. Cmd+click and middle click still open a
+  background tab (with the opener's link folder), Cmd+Shift+click a
+  foreground tab.
 - The page shows in a rounded card over the content area, which dims. The
-  close (×) and open buttons sit beside the card's top trailing corner.
+  close (×) and open buttons sit beside the card's top trailing corner; the
+  page's title and host (or only its host until it has a title) sit in a
+  pill above its leading corner, the full URL as its tooltip.
 - **Close:** Esc (after the page, which may use it), Cmd+W, the ×, a click
   on the dimmed area, `window.close()`, switching tabs or spaces, or a click
   on the rest of the window (sidebar, frame). Another app taking focus
@@ -75,19 +82,37 @@ sidebar view next to the command bar, found with `Peek::From(browser)`.
   (menu shortcuts); `compass::HandleBrowserCommand()` gives them to Peek
   while it shows. The page's delegate also takes them before the page
   (`PreHandleKeyboardEvent()`), and Esc after it.
-- Closing hides the widget and lets go of the page after the current event
-  (the page or the card may be handling it).
+- Closing runs the opening backwards in 120 ms: the widget fades and the
+  card shrinks to 92%, taking no input, and the page underneath has the
+  focus again at once. `IsShowing()` is false from the start, so Cmd+W
+  closes the tab again. Peeking again meanwhile ends the fade at once.
+  When the window or the content area goes, Peek closes without it. Then
+  it hides the widget and lets go of the page after the current event (the
+  page or the card may be handling it).
+- The title follows the page through `NavigationStateChanged()` (title and
+  URL).
+
+### Links from pinned tabs
+
+`BrowserWebContentsDelegate::AddNewContents()` (patch) first offers the new
+WebContents to `compass::MaybePeekNewContents()`: a foreground tab with a
+user gesture, from a tab whose node is pinned or a favorite
+(`TabStripBridge::IsPinned()`), in a normal window that isn't switching
+spaces. Peek then adopts that WebContents (`Peek::Adopt()`, which gives it
+the tab helpers if it has none yet): the page keeps its opener, and is the
+same WebContents a tab would have had. Links the renderer sends as
+`OpenURL` with a new-tab disposition (Cmd+Shift+click, links from the PDF
+viewer) still open tabs.
 
 ## Not done
 
-- Arc also peeks at links that would open a new tab from a pinned tab.
 - Option+double-click no longer selects a link's text.
-- Closing has no animation.
 - Option+click outside a normal window's tab (extension popups, side
   panels, WebUI bubbles) now does nothing: those delegates ignore
   `SAVE_TO_DISK`.
-- No title or URL on the card, no back button, no resizing; JavaScript
-  dialogs in the page are suppressed (no tab-modal host).
+- No back button, no resizing; JavaScript dialogs in the page are
+  suppressed (no tab-modal host). No setting to turn off peeking from
+  pinned tabs.
 - Hover cards, the pill and the command bar don't know about the page.
 
 Tests: `PeekBrowserTest.*` (`browser/ui/views/peek/peek_browsertest.cc`).

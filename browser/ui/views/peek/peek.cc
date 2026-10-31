@@ -8,6 +8,8 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -28,6 +30,8 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
 #include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/file_select_listener.h"
@@ -58,8 +62,10 @@
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/controls/native/native_view_host.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/layout/box_layout.h"
 #include "ui/views/widget/widget_delegate.h"
 
 // TabHelpers lets only a few classes give a WebContents the tab helpers of a
@@ -81,16 +87,22 @@ namespace {
 // The window frame's card radius (docs/design/window-frame.md).
 constexpr float kContentCornerRadius = 12;
 constexpr float kCardCornerRadius = 10;
-// The card's distance from the content area's top and bottom, and at least
-// from its sides (more on wide windows, see CalculateCardBounds()).
-constexpr int kVerticalInset = 24;
-constexpr int kMinHorizontalInset = 48;
-// The buttons beside the card's top trailing corner.
+// The buttons beside the card's top trailing corner, and the title pill
+// above its leading corner.
 constexpr int kButtonSize = 28;
 constexpr int kButtonIconSize = 16;
 constexpr int kButtonSpacing = 8;
+constexpr int kTitleHorizontalPadding = 12;
+// The card's distance from the content area's top (room for the title) and
+// bottom, and at least from its sides (more on wide windows, see
+// CalculateCardBounds()).
+constexpr int kTopInset = kButtonSize + 2 * kButtonSpacing;
+constexpr int kBottomInset = 24;
+constexpr int kMinHorizontalInset = 48;
 // Opening: the card fades in and grows from this scale, around its center.
+// Closing runs it backwards, faster.
 constexpr base::TimeDelta kOpenDuration = base::Milliseconds(160);
+constexpr base::TimeDelta kCloseDuration = base::Milliseconds(120);
 constexpr double kOpenStartScale = 0.92;
 
 constexpr int kKeyModifiers =
@@ -149,8 +161,11 @@ void DownloadLink(content::WebContents* source,
       std::move(download));
 }
 
-// The widget's contents: a dimmed content area with the card in it, and the
-// close and open buttons beside the card. A click on the dimmed part closes.
+}  // namespace
+
+// The widget's contents: a dimmed content area with the card in it, the
+// page's title and host above the card, and the close and open buttons
+// beside it. A click on the dimmed part closes.
 class PeekView : public views::View, public views::AnimationDelegateViews {
   METADATA_HEADER(PeekView, views::View)
 
@@ -159,6 +174,25 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
       : views::AnimationDelegateViews(this), close_(std::move(close)) {
     SetPaintToLayer();
     layer()->SetFillsBoundsOpaquely(false);
+
+    auto title = std::make_unique<views::View>();
+    title->SetBackground(views::CreateRoundedRectBackground(
+        ui::kColorSysSurface, kButtonSize / 2.f));
+    title->SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kHorizontal,
+        gfx::Insets::VH(0, kTitleHorizontalPadding), kButtonSpacing,
+        /*collapse_margins_spacing=*/false));
+    static_cast<views::BoxLayout*>(title->GetLayoutManager())
+        ->set_cross_axis_alignment(views::BoxLayout::CrossAxisAlignment::kCenter);
+    title_label_ = title->AddChildView(std::make_unique<views::Label>());
+    title_label_->SetEnabledColor(ui::kColorSysOnSurface);
+    title_label_->SetElideBehavior(gfx::ELIDE_TAIL);
+    host_label_ = title->AddChildView(std::make_unique<views::Label>());
+    host_label_->SetEnabledColor(ui::kColorSysOnSurfaceSubtle);
+    host_label_->SetElideBehavior(gfx::ELIDE_HEAD);
+    static_cast<views::BoxLayout*>(title->GetLayoutManager())
+        ->SetFlexForView(title_label_, 1);
+    title_ = AddChildView(std::move(title));
 
     auto card = std::make_unique<views::View>();
     card->SetBackground(views::CreateRoundedRectBackground(
@@ -184,6 +218,32 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
 
   views::WebView* web_view() { return web_view_; }
   views::View* card() { return card_; }
+  std::u16string title_for_testing() const {
+    return std::u16string(title_label_->GetText());
+  }
+  std::u16string host_for_testing() const {
+    return std::u16string(host_label_->GetText());
+  }
+
+  // Shows |contents|'s title and host above the card.
+  void UpdateTitle(content::WebContents* contents) {
+    const GURL& url = contents->GetVisibleURL();
+    std::u16string host = base::UTF8ToUTF16(url.host());
+    if (base::StartsWith(host, u"www.")) {
+      host = host.substr(4);
+    }
+    std::u16string title = contents->GetTitle();
+    // Before the page names itself, the title is its URL.
+    if (title == base::UTF8ToUTF16(url.spec()) ||
+        title == base::UTF8ToUTF16(url.GetContent())) {
+      title.clear();
+    }
+    title_label_->SetText(title.empty() ? host : title);
+    host_label_->SetText(title.empty() ? std::u16string() : host);
+    host_label_->SetVisible(!title.empty() && !host.empty());
+    title_->SetTooltipText(base::UTF8ToUTF16(url.spec()));
+    InvalidateLayout();
+  }
 
   // Fades in and grows to its size, unless animations are off. The page is
   // a native view on macOS, out of reach of layer opacity and transforms, so
@@ -193,20 +253,41 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
     if (!gfx::Animation::ShouldRenderRichAnimation()) {
       return;
     }
-    open_animation_.SetSlideDuration(kOpenDuration);
-    open_animation_.SetTweenType(gfx::Tween::EASE_OUT);
+    animation_.SetSlideDuration(kOpenDuration);
+    animation_.SetTweenType(gfx::Tween::EASE_OUT);
     GetWidget()->SetOpacity(0);
-    open_animation_.Show();
+    animation_.Show();
+  }
+
+  // Fades out and shrinks back, then runs |done|; at once if animations are
+  // off. Takes no more input meanwhile.
+  void StartClosing(base::OnceClosure done) {
+    SetCanProcessEventsWithinSubtree(false);
+    if (!gfx::Animation::ShouldRenderRichAnimation()) {
+      std::move(done).Run();
+      return;
+    }
+    closed_ = std::move(done);
+    animation_.SetSlideDuration(kCloseDuration);
+    // From wherever opening got to.
+    if (!animation_.is_animating()) {
+      animation_.Reset(1);
+    }
+    animation_.Hide();
   }
 
   // views::AnimationDelegateViews:
   void AnimationProgressed(const gfx::Animation* animation) override {
-    GetWidget()->SetOpacity(
-        static_cast<float>(open_animation_.GetCurrentValue()));
+    GetWidget()->SetOpacity(static_cast<float>(animation_.GetCurrentValue()));
     InvalidateLayout();
   }
 
   void AnimationEnded(const gfx::Animation* animation) override {
+    if (closed_) {
+      GetWidget()->SetOpacity(0);
+      std::move(closed_).Run();
+      return;
+    }
     GetWidget()->SetOpacity(1);
     InvalidateLayout();
   }
@@ -214,9 +295,9 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
   // views::View:
   void Layout(PassKey) override {
     gfx::Rect card = CalculateCardBounds(GetLocalBounds());
-    if (open_animation_.is_animating()) {
+    if (animation_.is_animating()) {
       const double scale = gfx::Tween::DoubleValueBetween(
-          open_animation_.GetCurrentValue(), kOpenStartScale, 1.0);
+          animation_.GetCurrentValue(), kOpenStartScale, 1.0);
       const gfx::Point center = card.CenterPoint();
       card.set_size(gfx::ScaleToRoundedSize(card.size(), scale));
       card.set_origin(center - gfx::Vector2d(card.width() / 2,
@@ -224,6 +305,11 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
     }
     card_->SetBoundsRect(card);
     web_view_->SetBoundsRect(card_->GetLocalBounds());
+    // The title above the card's leading corner, no wider than the card.
+    const int title_width =
+        std::min(title_->GetPreferredSize().width(), card.width());
+    title_->SetBounds(card.x(), card.y() - kButtonSpacing - kButtonSize,
+                      title_width, kButtonSize);
     int y = card.y();
     for (views::View* button : {close_button_.get(), open_button_.get()}) {
       button->SetBounds(card.right() + kButtonSpacing, y, kButtonSize,
@@ -257,7 +343,8 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
         {kMinHorizontalInset, area.width() / 12,
          kButtonSize + 2 * kButtonSpacing});
     gfx::Rect card = area;
-    card.Inset(gfx::Insets::VH(kVerticalInset, horizontal));
+    card.Inset(gfx::Insets::TLBR(kTopInset, horizontal, kBottomInset,
+                                 horizontal));
     return card;
   }
 
@@ -280,7 +367,12 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
   }
 
   base::RepeatingClosure close_;
-  gfx::SlideAnimation open_animation_{this};
+  // Run when closing ends.
+  base::OnceClosure closed_;
+  gfx::SlideAnimation animation_{this};
+  raw_ptr<views::View> title_ = nullptr;
+  raw_ptr<views::Label> title_label_ = nullptr;
+  raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::View> card_ = nullptr;
   raw_ptr<views::WebView> web_view_ = nullptr;
   raw_ptr<views::ImageButton> close_button_ = nullptr;
@@ -289,8 +381,6 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
 
 BEGIN_METADATA(PeekView)
 END_METADATA
-
-}  // namespace
 
 DEFINE_USER_DATA(Peek);
 
@@ -326,6 +416,9 @@ void Peek::Open(content::WebContents* source,
   load.frame_tree_node_id = content::FrameTreeNodeId();
   load.should_replace_current_entry = false;
 
+  if (closing_) {
+    FinishClose();
+  }
   // The second click of an Option+double-click.
   if (contents_ && contents_->GetVisibleURL() == params.url) {
     return;
@@ -341,7 +434,45 @@ void Peek::Open(content::WebContents* source,
   source_tab_ = tabs::TabInterface::MaybeGetFromContents(source);
   if (!widget_) {
     Show();
+  } else if (peek_view_) {
+    peek_view_->UpdateTitle(contents_.get());
   }
+}
+
+std::u16string Peek::GetTitleForTesting() const {
+  return peek_view_ ? peek_view_->title_for_testing() : std::u16string();
+}
+
+std::u16string Peek::GetHostForTesting() const {
+  return peek_view_ ? peek_view_->host_for_testing() : std::u16string();
+}
+
+void Peek::Adopt(content::WebContents* source,
+                 std::unique_ptr<content::WebContents> contents) {
+  if (closing_) {
+    FinishClose();
+  }
+  if (contents_) {
+    if (web_view_) {
+      web_view_->SetWebContents(nullptr);
+    }
+    contents_->SetDelegate(nullptr);
+    base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(contents_));
+  }
+  contents_ = std::move(contents);
+  // Safe on a WebContents that has them already.
+  PreviewTab::AttachTabHelpers(contents_.get());
+  contents_->SetDelegate(this);
+
+  source_tab_ = tabs::TabInterface::MaybeGetFromContents(source);
+  if (!widget_) {
+    Show();
+    return;
+  }
+  web_view_->SetWebContents(contents_.get());
+  peek_view_->UpdateTitle(contents_.get());
+  web_view_->RequestFocus();
 }
 
 void Peek::Show() {
@@ -371,8 +502,10 @@ void Peek::Show() {
   widget_ = std::make_unique<views::Widget>(std::move(params));
   widget_observation_.Observe(widget_.get());
 
+  peek_view_ = peek_view;
   web_view_ = peek_view->web_view();
   web_view_->SetWebContents(contents_.get());
+  peek_view->UpdateTitle(contents_.get());
 
   content_area_observation_.Observe(browser_view->contents_container());
   browser_widget_observation_.Observe(browser_view->GetWidget());
@@ -387,6 +520,24 @@ void Peek::Show() {
 }
 
 void Peek::Close() {
+  if (closing_ || (!widget_ && !contents_)) {
+    return;
+  }
+  if (!widget_ || widget_->IsClosed() || !peek_view_) {
+    FinishClose();
+    return;
+  }
+  // The page stays in the card while it fades out; nothing else closes or
+  // moves it meanwhile.
+  closing_ = true;
+  StopFollowing();
+  FocusActiveTab();
+  peek_view_->StartClosing(
+      base::BindOnce(&Peek::FinishClose, weak_factory_.GetWeakPtr()));
+}
+
+void Peek::FinishClose() {
+  closing_ = false;
   if (!widget_ && !contents_) {
     return;
   }
@@ -400,7 +551,7 @@ void Peek::Close() {
 }
 
 void Peek::OpenAsEntry() {
-  if (!contents_) {
+  if (!contents_ || closing_) {
     return;
   }
   std::unique_ptr<content::WebContents> contents = std::move(contents_);
@@ -425,12 +576,25 @@ void Peek::UpdateBounds() {
   widget_->SetBounds(browser_view->contents_container()->GetBoundsInScreen());
 }
 
-void Peek::Teardown() {
+void Peek::StopFollowing() {
   content_area_observation_.Reset();
   browser_widget_observation_.Reset();
-  widget_observation_.Reset();
   active_tab_watcher_.reset();
   source_tab_ = nullptr;
+}
+
+void Peek::FocusActiveTab() {
+  if (BrowserView* browser_view = GetBrowserView(browser_)) {
+    if (content::WebContents* active = browser_view->GetActiveWebContents()) {
+      active->Focus();
+    }
+  }
+}
+
+void Peek::Teardown() {
+  StopFollowing();
+  widget_observation_.Reset();
+  peek_view_ = nullptr;
   if (web_view_) {
     web_view_->SetWebContents(nullptr);
     web_view_ = nullptr;
@@ -446,11 +610,7 @@ void Peek::Teardown() {
         FROM_HERE, std::move(widget_delegate_));
   }
   // Back to the page underneath.
-  if (BrowserView* browser_view = GetBrowserView(browser_)) {
-    if (content::WebContents* active = browser_view->GetActiveWebContents()) {
-      active->Focus();
-    }
-  }
+  FocusActiveTab();
 }
 
 void Peek::OnActiveTabChanged(const tabs::TabInterface* tab) {
@@ -575,8 +735,9 @@ void Peek::OnWidgetActivationChanged(views::Widget* widget, bool active) {
 }
 
 void Peek::OnWidgetDestroying(views::Widget* widget) {
-  // Peek's widget closed by the system, or the window's going away.
-  Close();
+  // Peek's widget closed by the system, or the window's going away: no time
+  // for an animation.
+  FinishClose();
 }
 
 void Peek::OnViewBoundsChanged(views::View* observed_view) {
@@ -585,7 +746,16 @@ void Peek::OnViewBoundsChanged(views::View* observed_view) {
 
 void Peek::OnViewIsDeleting(views::View* observed_view) {
   content_area_observation_.Reset();
-  Close();
+  FinishClose();
+}
+
+void Peek::NavigationStateChanged(content::WebContents* source,
+                                  content::InvalidateTypes changed_flags) {
+  if (peek_view_ && source == contents_.get() &&
+      (changed_flags &
+       (content::INVALIDATE_TYPE_URL | content::INVALIDATE_TYPE_TITLE))) {
+    peek_view_->UpdateTitle(source);
+  }
 }
 
 void PeekOrDownload(BrowserWindowInterface* browser,
@@ -599,6 +769,34 @@ void PeekOrDownload(BrowserWindowInterface* browser,
     return;
   }
   DownloadLink(source, params);
+}
+
+content::WebContents* MaybePeekNewContents(
+    BrowserWindowInterface* browser,
+    content::WebContents* source,
+    std::unique_ptr<content::WebContents>& new_contents,
+    WindowOpenDisposition disposition,
+    bool user_gesture) {
+  if (!source || !user_gesture ||
+      disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB ||
+      browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
+    return nullptr;
+  }
+  Peek* peek = Peek::From(browser);
+  WindowFeatures* features = WindowFeatures::From(browser);
+  tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(source);
+  if (!peek || !features || !tab || features->is_parking_window() ||
+      features->is_switching()) {
+    return nullptr;
+  }
+  TabStripBridge& bridge = features->tab_strip_bridge();
+  const SidebarNode* node = bridge.GetNode(tab);
+  if (!node || !bridge.IsPinned(node)) {
+    return nullptr;
+  }
+  content::WebContents* contents = new_contents.get();
+  peek->Adopt(source, std::move(new_contents));
+  return contents;
 }
 
 bool HandlePeekCommand(BrowserWindowInterface* browser, int id) {

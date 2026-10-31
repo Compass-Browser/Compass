@@ -6,11 +6,14 @@
 #define COMPASS_BROWSER_UI_VIEWS_PEEK_PEEK_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "ui/base/window_open_disposition.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
@@ -36,6 +39,7 @@ class WebView;
 namespace compass {
 
 class ActiveTabWatcher;
+class PeekView;
 
 // A window's Peek (docs/design/peek.md): Option+click on a link shows its page
 // in a card over the content area instead of opening a tab. Esc, Cmd+W, the
@@ -59,14 +63,23 @@ class Peek : public content::WebContentsDelegate,
   // Shows |params|'s URL, opened from |source| (a tab of the window). If a
   // page is showing already, it goes there instead.
   void Open(content::WebContents* source, const content::OpenURLParams& params);
+  // Shows |contents|, a page |source| opened in a new tab (a link from a
+  // pinned tab), in place of any page showing.
+  void Adopt(content::WebContents* source,
+             std::unique_ptr<content::WebContents> contents);
+  // Fades the card out, then lets go of the page.
   void Close();
   // Moves the page into the window as the active tab: a new Today entry.
   void OpenAsEntry();
 
-  bool IsShowing() const { return !!widget_; }
+  // False once closing starts.
+  bool IsShowing() const { return widget_ && !closing_; }
   // The page; null when closed.
   content::WebContents* web_contents() const { return contents_.get(); }
   views::Widget* widget_for_testing() const { return widget_.get(); }
+  // The title and host above the card.
+  std::u16string GetTitleForTesting() const;
+  std::u16string GetHostForTesting() const;
 
   // content::WebContentsDelegate:
   content::WebContents* OpenURLFromTab(
@@ -83,6 +96,8 @@ class Peek : public content::WebContentsDelegate,
       bool user_gesture,
       bool* was_blocked) override;
   void CloseContents(content::WebContents* source) override;
+  void NavigationStateChanged(content::WebContents* source,
+                              content::InvalidateTypes changed_flags) override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override;
@@ -117,6 +132,11 @@ class Peek : public content::WebContentsDelegate,
   void PostAction(void (Peek::*action)());
   // Puts the card where the content area is.
   void UpdateBounds();
+  // Closes at once, without the animation.
+  void FinishClose();
+  // Stops following the window, its content area and its active tab.
+  void StopFollowing();
+  void FocusActiveTab();
   // Lets go of the card and the page, which go after the current event.
   void Teardown();
   void OnActiveTabChanged(const tabs::TabInterface* tab);
@@ -126,7 +146,10 @@ class Peek : public content::WebContentsDelegate,
   std::unique_ptr<views::Widget> widget_;
   // The widget's delegate; outlives it.
   std::unique_ptr<views::WidgetDelegate> widget_delegate_;
+  raw_ptr<PeekView> peek_view_ = nullptr;
   raw_ptr<views::WebView> web_view_ = nullptr;
+  // Set while the card fades out.
+  bool closing_ = false;
   // The tab the page was opened from; Peek closes when another one shows.
   raw_ptr<const tabs::TabInterface> source_tab_ = nullptr;
   std::unique_ptr<ActiveTabWatcher> active_tab_watcher_;
@@ -148,6 +171,17 @@ class Peek : public content::WebContentsDelegate,
 void PeekOrDownload(BrowserWindowInterface* browser,
                     content::WebContents* source,
                     const content::OpenURLParams& params);
+
+// A link from a pinned tab or favorite of |browser| that opens a new
+// foreground tab (target=_blank, window.open() on a click) shows in Peek
+// instead, as in Arc. Returns the page if Peek took |new_contents|, else null
+// and leaves it. Called from BrowserWebContentsDelegate::AddNewContents().
+content::WebContents* MaybePeekNewContents(
+    BrowserWindowInterface* browser,
+    content::WebContents* source,
+    std::unique_ptr<content::WebContents>& new_contents,
+    WindowOpenDisposition disposition,
+    bool user_gesture);
 
 // Browser commands while Peek shows: IDC_CLOSE_TAB closes it instead of the
 // tab, IDC_OPEN_FILE opens it as an entry. Returns true if it handled |id|.

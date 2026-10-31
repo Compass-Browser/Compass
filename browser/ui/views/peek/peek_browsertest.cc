@@ -8,9 +8,15 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -37,9 +43,11 @@ constexpr char kLinkPage[] = R"(
 
 class PeekBrowserTest : public InProcessBrowserTest {
  public:
-  PeekBrowserTest()
-      : animation_mode_(gfx::AnimationTestApi::SetRichAnimationRenderMode(
-            gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED)) {}
+  explicit PeekBrowserTest(gfx::Animation::RichAnimationRenderMode mode =
+                               gfx::Animation::RichAnimationRenderMode::
+                                   FORCE_DISABLED)
+      : animation_mode_(
+            gfx::AnimationTestApi::SetRichAnimationRenderMode(mode)) {}
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -143,6 +151,108 @@ IN_PROC_BROWSER_TEST_F(PeekBrowserTest, LinksInThePage) {
   tab_added.Wait();
   EXPECT_EQ(tabs()->count(), 2);
   EXPECT_TRUE(base::test::RunUntil([&] { return !peek()->IsShowing(); }));
+}
+
+// The page's title and host show above the card, and follow its navigations.
+IN_PROC_BROWSER_TEST_F(PeekBrowserTest, TitleAndHostAboveTheCard) {
+  ASSERT_NO_FATAL_FAILURE(PeekAtLink());
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return peek()->GetTitleForTesting() == u"Title Of Awesomeness";
+  }));
+  EXPECT_EQ(peek()->GetHostForTesting(), u"a.test");
+
+  content::WebContents* page = peek()->web_contents();
+  ASSERT_TRUE(content::ExecJs(page, "document.title = 'Renamed'"));
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return peek()->GetTitleForTesting() == u"Renamed"; }));
+}
+
+class PeekAnimatedBrowserTest : public PeekBrowserTest {
+ public:
+  PeekAnimatedBrowserTest()
+      : PeekBrowserTest(
+            gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED) {}
+};
+
+// Closing fades the card out before it goes; Peek counts as closed at once,
+// so Cmd+W closes the tab again.
+IN_PROC_BROWSER_TEST_F(PeekAnimatedBrowserTest, ClosingFadesOut) {
+  ASSERT_NO_FATAL_FAILURE(PeekAtLink());
+  views::Widget* widget = peek()->widget_for_testing();
+  peek()->Close();
+  EXPECT_FALSE(peek()->IsShowing());
+  // Still on screen while it fades.
+  EXPECT_EQ(peek()->widget_for_testing(), widget);
+  EXPECT_TRUE(peek()->web_contents());
+  EXPECT_TRUE(base::test::RunUntil([&] { return !peek()->web_contents(); }));
+  EXPECT_FALSE(peek()->widget_for_testing());
+  EXPECT_EQ(tabs()->count(), 1);
+}
+
+// Another Option+click while the card fades out shows the new page.
+IN_PROC_BROWSER_TEST_F(PeekAnimatedBrowserTest, PeekingAgainWhileClosing) {
+  ASSERT_NO_FATAL_FAILURE(PeekAtLink());
+  peek()->Close();
+  content::SimulateMouseClickAt(active_contents(),
+                                blink::WebInputEvent::kAltKey,
+                                blink::WebMouseEvent::Button::kLeft,
+                                gfx::Point(50, 50));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return peek()->IsShowing() && peek()->web_contents(); }));
+  ASSERT_TRUE(content::WaitForLoadStop(peek()->web_contents()));
+  EXPECT_EQ(peek()->web_contents()->GetLastCommittedURL().path(),
+            "/title2.html");
+}
+
+// A target=_blank link from a pinned tab peeks instead of opening a tab;
+// the same link from a Today entry opens a tab.
+IN_PROC_BROWSER_TEST_F(PeekBrowserTest, PinnedTabLinksToNewTabsPeek) {
+  constexpr char kBlankLink[] = R"(
+    document.body.innerHTML =
+        '<a id="link" href="/title2.html" target="_blank" ' +
+        'style="display:block;width:200px;height:200px">Link</a>';
+  )";
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  ASSERT_TRUE(content::ExecJs(active_contents(), kBlankLink));
+
+  // From Today: a new tab.
+  {
+    ui_test_utils::TabAddedWaiter tab_added(browser());
+    content::SimulateMouseClickAt(active_contents(), 0,
+                                  blink::WebMouseEvent::Button::kLeft,
+                                  gfx::Point(50, 50));
+    tab_added.Wait();
+  }
+  EXPECT_FALSE(peek()->IsShowing());
+  ASSERT_EQ(tabs()->count(), 2);
+  tabs()->CloseWebContentsAt(tabs()->active_index(),
+                             TabCloseTypes::CLOSE_NONE);
+  ASSERT_EQ(tabs()->count(), 1);
+
+  // Pinned: Peek.
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& model = features->space_model();
+  SidebarNode* node = features->tab_strip_bridge().GetNode(
+      tabs::TabInterface::GetFromContents(active_contents()));
+  ASSERT_TRUE(node);
+  model.Move(node, model.pinned_root(), 0);
+  content::WebContents* pinned = active_contents();
+
+  content::SimulateMouseClickAt(pinned, 0, blink::WebMouseEvent::Button::kLeft,
+                                gfx::Point(50, 50));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return peek()->IsShowing() && peek()->web_contents(); }));
+  ASSERT_TRUE(content::WaitForLoadStop(peek()->web_contents()));
+  EXPECT_EQ(peek()->web_contents()->GetLastCommittedURL().path(),
+            "/title2.html");
+  EXPECT_EQ(tabs()->count(), 1);
+  EXPECT_EQ(active_contents(), pinned);
+
+  // Kept, it becomes a Today entry.
+  chrome::ExecuteCommand(browser(), IDC_OPEN_FILE);
+  EXPECT_EQ(tabs()->count(), 2);
+  EXPECT_EQ(active_contents()->GetLastCommittedURL().path(), "/title2.html");
 }
 
 }  // namespace

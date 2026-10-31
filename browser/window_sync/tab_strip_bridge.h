@@ -62,6 +62,9 @@ class TabStripBridge : public TabStripModelObserver,
   // The node of |tab|, or null if it has none.
   SidebarNode* GetNode(const tabs::TabInterface* tab) const;
 
+  // Pinned or a favorite: the node outlives its tab.
+  bool IsPinned(const SidebarNode* node) const;
+
   // Returns |tab_node|'s tab in this window. A tab in another window moves
   // here (move on focus); an unloaded node gets a new tab. Either way it lands
   // in the foreground, at the node's place in the strip. A pane brings the
@@ -163,8 +166,6 @@ class TabStripBridge : public TabStripModelObserver,
   // node.
   void RemoveNodeForTab(tabs::TabInterface* tab, bool will_delete);
 
-  // Pinned or a favorite: the node outlives its tab.
-  bool IsPinned(const SidebarNode* node) const;
   // The roots whose live tabs make up the strip, in strip order.
   std::array<const SidebarNode*, 3> GetRoots() const;
   // The node |id| in the space or the favorites, or null.
