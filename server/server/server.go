@@ -89,6 +89,9 @@ func LoadConfig() (Config, error) {
 		cfg.ShutdownDelay = d
 	}
 	cfg.Metrics, _ = strconv.ParseBool(os.Getenv("COMPASS_SYNC_METRICS"))
+	// The name devices bind into pairing (sync.md, "Slice 4 notes"); empty:
+	// the Host each pairing request came to.
+	cfg.Pairing.PublicHost = os.Getenv("COMPASS_SYNC_PUBLIC_HOST")
 	return cfg, nil
 }
 

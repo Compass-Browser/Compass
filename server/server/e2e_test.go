@@ -381,9 +381,13 @@ func TestEndToEndPairing(t *testing.T) {
 	require.Equal(t, http.StatusCreated, code)
 	slot := "/" + strconv.Itoa(int(out["slot"].(float64)))
 	assert.EqualValues(t, 300, out["expires_in"])
+	// The canonical name: the Host the test server was reached at.
+	assert.Equal(t, "127.0.0.1", out["server"])
 
 	code, out = call("POST", slot+"/join", nil, nil)
 	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, "127.0.0.1", out["server"])
+	assert.NotZero(t, out["expires_in"])
 	bAuth := map[string]string{"X-Compass-Pair-Token": out["b_token"].(string)}
 
 	// 1. B -> A, SPAKE2 (Bob). A was already waiting.
@@ -407,9 +411,10 @@ func TestEndToEndPairing(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Equal(t, b64("alice"), out["messages"].([]any)[0].(map[string]any)["data"])
 
-	// A closes when done; the slot is gone for both.
-	code, _ = call("DELETE", slot, aAuth(), nil)
+	// A closes (a wrong code, say); the slot is gone for both, and says why.
+	code, _ = call("DELETE", slot+"?reason=mismatch", aAuth(), nil)
 	assert.Equal(t, http.StatusNoContent, code)
-	code, _ = call("GET", slot+"/msg?for=b&after=1", bAuth, nil)
-	assert.Equal(t, http.StatusNotFound, code)
+	code, out = call("GET", slot+"/msg?for=b&after=1", bAuth, nil)
+	assert.Equal(t, http.StatusGone, code)
+	assert.Equal(t, "mismatch", out["reason"])
 }
