@@ -1,10 +1,11 @@
 diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/sync_service_factory.cc
+index 64323bef78dd3822ed299f75f5d7bbcfc636c46c..2d5fec9132d929918cec172524079236d4847e5e 100644
 --- a/chrome/browser/sync/sync_service_factory.cc
 +++ b/chrome/browser/sync/sync_service_factory.cc
-@@ -303,6 +303,9 @@
+@@ -303,7 +303,10 @@ syncer::DataTypeController::TypeVector CreateCommonControllers(
    builder.SetNotebooksService(
        notebooks::NotebooksServiceFactory::GetForProfile(profile));
-
+ 
 -  return builder.Build(/*disabled_types=*/{}, sync_service,
 +  // Compass: passkeys need Google's security domain secrets
 +  // (docs/design/sync.md, "What syncs").
@@ -12,3 +13,4 @@ diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/s
 +                       sync_service,
                         chrome::GetChannel());
  }
+ 

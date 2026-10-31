@@ -1,9 +1,10 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
+index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..db78306d41bb5a4aec82faa0d713015668ad4b0f 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
 @@ -551,6 +551,7 @@ source_set("profile_io_data") {
    sources = [ "profile_io_data.cc" ]
-
+ 
    deps = [
 +    "//compass/common:url",
      "//base",
@@ -11,7 +12,7 @@ diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
      "//chrome/common:buildflags",
 @@ -708,6 +709,8 @@ source_set("profiles_extra_parts_impl") {
    sources = [ "chrome_browser_main_extra_parts_profiles.cc" ]
-
+ 
    deps = [
 +    # Compass sync's keyed service factory.
 +    "//compass/browser/sync",
