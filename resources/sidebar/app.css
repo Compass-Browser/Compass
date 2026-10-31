@@ -313,139 +313,51 @@ compass-sidebar-preview[side='next'] {
   padding: 4px 6px;
 }
 
-#swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.swatch {
-  background: var(--swatch-color);
-  border: none;
-  border-radius: 50%;
-  height: 18px;
-  padding: 0;
-  width: 18px;
-}
-
-.swatch[selected] {
-  outline: 2px solid var(--swatch-color);
-  outline-offset: 2px;
-}
-
-/* Any color: a color well, a hue wheel until the space has a color outside
- * the palette, then that color. */
-#customColor {
-  cursor: pointer;
-  position: relative;
-}
-
-#customColor:not([selected]) {
-  background: conic-gradient(rgb(239, 68, 68), rgb(234, 179, 8),
-      rgb(34, 197, 94), rgb(59, 130, 246), rgb(139, 92, 246),
-      rgb(236, 72, 153), rgb(239, 68, 68));
-}
-
-#customColor input {
-  cursor: pointer;
-  height: 100%;
-  inset: 0;
-  opacity: 0;
-  position: absolute;
-  width: 100%;
-}
-
-#customColor:has(input:focus-visible) {
-  outline: 2px solid var(--color-sys-primary, #8ab4f8);
-  outline-offset: 2px;
-}
-
-/* A gradient's colors after the space's: each a color well with a remove
- * button, then + while there's room. */
-#gradient {
+/* Opens the theme editor, with the space's colors. */
+#editTheme {
   align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 12px;
-  gap: 6px;
-}
-
-#gradient[hidden] {
-  display: none;
-}
-
-#gradient .label {
-  margin-inline-end: auto;
-}
-
-.gradient-stop {
-  align-items: center;
-  display: inline-flex;
-  gap: 2px;
-}
-
-.gradient-stop .swatch {
-  cursor: pointer;
-  position: relative;
-}
-
-.gradient-stop input {
-  cursor: pointer;
-  height: 100%;
-  inset: 0;
-  opacity: 0;
-  position: absolute;
-  width: 100%;
-}
-
-.remove-stop,
-#addGradientColor {
   background: none;
   border: none;
-  border-radius: 50%;
+  border-radius: 6px;
+  color: inherit;
+  display: flex;
+  font: inherit;
+  font-size: 12px;
+  justify-content: space-between;
+  margin: 0 -4px;
+  padding: 4px;
+}
+
+#editTheme:hover {
+  background: rgba(128, 128, 128, 0.18);
+}
+
+#themeChip {
+  background: linear-gradient(135deg, var(--space-color),
+                              var(--space-color-2), var(--space-color-3));
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  height: 18px;
+  width: 36px;
+}
+
+#themeBack {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  border-radius: 6px;
   color: inherit;
   font: inherit;
-  height: 18px;
-  line-height: 1;
-  opacity: 0.6;
-  padding: 0;
-  width: 18px;
-}
-
-#addGradientColor {
-  border: 1px dashed currentColor;
-}
-
-.remove-stop:hover,
-#addGradientColor:hover {
-  opacity: 1;
-}
-
-#addGradientColor[hidden] {
-  display: none;
-}
-
-/* How strong the tint is, and its grain. */
-#effects {
-  display: grid;
   font-size: 12px;
-  gap: 4px 8px;
-  grid-template-columns: auto 1fr;
+  opacity: 0.7;
+  overflow: hidden;
+  padding: 2px 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-#effects[hidden] {
-  display: none;
-}
-
-#effects .slider {
-  align-items: center;
-  display: contents;
-}
-
-#effects input[type=range] {
-  accent-color: var(--color-sys-primary, #8ab4f8);
-  margin: 0;
-  min-width: 0;
+#themeBack:hover {
+  opacity: 1;
 }
 
 /* The space's icon: none (its letter), a symbol or an emoji. */

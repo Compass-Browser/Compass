@@ -415,6 +415,25 @@ TEST(SidebarSerializerTest, RoundTripsIntensityAndGrain) {
   EXPECT_EQ(restored.active_space().grain(), 0.5);
 }
 
+TEST(SidebarSerializerTest, RoundTripsAppearance) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  work->SetAppearance(SpaceAppearance::kLight);
+  play->SetAppearance(SpaceAppearance::kDark);
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue& spaces = *data.FindList("spaces");
+  EXPECT_FALSE(spaces[0].GetDict().Find("appearance"));
+  EXPECT_EQ(*spaces[1].GetDict().FindString("appearance"), "light");
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.spaces()[0]->appearance(), SpaceAppearance::kAuto);
+  EXPECT_EQ(restored.spaces()[1]->appearance(), SpaceAppearance::kLight);
+  EXPECT_EQ(restored.spaces()[2]->appearance(), SpaceAppearance::kDark);
+}
+
 TEST(SidebarSerializerTest, RoundTripsIcons) {
   SpaceList list;
   SpaceModel* work = list.AddSpace(1, u"Work");

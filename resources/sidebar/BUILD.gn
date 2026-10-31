@@ -22,6 +22,7 @@ build_webui("build") {
     "app.ts",
     "arc_import.ts",
     "browser_proxy.ts",
+    "colors.ts",
     "command_bar/app.html.ts",
     "command_bar/app.ts",
     "command_bar/browser_proxy.ts",
@@ -32,11 +33,14 @@ build_webui("build") {
     "preview.html.ts",
     "preview.ts",
     "space_icons.ts",
+    "theme_editor.html.ts",
+    "theme_editor.ts",
   ]
   css_files = [
     "app.css",
     "command_bar/app.css",
     "preview.css",
+    "theme_editor.css",
   ]
 
   webui_context_type = "trusted"

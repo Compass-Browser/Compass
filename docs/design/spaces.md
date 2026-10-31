@@ -228,7 +228,7 @@ themes the mid tone (arc-import.md). Intensity and grain: next section.
 `SidebarSerializerTest.RoundTripsGradients`, `PlainColorsSaveNoGradient`,
 `SidebarPageHandlerTest.SetsSpaceGradients`,
 `ArcSidebarTest.GradientsComeFromTheirBaseColors`, browser tests
-`TintPaintsAGradient` and `SpaceMenuRenamesColorsDeletes` (+, the well, ×).
+`TintPaintsAGradient` and `ThemeEditorEditsTheSpace`.
 
 ### Intensity and grain
 
@@ -262,6 +262,49 @@ hidden for grey, passing values on every 50 ms while dragged. Arc:
 `ArcSidebarTest.GradientsComeFromTheirBaseColors`,
 `PlainColorsKeepTheirIntensity`, browser test `TintPaintsAGradient`.
 
+### Theme editor
+
+The space menu's "Edit theme" row (with a chip of the space's colors)
+opens the theme editor in the menu's place (2026-10-31, laid out after
+Arc's, which the user shared a screenshot of): `<compass-theme-editor>`
+(`resources/sidebar/theme_editor.{ts,html.ts,css}`). "‹ <name>" or Esc
+goes back to the menu. It replaced the menu's swatches, color well,
+Gradient row and sliders. From the top:
+
+- Mode: automatic (sparkles), light (sun), dark (moon), hand-drawn
+  glyphs. `SpaceModel::appearance()` (`SpaceAppearance`), saved as
+  `"appearance": "light"|"dark"` (auto left out), mojo
+  `SetSpaceAppearance()`. `SidebarTint::UpdateWindowTheme()` sets
+  `Widget::SetColorModeOverride()`, so the browser's UI (frame, sidebar,
+  menus, WebUI) takes that mode; web pages keep the system's. Off the
+  record stays dark. Arc's equivalent wasn't found in its file, so imports
+  stay automatic.
+- The pad: the space's colors as dots, hue as the angle round the center
+  (red at the top, clockwise) and saturation as the distance (to 42% of
+  the pad's half size). The big dot is the color, the small ones the
+  gradient. Dragging a dot keeps its lightness; dragging the big one turns
+  and pushes the others by as much, so the gradient keeps its shape (Arc's
+  "analogous" wheel). A press on the pad moves the big dot there; on a grey
+  space it makes the first color, at 55% lightness. Arrow keys on a dot:
+  hue ±5°, saturation ±5%. − and + under the dots: one color less or more
+  (the new one 40° on from the last), 1 to 3.
+- Palette: ‹ › between the colors (grey and the eight) and eight gradients
+  (`GRADIENT_PRESETS` in colors.ts) plus a color well for any main color.
+  A palette color replaces the gradient.
+- The wave (intensity): a wave up to the thumb, growing with the value,
+  flat after it; and the dial (grain): ticks lit up to the value, dragged
+  up or right. Both are `role=slider` with arrow, Page and Home/End keys.
+
+What's dragged shows at once (the editor's own copy until the browser's
+space matches, or 600 ms after letting go) and goes to the browser every
+50 ms. Color helpers moved to `resources/sidebar/colors.ts`.
+
+**Tests:** `ThemeEditorEditsTheSpace` (palette, + and −, a dot's keys and
+the big dot taking the gradient along, the gradients' page and any color,
+the wave, the dial and dark mode, Esc),
+`SidebarSerializerTest.RoundTripsAppearance`,
+`SidebarPageHandlerTest.SetsSpaceIntensityAndGrain`.
+
 ### Space icons
 
 A space can have an icon (2026-10-31, as in Arc), which its switcher button
@@ -293,7 +336,7 @@ window's space picker, the space name at the top).
 **Tests:** `SpaceIconTest.*`, `SpaceModelTest.NotifiesIconChanges`,
 `SidebarSerializerTest.RoundTripsIcons`, `UnreadableIconsAreLeftOut`,
 `SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`;
-`SpaceMenuRenamesColorsDeletes` picks a symbol and an emoji.
+`SpaceMenuRenamesSetsIconsDeletes` picks a symbol and an emoji.
 
 ### Window theme
 
@@ -323,7 +366,7 @@ Upstream's tab group "focus mode" sets the same override from the tab strip
 controllers. Compass doesn't mirror tab groups, so it doesn't clash.
 
 **Tests:** `SidebarSerializerTest.SavesCustomColorsAsHex`,
-`UnreadableColorsStayGrey`; `SpaceMenuRenamesColorsDeletes` (palette swatch,
+`UnreadableColorsStayGrey`; `ThemeEditorEditsTheSpace` (palette swatch,
 then the color well). `WindowThemeFollowsTheSpace`: the override and the frame color
 follow the space's color and a switch, not a swipe; grey goes back to the
 profile's frame color; the sidebar page's colors change with it; an

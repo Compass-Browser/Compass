@@ -355,10 +355,25 @@ void SidebarTint::UpdateWindowTheme() {
   const bool keep_theme =
       profile->IsOffTheRecord() ||
       (theme_service && theme_service->UsingExtensionTheme());
-  // Rebuilds the window's colors if the seed changed.
-  widget->SetUserColorOverride(
-      keep_theme ? std::nullopt
-                 : GetSpaceTint(features_->space_model().color()));
+  const SpaceModel& space = features_->space_model();
+  // Rebuilds the window's colors if the seed or the mode changed.
+  widget->SetUserColorOverride(keep_theme ? std::nullopt
+                                          : GetSpaceTint(space.color()));
+  // Off the record stays dark.
+  std::optional<ui::ColorProviderKey::ColorMode> mode;
+  if (!profile->IsOffTheRecord()) {
+    switch (space.appearance()) {
+      case SpaceAppearance::kAuto:
+        break;
+      case SpaceAppearance::kLight:
+        mode = ui::ColorProviderKey::ColorMode::kLight;
+        break;
+      case SpaceAppearance::kDark:
+        mode = ui::ColorProviderKey::ColorMode::kDark;
+        break;
+    }
+  }
+  widget->SetColorModeOverride(mode);
 }
 
 BEGIN_METADATA(SidebarTint)

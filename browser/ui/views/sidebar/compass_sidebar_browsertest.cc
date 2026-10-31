@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/strings/strcat.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
@@ -1224,7 +1225,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DraggingASpaceReordersThem) {
   EXPECT_EQ(&features->space_model(), play);
 }
 
-IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDeletes) {
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel* home = &features->space_model();
   content::WebContents* contents = sidebar_contents();
@@ -1249,68 +1250,9 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
       const input = await until(() => root.querySelector('#spaceNameInput'));
       input.value = 'Work';
       input.dispatchEvent(new Event('change'));
-      root.querySelector('.swatch[title="Blue"]').click();
       return true;
     })())"));
-  ASSERT_TRUE(base::test::RunUntil([&] {
-    return added->name() == u"Work" && added->color() == SpaceColor::kBlue;
-  }));
-
-  // The color well picks any color; the well then shows it as selected.
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (() => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      const input = root.querySelector('#customColor input');
-      input.value = '#12ab0f';
-      input.dispatchEvent(new Event('input', {bubbles: true}));
-      return true;
-    })())"));
-  ASSERT_TRUE(base::test::RunUntil([&] {
-    return added->color() == SpaceColor::FromRGB(0x12, 0xab, 0x0f);
-  }));
-  EXPECT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      const until = async (f) => {
-        while (!f()) await new Promise(r => setTimeout(r, 20));
-        return f();
-      };
-      return await until(() =>
-          root.querySelector('#customColor[selected]') &&
-          !root.querySelector('.swatch[title="Blue"][selected]'));
-    })())"));
-
-  // + adds a gradient color, its well changes it, × removes it.
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (() => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      root.querySelector('#addGradientColor').click();
-      return true;
-    })())"));
-  ASSERT_TRUE(base::test::RunUntil([&] { return added->gradient().size() == 1; }));
-  EXPECT_NE(added->gradient()[0], added->color());
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      let input;
-      while (!(input = root.querySelector('.gradient-stop input'))) {
-        await new Promise(r => setTimeout(r, 20));
-      }
-      input.value = '#ff0000';
-      input.dispatchEvent(new Event('input', {bubbles: true}));
-      return true;
-    })())"));
-  ASSERT_TRUE(base::test::RunUntil([&] {
-    return added->gradient() ==
-           std::vector<SpaceColor>{SpaceColor::FromRGB(255, 0, 0)};
-  }));
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (() => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      root.querySelector('.remove-stop').click();
-      return true;
-    })())"));
-  ASSERT_TRUE(base::test::RunUntil([&] { return added->gradient().empty(); }));
+  ASSERT_TRUE(base::test::RunUntil([&] { return added->name() == u"Work"; }));
 
   // A symbol, then an emoji (only its first character is kept), as the
   // switcher's button shows them.
@@ -1365,6 +1307,116 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
     return features->service().space_list().spaces().size() == 1u;
   }));
   EXPECT_EQ(&features->space_model(), home);
+}
+
+// The space menu's "Edit theme" opens the editor in its place: the palette
+// (colors, then gradients and any color), the pad's dots and their count,
+// the intensity wave, the grain dial and the mode; Esc goes back.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  content::WebContents* contents = sidebar_contents();
+  // |action| runs in the editor's shadow root, |editor|.
+  auto in_editor = [&](std::string_view action) {
+    return content::EvalJs(contents, base::StrCat({R"(
+      (async () => {
+        const root = document.querySelector('compass-sidebar-app').shadowRoot;
+        const until = async (f) => {
+          while (!f()) await new Promise(r => setTimeout(r, 20));
+          return f();
+        };
+        const host = await until(
+            () => root.querySelector('compass-theme-editor'));
+        await host.updateComplete;
+        const editor = host.shadowRoot;
+        )", action, R"(
+        return true;
+      })())"}));
+  };
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('.space').dispatchEvent(new MouseEvent(
+          'contextmenu', {bubbles: true, cancelable: true, composed: true}));
+      while (!root.querySelector('#editTheme')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      root.querySelector('#editTheme').click();
+      return true;
+    })())"));
+
+  ASSERT_EQ(true, in_editor("editor.querySelector('.swatch[title=Blue]').click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return space.color() == SpaceColor::kBlue; }));
+
+  // + adds a dot, its keys turn it, − takes it away.
+  ASSERT_EQ(true, in_editor("editor.querySelector('#addColor').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.gradient().size() == 1; }));
+  const SpaceColor added = space.gradient()[0];
+  ASSERT_EQ(true, in_editor(R"(
+      const dot = await until(
+          () => editor.querySelector('.dot[data-index="1"]'));
+      dot.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight'}));)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.gradient().size() == 1 && space.gradient()[0] != added;
+  }));
+  EXPECT_EQ(space.color(), SpaceColor::kBlue);
+  ASSERT_EQ(true, in_editor("editor.querySelector('#removeColor').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.gradient().empty(); }));
+
+  // Dragging the big dot takes the gradient along.
+  space.SetGradient({SpaceColor::kPink});
+  ASSERT_EQ(true, in_editor(R"(
+      await until(() => editor.querySelectorAll('.dot').length === 2);
+      editor.querySelector('.dot[main]').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'ArrowLeft'}));)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.color() != SpaceColor::kBlue &&
+           space.gradient() != std::vector<SpaceColor>{SpaceColor::kPink};
+  }));
+
+  // The gradients' page, and any color for the main one.
+  ASSERT_EQ(true, in_editor(R"(
+      editor.querySelector('.page[title=Gradients]').click();
+      await host.updateComplete;
+      editor.querySelector('.swatch[title=Ember]').click();)"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.gradient().size() == 2; }));
+  EXPECT_EQ(space.color(), SpaceColor::kRed);
+  ASSERT_EQ(true, in_editor(R"(
+      const input = editor.querySelector('#customColor input');
+      input.value = '#12ab0f';
+      input.dispatchEvent(new Event('input', {bubbles: true}));)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.color() == SpaceColor::FromRGB(0x12, 0xab, 0x0f);
+  }));
+  EXPECT_EQ(space.gradient().size(), 2u);
+
+  // Intensity and grain by their keys; the dark mode.
+  ASSERT_EQ(true, in_editor(R"(
+      editor.querySelector('#wave').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'End'}));
+      editor.querySelector('#dial').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'PageUp'}));
+      editor.querySelector('.mode[title=Dark]').click();)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.intensity() == 1 && space.grain() > 0.09 &&
+           space.appearance() == SpaceAppearance::kDark;
+  }));
+  EXPECT_EQ(browser_view()->GetWidget()->color_mode_override(),
+            ui::ColorProviderKey::ColorMode::kDark);
+
+  // Esc goes back to the menu.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('#spaceMenu').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+      while (!root.querySelector('#spaceNameInput')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return !root.querySelector('compass-theme-editor');
+    })())"));
+  space.SetAppearance(SpaceAppearance::kAuto);
+  EXPECT_FALSE(browser_view()->GetWidget()->color_mode_override());
 }
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragIntoAFolder) {

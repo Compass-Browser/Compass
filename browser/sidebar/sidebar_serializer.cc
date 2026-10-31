@@ -42,6 +42,7 @@ constexpr char kIconKey[] = "icon";
 constexpr char kGradientKey[] = "gradient";
 constexpr char kIntensityKey[] = "intensity";
 constexpr char kGrainKey[] = "grain";
+constexpr char kAppearanceKey[] = "appearance";
 constexpr char kEmojiKey[] = "emoji";
 constexpr char kSymbolKey[] = "symbol";
 constexpr char kPinnedKey[] = "pinned";
@@ -341,6 +342,11 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   if (model.grain() > 0) {
     data.Set(kGrainKey, model.grain());
   }
+  if (model.appearance() != SpaceAppearance::kAuto) {
+    data.Set(kAppearanceKey, model.appearance() == SpaceAppearance::kLight
+                                 ? "light"
+                                 : "dark");
+  }
   if (!model.icon().is_none()) {
     data.Set(kIconKey, SerializeIcon(model.icon()));
   }
@@ -469,6 +475,12 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
     }
     if (std::optional<double> grain = saved[i]->FindDouble(kGrainKey)) {
       space->SetGrain(*grain);
+    }
+    // Anything else (from a later version) is auto.
+    if (const std::string* appearance = saved[i]->FindString(kAppearanceKey)) {
+      space->SetAppearance(*appearance == "light" ? SpaceAppearance::kLight
+                           : *appearance == "dark" ? SpaceAppearance::kDark
+                                                   : SpaceAppearance::kAuto);
     }
     // Unreadable icons (from a later version) are left out.
     if (const base::DictValue* saved_icon = saved[i]->FindDict(kIconKey)) {

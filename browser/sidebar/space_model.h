@@ -89,6 +89,10 @@ inline constexpr size_t kMaxSpaceGradientColors = 3;
 inline constexpr double kMaxSpaceTintOpacity = 0.45;
 inline constexpr double kDefaultSpaceIntensity = 0.31;
 
+// Whether a space's windows follow the system's light or dark mode or keep
+// one (docs/design/spaces.md, "Theme editor"). Saved by name.
+enum class SpaceAppearance { kAuto, kLight, kDark };
+
 // The space menu's palette, by the names files save them under. The sidebar
 // page (resources/sidebar/app.ts) shows the same colors.
 struct NamedSpaceColor {
@@ -247,6 +251,9 @@ class SpaceModel {
   double grain() const { return grain_; }
   void SetGrain(double grain);
 
+  SpaceAppearance appearance() const { return appearance_; }
+  void SetAppearance(SpaceAppearance appearance);
+
   const SpaceIcon& icon() const { return icon_; }
   void SetIcon(SpaceIcon icon);
 
@@ -370,6 +377,7 @@ class SpaceModel {
   std::vector<SpaceColor> gradient_;
   double intensity_ = kDefaultSpaceIntensity;
   double grain_ = 0;
+  SpaceAppearance appearance_ = SpaceAppearance::kAuto;
   SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
   std::vector<ArchivedEntry> archive_;

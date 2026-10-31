@@ -4,9 +4,9 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ArchiveDelay, CompassSidebarAppElement, PaletteColor, Preview} from './app.js';
+import type {ArchiveDelay, CompassSidebarAppElement, Preview} from './app.js';
 import type {SpaceSymbol} from './space_icons.js';
-import type {ArchivedEntry, Node, ProfileOption, Space, SpaceColor} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
@@ -109,65 +109,26 @@ export function getHtml(this: CompassSidebarAppElement) {
         .space="${preview.space}" .tree="${preview.tree}">
     </compass-sidebar-preview>`)}
 </div>
-${this.getMenuSpace_() ? html`
+${this.getMenuSpace_() && this.themeOpen_ ? html`
+  <div id="spaceMenu" class="theme" role="dialog" aria-label="Theme"
+      @keydown="${this.onSpaceMenuKeydown_}">
+    <button id="themeBack" title="Back" aria-label="Back"
+        @click="${this.onThemeBackClick_}">‹ ${this.getMenuSpace_()!.name}</button>
+    <compass-theme-editor .space="${this.getMenuSpace_()}">
+    </compass-theme-editor>
+  </div>` : nothing}
+${this.getMenuSpace_() && !this.themeOpen_ ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
     <input id="spaceNameInput" aria-label="Space name"
         .value="${this.getMenuSpace_()!.name}"
         @keydown="${this.onSpaceNameKeydown_}"
         @change="${this.onSpaceNameChange_}">
-    <div id="swatches" role="group" aria-label="Color">
-      ${this.spaceColors_.map((entry: PaletteColor, index: number) => html`
-        <button class="swatch" role="menuitemradio" data-index="${index}"
-            aria-label="${entry.name}" title="${entry.name}"
-            style="--swatch-color: ${this.getSpaceColor_(entry.color)}"
-            aria-checked="${this.isMenuSpaceColor_(entry.color)}"
-            ?selected="${this.isMenuSpaceColor_(entry.color)}"
-            @click="${this.onSwatchClick_}">
-        </button>`)}
-      <label class="swatch" id="customColor" title="Custom color"
-          style="--swatch-color: ${this.getSpaceColor_(
-              this.getMenuSpace_()!.color)}"
-          ?selected="${this.isMenuSpaceCustomColor_()}">
-        <input type="color" aria-label="Custom color"
-            .value="${this.getMenuSpaceHex_()}"
-            @input="${this.onCustomColorInput_}">
-      </label>
-    </div>
-    <div id="gradient" role="group" aria-label="Gradient"
-        ?hidden="${!this.getMenuSpace_()!.color}">
-      <span class="label">Gradient</span>
-      ${this.getMenuSpace_()!.gradient.map((color: SpaceColor, index: number) => html`
-        <span class="gradient-stop">
-          <label class="swatch" title="Gradient color ${index + 2}"
-              style="--swatch-color: ${this.getSpaceColor_(color)}">
-            <input type="color" aria-label="Gradient color ${index + 2}"
-                data-index="${index}" .value="${this.getColorHex_(color)}"
-                @input="${this.onGradientColorInput_}">
-          </label>
-          <button class="remove-stop" data-index="${index}"
-              title="Remove this color" aria-label="Remove this color"
-              @click="${this.onRemoveGradientColorClick_}">×</button>
-        </span>`)}
-      <button id="addGradientColor" title="Add a gradient color"
-          aria-label="Add a gradient color"
-          ?hidden="${!this.canAddGradientColor_()}"
-          @click="${this.onAddGradientColorClick_}">+</button>
-    </div>
-    <div id="effects" ?hidden="${!this.getMenuSpace_()!.color}">
-      <label class="slider">
-        <span>Intensity</span>
-        <input type="range" id="intensity" min="0" max="100"
-            .value="${this.getMenuSpacePercent_('intensity')}"
-            @input="${this.onIntensityInput_}">
-      </label>
-      <label class="slider">
-        <span>Grain</span>
-        <input type="range" id="grain" min="0" max="100"
-            .value="${this.getMenuSpacePercent_('grain')}"
-            @input="${this.onGrainInput_}">
-      </label>
-    </div>
+    <button id="editTheme" role="menuitem" @click="${this.onEditThemeClick_}">
+      <span>Edit theme</span>
+      <span id="themeChip" style="${this.getSpaceStyle_(this.getMenuSpace_()!)}">
+      </span>
+    </button>
     <div id="icons" role="group" aria-label="Icon">
       <button class="icon-choice" role="menuitemradio" data-symbol=""
           title="No icon" aria-label="No icon"

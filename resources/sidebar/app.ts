@@ -8,13 +8,15 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
+import {colorToCss} from './colors.js';
 import {getFaviconUrl} from './favicon.js';
 import './node.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
+import './theme_editor.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
-import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, SpaceColor, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
 import {NodeType} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -28,97 +30,12 @@ interface DropTarget {
   position: 'before'|'after'|'into'|'end'|'split-left'|'split-right';
 }
 
-// The space menu's palette, as SidebarTint (sidebar_tint.cc) tints the region
-// with it (compass::SpaceColor's constants). Grey (null) isn't tinted. Any
-// other color can be picked too (docs/design/spaces.md, "Space colors").
-export interface PaletteColor {
-  color: SpaceColor|null;
-  name: string;
-}
-
-const SPACE_COLORS: PaletteColor[] = [
-  {color: null, name: 'Grey'},
-  {color: {red: 59, green: 130, blue: 246}, name: 'Blue'},
-  {color: {red: 139, green: 92, blue: 246}, name: 'Purple'},
-  {color: {red: 236, green: 72, blue: 153}, name: 'Pink'},
-  {color: {red: 239, green: 68, blue: 68}, name: 'Red'},
-  {color: {red: 249, green: 115, blue: 22}, name: 'Orange'},
-  {color: {red: 234, green: 179, blue: 8}, name: 'Yellow'},
-  {color: {red: 34, green: 197, blue: 94}, name: 'Green'},
-];
-
 function firstGrapheme(text: string): string {
   const segments = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
   for (const {segment} of segments.segment(text)) {
     return segment;
   }
   return '';
-}
-
-// A space's color and its gradient colors, at most (kMaxSpaceGradientColors).
-const MAX_GRADIENT_COLORS = 3;
-
-// |color| with its hue turned |degrees|, as HSL.
-function rotateHue(color: SpaceColor, degrees: number): SpaceColor {
-  const r = color.red / 255;
-  const g = color.green / 255;
-  const b = color.blue / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const light = (max + min) / 2;
-  const chroma = max - min;
-  let hue = 0;
-  if (chroma) {
-    hue = max === r ? ((g - b) / chroma + 6) % 6 :
-        max === g   ? (b - r) / chroma + 2 :
-                      (r - g) / chroma + 4;
-  }
-  const saturation = chroma ? chroma / (1 - Math.abs(2 * light - 1)) : 0;
-  const h = ((hue * 60 + degrees) % 360 + 360) % 360;
-  const c = (1 - Math.abs(2 * light - 1)) * saturation;
-  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-  const m = light - c / 2;
-  const [r1, g1, b1] = h < 60 ? [c, x, 0] :
-      h < 120                ? [x, c, 0] :
-      h < 180                ? [0, c, x] :
-      h < 240                ? [0, x, c] :
-      h < 300                ? [x, 0, c] :
-                               [c, 0, x];
-  const byte = (v: number) => Math.round((v + m) * 255);
-  return {red: byte(r1), green: byte(g1), blue: byte(b1)};
-}
-
-// How often a custom color being dragged in the picker is passed on.
-const CUSTOM_COLOR_MS = 50;
-
-function sameColor(a: SpaceColor|null, b: SpaceColor|null): boolean {
-  return a === b ||
-      (!!a && !!b && a.red === b.red && a.green === b.green &&
-       a.blue === b.blue);
-}
-
-function colorToCss(color: SpaceColor|null): string {
-  return color ? `rgb(${color.red}, ${color.green}, ${color.blue})` :
-                 'rgb(128, 128, 128)';
-}
-
-// As <input type="color"> wants it.
-function colorToHex(color: SpaceColor|null): string {
-  const c = color ?? {red: 128, green: 128, blue: 128};
-  return '#' +
-      [c.red, c.green, c.blue]
-          .map(component => component.toString(16).padStart(2, '0'))
-          .join('');
-}
-
-function hexToColor(hex: string): SpaceColor|null {
-  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-  return match ? {
-    red: parseInt(match[1]!, 16),
-    green: parseInt(match[2]!, 16),
-    blue: parseInt(match[3]!, 16),
-  } :
-                 null;
 }
 
 export interface ArchiveDelay {
@@ -247,6 +164,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       activeSpaceId_: {type: String},
       menuSpaceId_: {type: String},
       confirmingDelete_: {type: Boolean},
+      themeOpen_: {type: Boolean},
       archive_: {type: Array},
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
@@ -268,10 +186,8 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor menuSpaceId_: string|null = null;
   // Delete asks to be clicked twice.
   protected accessor confirmingDelete_: boolean = false;
-  // The color picked last in a color picker, sent when the timer fires.
-  private pendingColorSend_: (() => void)|null = null;
-  private colorTimer_: number|null = null;
-  protected readonly spaceColors_: PaletteColor[] = SPACE_COLORS;
+  // The space menu shows the theme editor instead.
+  protected accessor themeOpen_: boolean = false;
   protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
@@ -383,32 +299,8 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.spaces_.find(space => this.isActiveSpace_(space))?.name ?? '';
   }
 
-  protected getSpaceColor_(color: SpaceColor|null): string {
-    return colorToCss(color);
-  }
-
   protected getMenuSpace_(): Space|null {
     return this.spaces_.find(space => space.id === this.menuSpaceId_) ?? null;
-  }
-
-  protected isMenuSpaceColor_(color: SpaceColor|null): boolean {
-    const space = this.getMenuSpace_();
-    return !!space && sameColor(space.color, color);
-  }
-
-  // Whether the menu's space has a color outside the palette.
-  protected isMenuSpaceCustomColor_(): boolean {
-    const space = this.getMenuSpace_();
-    return !!space &&
-        !SPACE_COLORS.some(entry => sameColor(entry.color, space.color));
-  }
-
-  protected getMenuSpaceHex_(): string {
-    return colorToHex(this.getMenuSpace_()?.color ?? null);
-  }
-
-  protected getColorHex_(color: SpaceColor): string {
-    return colorToHex(color);
   }
 
   // A space button's colors: its gradient's three stops, all its color for
@@ -443,6 +335,16 @@ export class CompassSidebarAppElement extends CrLitElement {
   private closeSpaceMenu_() {
     this.menuSpaceId_ = null;
     this.confirmingDelete_ = false;
+    this.themeOpen_ = false;
+  }
+
+  protected onEditThemeClick_() {
+    this.themeOpen_ = true;
+  }
+
+  // Esc too: back to the menu.
+  protected onThemeBackClick_() {
+    this.themeOpen_ = false;
   }
 
   protected onSpaceContextmenu_(e: MouseEvent) {
@@ -555,7 +457,12 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   protected onSpaceMenuKeydown_(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
+    if (e.key !== 'Escape') {
+      return;
+    }
+    if (this.themeOpen_) {
+      this.themeOpen_ = false;
+    } else {
       this.closeSpaceMenu_();
     }
   }
@@ -577,99 +484,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (space && name && name !== space.name) {
       this.browserProxy_.handler.renameSpace(space.id, name);
     }
-  }
-
-  protected onSwatchClick_(e: Event) {
-    const entry = SPACE_COLORS[Number(
-        (e.currentTarget as HTMLElement).dataset['index'])];
-    if (entry && this.menuSpaceId_) {
-      this.browserProxy_.handler.setSpaceColor(this.menuSpaceId_, entry.color);
-    }
-  }
-
-  protected onCustomColorInput_(e: Event) {
-    const color = hexToColor((e.target as HTMLInputElement).value);
-    const spaceId = this.menuSpaceId_;
-    if (color && spaceId) {
-      this.sendColorSoon_(
-          () => this.browserProxy_.handler.setSpaceColor(spaceId, color));
-    }
-  }
-
-  protected onGradientColorInput_(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const color = hexToColor(input.value);
-    const space = this.getMenuSpace_();
-    if (!color || !space) {
-      return;
-    }
-    const gradient = [...space.gradient];
-    gradient[Number(input.dataset['index'])] = color;
-    this.sendColorSoon_(
-        () => this.browserProxy_.handler.setSpaceGradient(space.id, gradient));
-  }
-
-  protected onRemoveGradientColorClick_(e: Event) {
-    const space = this.getMenuSpace_();
-    if (space) {
-      const index = Number((e.currentTarget as HTMLElement).dataset['index']);
-      this.browserProxy_.handler.setSpaceGradient(
-          space.id, space.gradient.filter((_, i) => i !== index));
-    }
-  }
-
-  // The new color goes on from the last one, a little further round the hue
-  // wheel.
-  protected onAddGradientColorClick_() {
-    const space = this.getMenuSpace_();
-    if (space?.color && this.canAddGradientColor_()) {
-      const last = space.gradient[space.gradient.length - 1] ?? space.color;
-      this.browserProxy_.handler.setSpaceGradient(
-          space.id, [...space.gradient, rotateHue(last, 40)]);
-    }
-  }
-
-  protected getMenuSpacePercent_(setting: 'intensity'|'grain'): string {
-    const space = this.getMenuSpace_();
-    return String(Math.round((space?.[setting] ?? 0) * 100));
-  }
-
-  protected onIntensityInput_(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value) / 100;
-    const spaceId = this.menuSpaceId_;
-    if (spaceId) {
-      this.sendColorSoon_(
-          () => this.browserProxy_.handler.setSpaceIntensity(spaceId, value));
-    }
-  }
-
-  protected onGrainInput_(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value) / 100;
-    const spaceId = this.menuSpaceId_;
-    if (spaceId) {
-      this.sendColorSoon_(
-          () => this.browserProxy_.handler.setSpaceGrain(spaceId, value));
-    }
-  }
-
-  protected canAddGradientColor_(): boolean {
-    const space = this.getMenuSpace_();
-    return !!space?.color && space.gradient.length < MAX_GRADIENT_COLORS - 1;
-  }
-
-  // The color picker sends a color for every move while dragging: pass on at
-  // most one every CUSTOM_COLOR_MS, the last, as the window follows each.
-  private sendColorSoon_(send: () => void) {
-    this.pendingColorSend_ = send;
-    if (this.colorTimer_ !== null) {
-      return;
-    }
-    this.colorTimer_ = setTimeout(() => {
-      this.colorTimer_ = null;
-      const pending = this.pendingColorSend_;
-      this.pendingColorSend_ = null;
-      pending?.();
-    }, CUSTOM_COLOR_MS);
   }
 
   protected onDeleteSpaceClick_() {

@@ -598,6 +598,11 @@ TEST_F(SidebarPageHandlerTest, SetsSpaceIntensityAndGrain) {
 
   EXPECT_EQ(home.intensity(), 0.6);
   EXPECT_EQ(home.grain(), 1);
+
+  handler_remote_->SetSpaceAppearance(id,
+                                      sidebar::mojom::SpaceAppearance::kDark);
+  Settle();
+  EXPECT_EQ(home.appearance(), SpaceAppearance::kDark);
 }
 
 TEST_F(SidebarPageHandlerTest, SetsSpaceIcons) {

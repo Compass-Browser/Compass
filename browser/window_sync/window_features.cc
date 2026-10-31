@@ -765,6 +765,7 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   moved.SetGradient(space.gradient());
   moved.SetIntensity(space.intensity());
   moved.SetGrain(space.grain());
+  moved.SetAppearance(space.appearance());
   moved.SetIcon(space.icon());
   moved.SetArchiveAfter(space.archive_after());
   for (const ArchivedEntry& entry : space.archive()) {

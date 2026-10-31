@@ -62,6 +62,9 @@ union SpaceIcon {
   string symbol;
 };
 
+// Mirrors compass::SpaceAppearance.
+enum SpaceAppearance { kAuto, kLight, kDark };
+
 // A space, as the switcher shows it.
 struct Space {
   string id;
@@ -73,6 +76,7 @@ struct Space {
   // How strong the tint is and how much grain it has, 0 to 1.
   double intensity;
   double grain;
+  SpaceAppearance appearance;
   SpaceIcon? icon;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
@@ -163,6 +167,7 @@ interface PageHandler {
   // 0 to 1, clamped.
   SetSpaceIntensity(string id, double intensity);
   SetSpaceGrain(string id, double grain);
+  SetSpaceAppearance(string id, SpaceAppearance appearance);
   // Null removes it. Invalid ones (compass::SpaceIcon) are ignored.
   SetSpaceIcon(string id, SpaceIcon? icon);
   // Assigns a space to profile |profile_id|, or to a new profile if null: its

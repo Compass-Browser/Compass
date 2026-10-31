@@ -188,6 +188,16 @@ void SpaceModel::SetGrain(double grain) {
   }
 }
 
+void SpaceModel::SetAppearance(SpaceAppearance appearance) {
+  if (appearance_ == appearance) {
+    return;
+  }
+  appearance_ = appearance;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
 void SpaceModel::SetIcon(SpaceIcon icon) {
   if (icon_ == icon) {
     return;

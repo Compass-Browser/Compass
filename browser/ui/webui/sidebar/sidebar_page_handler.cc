@@ -70,6 +70,10 @@ sidebar::mojom::SpaceColorPtr ToMojoColor(SpaceColor color) {
       SkColorGetR(tint), SkColorGetG(tint), SkColorGetB(tint));
 }
 
+// The handler casts between the two.
+static_assert(static_cast<int>(sidebar::mojom::SpaceAppearance::kMaxValue) ==
+              static_cast<int>(SpaceAppearance::kDark));
+
 // Null for none.
 sidebar::mojom::SpaceIconPtr ToMojoIcon(const SpaceIcon& icon) {
   switch (icon.kind()) {
@@ -460,6 +464,15 @@ void SidebarPageHandler::SetSpaceIntensity(const std::string& id,
 void SidebarPageHandler::SetSpaceGrain(const std::string& id, double grain) {
   if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetGrain(grain);
+  }
+}
+
+void SidebarPageHandler::SetSpaceAppearance(
+    const std::string& id,
+    sidebar::mojom::SpaceAppearance appearance) {
+  // Mojo has validated |appearance|.
+  if (SpaceModel* space = FindAnySpace(id).space) {
+    space->SetAppearance(static_cast<SpaceAppearance>(appearance));
   }
 }
 
@@ -950,6 +963,8 @@ void SidebarPageHandler::SendSpaces() {
     }
     mojo_space->intensity = space->intensity();
     mojo_space->grain = space->grain();
+    mojo_space->appearance =
+        static_cast<sidebar::mojom::SpaceAppearance>(space->appearance());
     mojo_space->icon = ToMojoIcon(space->icon());
     mojo_space->archive_after_hours = space->archive_after().InHours();
     spaces.push_back(std::move(mojo_space));
