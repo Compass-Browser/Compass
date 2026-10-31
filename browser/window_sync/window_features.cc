@@ -153,7 +153,8 @@ bool g_creating_swap_window = false;
 BrowserWindowInterface* CreateSwapWindow(
     Profile* profile,
     const gfx::Rect& bounds,
-    ui::mojom::WindowShowState show_state) {
+    ui::mojom::WindowShowState show_state,
+    BrowserWindowInterface* from) {
   base::AutoReset<bool> creating(&g_creating_swap_window, true);
   if (const SwapWindowFactory& factory = GetSwapWindowFactory()) {
     return factory.Run(profile, bounds, show_state);
@@ -163,6 +164,16 @@ BrowserWindowInterface* CreateSwapWindow(
   params.initial_bounds = bounds;
   params.initial_show_state = show_state;
   params.should_trigger_session_restore = false;
+  // The sidebar starts as wide as the old window's, collapsed or not. Set
+  // after the window is built (CopySidebarState()), the width never reached
+  // the sidebar view, which keeps its own copy: the sidebar jumped to the
+  // other profile's width on every switch.
+  if (const tabs::VerticalTabStripStateController* sidebar =
+          tabs::VerticalTabStripStateController::From(from)) {
+    params.vertical_tab_strip_uncollapsed_width =
+        sidebar->GetUncollapsedWidth();
+    params.vertical_tab_strip_collapsed = sidebar->IsCollapsed();
+  }
   return CreateBrowserWindow(std::move(params));
 }
 
@@ -881,7 +892,8 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
       : old_window->IsMaximized() ? ui::mojom::WindowShowState::kMaximized
                                   : ui::mojom::WindowShowState::kDefault;
   BrowserWindowInterface* window =
-      CreateSwapWindow(profile, old_window->GetRestoredBounds(), show_state);
+      CreateSwapWindow(profile, old_window->GetRestoredBounds(), show_state,
+                       browser);
   WindowFeatures* new_features = WindowFeatures::From(window);
   CHECK(&new_features->space_model() == &space);
   CopySidebarState(browser, window);
