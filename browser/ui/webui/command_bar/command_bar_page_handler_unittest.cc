@@ -493,7 +493,7 @@ TEST(OtherDeviceTabsTest, MatchesEveryWordUpToTheLimit) {
     std::vector<std::string> out;
     for (const OtherDeviceTabMatch& match :
          MatchOtherDeviceTabs(devices, query, limit)) {
-      out.push_back(devices[match.device].tabs[match.tab].url.host());
+      out.emplace_back(devices[match.device].tabs[match.tab].url.host());
     }
     return out;
   };
