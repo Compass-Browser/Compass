@@ -41,7 +41,7 @@ class NetworkPairingTransport : public PairingTransport {
 
   // PairingTransport:
   void Open(OpenCallback callback) override;
-  void Join(int slot, StatusCallback callback) override;
+  void Join(int slot, JoinCallback callback) override;
   void Send(int slot,
             PairingRole from,
             std::vector<uint8_t> data,
@@ -50,10 +50,14 @@ class NetworkPairingTransport : public PairingTransport {
                PairingRole reader,
                int after,
                ReceiveCallback callback) override;
-  void Close(int slot, PairingRole by) override;
+  void Close(int slot, PairingRole by, PairingClosedReason reason) override;
 
   // <server path>/compass/pair[/<suffix>].
   static GURL MakePairUrl(const GURL& server_url, std::string_view suffix);
+  // Why a 410 reply says its slot closed; kUnknown for anything else.
+  static PairingClosedReason ClosedReasonOf(
+      int status,
+      const std::optional<base::DictValue>& reply);
 
  private:
   using Loaders = std::list<std::unique_ptr<network::SimpleURLLoader>>;

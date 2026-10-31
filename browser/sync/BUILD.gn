@@ -16,10 +16,9 @@ source_set("sync") {
     "compass_sync_service.h",
     "compass_sync_service_factory.cc",
     "compass_sync_service_factory.h",
-    "sync_controller.cc",
-    "sync_controller.h",
   ]
   public_deps = [
+    ":settings",
     "//base",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_util",
@@ -38,22 +37,49 @@ source_set("sync") {
     "//chrome/common:channel_info",
     "//compass/browser/sidebar",
     "//compass/components/sync:controllers_hook",
+    "//compass/components/sync:notifier",
     "//components/sync/model",
     "//chrome/browser:browser_process",
     "//chrome/browser/lifetime",
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/sync",
+    "//chrome/browser/sync:factories",
     "//chrome/common",
     "//chrome/browser/ui:browser_manager_service",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/signin/public/base",
     "//components/sync/base",
     "//components/sync_device_info",
     "//compass/components/sync:engine",
     "//content/public/browser",
+    "//google_apis",
     "//services/network/public/cpp",
+  ]
+}
+
+# What chrome://compass-sync's switches mean for Chromium's sync, and other
+# profile-free pieces of the page and the app menu (sync.md, "Slice 4
+# notes"). SyncController is the page's interface to CompassSyncService.
+source_set("settings") {
+  sources = [
+    "sync_controller.cc",
+    "sync_controller.h",
+    "sync_settings.cc",
+    "sync_settings.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/components/sync:chain",
+    "//components/sync/base",
+    "//components/sync_device_info",
+  ]
+  deps = [
+    "//compass/components/sync:engine",
+    "//components/prefs",
+    "//components/sync/service",
   ]
 }
 
@@ -79,14 +105,19 @@ source_set("unit_tests") {
   sources = [
     "compass_spaces_sync_bridge_unittest.cc",
     "compass_spaces_sync_profiles_unittest.cc",
+    "sync_settings_unittest.cc",
   ]
   deps = [
+    ":settings",
     ":spaces_bridge",
     "//base",
     "//base/test:test_support",
     "//compass/browser/sidebar",
+    "//components/prefs:test_support",
     "//components/sync:test_support",
     "//components/sync/base",
+    "//components/sync/service",
+    "//components/sync_device_info",
     "//components/sync/model",
     "//components/sync/protocol",
     "//testing/gmock",

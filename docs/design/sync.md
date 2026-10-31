@@ -1,13 +1,53 @@
 # Sync between devices
 
-Status: slices 0, 1, 2, 2b, 3 and 3b done and merged into `sync-main`
-(MacBook runs in each slice's notes); 4 (settings UI) in progress; 5
-(profiles) on `sync/slice-5-profiles`, MacBook run pending ("Slice 5
-notes"). Based on Chromium 156.0.8078.48.
+Status: slices 0, 1, 2, 2b, 3, 3b, 4 and 6 done and merged into `sync-main`
+(MacBook runs in each slice's notes); 5 (profiles) on `sync/slice-5-profiles`,
+with sync-main (slices 4 and 6) merged in, MacBook run pending ("Slice 5
+notes"); then 7. Based on Chromium 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
+
+## Hand-off (2026-10-31, 22:45 CET; Mac mini shut down)
+
+Read this first when resuming the sync work.
+
+**Branches** (all pushed to origin; the MacBook follows `sync-main`):
+
+| Branch | State |
+|---|---|
+| `sync-main` | slices 0, 1, 2, 2b, 3, 3b, 4, 6 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
+| `sync/slice-4-ui` (`41ae636`) | merged (resume, 31 Oct night): MacBook run passed, see "Slice 4 notes" |
+| `sync/slice-5-profiles` | profiles; sync-main (`348dd50`, slices 4 and 6) merged in on 1 Nov ("Slice 5 notes", "Merged with slices 4 and 6"); never built; MacBook run in [sync-slice-5-steps.md](sync-slice-5-steps.md) |
+| `sync/slice-6-push` (`02cfe61`) | merged: MacBook run passed, see "Slice 6 notes"; the sync server runs its server (5bfecb7) |
+
+**Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → ~~merge sync-main
+into 6, deploy the combined server, run 6 → merge 6~~ (done) → ~~merge sync-main into 5~~ (done 1 Nov) → run 5 → merge 5 → slice 7.
+
+**MacBook:** session "Chromium fetch and compass build" (Remote Control),
+repo `~/Developer/compass-build/compass`, tests in out/Debug only, out/Fast
+is Gioele's (only `update-and-run.sh` builds it, only sync-main). Told on
+shutdown: use `https://sync.example.org/v2` instead of the Mac mini
+server, keep going on slice 4, on any problem stop, write
+`~/Developer/compass-build/slice4-report.md` and wait for a message.
+
+**Network (resume):** the MacBook is no longer on the Mac mini's LAN, so
+its runs use the public server only; deploy server changes to the sync server first.
+
+**Servers:** public `https://sync.example.org/v2` runs slice 4's
+server (`/opt/compass-sync` on the sync server, `ssh -p 22 user@server`;
+update: rsync `server/` to `./src`, `docker compose up -d --build`). The Mac
+mini test server (Podman `compass-sync`, volume `compass-sync-data`, port
+8295) is down with the Mac mini; it ran slice 4's server; restart with
+`podman start compass-sync`.
+
+**Open items for slice 7:** quota errors shown; deleted history can come
+back within 14 days and history retention/30k cap configurable; server
+tombstone cleanup; "kept" log line (3b); Arc-derived UUIDs; check
+chrome://history by eye; server backups on the sync server; a scripted the sync server
+update; merging sync-main into main (sidebar node IDs now saved: watch the
+Arc import session's sidebar changes); the real two-Mac test.
 
 ## Goal
 
@@ -154,12 +194,18 @@ Under go-sync's prefix, next to `/v2/command/`. JSON bodies, UTF-8.
 Binary fields are standard base64.
 
 - `POST /v2/compass/pair` with `Authorization` (A's sync token) →
-  `201 {"slot": 7, "expires_in": 300}`. The lowest free slot ≥ 1. Opening
-  a new slot closes the chain's previous one (one open slot per chain).
+  `201 {"slot": 7, "expires_in": 300, "server": "sync.example.com"}`. The
+  lowest slot ≥ 1 that is neither open nor closed in the last 300 s.
+  Opening a new slot closes the chain's previous one (one open slot per
+  chain; reason `cancel`). `server` (since slice 4) is the name both
+  devices bind into SPAKE2: `COMPASS_SYNC_PUBLIC_HOST`, else the `Host` of
+  this request, without its port, lower-case.
 - `POST /v2/compass/pair/{slot}/join` (no auth; B) →
-  `200 {"b_token": "<random 128-bit, hex>"}`. Only the first join
-  succeeds; after it, `409`. Unknown or expired slot: `404`. Rate limit:
-  10 joins per IP per 10 min, then `429`.
+  `200 {"b_token": "<random 128-bit, hex>", "server": "...",
+  "expires_in": <s left>}` (`server` and `expires_in` since slice 4). Only
+  the first join succeeds; after it, `409`. Unknown slot: `404`; closed
+  or expired: `410` (below). Rate limit: 10 joins per IP per 10 min, then
+  `429`.
 - `POST /v2/compass/pair/{slot}/msg` with body
   `{"from": "a"|"b", "data": "<base64, ≤ 4 KiB>"}`. From A: the
   `Authorization` of the chain that opened it. From B: header
@@ -169,8 +215,14 @@ Binary fields are standard base64.
   above, for the reader) → long poll up to 25 s: `200 {"messages":
   [{"seq": n, "data": "..."}]}` (possibly empty on timeout). Sequence
   numbers count per sender, from 1.
-- `DELETE /v2/compass/pair/{slot}` (A's auth, or B's token) → `204`. It
-  closes the slot. Closed or expired slots answer `404` everywhere.
+- `DELETE /v2/compass/pair/{slot}?reason=mismatch|cancel|deny` (A's auth,
+  or B's token) → `204`. It closes the slot; no reason is a `cancel`
+  (older clients), another value `400`.
+- A closed slot says why (since slice 4): for 300 s after it closes, every
+  request on its number answers `410 {"reason": "mismatch" | "cancel" |
+  "deny" | "expired"}` (`expired` when its 300 s ran out), and the number
+  isn't given out again meanwhile; then `404`. Long polls waiting on a slot
+  that closes get the same `410`.
 - Slots live 300 s from opening, in memory only (a restart drops them).
 
 Messages (client-side, the server doesn't read them):
@@ -198,10 +250,13 @@ message per step:
   UUID>", "name": "Work", "avatar": 26, "home": true}, ...]` (`avatar` only
   if set, `home` only on the home profile); a joiner ignores entries it
   can't read, and treats an empty list as unknown.
-- `host` in the SPAKE2 names is `GURL::host()` of the server URL each side
-  has (no port, lowercase).
-- A doesn't close the slot after sending 4 (B must still read it); B closes
-  it once it has 4. A closes it on a wrong MAC, cancel or expiry.
+- `host` in the SPAKE2 names is the `server` of the open (A) and join (B)
+  replies since slice 4; with an older server that doesn't send it,
+  `GURL::host()` of the server URL each side has (no port, lowercase).
+- A doesn't close the slot after sending an allow (B must still read it);
+  B closes it once it has 4. After a deny A closes it with `deny` (B reads
+  the answer or the `410`, either way "Not added"). A closes it with
+  `mismatch` on a wrong MAC, `cancel` on cancel or expiry; B the same way.
 - Vectors for K = `00 01 … 3f`: K_enc `5144144d…7a857653`, K_confirm_a
   `d71f8461…63ef6a2a`, K_confirm_b `46d4fef6…dd61a05a`, MAC_a
   `5640ef87…7f3366f8`, MAC_b `d0ccb754…12ff0ac4` (full values in
@@ -419,14 +474,15 @@ none blocking:
 1. B can't tell why a slot closed (A saw a wrong code, A canceled, or it
    expired): all are 404. Proposed: `DELETE` takes `?reason=mismatch|cancel`
    and later requests answer `410 {"reason": ...}`, so B can say "wrong
-   code" instead of "the other device ended pairing".
+   code" instead of "the other device ended pairing". Done in slice 4.
 2. `host` in the SPAKE2 names: two devices that reach the server by
    different names (IP vs hostname, Tailscale name) compute different keys
    and fail as "wrong code". Proposed: have `POST /pair` return a
    canonical server name (`"server": "sync.example.com"`) and `join` echo
-   it, and bind that instead of what each side typed.
+   it, and bind that instead of what each side typed. Done in slice 4.
 3. `join` doesn't return the slot's remaining lifetime; B uses its own
-   5.5-minute timeout. Proposed: `{"b_token", "expires_in"}`.
+   5.5-minute timeout. Proposed: `{"b_token", "expires_in"}`. Done in
+   slice 4.
 4. The framing of messages 3 and 4 ("then") and the denial encoding were
    open; fixed here as above.
 
@@ -854,10 +910,172 @@ the reason in "Slice 3 notes".
   shows the panes it has; restoring it before the rest arrive restores those.
 - Today dedupe by URL is only at the first sync.
 
+### Slice 4 notes
+
+Branch `sync/slice-4-ui` (on `sync-main` `63d3418`). Written without a
+compiler; the MacBook build and run are in
+[sync-slice-4-steps.md](sync-slice-4-steps.md). Go tests pass here.
+
+**`chrome://compass-sync`** (`resources/sidebar/compass_sync.{html,ts}`,
+`browser/ui/webui/sync/`), in the look of `chrome://compass-import`
+(colors.css tokens, so light and dark follow the browser):
+
+- Off: the server field is **empty**, with only a placeholder
+  (`https://sync.example.com/v2`), not even after leaving (user,
+  2026-10-31: no default server). Start sync shows the 12 words once ("I
+  saved it"); "I have another device" takes the pairing code; "Use a
+  recovery code" under it.
+- On: the status with a colored dot (last synced, or the error in plain
+  words, as slice 2 wrote them); **Devices** from `DEVICE_INFO`
+  (`DeviceInfoSyncService`'s tracker: name, kind from OS and form factor,
+  "active now / 5 minutes ago" from the last update, "This device"
+  first; this device's entries from an earlier setup, which
+  `IsRecentLocalCacheGuid()` recognizes, are hidden); **Add a device**
+  (code, then Allow/Deny with the device's name); **What syncs**, nine
+  switches; **Recovery code**, behind device re-authentication; the
+  server, read-only ("leave sync and join again" to change it); **Leave
+  sync** and **Reset sync**, each behind a confirm dialog (`<dialog>`, not
+  `window.confirm`, so the end-to-end steps can drive it).
+- The page re-renders on every `SyncController` change, now including
+  device list changes (`DeviceInfoTracker::Observer`).
+
+**Switches.** Passwords, History, Bookmarks, Autofill, Extensions,
+Settings (kPreferences), Reading list, Open tabs (kTabs) map to upstream
+`UserSelectableType`s (`browser/sync/sync_settings.h`); Spaces is
+`COMPASS_SPACES`. The choice lives in a Compass pref,
+`compass.sync.disabled_types` (names of the switches turned off), not in
+`SyncUserSettings`, because slice 2's hold clears the selection at every
+start. `SelectTypes()` selects the registered types minus the unwanted ones
+(unchanged: Apps, Payments, Product comparison, Saved tab groups, Themes;
+never shown) minus the switched-off ones; selectable types without a switch
+(Cookies) keep upstream's default. A switch changed while the types are
+held only writes the pref: nothing is selected before the passphrase is in
+place, and the release reads the pref. **Spaces needs no upstream patch**:
+`AreDataTypesReleased()`, which the COMPASS_SPACES controller already asks,
+now also requires the Spaces switch on, and the switch calls
+`DataTypePreconditionChanged(COMPASS_SPACES)`; `compass_spaces_sync.cc` is
+untouched. Off means `kMustStopAndKeepData`: the metadata stays, and
+turning it back on resumes where it stopped. Upstream's deselection of a
+selectable type clears that type's metadata, so a switch turned back on
+does a fresh merge for it.
+
+**Recovery code.** "Show recovery code" asks the controller only after
+`device_reauth` says yes, as the password manager does before showing
+passwords: `ChromeDeviceAuthenticatorFactory::GetForProfile()` with the
+page's window, `AuthenticateWithMessage("show your sync recovery code")`
+(macOS: "Compass is trying to show your sync recovery code", Touch ID or
+the password). With no biometrics and no screen lock it doesn't ask (as
+Chrome); on Linux there's no device authentication. `CompassSyncUI` owns
+the authenticator; the page handler takes the re-authentication as a
+callback, so its tests use a fake.
+
+**Reset sync.** A new seed, so new keys and a new account on the same
+server; the other devices stay on the old chain until they join again (as
+Brave). It takes a restart, like start and leave: this run's engine stops
+(credentials cleared, setup handle held), the new seed replaces the old,
+and **this device's sync transport data is cleared** (the local-sync
+account's `SyncTransportDataPrefs`, keyed to the empty Gaia ID). At the
+next launch the engine finds no cache GUID, makes a new one, and every
+type's metadata, Nigori's included, is dropped on the GUID mismatch
+(upstream's own "start from scratch" path), so the data goes up to the new
+chain as a first sync. A pref, `compass.sync.reset_pending`, keeps the
+types held until this run has set (or had accepted) the new chain's
+passphrase: the passphrase type the engine reports first could be the old
+chain's, cached. The old chain's data stays on the server (nothing deletes
+it yet; slice 7).
+
+**App menu.** The header's ⋯ menu is upstream's `AppMenuModel` (the header
+only moves the button), and nothing in it is hookable from Compass, so one
+new upstream patch: `chrome-browser-ui-toolbar-app_menu_model.cc.patch`
+adds a row above Settings when `compass::GetAppMenuSyncLabel()` gives one
+("Synced", "Syncing…", "Sync error", "Sync is off", "Sync: restart to
+finish"; none in incognito or guest), with the sync icon, and makes
+Compass commands enabled in the menu. Its command, `kOpenSyncPageCommand`
+(39951), runs through the command controller's existing Compass hook and
+opens `chrome://compass-sync` as a new entry. The menu is rebuilt each
+time it opens, so the label is current. The declarations live in a
+dependency-free target (`//compass/browser/ui:app_menu_hooks`), which the
+toolbar's `:impl` depends on (second hunk of the toolbar `BUILD.gn`
+patch); definitions in `//compass/browser/ui`. For the end-to-end steps the
+page puts the same label in `<html data-menu-label>`.
+
+**Command bar.** "Tabs on other devices": for a non-empty query, the
+other devices' open tabs (`SessionSyncService`'s `OpenTabsUIDelegate`,
+`GetForeignSessionTabs()`: recent first, unsyncable and new tab pages
+pruned) whose title, URL or device name contains every word, at most six,
+grouped by device, the most recently active first; subtitle "On <device> ·
+<URL>". Enter opens the URL as a new Today entry of the window's space (a
+new foreground tab, which `TabStripBridge` makes an entry), in either
+mode. Nothing when Open tabs doesn't sync. A new `ResultKind`,
+`kOtherDeviceTab`; rows show the page's favicon. See command-bar.md,
+"Results".
+
+**Pairing contract (proposals 1-3 of "Slice 2 notes").** Server
+(`server/pairing`): `DELETE ?reason=mismatch|cancel|deny` (none =
+`cancel`, others `400`); a closed or expired slot answers `410
+{"reason"}` everywhere for 300 s (`Config.ClosedTTL`), then `404`, and its
+number stays reserved meanwhile, so a code typed late reaches the reason,
+not someone else's new slot; `POST /pair` returns `server`
+(`COMPASS_SYNC_PUBLIC_HOST`, else the request's `Host` without port,
+lower-case) and `join` echoes it with `expires_in` (seconds left, rounded
+up). Client (`components/sync/pairing*`): `PairingClosedReason` on every
+transport reply; A closes with `mismatch` on a wrong MAC, `deny` after a
+deny, `cancel` otherwise; B maps the 410s to "Wrong code", "The other
+device canceled", "Not added", "Code expired" (`kWrongCode`, `kCanceled`,
+`kDenied`, `kExpired`; a bare 404 from an older server is still
+`kClosed`); both bind the server's name in SPAKE2 when it sends one, else
+their own host as before; B's timeout is the join's `expires_in` + 30 s
+(5.5 min from an older server). Old clients keep working with the new
+server: a DELETE without reason is a cancel, unknown JSON fields are
+ignored, and a 410 where they expected 404 only changes their message
+(they report a failure instead of "ended pairing"). A new client and an
+old one on the same new server bind different names only if they typed
+different hosts, as before.
+
+**Tests.** `SyncSettingsTest.*` (`browser/sync/sync_settings_unittest.cc`:
+switch names, mapping, pref, selection with hold and release on
+`TestSyncService`, device kinds, menu labels),
+`CompassSyncPageHandlerTest.*` (fake controller and fake re-auth: devices,
+switches, recovery code refused and shown, reset, menu label),
+`CommandBarPageHandlerTest.TabsOnOtherDevices` and
+`OtherDeviceTabsTest.*` (fake sessions source), `PairingTest.*` (the fake
+server now closes with reasons, names itself and says `expires_in`; new:
+deny learned from the server, expiry with and without reasons, cancel on
+A, a new code cancels the old, both bind the server's name, an older
+server binds what each typed, B's timeout from `expires_in`),
+`CompassSyncEngineTest.PairClosedReason`. Go: `go test ./pairing ./server`
+(`TestClosedSlotsSayWhy`, `TestServerName`, the e2e pairing test).
+`CompassSyncService` itself has no unit test (it needs a profile, a sync
+service and os_crypt); its type logic is the tested `sync_settings`
+functions, and the MacBook run covers the rest.
+
+**Known limits.** The recovery code can't be shown in headless runs (no
+Touch ID prompt); the steps skip it. Reset doesn't delete the old chain on
+the server. The Spaces switch off keeps COMPASS_SPACES's metadata, the
+other switches drop theirs (upstream's behavior).
+
+**MacBook run (31 Oct, `1e44100`, against sync.example.org).** The
+first build (1e571a4) failed on an ambiguous `Observer` (fixed in
+1e44100). Then: build and `compass_unittests` OK, 68 tests in 7 batches
+passed. End to end, steps 5–10 passed: off page and menu label, start and
+restart (`passphrase in place`, nine types on, one device), pairing B
+(both list two devices), the Bookmarks and Spaces switches off/on on B
+(nothing arrives while off, arrives within ~58 s after on), C's wrong
+code, deny and cancel (C stays off), menu labels, tabs on other devices.
+sync-internals on A and B: kCustomPassphrase, no type errors; no
+crashes or DCHECKs in A, B, C. Found by eye: in dark mode the status card
+and the "This device" badge kept a light background, because colors.css
+has no `--color-sys-surface-container`; fixed in 41ae636 with
+`--color-sys-base-container` (`arc_import.html` has the same token on
+main). Device times ("9 minuti fa") follow the system locale while the
+page's own strings are English only. Not checked headless: "Show
+recovery code" (Touch ID) and "Reset sync".
+
 ### Slice 5 notes
 
 Branch `sync/slice-5-profiles` (on `sync-main` `63d3418`, with `02efe11`,
-slice 3b, merged in). Written without
+slice 3b, and later `348dd50`, slices 4 and 6, merged in: see "Merged with
+slices 4 and 6" below). Written without
 a build; the MacBook build and run are in
 [sync-slice-5-steps.md](sync-slice-5-steps.md). Every changed C++ file was
 syntax-checked here with the checkout's clang, `out/Debug`'s flags (Chromium
@@ -1027,6 +1245,72 @@ both arrival orders, interleaved positions),
 (enrolling, creating, renaming, the mapping step) needs real profiles and
 has no unit test; the MacBook run covers it.
 
+**Merged with slices 4 and 6** (1 Nov). Slices 4 and 6 were written for
+one profile per chain; the merge keeps all their behaviour and makes it
+per profile where slice 5 gives each profile its own account:
+
+- **Switches are per profile.** `compass.sync.disabled_types` is a profile
+  pref and each profile's chrome://compass-sync shows and sets its own
+  ("What syncs" says "in this profile"), the way Chromium keeps sync
+  settings per profile, and each profile's types run on its own account
+  anyway. A profile enrolled or created by sync starts with every switch
+  on; nothing copies the home's choice. Consequence: the chain's profile
+  list rides on the **home** profile's `COMPASS_SPACES`, so with the home's
+  Spaces switch off the list neither goes up nor comes down (no profile is
+  created here, and a recovery-code join's mapping step waits until it's
+  back on). Other profiles' Spaces switches only stop their own spaces.
+- **Reset sync is device-wide, like Leave.** `ResetChain()` from any
+  profile's page stops every loaded profile of the chain here
+  (`StopForReset()`: credentials cleared, setup handle held, notifier
+  stopped), saves one new seed, then gives every one of them that seed (the
+  encrypted pref value, copied, as enrollment does) and runs
+  `ForgetOldChain()` on each (its local-sync transport data cleared,
+  `compass.sync.reset_pending` set). Each profile keeps its UUID and role,
+  so the home stays the home and the others keep their own accounts, now
+  derived from the new seed; `compass.sync.profile_dirs` and
+  `profiles_removed` stay. One restart starts them all on the new chain,
+  each held until its own passphrase is in place (`reset_pending` and
+  `passphrase_set_here_` are per profile, as is everything in
+  `UpdatePassphrase()`). Resetting only the profile whose page was used
+  would have split the device across two chains.
+- **The notifier is per profile.** Each profile's `CompassSyncService`
+  runs its own `CompassSyncNotifier` (`UpdateNotifier()` unchanged): its
+  account's token (`credentials_` holds the profile's key), its profile's
+  cache GUID, its profile's types. The server counts each as a stream, so
+  the per-address limit (50) is devices × profiles behind one address;
+  `LeaveProfile()` and `StopForReset()` stop it.
+- **Devices** come from the profile's own `DEVICE_INFO`, i.e. the devices
+  that carry this profile; the home's and a profile's list match once every
+  device has every profile. **Recovery code**: the same seed in every
+  profile, so any profile's page shows the chain's 12 words. **App menu**
+  row: the profile's own state.
+- **Add a device** from any profile sends the home's list
+  (`GetChainProfilesForPairing()`); slice 4's closed reasons and server
+  name binding are unchanged.
+- **Leaving** (`LeaveProfile()`, per profile) also clears
+  `reset_pending` and stops the notifier, as slice 4/6's `Leave()` did.
+- **Page.** The mapping section is a card right under the pairing card
+  (it shows with pairing still "working" while a join waits for it, and
+  with sync on after a recovery-code join); the recovery code panel hides
+  it like the rest; `sync_status.js` reports it among the visible sections.
+  `GetState()` and `OnStateChanged()` carry slice 4's `Details`; the mapping
+  stays a separate `GetProfileMapping()` call.
+- **End-to-end tools.** `reset_sync.js` (Reset sync through the page's
+  confirm dialog), `local_state.py prefs` prints a short hash of the
+  encrypted seed (so two profiles, or one before and after a reset, can be
+  compared), and the steps run against `sync.example.org`.
+- **Build.** `sync_controller.cc` (the mapping defaults) moved with
+  `sync_controller.h` into slice 4's `:settings` target, which now
+  public-depends on `//compass/components/sync:chain` (`profile_list.h`).
+  The page handler test's mapping tests pass slice 4's re-authenticator.
+- Checked here after the merge, as before: every merged or changed C++
+  file syntax-checked with the checkout's clang and `out/Debug`'s flags
+  against patched copies of `data_type.h`, `entity_specifics.proto` and
+  the compass proto, and the page's mojom generated with the checkout's
+  generator; `compass_sync.ts` type-checked against that mojom.
+  `go vet` and `go test` pass; `server/` is the same as sync-main's (no
+  deploy needed).
+
 **Known limits.**
 
 - A profile with no space in the switcher isn't listed, so not kept loaded:
@@ -1045,6 +1329,162 @@ has no unit test; the MacBook run covers it.
 - Two devices that both hold the home role for a moment (a race at join)
   converge on one home UUID; spaces get re-committed once with the new
   `profile_uuid`.
+- Leave and Reset act on the profiles loaded at the time. A chain profile
+  that isn't loaded then (no space in the switcher) keeps the old seed and
+  rejoins the old chain the next time it loads. Rare (listed profiles load
+  at every start); the fix would be the home re-enrolling profiles whose
+  seed differs from its own.
+- The home's Spaces switch off stops the profile list (see the merge notes
+  above).
+
+### Slice 6 notes
+
+Branch `sync/slice-6-push` (on `sync-main` `02efe11`). The browser side is
+written without a compiler; the MacBook build and run are in
+[sync-slice-6-steps.md](sync-slice-6-steps.md). **No upstream patch.** The
+server side is tested (`go test ./...`, plus a live run of the binary: a
+stream held 70 s with keep-alives at 25 s and 50 s, ended cleanly by
+SIGTERM).
+
+**Server** (`server/events`). `GET /v2/compass/events?client_id=<cache
+GUID>`, authenticated as `/v2/command/`: `Authorization: Bearer <token>`
+checked by `auth.Authorize` (401), then the disabled-chain check (403). It
+answers `200 text/event-stream`, writes `: connected`, a `: keep-alive`
+comment every 25 s, and after a commit by another device of the chain:
+
+```
+event: changed
+data: {"types":[32904,970000]}
+```
+
+(EntitySpecifics field numbers, sorted; never contents.) The controller
+calls the hub after every successful Commit with the types of the entries
+that got `SUCCESS` (a conflict-only commit tells nobody), excluding streams
+whose `client_id` is the commit's `cache_guid` (the committer). A stream
+without `client_id` hears everything, its own commits too. One hub, in
+memory, chains keyed case-insensitively; per stream a set of pending types
+and a wake channel, so `Notify` never blocks a commit and a slow stream
+gets one merged event. Limits: 20 streams per chain, 50 per client address
+(`COMPASS_SYNC_EVENTS_PER_IP`; behind a proxy this needs
+`COMPASS_SYNC_TRUSTED_PROXIES`, or every device has the proxy's address),
+`429` with `Retry-After: 60` beyond; a write that takes over 15 s ends the
+stream. The route is mounted outside chi's 60 s request timeout, which
+until now wrapped every route (it would have cut each stream at 60 s); the
+rest keeps it. Graceful shutdown: `http.Server.Shutdown` doesn't end
+handlers, so `RegisterOnShutdown(hub.Close)` ends the streams and refuses
+new ones (503). A restart drops all streams; the devices reconnect.
+
+**Poll interval.** go-sync sends `ClientCommand.set_sync_poll_interval` in
+every response (`HandleClientToServerMessage`, `command/command.go`), from
+its constant `setSyncPollInterval = 30` (seconds). Now a variable, 900 s by
+default, `COMPASS_SYNC_POLL_SECONDS` (30 to 86400). Devices without push
+(older builds, a proxy that buffers) still sync on focus, wake and every
+15 min.
+
+**Proxies.** Caddy's `reverse_proxy` flushes `text/event-stream` responses
+at once by itself; the bundled `Caddyfile` also sets `flush_interval -1`
+(explicit for every response). For the public instance on the sync server: add the
+same `flush_interval -1` inside the `reverse_proxy` block of
+`/etc/caddy/sites/sync.example.org.caddy` (optional, Caddy already
+streams SSE), and check that the container has
+`COMPASS_SYNC_TRUSTED_PROXIES` set to the address Caddy connects from (it
+reaches `127.0.0.1:8295` through Docker's port mapping, so the server sees
+the bridge gateway); otherwise all devices share one address and the
+50-stream limit is for all of them together (raise it with
+`COMPASS_SYNC_EVENTS_PER_IP` if in doubt). A Caddy reload closes streams;
+devices reconnect in about a second. nginx needs `proxy_buffering off`
+(the server also sends `X-Accel-Buffering: no`). `server/README.md` says
+the same.
+
+**Browser** (`//compass/components/sync:notifier`,
+`compass_sync_notifier.{h,cc}`). `CompassSyncNotifier` holds the stream and
+calls back with the changed types. Transport: `network::SimpleURLLoader`
+with `DownloadAsStream()` and a `SimpleURLLoaderStreamConsumer` (in 156,
+the upstream way to read a body as it arrives; no timeout set), behind a
+small `EventStream`/`EventStreamFactory` interface so the logic is tested
+on a fake transport and the real one on `TestURLLoaderFactory`. The parser
+follows the HTML spec's event-stream rules for `event` and `data` (LF, CR,
+CRLF; comments skipped; 64 KiB line cap). Field numbers map to
+`syncer::DataType` with `GetDataTypeFromSpecificsFieldNumber()`; unknown
+ones are dropped; an unreadable event refreshes everything.
+
+- **Owner**: `CompassSyncService::UpdateNotifier()`, called on every sync
+  state change: creates it once the chain runs, the passphrase is in place
+  (`AreDataTypesReleased()`) and the transport is active; destroys it on
+  Leave, sync shutdown and profile shutdown. One per `CompassSyncService`,
+  so one per profile with a running chain (slice 5's per-profile chains get
+  one each with no change here).
+- **Token**: a fresh one per connect (`SyncCredentials::MakeToken`). The
+  server checks it at connect only; a stream may stay open past the token's
+  24 h, which is fine (the device holds the key).
+- **Cache GUID**: the local `DeviceInfo`'s `guid()`
+  (`DeviceInfoSyncServiceFactory` → local device info provider), which is
+  the engine's cache GUID, the one each Commit carries. Read at each
+  connect; before DEVICE_INFO runs it's empty and the device hears its own
+  commits until its next reconnect (an extra GetUpdates, nothing worse).
+- **Refresh**: `SyncService::TriggerRefresh(kSyncInvalidationsService,
+  types ∩ active types)`. The source only feeds `Sync.TriggerRefreshSource`;
+  invalidations are what this replaces. A 250 ms debounce merges a burst
+  (another device's import commits in batches of 90, type after type) into
+  one request, and the engine adds its own 500 ms local-refresh nudge
+  delay. Not `kMinRefreshInterval` (10 s): that throttles focus and wake,
+  which fire often with nothing new; a notification means there is a
+  change now, and 10 s would undo the slice.
+- **Reconnect**: `net::BackoffEntry`, 1 s doubling to 5 min, up to 20%
+  shorter (jitter), reset once a stream has lived 30 s; a network change
+  (`NetworkConnectionTracker`, any type but NONE) or a wake
+  (`PowerSuspendObserver::OnResume`) reconnects after 0.5 s with the
+  backoff reset; NONE counts as a failure (the type is only a hint, so it
+  keeps trying). A stream silent for 75 s (three keep-alives) is dead (NAT,
+  sleep) and replaced; the same timer bounds the wait for a response. HTTP
+  errors (401, 429, 503) back off. After every reconnect but the first
+  connect, a refresh of all types: changes made while it was down weren't
+  announced.
+- **Logs** (`--vmodule=compass_sync_notifier=1`, added to `instance.sh`):
+  `[compass-sync] notifier: connecting to ...`, `connected`, `changed
+  <types>`, `refresh <types>`, `<why>; reconnecting in N ms (failure K)`.
+
+**Tests**: Go, `server/events` (notify other devices, committer and other
+chains not, merging, auth 401/403/500, method, long client_id, per-chain
+and per-address limits, keep-alive on an injected ticker and a real one,
+disconnect cleanup, hub close, `http.Server.Shutdown`), `server/server`
+end to end over HTTP with real tokens (commit on A → event on B with the
+bookmark and an unknown future type; A, another chain, a conflict-only
+commit and GetUpdates notify nobody; 401s; poll interval 900),
+`command` (`COMPASS_SYNC_POLL_SECONDS`). C++: `CompassSyncNotifier*` unit
+tests (sync-slice-6-steps.md, step 3).
+
+**Overlaps with slices 4 and 5**: `compass_sync_service.{h,cc}` (a member,
+`UpdateNotifier()`, and calls in `OnStateChanged`, `Leave`,
+`OnSyncShutdown`, `Shutdown`), `browser/sync/BUILD.gn` (one dep),
+`server/server/server.go` (routes: the pairing mount moved into a group
+with the request timeout), `server/README.md`, `server/Caddyfile`,
+`tools/sync_e2e/` (`instance.sh` vmodule, `sidebar.js` `wait` op and
+`timed`, `add_bookmark.js` returns `at`, new `wait_bookmark.js`).
+
+**Limits.** Single process: notifications reach only streams on the
+process that took the commit (as the rest of the server, in memory). Each
+device holds one HTTP connection open (HTTP/2 through Caddy shares it with
+sync requests). Today and title throttling (3b) still applies on the
+sending side: a tab's content change can wait up to 10 s before it's
+committed, and only then announced.
+
+**MacBook run (1 Nov, against sync.example.org).** The first build
+(5bfecb7) failed: an unused `offline_`, a protected fixture helper called
+from `FakeStream`, an incomplete `WeakWrapperSharedURLLoaderFactory` (fixed
+in 0cf7beb). Two unit tests then failed because `compass_unittests`
+already has a global `TestNetworkConnectionTracker` and the fixture made a
+second one (6e24c9e); `wait_bookmark.js` polled `getTree()`, the page's
+load-time snapshot, and never saw a synced bookmark (02cfe61: listens to
+`onCreated`). At 02cfe61 all 26 `CompassSyncNotifier*` tests pass. Times
+from A's change to B having it, no manual refresh: bookmarks 1.15-1.18 s
+(B logs "changed" 0.1-0.3 s after A's add, "refresh" ~250 ms later),
+pinned 1.21-1.29 s, Today 1.20-1.28 s. A logs no "changed" for its own
+commits. Outage (the sync server container stopped 30 s, Caddy up): both streams
+closed at the stop, then "HTTP 502" with backoff 1, 1.8, 3.5, 8, 15, 31 s
+(jittered), "connected" 24-31 s after the server came back, then one
+refresh of all types; changes after it took 1.15 s (bookmark) and 1.25 s
+(pinned). No crashes or DCHECKs; no errors in the server log.
 
 ### Change notifications
 
@@ -1053,9 +1493,10 @@ Google's keys, so they're off. First slices: the server sets a short poll
 interval (30 s, go-sync's default, as slice 1 ships it) through
 `ClientCommand`, which the engine honours as is, and Compass calls
 `SyncService::TriggerRefresh()` (public, no patch) when a window gains focus
-and when the Mac wakes. Later (slice 6): a long-lived SSE/WebSocket from
-`CompassSyncNotifier` to the server, which calls `TriggerRefresh(types)`
-the moment another device commits; polling then goes back to hours.
+and when the Mac wakes. Since slice 6: a long-lived Server-Sent Events
+stream from `CompassSyncNotifier` to the server, which calls
+`TriggerRefresh(types)` the moment another device commits; the poll is 15
+min, the fallback (see "Slice 6 notes").
 
 ## The `COMPASS_SPACES` data type
 
@@ -1214,7 +1655,8 @@ holds; the passphrase is per profile too).
   if a shared instance needs it.
 - Replace its auth with the Ed25519 token above.
 - Limits per chain: 100k entities, 200 MB, rate limit per IP and per chain.
-- Endpoints: `POST /v1/command/` (protocol), `GET /v1/events` (SSE, slice 6),
+- Endpoints: `POST /v2/command/` (protocol), `/v2/compass/pair` (pairing),
+  `GET /v2/compass/events` (SSE change notifications, slice 6),
   `GET /healthz`.
 - Self-hosted only for now (decided): there is no Compass-run instance, the
   app's server URL is empty until the user sets one. Ship a
@@ -1246,6 +1688,8 @@ Upstream's sync settings are replaced by a page of our own,
 - Status in the header's app menu: last synced, errors.
 - Command bar: "Tabs on <device>" from `SESSIONS` (`SessionSyncService`
   open tabs), opened as Today entries.
+
+As built in slice 4: "Slice 4 notes".
 
 ## Slices
 
@@ -1288,13 +1732,14 @@ Upstream's sync settings are replaced by a page of our own,
    Two-client tests: open on A shows unloaded on B, close on B closes on A
    (and the focused-tab exception), quitting A keeps B's Today, both
    navigate the same entry.
-4. **UI**: full settings page, devices, type toggles, status in the app
-   menu, "Tabs on other devices" in the command bar.
+4. **UI** (done, see "Slice 4 notes"): full settings page, devices, type
+   toggles, status in the app menu, "Tabs on other devices" in the command
+   bar; the pairing contract's proposals 1-3.
 5. **Profiles** (on `sync/slice-5-profiles`, see "Slice 5 notes"):
    per-profile accounts, profile list, mapping at join, moving spaces
    between profiles.
-6. **Push**: SSE from the server, `CompassSyncNotifier`, long poll
-   interval.
+6. **Push** (done, see "Slice 6 notes"): SSE from the server,
+   `CompassSyncNotifier`, long poll interval.
 7. **Hardening**: quota errors shown, key rotation ("Reset sync"), server
    backups, and a real check on two Macs (this one and the MacBook).
 

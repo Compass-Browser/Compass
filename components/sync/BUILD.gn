@@ -79,11 +79,30 @@ source_set("controllers_hook") {
   ]
 }
 
+# Change notifications (slice 6): a Server-Sent Events stream from the
+# chain's server that tells the engine to fetch at once. Owned by the
+# browser's CompassSyncService; nothing here depends on the sync service.
+source_set("notifier") {
+  sources = [
+    "compass_sync_notifier.cc",
+    "compass_sync_notifier.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/sync/base",
+    "//net",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+  deps = [ "//services/network/public/mojom" ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
     "bip39_unittest.cc",
     "chain_unittest.cc",
+    "compass_sync_notifier_unittest.cc",
     "engine_unittest.cc",
     "pairing_unittest.cc",
     "profile_list_unittest.cc",
@@ -91,11 +110,17 @@ source_set("unit_tests") {
   deps = [
     ":chain",
     ":engine",
+    ":notifier",
     "//base",
     "//base/test:test_support",
     "//components/prefs:test_support",
     "//components/sync/base",
     "//crypto",
+    "//mojo/public/cpp/system",
+    "//net",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/boringssl",

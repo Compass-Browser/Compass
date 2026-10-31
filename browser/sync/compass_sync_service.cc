@@ -27,9 +27,12 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "compass/browser/sync/compass_profile_creator.h"
 #include "compass/browser/sync/compass_spaces_sync.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
+#include "compass/browser/sync/sync_settings.h"
+#include "compass/components/sync/compass_sync_notifier.h"
 #include "compass/components/sync/pairing_network_transport.h"
 #include "compass/components/sync/pref_names.h"
 #include "compass/components/sync/sync_credentials.h"
@@ -39,15 +42,22 @@
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/signin/public/base/gaia_id_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/passphrase_enums.h"
 #include "components/sync/base/pref_names.h"
 #include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_token_status.h"
 #include "components/sync/service/sync_user_settings.h"
+#include "components/sync_device_info/device_info.h"
+#include "components/sync_device_info/device_info_sync_service.h"
+#include "components/sync_device_info/local_device_info_provider.h"
 #include "components/sync_device_info/local_device_info_util.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/storage_partition.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace compass::sync {
@@ -56,20 +66,11 @@ namespace {
 // Focus and wake ask the server for changes at most this often.
 constexpr base::TimeDelta kMinRefreshInterval = base::Seconds(10);
 
-// The types docs/design/sync.md, "What syncs", turns off that have a
-// selectable type. WebAuthn credentials ride with Passwords, so their
-// controller is left out instead (patches/
-// chrome-browser-sync-sync_service_factory.cc.patch). History (kHistory:
-// HISTORY and HISTORY_DELETE_DIRECTIVES) is wanted and selected like the rest;
-// it runs under local sync, encrypted, since slice 2b (sync.md, "Slice 2b
-// notes"). Its USER_EVENTS and JOURNEY stay off: local sync leaves them out.
-constexpr syncer::UserSelectableType kUnwantedTypes[] = {
-    syncer::UserSelectableType::kApps,
-    syncer::UserSelectableType::kPayments,
-    syncer::UserSelectableType::kProductComparison,
-    syncer::UserSelectableType::kSavedTabGroups,
-    syncer::UserSelectableType::kThemes,
-};
+// The types Compass never syncs are GetUnwantedSelectableTypes()
+// (sync_settings.h). History (kHistory: HISTORY and
+// HISTORY_DELETE_DIRECTIVES) is wanted and selected like the rest; it runs
+// under local sync, encrypted, since slice 2b (sync.md, "Slice 2b notes").
+// Its USER_EVENTS and JOURNEY stay off: local sync leaves them out.
 
 std::string HostResultMessage(PairingHost::Result result) {
   switch (result) {
@@ -78,7 +79,9 @@ std::string HostResultMessage(PairingHost::Result result) {
     case PairingHost::Result::kDenied:
       return "Not added.";
     case PairingHost::Result::kWrongCode:
-      return "The code didn't match. Try again with a new code.";
+      return "Wrong code. Try again with a new code.";
+    case PairingHost::Result::kCanceled:
+      return "The other device canceled.";
     case PairingHost::Result::kExpired:
       return "The code expired. Try again with a new code.";
     case PairingHost::Result::kRateLimited:
@@ -94,7 +97,7 @@ std::string JoinResultMessage(PairingJoiner::Result result) {
     case PairingJoiner::Result::kJoined:
       return "Joined. Restart Compass to start syncing.";
     case PairingJoiner::Result::kDenied:
-      return "The other device didn't add this one.";
+      return "Not added: the other device said no.";
     case PairingJoiner::Result::kBadCode:
       return "Enter the code as shown, like 7-482913.";
     case PairingJoiner::Result::kNoSuchCode:
@@ -102,12 +105,14 @@ std::string JoinResultMessage(PairingJoiner::Result result) {
     case PairingJoiner::Result::kCodeUsed:
       return "That code was already used. Ask for a new one.";
     case PairingJoiner::Result::kWrongCode:
-      return "The code didn't match. Ask for a new one.";
+      return "Wrong code. Ask the other device for a new one.";
+    case PairingJoiner::Result::kCanceled:
+      return "The other device canceled. Ask for a new code.";
     case PairingJoiner::Result::kClosed:
       return "The other device ended pairing. Check the code and ask for a "
              "new one.";
     case PairingJoiner::Result::kExpired:
-      return "The code expired. Ask for a new one.";
+      return "Code expired. Ask for a new one.";
     case PairingJoiner::Result::kRateLimited:
       return "Too many attempts. Try again in a few minutes.";
     case PairingJoiner::Result::kFailed:
@@ -181,10 +186,16 @@ CompassSyncService::CompassSyncService(
     : profile_(profile),
       prefs_(profile->GetPrefs()),
       sync_service_(sync_service),
+      device_info_(sync_service
+                       ? DeviceInfoSyncServiceFactory::GetForProfile(profile)
+                       : nullptr),
       os_crypt_async_(os_crypt_async),
       credentials_(SyncCredentials::ForPrefs(profile->GetPrefs())) {
   if (sync_service_) {
     sync_observation_.Observe(sync_service_);
+  }
+  if (device_info_ && device_info_->GetDeviceInfoTracker()) {
+    device_info_observation_.Observe(device_info_->GetDeviceInfoTracker());
   }
   if (ProfileBrowserCollection* browsers =
           ProfileBrowserCollection::GetForProfile(profile)) {
@@ -230,9 +241,12 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kProfilesPending, false);
   registry->RegisterDictionaryPref(prefs::kProfileDirs);
   registry->RegisterListPref(prefs::kProfilesRemoved);
+  registry->RegisterBooleanPref(prefs::kResetPending, false);
+  RegisterSyncSettingsPrefs(registry);
 }
 
 void CompassSyncService::Shutdown() {
+  notifier_.reset();
   host_.reset();
   joiner_.reset();
   missing_profiles_.reset();
@@ -246,6 +260,8 @@ void CompassSyncService::Shutdown() {
   observing_directory_ = false;
   setup_handle_.reset();
   sync_observation_.Reset();
+  device_info_observation_.Reset();
+  device_info_ = nullptr;
   browser_observation_.Reset();
   if (observing_power_) {
     base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
@@ -267,13 +283,18 @@ GURL CompassSyncService::GetServerUrl() const {
 }
 
 bool CompassSyncService::AreDataTypesReleased() const {
+  return AreTypesSelected() &&
+         !GetDisabledSyncDataTypes(prefs_).contains(SyncDataType::kSpaces);
+}
+
+bool CompassSyncService::AreTypesSelected() const {
   return IsChainRunning() && seed_ && !types_held_ && !setup_handle_;
 }
 
 bool CompassSyncService::IsChainRunning() const {
   // As compass::sync::IsChainEnabled(), which picks the engine.
   return sync_service_ && sync_service_->IsLocalSyncEnabled() && HasSeed() &&
-         GetServerUrl().is_valid() && !left_;
+         GetServerUrl().is_valid() && !left_ && !reset_;
 }
 
 // Status ----------------------------------------------------------------------
@@ -292,6 +313,13 @@ SyncStatus CompassSyncService::GetStatus() const {
   if (left_) {
     status.state = SyncState::kNeedsRestart;
     status.message = "Restart Compass to finish leaving sync.";
+    return status;
+  }
+  if (reset_) {
+    status.state = SyncState::kNeedsRestart;
+    status.message =
+        "Restart Compass to start the new sync chain. Then add your other "
+        "devices again.";
     return status;
   }
   if (!HasSeed()) {
@@ -522,6 +550,7 @@ void CompassSyncService::Leave() {
 void CompassSyncService::LeaveProfile() {
   CancelPairing();
   prefs_->ClearPref(prefs::kSeed);
+  prefs_->ClearPref(prefs::kResetPending);
   prefs_->ClearPref(prefs::kProfileAccount);
   prefs_->ClearPref(prefs::kProfilesPending);
   prefs_->ClearPref(prefs::kProfileDirs);
@@ -541,6 +570,7 @@ void CompassSyncService::LeaveProfile() {
     setup_handle_ = sync_service_->GetSetupInProgressHandle();
   }
   left_ = true;
+  UpdateNotifier();
   if (sync_service_) {
     sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
   }
@@ -592,21 +622,15 @@ void CompassSyncService::OnEncryptorForLoad(
 
 void CompassSyncService::HoldTypes() {
   types_held_ = true;
-  sync_service_->GetUserSettings()->SetSelectedTypes(
-      /*sync_everything=*/false, syncer::UserSelectableTypeSet());
+  HoldSelectableTypes(sync_service_->GetUserSettings());
   // COMPASS_SPACES isn't selectable: its controller asks
   // AreDataTypesReleased().
   sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
 }
 
 void CompassSyncService::SelectTypes() {
-  syncer::SyncUserSettings* settings = sync_service_->GetUserSettings();
-  syncer::UserSelectableTypeSet types =
-      settings->GetRegisteredSelectableTypes();
-  for (syncer::UserSelectableType type : kUnwantedTypes) {
-    types.Remove(type);
-  }
-  settings->SetSelectedTypes(/*sync_everything=*/false, types);
+  SelectSelectableTypes(sync_service_->GetUserSettings(),
+                        GetDisabledSyncDataTypes(prefs_));
   sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
 }
 
@@ -622,6 +646,7 @@ void CompassSyncService::UpdatePassphrase() {
     if (!decryption_tried_) {
       decryption_tried_ = true;
       passphrase_rejected_ = !settings->SetDecryptionPassphrase(passphrase);
+      passphrase_set_here_ = !passphrase_rejected_;
       LOG_IF(ERROR, passphrase_rejected_)
           << "Compass sync: the server's passphrase isn't the chain's";
       VLOG(1) << "[compass-sync] SetDecryptionPassphrase -> "
@@ -637,7 +662,15 @@ void CompassSyncService::UpdatePassphrase() {
   }
   if (syncer::IsExplicitPassphrase(*type)) {
     passphrase_rejected_ = false;
+    if (types_held_ && prefs_->GetBoolean(prefs::kResetPending) &&
+        !passphrase_set_here_) {
+      // After "Reset sync": the explicit passphrase seen first is the old
+      // chain's, cached, until the engine (fresh, see OnChainReset())
+      // learns the new chain has none and this device sets it.
+      return;
+    }
     if (types_held_) {
+      prefs_->ClearPref(prefs::kResetPending);
       // Everything is encrypted with the chain's key: let the types start.
       VLOG(1) << "[compass-sync] passphrase in place, data types start ("
               << profile_->GetPath().BaseName().AsUTF8Unsafe() << ")";
@@ -656,6 +689,7 @@ void CompassSyncService::UpdatePassphrase() {
     return;
   }
   encryption_requested_ = true;
+  passphrase_set_here_ = true;
   VLOG(1) << "[compass-sync] SetEncryptionPassphrase (was type "
           << static_cast<int>(*type) << ")";
   settings->SetEncryptionPassphrase(passphrase);
@@ -677,8 +711,66 @@ void CompassSyncService::TriggerRefresh() {
       sync_service_->GetActiveDataTypes());
 }
 
+void CompassSyncService::UpdateNotifier() {
+  if (!sync_service_ || !IsChainRunning() || !seed_) {
+    notifier_.reset();
+    return;
+  }
+  if (notifier_ || !AreDataTypesReleased() ||
+      sync_service_->GetTransportState() !=
+          syncer::SyncService::TransportState::ACTIVE) {
+    return;
+  }
+  notifier_ = std::make_unique<CompassSyncNotifier>(
+      GetServerUrl(),
+      MakeNetworkEventStreamFactory(
+          profile_->GetDefaultStoragePartition()
+              ->GetURLLoaderFactoryForBrowserProcess()),
+      base::BindRepeating(
+          [](scoped_refptr<SyncCredentials> credentials) {
+            return credentials->MakeToken(base::Time::Now());
+          },
+          credentials_),
+      // The device's cache GUID (its DEVICE_INFO entry's), so the server
+      // leaves out this device's own commits.
+      base::BindRepeating(
+          [](Profile* profile) -> std::string {
+            syncer::DeviceInfoSyncService* device_info =
+                DeviceInfoSyncServiceFactory::GetForProfile(profile);
+            const syncer::DeviceInfo* local =
+                device_info ? device_info->GetLocalDeviceInfoProvider()
+                                  ->GetLocalDeviceInfo()
+                            : nullptr;
+            return local ? local->guid() : std::string();
+          },
+          base::Unretained(profile_.get())),
+      // Not TriggerRefresh() above: that one waits kMinRefreshInterval
+      // between focus and wake refreshes; a notification is a real change
+      // elsewhere and the notifier already merges bursts.
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self,
+             syncer::DataTypeSet types) {
+            if (!self || !self->sync_service_ ||
+                self->sync_service_->GetTransportState() !=
+                    syncer::SyncService::TransportState::ACTIVE) {
+              return;
+            }
+            types.RetainAll(self->sync_service_->GetActiveDataTypes());
+            if (!types.empty()) {
+              self->sync_service_->TriggerRefresh(
+                  syncer::SyncService::TriggerRefreshSource::
+                      kSyncInvalidationsService,
+                  types);
+            }
+          },
+          weak_factory_.GetWeakPtr()),
+      content::GetNetworkConnectionTracker());
+  notifier_->Start();
+}
+
 void CompassSyncService::OnStateChanged(syncer::SyncService* sync) {
   UpdatePassphrase();
+  UpdateNotifier();
   NotifyObservers();
 }
 
@@ -686,7 +778,12 @@ void CompassSyncService::OnSyncCycleCompleted(syncer::SyncService* sync) {
   NotifyObservers();
 }
 
+void CompassSyncService::OnDeviceInfoChange() {
+  NotifyObservers();
+}
+
 void CompassSyncService::OnSyncShutdown(syncer::SyncService* sync) {
+  notifier_.reset();
   setup_handle_.reset();
   sync_observation_.Reset();
   sync_service_ = nullptr;
@@ -862,6 +959,167 @@ void CompassSyncService::CancelPairing() {
   joiner_.reset();
   pending_join_.reset();
   SetPairing(PairingStatus());
+}
+
+// The page's details ------------------------------------------------------
+
+std::vector<SyncDevice> CompassSyncService::GetDevices() const {
+  std::vector<SyncDevice> devices;
+  if (!IsChainRunning() || !device_info_ ||
+      !device_info_->GetDeviceInfoTracker()) {
+    return devices;
+  }
+  const syncer::DeviceInfoTracker* tracker =
+      device_info_->GetDeviceInfoTracker();
+  const syncer::DeviceInfo* local =
+      device_info_->GetLocalDeviceInfoProvider()
+          ? device_info_->GetLocalDeviceInfoProvider()->GetLocalDeviceInfo()
+          : nullptr;
+  for (const syncer::DeviceInfo* info : tracker->GetAllDeviceInfo()) {
+    const bool this_device = local && local->guid() == info->guid();
+    if (!this_device && tracker->IsRecentLocalCacheGuid(info->guid())) {
+      // This device in an earlier sync setup (before leaving and joining
+      // again); it expires on the server.
+      continue;
+    }
+    SyncDevice device;
+    device.name = info->client_name();
+    device.kind = GetDeviceKind(info->os_type(), info->form_factor());
+    device.last_seen = info->last_updated_timestamp();
+    device.this_device = this_device;
+    devices.push_back(std::move(device));
+  }
+  // This device first, then the most recently seen.
+  std::ranges::sort(devices, [](const SyncDevice& a, const SyncDevice& b) {
+    if (a.this_device != b.this_device) {
+      return a.this_device;
+    }
+    return a.last_seen > b.last_seen;
+  });
+  return devices;
+}
+
+std::vector<SyncDataTypeState> CompassSyncService::GetDataTypes() const {
+  const SyncDataTypeSet disabled = GetDisabledSyncDataTypes(prefs_);
+  std::vector<SyncDataTypeState> types;
+  for (SyncDataType type : kAllSyncDataTypes) {
+    types.push_back({type, !disabled.contains(type)});
+  }
+  return types;
+}
+
+void CompassSyncService::SetDataTypeEnabled(SyncDataType type, bool enabled) {
+  SetSyncDataTypeEnabled(prefs_, type, enabled);
+  // While the types are held (no passphrase yet), the choice only waits in
+  // the pref: SelectTypes() reads it when they're released.
+  if (sync_service_ && IsChainRunning()) {
+    if (type == SyncDataType::kSpaces) {
+      sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
+    } else if (AreTypesSelected()) {
+      SelectTypes();
+    }
+  }
+  NotifyObservers();
+}
+
+std::vector<std::string> CompassSyncService::GetRecoveryCode() const {
+  if (!seed_ || left_ || reset_) {
+    return {};
+  }
+  return SeedToRecoveryWords(*seed_);
+}
+
+void CompassSyncService::ResetChain(StartCallback callback) {
+  if (!seed_ || !IsChainRunning()) {
+    std::move(callback).Run(false, "Sync isn't running on this device.", {});
+    return;
+  }
+  // The pref's URL, or --sync-url's.
+  GURL server_url = ParseServerUrl(prefs_->GetString(prefs::kServerUrl));
+  if (!server_url.is_valid()) {
+    server_url = GetServerUrl();
+  }
+  // The whole device moves to the new chain, as it leaves: every profile in
+  // the chain, each keeping its UUID and so its place (home or not) in the
+  // new chain (slice 5).
+  for (Profile* profile : GetListableProfiles()) {
+    CompassSyncService* other =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile);
+    if (other && other != this && other->HasSeed() && !other->left_ &&
+        !other->reset_) {
+      other->StopForReset();
+    }
+  }
+  StopForReset();
+  const Seed seed = GenerateSeed();
+  // SaveChain() replaces the seed; the server URL stays.
+  SaveChain(server_url, seed,
+            base::BindOnce(&CompassSyncService::OnChainReset,
+                           weak_factory_.GetWeakPtr(), std::move(callback),
+                           SeedToRecoveryWords(seed)));
+}
+
+void CompassSyncService::StopForReset() {
+  CancelPairing();
+  // This run's engine stops talking to the old chain (its requests fail
+  // without a key) and configuring; the new chain starts after a restart.
+  credentials_->Clear();
+  if (sync_service_ && !setup_handle_) {
+    setup_handle_ = sync_service_->GetSetupInProgressHandle();
+  }
+  reset_ = true;
+  seed_.reset();
+  UpdateNotifier();
+  if (sync_service_) {
+    sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
+  }
+  NotifyObservers();
+}
+
+void CompassSyncService::ForgetOldChain() {
+  // Forget this device's place in the old chain: at the next launch the
+  // engine finds no cache GUID, makes a new one and starts afresh (every
+  // type's metadata, Nigori's included, is dropped on the GUID mismatch),
+  // so this device's data goes up to the new chain as a first sync. Local
+  // sync has no account, so its transport data is keyed to the empty Gaia
+  // ID.
+  syncer::SyncTransportDataPrefs(prefs_,
+                                 signin::GaiaIdHash::FromGaiaId(GaiaId()))
+      .ClearForCurrentAccount();
+  prefs_->SetBoolean(prefs::kResetPending, true);
+  prefs_->CommitPendingWrite();
+}
+
+void CompassSyncService::OnChainReset(StartCallback callback,
+                                      std::vector<std::string> words,
+                                      bool ok,
+                                      std::string error) {
+  if (!ok) {
+    // The old seed is still in every profile's pref: the old chain resumes
+    // at the next launch.
+    std::move(callback).Run(false, std::move(error), {});
+    return;
+  }
+  ForgetOldChain();
+  // The device's other profiles of the chain take the new seed (as this
+  // profile stores it: os_crypt's key is the same for every profile), and
+  // forget the old chain too.
+  for (Profile* profile : GetListableProfiles()) {
+    CompassSyncService* other =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile);
+    if (!other || other == this || !other->reset_ || !other->HasSeed()) {
+      continue;
+    }
+    PrefService* other_prefs = other->prefs_;
+    other_prefs->SetString(prefs::kSeed, prefs_->GetString(prefs::kSeed));
+    other_prefs->SetString(prefs::kServerUrl,
+                           prefs_->GetString(prefs::kServerUrl));
+    other->ForgetOldChain();
+    other->NotifyObservers();
+  }
+  VLOG(1) << "[compass-sync] chain reset; restart to start the new one";
+  std::move(callback).Run(true, std::string(), std::move(words));
+  NotifyObservers();
 }
 
 // Profiles (slice 5) ---------------------------------------------------------

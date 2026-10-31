@@ -66,13 +66,38 @@ Environment variables (all optional):
 | `COMPASS_SYNC_MAX_ENTITIES` | `100000` | Live entities per chain (history counts, up to 30000 of it) |
 | `COMPASS_SYNC_MAX_BYTES` | `209715200` (200 MiB) | Stored bytes per chain; `0` = no limit |
 | `COMPASS_SYNC_TRUSTED_PROXIES` | none | CIDRs whose `X-Forwarded-For` is believed (your reverse proxy) |
+| `COMPASS_SYNC_POLL_SECONDS` | `900` | How often devices poll for changes (30-86400); they hear of changes at once through change notifications, so this is the fallback |
+| `COMPASS_SYNC_EVENTS_PER_IP` | `50` | Open change-notification streams per client address |
 | `COMPASS_SYNC_SHUTDOWN_DELAY` | `0s` | Wait before closing on SIGTERM (for load balancers) |
 | `COMPASS_SYNC_METRICS` | off | `1` serves Prometheus metrics on `/metrics` |
+| `COMPASS_SYNC_PUBLIC_HOST` | the request's `Host` | The server's name both devices bind when pairing (e.g. `sync.example.com`); set it when devices reach the server by different names (IP, Tailscale name) |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
 
 Never list a proxy as trusted unless every request reaches the server
 through it: anyone who can connect directly could then choose the address
 the pairing rate limits see.
+
+## Change notifications and reverse proxies
+
+Each syncing device keeps one request open to `/v2/compass/events`
+(Server-Sent Events) and asks for changes as soon as another device of its
+chain commits; the server sends only which data types changed. A comment
+line every 25 s keeps the stream alive. A proxy in front must pass the
+response through unbuffered and not time it out:
+
+- **Caddy**: works as is (`reverse_proxy` flushes `text/event-stream` at
+  once). The bundled `Caddyfile` also sets `flush_interval -1`, which you can
+  copy into your own site block. Reloading Caddy closes open streams; the
+  devices reconnect within seconds.
+- **nginx**: `proxy_buffering off;` (the server also sends
+  `X-Accel-Buffering: no`) and `proxy_read_timeout` above 25 s.
+- **`tailscale serve`**: works as is.
+
+Limits: 20 open streams per chain and 50 per client address
+(`COMPASS_SYNC_EVENTS_PER_IP`). Behind a proxy, set
+`COMPASS_SYNC_TRUSTED_PROXIES`, or every device has the proxy's address and
+the 50 are for all devices together. If the stream can't be held open, devices still sync on their
+poll (`COMPASS_SYNC_POLL_SECONDS`), on window focus and on wake.
 
 ## Backups
 

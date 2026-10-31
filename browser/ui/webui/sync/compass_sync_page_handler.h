@@ -8,7 +8,9 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "compass/browser/sync/sync_controller.h"
 #include "compass/browser/ui/webui/sync/compass_sync.mojom.h"
@@ -24,11 +26,17 @@ namespace compass {
 class CompassSyncPageHandler : public sync::mojom::PageHandler,
                                public sync::SyncController::Observer {
  public:
+  // Asks the user to prove they're the Mac's user (Touch ID, password) and
+  // runs the callback with the answer.
+  using Reauthenticator =
+      base::RepeatingCallback<void(base::OnceCallback<void(bool)>)>;
+
   // |controller| must outlive |this|.
   CompassSyncPageHandler(
       mojo::PendingReceiver<sync::mojom::PageHandler> receiver,
       mojo::PendingRemote<sync::mojom::Page> page,
-      sync::SyncController* controller);
+      sync::SyncController* controller,
+      Reauthenticator reauthenticator);
   CompassSyncPageHandler(const CompassSyncPageHandler&) = delete;
   CompassSyncPageHandler& operator=(const CompassSyncPageHandler&) = delete;
   ~CompassSyncPageHandler() override;
@@ -46,6 +54,9 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void AnswerPairing(bool allow) override;
   void CancelPairing() override;
   void Leave() override;
+  void SetDataTypeEnabled(sync::mojom::DataType type, bool enabled) override;
+  void RevealRecoveryCode(RevealRecoveryCodeCallback callback) override;
+  void ResetSync(ResetSyncCallback callback) override;
   void Restart() override;
   void GetProfileMapping(GetProfileMappingCallback callback) override;
   void SetProfileMapping(
@@ -57,15 +68,25 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
 
   static sync::mojom::StatusPtr ToMojo(const sync::SyncStatus& status);
   static sync::mojom::PairingPtr ToMojo(const sync::PairingStatus& pairing);
+  static sync::mojom::DetailsPtr ToMojo(
+      const std::vector<sync::SyncDevice>& devices,
+      const std::vector<sync::SyncDataTypeState>& types);
   static sync::mojom::ProfileMappingPtr ToMojo(
       const sync::ProfileMappingStatus& mapping);
 
  private:
+  void OnReauthenticated(RevealRecoveryCodeCallback callback,
+                         bool authenticated);
+  sync::mojom::DetailsPtr GetDetails() const;
+
   mojo::Receiver<sync::mojom::PageHandler> receiver_;
   mojo::Remote<sync::mojom::Page> page_;
   const raw_ptr<sync::SyncController> controller_;
+  Reauthenticator reauthenticator_;
+  bool reauthenticating_ = false;
   base::ScopedObservation<sync::SyncController, sync::SyncController::Observer>
       observation_{this};
+  base::WeakPtrFactory<CompassSyncPageHandler> weak_factory_{this};
 };
 
 }  // namespace compass

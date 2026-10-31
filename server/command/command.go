@@ -23,7 +23,31 @@ var (
 	// LoadQuotaFromEnv. History counts towards it, up to its own quota.
 	maxClientObjectQuota        = DefaultMaxEntities
 	maxClientHistoryObjectQuota = 30000
+	// Compass: the poll interval sent to clients in every ClientCommand.
+	// go-sync sends 30 s (its setSyncPollInterval constant); with change
+	// notifications (slice 6) devices hear of changes at once, so polling is
+	// only the fallback for clients without them: 15 min, or
+	// COMPASS_SYNC_POLL_SECONDS (LoadPollIntervalFromEnv).
+	setSyncPollInterval int32 = DefaultPollSeconds
 )
+
+// DefaultPollSeconds is the default poll interval sent to clients.
+const DefaultPollSeconds = 900
+
+// LoadPollIntervalFromEnv sets the poll interval from
+// COMPASS_SYNC_POLL_SECONDS (30 to 86400; go-sync sent 30).
+func LoadPollIntervalFromEnv() {
+	v := os.Getenv("COMPASS_SYNC_POLL_SECONDS")
+	if v == "" {
+		return
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 30 || n > 86400 {
+		log.Error().Str("value", v).Msg("Ignoring invalid COMPASS_SYNC_POLL_SECONDS (30-86400)")
+		return
+	}
+	setSyncPollInterval = int32(n) //nolint:gosec // G115: bounded above
+}
 
 // DefaultMaxEntities is the default cap on a chain's non-deleted entities.
 const DefaultMaxEntities = 100000
@@ -47,7 +71,6 @@ func LoadQuotaFromEnv() {
 const (
 	storeBirthday       string = "1"
 	maxCommitBatchSize  int32  = 90
-	setSyncPollInterval int32  = 30
 	nigoriTypeID        int32  = 47745
 	deviceInfoTypeID    int    = 154522
 	historyCountTypeStr string = "history"

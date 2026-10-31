@@ -4,6 +4,7 @@
 
 #include "compass/components/sync/pairing_network_transport.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/base64.h"
@@ -54,7 +55,20 @@ const char* RoleName(PairingRole role) {
   return role == PairingRole::kA ? "a" : "b";
 }
 
+constexpr int kHttpGone = 410;
+
 }  // namespace
+
+// static
+PairingClosedReason NetworkPairingTransport::ClosedReasonOf(
+    int status,
+    const std::optional<base::DictValue>& reply) {
+  const std::string* reason = reply ? reply->FindString("reason") : nullptr;
+  if (status != kHttpGone || !reason) {
+    return PairingClosedReason::kUnknown;
+  }
+  return ParsePairingClosedReason(*reason);
+}
 
 NetworkPairingTransport::NetworkPairingTransport(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -93,36 +107,48 @@ void NetworkPairingTransport::Open(OpenCallback callback) {
                     reply ? reply->FindInt("slot") : std::nullopt;
                 const std::optional<int> expires_in =
                     reply ? reply->FindInt("expires_in") : std::nullopt;
+                // Since slice 4; older servers don't name themselves.
+                const std::string* server =
+                    reply ? reply->FindString("server") : nullptr;
                 if (status / 100 == 2 && (!slot || !expires_in)) {
                   status = 0;
                 }
                 std::move(callback).Run(status, slot.value_or(0),
-                                        base::Seconds(expires_in.value_or(0)));
+                                        base::Seconds(expires_in.value_or(0)),
+                                        server ? *server : std::string());
               },
               std::move(callback)));
 }
 
-void NetworkPairingTransport::Join(int slot, StatusCallback callback) {
-  Request("POST",
-          MakePairUrl(server_url_,
-                      base::StrCat({base::NumberToString(slot), "/join"})),
-          std::nullopt, "{}",
-          base::BindOnce(
-              [](base::WeakPtr<NetworkPairingTransport> self,
-                 StatusCallback callback, int status,
-                 std::optional<base::DictValue> reply) {
-                const std::string* token =
-                    reply ? reply->FindString("b_token") : nullptr;
-                if (status / 100 == 2) {
-                  if (!token || token->empty()) {
-                    status = 0;
-                  } else if (self) {
-                    self->b_token_ = *token;
-                  }
-                }
-                std::move(callback).Run(status);
-              },
-              weak_factory_.GetWeakPtr(), std::move(callback)));
+void NetworkPairingTransport::Join(int slot, JoinCallback callback) {
+  Request(
+      "POST",
+      MakePairUrl(server_url_,
+                  base::StrCat({base::NumberToString(slot), "/join"})),
+      std::nullopt, "{}",
+      base::BindOnce(
+          [](base::WeakPtr<NetworkPairingTransport> self, JoinCallback callback,
+             int status, std::optional<base::DictValue> reply) {
+            const std::string* token =
+                reply ? reply->FindString("b_token") : nullptr;
+            // Both since slice 4.
+            const std::string* server =
+                reply ? reply->FindString("server") : nullptr;
+            const std::optional<int> expires_in =
+                reply ? reply->FindInt("expires_in") : std::nullopt;
+            if (status / 100 == 2) {
+              if (!token || token->empty()) {
+                status = 0;
+              } else if (self) {
+                self->b_token_ = *token;
+              }
+            }
+            std::move(callback).Run(
+                status, ClosedReasonOf(status, reply),
+                server ? *server : std::string(),
+                base::Seconds(std::max(expires_in.value_or(0), 0)));
+          },
+          weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void NetworkPairingTransport::Send(int slot,
@@ -141,7 +167,7 @@ void NetworkPairingTransport::Send(int slot,
           base::BindOnce(
               [](StatusCallback callback, int status,
                  std::optional<base::DictValue> reply) {
-                std::move(callback).Run(status);
+                std::move(callback).Run(status, ClosedReasonOf(status, reply));
               },
               std::move(callback)));
 }
@@ -162,6 +188,8 @@ void NetworkPairingTransport::Receive(int slot,
               [](ReceiveCallback callback, int status,
                  std::optional<base::DictValue> reply) {
                 std::vector<PairingMessage> messages;
+                const PairingClosedReason closed =
+                    ClosedReasonOf(status, reply);
                 if (status / 100 == 2) {
                   const base::ListValue* list =
                       reply ? reply->FindList("messages") : nullptr;
@@ -185,15 +213,24 @@ void NetworkPairingTransport::Receive(int slot,
                     }
                   }
                 }
-                std::move(callback).Run(status, std::move(messages));
+                std::move(callback).Run(status, closed, std::move(messages));
               },
               std::move(callback)));
 }
 
-void NetworkPairingTransport::Close(int slot, PairingRole by) {
+void NetworkPairingTransport::Close(int slot,
+                                    PairingRole by,
+                                    PairingClosedReason reason) {
+  GURL url = MakePairUrl(server_url_, base::NumberToString(slot));
+  const std::string_view name = PairingClosedReasonName(reason);
+  if (!name.empty() && reason != PairingClosedReason::kExpired) {
+    GURL::Replacements replacements;
+    const std::string query = base::StrCat({"reason=", name});
+    replacements.SetQueryStr(query);
+    url = url.ReplaceComponents(replacements);
+  }
   std::unique_ptr<network::SimpleURLLoader> loader =
-      MakeLoader("DELETE", MakePairUrl(server_url_, base::NumberToString(slot)),
-                 by, std::nullopt);
+      MakeLoader("DELETE", url, by, std::nullopt);
   network::SimpleURLLoader* raw = loader.get();
   // Owned by its own callback, so it outlives |this|.
   raw->DownloadHeadersOnly(

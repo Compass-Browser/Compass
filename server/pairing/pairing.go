@@ -6,11 +6,18 @@
 // post and read, sizes, counts and lifetimes. Everything is in memory: a
 // restart drops open slots, and the devices start again.
 //
-//	POST   /             A opens a slot (sync token)        201 {"slot","expires_in"}
-//	POST   /{slot}/join  B joins (no auth)                  200 {"b_token"}
+//	POST   /             A opens a slot (sync token)        201 {"slot","expires_in","server"}
+//	POST   /{slot}/join  B joins (no auth)                  200 {"b_token","server","expires_in"}
 //	POST   /{slot}/msg   {"from":"a"|"b","data":base64}     200 {"seq"}
 //	GET    /{slot}/msg?for=a|b&after=n  long poll           200 {"messages":[{"seq","data"}]}
-//	DELETE /{slot}       A's token or B's b_token           204
+//	DELETE /{slot}?reason=mismatch|cancel|deny
+//	                     A's token or B's b_token           204
+//
+// A closed slot says why (sync.md, "Slice 4 notes"): for ClosedTTL after it
+// closes, every request on its number answers 410 {"reason": "mismatch" |
+// "cancel" | "deny" | "expired"}, and the number isn't given out again
+// meanwhile. "server" is the canonical name both devices bind into SPAKE2
+// (Config.PublicHost, else the Host the opening request came to).
 package pairing
 
 import (
@@ -21,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,6 +51,13 @@ type Config struct {
 	JoinWindow         time.Duration
 	OpensPerIP         int // Slot openings per IP per JoinWindow (server policy).
 	MaxOpenSlots       int // All chains together (server policy).
+	// How long a closed or expired slot's number answers 410 with the
+	// reason (and stays reserved).
+	ClosedTTL time.Duration
+	// The server's canonical host name, bound into SPAKE2 by both devices
+	// (COMPASS_SYNC_PUBLIC_HOST). Empty: the Host of the request that opens
+	// the slot.
+	PublicHost string
 
 	// Now is the clock for slot expiry and rate limits.
 	Now func() time.Time
@@ -64,6 +79,7 @@ func DefaultConfig() Config {
 		JoinWindow:         10 * time.Minute,
 		OpensPerIP:         30,
 		MaxOpenSlots:       10000,
+		ClosedTTL:          300 * time.Second,
 		Now:                time.Now,
 	}
 }
@@ -73,9 +89,24 @@ const (
 	sideB = 1
 )
 
+// Why a slot closed, as DELETE's ?reason= and the 410 reply name it.
+const (
+	ReasonMismatch = "mismatch" // A confirmation didn't match: a wrong code.
+	ReasonCancel   = "cancel"   // A or B gave up, or A opened a new slot.
+	ReasonDeny     = "deny"     // A's user didn't add B.
+	ReasonExpired  = "expired"
+)
+
+// closedSlot remembers why a slot number closed, until |until|.
+type closedSlot struct {
+	reason string
+	until  time.Time
+}
+
 type slot struct {
 	num     int
 	chain   string
+	server  string // Canonical host name, bound into SPAKE2.
 	expires time.Time
 	bToken  string        // Empty until B joins.
 	msgs    [2][]string   // Base64 data, by sender.
@@ -88,6 +119,7 @@ type Server struct {
 
 	mu        sync.Mutex
 	slots     map[int]*slot
+	closed    map[int]closedSlot
 	byChain   map[string]int
 	joins     map[string][]time.Time
 	opens     map[string][]time.Time
@@ -99,6 +131,7 @@ func New(cfg Config) *Server {
 	return &Server{
 		cfg:     cfg,
 		slots:   map[int]*slot{},
+		closed:  map[int]closedSlot{},
 		byChain: map[string]int{},
 		joins:   map[string][]time.Time{},
 		opens:   map[string][]time.Time{},
@@ -135,9 +168,13 @@ func (s *Server) expired(sl *slot, now time.Time) bool {
 	return !now.Before(sl.expires)
 }
 
-// closeLocked removes a slot and wakes its pollers.
-func (s *Server) closeLocked(sl *slot) {
+// closeLocked removes a slot, remembers why (from |at|), and wakes its
+// pollers.
+func (s *Server) closeLocked(sl *slot, reason string, at time.Time) {
 	delete(s.slots, sl.num)
+	if s.cfg.ClosedTTL > 0 {
+		s.closed[sl.num] = closedSlot{reason: reason, until: at.Add(s.cfg.ClosedTTL)}
+	}
 	if s.byChain[sl.chain] == sl.num {
 		delete(s.byChain, sl.chain)
 	}
@@ -146,17 +183,63 @@ func (s *Server) closeLocked(sl *slot) {
 }
 
 // lookupLocked returns the open slot |num|, or nil (unknown, closed or
-// expired).
-func (s *Server) lookupLocked(num int, now time.Time) *slot {
+// expired) and, if it closed lately, why.
+func (s *Server) lookupLocked(num int, now time.Time) (*slot, string) {
 	sl := s.slots[num]
-	if sl == nil {
-		return nil
+	if sl != nil && s.expired(sl, now) {
+		s.closeLocked(sl, ReasonExpired, sl.expires)
+		sl = nil
 	}
-	if s.expired(sl, now) {
-		s.closeLocked(sl)
-		return nil
+	if sl != nil {
+		return sl, ""
 	}
-	return sl
+	return nil, s.closedReasonLocked(num, now)
+}
+
+// closedReasonLocked is why slot |num| closed, if it did within ClosedTTL.
+func (s *Server) closedReasonLocked(num int, now time.Time) string {
+	c, ok := s.closed[num]
+	if !ok {
+		return ""
+	}
+	if !now.Before(c.until) {
+		delete(s.closed, num)
+		return ""
+	}
+	return c.reason
+}
+
+// gone answers a request on a slot that isn't open: 410 with the reason if
+// it closed lately, else 404.
+func gone(w http.ResponseWriter, reason string) {
+	if reason != "" {
+		writeJSON(w, http.StatusGone, map[string]string{
+			"error":  "pairing slot closed",
+			"reason": reason,
+		})
+		return
+	}
+	fail(w, http.StatusNotFound, "no such pairing slot")
+}
+
+// canonicalHost is the name both devices bind into SPAKE2: PublicHost if
+// set, else the Host the request came to; without a port, lower-case (as
+// Chromium's GURL::host(), which older clients bind).
+func (s *Server) canonicalHost(r *http.Request) string {
+	h := s.cfg.PublicHost
+	if h == "" {
+		h = r.Host
+	}
+	if host, _, err := net.SplitHostPort(h); err == nil {
+		h = host
+	}
+	return strings.ToLower(h)
+}
+
+// secondsLeft is a slot's remaining life in whole seconds, rounded up.
+func secondsLeft(sl *slot, now time.Time) int {
+	left := sl.expires.Sub(now)
+	return int((left + time.Second - 1) / time.Second)
 }
 
 // sweepLocked drops expired slots and old rate-limit entries, at most once
@@ -168,7 +251,12 @@ func (s *Server) sweepLocked(now time.Time) {
 	s.lastSweep = now
 	for _, sl := range s.slots {
 		if s.expired(sl, now) {
-			s.closeLocked(sl)
+			s.closeLocked(sl, ReasonExpired, sl.expires)
+		}
+	}
+	for num, c := range s.closed {
+		if !now.Before(c.until) {
+			delete(s.closed, num)
 		}
 	}
 	for _, m := range []map[string][]time.Time{s.joins, s.opens} {
@@ -226,34 +314,39 @@ func (s *Server) open(w http.ResponseWriter, r *http.Request) {
 	}
 	key := chainKey(chain)
 	if old := s.slots[s.byChain[key]]; old != nil && old.chain == key {
-		s.closeLocked(old)
+		if s.expired(old, now) {
+			s.closeLocked(old, ReasonExpired, old.expires)
+		} else {
+			s.closeLocked(old, ReasonCancel, now)
+		}
 	}
 	if len(s.slots) >= s.cfg.MaxOpenSlots {
 		fail(w, http.StatusServiceUnavailable, "too many open pairing slots")
 		return
 	}
+	// The lowest number neither open nor closed lately: a device that
+	// typed a closed slot's code learns why instead of reaching a new slot.
 	num := 1
 	for {
-		sl := s.slots[num]
-		if sl == nil {
-			break
-		}
-		if s.expired(sl, now) {
-			s.closeLocked(sl)
+		sl, reason := s.lookupLocked(num, now)
+		if sl == nil && reason == "" {
 			break
 		}
 		num++
 	}
-	s.slots[num] = &slot{
+	sl := &slot{
 		num:     num,
 		chain:   key,
+		server:  s.canonicalHost(r),
 		expires: now.Add(s.cfg.SlotTTL),
 		changed: make(chan struct{}),
 	}
+	s.slots[num] = sl
 	s.byChain[key] = num
-	writeJSON(w, http.StatusCreated, map[string]int{
+	writeJSON(w, http.StatusCreated, map[string]any{
 		"slot":       num,
 		"expires_in": int(s.cfg.SlotTTL / time.Second),
+		"server":     sl.server,
 	})
 }
 
@@ -270,11 +363,12 @@ func (s *Server) join(w http.ResponseWriter, r *http.Request) {
 	}
 	num, ok := slotNumber(r)
 	var sl *slot
+	var reason string
 	if ok {
-		sl = s.lookupLocked(num, now)
+		sl, reason = s.lookupLocked(num, now)
 	}
 	if sl == nil {
-		fail(w, http.StatusNotFound, "no such pairing slot")
+		gone(w, reason)
 		return
 	}
 	if sl.bToken != "" {
@@ -287,7 +381,11 @@ func (s *Server) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sl.bToken = hex.EncodeToString(b[:])
-	writeJSON(w, http.StatusOK, map[string]string{"b_token": sl.bToken})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"b_token":    sl.bToken,
+		"server":     sl.server,
+		"expires_in": secondsLeft(sl, now),
+	})
 }
 
 // caller is who a request proves to be.
@@ -383,9 +481,9 @@ func (s *Server) post(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	sl := s.lookupLocked(num, s.cfg.Now())
+	sl, reason := s.lookupLocked(num, s.cfg.Now())
 	if sl == nil {
-		fail(w, http.StatusNotFound, "no such pairing slot")
+		gone(w, reason)
 		return
 	}
 	if status := authorizeLocked(sl, side, c); status != 0 {
@@ -407,7 +505,10 @@ type message struct {
 	Data string `json:"data"`
 }
 
-var errGone = errors.New("gone")
+// errGone carries why a polled slot closed ("" if unknown).
+type errGone struct{ reason string }
+
+func (e errGone) Error() string { return "gone: " + e.reason }
 
 func (s *Server) poll(w http.ResponseWriter, r *http.Request) {
 	num, ok := slotNumber(r)
@@ -442,9 +543,9 @@ func (s *Server) poll(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		now := s.cfg.Now()
-		sl := s.lookupLocked(num, now)
+		sl, reason := s.lookupLocked(num, now)
 		if sl == nil {
-			return nil, nil, 0, 0, errGone
+			return nil, nil, 0, 0, errGone{reason}
 		}
 		if status := authorizeLocked(sl, reader, c); status != 0 {
 			return nil, nil, 0, status, nil
@@ -458,8 +559,9 @@ func (s *Server) poll(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		msgs, changed, untilExpiry, status, err := check()
-		if errors.Is(err, errGone) {
-			fail(w, http.StatusNotFound, "no such pairing slot")
+		var g errGone
+		if errors.As(err, &g) {
+			gone(w, g.reason)
 			return
 		}
 		if status != 0 {
@@ -492,12 +594,23 @@ func (s *Server) close(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotFound, "no such pairing slot")
 		return
 	}
+	// Older clients send no reason: a plain cancel.
+	why := r.URL.Query().Get("reason")
+	switch why {
+	case "":
+		why = ReasonCancel
+	case ReasonMismatch, ReasonCancel, ReasonDeny:
+	default:
+		fail(w, http.StatusBadRequest, `"reason" must be "mismatch", "cancel" or "deny"`)
+		return
+	}
 	c := s.identify(r)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	sl := s.lookupLocked(num, s.cfg.Now())
+	now := s.cfg.Now()
+	sl, reason := s.lookupLocked(num, now)
 	if sl == nil {
-		fail(w, http.StatusNotFound, "no such pairing slot")
+		gone(w, reason)
 		return
 	}
 	statusA := authorizeLocked(sl, sideA, c)
@@ -507,6 +620,6 @@ func (s *Server) close(w http.ResponseWriter, r *http.Request) {
 		fail(w, max(statusA, statusB), "not allowed to close")
 		return
 	}
-	s.closeLocked(sl)
+	s.closeLocked(sl, why, now)
 	w.WriteHeader(http.StatusNoContent)
 }

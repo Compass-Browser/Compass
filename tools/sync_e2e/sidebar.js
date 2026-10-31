@@ -14,6 +14,9 @@
 //   op=delete-space space=S
 //   op=add-folder space=S title=T [parent=P]  at the end of P (default pinned)
 //   op=open space=S url=U [parent=P]          a new entry for U at the end of P
+//                                             (timed=1: returns {at})
+//   op=wait space=S node=X [timeout=SECONDS]  waits until X is in S, returns
+//                                             when it showed ({at}, Date.now())
 //   op=rename space=S node=X title=T          a folder's name or a tab's
 //   op=move space=S node=X parent=P [index=I] (default: the end)
 //   op=collapse space=S node=X [collapsed=false]
@@ -200,9 +203,24 @@ switch (ARGS.op) {
   case 'open': {
     const space = await show(ARGS.space);
     const parent = await resolve(space, ARGS.parent);
+    const at = Date.now();
     handler.openLink(ARGS.url, parent.id, parent.children.length);
     await settle();
-    return 'opened';
+    return ARGS.timed ? {opened: ARGS.url, at} : 'opened';
+  }
+  case 'wait': {
+    // Polls every 100 ms until the node shows in the space (any section).
+    const deadline = Date.now() + 1000 * Number(ARGS.timeout || 100);
+    const space = await findSpace(ARGS.space);
+    while (Date.now() < deadline) {
+      const t = await tree(space.id);
+      if (find(t.pinned, ARGS.node) || find(t.today, ARGS.node) ||
+          find(t.favorites, ARGS.node)) {
+        return {found: ARGS.node, at: Date.now()};
+      }
+      await sleep(100);
+    }
+    throw new Error('no node ' + ARGS.node + ' in time');
   }
   case 'rename': {
     const space = await show(ARGS.space);

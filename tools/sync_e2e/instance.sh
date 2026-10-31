@@ -44,7 +44,7 @@ case "$action" in
       --no-first-run --no-default-browser-check \
       --disable-features=MacDisclaimGpuTccResponsibility \
       --enable-logging=stderr --log-level=0 \
-      --vmodule=compass_sync_service=1,engine_components_factory=1,compass_spaces_sync_bridge=1,compass_profile_creator=1 \
+      --vmodule=compass_sync_service=1,compass_sync_notifier=1,engine_components_factory=1,compass_spaces_sync_bridge=1,compass_profile_creator=1 \
       --log-net-log="$dir/netlog-$stamp.json" \
       --sync-short-nudge-delay-for-test \
       --sync-short-initial-retry-override \

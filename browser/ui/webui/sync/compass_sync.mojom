@@ -17,6 +17,10 @@ struct Status {
   State state;
   string server_url;
   string message;
+  // The app menu's sync row for this state ("Synced"...): the page shows it
+  // in <html data-menu-label>, so the end-to-end steps can check the row's
+  // text without opening a native menu.
+  string menu_label;
 };
 
 // See compass::sync::PairingStep.
@@ -35,6 +39,43 @@ struct Pairing {
   string code;
   string device_name;
   string message;
+};
+
+// The page's switches; see compass::sync::SyncDataType.
+enum DataType {
+  kPasswords,
+  kHistory,
+  kBookmarks,
+  kAutofill,
+  kExtensions,
+  kSettings,
+  kReadingList,
+  kOpenTabs,
+  kSpaces,
+};
+
+struct DataTypeState {
+  DataType type;
+  bool enabled;
+};
+
+// A device of the chain, from DEVICE_INFO.
+struct Device {
+  string name;
+  // "Mac", "Windows PC", "iPhone"...
+  string kind;
+  // When it last said it's alive, in ms since the Unix epoch (JS time);
+  // 0 if unknown.
+  double last_seen_ms;
+  bool this_device;
+};
+
+// What the page shows beside the status.
+struct Details {
+  // Empty unless sync runs.
+  array<Device> devices;
+  // In the page's order.
+  array<DataTypeState> types;
 };
 
 // Slice 5: joining on a device that has other profiles maps them to the
@@ -74,10 +115,10 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
-// Browser-side handler for chrome://compass-sync (docs/design/sync.md, "UI",
-// slice 2: the minimal page).
+// Browser-side handler for chrome://compass-sync (docs/design/sync.md, "UI"
+// and "Slice 4 notes").
 interface PageHandler {
-  GetState() => (Status status, Pairing pairing);
+  GetState() => (Status status, Pairing pairing, Details details);
 
   // Off.
   // Makes a chain; |words| is the recovery code, shown once.
@@ -92,6 +133,13 @@ interface PageHandler {
   AnswerPairing(bool allow);
   CancelPairing();
   Leave();
+  SetDataTypeEnabled(DataType type, bool enabled);
+  // Asks the user to authenticate (Touch ID or the Mac's password) first;
+  // |ok| false and empty |words| if they don't.
+  RevealRecoveryCode() => (bool ok, string error, array<string> words);
+  // A new chain: new seed, this device's data uploaded again after a
+  // restart, the other devices join again. |words| is the new recovery code.
+  ResetSync() => (bool ok, string error, array<string> words);
 
   Restart();
 
@@ -104,5 +152,5 @@ interface PageHandler {
 
 // Implemented by the page.
 interface Page {
-  OnStateChanged(Status status, Pairing pairing);
+  OnStateChanged(Status status, Pairing pairing, Details details);
 };

@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
+	"slices"
 
 	"github.com/brave-intl/bat-go/libs/closers"
 	"github.com/brave-intl/bat-go/libs/middleware"
@@ -23,17 +24,55 @@ const (
 	payloadLimit10MB = 1024 * 1024 * 10
 )
 
-// SyncRouter add routers for command and auth endpoint requests.
-func SyncRouter(cache *cache.Cache, datastore datastore.Datastore) chi.Router {
+// CommitNotifier is told, after a commit, which data types it changed
+// (their EntitySpecifics field numbers), for chain |clientID|, by the device
+// with |cacheGUID| (Compass: change notifications, events.Hub.Notify).
+type CommitNotifier func(clientID, cacheGUID string, types []int)
+
+// SyncRouter add routers for command and auth endpoint requests. |notify|
+// may be nil.
+func SyncRouter(cache *cache.Cache, datastore datastore.Datastore, notify CommitNotifier) chi.Router {
 	r := chi.NewRouter()
 	r.Use(syncMiddleware.Auth)
 	r.Use(syncMiddleware.DisabledChain)
-	r.Method("POST", "/command/", middleware.InstrumentHandler("Command", Command(cache, datastore)))
+	r.Method("POST", "/command/", middleware.InstrumentHandler("Command", CommandWithNotifier(cache, datastore, notify)))
 	return r
 }
 
 // Command handles GetUpdates and Commit requests from sync clients.
 func Command(cache *cache.Cache, db datastore.Datastore) http.HandlerFunc {
+	return CommandWithNotifier(cache, db, nil)
+}
+
+// changedTypes returns the data types of the entries a commit stored
+// (sorted, without duplicates).
+func changedTypes(msg *sync_pb.ClientToServerMessage, rsp *sync_pb.ClientToServerResponse) []int {
+	if msg.GetMessageContents() != sync_pb.ClientToServerMessage_COMMIT || msg.Commit == nil || rsp.Commit == nil {
+		return nil
+	}
+	seen := map[int]bool{}
+	var types []int
+	for i, entry := range msg.Commit.Entries {
+		if i >= len(rsp.Commit.Entryresponse) {
+			break
+		}
+		if rsp.Commit.Entryresponse[i].GetResponseType() != sync_pb.CommitResponse_SUCCESS || entry.Specifics == nil {
+			continue
+		}
+		t, err := datastore.DataTypeOfSpecifics(entry.Specifics)
+		if err != nil || seen[t] {
+			continue
+		}
+		seen[t] = true
+		types = append(types, t)
+	}
+	slices.Sort(types)
+	return types
+}
+
+// CommandWithNotifier is Command that also tells |notify| (if not nil) what
+// each commit changed.
+func CommandWithNotifier(cache *cache.Cache, db datastore.Datastore, notify CommitNotifier) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		clientID, ok := ctx.Value(syncContext.ContextKeyClientID).(string)
@@ -84,6 +123,12 @@ func Command(cache *cache.Cache, db datastore.Datastore) http.HandlerFunc {
 			log.Error().Err(err).Msg("Marshall ClientToServerResponse failed")
 			http.Error(w, "Marshal Error", http.StatusInternalServerError)
 			return
+		}
+
+		if notify != nil {
+			if types := changedTypes(pb, pbRsp); len(types) > 0 {
+				notify(clientID, pb.Commit.GetCacheGuid(), types)
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)

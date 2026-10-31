@@ -30,9 +30,12 @@ namespace {
 constexpr char kHost[] = "sync.example.com";
 constexpr char kDeviceName[] = "MacBook";
 constexpr base::TimeDelta kSlotLifetime = base::Seconds(300);
+constexpr base::TimeDelta kClosedLifetime = base::Seconds(300);
 constexpr base::TimeDelta kLongPoll = base::Seconds(25);
 
-// The pairing endpoints of docs/design/sync.md, "Pairing API", in memory.
+// The pairing endpoints of docs/design/sync.md, "Pairing API" (with slice
+// 4's changes: closed slots say why, the server names itself, join says how
+// long the slot lives), in memory.
 class FakePairingServer {
  public:
   base::WeakPtr<FakePairingServer> GetWeakPtr() {
@@ -52,48 +55,67 @@ class FakePairingServer {
     };
     std::optional<Poll> poll_a;
     std::optional<Poll> poll_b;
-    int closes = 0;
   };
 
   // Overrides the next join's status (409/429 tests).
   void set_join_status(int status) { join_status_ = status; }
   void set_open_status(int status) { open_status_ = status; }
+  // The name the server gives itself; empty as an older server.
+  void set_server_name(std::string name) { server_name_ = std::move(name); }
+  // Older servers: closed slots answer 404, without a reason.
+  void set_says_why(bool says_why) { says_why_ = says_why; }
+  // What join says the slot has left, instead of the truth.
+  void set_join_expires_in(base::TimeDelta expires_in) {
+    join_expires_in_ = expires_in;
+  }
 
   void Open(PairingTransport::OpenCallback callback) {
     if (open_status_) {
       Reply(base::BindOnce(std::move(callback), *open_status_, 0,
-                           base::TimeDelta()));
+                           base::TimeDelta(), std::string()));
       return;
     }
     // One open slot per chain.
     if (open_slot_) {
-      Delete(*open_slot_);
+      Delete(*open_slot_, PairingClosedReason::kCancel);
     }
     int number = 1;
-    while (slots_.contains(number)) {
+    while (Find(number) || ClosedReason(number)) {
       ++number;
     }
     slots_[number].expires = base::TimeTicks::Now() + kSlotLifetime;
     open_slot_ = number;
-    Reply(base::BindOnce(std::move(callback), 201, number, kSlotLifetime));
+    Reply(base::BindOnce(std::move(callback), 201, number, kSlotLifetime,
+                         server_name_));
   }
 
-  void Join(int number, PairingTransport::StatusCallback callback) {
+  void Join(int number, PairingTransport::JoinCallback callback) {
     if (join_status_) {
-      Reply(base::BindOnce(std::move(callback), *join_status_));
+      Reply(base::BindOnce(std::move(callback), *join_status_,
+                           PairingClosedReason::kUnknown, std::string(),
+                           base::TimeDelta()));
       return;
     }
     Slot* slot = Find(number);
     if (!slot) {
-      Reply(base::BindOnce(std::move(callback), 404));
+      auto [status, reason] = Gone(number);
+      Reply(base::BindOnce(std::move(callback), status, reason, std::string(),
+                           base::TimeDelta()));
       return;
     }
     if (slot->joined) {
-      Reply(base::BindOnce(std::move(callback), 409));
+      Reply(base::BindOnce(std::move(callback), 409,
+                           PairingClosedReason::kUnknown, std::string(),
+                           base::TimeDelta()));
       return;
     }
     slot->joined = true;
-    Reply(base::BindOnce(std::move(callback), 200));
+    const base::TimeDelta left =
+        server_name_.empty()
+            ? base::TimeDelta()  // An older server doesn't say.
+            : join_expires_in_.value_or(slot->expires - base::TimeTicks::Now());
+    Reply(base::BindOnce(std::move(callback), 200,
+                         PairingClosedReason::kUnknown, server_name_, left));
   }
 
   void Send(int number,
@@ -102,18 +124,21 @@ class FakePairingServer {
             PairingTransport::StatusCallback callback) {
     Slot* slot = Find(number);
     if (!slot) {
-      Reply(base::BindOnce(std::move(callback), 404));
+      auto [status, reason] = Gone(number);
+      Reply(base::BindOnce(std::move(callback), status, reason));
       return;
     }
     std::vector<PairingMessage>& messages =
         from == PairingRole::kA ? slot->from_a : slot->from_b;
     if (messages.size() >= 8) {
-      Reply(base::BindOnce(std::move(callback), 429));
+      Reply(base::BindOnce(std::move(callback), 429,
+                           PairingClosedReason::kUnknown));
       return;
     }
     messages.push_back(
         {static_cast<int>(messages.size()) + 1, std::move(data)});
-    Reply(base::BindOnce(std::move(callback), 200));
+    Reply(base::BindOnce(std::move(callback), 200,
+                         PairingClosedReason::kUnknown));
     // Wake the other side's long poll.
     std::optional<Slot::Poll>& poll =
         from == PairingRole::kA ? slot->poll_b : slot->poll_a;
@@ -130,7 +155,8 @@ class FakePairingServer {
                PairingTransport::ReceiveCallback callback) {
     Slot* slot = Find(number);
     if (!slot) {
-      Reply(base::BindOnce(std::move(callback), 404,
+      auto [status, reason] = Gone(number);
+      Reply(base::BindOnce(std::move(callback), status, reason,
                            std::vector<PairingMessage>()));
       return;
     }
@@ -153,10 +179,11 @@ class FakePairingServer {
         kLongPoll);
   }
 
-  void Close(int number) {
+  void Close(int number, PairingClosedReason reason) {
     if (Find(number)) {
       ++closes_;
-      Delete(number);
+      close_reasons_.push_back(reason);
+      Delete(number, reason);
     }
   }
 
@@ -167,6 +194,9 @@ class FakePairingServer {
                                   : it->second;
   }
   int closes() const { return closes_; }
+  const std::vector<PairingClosedReason>& close_reasons() const {
+    return close_reasons_;
+  }
   bool HasSlot(int number) { return Find(number) != nullptr; }
 
   void RecordSentByA(int number, const std::vector<uint8_t>& data) {
@@ -192,7 +222,8 @@ class FakePairingServer {
         newer.push_back(message);
       }
     }
-    Reply(base::BindOnce(std::move(callback), 200, std::move(newer)));
+    Reply(base::BindOnce(std::move(callback), 200,
+                         PairingClosedReason::kUnknown, std::move(newer)));
   }
 
   void TimeOutPoll(int number, PairingRole reader) {
@@ -206,8 +237,31 @@ class FakePairingServer {
       PairingTransport::ReceiveCallback callback = std::move(poll->callback);
       poll.reset();
       Reply(base::BindOnce(std::move(callback), 200,
+                           PairingClosedReason::kUnknown,
                            std::vector<PairingMessage>()));
     }
+  }
+
+  // Why |number| closed, if it did lately.
+  std::optional<PairingClosedReason> ClosedReason(int number) {
+    auto it = closed_.find(number);
+    if (it == closed_.end()) {
+      return std::nullopt;
+    }
+    if (base::TimeTicks::Now() >= it->second.second) {
+      closed_.erase(it);
+      return std::nullopt;
+    }
+    return it->second.first;
+  }
+
+  // The reply for a slot that isn't open: 410 with the reason, or 404.
+  std::pair<int, PairingClosedReason> Gone(int number) {
+    std::optional<PairingClosedReason> reason = ClosedReason(number);
+    if (reason && says_why_) {
+      return {410, *reason};
+    }
+    return {404, PairingClosedReason::kUnknown};
   }
 
   // The slot, or null if it's gone or expired (then it's deleted).
@@ -217,37 +271,45 @@ class FakePairingServer {
       return nullptr;
     }
     if (base::TimeTicks::Now() >= it->second.expires) {
-      Delete(number);
+      Delete(number, PairingClosedReason::kExpired);
       return nullptr;
     }
     return &it->second;
   }
 
-  // Deletes a slot; pending polls get 404.
-  void Delete(int number) {
+  // Deletes a slot, remembering why; pending polls get 410 (404 from an
+  // older server).
+  void Delete(int number, PairingClosedReason reason) {
     auto it = slots_.find(number);
     if (it == slots_.end()) {
       return;
     }
     Slot slot = std::move(it->second);
     slots_.erase(it);
+    closed_[number] = {reason, base::TimeTicks::Now() + kClosedLifetime};
     if (open_slot_ == number) {
       open_slot_.reset();
     }
+    auto [status, why] = Gone(number);
     for (std::optional<Slot::Poll>* poll : {&slot.poll_a, &slot.poll_b}) {
       if (*poll) {
-        Reply(base::BindOnce(std::move((*poll)->callback), 404,
+        Reply(base::BindOnce(std::move((*poll)->callback), status, why,
                              std::vector<PairingMessage>()));
       }
     }
   }
 
   std::map<int, Slot> slots_;
+  std::map<int, std::pair<PairingClosedReason, base::TimeTicks>> closed_;
   std::optional<int> open_slot_;
   std::optional<int> join_status_;
   std::optional<int> open_status_;
+  std::optional<base::TimeDelta> join_expires_in_;
+  std::string server_name_ = kHost;
+  bool says_why_ = true;
   std::map<int, std::vector<std::vector<uint8_t>>> sent_by_a_;
   int closes_ = 0;
+  std::vector<PairingClosedReason> close_reasons_;
   base::WeakPtrFactory<FakePairingServer> weak_factory_{this};
 };
 
@@ -260,7 +322,7 @@ class FakeTransport : public PairingTransport {
   void Open(OpenCallback callback) override {
     server_->Open(std::move(callback));
   }
-  void Join(int slot, StatusCallback callback) override {
+  void Join(int slot, JoinCallback callback) override {
     server_->Join(slot, std::move(callback));
   }
   void Send(int slot,
@@ -278,9 +340,9 @@ class FakeTransport : public PairingTransport {
                ReceiveCallback callback) override {
     server_->Receive(slot, reader, after, std::move(callback));
   }
-  void Close(int slot, PairingRole by) override {
+  void Close(int slot, PairingRole by, PairingClosedReason reason) override {
     if (server_) {
-      server_->Close(slot);
+      server_->Close(slot, reason);
     }
   }
 
@@ -329,19 +391,23 @@ class PairingTest : public testing::Test {
     }
   }
 
-  std::unique_ptr<PairingHost> StartHost() {
+  // |server_host|: the server's host as this device typed it.
+  std::unique_ptr<PairingHost> StartHost(
+      const std::string& server_host = kHost) {
     auto host = std::make_unique<PairingHost>(
-        std::make_unique<FakeTransport>(server_.GetWeakPtr()), kHost, seed_,
-        &host_delegate_);
+        std::make_unique<FakeTransport>(server_.GetWeakPtr()), server_host,
+        seed_, &host_delegate_);
     host->Start();
     task_environment_.RunUntilIdle();
     return host;
   }
 
-  std::unique_ptr<PairingJoiner> StartJoiner(const std::string& code,
-                                             JoinOutcome* outcome) {
+  std::unique_ptr<PairingJoiner> StartJoiner(
+      const std::string& code,
+      JoinOutcome* outcome,
+      const std::string& server_host = kHost) {
     auto joiner = std::make_unique<PairingJoiner>(
-        std::make_unique<FakeTransport>(server_.GetWeakPtr()), kHost,
+        std::make_unique<FakeTransport>(server_.GetWeakPtr()), server_host,
         kDeviceName);
     joiner->Start(
         code,
@@ -482,7 +548,10 @@ TEST_F(PairingTest, WrongCodeFailsOnBothSidesAndLeaksNothing) {
 
   EXPECT_EQ(host_delegate_.result(), PairingHost::Result::kWrongCode);
   EXPECT_TRUE(host_delegate_.requests().empty());
-  EXPECT_EQ(outcome.result, PairingJoiner::Result::kClosed);
+  // The server says why A closed the slot: B shows "Wrong code".
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kWrongCode);
+  EXPECT_EQ(server_.close_reasons(),
+            std::vector<PairingClosedReason>{PairingClosedReason::kMismatch});
   EXPECT_FALSE(outcome.seed);
   // A sent its SPAKE2 message only: no answer, no seed.
   EXPECT_EQ(server_.SentByA(1).size(), 1u);
@@ -518,6 +587,27 @@ TEST_F(PairingTest, Deny) {
   EXPECT_EQ(outcome.result, PairingJoiner::Result::kDenied);
   EXPECT_FALSE(outcome.seed);
   EXPECT_FALSE(SeedLeaked(1));
+  // A closed the slot saying so.
+  ASSERT_FALSE(server_.close_reasons().empty());
+  EXPECT_EQ(server_.close_reasons().front(), PairingClosedReason::kDeny);
+}
+
+// A denies while B isn't polling (say, between two requests): B learns it
+// from the server.
+TEST_F(PairingTest, DenyLearnedFromTheServer) {
+  std::unique_ptr<PairingHost> host = StartHost();
+  const int slot = ParsePairingCode(host_delegate_.code())->slot;
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner =
+      StartJoiner(host_delegate_.code(), &outcome);
+  host->Answer(false);
+  task_environment_.RunUntilIdle();
+  // A new joiner (or B's next request) on the closed slot.
+  JoinOutcome late;
+  std::unique_ptr<PairingJoiner> other =
+      StartJoiner(host_delegate_.code(), &late);
+  EXPECT_EQ(late.result, PairingJoiner::Result::kDenied);
+  EXPECT_FALSE(server_.HasSlot(slot));
 }
 
 TEST_F(PairingTest, AnswerBeforeRequestIsIgnored) {
@@ -534,6 +624,23 @@ TEST_F(PairingTest, CodeExpires) {
   task_environment_.FastForwardBy(kSlotLifetime + base::Seconds(1));
   EXPECT_EQ(host_delegate_.result(), PairingHost::Result::kExpired);
 
+  // The server keeps saying why for 300 s: "Code expired".
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner = StartJoiner(code, &outcome);
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kExpired);
+
+  // Then it's unknown.
+  task_environment_.FastForwardBy(kClosedLifetime);
+  JoinOutcome later;
+  std::unique_ptr<PairingJoiner> late = StartJoiner(code, &later);
+  EXPECT_EQ(later.result, PairingJoiner::Result::kNoSuchCode);
+}
+
+TEST_F(PairingTest, CodeExpiresOnAnOlderServer) {
+  server_.set_says_why(false);
+  std::unique_ptr<PairingHost> host = StartHost();
+  const std::string code = host_delegate_.code();
+  task_environment_.FastForwardBy(kSlotLifetime + base::Seconds(1));
   JoinOutcome outcome;
   std::unique_ptr<PairingJoiner> joiner = StartJoiner(code, &outcome);
   EXPECT_EQ(outcome.result, PairingJoiner::Result::kNoSuchCode);
@@ -548,9 +655,7 @@ TEST_F(PairingTest, ExpiresWhileWaitingForTheAnswer) {
   // Nobody answers on A.
   task_environment_.FastForwardBy(PairingJoiner::kTimeout);
   EXPECT_EQ(host_delegate_.result(), PairingHost::Result::kExpired);
-  ASSERT_TRUE(outcome.result);
-  EXPECT_TRUE(*outcome.result == PairingJoiner::Result::kClosed ||
-              *outcome.result == PairingJoiner::Result::kExpired);
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kExpired);
   EXPECT_FALSE(outcome.seed);
   // Answering late does nothing.
   host->Answer(true);
@@ -565,8 +670,39 @@ TEST_F(PairingTest, CancelOnAClosesTheSlot) {
       StartJoiner(host_delegate_.code(), &outcome);
   host.reset();
   task_environment_.RunUntilIdle();
-  EXPECT_EQ(outcome.result, PairingJoiner::Result::kClosed);
+  // "The other device canceled".
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kCanceled);
   EXPECT_FALSE(server_.HasSlot(1));
+}
+
+TEST_F(PairingTest, CancelOnAOnAnOlderServer) {
+  server_.set_says_why(false);
+  std::unique_ptr<PairingHost> host = StartHost();
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner =
+      StartJoiner(host_delegate_.code(), &outcome);
+  host.reset();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kClosed);
+}
+
+// A asks for a new code before B typed the first: B learns the first was
+// canceled instead of reaching another slot.
+TEST_F(PairingTest, NewCodeCancelsTheOld) {
+  std::unique_ptr<PairingHost> host = StartHost();
+  const std::string first = host_delegate_.code();
+  host.reset();
+  HostDelegate second_delegate;
+  auto second = std::make_unique<PairingHost>(
+      std::make_unique<FakeTransport>(server_.GetWeakPtr()), kHost, seed_,
+      &second_delegate);
+  second->Start();
+  task_environment_.RunUntilIdle();
+  EXPECT_NE(ParsePairingCode(second_delegate.code())->slot,
+            ParsePairingCode(first)->slot);
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner = StartJoiner(first, &outcome);
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kCanceled);
 }
 
 TEST_F(PairingTest, CancelOnBClosesTheSlot) {
@@ -580,8 +716,67 @@ TEST_F(PairingTest, CancelOnBClosesTheSlot) {
   // A learns when it answers.
   host->Answer(true);
   task_environment_.RunUntilIdle();
-  EXPECT_EQ(host_delegate_.result(), PairingHost::Result::kExpired);
+  EXPECT_EQ(host_delegate_.result(), PairingHost::Result::kCanceled);
   EXPECT_FALSE(SeedLeaked(1));
+}
+
+// Each device typed a different name for the same server (an IP, a
+// hostname); both bind the name the server gives itself.
+TEST_F(PairingTest, BothBindTheServersName) {
+  server_.set_server_name("sync.example.com");
+  std::unique_ptr<PairingHost> host = StartHost("192.168.1.20");
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner =
+      StartJoiner(host_delegate_.code(), &outcome, "mini.tailnet.ts.net");
+  ASSERT_EQ(host_delegate_.requests(), std::vector<std::string>{kDeviceName});
+  host->Answer(true);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kJoined);
+  EXPECT_EQ(outcome.seed, seed_);
+}
+
+// An older server doesn't name itself: each binds what it typed, so the
+// same name works and different names fail as a wrong code.
+TEST_F(PairingTest, OlderServerBindsWhatEachTyped) {
+  server_.set_server_name("");
+  server_.set_says_why(false);
+  {
+    std::unique_ptr<PairingHost> host = StartHost("192.168.1.20");
+    JoinOutcome outcome;
+    std::unique_ptr<PairingJoiner> joiner =
+        StartJoiner(host_delegate_.code(), &outcome, "192.168.1.20");
+    host->Answer(true);
+    task_environment_.RunUntilIdle();
+    EXPECT_EQ(outcome.result, PairingJoiner::Result::kJoined);
+  }
+  task_environment_.RunUntilIdle();
+  HostDelegate delegate;
+  auto host = std::make_unique<PairingHost>(
+      std::make_unique<FakeTransport>(server_.GetWeakPtr()), "192.168.1.20",
+      seed_, &delegate);
+  host->Start();
+  task_environment_.RunUntilIdle();
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner =
+      StartJoiner(delegate.code(), &outcome, "mini.tailnet.ts.net");
+  EXPECT_EQ(delegate.result(), PairingHost::Result::kWrongCode);
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kClosed);
+  EXPECT_FALSE(outcome.seed);
+}
+
+// B waits as long as join says the slot lives, not a fixed 5.5 minutes.
+TEST_F(PairingTest, JoinerWaitsAsLongAsTheSlotLives) {
+  server_.set_join_expires_in(base::Seconds(60));
+  std::unique_ptr<PairingHost> host = StartHost();
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner =
+      StartJoiner(host_delegate_.code(), &outcome);
+  ASSERT_TRUE(outcome.waited_for_answer);
+  task_environment_.FastForwardBy(
+      base::Seconds(60) + PairingJoiner::kTimeoutMargin - base::Seconds(1));
+  EXPECT_FALSE(outcome.result);
+  task_environment_.FastForwardBy(base::Seconds(2));
+  EXPECT_EQ(outcome.result, PairingJoiner::Result::kExpired);
 }
 
 TEST_F(PairingTest, UnknownSlot404) {
