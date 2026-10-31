@@ -856,6 +856,7 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
 
 void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
                                       bool will_delete) {
+  seen_.erase(tab->GetHandle());
   auto placeholder = placeholders_.find(tab->GetHandle());
   if (placeholder != placeholders_.end()) {
     const base::Uuid node_id = placeholder->second;
@@ -913,11 +914,17 @@ void TabStripBridge::UpdateNode(tabs::TabInterface* tab) {
   }
   content::WebContents* contents = tab->GetContents();
   const GURL url = GetTabURL(contents);
-  if (!url.is_empty() && node->url() != url) {
+  const std::u16string& title = contents->GetTitle();
+  auto [seen, first] = seen_.try_emplace(tab->GetHandle());
+  const bool url_changed = first || seen->second.url != url;
+  const bool title_changed = first || seen->second.title != title;
+  seen->second.url = url;
+  seen->second.title = title;
+  if (url_changed && !url.is_empty() && node->url() != url) {
     model->SetUrl(node, url);
   }
-  if (node->title() != contents->GetTitle()) {
-    model->SetTitle(node, contents->GetTitle());
+  if (title_changed && node->title() != title) {
+    model->SetTitle(node, title);
   }
 }
 

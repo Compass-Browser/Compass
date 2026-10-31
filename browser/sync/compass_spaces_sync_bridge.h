@@ -14,6 +14,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/components/sync/protocol/compass_spaces_specifics.pb.h"
@@ -37,11 +39,21 @@ inline constexpr int kNodeFolder = 2;
 inline constexpr int kNodeSplit = 3;
 // CompassSpace.color is SpaceColor's value + 1 (0 = not set).
 
-// Syncs a profile's spaces, their pinned trees, its favorites and folder
-// collapse as COMPASS_SPACES (docs/design/sync.md, "The COMPASS_SPACES data
-// type" and "Slice 3 notes"). One per profile, owned (through
-// SpaceService::Attachment) by its SpaceService. Today and the archive aren't
-// synced yet (slice 3b).
+// A tab's URL, title and last-active time change as it's used; an entity
+// whose only change is those commits at most this often. Structure (new,
+// moved, closed, pinned, archived, renamed) commits at once.
+inline constexpr base::TimeDelta kContentCommitInterval = base::Seconds(10);
+// Archived entries leave the server (not this device) once they're older.
+inline constexpr base::TimeDelta kArchiveSyncPeriod = base::Days(30);
+// Last-active times commit only once they've moved by this much: the archive
+// delays they drive are hours.
+inline constexpr base::TimeDelta kLastActiveGranularity = base::Minutes(1);
+
+// Syncs a profile's spaces, their pinned trees and Today, their archives, its
+// favorites and folder collapse as COMPASS_SPACES (docs/design/sync.md, "The
+// COMPASS_SPACES data type", "Today across devices", "Slice 3 notes" and
+// "Slice 3b notes"). One per profile, owned (through SpaceService::Attachment)
+// by its SpaceService. New tab and blank pages in Today stay local.
 //
 // It keeps a mirror: the specifics of every entity as the server last had
 // them (from a remote change or our own commit), saved in its DataTypeStore
@@ -76,6 +88,16 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
                            SpaceModel& target,
                            SidebarNode* parent,
                            size_t index) = 0;
+    // Whether |entry| (a Today tab or split) is the tab the focused window
+    // shows: another device closing it doesn't close it here.
+    virtual bool IsShownInFocusedWindow(const SidebarNode& entry) {
+      return false;
+    }
+    // Whether |entry| is shown in a window or plays sound, as the archiver
+    // spares: another device archiving it doesn't archive it here.
+    virtual bool IsInUse(const SidebarNode& entry) { return false; }
+    // Hands |from|'s live tab, if it has one, to |to|, if it has none.
+    virtual void TransferLiveTab(const SidebarNode& from, SidebarNode& to) {}
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -133,6 +155,8 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   void OnNodeChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnNodeWillMoveToSpace(const SidebarNode& node) override;
+  void OnNodeLastActiveChanged(const SidebarNode& node) override;
+  void OnArchiveChanged(const SpaceModel& space) override;
 
  private:
   using Mirror = std::map<std::string, sync_pb::CompassSpacesSpecifics>;
@@ -161,10 +185,23 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
                      const std::string& space_key,
                      const std::set<std::string>& model_keys,
                      Mirror& out) const;
+  // |space|'s archived entries of the last kArchiveSyncPeriod.
+  void AddLocalArchive(const SpaceModel& space, Mirror& out) const;
+  // Whether a Today node syncs: new tab and blank pages (and splits with
+  // one) don't, unless they did before.
+  bool IsSyncableToday(const SidebarNode& node) const;
   // Whether a mirror entity the model doesn't have was deleted here (rather
-  // than not applied: a type or section this version doesn't handle).
+  // than not applied: a type or section this version doesn't handle, or an
+  // archived split whose panes haven't come).
   bool WasDeletedLocally(const sync_pb::CompassSpacesSpecifics& specifics,
                          const Mirror& local) const;
+  // Whether the archived entity |node| has what it needs to show: a split
+  // its panes, a pane its split.
+  bool IsArchiveComplete(const sync_pb::CompassNode& node) const;
+  // Runs a pass at |when|, unless one is due earlier.
+  void ScheduleThrottledSend(base::TimeTicks when);
+  // Runs a pass when the oldest archived entry turns kArchiveSyncPeriod old.
+  void ScheduleArchiveExpiry();
 
   // Remote changes.
   std::optional<syncer::ModelError> ApplyRemote(
@@ -181,14 +218,34 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
                       const std::set<std::string>& remote_spaces);
   void ApplyNodes(const std::vector<std::string>& keys,
                   const std::set<std::string>& deleted);
-  void ApplyNodeDeletions(const std::set<std::string>& deleted);
+  // Removes deleted nodes and archived entries. Archived entries a deleted
+  // pane belonged to go into |archive_roots|, to be rebuilt.
+  void ApplyNodeDeletions(const std::set<std::string>& deleted,
+                          std::set<std::string>& archive_roots);
   void PlaceNode(const std::string& key, const std::set<std::string>& deleted);
   void NormalizeSplits();
+  // Archiving on another device: the archived entries |roots| (their keys)
+  // go into their space's archive, from the mirror, and leave Today, unless
+  // in use here.
+  void ApplyArchives(const std::set<std::string>& roots);
+  // |key| is back from the archive (or never was there): its archived entry
+  // goes.
+  void DropFromArchives(const std::string& key);
+  // Initial merge: a Today tab of this device whose URL the chain's Today of
+  // the same space has gives way to the chain's.
+  void DedupeToday(const std::vector<std::string>& remote_nodes);
+  // Replaces |node| (and its subtree) with a copy with fresh IDs, in its
+  // place, with its live tabs. Returns the copy.
+  SidebarNode* Recreate(SidebarNode* node);
+  SidebarNode* CopyNode(SpaceModel& model,
+                        const SidebarNode& node,
+                        SidebarNode* parent,
+                        size_t index);
 
   // Model helpers.
   SidebarNode* FindNode(const base::Uuid& id) const;
   SpaceModel* ModelOf(const SidebarNode* node) const;
-  // Whether |node| is in a section this slice syncs (pinned, favorites).
+  // Whether |node| is in a space or the favorites.
   bool IsSynced(const SidebarNode* node) const;
   // The model a remote node belongs in, or null if it isn't here (yet).
   SpaceModel* TargetModel(const sync_pb::CompassNode& node) const;
@@ -223,6 +280,13 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // Nodes parked at their section's root whose awaited parent was deleted:
   // they stay there, and the next pass commits it.
   std::set<std::string> unparked_;
+  // When each entity was last committed from here.
+  std::map<std::string, base::TimeTicks> last_commit_;
+  // Entities whose content changed here but waits for kContentCommitInterval.
+  // A remote change doesn't overwrite their URL and title: they commit next.
+  std::set<std::string> throttled_;
+  base::OneShotTimer throttle_timer_;
+  base::OneShotTimer archive_expiry_timer_;
 
   base::WeakPtrFactory<CompassSpacesSyncBridge> weak_factory_{this};
 };

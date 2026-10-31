@@ -1055,7 +1055,48 @@ bool RevealParkedTab(content::WebContents* contents) {
   return true;
 }
 
+bool IsEntryInUse(Profile* profile, const SidebarNode& entry) {
+  return IsEntryInUse(profile, SpaceService::Get(profile)->registry(), entry);
+}
+
+bool IsEntryShownInFocusedWindow(Profile* profile, const SidebarNode& entry) {
+  bool shown = false;
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        WindowFeatures* features = WindowFeatures::From(browser);
+        if (browser->IsActive() && features &&
+            !features->is_parking_window() && !features->is_switching()) {
+          const SidebarNode* node =
+              features->tab_strip_bridge().GetShownNode(
+                  browser->GetActiveTabInterface());
+          shown = node && entry.Contains(node);
+        }
+        return !shown;
+      },
+      BrowserCollection::Order::kActivation);
+  return shown;
+}
+
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now) {
+  // What a window shows is seen now: its time keeps up, so other devices,
+  // whose archivers go by the synced time, don't archive it either
+  // (docs/design/sync.md, "Slice 3b notes").
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        WindowFeatures* features = WindowFeatures::From(browser);
+        if (features && !features->is_parking_window() &&
+            !features->is_switching()) {
+          SpaceModel& space = features->space_model();
+          SidebarNode* node = features->tab_strip_bridge().GetShownNode(
+              browser->GetActiveTabInterface());
+          if (node && node->type() == SidebarNode::Type::kTab &&
+              space.today_root()->Contains(node)) {
+            space.SetLastActive(node, now);
+          }
+        }
+        return true;
+      },
+      BrowserCollection::Order::kActivation);
   SpaceService* service = SpaceService::Get(profile);
   for (const auto& space : service->space_list().spaces()) {
     space->ArchiveIdleEntries(now, [&](const SidebarNode& entry) {

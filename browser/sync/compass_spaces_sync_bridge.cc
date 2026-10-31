@@ -14,10 +14,12 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
@@ -118,6 +120,63 @@ void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
       proto.clear_collapsed();
     }
   }
+}
+
+// last_active_time and archived_time: microseconds since the Windows epoch.
+int64_t ToProtoTime(base::Time time) {
+  return time.ToDeltaSinceWindowsEpoch().InMicroseconds();
+}
+
+base::Time FromProtoTime(int64_t value) {
+  return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(value));
+}
+
+// A Today tab's last-active time, once it has moved on enough from what the
+// server has.
+void FillLastActive(const SidebarNode& node, sync_pb::CompassNode& proto) {
+  if (node.type() != Type::kTab || node.last_active().is_null()) {
+    return;
+  }
+  const int64_t local = ToProtoTime(node.last_active());
+  if (!proto.has_last_active_time() ||
+      local - proto.last_active_time() >=
+          kLastActiveGranularity.InMicroseconds()) {
+    proto.set_last_active_time(local);
+  }
+}
+
+// Whether |local| differs from |synced| only in what changes as a page is
+// used: its URL, title and last-active time. Tabs only: a folder's title is
+// its name.
+bool OnlyContentDiffers(const sync_pb::CompassSpacesSpecifics& local,
+                        const sync_pb::CompassSpacesSpecifics& synced) {
+  if (!local.has_node() || !synced.has_node() ||
+      local.node().type() != kNodeTab) {
+    return false;
+  }
+  sync_pb::CompassSpacesSpecifics merged = synced;
+  sync_pb::CompassNode& node = *merged.mutable_node();
+  const sync_pb::CompassNode& from = local.node();
+  if (from.has_url()) {
+    node.set_url(from.url());
+  } else {
+    node.clear_url();
+  }
+  if (from.has_title()) {
+    node.set_title(from.title());
+  } else {
+    node.clear_title();
+  }
+  if (from.has_last_active_time()) {
+    node.set_last_active_time(from.last_active_time());
+  } else {
+    node.clear_last_active_time();
+  }
+  return merged.SerializeAsString() == local.SerializeAsString();
+}
+
+SidebarNode* RootFor(SpaceModel& model, int section) {
+  return section == kSectionToday ? model.today_root() : model.pinned_root();
 }
 
 void CollectKeys(const SidebarNode& node, std::set<std::string>& keys) {
@@ -321,6 +380,9 @@ void CompassSpacesSyncBridge::SendLocalChanges() {
 size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     syncer::DataTypeStore::WriteBatch& batch) {
   const Mirror local = ComputeLocalSpecifics();
+  const base::TimeTicks now = base::TimeTicks::Now();
+  std::optional<base::TimeTicks> next_send;
+  throttled_.clear();
   size_t puts = 0;
   for (const auto& [key, specifics] : local) {
     std::string serialized = specifics.SerializeAsString();
@@ -328,6 +390,19 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     if (it != mirror_.end() && it->second.SerializeAsString() == serialized) {
       continue;
     }
+    // Title, URL and last-active churn waits until the entity's last commit
+    // is kContentCommitInterval old; anything else goes now, with it.
+    if (it != mirror_.end() && OnlyContentDiffers(specifics, it->second)) {
+      auto last = last_commit_.find(key);
+      if (last != last_commit_.end() &&
+          now - last->second < kContentCommitInterval) {
+        const base::TimeTicks due = last->second + kContentCommitInterval;
+        next_send = next_send ? std::min(*next_send, due) : due;
+        throttled_.insert(key);
+        continue;
+      }
+    }
+    last_commit_[key] = now;
     auto data = std::make_unique<syncer::EntityData>();
     // The name isn't needed, and goes to the server; the ID is enough.
     data->name = key;
@@ -350,6 +425,7 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
                                batch.GetMetadataChangeList());
     batch.DeleteData(key);
     mirror_.erase(key);
+    last_commit_.erase(key);
   }
   std::erase_if(unparked_, [this](const std::string& key) {
     auto it = mirror_.find(key);
@@ -359,9 +435,46 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
 
   if (puts > 0 || !gone.empty()) {
     VLOG(1) << "[compass-sync] spaces: committing " << puts << " changed, "
-            << gone.size() << " deleted";
+            << gone.size() << " deleted, " << throttled_.size()
+            << " waiting (content)";
   }
+  if (next_send) {
+    ScheduleThrottledSend(*next_send);
+  }
+  ScheduleArchiveExpiry();
   return puts + gone.size();
+}
+
+void CompassSpacesSyncBridge::ScheduleThrottledSend(base::TimeTicks when) {
+  if (throttle_timer_.IsRunning() &&
+      throttle_timer_.desired_run_time() <= when) {
+    return;
+  }
+  const base::TimeDelta delay = when - base::TimeTicks::Now();
+  VLOG(1) << "[compass-sync] spaces: content of " << throttled_.size()
+          << " entities waits " << delay.InMilliseconds() << " ms";
+  throttle_timer_.Start(FROM_HERE, delay, this,
+                        &CompassSpacesSyncBridge::SendLocalChanges);
+}
+
+void CompassSpacesSyncBridge::ScheduleArchiveExpiry() {
+  const base::Time now = base::Time::Now();
+  std::optional<base::Time> next;
+  for (const auto& space : list_->spaces()) {
+    for (const ArchivedEntry& entry : space->archive()) {
+      const base::Time expiry = entry.archived_at + kArchiveSyncPeriod;
+      if (expiry > now && (!next || expiry < *next)) {
+        next = expiry;
+      }
+    }
+  }
+  if (!next) {
+    archive_expiry_timer_.Stop();
+    return;
+  }
+  // A moment after, so the entry is past the period when the pass runs.
+  archive_expiry_timer_.Start(FROM_HERE, *next - now + base::Seconds(1), this,
+                              &CompassSpacesSyncBridge::SendLocalChanges);
 }
 
 CompassSpacesSyncBridge::Mirror
@@ -416,19 +529,150 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
     local[keys[i]] = std::move(specifics);
   }
 
-  // Nodes: each space's pinned tree, then the favorites.
+  // Nodes: each space's pinned tree and Today, then the favorites, then the
+  // archives.
   std::set<std::string> model_keys;
   for (const auto& space : list_->spaces()) {
     CollectKeys(*space->pinned_root(), model_keys);
+    CollectKeys(*space->today_root(), model_keys);
   }
   CollectKeys(*list_->favorites().pinned_root(), model_keys);
   for (const SpaceModel* space : spaces) {
     AddLocalNodes(*space->pinned_root(), std::string(), kSectionPinned,
                   Key(space->id()), model_keys, local);
+    AddLocalNodes(*space->today_root(), std::string(), kSectionToday,
+                  Key(space->id()), model_keys, local);
   }
   AddLocalNodes(*list_->favorites().pinned_root(), std::string(),
                 kSectionFavorites, std::string(), model_keys, local);
+  for (const SpaceModel* space : spaces) {
+    AddLocalArchive(*space, local);
+  }
   return local;
+}
+
+void CompassSpacesSyncBridge::AddLocalArchive(const SpaceModel& space,
+                                              Mirror& out) const {
+  const std::string space_key = Key(space.id());
+  const base::Time cutoff = base::Time::Now() - kArchiveSyncPeriod;
+  for (const ArchivedEntry& entry : space.archive()) {
+    const std::string key = Key(entry.id);
+    if (entry.archived_at < cutoff || !entry.id.is_valid() ||
+        entry.tabs.empty() || out.contains(key)) {
+      // Too old for the server (kept here), or not a usable ID.
+      continue;
+    }
+    const bool single =
+        entry.tabs.size() == 1 && entry.tabs[0].id == entry.id;
+    if (!single && std::ranges::any_of(entry.tabs, [&out](const auto& tab) {
+          return !tab.id.is_valid() || out.contains(Key(tab.id));
+        })) {
+      continue;
+    }
+    const int64_t archived_time = ToProtoTime(entry.archived_at);
+
+    // The entry. Its position and last-active time stay what they were in
+    // Today: the archive is ordered by time.
+    sync_pb::CompassSpacesSpecifics specifics;
+    auto it = mirror_.find(key);
+    if (it != mirror_.end() && it->second.has_node()) {
+      specifics = it->second;
+    }
+    sync_pb::CompassNode& node = *specifics.mutable_node();
+    COMPASS_SET_STRING(node, uuid, key);
+    COMPASS_SET_STRING(node, space_uuid, space_key);
+    COMPASS_SET_STRING(node, parent_uuid, std::string());
+    if (node.section() != kSectionArchive) {
+      node.set_section(kSectionArchive);
+    }
+    const int type = single ? kNodeTab : kNodeSplit;
+    if (node.type() != type) {
+      node.set_type(type);
+    }
+    COMPASS_SET_STRING(node, url,
+                       single ? entry.tabs[0].url.possibly_invalid_spec()
+                              : std::string());
+    COMPASS_SET_STRING(node, title,
+                       single ? base::UTF16ToUTF8(entry.tabs[0].title)
+                              : std::string());
+    COMPASS_SET_STRING(node, custom_title, std::string());
+    if (node.collapsed()) {
+      node.clear_collapsed();
+    }
+    if (node.archived_time() != archived_time) {
+      node.set_archived_time(archived_time);
+    }
+    out[key] = std::move(specifics);
+    if (single) {
+      continue;
+    }
+
+    // A split's panes, in order.
+    std::vector<std::string> keys;
+    std::vector<std::optional<syncer::UniquePosition>> existing;
+    for (const ArchivedEntry::Tab& tab : entry.tabs) {
+      const std::string pane_key = Key(tab.id);
+      std::optional<syncer::UniquePosition> position;
+      auto pane_it = mirror_.find(pane_key);
+      if (pane_it != mirror_.end() && pane_it->second.has_node() &&
+          pane_it->second.node().section() == kSectionArchive &&
+          pane_it->second.node().parent_uuid() == key &&
+          pane_it->second.node().has_position()) {
+        position = ValidPosition(pane_it->second.node().position());
+      }
+      keys.push_back(pane_key);
+      existing.push_back(position);
+    }
+    const std::vector<syncer::UniquePosition> positions =
+        internal::AssignPositions(keys, existing);
+    for (size_t i = 0; i < entry.tabs.size(); ++i) {
+      sync_pb::CompassSpacesSpecifics pane_specifics;
+      auto pane_it = mirror_.find(keys[i]);
+      if (pane_it != mirror_.end() && pane_it->second.has_node()) {
+        pane_specifics = pane_it->second;
+      }
+      sync_pb::CompassNode& pane = *pane_specifics.mutable_node();
+      COMPASS_SET_STRING(pane, uuid, keys[i]);
+      COMPASS_SET_STRING(pane, space_uuid, space_key);
+      COMPASS_SET_STRING(pane, parent_uuid, key);
+      if (pane.section() != kSectionArchive) {
+        pane.set_section(kSectionArchive);
+      }
+      if (pane.type() != kNodeTab) {
+        pane.set_type(kNodeTab);
+      }
+      COMPASS_SET_STRING(pane, url, entry.tabs[i].url.possibly_invalid_spec());
+      COMPASS_SET_STRING(pane, title, base::UTF16ToUTF8(entry.tabs[i].title));
+      COMPASS_SET_STRING(pane, custom_title, std::string());
+      if (pane.archived_time() != archived_time) {
+        pane.set_archived_time(archived_time);
+      }
+      if (!existing[i] || !existing[i]->Equals(positions[i])) {
+        *pane.mutable_position() = positions[i].ToProto();
+      }
+      out[keys[i]] = std::move(pane_specifics);
+    }
+  }
+}
+
+bool CompassSpacesSyncBridge::IsSyncableToday(const SidebarNode& node) const {
+  if (mirror_.contains(Key(node.id()))) {
+    // Synced once, synced for good (a page that went blank, say).
+    return true;
+  }
+  switch (node.type()) {
+    case Type::kTab:
+      return IsRestorableURL(node.url());
+    case Type::kSplit:
+      return !node.children().empty() &&
+             std::ranges::all_of(node.children(), [this](const auto& pane) {
+               return IsSyncableToday(*pane);
+             });
+    case Type::kFolder:
+    case Type::kRoot:
+      return true;
+  }
+  return true;
 }
 
 void CompassSpacesSyncBridge::AddLocalNodes(
@@ -449,6 +693,10 @@ void CompassSpacesSyncBridge::AddLocalNodes(
       // Another node has this ID (a damaged file): only the first syncs.
       continue;
     }
+    if (section == kSectionToday && !IsSyncableToday(*child)) {
+      // A new tab or blank page stays here.
+      continue;
+    }
     auto it = mirror_.find(key);
     const sync_pb::CompassNode* synced =
         it != mirror_.end() && it->second.has_node() ? &it->second.node()
@@ -462,6 +710,9 @@ void CompassSpacesSyncBridge::AddLocalNodes(
       // server has for it.
       sync_pb::CompassSpacesSpecifics specifics = it->second;
       FillNodeContent(*child, *specifics.mutable_node());
+      if (section == kSectionToday) {
+        FillLastActive(*child, *specifics.mutable_node());
+      }
       out[key] = std::move(specifics);
       included.push_back(child.get());
       continue;
@@ -500,6 +751,13 @@ void CompassSpacesSyncBridge::AddLocalNodes(
       node.set_type(type);
     }
     FillNodeContent(*placed[i], node);
+    if (section == kSectionToday) {
+      FillLastActive(*placed[i], node);
+    }
+    if (node.has_archived_time()) {
+      // Back from the archive.
+      node.clear_archived_time();
+    }
     if (!existing[i] || !existing[i]->Equals(positions[i])) {
       *node.mutable_position() = positions[i].ToProto();
     }
@@ -525,7 +783,14 @@ bool CompassSpacesSyncBridge::WasDeletedLocally(
   }
   const sync_pb::CompassNode& node = specifics.node();
   switch (node.section()) {
-    case kSectionPinned: {
+    case kSectionArchive:
+      if (!IsArchiveComplete(node)) {
+        // Waits for the rest of its entry.
+        return false;
+      }
+      [[fallthrough]];
+    case kSectionPinned:
+    case kSectionToday: {
       // Its space is here, or was and goes too. A space this device never
       // had (another profile's, later) means it was never applied.
       if (local.contains(node.space_uuid())) {
@@ -537,9 +802,26 @@ bool CompassSpacesSyncBridge::WasDeletedLocally(
     case kSectionFavorites:
       return node.type() == kNodeTab;
     default:
-      // Today and the archive: not this slice's.
       return false;
   }
+}
+
+bool CompassSpacesSyncBridge::IsArchiveComplete(
+    const sync_pb::CompassNode& node) const {
+  if (!node.parent_uuid().empty()) {
+    // A pane: its split is in the archive too.
+    auto it = mirror_.find(node.parent_uuid());
+    return it != mirror_.end() && it->second.has_node() &&
+           it->second.node().section() == kSectionArchive;
+  }
+  if (node.type() != kNodeSplit) {
+    return true;
+  }
+  return std::ranges::any_of(mirror_, [&node](const auto& entry) {
+    return entry.second.has_node() &&
+           entry.second.node().section() == kSectionArchive &&
+           entry.second.node().parent_uuid() == node.uuid();
+  });
 }
 
 // Remote changes --------------------------------------------------------------
@@ -611,6 +893,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
                                                   spaces.end()));
     }
     ApplyNodes(nodes, deleted);
+    if (initial_merge) {
+      DedupeToday(nodes);
+    }
   }
   VLOG(1) << "[compass-sync] spaces: applied " << changes.size()
           << (initial_merge ? " entities (initial merge)" : " remote changes")
@@ -772,6 +1057,7 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
                                          const std::set<std::string>& deleted) {
   // 1. New nodes (at their section's root for now) and changed content.
   std::vector<std::string> to_place;
+  std::set<std::string> archive_roots;
   for (const std::string& key : keys) {
     auto it = mirror_.find(key);
     if (it == mirror_.end() || !it->second.has_node()) {
@@ -782,25 +1068,16 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
     if (!id.is_valid()) {
       continue;
     }
-    SidebarNode* node = FindNode(id);
 
-    if (remote.section() == kSectionToday ||
-        remote.section() == kSectionArchive) {
-      // Unpinned or archived on another device. Today isn't synced yet
-      // (slice 3b): the entry leaves the synced sections here too.
-      if (node && IsSynced(node)) {
-        const base::Uuid space_id = ParseKey(remote.space_uuid());
-        SpaceModel* space =
-            space_id.is_valid() ? list_->FindSpace(space_id) : nullptr;
-        if (remote.section() == kSectionToday && space) {
-          MoveNode(node, *space, space->today_root(),
-                   space->today_root()->children().size());
-        } else {
-          ModelOf(node)->Remove(node);
-        }
-      }
+    if (remote.section() == kSectionArchive) {
+      // Archived on another device; its entry is rebuilt below.
+      archive_roots.insert(remote.parent_uuid().empty() ? key
+                                                        : remote.parent_uuid());
       continue;
     }
+    // Restored, or never archived.
+    DropFromArchives(key);
+    SidebarNode* node = FindNode(id);
 
     SpaceModel* target = TargetModel(remote);
     const std::optional<Type> type = TypeFromProto(remote.type());
@@ -813,7 +1090,7 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
       if (list_->FindSpace(id)) {
         continue;
       }
-      SidebarNode* root = target->pinned_root();
+      SidebarNode* root = RootFor(*target, remote.section());
       const size_t end = root->children().size();
       const std::u16string title = base::UTF8ToUTF16(remote.title());
       switch (*type) {
@@ -838,18 +1115,29 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
     }
 
     // Content. A live tab whose URL changed keeps its page (it isn't
-    // navigated); its next navigation here commits its own URL.
+    // navigated); its next navigation here commits its own URL (see
+    // TabStripBridge::UpdateNode()). A page used here whose change waits to
+    // be sent keeps its own URL and title: it commits them next, last.
     SpaceModel* model = ModelOf(node);
     const std::u16string title = base::UTF8ToUTF16(remote.title());
     if (node->type() == Type::kTab) {
-      const GURL url(remote.url());
-      if (node->url() != url) {
-        model->SetUrl(node, url);
-      }
-      if (node->title() != title) {
-        model->SetTitle(node, title);
+      if (!throttled_.contains(key)) {
+        const GURL url(remote.url());
+        if (node->url() != url) {
+          model->SetUrl(node, url);
+        }
+        if (node->title() != title) {
+          model->SetTitle(node, title);
+        }
       }
       model->SetCustomTitle(node, base::UTF8ToUTF16(remote.custom_title()));
+      // Every device commits its own use: the latest wins.
+      if (remote.has_last_active_time()) {
+        const base::Time last_active = FromProtoTime(remote.last_active_time());
+        if (last_active > node->last_active()) {
+          model->SetLastActive(node, last_active);
+        }
+      }
     } else if (node->type() == Type::kFolder) {
       if (node->title() != title) {
         model->SetTitle(node, title);
@@ -860,13 +1148,14 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
   }
 
   // 2. Deletions.
-  ApplyNodeDeletions(deleted);
+  ApplyNodeDeletions(deleted, archive_roots);
 
   // 3. Placement, parents first. Parked nodes may find their parent now.
   std::set<std::string> listed(to_place.begin(), to_place.end());
   std::vector<const SidebarNode*> roots = {list_->favorites().pinned_root()};
   for (const auto& space : list_->spaces()) {
     roots.push_back(space->pinned_root());
+    roots.push_back(space->today_root());
   }
   for (const SidebarNode* root : roots) {
     for (const auto& child : root->children()) {
@@ -902,28 +1191,89 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
 
   // 4. Splits the batch left with fewer than two panes.
   NormalizeSplits();
+
+  // 5. Entries archived elsewhere.
+  ApplyArchives(archive_roots);
 }
 
 void CompassSpacesSyncBridge::ApplyNodeDeletions(
-    const std::set<std::string>& deleted) {
+    const std::set<std::string>& deleted,
+    std::set<std::string>& archive_roots) {
+  // Archived entries. One that has left the server for its age stays here.
+  const base::Time expired = base::Time::Now() - kArchiveSyncPeriod;
+  for (const std::string& key : deleted) {
+    const base::Uuid id = ParseKey(key);
+    if (!id.is_valid()) {
+      continue;
+    }
+    for (const auto& space : list_->spaces()) {
+      if (const ArchivedEntry* entry = space->FindArchived(id)) {
+        if (entry->archived_at >= expired) {
+          space->RemoveArchived(id);
+        }
+        continue;
+      }
+      for (const ArchivedEntry& entry : space->archive()) {
+        if (std::ranges::contains(entry.tabs, id, &ArchivedEntry::Tab::id)) {
+          // A pane: its entry is rebuilt from what's left.
+          archive_roots.insert(Key(entry.id));
+        }
+      }
+    }
+  }
+
+  // A Today entry the focused window shows stays: it's re-created, so the
+  // other devices get it back (docs/design/sync.md, "Today across devices").
+  std::set<std::string> kept;
+  for (const std::string& key : deleted) {
+    const base::Uuid id = ParseKey(key);
+    SidebarNode* node = id.is_valid() ? FindNode(id) : nullptr;
+    SpaceModel* space = node ? list_->FindSpaceOf(node) : nullptr;
+    if (!space || !space->today_root()->Contains(node)) {
+      continue;
+    }
+    const SidebarNode* entry = node;
+    if (entry->type() == Type::kTab &&
+        entry->parent()->type() == Type::kSplit) {
+      entry = entry->parent();
+    }
+    if (entry->type() != Type::kFolder && delegate_ &&
+        delegate_->IsShownInFocusedWindow(*entry)) {
+      kept.insert(Key(entry->id()));
+    }
+  }
+  const auto removing = [&](const SidebarNode* node) {
+    if (!deleted.contains(Key(node->id()))) {
+      return false;
+    }
+    for (const SidebarNode* n = node; n; n = n->parent()) {
+      if (kept.contains(Key(n->id()))) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   // Entries added here to a folder deleted elsewhere aren't lost: they go to
   // the section's root (and the next pass commits that).
   for (const std::string& key : deleted) {
     const base::Uuid id = ParseKey(key);
     SidebarNode* node = id.is_valid() ? FindNode(id) : nullptr;
-    if (!node || !IsSynced(node)) {
+    if (!node || !IsSynced(node) || !removing(node)) {
       continue;
     }
     SpaceModel* model = ModelOf(node);
-    std::vector<base::Uuid> kept;
+    SidebarNode* root = model->today_root()->Contains(node)
+                            ? model->today_root()
+                            : model->pinned_root();
+    std::vector<base::Uuid> rescued;
     for (const auto& child : node->children()) {
-      if (!deleted.contains(Key(child->id()))) {
-        kept.push_back(child->id());
+      if (!removing(child.get())) {
+        rescued.push_back(child->id());
       }
     }
-    for (const base::Uuid& child_id : kept) {
+    for (const base::Uuid& child_id : rescued) {
       SidebarNode* child = model->FindById(child_id);
-      SidebarNode* root = model->pinned_root();
       if (child && model->CanMove(child, root)) {
         model->Move(child, root, root->children().size());
       }
@@ -934,10 +1284,231 @@ void CompassSpacesSyncBridge::ApplyNodeDeletions(
   for (const std::string& key : deleted) {
     const base::Uuid id = ParseKey(key);
     SidebarNode* node = id.is_valid() ? FindNode(id) : nullptr;
-    if (node && IsSynced(node)) {
+    if (node && IsSynced(node) && removing(node)) {
       ModelOf(node)->Remove(node);
     }
   }
+
+  // The server won't take a deleted entity back under the same ID, so the
+  // kept entries get new ones.
+  for (const std::string& key : kept) {
+    if (SidebarNode* node = FindNode(ParseKey(key))) {
+      SidebarNode* copy = Recreate(node);
+      VLOG(1) << "[compass-sync] spaces: kept " << key
+              << ", closed elsewhere but shown in the focused window, as "
+              << Key(copy->id());
+    }
+  }
+}
+
+void CompassSpacesSyncBridge::ApplyArchives(
+    const std::set<std::string>& roots) {
+  for (const std::string& root_key : roots) {
+    auto it = mirror_.find(root_key);
+    const base::Uuid id = ParseKey(root_key);
+    if (it == mirror_.end() || !it->second.has_node() || !id.is_valid() ||
+        it->second.node().section() != kSectionArchive) {
+      continue;
+    }
+    const sync_pb::CompassNode root = it->second.node();
+    const base::Uuid space_id = ParseKey(root.space_uuid());
+    SpaceModel* space =
+        space_id.is_valid() ? list_->FindSpace(space_id) : nullptr;
+    if (!space) {
+      // Waits for its space.
+      continue;
+    }
+
+    ArchivedEntry entry;
+    entry.id = id;
+    entry.archived_at = root.has_archived_time()
+                            ? FromProtoTime(root.archived_time())
+                            : base::Time::Now();
+    if (root.type() == kNodeTab) {
+      entry.tabs.push_back({base::UTF8ToUTF16(root.title()), GURL(root.url()),
+                            id});
+    } else if (root.type() == kNodeSplit) {
+      std::vector<std::pair<std::optional<syncer::UniquePosition>,
+                            const sync_pb::CompassNode*>>
+          panes;
+      for (const auto& [key, specifics] : mirror_) {
+        if (specifics.has_node() &&
+            specifics.node().section() == kSectionArchive &&
+            specifics.node().parent_uuid() == root_key &&
+            specifics.node().type() == kNodeTab &&
+            ParseKey(key).is_valid()) {
+          panes.emplace_back(ValidPosition(specifics.node().position()),
+                             &specifics.node());
+        }
+      }
+      // By position; panes without one last.
+      std::ranges::stable_sort(panes, [](const auto& a, const auto& b) {
+        if (!a.first || !b.first) {
+          return a.first.has_value() && !b.first.has_value();
+        }
+        return a.first->LessThan(*b.first);
+      });
+      for (const auto& [position, pane] : panes) {
+        if (entry.tabs.size() == kMaxSplitPanes) {
+          break;
+        }
+        entry.tabs.push_back({base::UTF8ToUTF16(pane->title()),
+                              GURL(pane->url()), ParseKey(pane->uuid())});
+      }
+    } else {
+      continue;
+    }
+
+    // The entry and its panes leave Today (or wherever they are here),
+    // closing their tabs, unless the entry is in use here: then it stays,
+    // seen now, and the next pass puts it back in Today everywhere.
+    std::vector<base::Uuid> retiring = {id};
+    for (const ArchivedEntry::Tab& tab : entry.tabs) {
+      retiring.push_back(tab.id);
+    }
+    bool in_use = false;
+    for (const base::Uuid& retiring_id : retiring) {
+      const SidebarNode* node = FindNode(retiring_id);
+      if (!node) {
+        continue;
+      }
+      if (node->type() == Type::kTab && node->parent()->type() == Type::kSplit) {
+        node = node->parent();
+      }
+      if (delegate_ && delegate_->IsInUse(*node)) {
+        in_use = true;
+      }
+    }
+    if (in_use) {
+      const base::Time now = base::Time::Now();
+      for (const base::Uuid& retiring_id : retiring) {
+        SidebarNode* node = FindNode(retiring_id);
+        if (node && node->type() == Type::kTab) {
+          ModelOf(node)->SetLastActive(node, now);
+        }
+      }
+      VLOG(1) << "[compass-sync] spaces: kept " << root_key
+              << ", archived elsewhere but in use here";
+      continue;
+    }
+    for (const base::Uuid& retiring_id : retiring) {
+      if (SidebarNode* node = FindNode(retiring_id)) {
+        ModelOf(node)->Remove(node);
+      }
+    }
+    for (const auto& other : list_->spaces()) {
+      if (other.get() != space && other->FindArchived(id)) {
+        other->RemoveArchived(id);
+      }
+    }
+    // No panes yet: the entry waits for them.
+    space->PutArchived(std::move(entry));
+  }
+}
+
+void CompassSpacesSyncBridge::DropFromArchives(const std::string& key) {
+  const base::Uuid id = ParseKey(key);
+  if (!id.is_valid()) {
+    return;
+  }
+  for (const auto& space : list_->spaces()) {
+    if (space->FindArchived(id)) {
+      space->RemoveArchived(id);
+    }
+  }
+}
+
+void CompassSpacesSyncBridge::DedupeToday(
+    const std::vector<std::string>& remote_nodes) {
+  const std::set<std::string> remote(remote_nodes.begin(), remote_nodes.end());
+  for (const auto& space : list_->spaces()) {
+    // Tabs outside splits, depth first: the chain's by URL, and this
+    // device's own.
+    std::map<GURL, SidebarNode*> chain;
+    std::vector<base::Uuid> own;
+    std::vector<SidebarNode*> stack = {space->today_root()};
+    while (!stack.empty()) {
+      SidebarNode* parent = stack.back();
+      stack.pop_back();
+      for (auto child = parent->children().rbegin();
+           child != parent->children().rend(); ++child) {
+        SidebarNode* node = child->get();
+        if (node->type() == Type::kFolder) {
+          stack.push_back(node);
+          continue;
+        }
+        if (node->type() != Type::kTab) {
+          continue;
+        }
+        const std::string key = Key(node->id());
+        if (remote.contains(key)) {
+          chain.emplace(node->url(), node);
+        } else if (!mirror_.contains(key)) {
+          own.push_back(node->id());
+        }
+      }
+    }
+    for (const base::Uuid& id : own) {
+      SidebarNode* node = space->FindById(id);
+      auto it = node ? chain.find(node->url()) : chain.end();
+      if (it == chain.end()) {
+        continue;
+      }
+      SidebarNode* keep = it->second;
+      if (node->last_active() > keep->last_active()) {
+        space->SetLastActive(keep, node->last_active());
+      }
+      if (delegate_) {
+        delegate_->TransferLiveTab(*node, *keep);
+      }
+      space->Remove(node);
+    }
+  }
+}
+
+SidebarNode* CompassSpacesSyncBridge::Recreate(SidebarNode* node) {
+  SpaceModel* model = ModelOf(node);
+  SidebarNode* parent = node->parent();
+  SidebarNode* copy =
+      CopyNode(*model, *node, parent, parent->GetIndexOf(node));
+  // Its live tabs went to the copy, so this closes none.
+  model->Remove(node);
+  return copy;
+}
+
+SidebarNode* CompassSpacesSyncBridge::CopyNode(SpaceModel& model,
+                                               const SidebarNode& node,
+                                               SidebarNode* parent,
+                                               size_t index) {
+  SidebarNode* copy = nullptr;
+  switch (node.type()) {
+    case Type::kTab:
+      copy = model.AddTab(parent, index, node.url(), node.title());
+      model.SetCustomTitle(copy, node.custom_title());
+      if (!node.last_active().is_null()) {
+        model.SetLastActive(copy, node.last_active());
+      }
+      if (delegate_) {
+        delegate_->TransferLiveTab(node, *copy);
+      }
+      break;
+    case Type::kSplit:
+      copy = model.AddSplit(parent, index);
+      for (const auto& pane : node.children()) {
+        CopyNode(model, *pane, copy, copy->children().size());
+      }
+      break;
+    case Type::kFolder:
+      copy = model.AddFolder(parent, index, node.title());
+      model.SetCollapsed(copy, node.collapsed());
+      for (const auto& child : node.children()) {
+        CopyNode(model, *child, copy, copy->children().size());
+      }
+      break;
+    case Type::kRoot:
+      NOTREACHED();
+  }
+  return copy;
 }
 
 void CompassSpacesSyncBridge::PlaceNode(const std::string& key,
@@ -952,7 +1523,7 @@ void CompassSpacesSyncBridge::PlaceNode(const std::string& key,
   if (!node || !target) {
     return;
   }
-  SidebarNode* root = target->pinned_root();
+  SidebarNode* root = RootFor(*target, remote.section());
   SidebarNode* parent = root;
   bool parked = false;
   if (!remote.parent_uuid().empty()) {
@@ -992,6 +1563,7 @@ void CompassSpacesSyncBridge::NormalizeSplits() {
   std::vector<base::Uuid> splits;
   for (const auto& space : list_->spaces()) {
     CollectSplits(*space->pinned_root(), splits);
+    CollectSplits(*space->today_root(), splits);
   }
   for (const base::Uuid& id : splits) {
     SidebarNode* split = FindNode(id);
@@ -1029,11 +1601,8 @@ SpaceModel* CompassSpacesSyncBridge::ModelOf(const SidebarNode* node) const {
 }
 
 bool CompassSpacesSyncBridge::IsSynced(const SidebarNode* node) const {
-  if (list_->favorites().pinned_root()->Contains(node)) {
-    return true;
-  }
-  const SpaceModel* space = list_->FindSpaceOf(node);
-  return space && space->pinned_root()->Contains(node);
+  return list_->favorites().pinned_root()->Contains(node) ||
+         list_->FindSpaceOf(node);
 }
 
 SpaceModel* CompassSpacesSyncBridge::TargetModel(
@@ -1041,11 +1610,13 @@ SpaceModel* CompassSpacesSyncBridge::TargetModel(
   switch (node.section()) {
     case kSectionFavorites:
       return &list_->favorites();
-    case kSectionPinned: {
+    case kSectionPinned:
+    case kSectionToday: {
       const base::Uuid id = ParseKey(node.space_uuid());
       return id.is_valid() ? list_->FindSpace(id) : nullptr;
     }
     default:
+      // The archive isn't a tree (see ApplyArchives()).
       return nullptr;
   }
 }
@@ -1124,6 +1695,17 @@ std::optional<syncer::UniquePosition> CompassSpacesSyncBridge::MirrorPosition(
       !it->second.node().has_position()) {
     return std::nullopt;
   }
+  if (parent.type() == Type::kRoot) {
+    // Every root is "": the section tells them apart.
+    SpaceModel* model = ModelOf(&parent);
+    const int section = model == &list_->favorites() ? kSectionFavorites
+                        : model && &parent == model->today_root()
+                            ? kSectionToday
+                            : kSectionPinned;
+    if (it->second.node().section() != section) {
+      return std::nullopt;
+    }
+  }
   return ValidPosition(it->second.node().position());
 }
 
@@ -1183,6 +1765,10 @@ void CompassSpacesSyncBridge::ApplyDisableSyncChanges(
   // Leaving the chain keeps the spaces; only what sync knew goes.
   mirror_.clear();
   unparked_.clear();
+  last_commit_.clear();
+  throttled_.clear();
+  throttle_timer_.Stop();
+  archive_expiry_timer_.Stop();
   if (store_) {
     store_->DeleteAllDataAndMetadata(std::move(delete_metadata_change_list),
                                      base::DoNothing());
@@ -1267,6 +1853,18 @@ void CompassSpacesSyncBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
 }
 
 void CompassSpacesSyncBridge::OnNodeWillMoveToSpace(const SidebarNode& node) {
+  if (!applying_remote_) {
+    ScheduleSendLocalChanges();
+  }
+}
+
+void CompassSpacesSyncBridge::OnNodeLastActiveChanged(const SidebarNode& node) {
+  if (!applying_remote_) {
+    ScheduleSendLocalChanges();
+  }
+}
+
+void CompassSpacesSyncBridge::OnArchiveChanged(const SpaceModel& space) {
   if (!applying_remote_) {
     ScheduleSendLocalChanges();
   }
