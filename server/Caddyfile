@@ -1,0 +1,6 @@
+# Replace sync.example.com with your domain (its DNS must point at this
+# machine, ports 80 and 443 open). Caddy gets the certificate itself.
+# In Compass, the server URL is then https://sync.example.com/v2
+sync.example.com {
+	reverse_proxy sync:8295
+}

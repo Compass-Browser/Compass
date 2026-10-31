@@ -11,7 +11,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import checkout, overrides, patches
+from . import checkout, overrides, patches, sync_server
 from .layout import CONFIGS, Layout, detect
 from .process import CommandError, depot_tool, run
 
@@ -264,6 +264,23 @@ def cmd_test(layout: Layout, args) -> None:
   sys.exit(result.returncode)
 
 
+def cmd_sync_server(layout: Layout, args) -> None:
+  if args.podman:
+    if args.fresh:
+      run(['podman', 'volume', 'rm', '-f', sync_server.VOLUME], layout.root)
+    for cmd, cwd in sync_server.podman_commands(layout.root, args.port):
+      run(cmd, cwd)
+    return
+  cmd, cwd, env = sync_server.go_command(layout.root, args.port)
+  data = sync_server.data_dir(layout.root)
+  if args.fresh and data.exists():
+    shutil.rmtree(data)
+  data.mkdir(parents=True, exist_ok=True)
+  print('sync server on http://localhost:%d/v2 (data in %s)' % (args.port,
+                                                                data))
+  run(cmd, cwd, env=env, check=False)
+
+
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
   default = os.environ.get('COMPASS_JOBS')
   p.add_argument('-j', '--jobs', type=int,
@@ -334,6 +351,16 @@ def parser() -> argparse.ArgumentParser:
   add_jobs_argument(s)
   s.add_argument('test_args', nargs=argparse.REMAINDER)
   s.set_defaults(func=cmd_test)
+
+  s = sub.add_parser('sync-server', help='run the sync server (server/) '
+                     'locally for development')
+  s.add_argument('--port', type=int, default=sync_server.DEFAULT_PORT,
+                 help='default: %(default)s')
+  s.add_argument('--podman', action='store_true',
+                 help='build and run the container image instead of go run')
+  s.add_argument('--fresh', action='store_true',
+                 help='start from an empty database')
+  s.set_defaults(func=cmd_sync_server)
   return p
 
 

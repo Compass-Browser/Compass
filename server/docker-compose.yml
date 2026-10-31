@@ -1,0 +1,53 @@
+# Compass sync server behind Caddy (HTTPS with automatic certificates).
+# Set your domain in Caddyfile, then: docker compose up -d
+# See README.md.
+
+name: compass-sync
+
+services:
+  sync:
+    build: .
+    image: compass-sync-server:latest
+    restart: unless-stopped
+    volumes:
+      - sync-data:/data
+    environment:
+      # Caddy's address range: its X-Forwarded-For is trusted for the
+      # client IP (pairing rate limits). Must match the network below.
+      COMPASS_SYNC_TRUSTED_PROXIES: 172.30.240.0/24
+      # COMPASS_SYNC_MAX_ENTITIES: "100000"
+      # COMPASS_SYNC_MAX_BYTES: "209715200"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "/compass-sync-server", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+    # No published port: only Caddy reaches it.
+
+  caddy:
+    image: docker.io/library/caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+    depends_on:
+      - sync
+
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.240.0/24
+
+volumes:
+  sync-data:
+  caddy-data:
+  caddy-config:
