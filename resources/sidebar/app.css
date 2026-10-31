@@ -404,15 +404,25 @@ compass-sidebar-preview[side='next'] {
 
 .space-symbol {
   fill: currentColor;
-  height: 14px;
-  width: 14px;
+  height: 17px;
+  width: 17px;
 }
 
-/* Emoji glyphs fill their em box: at the letters' size they look as big as
- * the 14px symbols. */
+.space-initial {
+  font-size: 13px;
+}
+
+/* Emoji glyphs fill their em box, so they're set smaller than the letters
+ * and symbols to look as big. */
 .space-emoji {
   font-size: 11px;
   line-height: 1;
+  transition: filter 240ms ease-out;
+}
+
+/* Grey until the space is the window's, then they fade into color. */
+.space:not([active]) .space-emoji {
+  filter: grayscale(1);
 }
 
 #spaceProfile,
