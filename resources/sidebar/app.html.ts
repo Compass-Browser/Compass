@@ -62,7 +62,11 @@ export function getHtml(this: CompassSidebarAppElement) {
         <span>Pinned</span>
         <button id="newFolder" class="new-folder" data-section="pinned"
             aria-label="New folder" title="New folder"
-            @click="${this.onNewFolderClick_}">+</button>
+            @click="${this.onNewFolderClick_}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 3v10M3 8h10"></path>
+          </svg>
+        </button>
       </div>
       <div id="pinned" class="section" role="tree">
         ${this.isPinnedEmpty_() ? html`
@@ -80,7 +84,11 @@ export function getHtml(this: CompassSidebarAppElement) {
         <span>Today</span>
         <button id="newTodayFolder" class="new-folder" data-section="today"
             aria-label="New folder in Today" title="New folder"
-            @click="${this.onNewFolderClick_}">+</button>
+            @click="${this.onNewFolderClick_}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 3v10M3 8h10"></path>
+          </svg>
+        </button>
         <button id="archiveButton" aria-label="Archived tabs"
             title="Archived tabs" aria-expanded="${this.archiveOpen_}"
             ?open="${this.archiveOpen_}"
