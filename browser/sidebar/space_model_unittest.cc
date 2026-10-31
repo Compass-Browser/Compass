@@ -18,6 +18,7 @@
 namespace compass {
 namespace {
 
+using ::testing::Contains;
 using ::testing::ElementsAre;
 using Type = SidebarNode::Type;
 
@@ -450,6 +451,64 @@ TEST(SpaceModelArchiveTest, RemovesAndClears) {
   model.ClearArchive();
   EXPECT_TRUE(model.archive().empty());
   EXPECT_THAT(observer.events, ElementsAre("archive"));
+  model.RemoveObserver(&observer);
+}
+
+TEST(SpaceModelArchiveTest, EntriesKeepTheirNodesIds) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  const base::Time now = base::Time::Now();
+  SidebarNode* tab = model.AddTab(today, 0, GURL("https://t.test/"), u"T");
+  const base::Uuid tab_id = tab->id();
+  model.Archive(tab, now);
+  ASSERT_EQ(model.archive().size(), 1u);
+  EXPECT_EQ(model.archive()[0].id, tab_id);
+  EXPECT_EQ(model.archive()[0].tabs[0].id, tab_id);
+
+  // A split with one page worth keeping is archived as that page.
+  SidebarNode* a = model.AddTab(today, 0, GURL("https://a.test/"), u"A");
+  SidebarNode* blank = model.AddTab(today, 1, GURL("about:blank"), u"");
+  const base::Uuid a_id = a->id();
+  model.Archive(model.Split(a, blank), now + base::Seconds(1));
+  ASSERT_EQ(model.archive().size(), 2u);
+  EXPECT_EQ(model.archive()[0].id, a_id);
+
+  // Restoring makes new nodes.
+  SidebarNode* restored = model.Unarchive(tab_id, 0);
+  ASSERT_TRUE(restored);
+  EXPECT_NE(restored->id(), tab_id);
+}
+
+TEST(SpaceModelArchiveTest, PutArchivedGoesByTimeAndReplaces) {
+  SpaceModel model;
+  RecordingObserver observer;
+  model.AddObserver(&observer);
+  const base::Time now = base::Time::Now();
+  const auto entry = [](const base::Uuid& id, base::Time at,
+                        std::u16string title) {
+    ArchivedEntry archived;
+    archived.id = id;
+    archived.archived_at = at;
+    archived.tabs.push_back({std::move(title), GURL("https://x.test/"), id});
+    return archived;
+  };
+  const base::Uuid old_id = base::Uuid::GenerateRandomV4();
+  const base::Uuid new_id = base::Uuid::GenerateRandomV4();
+  model.PutArchived(entry(old_id, now - base::Hours(2), u"Old"));
+  model.PutArchived(entry(new_id, now, u"New"));
+  model.PutArchived(entry(base::Uuid::GenerateRandomV4(),
+                          now - base::Hours(1), u"Middle"));
+  ASSERT_EQ(model.archive().size(), 3u);
+  EXPECT_EQ(model.archive()[0].tabs[0].title, u"New");
+  EXPECT_EQ(model.archive()[1].tabs[0].title, u"Middle");
+  EXPECT_EQ(model.archive()[2].tabs[0].title, u"Old");
+  EXPECT_THAT(observer.events, Contains("archive"));
+
+  // The same ID replaces, in its new place.
+  model.PutArchived(entry(old_id, now + base::Hours(1), u"Again"));
+  ASSERT_EQ(model.archive().size(), 3u);
+  EXPECT_EQ(model.archive()[0].tabs[0].title, u"Again");
+  EXPECT_EQ(model.FindArchived(old_id)->tabs[0].title, u"Again");
   model.RemoveObserver(&observer);
 }
 

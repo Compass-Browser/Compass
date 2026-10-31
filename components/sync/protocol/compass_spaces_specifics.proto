@@ -63,8 +63,8 @@ message CompassNode {
   optional string space_uuid = 2;
   // Its parent; empty for an entry at the root of its section.
   optional string parent_uuid = 3;
-  // 1 PINNED, 2 TODAY, 3 FAVORITES, 4 ARCHIVE. Slice 3 syncs PINNED and
-  // FAVORITES.
+  // 1 PINNED, 2 TODAY, 3 FAVORITES, 4 ARCHIVE. An archived entry is at the
+  // root of ARCHIVE; an archived split's panes are its children.
   optional int32 section = 4;
   // Among its siblings.
   optional UniquePosition position = 5;
@@ -77,11 +77,11 @@ message CompassNode {
   optional string custom_title = 9;
   // Folders: whether only the folder's own row shows.
   optional bool collapsed = 10;
-  // TODAY (slice 3b): when a tab was last shown, in microseconds since the
-  // Windows epoch. Kept as received.
+  // TODAY tabs: when a tab was last shown on any device, in microseconds
+  // since the Windows epoch. Drives auto-archive; devices keep the latest.
   optional int64 last_active_time = 11;
-  // ARCHIVE (slice 3b): when the entry was archived, same unit. Kept as
-  // received.
+  // ARCHIVE: when the entry was archived, same unit. Entries archived more
+  // than 30 days ago leave the server.
   optional int64 archived_time = 12;
 }
 

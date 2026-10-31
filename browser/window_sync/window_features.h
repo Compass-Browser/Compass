@@ -288,6 +288,16 @@ bool RevealParkedTab(content::WebContents* contents);
 // docs/design/sidebar.md, "Today auto-archive".
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now);
 
+// Whether |entry|, one of |profile|'s, shows in one of its windows (a
+// placeholder counts) or one of its tabs plays sound: what the archiver
+// spares.
+bool IsEntryInUse(Profile* profile, const SidebarNode& entry);
+
+// Whether |entry| (or a pane of it) is the shown tab of the window that has
+// the focus. Sync keeps such an entry when another device closes it
+// (docs/design/sync.md, "Today across devices").
+bool IsEntryShownInFocusedWindow(Profile* profile, const SidebarNode& entry);
+
 }  // namespace compass
 
 #endif  // COMPASS_BROWSER_WINDOW_SYNC_WINDOW_FEATURES_H_
