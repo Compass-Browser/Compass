@@ -16,7 +16,7 @@ ${this.tree ? html`
   <div id="sections">
     <div class="section-header">
       <span>Pinned</span>
-      <span id="newFolder">+</span>
+      <span id="newFolder" class="new-folder">+</span>
     </div>
     <div class="section">
       ${this.isPinnedEmpty_() ? html`

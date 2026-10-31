@@ -170,6 +170,34 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LongPinnedScrollsWithToday) {
                 true));
 }
 
+// The previews a switch slides in line up with the live sidebar, so nothing
+// jumps when the live one takes over: their section headers (plain copies of
+// the live buttons) were shorter, moving every entry up.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PreviewsLineUpWithTheSidebar) {
+  SpaceList& spaces =
+      WindowFeatures::From(browser())->service().space_list();
+  spaces.AddSpace(spaces.spaces().size(), u"Second");
+  content::WebContents* contents = sidebar_contents();
+  constexpr char kHeaderHeights[] = R"(
+    (async () => {
+      const r = () => document.querySelector('compass-sidebar-app').shadowRoot;
+      const preview = () => r().querySelector(
+          'compass-sidebar-preview[side=next]')?.shadowRoot;
+      while (!preview()?.querySelector('#sections .section-header')) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      const heights = root => [...root.querySelectorAll(
+          '#sections > .section-header')].map(h => h.offsetHeight);
+      return [heights(r().querySelector('#spacePane')), heights(preview())];
+    })())";
+  base::ListValue result =
+      content::EvalJs(contents, kHeaderHeights).ExtractList().Clone();
+  ASSERT_EQ(result.size(), 2u);
+  // Pinned's and Today's, the same height in both.
+  EXPECT_EQ(result[0].GetList().size(), 2u);
+  EXPECT_EQ(result[0], result[1]);
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ReplacesNativeTabStrip) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
   ASSERT_TRUE(region);
