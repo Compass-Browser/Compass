@@ -425,6 +425,29 @@ compass-sidebar-preview[side='next'] {
   display: none;
 }
 
+/* How strong the tint is, and its grain. */
+#effects {
+  display: grid;
+  font-size: 12px;
+  gap: 4px 8px;
+  grid-template-columns: auto 1fr;
+}
+
+#effects[hidden] {
+  display: none;
+}
+
+#effects .slider {
+  align-items: center;
+  display: contents;
+}
+
+#effects input[type=range] {
+  accent-color: var(--color-sys-primary, #8ab4f8);
+  margin: 0;
+  min-width: 0;
+}
+
 /* The space's icon: none (its letter), a symbol or an emoji. */
 #icons {
   align-items: center;

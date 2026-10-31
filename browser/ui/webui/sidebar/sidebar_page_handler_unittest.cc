@@ -588,6 +588,18 @@ TEST_F(SidebarPageHandlerTest, SetsSpaceGradients) {
   EXPECT_TRUE(home.gradient().empty());
 }
 
+TEST_F(SidebarPageHandlerTest, SetsSpaceIntensityAndGrain) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+
+  handler_remote_->SetSpaceIntensity(id, 0.6);
+  handler_remote_->SetSpaceGrain(id, 5);
+  Settle();
+
+  EXPECT_EQ(home.intensity(), 0.6);
+  EXPECT_EQ(home.grain(), 1);
+}
+
 TEST_F(SidebarPageHandlerTest, SetsSpaceIcons) {
   SpaceModel& home = space_model();
   const std::string id = home.id().AsLowercaseString();

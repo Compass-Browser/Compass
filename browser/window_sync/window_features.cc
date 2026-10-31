@@ -763,6 +763,8 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
       *target_list.AddSpace(target_list.spaces().size(), space.name());
   moved.SetColor(space.color());
   moved.SetGradient(space.gradient());
+  moved.SetIntensity(space.intensity());
+  moved.SetGrain(space.grain());
   moved.SetIcon(space.icon());
   moved.SetArchiveAfter(space.archive_after());
   for (const ArchivedEntry& entry : space.archive()) {

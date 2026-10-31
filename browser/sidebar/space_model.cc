@@ -5,6 +5,7 @@
 #include "compass/browser/sidebar/space_model.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #include "base/check.h"
@@ -154,6 +155,34 @@ void SpaceModel::SetGradient(std::vector<SpaceColor> gradient) {
     return;
   }
   gradient_ = std::move(gradient);
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
+void SpaceModel::SetIntensity(double intensity) {
+  if (std::isnan(intensity)) {
+    return;
+  }
+  intensity = std::clamp(intensity, 0.0, 1.0);
+  if (intensity_ == intensity) {
+    return;
+  }
+  intensity_ = intensity;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
+void SpaceModel::SetGrain(double grain) {
+  if (std::isnan(grain)) {
+    return;
+  }
+  grain = std::clamp(grain, 0.0, 1.0);
+  if (grain_ == grain) {
+    return;
+  }
+  grain_ = grain;
   for (Observer& observer : observers_) {
     observer.OnSpaceChanged(*this);
   }

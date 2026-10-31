@@ -40,6 +40,8 @@ constexpr char kNameKey[] = "name";
 constexpr char kColorKey[] = "color";
 constexpr char kIconKey[] = "icon";
 constexpr char kGradientKey[] = "gradient";
+constexpr char kIntensityKey[] = "intensity";
+constexpr char kGrainKey[] = "grain";
 constexpr char kEmojiKey[] = "emoji";
 constexpr char kSymbolKey[] = "symbol";
 constexpr char kPinnedKey[] = "pinned";
@@ -332,6 +334,13 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
     }
     data.Set(kGradientKey, std::move(gradient));
   }
+  // Left out when they're the defaults.
+  if (model.intensity() != kDefaultSpaceIntensity) {
+    data.Set(kIntensityKey, model.intensity());
+  }
+  if (model.grain() > 0) {
+    data.Set(kGrainKey, model.grain());
+  }
   if (!model.icon().is_none()) {
     data.Set(kIconKey, SerializeIcon(model.icon()));
   }
@@ -454,6 +463,12 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
         }
       }
       space->SetGradient(std::move(gradient));
+    }
+    if (std::optional<double> intensity = saved[i]->FindDouble(kIntensityKey)) {
+      space->SetIntensity(*intensity);
+    }
+    if (std::optional<double> grain = saved[i]->FindDouble(kGrainKey)) {
+      space->SetGrain(*grain);
     }
     // Unreadable icons (from a later version) are left out.
     if (const base::DictValue* saved_icon = saved[i]->FindDict(kIconKey)) {

@@ -59,6 +59,9 @@ struct Space {
   SpaceColor color = SpaceColor::kGrey;
   // After |color|, for a gradient theme (SpaceModel::gradient()).
   std::vector<SpaceColor> gradient;
+  // The theme's modifiers (SpaceModel::intensity() and grain()).
+  double intensity = kDefaultSpaceIntensity;
+  double grain = 0;
   SpaceIcon icon;
   std::vector<Item> pinned;
   std::vector<Item> today;

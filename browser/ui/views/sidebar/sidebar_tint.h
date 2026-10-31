@@ -15,6 +15,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
@@ -83,7 +84,9 @@ class SidebarTint : public views::View,
   using Stops = std::array<SkColor, kMaxSpaceGradientColors>;
 
   std::optional<SkColor> GetTintForTesting() const;
-  const Stops& GetStopsForTesting() const { return stops_; }
+  const Stops& GetStopsForTesting() const { return look_.stops; }
+  // The grain's strength now, 0 to 1.
+  float GetGrainForTesting() const { return look_.grain; }
   bool IsAnimatingForTesting() const { return animation_.is_animating(); }
 
   // views::View:
@@ -111,8 +114,19 @@ class SidebarTint : public views::View,
   void OnSpaceUpdated(const SpaceModel& space) override;
 
  private:
-  // The window's space's stops, blended toward the swiped-in space's.
-  Stops GetTargetStops() const;
+  // What a space paints: its stops (opacity from its intensity) and grain.
+  struct Look {
+    Stops stops{};
+    float grain = 0;
+    friend bool operator==(const Look&, const Look&) = default;
+  };
+  static Look ToLook(const SpaceModel& space);
+  static Look Blend(double progress, const Look& from, const Look& to);
+
+  // The window's space's look, blended toward the swiped-in space's.
+  Look GetTargetLook() const;
+  // Grain over the tint (docs/design/spaces.md, "Intensity and grain").
+  void PaintGrain(gfx::Canvas* canvas, const SkPath* clip);
   // Fades from the color painted now to the target, or jumps there.
   void UpdateColor(bool animate);
   // Seeds the window's theme with its space's color.
@@ -121,12 +135,12 @@ class SidebarTint : public views::View,
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<WindowFeatures> features_;
   // Painted now.
-  Stops stops_{};
+  Look look_;
   // Where the fade started.
-  Stops from_{};
-  // Once the window swaps away mid-slide, the stops of the space it slides
+  Look from_;
+  // Once the window swaps away mid-slide, the look of the space it slides
   // to, which the page can no longer blend toward.
-  std::optional<Stops> swap_stops_;
+  std::optional<Look> swap_look_;
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       widget_observation_{this};
   gfx::LinearAnimation animation_;

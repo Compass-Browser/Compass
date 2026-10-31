@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
+
 #include "compass/browser/sidebar/space_model.h"
 
 #include <string>
@@ -348,6 +350,24 @@ TEST_F(SpaceModelTest, GradientsNeedAColor) {
   // Turning grey drops it.
   model_.SetColor(SpaceColor::kGrey);
   EXPECT_TRUE(model_.gradient().empty());
+  EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
+TEST_F(SpaceModelTest, IntensityAndGrainStayInRange) {
+  EXPECT_EQ(model_.intensity(), kDefaultSpaceIntensity);
+  EXPECT_EQ(model_.grain(), 0);
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  model_.SetIntensity(0.8);
+  model_.SetIntensity(0.8);
+  model_.SetGrain(2);
+  model_.SetGrain(std::nan(""));
+  model_.SetIntensity(-1);
+
+  EXPECT_EQ(model_.intensity(), 0);
+  EXPECT_EQ(model_.grain(), 1);
   EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
   model_.RemoveObserver(&observer);
 }

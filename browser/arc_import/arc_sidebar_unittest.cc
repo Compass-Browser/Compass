@@ -117,7 +117,10 @@ TEST(ArcSidebarTest, GradientsComeFromTheirBaseColors) {
       R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s", "title": "S",
           "containerIDs": [], "customInfo": {"windowTheme": {
             "background": {"single": {"_0": {"style": {"color": {"_0": {
-              "blendedGradient": {"_0": {"baseColors": [
+              "blendedGradient": {"_0": {
+                "modifiers": {"intensityFactor": 0.8, "noiseFactor": 0.5,
+                              "overlay": "grain"},
+                "baseColors": [
                 {"red": 0.2, "green": 0.4, "blue": 0.95},
                 {"red": 0.5, "green": 0.5, "blue": 0.52},
                 {"red": 0.9, "green": 0.1, "blue": 0.1},
@@ -134,6 +137,30 @@ TEST(ArcSidebarTest, GradientsComeFromTheirBaseColors) {
   EXPECT_EQ(parsed->spaces[0].gradient,
             (std::vector<SpaceColor>{SpaceColor::FromRGB(230, 26, 26),
                                      SpaceColor::FromRGB(26, 230, 26)}));
+  EXPECT_EQ(parsed->spaces[0].intensity, 0.8);
+  EXPECT_EQ(parsed->spaces[0].grain, 0.5);
+}
+
+// A plain color has the same modifiers; no grain overlay means no grain.
+TEST(ArcSidebarTest, PlainColorsKeepTheirIntensity) {
+  std::optional<base::Value> sidebar = base::JSONReader::Read(
+      R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s", "title": "S",
+          "containerIDs": [], "customInfo": {"windowTheme": {
+            "background": {"single": {"_0": {"style": {"color": {"_0": {
+              "blendedSingleColor": {"_0": {
+                "modifiers": {"intensityFactor": 0.4, "noiseFactor": 0.7,
+                              "overlay": "none"},
+                "color": {"red": 0.2, "green": 0.4, "blue": 0.95}}}}}}}}},
+            "primaryColorPalette": {"midTone":
+              {"red": 0.2, "green": 0.4, "blue": 0.95}}}}}]}]}})",
+      base::JSON_PARSE_RFC);
+  std::optional<Sidebar> parsed = ParseSidebar(sidebar->GetDict(), nullptr);
+  ASSERT_TRUE(parsed);
+  ASSERT_EQ(parsed->spaces.size(), 1u);
+  EXPECT_EQ(parsed->spaces[0].color, SpaceColor::FromRGB(51, 102, 242));
+  EXPECT_TRUE(parsed->spaces[0].gradient.empty());
+  EXPECT_EQ(parsed->spaces[0].intensity, 0.4);
+  EXPECT_EQ(parsed->spaces[0].grain, 0);
 }
 
 TEST(ArcSidebarTest, SpaceIcons) {

@@ -83,6 +83,12 @@ inline constexpr SpaceColor SpaceColor::kGreen = SpaceColor::FromRGB(34, 197, 94
 // A space's color and its gradient colors, at most this many in all.
 inline constexpr size_t kMaxSpaceGradientColors = 3;
 
+// How strongly a space's color tints the sidebar and frame, 0 to 1: the
+// tint's opacity is kMaxSpaceTintOpacity times this. The default gives the
+// 14% plain colors always had.
+inline constexpr double kMaxSpaceTintOpacity = 0.45;
+inline constexpr double kDefaultSpaceIntensity = 0.31;
+
 // The space menu's palette, by the names files save them under. The sidebar
 // page (resources/sidebar/app.ts) shows the same colors.
 struct NamedSpaceColor {
@@ -234,6 +240,13 @@ class SpaceModel {
   // Drops grey entries and those past the limit.
   void SetGradient(std::vector<SpaceColor> gradient);
 
+  // How strong the tint is and how much grain it has, 0 to 1 (clamped; NaN
+  // is ignored). See docs/design/spaces.md, "Intensity and grain".
+  double intensity() const { return intensity_; }
+  void SetIntensity(double intensity);
+  double grain() const { return grain_; }
+  void SetGrain(double grain);
+
   const SpaceIcon& icon() const { return icon_; }
   void SetIcon(SpaceIcon icon);
 
@@ -355,6 +368,8 @@ class SpaceModel {
   std::u16string name_;
   SpaceColor color_ = SpaceColor::kGrey;
   std::vector<SpaceColor> gradient_;
+  double intensity_ = kDefaultSpaceIntensity;
+  double grain_ = 0;
   SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
   std::vector<ArchivedEntry> archive_;

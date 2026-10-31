@@ -154,6 +154,20 @@ ${this.getMenuSpace_() ? html`
           ?hidden="${!this.canAddGradientColor_()}"
           @click="${this.onAddGradientColorClick_}">+</button>
     </div>
+    <div id="effects" ?hidden="${!this.getMenuSpace_()!.color}">
+      <label class="slider">
+        <span>Intensity</span>
+        <input type="range" id="intensity" min="0" max="100"
+            .value="${this.getMenuSpacePercent_('intensity')}"
+            @input="${this.onIntensityInput_}">
+      </label>
+      <label class="slider">
+        <span>Grain</span>
+        <input type="range" id="grain" min="0" max="100"
+            .value="${this.getMenuSpacePercent_('grain')}"
+            @input="${this.onGrainInput_}">
+      </label>
+    </div>
     <div id="icons" role="group" aria-label="Icon">
       <button class="icon-choice" role="menuitemradio" data-symbol=""
           title="No icon" aria-label="No icon"

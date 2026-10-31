@@ -222,14 +222,44 @@ swatch keeps the gradient.
 
 Arc: a `blendedGradient` theme with two or more `baseColors` gives the
 space its first base color as color and the next ones as gradient; other
-themes the mid tone (arc-import.md). Not done: Arc's grain overlay
-(`modifiers.overlay`, `noiseFactor`) and intensity.
+themes the mid tone (arc-import.md). Intensity and grain: next section.
 
 **Tests:** `SpaceModelTest.GradientsNeedAColor`,
 `SidebarSerializerTest.RoundTripsGradients`, `PlainColorsSaveNoGradient`,
 `SidebarPageHandlerTest.SetsSpaceGradients`,
 `ArcSidebarTest.GradientsComeFromTheirBaseColors`, browser tests
 `TintPaintsAGradient` and `SpaceMenuRenamesColorsDeletes` (+, the well, ×).
+
+### Intensity and grain
+
+Two per-space settings from Arc's theme modifiers (2026-10-31), 0 to 1,
+for plain colors and gradients alike (not grey): `SpaceModel::intensity()`
+and `grain()`, clamped, NaN ignored. Saved as `"intensity"` and `"grain"`
+only when not the defaults; mojo `Space.intensity`/`grain`,
+`SetSpaceIntensity()`, `SetSpaceGrain()`; kept when the space moves to
+another profile.
+
+- Intensity: the tint's opacity is `kMaxSpaceTintOpacity` (45%) times it.
+  The default, `kDefaultSpaceIntensity` 0.31, gives the 14% tints had
+  before. Arc's usual 0.8 is about 36%. The window's theme seed doesn't
+  change with it.
+- Grain: a 128 px tile of grey noise (fixed sequence, built once) over the
+  tint, in the tint's shape, blended as an overlay (grey 128 leaves the
+  color, so hue stays), at up to 22% (`kMaxGrainOpacity`). One grain per
+  physical pixel, tiled in widget coordinates so the region's tint and the
+  frame's line up.
+
+Both blend in fades and swipes with the colors (`SidebarTint::Look`). The
+menu has an Intensity and a Grain slider (0-100) under the gradient row,
+hidden for grey, passing values on every 50 ms while dragged. Arc:
+`modifiers.intensityFactor` as is, `noiseFactor` as grain when
+`overlay` is `"grain"`, from `blendedGradient` or `blendedSingleColor`.
+
+**Tests:** `SpaceModelTest.IntensityAndGrainStayInRange`,
+`SidebarSerializerTest.RoundTripsIntensityAndGrain`,
+`PlainColorsSaveNoGradient`, `SidebarPageHandlerTest.SetsSpaceIntensityAndGrain`,
+`ArcSidebarTest.GradientsComeFromTheirBaseColors`,
+`PlainColorsKeepTheirIntensity`, browser test `TintPaintsAGradient`.
 
 ### Space icons
 

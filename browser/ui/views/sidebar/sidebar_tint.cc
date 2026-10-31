@@ -10,8 +10,10 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "cc/paint/paint_flags.h"
+#include "cc/paint/paint_image.h"
 #include "cc/paint/paint_shader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -21,6 +23,8 @@
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/animation/tween.h"
@@ -36,41 +40,37 @@ namespace compass {
 
 namespace {
 
-// How much of the space color shows over the frame color.
-constexpr SkAlpha kTintAlpha = 0x24;  // 14%
+// How much of the space color shows over the frame color, at the default
+// intensity: 14%.
+constexpr SkAlpha kTintAlpha = 0x24;
+
+// Grain at full strength: a tile of grey noise blended as an overlay (grey
+// 128 leaves the color as is) at this opacity.
+constexpr float kMaxGrainOpacity = 0.22f;
+constexpr int kGrainTileSize = 128;
+
+// The noise tile, the same every time (a fixed linear congruential
+// sequence), in physical pixels.
+const cc::PaintImage& GrainTile() {
+  static const base::NoDestructor<cc::PaintImage> tile([] {
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(kGrainTileSize, kGrainTileSize, /*isOpaque=*/true);
+    uint32_t state = 0x2545f491;
+    for (int y = 0; y < kGrainTileSize; ++y) {
+      for (int x = 0; x < kGrainTileSize; ++x) {
+        state = state * 1664525u + 1013904223u;
+        const uint8_t value = state >> 24;
+        *bitmap.getAddr32(x, y) = SkPreMultiplyARGB(0xff, value, value, value);
+      }
+    }
+    bitmap.setImmutable();
+    return cc::PaintImage::CreateFromBitmap(std::move(bitmap));
+  }());
+  return *tile;
+}
 
 // The fade between two spaces' colors; the page's slide takes as long.
 constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
-
-// A space's color and gradient, sampled at the stops' evenly spaced
-// positions, partly transparent: the same three times for a plain color, its
-// halfway blend in the middle for two colors.
-SidebarTint::Stops ToStops(const SpaceModel& space) {
-  std::vector<SkColor> colors = {GetSpaceFrameTint(space.color())};
-  for (SpaceColor color : space.gradient()) {
-    colors.push_back(GetSpaceFrameTint(color));
-  }
-  SidebarTint::Stops stops;
-  for (size_t i = 0; i < stops.size(); ++i) {
-    const double at =
-        static_cast<double>(i) / (stops.size() - 1) * (colors.size() - 1);
-    const size_t before = static_cast<size_t>(at);
-    const size_t after = std::min(before + 1, colors.size() - 1);
-    stops[i] = gfx::Tween::ColorValueBetween(at - before, colors[before],
-                                             colors[after]);
-  }
-  return stops;
-}
-
-SidebarTint::Stops BlendStops(double progress,
-                              const SidebarTint::Stops& from,
-                              const SidebarTint::Stops& to) {
-  SidebarTint::Stops stops;
-  for (size_t i = 0; i < stops.size(); ++i) {
-    stops[i] = gfx::Tween::ColorValueBetween(progress, from[i], to[i]);
-  }
-  return stops;
-}
 
 }  // namespace
 
@@ -95,7 +95,7 @@ SidebarTint::SidebarTint(BrowserWindowInterface* browser)
   if (features_) {
     features_observation_.Observe(features_.get());
     space_list_observation_.Observe(&features_->service().space_list());
-    stops_ = GetTargetStops();
+    look_ = GetTargetLook();
   }
 }
 
@@ -111,13 +111,54 @@ SidebarTint* SidebarTint::Install(views::View* host,
   return tint;
 }
 
+// static
+// A space's color and gradient, sampled at the stops' evenly spaced
+// positions, as opaque as its intensity says: the same three times for a
+// plain color, its halfway blend in the middle for two colors.
+SidebarTint::Look SidebarTint::ToLook(const SpaceModel& space) {
+  if (space.color().is_grey()) {
+    return Look();
+  }
+  const SkAlpha alpha =
+      base::ClampRound<SkAlpha>(kMaxSpaceTintOpacity * space.intensity() * 255);
+  std::vector<SkColor> colors = {SkColorSetA(*space.color().tint(), alpha)};
+  for (SpaceColor color : space.gradient()) {
+    colors.push_back(SkColorSetA(*color.tint(), alpha));
+  }
+  Look look;
+  for (size_t i = 0; i < look.stops.size(); ++i) {
+    const double at = static_cast<double>(i) / (look.stops.size() - 1) *
+                      (colors.size() - 1);
+    const size_t before = static_cast<size_t>(at);
+    const size_t after = std::min(before + 1, colors.size() - 1);
+    look.stops[i] = gfx::Tween::ColorValueBetween(at - before, colors[before],
+                                                  colors[after]);
+  }
+  look.grain = space.grain();
+  return look;
+}
+
+// static
+SidebarTint::Look SidebarTint::Blend(double progress,
+                                     const Look& from,
+                                     const Look& to) {
+  Look look;
+  for (size_t i = 0; i < look.stops.size(); ++i) {
+    look.stops[i] =
+        gfx::Tween::ColorValueBetween(progress, from.stops[i], to.stops[i]);
+  }
+  look.grain = gfx::Tween::FloatValueBetween(progress, from.grain, to.grain);
+  return look;
+}
+
 void SidebarTint::ContinueFrom(const SidebarTint& other) {
-  stops_ = other.stops_;
+  look_ = other.look_;
   UpdateColor(/*animate=*/true);
 }
 
 std::optional<SkColor> SidebarTint::GetTintForTesting() const {
-  return SkColorGetA(stops_[0]) ? std::optional(stops_[0]) : std::nullopt;
+  return SkColorGetA(look_.stops[0]) ? std::optional(look_.stops[0])
+                                     : std::nullopt;
 }
 
 void SidebarTint::OnPaint(gfx::Canvas* canvas) {
@@ -135,7 +176,8 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
                                         ThemedBackground::kFrameTheme);
     }
   }
-  if (std::ranges::all_of(stops_,
+  const Stops& stops = look_.stops;
+  if (std::ranges::all_of(stops,
                           [](SkColor stop) { return !SkColorGetA(stop); })) {
     return;
   }
@@ -145,13 +187,13 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
   const float opacity = corners ? corners->primary_color().opacity : 1.f;
   std::array<SkColor4f, kMaxSpaceGradientColors> colors;
   for (size_t i = 0; i < colors.size(); ++i) {
-    colors[i] = SkColor4f::FromColor(stops_[i]);
+    colors[i] = SkColor4f::FromColor(stops[i]);
     colors[i].fA *= opacity;
   }
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
-  if (std::ranges::all_of(stops_,
-                          [&](SkColor stop) { return stop == stops_[0]; })) {
+  if (std::ranges::all_of(stops,
+                          [&](SkColor stop) { return stop == stops[0]; })) {
     flags.setColor(colors[0]);
   } else {
     // Across the whole window, from its top left corner to its bottom right
@@ -174,7 +216,32 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
         SkTileMode::kClamp));
   }
   if (corners) {
-    canvas->DrawPath(corners->GetBackgroundPath(), flags);
+    const SkPath path = corners->GetBackgroundPath();
+    canvas->DrawPath(path, flags);
+    PaintGrain(canvas, &path);
+  } else {
+    canvas->DrawRect(gfx::RectF(GetLocalBounds()), flags);
+    PaintGrain(canvas, nullptr);
+  }
+}
+
+void SidebarTint::PaintGrain(gfx::Canvas* canvas, const SkPath* clip) {
+  if (look_.grain <= 0) {
+    return;
+  }
+  // One grain per physical pixel, lined up across the window whichever view
+  // paints it.
+  gfx::Point origin;
+  views::View::ConvertPointFromWidget(this, &origin);
+  SkMatrix matrix = SkMatrix::Translate(origin.x(), origin.y());
+  matrix.preScale(1 / canvas->image_scale(), 1 / canvas->image_scale());
+  cc::PaintFlags flags;
+  flags.setShader(cc::PaintShader::MakeImage(GrainTile(), SkTileMode::kRepeat,
+                                             SkTileMode::kRepeat, &matrix));
+  flags.setBlendMode(SkBlendMode::kOverlay);
+  flags.setAlphaf(kMaxGrainOpacity * look_.grain);
+  if (clip) {
+    canvas->DrawPath(*clip, flags);
   } else {
     canvas->DrawRect(gfx::RectF(GetLocalBounds()), flags);
   }
@@ -196,15 +263,16 @@ void SidebarTint::RemovedFromWidget() {
 }
 
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
-  stops_ = BlendStops(gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
-                                                 animation->GetCurrentValue()),
-                      from_, GetTargetStops());
+  look_ = Blend(gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
+                                           animation->GetCurrentValue()),
+                from_, GetTargetLook());
   SchedulePaint();
 }
 
 void SidebarTint::OnWidgetBoundsChanged(views::Widget* widget,
                                         const gfx::Rect& new_bounds) {
-  if (stops_[0] != stops_[1] || stops_[1] != stops_[2]) {
+  if (look_.stops[0] != look_.stops[1] || look_.stops[1] != look_.stops[2] ||
+      look_.grain > 0) {
     SchedulePaint();
   }
 }
@@ -231,7 +299,7 @@ void SidebarTint::OnSpacePreviewChanged() {
 // blend itself, about as long as the slide has left.
 void SidebarTint::OnSwappedAway() {
   if (SpaceModel* preview = features_->preview_space()) {
-    swap_stops_ = ToStops(*preview);
+    swap_look_ = ToLook(*preview);
     UpdateColor(/*animate=*/true);
   }
 }
@@ -246,31 +314,30 @@ void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
   }
 }
 
-SidebarTint::Stops SidebarTint::GetTargetStops() const {
+SidebarTint::Look SidebarTint::GetTargetLook() const {
   if (!features_) {
-    return Stops{};
+    return Look();
   }
-  if (swap_stops_) {
-    return *swap_stops_;
+  if (swap_look_) {
+    return *swap_look_;
   }
-  const Stops stops = ToStops(features_->space_model());
+  const Look look = ToLook(features_->space_model());
   SpaceModel* preview = features_->preview_space();
-  return preview ? BlendStops(features_->preview_progress(), stops,
-                              ToStops(*preview))
-                 : stops;
+  return preview ? Blend(features_->preview_progress(), look, ToLook(*preview))
+                 : look;
 }
 
 void SidebarTint::UpdateColor(bool animate) {
-  const Stops target = GetTargetStops();
-  if (animate && target != stops_ &&
+  const Look target = GetTargetLook();
+  if (animate && target != look_ &&
       gfx::Animation::ShouldRenderRichAnimation()) {
-    from_ = stops_;
+    from_ = look_;
     animation_.Stop();
     animation_.Start();
     return;
   }
   animation_.Stop();
-  stops_ = target;
+  look_ = target;
   SchedulePaint();
 }
 

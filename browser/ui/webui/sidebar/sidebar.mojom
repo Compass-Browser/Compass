@@ -70,6 +70,9 @@ struct Space {
   // The colors the sidebar's gradient goes on to after |color|; empty for a
   // plain color (compass::SpaceModel::gradient()).
   array<SpaceColor> gradient;
+  // How strong the tint is and how much grain it has, 0 to 1.
+  double intensity;
+  double grain;
   SpaceIcon? icon;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
@@ -157,6 +160,9 @@ interface PageHandler {
   SetSpaceColor(string id, SpaceColor? color);
   // At most 2; ignored for a grey space.
   SetSpaceGradient(string id, array<SpaceColor> gradient);
+  // 0 to 1, clamped.
+  SetSpaceIntensity(string id, double intensity);
+  SetSpaceGrain(string id, double grain);
   // Null removes it. Invalid ones (compass::SpaceIcon) are ignored.
   SetSpaceIcon(string id, SpaceIcon? icon);
   // Assigns a space to profile |profile_id|, or to a new profile if null: its

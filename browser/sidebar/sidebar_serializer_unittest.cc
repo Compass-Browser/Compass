@@ -395,9 +395,24 @@ TEST(SidebarSerializerTest, RoundTripsGradients) {
 TEST(SidebarSerializerTest, PlainColorsSaveNoGradient) {
   SpaceList list;
   list.active_space().SetColor(SpaceColor::kBlue);
-  EXPECT_FALSE((*SerializeSpaceList(list).FindList("spaces"))[0]
-                   .GetDict()
-                   .Find("gradient"));
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::DictValue& space = (*data.FindList("spaces"))[0].GetDict();
+  EXPECT_FALSE(space.Find("gradient"));
+  // Defaults aren't saved.
+  EXPECT_FALSE(space.Find("intensity"));
+  EXPECT_FALSE(space.Find("grain"));
+}
+
+TEST(SidebarSerializerTest, RoundTripsIntensityAndGrain) {
+  SpaceList list;
+  list.active_space().SetColor(SpaceColor::kBlue);
+  list.active_space().SetIntensity(0.75);
+  list.active_space().SetGrain(0.5);
+
+  SpaceList restored;
+  DeserializeSpaceList(SerializeSpaceList(list), restored);
+  EXPECT_EQ(restored.active_space().intensity(), 0.75);
+  EXPECT_EQ(restored.active_space().grain(), 0.5);
 }
 
 TEST(SidebarSerializerTest, RoundTripsIcons) {

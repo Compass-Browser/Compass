@@ -209,8 +209,30 @@ void ReadSpaceColors(const base::DictValue& object, Space& space) {
   if (!theme) {
     return;
   }
-  const base::ListValue* base_colors = theme->FindListByDottedPath(
-      "background.single._0.style.color._0.blendedGradient._0.baseColors");
+  // Gradients and plain colors have the same modifiers: intensityFactor
+  // (0-1) and a grain overlay of noiseFactor (0-1).
+  const base::DictValue* style =
+      theme->FindDictByDottedPath("background.single._0.style.color._0");
+  const base::DictValue* blend =
+      style ? style->FindDictByDottedPath("blendedGradient._0") : nullptr;
+  if (!blend && style) {
+    blend = style->FindDictByDottedPath("blendedSingleColor._0");
+  }
+  if (const base::DictValue* modifiers =
+          blend ? blend->FindDict("modifiers") : nullptr) {
+    if (std::optional<double> intensity =
+            modifiers->FindDouble("intensityFactor")) {
+      space.intensity = std::clamp(*intensity, 0.0, 1.0);
+    }
+    const std::string* overlay = modifiers->FindString("overlay");
+    if (std::optional<double> noise = modifiers->FindDouble("noiseFactor");
+        noise && overlay && *overlay == "grain") {
+      space.grain = std::clamp(*noise, 0.0, 1.0);
+    }
+  }
+  const base::ListValue* base_colors =
+      style ? style->FindListByDottedPath("blendedGradient._0.baseColors")
+            : nullptr;
   if (base_colors && base_colors->size() >= 2) {
     std::vector<SpaceColor> colors;
     for (const base::Value& entry : *base_colors) {

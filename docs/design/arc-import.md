@@ -111,7 +111,7 @@ drop get added to Compass before the import is finished. From Arc's files:
 | Arc | In Compass | Needed for |
 |---|---|---|
 | Space icon (`customInfo.iconType`: emoji or symbol) | Done (spaces.md "Space icons"; symbols mapped to Compass's) | Spaces looking as in Arc |
-| Theme gradients (`windowTheme`) | Done: base colors (spaces.md "Gradients"); grain and intensity not | Gradient sidebars |
+| Theme gradients (`windowTheme`) | Done: base colors, intensity, grain (spaces.md "Gradients", "Intensity and grain"); not overlayColors, wheel, translucency, vibrancy | Gradient sidebars |
 | Tab mute status (`savedMuteStatus`) | No | Muted entries staying muted |
 | Archive (`StorableArchiveItems.json`) | Yes (per space) | Importing it |
 | Link routing (`StorableLinkRouting.json`, Air Traffic Control) | No (little-window.md "Not done") | Links from other apps going to the right space |

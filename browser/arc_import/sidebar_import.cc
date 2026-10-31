@@ -130,6 +130,8 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
     }
     model->SetColor(space.color);
     model->SetGradient(space.gradient);
+    model->SetIntensity(space.intensity);
+    model->SetGrain(space.grain);
     model->SetIcon(space.icon);
     Builder(*model, std::nullopt).AddAll(model->pinned_root(), space.pinned);
     Builder(*model, now).AddAll(model->today_root(), space.today);

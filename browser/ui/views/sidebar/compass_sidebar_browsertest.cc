@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/strings/string_number_conversions.h"
@@ -329,6 +330,19 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
   for (SkColor stop : tint->GetStopsForTesting()) {
     EXPECT_EQ(SkColorSetA(stop, SK_AlphaOPAQUE), *SpaceColor::kGreen.tint());
   }
+  features->SetSpacePreview(nullptr, 0);
+
+  // Intensity sets the tint's opacity; grain blends like the colors.
+  home.SetIntensity(1);
+  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]),
+            base::ClampRound<SkColor>(kMaxSpaceTintOpacity * 255));
+  home.SetIntensity(kDefaultSpaceIntensity);
+  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]), 0x24u);
+  home.SetGrain(0.6);
+  EXPECT_FLOAT_EQ(tint->GetGrainForTesting(), 0.6f);
+  EXPECT_FLOAT_EQ(frame_tint->GetGrainForTesting(), 0.6f);
+  features->SetSpacePreview(work, 0.5);
+  EXPECT_FLOAT_EQ(tint->GetGrainForTesting(), 0.3f);
   features->SetSpacePreview(nullptr, 0);
 
   // Grey drops the gradient.

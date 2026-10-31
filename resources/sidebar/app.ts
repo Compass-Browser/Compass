@@ -629,6 +629,29 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
   }
 
+  protected getMenuSpacePercent_(setting: 'intensity'|'grain'): string {
+    const space = this.getMenuSpace_();
+    return String(Math.round((space?.[setting] ?? 0) * 100));
+  }
+
+  protected onIntensityInput_(e: Event) {
+    const value = Number((e.target as HTMLInputElement).value) / 100;
+    const spaceId = this.menuSpaceId_;
+    if (spaceId) {
+      this.sendColorSoon_(
+          () => this.browserProxy_.handler.setSpaceIntensity(spaceId, value));
+    }
+  }
+
+  protected onGrainInput_(e: Event) {
+    const value = Number((e.target as HTMLInputElement).value) / 100;
+    const spaceId = this.menuSpaceId_;
+    if (spaceId) {
+      this.sendColorSoon_(
+          () => this.browserProxy_.handler.setSpaceGrain(spaceId, value));
+    }
+  }
+
   protected canAddGradientColor_(): boolean {
     const space = this.getMenuSpace_();
     return !!space?.color && space.gradient.length < MAX_GRADIENT_COLORS - 1;

@@ -129,6 +129,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void SetSpaceGradient(
       const std::string& id,
       std::vector<sidebar::mojom::SpaceColorPtr> gradient) override;
+  void SetSpaceIntensity(const std::string& id, double intensity) override;
+  void SetSpaceGrain(const std::string& id, double grain) override;
   void SetSpaceIcon(const std::string& id,
                     sidebar::mojom::SpaceIconPtr icon) override;
   void SetSpaceProfile(const std::string& id,
