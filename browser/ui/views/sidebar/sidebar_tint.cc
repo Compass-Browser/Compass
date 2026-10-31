@@ -165,6 +165,10 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
                                            gfx::PointToSkPoint(end)};
     constexpr std::array<SkScalar, kMaxSpaceGradientColors> kPositions = {
         0.f, 0.5f, 1.f};
+    // At 14%, the gradient spans a few levels of each channel over the
+    // window, and each level would show as a band 50-100 DIP wide (Arc's
+    // grain hides them); dithering mixes neighboring levels instead.
+    flags.setDither(true);
     flags.setShader(cc::PaintShader::MakeLinearGradient(
         points.data(), colors.data(), kPositions.data(), colors.size(),
         SkTileMode::kClamp));

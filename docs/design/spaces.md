@@ -205,7 +205,11 @@ two colors with their blend in the middle), each at the tint's 14%, as one
 linear gradient from the window's top left corner to its bottom right, in
 widget coordinates: the region's tint and the frame's are two views but one
 gradient, and both repaint when the window resizes. Fades and swipes blend
-stop by stop, so a gradient fades into a plain color or another gradient.
+stop by stop, so a gradient fades into a plain color or another gradient. The
+gradient is dithered: at 14% it spans only a few levels of each channel
+across the window, and without dithering each level showed as a band 50-100
+DIP wide (measured in a screenshot of the fast build: 34 changes along the
+1600 px bottom edge, 895 with dithering).
 The little window's frame keeps the space's color only. The switcher's
 buttons show the same three stops, diagonally (`--space-color`,
 `--space-color-2`, `--space-color-3`).
