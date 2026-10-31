@@ -721,6 +721,16 @@ multi-profile is slice 5.
   app's server URL is empty until the user sets one. Ship a
   `docker-compose.yml` with the server and a Caddy front for HTTPS, and a
   short `server/README.md` (VPS, home server behind Tailscale).
+- Create over a tombstone: a commit of a new entity (version 0) whose
+  client tag belongs to a deleted entity of the same type revives that
+  entity: same server ID, new version, the create's content, undeleted
+  (Chromium's servers and LoopbackServer do the same; a saved-again
+  password or a space put back under its old ID). Over a live entity it is
+  a CONFLICT. go-sync instead stored a second entity with a new ID next to
+  the tombstone (and answered CONFLICT forever if a delete had left the
+  tag item behind). History doesn't use tag items (its ID is the tag), so
+  it's unaffected. Client workarounds that re-create under new IDs keep
+  working.
 
 ## UI
 
