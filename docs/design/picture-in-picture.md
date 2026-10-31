@@ -83,10 +83,10 @@ whatever is under it. While it does, the window fades to 25% under the
 pointer (150 ms), so you can see what you're clicking. Its controls stay
 hidden meanwhile: macOS still sends the window pointer moves, which would
 show them (`VideoOverlayWindowViews::UpdateControlsVisibility()` asks
-`PipClickThrough::IsClickThrough()`, patch). The same shortcut
+`PipWindows::IsClickThrough()`, patch). The same shortcut
 makes it take clicks again; so does closing it (the next one takes clicks).
 
-`compass::PipClickThrough` (`browser/ui/views/picture_in_picture/`, a
+`compass::PipWindows` (`browser/ui/views/picture_in_picture/`, a
 target of its own) tracks the windows that `VideoOverlayWindowViews::
 ShowInactive()` (patch) hands it, until they hide (upstream hides a closed
 window and may show it again) or are destroyed. It sets
@@ -102,9 +102,34 @@ The shortcut is fixed until shortcuts can be set (plan.md, item 14).
 Test: `CompassAutoPipBrowserTest.ClickThroughShortcut` (not the hover fade,
 which needs the real pointer).
 
+## Gestures (macOS)
+
+On the window, with a trackpad:
+
+- **Pinch** resizes it around its center, keeping the video's aspect ratio,
+  within upstream's minimum and maximum sizes (else the screen's work
+  area), and kept on screen.
+- **Two fingers** move it with the fingers, whichever way scrolling goes
+  (`directionInvertedFromDevice`), kept inside the work area. Momentum
+  after the fingers lift is ignored, so it stops where they leave it. A
+  mouse wheel isn't a move.
+- **Magnet:** when a pinch, a two-finger move or a mouse drag ends within
+  32 pt of an edge of the work area, the window snaps to 12 pt from that
+  edge (animated). A corner snaps on both sides.
+
+`PipWindows` (was `PipClickThrough`) installs a local `NSEvent` monitor
+for magnify, scroll and mouse-up events while a window is open, and takes
+those aimed at a picture-in-picture window. The geometry is
+`PipWindows::Zoom()`, `Move()` and `Snap()`. Not during click-through (the
+window gets no such events).
+
+Tests: `PipWindowsGeometryTest.*`, `CompassAutoPipBrowserTest.PipGestures`
+(the geometry on the real window; the trackpad events themselves are
+checked by hand).
+
 ## Rounded corners (macOS)
 
-The window is frameless, so macOS barely rounds it. `PipClickThrough`
+The window is frameless, so macOS barely rounds it. `PipWindows`
 rounds its content view's layer (12 pt continuous corners, as the page
 card) and redraws the shadow to follow.
 

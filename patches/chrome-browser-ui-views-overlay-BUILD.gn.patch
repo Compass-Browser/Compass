@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/overlay/BUILD.gn b/chrome/browser/ui/views/overlay/BUILD.gn
-index 5fda29ab24a114db9e71fc2a3f1f4ad8b28f4a79..467030342bc0f7b6dfced51bde5ec517b06e4b04 100644
+index 5fda29ab24a114db9e71fc2a3f1f4ad8b28f4a79..60a6de40a088baa6c377849f9421cad2f96156c2 100644
 --- a/chrome/browser/ui/views/overlay/BUILD.gn
 +++ b/chrome/browser/ui/views/overlay/BUILD.gn
 @@ -92,7 +92,10 @@ source_set("impl") {
@@ -8,7 +8,7 @@ index 5fda29ab24a114db9e71fc2a3f1f4ad8b28f4a79..467030342bc0f7b6dfced51bde5ec517
      sources += [ "video_overlay_window_native_widget_mac.mm" ]
 -    deps += [ "//components/remote_cocoa/common:mojo" ]
 +    deps += [
-+      "//compass/browser/ui/views/picture_in_picture:click_through",
++      "//compass/browser/ui/views/picture_in_picture:pip_windows",
 +      "//components/remote_cocoa/common:mojo",
 +    ]
      frameworks = [ "Cocoa.framework" ]

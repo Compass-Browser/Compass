@@ -36,7 +36,10 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "compass/browser/ui/views/picture_in_picture/pip_click_through_mac.h"
+#include "compass/browser/ui/views/picture_in_picture/pip_windows_mac.h"
+#include "ui/display/display.h"
+#include "ui/display/screen.h"
+#include "ui/gfx/geometry/rect.h"
 #endif
 
 // Auto picture-in-picture as Compass sets it up: see
@@ -255,7 +258,7 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, BackToTabSwitchesProfiles) {
 // back; the shortcut listens only while a window is open, and click-through
 // ends with the window.
 IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
-  PipClickThrough& click_through = PipClickThrough::Get();
+  PipWindows& click_through = PipWindows::Get();
   EXPECT_FALSE(click_through.is_listening_for_testing());
 
   content::WebContents* video = OpenPlayingVideo(browser());
@@ -268,25 +271,84 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   EXPECT_TRUE(click_through.is_listening_for_testing());
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
   EXPECT_EQ(click_through.GetCornerRadiusForTesting(window),
-            PipClickThrough::kCornerRadius);
+            PipWindows::kCornerRadius);
 
-  click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
+  click_through.OnKeyPressed(PipWindows::GetAccelerator());
   EXPECT_TRUE(click_through.enabled());
   EXPECT_TRUE(click_through.IsIgnoringMouseForTesting(window));
   EXPECT_TRUE(click_through.IsClickThrough(window));
 
-  click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
+  click_through.OnKeyPressed(PipWindows::GetAccelerator());
   EXPECT_FALSE(click_through.enabled());
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
   EXPECT_FALSE(click_through.IsHoveredForTesting(window));
 
   // On again, then the window goes: off, and no longer listening.
-  click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
+  click_through.OnKeyPressed(PipWindows::GetAccelerator());
   Activate(browser(), video);
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return click_through.windows_for_testing().empty(); }));
   EXPECT_FALSE(click_through.enabled());
   EXPECT_FALSE(click_through.is_listening_for_testing());
+}
+
+// Pinch keeps the aspect ratio and the center, within the sizes.
+TEST(PipWindowsGeometryTest, Zoom) {
+  const gfx::Rect bounds(100, 100, 400, 200);
+  EXPECT_EQ(PipWindows::Zoom(bounds, 0.5, gfx::Size(), gfx::Size()),
+            gfx::Rect(0, 50, 600, 300));
+  EXPECT_EQ(PipWindows::Zoom(bounds, -0.5, gfx::Size(300, 100), gfx::Size()),
+            gfx::Rect(150, 125, 300, 150));
+  EXPECT_EQ(PipWindows::Zoom(bounds, 1, gfx::Size(), gfx::Size(1000, 300)),
+            gfx::Rect(0, 50, 600, 300));
+}
+
+// Moves stay on screen; ends near an edge snap to it.
+TEST(PipWindowsGeometryTest, MoveAndSnap) {
+  const gfx::Rect work_area(0, 25, 1000, 800);
+  EXPECT_EQ(PipWindows::Move(gfx::Rect(100, 100, 200, 100),
+                             gfx::Vector2d(-500, 20), work_area),
+            gfx::Rect(0, 120, 200, 100));
+  // Close to the left and bottom edges.
+  EXPECT_EQ(PipWindows::Snap(gfx::Rect(20, 700, 200, 100), work_area),
+            gfx::Rect(PipWindows::kEdgeMargin,
+                      825 - PipWindows::kEdgeMargin - 100, 200, 100));
+  // Close to the right and top.
+  EXPECT_EQ(PipWindows::Snap(gfx::Rect(790, 40, 200, 100), work_area),
+            gfx::Rect(1000 - PipWindows::kEdgeMargin - 200,
+                      25 + PipWindows::kEdgeMargin, 200, 100));
+  // Away from every edge: stays.
+  EXPECT_EQ(PipWindows::Snap(gfx::Rect(400, 300, 200, 100), work_area),
+            gfx::Rect(400, 300, 200, 100));
+}
+
+// Pinch, two-finger moves and the snap act on the real window.
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipGestures) {
+  PipWindows& pip_windows = PipWindows::Get();
+  content::WebContents* video = OpenPlayingVideo(browser());
+  OpenBlankTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return IsInAutoPip(video) && !pip_windows.windows_for_testing().empty();
+  }));
+  views::Widget* window = pip_windows.windows_for_testing()[0];
+  const gfx::Rect before = window->GetWindowBoundsInScreen();
+
+  pip_windows.ZoomWindow(window, 0.2);
+  const gfx::Rect zoomed = window->GetWindowBoundsInScreen();
+  EXPECT_GT(zoomed.width(), before.width());
+  EXPECT_NEAR(static_cast<double>(zoomed.width()) / zoomed.height(),
+              static_cast<double>(before.width()) / before.height(), 0.02);
+
+  // Far to the left: stops at the edge, then snaps to the margin.
+  pip_windows.MoveWindow(window, gfx::Vector2d(-100000, 0));
+  const gfx::Rect work_area = display::Screen::Get()
+                                  ->GetDisplayMatching(
+                                      window->GetWindowBoundsInScreen())
+                                  .work_area();
+  EXPECT_EQ(window->GetWindowBoundsInScreen().x(), work_area.x());
+  pip_windows.EndGesture(window, /*animate=*/false);
+  EXPECT_EQ(window->GetWindowBoundsInScreen().x(),
+            work_area.x() + PipWindows::kEdgeMargin);
 }
 #endif  // BUILDFLAG(IS_MAC)
 

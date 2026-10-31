@@ -27,7 +27,9 @@ source_set("browser_tests") {
   ]
   if (is_mac) {
     deps += [
-      "//compass/browser/ui/views/picture_in_picture:click_through",
+      "//compass/browser/ui/views/picture_in_picture:pip_windows",
+      "//ui/display",
+      "//ui/gfx",
       "//ui/views",
     ]
   }

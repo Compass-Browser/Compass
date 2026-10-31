@@ -5,16 +5,17 @@
 # Click-through picture-in-picture (docs/design/picture-in-picture.md). Its
 # own target, depending on little of Chrome's, because upstream's
 # //chrome/browser/ui/views/overlay calls into it (see patches/).
-source_set("click_through") {
+source_set("pip_windows") {
   if (is_mac) {
     sources = [
-      "pip_click_through_mac.h",
-      "pip_click_through_mac.mm",
+      "pip_windows_mac.h",
+      "pip_windows_mac.mm",
     ]
     deps = [
       "//base",
       "//ui/base",
       "//ui/base/accelerators/global_accelerator_listener",
+      "//ui/display",
       "//ui/events:events_base",
       "//ui/gfx",
       "//ui/views",

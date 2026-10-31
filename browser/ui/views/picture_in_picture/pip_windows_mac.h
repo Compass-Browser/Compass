@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_CLICK_THROUGH_MAC_H_
-#define COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_CLICK_THROUGH_MAC_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_MAC_H_
+#define COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_MAC_H_
 
 #include <vector>
 
@@ -12,17 +12,24 @@
 #include "base/timer/timer.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/vector2d.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
 namespace compass {
 
-// Click-through picture-in-picture (docs/design/picture-in-picture.md): while
-// a video's picture-in-picture window is open, Ctrl+Option+Cmd+P, from any
-// app, makes it ignore the mouse, so clicks land on what's under it; again
-// makes it take clicks again. While it ignores the mouse it turns
-// translucent under the pointer, to show what's under it.
-class PipClickThrough : public views::WidgetObserver,
+// What Compass adds to video picture-in-picture windows on macOS
+// (docs/design/picture-in-picture.md):
+// - Click-through: Ctrl+Option+Cmd+P, from any app while a window is open,
+//   makes it ignore the mouse, so clicks land on what's under it; again makes
+//   it take clicks again. Meanwhile it turns translucent under the pointer
+//   and shows no controls.
+// - Rounded corners.
+// - Trackpad gestures: pinch resizes it, two fingers move it, and at the end
+//   of a gesture or a drag it snaps to a screen edge it's close to.
+class PipWindows : public views::WidgetObserver,
                         public ui::GlobalAcceleratorListener::Observer {
  public:
   // The shortcut, global while a picture-in-picture window is open.
@@ -31,11 +38,29 @@ class PipClickThrough : public views::WidgetObserver,
   static constexpr float kHoverOpacity = 0.25f;
   // Its corners, as the page card's (docs/design/window-frame.md).
   static constexpr double kCornerRadius = 12;
+  // A window that ends a move this close to an edge of the screen's work
+  // area snaps to it, kEdgeMargin from it.
+  static constexpr int kSnapDistance = 32;
+  static constexpr int kEdgeMargin = 12;
 
-  static PipClickThrough& Get();
+  // |bounds| scaled by 1 + |magnification| around its center, keeping its
+  // aspect ratio, within |min_size| and |max_size|.
+  static gfx::Rect Zoom(const gfx::Rect& bounds,
+                        double magnification,
+                        const gfx::Size& min_size,
+                        const gfx::Size& max_size);
+  // |bounds| moved by |delta|, kept inside |work_area|.
+  static gfx::Rect Move(const gfx::Rect& bounds,
+                        const gfx::Vector2d& delta,
+                        const gfx::Rect& work_area);
+  // |bounds| snapped to the edges of |work_area| it's within kSnapDistance
+  // of (kEdgeMargin from them), and kept inside it.
+  static gfx::Rect Snap(const gfx::Rect& bounds, const gfx::Rect& work_area);
 
-  PipClickThrough(const PipClickThrough&) = delete;
-  PipClickThrough& operator=(const PipClickThrough&) = delete;
+  static PipWindows& Get();
+
+  PipWindows(const PipWindows&) = delete;
+  PipWindows& operator=(const PipWindows&) = delete;
 
   // A picture-in-picture window showed (VideoOverlayWindowViews::
   // ShowInactive(), see patches/). Tracked until it hides (upstream hides a
@@ -60,6 +85,13 @@ class PipClickThrough : public views::WidgetObserver,
   // Runs one hover check now.
   void UpdateHoverForTesting() { UpdateHover(); }
 
+  // A pinch on |widget| by |magnification| (NSEvent's), and a move by two
+  // fingers. EndGesture() snaps it to an edge it's close to (animated unless
+  // |animate| is false).
+  void ZoomWindow(views::Widget* widget, double magnification);
+  void MoveWindow(views::Widget* widget, const gfx::Vector2d& delta);
+  void EndGesture(views::Widget* widget, bool animate = true);
+
   // views::WidgetObserver:
   void OnWidgetDestroying(views::Widget* widget) override;
   void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override;
@@ -70,9 +102,9 @@ class PipClickThrough : public views::WidgetObserver,
                       const std::string& command_id) override {}
 
  private:
-  friend class base::NoDestructor<PipClickThrough>;
-  PipClickThrough();
-  ~PipClickThrough() override;
+  friend class base::NoDestructor<PipWindows>;
+  PipWindows();
+  ~PipWindows() override;
 
   void Apply(views::Widget* widget);
   // Rounds the window's corners; its shadow follows.
@@ -83,6 +115,10 @@ class PipClickThrough : public views::WidgetObserver,
   void UpdateHover();
   void SetHovered(views::Widget* widget, bool hovered);
   void UpdateListening();
+  // Gestures on the windows: an application event monitor (in the .mm)
+  // while any is open.
+  void UpdateEventMonitor();
+  gfx::Rect GetWorkArea(views::Widget* widget) const;
 
   std::vector<raw_ptr<views::Widget>> windows_;
   // Windows faded under the pointer.
@@ -90,10 +126,11 @@ class PipClickThrough : public views::WidgetObserver,
   bool enabled_ = false;
   bool listening_ = false;
   base::RepeatingTimer hover_timer_;
+
   base::ScopedMultiSourceObservation<views::Widget, views::WidgetObserver>
       observations_{this};
 };
 
 }  // namespace compass
 
-#endif  // COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_CLICK_THROUGH_MAC_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_MAC_H_
