@@ -316,13 +316,19 @@ void SpaceModel::Archive(SidebarNode* entry, base::Time now) {
   archived.archived_at = now;
   for (const SidebarNode* tab : tabs) {
     if (IsRestorableURL(tab->url())) {
-      archived.tabs.push_back({tab->title(), tab->url()});
+      archived.tabs.push_back({tab->title(), tab->url(), tab->id()});
     }
   }
+  // The entry keeps its identity: a split's, or the tab's when only one tab
+  // is left.
+  archived.id = archived.tabs.size() == 1 ? archived.tabs[0].id : entry->id();
   Remove(entry);
   if (archived.tabs.empty()) {
     return;
   }
+  std::erase_if(archive_, [&archived](const ArchivedEntry& existing) {
+    return existing.id == archived.id;
+  });
   archive_.insert(archive_.begin(), std::move(archived));
   if (archive_.size() > kMaxArchivedEntries) {
     archive_.resize(kMaxArchivedEntries);
@@ -391,6 +397,27 @@ SidebarNode* SpaceModel::Unarchive(const base::Uuid& id, size_t index) {
     return nullptr;
   }
   return panes.size() == 1 ? panes[0] : panes[0]->parent();
+}
+
+const ArchivedEntry* SpaceModel::FindArchived(const base::Uuid& id) const {
+  auto it = std::ranges::find(archive_, id, &ArchivedEntry::id);
+  return it == archive_.end() ? nullptr : &*it;
+}
+
+void SpaceModel::PutArchived(ArchivedEntry entry) {
+  std::erase_if(archive_, [&entry](const ArchivedEntry& existing) {
+    return existing.id == entry.id;
+  });
+  if (!entry.tabs.empty()) {
+    auto it = std::ranges::find_if(archive_, [&entry](const ArchivedEntry& e) {
+      return e.archived_at < entry.archived_at;
+    });
+    archive_.insert(it, std::move(entry));
+    if (archive_.size() > kMaxArchivedEntries) {
+      archive_.resize(kMaxArchivedEntries);
+    }
+  }
+  NotifyArchiveChanged();
 }
 
 void SpaceModel::RemoveArchived(const base::Uuid& id) {

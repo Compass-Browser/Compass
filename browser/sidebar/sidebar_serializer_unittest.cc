@@ -367,7 +367,9 @@ TEST(SidebarSerializerTest, RoundTripsArchiveState) {
                                 u"A");
   SidebarNode* b = model.AddTab(model.today_root(), 2, GURL("https://b.test/"),
                                 u"B");
-  model.Split(a, b);
+  const base::Uuid a_id = a->id();
+  const base::Uuid b_id = b->id();
+  const base::Uuid split_id = model.Split(a, b)->id();
   const base::Time archived = base::Time::Now();
   model.Archive(model.today_root()->children()[1].get(), archived);
   model.SetArchiveAfter(base::Days(7));
@@ -384,6 +386,10 @@ TEST(SidebarSerializerTest, RoundTripsArchiveState) {
   ASSERT_EQ(space.archive()[0].tabs.size(), 2u);
   EXPECT_EQ(space.archive()[0].tabs[1].title, u"B");
   EXPECT_EQ(space.archive()[0].tabs[1].url, GURL("https://b.test/"));
+  // IDs too: sync knows archived entries by them.
+  EXPECT_EQ(space.archive()[0].id, split_id);
+  EXPECT_EQ(space.archive()[0].tabs[0].id, a_id);
+  EXPECT_EQ(space.archive()[0].tabs[1].id, b_id);
 }
 
 TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {

@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -26,6 +27,14 @@ class Profile;
 namespace compass {
 
 class SidebarStore;
+
+// For end-to-end runs (docs/design/sync-slice-3b-steps.md): with
+// --compass-archive-hour-seconds=N, an "hour" of a space's archive delay, as
+// the sidebar's menu sets it, is N seconds, and the archiver runs every N
+// seconds. Debug aid; without the switch, an hour is an hour.
+inline constexpr char kArchiveHourSecondsSwitch[] =
+    "compass-archive-hour-seconds";
+base::TimeDelta GetArchiveHour();
 
 // A profile's sidebar state, shared by all its windows: its spaces, which
 // nodes are live where, the store that persists them (none for off-the-record

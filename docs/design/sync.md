@@ -1,10 +1,10 @@
 # Sync between devices
 
-Status: slices 0, 1, 2, 2b and 3 done and merged into `sync-main`
-(MacBook runs: "Slice 2 run on the MacBook", "Slice 2b notes", "Slice 3
-notes"); 3b (Today and the archive) on `sync/slice-3b-today`; 4 (the UI,
-and the pairing contract changes) on `sync/slice-4-ui`, waiting for its
-MacBook run ("Slice 4 notes"). Based on Chromium 156.0.8078.48.
+Status: slices 0, 1, 2, 2b, 3 and 3b done and merged into `sync-main`
+(MacBook runs in each slice's notes); 4 (the UI and the pairing contract
+changes) on `sync/slice-4-ui`, waiting for its MacBook run ("Slice 4
+notes"); 5 (profiles) and 6 (push) in progress. Based on Chromium
+156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
@@ -739,7 +739,130 @@ to the root before their tombstones arrive.
 
 **3b slots in** by syncing the Today root (section TODAY, with
 `last_active_time`) in the same pass and the archive as ARCHIVE entities;
-the TODAY/ARCHIVE handling above then becomes normal placement.
+the TODAY/ARCHIVE handling above then becomes normal placement. (Done: see
+"Slice 3b notes"; unpinning is now a move for every device.)
+
+### Slice 3b notes
+
+**MacBook run (2026-10-31, out/Debug, `861a1ae`): passed.** Fix needed:
+the delegate's default virtuals defined out of line (chromium-style). 163
+unit tests pass. Two headless instances, archive hour = 60 s: Today tabs
+opened on A showed unloaded on B, no echo; a burst of title/URL changes
+waited for the 10 s throttle; a navigation on A replaced B's entry in
+place; a tab closed on B closed on A (its page too); closing on B the tab
+A's window showed kept it on both (A re-created it, as designed; there is
+no "kept" log line, add one); quitting A left B's Today alone and A came
+back with the same unloaded entries; pinning on A moved the entry on B;
+auto-archive converged ("same archives") and spared the entry A showed.
+Compass Spaces runs encrypted; no crash.
+
+Branch `sync/slice-3b-today` (on `sync/slice-3-spaces`). Written without a
+compiler; the MacBook build and run are in
+[sync-slice-3b-steps.md](sync-slice-3b-steps.md), to run once slice 3's
+passes. **No new upstream patch**: everything is in `//compass`.
+
+**Today** syncs in the same pass as Pinned: each space's Today root is
+section TODAY (folders, tabs, splits, nested folders), with the same
+placement, parking and fix-up rules. Pinning and unpinning are moves of the
+same entity between PINNED and TODAY, for every device. New tab and blank
+pages (`IsRestorableURL()`) and splits with such a pane stay local until
+they show a page; an entry synced once stays synced whatever it shows. A
+Today entry from another device is an unloaded entry here; clicking it
+loads it (the bridge knows no tabs; `TabStripBridge` already does this for
+any unloaded entry).
+
+**Last-active times** (`last_active_time`, Today tabs and panes): applying
+takes the later of the local and remote times, so each device's archiver
+goes by the latest use anywhere. A device commits its time once it's a
+minute past the server's (the delays are hours), so switching tabs doesn't
+commit every time. The archiver also stamps the tab each window shows
+(`ArchiveIdleTodayEntries()`), so an entry left on screen for hours on one
+Mac keeps a fresh synced time and the other Macs don't archive it.
+
+**Throttling.** Per entity: if a tab's only change since the server's copy
+is its URL, title or last-active time, and this device committed the entity
+less than 10 s ago (`kContentCommitInterval`), the pass leaves it and a
+timer runs a pass when the 10 s are up; the latest state then goes once.
+Anything else (new, deleted, moved, pinned, archived, renamed, a custom
+title, collapse) commits at once and takes the content along. A remote
+change to an entity whose content waits here doesn't overwrite its URL and
+title: the local change goes next and wins (it's the later commit).
+Applying a remote change commits nothing back (the mirror, as in slice 3).
+
+**No ping-pong on live tabs.** A remote URL or title change of a live tab
+changes the entry, not the page (slice 3). `TabStripBridge::UpdateNode()`
+used to copy the tab's URL and title to its entry on every `kAll` change,
+which would hand the entry back at once (a title change, a load) and start
+two Macs trading it. It now copies only what changed in the tab since it
+last looked (per tab), so the entry follows the tab's next real navigation
+or title change, which then commits as the later write.
+
+**Closing.** A remote delete removes the entry, which closes its live tab
+here (slice 3), except a Today entry (or a split with a pane) that the
+focused window shows (`IsEntryShownInFocusedWindow()`): it stays, with its
+tab, and is re-created so the other devices get it back. **Under a new
+ID**: the server keeps a deleted entity's client tag, and go-sync refuses a
+new entity with a tag in use (`InsertSyncEntity`, "tag in use" →
+CONFLICT), which Chromium would retry forever. So the bridge copies the
+entry (fresh IDs), hands the live tabs over (`TransferLiveTab()`, through
+the registry, so nothing closes or reloads) and removes the old node.
+Closing because a window closed or the app quit changes nothing in the
+model (Today keeps those entries, D14), so nothing is deleted; new tab
+pages that go then were never synced.
+
+**Restored tabs** (D14) are unchanged: `RestoredTabMatcher` takes over the
+first unloaded entry with the tab's URL, and synced entries are ordinary
+entries. At the first sync (merge), a joining device's Today tab whose URL
+the chain's Today of the same space already has gives way to the chain's
+(`DedupeToday()`): its live tab moves to the chain's entry. Later, two
+devices opening the same page make two entries, as two tabs would.
+
+**Archive.** An archived entry now keeps its node's ID (the tab's, or the
+split's; a split with one page worth keeping is archived as that page), and
+the archive saves IDs (`"id"` on entries and tabs; older files get fresh
+ones once). So archiving is a move: the entity goes to section ARCHIVE with
+`archived_time` (a split's panes too, as its children); position and
+last-active time stay as they were. On another device: the entry and its
+panes leave Today (closing their tabs) and the archived entry is built from
+the mirror (`ApplyArchives()`); an archived split waits for its panes, and
+is never deleted for lack of them. Two devices archiving the same entry make
+the same move; the later commit's time stays. An entry in use on the
+receiving device (shown in a window, or playing sound, as the local
+archiver spares) stays in Today, seen now, and its next pass moves it back
+to Today everywhere. **Restoring makes new nodes** (fresh IDs), so the
+archived entity is deleted and a new Today one created: reusing the IDs
+would hit the same "tag in use" for an entry whose archive entity was
+deleted (the 30-day cap below). Removing or clearing archived entries, and
+the local cap of 100, delete them everywhere.
+
+**30-day cap.** The pass leaves out archived entries more than 30 days old
+(`kArchiveSyncPeriod`), so they're deleted from the server, and a timer runs
+a pass when the next one turns 30 days old. A remote delete of an archived
+entry that's over 30 days old here is ignored (kept locally); a younger one
+is removed. Clocks a few minutes apart can remove, on the slower Mac, an
+entry that was about to expire anyway.
+
+**Debugging the archive.** `--compass-archive-hour-seconds=N` makes an
+"hour" of the space menu's delay N seconds and runs the archiver every N
+seconds (`GetArchiveHour()`, `space_service.h`); for end-to-end runs only.
+A short delay saved to the file rounds to 0 hours ("never") on restart.
+
+**Tests**: the bridge's unit tests cover each rule above with two or three
+bridges on the in-memory server and mock time (sync-slice-3b-steps.md, step
+3, lists them); the fake server now also doesn't send a device a change
+it superseded itself. The two-client integration test is still missing for
+the reason in "Slice 3 notes".
+
+**Known limits and open points.**
+
+- Slice 3's "a remote delete of the last space leaves it (and the next pass
+  puts it back)" re-creates a deleted client tag, so it hits the CONFLICT
+  loop above. It needs the same treatment (a new ID for the space) or a
+  server that accepts re-creating a deleted tag (go-sync change: insert over
+  a tombstone).
+- An archived split built from a remote entity whose panes haven't all come
+  shows the panes it has; restoring it before the rest arrive restores those.
+- Today dedupe by URL is only at the first sync.
 
 ### Slice 4 notes
 
@@ -1122,7 +1245,8 @@ As built in slice 4: "Slice 4 notes".
    `SyncTest` with two profiles on a `FakeServer`): create, rename, move,
    concurrent moves into each other (cycle), delete folder, favorites,
    merge at join. Pinned, favorites and collapse state only.
-3b. **Today and the archive**: sections `TODAY`/`ARCHIVE`, commit
+3b. **Today and the archive** (written, see "Slice 3b notes"; two-client
+   tests replaced by multi-bridge unit tests and the MacBook run): sections `TODAY`/`ARCHIVE`, commit
    throttling, closing rules, auto-archive on synced times, 30-day cap.
    Two-client tests: open on A shows unloaded on B, close on B closes on A
    (and the focused-tab exception), quitting A keeps B's Today, both

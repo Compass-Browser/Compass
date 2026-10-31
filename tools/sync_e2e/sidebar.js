@@ -1,10 +1,13 @@
 // Run in a window's sidebar: cdp.py PORT in compass-sidebar sidebar.js
 // --arg op=OP [--arg ...]. Drives the sidebar's page handler, as the user
-// would (docs/design/sync-slice-3-steps.md). Nodes are named by title,
-// custom title or URL; "pinned" is the space's Pinned root, "favorites" the
-// favorites root. Spaces are named by name.
+// would (docs/design/sync-slice-3-steps.md, sync-slice-3b-steps.md). Nodes
+// are named by title, custom title or URL; "pinned" is the space's Pinned
+// root, "today" its Today root, "favorites" the favorites root. Spaces are
+// named by name.
 //
-//   op=dump                                   spaces and their trees, as JSON
+//   op=dump                                   spaces and their trees (Pinned
+//                                             and Today; "live" on entries
+//                                             with a tab here), as JSON
 //   op=add-space name=N color=blue            adds a space, names and colors it
 //   op=rename-space space=S name=N
 //   op=move-space space=S index=I             in the switcher
@@ -14,7 +17,14 @@
 //   op=rename space=S node=X title=T          a folder's name or a tab's
 //   op=move space=S node=X parent=P [index=I] (default: the end)
 //   op=collapse space=S node=X [collapsed=false]
-//   op=delete space=S node=X
+//   op=delete space=S node=X                  a pinned entry, a folder
+//   op=close space=S node=X                   closes an entry (its tab, or
+//                                             the unloaded entry), as its x
+//   op=activate space=S node=X                shows it in this window
+//   op=archive space=S                        the space's archive, as JSON
+//   op=archive-after space=S hours=H          the space menu's delay (an
+//                                             "hour" is shorter with
+//                                             --compass-archive-hour-seconds)
 const {SidebarBrowserProxy} =
     await import('chrome://compass-sidebar/browser_proxy.js');
 const proxy = SidebarBrowserProxy.getInstance();
@@ -75,6 +85,7 @@ function plain(node) {
   const url = urlOf(node);
   if (url) out.url = url;
   if (node.collapsed) out.collapsed = true;
+  if (node.live) out.live = true;
   if (node.children.length) out.children = node.children.map(plain);
   return out;
 }
@@ -109,7 +120,11 @@ async function resolve(space, match) {
   if (match === 'favorites') {
     return t.favorites;
   }
-  const node = find(t.pinned, match) || find(t.favorites, match);
+  if (match === 'today') {
+    return t.today;
+  }
+  const node = find(t.pinned, match) || find(t.today, match) ||
+      find(t.favorites, match);
   if (!node) {
     throw new Error('no node ' + match + ' in ' + space.name);
   }
@@ -134,6 +149,7 @@ switch (ARGS.op) {
         color: COLORS[space.color],
         archiveAfterHours: space.archiveAfterHours,
         pinned: (t.pinned.children || []).map(plain),
+        today: (t.today.children || []).map(plain),
       });
       result.favorites = (t.favorites.children || []).map(plain);
     }
@@ -222,6 +238,41 @@ switch (ARGS.op) {
     handler.deleteNode(node.id);
     await settle();
     return 'deleted';
+  }
+  case 'close': {
+    const space = await show(ARGS.space);
+    const node = await resolve(space, ARGS.node);
+    handler.closeNode(node.id);
+    await settle();
+    return 'closed';
+  }
+  case 'activate': {
+    const space = await show(ARGS.space);
+    const node = await resolve(space, ARGS.node);
+    handler.activateNode(node.id);
+    await settle();
+    return 'activated';
+  }
+  case 'archive': {
+    await show(ARGS.space);
+    const entries = await new Promise(resolve => {
+      const id = router.setArchive.addListener(list => {
+        router.removeListener(id);
+        resolve(list);
+      });
+      handler.requestTree();
+    });
+    return entries.map(e => ({
+      id: e.id,
+      archivedAt: e.archivedAt,
+      tabs: e.tabs.map(t => ({title: t.title, url: urlOf(t)})),
+    }));
+  }
+  case 'archive-after': {
+    const space = await findSpace(ARGS.space);
+    handler.setArchiveAfter(space.id, Number(ARGS.hours));
+    await settle();
+    return 'set';
   }
   default:
     throw new Error('unknown op ' + ARGS.op);
