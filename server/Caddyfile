@@ -2,5 +2,10 @@
 # machine, ports 80 and 443 open). Caddy gets the certificate itself.
 # In Compass, the server URL is then https://sync.example.com/v2
 sync.example.com {
-	reverse_proxy sync:8295
+	reverse_proxy sync:8295 {
+		# Change notifications (/v2/compass/events) are a long-lived
+		# Server-Sent Events stream. Caddy already flushes text/event-stream
+		# responses at once; this makes it explicit for every response.
+		flush_interval -1
+	}
 }
