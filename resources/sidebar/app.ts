@@ -1421,12 +1421,35 @@ export class CompassSidebarAppElement extends CrLitElement {
       easing: EASE_OUT,
       fill: 'forwards',
     };
-    const animations = [this.getSpacePane_().animate(
-        [
-          {opacity: 1 - progress / 2, transform: `translateX(${shift}px)`},
-          {opacity: 0.5, transform: `translateX(${-direction * width}px)`},
-        ],
-        options)];
+    // The old space leaves as a frozen copy: the browser switches mid-slide
+    // and the live pane renders the new space's entries as they arrive,
+    // which flashed in the half sliding out. The live pane stays out of sight
+    // until the new space's preview has slid in, and takes its place then.
+    const pane = this.getSpacePane_();
+    const {host, copy} = this.makeGhost_(pane, this.getStage_());
+    Object.assign(host.style, {
+      height: `${pane.offsetHeight}px`,
+      left: '0',
+      padding: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    });
+    // The swipe moved the live pane; the copy moves by its animation only.
+    copy.style.removeProperty('transform');
+    copy.style.removeProperty('opacity');
+    const sections = copy.querySelector<HTMLElement>('#sections')!;
+    sections.style.overflow = 'hidden';
+    sections.scrollTop = this.getSections_().scrollTop;
+    const animations = [
+      host.animate(
+          [
+            {opacity: 1 - progress / 2, transform: `translateX(${shift}px)`},
+            {opacity: 0.5, transform: `translateX(${-direction * width}px)`},
+          ],
+          options),
+      pane.animate([{opacity: 0}, {opacity: 0}], options),
+    ];
     if (preview) {
       animations.push(preview.animate(
           [
@@ -1439,6 +1462,8 @@ export class CompassSidebarAppElement extends CrLitElement {
           options));
     }
     this.endSlide_();
+    // After endSlide_(), which removes the last slide's copy.
+    this.slideGhost_ = host;
     this.setSliding_(true);
     const slide: Slide = {
       direction,
