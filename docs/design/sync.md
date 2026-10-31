@@ -450,6 +450,17 @@ the slice 1 server on the Mac mini. Evidence in
 
 ### Slice 2b notes
 
+**MacBook run (2026-10-31, out/Debug, `1ee7fd7`): passed.** 22 unit tests
+pass (the override is in the build). History and History Delete
+Directives run encrypted (custom passphrase). A's visits reached B with
+the same visit times within about a minute; a page removed on B left A
+within about 35 s, applied by the directive handler. No crash; no Google
+host beyond the baseline. Two side findings: sync-internals shows History
+with 0 entries although the visits sync (history entities aren't kept as
+live entries), and `chrome://history`'s `queryHistory` returns nothing in
+headless runs even without sync (a test-tooling problem, also in a
+no-sync control); check the history page by eye.
+
 Branch `sync/slice-2b-history` (on `sync-main`). Written without a
 compiler; the MacBook build and run are in
 [sync-slice-2b-steps.md](sync-slice-2b-steps.md).
