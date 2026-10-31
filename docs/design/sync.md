@@ -19,9 +19,10 @@ of our own that speaks the same protocol. Chromium's existing data types
 (passwords, history, autofill, extensions, settings, open tabs, device
 list) then sync with no new code. Compass's sidebar becomes one more data
 type, `COMPASS_SPACES`. There are no accounts: as in Brave's "sync chain",
-the first device makes a random seed shown as 24 words; every device that
-enters the words derives the same server identity (a signing key) and the
-same encryption passphrase (Chromium's custom passphrase, so everything is
+the first device makes a random seed; other devices get it by typing a
+short pairing code shown on a device already syncing (or a 12-word recovery
+code). Every device with the seed derives the same server identity (a
+signing key) and the same encryption passphrase (Chromium's custom passphrase, so everything is
 encrypted on the device). The server stores opaque blobs.
 
 ## Options considered
@@ -64,10 +65,14 @@ incoming password sharing. Exact list from the spike (slice 0).
 
 ## Identity: a sync chain, no accounts
 
-- **Seed**: 32 random bytes, made by the first device. Shown as 24 BIP39
-  words and a QR code ("Sync code"). The words are the only way back in:
-  lose every device and the words, and the synced data is gone. Say so in
+- **Seed**: 16 random bytes (128 bits, the strength of the AES keys that
+  encrypt the data), made by the first device.
+- **Recovery code**: the seed as 12 BIP39 words, shown once when sync
+  starts so the user can save it (a password manager, paper), and again
+  from settings behind Touch ID. Only needed when no synced device is left:
+  lose every device and the code, and the synced data is gone. Say so in
   the UI.
+- **Adding a device** uses a pairing code, not the words (see "Pairing").
 - From the seed, with HKDF-SHA256 (BoringSSL):
   - `info="compass-sync-auth"` → an Ed25519 key pair. The public key is
     the chain's ID on the server.
@@ -85,6 +90,38 @@ incoming password sharing. Exact list from the spike (slice 0).
   the device, because every device holds the seed. "Reset sync" makes a new
   chain (new seed), uploads this device's data, and the others must join
   again. Same as Brave.
+
+### Pairing
+
+A device already syncing (A) passes the seed to a new one (B) through the
+server, protected by a short code. The server only relays messages it
+can't read, and a wrong guess burns the code.
+
+1. On A, "Add a device": A opens a pairing slot on the server (signed
+   request, as for sync). The server gives the lowest free slot number;
+   the slot lives 5 minutes. A shows the code `<slot>-<6 digits>`, e.g.
+   `7-482913`, and a QR of the server URL and code (for phones later).
+   The slot number only finds the pairing; the 6 digits are the secret and
+   never reach the server.
+2. On B, "I have another device": B enters the server URL (self-hosted:
+   it isn't known yet) and the code.
+3. A and B run **SPAKE2** (BoringSSL's `SPAKE2_CTX`, A as Alice, B as Bob,
+   password = the 6 digits, names bound to the slot and server host),
+   relaying their messages through the slot. Both end with key K, then
+   exchange confirmation MACs. A mismatch (wrong code, or someone in the
+   middle) closes the slot; A offers a new code. One guess per code, so 6
+   digits (1 in a million) is enough.
+4. B sends its device name encrypted with K; A asks “Add MacBook?”
+   (Allow/Deny), which also catches someone who glimpsed the code.
+5. On Allow, A sends AES-GCM(K, seed, chain's profile list); B derives
+   everything from the seed and starts syncing (first sync merges).
+
+Server side: `POST /v1/pair` (open, signed), `POST /v1/pair/{slot}/{msg}`
+and `GET` with long poll to relay, slots deleted on use or expiry, at most
+one open slot per chain, join attempts rate-limited per IP.
+
+"Use a recovery code" on B is the fallback: type the 12 words (BIP39
+autocomplete, checksum checked as you type).
 
 ### Plugging it into Chromium
 
@@ -288,9 +325,11 @@ multi-profile is slice 5.
 Upstream's sync settings are replaced by a page of our own,
 `chrome://compass-sync` (WebUI, like the sidebar):
 
-- Off: "Start sync" (makes a chain, shows the words and QR) and "I have a
-  sync code" (enter 24 words; autocomplete from the BIP39 list).
-- On: the code (behind a click and Touch ID/password via
+- Off: "Start sync" (asks for the server URL, makes a chain, shows the
+  recovery code once with "I saved it") and "I have another device"
+  (server URL + pairing code; "Use a recovery code" under it).
+- On: "Add a device" (shows the pairing code and waits, then
+  Allow/Deny), the recovery code (behind Touch ID/password via
   `device_reauth`), devices (from `DEVICE_INFO`), toggles per type, server
   URL, "Leave sync" (keeps local data), "Reset sync".
 - Status in the header's app menu: last synced, errors.
@@ -310,13 +349,15 @@ Upstream's sync settings are replaced by a page of our own,
    which types start and which fail without Google; that nothing calls
    Google endpoints (watch the network log). Write the findings here.
 1. **Server, minimal**: go-sync fork in `server/`, SQLite storage, Ed25519
-   auth, Docker image, Go tests. A `compass sync-server` CLI command runs it
+   auth, pairing slots and relay, Docker image, Go tests. A `compass sync-server` CLI command runs it
    locally for development.
-2. **Chain + Chromium types**: seed, words, HKDF derivations, the auth
+2. **Chain + Chromium types**: seed, recovery code, pairing (SPAKE2,
+   unit tests for wrong code and expiry), HKDF derivations, the auth
    route from slice 0, server URL pref, custom passphrase, Google-only types
    off (through `compass::RegisterFeatureOverrides()` where a feature flag
    exists, patches otherwise), poll + `TriggerRefresh` on focus/wake.
-   Minimal `chrome://compass-sync` (start, join, leave). Two-client
+   Minimal `chrome://compass-sync` (start, add a device, join by pairing
+   or recovery code, leave). Two-client
    integration test on `FakeServer` for passwords.
 3. **`COMPASS_SPACES` type**: patches, proto, bridge, apply rules above,
    one profile. Unit tests with `MockDataTypeLocalChangeProcessor`;
@@ -359,9 +400,9 @@ Decided with the user (2026-10-31):
 1. **Server**: self-hosted only for now. A public instance may come later.
 2. **What syncs**: everything that can, Today and the archive included.
 3. **First sync on a device with its own spaces**: merge.
-
-Assumed, not yet confirmed: **accounts** are a 24-word sync chain (no
-email/password accounts).
+4. **No accounts**: a sync chain. Devices join with a short pairing code
+   from a device already syncing; a 12-word recovery code is the fallback
+   (24 words was too long).
 
 ## Risks
 
