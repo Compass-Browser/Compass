@@ -9,6 +9,7 @@
 
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -127,6 +128,47 @@ class CompassSidebarBrowserTest : public InProcessBrowserTest {
     return contents;
   }
 };
+
+// A long Pinned and Today scroll together, one under the other: shrunk to
+// fit, Pinned's entries spilled over Today's header, and the space's name
+// lost height (the gap above Pinned changed between spaces). Scrollbars are
+// thin on a transparent track.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LongPinnedScrollsWithToday) {
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  for (int i = 0; i < 60; ++i) {
+    model.AddTab(model.pinned_root(), model.pinned_root()->children().size(),
+                 GURL("https://pinned" + base::NumberToString(i) + ".test/"),
+                 u"Pinned " + base::NumberToString16(i));
+  }
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(R"(
+    (async () => {
+      const r = () => document.querySelector('compass-sidebar-app').shadowRoot;
+      while (r().querySelectorAll('#pinned .tab').length < $1) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    })())", 60)));
+  constexpr char kLayout[] = R"(
+    (() => {
+      const r = document.querySelector('compass-sidebar-app').shadowRoot;
+      const sections = r.querySelector('#sections');
+      // The list's own Pinned, then Today's header, where layout puts them
+      // (entries glide there: their boxes may still be on their way).
+      const pinned = sections.querySelector(':scope > #pinned');
+      const header = sections.querySelectorAll(':scope > .section-header')[1];
+      const style = getComputedStyle(sections);
+      // All of Pinned's entries, not just its box (they spilled out of it).
+      // The space's name keeps its height beside a long list.
+      const name = r.querySelector('#spacePane > #spaceName');
+      return [header.offsetTop >= pinned.offsetTop + pinned.scrollHeight,
+              sections.scrollHeight > sections.clientHeight,
+              style.scrollbarColor.endsWith('rgba(0, 0, 0, 0)'),
+              name.offsetHeight >= name.scrollHeight];
+    })())";
+  EXPECT_EQ(content::EvalJs(contents, kLayout),
+            base::ListValue().Append(true).Append(true).Append(true).Append(
+                true));
+}
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ReplacesNativeTabStrip) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());

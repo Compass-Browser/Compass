@@ -12,6 +12,13 @@
         margin: 0;
       }
 
+      /* A thin thumb on a transparent track, as the sidebar's. */
+      html {
+        scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+            transparent;
+        scrollbar-width: thin;
+      }
+
       main {
         margin: 0 auto;
         max-width: 560px;

@@ -19,6 +19,11 @@
   height: 100%;
   padding: 4px 8px;
   position: relative;
+  /* Scrollbars: a thin thumb on a transparent track, never a white
+   * gutter over the space's color (inherited by every list). */
+  scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+      transparent;
+  scrollbar-width: thin;
 }
 
 /* Favorites: as in Arc, tiles share each row's whole width, four or more
@@ -98,6 +103,10 @@
 }
 
 #spaceName {
+  /* Its full height in every space: shrunk to fit beside a long list, the
+   * gap above Pinned changed from space to space (and jumped on switches).
+   * The list gives way instead. */
+  flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
   min-height: 16px;
@@ -160,6 +169,13 @@ compass-sidebar-preview[side='next'] {
    * scrollbar. */
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* Pinned and Today scroll together, as one list. The sections and their
+ * headers keep their height: shrunk to fit, a long Pinned spilled over
+ * Today's header and entries. */
+#sections > * {
+  flex-shrink: 0;
 }
 
 /* The space switcher, under everything else. */
