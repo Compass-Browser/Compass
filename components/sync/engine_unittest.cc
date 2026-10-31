@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
 #include <string>
 
 #include "base/test/scoped_command_line.h"
+#include "base/values.h"
 #include "compass/components/sync/engine_components_factory.h"
 #include "compass/components/sync/pairing_network_transport.h"
 #include "compass/components/sync/pref_names.h"
@@ -51,6 +53,32 @@ TEST_F(CompassSyncEngineTest, PairUrl) {
                 GURL("https://sync.example.com/v2/"), "7/msg")
                 .spec(),
             "https://sync.example.com/v2/compass/pair/7/msg");
+}
+
+// A 410's body says why the slot closed (docs/design/sync.md, "Slice 4
+// notes"); anything else is kUnknown.
+TEST_F(CompassSyncEngineTest, PairClosedReason) {
+  auto reply = [](const char* reason) {
+    base::DictValue dict;
+    dict.Set("reason", reason);
+    return std::optional<base::DictValue>(std::move(dict));
+  };
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(410, reply("mismatch")),
+            PairingClosedReason::kMismatch);
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(410, reply("cancel")),
+            PairingClosedReason::kCancel);
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(410, reply("deny")),
+            PairingClosedReason::kDeny);
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(410, reply("expired")),
+            PairingClosedReason::kExpired);
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(410, reply("bored")),
+            PairingClosedReason::kUnknown);
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(404, reply("cancel")),
+            PairingClosedReason::kUnknown);
+  EXPECT_EQ(NetworkPairingTransport::ClosedReasonOf(410, std::nullopt),
+            PairingClosedReason::kUnknown);
+  EXPECT_EQ(PairingClosedReasonName(PairingClosedReason::kDeny), "deny");
+  EXPECT_EQ(PairingClosedReasonName(PairingClosedReason::kUnknown), "");
 }
 
 TEST_F(CompassSyncEngineTest, ServerUrlFromPref) {
