@@ -954,14 +954,18 @@ void CompassSpacesSyncBridge::PlaceNode(const std::string& key,
   }
   SidebarNode* root = target->pinned_root();
   SidebarNode* parent = root;
-  bool parked = false;
+  // Whether it goes (or stays) at the end of the root rather than where its
+  // position says: that position is among its parent's children, not the
+  // root's.
+  bool at_root_end = false;
   if (!remote.parent_uuid().empty()) {
     const base::Uuid parent_id = ParseKey(remote.parent_uuid());
     SidebarNode* wanted = parent_id.is_valid() ? FindNode(parent_id) : nullptr;
     if (deleted.contains(remote.parent_uuid())) {
-      // Its parent is gone: it stays at the root, which the next pass
-      // commits.
+      // Its parent is gone: it stays at the end of the root, where
+      // ApplyNodeDeletions() put it, and the next pass commits that.
       unparked_.insert(key);
+      at_root_end = true;
     } else if (wanted) {
       SpaceModel* source = ModelOf(node);
       // A cycle (the parent is inside it) or an invalid placement (a folder
@@ -975,14 +979,14 @@ void CompassSpacesSyncBridge::PlaceNode(const std::string& key,
       }
     } else {
       // Its parent hasn't come yet: it waits at the end of the root,
-      // parked (its position is among its parent's children).
-      parked = true;
+      // parked.
+      at_root_end = true;
     }
   }
-  if (parked && node->parent() == root) {
+  if (at_root_end && node->parent() == root) {
     return;
   }
-  const size_t index = parked
+  const size_t index = at_root_end
                            ? root->children().size()
                            : InsertionIndex(*parent, node, remote.position());
   MoveNode(node, *target, parent, index);
