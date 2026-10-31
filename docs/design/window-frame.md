@@ -127,8 +127,12 @@ area, for hovering.
 Browser tests: `WindowFrame` (card insets and corners; the frame tint
 matches the region's; the frame drags and the page doesn't; collapsed, the
 region is the frame's edge, the card has the frame all round, and the
-caption buttons hide until expanded), `CompassSidebarMotionBrowserTest.SlidesOutWithoutMovingDown` (steps the close: the page keeps its y and size), `CollapsesAndResizes` (collapsed
-width, the sidebar hidden and shown again). Header tests: collapsed, no
+caption buttons hide until expanded),
+`CompassSidebarMotionBrowserTest.SlidesOutWithoutMovingDown` (steps the
+close: the page keeps its y and size), `CollapsesAndResizes` (collapsed
+width, the sidebar hidden and shown again). Header tests:
+`RowLinesUpWithTrafficLights` (the row's center and the reported title bar
+height); collapsed, no
 controls or content setting icons are drawn; a bubble anchored to an
 extension button or to the pill expands the collapsed sidebar; page info
 falls back to upstream's corner while collapsed.
