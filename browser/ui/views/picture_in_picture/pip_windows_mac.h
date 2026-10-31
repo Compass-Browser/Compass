@@ -78,6 +78,7 @@ class PipWindows : public views::WidgetObserver,
   bool IsIgnoringMouseForTesting(views::Widget* widget) const;
   bool is_listening_for_testing() const { return listening_; }
   bool IsHoveredForTesting(views::Widget* widget) const;
+  bool AllowsTilingForTesting(views::Widget* widget) const;
   double GetCornerRadiusForTesting(views::Widget* widget) const;
   const std::vector<raw_ptr<views::Widget>>& windows_for_testing() const {
     return windows_;
@@ -91,6 +92,10 @@ class PipWindows : public views::WidgetObserver,
   void ZoomWindow(views::Widget* widget, double magnification);
   void MoveWindow(views::Widget* widget, const gfx::Vector2d& delta);
   void EndGesture(views::Widget* widget, bool animate = true);
+
+  // The window's "back to tab" button: Compass may come to the front (see
+  // RestoreFrontApp()). Called from VideoOverlayWindowViews (patch).
+  void WillFocusOpener();
 
   // views::WidgetObserver:
   void OnWidgetDestroying(views::Widget* widget) override;
@@ -119,6 +124,10 @@ class PipWindows : public views::WidgetObserver,
   // while any is open.
   void UpdateEventMonitor();
   gfx::Rect GetWorkArea(views::Widget* widget) const;
+  // A window closed after a click on it while another app was in front
+  // (close, minimize): macOS then gives Compass the focus and brings its
+  // windows up. That app comes back to the front.
+  void RestoreFrontApp();
 
   std::vector<raw_ptr<views::Widget>> windows_;
   // Windows faded under the pointer.

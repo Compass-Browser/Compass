@@ -272,6 +272,7 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
   EXPECT_EQ(click_through.GetCornerRadiusForTesting(window),
             PipWindows::kCornerRadius);
+  EXPECT_FALSE(click_through.AllowsTilingForTesting(window));
 
   click_through.OnKeyPressed(PipWindows::GetAccelerator());
   EXPECT_TRUE(click_through.enabled());

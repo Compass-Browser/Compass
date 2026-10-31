@@ -127,11 +127,25 @@ Tests: `PipWindowsGeometryTest.*`, `CompassAutoPipBrowserTest.PipGestures`
 (the geometry on the real window; the trackpad events themselves are
 checked by hand).
 
-## Rounded corners (macOS)
+## Window shape and behavior (macOS)
 
-The window is frameless, so macOS barely rounds it. `PipWindows`
-rounds its content view's layer (12 pt continuous corners, as the page
-card) and redraws the shadow to follow.
+- **Corners:** `PipWindows` rounds the content view's layer (12 pt
+  continuous corners, as the page card) and redraws the shadow to follow.
+  Upstream's window had the standard frame (`NSWindowStyleMaskFullSizeContentView`)
+  for its system corner radius; that frame also drew an outline, bright
+  along the top in dark mode, that didn't follow the rounded content. It's
+  borderless now (`video_overlay_window_native_widget_mac.mm` patch).
+- **No macOS tiling:** `NSWindowCollectionBehaviorFullScreenDisallowsTiling`,
+  so dragging it to a screen edge doesn't offer macOS's tiles; Compass's
+  own snap (below) applies.
+- **Closing doesn't bring Compass up:** a click on the window while another
+  app is in front records that app; if the window then closes within 2 s
+  (close, minimize), and Compass becomes active then or within 1 s, that
+  app comes back to the front (`PipWindows::RestoreFrontApp()`). macOS gives
+  the focus to Compass's main window when the clicked window goes. "Back to
+  tab" is meant to bring the tab up and is left alone (`WillFocusOpener()`,
+  patch). Not reproduced in tests (needs a real click while another app is
+  active); a guess at the mechanism until checked by eye.
 
 ## Known gaps
 

@@ -36,6 +36,15 @@ NSWindow* GetNSWindow(views::Widget* widget) {
 // The gesture monitor, while a window is open.
 id __strong g_event_monitor = nil;
 
+// The app in front when a window was last clicked while Compass wasn't
+// active, and when; nil after a click with Compass active, or once used.
+NSRunningApplication* __strong g_front_app = nil;
+base::TimeTicks g_front_app_click_time;
+// How long after the click a window closing counts as closed by it, and how
+// long after it closes macOS may still activate Compass.
+constexpr base::TimeDelta kClickToCloseTime = base::Seconds(2);
+constexpr base::TimeDelta kActivationGrace = base::Seconds(1);
+
 views::Widget* FindWindow(
     const std::vector<raw_ptr<views::Widget>>& windows,
     NSEvent* event) {
@@ -138,6 +147,12 @@ void PipWindows::AddWindow(views::Widget* widget) {
     observations_.AddObservation(widget);
   }
   RoundCorners(widget);
+  // No macOS window tiling: Compass snaps it to the edges itself.
+  NSWindow* window = GetNSWindow(widget);
+  window.collectionBehavior =
+      (window.collectionBehavior &
+       ~NSWindowCollectionBehaviorFullScreenAllowsTiling) |
+      NSWindowCollectionBehaviorFullScreenDisallowsTiling;
   Apply(widget);
   UpdateListening();
   UpdateEventMonitor();
@@ -213,6 +228,7 @@ void PipWindows::RemoveWindow(views::Widget* widget) {
   NSWindow* window = GetNSWindow(widget);
   window.ignoresMouseEvents = NO;
   window.alphaValue = 1.0;
+  RestoreFrontApp();
   // Click-through ends with the last window: the next one takes clicks.
   if (windows_.empty()) {
     enabled_ = false;
@@ -328,6 +344,7 @@ void PipWindows::UpdateEventMonitor() {
   g_event_monitor = [NSEvent
       addLocalMonitorForEventsMatchingMask:NSEventMaskMagnify |
                                            NSEventMaskScrollWheel |
+                                           NSEventMaskLeftMouseDown |
                                            NSEventMaskLeftMouseUp
                                    handler:^NSEvent*(NSEvent* event) {
                                      views::Widget* widget =
@@ -376,6 +393,17 @@ void PipWindows::UpdateEventMonitor() {
                                          }
                                          return nil;
                                        }
+                                       case NSEventTypeLeftMouseDown:
+                                         // Whose the front was, in case
+                                         // this click closes the window.
+                                         g_front_app =
+                                             NSApp.active
+                                                 ? nil
+                                                 : NSWorkspace.sharedWorkspace
+                                                       .frontmostApplication;
+                                         g_front_app_click_time =
+                                             base::TimeTicks::Now();
+                                         return event;
                                        case NSEventTypeLeftMouseUp:
                                          // After a drag of the window.
                                          self->EndGesture(widget);
@@ -384,6 +412,47 @@ void PipWindows::UpdateEventMonitor() {
                                          return event;
                                      }
                                    }];
+}
+
+bool PipWindows::AllowsTilingForTesting(views::Widget* widget) const {
+  return !(GetNSWindow(widget).collectionBehavior &
+           NSWindowCollectionBehaviorFullScreenDisallowsTiling);
+}
+
+void PipWindows::WillFocusOpener() {
+  g_front_app = nil;
+}
+
+void PipWindows::RestoreFrontApp() {
+  NSRunningApplication* front_app = g_front_app;
+  g_front_app = nil;
+  if (!front_app || front_app.terminated ||
+      base::TimeTicks::Now() - g_front_app_click_time > kClickToCloseTime) {
+    return;
+  }
+  // Now, or when macOS gets to it.
+  if (NSApp.active) {
+    [front_app activateWithOptions:0];
+    return;
+  }
+  NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
+  __block id observer = [center
+      addObserverForName:NSApplicationDidBecomeActiveNotification
+                  object:nil
+                   queue:nil
+              usingBlock:^(NSNotification*) {
+                [front_app activateWithOptions:0];
+                [NSNotificationCenter.defaultCenter removeObserver:observer];
+                observer = nil;
+              }];
+  dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW, kActivationGrace.InNanoseconds()),
+      dispatch_get_main_queue(), ^{
+        if (observer) {
+          [NSNotificationCenter.defaultCenter removeObserver:observer];
+          observer = nil;
+        }
+      });
 }
 
 }  // namespace compass
