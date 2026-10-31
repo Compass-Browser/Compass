@@ -702,7 +702,15 @@ after slice 0.
 
 Decided with the user (2026-10-31):
 
-1. **Server**: self-hosted only for now. A public instance may come later.
+1. **Server**: self-hostable, and since 2026-10-31 also a public instance
+   at `https://sync.example.org/v2` (user's request), on the the sync server
+   server: `/opt/compass-sync` (docker compose, image built from
+   `server/` copied to `./src`, SQLite in `./data`, bound to
+   `127.0.0.1:8295`), behind the host's Caddy
+   (`/etc/caddy/sites/sync.example.org.caddy`). Update: rsync
+   `server/` to `/opt/compass-sync/src`, then `docker compose up -d
+   --build`. Everything on it is encrypted on the devices; the test server
+   on the Mac mini (`192.168.1.20:8295`) stays for development.
 2. **What syncs**: everything that can, Today and the archive included.
 3. **First sync on a device with its own spaces**: merge.
 4. **No accounts**: a sync chain. Devices join with a short pairing code
