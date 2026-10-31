@@ -1221,6 +1221,38 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
           !root.querySelector('.swatch[title="Blue"][selected]'));
     })())"));
 
+  // A symbol, then an emoji (only its first character is kept), as the
+  // switcher's button shows them.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (() => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('.icon-choice[title="Travel"]').click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return added->icon() == *SpaceIcon::Symbol("travel"); }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      while (!root.querySelectorAll('.space')[1].querySelector('svg path')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      const input = root.querySelector('#emojiInput');
+      input.value = '🚀✨';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      return input.value === '🚀';
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return added->icon() == *SpaceIcon::Emoji("🚀"); }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const emoji = () =>
+          root.querySelectorAll('.space')[1].querySelector('.space-emoji');
+      while (!emoji()) await new Promise(r => setTimeout(r, 20));
+      return emoji().textContent === '🚀';
+    })())"));
+
   // Delete wants a second click. The window goes back to Home.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (async () => {

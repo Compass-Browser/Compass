@@ -12,6 +12,8 @@ import {getFaviconUrl} from './favicon.js';
 import './node.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
+import type {SpaceSymbol} from './space_icons.js';
+import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
 import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, SpaceColor, Tree} from './sidebar.mojom-webui.js';
 import {NodeType} from './sidebar.mojom-webui.js';
 
@@ -44,6 +46,14 @@ const SPACE_COLORS: PaletteColor[] = [
   {color: {red: 234, green: 179, blue: 8}, name: 'Yellow'},
   {color: {red: 34, green: 197, blue: 94}, name: 'Green'},
 ];
+
+function firstGrapheme(text: string): string {
+  const segments = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
+  for (const {segment} of segments.segment(text)) {
+    return segment;
+  }
+  return '';
+}
 
 // How often a custom color being dragged in the picker is passed on.
 const CUSTOM_COLOR_MS = 50;
@@ -229,6 +239,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   private pendingCustomColor_: SpaceColor|null = null;
   private customColorTimer_: number|null = null;
   protected readonly spaceColors_: PaletteColor[] = SPACE_COLORS;
+  protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
   protected accessor archiveOpen_: boolean = false;
@@ -588,6 +599,49 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected getSpaceInitial_(space: Space): string {
     return Array.from(space.name.trim())[0]?.toUpperCase() ?? '•';
+  }
+
+  // A space shows its symbol, its emoji, or its name's first letter
+  // (docs/design/spaces.md, "Space icons"). An unknown symbol (from a later
+  // version) shows the letter.
+  protected getSpaceSymbol_(space: Space): SpaceSymbol|null {
+    return space.icon?.symbol ? findSpaceSymbol(space.icon.symbol) : null;
+  }
+
+  protected getSymbolViewBox_(): string {
+    return SPACE_SYMBOL_VIEW_BOX;
+  }
+
+  protected getSpaceIconText_(space: Space): string {
+    return space.icon?.emoji ?? this.getSpaceInitial_(space);
+  }
+
+  protected getSpaceIconClass_(space: Space): string {
+    return space.icon?.emoji ? 'space-emoji' : 'space-initial';
+  }
+
+  // |symbol| '' stands for no icon.
+  protected isMenuSpaceIcon_(symbol: string): boolean {
+    const icon = this.getMenuSpace_()?.icon;
+    return symbol ? icon?.symbol === symbol : !icon;
+  }
+
+  protected onSymbolClick_(e: Event) {
+    const name = (e.currentTarget as HTMLElement).dataset['symbol'];
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceIcon(
+          this.menuSpaceId_, name ? {symbol: name} : null);
+    }
+  }
+
+  // Keeps the first character typed or picked (a whole emoji sequence).
+  protected onEmojiInput_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const first = firstGrapheme(input.value.trim());
+    input.value = first;
+    if (first && this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceIcon(this.menuSpaceId_, {emoji: first});
+    }
   }
 
   // Slides the space's preview in at once, as a swipe would, rather than

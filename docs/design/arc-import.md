@@ -110,7 +110,7 @@ drop get added to Compass before the import is finished. From Arc's files:
 
 | Arc | In Compass | Needed for |
 |---|---|---|
-| Space icon (`customInfo.iconType`: emoji or symbol) | No | Spaces looking as in Arc |
+| Space icon (`customInfo.iconType`: emoji or symbol) | Done (spaces.md "Space icons"; symbols mapped to Compass's) | Spaces looking as in Arc |
 | Theme gradients (`windowTheme`) | No; custom colors done (spaces.md "Space colors") | Gradient sidebars |
 | Tab mute status (`savedMuteStatus`) | No | Muted entries staying muted |
 | Archive (`StorableArchiveItems.json`) | Yes (per space) | Importing it |

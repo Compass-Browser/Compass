@@ -570,6 +570,31 @@ TEST_F(SidebarPageHandlerTest, RenamesAndColorsSpaces) {
   EXPECT_EQ(home.color(), SpaceColor::kGrey);
 }
 
+TEST_F(SidebarPageHandlerTest, SetsSpaceIcons) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+
+  handler_remote_->SetSpaceIcon(id,
+                                sidebar::mojom::SpaceIcon::NewSymbol("home"));
+  Settle();
+  EXPECT_EQ(home.icon(), *SpaceIcon::Symbol("home"));
+
+  // Invalid ones are ignored.
+  handler_remote_->SetSpaceIcon(id, sidebar::mojom::SpaceIcon::NewEmoji(" "));
+  handler_remote_->SetSpaceIcon(id,
+                                sidebar::mojom::SpaceIcon::NewSymbol("../x"));
+  Settle();
+  EXPECT_EQ(home.icon(), *SpaceIcon::Symbol("home"));
+
+  handler_remote_->SetSpaceIcon(id, sidebar::mojom::SpaceIcon::NewEmoji("🚀"));
+  Settle();
+  EXPECT_EQ(home.icon(), *SpaceIcon::Emoji("🚀"));
+
+  handler_remote_->SetSpaceIcon(id, nullptr);
+  Settle();
+  EXPECT_TRUE(home.icon().is_none());
+}
+
 TEST_F(SidebarPageHandlerTest, MovesAnEntryAndItsTabToAnotherSpace) {
   SpaceList& list = WindowFeatures::From(browser())->service().space_list();
   SpaceModel& home = space_model();

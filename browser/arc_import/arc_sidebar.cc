@@ -10,7 +10,9 @@
 #include <set>
 #include <utility>
 
+#include "base/containers/fixed_flat_map.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 
 namespace compass::arc {
@@ -203,7 +205,62 @@ SpaceColor ReadSpaceColor(const base::DictValue& space) {
                            color->FindDouble("blue").value_or(0));
 }
 
+// A space's icon: customInfo.iconType is {"emoji_v2": "🚑", "emoji": 128657}
+// or {"icon": "planet"}.
+SpaceIcon ReadSpaceIcon(const base::DictValue& space) {
+  const base::DictValue* type =
+      space.FindDictByDottedPath("customInfo.iconType");
+  if (!type) {
+    return SpaceIcon();
+  }
+  std::optional<SpaceIcon> icon;
+  if (const std::string* emoji = type->FindString("emoji_v2")) {
+    icon = SpaceIcon::Emoji(*emoji);
+  } else if (std::optional<int> code_point = type->FindInt("emoji");
+             code_point && base::IsValidCharacter(*code_point)) {
+    std::string utf8;
+    base::WriteUnicodeCharacter(*code_point, &utf8);
+    icon = SpaceIcon::Emoji(utf8);
+  } else if (const std::string* name = type->FindString("icon")) {
+    if (std::optional<std::string_view> symbol = ArcSymbolToCompass(*name)) {
+      icon = SpaceIcon::Symbol(*symbol);
+    }
+  }
+  return icon.value_or(SpaceIcon());
+}
+
 }  // namespace
+
+std::optional<std::string_view> ArcSymbolToCompass(std::string_view arc_name) {
+  // Only "github", "planet" and "colorPallete" (sic) were seen in real Arc
+  // data; the rest are Arc's likely names for the same ideas. Brands become
+  // what they stand for.
+  static constexpr auto kSymbols =
+      base::MakeFixedFlatMap<std::string_view, std::string_view>({
+          {"airplane", "travel"},     {"bag", "shopping"},
+          {"bolt", "bolt"},           {"book", "book"},
+          {"briefcase", "work"},      {"bulb", "lightbulb"},
+          {"camera", "image"},        {"car", "car"},
+          {"cart", "shopping"},       {"chart", "finance"},
+          {"code", "code"},           {"colorPallete", "palette"},
+          {"compass", "compass"},     {"confetti", "celebration"},
+          {"earth", "globe"},         {"flask", "science"},
+          {"gamecontroller", "game"}, {"github", "code"},
+          {"globe", "globe"},         {"graduationcap", "graduation"},
+          {"hammer", "build"},        {"home", "home"},
+          {"house", "home"},          {"lightbulb", "lightbulb"},
+          {"lock", "lock"},           {"music", "music"},
+          {"palette", "palette"},     {"person", "person"},
+          {"photo", "image"},         {"planet", "globe"},
+          {"shield", "shield"},       {"terminal", "code"},
+          {"wallet", "wallet"},       {"work", "work"},
+          {"wrench", "build"},
+      });
+  if (const auto it = kSymbols.find(arc_name); it != kSymbols.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
 
 base::Time FromArcTime(double seconds) {
   return base::Time::FromSecondsSinceUnixEpoch(seconds + kAppleEpochOffset);
@@ -295,6 +352,7 @@ std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
         (profile ? ProfileDir(*profile) : std::nullopt)
             .value_or(kDefaultProfileDir);
     space.color = ReadSpaceColor(*object);
+    space.icon = ReadSpaceIcon(*object);
     const base::ListValue* container_ids = object->FindList("containerIDs");
     if (const std::string* pinned = ValueAfter(container_ids, "pinned")) {
       space.pinned = tree.ReadChildren(*pinned);

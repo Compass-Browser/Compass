@@ -5,6 +5,7 @@
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ArchiveDelay, CompassSidebarAppElement, PaletteColor, Preview} from './app.js';
+import type {SpaceSymbol} from './space_icons.js';
 import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
@@ -133,6 +134,31 @@ ${this.getMenuSpace_() ? html`
             @input="${this.onCustomColorInput_}">
       </label>
     </div>
+    <div id="icons" role="group" aria-label="Icon">
+      <button class="icon-choice" role="menuitemradio" data-symbol=""
+          title="No icon" aria-label="No icon"
+          aria-checked="${this.isMenuSpaceIcon_('')}"
+          ?selected="${this.isMenuSpaceIcon_('')}"
+          @click="${this.onSymbolClick_}">
+        ${this.getSpaceInitial_(this.getMenuSpace_()!)}
+      </button>
+      ${this.spaceSymbols_.map((symbol: SpaceSymbol) => html`
+        <button class="icon-choice" role="menuitemradio"
+            data-symbol="${symbol.name}" title="${symbol.label}"
+            aria-label="${symbol.label}"
+            aria-checked="${this.isMenuSpaceIcon_(symbol.name)}"
+            ?selected="${this.isMenuSpaceIcon_(symbol.name)}"
+            @click="${this.onSymbolClick_}">
+          <svg viewBox="${this.getSymbolViewBox_()}" aria-hidden="true">
+            <path d="${symbol.path}"></path>
+          </svg>
+        </button>`)}
+      <input id="emojiInput" aria-label="Emoji" placeholder="Emoji"
+          title="Emoji (Fn E opens the picker)"
+          ?selected="${!!this.getMenuSpace_()!.icon?.emoji}"
+          .value="${this.getMenuSpace_()!.icon?.emoji ?? ''}"
+          @input="${this.onEmojiInput_}">
+    </div>
     <label id="archiveDelay">
       Archive Today tabs after
       <select @change="${this.onArchiveDelayChange_}">
@@ -203,7 +229,13 @@ ${this.archiveOpen_ ? html`
         @dragover="${this.onSpaceDragover_}"
         @dragleave="${this.onSpaceDragleave_}"
         @drop="${this.onSpaceDrop_}">
-      ${this.getSpaceInitial_(space)}
+      ${this.getSpaceSymbol_(space) ? html`
+        <svg class="space-symbol" viewBox="${this.getSymbolViewBox_()}"
+            aria-hidden="true">
+          <path d="${this.getSpaceSymbol_(space)!.path}"></path>
+        </svg>` :
+        html`<span class="${this.getSpaceIconClass_(space)}">${
+            this.getSpaceIconText_(space)}</span>`}
     </button>`)}
   <button id="addSpace" aria-label="New space" title="New space"
       @click="${this.onAddSpaceClick_}">+</button>

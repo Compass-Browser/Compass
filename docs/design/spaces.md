@@ -190,6 +190,39 @@ the tint out rather than through black) whenever the window's space or its
 color changes. While a swipe pulls in another space, the tint is the blend
 of the two colors at the swipe's progress (next section), with no fade.
 
+### Space icons
+
+A space can have an icon (2026-10-31, as in Arc), which its switcher button
+shows instead of the name's first letter: an emoji or a symbol. The menu
+lists them under the colors: "no icon" (the letter), 28 symbols and an
+"Emoji" field that keeps the first character typed or picked (a whole
+grapheme, so ZWJ sequences and flags stay one; macOS's Fn E / Ctrl Cmd
+Space picker types into it).
+
+`SpaceIcon` (space_model.h) is none, an emoji (non-empty UTF-8 of at most
+64 bytes, no whitespace or controls) or a symbol name (`[a-z0-9-]`, at most
+32). The handler drops invalid ones, as does the file reader. Saved as
+`"icon": {"emoji": "🚀"}` or `{"symbol": "travel"}`, left out for none.
+Mojo: `union SpaceIcon { string emoji; string symbol; }`, `Space.icon`,
+`SetSpaceIcon(id, icon?)`. Moving a space to another profile keeps it.
+
+The symbols are Compass's own set, `SPACE_SYMBOLS` in
+`resources/sidebar/space_icons.ts`: Material Symbols paths (Apache 2.0) as
+Chromium's WebUI iconsets carry them, all in the `0 -960 960 960` view box
+so they share one style. Arc's own symbol artwork isn't copied: an Arc
+symbol becomes the Compass one closest in meaning (`ArcSymbolToCompass()`:
+planet → globe, github → code, colorPallete → palette, ...), or none.
+Saved names must not change; a name the page doesn't know (a later
+version's) shows the letter.
+
+Not done: the icon elsewhere (command bar's space results, the little
+window's space picker, the space name at the top).
+
+**Tests:** `SpaceIconTest.*`, `SpaceModelTest.NotifiesIconChanges`,
+`SidebarSerializerTest.RoundTripsIcons`, `UnreadableIconsAreLeftOut`,
+`SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`;
+`SpaceMenuRenamesColorsDeletes` picks a symbol and an emoji.
+
 ### Window theme
 
 The space color also themes the window, as Arc does. `SidebarTint` sets it

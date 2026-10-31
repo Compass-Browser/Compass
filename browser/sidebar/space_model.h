@@ -97,6 +97,46 @@ inline constexpr auto kSpaceColorPalette = std::to_array<NamedSpaceColor>({
     {"green", SpaceColor::kGreen},
 });
 
+// A space's icon, which the switcher shows instead of the name's first
+// letter: none, an emoji, or a symbol of Compass's set (named as the sidebar
+// page's SPACE_SYMBOLS, resources/sidebar/space_icons.ts). See
+// docs/design/spaces.md, "Space icons".
+class SpaceIcon {
+ public:
+  enum class Kind { kNone, kEmoji, kSymbol };
+
+  // The longest emoji and symbol name accepted, in bytes. Emoji sequences
+  // (families, flags with tags) take up to ~35.
+  static constexpr size_t kMaxEmojiBytes = 64;
+  static constexpr size_t kMaxSymbolBytes = 32;
+
+  // None.
+  SpaceIcon();
+  // nullopt unless |emoji| is non-empty UTF-8 of at most kMaxEmojiBytes
+  // without whitespace or control characters. Whether it's one emoji is the
+  // page's to check.
+  static std::optional<SpaceIcon> Emoji(std::string_view emoji);
+  // nullopt unless |name| is 1-kMaxSymbolBytes of [a-z0-9-].
+  static std::optional<SpaceIcon> Symbol(std::string_view name);
+
+  SpaceIcon(const SpaceIcon&);
+  SpaceIcon& operator=(const SpaceIcon&);
+  ~SpaceIcon();
+
+  Kind kind() const { return kind_; }
+  bool is_none() const { return kind_ == Kind::kNone; }
+  // The emoji or the symbol's name; empty for none.
+  const std::string& value() const { return value_; }
+
+  friend bool operator==(const SpaceIcon&, const SpaceIcon&) = default;
+
+ private:
+  SpaceIcon(Kind kind, std::string value);
+
+  Kind kind_ = Kind::kNone;
+  std::string value_;
+};
+
 // How long a Today entry may go unseen before it's archived, unless the space
 // says otherwise. Arc's default.
 inline constexpr base::TimeDelta kDefaultArchiveAfter = base::Hours(12);
@@ -183,6 +223,9 @@ class SpaceModel {
 
   SpaceColor color() const { return color_; }
   void SetColor(SpaceColor color);
+
+  const SpaceIcon& icon() const { return icon_; }
+  void SetIcon(SpaceIcon icon);
 
   // How long a Today entry may go unseen before ArchiveIdleEntries() archives
   // it. Zero means never.
@@ -301,6 +344,7 @@ class SpaceModel {
   base::Uuid id_;
   std::u16string name_;
   SpaceColor color_ = SpaceColor::kGrey;
+  SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
   std::vector<ArchivedEntry> archive_;
   std::unique_ptr<SidebarNode> pinned_root_;

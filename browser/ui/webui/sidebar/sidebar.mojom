@@ -54,11 +54,20 @@ struct SpaceColor {
   uint8 blue;
 };
 
+// A space's icon (compass::SpaceIcon). A space without one is shown by its
+// name's first letter.
+union SpaceIcon {
+  string emoji;
+  // A name from the page's SPACE_SYMBOLS (space_icons.ts).
+  string symbol;
+};
+
 // A space, as the switcher shows it.
 struct Space {
   string id;
   string name;
   SpaceColor? color;
+  SpaceIcon? icon;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
   // The profile it belongs to: its ID (as ProfileOption's) and name.
@@ -143,6 +152,8 @@ interface PageHandler {
   RenameSpace(string id, string name);
   // Null makes it grey.
   SetSpaceColor(string id, SpaceColor? color);
+  // Null removes it. Invalid ones (compass::SpaceIcon) are ignored.
+  SetSpaceIcon(string id, SpaceIcon? icon);
   // Assigns a space to profile |profile_id|, or to a new profile if null: its
   // entries go along, its open tabs reload there (docs/design/spaces.md,
   // "Assigning a profile").

@@ -10,6 +10,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -67,6 +68,19 @@ sidebar::mojom::SpaceColorPtr ToMojoColor(SpaceColor color) {
   const SkColor tint = *color.tint();
   return sidebar::mojom::SpaceColor::New(
       SkColorGetR(tint), SkColorGetG(tint), SkColorGetB(tint));
+}
+
+// Null for none.
+sidebar::mojom::SpaceIconPtr ToMojoIcon(const SpaceIcon& icon) {
+  switch (icon.kind()) {
+    case SpaceIcon::Kind::kNone:
+      return nullptr;
+    case SpaceIcon::Kind::kEmoji:
+      return sidebar::mojom::SpaceIcon::NewEmoji(icon.value());
+    case SpaceIcon::Kind::kSymbol:
+      return sidebar::mojom::SpaceIcon::NewSymbol(icon.value());
+  }
+  NOTREACHED();
 }
 
 // A node's context menu. Commands go to the handler by the node's ID, so a
@@ -418,6 +432,24 @@ void SidebarPageHandler::SetSpaceColor(
     space->SetColor(color ? SpaceColor::FromRGB(color->red, color->green,
                                                 color->blue)
                           : SpaceColor::kGrey);
+  }
+}
+
+void SidebarPageHandler::SetSpaceIcon(const std::string& id,
+                                      sidebar::mojom::SpaceIconPtr icon) {
+  SpaceModel* space = FindAnySpace(id).space;
+  if (!space) {
+    return;
+  }
+  if (!icon) {
+    space->SetIcon(SpaceIcon());
+    return;
+  }
+  std::optional<SpaceIcon> valid =
+      icon->is_emoji() ? SpaceIcon::Emoji(icon->get_emoji())
+                       : SpaceIcon::Symbol(icon->get_symbol());
+  if (valid) {
+    space->SetIcon(std::move(*valid));
   }
 }
 
@@ -885,6 +917,7 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
     mojo_space->color = ToMojoColor(space->color());
+    mojo_space->icon = ToMojoIcon(space->icon());
     mojo_space->archive_after_hours = space->archive_after().InHours();
     spaces.push_back(std::move(mojo_space));
   }

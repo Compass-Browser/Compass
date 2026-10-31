@@ -373,6 +373,45 @@ TEST(SidebarSerializerTest, SavesCustomColorsAsHex) {
   EXPECT_EQ(restored.spaces()[1]->color(), SpaceColor::FromRGB(0x12, 0xab, 0x0f));
 }
 
+TEST(SidebarSerializerTest, RoundTripsIcons) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  work->SetIcon(*SpaceIcon::Symbol("work"));
+  play->SetIcon(*SpaceIcon::Emoji("🎮"));
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* spaces = data.FindList("spaces");
+  ASSERT_TRUE(spaces);
+  // None isn't saved.
+  EXPECT_FALSE((*spaces)[0].GetDict().Find("icon"));
+  EXPECT_EQ(*(*spaces)[1].GetDict().FindStringByDottedPath("icon.symbol"),
+            "work");
+  EXPECT_EQ(*(*spaces)[2].GetDict().FindStringByDottedPath("icon.emoji"),
+            "🎮");
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_TRUE(restored.spaces()[0]->icon().is_none());
+  EXPECT_EQ(restored.spaces()[1]->icon(), *SpaceIcon::Symbol("work"));
+  EXPECT_EQ(restored.spaces()[2]->icon(), *SpaceIcon::Emoji("🎮"));
+}
+
+TEST(SidebarSerializerTest, UnreadableIconsAreLeftOut) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "A", "icon": {"symbol": "Bad!"}},
+                                   {"name": "B", "icon": {"shape": "x"}},
+                                   {"name": "C", "icon": "home"}]})",
+      base::JSON_PARSE_RFC);
+  SpaceList list;
+
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 3u);
+
+  for (const auto& space : list.spaces()) {
+    EXPECT_TRUE(space->icon().is_none());
+  }
+}
+
 TEST(SidebarSerializerTest, UnreadableColorsStayGrey) {
   std::optional<base::Value> data = base::JSONReader::Read(
       R"({"version": 2, "spaces": [{"name": "A", "color": "teal"},

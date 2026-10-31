@@ -10,11 +10,50 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversion_utils.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "url/gurl.h"
 
 namespace compass {
+
+SpaceIcon::SpaceIcon() = default;
+
+SpaceIcon::SpaceIcon(Kind kind, std::string value)
+    : kind_(kind), value_(std::move(value)) {}
+
+SpaceIcon::SpaceIcon(const SpaceIcon&) = default;
+SpaceIcon& SpaceIcon::operator=(const SpaceIcon&) = default;
+SpaceIcon::~SpaceIcon() = default;
+
+// static
+std::optional<SpaceIcon> SpaceIcon::Emoji(std::string_view emoji) {
+  if (emoji.empty() || emoji.size() > kMaxEmojiBytes ||
+      !base::IsStringUTF8(emoji)) {
+    return std::nullopt;
+  }
+  // No whitespace, ASCII controls or C1 controls (U+0080-U+009F).
+  std::u16string utf16 = base::UTF8ToUTF16(emoji);
+  for (char16_t c : utf16) {
+    if (c < 0x20 || (c >= 0x7f && c < 0xa0) || base::IsUnicodeWhitespace(c)) {
+      return std::nullopt;
+    }
+  }
+  return SpaceIcon(Kind::kEmoji, std::string(emoji));
+}
+
+// static
+std::optional<SpaceIcon> SpaceIcon::Symbol(std::string_view name) {
+  if (name.empty() || name.size() > kMaxSymbolBytes ||
+      !std::ranges::all_of(name, [](char c) {
+        return base::IsAsciiLower(c) || base::IsAsciiDigit(c) || c == '-';
+      })) {
+    return std::nullopt;
+  }
+  return SpaceIcon(Kind::kSymbol, std::string(name));
+}
 
 namespace {
 
@@ -94,6 +133,16 @@ void SpaceModel::SetColor(SpaceColor color) {
     return;
   }
   color_ = color;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
+void SpaceModel::SetIcon(SpaceIcon icon) {
+  if (icon_ == icon) {
+    return;
+  }
+  icon_ = std::move(icon);
   for (Observer& observer : observers_) {
     observer.OnSpaceChanged(*this);
   }

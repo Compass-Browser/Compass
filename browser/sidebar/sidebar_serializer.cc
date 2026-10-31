@@ -38,6 +38,9 @@ constexpr char kFavoritesKey[] = "favorites";
 constexpr char kIdKey[] = "id";
 constexpr char kNameKey[] = "name";
 constexpr char kColorKey[] = "color";
+constexpr char kIconKey[] = "icon";
+constexpr char kEmojiKey[] = "emoji";
+constexpr char kSymbolKey[] = "symbol";
 constexpr char kPinnedKey[] = "pinned";
 constexpr char kTodayKey[] = "today";
 constexpr char kTypeKey[] = "type";
@@ -63,6 +66,24 @@ std::string SerializeColor(SpaceColor color) {
   const SkColor tint = *color.tint();
   return base::StringPrintf("#%02x%02x%02x", SkColorGetR(tint),
                             SkColorGetG(tint), SkColorGetB(tint));
+}
+
+// {"emoji": "..."} or {"symbol": "..."}; none isn't saved.
+base::DictValue SerializeIcon(const SpaceIcon& icon) {
+  base::DictValue dict;
+  dict.Set(icon.kind() == SpaceIcon::Kind::kEmoji ? kEmojiKey : kSymbolKey,
+           icon.value());
+  return dict;
+}
+
+std::optional<SpaceIcon> DeserializeIcon(const base::DictValue& saved) {
+  if (const std::string* emoji = saved.FindString(kEmojiKey)) {
+    return SpaceIcon::Emoji(*emoji);
+  }
+  if (const std::string* symbol = saved.FindString(kSymbolKey)) {
+    return SpaceIcon::Symbol(*symbol);
+  }
+  return std::nullopt;
 }
 
 std::optional<SpaceColor> DeserializeColor(std::string_view saved) {
@@ -303,6 +324,9 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   data.Set(kIdKey, model.id().AsLowercaseString());
   data.Set(kNameKey, base::UTF16ToUTF8(model.name()));
   data.Set(kColorKey, SerializeColor(model.color()));
+  if (!model.icon().is_none()) {
+    data.Set(kIconKey, SerializeIcon(model.icon()));
+  }
   data.Set(kArchiveAfterKey, model.archive_after().InHours());
   data.Set(kPinnedKey, SerializeSection(*model.pinned_root(), false));
   data.Set(kTodayKey, SerializeSection(*model.today_root(), true));
@@ -407,6 +431,12 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
     if (const std::string* saved_color = saved[i]->FindString(kColorKey)) {
       if (std::optional<SpaceColor> color = DeserializeColor(*saved_color)) {
         space->SetColor(*color);
+      }
+    }
+    // Unreadable icons (from a later version) are left out.
+    if (const base::DictValue* saved_icon = saved[i]->FindDict(kIconKey)) {
+      if (std::optional<SpaceIcon> icon = DeserializeIcon(*saved_icon)) {
+        space->SetIcon(std::move(*icon));
       }
     }
     // Older files have none: the default applies.

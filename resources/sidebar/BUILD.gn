@@ -31,6 +31,7 @@ build_webui("build") {
     "placeholder.ts",
     "preview.html.ts",
     "preview.ts",
+    "space_icons.ts",
   ]
   css_files = [
     "app.css",

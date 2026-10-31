@@ -57,6 +57,7 @@ struct Space {
   // The Arc profile's folder ("Default", "Profile 1", ...).
   std::string profile_dir;
   SpaceColor color = SpaceColor::kGrey;
+  SpaceIcon icon;
   std::vector<Item> pinned;
   std::vector<Item> today;
 };
@@ -102,6 +103,10 @@ std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
 // sRGB may go beyond, they're clamped): the same color, or grey for an
 // unsaturated one.
 SpaceColor ArcSpaceColor(double red, double green, double blue);
+
+// The Compass symbol (resources/sidebar/space_icons.ts) for one of Arc's
+// space symbols, or nullopt if there's none like it.
+std::optional<std::string_view> ArcSymbolToCompass(std::string_view arc_name);
 
 // Arc's times are seconds since 2001-01-01 (Apple's reference date).
 base::Time FromArcTime(double seconds);

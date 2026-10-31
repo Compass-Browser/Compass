@@ -4,6 +4,7 @@
 
 #include "compass/browser/arc_import/arc_sidebar.h"
 
+#include "base/strings/strcat.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -27,7 +28,8 @@ constexpr char kSidebar[] = R"json({
           "id": "s1", "title": "Home", "profile": {"default": true},
           "containerIDs": ["pinned", "p1", "unpinned", "u1"],
           "customInfo": {"windowTheme": {"primaryColorPalette": {"midTone":
-            {"red": -0.38, "green": 0.85, "blue": 0.34, "alpha": 1}}}}
+            {"red": -0.38, "green": 0.85, "blue": 0.34, "alpha": 1}}},
+            "iconType": {"icon": "planet"}}
         },
         "s2", {
           "id": "s2", "title": "Work",
@@ -104,6 +106,31 @@ TEST(ArcSidebarTest, SpacesInOrderWithTheirProfiles) {
   EXPECT_EQ(sidebar.spaces[1].profile_dir, "Profile 1");
   // No theme: grey.
   EXPECT_EQ(sidebar.spaces[1].color, SpaceColor::kGrey);
+  EXPECT_EQ(sidebar.spaces[0].icon, *SpaceIcon::Symbol("globe"));
+  EXPECT_TRUE(sidebar.spaces[1].icon.is_none());
+}
+
+TEST(ArcSidebarTest, SpaceIcons) {
+  auto icon_of = [](std::string_view icon_type) {
+    std::optional<base::Value> sidebar = base::JSONReader::Read(
+        base::StrCat({R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s",
+            "title": "S", "containerIDs": [], "customInfo": {"iconType": )",
+                      icon_type, "}}]}]}}"}),
+        base::JSON_PARSE_RFC);
+    std::optional<Sidebar> parsed = ParseSidebar(sidebar->GetDict(), nullptr);
+    return parsed && parsed->spaces.size() == 1 ? parsed->spaces[0].icon
+                                                : SpaceIcon();
+  };
+  EXPECT_EQ(icon_of(R"({"emoji_v2": "🚑", "emoji": 128657})"),
+            *SpaceIcon::Emoji("🚑"));
+  // Older spaces have only the code point.
+  EXPECT_EQ(icon_of(R"({"emoji": 127744})"), *SpaceIcon::Emoji("🌀"));
+  EXPECT_EQ(icon_of(R"({"icon": "github"})"), *SpaceIcon::Symbol("code"));
+  EXPECT_EQ(icon_of(R"({"icon": "colorPallete"})"),
+            *SpaceIcon::Symbol("palette"));
+  // Symbols Compass has nothing like show the space's letter.
+  EXPECT_TRUE(icon_of(R"({"icon": "somethingElse"})").is_none());
+  EXPECT_TRUE(icon_of(R"({"emoji": -5})").is_none());
 }
 
 TEST(ArcSidebarTest, ProfilesWithNamesAndFavorites) {

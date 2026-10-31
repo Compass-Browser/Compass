@@ -314,6 +314,38 @@ TEST_F(SpaceModelTest, NotifiesNameAndColorChanges) {
   model_.RemoveObserver(&observer);
 }
 
+TEST_F(SpaceModelTest, NotifiesIconChanges) {
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  model_.SetIcon(*SpaceIcon::Symbol("home"));
+  model_.SetIcon(*SpaceIcon::Symbol("home"));
+  model_.SetIcon(*SpaceIcon::Emoji("🚀"));
+  model_.SetIcon(SpaceIcon());
+
+  EXPECT_TRUE(model_.icon().is_none());
+  EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
+TEST(SpaceIconTest, AcceptsEmojiAndSymbolNamesOnly) {
+  EXPECT_EQ(SpaceIcon::Emoji("🚑")->value(), "🚑");
+  // A whole sequence: family, flag.
+  EXPECT_TRUE(SpaceIcon::Emoji("👨‍👩‍👧‍👦"));
+  EXPECT_TRUE(SpaceIcon::Emoji("🇮🇹"));
+  EXPECT_FALSE(SpaceIcon::Emoji(""));
+  EXPECT_FALSE(SpaceIcon::Emoji(" "));
+  EXPECT_FALSE(SpaceIcon::Emoji("a\nb"));
+  EXPECT_FALSE(SpaceIcon::Emoji("\xff"));
+  EXPECT_FALSE(SpaceIcon::Emoji(std::string(65, 'a')));
+
+  EXPECT_EQ(SpaceIcon::Symbol("travel-2")->kind(), SpaceIcon::Kind::kSymbol);
+  EXPECT_FALSE(SpaceIcon::Symbol(""));
+  EXPECT_FALSE(SpaceIcon::Symbol("Home"));
+  EXPECT_FALSE(SpaceIcon::Symbol("../x"));
+  EXPECT_FALSE(SpaceIcon::Symbol(std::string(33, 'a')));
+}
+
 TEST(SpaceModelArchiveTest, ArchivesEntriesLeftUnseen) {
   SpaceModel model;
   SidebarNode* today = model.today_root();
