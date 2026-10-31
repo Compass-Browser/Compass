@@ -1,6 +1,6 @@
 # Sync between devices
 
-Status: planned (2026-10-31), nothing built. Based on Chromium 156.0.8078.48.
+Status: planned (2026-10-31), decisions taken (see "Decisions"), nothing built. Based on Chromium 156.0.8078.48.
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
@@ -41,9 +41,13 @@ Compass data (`COMPASS_SPACES`, new):
 - Spaces: name, color, icon, order, auto-archive delay, profile.
 - Pinned trees: folders (nested), tabs (URL, title, custom title), splits.
 - Favorites.
-- Not synced: Today (as in Arc; other devices' open tabs come from
-  `SESSIONS` instead), the archive, folder collapse state, live state
-  (which node has a tab, which window shows what), sidebar width.
+- Today (unlike Arc; user, 2026-10-31): entries, folders and splits, with
+  their last-active times. See "Today across devices".
+- The archive (entries, archived-at times), capped to the last 30 days.
+- Folder collapse state.
+- Not synced, because it can't be or is per window: live state (which node
+  has a tab, which window shows what), sidebar width and collapse, the
+  selected entry.
 
 Chromium types, on by default: `PASSWORDS`, `HISTORY`, `AUTOFILL` (and
 addresses), `EXTENSIONS`, `EXTENSION_SETTINGS`, `PREFERENCES`
@@ -141,14 +145,18 @@ message CompassSpace {
 message CompassNode {
   string uuid = 1;
   string space_uuid = 2;
-  string parent_uuid = 3;       // empty = the space's pinned root
-  bool in_favorites = 4;        // parent is the favorites root
+  string parent_uuid = 3;       // empty = the root of `section`
+  enum Section { PINNED = 0; TODAY = 1; FAVORITES = 2; ARCHIVE = 3; }
+  Section section = 4;          // FAVORITES: space_uuid empty
   bytes position = 5;           // UniquePosition among siblings
   enum Type { TAB = 0; FOLDER = 1; SPLIT = 2; }
   Type type = 6;
   string url = 7;
   string title = 8;
   string custom_title = 9;
+  bool collapsed = 10;          // folders
+  int64 last_active_time = 11;  // Today: drives auto-archive
+  int64 archived_time = 12;     // ARCHIVE only
 }
 ```
 
@@ -166,23 +174,56 @@ Metadata (`DataTypeStore`, LevelDB in the profile) is separate from
 Applying remote changes keeps `SpaceModel::CanMove`'s invariants:
 
 - **Unknown parent** (child arrived before its folder): park it at the end
-  of the space's pinned root, move it when the parent arrives.
+  of its section's root, move it when the parent arrives.
 - **Cycle** (A moved into B on one Mac, B into A on the other): the second
-  move to arrive is applied to the pinned root instead.
-- **Invalid placement** (folder in a split, split in a split): pinned root.
+  move to arrive is applied to the section's root instead.
+- **Invalid placement** (folder in a split, split in a split): the section's root.
 - **Conflicts**: per entity, the last commit to reach the server wins
   (engine default). A rename on one Mac and a move on the other of the same
   node: the later write wins both fields. Acceptable; field-level merge
   later if it bites.
-- **Deletes**: removing an entry or space deletes it everywhere. Unpinning
-  (Pinned → Today) is a delete for other devices. Deleting a folder deletes
-  its subtree (one tombstone per node).
-- **Live tabs**: a node deleted remotely while live here closes its tab
-  only if it's in Pinned (same as deleting it locally). A remote URL change
-  of an unloaded entry just updates it; of a live one, it doesn't navigate.
+- **Deletes**: removing an entry or space deletes it everywhere. Pinning
+  and unpinning are moves between sections (same entity). Deleting a folder
+  deletes its subtree (one tombstone per node).
+- **Live tabs**: a remote URL change of an unloaded entry just updates it;
+  of a live one, it doesn't navigate (see below).
 
-**First sync on a device that already has spaces**: merge (union). The
-joining device's spaces are added after the chain's. Entries imported from
+### Today across devices
+
+Today changes far more often than Pinned (every navigation changes a URL
+and title), and its entries are often live on one Mac and unloaded on the
+other. Rules:
+
+- **What a Today entry means elsewhere**: a tab open on Mac A shows on
+  Mac B as an unloaded entry; clicking it loads the URL there (a new
+  `WebContents`; page state doesn't travel). Both Macs can have it live.
+- **Commit throttling**: the bridge coalesces Today changes per entry and
+  commits at most every 10 s (title/URL churn, redirects); structure
+  changes (new, close, move, pin) go at once. Applying a remote change never
+  commits it back.
+- **Navigation on two Macs**: if the entry is live on both and both
+  navigate, the last commit wins the entity; the other Mac's live tab keeps
+  its page and takes the entity back on its next navigation. No ping-pong:
+  only real navigations commit.
+- **Closing**: closing an entry on one Mac closes it everywhere. On a Mac
+  where it's the shown tab of a focused window, the tab stays open and the
+  entry is re-created (the user is looking at it); elsewhere its tab closes.
+- **Tabs closed because a window closed or the app quit** stay as unloaded
+  entries (as now, D14), so quitting Compass on one Mac doesn't empty Today
+  on the others.
+- **Restored tabs** (D14) take over entries by URL, synced entries included.
+- **New tab page and blank tabs** stay local (they're not saved now either).
+- **Auto-archive**: every Mac runs its own timer on the synced
+  `last_active_time` (the max over devices, since each commits its own
+  activity). Archiving is a move to `ARCHIVE`; two Macs archiving the same
+  entry make the same change, so it's harmless.
+- **Archive cap**: entries archived more than 30 days ago are deleted from
+  sync (kept locally) so the archive can't grow the chain without bound.
+
+**First sync on a device that already has spaces** (decided: merge): union.
+The joining device's spaces are added after the chain's; its Today and
+favorites are merged into the matching ones (favorites by URL, so the same
+site isn't there twice). Entries imported from
 Arc get UUIDs derived from Arc's IDs (UUIDv5 of the Arc item ID), so
 importing the same Arc data on two Macs merges instead of doubling (affects
 arc-import.md, slice 2+).
@@ -237,8 +278,10 @@ multi-profile is slice 5.
 - Limits per chain: 100k entities, 200 MB, rate limit per IP and per chain.
 - Endpoints: `POST /v1/command/` (protocol), `GET /v1/events` (SSE, slice 6),
   `GET /healthz`.
-- Where it runs is the user's choice (see "Decisions"). The app's default
-  URL is empty until there is an instance; settings take any URL.
+- Self-hosted only for now (decided): there is no Compass-run instance, the
+  app's server URL is empty until the user sets one. Ship a
+  `docker-compose.yml` with the server and a Caddy front for HTTPS, and a
+  short `server/README.md` (VPS, home server behind Tailscale).
 
 ## UI
 
@@ -280,7 +323,12 @@ Upstream's sync settings are replaced by a page of our own,
    integration tests `TwoClientCompassSpacesSyncTest` (Chromium's
    `SyncTest` with two profiles on a `FakeServer`): create, rename, move,
    concurrent moves into each other (cycle), delete folder, favorites,
-   merge at join.
+   merge at join. Pinned, favorites and collapse state only.
+3b. **Today and the archive**: sections `TODAY`/`ARCHIVE`, commit
+   throttling, closing rules, auto-archive on synced times, 30-day cap.
+   Two-client tests: open on A shows unloaded on B, close on B closes on A
+   (and the focused-tab exception), quitting A keeps B's Today, both
+   navigate the same entry.
 4. **UI**: full settings page, devices, type toggles, status in the app
    menu, "Tabs on other devices" in the command bar.
 5. **Profiles**: per-profile accounts, profile list, mapping at join,
@@ -304,20 +352,16 @@ after slice 0.
 - `chrome://sync-internals` stays available for debugging (traffic dump,
   entity browser).
 
-## Decisions for the user
+## Decisions
 
-1. **Where the server runs**: self-host only (a VPS / home server; each
-   user sets a URL) or a Compass-run public instance as default (safe to
-   share because everything is encrypted on the device, but it's a service
-   to keep up). Recommended: self-host first, decide on a public instance
-   when other people use Compass.
-2. **Accounts**: sync chain with 24 words (recommended; nothing to run but
-   the server, nothing to leak) vs email + password accounts (easier
-   recovery, needs password reset, email sending, and still a separate
-   encryption passphrase to be E2E).
-3. **Today**: not synced, as in Arc (recommended), or synced per space.
-4. **First sync on a device with its own spaces**: merge (recommended) or
-   replace with the chain's.
+Decided with the user (2026-10-31):
+
+1. **Server**: self-hosted only for now. A public instance may come later.
+2. **What syncs**: everything that can, Today and the archive included.
+3. **First sync on a device with its own spaces**: merge.
+
+Assumed, not yet confirmed: **accounts** are a 24-word sync chain (no
+email/password accounts).
 
 ## Risks
 
