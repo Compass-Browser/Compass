@@ -31,9 +31,13 @@ left behind; keep it and it becomes a Today entry without reloading.
 
 ### Getting the click
 
-Blink turns Option+click on a link into the download policy and, after the
-double-click delay (500 ms, `ui::kDoubleClickTimeMs`), `RenderFrameImpl`
-sends `DownloadURL`, which carries no modifiers. A one-condition patch in
+Blink turns Option+click on a link into the download policy, and
+`RenderFrameImpl` sends `DownloadURL`, which carries no modifiers. Upstream
+waits the double-click time (500 ms, `ui::kDoubleClickTimeMs`) first, so an
+Option+double-click selects text instead; a Blink patch
+(`HTMLAnchorElementBase::HandleClick()`) navigates at once, so the card
+shows on the click. An Option+double-click on a link peeks (the second click
+finds the page already there). A one-condition patch in
 `RenderFrameImpl::BeginNavigation()` sends GET http(s) navigations with that
 policy as `OpenURL` instead, whose disposition is `SAVE_TO_DISK` (a
 disposition renderers may already send). Other downloads (`<a download>`,
@@ -60,7 +64,13 @@ sidebar view next to the command bar, found with `Peek::From(browser)`.
   area (`contents_container()`), following it as it moves or resizes
   (sidebar collapse, window resize). It paints the dim (rounded like the
   content card, 12 DIP), the card (10 DIP, the page clipped with
-  `SetNativeViewCornerRadii()`) and the buttons. It fades in over 150 ms.
+  `SetNativeViewCornerRadii()`) and the buttons.
+- Opening, the card fades in and grows from 92% of its size around its
+  center, in 160 ms (ease out). The page is a native view on macOS, out of
+  reach of layer opacity and transforms, so the whole widget fades
+  (`Widget::SetOpacity()`, the window's alpha) and the card's bounds grow,
+  the page laying out again as they do. No animation when rich animations
+  are off (tests, Reduce Motion).
 - Cmd+W and Cmd+O reach the window as `IDC_CLOSE_TAB` and `IDC_OPEN_FILE`
   (menu shortcuts); `compass::HandleBrowserCommand()` gives them to Peek
   while it shows. The page's delegate also takes them before the page
@@ -71,8 +81,8 @@ sidebar view next to the command bar, found with `Peek::From(browser)`.
 ## Not done
 
 - Arc also peeks at links that would open a new tab from a pinned tab.
-- The 500 ms double-click delay before the card appears (upstream's, in
-  `HTMLAnchorElementBase::HandleClick()`).
+- Option+double-click no longer selects a link's text.
+- Closing has no animation.
 - Option+click outside a normal window's tab (extension popups, side
   panels, WebUI bubbles) now does nothing: those delegates ignore
   `SAVE_TO_DISK`.

@@ -45,13 +45,16 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
-#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/slide_animation.h"
+#include "ui/gfx/animation/tween.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/animation_delegate_views.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
@@ -86,7 +89,9 @@ constexpr int kMinHorizontalInset = 48;
 constexpr int kButtonSize = 28;
 constexpr int kButtonIconSize = 16;
 constexpr int kButtonSpacing = 8;
-constexpr base::TimeDelta kFadeDuration = base::Milliseconds(150);
+// Opening: the card fades in and grows from this scale, around its center.
+constexpr base::TimeDelta kOpenDuration = base::Milliseconds(160);
+constexpr double kOpenStartScale = 0.92;
 
 constexpr int kKeyModifiers =
     blink::WebInputEvent::kShiftKey | blink::WebInputEvent::kControlKey |
@@ -146,12 +151,12 @@ void DownloadLink(content::WebContents* source,
 
 // The widget's contents: a dimmed content area with the card in it, and the
 // close and open buttons beside the card. A click on the dimmed part closes.
-class PeekView : public views::View {
+class PeekView : public views::View, public views::AnimationDelegateViews {
   METADATA_HEADER(PeekView, views::View)
 
  public:
   PeekView(base::RepeatingClosure close, base::RepeatingClosure open_as_entry)
-      : close_(std::move(close)) {
+      : views::AnimationDelegateViews(this), close_(std::move(close)) {
     SetPaintToLayer();
     layer()->SetFillsBoundsOpaquely(false);
 
@@ -180,20 +185,43 @@ class PeekView : public views::View {
   views::WebView* web_view() { return web_view_; }
   views::View* card() { return card_; }
 
-  // Fades in, unless animations are off.
-  void FadeIn() {
+  // Fades in and grows to its size, unless animations are off. The page is
+  // a native view on macOS, out of reach of layer opacity and transforms, so
+  // the whole widget fades and the card's bounds grow (the page lays out
+  // again as it does).
+  void StartOpening() {
     if (!gfx::Animation::ShouldRenderRichAnimation()) {
       return;
     }
-    layer()->SetOpacity(0);
-    ui::ScopedLayerAnimationSettings settings(layer()->GetAnimator());
-    settings.SetTransitionDuration(kFadeDuration);
-    layer()->SetOpacity(1);
+    open_animation_.SetSlideDuration(kOpenDuration);
+    open_animation_.SetTweenType(gfx::Tween::EASE_OUT);
+    GetWidget()->SetOpacity(0);
+    open_animation_.Show();
+  }
+
+  // views::AnimationDelegateViews:
+  void AnimationProgressed(const gfx::Animation* animation) override {
+    GetWidget()->SetOpacity(
+        static_cast<float>(open_animation_.GetCurrentValue()));
+    InvalidateLayout();
+  }
+
+  void AnimationEnded(const gfx::Animation* animation) override {
+    GetWidget()->SetOpacity(1);
+    InvalidateLayout();
   }
 
   // views::View:
   void Layout(PassKey) override {
-    const gfx::Rect card = CalculateCardBounds(GetLocalBounds());
+    gfx::Rect card = CalculateCardBounds(GetLocalBounds());
+    if (open_animation_.is_animating()) {
+      const double scale = gfx::Tween::DoubleValueBetween(
+          open_animation_.GetCurrentValue(), kOpenStartScale, 1.0);
+      const gfx::Point center = card.CenterPoint();
+      card.set_size(gfx::ScaleToRoundedSize(card.size(), scale));
+      card.set_origin(center - gfx::Vector2d(card.width() / 2,
+                                             card.height() / 2));
+    }
     card_->SetBoundsRect(card);
     web_view_->SetBoundsRect(card_->GetLocalBounds());
     int y = card.y();
@@ -252,6 +280,7 @@ class PeekView : public views::View {
   }
 
   base::RepeatingClosure close_;
+  gfx::SlideAnimation open_animation_{this};
   raw_ptr<views::View> card_ = nullptr;
   raw_ptr<views::WebView> web_view_ = nullptr;
   raw_ptr<views::ImageButton> close_button_ = nullptr;
@@ -297,6 +326,10 @@ void Peek::Open(content::WebContents* source,
   load.frame_tree_node_id = content::FrameTreeNodeId();
   load.should_replace_current_entry = false;
 
+  // The second click of an Option+double-click.
+  if (contents_ && contents_->GetVisibleURL() == params.url) {
+    return;
+  }
   if (!contents_) {
     content::WebContents::CreateParams create(browser_->GetProfile());
     contents_ = content::WebContents::Create(create);
@@ -347,7 +380,8 @@ void Peek::Show() {
       browser_, base::BindRepeating(&Peek::OnActiveTabChanged,
                                     base::Unretained(this)));
 
-  peek_view->FadeIn();
+  // Transparent from the first frame.
+  peek_view->StartOpening();
   widget_->Show();
   web_view_->RequestFocus();
 }

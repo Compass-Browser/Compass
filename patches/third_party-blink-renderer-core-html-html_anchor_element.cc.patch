@@ -1,0 +1,35 @@
+diff --git a/third_party/blink/renderer/core/html/html_anchor_element.cc b/third_party/blink/renderer/core/html/html_anchor_element.cc
+index 7bfebda73ba90227a994198e7d9a9827a2dd4045..9fd03f1c8924818da40e10ddaa44ad0f3c4420dc 100644
+--- a/third_party/blink/renderer/core/html/html_anchor_element.cc
++++ b/third_party/blink/renderer/core/html/html_anchor_element.cc
+@@ -519,7 +519,6 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
+       request, FastGetAttribute(html_names::kReferrerpolicyAttr),
+       link_relations_, GetDocument());
+ 
+-  LocalFrame* frame = window->GetFrame();
+   NavigationPolicy navigation_policy = NavigationPolicyFromEvent(&event);
+ 
+   // Respect the download attribute only if we can read the content, and the
+@@ -541,18 +540,10 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
+       std::move(request), navigation_policy, event.isTrusted(),
+       event.PlatformTimeStamp(), std::move(completed_url));
+ 
+-  if (navigation_policy == kNavigationPolicyDownload) {
+-    // We distinguish single/double click with some modifiers.
+-    // See the comment of `EventHandler.delayed_navigation_task_handle_`.
+-    auto task_handle = PostDelayedCancellableTask(
+-        *base::SingleThreadTaskRunner::GetCurrentDefault(), FROM_HERE,
+-        std::move(navigate_closure),
+-        base::Milliseconds(ui::kDoubleClickTimeMs));
+-    frame->GetEventHandler().SetDelayedNavigationTaskHandle(
+-        std::move(task_handle));
+-  } else {
+-    std::move(navigate_closure).Run();
+-  }
++  // Compass: Option+click peeks at once (docs/design/peek.md) instead of
++  // waiting to tell it from a double click (upstream posts it with a
++  // ui::kDoubleClickTimeMs delay for kNavigationPolicyDownload).
++  std::move(navigate_closure).Run();
+ }
+ 
+ bool HTMLAnchorElementBase::WillRespondToMouseClickEvents() {

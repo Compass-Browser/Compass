@@ -87,3 +87,4 @@ nothing else.
 | `chrome-browser-ui-toolbar-chrome_location_bar_model_delegate.cc.patch`, `chrome-browser-ui-toolbar-BUILD.gn.patch` | The location bar shows chrome:// URLs as compass:// |
 | `chrome-browser-ui-browser_commands.cc.patch` | Copy URL (Cmd+Shift+C) copies chrome:// URLs as compass:// |
 | `content-renderer-render_frame_impl.cc.patch` | An Option+clicked GET http(s) link goes to the browser as `OpenURL` with `SAVE_TO_DISK` instead of `DownloadURL`, so the browser can peek at it (docs/design/peek.md) |
+| `third_party-blink-renderer-core-html-html_anchor_element.cc.patch` | Option+click on a link navigates at once, without upstream's double-click delay, so Peek opens on the click |
