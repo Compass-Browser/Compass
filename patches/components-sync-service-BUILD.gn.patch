@@ -1,0 +1,12 @@
+diff --git a/components/sync/service/BUILD.gn b/components/sync/service/BUILD.gn
+--- a/components/sync/service/BUILD.gn
++++ b/components/sync/service/BUILD.gn
+@@ -109,6 +109,8 @@
+     "//url",
+   ]
+   deps = [
++    # Compass sync's engine components (SyncServiceImpl::TryStartImpl()).
++    "//compass/components/sync:engine",
+     "//base",
+     "//base:i18n",
+     "//components/keyed_service/core",

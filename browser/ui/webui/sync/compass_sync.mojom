@@ -1,0 +1,71 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module compass.sync.mojom;
+
+// See compass::sync::SyncState.
+enum State {
+  kOff,
+  kNeedsRestart,
+  kStarting,
+  kOn,
+  kError,
+};
+
+struct Status {
+  State state;
+  string server_url;
+  string message;
+};
+
+// See compass::sync::PairingStep.
+enum PairingStep {
+  kNone,
+  kWorking,
+  kShowingCode,
+  kConfirm,
+  kWaitingForApproval,
+  kDone,
+  kFailed,
+};
+
+struct Pairing {
+  PairingStep step;
+  string code;
+  string device_name;
+  string message;
+};
+
+// Bootstraps the connection; called once by the page.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// Browser-side handler for chrome://compass-sync (docs/design/sync.md, "UI",
+// slice 2: the minimal page).
+interface PageHandler {
+  GetState() => (Status status, Pairing pairing);
+
+  // Off.
+  // Makes a chain; |words| is the recovery code, shown once.
+  StartSync(string server_url) => (bool ok, string error, array<string> words);
+  JoinWithRecoveryCode(string server_url, string words)
+      => (bool ok, string error);
+  // Progress comes through Page.OnStateChanged().
+  JoinWithPairingCode(string server_url, string code);
+
+  // On.
+  AddDevice();
+  AnswerPairing(bool allow);
+  CancelPairing();
+  Leave();
+
+  Restart();
+};
+
+// Implemented by the page.
+interface Page {
+  OnStateChanged(Status status, Pairing pairing);
+};

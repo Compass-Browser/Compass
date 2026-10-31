@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/sync_service_factory.cc
+--- a/chrome/browser/sync/sync_service_factory.cc
++++ b/chrome/browser/sync/sync_service_factory.cc
+@@ -303,6 +303,9 @@
+   builder.SetNotebooksService(
+       notebooks::NotebooksServiceFactory::GetForProfile(profile));
+
+-  return builder.Build(/*disabled_types=*/{}, sync_service,
++  // Compass: passkeys need Google's security domain secrets
++  // (docs/design/sync.md, "What syncs").
++  return builder.Build(/*disabled_types=*/{syncer::WEBAUTHN_CREDENTIAL},
++                       sync_service,
+                        chrome::GetChannel());
+ }

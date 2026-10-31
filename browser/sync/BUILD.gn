@@ -1,0 +1,42 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# A profile's sync chain (docs/design/sync.md, slice 2). Built at startup by
+# //chrome/browser/profiles:profiles_extra_parts_impl (see
+# patches/chrome-browser-profiles-BUILD.gn.patch); chrome://compass-sync
+# drives it through SyncController.
+source_set("sync") {
+  sources = [
+    "compass_sync_service.cc",
+    "compass_sync_service.h",
+    "compass_sync_service_factory.cc",
+    "compass_sync_service_factory.h",
+    "sync_controller.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/browser_window",
+    "//components/keyed_service/core",
+    "//components/sync/service",
+    "//compass/components/sync:chain",
+    "//url",
+  ]
+  deps = [
+    "//base:i18n",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/lifetime",
+    "//chrome/browser/sync",
+    "//chrome/browser/ui:browser_manager_service",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
+    "//components/pref_registry",
+    "//components/prefs",
+    "//components/sync/base",
+    "//components/sync_device_info",
+    "//compass/components/sync:engine",
+    "//content/public/browser",
+    "//services/network/public/cpp",
+  ]
+}

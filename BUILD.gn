@@ -16,6 +16,7 @@ test("compass_unittests") {
     "//compass/browser/sidebar:unit_tests",
     "//compass/browser/ui:unit_tests",
     "//compass/browser/window_sync:unit_tests",
+    "//compass/components/sync:unit_tests",
   ]
 }
 

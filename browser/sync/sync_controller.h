@@ -1,0 +1,105 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPASS_BROWSER_SYNC_SYNC_CONTROLLER_H_
+#define COMPASS_BROWSER_SYNC_SYNC_CONTROLLER_H_
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "base/functional/callback.h"
+#include "base/observer_list_types.h"
+
+class GURL;
+
+namespace compass::sync {
+
+enum class SyncState {
+  // Not in a chain.
+  kOff,
+  // In a chain from the next launch on (or out of it, after leaving): the
+  // sync service picks its mode when the profile loads.
+  kNeedsRestart,
+  kStarting,
+  kOn,
+  kError,
+};
+
+struct SyncStatus {
+  SyncState state = SyncState::kOff;
+  std::string server_url;
+  // One line for the page: last synced, or what's wrong.
+  std::string message;
+};
+
+enum class PairingStep {
+  kNone,
+  // Talking to the server.
+  kWorking,
+  // A: shows |code| and waits for the other device.
+  kShowingCode,
+  // A: asks whether to add |device_name|.
+  kConfirm,
+  // B: proved the code, waits for A's answer.
+  kWaitingForApproval,
+  kDone,
+  kFailed,
+};
+
+struct PairingStatus {
+  PairingStep step = PairingStep::kNone;
+  std::string code;
+  std::string device_name;
+  std::string message;
+};
+
+// What chrome://compass-sync drives: CompassSyncService, or a fake in tests.
+class SyncController {
+ public:
+  class Observer : public base::CheckedObserver {
+   public:
+    // The status or the pairing changed.
+    virtual void OnSyncControllerChanged() = 0;
+  };
+
+  using StartCallback = base::OnceCallback<
+      void(bool ok, std::string error, std::vector<std::string> words)>;
+  using DoneCallback = base::OnceCallback<void(bool ok, std::string error)>;
+
+  virtual ~SyncController() = default;
+
+  virtual void AddObserver(Observer* observer) = 0;
+  virtual void RemoveObserver(Observer* observer) = 0;
+
+  virtual SyncStatus GetStatus() const = 0;
+  virtual PairingStatus GetPairingStatus() const = 0;
+
+  // Off: makes a chain on |server_url|; |words| is its recovery code.
+  virtual void StartNewChain(const std::string& server_url,
+                             StartCallback callback) = 0;
+  // Off: joins the chain of a recovery code.
+  virtual void JoinWithRecoveryCode(const std::string& server_url,
+                                    const std::string& words,
+                                    DoneCallback callback) = 0;
+  // Off: joins through a device already syncing (pairing, B's side).
+  // Progress shows in GetPairingStatus().
+  virtual void JoinWithPairingCode(const std::string& server_url,
+                                   const std::string& code) = 0;
+  // On: lets another device join (pairing, A's side).
+  virtual void AddDevice() = 0;
+  // After PairingStep::kConfirm.
+  virtual void AnswerPairing(bool allow) = 0;
+  virtual void CancelPairing() = 0;
+  // On: leaves the chain; local data stays.
+  virtual void Leave() = 0;
+  virtual void Restart() = 0;
+};
+
+// A server URL as typed, or an invalid GURL: http or https, with a host.
+GURL ParseServerUrl(std::string_view text);
+
+}  // namespace compass::sync
+
+#endif  // COMPASS_BROWSER_SYNC_SYNC_CONTROLLER_H_

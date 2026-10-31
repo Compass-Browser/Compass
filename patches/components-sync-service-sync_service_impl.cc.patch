@@ -1,0 +1,31 @@
+diff --git a/components/sync/service/sync_service_impl.cc b/components/sync/service/sync_service_impl.cc
+--- a/components/sync/service/sync_service_impl.cc
++++ b/components/sync/service/sync_service_impl.cc
+@@ -69,6 +69,7 @@
+ #include "components/sync/service/sync_service_utils.h"
+ #include "components/sync/service/trusted_vault_histograms.h"
+ #include "components/sync/service/trusted_vault_synthetic_field_trial.h"
++#include "compass/components/sync/sync_hooks.h"
+ #include "google_apis/gaia/google_service_auth_error.h"
+ #include "services/network/public/cpp/shared_url_loader_factory.h"
+
+@@ -639,7 +640,18 @@
+
+   params.sync_manager_factory =
+       std::make_unique<SyncManagerFactory>(network_connection_tracker_);
+-  if (sync_prefs_.IsLocalSyncEnabled()) {
++  if (sync_prefs_.IsLocalSyncEnabled() &&
++      compass::sync::IsChainEnabled(sync_client_->GetPrefService(),
++                                    sync_service_url_)) {
++    // Compass: local sync, talking to the chain's server.
++    params.engine_components_factory =
++        compass::sync::CreateEngineComponentsFactory(
++            sync_client_->GetPrefService(), EngineSwitchesFromCommandLine(),
++            sync_service_url_,
++            base::BindOnce(create_http_post_provider_factory_,
++                           MakeUserAgentForSync(channel_),
++                           url_loader_factory_->Clone()));
++  } else if (sync_prefs_.IsLocalSyncEnabled()) {
+     params.engine_components_factory =
+         EngineComponentsFactoryImpl::CreateForLocalSync(
+             EngineSwitchesFromCommandLine(),
