@@ -1,0 +1,24 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Click-through picture-in-picture (docs/design/picture-in-picture.md). Its
+# own target, depending on little of Chrome's, because upstream's
+# //chrome/browser/ui/views/overlay calls into it (see patches/).
+source_set("click_through") {
+  if (is_mac) {
+    sources = [
+      "pip_click_through_mac.h",
+      "pip_click_through_mac.mm",
+    ]
+    deps = [
+      "//base",
+      "//ui/base",
+      "//ui/base/accelerators/global_accelerator_listener",
+      "//ui/events:events_base",
+      "//ui/gfx",
+      "//ui/views",
+    ]
+    frameworks = [ "AppKit.framework" ]
+  }
+}

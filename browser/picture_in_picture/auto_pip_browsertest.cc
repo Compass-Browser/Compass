@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/files/file_path.h"
+#include "build/build_config.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/run_until.h"
@@ -33,6 +34,10 @@
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "compass/browser/ui/views/picture_in_picture/pip_click_through_mac.h"
+#endif
 
 // Auto picture-in-picture as Compass sets it up: see
 // docs/design/picture-in-picture.md.
@@ -244,6 +249,43 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, BackToTabSwitchesProfiles) {
       SpaceService::Get(profile)->parking_window();
   EXPECT_TRUE(!parking || !parking->GetWindow()->IsVisible());
 }
+
+#if BUILDFLAG(IS_MAC)
+// Ctrl+Option+Cmd+P lets clicks through the picture-in-picture window and
+// back; the shortcut listens only while a window is open, and click-through
+// ends with the window.
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
+  PipClickThrough& click_through = PipClickThrough::Get();
+  EXPECT_FALSE(click_through.is_listening_for_testing());
+
+  content::WebContents* video = OpenPlayingVideo(browser());
+  OpenBlankTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return IsInAutoPip(video) &&
+           !click_through.windows_for_testing().empty();
+  }));
+  views::Widget* window = click_through.windows_for_testing()[0];
+  EXPECT_TRUE(click_through.is_listening_for_testing());
+  EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
+
+  click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
+  EXPECT_TRUE(click_through.enabled());
+  EXPECT_TRUE(click_through.IsIgnoringMouseForTesting(window));
+
+  click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
+  EXPECT_FALSE(click_through.enabled());
+  EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
+  EXPECT_FALSE(click_through.IsHoveredForTesting(window));
+
+  // On again, then the window goes: off, and no longer listening.
+  click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
+  Activate(browser(), video);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return click_through.windows_for_testing().empty(); }));
+  EXPECT_FALSE(click_through.enabled());
+  EXPECT_FALSE(click_through.is_listening_for_testing());
+}
+#endif  // BUILDFLAG(IS_MAC)
 
 }  // namespace
 }  // namespace compass

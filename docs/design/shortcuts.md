@@ -12,6 +12,7 @@ wins and upstream's command loses it.
 | Cmd+Shift+C | Copies the page's link (`IDC_COPY_URL`, with upstream's "Link copied" toast) | Inspect element, which keeps Cmd+Option+C |
 | Cmd+S | Opens or closes the sidebar (`IDC_TOGGLE_VERTICAL_TABS_COLLAPSE`); the View menu shows it | Save Page As, which keeps its File menu item without a shortcut. The sidebar toggle was Cmd+Shift+L, now free |
 | Cmd+Shift+R | Reloads without the cache (`IDC_RELOAD_BYPASSING_CACHE`) | The same: nothing to change |
+| Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
 | Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md) | New Split Tab, which keeps its Tab menu item without a shortcut |
 
 Cmd+T and Cmd+L open the command bar (command-bar.md "Keyboard").

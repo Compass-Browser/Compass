@@ -25,4 +25,10 @@ source_set("browser_tests") {
     "//testing/gtest",
     "//url",
   ]
+  if (is_mac) {
+    deps += [
+      "//compass/browser/ui/views/picture_in_picture:click_through",
+      "//ui/views",
+    ]
+  }
 }

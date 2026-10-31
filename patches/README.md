@@ -48,7 +48,8 @@ nothing else.
 | `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_helper.cc.patch` | Auto picture-in-picture replaces another tab's auto picture-in-picture, so the tab left last shows |
 | `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_strip_observer_helper.cc.patch` | A tab moved into the parking window (`compass::IsInParkingWindow()`) counts as switched away from |
 | `chrome-browser-picture_in_picture-BUILD.gn.patch` | Lets that helper depend on `//compass/browser/window_sync` |
-| `chrome-browser-ui-views-overlay-video_overlay_window_views.cc.patch` | On macOS the picture-in-picture window shows over other apps' fullscreen spaces and takes clicks without activating the browser |
+| `chrome-browser-ui-views-overlay-BUILD.gn.patch` | The overlay target depends on `//compass/browser/ui/views/picture_in_picture:click_through` on macOS |
+| `chrome-browser-ui-views-overlay-video_overlay_window_views.cc.patch` | On macOS the picture-in-picture window shows over other apps' fullscreen spaces and takes clicks without activating the browser; and hands the window to `compass::PipClickThrough` (click-through, Ctrl+Option+Cmd+P) |
 | `chrome-browser-ui-BUILD.gn.patch` | Links `//compass/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`); `browser_command_controller_impl` depends on the command bar; `browser_commands_impl` on `//compass/common:url` |
 | `chrome-browser-ui-browser_command_controller.cc.patch` | `ExecuteCommandWithDispositionAndContext()` gives `compass::CommandBar` first refusal on New Tab and Focus Location (Cmd+T, Cmd+L), before upstream picks between its command handler and browser actions; Compass's own commands (`compass_command_ids.h`, Cmd+Option+N) go to `compass::HandleBrowserCommand()` before the supported/enabled check |
 | `chrome-browser-ui-browser_window-internal-BUILD.gn.patch` | Links `//compass/browser/window_sync` into the window features |

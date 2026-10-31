@@ -75,6 +75,30 @@ patch in `VideoOverlayWindowViews::ShowInactive()` sets both, as glic's
 floating window does (`glic_floating_ui.cc`). Document picture-in-picture
 windows (a `Browser` of their own) aren't changed.
 
+## Click-through (macOS)
+
+**Ctrl+Option+Cmd+P**, from any app, while a video's picture-in-picture
+window is open, makes it ignore the mouse: clicks, scrolls and hovers go to
+whatever is under it. While it does, the window fades to 25% under the
+pointer (150 ms), so you can see what you're clicking. The same shortcut
+makes it take clicks again; so does closing it (the next one takes clicks).
+
+`compass::PipClickThrough` (`browser/ui/views/picture_in_picture/`, a
+target of its own) tracks the windows that `VideoOverlayWindowViews::
+ShowInactive()` (patch) hands it, until they hide (upstream hides a closed
+window and may show it again) or are destroyed. It sets
+`NSWindow.ignoresMouseEvents`, and registers the shortcut with upstream's
+`GlobalAcceleratorListener` (a Carbon hot key, as extension commands use)
+only while a window is open, so it takes the keys from other apps only
+then. The window gets no mouse events while it ignores them, so a 50 ms
+timer checks `NSEvent.mouseLocation` against its frame and animates its
+alpha. Document picture-in-picture windows aren't covered.
+
+The shortcut is fixed until shortcuts can be set (plan.md, item 14).
+
+Test: `CompassAutoPipBrowserTest.ClickThroughShortcut` (not the hover fade,
+which needs the real pointer).
+
 ## Known gaps
 
 - Leaving the window (another app or window, minimizing) doesn't show
