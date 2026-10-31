@@ -47,6 +47,7 @@ nothing else.
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
 | `tools-grit-grit_rule.gni.patch` | The `grit` template builds the Chromium-branded strings in `compass_rebranded_grds` from renamed copies (`//compass/strings`), with their start IDs from `gen/compass/strings/resource_ids` (docs/design/branding.md) |
 | `.gn.patch` | Lets `//compass/strings/BUILD.gn` call `exec_script` (it lists the copies it writes) |
+| `chrome-browser-ui-tab_helpers.cc.patch` | Every tab gets `compass::AttachWebStoreBranding()`: the Chrome Web Store's buttons say Compass (docs/design/branding.md "Web Store"); `chrome-browser-ui-BUILD.gn.patch` adds the dependency |
 | `*.png.patch`, `*.svg.patch`, `*.ico.patch`, `*.icon.patch` | Compass's logo in place of Chromium's (binary patches written by `tools/branding/make_patches.py`, docs/design/branding.md "Logo") |
 | `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`) |
 | `chrome-browser-BUILD.gn.patch` | Links `//compass/browser` into the browser, and `//compass/browser:feature_overrides`, `:url_handler` and `//compass/browser/ui/cocoa:shortcuts` into `:core` |

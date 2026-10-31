@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 238f8625e42d8703c72c266c36e32bbfb2113095..9115493c44799a33965452b1644f65b0d8c0ac0a 100644
+index 238f8625e42d8703c72c266c36e32bbfb2113095..d44a19954e8cb5d67b84824a9612905a4cc5e433 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -657,6 +657,8 @@ if (!is_android) {
@@ -19,7 +19,15 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..9115493c44799a33965452b1644f65b0
        ":accelerator_utils_headers",
        ":browser_command_controller",
        ":browser_init_state",
-@@ -1560,6 +1563,7 @@ static_library("ui") {
+@@ -1309,6 +1312,7 @@ source_set("tab_helpers_impl") {
+   public_deps = [ ":tab_helpers" ]
+ 
+   deps = [
++    "//compass/browser/web_store",
+     ":recently_audible_helper",
+     ":tab_dialogs",
+     ":ui_features",
+@@ -1560,6 +1564,7 @@ static_library("ui") {
      # New dependencies inside of //chrome/browser that generate header files
      # should be added to //chrome/browser:browser_generated_files.
      ":accelerator_utils_headers",
@@ -27,7 +35,7 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..9115493c44799a33965452b1644f65b0
      ":browser_live_tab_context",
      ":crypto_module_password_dialog",
      ":download_close_type",
-@@ -2771,6 +2775,9 @@ static_library("ui") {
+@@ -2771,6 +2776,9 @@ static_library("ui") {
        # tab_search includes browser.h, browser_window.h,
        # plural_string_handler.h from //chrome/browser/ui.
        "//chrome/browser/ui/webui/tab_search",

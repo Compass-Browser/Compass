@@ -28,6 +28,7 @@ test("compass_browsertests") {
     "//chrome/test/base:browser_tests_runner",
     "//compass/browser/picture_in_picture:browser_tests",
     "//compass/browser/ui:browser_tests",
+    "//compass/browser/web_store:browser_tests",
   ]
   if (is_mac) {
     # Headless runs don't take the user's focus.

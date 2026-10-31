@@ -1,6 +1,6 @@
 # Branding
 
-Status: strings, `compass://` and the logo done. Based on Chromium
+Status: strings, `compass://`, the logo and the Web Store button done. Based on Chromium
 156.0.8078.48.
 
 ## Goal
@@ -197,3 +197,25 @@ Not replaced: Windows' document, PDF, incognito and app list `.ico`s, the
 Linux `.xpm`, ChromeOS art, the Web Store icon (not the product's).
 Upstream asks for `kCurrentProfileIconVersion` to go up when
 `chromium.ico` changes; there are no Windows installs to migrate yet.
+
+## Web Store
+
+The Chrome Web Store is a web page, so its "Add to Chrome" button isn't in
+any of upstream's strings. `compass::AttachWebStoreBranding()`
+(`browser/web_store/`, attached to every tab by a one-line hook in
+`TabHelpers::AttachTabHelpers()`) runs a script on
+`https://chromewebstore.google.com` pages at `DOMContentLoaded`, in an
+isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`): it shares the page's
+DOM, not its JavaScript, and the page can't see or undo it.
+
+The script replaces the whole word "Chrome" with "Compass" in the text,
+`aria-label` and `title` of `<button>` elements only, and a
+`MutationObserver` keeps doing it as the store swaps the label (Add to,
+Adding, Remove from) or renders another page in the same document. The
+store's class names are generated, so the script doesn't use them. The
+store keeps "Chrome" in Latin letters in every language, so "Aggiungi a
+Chrome" becomes "Aggiungi a Compass". Links, headings and the store's own
+name ("Chrome Web Store") stay.
+
+Tests: `WebStoreBrandingBrowserTest.*` (a page shaped like the store's,
+served as chromewebstore.google.com).
