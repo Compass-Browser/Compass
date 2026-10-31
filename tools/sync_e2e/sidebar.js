@@ -25,6 +25,11 @@ const COLORS =
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // The switcher's spaces and the window's active one.
+function urlOf(node) {
+  if (!node.url) return '';
+  return typeof node.url === 'string' ? node.url : (node.url.url || '');
+}
+
 function spaces() {
   return new Promise(resolve => {
     const id = router.setSpaces.addListener((list, activeId) => {
@@ -65,7 +70,9 @@ function plain(node) {
   const out = {type: ['root', 'folder', 'tab', 'split'][node.type]};
   if (node.title) out.title = node.title;
   if (node.customTitle) out.customTitle = node.customTitle;
-  if (node.url && node.url.url) out.url = node.url.url;
+  // url.mojom.Url is a plain string in this page's bindings.
+  const url = urlOf(node);
+  if (url) out.url = url;
   if (node.collapsed) out.collapsed = true;
   if (node.children.length) out.children = node.children.map(plain);
   return out;
@@ -81,7 +88,7 @@ async function tree(spaceId) {
 
 function find(node, match) {
   if (node.title === match || node.customTitle === match ||
-      (node.url && node.url.url === match)) {
+      urlOf(node) === match) {
     return node;
   }
   for (const child of node.children) {
@@ -176,7 +183,7 @@ switch (ARGS.op) {
   case 'open': {
     const space = await show(ARGS.space);
     const parent = await resolve(space, ARGS.parent);
-    handler.openLink({url: ARGS.url}, parent.id, parent.children.length);
+    handler.openLink(ARGS.url, parent.id, parent.children.length);
     await settle();
     return 'opened';
   }
