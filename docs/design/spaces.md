@@ -190,6 +190,43 @@ the tint out rather than through black) whenever the window's space or its
 color changes. While a swipe pulls in another space, the tint is the blend
 of the two colors at the swipe's progress (next section), with no fade.
 
+### Gradients
+
+A space with a color can go on to one or two more (2026-10-31, as Arc's
+gradient themes): `SpaceModel::gradient()`, the colors after `color()`, at
+most `kMaxSpaceGradientColors` (3) in all. Grey has none, and turning a
+space grey drops it. The color stays the window's theme seed. Saved as
+`"gradient": ["pink", "#010203"]` after `"color"`, left out when empty;
+mojo `Space.gradient`, `SetSpaceGradient(id, colors)`. Moving a space to
+another profile keeps it.
+
+`SidebarTint` paints three stops evenly spaced (a plain color three times,
+two colors with their blend in the middle), each at the tint's 14%, as one
+linear gradient from the window's top left corner to its bottom right, in
+widget coordinates: the region's tint and the frame's are two views but one
+gradient, and both repaint when the window resizes. Fades and swipes blend
+stop by stop, so a gradient fades into a plain color or another gradient.
+The little window's frame keeps the space's color only. The switcher's
+buttons show the same three stops, diagonally (`--space-color`,
+`--space-color-2`, `--space-color-3`).
+
+In the space menu, a Gradient row under the swatches (hidden for grey):
+each gradient color as a color well with ×, then + (while there's room),
+which adds the last color turned 40° round the hue wheel. Wells pass colors
+on every 50 ms while dragged, as the custom color well does. Picking a
+swatch keeps the gradient.
+
+Arc: a `blendedGradient` theme with two or more `baseColors` gives the
+space its first base color as color and the next ones as gradient; other
+themes the mid tone (arc-import.md). Not done: Arc's grain overlay
+(`modifiers.overlay`, `noiseFactor`) and intensity.
+
+**Tests:** `SpaceModelTest.GradientsNeedAColor`,
+`SidebarSerializerTest.RoundTripsGradients`, `PlainColorsSaveNoGradient`,
+`SidebarPageHandlerTest.SetsSpaceGradients`,
+`ArcSidebarTest.GradientsComeFromTheirBaseColors`, browser tests
+`TintPaintsAGradient` and `SpaceMenuRenamesColorsDeletes` (+, the well, ×).
+
 ### Space icons
 
 A space can have an icon (2026-10-31, as in Arc), which its switcher button

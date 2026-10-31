@@ -133,6 +133,27 @@ void SpaceModel::SetColor(SpaceColor color) {
     return;
   }
   color_ = color;
+  // Grey isn't tinted, so it has no gradient.
+  if (color_.is_grey()) {
+    gradient_.clear();
+  }
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
+void SpaceModel::SetGradient(std::vector<SpaceColor> gradient) {
+  std::erase_if(gradient, [](SpaceColor color) { return color.is_grey(); });
+  if (color_.is_grey()) {
+    gradient.clear();
+  }
+  if (gradient.size() > kMaxSpaceGradientColors - 1) {
+    gradient.resize(kMaxSpaceGradientColors - 1);
+  }
+  if (gradient_ == gradient) {
+    return;
+  }
+  gradient_ = std::move(gradient);
   for (Observer& observer : observers_) {
     observer.OnSpaceChanged(*this);
   }

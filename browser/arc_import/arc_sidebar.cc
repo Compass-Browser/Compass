@@ -193,16 +193,47 @@ class TreeReader {
   std::set<std::string> seen_;
 };
 
-// The color of a space: its theme's mid tone.
-SpaceColor ReadSpaceColor(const base::DictValue& space) {
-  const base::DictValue* color = space.FindDictByDottedPath(
-      "customInfo.windowTheme.primaryColorPalette.midTone");
-  if (!color) {
-    return SpaceColor::kGrey;
+SpaceColor ReadArcColor(const base::DictValue& color) {
+  return ArcSpaceColor(color.FindDouble("red").value_or(0),
+                       color.FindDouble("green").value_or(0),
+                       color.FindDouble("blue").value_or(0));
+}
+
+// A space's colors. A gradient theme
+// (windowTheme.background.single._0.style.color._0.blendedGradient._0) has
+// the colors the user picked as its baseColors: the first is the space's
+// color, the others its gradient. Otherwise, the theme's mid tone.
+void ReadSpaceColors(const base::DictValue& object, Space& space) {
+  const base::DictValue* theme =
+      object.FindDictByDottedPath("customInfo.windowTheme");
+  if (!theme) {
+    return;
   }
-  return ArcSpaceColor(color->FindDouble("red").value_or(0),
-                           color->FindDouble("green").value_or(0),
-                           color->FindDouble("blue").value_or(0));
+  const base::ListValue* base_colors = theme->FindListByDottedPath(
+      "background.single._0.style.color._0.blendedGradient._0.baseColors");
+  if (base_colors && base_colors->size() >= 2) {
+    std::vector<SpaceColor> colors;
+    for (const base::Value& entry : *base_colors) {
+      if (entry.is_dict()) {
+        if (SpaceColor color = ReadArcColor(entry.GetDict());
+            !color.is_grey()) {
+          colors.push_back(color);
+        }
+      }
+    }
+    if (!colors.empty()) {
+      space.color = colors.front();
+      space.gradient.assign(colors.begin() + 1, colors.end());
+      if (space.gradient.size() > kMaxSpaceGradientColors - 1) {
+        space.gradient.resize(kMaxSpaceGradientColors - 1);
+      }
+      return;
+    }
+  }
+  if (const base::DictValue* mid_tone =
+          theme->FindDictByDottedPath("primaryColorPalette.midTone")) {
+    space.color = ReadArcColor(*mid_tone);
+  }
 }
 
 // A space's icon: customInfo.iconType is {"emoji_v2": "🚑", "emoji": 128657}
@@ -351,7 +382,7 @@ std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
     space.profile_dir =
         (profile ? ProfileDir(*profile) : std::nullopt)
             .value_or(kDefaultProfileDir);
-    space.color = ReadSpaceColor(*object);
+    ReadSpaceColors(*object, space);
     space.icon = ReadSpaceIcon(*object);
     const base::ListValue* container_ids = object->FindList("containerIDs");
     if (const std::string* pinned = ValueAfter(container_ids, "pinned")) {

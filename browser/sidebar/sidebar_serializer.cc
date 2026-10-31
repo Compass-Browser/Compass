@@ -39,6 +39,7 @@ constexpr char kIdKey[] = "id";
 constexpr char kNameKey[] = "name";
 constexpr char kColorKey[] = "color";
 constexpr char kIconKey[] = "icon";
+constexpr char kGradientKey[] = "gradient";
 constexpr char kEmojiKey[] = "emoji";
 constexpr char kSymbolKey[] = "symbol";
 constexpr char kPinnedKey[] = "pinned";
@@ -324,6 +325,13 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   data.Set(kIdKey, model.id().AsLowercaseString());
   data.Set(kNameKey, base::UTF16ToUTF8(model.name()));
   data.Set(kColorKey, SerializeColor(model.color()));
+  if (!model.gradient().empty()) {
+    base::ListValue gradient;
+    for (SpaceColor color : model.gradient()) {
+      gradient.Append(SerializeColor(color));
+    }
+    data.Set(kGradientKey, std::move(gradient));
+  }
   if (!model.icon().is_none()) {
     data.Set(kIconKey, SerializeIcon(model.icon()));
   }
@@ -432,6 +440,20 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
       if (std::optional<SpaceColor> color = DeserializeColor(*saved_color)) {
         space->SetColor(*color);
       }
+    }
+    // After the color, which a gradient needs. Unreadable colors are left out.
+    if (const base::ListValue* saved_gradient =
+            saved[i]->FindList(kGradientKey)) {
+      std::vector<SpaceColor> gradient;
+      for (const base::Value& entry : *saved_gradient) {
+        if (const std::string* saved_color = entry.GetIfString()) {
+          if (std::optional<SpaceColor> color =
+                  DeserializeColor(*saved_color)) {
+            gradient.push_back(*color);
+          }
+        }
+      }
+      space->SetGradient(std::move(gradient));
     }
     // Unreadable icons (from a later version) are left out.
     if (const base::DictValue* saved_icon = saved[i]->FindDict(kIconKey)) {

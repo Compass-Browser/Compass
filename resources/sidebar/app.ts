@@ -55,6 +55,39 @@ function firstGrapheme(text: string): string {
   return '';
 }
 
+// A space's color and its gradient colors, at most (kMaxSpaceGradientColors).
+const MAX_GRADIENT_COLORS = 3;
+
+// |color| with its hue turned |degrees|, as HSL.
+function rotateHue(color: SpaceColor, degrees: number): SpaceColor {
+  const r = color.red / 255;
+  const g = color.green / 255;
+  const b = color.blue / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const light = (max + min) / 2;
+  const chroma = max - min;
+  let hue = 0;
+  if (chroma) {
+    hue = max === r ? ((g - b) / chroma + 6) % 6 :
+        max === g   ? (b - r) / chroma + 2 :
+                      (r - g) / chroma + 4;
+  }
+  const saturation = chroma ? chroma / (1 - Math.abs(2 * light - 1)) : 0;
+  const h = ((hue * 60 + degrees) % 360 + 360) % 360;
+  const c = (1 - Math.abs(2 * light - 1)) * saturation;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = light - c / 2;
+  const [r1, g1, b1] = h < 60 ? [c, x, 0] :
+      h < 120                ? [x, c, 0] :
+      h < 180                ? [0, c, x] :
+      h < 240                ? [0, x, c] :
+      h < 300                ? [x, 0, c] :
+                               [c, 0, x];
+  const byte = (v: number) => Math.round((v + m) * 255);
+  return {red: byte(r1), green: byte(g1), blue: byte(b1)};
+}
+
 // How often a custom color being dragged in the picker is passed on.
 const CUSTOM_COLOR_MS = 50;
 
@@ -235,9 +268,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor menuSpaceId_: string|null = null;
   // Delete asks to be clicked twice.
   protected accessor confirmingDelete_: boolean = false;
-  // The custom color picked last, sent when the timer fires.
-  private pendingCustomColor_: SpaceColor|null = null;
-  private customColorTimer_: number|null = null;
+  // The color picked last in a color picker, sent when the timer fires.
+  private pendingColorSend_: (() => void)|null = null;
+  private colorTimer_: number|null = null;
   protected readonly spaceColors_: PaletteColor[] = SPACE_COLORS;
   protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
@@ -372,6 +405,22 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected getMenuSpaceHex_(): string {
     return colorToHex(this.getMenuSpace_()?.color ?? null);
+  }
+
+  protected getColorHex_(color: SpaceColor): string {
+    return colorToHex(color);
+  }
+
+  // A space button's colors: its gradient's three stops, all its color for
+  // a plain one, as the sidebar's tint samples them (sidebar_tint.cc).
+  protected getSpaceStyle_(space: Space): string {
+    const colors = [space.color, ...space.gradient];
+    const stop = (at: number) => {
+      const index = Math.round(at * (colors.length - 1));
+      return colorToCss(colors[index] ?? null);
+    };
+    return `--space-color: ${stop(0)}; --space-color-2: ${stop(0.5)}; ` +
+        `--space-color-3: ${stop(1)}`;
   }
 
   protected canDeleteSpace_(): boolean {
@@ -538,20 +587,65 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
   }
 
-  // The color picker sends a color for every move while dragging: pass on at
-  // most one every CUSTOM_COLOR_MS, as the window's theme follows each.
   protected onCustomColorInput_(e: Event) {
-    this.pendingCustomColor_ = hexToColor((e.target as HTMLInputElement).value);
-    if (this.customColorTimer_ !== null || !this.pendingCustomColor_) {
+    const color = hexToColor((e.target as HTMLInputElement).value);
+    const spaceId = this.menuSpaceId_;
+    if (color && spaceId) {
+      this.sendColorSoon_(
+          () => this.browserProxy_.handler.setSpaceColor(spaceId, color));
+    }
+  }
+
+  protected onGradientColorInput_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const color = hexToColor(input.value);
+    const space = this.getMenuSpace_();
+    if (!color || !space) {
       return;
     }
-    const spaceId = this.menuSpaceId_;
-    this.customColorTimer_ = setTimeout(() => {
-      this.customColorTimer_ = null;
-      if (spaceId && this.pendingCustomColor_) {
-        this.browserProxy_.handler.setSpaceColor(
-            spaceId, this.pendingCustomColor_);
-      }
+    const gradient = [...space.gradient];
+    gradient[Number(input.dataset['index'])] = color;
+    this.sendColorSoon_(
+        () => this.browserProxy_.handler.setSpaceGradient(space.id, gradient));
+  }
+
+  protected onRemoveGradientColorClick_(e: Event) {
+    const space = this.getMenuSpace_();
+    if (space) {
+      const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+      this.browserProxy_.handler.setSpaceGradient(
+          space.id, space.gradient.filter((_, i) => i !== index));
+    }
+  }
+
+  // The new color goes on from the last one, a little further round the hue
+  // wheel.
+  protected onAddGradientColorClick_() {
+    const space = this.getMenuSpace_();
+    if (space?.color && this.canAddGradientColor_()) {
+      const last = space.gradient[space.gradient.length - 1] ?? space.color;
+      this.browserProxy_.handler.setSpaceGradient(
+          space.id, [...space.gradient, rotateHue(last, 40)]);
+    }
+  }
+
+  protected canAddGradientColor_(): boolean {
+    const space = this.getMenuSpace_();
+    return !!space?.color && space.gradient.length < MAX_GRADIENT_COLORS - 1;
+  }
+
+  // The color picker sends a color for every move while dragging: pass on at
+  // most one every CUSTOM_COLOR_MS, the last, as the window follows each.
+  private sendColorSoon_(send: () => void) {
+    this.pendingColorSend_ = send;
+    if (this.colorTimer_ !== null) {
+      return;
+    }
+    this.colorTimer_ = setTimeout(() => {
+      this.colorTimer_ = null;
+      const pending = this.pendingColorSend_;
+      this.pendingColorSend_ = null;
+      pending?.();
     }, CUSTOM_COLOR_MS);
   }
 

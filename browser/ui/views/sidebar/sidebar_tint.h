@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
 #define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
 
+#include <array>
 #include <optional>
 
 #include "base/callback_list.h"
@@ -19,6 +20,7 @@
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
+#include "ui/views/widget/widget_observer.h"
 
 class BrowserWindowInterface;
 
@@ -40,6 +42,11 @@ SkColor GetSpaceFrameTint(SpaceColor color);
 // A swipe in the sidebar blends in the color of the space it pulls in
 // (WindowFeatures::SetSpacePreview()), and other changes fade.
 //
+// A space with a gradient paints it from the window's top left corner to its
+// bottom right one, in both tints, so the frame goes on where the
+// region leaves off. Fades and swipes blend the gradients stop by stop. See
+// docs/design/spaces.md, "Gradients".
+//
 // It also themes the window: the space color is the window's theme seed
 // (Widget::SetUserColorOverride()), so the frame, the page's margins, menus,
 // bubbles and WebUI take colors from it, as from a profile's theme color.
@@ -49,6 +56,7 @@ SkColor GetSpaceFrameTint(SpaceColor color);
 class SidebarTint : public views::View,
                     public gfx::AnimationDelegate,
                     public views::ViewObserver,
+                    public views::WidgetObserver,
                     public WindowFeatures::Observer,
                     public SpaceList::Observer {
   METADATA_HEADER(SidebarTint, views::View)
@@ -70,12 +78,18 @@ class SidebarTint : public views::View,
   // where its tint was.
   void ContinueFrom(const SidebarTint& other);
 
+  // Where the gradient starts, ends and is halfway, evenly spaced; all the
+  // same for a plain color, transparent for none.
+  using Stops = std::array<SkColor, kMaxSpaceGradientColors>;
+
   std::optional<SkColor> GetTintForTesting() const;
+  const Stops& GetStopsForTesting() const { return stops_; }
   bool IsAnimatingForTesting() const { return animation_.is_animating(); }
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
   void AddedToWidget() override;
+  void RemovedFromWidget() override;
 
   // gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
@@ -83,6 +97,10 @@ class SidebarTint : public views::View,
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
   void OnViewIsDeleting(views::View* observed_view) override;
+
+  // views::WidgetObserver:
+  void OnWidgetBoundsChanged(views::Widget* widget,
+                             const gfx::Rect& new_bounds) override;
 
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
@@ -93,9 +111,8 @@ class SidebarTint : public views::View,
   void OnSpaceUpdated(const SpaceModel& space) override;
 
  private:
-  // The color for the window's space, blended toward the swiped-in space's;
-  // transparent for none.
-  SkColor GetTargetColor() const;
+  // The window's space's stops, blended toward the swiped-in space's.
+  Stops GetTargetStops() const;
   // Fades from the color painted now to the target, or jumps there.
   void UpdateColor(bool animate);
   // Seeds the window's theme with its space's color.
@@ -103,13 +120,15 @@ class SidebarTint : public views::View,
 
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<WindowFeatures> features_;
-  // Painted now; transparent for none.
-  SkColor color_ = SK_ColorTRANSPARENT;
+  // Painted now.
+  Stops stops_{};
   // Where the fade started.
-  SkColor from_ = SK_ColorTRANSPARENT;
-  // Once the window swaps away mid-slide, the color of the space it slides
+  Stops from_{};
+  // Once the window swaps away mid-slide, the stops of the space it slides
   // to, which the page can no longer blend toward.
-  std::optional<SkColor> swap_color_;
+  std::optional<Stops> swap_stops_;
+  base::ScopedObservation<views::Widget, views::WidgetObserver>
+      widget_observation_{this};
   gfx::LinearAnimation animation_;
   base::CallbackListSubscription paint_as_active_subscription_;
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{

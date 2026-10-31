@@ -57,6 +57,8 @@ struct Space {
   // The Arc profile's folder ("Default", "Profile 1", ...).
   std::string profile_dir;
   SpaceColor color = SpaceColor::kGrey;
+  // After |color|, for a gradient theme (SpaceModel::gradient()).
+  std::vector<SpaceColor> gradient;
   SpaceIcon icon;
   std::vector<Item> pinned;
   std::vector<Item> today;

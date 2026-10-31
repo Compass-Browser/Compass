@@ -126,6 +126,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void RenameSpace(const std::string& id, const std::string& name) override;
   void SetSpaceColor(const std::string& id,
                      sidebar::mojom::SpaceColorPtr color) override;
+  void SetSpaceGradient(
+      const std::string& id,
+      std::vector<sidebar::mojom::SpaceColorPtr> gradient) override;
   void SetSpaceIcon(const std::string& id,
                     sidebar::mojom::SpaceIconPtr icon) override;
   void SetSpaceProfile(const std::string& id,

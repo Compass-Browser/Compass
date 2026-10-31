@@ -51,7 +51,7 @@ lists alternating an ID and an object:
 |---|---|
 | Profile | A new Compass profile, named as in Arc ("Arc: <name>" if Compass has that name) |
 | Space | A space of that profile, listed in `SpaceDirectory` after Compass's spaces, in Arc's order |
-| Space color (window theme) | The theme's mid tone as is (`ArcSpaceColor()`, grey when unsaturated); gradients not kept |
+| Space color (window theme) | A gradient theme's base colors (color, then gradient), else the mid tone, as is (`ArcSpaceColor()`, grey when unsaturated) |
 | Pinned section | Pinned (folders and tabs, nesting kept) |
 | Unpinned section | Today (tabs; folders become Today folders) |
 | Tab's user title | Custom title (`SetCustomTitle`) |
@@ -111,7 +111,7 @@ drop get added to Compass before the import is finished. From Arc's files:
 | Arc | In Compass | Needed for |
 |---|---|---|
 | Space icon (`customInfo.iconType`: emoji or symbol) | Done (spaces.md "Space icons"; symbols mapped to Compass's) | Spaces looking as in Arc |
-| Theme gradients (`windowTheme`) | No; custom colors done (spaces.md "Space colors") | Gradient sidebars |
+| Theme gradients (`windowTheme`) | Done: base colors (spaces.md "Gradients"); grain and intensity not | Gradient sidebars |
 | Tab mute status (`savedMuteStatus`) | No | Muted entries staying muted |
 | Archive (`StorableArchiveItems.json`) | Yes (per space) | Importing it |
 | Link routing (`StorableLinkRouting.json`, Air Traffic Control) | No (little-window.md "Not done") | Links from other apps going to the right space |

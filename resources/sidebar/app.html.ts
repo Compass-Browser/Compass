@@ -6,7 +6,7 @@ import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ArchiveDelay, CompassSidebarAppElement, PaletteColor, Preview} from './app.js';
 import type {SpaceSymbol} from './space_icons.js';
-import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, Node, ProfileOption, Space, SpaceColor} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
@@ -134,6 +134,26 @@ ${this.getMenuSpace_() ? html`
             @input="${this.onCustomColorInput_}">
       </label>
     </div>
+    <div id="gradient" role="group" aria-label="Gradient"
+        ?hidden="${!this.getMenuSpace_()!.color}">
+      <span class="label">Gradient</span>
+      ${this.getMenuSpace_()!.gradient.map((color: SpaceColor, index: number) => html`
+        <span class="gradient-stop">
+          <label class="swatch" title="Gradient color ${index + 2}"
+              style="--swatch-color: ${this.getSpaceColor_(color)}">
+            <input type="color" aria-label="Gradient color ${index + 2}"
+                data-index="${index}" .value="${this.getColorHex_(color)}"
+                @input="${this.onGradientColorInput_}">
+          </label>
+          <button class="remove-stop" data-index="${index}"
+              title="Remove this color" aria-label="Remove this color"
+              @click="${this.onRemoveGradientColorClick_}">×</button>
+        </span>`)}
+      <button id="addGradientColor" title="Add a gradient color"
+          aria-label="Add a gradient color"
+          ?hidden="${!this.canAddGradientColor_()}"
+          @click="${this.onAddGradientColorClick_}">+</button>
+    </div>
     <div id="icons" role="group" aria-label="Icon">
       <button class="icon-choice" role="menuitemradio" data-symbol=""
           title="No icon" aria-label="No icon"
@@ -219,7 +239,7 @@ ${this.archiveOpen_ ? html`
         data-flip="space-${space.id}" draggable="true"
         title="${this.getSpaceTitle_(space)}"
         aria-label="${this.getSpaceTitle_(space)}"
-        style="--space-color: ${this.getSpaceColor_(space.color)}"
+        style="${this.getSpaceStyle_(space)}"
         aria-selected="${this.isActiveSpace_(space)}"
         ?active="${this.isActiveSpace_(space)}"
         @click="${this.onSpaceClick_}"

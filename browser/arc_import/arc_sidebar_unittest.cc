@@ -110,6 +110,32 @@ TEST(ArcSidebarTest, SpacesInOrderWithTheirProfiles) {
   EXPECT_TRUE(sidebar.spaces[1].icon.is_none());
 }
 
+// A gradient theme's base colors are the space's color and gradient; a plain
+// theme's mid tone its color.
+TEST(ArcSidebarTest, GradientsComeFromTheirBaseColors) {
+  std::optional<base::Value> sidebar = base::JSONReader::Read(
+      R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s", "title": "S",
+          "containerIDs": [], "customInfo": {"windowTheme": {
+            "background": {"single": {"_0": {"style": {"color": {"_0": {
+              "blendedGradient": {"_0": {"baseColors": [
+                {"red": 0.2, "green": 0.4, "blue": 0.95},
+                {"red": 0.5, "green": 0.5, "blue": 0.52},
+                {"red": 0.9, "green": 0.1, "blue": 0.1},
+                {"red": 0.1, "green": 0.9, "blue": 0.1},
+                {"red": 0.9, "green": 0.9, "blue": 0.1}]}}}}}}}},
+            "primaryColorPalette": {"midTone":
+              {"red": 0.1, "green": 0.9, "blue": 0.1}}}}}]}]}})",
+      base::JSON_PARSE_RFC);
+  std::optional<Sidebar> parsed = ParseSidebar(sidebar->GetDict(), nullptr);
+  ASSERT_TRUE(parsed);
+  ASSERT_EQ(parsed->spaces.size(), 1u);
+  EXPECT_EQ(parsed->spaces[0].color, SpaceColor::FromRGB(51, 102, 242));
+  // The grey one is left out, and those past the limit.
+  EXPECT_EQ(parsed->spaces[0].gradient,
+            (std::vector<SpaceColor>{SpaceColor::FromRGB(230, 26, 26),
+                                     SpaceColor::FromRGB(26, 230, 26)}));
+}
+
 TEST(ArcSidebarTest, SpaceIcons) {
   auto icon_of = [](std::string_view icon_type) {
     std::optional<base::Value> sidebar = base::JSONReader::Read(

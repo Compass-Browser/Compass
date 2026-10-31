@@ -292,6 +292,51 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintFollowsASwipe) {
   EXPECT_FALSE(tint->IsAnimatingForTesting());
 }
 
+// A gradient's colors are the tint's stops, in the region's tint and the
+// frame's alike; a swipe blends them stop by stop, and the theme seed stays
+// the space's color.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  auto* tint = FindDescendant<SidebarTint>(region);
+  ASSERT_TRUE(tint);
+  auto* frame_tint =
+      views::AsViewClass<SidebarTint>(browser_view()->children().front());
+  ASSERT_TRUE(frame_tint);
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& home = features->space_model();
+  home.SetColor(SpaceColor::kBlue);
+  home.SetGradient({SpaceColor::kPink});
+
+  const SidebarTint::Stops& stops = tint->GetStopsForTesting();
+  EXPECT_EQ(SkColorSetA(stops[0], SK_AlphaOPAQUE), *SpaceColor::kBlue.tint());
+  EXPECT_EQ(SkColorSetA(stops[2], SK_AlphaOPAQUE), *SpaceColor::kPink.tint());
+  // Halfway between them.
+  EXPECT_GT(SkColorGetR(stops[1]), SkColorGetR(stops[0]));
+  EXPECT_LT(SkColorGetR(stops[1]), SkColorGetR(stops[2]));
+  EXPECT_EQ(browser_view()->GetWidget()->user_color_override(),
+            SpaceColor::kBlue.tint());
+  // The frame's tint paints the same gradient.
+  EXPECT_EQ(frame_tint->GetStopsForTesting(), stops);
+
+  // Three colors, then a swipe toward a plain green space.
+  home.SetGradient({SpaceColor::kPink, SpaceColor::kYellow});
+  EXPECT_EQ(SkColorSetA(tint->GetStopsForTesting()[1], SK_AlphaOPAQUE),
+            *SpaceColor::kPink.tint());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  work->SetColor(SpaceColor::kGreen);
+  features->SetSpacePreview(work, 1);
+  for (SkColor stop : tint->GetStopsForTesting()) {
+    EXPECT_EQ(SkColorSetA(stop, SK_AlphaOPAQUE), *SpaceColor::kGreen.tint());
+  }
+  features->SetSpacePreview(nullptr, 0);
+
+  // Grey drops the gradient.
+  home.SetColor(SpaceColor::kGrey);
+  EXPECT_TRUE(home.gradient().empty());
+  EXPECT_FALSE(tint->GetTintForTesting());
+}
+
 // The space color seeds the window's theme: its frame color follows the
 // space, not during a swipe, and a grey space keeps the profile's theme.
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowThemeFollowsTheSpace) {
@@ -1220,6 +1265,38 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
           root.querySelector('#customColor[selected]') &&
           !root.querySelector('.swatch[title="Blue"][selected]'));
     })())"));
+
+  // + adds a gradient color, its well changes it, × removes it.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (() => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('#addGradientColor').click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return added->gradient().size() == 1; }));
+  EXPECT_NE(added->gradient()[0], added->color());
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      let input;
+      while (!(input = root.querySelector('.gradient-stop input'))) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      input.value = '#ff0000';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return added->gradient() ==
+           std::vector<SpaceColor>{SpaceColor::FromRGB(255, 0, 0)};
+  }));
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (() => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('.remove-stop').click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return added->gradient().empty(); }));
 
   // A symbol, then an emoji (only its first character is kept), as the
   // switcher's button shows them.

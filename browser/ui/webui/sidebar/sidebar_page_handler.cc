@@ -435,6 +435,21 @@ void SidebarPageHandler::SetSpaceColor(
   }
 }
 
+void SidebarPageHandler::SetSpaceGradient(
+    const std::string& id,
+    std::vector<sidebar::mojom::SpaceColorPtr> gradient) {
+  SpaceModel* space = FindAnySpace(id).space;
+  if (!space) {
+    return;
+  }
+  std::vector<SpaceColor> colors;
+  for (const sidebar::mojom::SpaceColorPtr& color : gradient) {
+    colors.push_back(
+        SpaceColor::FromRGB(color->red, color->green, color->blue));
+  }
+  space->SetGradient(std::move(colors));
+}
+
 void SidebarPageHandler::SetSpaceIcon(const std::string& id,
                                       sidebar::mojom::SpaceIconPtr icon) {
   SpaceModel* space = FindAnySpace(id).space;
@@ -917,6 +932,9 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
     mojo_space->color = ToMojoColor(space->color());
+    for (SpaceColor color : space->gradient()) {
+      mojo_space->gradient.push_back(ToMojoColor(color));
+    }
     mojo_space->icon = ToMojoIcon(space->icon());
     mojo_space->archive_after_hours = space->archive_after().InHours();
     spaces.push_back(std::move(mojo_space));

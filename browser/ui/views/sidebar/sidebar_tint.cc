@@ -4,11 +4,15 @@
 
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 
+#include <algorithm>
+#include <array>
 #include <memory>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
 #include "cc/paint/paint_flags.h"
+#include "cc/paint/paint_shader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
@@ -26,6 +30,7 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/widget/widget.h"
 
 namespace compass {
 
@@ -37,8 +42,34 @@ constexpr SkAlpha kTintAlpha = 0x24;  // 14%
 // The fade between two spaces' colors; the page's slide takes as long.
 constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
 
-SkColor ToTintColor(SpaceColor color) {
-  return GetSpaceFrameTint(color);
+// A space's color and gradient, sampled at the stops' evenly spaced
+// positions, partly transparent: the same three times for a plain color, its
+// halfway blend in the middle for two colors.
+SidebarTint::Stops ToStops(const SpaceModel& space) {
+  std::vector<SkColor> colors = {GetSpaceFrameTint(space.color())};
+  for (SpaceColor color : space.gradient()) {
+    colors.push_back(GetSpaceFrameTint(color));
+  }
+  SidebarTint::Stops stops;
+  for (size_t i = 0; i < stops.size(); ++i) {
+    const double at =
+        static_cast<double>(i) / (stops.size() - 1) * (colors.size() - 1);
+    const size_t before = static_cast<size_t>(at);
+    const size_t after = std::min(before + 1, colors.size() - 1);
+    stops[i] = gfx::Tween::ColorValueBetween(at - before, colors[before],
+                                             colors[after]);
+  }
+  return stops;
+}
+
+SidebarTint::Stops BlendStops(double progress,
+                              const SidebarTint::Stops& from,
+                              const SidebarTint::Stops& to) {
+  SidebarTint::Stops stops;
+  for (size_t i = 0; i < stops.size(); ++i) {
+    stops[i] = gfx::Tween::ColorValueBetween(progress, from[i], to[i]);
+  }
+  return stops;
 }
 
 }  // namespace
@@ -64,7 +95,7 @@ SidebarTint::SidebarTint(BrowserWindowInterface* browser)
   if (features_) {
     features_observation_.Observe(features_.get());
     space_list_observation_.Observe(&features_->service().space_list());
-    color_ = GetTargetColor();
+    stops_ = GetTargetStops();
   }
 }
 
@@ -81,12 +112,12 @@ SidebarTint* SidebarTint::Install(views::View* host,
 }
 
 void SidebarTint::ContinueFrom(const SidebarTint& other) {
-  color_ = other.color_;
+  stops_ = other.stops_;
   UpdateColor(/*animate=*/true);
 }
 
 std::optional<SkColor> SidebarTint::GetTintForTesting() const {
-  return SkColorGetA(color_) ? std::optional(color_) : std::nullopt;
+  return SkColorGetA(stops_[0]) ? std::optional(stops_[0]) : std::nullopt;
 }
 
 void SidebarTint::OnPaint(gfx::Canvas* canvas) {
@@ -104,19 +135,41 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
                                         ThemedBackground::kFrameTheme);
     }
   }
-  if (!SkColorGetA(color_)) {
+  if (std::ranges::all_of(stops_,
+                          [](SkColor stop) { return !SkColorGetA(stop); })) {
     return;
+  }
+  // As opaque as the region's background: where it lets the frame show
+  // through (the glass frame), the frame's tint shows too, and a second one
+  // would double it.
+  const float opacity = corners ? corners->primary_color().opacity : 1.f;
+  std::array<SkColor4f, kMaxSpaceGradientColors> colors;
+  for (size_t i = 0; i < colors.size(); ++i) {
+    colors[i] = SkColor4f::FromColor(stops_[i]);
+    colors[i].fA *= opacity;
   }
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
-  flags.setColor(color_);
+  if (std::ranges::all_of(stops_,
+                          [&](SkColor stop) { return stop == stops_[0]; })) {
+    flags.setColor(colors[0]);
+  } else {
+    // Across the whole window, from its top left corner to its bottom right
+    // one, whichever view paints it.
+    const gfx::Rect window = GetWidget()->GetRootView()->GetLocalBounds();
+    gfx::Point start = window.origin();
+    gfx::Point end = window.bottom_right();
+    views::View::ConvertPointFromWidget(this, &start);
+    views::View::ConvertPointFromWidget(this, &end);
+    const std::array<SkPoint, 2> points = {gfx::PointToSkPoint(start),
+                                           gfx::PointToSkPoint(end)};
+    constexpr std::array<SkScalar, kMaxSpaceGradientColors> kPositions = {
+        0.f, 0.5f, 1.f};
+    flags.setShader(cc::PaintShader::MakeLinearGradient(
+        points.data(), colors.data(), kPositions.data(), colors.size(),
+        SkTileMode::kClamp));
+  }
   if (corners) {
-    // As opaque as the region's background: where it lets the frame show
-    // through (the glass frame), the frame's tint shows too, and a second
-    // one would double it.
-    flags.setColor(SkColorSetA(
-        color_, base::ClampRound(SkColorGetA(color_) *
-                                 corners->primary_color().opacity)));
     canvas->DrawPath(corners->GetBackgroundPath(), flags);
   } else {
     canvas->DrawRect(gfx::RectF(GetLocalBounds()), flags);
@@ -125,18 +178,31 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
 
 void SidebarTint::AddedToWidget() {
   UpdateWindowTheme();
+  // A gradient spans the window.
+  widget_observation_.Reset();
+  widget_observation_.Observe(GetWidget());
   // The frame color follows the window's activation.
   paint_as_active_subscription_ =
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
           &SidebarTint::SchedulePaint, base::Unretained(this)));
 }
 
+void SidebarTint::RemovedFromWidget() {
+  widget_observation_.Reset();
+}
+
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
-  color_ = gfx::Tween::ColorValueBetween(
-      gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
-                                 animation->GetCurrentValue()),
-      from_, GetTargetColor());
+  stops_ = BlendStops(gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
+                                                 animation->GetCurrentValue()),
+                      from_, GetTargetStops());
   SchedulePaint();
+}
+
+void SidebarTint::OnWidgetBoundsChanged(views::Widget* widget,
+                                        const gfx::Rect& new_bounds) {
+  if (stops_[0] != stops_[1] || stops_[1] != stops_[2]) {
+    SchedulePaint();
+  }
 }
 
 void SidebarTint::OnViewBoundsChanged(views::View* observed_view) {
@@ -161,7 +227,7 @@ void SidebarTint::OnSpacePreviewChanged() {
 // blend itself, about as long as the slide has left.
 void SidebarTint::OnSwappedAway() {
   if (SpaceModel* preview = features_->preview_space()) {
-    swap_color_ = ToTintColor(preview->color());
+    swap_stops_ = ToStops(*preview);
     UpdateColor(/*animate=*/true);
   }
 }
@@ -176,32 +242,31 @@ void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
   }
 }
 
-SkColor SidebarTint::GetTargetColor() const {
+SidebarTint::Stops SidebarTint::GetTargetStops() const {
   if (!features_) {
-    return SK_ColorTRANSPARENT;
+    return Stops{};
   }
-  if (swap_color_) {
-    return *swap_color_;
+  if (swap_stops_) {
+    return *swap_stops_;
   }
-  const SkColor color = ToTintColor(features_->space_model().color());
+  const Stops stops = ToStops(features_->space_model());
   SpaceModel* preview = features_->preview_space();
-  return preview ? gfx::Tween::ColorValueBetween(
-                       features_->preview_progress(), color,
-                       ToTintColor(preview->color()))
-                 : color;
+  return preview ? BlendStops(features_->preview_progress(), stops,
+                              ToStops(*preview))
+                 : stops;
 }
 
 void SidebarTint::UpdateColor(bool animate) {
-  const SkColor target = GetTargetColor();
-  if (animate && target != color_ &&
+  const Stops target = GetTargetStops();
+  if (animate && target != stops_ &&
       gfx::Animation::ShouldRenderRichAnimation()) {
-    from_ = color_;
+    from_ = stops_;
     animation_.Stop();
     animation_.Start();
     return;
   }
   animation_.Stop();
-  color_ = target;
+  stops_ = target;
   SchedulePaint();
 }
 

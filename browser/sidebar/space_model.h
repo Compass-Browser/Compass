@@ -80,6 +80,9 @@ inline constexpr SpaceColor SpaceColor::kYellow =
     SpaceColor::FromRGB(234, 179, 8);
 inline constexpr SpaceColor SpaceColor::kGreen = SpaceColor::FromRGB(34, 197, 94);
 
+// A space's color and its gradient colors, at most this many in all.
+inline constexpr size_t kMaxSpaceGradientColors = 3;
+
 // The space menu's palette, by the names files save them under. The sidebar
 // page (resources/sidebar/app.ts) shows the same colors.
 struct NamedSpaceColor {
@@ -224,6 +227,13 @@ class SpaceModel {
   SpaceColor color() const { return color_; }
   void SetColor(SpaceColor color);
 
+  // The colors the sidebar's gradient goes on to after color(), none for a
+  // plain color; at most kMaxSpaceGradientColors - 1, none of them grey. A
+  // grey space has none. See docs/design/spaces.md, "Gradients".
+  const std::vector<SpaceColor>& gradient() const { return gradient_; }
+  // Drops grey entries and those past the limit.
+  void SetGradient(std::vector<SpaceColor> gradient);
+
   const SpaceIcon& icon() const { return icon_; }
   void SetIcon(SpaceIcon icon);
 
@@ -344,6 +354,7 @@ class SpaceModel {
   base::Uuid id_;
   std::u16string name_;
   SpaceColor color_ = SpaceColor::kGrey;
+  std::vector<SpaceColor> gradient_;
   SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
   std::vector<ArchivedEntry> archive_;

@@ -328,6 +328,30 @@ TEST_F(SpaceModelTest, NotifiesIconChanges) {
   model_.RemoveObserver(&observer);
 }
 
+TEST_F(SpaceModelTest, GradientsNeedAColor) {
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  // Grey has none.
+  model_.SetGradient({SpaceColor::kPink});
+  EXPECT_TRUE(model_.gradient().empty());
+  EXPECT_TRUE(observer.events.empty());
+
+  model_.SetColor(SpaceColor::kBlue);
+  // Grey entries and those past the limit are dropped.
+  model_.SetGradient({SpaceColor::kPink, SpaceColor::kGrey, SpaceColor::kRed,
+                      SpaceColor::kGreen});
+  EXPECT_EQ(model_.gradient(),
+            (std::vector<SpaceColor>{SpaceColor::kPink, SpaceColor::kRed}));
+  model_.SetGradient({SpaceColor::kPink, SpaceColor::kRed});
+
+  // Turning grey drops it.
+  model_.SetColor(SpaceColor::kGrey);
+  EXPECT_TRUE(model_.gradient().empty());
+  EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
 TEST(SpaceIconTest, AcceptsEmojiAndSymbolNamesOnly) {
   EXPECT_EQ(SpaceIcon::Emoji("🚑")->value(), "🚑");
   // A whole sequence: family, flag.

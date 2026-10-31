@@ -570,6 +570,24 @@ TEST_F(SidebarPageHandlerTest, RenamesAndColorsSpaces) {
   EXPECT_EQ(home.color(), SpaceColor::kGrey);
 }
 
+TEST_F(SidebarPageHandlerTest, SetsSpaceGradients) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+  home.SetColor(SpaceColor::kBlue);
+
+  std::vector<sidebar::mojom::SpaceColorPtr> gradient;
+  gradient.push_back(sidebar::mojom::SpaceColor::New(236, 72, 153));
+  gradient.push_back(sidebar::mojom::SpaceColor::New(1, 2, 3));
+  handler_remote_->SetSpaceGradient(id, std::move(gradient));
+  Settle();
+  EXPECT_EQ(home.gradient(), (std::vector<SpaceColor>{
+                                 SpaceColor::kPink, SpaceColor::FromRGB(1, 2, 3)}));
+
+  handler_remote_->SetSpaceGradient(id, {});
+  Settle();
+  EXPECT_TRUE(home.gradient().empty());
+}
+
 TEST_F(SidebarPageHandlerTest, SetsSpaceIcons) {
   SpaceModel& home = space_model();
   const std::string id = home.id().AsLowercaseString();

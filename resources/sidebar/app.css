@@ -213,7 +213,10 @@ compass-sidebar-preview[side='next'] {
 }
 
 .space {
-  background: color-mix(in srgb, var(--space-color) 35%, transparent);
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--space-color) 35%, transparent),
+      color-mix(in srgb, var(--space-color-2) 35%, transparent),
+      color-mix(in srgb, var(--space-color-3) 35%, transparent));
   position: relative;
 }
 
@@ -254,9 +257,12 @@ compass-sidebar-preview[side='next'] {
 }
 
 .space[active] {
-  background: color-mix(in srgb, var(--space-color) 55%,
-                        var(--color-tab-background-active-frame-active,
-                            rgba(255, 255, 255, 0.9)));
+  --space-active-base: var(--color-tab-background-active-frame-active,
+                           rgba(255, 255, 255, 0.9));
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--space-color) 55%, var(--space-active-base)),
+      color-mix(in srgb, var(--space-color-2) 55%, var(--space-active-base)),
+      color-mix(in srgb, var(--space-color-3) 55%, var(--space-active-base)));
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   color: var(--color-tab-foreground-active-frame-active, inherit);
   opacity: 1;
@@ -352,6 +358,71 @@ compass-sidebar-preview[side='next'] {
 #customColor:has(input:focus-visible) {
   outline: 2px solid var(--color-sys-primary, #8ab4f8);
   outline-offset: 2px;
+}
+
+/* A gradient's colors after the space's: each a color well with a remove
+ * button, then + while there's room. */
+#gradient {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 6px;
+}
+
+#gradient[hidden] {
+  display: none;
+}
+
+#gradient .label {
+  margin-inline-end: auto;
+}
+
+.gradient-stop {
+  align-items: center;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.gradient-stop .swatch {
+  cursor: pointer;
+  position: relative;
+}
+
+.gradient-stop input {
+  cursor: pointer;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.remove-stop,
+#addGradientColor {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  font: inherit;
+  height: 18px;
+  line-height: 1;
+  opacity: 0.6;
+  padding: 0;
+  width: 18px;
+}
+
+#addGradientColor {
+  border: 1px dashed currentColor;
+}
+
+.remove-stop:hover,
+#addGradientColor:hover {
+  opacity: 1;
+}
+
+#addGradientColor[hidden] {
+  display: none;
 }
 
 /* The space's icon: none (its letter), a symbol or an emoji. */

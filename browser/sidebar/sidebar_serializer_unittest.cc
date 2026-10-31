@@ -373,6 +373,33 @@ TEST(SidebarSerializerTest, SavesCustomColorsAsHex) {
   EXPECT_EQ(restored.spaces()[1]->color(), SpaceColor::FromRGB(0x12, 0xab, 0x0f));
 }
 
+TEST(SidebarSerializerTest, RoundTripsGradients) {
+  SpaceList list;
+  list.active_space().SetColor(SpaceColor::kBlue);
+  list.active_space().SetGradient(
+      {SpaceColor::kPink, SpaceColor::FromRGB(1, 2, 3)});
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* gradient =
+      (*data.FindList("spaces"))[0].GetDict().FindList("gradient");
+  ASSERT_TRUE(gradient);
+  EXPECT_EQ(*gradient, base::ListValue().Append("pink").Append("#010203"));
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.active_space().gradient(),
+            (std::vector<SpaceColor>{SpaceColor::kPink,
+                                     SpaceColor::FromRGB(1, 2, 3)}));
+}
+
+TEST(SidebarSerializerTest, PlainColorsSaveNoGradient) {
+  SpaceList list;
+  list.active_space().SetColor(SpaceColor::kBlue);
+  EXPECT_FALSE((*SerializeSpaceList(list).FindList("spaces"))[0]
+                   .GetDict()
+                   .Find("gradient"));
+}
+
 TEST(SidebarSerializerTest, RoundTripsIcons) {
   SpaceList list;
   SpaceModel* work = list.AddSpace(1, u"Work");
