@@ -1,0 +1,66 @@
+diff --git a/components/history/core/browser/sync/delete_directive_handler.cc b/components/history/core/browser/sync/delete_directive_handler.cc
+index b43b4287b5505fd75e8868934ae9bacae10a08fa..7d6230f1b2c1b22ff4e4be4b5b9d1d21f4811b32 100644
+--- a/components/history/core/browser/sync/delete_directive_handler.cc
++++ b/components/history/core/browser/sync/delete_directive_handler.cc
+@@ -71,6 +71,28 @@ int64_t TimeToUnixUsec(base::Time time) {
+   return (time - base::Time::UnixEpoch()).InMicroseconds();
+ }
+ 
++// Compass: with set_compass_keep_processed_directives(), a directive
++// processed at startup stays on the server while what it deletes may: until
++// its end time is 30 days old (the Compass server keeps history 14 days by
++// default, 30 at most).
++constexpr base::TimeDelta kCompassKeepDirectivesFor = base::Days(30);
++
++bool IsCompassKeptDirective(const syncer::SyncData& sync_data,
++                            base::Time now) {
++  const sync_pb::HistoryDeleteDirectiveSpecifics& directive =
++      sync_data.GetSpecifics().history_delete_directive();
++  int64_t end_usec = 0;
++  if (directive.has_global_id_directive()) {
++    end_usec = directive.global_id_directive().end_time_usec();
++  } else if (directive.has_time_range_directive()) {
++    end_usec = directive.time_range_directive().end_time_usec();
++  } else if (directive.has_url_directive()) {
++    end_usec = directive.url_directive().end_time_usec();
++  }
++  return end_usec > 0 &&
++         UnixUsecToTime(end_usec) > now - kCompassKeepDirectivesFor;
++}
++
+ // Converts global IDs in `global_id_directive` to times.
+ void GetTimesFromGlobalIds(
+     const sync_pb::GlobalIdDirective& global_id_directive,
+@@ -478,12 +500,30 @@ DeleteDirectiveHandler::MergeDataAndStartSyncing(
+   DCHECK(thread_checker_.CalledOnValidThread());
+ 
+   sync_processor_ = std::move(sync_processor);
+-  if (!initial_sync_data.empty()) {
++  // Compass: the young ones stay (set_compass_keep_processed_directives()).
++  syncer::SyncDataList to_drop;
++  syncer::SyncDataList to_keep;
++  const base::Time now = base::Time::Now();
++  for (const syncer::SyncData& sync_data : initial_sync_data) {
++    (compass_keep_processed_directives_ &&
++             IsCompassKeptDirective(sync_data, now)
++         ? to_keep
++         : to_drop)
++        .push_back(sync_data);
++  }
++  if (!to_drop.empty()) {
+     // Drop processed delete directives during startup.
+     backend_task_scheduler_.Run(FROM_HERE,
+                                 std::make_unique<DeleteDirectiveTask>(
+                                     weak_ptr_factory_.GetWeakPtr(),
+-                                    initial_sync_data, DROP_AFTER_PROCESSING),
++                                    to_drop, DROP_AFTER_PROCESSING),
++                                &internal_tracker_);
++  }
++  if (!to_keep.empty()) {
++    backend_task_scheduler_.Run(FROM_HERE,
++                                std::make_unique<DeleteDirectiveTask>(
++                                    weak_ptr_factory_.GetWeakPtr(), to_keep,
++                                    KEEP_AFTER_PROCESSING),
+                                 &internal_tracker_);
+   }
+ 

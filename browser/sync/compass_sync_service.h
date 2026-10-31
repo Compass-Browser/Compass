@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "compass/browser/sync/sync_controller.h"
 #include "compass/components/sync/chain.h"
+#include "compass/components/sync/compass_sync_quota.h"
 #include "compass/components/sync/pairing.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/service/sync_service_observer.h"
@@ -216,6 +217,16 @@ class CompassSyncService : public KeyedService,
   base::ScopedObservation<ProfileBrowserCollection, BrowserCollectionObserver>
       browser_observation_{this};
   bool observing_power_ = false;
+
+  // Slice 7: the chain's limits on the server (docs/design/sync.md, "Slice
+  // 7 notes"). Asked after sync cycles, at most every 30 minutes, every
+  // minute while commits fail or a limit is in the way.
+  void MaybeCheckQuota();
+  void OnQuotaStatus(std::optional<QuotaStatus> status);
+  SyncLimit GetLimit() const;
+  std::unique_ptr<QuotaFetcher> quota_fetcher_;
+  std::optional<QuotaStatus> quota_;
+  base::TimeTicks last_quota_check_;
 
   base::WeakPtrFactory<CompassSyncService> weak_factory_{this};
 };

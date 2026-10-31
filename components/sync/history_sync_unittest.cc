@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/account_managed_status_finder_outcome.h"
+#include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/model/sync_change.h"
 #include "components/sync/model/sync_data.h"
@@ -289,6 +291,74 @@ TEST_F(CompassHistoryDeleteDirectivesTest, RemoveVisitsWithoutLocalSync) {
   service.RemoveVisits(OneVisit());
   history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
   EXPECT_TRUE(Directives().empty());
+}
+
+// Processed directives at startup
+// (patches/components-history-core-browser-sync-delete_directive_handler.*,
+// docs/design/sync.md, "Slice 7 notes"): under local sync the young ones
+// stay on the server, so a device that joins later still applies them.
+class CompassKeptDirectivesTest : public CompassHistoryDeleteDirectivesTest {
+ protected:
+  CompassKeptDirectivesTest() {
+    prefs_.registry()->RegisterBooleanPref(
+        ::prefs::kSavingBrowserHistoryDisabled, false);
+  }
+
+  static syncer::SyncData TimeRange(const std::string& tag, base::Time end) {
+    sync_pb::EntitySpecifics specifics;
+    sync_pb::TimeRangeDirective* range =
+        specifics.mutable_history_delete_directive()
+            ->mutable_time_range_directive();
+    range->set_start_time_usec(
+        (end - base::Hours(1) - base::Time::UnixEpoch()).InMicroseconds());
+    range->set_end_time_usec((end - base::Time::UnixEpoch()).InMicroseconds());
+    return syncer::SyncData::CreateRemoteData(
+        std::move(specifics), syncer::ClientTagHash::FromHashed(tag));
+  }
+
+  // Starts HISTORY_DELETE_DIRECTIVES with a young and an old directive, the
+  // controller made with local sync on or off; returns the tags of the
+  // directives deleted from the server.
+  std::set<std::string> StartWithDirectives(bool local_sync) {
+    syncer::TestSyncService sync_service;
+    sync_service.SetLocalSyncEnabled(local_sync);
+    syncer::TestDataTypeStoreService store_service;
+    history::HistoryDeleteDirectivesDataTypeController controller(
+        base::DoNothing(), &sync_service, &store_service,
+        history_service_.get(), &prefs_);
+
+    const base::Time now = base::Time::Now();
+    auto processor = std::make_unique<syncer::FakeSyncChangeProcessor>();
+    processor_ = processor.get();
+    history_service_->GetDeleteDirectivesSyncableService()
+        ->MergeDataAndStartSyncing(
+            syncer::HISTORY_DELETE_DIRECTIVES,
+            {TimeRange("young", now - base::Days(3)),
+             TimeRange("old", now - base::Days(40))},
+            std::move(processor));
+    history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
+    task_environment_.RunUntilIdle();
+
+    std::set<std::string> deleted;
+    for (const syncer::SyncChange& change : processor_->changes()) {
+      EXPECT_EQ(change.change_type(), syncer::SyncChange::ACTION_DELETE);
+      deleted.insert(change.sync_data().GetClientTagHash().value());
+    }
+    return deleted;
+  }
+
+  TestingPrefServiceSimple prefs_;
+};
+
+TEST_F(CompassKeptDirectivesTest, YoungDirectivesStayUnderLocalSync) {
+  EXPECT_EQ(StartWithDirectives(/*local_sync=*/true),
+            std::set<std::string>({"old"}));
+}
+
+TEST_F(CompassKeptDirectivesTest, AllDroppedWithoutLocalSync) {
+  // As upstream: processed directives leave the server at startup.
+  EXPECT_EQ(StartWithDirectives(/*local_sync=*/false),
+            std::set<std::string>({"old", "young"}));
 }
 
 }  // namespace

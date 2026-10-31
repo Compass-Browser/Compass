@@ -84,6 +84,10 @@ source_set("notifier") {
   sources = [
     "compass_sync_notifier.cc",
     "compass_sync_notifier.h",
+
+    # Slice 7: how full the chain is on the server.
+    "compass_sync_quota.cc",
+    "compass_sync_quota.h",
   ]
   public_deps = [
     "//base",
@@ -101,6 +105,7 @@ source_set("unit_tests") {
     "bip39_unittest.cc",
     "chain_unittest.cc",
     "compass_sync_notifier_unittest.cc",
+    "compass_sync_quota_unittest.cc",
     "engine_unittest.cc",
     "pairing_unittest.cc",
   ]
