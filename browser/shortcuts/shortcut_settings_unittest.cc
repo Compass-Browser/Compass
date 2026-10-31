@@ -61,7 +61,7 @@ TEST_F(ShortcutSettingsTest, SetSavesAndNotifies) {
   settings().SetCustom("copy-url", CmdShiftK());
   EXPECT_EQ(observer_.changes, 1);
   EXPECT_EQ(settings().GetCustom("copy-url"), CmdShiftK());
-  const base::Value::Dict& saved = prefs_.GetDict(kShortcutsPref);
+  const base::DictValue& saved = prefs_.GetDict(kShortcutsPref);
   ASSERT_TRUE(saved.FindDict("copy-url"));
   EXPECT_EQ(saved.FindDict("copy-url")->FindInt("key"), ui::VKEY_K);
   EXPECT_EQ(saved.FindDict("copy-url")->FindInt("modifiers"),
@@ -72,7 +72,7 @@ TEST_F(ShortcutSettingsTest, NoneIsAnEmptyEntry) {
   settings().SetCustom(SpaceShortcutId(2), ui::Accelerator());
   EXPECT_TRUE(settings().IsCustomized(SpaceShortcutId(2)));
   EXPECT_TRUE(GetSpaceAccelerators(2).empty());
-  const base::Value::Dict* saved =
+  const base::DictValue* saved =
       prefs_.GetDict(kShortcutsPref).FindDict(SpaceShortcutId(2));
   ASSERT_TRUE(saved);
   EXPECT_TRUE(saved->empty());
@@ -97,7 +97,7 @@ TEST_F(ShortcutSettingsTest, ResetGoesBackToTheDefault) {
 
 // What the pref held at startup.
 TEST_F(ShortcutSettingsTest, ReadsThePref) {
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("copy-url", AcceleratorToValue(CmdShiftK()));
   // Not a shortcut: no modifier. Ignored.
   dict.Set("reload", AcceleratorToValue(ui::Accelerator(ui::VKEY_R, 0)));
@@ -133,7 +133,7 @@ TEST(ShortcutValueTest, RoundTrips) {
   EXPECT_EQ(AcceleratorFromValue(AcceleratorToValue(CmdShiftK())), CmdShiftK());
   EXPECT_EQ(AcceleratorFromValue(AcceleratorToValue(ui::Accelerator())),
             ui::Accelerator());
-  base::Value::Dict broken;
+  base::DictValue broken;
   broken.Set("key", "K");
   EXPECT_EQ(AcceleratorFromValue(broken), std::nullopt);
 }

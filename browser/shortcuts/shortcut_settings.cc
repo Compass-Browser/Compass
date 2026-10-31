@@ -103,8 +103,8 @@ bool IsValidShortcut(const ui::Accelerator& accelerator) {
           (ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN));
 }
 
-base::Value::Dict AcceleratorToValue(const ui::Accelerator& accelerator) {
-  base::Value::Dict value;
+base::DictValue AcceleratorToValue(const ui::Accelerator& accelerator) {
+  base::DictValue value;
   if (accelerator.key_code() != ui::VKEY_UNKNOWN) {
     value.Set(kKeyField, static_cast<int>(accelerator.key_code()));
     value.Set(kModifiersField, accelerator.modifiers() & kShortcutModifiers);
@@ -113,7 +113,7 @@ base::Value::Dict AcceleratorToValue(const ui::Accelerator& accelerator) {
 }
 
 std::optional<ui::Accelerator> AcceleratorFromValue(
-    const base::Value::Dict& value) {
+    const base::DictValue& value) {
   if (value.empty()) {
     return ui::Accelerator();
   }
@@ -251,7 +251,7 @@ void ShortcutSettings::Save() {
   if (!prefs) {
     return;
   }
-  base::Value::Dict dict;
+  base::DictValue dict;
   for (const auto& [id, accelerator] : custom_) {
     dict.Set(id, AcceleratorToValue(accelerator));
   }

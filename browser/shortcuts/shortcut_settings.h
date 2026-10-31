@@ -54,9 +54,9 @@ std::vector<ui::Accelerator> GetPipClickThroughAccelerators();
 bool IsValidShortcut(const ui::Accelerator& accelerator);
 
 // Pref encoding. A ui::Accelerator() (VKEY_UNKNOWN) is "no shortcut".
-base::Value::Dict AcceleratorToValue(const ui::Accelerator& accelerator);
+base::DictValue AcceleratorToValue(const ui::Accelerator& accelerator);
 std::optional<ui::Accelerator> AcceleratorFromValue(
-    const base::Value::Dict& value);
+    const base::DictValue& value);
 
 // The user's shortcuts, for every part of the browser that has shortcuts to
 // follow. Read from kShortcutsPref once Local State is there, and written
