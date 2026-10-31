@@ -1,0 +1,14 @@
+diff --git a/.gn b/.gn
+index 4806f1ebdabc2d3bb8f57a29790ec239d40c2458..a6803e45145059d6723def05696f8f8f72b06a96 100644
+--- a/.gn
++++ b/.gn
+@@ -445,6 +445,9 @@ exec_script_allowlist =
+ 
+       "//chrome/version.gni",
+ 
++      # Lists the renamed strings files it writes.
++      "//compass/strings/BUILD.gn",
++
+       "//google_apis/BUILD.gn",
+       "//printing/BUILD.gn",
+ 

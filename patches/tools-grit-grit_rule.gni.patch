@@ -1,0 +1,72 @@
+diff --git a/tools/grit/grit_rule.gni b/tools/grit/grit_rule.gni
+index f64e51895202b991d4d1fa2f0de9f04195f28e05..1296b14e43357dbef8a930b069b542ab6fbda6e6 100644
+--- a/tools/grit/grit_rule.gni
++++ b/tools/grit/grit_rule.gni
+@@ -106,6 +106,7 @@ import("//build/config/python.gni")
+ import("//build/config/sanitizers/sanitizers.gni")
+ import("//build/toolchain/gcc_toolchain.gni")
+ import("//tools/grit/grit_args.gni")
++import("//compass/strings/strings.gni")
+ _strip_resource_files = is_android && is_official_build
+ _css_minifier = "//tools/grit/minimize_css.py"
+ 
+@@ -127,6 +128,16 @@ if (is_win) {
+ }
+ 
+ template("grit") {
++  # Compass: Chromium-branded strings build from a renamed copy.
++  _grit_source = invoker.source
++  _compass_rebranded =
++      filter_include([ get_path_info(invoker.source, "abspath") ],
++                     compass_rebranded_grds) != []
++  if (_compass_rebranded) {
++    _grit_source =
++        compass_rebranded_dir + "/" + rebase_path(invoker.source, "//")
++  }
++
+   if (defined(invoker.output_dir)) {
+     _output_dir = invoker.output_dir
+   } else {
+@@ -196,7 +207,7 @@ template("grit") {
+ 
+   action_with_pydeps(_grit_custom_target) {
+     script = "//tools/grit/grit.py"
+-    inputs = [ invoker.source ]
++    inputs = [ _grit_source ]
+ 
+     testonly = defined(invoker.testonly) && invoker.testonly
+ 
+@@ -221,10 +232,10 @@ template("grit") {
+       _grit_flags += invoker.grit_flags
+     }
+ 
+-    _rebased_source_path = rebase_path(invoker.source, root_build_dir)
++    _rebased_source_path = rebase_path(_grit_source, root_build_dir)
+     _enable_grit_info =
+-        !defined(invoker.enable_input_discovery_for_gn_analyze) ||
+-        invoker.enable_input_discovery_for_gn_analyze
++        (!defined(invoker.enable_input_discovery_for_gn_analyze) ||
++         invoker.enable_input_discovery_for_gn_analyze) && !_compass_rebranded
+     if (_enable_grit_info && compute_inputs_for_analyze) {
+       # Only call exec_script when the user has explicitly opted into greater
+       # precision at the expense of performance.
+@@ -278,6 +289,9 @@ template("grit") {
+     if (defined(invoker.resource_ids)) {
+       _resource_ids = invoker.resource_ids
+     }
++    if (_compass_rebranded) {
++      _resource_ids = compass_rebranded_resource_ids
++    }
+ 
+     if (_resource_ids != "") {
+       inputs += [ _resource_ids ]
+@@ -358,6 +372,9 @@ template("grit") {
+     if (defined(invoker.deps)) {
+       deps += invoker.deps
+     }
++    if (_compass_rebranded) {
++      deps += [ compass_rebranded_target ]
++    }
+     if (defined(invoker.inputs)) {
+       inputs += invoker.inputs
+     }

@@ -1,0 +1,54 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//compass/strings/strings.gni")
+import("//tools/grit/grit_rule.gni")
+
+# Writes the renamed copies of compass_rebranded_grds, with their parts and
+# translations, and their start IDs. Files that come out the same aren't
+# rewritten, so grit (and what includes its headers) only reruns for real
+# changes.
+action("rebranded_grds") {
+  script = "rebrand_strings.py"
+  inputs = [
+    grit_resource_id_file,
+    "//tools/grit/grit/grd_reader.py",
+    "//tools/grit/grit/tclib.py",
+    "//tools/grit/grit/extern/FP.py",
+  ]
+  outputs = [ compass_rebranded_resource_ids ]
+  deps = [ grit_resource_id_target ]
+  args = [
+    "--grit-dir",
+    rebase_path("//tools/grit", root_build_dir),
+    "--resource-ids",
+    rebase_path(grit_resource_id_file, root_build_dir),
+    "--resource-ids-out",
+    rebase_path(compass_rebranded_resource_ids, root_build_dir),
+    "--src-root",
+    rebase_path("//", root_build_dir),
+    "--copies-root",
+    rebase_path(compass_rebranded_dir, root_build_dir),
+  ]
+  foreach(grd, compass_rebranded_grds) {
+    _files = []
+    _files = exec_script(script,
+                         [
+                           "--list",
+                           "--grd",
+                           rebase_path(grd, root_build_dir),
+                         ],
+                         "list lines")
+    _src_dir = get_path_info(grd, "dir")
+    _out_dir = compass_rebranded_dir + "/" + rebase_path(_src_dir, "//")
+    inputs += rebase_path(_files, ".", _src_dir)
+    outputs += get_path_info(rebase_path(_files, ".", _out_dir), "abspath")
+    args += [
+      "--grd",
+      rebase_path(grd, root_build_dir),
+      "--out-dir",
+      rebase_path(_out_dir, root_build_dir),
+    ]
+  }
+}

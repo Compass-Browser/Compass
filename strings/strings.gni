@@ -1,0 +1,22 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Upstream strings that name the product "Chromium" in their text. grit
+# builds each from a copy under compass_rebranded_dir (same path below it)
+# that says "Compass" instead: see rebrand_strings.py and the grit template's
+# patch (patches/tools-grit-grit_rule.gni.patch).
+compass_rebranded_grds = [
+  "//chrome/app/chromium_strings.grd",
+  "//chrome/app/generated_resources.grd",
+  "//components/components_chromium_strings.grd",
+  "//components/components_strings.grd",
+  "//components/privacy_sandbox_strings.grd",
+  "//extensions/strings/extensions_strings.grd",
+]
+compass_rebranded_dir = "$root_gen_dir/compass/strings"
+
+# Their start IDs, copied from upstream's resource IDs (each copy starts where
+# its original would), under the copies' paths.
+compass_rebranded_resource_ids = "$compass_rebranded_dir/resource_ids"
+compass_rebranded_target = "//compass/strings:rebranded_grds"
