@@ -47,6 +47,7 @@ nothing else.
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
 | `tools-grit-grit_rule.gni.patch` | The `grit` template builds the Chromium-branded strings in `compass_rebranded_grds` from renamed copies (`//compass/strings`), with their start IDs from `gen/compass/strings/resource_ids` (docs/design/branding.md) |
 | `.gn.patch` | Lets `//compass/strings/BUILD.gn` call `exec_script` (it lists the copies it writes) |
+| `*.png.patch`, `*.svg.patch`, `*.ico.patch`, `*.icon.patch` | Compass's logo in place of Chromium's (binary patches written by `tools/branding/make_patches.py`, docs/design/branding.md "Logo") |
 | `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`) |
 | `chrome-browser-BUILD.gn.patch` | Links `//compass/browser` into the browser, and `//compass/browser:feature_overrides`, `:url_handler` and `//compass/browser/ui/cocoa:shortcuts` into `:core` |
 | `chrome-browser-global_keyboard_shortcuts_mac.mm.patch` | The shortcuts outside the main menu go through `compass::AdjustShortcutsNotInMenu()`: Cmd+Shift+C copies the page's link (docs/design/shortcuts.md) |

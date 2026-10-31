@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="824" height="824" viewBox="100 100 824 824">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#ECEEF3"/>
+    </linearGradient>
+    <linearGradient id="red" gradientUnits="userSpaceOnUse" x1="690" y1="340" x2="330" y2="620">
+      <stop offset="0" stop-color="#FF8F98"/>
+      <stop offset="0.45" stop-color="#FF5D70"/>
+      <stop offset="1" stop-color="#F23D57"/>
+    </linearGradient>
+    <linearGradient id="blue" gradientUnits="userSpaceOnUse" x1="330" y1="430" x2="700" y2="660">
+      <stop offset="0" stop-color="#3A5BEA"/>
+      <stop offset="0.55" stop-color="#2238C9"/>
+      <stop offset="1" stop-color="#170C83"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="101" y="101" width="822" height="822" rx="184" fill="none" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+  <g fill="none" stroke-linecap="round" stroke-width="140">
+    <path d="M337.4 441.9 A205 205 0 0 0 682.3 649.2" stroke="url(#blue)"/>
+    <path d="M682.3 374.8 A205 205 0 0 0 344.2 598.6" stroke="url(#red)" opacity="0.9"/>
+  </g>
+</svg>

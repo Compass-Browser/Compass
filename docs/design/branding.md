@@ -1,6 +1,6 @@
 # Branding
 
-Status: strings and `compass://` done. Based on Chromium
+Status: strings, `compass://` and the logo done. Based on Chromium
 156.0.8078.48.
 
 ## Goal
@@ -153,3 +153,47 @@ Tests: `compass/common/compass_url_unittest.cc`,
 `SidebarHeaderTest.PillText`,
 `SidebarHeaderBrowserTest.CompassSchemeOpensChromePages` and
 `.WebPagesCantOpenCompassURLs`.
+
+## Logo
+
+Every image upstream draws Chromium's logo with is replaced by Compass's,
+in place: a patch per file (binary, `git diff --binary`), so resource IDs,
+grds and `BUILD.gn` files stay as they are, and anything upstream reads from
+the `chromium` branding folders gets the new art, whoever reads it.
+
+The art is two SVGs in `assets/`:
+
+- `compass_card.svg`: the app icon's card (as `compass.svg`, without the
+  shadow, edge to edge). Used where upstream's circle stands for the app.
+- `compass_glyph.svg`: the two ribbons alone. Used in line with text and at
+  16-32 px, where the card's white would just be a box.
+
+`tools/branding/make_patches.py <chromium src>` renders everything
+(`render.swift`, AppKit, which reads SVG), packs the `.ico`, writes the
+vector icon (`make_icon.py`) and writes the patches to `patches/` without
+touching the checkout, checking that each applies. Rerun it after changing
+either SVG.
+
+| Upstream file(s) | What shows it | Now |
+|---|---|---|
+| `chrome/app/theme/chromium/product_logo_{16,24,48,64,128,256}.png` | `IDR_PRODUCT_LOGO_*` (unscaled), app shortcut icons, notifications | card |
+| `chrome/app/theme/chromium/product_logo.svg`, `product_logo_animation.svg` | `IDR_PRODUCT_LOGO_SVG`: About (settings), first run intro | card (not animated) |
+| `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_{16,32}.png` | `IDR_PRODUCT_LOGO_16/32`: `chrome://theme/current-channel-logo`, so the WebUI toolbar logo (settings, history, downloads, extensions), dialogs, infobars | glyph |
+| `ui/webui/resources/images/chrome_logo_dark.svg` | the same toolbars in dark mode (upstream: a white Chrome logo) | glyph, in color |
+| `components/vector_icons/chromium/product{,_refresh}.icon` | `vector_icons::kProductIcon` and `kProductRefreshIcon`: menus, page info for `chrome://` pages, permission and default browser prompts | glyph, one color |
+| `components/resources/default_{100,200}_percent/chromium/favicon_product.png` | favicon of built-in pages | glyph |
+| `components/resources/default_{100,200}_percent/chromium/product_logo{,_white}.png` | `chrome://version` (logo and name) | glyph + "compass" |
+| `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_name_22{,_white}.png` | `IDR_PRODUCT_LOGO_NAME_22` | glyph + "compass" |
+| `chrome/app/theme/chromium/product_logo_22_mono.png` | menu bar icon while running in the background (template image) | glyph, black |
+| `chrome/browser/resources/intro/images/refresh_showcase_illustration_chromium.png` | first run intro | the card drawn over the old logo |
+| `chrome/app/theme/chromium/linux/product_logo_*.png`, `default_100_percent/chromium/linux/*` | Linux window and desktop icons | card / glyph |
+| `chrome/app/theme/chromium/win/chromium.ico`, `win/tiles/*.png` | Windows app icon and Start tiles | card |
+
+The macOS app icon (`app.icns`, `Assets.car`) comes from `assets/mac/`
+through `chrome-BUILD.gn.patch` (see `tools/build_mac_icon.sh`); the Dock,
+notifications and the DMG use it.
+
+Not replaced: Windows' document, PDF, incognito and app list `.ico`s, the
+Linux `.xpm`, ChromeOS art, the Web Store icon (not the product's).
+Upstream asks for `kCurrentProfileIconVersion` to go up when
+`chromium.ico` changes; there are no Windows installs to migrate yet.
