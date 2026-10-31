@@ -9,6 +9,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "compass/browser/ui/app_menu_sync.h"
 #include "compass/browser/ui/compass_command_ids.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -162,7 +163,8 @@ CommandBarPageHandler* CommandBar::GetPageHandler() {
 
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
   if (HandlePeekCommand(browser, id) ||
-      HandleLittleWindowCommand(browser, id)) {
+      HandleLittleWindowCommand(browser, id) ||
+      HandleAppMenuSyncCommand(browser, id)) {
     return true;
   }
   if (id != IDC_NEW_TAB && id != IDC_FOCUS_LOCATION) {

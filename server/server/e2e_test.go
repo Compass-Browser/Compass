@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	neturl "net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -355,6 +356,15 @@ func mustDecode(t *testing.T, token string) string {
 func TestEndToEndPairing(t *testing.T) {
 	url := serverURL(t)
 	a := newDevice(t, url, randomSeed(t), "guid-a")
+	// The canonical name: the host the server was reached at, unless it's
+	// configured (COMPASS_SYNC_PUBLIC_HOST; give it as
+	// COMPASS_SYNC_E2E_SERVER_NAME when testing such a server).
+	wantName := os.Getenv("COMPASS_SYNC_E2E_SERVER_NAME")
+	if wantName == "" {
+		parsed, err := neturl.Parse(url)
+		require.NoError(t, err)
+		wantName = strings.ToLower(parsed.Hostname())
+	}
 
 	call := func(method, path string, hdr map[string]string, body any) (int, map[string]any) {
 		var rd io.Reader = http.NoBody
@@ -381,9 +391,12 @@ func TestEndToEndPairing(t *testing.T) {
 	require.Equal(t, http.StatusCreated, code)
 	slot := "/" + strconv.Itoa(int(out["slot"].(float64)))
 	assert.EqualValues(t, 300, out["expires_in"])
+	assert.Equal(t, wantName, out["server"])
 
 	code, out = call("POST", slot+"/join", nil, nil)
 	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, wantName, out["server"])
+	assert.NotZero(t, out["expires_in"])
 	bAuth := map[string]string{"X-Compass-Pair-Token": out["b_token"].(string)}
 
 	// 1. B -> A, SPAKE2 (Bob). A was already waiting.
@@ -407,9 +420,10 @@ func TestEndToEndPairing(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Equal(t, b64("alice"), out["messages"].([]any)[0].(map[string]any)["data"])
 
-	// A closes when done; the slot is gone for both.
-	code, _ = call("DELETE", slot, aAuth(), nil)
+	// A closes (a wrong code, say); the slot is gone for both, and says why.
+	code, _ = call("DELETE", slot+"?reason=mismatch", aAuth(), nil)
 	assert.Equal(t, http.StatusNoContent, code)
-	code, _ = call("GET", slot+"/msg?for=b&after=1", bAuth, nil)
-	assert.Equal(t, http.StatusNotFound, code)
+	code, out = call("GET", slot+"/msg?for=b&after=1", bAuth, nil)
+	assert.Equal(t, http.StatusGone, code)
+	assert.Equal(t, "mismatch", out["reason"])
 }

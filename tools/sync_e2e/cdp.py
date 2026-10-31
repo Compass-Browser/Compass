@@ -17,6 +17,12 @@ slice 0 spike). Standard library only, so it runs on a bare macOS Python 3.
       runs the file's JavaScript (as for run) in a page that is already open
       and whose URL contains MATCH, such as a window's sidebar
       (compass-sidebar), found in the browser's target list; leaves it open.
+  cdp.py PORT shot URL OUT.png [--settle S] [--size WxH]
+      opens URL in a new background tab at WxH (default 900x1400), waits
+      for it (+S seconds, default 3), saves a PNG of the whole page with
+      Page.captureScreenshot, closes the tab. Never focuses anything. The
+      page's colors follow the browser's theme (chrome://theme/colors.css),
+      so a dark screenshot needs an instance started with --force-dark-mode.
   cdp.py - waitlog FILE REGEX [TIMEOUT]
       waits (default 180 s) until a line of FILE matches REGEX, prints it.
       Exit status 1 on timeout. (No browser needed; PORT is ignored.)
@@ -168,6 +174,35 @@ def evaluate(port, url, js, settle):
       pass
 
 
+def screenshot(port, url, out, settle, width, height):
+  target = http(port, '/json/new?' + url, method='PUT')
+  try:
+    s = Session(target['webSocketDebuggerUrl'])
+    s.call('Emulation.setDeviceMetricsOverride', width=width, height=height,
+           deviceScaleFactor=2, mobile=False)
+    deadline = time.time() + 60
+    while True:
+      r = s.call('Runtime.evaluate', expression='document.readyState',
+                 returnByValue=True)
+      if r['result'].get('value') == 'complete':
+        break
+      if time.time() > deadline:
+        raise TimeoutError('page did not load: ' + url)
+      time.sleep(0.5)
+    time.sleep(settle)
+    r = s.call('Page.captureScreenshot', format='png',
+               captureBeyondViewport=True)
+    with open(out, 'wb') as f:
+      f.write(base64.b64decode(r['data']))
+    print(out)
+    return 0
+  finally:
+    try:
+      http(port, '/json/close/' + target['id'])
+    except OSError:
+      pass
+
+
 def evaluate_in(port, match, js):
   browser = http(port, '/json/version')
   s = Session(browser['webSocketDebuggerUrl'])
@@ -219,6 +254,20 @@ def main(argv):
   if len(argv) >= 2 and argv[1] == 'wait':
     print(json.dumps(wait(int(argv[0])), indent=1))
     return 0
+  if len(argv) >= 4 and argv[1] == 'shot':
+    settle, width, height = 3.0, 900, 1400
+    rest = argv[4:]
+    while rest:
+      flag = rest.pop(0)
+      if flag == '--settle' and rest:
+        settle = float(rest.pop(0))
+      elif flag == '--size' and rest:
+        width, _, height = rest.pop(0).partition('x')
+        width, height = int(width), int(height)
+      else:
+        print('unknown option: ' + flag, file=sys.stderr)
+        return 2
+    return screenshot(int(argv[0]), argv[2], argv[3], settle, width, height)
   if len(argv) >= 4 and argv[1] in ('run', 'in'):
     settle = 3.0
     args = {}

@@ -9,7 +9,7 @@ source_set("ui") {
   sources = [
     "arc_import/arc_importer.cc",
     "arc_import/arc_importer.h",
-    "compass_command_ids.h",
+    "app_menu_sync.cc",
     "webui/arc_import/compass_arc_import_ui.cc",
     "webui/arc_import/compass_arc_import_ui.h",
     "views/command_bar/command_bar.cc",
@@ -38,6 +38,8 @@ source_set("ui") {
     "webui/command_bar/command_bar_page_handler.h",
     "webui/command_bar/command_bar_ui.cc",
     "webui/command_bar/command_bar_ui.h",
+    "webui/command_bar/other_device_tabs.cc",
+    "webui/command_bar/other_device_tabs.h",
     "webui/placeholder/compass_placeholder_ui.cc",
     "webui/placeholder/compass_placeholder_ui.h",
     "webui/sidebar/sidebar_page_handler.cc",
@@ -54,6 +56,7 @@ source_set("ui") {
     "webui/compass_web_ui_registry.h",
   ]
   public_deps = [
+    ":app_menu_hooks",
     "//chrome/browser:browser_public_dependencies",
     "//compass/browser/sync",
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
@@ -84,6 +87,7 @@ source_set("ui") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles:profile_util",
+    "//chrome/browser/sync",
     "//chrome/browser/ui:browser_commands",
     "//chrome/browser/ui:browser_content_setting_bubble_model_delegate",
     "//chrome/browser/ui:browser_element_identifiers",
@@ -112,8 +116,10 @@ source_set("ui") {
     "//components/favicon_base",
     "//components/omnibox/browser",
     "//components/prefs",
+    "//components/device_reauth",
     "//components/security_state/core",
     "//components/sessions",
+    "//components/sync_sessions",
     "//components/tabs:public",
     "//components/url_formatter",
     "//content/public/browser",
@@ -131,6 +137,11 @@ source_set("ui") {
     "//ui/webui",
     "//url",
   ]
+  if (is_mac || is_win) {
+    # chrome://compass-sync asks for Touch ID before showing the recovery
+    # code.
+    deps += [ "//chrome/browser/device_reauth" ]
+  }
   if (is_mac) {
     sources += [
       "views/frame/browser_view_exchange_mac.mm",
@@ -140,6 +151,16 @@ source_set("ui") {
       "arc_import/arc_importer_mac.mm",
     ]
   }
+}
+
+# Declarations upstream's code calls into (its app menu, its command
+# controller), with no dependencies, so upstream targets can include them
+# without a cycle; the definitions are in :ui.
+source_set("app_menu_hooks") {
+  public = [
+    "app_menu_sync.h",
+    "compass_command_ids.h",
+  ]
 }
 
 source_set("unit_tests") {

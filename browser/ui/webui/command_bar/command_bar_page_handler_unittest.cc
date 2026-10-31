@@ -51,9 +51,7 @@ class FakePage : public command_bar::mojom::Page {
   }
 
   // command_bar::mojom::Page:
-  void Open(Mode mode, const std::string& text) override {
-    opened_ = text;
-  }
+  void Open(Mode mode, const std::string& text) override { opened_ = text; }
   void SetResults(const std::string& text,
                   std::vector<command_bar::mojom::ResultPtr> results,
                   const std::string& inline_autocompletion) override {
@@ -84,6 +82,11 @@ class FakePage : public command_bar::mojom::Page {
           break;
         case ResultKind::kCommand:
           names.push_back("command " + result->title);
+          break;
+        case ResultKind::kOtherDeviceTab:
+          names.push_back(
+              "other " + std::string(result->icon_url.host()) + " " +
+              result->subtitle.substr(0, result->subtitle.find(" · ")));
           break;
       }
     }
@@ -133,12 +136,15 @@ class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
     search_test_utils::WaitForTemplateURLServiceToLoad(
         TemplateURLServiceFactory::GetForProfile(profile()));
     // Test windows can't be created the production way.
-    WindowFeatures::From(browser())->service().SetParkingWindowFactoryForTesting(
-        base::BindLambdaForTesting([this](Profile* profile) {
-          parking_ = CreateBrowser(profile, BrowserWindowInterface::TYPE_POPUP,
-                                   /*hosted_app=*/false);
-          return parking_.get();
-        }));
+    WindowFeatures::From(browser())
+        ->service()
+        .SetParkingWindowFactoryForTesting(
+            base::BindLambdaForTesting([this](Profile* profile) {
+              parking_ =
+                  CreateBrowser(profile, BrowserWindowInterface::TYPE_POPUP,
+                                /*hosted_app=*/false);
+              return parking_.get();
+            }));
     // AddTab() inserts at the front and activates.
     AddTab(browser(), GURL("https://b.test/"));
     AddTab(browser(), GURL("https://a.test/"));
@@ -146,6 +152,9 @@ class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
     handler_ = std::make_unique<CommandBarPageHandler>(
         handler_remote_.BindNewPipeAndPassReceiver(), page_.BindAndPassRemote(),
         browser(), /*controller=*/nullptr);
+    // No SESSIONS type in tests: the fake devices' tabs.
+    handler_->SetOtherDeviceTabsGetterForTesting(
+        base::BindLambdaForTesting([this]() { return other_devices_; }));
   }
 
   void TearDown() override {
@@ -179,6 +188,7 @@ class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
     return WindowFeatures::From(browser())->service().space_list().favorites();
   }
 
+  std::vector<OtherDevice> other_devices_;
   FakePage page_;
   mojo::Remote<command_bar::mojom::PageHandler> handler_remote_;
   std::unique_ptr<CommandBarPageHandler> handler_;
@@ -193,13 +203,13 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
   OpenAndQuery(Mode::kNewEntry, "");
 
   EXPECT_EQ(page_.text(), "");
-  EXPECT_THAT(page_.LocalResults(),
-              ElementsAre("entry b.test", "entry a.test", "command New space",
-                          "command Pin tab", "command Add to Favorites",
-                          "command Copy URL",
-                          "command Reload", "command History",
-                          "command Downloads", "command Extensions",
-                          "command Settings", "command Import from Arc"));
+  EXPECT_THAT(
+      page_.LocalResults(),
+      ElementsAre("entry b.test", "entry a.test", "command New space",
+                  "command Pin tab", "command Add to Favorites",
+                  "command Copy URL", "command Reload", "command History",
+                  "command Downloads", "command Extensions", "command Settings",
+                  "command Import from Arc"));
 }
 
 TEST_F(CommandBarPageHandlerTest, EmptyCurrentEntryQueryShowsCommandsOnly) {
@@ -247,9 +257,9 @@ TEST_F(CommandBarPageHandlerTest, NamesTheSpaceOfOtherSpacesEntries) {
   OpenAndQuery(Mode::kNewEntry, "cee");
 
   ASSERT_THAT(page_.LocalResults(), ElementsAre("entry c.test"));
-  const auto entry = std::ranges::find(
-      page_.results(), ResultKind::kEntry,
-      [](const auto& result) { return result->kind; });
+  const auto entry =
+      std::ranges::find(page_.results(), ResultKind::kEntry,
+                        [](const auto& result) { return result->kind; });
   EXPECT_EQ((*entry)->subtitle, "Work · https://c.test/");
   EXPECT_EQ((*entry)->action, "Open");
 }
@@ -263,10 +273,11 @@ TEST_F(CommandBarPageHandlerTest, ListsFavoritesFirstAndOpensThemInPlace) {
 
   OpenAndQuery(Mode::kNewEntry, "test");
 
-  EXPECT_THAT(page_.LocalResults(), ElementsAre("entry b.test", "entry a.test"));
-  const auto entry = std::ranges::find(
-      page_.results(), ResultKind::kEntry,
-      [](const auto& result) { return result->kind; });
+  EXPECT_THAT(page_.LocalResults(),
+              ElementsAre("entry b.test", "entry a.test"));
+  const auto entry =
+      std::ranges::find(page_.results(), ResultKind::kEntry,
+                        [](const auto& result) { return result->kind; });
   EXPECT_EQ((*entry)->subtitle, "Favorites · https://b.test/");
 
   // From another space, the favorite opens in it: no switch back.
@@ -276,9 +287,9 @@ TEST_F(CommandBarPageHandlerTest, ListsFavoritesFirstAndOpensThemInPlace) {
   Settle();
   OpenAndQuery(Mode::kNewEntry, "b.test");
   // Not the omnibox's suggestion titled the same.
-  const auto favorite = std::ranges::find(
-      page_.results(), ResultKind::kEntry,
-      [](const auto& result) { return result->kind; });
+  const auto favorite =
+      std::ranges::find(page_.results(), ResultKind::kEntry,
+                        [](const auto& result) { return result->kind; });
   ASSERT_NE(favorite, page_.results().end());
 
   handler_remote_->Accept((*favorite)->id, "b.test", false);
@@ -430,6 +441,67 @@ TEST_F(CommandBarPageHandlerTest, ReportsTheOmniboxLog) {
   handler_remote_->Accept(/*id=*/9999, "d.test", false);
   Settle();
   EXPECT_EQ(logs.size(), 1u);
+}
+
+// docs/design/sync.md, "Slice 4 notes".
+TEST_F(CommandBarPageHandlerTest, TabsOnOtherDevices) {
+  other_devices_ = {
+      {u"MacBook Air",
+       {{u"Recipes", GURL("https://food.test/")},
+        {u"Train times", GURL("https://rail.test/")}}},
+      {u"Studio", {{u"Food news", GURL("https://news.test/food")}}},
+  };
+
+  // By title or URL, grouped by device (the most recent device first).
+  OpenAndQuery(Mode::kNewEntry, "food");
+  EXPECT_THAT(page_.LocalResults(),
+              ElementsAre("other food.test On MacBook Air",
+                          "other news.test On Studio"));
+
+  // By device name: all its tabs.
+  OpenAndQuery(Mode::kNewEntry, "macbook");
+  EXPECT_THAT(page_.LocalResults(),
+              ElementsAre("other food.test On MacBook Air",
+                          "other rail.test On MacBook Air"));
+
+  // Not in the empty state.
+  OpenAndQuery(Mode::kNewEntry, "");
+  for (const auto& result : page_.results()) {
+    EXPECT_NE(result->kind, ResultKind::kOtherDeviceTab);
+  }
+
+  // Enter opens it as a new Today entry, even from current-entry mode.
+  OpenAndQuery(Mode::kCurrentEntry, "train");
+  const uint32_t id = page_.IdOf("Train times");
+  ASSERT_NE(id, 0u);
+  handler_remote_->Accept(id, "train", false);
+  Settle();
+  EXPECT_EQ(tab_strip_model()->count(), 3);
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("https://rail.test/"));
+  EXPECT_EQ(space_model().today_root()->children().size(), 3u);
+}
+
+TEST(OtherDeviceTabsTest, MatchesEveryWordUpToTheLimit) {
+  const std::vector<OtherDevice> devices = {
+      {u"Air",
+       {{u"A b", GURL("https://one.test/")},
+        {u"A c", GURL("https://two.test/")}}},
+      {u"Studio", {{u"A b", GURL("https://three.test/")}}},
+  };
+  auto matched = [&](const std::u16string& query, size_t limit) {
+    std::vector<std::string> out;
+    for (const OtherDeviceTabMatch& match :
+         MatchOtherDeviceTabs(devices, query, limit)) {
+      out.emplace_back(devices[match.device].tabs[match.tab].url.host());
+    }
+    return out;
+  };
+  EXPECT_THAT(matched(u"a b", 10), ElementsAre("one.test", "three.test"));
+  EXPECT_THAT(matched(u"A", 2), ElementsAre("one.test", "two.test"));
+  EXPECT_THAT(matched(u"studio", 10), ElementsAre("three.test"));
+  EXPECT_THAT(matched(u"  ", 10), IsEmpty());
+  EXPECT_THAT(matched(u"zebra", 10), IsEmpty());
 }
 
 TEST_F(CommandBarPageHandlerTest, AcceptingAStaleIdUsesTheText) {

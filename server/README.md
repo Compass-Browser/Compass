@@ -70,6 +70,7 @@ Environment variables (all optional):
 | `COMPASS_SYNC_EVENTS_PER_IP` | `50` | Open change-notification streams per client address |
 | `COMPASS_SYNC_SHUTDOWN_DELAY` | `0s` | Wait before closing on SIGTERM (for load balancers) |
 | `COMPASS_SYNC_METRICS` | off | `1` serves Prometheus metrics on `/metrics` |
+| `COMPASS_SYNC_PUBLIC_HOST` | the request's `Host` | The server's name both devices bind when pairing (e.g. `sync.example.com`); set it when devices reach the server by different names (IP, Tailscale name) |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
 
 Never list a proxy as trusted unless every request reaches the server

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
@@ -21,6 +22,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
+#include "compass/browser/ui/webui/command_bar/other_device_tabs.h"
 
 class BrowserWindowInterface;
 class TopChromeWebUIController;
@@ -77,6 +79,12 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   void OnResultChanged(AutocompleteController* controller,
                        bool default_match_changed) override;
 
+  // Where "Tabs on other devices" come from; by default the profile's
+  // SESSIONS type.
+  using OtherDeviceTabsGetter =
+      base::RepeatingCallback<std::vector<OtherDevice>()>;
+  void SetOtherDeviceTabsGetterForTesting(OtherDeviceTabsGetter getter);
+
  private:
   // One row of the list, and what choosing it does.
   struct Item {
@@ -99,6 +107,8 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
     base::Uuid space_id;
     bool favorite = false;
     CommandBarCommand command = CommandBarCommand::kNewSpace;
+    // Other devices' tabs: the page to open.
+    GURL url;
   };
 
   // Rebuilds the list from the controller's result and the local results
@@ -109,6 +119,8 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   void AddRecentTodayItems(std::vector<Item>& items);
   void AddSpaceItems(std::vector<Item>& items);
   void AddCommandItems(std::vector<Item>& items);
+  // "Tabs on other devices", grouped by device.
+  void AddOtherDeviceTabItems(std::vector<Item>& items);
   Item EntryItem(const SidebarNode& node, const SpaceModel& space);
   // Gives |item| the ID it had earlier in this query, or a new one.
   void AssignId(Item& item, const std::string& key);
@@ -125,6 +137,8 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
                 WindowOpenDisposition disposition);
   void AcceptEntry(const Item& item);
   void AcceptSpace(const base::Uuid& space_id);
+  // Opens |url| as a new Today entry of the window's space.
+  void AcceptOtherDeviceTab(const GURL& url);
   void RunCommand(CommandBarCommand command);
   bool IsCommandAvailable(CommandBarCommand command) const;
 
@@ -139,6 +153,7 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   mojo::Receiver<command_bar::mojom::PageHandler> receiver_;
   mojo::Remote<command_bar::mojom::Page> page_;
   std::unique_ptr<AutocompleteController> autocomplete_;
+  OtherDeviceTabsGetter other_device_tabs_getter_;
 
   command_bar::mojom::Mode mode_ = command_bar::mojom::Mode::kNewEntry;
   std::u16string text_;
