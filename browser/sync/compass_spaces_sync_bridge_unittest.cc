@@ -627,7 +627,8 @@ TEST_F(CompassSpacesSyncBridgeTest, ConcurrentMovesIntoEachOtherConverge) {
   EXPECT_EQ(tree_a, Describe(*b->space(0).pinned_root()));
   // Nothing lost: both folders and both tabs are there.
   for (const char16_t* title : {u"X", u"Y", u"InX", u"InY"}) {
-    EXPECT_TRUE(FindByTitle(*a->space(0).pinned_root(), title)) << title;
+    EXPECT_TRUE(FindByTitle(*a->space(0).pinned_root(), title))
+        << base::UTF16ToUTF8(title);
   }
   EXPECT_EQ(a->Push(), 0u);
   EXPECT_EQ(b->Push(), 0u);

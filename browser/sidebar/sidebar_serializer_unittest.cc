@@ -173,7 +173,7 @@ TEST(SidebarSerializerTest, KeepsNodeIds) {
 
   for (const SidebarNode* node : {folder, tab, a, b, split}) {
     const SidebarNode* found = restored.FindById(node->id());
-    ASSERT_TRUE(found) << node->title();
+    ASSERT_TRUE(found) << base::UTF16ToUTF8(node->title());
     EXPECT_EQ(found->type(), node->type());
     EXPECT_EQ(found->title(), node->title());
   }
