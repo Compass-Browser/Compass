@@ -1,0 +1,26 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Import from Arc (docs/design/arc-import.md).
+source_set("arc_import") {
+  sources = [
+    "arc_sidebar.cc",
+    "arc_sidebar.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/browser/sidebar",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "arc_sidebar_unittest.cc" ]
+  deps = [
+    ":arc_import",
+    "//base",
+    "//testing/gtest",
+  ]
+}
