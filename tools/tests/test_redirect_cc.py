@@ -59,6 +59,15 @@ class RewriteCommandTest(unittest.TestCase):
     self.assertEqual(result[-1], '-I../../..')
     self.assertLess(result.index('-I../../v8'), result.index('-I../../..'))
 
+  def test_overrides_dont_capture_relative_includes_of_earlier_dirs(self):
+    # ffmpeg includes "../../third_party/ffmpeg/libavcodec/x.c" through
+    # -I../../third_party/ffmpeg. From compass/chromium_src, "../.." is the
+    # source root too, so the overrides dir must come after that include dir.
+    result = self.rewrite(['clang-cl.exe', '/I../../third_party/ffmpeg',
+                           '/I../..', '/Igen', '/c', '../../chrome/b.cc'])
+    self.assertEqual(result[1:4], ['/I../../third_party/ffmpeg',
+                                   '/I../../compass/chromium_src', '/I../..'])
+
   def test_uses_msvc_style_include_for_clang_cl(self):
     result = self.rewrite(['C:/llvm/bin/clang-cl.exe', '/c',
                            '../../chrome/a.cc'])
