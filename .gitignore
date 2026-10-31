@@ -4,3 +4,5 @@ __pycache__/
 /compass-chromium/
 *.orig
 *.rej
+# Local dev data (compass sync-server)
+/.dev/
