@@ -10,6 +10,7 @@
 #include "compass/components/sync/pref_names.h"
 #include "compass/components/sync/sync_credentials.h"
 #include "compass/components/sync/sync_hooks.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/sync/base/command_line_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
