@@ -80,10 +80,18 @@ incoming password sharing. Exact list from the spike (slice 0).
     (base64). Set with `SyncUserSettings::SetEncryptionPassphrase()` on the
     first device and `SetDecryptionPassphrase()` on the others. All types
     encrypted; the server sees types, IDs, versions, sizes, times.
-- **Auth to the server**: the access token is
-  `base64(pubkey || timestamp || sig)`, the signature over
-  `"compass-sync" || server_host || timestamp`. The server checks the
-  signature and a ±10 min window. No passwords, no email.
+- **Auth to the server**: go-sync's own token format, kept as is
+  (proven in slice 0, no server change): per request,
+  `base64url_padded(HEX(ts_ms) | HEX(ed25519_sign(ts_ms)) | HEX(pubkey))`,
+  where `ts_ms` is the ASCII decimal Unix time in ms, sent as
+  `Authorization: Bearer <token>`. The server checks the signature and a
+  ±24 h window (go-sync's `auth/auth.go`); the chain ID is the hex
+  public key. No passwords, no email.
+- **Derivations** (fixed, both slices use them): seed = 16 bytes;
+  `HKDF-SHA256(ikm=seed, salt="", info="compass-sync-auth", L=32)` = the
+  Ed25519 private seed; `HKDF(..., info="compass-sync-passphrase", L=32)`,
+  base64 (standard, padded) = the custom passphrase. Profile accounts
+  (slice 5) append `":" + profile_uuid` to the auth info.
 - **Stored on the device**: the seed, encrypted with `os_crypt_async` (the
   same Keychain key as passwords), in a profile pref.
 - **Removing a device** deletes its `DEVICE_INFO` entry; it can't revoke
@@ -116,10 +124,42 @@ can't read, and a wrong guess burns the code.
 5. On Allow, A sends AES-GCM(K, seed, chain's profile list); B derives
    everything from the seed and starts syncing (first sync merges).
 
-Server side: `POST /v1/pair` (open, signed), `POST /v1/pair/{slot}/{msg}`
-and `GET` with long poll to relay, slots deleted on use or expiry, at most
-one open slot per chain, join attempts rate-limited per IP.
+#### Pairing API (contract between slices 1 and 2)
 
+Under go-sync's prefix, next to `/v2/command/`. JSON bodies, UTF-8.
+Binary fields are standard base64.
+
+- `POST /v2/compass/pair` with `Authorization` (A's sync token) →
+  `201 {"slot": 7, "expires_in": 300}`. The lowest free slot ≥ 1. Opening
+  a new slot closes the chain's previous one (one open slot per chain).
+- `POST /v2/compass/pair/{slot}/join` (no auth; B) →
+  `200 {"b_token": "<random 128-bit, hex>"}`. Only the first join
+  succeeds; after it, `409`. Unknown or expired slot: `404`. Rate limit:
+  10 joins per IP per 10 min, then `429`.
+- `POST /v2/compass/pair/{slot}/msg` with body
+  `{"from": "a"|"b", "data": "<base64, ≤ 4 KiB>"}`. From A: the
+  `Authorization` of the chain that opened it. From B: header
+  `X-Compass-Pair-Token: <b_token>`. → `200 {"seq": n}`. At most 8
+  messages per side, then `429`.
+- `GET /v2/compass/pair/{slot}/msg?for=a|b&after=<seq>` (same auth as
+  above, for the reader) → long poll up to 25 s: `200 {"messages":
+  [{"seq": n, "data": "..."}]}` (possibly empty on timeout). Sequence
+  numbers count per sender, from 1.
+- `DELETE /v2/compass/pair/{slot}` (A's auth, or B's token) → `204`. It
+  closes the slot. Closed or expired slots answer `404` everywhere.
+- Slots live 300 s from opening, in memory only (a restart drops them).
+
+Messages (client-side, the server doesn't read them):
+1. B → A: SPAKE2 message (Bob).
+2. A → B: SPAKE2 message (Alice).
+3. B → A: `HMAC-SHA256(K_confirm_b, "compass-pair-confirm-b")`, then
+   `AES-256-GCM(K_enc, device name)`; K = SPAKE2 key, split with HKDF
+   (`info="compass-pair-enc"`, `"compass-pair-confirm-a"`,
+   `"compass-pair-confirm-b"`). SPAKE2 names: `"compass-a:" + host + ":" +
+   slot` / `"compass-b:" + host + ":" + slot`.
+4. A → B: A's confirmation MAC, then either `AES-256-GCM(K_enc, {"seed":
+   ..., "profiles": [...]})` or a denial. A wrong MAC on either side →
+   `DELETE` and a new code.
 "Use a recovery code" on B is the fallback: type the 12 words (BIP39
 autocomplete, checksum checked as you type).
 
