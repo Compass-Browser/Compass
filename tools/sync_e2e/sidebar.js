@@ -24,12 +24,13 @@ const COLORS =
     ['grey', 'blue', 'purple', 'pink', 'red', 'orange', 'yellow', 'green'];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// The switcher's spaces and the window's active one.
+// A tab's URL (url.mojom.Url is a plain string in these bindings).
 function urlOf(node) {
   if (!node.url) return '';
   return typeof node.url === 'string' ? node.url : (node.url.url || '');
 }
 
+// The switcher's spaces and the window's active one.
 function spaces() {
   return new Promise(resolve => {
     const id = router.setSpaces.addListener((list, activeId) => {
