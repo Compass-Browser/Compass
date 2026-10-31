@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f7ff8303c 100644
+index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..8c78e75b10ebfff9ad603f2bb10635ada06658f2 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,9 @@
@@ -34,7 +34,27 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f
        if (tab_strip_view()) {
          tab_strip_view()->SetIsAnimatingSize(true);
        }
-@@ -453,12 +458,43 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
+@@ -397,8 +402,17 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
+ 
+   views::SizeBounds button_available_size = size_bounds;
+   if (button_available_size.width().is_bounded()) {
+-    button_available_size.set_width(button_available_size.width() -
+-                                    2 * horizontal_padding);
++    // Compass: while the sidebar slides, the header keeps its expanded width
++    // (see below), so it keeps its expanded height too: measured at the
++    // shrinking width, it switches to its taller collapsed layout halfway and
++    // the sidebar page jumps down.
++    const int width = button_available_size.width().value();
++    button_available_size.set_width(
++        width +
++        compass::GetSidebarSlideOffset(
++            width, target_collapse_state_.uncollapsed_width,
++            IsAnimatingSize()) -
++        2 * horizontal_padding);
+   }
+   const gfx::Size button_size =
+       top_button_container_->GetPreferredSize(button_available_size);
+@@ -453,12 +467,43 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
                                      .bounds = organizer_bounds});
    }
  
@@ -78,7 +98,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f
    // When animating the organizer panel in, as soon as it is visible, focus it.
    const bool organizer_panel_visible =
        organizer_panel_view_ && organizer_panel_view_->GetVisible();
-@@ -700,8 +736,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
+@@ -700,8 +745,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
  
  void VerticalTabStripRegionView::OnResize(int resize_amount,
                                            bool done_resizing) {
@@ -90,7 +110,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f
    if (!starting_width_on_resize_.has_value()) {
      starting_width_on_resize_ = width();
      state_controller_->SetIsResizing(true);
-@@ -785,7 +822,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
+@@ -785,7 +831,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
    // attached. target_collapse_state_ is still set so that when
    // SetTabStripView() is eventually called, the region view and all child
    // views initialize directly in the target collapse state.
@@ -99,7 +119,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f
      return;
    }
    const auto motion =
-@@ -889,6 +926,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+@@ -889,6 +935,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
    return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
@@ -139,7 +159,7 @@ index fdfdd93f076b3e42d0ff869963cfb61aa9d3ae82..147caa31311e1d7ebb35491e2f74f67f
  void VerticalTabStripRegionView::OnCollapseStateChanged(
      tabs::VerticalTabStripCollapseState state) {
    // Apply padding immediately at the start of the animation by including
-@@ -1026,7 +1096,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+@@ -1026,7 +1105,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
      return;
    }
  

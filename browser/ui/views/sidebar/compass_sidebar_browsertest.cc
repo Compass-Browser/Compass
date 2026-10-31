@@ -69,6 +69,7 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_container.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
@@ -112,9 +113,15 @@ class CompassSidebarBrowserTest : public InProcessBrowserTest {
   // Motions end as they start. With frames (an unlocked screen), Reset()
   // would end a running motion without stopping its animator, whose next
   // frame then fails a CHECK.
-  gfx::AnimationTestApi::RenderModeResetter animation_mode_ =
-      gfx::AnimationTestApi::SetRichAnimationRenderMode(
-          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  CompassSidebarBrowserTest()
+      : CompassSidebarBrowserTest(
+            gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED) {}
+  explicit CompassSidebarBrowserTest(
+      gfx::Animation::RichAnimationRenderMode mode)
+      : animation_mode_(
+            gfx::AnimationTestApi::SetRichAnimationRenderMode(mode)) {}
+
+  gfx::AnimationTestApi::RenderModeResetter animation_mode_;
 
   views::View* browser_view() {
     return BrowserView::GetBrowserViewForBrowser(browser());
@@ -450,6 +457,61 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, CollapsesAndResizes) {
     return region->width() == resized_width;
   }));
   EXPECT_TRUE(sidebar()->IsDrawn());
+}
+
+// Closing, the header and the page slide out sideways at their expanded size:
+// nothing moves up or down. Measured at the shrinking width, the header took
+// its taller collapsed layout halfway and pushed the page down.
+// Motions run here; tests step them by hand (never Reset() one that plays).
+class CompassSidebarMotionBrowserTest : public CompassSidebarBrowserTest {
+ protected:
+  CompassSidebarMotionBrowserTest()
+      : CompassSidebarBrowserTest(
+            gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED) {}
+};
+
+IN_PROC_BROWSER_TEST_F(CompassSidebarMotionBrowserTest,
+                       SlidesOutWithoutMovingDown) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::Widget* widget = browser_view()->GetWidget();
+  widget->LayoutRootViewIfNecessary();
+  const int expanded_width = region->width();
+  const gfx::Rect page = sidebar()->GetBoundsInScreen();
+  ASSERT_FALSE(page.IsEmpty());
+
+  auto container = base::MakeRefCounted<gfx::AnimationContainer>();
+  auto* controller = BrowserAnimationController::From(browser());
+  controller->SetAnimationContainerForTesting(
+      TabStripAnimations::kVerticalTabStrip, container.get());
+  gfx::AnimationContainerTestApi test_api(container.get());
+
+  region->RequestCollapse(true);
+  ASSERT_TRUE(controller->IsAnimating(TabStripAnimations::kVerticalTabStrip));
+  bool went_below_snap = false;
+  for (int step = 0;
+       step < 100 &&
+       controller->IsAnimating(TabStripAnimations::kVerticalTabStrip);
+       ++step) {
+    test_api.IncrementTime(base::Milliseconds(10));
+    widget->LayoutRootViewIfNecessary();
+    if (!sidebar()->IsDrawn()) {
+      continue;
+    }
+    SCOPED_TRACE(testing::Message() << "region width " << region->width());
+    went_below_snap |=
+        region->width() < VerticalTabStripRegionView::kCollapseSnapWidth;
+    const gfx::Rect now = sidebar()->GetBoundsInScreen();
+    EXPECT_EQ(now.y(), page.y());
+    EXPECT_EQ(now.height(), page.height());
+    EXPECT_EQ(now.width(), page.width());
+    EXPECT_EQ(now.right() - page.right(), region->width() - expanded_width);
+  }
+  EXPECT_TRUE(went_below_snap);
+  EXPECT_FALSE(controller->IsAnimating(TabStripAnimations::kVerticalTabStrip));
+  widget->LayoutRootViewIfNecessary();
+  EXPECT_EQ(region->width(), kCollapsedSidebarWidth);
+  EXPECT_FALSE(sidebar()->IsDrawn());
 }
 
 // The page sits in a round-cornered card inside a frame of the space's color,

@@ -428,7 +428,7 @@ compass-sidebar-preview[side='next'] {
   /* Emoji glyphs sit a little low in their line. */
   transform: translateY(-0.5px);
   /* The glyph itself, over a shadow that's its silhouette. Hiding the glyph
-   * with the fill color, not `color`, keeps currentColor the text's. */
+   * with the fill color, not color, keeps currentColor the text's. */
   -webkit-text-fill-color: currentColor;
   text-shadow: 0 0 0 transparent;
   transition: -webkit-text-fill-color 240ms ease-out,

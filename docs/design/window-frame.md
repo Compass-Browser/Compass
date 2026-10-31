@@ -81,7 +81,10 @@ while the width animates, the region gives its header and its contents
 (the sidebar page) their expanded width, shifted left by what the region
 lacks (`compass::GetSidebarSlideOffset()`, region `.cc` patch in
 `CalculateProposedLayout()`), so they move out of the window's leading
-edge, or in, at one size. Closing, they also fade with the width
+edge, or in, at one size. The header is also measured at that width:
+measured at the shrinking one, it took its taller collapsed layout (upstream
+switches below `kCollapseSnapWidth`) halfway through and the page jumped
+down. Closing, they also fade with the width
 (`compass::FadeSidebarContents()`, from the region's `Layout()`); they get
 a layer only while fading. The page card grows and shrinks with the region
 as before.
@@ -111,7 +114,7 @@ area, for hovering.
 Browser tests: `WindowFrame` (card insets and corners; the frame tint
 matches the region's; the frame drags and the page doesn't; collapsed, the
 region is the frame's edge, the card has the frame all round, and the
-caption buttons hide until expanded), `CollapsesAndResizes` (collapsed
+caption buttons hide until expanded), `CompassSidebarMotionBrowserTest.SlidesOutWithoutMovingDown` (steps the close: the page keeps its y and size), `CollapsesAndResizes` (collapsed
 width, the sidebar hidden and shown again). Header tests: collapsed, no
 controls or content setting icons are drawn; a bubble anchored to an
 extension button or to the pill expands the collapsed sidebar; page info
