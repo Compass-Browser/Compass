@@ -3,18 +3,19 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# Creates a self-signed code signing identity, "Strata Dev Signing" (named
-# before the project became Compass; existing keychains have it), in the
-# login keychain. `compass build` and `compass test` sign compass_browsertests
-# with it after each build, so macOS keeps the "removable volume" permission
-# across relinks instead of asking again (it remembers an ad-hoc signed
-# binary by its hash, which changes on every link). Run once, on macOS.
+# Creates a self-signed code signing identity, "Compass Dev Signing", in the
+# login keychain (`compass` still uses an older "Strata Dev Signing" when it
+# finds no Compass one). `compass build` and `compass test` sign
+# compass_browsertests with it after each build, so macOS keeps the
+# "removable volume" permission across relinks instead of asking again (it
+# remembers an ad-hoc signed binary by its hash, which changes on every
+# link). Run once, on macOS.
 
 set -eu
 # The system LibreSSL: a Homebrew OpenSSL 3 writes .p12 files that
 # `security import` rejects.
 
-NAME="Strata Dev Signing"
+NAME="Compass Dev Signing"
 if security find-certificate -c "$NAME" >/dev/null 2>&1; then
   echo "\"$NAME\" is already in the keychain."
   exit 0

@@ -18,9 +18,9 @@ from .process import CommandError, depot_tool, run
 DEFAULT_TARGET = 'chrome'
 TEST_TARGET = 'compass_unittests'
 BROWSER_TEST_TARGET = 'compass_browsertests'
-# Created by tools/setup_dev_signing.sh.
-# Named before the project became Compass; existing keychains have it.
-DEV_SIGNING_IDENTITY = 'Strata Dev Signing'
+# Created by tools/setup_dev_signing.sh, in order of preference. Keychains
+# set up before the project became Compass have only the Strata one.
+DEV_SIGNING_IDENTITIES = ('Compass Dev Signing', 'Strata Dev Signing')
 
 
 def wrapper_python(layout: Layout) -> str:
@@ -172,15 +172,18 @@ def sign_for_tcc(binary: Path) -> None:
   """
   if sys.platform != 'darwin' or not binary.exists():
     return
-  if run(['security', 'find-certificate', '-c', DEV_SIGNING_IDENTITY],
-         binary.parent, check=False, capture=True, quiet=True).returncode != 0:
+  identity = next(
+      (name for name in DEV_SIGNING_IDENTITIES
+       if run(['security', 'find-certificate', '-c', name], binary.parent,
+              check=False, capture=True, quiet=True).returncode == 0), None)
+  if identity is None:
     return
   info = run(['codesign', '-dvv', binary], binary.parent, check=False,
              capture=True, quiet=True)
-  if ('Authority=' + DEV_SIGNING_IDENTITY) in (info.stdout + info.stderr):
+  if ('Authority=' + identity) in (info.stdout + info.stderr):
     return
-  print('signing %s as "%s"' % (binary.name, DEV_SIGNING_IDENTITY))
-  run(['codesign', '--force', '--sign', DEV_SIGNING_IDENTITY, '--identifier',
+  print('signing %s as "%s"' % (binary.name, identity))
+  run(['codesign', '--force', '--sign', identity, '--identifier',
        binary.name, binary], binary.parent)
 
 
