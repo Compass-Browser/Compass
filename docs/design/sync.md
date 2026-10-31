@@ -1,7 +1,7 @@
 # Sync between devices
 
-Status: slices 0, 1, 2, 2b, 3, 3b and 4 done and merged into `sync-main`
-(MacBook runs in each slice's notes); 6 (push) next, then 5 (profiles). Based on Chromium
+Status: slices 0, 1, 2, 2b, 3, 3b, 4 and 6 done and merged into `sync-main`
+(MacBook runs in each slice's notes); 5 (profiles) next, then 7. Based on Chromium
 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
@@ -16,14 +16,13 @@ Read this first when resuming the sync work.
 
 | Branch | State |
 |---|---|
-| `sync-main` (`001b2f1`+) | slices 0, 1, 2, 2b, 3, 3b, 4 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
+| `sync-main` | slices 0, 1, 2, 2b, 3, 3b, 4, 6 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
 | `sync/slice-4-ui` (`41ae636`) | merged (resume, 31 Oct night): MacBook run passed, see "Slice 4 notes" |
 | `sync/slice-5-profiles` (`cb13f65`) | profiles; never built; merge sync-main (after slice 4) into it before its run: overlaps slice 4 in compass_sync_service, sync_controller, the mojom, page handler, compass_sync.{html,ts}, pairing |
-| `sync/slice-6-push` (`1990840`) | push (SSE); never built; no patches; Go tests pass; small overlap with 4 in server/server/server.go and compass_sync_service |
+| `sync/slice-6-push` (`02cfe61`) | merged: MacBook run passed, see "Slice 6 notes"; the sync server runs its server (5bfecb7) |
 
-**Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → merge sync-main
-into 6, deploy the combined server (the sync server, and the Mac mini if it's up),
-run 6 → merge 6 → merge sync-main into 5, run 5 → merge 5 → slice 7.
+**Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → ~~merge sync-main
+into 6, deploy the combined server, run 6 → merge 6~~ (done) → merge sync-main into 5, run 5 → merge 5 → slice 7.
 
 **MacBook:** session "Chromium fetch and compass build" (Remote Control),
 repo `~/Developer/compass-build/compass`, tests in out/Debug only, out/Fast
@@ -1195,6 +1194,23 @@ device holds one HTTP connection open (HTTP/2 through Caddy shares it with
 sync requests). Today and title throttling (3b) still applies on the
 sending side: a tab's content change can wait up to 10 s before it's
 committed, and only then announced.
+
+**MacBook run (1 Nov, against sync.example.org).** The first build
+(5bfecb7) failed: an unused `offline_`, a protected fixture helper called
+from `FakeStream`, an incomplete `WeakWrapperSharedURLLoaderFactory` (fixed
+in 0cf7beb). Two unit tests then failed because `compass_unittests`
+already has a global `TestNetworkConnectionTracker` and the fixture made a
+second one (6e24c9e); `wait_bookmark.js` polled `getTree()`, the page's
+load-time snapshot, and never saw a synced bookmark (02cfe61: listens to
+`onCreated`). At 02cfe61 all 26 `CompassSyncNotifier*` tests pass. Times
+from A's change to B having it, no manual refresh: bookmarks 1.15-1.18 s
+(B logs "changed" 0.1-0.3 s after A's add, "refresh" ~250 ms later),
+pinned 1.21-1.29 s, Today 1.20-1.28 s. A logs no "changed" for its own
+commits. Outage (the sync server container stopped 30 s, Caddy up): both streams
+closed at the stop, then "HTTP 502" with backoff 1, 1.8, 3.5, 8, 15, 31 s
+(jittered), "connected" 24-31 s after the server came back, then one
+refresh of all types; changes after it took 1.15 s (bookmark) and 1.25 s
+(pinned). No crashes or DCHECKs; no errors in the server log.
 
 ### Change notifications
 
