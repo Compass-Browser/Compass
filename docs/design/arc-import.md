@@ -123,6 +123,22 @@ drop get added to Compass before the import is finished. From Arc's files:
   (7). On the user's Arc it finds 4 spaces in 3 profiles, 61 tabs in spaces
   and 2 favorites: all 63 tabs of the file (checked with the opt-in
   `ArcSidebarTest.DISABLED_RealSidebar`).
+- Slice 2 (profile copy) done: `compass::arc::CopyProfile()` copies an Arc
+  profile folder and its disk cache into a new folder (never over an
+  existing one; removed again on failure), without locks, logs and Arc's
+  open windows (`Sessions`, `Current/Last Session/Tabs`), then re-encrypts
+  every "v10" value of `Cookies`, `Login Data`, `Login Data For Account`,
+  `Web Data` and `Account Web Data` (any table, any column, so new
+  encrypted columns come along). Cookies that don't decrypt are deleted;
+  other values are left as they were. `ChromiumMacCipher` is Chromium's
+  macOS scheme for Arc's side (a one-line `crypto/subtle_passkey.h` patch
+  lets Compass derive the key). The databases are opened with upstream's
+  "FirefoxImporter" metrics tag. `ChromiumMacCipherTest.*`,
+  `ProfileCopyTest.*` (4).
+- Next (2b): Arc's Keychain password, Compass's encryptor
+  (`os_crypt_async`), Arc's signed preferences (`Secure Preferences` MACs
+  don't validate in Compass, which would reset protected settings and
+  extensions), and a run on a copy of a real Arc profile.
 
 ## Open questions
 

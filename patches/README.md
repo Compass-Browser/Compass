@@ -43,6 +43,7 @@ nothing else.
 | Patch | Why |
 |---|---|
 | `BUILD.gn.patch` | Adds `//compass:compass_unittests` to `gn_all` |
+| `crypto-subtle_passkey.h.patch` | Lets `compass::arc::MakeCryptoPassKey()` call the PBKDF2 key derivation, to decrypt Arc's data with Chromium's macOS parameters (docs/design/arc-import.md) |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
 | `tools-grit-grit_rule.gni.patch` | The `grit` template builds the Chromium-branded strings in `compass_rebranded_grds` from renamed copies (`//compass/strings`), with their start IDs from `gen/compass/strings/resource_ids` (docs/design/branding.md) |
 | `.gn.patch` | Lets `//compass/strings/BUILD.gn` call `exec_script` (it lists the copies it writes) |

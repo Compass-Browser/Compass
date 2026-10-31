@@ -5,8 +5,16 @@
 # Import from Arc (docs/design/arc-import.md).
 source_set("arc_import") {
   sources = [
+    "arc_crypto.cc",
+    "arc_crypto.h",
     "arc_sidebar.cc",
     "arc_sidebar.h",
+    "profile_copy.cc",
+    "profile_copy.h",
+  ]
+  deps = [
+    "//crypto",
+    "//sql",
   ]
   public_deps = [
     "//base",
@@ -17,10 +25,15 @@ source_set("arc_import") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "arc_sidebar_unittest.cc" ]
+  sources = [
+    "arc_sidebar_unittest.cc",
+    "profile_copy_unittest.cc",
+  ]
   deps = [
     ":arc_import",
     "//base",
+    "//base/test:test_support",
+    "//sql",
     "//testing/gtest",
   ]
 }
