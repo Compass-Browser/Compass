@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/brave/go-sync/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,8 +31,8 @@ func TestIsNewClientAndPollOrigin(t *testing.T) {
 
 func TestShouldFetchFolders(t *testing.T) {
 	assert.True(t, shouldFetchFolders(&sync_pb.GetUpdatesMessage{}))
-	assert.True(t, shouldFetchFolders(&sync_pb.GetUpdatesMessage{FetchFolders: aws.Bool(true)}))
-	assert.False(t, shouldFetchFolders(&sync_pb.GetUpdatesMessage{FetchFolders: aws.Bool(false)}))
+	assert.True(t, shouldFetchFolders(&sync_pb.GetUpdatesMessage{FetchFolders: ptr.Bool(true)}))
+	assert.False(t, shouldFetchFolders(&sync_pb.GetUpdatesMessage{FetchFolders: ptr.Bool(false)}))
 }
 
 func TestProgressMarkerToken(t *testing.T) {
@@ -61,11 +61,11 @@ func TestAppendGetUpdatesEntities(t *testing.T) {
 	mtime := int64(42)
 	entities := []datastore.SyncEntity{{
 		ID:      "id1",
-		Version: aws.Int64(1),
+		Version: ptr.Int64(1),
 		Mtime:   &mtime,
-		Ctime:   aws.Int64(1),
-		Deleted: aws.Bool(false),
-		Folder:  aws.Bool(false),
+		Ctime:   ptr.Int64(1),
+		Deleted: ptr.Bool(false),
+		Folder:  ptr.Bool(false),
 	}}
 	rsp := &sync_pb.GetUpdatesResponse{
 		Entries:           make([]*sync_pb.SyncEntity, 0, 10),
@@ -94,7 +94,7 @@ func TestMaybeSetupNewClient_Skip(t *testing.T) {
 }
 
 func TestMaybeSetTypeMtime(t *testing.T) {
-	c := cache.NewCache(cache.NewRedisClient())
+	c := cache.NewCache(cache.NewMemoryClient())
 	t.Cleanup(func() {
 		require.NoError(t, c.FlushAll(context.Background()))
 	})

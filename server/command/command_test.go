@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/brave/go-sync/ptr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -31,8 +31,8 @@ const (
 type CommandTestSuite struct {
 	suite.Suite
 
-	dynamo *datastore.Dynamo
-	cache  *cache.Cache
+	db    *datastore.SQLite
+	cache *cache.Cache
 }
 
 type PBSyncAttrs struct {
@@ -69,22 +69,21 @@ func NewPBSyncAttrs(
 }
 
 func (suite *CommandTestSuite) SetupSuite() {
-	datastore.Table = "client-entity-test-command" //nolint:reassign // acceptable for tests
 	var err error
-	suite.dynamo, err = datastore.NewDynamo()
-	suite.Require().NoError(err, "Failed to get dynamoDB session")
+	suite.db, err = datastoretest.NewSQLite(suite.T().TempDir())
+	suite.Require().NoError(err, "Failed to open SQLite datastore")
 
-	suite.cache = cache.NewCache(cache.NewRedisClient())
+	suite.cache = cache.NewCache(cache.NewMemoryClient())
 }
 
 func (suite *CommandTestSuite) SetupTest() {
 	suite.Require().NoError(
-		datastoretest.ResetTable(suite.dynamo), "Failed to reset table")
+		datastoretest.ResetTable(suite.db), "Failed to reset table")
 }
 
 func (suite *CommandTestSuite) TearDownTest() {
 	suite.Require().NoError(
-		datastoretest.DeleteTable(suite.dynamo), "Failed to delete table")
+		datastoretest.DeleteTable(suite.db), "Failed to delete table")
 	suite.Require().NoError(
 		suite.cache.FlushAll(context.Background()), "Failed to clear cache")
 }
@@ -118,26 +117,26 @@ func getDeviceInfoSpecifics() *sync_pb.EntitySpecifics {
 
 func getCommitEntity(id string, version int64, deleted bool, specifics *sync_pb.EntitySpecifics) *sync_pb.SyncEntity {
 	return &sync_pb.SyncEntity{
-		IdString:  aws.String(id),
-		Name:      aws.String(id),
-		Version:   aws.Int64(version),
-		Deleted:   aws.Bool(deleted),
-		Folder:    aws.Bool(false),
+		IdString:  ptr.String(id),
+		Name:      ptr.String(id),
+		Version:   ptr.Int64(version),
+		Deleted:   ptr.Bool(deleted),
+		Folder:    ptr.Bool(false),
 		Specifics: specifics,
 	}
 }
 
 func getClientCommand() *sync_pb.ClientCommand {
 	return &sync_pb.ClientCommand{
-		SetSyncPollInterval: aws.Int32(command.SetSyncPollInterval),
-		MaxCommitBatchSize:  aws.Int32(command.MaxCommitBatchSize),
+		SetSyncPollInterval: ptr.Int32(command.SetSyncPollInterval),
+		MaxCommitBatchSize:  ptr.Int32(command.MaxCommitBatchSize),
 	}
 }
 
 func getClientToServerCommitMsg(entries []*sync_pb.SyncEntity) *sync_pb.ClientToServerMessage {
 	commitMsg := &sync_pb.CommitMessage{
 		Entries:   entries,
-		CacheGuid: aws.String(cacheGUID),
+		CacheGuid: ptr.String(cacheGUID),
 	}
 	contents := sync_pb.ClientToServerMessage_COMMIT
 	return &sync_pb.ClientToServerMessage{
@@ -154,7 +153,7 @@ func getMarker(suite *CommandTestSuite, tokens []int64) []*sync_pb.DataTypeProgr
 		tokenBytes := make([]byte, binary.MaxVarintLen64)
 		binary.PutVarint(tokenBytes, token)
 		marker = append(marker, &sync_pb.DataTypeProgressMarker{
-			DataTypeId: aws.Int32(types[i]), Token: tokenBytes})
+			DataTypeId: ptr.Int32(types[i]), Token: tokenBytes})
 	}
 	return marker
 }
@@ -163,7 +162,7 @@ func getClientToServerGUMsg(marker []*sync_pb.DataTypeProgressMarker,
 	origin sync_pb.SyncEnums_GetUpdatesOrigin, fetchFolders bool,
 	_ *int32) *sync_pb.ClientToServerMessage {
 	guMsg := &sync_pb.GetUpdatesMessage{
-		FetchFolders:       aws.Bool(fetchFolders),
+		FetchFolders:       ptr.Bool(fetchFolders),
 		FromProgressMarker: marker,
 		GetUpdatesOrigin:   &origin,
 	}
@@ -236,7 +235,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_Basic() {
 
 	// Commit and check response.
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 2)
@@ -256,15 +255,15 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_Basic() {
 		marker, sync_pb.SyncEnums_GU_TRIGGER, false, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 
 	expectedPBSyncAttrs := []*PBSyncAttrs{
-		NewPBSyncAttrs(entries[0].Name, &commitVersions[0], aws.Bool(false),
-			aws.Bool(false), nil, getBookmarkSpecifics()),
-		NewPBSyncAttrs(entries[1].Name, &commitVersions[1], aws.Bool(false),
-			aws.Bool(false), nil, getNigoriSpecifics()),
+		NewPBSyncAttrs(entries[0].Name, &commitVersions[0], ptr.Bool(false),
+			ptr.Bool(false), nil, getBookmarkSpecifics()),
+		NewPBSyncAttrs(entries[1].Name, &commitVersions[1], ptr.Bool(false),
+			ptr.Bool(false), nil, getNigoriSpecifics()),
 	}
 	newMarker := marker // Initialize expected NewProgressMarker with tokens = 0.
 	assertGetUpdatesResponse(suite, rsp.GetUpdates, &newMarker, expectedPBSyncAttrs, 0)
@@ -280,7 +279,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_Basic() {
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 
@@ -302,19 +301,19 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_Basic() {
 		marker, sync_pb.SyncEnums_GU_TRIGGER, false, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 
 	expectedPBSyncAttrs = []*PBSyncAttrs{
-		NewPBSyncAttrs(entries[0].Name, &commitVersions[0], aws.Bool(true),
-			aws.Bool(false), nil, getBookmarkSpecifics()),
-		NewPBSyncAttrs(entries[1].Name, &commitVersions[1], aws.Bool(true),
-			aws.Bool(false), nil, getNigoriSpecifics()),
-		NewPBSyncAttrs(entries[2].Name, &commitVersions[2], aws.Bool(false),
-			aws.Bool(false), nil, getBookmarkSpecifics()),
-		NewPBSyncAttrs(entries[3].Name, &commitVersions[3], aws.Bool(false),
-			aws.Bool(false), nil, getNigoriSpecifics()),
+		NewPBSyncAttrs(entries[0].Name, &commitVersions[0], ptr.Bool(true),
+			ptr.Bool(false), nil, getBookmarkSpecifics()),
+		NewPBSyncAttrs(entries[1].Name, &commitVersions[1], ptr.Bool(true),
+			ptr.Bool(false), nil, getNigoriSpecifics()),
+		NewPBSyncAttrs(entries[2].Name, &commitVersions[2], ptr.Bool(false),
+			ptr.Bool(false), nil, getBookmarkSpecifics()),
+		NewPBSyncAttrs(entries[3].Name, &commitVersions[3], ptr.Bool(false),
+			ptr.Bool(false), nil, getNigoriSpecifics()),
 	}
 	newMarker = marker // Initialize expected NewProgressMarker with FromProgressMarker.
 	assertGetUpdatesResponse(suite, rsp.GetUpdates, &newMarker, expectedPBSyncAttrs, 0)
@@ -327,7 +326,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_Basic() {
 	msg = getClientToServerCommitMsg(entries)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 2)
@@ -343,7 +342,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_Basic() {
 		marker, sync_pb.SyncEnums_GU_TRIGGER, false, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 
@@ -360,26 +359,26 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_NewClient() {
 	rsp := &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 
 	// Prepare expected sync entity attributes.
 	expectedPBSyncAttrs := []*PBSyncAttrs{
-		NewPBSyncAttrs(aws.String(command.NigoriName), aws.Int64(1),
-			aws.Bool(false), aws.Bool(true), aws.String(command.NigoriTag),
+		NewPBSyncAttrs(ptr.String(command.NigoriName), ptr.Int64(1),
+			ptr.Bool(false), ptr.Bool(true), ptr.String(command.NigoriTag),
 			getNigoriSpecifics()),
-		NewPBSyncAttrs(aws.String(command.BookmarksName), aws.Int64(1),
-			aws.Bool(false), aws.Bool(true), aws.String(command.BookmarksTag),
+		NewPBSyncAttrs(ptr.String(command.BookmarksName), ptr.Int64(1),
+			ptr.Bool(false), ptr.Bool(true), ptr.String(command.BookmarksTag),
 			getBookmarkSpecifics()),
-		NewPBSyncAttrs(aws.String(command.OtherBookmarksName), aws.Int64(1),
-			aws.Bool(false), aws.Bool(true), aws.String(command.OtherBookmarksTag),
+		NewPBSyncAttrs(ptr.String(command.OtherBookmarksName), ptr.Int64(1),
+			ptr.Bool(false), ptr.Bool(true), ptr.String(command.OtherBookmarksTag),
 			getBookmarkSpecifics()),
-		NewPBSyncAttrs(aws.String(command.SyncedBookmarksName), aws.Int64(1),
-			aws.Bool(false), aws.Bool(true), aws.String(command.SyncedBookmarksTag),
+		NewPBSyncAttrs(ptr.String(command.SyncedBookmarksName), ptr.Int64(1),
+			ptr.Bool(false), ptr.Bool(true), ptr.String(command.SyncedBookmarksTag),
 			getBookmarkSpecifics()),
-		NewPBSyncAttrs(aws.String(command.BookmarkBarName), aws.Int64(1),
-			aws.Bool(false), aws.Bool(true), aws.String(command.BookmarkBarTag),
+		NewPBSyncAttrs(ptr.String(command.BookmarkBarName), ptr.Int64(1),
+			ptr.Bool(false), ptr.Bool(true), ptr.String(command.BookmarkBarTag),
 			getBookmarkSpecifics()),
 	}
 	newMarker := marker // Initialize expected NewProgressMarker with tokens = 0.
@@ -412,7 +411,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_DeviceLimitExceed
 			rsp := &sync_pb.ClientToServerResponse{}
 
 			suite.Require().NoError(
-				command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, testCase.clientID),
+				command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, testCase.clientID),
 				"HandleClientToServerMessage should succeed for device %d", i)
 			suite.Equal(sync_pb.SyncEnums_SUCCESS, *rsp.ErrorCode, "device %d should succeed", i)
 			suite.NotNil(rsp.GetUpdates, "device %d should have GetUpdates response", i)
@@ -422,7 +421,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_DeviceLimitExceed
 			commitMsg := getClientToServerCommitMsg([]*sync_pb.SyncEntity{deviceEntry})
 			commitRsp := &sync_pb.ClientToServerResponse{}
 			suite.Require().NoError(
-				command.HandleClientToServerMessage(context.Background(), suite.cache, commitMsg, commitRsp, suite.dynamo, testCase.clientID),
+				command.HandleClientToServerMessage(context.Background(), suite.cache, commitMsg, commitRsp, suite.db, testCase.clientID),
 				"Commit device info should succeed for device %d", i)
 			suite.Equal(
 				sync_pb.SyncEnums_SUCCESS,
@@ -435,7 +434,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_DeviceLimitExceed
 		// should get THROTTLED error when device limit is exceeded
 		rsp := &sync_pb.ClientToServerResponse{}
 		suite.Require().NoError(
-			command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, testCase.clientID),
+			command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, testCase.clientID),
 			"HandleClientToServerMessage should succeed")
 		suite.Equal(sync_pb.SyncEnums_THROTTLED, *rsp.ErrorCode, "errorCode should be THROTTLED")
 		suite.Require().NotNil(rsp.ErrorMessage, "error message should be present")
@@ -456,7 +455,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_GUBatchSize() {
 
 	// Commit and check response.
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 4)
@@ -480,7 +479,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_QuotaLimit() {
 	rsp := &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 2)
@@ -505,7 +504,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_QuotaLimit() {
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 4)
@@ -526,7 +525,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_QuotaLimit() {
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 2)
@@ -543,7 +542,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_QuotaLimit() {
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 2)
@@ -563,7 +562,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_QuotaLimit() {
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 4)
@@ -585,7 +584,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_ReplaceParentIDTo
 	msg := getClientToServerCommitMsg([]*sync_pb.SyncEntity{child0})
 	rsp := &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 1)
@@ -596,15 +595,15 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_ReplaceParentIDTo
 
 	// Commit parents with its child bookmarks in one commit request.
 	parent1 := getCommitEntity("id_parent", 0, false, getBookmarkSpecifics())
-	parent1.Folder = aws.Bool(true)
+	parent1.Folder = ptr.Bool(true)
 	child1 := getCommitEntity("id_child", 0, false, getBookmarkSpecifics())
-	child1.ParentIdString = aws.String("id_parent")
+	child1.ParentIdString = ptr.String("id_parent")
 	parent2 := getCommitEntity("id_parent2", 0, false, getBookmarkSpecifics())
-	parent2.Folder = aws.Bool(true)
+	parent2.Folder = ptr.Bool(true)
 	child2 := getCommitEntity("id_child2", 0, false, getBookmarkSpecifics())
-	child2.ParentIdString = aws.String("id_parent")
+	child2.ParentIdString = ptr.String("id_parent")
 	child3 := getCommitEntity("id_child3", 0, false, getBookmarkSpecifics())
-	child3.ParentIdString = aws.String("id_parent2")
+	child3.ParentIdString = ptr.String("id_parent2")
 
 	updateChild0 := getCommitEntity(
 		*rsp.Commit.Entryresponse[0].IdString,
@@ -612,14 +611,14 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_ReplaceParentIDTo
 		false,
 		getBookmarkSpecifics(),
 	)
-	updateChild0.ParentIdString = aws.String("id_parent")
+	updateChild0.ParentIdString = ptr.String("id_parent")
 
 	entries := []*sync_pb.SyncEntity{parent1, child1, parent2, child2, child3, updateChild0}
 	msg = getClientToServerCommitMsg(entries)
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 6)
@@ -634,7 +633,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_ReplaceParentIDTo
 		marker, sync_pb.SyncEnums_GU_TRIGGER, true, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 	suite.Require().Len(rsp.GetUpdates.Entries, 6)
@@ -665,7 +664,7 @@ func insertSyncEntitiesWithoutUpdateCache(
 	for _, entry := range entries {
 		dbEntry, err := datastore.CreateDBSyncEntity(entry, nil, clientID)
 		suite.Require().NoError(err, "Create db entity from pb entity should succeed")
-		_, err = suite.dynamo.InsertSyncEntity(context.Background(), dbEntry)
+		_, err = suite.db.InsertSyncEntity(context.Background(), dbEntry)
 		suite.Require().NoError(err, "Insert sync entity should succeed")
 		val, err := suite.cache.Get(context.Background(),
 			clientID+"#"+strconv.Itoa(*dbEntry.DataType), false)
@@ -689,7 +688,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ba
 	rsp := &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 3)
@@ -730,7 +729,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ba
 		marker, sync_pb.SyncEnums_PERIODIC, false, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 	suite.Empty(rsp.GetUpdates.Entries)
@@ -753,7 +752,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ba
 	rsp = &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 1)
@@ -771,7 +770,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ba
 		marker, sync_pb.SyncEnums_PERIODIC, false, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 	suite.Len(rsp.GetUpdates.Entries, 2)
@@ -792,7 +791,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Sk
 	rsp := &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 1)
@@ -819,7 +818,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Sk
 		marker, sync_pb.SyncEnums_GU_TRIGGER, true, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 	suite.Require().Len(rsp.GetUpdates.Entries, 1)
@@ -838,7 +837,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ch
 	rsp := &sync_pb.ClientToServerResponse{}
 
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, true)
 	suite.Len(rsp.Commit.Entryresponse, 2)
@@ -861,7 +860,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ch
 		marker, sync_pb.SyncEnums_PERIODIC, true, &clientBatch)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 	suite.Require().Len(rsp.GetUpdates.Entries, 2)
@@ -878,7 +877,7 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_TypeMtimeCache_Ch
 		marker, sync_pb.SyncEnums_PERIODIC, true, nil)
 	rsp = &sync_pb.ClientToServerResponse{}
 	suite.Require().NoError(
-		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.dynamo, clientID),
+		command.HandleClientToServerMessage(context.Background(), suite.cache, msg, rsp, suite.db, clientID),
 		"HandleClientToServerMessage should succeed")
 	assertCommonResponse(suite, rsp, false)
 	suite.Require().Len(rsp.GetUpdates.Entries, 1)

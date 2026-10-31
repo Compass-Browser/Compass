@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/brave/go-sync/ptr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -32,7 +32,7 @@ type GetUpdatesTestSuite struct {
 }
 
 func (suite *GetUpdatesTestSuite) SetupSuite() {
-	suite.cache = cache.NewCache(cache.NewRedisClient())
+	suite.cache = cache.NewCache(cache.NewMemoryClient())
 }
 
 func (suite *GetUpdatesTestSuite) TearDownTest() {
@@ -94,7 +94,7 @@ func (suite *GetUpdatesTestSuite) TestHandleGetUpdatesRequest_InvalidToken() {
 		context.Background(),
 		suite.cache,
 		getUpdatesRequest([]*sync_pb.DataTypeProgressMarker{{
-			DataTypeId: aws.Int32(getUpdatesNigoriType),
+			DataTypeId: ptr.Int32(getUpdatesNigoriType),
 			Token:      []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80},
 		}}, nil),
 		rsp,
@@ -111,14 +111,14 @@ func (suite *GetUpdatesTestSuite) TestHandleGetUpdatesRequest_CreatePBSyncEntity
 	db.On("GetUpdatesForType", mock.Anything, int(getUpdatesNigoriType), int64(0), true, "client", getUpdatesDefaultMaxSize).
 		Return(false, []datastore.SyncEntity{{
 			ID:        "nigori",
-			Version:   aws.Int64(1),
+			Version:   ptr.Int64(1),
 			Mtime:     &mtime,
 			Specifics: []byte("not-valid-protobuf"),
 		}}, nil)
 
 	rsp := suite.handleGetUpdates(
 		getUpdatesRequest([]*sync_pb.DataTypeProgressMarker{{
-			DataTypeId: aws.Int32(getUpdatesNigoriType),
+			DataTypeId: ptr.Int32(getUpdatesNigoriType),
 			Token:      tokenBytes(0),
 		}}, nil),
 		db,
@@ -137,7 +137,7 @@ func (suite *GetUpdatesTestSuite) TestHandleGetUpdatesRequest_GetUpdatesForTypeE
 
 	rsp := suite.handleGetUpdates(
 		getUpdatesRequest([]*sync_pb.DataTypeProgressMarker{{
-			DataTypeId: aws.Int32(getUpdatesNigoriType),
+			DataTypeId: ptr.Int32(getUpdatesNigoriType),
 			Token:      tokenBytes(0),
 		}}, nil),
 		db,
@@ -159,7 +159,7 @@ func (suite *GetUpdatesTestSuite) TestHandleGetUpdatesRequest_NigoriRootNotReady
 	origin := sync_pb.SyncEnums_NEW_CLIENT
 	rsp := suite.handleGetUpdates(
 		getUpdatesRequest([]*sync_pb.DataTypeProgressMarker{{
-			DataTypeId: aws.Int32(getUpdatesNigoriType),
+			DataTypeId: ptr.Int32(getUpdatesNigoriType),
 			Token:      tokenBytes(0),
 		}}, &origin),
 		db,
@@ -177,11 +177,11 @@ func (suite *GetUpdatesTestSuite) TestHandleGetUpdatesRequest_SkipTypeWhenBatchF
 		itemMtime := mtime + int64(i)
 		entities[i] = datastore.SyncEntity{
 			ID:      "nigori",
-			Version: aws.Int64(1),
+			Version: ptr.Int64(1),
 			Mtime:   &itemMtime,
-			Ctime:   aws.Int64(1),
-			Deleted: aws.Bool(false),
-			Folder:  aws.Bool(true),
+			Ctime:   ptr.Int64(1),
+			Deleted: ptr.Bool(false),
+			Folder:  ptr.Bool(true),
 		}
 	}
 	db := new(datastoretest.MockDatastore)
@@ -191,8 +191,8 @@ func (suite *GetUpdatesTestSuite) TestHandleGetUpdatesRequest_SkipTypeWhenBatchF
 	bookmarkToken := tokenBytes(3)
 	rsp := suite.handleGetUpdates(
 		getUpdatesRequest([]*sync_pb.DataTypeProgressMarker{
-			{DataTypeId: aws.Int32(getUpdatesNigoriType), Token: tokenBytes(0)},
-			{DataTypeId: aws.Int32(getUpdatesBookmarkType), Token: bookmarkToken},
+			{DataTypeId: ptr.Int32(getUpdatesNigoriType), Token: tokenBytes(0)},
+			{DataTypeId: ptr.Int32(getUpdatesBookmarkType), Token: bookmarkToken},
 		}, nil),
 		db,
 	)

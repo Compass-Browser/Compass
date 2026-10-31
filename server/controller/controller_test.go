@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/brave/go-sync/ptr"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 
@@ -25,27 +25,26 @@ import (
 type ControllerTestSuite struct {
 	suite.Suite
 
-	dynamo *datastore.Dynamo
-	cache  *cache.Cache
+	db    *datastore.SQLite
+	cache *cache.Cache
 }
 
 func (suite *ControllerTestSuite) SetupSuite() {
-	datastore.Table = "client-entity-test-controllor" //nolint:reassign // acceptable for tests
 	var err error
-	suite.dynamo, err = datastore.NewDynamo()
-	suite.Require().NoError(err, "Failed to get dynamoDB session")
+	suite.db, err = datastoretest.NewSQLite(suite.T().TempDir())
+	suite.Require().NoError(err, "Failed to open SQLite datastore")
 
-	suite.cache = cache.NewCache(cache.NewRedisClient())
+	suite.cache = cache.NewCache(cache.NewMemoryClient())
 }
 
 func (suite *ControllerTestSuite) SetupTest() {
 	suite.Require().NoError(
-		datastoretest.ResetTable(suite.dynamo), "Failed to reset table")
+		datastoretest.ResetTable(suite.db), "Failed to reset table")
 }
 
 func (suite *ControllerTestSuite) TearDownTest() {
 	suite.Require().NoError(
-		datastoretest.DeleteTable(suite.dynamo), "Failed to delete table")
+		datastoretest.DeleteTable(suite.db), "Failed to delete table")
 	suite.Require().NoError(
 		suite.cache.FlushAll(context.Background()), "Failed to clear cache")
 }
@@ -57,10 +56,10 @@ func (suite *ControllerTestSuite) TestCommand() {
 	commitMsg := &sync_pb.CommitMessage{
 		Entries: []*sync_pb.SyncEntity{
 			{
-				IdString: aws.String("id"),
-				Version:  aws.Int64(1),
-				Deleted:  aws.Bool(false),
-				Folder:   aws.Bool(false),
+				IdString: ptr.String("id"),
+				Version:  ptr.Int64(1),
+				Deleted:  ptr.Bool(false),
+				Folder:   ptr.Bool(false),
 				Specifics: &sync_pb.EntitySpecifics{
 					SpecificsVariant: &sync_pb.EntitySpecifics_Nigori{
 						Nigori: &sync_pb.NigoriSpecifics{},
@@ -68,13 +67,13 @@ func (suite *ControllerTestSuite) TestCommand() {
 				},
 			},
 		},
-		CacheGuid: aws.String("cache_guid"),
+		CacheGuid: ptr.String("cache_guid"),
 	}
 	commit := sync_pb.ClientToServerMessage_COMMIT
 	msg := &sync_pb.ClientToServerMessage{
 		MessageContents: &commit,
 		Commit:          commitMsg,
-		Share:           aws.String(""),
+		Share:           ptr.String(""),
 	}
 
 	body, err := proto.Marshal(msg)
@@ -84,7 +83,7 @@ func (suite *ControllerTestSuite) TestCommand() {
 	suite.Require().NoError(err, "NewRequest should succeed")
 	req.Header.Set("Authorization", "Bearer token")
 
-	handler := controller.Command(suite.cache, suite.dynamo)
+	handler := controller.Command(suite.cache, suite.db)
 
 	// Test unauthorized response.
 	rr := httptest.NewRecorder()

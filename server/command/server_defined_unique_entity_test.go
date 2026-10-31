@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/brave/go-sync/ptr"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/brave/go-sync/command"
@@ -16,7 +16,7 @@ import (
 type ServerDefinedUniqueEntityTestSuite struct {
 	suite.Suite
 
-	dynamo *datastore.Dynamo
+	db *datastore.SQLite
 }
 
 type SyncAttrs struct {
@@ -30,72 +30,71 @@ type SyncAttrs struct {
 }
 
 func (suite *ServerDefinedUniqueEntityTestSuite) SetupSuite() {
-	datastore.Table = "client-entity-test-command" //nolint:reassign // acceptable for tests
 	var err error
-	suite.dynamo, err = datastore.NewDynamo()
-	suite.Require().NoError(err, "Failed to get dynamoDB session")
+	suite.db, err = datastoretest.NewSQLite(suite.T().TempDir())
+	suite.Require().NoError(err, "Failed to open SQLite datastore")
 }
 
 func (suite *ServerDefinedUniqueEntityTestSuite) SetupTest() {
 	suite.Require().NoError(
-		datastoretest.ResetTable(suite.dynamo), "Failed to reset table")
+		datastoretest.ResetTable(suite.db), "Failed to reset table")
 }
 
 func (suite *ServerDefinedUniqueEntityTestSuite) TearDownTest() {
 	suite.Require().NoError(
-		datastoretest.DeleteTable(suite.dynamo), "Failed to delete table")
+		datastoretest.DeleteTable(suite.db), "Failed to delete table")
 }
 
 func (suite *ServerDefinedUniqueEntityTestSuite) TestInsertServerDefinedUniqueEntities() {
 	suite.Require().NoError(
-		command.InsertServerDefinedUniqueEntities(context.Background(), suite.dynamo, "client1"),
+		command.InsertServerDefinedUniqueEntities(context.Background(), suite.db, "client1"),
 		"InsertServerDefinedUniqueEntities should succeed")
 	suite.Require().NoError(
-		command.InsertServerDefinedUniqueEntities(context.Background(), suite.dynamo, "client1"),
+		command.InsertServerDefinedUniqueEntities(context.Background(), suite.db, "client1"),
 		"InsertServerDefinedUniqueEntities again for a same client should succeed")
 
 	expectedSyncAttrsMap := map[string]*SyncAttrs{
 		command.NigoriTag: {
 			ClientID: "client1",
-			Name:     aws.String(command.NigoriName),
-			DataType: aws.Int(int(nigoriType)),
-			ParentID: aws.String("0"),
-			Version:  aws.Int64(1),
-			Deleted:  aws.Bool(false),
-			Folder:   aws.Bool(true),
+			Name:     ptr.String(command.NigoriName),
+			DataType: ptr.Int(int(nigoriType)),
+			ParentID: ptr.String("0"),
+			Version:  ptr.Int64(1),
+			Deleted:  ptr.Bool(false),
+			Folder:   ptr.Bool(true),
 		},
 		command.BookmarksTag: {
 			ClientID: "client1",
-			Name:     aws.String(command.BookmarksName),
-			DataType: aws.Int(int(bookmarkType)),
-			ParentID: aws.String("0"),
-			Version:  aws.Int64(1),
-			Deleted:  aws.Bool(false),
-			Folder:   aws.Bool(true),
+			Name:     ptr.String(command.BookmarksName),
+			DataType: ptr.Int(int(bookmarkType)),
+			ParentID: ptr.String("0"),
+			Version:  ptr.Int64(1),
+			Deleted:  ptr.Bool(false),
+			Folder:   ptr.Bool(true),
 		},
 		command.OtherBookmarksTag: {
 			ClientID: "client1",
-			Name:     aws.String(command.OtherBookmarksName),
-			DataType: aws.Int(int(bookmarkType)),
-			Version:  aws.Int64(1),
-			Deleted:  aws.Bool(false),
-			Folder:   aws.Bool(true),
+			Name:     ptr.String(command.OtherBookmarksName),
+			DataType: ptr.Int(int(bookmarkType)),
+			Version:  ptr.Int64(1),
+			Deleted:  ptr.Bool(false),
+			Folder:   ptr.Bool(true),
 		},
 		command.SyncedBookmarksTag: {
 			ClientID: "client1",
-			Name:     aws.String(command.SyncedBookmarksName),
-			DataType: aws.Int(int(bookmarkType)),
-			Version:  aws.Int64(1),
-			Deleted:  aws.Bool(false),
-			Folder:   aws.Bool(true),
+			Name:     ptr.String(command.SyncedBookmarksName),
+			DataType: ptr.Int(int(bookmarkType)),
+			Version:  ptr.Int64(1),
+			Deleted:  ptr.Bool(false),
+			Folder:   ptr.Bool(true),
 		},
 		command.BookmarkBarTag: {
 			ClientID: "client1",
-			Name:     aws.String(command.BookmarkBarName),
-			DataType: aws.Int(int(bookmarkType)),
-			Version:  aws.Int64(1),
-			Deleted:  aws.Bool(false),
-			Folder:   aws.Bool(true),
+			Name:     ptr.String(command.BookmarkBarName),
+			DataType: ptr.Int(int(bookmarkType)),
+			Version:  ptr.Int64(1),
+			Deleted:  ptr.Bool(false),
+			Folder:   ptr.Bool(true),
 		},
 	}
 
@@ -105,7 +104,7 @@ func (suite *ServerDefinedUniqueEntityTestSuite) TestInsertServerDefinedUniqueEn
 		expectedTagItems = append(expectedTagItems,
 			datastore.ServerClientUniqueTagItem{ClientID: "client1", ID: "Server#" + key})
 	}
-	tagItems, err := datastoretest.ScanTagItems(suite.dynamo)
+	tagItems, err := datastoretest.ScanTagItems(suite.db)
 	suite.Require().NoError(err, "ScanTagItems should succeed")
 
 	// Check that Ctime and Mtime have been set, reset to zero value for subsequent
@@ -122,7 +121,7 @@ func (suite *ServerDefinedUniqueEntityTestSuite) TestInsertServerDefinedUniqueEn
 	sort.Sort(datastore.TagItemByClientIDID(expectedTagItems))
 	suite.Equal(expectedTagItems, tagItems)
 
-	syncItems, err := datastoretest.ScanSyncEntities(suite.dynamo)
+	syncItems, err := datastoretest.ScanSyncEntities(suite.db)
 	suite.Require().NoError(err, "ScanSyncEntities should succeed")
 
 	// Find bookmark root folder to update parentID of its subfolders.
@@ -158,7 +157,7 @@ func (suite *ServerDefinedUniqueEntityTestSuite) TestInsertServerDefinedUniqueEn
 	suite.Empty(expectedSyncAttrsMap)
 
 	suite.Require().NoError(
-		command.InsertServerDefinedUniqueEntities(context.Background(), suite.dynamo, "client2"),
+		command.InsertServerDefinedUniqueEntities(context.Background(), suite.db, "client2"),
 		"InsertServerDefinedUniqueEntities should succeed for another client")
 }
 

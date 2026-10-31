@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/brave/go-sync/ptr"
 	"github.com/rs/zerolog/log"
 
 	"github.com/brave/go-sync/cache"
@@ -16,10 +18,31 @@ import (
 
 var (
 	// Could be modified in tests.
-	maxGUBatchSize              = 500
-	maxClientObjectQuota        = 50000
+	maxGUBatchSize = 500
+	// Compass: 100k (go-sync: 50k), set from COMPASS_SYNC_MAX_ENTITIES by
+	// LoadQuotaFromEnv. History counts towards it, up to its own quota.
+	maxClientObjectQuota        = DefaultMaxEntities
 	maxClientHistoryObjectQuota = 30000
 )
+
+// DefaultMaxEntities is the default cap on a chain's non-deleted entities.
+const DefaultMaxEntities = 100000
+
+// LoadQuotaFromEnv sets the entity quota from COMPASS_SYNC_MAX_ENTITIES.
+func LoadQuotaFromEnv() {
+	v := os.Getenv("COMPASS_SYNC_MAX_ENTITIES")
+	if v == "" {
+		return
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		log.Error().Str("value", v).Msg("Ignoring invalid COMPASS_SYNC_MAX_ENTITIES")
+		return
+	}
+	maxClientObjectQuota = n
+	// The history quota can't be larger than the whole.
+	maxClientHistoryObjectQuota = min(maxClientHistoryObjectQuota, n)
+}
 
 const (
 	storeBirthday       string = "1"
@@ -401,7 +424,7 @@ func insertCommitEntity(
 	if total >= maxClientObjectQuota+counts.boostedQuota {
 		rspType := sync_pb.CommitResponse_OVER_QUOTA
 		entryRsp.ResponseType = &rspType
-		entryRsp.ErrorMessage = aws.String(
+		entryRsp.ErrorMessage = ptr.String(
 			fmt.Sprintf(
 				"There are already %v non-deleted objects in store",
 				counts.currentNormal+counts.currentHistory,
@@ -418,6 +441,10 @@ func insertCommitEntity(
 	}
 
 	conflict, err := db.InsertSyncEntity(ctx, entity)
+	if errors.Is(err, datastore.ErrQuotaExceeded) {
+		setOverQuota(entryRsp)
+		return true, nil
+	}
 	if err != nil {
 		log.Error().Err(err).Msg("Insert sync entity failed")
 		rspType := sync_pb.CommitResponse_TRANSIENT_ERROR
@@ -425,7 +452,7 @@ func insertCommitEntity(
 			rspType = sync_pb.CommitResponse_CONFLICT
 		}
 		entryRsp.ResponseType = &rspType
-		entryRsp.ErrorMessage = aws.String(fmt.Sprintf("Insert sync entity failed: %v", err.Error()))
+		entryRsp.ErrorMessage = ptr.String(fmt.Sprintf("Insert sync entity failed: %v", err.Error()))
 		return true, nil
 	}
 
@@ -450,11 +477,15 @@ func updateCommitEntity(
 	isHistoryRelatedItem bool,
 ) (bool, error) {
 	conflict, deleted, err := db.UpdateSyncEntity(ctx, entity, oldVersion)
+	if errors.Is(err, datastore.ErrQuotaExceeded) {
+		setOverQuota(entryRsp)
+		return true, nil
+	}
 	if err != nil {
 		log.Error().Err(err).Msg("Update sync entity failed")
 		rspType := sync_pb.CommitResponse_TRANSIENT_ERROR
 		entryRsp.ResponseType = &rspType
-		entryRsp.ErrorMessage = aws.String(fmt.Sprintf("Update sync entity failed: %v", err.Error()))
+		entryRsp.ErrorMessage = ptr.String(fmt.Sprintf("Update sync entity failed: %v", err.Error()))
 		return true, nil
 	}
 	if conflict {
@@ -466,6 +497,14 @@ func updateCommitEntity(
 		return false, adjustInterimCount(ctx, cache, clientID, isHistoryRelatedItem, true, counts)
 	}
 	return false, nil
+}
+
+// setOverQuota answers an entry that would take the chain over its byte
+// quota (Compass: the SQLite store enforces it).
+func setOverQuota(entryRsp *sync_pb.CommitResponse_EntryResponse) {
+	rspType := sync_pb.CommitResponse_OVER_QUOTA
+	entryRsp.ResponseType = &rspType
+	entryRsp.ErrorMessage = ptr.String("The chain is over its storage quota")
 }
 
 func applyBoostedHistoryQuota(counts *commitCountState) {
@@ -509,7 +548,7 @@ func resolveHistoryUpdateOp(
 		log.Error().Err(err).Msg("Insert history sync entity failed")
 		rspType := sync_pb.CommitResponse_TRANSIENT_ERROR
 		entryRsp.ResponseType = &rspType
-		entryRsp.ErrorMessage = aws.String(fmt.Sprintf("Insert history sync entity failed: %v", err.Error()))
+		entryRsp.ErrorMessage = ptr.String(fmt.Sprintf("Insert history sync entity failed: %v", err.Error()))
 		return false, true
 	}
 	return isUpdateOp, false
@@ -532,7 +571,7 @@ func commitEntry(
 	if createErr != nil { // Can't unmarshal & marshal the message from PB into DB format
 		rspType := sync_pb.CommitResponse_INVALID_MESSAGE
 		entryRsp.ResponseType = &rspType
-		entryRsp.ErrorMessage = aws.String(
+		entryRsp.ErrorMessage = ptr.String(
 			fmt.Sprintf("Cannot convert protobuf sync entity to DB format: %v", createErr.Error()),
 		)
 		return nil
@@ -575,7 +614,7 @@ func commitEntry(
 	typeMtimeMap[*entityToCommit.DataType] = *entityToCommit.Mtime
 	rspType := sync_pb.CommitResponse_SUCCESS
 	entryRsp.ResponseType = &rspType
-	entryRsp.IdString = aws.String(entityToCommit.ID)
+	entryRsp.IdString = ptr.String(entityToCommit.ID)
 	entryRsp.Version = entityToCommit.Version
 	entryRsp.Mtime = entityToCommit.Mtime
 	return nil
@@ -718,7 +757,7 @@ func applyHandlerError(pbRsp *sync_pb.ClientToServerResponse, err error, wrapMsg
 		return nil
 	}
 	if pbRsp.ErrorCode != nil {
-		pbRsp.ErrorMessage = aws.String(err.Error())
+		pbRsp.ErrorMessage = ptr.String(err.Error())
 		return nil
 	}
 	// In seldom error cases which are not temporary and will not go away
@@ -739,10 +778,10 @@ func HandleClientToServerMessage(
 ) error {
 	// Create ClientToServerResponse and fill general fields for both GU and
 	// Commit.
-	pbRsp.StoreBirthday = aws.String(storeBirthday)
+	pbRsp.StoreBirthday = ptr.String(storeBirthday)
 	pbRsp.ClientCommand = &sync_pb.ClientCommand{
-		SetSyncPollInterval: aws.Int32(setSyncPollInterval),
-		MaxCommitBatchSize:  aws.Int32(maxCommitBatchSize)}
+		SetSyncPollInterval: ptr.Int32(setSyncPollInterval),
+		MaxCommitBatchSize:  ptr.Int32(maxCommitBatchSize)}
 
 	if pb.MessageContents == nil {
 		return errors.New("nil pb.MessageContents received")

@@ -14,24 +14,23 @@ import (
 type ItemCountTestSuite struct {
 	suite.Suite
 
-	dynamo *datastore.Dynamo
+	db *datastore.SQLite
 }
 
 func (suite *ItemCountTestSuite) SetupSuite() {
-	datastore.Table = "client-entity-test-datastore" //nolint:reassign // acceptable for tests
 	var err error
-	suite.dynamo, err = datastore.NewDynamo()
-	suite.Require().NoError(err, "Failed to get dynamoDB session")
+	suite.db, err = datastoretest.NewSQLite(suite.T().TempDir())
+	suite.Require().NoError(err, "Failed to open SQLite datastore")
 }
 
 func (suite *ItemCountTestSuite) SetupTest() {
 	suite.Require().NoError(
-		datastoretest.ResetTable(suite.dynamo), "Failed to reset table")
+		datastoretest.ResetTable(suite.db), "Failed to reset table")
 }
 
 func (suite *ItemCountTestSuite) TearDownTest() {
 	suite.Require().NoError(
-		datastoretest.DeleteTable(suite.dynamo), "Failed to delete table")
+		datastoretest.DeleteTable(suite.db), "Failed to delete table")
 }
 
 func (suite *ItemCountTestSuite) TestGetClientItemCount() {
@@ -47,17 +46,17 @@ func (suite *ItemCountTestSuite) TestGetClientItemCount() {
 			Version:  datastore.CurrentCountVersion,
 		}
 		suite.Require().NoError(
-			suite.dynamo.UpdateClientItemCount(context.Background(), &existing, item.ItemCount, 0))
+			suite.db.UpdateClientItemCount(context.Background(), &existing, item.ItemCount, 0))
 	}
 
 	for _, item := range items {
-		count, err := suite.dynamo.GetClientItemCount(context.Background(), item.ClientID)
+		count, err := suite.db.GetClientItemCount(context.Background(), item.ClientID)
 		suite.Require().NoError(err, "GetClientItemCount should succeed")
 		suite.Equal(count.ItemCount, item.ItemCount, "ItemCount should match")
 	}
 
 	// Non-exist client item count should succeed with count = 0.
-	count, err := suite.dynamo.GetClientItemCount(context.Background(), "client3")
+	count, err := suite.db.GetClientItemCount(context.Background(), "client3")
 	suite.Require().NoError(err, "Get non-exist ClientItemCount should succeed")
 	suite.Equal(0, count.ItemCount)
 }
@@ -74,13 +73,13 @@ func (suite *ItemCountTestSuite) TestUpdateClientItemCount() {
 	}
 
 	for _, item := range items {
-		count, err := suite.dynamo.GetClientItemCount(context.Background(), item.ClientID)
+		count, err := suite.db.GetClientItemCount(context.Background(), item.ClientID)
 		suite.Require().NoError(err)
 		suite.Require().NoError(
-			suite.dynamo.UpdateClientItemCount(context.Background(), count, item.ItemCount, 0))
+			suite.db.UpdateClientItemCount(context.Background(), count, item.ItemCount, 0))
 	}
 
-	clientCountItems, err := datastoretest.ScanClientItemCounts(suite.dynamo)
+	clientCountItems, err := datastoretest.ScanClientItemCounts(suite.db)
 	suite.Require().NoError(err, "ScanClientItemCounts should succeed")
 	sort.Sort(datastore.ClientItemCountByClientID(clientCountItems))
 	sort.Sort(datastore.ClientItemCountByClientID(expectedItems))
