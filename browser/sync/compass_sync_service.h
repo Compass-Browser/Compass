@@ -152,6 +152,7 @@ class CompassSyncService : public KeyedService,
   void OnProfileNameChanged(const base::FilePath& profile_path,
                             const std::u16string& old_profile_name) override;
   void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
+  void OnProfileWillBeRemoved(const base::FilePath& profile_path) override;
 
  private:
   // SpaceDirectory's observer (a member: SyncController and SpaceDirectory

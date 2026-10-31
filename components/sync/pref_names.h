@@ -41,6 +41,10 @@ inline constexpr char kProfilesPending[] = "compass.sync.profiles_pending";
 // created again.
 inline constexpr char kProfileDirs[] = "compass.sync.profile_dirs";
 
+// Home profile: sync UUIDs of the chain's profiles deleted on this device,
+// which it doesn't create again.
+inline constexpr char kProfilesRemoved[] = "compass.sync.profiles_removed";
+
 }  // namespace compass::sync::prefs
 
 #endif  // COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_

@@ -2,7 +2,8 @@
 
 Status: slices 0, 1, 2, 2b and 3 done and merged into `sync-main`
 (MacBook runs: "Slice 2 run on the MacBook", "Slice 2b notes", "Slice 3
-notes"); 3b (Today and the archive) on `sync/slice-3b-today`. Based on
+notes"); 3b (Today and the archive) on `sync/slice-3b-today`; 5 (profiles)
+on `sync/slice-5-profiles`, MacBook run pending ("Slice 5 notes"). Based on
 Chromium 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
@@ -96,7 +97,8 @@ incoming password sharing. Exact list from the spike (slice 0).
   `HKDF-SHA256(ikm=seed, salt="", info="compass-sync-auth", L=32)` = the
   Ed25519 private seed; `HKDF(..., info="compass-sync-passphrase", L=32)`,
   base64 (standard, padded) = the custom passphrase. Profile accounts
-  (slice 5) append `":" + profile_uuid` to the auth info.
+  (slice 5) append `":" + profile_uuid` to both infos: each has its own
+  account and its own passphrase ("Slice 5 notes").
   Test vectors (`components/sync/chain_unittest.cc`, `bip39_unittest.cc`;
   computed independently with Go's `crypto/hkdf` and `crypto/ed25519`):
 
@@ -108,6 +110,8 @@ incoming password sharing. Exact list from the spike (slice 0).
   | public key = chain ID | `696a94d1a2ebbabf8e5012c07df3c65c7c6beaaf8ccaf4a67e6cdd3da9743467` |
   | passphrase | `xoFg1Bm10gjM8Ahji5ibCeSkV6zo7kZEcjBFP9M8s50=` |
   | auth key, profile `2b5c3e1a-0000-4000-8000-000000000001` | `1b28e57a6e3ca95bc1b4b9c30f10f8d554ef09eed00844b52048aea6d90f4cf4` |
+  | its public key = account ID | `f1fe31e2c21e376e8d3b2ef57560b8466b37486e5fa46cc60bb39f1ea2ec9fab` |
+  | its passphrase | `C89l8oqXaTa997+mU79acx+BGgUNf6YPtMoPU9ODyEc=` |
   | token at ts 1700000000000 | `MzEzNzMwMzAzMDMwMzAzMDMwMzAzMDMwMzB8MkY1REY4REVCNDUwRUJBMTk5MTgxNjdGODZFQjVDOThBRkQxREYyRUI5MTUzQjBDOENGMDQ1RDhGQjZDODk3MERFMjhFOUI0Qzg0QzJCMjUzRDcxMzI4QTVCNUJENzcwNUE0QTQ1QjFCQkVERkJBRjM5MzcyQTA1RTZEOTZCMDV8Njk2QTk0RDFBMkVCQkFCRjhFNTAxMkMwN0RGM0M2NUM3QzZCRUFBRjhDQ0FGNEE2N0U2Q0REM0RBOTc0MzQ2Nw==` |
 
   The recovery code is BIP39 (English list, 128-bit entropy + 4-bit
@@ -190,7 +194,11 @@ message per step:
   32 bytes per subkey).
 - 3: `MAC_b (32) || nonce (12) || AES-256-GCM(K_enc, name, ad="compass-pair-b")`.
 - 4: `MAC_a (32) || verdict (1 byte: 0x01 allow, 0x00 deny)`, then on allow
-  `nonce (12) || AES-256-GCM(K_enc, {"seed": base64(16 bytes), "profiles": []}, ad="compass-pair-a")`.
+  `nonce (12) || AES-256-GCM(K_enc, {"seed": base64(16 bytes), "profiles": [...]}, ad="compass-pair-a")`.
+  Since slice 5, `"profiles"` is the chain's list, `[{"uuid": "<lowercase
+  UUID>", "name": "Work", "avatar": 26, "home": true}, ...]` (`avatar` only
+  if set, `home` only on the home profile); a joiner ignores entries it
+  can't read, and treats an empty list as unknown.
 - `host` in the SPAKE2 names is `GURL::host()` of the server URL each side
   has (no port, lowercase).
 - A doesn't close the slot after sending 4 (B must still read it); B closes
@@ -724,6 +732,197 @@ to the root before their tombstones arrive.
 `last_active_time`) in the same pass and the archive as ARCHIVE entities;
 the TODAY/ARCHIVE handling above then becomes normal placement.
 
+### Slice 5 notes
+
+Branch `sync/slice-5-profiles` (on `sync-main` `63d3418`). Written without
+a build; the MacBook build and run are in
+[sync-slice-5-steps.md](sync-slice-5-steps.md). Every changed C++ file was
+syntax-checked here with the checkout's clang, `out/Debug`'s flags (Chromium
+style and raw_ptr plugins on) and patched copies of the generated headers
+(the sync protos, `data_type.h`, the page's mojom); `compass_sync.ts` was
+type-checked with the checkout's tsc. Nothing was linked or run.
+
+**Accounts.** Every profile the switcher lists (SpaceDirectory) is in the
+chain. The profile that starts or joins it is the **home profile**: its
+account is the chain's own (`compass-sync-auth`, as in slices 2-4, so their
+chains carry on unchanged). Every other profile has its own:
+
+- `compass.sync.profile_uuid`: a random UUID, made once when the profile's
+  `CompassSyncService` is first built (Compass had none: Chromium profiles
+  have no stable ID beyond their directory). Mapping at join replaces it.
+- `compass.sync.profile_account`: true for every profile but the home.
+- Auth key `HKDF(seed, info="compass-sync-auth:" + uuid)`, passphrase
+  `HKDF(seed, info="compass-sync-passphrase:" + uuid)`, base64 as for the
+  chain's. Each profile stores the seed itself (the home's encrypted value,
+  copied: the os_crypt key is the same for every profile), so
+  `SyncCredentials`, `sync_hooks` and the engine are unchanged.
+
+**Passphrase per profile (decided).** Each account derives its own rather
+than sharing the chain's. It costs nothing (one more derivation; each
+profile has its own Nigori anyway) and buys domain separation: an entity
+the server copies from one account into another doesn't decrypt there, so a
+malicious server can't move Work's passwords into Personal or replay one
+account's data into another. It doesn't protect a profile from someone with
+the seed, and isn't meant to: the seed opens every account. Vectors (seed
+`00 01 … 0f`, profile `2b5c3e1a-0000-4000-8000-000000000001`; computed with
+Go's `crypto/hkdf` and `crypto/ed25519`; `ChainTest.ProfileAccountVectors`
+and `ChainTest.DeriveAuthKey`):
+
+| | |
+|---|---|
+| auth key | `1b28e57a6e3ca95bc1b4b9c30f10f8d554ef09eed00844b52048aea6d90f4cf4` |
+| public key = account ID | `f1fe31e2c21e376e8d3b2ef57560b8466b37486e5fa46cc60bb39f1ea2ec9fab` |
+| passphrase | `C89l8oqXaTa997+mU79acx+BGgUNf6YPtMoPU9ODyEc=` |
+
+**The profile list.** The home profile's `COMPASS_SPACES` also has one
+`CompassProfile {uuid, name, avatar, home}` entity per profile of the chain
+(`CompassSpacesSpecifics` oneof field 3; `avatar` is Chromium's default
+avatar icon index + 1; client tag = the UUID). The holder asks the home
+profile's `CompassSyncService` for this device's profiles
+(`GetLocalChainProfiles()`), and hands it every profile entity after a
+remote change (`OnChainProfiles()`). Rules:
+
+- Names and avatars follow the chain: the local profile with a chain
+  profile's UUID takes its name and avatar (no echo: it's done while
+  applying). A rename here commits.
+- Profiles are never deleted through sync: deleting one stays on its
+  device, and a device without a profile doesn't drop it from the list.
+- One home UUID: a home that never published its own takes the chain's (a
+  device joining by recovery code); two published ones (two devices joining
+  at once) keep the smallest, and the other's entity is deleted.
+- A profile of the chain this device doesn't have is **created**
+  (`MissingProfiles`, `CompassProfileCreator`) and listed in the switcher,
+  which keeps it loaded; its account then fills it (its starting "Home"
+  gives way to the account's spaces, as at any initial merge). The device's
+  own new profiles join the chain as new profiles (they sync after a
+  restart, below). `compass.sync.profile_dirs` on the home remembers which
+  directories are the chain's profiles, so one that isn't loaded (no space
+  in the switcher) isn't created again.
+
+**Restart behaviour.** `SyncServiceImpl` reads `kEnableLocalSyncBackend`
+once, when the profile loads (route 2's mode), so a profile already loaded
+when it joins the chain syncs from the next launch, as in slice 2: joining
+or starting the chain (with every listed profile) needs one restart, and a
+profile made locally while syncing ("New profile…") syncs after the next.
+Profiles **created by sync** don't wait: the creator writes the new
+directory's `Preferences` before the profile loads (the seed as the home
+stores it, server, UUID, `profile_account`, `sync.enable_local_sync_backend`
+and its directory), then `ProfileManager::CreateProfileAsync()` loads it,
+so its sync service starts in local-sync mode against its account. So B
+joining by recovery code restarts once and then gets Work, already
+syncing. Ruled out: unloading and reloading a profile to rebuild its sync
+service (the profile's prefs commit and the new instance's read race on
+different sequences, and it needs every keep-alive gone), a pref store hook
+before keyed services (no hook between prefs loading and
+`CreateBrowserContextServices()` without a patch). The cost of pre-written
+prefs: the profile isn't "new" to Chromium (`IsNewProfile()` reads the
+Preferences file's existence), which only affects first-run niceties. If
+the prefs didn't take, the home puts it in the chain the normal way and it
+syncs after a restart.
+
+**Joining with profiles (the mapping step).** The joining profile becomes
+the home here, taking the chain's home UUID. The device's other listed
+profiles are mapped to the chain's: each takes over one (its UUID, so its
+account; the user's choice) or joins as a new one. Default: the first
+untaken chain profile with the same name (ASCII case and outer spaces
+ignored), else new. Chain profiles nobody takes are created after the
+restart.
+
+- Pairing: message 4 now carries the list, `"profiles": [{"uuid", "name",
+  "avatar" (if set), "home": true (home only)}]` (`ChainProfilesToValue()`,
+  the host's `SetProfiles()`, the joiner's `profiles()`). With other
+  profiles here, the join waits for the mapping before saving anything:
+  pairing says "Choose how this Mac's other profiles sync, then Continue."
+  and the page shows one row per local profile.
+- Recovery code: the list isn't known before the first sync, so the
+  joining profile becomes the home at once and, if other profiles exist,
+  `compass.sync.profiles_pending` holds them back; once the home's first
+  sync brings the list, the page shows the same mapping (status "Choose how
+  this Mac's other profiles sync.") and confirming puts them in the chain
+  (they sync after a restart) and creates the missing ones (at once).
+- The logic is `CompassSyncService::GetProfileMapping()` /
+  `SetProfileMapping()` behind `SyncController` (out-of-line defaults in
+  `sync_controller.cc`, so other controllers needn't change), the page
+  handler's `GetProfileMapping()` / `SetProfileMapping()` mojo calls, and a
+  small section in `compass_sync.{html,ts}`. Mapping itself is pure
+  functions (`profile_list.h`): `DefaultProfileMapping()`,
+  `IsValidProfileMapping()`, `ProfilesToCreate()`.
+- Not offered: mapping the joining profile to anything but the home, or
+  leaving a chain profile out on this device.
+
+**Spaces follow their profile.** Each profile's bridge syncs its own
+`SpaceList` into its own account, which slice 3's per-profile bridges
+already did; what's new:
+
+- `MoveSpaceToProfile()` keeps the space's ID (and so its place in the
+  switcher: `SpaceDirectory` no longer drops an ID another profile still
+  has). The old profile's bridge deletes the space and its nodes from its
+  account; the new one's creates them under the same IDs (a re-create over
+  tombstones is a revive on the server, sync.md "Server").
+- On another device the two changes come in either order. Create first:
+  the new profile's bridge finds the space in the old profile here and
+  moves it over with its entries (`Delegate::AdoptSpace()` →
+  `MoveSpaceToProfile()`), then applies the entities to it; the old
+  profile's next pass deletes it from its account (the same deletes). Delete
+  first: the space goes, then comes back in the new profile, without its
+  live tabs.
+- `CompassSpace.profile_uuid` is now set (informational).
+
+**The browser-wide order across accounts.** Positions are still
+`UniquePosition`s, but a bridge now assigns its spaces' positions over the
+whole switcher (`Delegate::GetDirectoryOrder()`): every listed space in
+order, with the positions the other profiles' bridges synced for theirs
+(a browser-wide registry fed by `OnSpacePositions()`), so its own fall
+between theirs and compare across accounts. After a remote change, the
+switcher sorts the spaces with known positions by them, in their slots
+(`SortDirectoryByPositions()`), before the bridge's own merge pass
+computes positions from it. A switcher change schedules a pass in every
+profile's bridge (a space of another profile moving can change this one's
+neighbours).
+
+**Leaving** leaves with every profile of the device (each profile's
+seed and account flag go; their data stays).
+
+**Logs** (for the steps): the `state=` lines end their first line with
+`profile=<directory>`, and "passphrase in place, data types start
+(<directory>)", "chain … for <directory> (home profile | profile <uuid>)",
+"the chain has N profile(s)", "profile X joins the chain as <uuid> (after a
+restart)", "creating profile …" (vmodule `compass_profile_creator`) say
+which.
+
+**Patches.** Only `components-sync-protocol-proto_visitors.h.patch`
+changes (the `CompassProfile` visitor). No new patch.
+
+**Tests** (targeted filter in the steps doc): `ChainTest.*` (vectors),
+`ChainProfilesTest.*`, `ProfileMappingTest.*`, `MissingProfilesTest.*`
+(fake creator), `PairingTest.ProfilesTravelWithTheSeed`,
+`CompassSpacesSyncProfilesTest.*` and `All/CompassSpacesSyncMoveTest.*`
+(two devices × two profiles: two bridges and two in-memory accounts per
+device; list round trip, home UUID rules, a space moved Work → Personal in
+both arrival orders, interleaved positions),
+`CompassSyncPageHandlerMappingTest.*`. `CompassSyncService`'s profile code
+(enrolling, creating, renaming, the mapping step) needs real profiles and
+has no unit test; the MacBook run covers it.
+
+**Known limits.**
+
+- A profile with no space in the switcher isn't listed, so not kept loaded:
+  its sync runs only while something else loads it. Moving a profile's last
+  space away unlists it on both devices (each adds a fresh "Home" to the
+  unlisted profile, which its account then carries).
+- Names follow the chain, so mapping "Job" to the chain's "Work" renames
+  it "Work" here.
+- Profiles made while syncing sync after a restart; the page of that
+  profile says so.
+- Deleting a profile stays on its device: the home remembers it
+  (`compass.sync.profiles_removed`) and doesn't create it again, other
+  devices keep theirs, and the chain keeps listing it. A device that never
+  had it still creates it. (A "deleted" flag on `CompassProfile` is the
+  follow-up if profiles should be deletable everywhere.)
+- Two devices that both hold the home role for a moment (a race at join)
+  converge on one home UUID; spaces get re-committed once with the new
+  `profile_uuid`.
+
 ### Change notifications
 
 Chromium learns about remote changes through FCM invalidations, which need
@@ -879,7 +1078,8 @@ belongs to a profile (D17). Plan:
   accounts because `UniquePosition`s are plain sortable bytes.
 
 Slices 1–4 sync **one** profile (the one the user turns sync on in);
-multi-profile is slice 5.
+multi-profile is slice 5, built as "Slice 5 notes" says (the plan above
+holds; the passphrase is per profile too).
 
 ## Server (`server/` in this repo, Go)
 
@@ -966,8 +1166,9 @@ Upstream's sync settings are replaced by a page of our own,
    navigate the same entry.
 4. **UI**: full settings page, devices, type toggles, status in the app
    menu, "Tabs on other devices" in the command bar.
-5. **Profiles**: per-profile accounts, profile list, mapping at join,
-   moving spaces between profiles.
+5. **Profiles** (on `sync/slice-5-profiles`, see "Slice 5 notes"):
+   per-profile accounts, profile list, mapping at join, moving spaces
+   between profiles.
 6. **Push**: SSE from the server, `CompassSyncNotifier`, long poll
    interval.
 7. **Hardening**: quota errors shown, key rotation ("Reset sync"), server

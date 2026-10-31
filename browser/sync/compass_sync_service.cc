@@ -229,6 +229,7 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kProfileAccount, false);
   registry->RegisterBooleanPref(prefs::kProfilesPending, false);
   registry->RegisterDictionaryPref(prefs::kProfileDirs);
+  registry->RegisterListPref(prefs::kProfilesRemoved);
 }
 
 void CompassSyncService::Shutdown() {
@@ -524,6 +525,7 @@ void CompassSyncService::LeaveProfile() {
   prefs_->ClearPref(prefs::kProfileAccount);
   prefs_->ClearPref(prefs::kProfilesPending);
   prefs_->ClearPref(prefs::kProfileDirs);
+  prefs_->ClearPref(prefs::kProfilesRemoved);
   missing_profiles_.reset();
   profile_creator_.reset();
   chain_profiles_.clear();
@@ -1133,6 +1135,12 @@ void CompassSyncService::ReconcileProfiles() {
   for (Profile* profile : GetListableProfiles()) {
     local_uuids.insert(profile->GetPrefs()->GetString(prefs::kProfileUuid));
   }
+  // Those deleted here stay deleted here.
+  for (const base::Value& uuid : prefs_->GetList(prefs::kProfilesRemoved)) {
+    if (uuid.is_string()) {
+      local_uuids.insert(uuid.GetString());
+    }
+  }
   // And those that aren't loaded but still exist.
   if (ProfileManager* profile_manager = GetProfileManager()) {
     ProfileAttributesStorage& storage =
@@ -1262,6 +1270,26 @@ void CompassSyncService::OnProfileAvatarChanged(
     const base::FilePath& profile_path) {
   if (IsHome()) {
     NotifySpacesSyncOfLocalChange(profile_);
+  }
+}
+
+void CompassSyncService::OnProfileWillBeRemoved(
+    const base::FilePath& profile_path) {
+  if (!IsHome()) {
+    return;
+  }
+  // A profile of the chain deleted here isn't created again here. (It stays
+  // in the chain: other devices keep theirs.)
+  const std::string dir = profile_path.BaseName().AsUTF8Unsafe();
+  std::vector<std::string> uuids;
+  for (const auto [uuid, value] : prefs_->GetDict(prefs::kProfileDirs)) {
+    if (value.is_string() && value.GetString() == dir) {
+      uuids.push_back(uuid);
+    }
+  }
+  ScopedListPrefUpdate removed(prefs_, prefs::kProfilesRemoved);
+  for (const std::string& uuid : uuids) {
+    removed->Append(uuid);
   }
 }
 
