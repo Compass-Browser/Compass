@@ -5,6 +5,8 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
 #define COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "ui/views/view.h"
@@ -66,6 +68,18 @@ class WindowFrame : public views::ViewObserver {
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{
       this};
 };
+
+// The line the caption buttons (macOS's traffic lights) and the sidebar
+// header's top row are centered on, in the window. Upstream (macOS 26 and
+// later) puts the 14 DIP lights 13 DIP from the window's leading edge to be
+// concentric with its corner; 13 DIP from the top too centers them here.
+inline constexpr int kCaptionButtonsCenterY = 13 + 7;
+
+// The title bar height macOS centers the caption buttons of |browser_view|'s
+// window on (BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(), see
+// patches/), if the window has the frame and isn't fullscreen. Upstream's
+// height comes from the toolbar, which isn't shown.
+std::optional<int> GetWindowTitlebarHeight(views::View* browser_view);
 
 // Whether |point| (in |browser_view|'s coordinates) is on the frame around
 // the page, where nothing else is: it drags the window, as a title bar does.

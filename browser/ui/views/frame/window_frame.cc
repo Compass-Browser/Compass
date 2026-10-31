@@ -99,6 +99,19 @@ void WindowFrame::UpdateCaptionButtons() {
   SetCaptionButtonsOpacity(widget, opacity);
 }
 
+std::optional<int> GetWindowTitlebarHeight(views::View* browser_view) {
+  if (!browser_view || !browser_view->GetWidget() ||
+      browser_view->GetWidget()->IsFullscreen()) {
+    return std::nullopt;
+  }
+  for (views::View* child : browser_view->children()) {
+    if (WindowFrame::FromRegion(child)) {
+      return 2 * kCaptionButtonsCenterY;
+    }
+  }
+  return std::nullopt;
+}
+
 bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point) {
   // The tint doesn't take events, so only the browser view itself is there.
   return browser_view->GetLocalBounds().Contains(point) &&

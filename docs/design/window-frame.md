@@ -89,6 +89,19 @@ down. Closing, they also fade with the width
 a layer only while fading. The page card grows and shrinks with the region
 as before.
 
+## Traffic lights
+
+The traffic lights and the sidebar header's top row (collapse, back,
+forward, reload) are centered on one line, `kCaptionButtonsCenterY` (20 DIP
+from the window's top). Upstream puts the lights 13 DIP from the leading
+edge on macOS 26 and later, concentric with the window's corner; macOS
+centers them in the title bar height the window reports, which upstream
+takes from the toolbar Compass doesn't show (45 DIP, so 16 DIP down, 7 DIP
+below the row). `compass::GetWindowTitlebarHeight()` reports 40 DIP instead
+(patch in `BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight()`, not in
+fullscreen), which puts them 13 DIP down too, and `SidebarHeader` moves
+upstream's row onto the same line.
+
 ## Color
 
 The frame is the same color as the sidebar: a second `SidebarTint`, under
