@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	testCtx, logger := server.SetupLogger(context.Background())
-	serverCtx, mux, err = server.SetupRouter(testCtx, logger, cfg, db) //nolint:fatcontext // TestMain assigns shared context once
+	serverCtx, mux, _, err = server.SetupRouter(testCtx, logger, cfg, db) //nolint:fatcontext // TestMain assigns shared context once
 	if err != nil {
 		panic(err)
 	}

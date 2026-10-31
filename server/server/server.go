@@ -30,6 +30,7 @@ import (
 	"github.com/brave/go-sync/command"
 	"github.com/brave/go-sync/controller"
 	"github.com/brave/go-sync/datastore"
+	"github.com/brave/go-sync/events"
 	"github.com/brave/go-sync/middleware"
 	"github.com/brave/go-sync/pairing"
 	syncContext "github.com/brave/go-sync/synccontext"
@@ -52,6 +53,7 @@ type Config struct {
 	ShutdownDelay    time.Duration // COMPASS_SYNC_SHUTDOWN_DELAY, default 0
 	PurgeInterval    time.Duration // How often expired history is deleted.
 	Pairing          pairing.Config
+	Events           events.Config
 }
 
 // DefaultMaxBytesPerChain is 200 MiB (sync.md, "Server").
@@ -67,6 +69,7 @@ func LoadConfig() (Config, error) {
 		TrustedProxies:   os.Getenv("COMPASS_SYNC_TRUSTED_PROXIES"),
 		PurgeInterval:    time.Hour,
 		Pairing:          pairing.DefaultConfig(),
+		Events:           events.DefaultConfig(),
 	}
 	if v := os.Getenv("COMPASS_SYNC_ADDR"); v != "" {
 		cfg.Addr = v
@@ -88,6 +91,13 @@ func LoadConfig() (Config, error) {
 		}
 		cfg.ShutdownDelay = d
 	}
+	if v := os.Getenv("COMPASS_SYNC_EVENTS_PER_IP"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			return cfg, fmt.Errorf("invalid COMPASS_SYNC_EVENTS_PER_IP %q", v)
+		}
+		cfg.Events.MaxPerIP = n
+	}
 	cfg.Metrics, _ = strconv.ParseBool(os.Getenv("COMPASS_SYNC_METRICS"))
 	// The name devices bind into pairing (sync.md, "Slice 4 notes"); empty:
 	// the Host each pairing request came to.
@@ -103,19 +113,21 @@ func setupLogger(ctx context.Context) (context.Context, *zerolog.Logger) {
 	return logging.SetupLogger(ctx)
 }
 
-// setupRouter builds the HTTP routes on an open datastore.
+// setupRouter builds the HTTP routes on an open datastore. The events hub
+// must be closed on shutdown (it ends the open change streams).
 func setupRouter(
 	ctx context.Context,
 	logger *zerolog.Logger,
 	cfg Config,
 	db *datastore.SQLite,
-) (context.Context, *chi.Mux, error) {
+) (context.Context, *chi.Mux, *events.Hub, error) {
 	command.LoadHighDeviceLimitClientIDsFromEnv()
 	command.LoadQuotaFromEnv()
+	command.LoadPollIntervalFromEnv()
 
 	trusted, err := clientip.ParseTrusted(cfg.TrustedProxies)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, nil, nil, err
 	}
 	ips := clientip.New(trusted)
 
@@ -132,7 +144,6 @@ func setupRouter(
 		r.Use(batware.RequestLogger(logger))
 	}
 
-	r.Use(chiware.Timeout(60 * time.Second))
 	r.Use(batware.BearerToken)
 	r.Use(middleware.CommonResponseHeaders)
 
@@ -154,14 +165,28 @@ func setupRouter(
 	pairCfg := cfg.Pairing
 	pairCfg.ClientIP = ips.IP
 	pairCfg.Authorize = auth.Authorize
+	evCfg := cfg.Events
+	evCfg.ClientIP = ips.IP
+	evCfg.Authorize = auth.Authorize
+	evCfg.IsDisabled = func(r *http.Request, chain string) (bool, error) {
+		return db.IsSyncChainDisabled(r.Context(), chain)
+	}
+	hub := events.New(evCfg)
+	notify := func(chain, cacheGUID string, types []int) { hub.Notify(chain, cacheGUID, types) }
 	r.Route("/v2", func(r chi.Router) {
-		// Compass: pairing relay (sync.md, "Pairing API"), next to the
-		// protocol endpoint and outside its auth middleware.
-		r.Mount("/compass/pair", pairing.New(pairCfg).Routes())
-		r.Mount("/", controller.SyncRouter(c, instrumented))
+		// Compass: change notifications (sync.md, "Slice 6 notes"), a
+		// long-lived stream, so outside the request timeout below.
+		r.Method(http.MethodGet, "/compass/events", hub)
+		r.Group(func(r chi.Router) {
+			r.Use(chiware.Timeout(60 * time.Second))
+			// Compass: pairing relay (sync.md, "Pairing API"), next to the
+			// protocol endpoint and outside its auth middleware.
+			r.Mount("/compass/pair", pairing.New(pairCfg).Routes())
+			r.Mount("/", controller.SyncRouter(c, instrumented, notify))
+		})
 	})
 	if cfg.Metrics {
-		r.Get("/metrics", batware.Metrics())
+		r.With(chiware.Timeout(60*time.Second)).Get("/metrics", batware.Metrics())
 	}
 
 	log.Info().
@@ -189,7 +214,7 @@ func setupRouter(
 		}
 		_, _ = w.Write([]byte("ok\n"))
 	})
-	return ctx, r, nil
+	return ctx, r, hub, nil
 }
 
 func setupBaseCtx(ctx context.Context) baseCtxFunc {
@@ -245,7 +270,7 @@ func StartServer() {
 
 	logger.Info().Str("prefix", "main").Str("db", cfg.DBPath).Str("addr", cfg.Addr).Msg("Starting server")
 
-	serverCtx, r, err := setupRouter(serverCtx, logger, cfg, db)
+	serverCtx, r, hub, err := setupRouter(serverCtx, logger, cfg, db)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Invalid configuration")
 	}
@@ -259,6 +284,9 @@ func StartServer() {
 		BaseContext:       setupBaseCtx(serverCtx),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	// Shutdown waits for handlers, and change streams never end on their
+	// own: end them when it starts.
+	srv.RegisterOnShutdown(hub.Close)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)

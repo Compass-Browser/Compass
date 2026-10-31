@@ -18,6 +18,7 @@ services:
       # COMPASS_SYNC_PUBLIC_HOST: sync.example.com
       # COMPASS_SYNC_MAX_ENTITIES: "100000"
       # COMPASS_SYNC_MAX_BYTES: "209715200"
+      # COMPASS_SYNC_POLL_SECONDS: "900"
     networks:
       - internal
     healthcheck:

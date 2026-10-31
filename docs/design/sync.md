@@ -1,7 +1,7 @@
 # Sync between devices
 
-Status: slices 0, 1, 2, 2b, 3, 3b and 4 done and merged into `sync-main`
-(MacBook runs in each slice's notes); 6 (push) next, then 5 (profiles). Based on Chromium
+Status: slices 0, 1, 2, 2b, 3, 3b, 4 and 6 done and merged into `sync-main`
+(MacBook runs in each slice's notes); 5 (profiles) next, then 7. Based on Chromium
 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
@@ -16,14 +16,13 @@ Read this first when resuming the sync work.
 
 | Branch | State |
 |---|---|
-| `sync-main` (`001b2f1`+) | slices 0, 1, 2, 2b, 3, 3b, 4 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
+| `sync-main` | slices 0, 1, 2, 2b, 3, 3b, 4, 6 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
 | `sync/slice-4-ui` (`41ae636`) | merged (resume, 31 Oct night): MacBook run passed, see "Slice 4 notes" |
 | `sync/slice-5-profiles` (`cb13f65`) | profiles; never built; merge sync-main (after slice 4) into it before its run: overlaps slice 4 in compass_sync_service, sync_controller, the mojom, page handler, compass_sync.{html,ts}, pairing |
-| `sync/slice-6-push` (`1990840`) | push (SSE); never built; no patches; Go tests pass; small overlap with 4 in server/server/server.go and compass_sync_service |
+| `sync/slice-6-push` (`02cfe61`) | merged: MacBook run passed, see "Slice 6 notes"; the sync server runs its server (5bfecb7) |
 
-**Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → merge sync-main
-into 6, deploy the combined server (the sync server, and the Mac mini if it's up),
-run 6 → merge 6 → merge sync-main into 5, run 5 → merge 5 → slice 7.
+**Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → ~~merge sync-main
+into 6, deploy the combined server, run 6 → merge 6~~ (done) → merge sync-main into 5, run 5 → merge 5 → slice 7.
 
 **MacBook:** session "Chromium fetch and compass build" (Remote Control),
 repo `~/Developer/compass-build/compass`, tests in out/Debug only, out/Fast
@@ -1064,6 +1063,155 @@ main). Device times ("9 minuti fa") follow the system locale while the
 page's own strings are English only. Not checked headless: "Show
 recovery code" (Touch ID) and "Reset sync".
 
+### Slice 6 notes
+
+Branch `sync/slice-6-push` (on `sync-main` `02efe11`). The browser side is
+written without a compiler; the MacBook build and run are in
+[sync-slice-6-steps.md](sync-slice-6-steps.md). **No upstream patch.** The
+server side is tested (`go test ./...`, plus a live run of the binary: a
+stream held 70 s with keep-alives at 25 s and 50 s, ended cleanly by
+SIGTERM).
+
+**Server** (`server/events`). `GET /v2/compass/events?client_id=<cache
+GUID>`, authenticated as `/v2/command/`: `Authorization: Bearer <token>`
+checked by `auth.Authorize` (401), then the disabled-chain check (403). It
+answers `200 text/event-stream`, writes `: connected`, a `: keep-alive`
+comment every 25 s, and after a commit by another device of the chain:
+
+```
+event: changed
+data: {"types":[32904,970000]}
+```
+
+(EntitySpecifics field numbers, sorted; never contents.) The controller
+calls the hub after every successful Commit with the types of the entries
+that got `SUCCESS` (a conflict-only commit tells nobody), excluding streams
+whose `client_id` is the commit's `cache_guid` (the committer). A stream
+without `client_id` hears everything, its own commits too. One hub, in
+memory, chains keyed case-insensitively; per stream a set of pending types
+and a wake channel, so `Notify` never blocks a commit and a slow stream
+gets one merged event. Limits: 20 streams per chain, 50 per client address
+(`COMPASS_SYNC_EVENTS_PER_IP`; behind a proxy this needs
+`COMPASS_SYNC_TRUSTED_PROXIES`, or every device has the proxy's address),
+`429` with `Retry-After: 60` beyond; a write that takes over 15 s ends the
+stream. The route is mounted outside chi's 60 s request timeout, which
+until now wrapped every route (it would have cut each stream at 60 s); the
+rest keeps it. Graceful shutdown: `http.Server.Shutdown` doesn't end
+handlers, so `RegisterOnShutdown(hub.Close)` ends the streams and refuses
+new ones (503). A restart drops all streams; the devices reconnect.
+
+**Poll interval.** go-sync sends `ClientCommand.set_sync_poll_interval` in
+every response (`HandleClientToServerMessage`, `command/command.go`), from
+its constant `setSyncPollInterval = 30` (seconds). Now a variable, 900 s by
+default, `COMPASS_SYNC_POLL_SECONDS` (30 to 86400). Devices without push
+(older builds, a proxy that buffers) still sync on focus, wake and every
+15 min.
+
+**Proxies.** Caddy's `reverse_proxy` flushes `text/event-stream` responses
+at once by itself; the bundled `Caddyfile` also sets `flush_interval -1`
+(explicit for every response). For the public instance on the sync server: add the
+same `flush_interval -1` inside the `reverse_proxy` block of
+`/etc/caddy/sites/sync.example.org.caddy` (optional, Caddy already
+streams SSE), and check that the container has
+`COMPASS_SYNC_TRUSTED_PROXIES` set to the address Caddy connects from (it
+reaches `127.0.0.1:8295` through Docker's port mapping, so the server sees
+the bridge gateway); otherwise all devices share one address and the
+50-stream limit is for all of them together (raise it with
+`COMPASS_SYNC_EVENTS_PER_IP` if in doubt). A Caddy reload closes streams;
+devices reconnect in about a second. nginx needs `proxy_buffering off`
+(the server also sends `X-Accel-Buffering: no`). `server/README.md` says
+the same.
+
+**Browser** (`//compass/components/sync:notifier`,
+`compass_sync_notifier.{h,cc}`). `CompassSyncNotifier` holds the stream and
+calls back with the changed types. Transport: `network::SimpleURLLoader`
+with `DownloadAsStream()` and a `SimpleURLLoaderStreamConsumer` (in 156,
+the upstream way to read a body as it arrives; no timeout set), behind a
+small `EventStream`/`EventStreamFactory` interface so the logic is tested
+on a fake transport and the real one on `TestURLLoaderFactory`. The parser
+follows the HTML spec's event-stream rules for `event` and `data` (LF, CR,
+CRLF; comments skipped; 64 KiB line cap). Field numbers map to
+`syncer::DataType` with `GetDataTypeFromSpecificsFieldNumber()`; unknown
+ones are dropped; an unreadable event refreshes everything.
+
+- **Owner**: `CompassSyncService::UpdateNotifier()`, called on every sync
+  state change: creates it once the chain runs, the passphrase is in place
+  (`AreDataTypesReleased()`) and the transport is active; destroys it on
+  Leave, sync shutdown and profile shutdown. One per `CompassSyncService`,
+  so one per profile with a running chain (slice 5's per-profile chains get
+  one each with no change here).
+- **Token**: a fresh one per connect (`SyncCredentials::MakeToken`). The
+  server checks it at connect only; a stream may stay open past the token's
+  24 h, which is fine (the device holds the key).
+- **Cache GUID**: the local `DeviceInfo`'s `guid()`
+  (`DeviceInfoSyncServiceFactory` → local device info provider), which is
+  the engine's cache GUID, the one each Commit carries. Read at each
+  connect; before DEVICE_INFO runs it's empty and the device hears its own
+  commits until its next reconnect (an extra GetUpdates, nothing worse).
+- **Refresh**: `SyncService::TriggerRefresh(kSyncInvalidationsService,
+  types ∩ active types)`. The source only feeds `Sync.TriggerRefreshSource`;
+  invalidations are what this replaces. A 250 ms debounce merges a burst
+  (another device's import commits in batches of 90, type after type) into
+  one request, and the engine adds its own 500 ms local-refresh nudge
+  delay. Not `kMinRefreshInterval` (10 s): that throttles focus and wake,
+  which fire often with nothing new; a notification means there is a
+  change now, and 10 s would undo the slice.
+- **Reconnect**: `net::BackoffEntry`, 1 s doubling to 5 min, up to 20%
+  shorter (jitter), reset once a stream has lived 30 s; a network change
+  (`NetworkConnectionTracker`, any type but NONE) or a wake
+  (`PowerSuspendObserver::OnResume`) reconnects after 0.5 s with the
+  backoff reset; NONE counts as a failure (the type is only a hint, so it
+  keeps trying). A stream silent for 75 s (three keep-alives) is dead (NAT,
+  sleep) and replaced; the same timer bounds the wait for a response. HTTP
+  errors (401, 429, 503) back off. After every reconnect but the first
+  connect, a refresh of all types: changes made while it was down weren't
+  announced.
+- **Logs** (`--vmodule=compass_sync_notifier=1`, added to `instance.sh`):
+  `[compass-sync] notifier: connecting to ...`, `connected`, `changed
+  <types>`, `refresh <types>`, `<why>; reconnecting in N ms (failure K)`.
+
+**Tests**: Go, `server/events` (notify other devices, committer and other
+chains not, merging, auth 401/403/500, method, long client_id, per-chain
+and per-address limits, keep-alive on an injected ticker and a real one,
+disconnect cleanup, hub close, `http.Server.Shutdown`), `server/server`
+end to end over HTTP with real tokens (commit on A → event on B with the
+bookmark and an unknown future type; A, another chain, a conflict-only
+commit and GetUpdates notify nobody; 401s; poll interval 900),
+`command` (`COMPASS_SYNC_POLL_SECONDS`). C++: `CompassSyncNotifier*` unit
+tests (sync-slice-6-steps.md, step 3).
+
+**Overlaps with slices 4 and 5**: `compass_sync_service.{h,cc}` (a member,
+`UpdateNotifier()`, and calls in `OnStateChanged`, `Leave`,
+`OnSyncShutdown`, `Shutdown`), `browser/sync/BUILD.gn` (one dep),
+`server/server/server.go` (routes: the pairing mount moved into a group
+with the request timeout), `server/README.md`, `server/Caddyfile`,
+`tools/sync_e2e/` (`instance.sh` vmodule, `sidebar.js` `wait` op and
+`timed`, `add_bookmark.js` returns `at`, new `wait_bookmark.js`).
+
+**Limits.** Single process: notifications reach only streams on the
+process that took the commit (as the rest of the server, in memory). Each
+device holds one HTTP connection open (HTTP/2 through Caddy shares it with
+sync requests). Today and title throttling (3b) still applies on the
+sending side: a tab's content change can wait up to 10 s before it's
+committed, and only then announced.
+
+**MacBook run (1 Nov, against sync.example.org).** The first build
+(5bfecb7) failed: an unused `offline_`, a protected fixture helper called
+from `FakeStream`, an incomplete `WeakWrapperSharedURLLoaderFactory` (fixed
+in 0cf7beb). Two unit tests then failed because `compass_unittests`
+already has a global `TestNetworkConnectionTracker` and the fixture made a
+second one (6e24c9e); `wait_bookmark.js` polled `getTree()`, the page's
+load-time snapshot, and never saw a synced bookmark (02cfe61: listens to
+`onCreated`). At 02cfe61 all 26 `CompassSyncNotifier*` tests pass. Times
+from A's change to B having it, no manual refresh: bookmarks 1.15-1.18 s
+(B logs "changed" 0.1-0.3 s after A's add, "refresh" ~250 ms later),
+pinned 1.21-1.29 s, Today 1.20-1.28 s. A logs no "changed" for its own
+commits. Outage (the sync server container stopped 30 s, Caddy up): both streams
+closed at the stop, then "HTTP 502" with backoff 1, 1.8, 3.5, 8, 15, 31 s
+(jittered), "connected" 24-31 s after the server came back, then one
+refresh of all types; changes after it took 1.15 s (bookmark) and 1.25 s
+(pinned). No crashes or DCHECKs; no errors in the server log.
+
 ### Change notifications
 
 Chromium learns about remote changes through FCM invalidations, which need
@@ -1071,9 +1219,10 @@ Google's keys, so they're off. First slices: the server sets a short poll
 interval (30 s, go-sync's default, as slice 1 ships it) through
 `ClientCommand`, which the engine honours as is, and Compass calls
 `SyncService::TriggerRefresh()` (public, no patch) when a window gains focus
-and when the Mac wakes. Later (slice 6): a long-lived SSE/WebSocket from
-`CompassSyncNotifier` to the server, which calls `TriggerRefresh(types)`
-the moment another device commits; polling then goes back to hours.
+and when the Mac wakes. Since slice 6: a long-lived Server-Sent Events
+stream from `CompassSyncNotifier` to the server, which calls
+`TriggerRefresh(types)` the moment another device commits; the poll is 15
+min, the fallback (see "Slice 6 notes").
 
 ## The `COMPASS_SPACES` data type
 
@@ -1231,7 +1380,8 @@ multi-profile is slice 5.
   if a shared instance needs it.
 - Replace its auth with the Ed25519 token above.
 - Limits per chain: 100k entities, 200 MB, rate limit per IP and per chain.
-- Endpoints: `POST /v1/command/` (protocol), `GET /v1/events` (SSE, slice 6),
+- Endpoints: `POST /v2/command/` (protocol), `/v2/compass/pair` (pairing),
+  `GET /v2/compass/events` (SSE change notifications, slice 6),
   `GET /healthz`.
 - Self-hosted only for now (decided): there is no Compass-run instance, the
   app's server URL is empty until the user sets one. Ship a
@@ -1312,8 +1462,9 @@ As built in slice 4: "Slice 4 notes".
    devices" in the command bar; the pairing contract's proposals 1-3.
 5. **Profiles**: per-profile accounts, profile list, mapping at join,
    moving spaces between profiles.
-6. **Push**: SSE from the server, `CompassSyncNotifier`, long poll
-   interval.
+6. **Push** (written, see "Slice 6 notes"; MacBook run in
+   [sync-slice-6-steps.md](sync-slice-6-steps.md)): SSE from the server,
+   `CompassSyncNotifier`, long poll interval.
 7. **Hardening**: quota errors shown, key rotation ("Reset sync"), server
    backups, and a real check on two Macs (this one and the MacBook).
 

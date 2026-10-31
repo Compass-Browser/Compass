@@ -23,6 +23,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "compass/browser/sync/sync_settings.h"
+#include "compass/components/sync/compass_sync_notifier.h"
 #include "compass/components/sync/pairing_network_transport.h"
 #include "compass/components/sync/pref_names.h"
 #include "compass/components/sync/sync_credentials.h"
@@ -44,6 +45,7 @@
 #include "components/sync_device_info/device_info_sync_service.h"
 #include "components/sync_device_info/local_device_info_provider.h"
 #include "components/sync_device_info/local_device_info_util.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/storage_partition.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -165,6 +167,7 @@ void CompassSyncService::RegisterProfilePrefs(
 }
 
 void CompassSyncService::Shutdown() {
+  notifier_.reset();
   host_.reset();
   joiner_.reset();
   setup_handle_.reset();
@@ -441,6 +444,7 @@ void CompassSyncService::Leave() {
     setup_handle_ = sync_service_->GetSetupInProgressHandle();
   }
   left_ = true;
+  UpdateNotifier();
   if (sync_service_) {
     sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
   }
@@ -573,8 +577,66 @@ void CompassSyncService::TriggerRefresh() {
       sync_service_->GetActiveDataTypes());
 }
 
+void CompassSyncService::UpdateNotifier() {
+  if (!sync_service_ || !IsChainRunning() || !seed_) {
+    notifier_.reset();
+    return;
+  }
+  if (notifier_ || !AreDataTypesReleased() ||
+      sync_service_->GetTransportState() !=
+          syncer::SyncService::TransportState::ACTIVE) {
+    return;
+  }
+  notifier_ = std::make_unique<CompassSyncNotifier>(
+      GetServerUrl(),
+      MakeNetworkEventStreamFactory(
+          profile_->GetDefaultStoragePartition()
+              ->GetURLLoaderFactoryForBrowserProcess()),
+      base::BindRepeating(
+          [](scoped_refptr<SyncCredentials> credentials) {
+            return credentials->MakeToken(base::Time::Now());
+          },
+          credentials_),
+      // The device's cache GUID (its DEVICE_INFO entry's), so the server
+      // leaves out this device's own commits.
+      base::BindRepeating(
+          [](Profile* profile) -> std::string {
+            syncer::DeviceInfoSyncService* device_info =
+                DeviceInfoSyncServiceFactory::GetForProfile(profile);
+            const syncer::DeviceInfo* local =
+                device_info ? device_info->GetLocalDeviceInfoProvider()
+                                  ->GetLocalDeviceInfo()
+                            : nullptr;
+            return local ? local->guid() : std::string();
+          },
+          base::Unretained(profile_.get())),
+      // Not TriggerRefresh() above: that one waits kMinRefreshInterval
+      // between focus and wake refreshes; a notification is a real change
+      // elsewhere and the notifier already merges bursts.
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self,
+             syncer::DataTypeSet types) {
+            if (!self || !self->sync_service_ ||
+                self->sync_service_->GetTransportState() !=
+                    syncer::SyncService::TransportState::ACTIVE) {
+              return;
+            }
+            types.RetainAll(self->sync_service_->GetActiveDataTypes());
+            if (!types.empty()) {
+              self->sync_service_->TriggerRefresh(
+                  syncer::SyncService::TriggerRefreshSource::
+                      kSyncInvalidationsService,
+                  types);
+            }
+          },
+          weak_factory_.GetWeakPtr()),
+      content::GetNetworkConnectionTracker());
+  notifier_->Start();
+}
+
 void CompassSyncService::OnStateChanged(syncer::SyncService* sync) {
   UpdatePassphrase();
+  UpdateNotifier();
   NotifyObservers();
 }
 
@@ -587,6 +649,7 @@ void CompassSyncService::OnDeviceInfoChange() {
 }
 
 void CompassSyncService::OnSyncShutdown(syncer::SyncService* sync) {
+  notifier_.reset();
   setup_handle_.reset();
   sync_observation_.Reset();
   sync_service_ = nullptr;
