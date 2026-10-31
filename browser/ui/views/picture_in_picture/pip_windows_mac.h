@@ -112,7 +112,7 @@ class PipWindows : public views::WidgetObserver,
   ~PipWindows() override;
 
   void Apply(views::Widget* widget);
-  // Rounds the window's corners; its shadow follows.
+  // Rounds the window's corners, without the system shadow.
   void RoundCorners(views::Widget* widget);
   // Stops tracking |widget|, which takes clicks again.
   void RemoveWindow(views::Widget* widget);

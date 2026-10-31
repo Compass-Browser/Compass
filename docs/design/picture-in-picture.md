@@ -130,11 +130,18 @@ checked by hand).
 ## Window shape and behavior (macOS)
 
 - **Corners:** `PipWindows` rounds the content view's layer (12 pt
-  continuous corners, as the page card) and redraws the shadow to follow.
-  Upstream's window had the standard frame (`NSWindowStyleMaskFullSizeContentView`)
-  for its system corner radius; that frame also drew an outline, bright
-  along the top in dark mode, that didn't follow the rounded content. It's
-  borderless now (`video_overlay_window_native_widget_mac.mm` patch).
+  continuous corners, as the page card). The window has no system shadow:
+  macOS draws a dark outline with it, which showed around the rounded
+  window. The window keeps upstream's style
+  (`NSWindowStyleMaskFullSizeContentView`): a borderless one left a
+  title bar's height empty at its top. Its frame view drew a light line along the
+  window's top edge, square to its corners: it's rounded and clipped too,
+  and its title bar views (if any) hidden.
+- **Site name:** the favicon and site name show with the controls only, on
+  hover. Upstream also shows them for a few seconds after the window opens
+  and, on pages it doesn't trust for playback (most of Compass's automatic
+  ones), all the time, so a page can't pass itself off as another
+  (`video_overlay_window_views.cc` patch, `UpdateControlsVisibility()`).
 - **No macOS tiling:** `NSWindowCollectionBehaviorFullScreenDisallowsTiling`,
   so dragging it to a screen edge doesn't offer macOS's tiles; Compass's
   own snap (below) applies.

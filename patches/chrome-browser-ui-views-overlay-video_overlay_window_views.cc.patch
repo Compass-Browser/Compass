@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..5f5eeb531ece5d3d227466d4fccc12e6b41d5d13 100644
+index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..d41cf5fe24d304807984a0c30c2298109db84fef 100644
 --- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 +++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 @@ -4,6 +4,10 @@
@@ -26,7 +26,22 @@ index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..5f5eeb531ece5d3d227466d4fccc12e6
    if (is_moving_) {
      // If we've already queued a visibility change for the same visibility, then
      // only animate if both should animate (which matches what would have
-@@ -1125,6 +1135,10 @@ void VideoOverlayWindowViews::SetUpViews() {
+@@ -821,11 +831,12 @@ void VideoOverlayWindowViews::UpdateControlsVisibility(bool is_visible,
+   //   * We are in the initial "show" period, or
+   //   * The overlay window does not meet the user interaction criteria and is
+   //   not trusted for media playback
++  // Compass: the site's name shows with the controls only, on hover, not
++  // for a while after opening or for good on untrusted pages.
+   const bool title_is_visible =
+       force_title_and_scrim_visible_.has_value()
+           ? force_title_and_scrim_visible_.value()
+-          : wanted_visibility || initial_title_hide_timer_.IsRunning() ||
+-                !can_hide_title_and_scrim;
++          : wanted_visibility;
+ 
+   if (should_animate) {
+     // Animate the title and top scrim.
+@@ -1125,6 +1136,10 @@ void VideoOverlayWindowViews::SetUpViews() {
    auto back_to_tab_button =
        std::make_unique<OverlayWindowBackToTabButton>(base::BindRepeating(
            [](VideoOverlayWindowViews* overlay) {
@@ -37,7 +52,7 @@ index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..5f5eeb531ece5d3d227466d4fccc12e6
              PictureInPictureWindowManager::GetInstance()
                  ->ExitPictureInPictureViaWindowUi(
                      PictureInPictureWindowManager::UiBehavior::
-@@ -1744,6 +1758,14 @@ void VideoOverlayWindowViews::ShowInactive() {
+@@ -1744,6 +1759,14 @@ void VideoOverlayWindowViews::ShowInactive() {
  #endif
  
    views::Widget::SetVisibleOnAllWorkspaces(true);

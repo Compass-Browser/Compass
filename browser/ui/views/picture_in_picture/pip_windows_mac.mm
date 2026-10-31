@@ -199,8 +199,22 @@ void PipWindows::RoundCorners(views::Widget* widget) {
   content.layer.cornerRadius = kCornerRadius;
   content.layer.cornerCurve = kCACornerCurveContinuous;
   content.layer.masksToBounds = YES;
-  // The shadow is drawn from what the window paints: redraw it rounded.
-  [window invalidateShadow];
+  // The frame view around it draws a light line along the window's top
+  // edge, square to its corners: round and clip it too, and hide its title
+  // bar views (the window has no title bar).
+  if (NSView* frame_view = content.superview) {
+    frame_view.wantsLayer = YES;
+    frame_view.layer.cornerRadius = kCornerRadius;
+    frame_view.layer.cornerCurve = kCACornerCurveContinuous;
+    frame_view.layer.masksToBounds = YES;
+    for (NSView* view in frame_view.subviews) {
+      if ([NSStringFromClass(view.class) hasPrefix:@"NSTitlebar"]) {
+        view.hidden = YES;
+      }
+    }
+  }
+  // No system shadow: it comes with a dark outline around the window.
+  window.hasShadow = NO;
 }
 
 bool PipWindows::IsHoveredForTesting(views::Widget* widget) const {
