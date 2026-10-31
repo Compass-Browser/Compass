@@ -8,6 +8,8 @@
 # drives it through SyncController.
 source_set("sync") {
   sources = [
+    "compass_spaces_sync.cc",
+    "compass_spaces_sync.h",
     "compass_sync_service.cc",
     "compass_sync_service.h",
     "compass_sync_service_factory.cc",
@@ -24,7 +26,14 @@ source_set("sync") {
     "//url",
   ]
   deps = [
+    ":spaces_bridge",
     "//base:i18n",
+    "//chrome/browser/sync:data_type_store_service_factory",
+    "//chrome/common:channel_info",
+    "//compass/browser/sidebar",
+    "//compass/browser/window_sync",
+    "//compass/components/sync:controllers_hook",
+    "//components/sync/model",
     "//chrome/browser:browser_process",
     "//chrome/browser/lifetime",
     "//chrome/browser/sync",
@@ -38,5 +47,40 @@ source_set("sync") {
     "//compass/components/sync:engine",
     "//content/public/browser",
     "//services/network/public/cpp",
+  ]
+}
+
+# COMPASS_SPACES's bridge: the sidebar's model and sync, nothing of windows,
+# so it's unit-testable on its own (docs/design/sync.md, "Slice 3 notes").
+source_set("spaces_bridge") {
+  sources = [
+    "compass_spaces_sync_bridge.cc",
+    "compass_spaces_sync_bridge.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/browser/sidebar",
+    "//components/sync/base",
+    "//components/sync/model",
+    "//components/sync/protocol",
+  ]
+  deps = [ "//url" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "compass_spaces_sync_bridge_unittest.cc" ]
+  deps = [
+    ":spaces_bridge",
+    "//base",
+    "//base/test:test_support",
+    "//compass/browser/sidebar",
+    "//components/sync:test_support",
+    "//components/sync/base",
+    "//components/sync/model",
+    "//components/sync/protocol",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
   ]
 }

@@ -1,0 +1,12 @@
+diff --git a/tools/metrics/histograms/metadata/sync/histograms.xml b/tools/metrics/histograms/metadata/sync/histograms.xml
+index 5f12d9fd915fc45f9ac221d9fc9f316d9fb4985f..e598be6f080b3cfdc927390c64f5cbefbc71be3b 100644
+--- a/tools/metrics/histograms/metadata/sync/histograms.xml
++++ b/tools/metrics/histograms/metadata/sync/histograms.xml
+@@ -54,6 +54,7 @@ chromium-metrics-reviews@google.com.
+   <variant name=".AUTOFILL_WALLET_USAGE" summary="AUTOFILL_WALLET_USAGE"/>
+   <variant name=".BOOKMARK" summary="BOOKMARK"/>
+   <variant name=".COLLABORATION_GROUP" summary="COLLABORATION_GROUP"/>
++  <variant name=".COMPASS_SPACES" summary="COMPASS_SPACES (Compass)"/>
+   <variant name=".CONTACT_INFO" summary="CONTACT_INFO"/>
+   <variant name=".CONTEXTUAL_TASK" summary="CONTEXTUAL_TASK"/>
+   <variant name=".COOKIE" summary="COOKIE"/>

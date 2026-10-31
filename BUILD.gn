@@ -14,6 +14,7 @@ test("compass_unittests") {
     "//compass/browser/arc_import:unit_tests",
     "//compass/common:unit_tests",
     "//compass/browser/sidebar:unit_tests",
+    "//compass/browser/sync:unit_tests",
     "//compass/browser/ui:unit_tests",
     "//compass/browser/window_sync:unit_tests",
     "//compass/components/sync:history_unit_tests",

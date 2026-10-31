@@ -13,6 +13,10 @@ slice 0 spike). Standard library only, so it runs on a bare macOS Python 3.
       default 3), runs the file's JavaScript as the body of an async function
       (with the --arg values in a constant ARGS), prints the returned value
       as JSON, closes the tab. Exit status 1 on a JS exception.
+  cdp.py PORT in MATCH FILE.js [--arg NAME=VALUE]...
+      runs the file's JavaScript (as for run) in a page that is already open
+      and whose URL contains MATCH, such as a window's sidebar
+      (compass-sidebar), found in the browser's target list; leaves it open.
   cdp.py - waitlog FILE REGEX [TIMEOUT]
       waits (default 180 s) until a line of FILE matches REGEX, prints it.
       Exit status 1 on timeout. (No browser needed; PORT is ignored.)
@@ -120,13 +124,16 @@ class Session:
     self.ws = WebSocket(ws_url)
     self.next_id = 0
 
-  def call(self, method, **params):
+  def call(self, method, session_id=None, **params):
     self.next_id += 1
-    self.ws.send(json.dumps({'id': self.next_id, 'method': method,
-                             'params': params}))
+    message = {'id': self.next_id, 'method': method, 'params': params}
+    if session_id:
+      message['sessionId'] = session_id
+    self.ws.send(json.dumps(message))
     while True:
       msg = json.loads(self.ws.recv())
-      if msg.get('id') == self.next_id:
+      if (msg.get('id') == self.next_id and
+          msg.get('sessionId') == session_id):
         if 'error' in msg:
           raise RuntimeError('%s: %s' % (method, msg['error']))
         return msg['result']
@@ -161,6 +168,31 @@ def evaluate(port, url, js, settle):
       pass
 
 
+def evaluate_in(port, match, js):
+  browser = http(port, '/json/version')
+  s = Session(browser['webSocketDebuggerUrl'])
+  deadline = time.time() + 60
+  while True:
+    targets = s.call('Target.getTargets')['targetInfos']
+    found = [t for t in targets if match in t.get('url', '')]
+    if found:
+      break
+    if time.time() > deadline:
+      raise TimeoutError('no open page matches ' + match + ': ' +
+                         ', '.join(t.get('url', '') for t in targets))
+    time.sleep(1)
+  session_id = s.call('Target.attachToTarget', targetId=found[0]['targetId'],
+                      flatten=True)['sessionId']
+  r = s.call('Runtime.evaluate', session_id=session_id,
+             expression='(async () => {\n%s\n})()' % js,
+             awaitPromise=True, returnByValue=True)
+  if 'exceptionDetails' in r:
+    print(json.dumps(r['exceptionDetails'], indent=1), file=sys.stderr)
+    return 1
+  print(json.dumps(r['result'].get('value'), indent=1))
+  return 0
+
+
 def waitlog(path, pattern, timeout):
   regex = re.compile(pattern)
   deadline = time.time() + timeout
@@ -187,7 +219,7 @@ def main(argv):
   if len(argv) >= 2 and argv[1] == 'wait':
     print(json.dumps(wait(int(argv[0])), indent=1))
     return 0
-  if len(argv) >= 4 and argv[1] == 'run':
+  if len(argv) >= 4 and argv[1] in ('run', 'in'):
     settle = 3.0
     args = {}
     rest = argv[4:]
@@ -203,6 +235,8 @@ def main(argv):
         return 2
     with open(argv[3]) as f:
       js = 'const ARGS = %s;\n%s' % (json.dumps(args), f.read())
+    if argv[1] == 'in':
+      return evaluate_in(int(argv[0]), argv[2], js)
     return evaluate(int(argv[0]), argv[2], js, settle)
   print(__doc__, file=sys.stderr)
   return 2

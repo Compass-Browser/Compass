@@ -1,8 +1,9 @@
 # Sync between devices
 
-Status: slices 0-2 done and merged into `sync-main`; slice 2b (History,
-encrypted) on `sync/slice-2b-history`, not yet built (see "Slice 2b
-notes"). Based on Chromium 156.0.8078.48.
+Status: slices 0, 1, 2, 2b and 3 done and merged into `sync-main`
+(MacBook runs: "Slice 2 run on the MacBook", "Slice 2b notes", "Slice 3
+notes"); 3b (Today and the archive) on `sync/slice-3b-today`. Based on
+Chromium 156.0.8078.48.
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
@@ -548,6 +549,180 @@ history. Filter: `CompassHistorySyncTypesTest.*:CompassHistoryControllerTest.*:C
 Go: `go test ./server -run TestEndToEndEncryptedHistory`. The two-client
 check is the MacBook run (history from A on B, a removal on B reaches A).
 
+### Slice 3 notes
+
+**MacBook run (2026-10-31, out/Debug): passed.** 75 unit tests pass at
+`61e11f0` (the run found and fixed: UTF-16 in gtest messages; an entry
+rescued from a folder deleted elsewhere was re-placed by its old position
+and went first instead of last). Three headless instances: a sidebar built
+on A (space, color, renamed and collapsed folder, moved tab, favorite)
+reached B identically with no echo; B's move and delete reached A (its
+live tab closed) in about 10 s; concurrent moves of X into Y and Y into X
+converged with nothing lost; C with its own space and favorites joined and
+all three converged (Home, Travel, Mine; the shared favorite once).
+Compass Spaces runs encrypted; the initial merge always came after the
+passphrase. No crash.
+
+Branch `sync/slice-3-spaces` (on `sync-main` `019b52c`). Written without a
+compiler; the MacBook build and run are in
+[sync-slice-3-steps.md](sync-slice-3-steps.md).
+
+**The type.** `syncer::COMPASS_SPACES`, the last user type.
+`EntitySpecifics.compass_spaces` is **field 970000** (upstream's recent
+fields are 1.4M-1.7M, its deprecated ones lower; 970000 is unused and far
+from both). `DataTypeForHistograms::kCompassSpaces = 200`, kept as
+`kMaxValue` (on a rebase, upstream's new value goes below it and
+`kMaxValue` stays ours). Encryption policy "encrypted if custom
+passphrase" (always, with the chain), local sync supported (route 2 needs
+it), regular priority, medium nudge delay. The patches are those listed in
+"Patches for a new data type" except `user_selectable_type` (only its
+static_assert) and `chrome_sync_controller_builder.cc` (not needed, see
+below), plus `data_type_tracker.cc` (two exhaustive switches) and
+`chrome/browser/sync/BUILD.gn`. All generated from pristine 156 files and
+checked with `git apply --check`; the list is in the steps doc, step 0.
+`proto_value_conversions_unittest.cc`, `sync_service_factory_unittest.cc`
+and `sync_test.cc` have the same static_assert (64 types) but aren't built
+by Compass; they'd need the same one-line change if those suites are ever
+built.
+
+**The proto** lives in `//compass/components/sync/protocol/`, built by
+`//components/sync/protocol` (its `protocol_sources.gni` lists it by its
+`//compass` path; `proto_in_dir` is `//`, so the import path is
+`compass/components/sync/protocol/...`). Deviations from the sketch above:
+proto2 with `optional` fields, as all sync protos; the enums are `int32`
+fields with 0 = unset (`section` 1 PINNED, 2 TODAY, 3 FAVORITES, 4 ARCHIVE;
+`type` 1 TAB, 2 FOLDER, 3 SPLIT; `color` SpaceColor + 1), because proto
+enums need `ProtoEnumToString()` overloads (one more upstream patch) and an
+unknown proto2 enum value would read as the default (PINNED); and
+`position`/`directory_position` are `sync_pb.UniquePosition` messages, not
+bytes. `icon`, `profile_uuid`, `last_active_time` and `archived_time` exist
+but aren't set; values another client sets are kept.
+
+**Not a selectable type; always on with the chain.** A "Spaces" toggle
+would mean `UserSelectableType::kCompassSpaces` and its cases in
+`user_selectable_type.cc`, `sync_prefs.cc`, `sync_policy_handler.cc`,
+`browsing_data_policies_utils.cc` and more (eight upstream files switch on
+the enum). Instead `COMPASS_SPACES` is in `AlwaysPreferredUserTypes()`,
+and its controller (`SpacesDataTypeController`, `compass_spaces_sync.cc`)
+returns `kMustStopAndKeepData` from `GetPreconditionState()` unless the
+profile's `CompassSyncService::AreDataTypesReleased()`: the chain runs and
+the passphrase is in place (the same moment slice 2 selects the other
+types). `HoldTypes()`, `SelectTypes()` and `Leave()` call
+`DataTypePreconditionChanged(COMPASS_SPACES)`. So it never commits before
+the passphrase. A toggle can come with slice 4's settings page (a pref the
+precondition reads, no upstream change).
+
+**Controller registration.** `//chrome/browser/sync` can't depend on
+`//compass/browser/sync` (which depends on it), so a tiny target,
+`//compass/components/sync:controllers_hook`, holds a factory callback:
+`CompassSyncServiceFactory`'s constructor (run with the other factories,
+before any profile) registers it, and `CreateControllers()` in
+`sync_service_factory.cc` appends what it returns (3 lines and an
+include). The controller's delegates are `ProxyDataTypeControllerDelegate`s
+whose provider creates the bridge on first use: nothing is built for a
+profile that never syncs.
+
+**Node IDs are now saved** (`"id"` per node in `Compass Sidebar.json`;
+sidebar_serializer). Before, they were random per session, so they couldn't
+be client tags. Older files load as before and their nodes get fresh IDs
+once; a missing, invalid or (within its space) duplicate ID gets a fresh
+one. `SpaceModel::AddTab()/AddFolder()` take an optional ID, and
+`AddSplit()` makes an empty split with one (loading and sync add the
+panes), so splits keep theirs too.
+
+**The bridge** (`CompassSpacesSyncBridge`, `browser/sync/`,
+`:spaces_bridge`, no window code) is owned by the profile's `SpaceService`
+through `SpaceService::Attachment`, with a small holder
+(`compass_spaces_sync.cc`) that supplies what needs windows: deleting a
+space (`compass::DeleteSpace()`, which switches windows away first; plain
+`SpaceList::RemoveSpace()` would trip `WindowFeatures`' CHECK) and moving
+entries across spaces with their live tabs (`compass::MoveEntry()`). How it
+works:
+
+- A **mirror**: each entity's specifics as the server last had them, in the
+  bridge's `DataTypeStore` (data records next to the metadata). The sidebar
+  file stays the source of truth for the tree.
+- **Local changes** aren't tracked one by one. Any change to the spaces
+  posts one pass that computes every entity from the model and `Put()`s
+  those that differ from the mirror, `Delete()`s mirror entities the model
+  no longer has. Simple and robust (it also catches changes made while sync
+  wasn't running); a few hundred nodes per pass is cheap.
+- **Remote changes** go into the mirror first, then into the model through
+  its normal methods. The next pass finds the model equal to the mirror, so
+  nothing echoes; what it does commit are the model's fix-ups. The
+  "sync-origin flag" is the bridge's `applying_remote_`, which keeps its own
+  observers quiet during the apply; other observers (store, UI, tab strip)
+  react as to any change.
+- **Order**: a pass keeps the positions of the longest run of siblings
+  already in increasing order and gives the others new ones between their
+  neighbors (`internal::AssignPositions()`), so a move commits one entity.
+  Suffixes come from the client tag hash, as bookmarks do. Positions the
+  bridge keeps aren't re-encoded, so they compare equal.
+- **Apply rules** (sync.md above): unknown parent → the node waits at the
+  end of its section's root, not committed (it's "parked" as long as the
+  mirror names a parent the model doesn't have), and moves in when the
+  parent arrives; parent deleted → stays at the root and that's committed.
+  Cycle or invalid placement → the section's root, committed. Deletes
+  remove the subtree (one tombstone per node, the sender's pass sends them
+  all); entries added here to a folder deleted elsewhere are kept at the
+  root. A split the batch leaves with fewer than two panes is dissolved. A
+  remote URL change of a live tab updates the entry only (no navigation);
+  a remote delete of a live entry closes its tab (`TabStripBridge` does, as
+  for a local delete).
+- **Pin/unpin**: unpinning (a move to Today) is a delete for other devices
+  in this slice. A remote entity in section TODAY (from a 3b client) moves
+  the local entry to its space's Today; ARCHIVE removes it. Neither is
+  deleted from the server by this version.
+- **Entities this version can't place** (a node of a space it doesn't have,
+  a non-tab favorite, Today/archive) stay in the mirror and are never
+  deleted from the server; a node waits for its space and appears when the
+  space does.
+- **Spaces**: name, color, archive delay, order. The order is the profile's
+  `SpaceList` order; the holder keeps it equal to the switcher's
+  (`SpaceDirectory`) order for the profile's spaces, both ways. A remote
+  delete of the last space leaves it (and the next pass puts it back).
+- **Initial merge** (`MergeFullSyncData`): union. The chain's spaces come
+  first, this device's after; a local favorite whose URL the chain already
+  has gives way to the chain's; a joining device's untouched starting space
+  ("Home", nothing pinned) gives way to the chain's first space, its Today
+  entries moving there. Same-ID entities (data synced before) are the
+  chain's version.
+- Leaving sync (`ApplyDisableSyncChanges`) clears the mirror and metadata,
+  keeps the spaces.
+
+**Profiles**: only the profile running the chain syncs (each profile's
+sync service gets the controller; only one has a chain in slices 1-4).
+`profile_uuid` isn't set.
+
+**Arc import (proposed, not done).** The importer adds nodes with fresh
+random IDs (`arc_import/sidebar_import.cc`), so importing the same Arc
+data on two Macs doubles every entry after a merge. Arc's items have IDs
+(`Item::id`, `Space::id`): pass `UUIDv5(compass-arc namespace, Arc ID)` to
+the new `AddTab()/AddFolder()/AddSplit()` ID parameter and to
+`SpaceList::AddSpace()`. Needs a v5 helper (SHA-1, `crypto/`), skipping
+items whose derived ID already exists (a second import on the same Mac),
+and the reused starting space keeps its own ID. Small, but not trivial
+enough for this slice.
+
+**Two-client integration test: not written.** As slice 2 found, `SyncTest`
+signs every client into a Gaia test account and its harness waits on
+states that assume one; local sync has no account, so a two-client
+local-sync harness would be its own project. The bridge's unit tests run
+two and three bridges against an in-memory server instead (create, rename,
+move, collapse, favorites, cycle, parking, invalid placement, subtree and
+concurrent deletes, unpin, the merge, restart), and the MacBook run is the
+end-to-end check.
+
+**Known limits.** A live pinned tab commits its URL and title on each
+change, and a tab live on two Macs at different pages takes the entity back
+on its next update (no throttling until 3b). Partial delivery of a large
+folder delete (over more than one commit message) can rescue some children
+to the root before their tombstones arrive.
+
+**3b slots in** by syncing the Today root (section TODAY, with
+`last_active_time`) in the same pass and the archive as ARCHIVE entities;
+the TODAY/ARCHIVE handling above then becomes normal placement.
+
 ### Change notifications
 
 Chromium learns about remote changes through FCM invalidations, which need
@@ -775,7 +950,9 @@ Upstream's sync settings are replaced by a page of our own,
    integration test on `FakeServer` for passwords.
 2b. **History** (slice 2b, "Slice 2b notes"): HISTORY and delete
    directives under local sync, encrypted.
-3. **`COMPASS_SPACES` type**: patches, proto, bridge, apply rules above,
+3. **`COMPASS_SPACES` type** (done 2026-10-31, MacBook run passed, see "Slice 3 notes"; the two-client
+   integration test is replaced by multi-bridge unit tests and the MacBook
+   run): patches, proto, bridge, apply rules above,
    one profile. Unit tests with `MockDataTypeLocalChangeProcessor`;
    integration tests `TwoClientCompassSpacesSyncTest` (Chromium's
    `SyncTest` with two profiles on a `FakeServer`): create, rename, move,

@@ -1,0 +1,20 @@
+diff --git a/components/sync/engine/cycle/data_type_tracker.cc b/components/sync/engine/cycle/data_type_tracker.cc
+index c539038144c5ff6b245afa32f2be5130ae7f9b7f..15df420f612098e371ae73f43c6b422751e45695 100644
+--- a/components/sync/engine/cycle/data_type_tracker.cc
++++ b/components/sync/engine/cycle/data_type_tracker.cc
+@@ -120,6 +120,7 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(DataType data_type) {
+     case NOTEBOOK:
+     case JOURNEY:
+     case AUTOFILL_ENTITY_SUPPRESSION:
++    case COMPASS_SPACES:
+       return kMediumLocalChangeNudgeDelay;
+     case UNSPECIFIED:
+       NOTREACHED();
+@@ -199,6 +200,7 @@ bool CanGetCommitsFromExtensions(DataType data_type) {
+     case NOTEBOOK:
+     case JOURNEY:
+     case AUTOFILL_ENTITY_SUPPRESSION:
++    case COMPASS_SPACES:
+       return false;
+     case UNSPECIFIED:
+       NOTREACHED();

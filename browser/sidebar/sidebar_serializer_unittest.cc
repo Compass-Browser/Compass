@@ -11,6 +11,7 @@
 #include "base/json/json_reader.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -156,6 +157,51 @@ TEST(SidebarSerializerTest, InsertsAheadOfExistingEntries) {
 
   EXPECT_EQ(Describe(model.pinned_root()), "A,X");
   EXPECT_EQ(Describe(model.today_root()), "B,Y");
+}
+
+TEST(SidebarSerializerTest, KeepsNodeIds) {
+  SpaceModel model;
+  SidebarNode* pinned = model.pinned_root();
+  SidebarNode* folder = model.AddFolder(pinned, 0, u"F");
+  SidebarNode* tab = model.AddTab(folder, 0, GURL("https://t.test/"), u"T");
+  SidebarNode* a = model.AddTab(pinned, 1, GURL("https://a.test/"), u"A");
+  SidebarNode* b = model.AddTab(pinned, 2, GURL("https://b.test/"), u"B");
+  SidebarNode* split = model.Split(a, b);
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  for (const SidebarNode* node : {folder, tab, a, b, split}) {
+    const SidebarNode* found = restored.FindById(node->id());
+    ASSERT_TRUE(found) << base::UTF16ToUTF8(node->title());
+    EXPECT_EQ(found->type(), node->type());
+    EXPECT_EQ(found->title(), node->title());
+  }
+}
+
+TEST(SidebarSerializerTest, GivesFreshIdsWhenMissingOrTaken) {
+  const base::Uuid id = base::Uuid::GenerateRandomV4();
+  const std::string json = R"({"version": 1, "pinned": [
+      {"id": ")" + id.AsLowercaseString() + R"(", "type": "tab", "title": "A",
+       "url": "https://a.test/"},
+      {"id": ")" + id.AsLowercaseString() + R"(", "type": "tab", "title": "B",
+       "url": "https://b.test/"},
+      {"id": "not a uuid", "type": "tab", "title": "C",
+       "url": "https://c.test/"},
+      {"type": "folder", "title": "D"}]})";
+  std::optional<base::Value> data =
+      base::JSONReader::Read(json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data && data->is_dict());
+  SpaceModel model;
+
+  EXPECT_EQ(DeserializeSpace(data->GetDict(), model), 4u);
+
+  const auto& entries = model.pinned_root()->children();
+  EXPECT_EQ(entries[0]->id(), id);
+  EXPECT_NE(entries[1]->id(), id);
+  for (const auto& entry : entries) {
+    EXPECT_TRUE(entry->id().is_valid());
+  }
 }
 
 TEST(SidebarSerializerTest, SkipsWhatTheModelCantHold) {
