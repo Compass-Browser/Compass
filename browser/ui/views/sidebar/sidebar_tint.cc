@@ -45,8 +45,9 @@ namespace {
 constexpr SkAlpha kTintAlpha = 0x24;
 
 // Grain at full strength: a tile of grey noise blended as an overlay (grey
-// 128 leaves the color as is) at this opacity.
-constexpr float kMaxGrainOpacity = 0.22f;
+// 128 leaves the color as is) at this opacity. The user found 22% far too
+// much: the slider's whole range is now its first fifth (2026-10-31).
+constexpr float kMaxGrainOpacity = 0.044f;
 constexpr int kGrainTileSize = 128;
 
 // The noise tile, the same every time (a fixed linear congruential

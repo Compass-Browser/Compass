@@ -245,7 +245,8 @@ another profile.
   change with it.
 - Grain: a 128 px tile of grey noise (fixed sequence, built once) over the
   tint, in the tint's shape, blended as an overlay (grey 128 leaves the
-  color, so hue stays), at up to 22% (`kMaxGrainOpacity`). One grain per
+  color, so hue stays), at up to 4.4% (`kMaxGrainOpacity`; 22% at first,
+  which the user capped to its first fifth). One grain per
   physical pixel, tiled in widget coordinates so the region's tint and the
   frame's line up.
 
