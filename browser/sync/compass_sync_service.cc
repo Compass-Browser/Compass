@@ -131,10 +131,12 @@ CompassSyncService::CompassSyncService(
     observing_power_ = true;
   }
   if (IsChainRunning()) {
-    // Nothing is configured, so nothing committed, until the passphrase is
-    // in place (UpdatePassphrase()).
-    setup_handle_ = sync_service_->GetSetupInProgressHandle();
-    SelectTypes();
+    // No data type is selected, so nothing is committed, until the
+    // passphrase is in place (UpdatePassphrase()). Nigori still configures,
+    // which is how the passphrase state becomes known. (A setup-in-progress
+    // handle would hold Nigori back too, and the two would wait on each
+    // other.)
+    HoldTypes();
     LoadSeed();
   }
 }
@@ -246,7 +248,7 @@ SyncStatus CompassSyncService::GetStatus() const {
                       ")."});
     return status;
   }
-  if (!seed_ || setup_handle_ ||
+  if (!seed_ || types_held_ || setup_handle_ ||
       sync_service_->GetTransportState() !=
           syncer::SyncService::TransportState::ACTIVE) {
     status.state = SyncState::kStarting;
@@ -292,7 +294,7 @@ void CompassSyncService::NotifyObservers() {
            type ? base::NumberToString(static_cast<int>(*type)) : "none",
            " passphrase_required=",
            sync_service_->GetUserSettings()->IsPassphraseRequired() ? "1" : "0",
-           " setup_held=", setup_handle_ ? "1" : "0", "\n  active: ",
+           " types_held=", types_held_ ? "1" : "0", "\n  active: ",
            syncer::DataTypeSetToDebugString(
                sync_service_->GetActiveDataTypes())});
     }
@@ -445,6 +447,12 @@ void CompassSyncService::OnEncryptorForLoad(
   NotifyObservers();
 }
 
+void CompassSyncService::HoldTypes() {
+  types_held_ = true;
+  sync_service_->GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, syncer::UserSelectableTypeSet());
+}
+
 void CompassSyncService::SelectTypes() {
   syncer::SyncUserSettings* settings = sync_service_->GetUserSettings();
   syncer::UserSelectableTypeSet types =
@@ -482,10 +490,11 @@ void CompassSyncService::UpdatePassphrase() {
   }
   if (syncer::IsExplicitPassphrase(*type)) {
     passphrase_rejected_ = false;
-    if (setup_handle_) {
+    if (types_held_) {
       // Everything is encrypted with the chain's key: let the types start.
       VLOG(1) << "[compass-sync] passphrase in place, data types start";
-      setup_handle_.reset();
+      types_held_ = false;
+      SelectTypes();
     }
     return;
   }

@@ -126,6 +126,7 @@ class CompassSyncService : public KeyedService,
                           scoped_refptr<os_crypt_async::Encryptor> encryptor);
 
   // Turns off the types Compass doesn't sync.
+  void HoldTypes();
   void SelectTypes();
   // Sets or supplies the chain's passphrase, and lets the data types start
   // once it's in place.
@@ -150,8 +151,10 @@ class CompassSyncService : public KeyedService,
   // The decrypted seed, once loaded.
   std::optional<Seed> seed_;
   bool seed_unreadable_ = false;
-  // Holds the data types back until the passphrase is in place, so nothing
-  // is committed with a key the server knows.
+  // True while no data type is selected, until the passphrase is in place,
+  // so nothing is committed with a key the server knows.
+  bool types_held_ = false;
+  // Only after Leave(): keeps the data types from configuring again.
   std::unique_ptr<syncer::SyncSetupInProgressHandle> setup_handle_;
   bool decryption_tried_ = false;
   bool passphrase_rejected_ = false;

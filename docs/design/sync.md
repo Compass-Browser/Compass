@@ -329,15 +329,17 @@ Leaving clears the seed and the local-sync pref; the next launch's sync
 service, not signed in, clears sync's metadata as for a signed-out user and
 keeps the data.
 
-**Passphrase.** At each start with a chain, `CompassSyncService` takes a
-`SyncSetupInProgressHandle`, which keeps the data types from configuring,
-so nothing is committed before the chain's passphrase is in place (the
+**Passphrase.** At each start with a chain, `CompassSyncService` selects
+no data type (Nigori and Device Info still run), so nothing is committed
+before the chain's passphrase is in place (the
 spike set it only once the types were running, so a first device's
 initial commits went out under the server-known keystore key). With the
 engine up: if the server's Nigori needs a passphrase (a joining device, or
 keys lost), `SetDecryptionPassphrase()`, once per time it's asked; if the
 passphrase type isn't explicit yet (first device), `SetEncryptionPassphrase()`;
-once it's explicit, the handle goes and the types start. Any device sets
+once it's explicit, the wanted types are selected and start. (A
+`SyncSetupInProgressHandle` doesn't work for this: it holds Nigori back
+too, so the passphrase type never becomes known; seen on the MacBook.) Any device sets
 it, not only the one that made the chain: a device that finds no custom
 passphrase on the server (a wiped server) must not upload in the clear,
 and two devices racing to set it converge, since the passphrase is the
