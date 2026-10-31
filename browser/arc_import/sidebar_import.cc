@@ -4,10 +4,17 @@
 
 #include "compass/browser/arc_import/sidebar_import.h"
 
+#include <array>
+#include <string>
+
+#include "base/containers/span.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "crypto/sha2.h"
 
 namespace compass::arc {
 
@@ -21,10 +28,25 @@ std::u16string TabTitle(const Item& item) {
   return base::UTF8ToUTF16(item.url.host());
 }
 
+// Whether no space, entry or favorite of |list| has |id|.
+bool IsFree(SpaceList& list, const base::Uuid& id) {
+  if (list.FindSpace(id) || list.favorites().FindById(id)) {
+    return false;
+  }
+  for (const auto& space : list.spaces()) {
+    if (space->FindById(id)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 class Builder {
  public:
-  Builder(SpaceModel& model, std::optional<base::Time> last_active)
-      : model_(model), last_active_(last_active) {}
+  Builder(SpaceList& list,
+          SpaceModel& model,
+          std::optional<base::Time> last_active)
+      : list_(list), model_(model), last_active_(last_active) {}
 
   // Adds |items| at the end of |parent|.
   void AddAll(SidebarNode* parent, const std::vector<Item>& items) {
@@ -34,9 +56,34 @@ class Builder {
   }
 
  private:
+  // Arc's item's derived ID, or none (a fresh one) if it's taken.
+  base::Uuid IdFor(const Item& item) {
+    const base::Uuid id = ArcDerivedId(item.id);
+    return id.is_valid() && IsFree(*list_, id) ? id : base::Uuid();
+  }
+
+  // Model::Split() of two tabs, the split getting |item|'s derived ID.
+  SidebarNode* SplitAs(const Item& item,
+                       SidebarNode* first,
+                       SidebarNode* tab) {
+    const base::Uuid id = IdFor(item);
+    if (!id.is_valid()) {
+      return model_->Split(first, tab);
+    }
+    SidebarNode* parent = first->parent();
+    SidebarNode* split =
+        model_->AddSplit(parent, parent->GetIndexOf(first), id);
+    if (!split) {
+      return model_->Split(first, tab);
+    }
+    model_->Move(first, split, 0);
+    model_->Move(tab, split, 1);
+    return split;
+  }
+
   SidebarNode* AddTab(SidebarNode* parent, const Item& item) {
     SidebarNode* tab = model_->AddTab(parent, parent->children().size(),
-                                      item.url, TabTitle(item));
+                                      item.url, TabTitle(item), IdFor(item));
     if (!tab) {
       return nullptr;
     }
@@ -63,7 +110,7 @@ class Builder {
         }
         SidebarNode* folder = model_->AddFolder(
             parent, parent->children().size(),
-            item.title.empty() ? u"Folder" : item.title);
+            item.title.empty() ? u"Folder" : item.title, IdFor(item));
         if (folder) {
           AddAll(folder, item.children);
         }
@@ -88,7 +135,9 @@ class Builder {
           if (!first) {
             first = tab;
           } else if (model_->CanSplit(first, tab)) {
-            first = model_->Split(first, tab);
+            first = first->type() == SidebarNode::Type::kSplit
+                        ? model_->Split(first, tab)
+                        : SplitAs(item, first, tab);
           }
         }
         return;
@@ -96,6 +145,7 @@ class Builder {
     }
   }
 
+  const raw_ref<SpaceList> list_;
   const raw_ref<SpaceModel> model_;
   // Overrides the items' own last active times.
   const std::optional<base::Time> last_active_;
@@ -123,20 +173,46 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
       model->SetName(space.name);
       reuse_first = false;
     } else {
-      model = list.AddSpace(list.spaces().size(), space.name);
+      // The derived ID, unless a space has it (a second import).
+      std::optional<base::Uuid> id;
+      if (const base::Uuid derived = ArcDerivedId(space.id);
+          derived.is_valid() && IsFree(list, derived)) {
+        id = derived;
+      }
+      model = list.AddSpace(list.spaces().size(), space.name, id);
     }
     if (!model) {
       continue;
     }
     model->SetColor(space.color);
-    Builder(*model, std::nullopt).AddAll(model->pinned_root(), space.pinned);
-    Builder(*model, now).AddAll(model->today_root(), space.today);
+    Builder(list, *model, std::nullopt)
+        .AddAll(model->pinned_root(), space.pinned);
+    Builder(list, *model, now).AddAll(model->today_root(), space.today);
     added.push_back(model);
   }
   SpaceModel& favorites = list.favorites();
-  Builder(favorites, std::nullopt)
+  Builder(list, favorites, std::nullopt)
       .AddAll(favorites.pinned_root(), profile.favorites);
   return added;
+}
+
+base::Uuid ArcDerivedId(std::string_view arc_id) {
+  if (arc_id.empty()) {
+    return base::Uuid();
+  }
+  const std::string name = base::StrCat({"compass-arc-import:", arc_id});
+  std::array<uint8_t, crypto::kSHA256Length> hash =
+      crypto::SHA256Hash(base::as_byte_span(name));
+  hash[6] = (hash[6] & 0x0f) | 0x80;  // Version 8.
+  hash[8] = (hash[8] & 0x3f) | 0x80;  // Variant 10.
+  const std::string hex =
+      base::HexEncodeLower(base::span(hash).first<16>());
+  return base::Uuid::ParseLowercase(base::StrCat(
+      {std::string_view(hex).substr(0, 8), "-",
+       std::string_view(hex).substr(8, 4), "-",
+       std::string_view(hex).substr(12, 4), "-",
+       std::string_view(hex).substr(16, 4), "-",
+       std::string_view(hex).substr(20, 12)}));
 }
 
 }  // namespace compass::arc
