@@ -21,9 +21,14 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "ui/base/hit_test.h"
+#include "ui/color/color_provider.h"
+#include "ui/views/background.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/non_client_view.h"
 #include "content/public/browser/web_contents.h"
@@ -146,6 +151,32 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, FrameDragsTheWindow) {
   gfx::Point address = location_bar->GetLocalBounds().CenterPoint();
   views::View::ConvertPointToTarget(location_bar, browser_view, &address);
   EXPECT_EQ(hit_test(address), HTCLIENT);
+}
+
+// "Open in" lights up while hovered, as the location bar does.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OpenInHasAHoverColor) {
+  BrowserWindowInterface* little = OpenLittleWindow(
+      browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(little);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(little);
+  views::Button* open = nullptr;
+  for (views::View* child : browser_view->toolbar()->children()) {
+    if (std::string_view(child->GetClassName()) == "LittleWindowButton") {
+      open = views::AsViewClass<views::Button>(child);
+    }
+  }
+  ASSERT_TRUE(open);
+  auto color = [&] {
+    return open->background()->color().ResolveToSkColor(
+        open->GetColorProvider());
+  };
+  const SkColor normal = color();
+  open->SetState(views::Button::STATE_HOVERED);
+  EXPECT_NE(color(), normal);
+  EXPECT_EQ(color(), open->GetColorProvider()->GetColor(
+                         kColorLocationBarBackgroundHovered));
+  open->SetState(views::Button::STATE_NORMAL);
+  EXPECT_EQ(color(), normal);
 }
 
 // Back is there, and follows the page's history.

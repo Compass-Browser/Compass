@@ -238,8 +238,7 @@ class LittleWindowButton : public views::LabelButton,
         frame_(frame),
         scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {
     SetHorizontalAlignment(gfx::ALIGN_CENTER);
-    SetBackground(views::CreateRoundedRectBackground(
-        kColorLocationBarBackground, kPillHeight / 2.f));
+    UpdateBackground();
     SetEnabledTextColors(kColorOmniboxText);
     SetBorder(views::CreateEmptyBorder(
         gfx::Insets::VH(0, kPillHorizontalPadding)));
@@ -273,6 +272,10 @@ class LittleWindowButton : public views::LabelButton,
   }
 
   // views::LabelButton:
+  void StateChanged(ButtonState old_state) override {
+    views::LabelButton::StateChanged(old_state);
+    UpdateBackground();
+  }
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override {
     gfx::Size size = views::LabelButton::CalculatePreferredSize(available_size);
@@ -293,6 +296,16 @@ class LittleWindowButton : public views::LabelButton,
   }
 
  private:
+  // The location bar's colors: lighter while hovered or pressed.
+  void UpdateBackground() {
+    const bool hovered =
+        GetState() == STATE_HOVERED || GetState() == STATE_PRESSED;
+    SetBackground(views::CreateRoundedRectBackground(
+        hovered ? kColorLocationBarBackgroundHovered
+                : kColorLocationBarBackground,
+        kPillHeight / 2.f));
+  }
+
   const raw_ptr<BrowserWindowInterface> browser_;
   views::ViewTracker frame_;
   base::ScopedObservation<views::Widget, views::WidgetObserver>
