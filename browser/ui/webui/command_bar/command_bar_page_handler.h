@@ -43,6 +43,8 @@ enum class CommandBarCommand {
   kDownloads,
   kExtensions,
   kSettings,
+  // Opens chrome://compass-import (docs/design/arc-import.md).
+  kImportFromArc,
 };
 
 // Serves the command bar page its results and acts on the chosen one. Merges

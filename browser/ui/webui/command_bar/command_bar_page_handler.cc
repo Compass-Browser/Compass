@@ -24,6 +24,8 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "content/public/common/url_constants.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
@@ -75,6 +77,7 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kDownloads, u"Downloads"},
     {CommandBarCommand::kExtensions, u"Extensions"},
     {CommandBarCommand::kSettings, u"Settings"},
+    {CommandBarCommand::kImportFromArc, u"Import from Arc"},
 };
 
 metrics::OmniboxEventProto::PageClassification GetPageClassification(
@@ -612,6 +615,15 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kSettings:
       chrome::ExecuteCommand(browser_, IDC_OPTIONS);
       break;
+    case CommandBarCommand::kImportFromArc: {
+      NavigateParams params(
+          browser_,
+          GURL(std::string(content::kChromeUIScheme) + "://" + kArcImportHost),
+          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+      params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+      Navigate(&params);
+      break;
+    }
   }
 }
 
@@ -651,6 +663,8 @@ bool CommandBarPageHandler::IsCommandAvailable(
     case CommandBarCommand::kExtensions:
     case CommandBarCommand::kSettings:
       return true;
+    case CommandBarCommand::kImportFromArc:
+      return !browser_->GetProfile()->IsOffTheRecord();
   }
 }
 

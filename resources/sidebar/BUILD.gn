@@ -12,6 +12,7 @@ build_webui("build") {
   grit_output_dir = "$root_gen_dir/compass"
 
   static_files = [
+    "arc_import.html",
     "command_bar.html",
     "placeholder.html",
     "compass_sidebar.html",
@@ -19,6 +20,7 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "arc_import.ts",
     "browser_proxy.ts",
     "command_bar/app.html.ts",
     "command_bar/app.ts",

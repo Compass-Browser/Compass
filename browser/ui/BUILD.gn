@@ -10,6 +10,8 @@ source_set("ui") {
     "arc_import/arc_importer.cc",
     "arc_import/arc_importer.h",
     "compass_command_ids.h",
+    "webui/arc_import/compass_arc_import_ui.cc",
+    "webui/arc_import/compass_arc_import_ui.h",
     "views/command_bar/command_bar.cc",
     "views/command_bar/command_bar.h",
     "views/frame/browser_view_exchange.cc",

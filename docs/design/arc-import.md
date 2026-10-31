@@ -172,7 +172,20 @@ drop get added to Compass before the import is finished. From Arc's files:
   `SpaceDirectory` so its spaces show in the switcher.
   `SidebarImportTest.*` (5), `ArcImporterBrowserTest.ImportsProfilesAndSpaces`,
   `NoSidebarNoImport`.
-- Next (4): the page. A run on a real Arc profile waits for Arc to be quit.
+- Slice 4 (page) done: `chrome://compass-import` (`compass://compass-import`;
+  `CompassArcImportUI`, `resources/sidebar/arc_import.{html,ts}`,
+  `sidebar.mojom` `ArcImportHandler`), opened by the command bar's "Import
+  from Arc". It lists Arc's profiles with their spaces and tab counts,
+  checked unless imported already (a Compass profile whose preferences
+  record that Arc profile); while Arc runs it says so with a "Quit Arc"
+  button (`NSRunningApplication terminate`, then waits up to 10 s) and won't
+  import; it explains the "Arc Safe Storage" prompt; imports the checked
+  profiles (`ImportFromArc(dirs)`), names them, and "Open my spaces"
+  switches the window to the first imported space. Tests:
+  `ArcImporterBrowserTest.ImportPage`.
+- Not done: offering it on first run; per-space choice (profiles are the
+  unit); the Arc features Compass lacks (above); a run on the user's real
+  Arc data.
 
 ## Open questions
 

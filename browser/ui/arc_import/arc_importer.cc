@@ -4,8 +4,10 @@
 
 #include "compass/browser/ui/arc_import/arc_importer.h"
 
+#include <algorithm>
 #include <utility>
 
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
@@ -24,7 +26,6 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/arc_import/arc_crypto.h"
-#include "compass/browser/arc_import/arc_sidebar.h"
 #include "compass/browser/arc_import/sidebar_import.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
@@ -164,6 +165,16 @@ class WholeImport {
     result_.ok = true;
   }
 
+  // Only these Arc profiles.
+  void KeepOnly(const std::vector<std::string>& dirs) {
+    if (dirs.empty()) {
+      return;
+    }
+    std::erase_if(sidebar_.profiles, [&](const Profile& profile) {
+      return !std::ranges::contains(dirs, profile.dir);
+    });
+  }
+
   void Next() {
     if (next_ >= sidebar_.profiles.size()) {
       std::move(callback_).Run(std::move(result_));
@@ -202,8 +213,12 @@ class WholeImport {
           spaces.push_back(space);
         }
       }
-      AddArcSidebar(SpaceService::Get(profile.get())->space_list(),
-                    arc_profile, spaces, base::Time::Now());
+      std::vector<SpaceModel*> added =
+          AddArcSidebar(SpaceService::Get(profile.get())->space_list(),
+                        arc_profile, spaces, base::Time::Now());
+      if (!added.empty() && !result_.first_space.is_valid()) {
+        result_.first_space = added.front()->id();
+      }
       // Its spaces show in every window's switcher.
       if (SpaceDirectory* directory = SpaceDirectory::Get()) {
         directory->List(profile.get());
@@ -213,20 +228,50 @@ class WholeImport {
     Next();
   }
 
-  const Sidebar sidebar_;
+  Sidebar sidebar_;
   base::OnceCallback<void(ArcImportResult)> callback_;
   ArcImportResult result_;
   size_t next_ = 0;
   base::WeakPtrFactory<WholeImport> weak_factory_{this};
 };
 
-void OnSidebarRead(base::OnceCallback<void(ArcImportResult)> callback,
+void OnSidebarRead(std::vector<std::string> dirs,
+                   base::OnceCallback<void(ArcImportResult)> callback,
                    std::optional<Sidebar> sidebar) {
   if (!sidebar) {
     std::move(callback).Run(ArcImportResult());
     return;
   }
-  (new WholeImport(std::move(*sidebar), std::move(callback)))->Next();
+  auto* import = new WholeImport(std::move(*sidebar), std::move(callback));
+  import->KeepOnly(dirs);
+  import->Next();
+}
+
+// The Arc profile folders Compass's profiles under |user_data| came from.
+// Blocking.
+std::set<std::string> FindImported(const base::FilePath& user_data) {
+  std::set<std::string> imported;
+  base::FileEnumerator profiles(user_data, /*recursive=*/false,
+                                base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath dir = profiles.Next(); !dir.empty();
+       dir = profiles.Next()) {
+    std::optional<base::DictValue> prefs =
+        ReadJsonDict(dir.Append(chrome::kPreferencesFilename));
+    const std::string* from =
+        prefs ? prefs->FindStringByDottedPath(kImportedFromPath) : nullptr;
+    if (from) {
+      imported.insert(*from);
+    }
+  }
+  return imported;
+}
+
+ArcOverview ReadOverview(const ArcPaths& paths,
+                         const base::FilePath& user_data) {
+  ArcOverview overview;
+  overview.sidebar = ReadSidebar(paths);
+  overview.imported = FindImported(user_data);
+  return overview;
 }
 
 }  // namespace
@@ -236,11 +281,25 @@ ArcImportResult::ArcImportResult(ArcImportResult&&) = default;
 ArcImportResult& ArcImportResult::operator=(ArcImportResult&&) = default;
 ArcImportResult::~ArcImportResult() = default;
 
-void ImportFromArc(base::OnceCallback<void(ArcImportResult)> callback) {
+void ImportFromArc(std::vector<std::string> dirs,
+                   base::OnceCallback<void(ArcImportResult)> callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce(&ReadSidebar, GetArcPaths()),
-      base::BindOnce(&OnSidebarRead, std::move(callback)));
+      base::BindOnce(&OnSidebarRead, std::move(dirs), std::move(callback)));
+}
+
+ArcOverview::ArcOverview() = default;
+ArcOverview::ArcOverview(ArcOverview&&) = default;
+ArcOverview& ArcOverview::operator=(ArcOverview&&) = default;
+ArcOverview::~ArcOverview() = default;
+
+void GetArcOverview(base::OnceCallback<void(ArcOverview)> callback) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&ReadOverview, GetArcPaths(),
+                     g_browser_process->profile_manager()->user_data_dir()),
+      std::move(callback));
 }
 
 ArcPaths GetArcPaths() {

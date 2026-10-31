@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/arc_import/arc_importer.h"
 
+#import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
 
@@ -47,6 +48,40 @@ std::optional<std::string> ReadArcKeychainPassword() {
   NSData* data = base::apple::CFToNSPtrCast(
       base::apple::CFCastStrict<CFDataRef>(scoped_result.get()));
   return std::string(static_cast<const char*>(data.bytes), data.length);
+}
+
+namespace {
+
+constexpr NSString* kArcBundleId = @"company.thebrowser.Browser";
+
+
+std::optional<bool>& RunningForTesting() {
+  static std::optional<bool> running;
+  return running;
+}
+
+}  // namespace
+
+void SetArcRunningForTesting(std::optional<bool> running) {
+  RunningForTesting() = running;
+}
+
+bool IsArcRunning() {
+  if (RunningForTesting()) {
+    return *RunningForTesting();
+  }
+  return [NSRunningApplication
+             runningApplicationsWithBundleIdentifier:kArcBundleId]
+             .count > 0;
+}
+
+bool QuitArc() {
+  bool asked = false;
+  for (NSRunningApplication* app in [NSRunningApplication
+           runningApplicationsWithBundleIdentifier:kArcBundleId]) {
+    asked |= [app terminate];
+  }
+  return asked;
 }
 
 }  // namespace compass::arc

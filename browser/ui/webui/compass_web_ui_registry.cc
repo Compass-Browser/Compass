@@ -8,6 +8,7 @@
 
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
 #include "content/public/browser/webui_config_map.h"
+#include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
 #include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 #include "compass/browser/ui/webui/placeholder/compass_placeholder_ui.h"
@@ -20,6 +21,7 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   map.AddWebUIConfig(std::make_unique<CompassSidebarUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassPlaceholderUIConfig>());
   map.AddWebUIConfig(std::make_unique<CommandBarUIConfig>());
+  map.AddWebUIConfig(std::make_unique<CompassArcImportUIConfig>());
 }
 
 void PopulateWebUIInterfaceBrokers(
@@ -30,6 +32,8 @@ void PopulateWebUIInterfaceBrokers(
       .Add<sidebar::mojom::PlaceholderHandler>();
   registry.ForWebUI<CommandBarUI>()
       .Add<command_bar::mojom::PageHandlerFactory>();
+  registry.ForWebUI<CompassArcImportUI>()
+      .Add<sidebar::mojom::ArcImportHandler>();
 }
 
 }  // namespace compass

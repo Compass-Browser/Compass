@@ -1,0 +1,150 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Import from Arc</title>
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <style>
+      body {
+        background: var(--color-sys-base, #fff);
+        color: var(--color-sys-on-surface, #1f1f1f);
+        margin: 0;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 560px;
+        padding: 56px 24px;
+      }
+
+      h1 {
+        font-size: 28px;
+        font-weight: 500;
+        margin: 0 0 8px;
+      }
+
+      .lead {
+        margin: 0 0 24px;
+        opacity: 0.75;
+      }
+
+      .notice {
+        background: var(--color-sys-surface-container, #f1f3f4);
+        border-radius: 12px;
+        margin: 0 0 20px;
+        padding: 12px 16px;
+      }
+
+      .notice.warning {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+
+      ul {
+        list-style: none;
+        margin: 0 0 24px;
+        padding: 0;
+      }
+
+      li {
+        border: 1px solid var(--color-sys-divider, #dadce0);
+        border-radius: 12px;
+        margin-bottom: 8px;
+      }
+
+      label {
+        align-items: flex-start;
+        cursor: pointer;
+        display: flex;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      li.imported label {
+        cursor: default;
+        opacity: 0.6;
+      }
+
+      input[type=checkbox] {
+        margin: 3px 0 0;
+      }
+
+      .name {
+        font-weight: 500;
+      }
+
+      .details {
+        font-size: 12px;
+        margin-top: 2px;
+        opacity: 0.7;
+      }
+
+      button {
+        background: var(--color-sys-primary, #0b57d0);
+        border: none;
+        border-radius: 18px;
+        color: var(--color-sys-on-primary, #fff);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 500;
+        padding: 8px 20px;
+      }
+
+      button.secondary {
+        background: none;
+        border: 1px solid var(--color-sys-outline, #747775);
+        color: inherit;
+      }
+
+      button:disabled {
+        cursor: default;
+        opacity: 0.4;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Import from Arc</h1>
+      <p class="lead">
+        Bring your Arc profiles to Compass: you stay signed in to your sites,
+        and your history, passwords, extensions and settings come along, with
+        your spaces, pinned tabs and favorites.
+      </p>
+
+      <p id="loading">Looking for Arc…</p>
+      <p id="notFound" hidden>Arc wasn't found on this Mac.</p>
+
+      <div id="chooser" hidden>
+        <div id="arcRunning" class="notice warning" hidden>
+          <span>Arc is open. Quit it to import: its data is in use while it
+            runs.</span>
+          <button id="quitArc" class="secondary">Quit Arc</button>
+        </div>
+        <ul id="profiles"></ul>
+        <p class="notice">
+          macOS will ask whether Compass may use "Arc Safe Storage", the key
+          Arc encrypts your cookies and passwords with. Choose
+          <b>Always Allow</b> (or Allow) so Compass can bring them over.
+        </p>
+        <button id="import" disabled>Import</button>
+      </div>
+
+      <p id="importing" hidden>Importing… This takes a moment for each
+        profile.</p>
+
+      <div id="done" hidden>
+        <p id="doneText"></p>
+        <p id="failedText" class="notice" hidden></p>
+        <button id="open">Open my spaces</button>
+      </div>
+    </main>
+    <script type="module" src="arc_import.js"></script>
+  </body>
+</html>

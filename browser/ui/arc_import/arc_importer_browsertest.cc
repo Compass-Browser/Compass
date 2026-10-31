@@ -18,6 +18,10 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "base/test/run_until.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/arc_import/arc_crypto.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -53,12 +57,14 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
     paths.sidebar = arc_dir_.GetPath().Append("StorableSidebar.json");
     SetArcPathsForTesting(paths);
     SetArcKeychainPasswordForTesting(kArcPassword);
+    SetArcRunningForTesting(false);
     arc_profile_ = paths.user_data.Append("Default");
   }
 
   void TearDownOnMainThread() override {
     SetArcPathsForTesting(std::nullopt);
     SetArcKeychainPasswordForTesting(std::nullopt);
+    SetArcRunningForTesting(std::nullopt);
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
@@ -71,7 +77,7 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
   // Makes an "Arc profile" from real Chromium data: this browser's cookie
   // database with a cookie for a.test, re-encrypted with Arc's key.
   void MakeArcProfileWithCookie() {
-    Profile* profile = browser()->GetProfile();
+    ::Profile* profile = browser()->GetProfile();
     ASSERT_TRUE(content::SetCookie(profile, GURL("https://a.test/"),
                                    "session=1; max-age=3600"));
     base::test::TestFuture<void> flushed;
@@ -143,7 +149,7 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsCookiesAndSettings) {
   EXPECT_TRUE(result.copy.ok);
   EXPECT_GE(result.copy.reencrypted, 1);
   EXPECT_EQ(result.copy.dropped_cookies, 0);
-  Profile* imported = result.profile;
+  ::Profile* imported = result.profile;
   EXPECT_NE(imported, browser()->GetProfile());
 
   // Named as in Arc.
@@ -207,6 +213,19 @@ constexpr char kSidebar[] = R"json({"sidebar": {"containers": [{"global": {}}, {
 constexpr char kLocalState[] = R"json({"profile": {"info_cache": {
   "Default": {"name": "Your Arc"}, "Profile 1": {"name": "Work"}}}})json";
 
+void WriteArcSidebar() {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  const ArcPaths paths = GetArcPaths();
+  for (const char* dir : {"Default", "Profile 1"}) {
+    ASSERT_TRUE(base::CreateDirectory(paths.user_data.Append(dir)));
+    ASSERT_TRUE(base::WriteFile(
+        paths.user_data.Append(dir).Append("Preferences"), "{}"));
+  }
+  ASSERT_TRUE(base::WriteFile(paths.sidebar, kSidebar));
+  ASSERT_TRUE(
+      base::WriteFile(paths.user_data.Append("Local State"), kLocalState));
+}
+
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
@@ -222,7 +241,7 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
   }
 
   base::test::TestFuture<ArcImportResult> future;
-  ImportFromArc(future.GetCallback());
+  ImportFromArc({}, future.GetCallback());
   ArcImportResult result = future.Take();
   ASSERT_TRUE(result.ok);
   EXPECT_TRUE(result.failed.empty());
@@ -254,10 +273,57 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
 
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, NoSidebarNoImport) {
   base::test::TestFuture<ArcImportResult> future;
-  ImportFromArc(future.GetCallback());
+  ImportFromArc({}, future.GetCallback());
   ArcImportResult result = future.Take();
   EXPECT_FALSE(result.ok);
   EXPECT_TRUE(result.profiles.empty());
+}
+
+// The page lists Arc's profiles, imports the chosen ones, and says so.
+IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
+  ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://compass-import/")));
+  content::WebContents* page =
+      browser()->GetTabStripModel()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(page));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(page, "document.querySelectorAll('#profiles li')"
+                                 ".length")
+               .ExtractInt() == 2;
+  }));
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.querySelector('#profiles .details')"
+                            ".textContent"),
+            "2 spaces (Personal, Hobbies) · 2 tabs");
+  EXPECT_EQ(false, content::EvalJs(page, "document.getElementById('import')"
+                                         ".disabled"));
+
+  // Only "Work".
+  ASSERT_TRUE(content::ExecJs(
+      page, "document.querySelector('#profiles input').click();"
+            "document.getElementById('import').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(page, "!document.getElementById('done').hidden")
+        .ExtractBool();
+  }));
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.getElementById('doneText').textContent"),
+            "Imported Work.");
+
+  // Opened again, Work shows as imported.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://compass-import/")));
+  page = browser()->GetTabStripModel()->GetActiveWebContents();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(page, "document.querySelectorAll('#profiles li')"
+                                 ".length")
+               .ExtractInt() == 2;
+  }));
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.querySelectorAll('#profiles .name')[1]"
+                            ".textContent"),
+            "Work (imported)");
 }
 
 }  // namespace

@@ -30,6 +30,8 @@ class RestoredTabMatcher;
 
 // The placeholder a window shows for a tab that moved to another window.
 inline constexpr char kPlaceholderHost[] = "compass-placeholder";
+// chrome://compass-import: importing from Arc (docs/design/arc-import.md).
+inline constexpr char kArcImportHost[] = "compass-import";
 inline constexpr char kPlaceholderURL[] = "chrome://compass-placeholder/";
 
 // Keeps a window's TabStripModel in line with its space's SpaceModel and the

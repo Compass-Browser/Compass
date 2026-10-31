@@ -226,3 +226,37 @@ interface PlaceholderHandler {
   // Moves that tab back into the placeholder's window, replacing it.
   BringHere();
 };
+
+// An Arc profile chrome://compass-import offers (docs/design/arc-import.md).
+struct ArcImportProfile {
+  // Its folder in Arc ("Default", "Profile 1", ...).
+  string dir;
+  string name;
+  // Its spaces' names, in Arc's order.
+  array<string> spaces;
+  // Tabs in its spaces and favorites.
+  int32 tab_count;
+  // Imported already: a Compass profile came from it.
+  bool imported;
+};
+
+struct ArcImportState {
+  // Arc's sidebar was found and read.
+  bool found;
+  // Arc is open (its databases are in use; it must be quit first).
+  bool arc_running;
+  array<ArcImportProfile> profiles;
+};
+
+// Browser-side handler for chrome://compass-import: importing from Arc.
+interface ArcImportHandler {
+  GetState() => (ArcImportState state);
+  // Asks Arc to quit; answers once it has, or false after a few seconds.
+  QuitArc() => (bool quit);
+  // Imports the Arc profiles |dirs|: profiles, cookies, history, passwords,
+  // settings, extensions, then spaces and favorites. macOS asks whether
+  // Compass may use Arc's Keychain key.
+  Import(array<string> dirs) => (array<string> imported, array<string> failed);
+  // Shows the first imported space in this window.
+  OpenImported();
+};

@@ -199,7 +199,7 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
                           "command Copy URL",
                           "command Reload", "command History",
                           "command Downloads", "command Extensions",
-                          "command Settings"));
+                          "command Settings", "command Import from Arc"));
 }
 
 TEST_F(CommandBarPageHandlerTest, EmptyCurrentEntryQueryShowsCommandsOnly) {
