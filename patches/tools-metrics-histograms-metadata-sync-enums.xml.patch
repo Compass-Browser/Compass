@@ -1,0 +1,12 @@
+diff --git a/tools/metrics/histograms/metadata/sync/enums.xml b/tools/metrics/histograms/metadata/sync/enums.xml
+index 1039e75fb8bb0cc7c23013056d9b894a600dccc4..67a6c507162fcce195f1ea95efaf8fdbc56abea2 100644
+--- a/tools/metrics/histograms/metadata/sync/enums.xml
++++ b/tools/metrics/histograms/metadata/sync/enums.xml
+@@ -1071,6 +1071,7 @@ chromium-metrics-reviews@google.com.
+   <int value="83" label="Notebook"/>
+   <int value="84" label="Journey"/>
+   <int value="85" label="Autofill Entity Suppression"/>
++  <int value="200" label="Compass Spaces"/>
+ </enum>
+ 
+ <!-- LINT.ThenChange(/components/sync/base/data_type.h:SyncDataTypes) -->

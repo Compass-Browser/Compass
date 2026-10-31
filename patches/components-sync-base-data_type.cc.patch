@@ -1,0 +1,55 @@
+diff --git a/components/sync/base/data_type.cc b/components/sync/base/data_type.cc
+index c4cb0b89180a4039e7f57433a9d69fe3d89b377d..4fb302e849b66c36874f6cb52e4fb32e1ce56553 100644
+--- a/components/sync/base/data_type.cc
++++ b/components/sync/base/data_type.cc
+@@ -1174,10 +1174,30 @@ constexpr std::array<DataTypeInfo, syncer::GetNumDataTypes()>
+             .cross_user_sharing_policy = CrossUserSharingPolicy::kNone,
+             .local_sync_support_policy = LocalSyncSupportPolicy::kUnsupported,
+         },
++        // Compass: the sidebar (compass/docs/design/sync.md). Compass syncs
++        // through local sync pointed at its own server, so it must support
++        // local sync; encrypted with the chain's custom passphrase.
++        {
++            .type = COMPASS_SPACES,
++            .specifics_field_number =
++                sync_pb::EntitySpecifics::kCompassSpacesFieldNumber,
++            .debug_string = "Compass Spaces",
++            .histogram_suffix = "COMPASS_SPACES",
++            .stable_lowercase_string = "compass_spaces",
++            .encryption_policy =
++                EncryptionPolicy::kEncryptedIfCustomPassphraseSet,
++            .priority = DataTypePriority::kRegular,
++            .communication_direction = CommunicationDirection::kRegularTwoWay,
++            .apply_updates_batch_policy = ApplyUpdatesBatchPolicy::kStandard,
++            .unsynced_data_check_on_signout_policy =
++                UnsyncedDataCheckOnSignoutPolicy::kNone,
++            .cross_user_sharing_policy = CrossUserSharingPolicy::kNone,
++            .local_sync_support_policy = LocalSyncSupportPolicy::kSupported,
++        },
+     }};
+ 
+ // LINT.IfChange(DataTypeHistogramSuffix)
+-static_assert(GetNumDataTypes() == 64,
++static_assert(GetNumDataTypes() == 65,
+               "When adding a new type, update kDataTypeInfoTable, update "
+               "histograms.xml and follow the integration checklist in "
+               "https://www.chromium.org/developers/design-documents/sync/"
+@@ -1397,6 +1417,9 @@ void AddDefaultFieldValue(DataType type, sync_pb::EntitySpecifics* specifics) {
+     case AUTOFILL_ENTITY_SUPPRESSION:
+       specifics->mutable_autofill_entity_suppression();
+       break;
++    case COMPASS_SPACES:
++      specifics->mutable_compass_spaces();
++      break;
+   }
+ }
+ 
+@@ -1733,6 +1756,8 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
+       return DataTypeForHistograms::kJourney;
+     case AUTOFILL_ENTITY_SUPPRESSION:
+       return DataTypeForHistograms::kAutofillEntitySuppression;
++    case COMPASS_SPACES:
++      return DataTypeForHistograms::kCompassSpaces;
+   }
+   NOTREACHED();
+ }

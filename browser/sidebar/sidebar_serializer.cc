@@ -64,6 +64,7 @@ constexpr char kSplit[] = "split";
 std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
                                              bool today) {
   base::DictValue dict;
+  dict.Set(kIdKey, node.id().AsLowercaseString());
   switch (node.type()) {
     case SidebarNode::Type::kTab:
       if (today && !IsRestorableURL(node.url())) {
@@ -131,6 +132,32 @@ void SetTabState(const base::DictValue& dict,
   }
 }
 
+// The saved ID of |dict|, unless it's missing, invalid or already taken in
+// |model| (then the node gets a fresh one).
+base::Uuid SavedId(const base::DictValue& dict, SpaceModel& model) {
+  const std::string* id = dict.FindString(kIdKey);
+  base::Uuid uuid = id ? base::Uuid::ParseLowercase(*id) : base::Uuid();
+  if (!uuid.is_valid() || model.FindById(uuid)) {
+    return base::Uuid();
+  }
+  return uuid;
+}
+
+// Adds the tab |dict| to |parent| at |index|.
+SidebarNode* AddSavedTab(const base::DictValue& dict,
+                         SpaceModel& model,
+                         SidebarNode* parent,
+                         size_t index) {
+  const std::string* url = dict.FindString(kUrlKey);
+  const std::string* title = dict.FindString(kTitleKey);
+  SidebarNode* tab = model.AddTab(parent, index,
+                                  GURL(url ? *url : std::string()),
+                                  title ? base::UTF8ToUTF16(*title) : u"",
+                                  SavedId(dict, model));
+  SetTabState(dict, model, tab);
+  return tab;
+}
+
 // Adds |dict| as a child of |parent| at |index|. Returns false if it was
 // skipped.
 bool DeserializeNode(const base::DictValue& dict,
@@ -149,10 +176,7 @@ bool DeserializeNode(const base::DictValue& dict,
         parent->children().size() >= kMaxSplitPanes) {
       return false;
     }
-    const std::string* url = dict.FindString(kUrlKey);
-    SetTabState(dict, model,
-                model.AddTab(parent, index, GURL(url ? *url : std::string()),
-                             std::move(title16)));
+    AddSavedTab(dict, model, parent, index);
     return true;
   }
 
@@ -161,7 +185,8 @@ bool DeserializeNode(const base::DictValue& dict,
     if (parent->type() == SidebarNode::Type::kSplit) {
       return false;
     }
-    SidebarNode* folder = model.AddFolder(parent, index, std::move(title16));
+    SidebarNode* folder = model.AddFolder(parent, index, std::move(title16),
+                                          SavedId(dict, model));
     model.SetCollapsed(folder, dict.FindBool(kCollapsedKey).value_or(false));
     if (children) {
       for (const base::Value& child : *children) {
@@ -175,13 +200,12 @@ bool DeserializeNode(const base::DictValue& dict,
   }
 
   if (*type == kSplit) {
-    // SpaceModel builds splits from tabs that already exist, so add the panes
-    // first, then join them. A split with fewer than two panes is stored as
-    // its pane.
+    // A split with fewer than two panes is stored as its pane. The split and
+    // its panes keep their IDs.
     if (parent->type() == SidebarNode::Type::kSplit || !children) {
       return false;
     }
-    std::vector<SidebarNode*> panes;
+    std::vector<const base::DictValue*> panes;
     for (const base::Value& child : *children) {
       const base::DictValue* pane = child.GetIfDict();
       const std::string* pane_type =
@@ -189,18 +213,18 @@ bool DeserializeNode(const base::DictValue& dict,
       if (!pane_type || *pane_type != kTab || panes.size() == kMaxSplitPanes) {
         continue;
       }
-      const std::string* url = pane->FindString(kUrlKey);
-      const std::string* pane_title = pane->FindString(kTitleKey);
-      panes.push_back(model.AddTab(
-          parent, index + panes.size(), GURL(url ? *url : std::string()),
-          pane_title ? base::UTF8ToUTF16(*pane_title) : u""));
-      SetTabState(*pane, model, panes.back());
+      panes.push_back(pane);
     }
     if (panes.empty()) {
       return false;
     }
-    for (size_t i = 1; i < panes.size(); ++i) {
-      model.Split(panes[0], panes[i]);
+    if (panes.size() == 1) {
+      AddSavedTab(*panes[0], model, parent, index);
+      return true;
+    }
+    SidebarNode* split = model.AddSplit(parent, index, SavedId(dict, model));
+    for (const base::DictValue* pane : panes) {
+      AddSavedTab(*pane, model, split, split->children().size());
     }
     return true;
   }

@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/sync/BUILD.gn b/chrome/browser/sync/BUILD.gn
+index 28605d54c3cd85ef6d725ae17808915067ddcf0a..b6faed61015931ba3ac32b26bf21e1d510811d6b 100644
+--- a/chrome/browser/sync/BUILD.gn
++++ b/chrome/browser/sync/BUILD.gn
+@@ -85,6 +85,8 @@ source_set("sync") {
+     "//components/paint_preview/buildflags",
+   ]
+   deps = [
++    # Compass's data type controllers (sync_service_factory.cc).
++    "//compass/components/sync:controllers_hook",
+     ":data_type_store_service_factory",
+     "//chrome/app:branded_strings",
+     "//chrome/app:branded_strings_grit",

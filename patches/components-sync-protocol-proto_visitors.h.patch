@@ -1,0 +1,68 @@
+diff --git a/components/sync/protocol/proto_visitors.h b/components/sync/protocol/proto_visitors.h
+index 4cf920a7ee773b2477b178885a21833deb637256..7ed7d18906be35dafcbc13e140a3a8e9ec1a9400 100644
+--- a/components/sync/protocol/proto_visitors.h
++++ b/components/sync/protocol/proto_visitors.h
+@@ -76,6 +76,7 @@
+ #include "components/sync/protocol/web_app_specifics.pb.h"
+ #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
+ #include "components/sync/protocol/workspace_desk_specifics.pb.h"
++#include "compass/components/sync/protocol/compass_spaces_specifics.pb.h"
+ 
+ // This file implements VisitProtoFields() functions for sync protos.
+ //
+@@ -744,7 +745,7 @@ VISIT_PROTO_FIELDS(
+ }
+ 
+ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
+-  static_assert(64 == GetNumDataTypes(),
++  static_assert(65 == GetNumDataTypes(),
+                 "When adding a new protocol type, you will likely need to add "
+                 "it here as well.");
+   VISIT(encrypted);
+@@ -813,6 +814,8 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
+   VISIT(gemini_thread);
+   VISIT(notebook);
+   VISIT(journey);
++  // Compass.
++  VISIT(compass_spaces);
+ }
+ 
+ VISIT_PROTO_FIELDS(const sync_pb::ExtensionSettingSpecifics& proto) {
+@@ -2486,6 +2489,37 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillEntitySuppressionSpecifics& proto) {
+   VISIT(schema_version);
+ }
+ 
++// Compass: compass/components/sync/protocol/compass_spaces_specifics.proto.
++VISIT_PROTO_FIELDS(const sync_pb::CompassSpacesSpecifics& proto) {
++  VISIT(space);
++  VISIT(node);
++}
++
++VISIT_PROTO_FIELDS(const sync_pb::CompassSpace& proto) {
++  VISIT(uuid);
++  VISIT(name);
++  VISIT(color);
++  VISIT(icon);
++  VISIT(directory_position);
++  VISIT(profile_uuid);
++  VISIT(archive_after_seconds);
++}
++
++VISIT_PROTO_FIELDS(const sync_pb::CompassNode& proto) {
++  VISIT(uuid);
++  VISIT(space_uuid);
++  VISIT(parent_uuid);
++  VISIT(section);
++  VISIT(position);
++  VISIT(type);
++  VISIT(url);
++  VISIT(title);
++  VISIT(custom_title);
++  VISIT(collapsed);
++  VISIT(last_active_time);
++  VISIT(archived_time);
++}
++
+ }  // namespace syncer
+ 
+ #undef VISIT_

@@ -14,8 +14,11 @@
 
 namespace compass {
 
-SidebarNode::SidebarNode(Type type, std::u16string title, GURL url)
-    : id_(base::Uuid::GenerateRandomV4()),
+SidebarNode::SidebarNode(Type type,
+                         std::u16string title,
+                         GURL url,
+                         const base::Uuid& id)
+    : id_(id.is_valid() ? id : base::Uuid::GenerateRandomV4()),
       type_(type),
       title_(std::move(title)),
       url_(std::move(url)) {}

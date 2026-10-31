@@ -1,8 +1,16 @@
 diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/sync_service_factory.cc
-index 64323bef78dd3822ed299f75f5d7bbcfc636c46c..2d5fec9132d929918cec172524079236d4847e5e 100644
+index 64323bef78dd3822ed299f75f5d7bbcfc636c46c..e2ccaf3eb77748f9f5a6d71bdaed9048042a2622 100644
 --- a/chrome/browser/sync/sync_service_factory.cc
 +++ b/chrome/browser/sync/sync_service_factory.cc
-@@ -303,7 +303,10 @@ syncer::DataTypeController::TypeVector CreateCommonControllers(
+@@ -84,6 +84,7 @@
+ #include "components/sync/base/features.h"
+ #include "components/sync/engine/net/http_bridge.h"
+ #include "components/sync/service/sync_service_impl.h"
++#include "compass/components/sync/controllers_hook.h"
+ #include "components/sync_preferences/pref_service_syncable.h"
+ #include "components/variations/service/google_groups_manager.h"
+ #include "content/public/browser/browser_context.h"
+@@ -303,7 +304,10 @@ syncer::DataTypeController::TypeVector CreateCommonControllers(
    builder.SetNotebooksService(
        notebooks::NotebooksServiceFactory::GetForProfile(profile));
  
@@ -12,5 +20,15 @@ index 64323bef78dd3822ed299f75f5d7bbcfc636c46c..2d5fec9132d929918cec172524079236
 +  return builder.Build(/*disabled_types=*/{syncer::WEBAUTHN_CREDENTIAL},
 +                       sync_service,
                         chrome::GetChannel());
+ }
+ 
+@@ -386,6 +390,9 @@ syncer::DataTypeController::TypeVector CreateControllers(
+   syncer::DataTypeController::TypeVector controllers =
+       CreateCommonControllers(profile, sync_service);
+   base::Extend(controllers, CreateChromeControllers(profile, sync_service));
++  // Compass's own data types (COMPASS_SPACES).
++  base::Extend(controllers,
++               compass::sync::CreateExtraControllers(profile, sync_service));
+   return controllers;
  }
  

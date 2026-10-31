@@ -24,6 +24,8 @@ class CompassSyncServiceFactory : public ProfileKeyedServiceFactory {
  public:
   // Null for profiles without one (incognito, guest, tests).
   static CompassSyncService* GetForProfile(Profile* profile);
+  // Doesn't create it.
+  static CompassSyncService* GetForProfileIfExists(Profile* profile);
   static CompassSyncServiceFactory* GetInstance();
 
   CompassSyncServiceFactory(const CompassSyncServiceFactory&) = delete;

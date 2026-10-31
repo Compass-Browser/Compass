@@ -72,7 +72,8 @@ SpaceService::~SpaceService() {
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
     directory->OnServiceDestroyed(this);
   }
-  // The store observes the list, so it goes first.
+  // These observe the list, so they go first.
+  sync_attachment_.reset();
   store_.reset();
   space_list_.RemoveObserver(this);
 }
@@ -86,6 +87,17 @@ SpaceService* SpaceService::Get(Profile* profile) {
     profile->SetUserData(kUserDataKey, base::WrapUnique(service));
   }
   return service;
+}
+
+// static
+SpaceService* SpaceService::GetIfExists(Profile* profile) {
+  return static_cast<SpaceService*>(profile->GetUserData(kUserDataKey));
+}
+
+void SpaceService::SetSyncAttachment(std::unique_ptr<Attachment> attachment) {
+  // The old one goes first: both may observe the list.
+  sync_attachment_.reset();
+  sync_attachment_ = std::move(attachment);
 }
 
 RestoredTabMatcher& SpaceService::restored_tab_matcher(

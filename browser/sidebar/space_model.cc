@@ -120,19 +120,29 @@ void SpaceModel::RemoveObserver(Observer* observer) {
 
 SidebarNode* SpaceModel::AddFolder(SidebarNode* parent,
                                    size_t index,
-                                   std::u16string title) {
+                                   std::u16string title,
+                                   const base::Uuid& id) {
   return AddNode(parent, index,
                  std::make_unique<SidebarNode>(Type::kFolder, std::move(title),
-                                               GURL()));
+                                               GURL(), id));
 }
 
 SidebarNode* SpaceModel::AddTab(SidebarNode* parent,
                                 size_t index,
                                 const GURL& url,
-                                std::u16string title) {
+                                std::u16string title,
+                                const base::Uuid& id) {
   return AddNode(
       parent, index,
-      std::make_unique<SidebarNode>(Type::kTab, std::move(title), url));
+      std::make_unique<SidebarNode>(Type::kTab, std::move(title), url, id));
+}
+
+SidebarNode* SpaceModel::AddSplit(SidebarNode* parent,
+                                  size_t index,
+                                  const base::Uuid& id) {
+  return AddNode(parent, index,
+                 std::make_unique<SidebarNode>(Type::kSplit, std::u16string(),
+                                               GURL(), id));
 }
 
 bool SpaceModel::CanMove(const SidebarNode* node,

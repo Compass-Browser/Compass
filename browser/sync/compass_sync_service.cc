@@ -175,6 +175,10 @@ GURL CompassSyncService::GetServerUrl() const {
       sync_service_ ? sync_service_->GetSyncServiceUrlForDebugging() : GURL());
 }
 
+bool CompassSyncService::AreDataTypesReleased() const {
+  return IsChainRunning() && seed_ && !types_held_ && !setup_handle_;
+}
+
 bool CompassSyncService::IsChainRunning() const {
   // As compass::sync::IsChainEnabled(), which picks the engine.
   return sync_service_ && sync_service_->IsLocalSyncEnabled() && HasSeed() &&
@@ -408,6 +412,9 @@ void CompassSyncService::Leave() {
     setup_handle_ = sync_service_->GetSetupInProgressHandle();
   }
   left_ = true;
+  if (sync_service_) {
+    sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
+  }
   NotifyObservers();
 }
 
@@ -451,6 +458,9 @@ void CompassSyncService::HoldTypes() {
   types_held_ = true;
   sync_service_->GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false, syncer::UserSelectableTypeSet());
+  // COMPASS_SPACES isn't selectable: its controller asks
+  // AreDataTypesReleased().
+  sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
 }
 
 void CompassSyncService::SelectTypes() {
@@ -461,6 +471,7 @@ void CompassSyncService::SelectTypes() {
     types.Remove(type);
   }
   settings->SetSelectedTypes(/*sync_everything=*/false, types);
+  sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
 }
 
 void CompassSyncService::UpdatePassphrase() {

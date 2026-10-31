@@ -22,8 +22,8 @@ class SpaceModel;
 //   <space> = {"id": "...", "name": "...", "color": "grey"|"blue"|...,
 //              "archive_after_hours": 12, "pinned": [<node>...],
 //              "today": [<node>...], "archive": [<archived>...]}
-//   <node> = {"type": "tab"|"folder"|"split", "title": "...", "url": "...",
-//             "last_active": "<time>", "children": [<node>...]}
+//   <node> = {"id": "<uuid>", "type": "tab"|"folder"|"split", "title": "...",
+//             "url": "...", "last_active": "<time>", "children": [<node>...]}
 //   <archived> = {"archived": "<time>", "tabs": [{"title", "url"}...]}
 // Times are base::TimeToValue() strings. "last_active" is only on tabs that
 // have one; "archive_after_hours" is 0 for never, and missing in older files
@@ -31,8 +31,9 @@ class SpaceModel;
 // "favorites" holds tabs only, and is missing in older files.
 // Version 1 files held one space's "pinned" and "today" at the top level.
 // Today holds tabs and splits; its tabs that aren't worth restoring (see
-// IsRestorableURL()) are left out. Node IDs aren't stored; they're only stable
-// for a session.
+// IsRestorableURL()) are left out. Node IDs are stored (sync identifies nodes
+// by them); older files have none, and their nodes get fresh ones, as do
+// nodes whose ID is invalid or already taken in their space.
 base::DictValue SerializeSpaceList(const SpaceList& list);
 
 // Reads |data| into |list| and returns how many spaces it read. |list|'s

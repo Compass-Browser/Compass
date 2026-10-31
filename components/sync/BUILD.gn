@@ -59,6 +59,24 @@ source_set("engine") {
   ]
 }
 
+# Compass's data type controllers, made by the browser side and handed to
+# //chrome/browser/sync, which depends on this (see
+# patches/chrome-browser-sync-BUILD.gn.patch). It must not depend on
+# //chrome/browser. The COMPASS_SPACES specifics
+# (protocol/compass_spaces_specifics.proto) are built by
+# //components/sync/protocol (see
+# patches/components-sync-protocol-protocol_sources.gni.patch).
+source_set("controllers_hook") {
+  sources = [
+    "controllers_hook.cc",
+    "controllers_hook.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/sync/service",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [

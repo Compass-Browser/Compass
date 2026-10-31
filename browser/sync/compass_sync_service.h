@@ -71,6 +71,11 @@ class CompassSyncService : public KeyedService,
 
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
+  // Whether data types may run: the chain is running and its passphrase is
+  // in place. COMPASS_SPACES, which isn't a selectable type, runs only then
+  // (compass_spaces_sync.cc); the selectable ones are selected then.
+  bool AreDataTypesReleased() const;
+
   // KeyedService:
   void Shutdown() override;
 

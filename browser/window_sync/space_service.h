@@ -46,8 +46,18 @@ class SpaceService : public base::SupportsUserData::Data,
   SpaceService& operator=(const SpaceService&) = delete;
   ~SpaceService() override;
 
+  // Something that follows the profile's spaces for as long as the service
+  // lives: the spaces' sync bridge (compass/browser/sync). It goes before the
+  // spaces do.
+  class Attachment {
+   public:
+    virtual ~Attachment() = default;
+  };
+
   // Creates the service, and starts loading, on first use.
   static SpaceService* Get(Profile* profile);
+  // Doesn't create it.
+  static SpaceService* GetIfExists(Profile* profile);
 
   SpaceList& space_list() { return space_list_; }
   LiveTabRegistry& registry() { return registry_; }
@@ -82,6 +92,10 @@ class SpaceService : public base::SupportsUserData::Data,
   // runs on its own, shortly after the file loads and then periodically.
   void ArchiveIdleEntries();
 
+  Attachment* sync_attachment() { return sync_attachment_.get(); }
+  // Replaces the attachment; null destroys it.
+  void SetSyncAttachment(std::unique_ptr<Attachment> attachment);
+
   base::WeakPtr<SpaceService> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
   }
@@ -114,6 +128,9 @@ class SpaceService : public base::SupportsUserData::Data,
 
   // It observes the spaces, and flushes when destroyed.
   std::unique_ptr<SidebarStore> store_;
+
+  // Observes the spaces too.
+  std::unique_ptr<Attachment> sync_attachment_;
 
   base::WeakPtrFactory<SpaceService> weak_factory_{this};
 };

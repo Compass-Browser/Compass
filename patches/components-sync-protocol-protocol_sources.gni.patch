@@ -1,0 +1,12 @@
+diff --git a/components/sync/protocol/protocol_sources.gni b/components/sync/protocol/protocol_sources.gni
+index 47622636e8d844efb8bb6874276143d6679f2918..ddc3498d20621b5eca96f414e8e1eaedf72c2579 100644
+--- a/components/sync/protocol/protocol_sources.gni
++++ b/components/sync/protocol/protocol_sources.gni
+@@ -97,4 +97,7 @@ sync_protocol_sources = [
+   "webauthn_credential_specifics.proto",
+   "wifi_configuration_specifics.proto",
+   "workspace_desk_specifics.proto",
++
++  # Compass: the COMPASS_SPACES specifics (compass/docs/design/sync.md).
++  "//compass/components/sync/protocol/compass_spaces_specifics.proto",
+ ]

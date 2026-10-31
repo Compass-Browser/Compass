@@ -58,7 +58,7 @@ struct ArchivedEntry {
   ArchivedEntry& operator=(ArchivedEntry&&);
   ~ArchivedEntry();
 
-  // Like node IDs, only stable for a session.
+  // Unlike node IDs, only stable for a session.
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<Tab> tabs;
   base::Time archived_at;
@@ -136,13 +136,24 @@ class SpaceModel {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
+  // |id| is for a node that keeps an identity it had (saved, or synced from
+  // another device); it must not be in use. Without one, the node gets a
+  // fresh ID.
   SidebarNode* AddFolder(SidebarNode* parent,
                          size_t index,
-                         std::u16string title);
+                         std::u16string title,
+                         const base::Uuid& id = base::Uuid());
   SidebarNode* AddTab(SidebarNode* parent,
                       size_t index,
                       const GURL& url,
-                      std::u16string title);
+                      std::u16string title,
+                      const base::Uuid& id = base::Uuid());
+  // An empty split, for loading and sync, which then add its panes (with
+  // AddTab() or Move()). Split() is how users make one. Callers restore the
+  // split invariants once its panes are in.
+  SidebarNode* AddSplit(SidebarNode* parent,
+                        size_t index,
+                        const base::Uuid& id = base::Uuid());
 
   // Whether |node| may be moved into |new_parent|. Use it to validate drops.
   bool CanMove(const SidebarNode* node, const SidebarNode* new_parent) const;
