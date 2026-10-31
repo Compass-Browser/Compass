@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -16,11 +17,16 @@
 #include "base/power_monitor/power_observer.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_attributes_storage_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "compass/browser/sync/sync_controller.h"
+#include "compass/browser/window_sync/space_directory.h"
 #include "compass/components/sync/chain.h"
 #include "compass/components/sync/pairing.h"
+#include "compass/components/sync/profile_list.h"
+#include "compass/components/sync/protocol/compass_spaces_specifics.pb.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/service/sync_service_observer.h"
 #include "url/gurl.h"
@@ -44,6 +50,7 @@ class PrefRegistrySyncable;
 
 namespace compass::sync {
 
+class CompassProfileCreator;
 class SyncCredentials;
 
 // A profile's place in a sync chain (docs/design/sync.md, slice 2): keeps
@@ -54,12 +61,21 @@ class SyncCredentials;
 // Chromium's sync service decides at profile load whether it runs local
 // sync, which is how Compass runs it (route 2), so turning sync on or off
 // takes effect at the next launch.
+//
+// Profiles (slice 5; docs/design/sync.md, "Slice 5 notes"): every profile
+// the switcher lists is in the chain, each with its own account. The one
+// that started or joined the chain is the home profile: its account is the
+// chain's own, and its service also keeps the chain's profile list (through
+// its COMPASS_SPACES bridge), creates the chain's profiles this device lacks,
+// puts this device's new profiles in the chain, and runs the mapping step of
+// a join. Leaving leaves with every profile.
 class CompassSyncService : public KeyedService,
                            public SyncController,
                            public syncer::SyncServiceObserver,
                            public BrowserCollectionObserver,
                            public base::PowerSuspendObserver,
-                           public PairingHost::Delegate {
+                           public PairingHost::Delegate,
+                           public ProfileAttributesStorageObserver {
  public:
   // |sync_service| is null if sync is disabled for the profile.
   CompassSyncService(Profile* profile,
@@ -75,6 +91,21 @@ class CompassSyncService : public KeyedService,
   // in place. COMPASS_SPACES, which isn't a selectable type, runs only then
   // (compass_spaces_sync.cc); the selectable ones are selected then.
   bool AreDataTypesReleased() const;
+
+  // Profiles (slice 5).
+  //
+  // The profile's sync UUID (compass.sync.profile_uuid).
+  std::string GetProfileUuid() const;
+  // Whether the profile is the chain's home here: it has the seed and syncs
+  // with the chain's own account.
+  bool IsHome() const;
+  // For the home profile's COMPASS_SPACES bridge: the chain's profiles this
+  // device has, the home first. Nullopt unless this is the home profile and
+  // its chain runs.
+  std::optional<std::vector<sync_pb::CompassProfile>> GetLocalChainProfiles()
+      const;
+  // The home profile's bridge has the chain's list: |profiles|.
+  void OnChainProfiles(const std::vector<sync_pb::CompassProfile>& profiles);
 
   // KeyedService:
   void Shutdown() override;
@@ -96,6 +127,9 @@ class CompassSyncService : public KeyedService,
   void CancelPairing() override;
   void Leave() override;
   void Restart() override;
+  ProfileMappingStatus GetProfileMapping() const override;
+  void SetProfileMapping(const ProfileMapping& mapping,
+                         DoneCallback callback) override;
 
   // syncer::SyncServiceObserver:
   void OnStateChanged(syncer::SyncService* sync) override;
@@ -114,11 +148,82 @@ class CompassSyncService : public KeyedService,
   void OnPairingRequest(const std::string& device_name) override;
   void OnPairingFinished(PairingHost::Result result) override;
 
+  // ProfileAttributesStorageObserver:
+  void OnProfileNameChanged(const base::FilePath& profile_path,
+                            const std::u16string& old_profile_name) override;
+  void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
+
  private:
+  // SpaceDirectory's observer (a member: SyncController and SpaceDirectory
+  // both call theirs Observer).
+  class DirectoryObserver : public SpaceDirectory::Observer {
+   public:
+    explicit DirectoryObserver(CompassSyncService* service);
+    DirectoryObserver(const DirectoryObserver&) = delete;
+    DirectoryObserver& operator=(const DirectoryObserver&) = delete;
+    ~DirectoryObserver() override;
+
+    // SpaceDirectory::Observer:
+    void OnDirectoryChanged() override;
+
+   private:
+    const raw_ptr<CompassSyncService> service_;
+  };
+
+  // A join waiting for the user to map this device's other profiles to the
+  // chain's (pairing brought the chain's list).
+  struct PendingJoin {
+    PendingJoin();
+    PendingJoin(PendingJoin&&);
+    PendingJoin& operator=(PendingJoin&&);
+    ~PendingJoin();
+
+    GURL server_url;
+    Seed seed{};
+    std::vector<ChainProfile> chain;
+  };
+
   // Whether this run's sync engine talks to the chain's server.
   bool IsChainRunning() const;
   bool HasSeed() const;
   GURL GetServerUrl() const;
+
+  // Slice 5.
+  //
+  // Whether the profile syncs with its own account (not the home).
+  bool IsProfileAccount() const;
+  // The UUID in the account's derivations: empty for the home profile.
+  std::string AccountUuid() const;
+  // This device's other profiles that can sync: those the switcher lists.
+  std::vector<LocalProfile> GetOtherLocalProfiles() const;
+  // The home profile's service on this device, if any.
+  static CompassSyncService* FindHome();
+  // The list pairing hands to a new device.
+  std::vector<ChainProfile> GetChainProfilesForPairing() const;
+  // This profile becomes the chain's home here (with |chain|'s home UUID),
+  // saves the chain, then puts the other profiles in it as |mapping| says.
+  // |profiles_pending|: the others wait for the chain's list instead.
+  void FinishJoin(const GURL& server_url,
+                  const Seed& seed,
+                  const std::vector<ChainProfile>& chain,
+                  ProfileMapping mapping,
+                  bool profiles_pending,
+                  DoneCallback callback);
+  // Puts this device's other profiles in the chain as |mapping| says. Home
+  // profile, chain saved.
+  void ApplyMapping(const ProfileMapping& mapping);
+  // Puts |profile| in the chain (its own account, |uuid|), from the next
+  // launch on. Home profile, chain saved.
+  void EnrollProfile(Profile* profile, const std::string& uuid);
+  // Home profile: names and avatars as the chain has them.
+  void ApplyChainNames();
+  // Home profile: this device's listed profiles join the chain; the chain's
+  // profiles this device doesn't have are created.
+  void ReconcileProfiles();
+  // Leaves the chain with this profile only.
+  void LeaveProfile();
+  // The switcher changed: a profile may have been listed.
+  void OnSpaceDirectoryChanged();
 
   void LoadSeed();
   void OnEncryptorForLoad(scoped_refptr<os_crypt_async::Encryptor> encryptor);
@@ -172,6 +277,19 @@ class CompassSyncService : public KeyedService,
   std::unique_ptr<PairingHost> host_;
   std::unique_ptr<PairingJoiner> joiner_;
   PairingStatus pairing_;
+
+  // Slice 5.
+  std::optional<PendingJoin> pending_join_;
+  // Home profile: the chain's profiles as its bridge last had them.
+  std::vector<ChainProfile> chain_profiles_;
+  bool chain_profiles_known_ = false;
+  std::unique_ptr<CompassProfileCreator> profile_creator_;
+  std::unique_ptr<MissingProfiles> missing_profiles_;
+  DirectoryObserver directory_observer_{this};
+  bool observing_directory_ = false;
+  base::ScopedObservation<ProfileAttributesStorage,
+                          ProfileAttributesStorageObserver>
+      attributes_observation_{this};
 
   base::ObserverList<Observer> observers_;
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>

@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_UI_WEBUI_SYNC_COMPASS_SYNC_PAGE_HANDLER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
@@ -46,12 +47,18 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void CancelPairing() override;
   void Leave() override;
   void Restart() override;
+  void GetProfileMapping(GetProfileMappingCallback callback) override;
+  void SetProfileMapping(
+      std::vector<sync::mojom::ProfileMappingEntryPtr> mapping,
+      SetProfileMappingCallback callback) override;
 
   // sync::SyncController::Observer:
   void OnSyncControllerChanged() override;
 
   static sync::mojom::StatusPtr ToMojo(const sync::SyncStatus& status);
   static sync::mojom::PairingPtr ToMojo(const sync::PairingStatus& pairing);
+  static sync::mojom::ProfileMappingPtr ToMojo(
+      const sync::ProfileMappingStatus& mapping);
 
  private:
   mojo::Receiver<sync::mojom::PageHandler> receiver_;

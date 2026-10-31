@@ -21,6 +21,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
+#include "compass/components/sync/profile_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compass::sync {
@@ -452,6 +453,25 @@ TEST_F(PairingTest, RightCodeAddsTheDevice) {
   EXPECT_FALSE(SeedLeaked(1));
   // B closed the slot once it had the answer.
   EXPECT_FALSE(server_.HasSlot(1));
+  // No profile list set: an empty one.
+  EXPECT_TRUE(joiner->profiles().empty());
+}
+
+// Slice 5: the chain's profiles travel with the seed.
+TEST_F(PairingTest, ProfilesTravelWithTheSeed) {
+  std::unique_ptr<PairingHost> host = StartHost();
+  const std::vector<ChainProfile> profiles = {
+      {"2b5c3e1a-0000-4000-8000-000000000001", "Personal", 3, true},
+      {"2b5c3e1a-0000-4000-8000-000000000002", "Work", -1, false},
+  };
+  host->SetProfiles(profiles);
+  JoinOutcome outcome;
+  std::unique_ptr<PairingJoiner> joiner =
+      StartJoiner(host_delegate_.code(), &outcome);
+  host->Answer(true);
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(outcome.result, PairingJoiner::Result::kJoined);
+  EXPECT_EQ(joiner->profiles(), profiles);
 }
 
 TEST_F(PairingTest, WrongCodeFailsOnBothSidesAndLeaksNothing) {

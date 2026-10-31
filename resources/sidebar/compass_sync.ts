@@ -4,7 +4,8 @@
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 
-import type {Pairing, Status} from './compass_sync.mojom-webui.js';
+import type {Pairing, ProfileMapping, ProfileMappingEntry, Status} from
+    './compass_sync.mojom-webui.js';
 import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PairingStep, State} from './compass_sync.mojom-webui.js';
 
 // chrome://compass-sync: slice 2's minimal sync page (docs/design/sync.md,
@@ -66,7 +67,56 @@ function render(status: Status, pairing: Pairing) {
   if (pairing.step === PairingStep.kDone && state === State.kNeedsRestart) {
     show('restartPanel', true);
   }
+  renderMapping();
 }
+
+// Slice 5: this Mac's other profiles, each mapped to one of the chain's or
+// joining as a new one. The rows stay while the same profiles are asked, so
+// the user's choices aren't reset by a status change.
+let mappingShown = '';
+
+async function renderMapping() {
+  const {mapping} = await handler.getProfileMapping();
+  show('mapping', mapping.needed);
+  const key = mapping.needed ? JSON.stringify(mapping) : '';
+  if (key === mappingShown) {
+    return;
+  }
+  mappingShown = key;
+  $('mappingError').textContent = '';
+  $('mappingRows').replaceChildren(...mappingRows(mapping));
+}
+
+function mappingRows(mapping: ProfileMapping): HTMLElement[] {
+  return mapping.local.map(local => {
+    const row = document.createElement('label');
+    row.textContent = local.name + ' syncs with ';
+    const select = document.createElement('select');
+    select.dataset['localId'] = local.id;
+    select.append(new Option('a new profile', ''));
+    for (const profile of mapping.chain) {
+      if (!profile.home) {
+        select.append(new Option(profile.name, profile.uuid));
+      }
+    }
+    const proposed = mapping.proposed.find(entry => entry.localId === local.id);
+    select.value = proposed ? proposed.chainUuid : '';
+    row.append(select);
+    return row;
+  });
+}
+
+$('mapProfiles').addEventListener('click', async () => {
+  const entries: ProfileMappingEntry[] = [];
+  for (const select of Array.from(
+           $('mappingRows').querySelectorAll('select'))) {
+    entries.push(
+        {localId: select.dataset['localId'] || '', chainUuid: select.value});
+  }
+  const {ok, error} = await handler.setProfileMapping(entries);
+  $('mappingError').textContent = ok ? '' : error;
+  refresh();
+});
 
 async function refresh() {
   const {status, pairing} = await handler.getState();

@@ -201,6 +201,40 @@ std::vector<syncer::UniquePosition> AssignPositions(
 
 }  // namespace internal
 
+DirectorySlot::DirectorySlot() = default;
+DirectorySlot::DirectorySlot(std::string key,
+                             std::optional<syncer::UniquePosition> position)
+    : key(std::move(key)), position(std::move(position)) {}
+DirectorySlot::DirectorySlot(const DirectorySlot&) = default;
+DirectorySlot& DirectorySlot::operator=(const DirectorySlot&) = default;
+DirectorySlot::~DirectorySlot() = default;
+
+std::optional<std::vector<sync_pb::CompassProfile>>
+CompassSpacesSyncBridge::Delegate::GetLocalProfiles() {
+  return std::nullopt;
+}
+
+void CompassSpacesSyncBridge::Delegate::OnChainProfiles(
+    const std::vector<sync_pb::CompassProfile>& profiles) {}
+
+std::string CompassSpacesSyncBridge::Delegate::GetProfileUuid() {
+  return std::string();
+}
+
+SpaceModel* CompassSpacesSyncBridge::Delegate::AdoptSpace(
+    const base::Uuid& id) {
+  return nullptr;
+}
+
+std::vector<DirectorySlot>
+CompassSpacesSyncBridge::Delegate::GetDirectoryOrder() {
+  return {};
+}
+
+void CompassSpacesSyncBridge::Delegate::OnSpacePositions(
+    const std::map<std::string, syncer::UniquePosition>& positions,
+    bool remote) {}
+
 CompassSpacesSyncBridge::CompassSpacesSyncBridge(
     std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
     syncer::OnceDataTypeStoreFactory create_store,
@@ -232,6 +266,12 @@ CompassSpacesSyncBridge::~CompassSpacesSyncBridge() {
 void CompassSpacesSyncBridge::OnModelLoaded() {
   model_loaded_ = true;
   MaybeStart();
+}
+
+void CompassSpacesSyncBridge::NotifyLocalChange() {
+  if (!applying_remote_) {
+    ScheduleSendLocalChanges();
+  }
 }
 
 void CompassSpacesSyncBridge::OnStoreCreated(
@@ -276,6 +316,15 @@ void CompassSpacesSyncBridge::MaybeStart() {
   VLOG(1) << "[compass-sync] spaces: model ready, " << mirror_.size()
           << " synced entities, " << list_->spaces().size() << " spaces";
   change_processor()->ModelReadyToSync(std::move(pending_metadata_));
+  if (delegate_) {
+    // What the last run had: the switcher's order and the profile list
+    // don't wait for the server.
+    ReportSpacePositions(/*remote=*/false);
+    std::vector<sync_pb::CompassProfile> profiles = MirrorProfiles();
+    if (!profiles.empty()) {
+      delegate_->OnChainProfiles(profiles);
+    }
+  }
   // Changes made while sync wasn't running.
   ScheduleSendLocalChanges();
 }
@@ -320,7 +369,13 @@ void CompassSpacesSyncBridge::SendLocalChanges() {
 
 size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     syncer::DataTypeStore::WriteBatch& batch) {
-  const Mirror local = ComputeLocalSpecifics();
+  Mirror local = ComputeLocalSpecifics();
+  // The home profile's bridge also has the chain's profiles (slice 5).
+  const std::optional<std::vector<sync_pb::CompassProfile>> profiles =
+      delegate_ ? delegate_->GetLocalProfiles() : std::nullopt;
+  if (profiles) {
+    AddLocalProfiles(*profiles, local);
+  }
   size_t puts = 0;
   for (const auto& [key, specifics] : local) {
     std::string serialized = specifics.SerializeAsString();
@@ -341,7 +396,19 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
 
   std::vector<std::string> gone;
   for (const auto& [key, specifics] : mirror_) {
-    if (!local.contains(key) && WasDeletedLocally(specifics, local)) {
+    if (local.contains(key)) {
+      continue;
+    }
+    if (specifics.has_profile()) {
+      // Profiles aren't deleted through sync (deleting one stays on its
+      // device), but a home entity this device's home no longer has is one
+      // it gave up for the chain's (two devices that each started as home).
+      if (profiles && specifics.profile().home()) {
+        gone.push_back(key);
+      }
+      continue;
+    }
+    if (WasDeletedLocally(specifics, local)) {
       gone.push_back(key);
     }
   }
@@ -361,6 +428,7 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     VLOG(1) << "[compass-sync] spaces: committing " << puts << " changed, "
             << gone.size() << " deleted";
   }
+  ReportSpacePositions(/*remote=*/false);
   return puts + gone.size();
 }
 
@@ -389,7 +457,9 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
     spaces.push_back(space.get());
   }
   const std::vector<syncer::UniquePosition> positions =
-      internal::AssignPositions(keys, existing);
+      AssignSpacePositions(keys, existing);
+  const std::string profile_uuid =
+      delegate_ ? delegate_->GetProfileUuid() : std::string();
   for (size_t i = 0; i < spaces.size(); ++i) {
     sync_pb::CompassSpacesSpecifics specifics;
     auto it = mirror_.find(keys[i]);
@@ -413,6 +483,9 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
     if (!existing[i] || !existing[i]->Equals(positions[i])) {
       *space.mutable_directory_position() = positions[i].ToProto();
     }
+    if (!profile_uuid.empty()) {
+      COMPASS_SET_STRING(space, profile_uuid, profile_uuid);
+    }
     local[keys[i]] = std::move(specifics);
   }
 
@@ -429,6 +502,116 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
   AddLocalNodes(*list_->favorites().pinned_root(), std::string(),
                 kSectionFavorites, std::string(), model_keys, local);
   return local;
+}
+
+std::vector<syncer::UniquePosition>
+CompassSpacesSyncBridge::AssignSpacePositions(
+    const std::vector<std::string>& keys,
+    const std::vector<std::optional<syncer::UniquePosition>>& existing) const {
+  const std::vector<DirectorySlot> order =
+      delegate_ ? delegate_->GetDirectoryOrder() : std::vector<DirectorySlot>();
+  // Every profile's spaces, this one's with the positions of its mirror,
+  // the others' with what their bridges synced: positions given here fall
+  // between the other accounts' (docs/design/sync.md, "Profiles").
+  std::vector<std::string> all_keys;
+  std::vector<std::optional<syncer::UniquePosition>> all_existing;
+  std::vector<size_t> own;
+  for (const DirectorySlot& slot : order) {
+    auto it = std::ranges::find(keys, slot.key);
+    if (it == keys.end()) {
+      if (!std::ranges::contains(all_keys, slot.key)) {
+        all_keys.push_back(slot.key);
+        all_existing.push_back(slot.position);
+      }
+      continue;
+    }
+    // This profile's spaces must come in the list's order, each once
+    // (compass_spaces_sync.cc keeps the two orders equal); else the order is
+    // being changed and only this profile's spaces count.
+    if (static_cast<size_t>(it - keys.begin()) != own.size()) {
+      own.clear();
+      break;
+    }
+    all_existing.push_back(existing[own.size()]);
+    own.push_back(all_keys.size());
+    all_keys.push_back(slot.key);
+  }
+  if (keys.empty() || own.size() != keys.size()) {
+    return internal::AssignPositions(keys, existing);
+  }
+  const std::vector<syncer::UniquePosition> all =
+      internal::AssignPositions(all_keys, all_existing);
+  std::vector<syncer::UniquePosition> positions;
+  for (size_t index : own) {
+    positions.push_back(all[index]);
+  }
+  return positions;
+}
+
+void CompassSpacesSyncBridge::AddLocalProfiles(
+    const std::vector<sync_pb::CompassProfile>& profiles,
+    Mirror& out) const {
+  for (const sync_pb::CompassProfile& profile : profiles) {
+    const std::string& key = profile.uuid();
+    if (!ParseKey(key).is_valid() || out.contains(key)) {
+      continue;
+    }
+    sync_pb::CompassSpacesSpecifics specifics;
+    auto it = mirror_.find(key);
+    if (it != mirror_.end() && it->second.has_profile()) {
+      // Keeps what this version doesn't know.
+      specifics = it->second;
+    }
+    sync_pb::CompassProfile& entity = *specifics.mutable_profile();
+    COMPASS_SET_STRING(entity, uuid, key);
+    COMPASS_SET_STRING(entity, name, profile.name());
+    if (entity.avatar() != profile.avatar()) {
+      if (profile.avatar() > 0) {
+        entity.set_avatar(profile.avatar());
+      } else {
+        entity.clear_avatar();
+      }
+    }
+    if (entity.home() != profile.home()) {
+      if (profile.home()) {
+        entity.set_home(true);
+      } else {
+        entity.clear_home();
+      }
+    }
+    out[key] = std::move(specifics);
+  }
+}
+
+std::vector<sync_pb::CompassProfile> CompassSpacesSyncBridge::MirrorProfiles()
+    const {
+  std::vector<sync_pb::CompassProfile> profiles;
+  for (const auto& [key, specifics] : mirror_) {
+    if (specifics.has_profile()) {
+      profiles.push_back(specifics.profile());
+    }
+  }
+  return profiles;
+}
+
+void CompassSpacesSyncBridge::ReportSpacePositions(bool remote) {
+  if (!delegate_) {
+    return;
+  }
+  std::map<std::string, syncer::UniquePosition> positions;
+  for (const auto& space : list_->spaces()) {
+    const std::string key = Key(space->id());
+    auto it = mirror_.find(key);
+    if (it == mirror_.end() || !it->second.has_space() ||
+        !it->second.space().has_directory_position()) {
+      continue;
+    }
+    if (std::optional<syncer::UniquePosition> position =
+            ValidPosition(it->second.space().directory_position())) {
+      positions.emplace(key, *position);
+    }
+  }
+  delegate_->OnSpacePositions(positions, remote);
 }
 
 void CompassSpacesSyncBridge::AddLocalNodes(
@@ -517,6 +700,10 @@ void CompassSpacesSyncBridge::AddLocalNodes(
 bool CompassSpacesSyncBridge::WasDeletedLocally(
     const sync_pb::CompassSpacesSpecifics& specifics,
     const Mirror& local) const {
+  if (specifics.has_profile()) {
+    // SendLocalChangesTo() decides.
+    return false;
+  }
   if (specifics.has_space()) {
     return true;
   }
@@ -577,9 +764,14 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   std::vector<std::string> spaces;
   std::vector<std::string> nodes;
   std::set<std::string> deleted;
+  bool profiles_changed = false;
   for (const std::unique_ptr<syncer::EntityChange>& change : changes) {
     const std::string& key = change->storage_key();
     if (change->type() == syncer::EntityChange::ACTION_DELETE) {
+      auto it = mirror_.find(key);
+      if (it != mirror_.end() && it->second.has_profile()) {
+        profiles_changed = true;
+      }
       mirror_.erase(key);
       unparked_.erase(key);
       batch->DeleteData(key);
@@ -590,11 +782,20 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
         change->data().specifics.compass_spaces();
     mirror_[key] = specifics;
     batch->WriteData(key, specifics.SerializeAsString());
+    if (specifics.has_profile()) {
+      profiles_changed = true;
+      continue;
+    }
     (specifics.has_space() ? spaces : nodes).push_back(key);
   }
 
   {
     base::AutoReset<bool> applying(&applying_remote_, true);
+    if (profiles_changed && delegate_) {
+      // First: the home profile may take the chain's UUID, which the pass
+      // below then uses.
+      delegate_->OnChainProfiles(MirrorProfiles());
+    }
     const std::set<std::string> created = ApplySpaces(spaces, deleted);
     // Nodes that waited for a space that just came.
     std::set<std::string> listed(nodes.begin(), nodes.end());
@@ -616,6 +817,11 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
           << (initial_merge ? " entities (initial merge)" : " remote changes")
           << ", " << list_->spaces().size() << " spaces";
 
+  if (!spaces.empty() || initial_merge) {
+    // The switcher places the spaces among other profiles' by position
+    // (slice 5), before positions are computed from it again below.
+    ReportSpacePositions(/*remote=*/true);
+  }
   if (initial_merge) {
     // This device's own spaces and entries join the chain's.
     SendLocalChangesTo(*batch);
@@ -644,8 +850,16 @@ std::set<std::string> CompassSpacesSyncBridge::ApplySpaces(
       if (FindNode(id)) {
         continue;
       }
-      space = list_->AddSpace(list_->spaces().size(),
-                              base::UTF8ToUTF16(remote.name()), id);
+      // Moved here from another profile on another device: if this device
+      // has it in that profile, it comes over with its entries (slice 5).
+      space = delegate_ ? delegate_->AdoptSpace(id) : nullptr;
+      if (space && !remote.name().empty()) {
+        space->SetName(base::UTF8ToUTF16(remote.name()));
+      }
+      if (!space) {
+        space = list_->AddSpace(list_->spaces().size(),
+                                base::UTF8ToUTF16(remote.name()), id);
+      }
       Observe(*space);
       created.insert(key);
     } else if (!remote.name().empty()) {
@@ -1178,8 +1392,13 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
     const syncer::EntityData& entity_data) const {
   const sync_pb::CompassSpacesSpecifics& specifics =
       entity_data.specifics.compass_spaces();
-  return specifics.has_space() ? specifics.space().uuid()
-                               : specifics.node().uuid();
+  if (specifics.has_space()) {
+    return specifics.space().uuid();
+  }
+  if (specifics.has_profile()) {
+    return specifics.profile().uuid();
+  }
+  return specifics.node().uuid();
 }
 
 void CompassSpacesSyncBridge::ApplyDisableSyncChanges(
@@ -1207,7 +1426,8 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
   }
   const sync_pb::CompassSpacesSpecifics& specifics =
       entity_data.specifics.compass_spaces();
-  if (!specifics.has_space() && !specifics.has_node()) {
+  if (!specifics.has_space() && !specifics.has_node() &&
+      !specifics.has_profile()) {
     return false;
   }
   return ParseKey(GetStorageKey(entity_data)).is_valid();

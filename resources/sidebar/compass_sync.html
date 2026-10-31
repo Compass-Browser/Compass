@@ -141,6 +141,16 @@
         </div>
         <button id="cancelPairing">Cancel</button>
       </section>
+
+      <!-- Joining with other profiles here: which of the chain's each takes
+           (slice 5). -->
+      <section id="mapping" hidden>
+        <p>This Mac has other profiles. Choose which profile of your other
+          devices each one syncs with.</p>
+        <div id="mappingRows"></div>
+        <button id="mapProfiles">Continue</button>
+        <p id="mappingError" class="error"></p>
+      </section>
     </main>
     <script type="module" src="compass_sync.js"></script>
   </body>

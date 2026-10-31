@@ -8,20 +8,26 @@
 # drives it through SyncController.
 source_set("sync") {
   sources = [
+    "compass_profile_creator.cc",
+    "compass_profile_creator.h",
     "compass_spaces_sync.cc",
     "compass_spaces_sync.h",
     "compass_sync_service.cc",
     "compass_sync_service.h",
     "compass_sync_service_factory.cc",
     "compass_sync_service_factory.h",
+    "sync_controller.cc",
     "sync_controller.h",
   ]
   public_deps = [
     "//base",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_util",
     "//chrome/browser/ui/browser_window",
     "//components/keyed_service/core",
+    "//components/sync/protocol",
     "//components/sync/service",
+    "//compass/browser/window_sync",
     "//compass/components/sync:chain",
     "//url",
   ]
@@ -31,12 +37,13 @@ source_set("sync") {
     "//chrome/browser/sync:data_type_store_service_factory",
     "//chrome/common:channel_info",
     "//compass/browser/sidebar",
-    "//compass/browser/window_sync",
     "//compass/components/sync:controllers_hook",
     "//components/sync/model",
     "//chrome/browser:browser_process",
     "//chrome/browser/lifetime",
+    "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/sync",
+    "//chrome/common",
     "//chrome/browser/ui:browser_manager_service",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
@@ -69,7 +76,10 @@ source_set("spaces_bridge") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "compass_spaces_sync_bridge_unittest.cc" ]
+  sources = [
+    "compass_spaces_sync_bridge_unittest.cc",
+    "compass_spaces_sync_profiles_unittest.cc",
+  ]
   deps = [
     ":spaces_bridge",
     "//base",

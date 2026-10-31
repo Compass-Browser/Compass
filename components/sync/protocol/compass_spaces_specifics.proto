@@ -28,11 +28,13 @@ package sync_pb;
 
 import "components/sync/protocol/unique_position.proto";
 
-// One entity per space and per sidebar node. The client tag is `uuid`.
+// One entity per space and per sidebar node, and in the home profile's
+// account one per profile of the chain. The client tag is `uuid`.
 message CompassSpacesSpecifics {
   oneof entity {
     CompassSpace space = 1;
     CompassNode node = 2;
+    CompassProfile profile = 3;
   }
 }
 
@@ -47,7 +49,8 @@ message CompassSpace {
   optional string icon = 4;
   // In the browser-wide list of spaces.
   optional UniquePosition directory_position = 5;
-  // The profile it belongs to (slice 5). Not set yet; kept as received.
+  // The sync UUID of the profile it belongs to (slice 5), whose account it's
+  // in. Informational: the account decides.
   optional string profile_uuid = 6;
   // How long a Today entry may go unseen before it's archived; 0 = never.
   optional int64 archive_after_seconds = 7;
@@ -80,4 +83,19 @@ message CompassNode {
   // ARCHIVE (slice 3b): when the entry was archived, same unit. Kept as
   // received.
   optional int64 archived_time = 12;
+}
+
+// A profile of the chain (slice 5); only in the home profile's account. Each
+// profile syncs with its own account, derived from the chain's seed and
+// `uuid` (docs/design/sync.md, "Slice 5 notes"); a device that doesn't have
+// one creates it.
+message CompassProfile {
+  // Its sync UUID (compass.sync.profile_uuid), lowercase.
+  optional string uuid = 1;
+  optional string name = 2;
+  // Chromium's default avatar icon index + 1 (0 = not set).
+  optional int32 avatar = 3;
+  // The home profile: its account is the chain's own, and it carries this
+  // list.
+  optional bool home = 4;
 }

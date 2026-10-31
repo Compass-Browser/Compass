@@ -70,6 +70,26 @@ sync::mojom::StatusPtr CompassSyncPageHandler::ToMojo(
 }
 
 // static
+sync::mojom::ProfileMappingPtr CompassSyncPageHandler::ToMojo(
+    const sync::ProfileMappingStatus& mapping) {
+  auto result = sync::mojom::ProfileMapping::New();
+  result->needed = mapping.needed;
+  for (const sync::ChainProfile& profile : mapping.chain) {
+    result->chain.push_back(sync::mojom::ChainProfile::New(
+        profile.uuid, profile.name, profile.home));
+  }
+  for (const sync::LocalProfile& profile : mapping.local) {
+    result->local.push_back(
+        sync::mojom::LocalProfile::New(profile.id, profile.name));
+  }
+  for (const sync::ProfileMappingEntry& entry : mapping.proposed) {
+    result->proposed.push_back(sync::mojom::ProfileMappingEntry::New(
+        entry.local_id, entry.chain_uuid));
+  }
+  return result;
+}
+
+// static
 sync::mojom::PairingPtr CompassSyncPageHandler::ToMojo(
     const sync::PairingStatus& pairing) {
   return sync::mojom::Pairing::New(StepToMojo(pairing.step), pairing.code,
@@ -127,6 +147,27 @@ void CompassSyncPageHandler::Leave() {
 
 void CompassSyncPageHandler::Restart() {
   controller_->Restart();
+}
+
+void CompassSyncPageHandler::GetProfileMapping(
+    GetProfileMappingCallback callback) {
+  std::move(callback).Run(ToMojo(controller_->GetProfileMapping()));
+}
+
+void CompassSyncPageHandler::SetProfileMapping(
+    std::vector<sync::mojom::ProfileMappingEntryPtr> mapping,
+    SetProfileMappingCallback callback) {
+  sync::ProfileMapping entries;
+  for (const sync::mojom::ProfileMappingEntryPtr& entry : mapping) {
+    entries.push_back({entry->local_id, entry->chain_uuid});
+  }
+  controller_->SetProfileMapping(
+      entries,
+      base::BindOnce(
+          [](SetProfileMappingCallback callback, bool ok, std::string error) {
+            std::move(callback).Run(ok, error);
+          },
+          std::move(callback)));
 }
 
 void CompassSyncPageHandler::OnSyncControllerChanged() {

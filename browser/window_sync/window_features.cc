@@ -748,14 +748,21 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
 
   // 1. Its copy in |to|, where it was in the switcher.
   SpaceList& target_list = target->space_list();
-  SpaceModel& moved =
-      *target_list.AddSpace(target_list.spaces().size(), space.name());
+  // It keeps its ID, and so its place in the switcher: sync sees the same
+  // space leave one profile's account and come into the other's
+  // (docs/design/sync.md, "Slice 5 notes").
+  const bool same_id = !target_list.FindSpace(space.id());
+  SpaceModel& moved = *target_list.AddSpace(
+      target_list.spaces().size(), space.name(),
+      same_id ? std::optional<base::Uuid>(space.id()) : std::nullopt);
   moved.SetColor(space.color());
   moved.SetArchiveAfter(space.archive_after());
   for (const ArchivedEntry& entry : space.archive()) {
     moved.AddArchived(entry);
   }
-  directory->PlaceAfter(moved, space);
+  if (!same_id) {
+    directory->PlaceAfter(moved, space);
+  }
 
   // 2. Live tabs can't change profile: they close, and their entries stay,
   // unloaded. Unregistered first, so closing leaves the entries.

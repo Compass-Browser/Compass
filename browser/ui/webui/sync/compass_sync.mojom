@@ -37,6 +37,37 @@ struct Pairing {
   string message;
 };
 
+// Slice 5: joining on a device that has other profiles maps them to the
+// chain's (docs/design/sync.md, "Slice 5 notes"). See
+// compass::sync::ProfileMappingStatus.
+struct ChainProfile {
+  string uuid;
+  string name;
+  // The joining profile takes the home one.
+  bool home;
+};
+
+struct LocalProfile {
+  // Its directory's name.
+  string id;
+  string name;
+};
+
+struct ProfileMappingEntry {
+  string local_id;
+  // A ChainProfile's uuid, or empty: a new profile of the chain.
+  string chain_uuid;
+};
+
+struct ProfileMapping {
+  // Whether the join waits for SetProfileMapping().
+  bool needed;
+  array<ChainProfile> chain;
+  array<LocalProfile> local;
+  // Same name, else new.
+  array<ProfileMappingEntry> proposed;
+};
+
 // Bootstraps the connection; called once by the page.
 interface PageHandlerFactory {
   CreatePageHandler(pending_remote<Page> page,
@@ -63,6 +94,12 @@ interface PageHandler {
   Leave();
 
   Restart();
+
+  // Slice 5. Changes come through Page.OnStateChanged().
+  GetProfileMapping() => (ProfileMapping mapping);
+  // One entry per LocalProfile of GetProfileMapping().
+  SetProfileMapping(array<ProfileMappingEntry> mapping)
+      => (bool ok, string error);
 };
 
 // Implemented by the page.

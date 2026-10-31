@@ -17,6 +17,8 @@ source_set("chain") {
     "pairing.h",
     "pairing_network_transport.cc",
     "pairing_network_transport.h",
+    "profile_list.cc",
+    "profile_list.h",
   ]
   public_deps = [
     "//base",
@@ -84,6 +86,7 @@ source_set("unit_tests") {
     "chain_unittest.cc",
     "engine_unittest.cc",
     "pairing_unittest.cc",
+    "profile_list_unittest.cc",
   ]
   deps = [
     ":chain",

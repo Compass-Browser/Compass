@@ -142,6 +142,9 @@ class SpaceDirectory : public ProfileManagerObserver,
   void Detach(const base::FilePath& path);
   // Adds the spaces of |service| missing from the order, at the end.
   void AppendSpaces(SpaceService* service);
+  // Whether a listed profile has another space with |space|'s ID: its copy,
+  // while it moves to another profile (MoveSpaceToProfile()).
+  bool HasOtherSpaceWithId(const SpaceModel& space) const;
   void Changed();
 
   const base::FilePath user_data_dir_;
