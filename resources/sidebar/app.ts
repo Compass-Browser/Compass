@@ -12,8 +12,8 @@ import {getFaviconUrl} from './favicon.js';
 import './node.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
-import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
-import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, SpaceColor, Tree} from './sidebar.mojom-webui.js';
+import {NodeType} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
@@ -26,18 +26,57 @@ interface DropTarget {
   position: 'before'|'after'|'into'|'end'|'split-left'|'split-right';
 }
 
-// What each space color looks like, and its name. Grey spaces aren't tinted.
-// SidebarTint (sidebar_tint.cc) tints the region with the same colors.
-const SPACE_COLORS: Map<SpaceColor, {css: string, name: string}> = new Map([
-  [SpaceColor.kGrey, {css: 'rgb(128, 128, 128)', name: 'Grey'}],
-  [SpaceColor.kBlue, {css: 'rgb(59, 130, 246)', name: 'Blue'}],
-  [SpaceColor.kPurple, {css: 'rgb(139, 92, 246)', name: 'Purple'}],
-  [SpaceColor.kPink, {css: 'rgb(236, 72, 153)', name: 'Pink'}],
-  [SpaceColor.kRed, {css: 'rgb(239, 68, 68)', name: 'Red'}],
-  [SpaceColor.kOrange, {css: 'rgb(249, 115, 22)', name: 'Orange'}],
-  [SpaceColor.kYellow, {css: 'rgb(234, 179, 8)', name: 'Yellow'}],
-  [SpaceColor.kGreen, {css: 'rgb(34, 197, 94)', name: 'Green'}],
-]);
+// The space menu's palette, as SidebarTint (sidebar_tint.cc) tints the region
+// with it (compass::SpaceColor's constants). Grey (null) isn't tinted. Any
+// other color can be picked too (docs/design/spaces.md, "Space colors").
+export interface PaletteColor {
+  color: SpaceColor|null;
+  name: string;
+}
+
+const SPACE_COLORS: PaletteColor[] = [
+  {color: null, name: 'Grey'},
+  {color: {red: 59, green: 130, blue: 246}, name: 'Blue'},
+  {color: {red: 139, green: 92, blue: 246}, name: 'Purple'},
+  {color: {red: 236, green: 72, blue: 153}, name: 'Pink'},
+  {color: {red: 239, green: 68, blue: 68}, name: 'Red'},
+  {color: {red: 249, green: 115, blue: 22}, name: 'Orange'},
+  {color: {red: 234, green: 179, blue: 8}, name: 'Yellow'},
+  {color: {red: 34, green: 197, blue: 94}, name: 'Green'},
+];
+
+// How often a custom color being dragged in the picker is passed on.
+const CUSTOM_COLOR_MS = 50;
+
+function sameColor(a: SpaceColor|null, b: SpaceColor|null): boolean {
+  return a === b ||
+      (!!a && !!b && a.red === b.red && a.green === b.green &&
+       a.blue === b.blue);
+}
+
+function colorToCss(color: SpaceColor|null): string {
+  return color ? `rgb(${color.red}, ${color.green}, ${color.blue})` :
+                 'rgb(128, 128, 128)';
+}
+
+// As <input type="color"> wants it.
+function colorToHex(color: SpaceColor|null): string {
+  const c = color ?? {red: 128, green: 128, blue: 128};
+  return '#' +
+      [c.red, c.green, c.blue]
+          .map(component => component.toString(16).padStart(2, '0'))
+          .join('');
+}
+
+function hexToColor(hex: string): SpaceColor|null {
+  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  return match ? {
+    red: parseInt(match[1]!, 16),
+    green: parseInt(match[2]!, 16),
+    blue: parseInt(match[3]!, 16),
+  } :
+                 null;
+}
 
 export interface ArchiveDelay {
   hours: number;
@@ -186,7 +225,10 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor menuSpaceId_: string|null = null;
   // Delete asks to be clicked twice.
   protected accessor confirmingDelete_: boolean = false;
-  protected readonly spaceColors_: SpaceColor[] = Array.from(SPACE_COLORS.keys());
+  // The custom color picked last, sent when the timer fires.
+  private pendingCustomColor_: SpaceColor|null = null;
+  private customColorTimer_: number|null = null;
+  protected readonly spaceColors_: PaletteColor[] = SPACE_COLORS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
   protected accessor archiveOpen_: boolean = false;
@@ -297,20 +339,28 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.spaces_.find(space => this.isActiveSpace_(space))?.name ?? '';
   }
 
-  protected getSpaceColor_(color: SpaceColor): string {
-    return (SPACE_COLORS.get(color) ?? SPACE_COLORS.get(SpaceColor.kGrey)!).css;
-  }
-
-  protected getColorName_(color: SpaceColor): string {
-    return SPACE_COLORS.get(color)?.name ?? '';
+  protected getSpaceColor_(color: SpaceColor|null): string {
+    return colorToCss(color);
   }
 
   protected getMenuSpace_(): Space|null {
     return this.spaces_.find(space => space.id === this.menuSpaceId_) ?? null;
   }
 
-  protected isMenuSpaceColor_(color: SpaceColor): boolean {
-    return this.getMenuSpace_()?.color === color;
+  protected isMenuSpaceColor_(color: SpaceColor|null): boolean {
+    const space = this.getMenuSpace_();
+    return !!space && sameColor(space.color, color);
+  }
+
+  // Whether the menu's space has a color outside the palette.
+  protected isMenuSpaceCustomColor_(): boolean {
+    const space = this.getMenuSpace_();
+    return !!space &&
+        !SPACE_COLORS.some(entry => sameColor(entry.color, space.color));
+  }
+
+  protected getMenuSpaceHex_(): string {
+    return colorToHex(this.getMenuSpace_()?.color ?? null);
   }
 
   protected canDeleteSpace_(): boolean {
@@ -470,11 +520,28 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   protected onSwatchClick_(e: Event) {
-    const color =
-        Number((e.currentTarget as HTMLElement).dataset['color']) as SpaceColor;
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.setSpaceColor(this.menuSpaceId_, color);
+    const entry = SPACE_COLORS[Number(
+        (e.currentTarget as HTMLElement).dataset['index'])];
+    if (entry && this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceColor(this.menuSpaceId_, entry.color);
     }
+  }
+
+  // The color picker sends a color for every move while dragging: pass on at
+  // most one every CUSTOM_COLOR_MS, as the window's theme follows each.
+  protected onCustomColorInput_(e: Event) {
+    this.pendingCustomColor_ = hexToColor((e.target as HTMLInputElement).value);
+    if (this.customColorTimer_ !== null || !this.pendingCustomColor_) {
+      return;
+    }
+    const spaceId = this.menuSpaceId_;
+    this.customColorTimer_ = setTimeout(() => {
+      this.customColorTimer_ = null;
+      if (spaceId && this.pendingCustomColor_) {
+        this.browserProxy_.handler.setSpaceColor(
+            spaceId, this.pendingCustomColor_);
+      }
+    }, CUSTOM_COLOR_MS);
   }
 
   protected onDeleteSpaceClick_() {

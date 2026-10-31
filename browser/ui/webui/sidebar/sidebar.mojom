@@ -46,23 +46,19 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
-// Mirrors compass::SpaceColor.
-enum SpaceColor {
-  kGrey,
-  kBlue,
-  kPurple,
-  kPink,
-  kRed,
-  kOrange,
-  kYellow,
-  kGreen,
+// A space's color (compass::SpaceColor): a palette color or any other. Null
+// stands for grey, which leaves the sidebar untinted.
+struct SpaceColor {
+  uint8 red;
+  uint8 green;
+  uint8 blue;
 };
 
 // A space, as the switcher shows it.
 struct Space {
   string id;
   string name;
-  SpaceColor color;
+  SpaceColor? color;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
   // The profile it belongs to: its ID (as ProfileOption's) and name.
@@ -145,7 +141,8 @@ interface PageHandler {
   AddSpace();
   // Empty names are ignored.
   RenameSpace(string id, string name);
-  SetSpaceColor(string id, SpaceColor color);
+  // Null makes it grey.
+  SetSpaceColor(string id, SpaceColor? color);
   // Assigns a space to profile |profile_id|, or to a new profile if null: its
   // entries go along, its open tabs reload there (docs/design/spaces.md,
   // "Assigning a profile").

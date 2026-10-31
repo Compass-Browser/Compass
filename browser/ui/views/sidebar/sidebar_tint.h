@@ -24,8 +24,7 @@ class BrowserWindowInterface;
 
 namespace compass {
 
-// The color a space tints the sidebar with, or nullopt for none (grey). The
-// sidebar page's palette (resources/sidebar/app.ts) shows the same colors.
+// The color a space tints the sidebar with, or nullopt for none (grey).
 std::optional<SkColor> GetSpaceTint(SpaceColor color);
 
 // What a space paints over the frame color: its tint, partly transparent, or

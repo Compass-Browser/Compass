@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -14,6 +15,9 @@
 
 #include "base/json/values_util.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -48,12 +52,33 @@ constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
 constexpr char kTabsKey[] = "tabs";
 
-// By SpaceColor value.
-constexpr auto kColorNames = std::to_array<std::string_view>({
-    "grey", "blue", "purple", "pink", "red", "orange", "yellow", "green",
-});
-static_assert(kColorNames.size() ==
-              static_cast<size_t>(SpaceColor::kMaxValue) + 1);
+// A palette color by its name (older versions read only those), any other as
+// "#rrggbb".
+std::string SerializeColor(SpaceColor color) {
+  for (const NamedSpaceColor& named : kSpaceColorPalette) {
+    if (named.color == color) {
+      return std::string(named.name);
+    }
+  }
+  const SkColor tint = *color.tint();
+  return base::StringPrintf("#%02x%02x%02x", SkColorGetR(tint),
+                            SkColorGetG(tint), SkColorGetB(tint));
+}
+
+std::optional<SpaceColor> DeserializeColor(std::string_view saved) {
+  for (const NamedSpaceColor& named : kSpaceColorPalette) {
+    if (named.name == saved) {
+      return named.color;
+    }
+  }
+  uint32_t rgb;
+  if (saved.size() != 7 || saved[0] != '#' ||
+      !std::ranges::all_of(saved.substr(1), base::IsHexDigit<char>) ||
+      !base::HexStringToUInt(saved.substr(1), &rgb)) {
+    return std::nullopt;
+  }
+  return SpaceColor::FromSkColor(rgb);
+}
 
 constexpr char kTab[] = "tab";
 constexpr char kFolder[] = "folder";
@@ -277,7 +302,7 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   base::DictValue data;
   data.Set(kIdKey, model.id().AsLowercaseString());
   data.Set(kNameKey, base::UTF16ToUTF8(model.name()));
-  data.Set(kColorKey, kColorNames[static_cast<size_t>(model.color())]);
+  data.Set(kColorKey, SerializeColor(model.color()));
   data.Set(kArchiveAfterKey, model.archive_after().InHours());
   data.Set(kPinnedKey, SerializeSection(*model.pinned_root(), false));
   data.Set(kTodayKey, SerializeSection(*model.today_root(), true));
@@ -379,11 +404,9 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
                                      : std::nullopt);
     }
     // Unknown colors (from a later version) stay the default.
-    if (const std::string* color = saved[i]->FindString(kColorKey)) {
-      for (size_t c = 0; c < kColorNames.size(); ++c) {
-        if (*color == kColorNames[c]) {
-          space->SetColor(static_cast<SpaceColor>(c));
-        }
+    if (const std::string* saved_color = saved[i]->FindString(kColorKey)) {
+      if (std::optional<SpaceColor> color = DeserializeColor(*saved_color)) {
+        space->SetColor(*color);
       }
     }
     // Older files have none: the default applies.

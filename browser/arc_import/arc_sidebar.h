@@ -98,9 +98,10 @@ struct Sidebar {
 std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
                                     const base::DictValue* local_state);
 
-// The Compass color nearest to an Arc theme color (components in 0-1; Arc's
-// extended sRGB may go beyond, they're clamped).
-SpaceColor NearestSpaceColor(double red, double green, double blue);
+// The space color for an Arc theme color (components in 0-1; Arc's extended
+// sRGB may go beyond, they're clamped): the same color, or grey for an
+// unsaturated one.
+SpaceColor ArcSpaceColor(double red, double green, double blue);
 
 // Arc's times are seconds since 2001-01-01 (Apple's reference date).
 base::Time FromArcTime(double seconds);

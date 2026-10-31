@@ -5,9 +5,13 @@
 #ifndef COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 #define COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/function_ref.h"
@@ -16,25 +20,82 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "third_party/skia/include/core/SkColor.h"
 
 namespace compass {
 
 // Matches upstream split tabs (MultiContentsView). See ARCHITECTURE.md §9.
 inline constexpr size_t kMaxSplitPanes = 2;
 
-// A space's color, from a fixed palette. The sidebar is tinted with it. Saved
-// by name (see sidebar_serializer.cc), so values can be reordered.
-enum class SpaceColor {
-  kGrey,
-  kBlue,
-  kPurple,
-  kPink,
-  kRed,
-  kOrange,
-  kYellow,
-  kGreen,
-  kMaxValue = kGreen,
+// A space's color: grey, which leaves the sidebar untinted, or any opaque
+// color, from the palette the space menu offers (the constants below) or
+// picked freely. Saved by palette name or as #rrggbb (sidebar_serializer.cc).
+// See docs/design/spaces.md, "Space colors".
+class SpaceColor {
+ public:
+  // Grey.
+  constexpr SpaceColor() = default;
+
+  static constexpr SpaceColor FromRGB(uint8_t red,
+                                      uint8_t green,
+                                      uint8_t blue) {
+    return SpaceColor(SkColorSetRGB(red, green, blue));
+  }
+  // |color|'s alpha is ignored.
+  static constexpr SpaceColor FromSkColor(SkColor color) {
+    return SpaceColor(SkColorSetA(color, SK_AlphaOPAQUE));
+  }
+
+  static const SpaceColor kGrey;
+  static const SpaceColor kBlue;
+  static const SpaceColor kPurple;
+  static const SpaceColor kPink;
+  static const SpaceColor kRed;
+  static const SpaceColor kOrange;
+  static const SpaceColor kYellow;
+  static const SpaceColor kGreen;
+
+  constexpr bool is_grey() const { return !tint_.has_value(); }
+  // What the sidebar is tinted with, opaque; nullopt for grey.
+  constexpr std::optional<SkColor> tint() const { return tint_; }
+
+  friend constexpr bool operator==(const SpaceColor&,
+                                   const SpaceColor&) = default;
+
+ private:
+  constexpr explicit SpaceColor(SkColor tint) : tint_(tint) {}
+
+  std::optional<SkColor> tint_;
 };
+
+inline constexpr SpaceColor SpaceColor::kGrey{};
+inline constexpr SpaceColor SpaceColor::kBlue = SpaceColor::FromRGB(59, 130, 246);
+inline constexpr SpaceColor SpaceColor::kPurple =
+    SpaceColor::FromRGB(139, 92, 246);
+inline constexpr SpaceColor SpaceColor::kPink = SpaceColor::FromRGB(236, 72, 153);
+inline constexpr SpaceColor SpaceColor::kRed = SpaceColor::FromRGB(239, 68, 68);
+inline constexpr SpaceColor SpaceColor::kOrange =
+    SpaceColor::FromRGB(249, 115, 22);
+inline constexpr SpaceColor SpaceColor::kYellow =
+    SpaceColor::FromRGB(234, 179, 8);
+inline constexpr SpaceColor SpaceColor::kGreen = SpaceColor::FromRGB(34, 197, 94);
+
+// The space menu's palette, by the names files save them under. The sidebar
+// page (resources/sidebar/app.ts) shows the same colors.
+struct NamedSpaceColor {
+  std::string_view name;
+  SpaceColor color;
+};
+inline constexpr auto kSpaceColorPalette = std::to_array<NamedSpaceColor>({
+    {"grey", SpaceColor::kGrey},
+    {"blue", SpaceColor::kBlue},
+    {"purple", SpaceColor::kPurple},
+    {"pink", SpaceColor::kPink},
+    {"red", SpaceColor::kRed},
+    {"orange", SpaceColor::kOrange},
+    {"yellow", SpaceColor::kYellow},
+    {"green", SpaceColor::kGreen},
+});
 
 // How long a Today entry may go unseen before it's archived, unless the space
 // says otherwise. Arc's default.

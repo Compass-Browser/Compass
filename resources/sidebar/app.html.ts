@@ -4,8 +4,8 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ArchiveDelay, Preview, CompassSidebarAppElement} from './app.js';
-import type {ArchivedEntry, Node, ProfileOption, Space, SpaceColor} from './sidebar.mojom-webui.js';
+import type {ArchiveDelay, CompassSidebarAppElement, PaletteColor, Preview} from './app.js';
+import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
@@ -116,15 +116,22 @@ ${this.getMenuSpace_() ? html`
         @keydown="${this.onSpaceNameKeydown_}"
         @change="${this.onSpaceNameChange_}">
     <div id="swatches" role="group" aria-label="Color">
-      ${this.spaceColors_.map((color: SpaceColor) => html`
-        <button class="swatch" role="menuitemradio" data-color="${color}"
-            aria-label="${this.getColorName_(color)}"
-            title="${this.getColorName_(color)}"
-            style="--swatch-color: ${this.getSpaceColor_(color)}"
-            aria-checked="${this.isMenuSpaceColor_(color)}"
-            ?selected="${this.isMenuSpaceColor_(color)}"
+      ${this.spaceColors_.map((entry: PaletteColor, index: number) => html`
+        <button class="swatch" role="menuitemradio" data-index="${index}"
+            aria-label="${entry.name}" title="${entry.name}"
+            style="--swatch-color: ${this.getSpaceColor_(entry.color)}"
+            aria-checked="${this.isMenuSpaceColor_(entry.color)}"
+            ?selected="${this.isMenuSpaceColor_(entry.color)}"
             @click="${this.onSwatchClick_}">
         </button>`)}
+      <label class="swatch" id="customColor" title="Custom color"
+          style="--swatch-color: ${this.getSpaceColor_(
+              this.getMenuSpace_()!.color)}"
+          ?selected="${this.isMenuSpaceCustomColor_()}">
+        <input type="color" aria-label="Custom color"
+            .value="${this.getMenuSpaceHex_()}"
+            @input="${this.onCustomColorInput_}">
+      </label>
     </div>
     <label id="archiveDelay">
       Archive Today tabs after

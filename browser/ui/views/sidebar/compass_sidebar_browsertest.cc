@@ -1197,6 +1197,30 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
     return added->name() == u"Work" && added->color() == SpaceColor::kBlue;
   }));
 
+  // The color well picks any color; the well then shows it as selected.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (() => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const input = root.querySelector('#customColor input');
+      input.value = '#12ab0f';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return added->color() == SpaceColor::FromRGB(0x12, 0xab, 0x0f);
+  }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      return await until(() =>
+          root.querySelector('#customColor[selected]') &&
+          !root.querySelector('.swatch[title="Blue"][selected]'));
+    })())"));
+
   // Delete wants a second click. The window goes back to Home.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (async () => {

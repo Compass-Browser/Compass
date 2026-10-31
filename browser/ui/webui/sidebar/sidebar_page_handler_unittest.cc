@@ -552,12 +552,22 @@ TEST_F(SidebarPageHandlerTest, RenamesAndColorsSpaces) {
 
   handler_remote_->RenameSpace(id, "  Work ");
   handler_remote_->RenameSpace(id, " ");
-  handler_remote_->SetSpaceColor(id, sidebar::mojom::SpaceColor::kGreen);
+  handler_remote_->SetSpaceColor(id,
+                                 sidebar::mojom::SpaceColor::New(34, 197, 94));
   Settle();
 
   EXPECT_EQ(page_.spaces(), "[Work]");
   EXPECT_EQ(home.name(), u"Work");
   EXPECT_EQ(home.color(), SpaceColor::kGreen);
+
+  // Any color, and back to grey.
+  handler_remote_->SetSpaceColor(id,
+                                 sidebar::mojom::SpaceColor::New(1, 2, 3));
+  Settle();
+  EXPECT_EQ(home.color(), SpaceColor::FromRGB(1, 2, 3));
+  handler_remote_->SetSpaceColor(id, nullptr);
+  Settle();
+  EXPECT_EQ(home.color(), SpaceColor::kGrey);
 }
 
 TEST_F(SidebarPageHandlerTest, MovesAnEntryAndItsTabToAnotherSpace) {

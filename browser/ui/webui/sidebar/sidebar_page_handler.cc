@@ -59,9 +59,15 @@ sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
 
 constexpr uint32_t kMaxArchiveAfterHours = 365 * 24;
 
-// The handler casts between the two.
-static_assert(static_cast<int>(sidebar::mojom::SpaceColor::kMaxValue) ==
-              static_cast<int>(SpaceColor::kMaxValue));
+// Null for grey.
+sidebar::mojom::SpaceColorPtr ToMojoColor(SpaceColor color) {
+  if (color.is_grey()) {
+    return nullptr;
+  }
+  const SkColor tint = *color.tint();
+  return sidebar::mojom::SpaceColor::New(
+      SkColorGetR(tint), SkColorGetG(tint), SkColorGetB(tint));
+}
 
 // A node's context menu. Commands go to the handler by the node's ID, so a
 // node that's gone by then is left alone.
@@ -405,11 +411,13 @@ void SidebarPageHandler::RenameSpace(const std::string& id,
   }
 }
 
-void SidebarPageHandler::SetSpaceColor(const std::string& id,
-                                       sidebar::mojom::SpaceColor color) {
-  // Mojo has validated |color|.
+void SidebarPageHandler::SetSpaceColor(
+    const std::string& id,
+    sidebar::mojom::SpaceColorPtr color) {
   if (SpaceModel* space = FindAnySpace(id).space) {
-    space->SetColor(static_cast<SpaceColor>(color));
+    space->SetColor(color ? SpaceColor::FromRGB(color->red, color->green,
+                                                color->blue)
+                          : SpaceColor::kGrey);
   }
 }
 
@@ -876,7 +884,7 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->own_profile = entry.profile == own_profile;
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
-    mojo_space->color = static_cast<sidebar::mojom::SpaceColor>(space->color());
+    mojo_space->color = ToMojoColor(space->color());
     mojo_space->archive_after_hours = space->archive_after().InHours();
     spaces.push_back(std::move(mojo_space));
   }

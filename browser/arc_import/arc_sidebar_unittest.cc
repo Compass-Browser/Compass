@@ -99,7 +99,7 @@ TEST(ArcSidebarTest, SpacesInOrderWithTheirProfiles) {
   EXPECT_EQ(sidebar.spaces[0].id, "s1");
   EXPECT_EQ(sidebar.spaces[0].name, u"Home");
   EXPECT_EQ(sidebar.spaces[0].profile_dir, "Default");
-  EXPECT_EQ(sidebar.spaces[0].color, SpaceColor::kGreen);
+  EXPECT_EQ(sidebar.spaces[0].color, SpaceColor::FromRGB(0, 217, 87));
   EXPECT_EQ(sidebar.spaces[1].name, u"Work");
   EXPECT_EQ(sidebar.spaces[1].profile_dir, "Profile 1");
   // No theme: grey.
@@ -153,14 +153,13 @@ TEST(ArcSidebarTest, NotASidebar) {
   EXPECT_FALSE(ParseSidebar(empty, nullptr));
 }
 
-TEST(ArcSidebarTest, ColorsByHue) {
-  EXPECT_EQ(NearestSpaceColor(0.9, 0.1, 0.1), SpaceColor::kRed);
-  EXPECT_EQ(NearestSpaceColor(0.95, 0.55, 0.1), SpaceColor::kOrange);
-  EXPECT_EQ(NearestSpaceColor(0.9, 0.85, 0.2), SpaceColor::kYellow);
-  EXPECT_EQ(NearestSpaceColor(0.2, 0.4, 0.95), SpaceColor::kBlue);
-  EXPECT_EQ(NearestSpaceColor(0.55, 0.25, 0.9), SpaceColor::kPurple);
-  EXPECT_EQ(NearestSpaceColor(0.95, 0.3, 0.7), SpaceColor::kPink);
-  EXPECT_EQ(NearestSpaceColor(0.5, 0.5, 0.52), SpaceColor::kGrey);
+TEST(ArcSidebarTest, ColorsKeepTheirRGB) {
+  EXPECT_EQ(ArcSpaceColor(0.9, 0.1, 0.1), SpaceColor::FromRGB(230, 26, 26));
+  EXPECT_EQ(ArcSpaceColor(0.2, 0.4, 0.95), SpaceColor::FromRGB(51, 102, 242));
+  // Extended sRGB is clamped.
+  EXPECT_EQ(ArcSpaceColor(-0.38, 0.85, 0.34), SpaceColor::FromRGB(0, 217, 87));
+  EXPECT_EQ(ArcSpaceColor(0.5, 0.5, 0.52), SpaceColor::kGrey);
+  EXPECT_EQ(ArcSpaceColor(0.03, 0.01, 0.05), SpaceColor::kGrey);
 }
 
 TEST(ArcSidebarTest, ArcTimesCountFrom2001) {
@@ -191,7 +190,8 @@ TEST(ArcSidebarTest, DISABLED_RealSidebar) {
   };
   for (const Space& space : sidebar->spaces) {
     LOG(INFO) << "space profile=" << space.profile_dir
-              << " color=" << static_cast<int>(space.color)
+              << " color=" << std::hex
+              << space.color.tint().value_or(0) << std::dec
               << " pinned_entries=" << space.pinned.size()
               << " pinned_tabs=" << count(space.pinned, count)
               << " today_tabs=" << count(space.today, count);

@@ -49,25 +49,7 @@ SkColor GetSpaceFrameTint(SpaceColor color) {
 }
 
 std::optional<SkColor> GetSpaceTint(SpaceColor color) {
-  switch (color) {
-    case SpaceColor::kGrey:
-      return std::nullopt;
-    case SpaceColor::kBlue:
-      return SkColorSetRGB(59, 130, 246);
-    case SpaceColor::kPurple:
-      return SkColorSetRGB(139, 92, 246);
-    case SpaceColor::kPink:
-      return SkColorSetRGB(236, 72, 153);
-    case SpaceColor::kRed:
-      return SkColorSetRGB(239, 68, 68);
-    case SpaceColor::kOrange:
-      return SkColorSetRGB(249, 115, 22);
-    case SpaceColor::kYellow:
-      return SkColorSetRGB(234, 179, 8);
-    case SpaceColor::kGreen:
-      return SkColorSetRGB(34, 197, 94);
-  }
-  return std::nullopt;
+  return color.tint();
 }
 
 SidebarTint::SidebarTint(BrowserWindowInterface* browser)

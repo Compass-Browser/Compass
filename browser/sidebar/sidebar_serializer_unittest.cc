@@ -353,5 +353,42 @@ TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {
   EXPECT_EQ(list.spaces()[1]->archive_after(), kDefaultArchiveAfter);
 }
 
+// Palette colors are saved by name, as older versions read them; any other
+// color as #rrggbb.
+TEST(SidebarSerializerTest, SavesCustomColorsAsHex) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  list.active_space().SetColor(SpaceColor::kBlue);
+  work->SetColor(SpaceColor::FromRGB(0x12, 0xab, 0x0f));
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* spaces = data.FindList("spaces");
+  ASSERT_TRUE(spaces);
+  EXPECT_EQ(*(*spaces)[0].GetDict().FindString("color"), "blue");
+  EXPECT_EQ(*(*spaces)[1].GetDict().FindString("color"), "#12ab0f");
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.spaces()[0]->color(), SpaceColor::kBlue);
+  EXPECT_EQ(restored.spaces()[1]->color(), SpaceColor::FromRGB(0x12, 0xab, 0x0f));
+}
+
+TEST(SidebarSerializerTest, UnreadableColorsStayGrey) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "A", "color": "teal"},
+                                   {"name": "B", "color": "#12ab0"},
+                                   {"name": "C", "color": "#0x12ab"},
+                                   {"name": "D", "color": "#FFAA00"}]})",
+      base::JSON_PARSE_RFC);
+  SpaceList list;
+
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 4u);
+
+  EXPECT_EQ(list.spaces()[0]->color(), SpaceColor::kGrey);
+  EXPECT_EQ(list.spaces()[1]->color(), SpaceColor::kGrey);
+  EXPECT_EQ(list.spaces()[2]->color(), SpaceColor::kGrey);
+  EXPECT_EQ(list.spaces()[3]->color(), SpaceColor::FromRGB(0xff, 0xaa, 0x00));
+}
+
 }  // namespace
 }  // namespace compass

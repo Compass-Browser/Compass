@@ -148,9 +148,10 @@ tree and when the list changes; `PageHandler.SwitchSpace(id)` and
 model and sends a fresh tree.
 
 Right-clicking a space button, or double-clicking the space name, opens the
-space's menu: its name, eight colors and "Delete space" (click twice). The
-color (`SpaceColor`, saved by name as `"color"` in the file) tints the
-sidebar's background and the space's button. Grey, the default, doesn't
+space's menu: its name, eight colors, a color well for any other color
+(below) and "Delete space" (click twice). The color (`SpaceColor`, saved as
+`"color"` in the file, see below) tints the sidebar's background and the
+space's button. Grey, the default, doesn't
 tint. `SpaceList` relays name and color changes of any space
 (`OnSpaceUpdated()`), so every window's switcher follows. Mojo:
 `RenameSpace()`, `SetSpaceColor()`, `DeleteSpace()`, `MoveNodeToSpace()`.
@@ -166,9 +167,22 @@ it are one color. A tint drawn by the page stopped at the page's edges: the
 header above it and the region's margin below it stayed frame-colored.
 `InstallSidebar()` adds it. It repaints when the window switches spaces
 (`WindowFeatures::Observer`) or its space's color changes
-(`SpaceList::Observer`). The palette is in both `GetSpaceTint()` and the
-page's `SPACE_COLORS`, which still colors the space buttons and the menu's
-swatches.
+(`SpaceList::Observer`).
+
+A space can have any color, not only the palette's (2026-10-31, for Arc's
+themes). `SpaceColor` is a value: grey (no tint) or an opaque `SkColor`.
+The palette is its constants (`SpaceColor::kBlue`, ...) and
+`kSpaceColorPalette`, mirrored by the page's `SPACE_COLORS` for the space
+buttons and the menu's swatches. Mojo carries `SpaceColor? color` as
+`{red, green, blue}`, null for grey. The file saves a palette color by name
+(`"blue"`, so older builds still read it) and any other as `"#rrggbb"`;
+a color it can't read stays grey. After the eight swatches the menu has a
+color well (`#customColor`, a hue wheel until the space has a color outside
+the palette, then that color with the selection ring): an `<input
+type="color">` over it opens Chromium's color picker. While a color is
+dragged in the picker, the page passes one on every 50 ms
+(`CUSTOM_COLOR_MS`), since each one reseeds the window's theme. Arc's
+spaces come in with their theme's exact mid tone (arc-import.md).
 
 The tint fades over 280 ms (`gfx::LinearAnimation`, eased out, blending
 premultiplied with `gfx::Tween::ColorValueBetween()`, so a grey space fades
@@ -203,7 +217,9 @@ page kept the colors it loaded with (a grey active row on a blue sidebar).
 Upstream's tab group "focus mode" sets the same override from the tab strip
 controllers. Compass doesn't mirror tab groups, so it doesn't clash.
 
-**Tests:** `WindowThemeFollowsTheSpace`: the override and the frame color
+**Tests:** `SidebarSerializerTest.SavesCustomColorsAsHex`,
+`UnreadableColorsStayGrey`; `SpaceMenuRenamesColorsDeletes` (palette swatch,
+then the color well). `WindowThemeFollowsTheSpace`: the override and the frame color
 follow the space's color and a switch, not a swipe; grey goes back to the
 profile's frame color; the sidebar page's colors change with it; an
 off-the-record window isn't themed.

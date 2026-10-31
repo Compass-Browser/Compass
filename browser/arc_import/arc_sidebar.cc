@@ -10,6 +10,7 @@
 #include <set>
 #include <utility>
 
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 
 namespace compass::arc {
@@ -197,7 +198,7 @@ SpaceColor ReadSpaceColor(const base::DictValue& space) {
   if (!color) {
     return SpaceColor::kGrey;
   }
-  return NearestSpaceColor(color->FindDouble("red").value_or(0),
+  return ArcSpaceColor(color->FindDouble("red").value_or(0),
                            color->FindDouble("green").value_or(0),
                            color->FindDouble("blue").value_or(0));
 }
@@ -208,44 +209,20 @@ base::Time FromArcTime(double seconds) {
   return base::Time::FromSecondsSinceUnixEpoch(seconds + kAppleEpochOffset);
 }
 
-SpaceColor NearestSpaceColor(double red, double green, double blue) {
+SpaceColor ArcSpaceColor(double red, double green, double blue) {
   red = std::clamp(red, 0.0, 1.0);
   green = std::clamp(green, 0.0, 1.0);
   blue = std::clamp(blue, 0.0, 1.0);
   const double max = std::max({red, green, blue});
   const double min = std::min({red, green, blue});
-  const double chroma = max - min;
-  // Unsaturated or nearly black.
-  if (max < 0.08 || chroma / max < 0.15) {
+  // Unsaturated or nearly black: Arc's plain themes.
+  if (max < 0.08 || (max - min) / max < 0.15) {
     return SpaceColor::kGrey;
   }
-  double hue;
-  if (max == red) {
-    hue = 60 * std::fmod((green - blue) / chroma + 6, 6);
-  } else if (max == green) {
-    hue = 60 * ((blue - red) / chroma + 2);
-  } else {
-    hue = 60 * ((red - green) / chroma + 4);
-  }
-  if (hue < 15 || hue >= 345) {
-    return SpaceColor::kRed;
-  }
-  if (hue < 45) {
-    return SpaceColor::kOrange;
-  }
-  if (hue < 70) {
-    return SpaceColor::kYellow;
-  }
-  if (hue < 170) {
-    return SpaceColor::kGreen;
-  }
-  if (hue < 255) {
-    return SpaceColor::kBlue;
-  }
-  if (hue < 290) {
-    return SpaceColor::kPurple;
-  }
-  return SpaceColor::kPink;
+  auto to_byte = [](double component) {
+    return base::ClampRound<uint8_t>(component * 255);
+  };
+  return SpaceColor::FromRGB(to_byte(red), to_byte(green), to_byte(blue));
 }
 
 std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
