@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof" //nolint:gosec // G108: pprof is served on a separate listener (:6061), gated by PPROF_ENABLED
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -33,6 +34,7 @@ import (
 	"github.com/brave/go-sync/events"
 	"github.com/brave/go-sync/middleware"
 	"github.com/brave/go-sync/pairing"
+	"github.com/brave/go-sync/quota"
 	syncContext "github.com/brave/go-sync/synccontext"
 )
 
@@ -51,9 +53,35 @@ type Config struct {
 	TrustedProxies   string        // COMPASS_SYNC_TRUSTED_PROXIES, CIDRs
 	Metrics          bool          // COMPASS_SYNC_METRICS: serve /metrics
 	ShutdownDelay    time.Duration // COMPASS_SYNC_SHUTDOWN_DELAY, default 0
-	PurgeInterval    time.Duration // How often expired history is deleted.
+	PurgeInterval    time.Duration // How often expired history, old tombstones and idle chains are deleted.
+	TombstoneDays    int           // COMPASS_SYNC_TOMBSTONE_DAYS, default 30; 0 = keep tombstones
+	IdleChainDays    int           // COMPASS_SYNC_IDLE_CHAIN_DAYS, default 180; 0 = keep idle chains
+	Backup           BackupConfig
 	Pairing          pairing.Config
 	Events           events.Config
+}
+
+// Defaults for the slice 7 settings (sync.md, "Slice 7 notes").
+const (
+	DefaultTombstoneDays = 30
+	DefaultIdleChainDays = 180
+	DefaultBackupKeep    = 7
+)
+
+// DefaultBackupInterval is how often the server backs up by default.
+const DefaultBackupInterval = 24 * time.Hour
+
+// envDays reads a number of days (0 or more) from the environment.
+func envDays(name string, def int) (int, error) {
+	v := os.Getenv(name)
+	if v == "" {
+		return def, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 || n > 100000 {
+		return def, fmt.Errorf("invalid %s %q (days, 0 = off)", name, v)
+	}
+	return n, nil
 }
 
 // DefaultMaxBytesPerChain is 200 MiB (sync.md, "Server").
@@ -68,6 +96,9 @@ func LoadConfig() (Config, error) {
 		MaxBytesPerChain: DefaultMaxBytesPerChain,
 		TrustedProxies:   os.Getenv("COMPASS_SYNC_TRUSTED_PROXIES"),
 		PurgeInterval:    time.Hour,
+		TombstoneDays:    DefaultTombstoneDays,
+		IdleChainDays:    DefaultIdleChainDays,
+		Backup:           BackupConfig{Interval: DefaultBackupInterval, Keep: DefaultBackupKeep},
 		Pairing:          pairing.DefaultConfig(),
 		Events:           events.DefaultConfig(),
 	}
@@ -97,6 +128,34 @@ func LoadConfig() (Config, error) {
 			return cfg, fmt.Errorf("invalid COMPASS_SYNC_EVENTS_PER_IP %q", v)
 		}
 		cfg.Events.MaxPerIP = n
+	}
+	var err error
+	if cfg.TombstoneDays, err = envDays("COMPASS_SYNC_TOMBSTONE_DAYS", DefaultTombstoneDays); err != nil {
+		return cfg, err
+	}
+	if cfg.IdleChainDays, err = envDays("COMPASS_SYNC_IDLE_CHAIN_DAYS", DefaultIdleChainDays); err != nil {
+		return cfg, err
+	}
+	cfg.Backup.Dir = filepath.Join(filepath.Dir(cfg.DBPath), "backups")
+	if v := os.Getenv("COMPASS_SYNC_BACKUP_DIR"); v != "" {
+		cfg.Backup.Dir = v
+	}
+	if v := os.Getenv("COMPASS_SYNC_BACKUP_INTERVAL"); v != "" {
+		d, err := time.ParseDuration(v)
+		if v == "0" {
+			d, err = 0, nil
+		}
+		if err != nil || d < 0 || (d > 0 && d < time.Minute) {
+			return cfg, fmt.Errorf("invalid COMPASS_SYNC_BACKUP_INTERVAL %q (e.g. 24h, 0 = off)", v)
+		}
+		cfg.Backup.Interval = d
+	}
+	if v := os.Getenv("COMPASS_SYNC_BACKUP_KEEP"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 {
+			return cfg, fmt.Errorf("invalid COMPASS_SYNC_BACKUP_KEEP %q", v)
+		}
+		cfg.Backup.Keep = n
 	}
 	cfg.Metrics, _ = strconv.ParseBool(os.Getenv("COMPASS_SYNC_METRICS"))
 	// The name devices bind into pairing (sync.md, "Slice 4 notes"); empty:
@@ -172,6 +231,19 @@ func setupRouter(
 		return db.IsSyncChainDisabled(r.Context(), chain)
 	}
 	hub := events.New(evCfg)
+	quotaHandler := quota.New(quota.Config{
+		Store:     db,
+		Authorize: auth.Authorize,
+		Limits: func() quota.Limits {
+			q := command.CurrentQuotas()
+			return quota.Limits{
+				MaxEntities: q.MaxEntities,
+				MaxBytes:    cfg.MaxBytesPerChain,
+				MaxHistory:  q.MaxHistory,
+				HistoryDays: q.HistoryDays,
+			}
+		},
+	})
 	notify := func(chain, cacheGUID string, types []int) { hub.Notify(chain, cacheGUID, types) }
 	r.Route("/v2", func(r chi.Router) {
 		// Compass: change notifications (sync.md, "Slice 6 notes"), a
@@ -182,6 +254,8 @@ func setupRouter(
 			// Compass: pairing relay (sync.md, "Pairing API"), next to the
 			// protocol endpoint and outside its auth middleware.
 			r.Mount("/compass/pair", pairing.New(pairCfg).Routes())
+			// Compass: how full the chain is (sync.md, "Slice 7 notes").
+			r.Method(http.MethodGet, "/compass/quota", quotaHandler)
 			r.Mount("/", controller.SyncRouter(c, instrumented, notify))
 		})
 	})
@@ -223,18 +297,41 @@ func setupBaseCtx(ctx context.Context) baseCtxFunc {
 	}
 }
 
-// purgeExpired deletes expired history now and every interval, until ctx
-// ends (DynamoDB's TTL did this for go-sync).
-func purgeExpired(ctx context.Context, db *datastore.SQLite, interval time.Duration) {
-	t := time.NewTicker(interval)
+// purge deletes expired history (DynamoDB's TTL did this for go-sync),
+// tombstones older than cfg.TombstoneDays and chains idle for
+// cfg.IdleChainDays.
+func purge(ctx context.Context, db *datastore.SQLite, cfg Config, now time.Time) {
+	n, err := db.PurgeExpired(ctx, now)
+	if err != nil {
+		log.Error().Err(err).Msg("Purging expired entities failed")
+	} else if n > 0 {
+		log.Info().Int64("count", n).Msg("Purged expired entities")
+	}
+	if cfg.TombstoneDays > 0 {
+		n, err = db.PurgeTombstones(ctx, now.AddDate(0, 0, -cfg.TombstoneDays))
+		if err != nil {
+			log.Error().Err(err).Msg("Purging tombstones failed")
+		} else if n > 0 {
+			log.Info().Int64("count", n).Msg("Purged old tombstones")
+		}
+	}
+	if cfg.IdleChainDays > 0 {
+		chains, err := db.ExpireIdleChains(ctx, now.AddDate(0, 0, -cfg.IdleChainDays))
+		if err != nil {
+			log.Error().Err(err).Msg("Expiring idle chains failed")
+		}
+		for _, c := range chains {
+			log.Info().Str("chainID", c).Int("days", cfg.IdleChainDays).Msg("Cleared and disabled an idle chain")
+		}
+	}
+}
+
+// purgeExpired runs purge now and every cfg.PurgeInterval, until ctx ends.
+func purgeExpired(ctx context.Context, db *datastore.SQLite, cfg Config) {
+	t := time.NewTicker(cfg.PurgeInterval)
 	defer t.Stop()
 	for {
-		n, err := db.PurgeExpired(ctx, time.Now())
-		if err != nil {
-			log.Error().Err(err).Msg("Purging expired entities failed")
-		} else if n > 0 {
-			log.Info().Int64("count", n).Msg("Purged expired entities")
-		}
+		purge(ctx, db, cfg, time.Now())
 		select {
 		case <-ctx.Done():
 			return
@@ -276,7 +373,8 @@ func StartServer() {
 	}
 
 	purgeCtx, stopPurge := context.WithCancel(serverCtx)
-	go purgeExpired(purgeCtx, db, cfg.PurgeInterval)
+	go purgeExpired(purgeCtx, db, cfg)
+	go backupLoop(purgeCtx, db, cfg.Backup)
 
 	srv := http.Server{
 		Addr:              cfg.Addr,

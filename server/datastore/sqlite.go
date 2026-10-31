@@ -24,8 +24,9 @@ import (
 // chain's stored bytes over the store's MaxBytesPerChain.
 var ErrQuotaExceeded = errors.New("chain storage quota exceeded")
 
-// schemaVersion is stored in PRAGMA user_version.
-const schemaVersion = 1
+// schemaVersion is stored in PRAGMA user_version. 2 (slice 7): chains got
+// last_active, quota_full and quota_full_time.
+const schemaVersion = 2
 
 const schema = `
 CREATE TABLE IF NOT EXISTS entities (
@@ -81,16 +82,29 @@ CREATE TABLE IF NOT EXISTS item_counts (
 	version                 INTEGER NOT NULL DEFAULT 0
 ) WITHOUT ROWID;
 
--- Per chain: bytes stored (for the size quota) and the disabled marker
--- (set by ClearServerData, i.e. "reset sync").
+-- Per chain: bytes stored (for the size quota), the disabled marker (set
+-- by ClearServerData, i.e. "reset sync", and by ExpireIdleChains), when a
+-- device last talked to the server (Unix seconds, TouchChain), and which
+-- quota last refused a commit (QuotaFull bits, Unix seconds).
 CREATE TABLE IF NOT EXISTS chains (
 	client_id       TEXT PRIMARY KEY,
 	bytes           INTEGER NOT NULL DEFAULT 0,
 	disabled_reason TEXT,
 	disabled_mtime  INTEGER,
-	disabled_ctime  INTEGER
+	disabled_ctime  INTEGER,
+	last_active     INTEGER,
+	quota_full      INTEGER NOT NULL DEFAULT 0,
+	quota_full_time INTEGER
 ) WITHOUT ROWID;
 `
+
+// chainColumnsV2 are the chains columns added in schema 2, for databases
+// made by schema 1 (CREATE TABLE IF NOT EXISTS leaves those alone).
+var chainColumnsV2 = []struct{ name, def string }{
+	{"last_active", "INTEGER"},
+	{"quota_full", "INTEGER NOT NULL DEFAULT 0"},
+	{"quota_full_time", "INTEGER"},
+}
 
 // tieFallbackSize: see GetUpdatesForType.
 const tieFallbackSize = 100
@@ -107,6 +121,7 @@ type SQLite struct {
 	w        *sql.DB // One connection: every write, serialized.
 	r        *sql.DB // Readers (WAL lets them run beside the writer).
 	maxBytes int64
+	touch    toucher // TouchChain's write throttle.
 }
 
 func sqliteDSN(path string, readOnly bool) string {
@@ -162,8 +177,44 @@ func migrate(db *sql.DB) error {
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("error creating schema: %w", err)
 	}
+	if err := addMissingChainColumns(db); err != nil {
+		return err
+	}
+	if version < 2 {
+		// Chains from before last_active get a full idle period from now.
+		if _, err := db.Exec(`UPDATE chains SET last_active = ? WHERE last_active IS NULL`,
+			time.Now().Unix()); err != nil {
+			return fmt.Errorf("error setting last_active: %w", err)
+		}
+	}
 	if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion)); err != nil {
 		return fmt.Errorf("error writing schema version: %w", err)
+	}
+	return nil
+}
+
+func addMissingChainColumns(db *sql.DB) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info('chains')`)
+	if err != nil {
+		return fmt.Errorf("error reading the chains columns: %w", err)
+	}
+	have := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err = rows.Scan(&name); err != nil {
+			rows.Close()
+			return fmt.Errorf("error reading the chains columns: %w", err)
+		}
+		have[name] = true
+	}
+	rows.Close()
+	for _, c := range chainColumnsV2 {
+		if have[c.name] {
+			continue
+		}
+		if _, err = db.Exec(`ALTER TABLE chains ADD COLUMN ` + c.name + ` ` + c.def); err != nil {
+			return fmt.Errorf("error adding chains.%s: %w", c.name, err)
+		}
 	}
 	return nil
 }
@@ -631,6 +682,30 @@ func (s *SQLite) UpdateSyncEntity(ctx context.Context, entity *SyncEntity, oldVe
 		FROM entities WHERE client_id = ? AND id = ?`, entity.ClientID, entity.ID).
 		Scan(&version, &oldDeleted, &oldSize, &oldUniquePosition, &oldName, &oldNonUniqueName)
 	if errors.Is(err, sql.ErrNoRows) {
+		// Compass (slice 7): the entity may have been a tombstone that
+		// PurgeTombstones removed, or a history delete directive that
+		// expired. Deleting it again is done already; an update from a
+		// device that was away for that long re-creates it (as Chromium's
+		// conflict resolution would: the local edit wins over the remote
+		// delete), if it has a client tag to be found by. The new entity
+		// doesn't count towards the entity quota until the next recount.
+		if entity.Deleted != nil && *entity.Deleted {
+			return false, false, nil
+		}
+		if entity.ClientDefinedUniqueTag != nil && *entity.DataType != HistoryTypeID {
+			tx.Rollback() //nolint:errcheck // Released for InsertSyncEntity.
+			if entity.Ctime == nil {
+				entity.Ctime = entity.Mtime
+			}
+			if entity.Deleted == nil {
+				entity.Deleted = new(bool)
+			}
+			if entity.Folder == nil {
+				entity.Folder = new(bool)
+			}
+			conflict, insertErr := s.InsertSyncEntity(ctx, entity)
+			return conflict, false, insertErr
+		}
 		return true, false, nil // Update only: a missing item is a conflict.
 	}
 	if err != nil {

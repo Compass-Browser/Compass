@@ -8,11 +8,15 @@ import (
 	"time"
 )
 
-const (
-	// Each period is roughly 3.5 days
-	periodDurationSecs  int64 = HistoryExpirationIntervalSecs / 4
-	CurrentCountVersion int   = 2
-)
+// CurrentCountVersion is the item_counts row format.
+const CurrentCountVersion int = 2
+
+// periodDurationSecs is a quarter of the history retention (3.5 days for 14
+// days): history counts are kept in four periods, and the oldest drops out
+// of the count as its entities expire.
+func periodDurationSecs() int64 {
+	return max(HistoryExpirationIntervalSecs/4, 1)
+}
 
 // ClientItemCounts is one row of the item_counts table: the number of
 // non-deleted entities of a chain, with history items counted per period so
@@ -89,12 +93,14 @@ func (s *SQLite) refreshItemCountsFromTable(ctx context.Context, counts *ClientI
 }
 
 func rotateHistoryCountPeriods(counts *ClientItemCounts, now int64) {
+	period := periodDurationSecs()
 	timeSinceLastChange := now - counts.LastPeriodChangeTime
-	if timeSinceLastChange < periodDurationSecs {
+	if timeSinceLastChange < period {
 		return
 	}
-	changeCount := int(timeSinceLastChange / periodDurationSecs)
-	for range changeCount {
+	changeCount := int(timeSinceLastChange / period)
+	// After four periods every count has dropped out.
+	for range min(changeCount, 4) {
 		// The records from "period 1"/the earliest period
 		// will be purged from the count, since they expire (PurgeExpired).
 		counts.HistoryItemCountPeriod1 = counts.HistoryItemCountPeriod2
@@ -102,7 +108,7 @@ func rotateHistoryCountPeriods(counts *ClientItemCounts, now int64) {
 		counts.HistoryItemCountPeriod3 = counts.HistoryItemCountPeriod4
 		counts.HistoryItemCountPeriod4 = 0
 	}
-	counts.LastPeriodChangeTime += periodDurationSecs * int64(changeCount)
+	counts.LastPeriodChangeTime += period * int64(changeCount)
 }
 
 const itemCountColumns = `client_id, item_count, history_period1, history_period2,

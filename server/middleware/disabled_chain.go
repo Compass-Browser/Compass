@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
@@ -53,6 +54,13 @@ func DisabledChain(next http.Handler) http.Handler {
 				log.Error().Err(err).Msg("Write HTTP response body failed")
 			}
 			return
+		}
+
+		// Compass: remember that the chain is in use (ExpireIdleChains).
+		if t, ok := db.(datastore.ChainToucher); ok {
+			if err = t.TouchChain(ctx, clientID, time.Now()); err != nil {
+				log.Error().Err(err).Msg("Touching the chain failed")
+			}
 		}
 
 		next.ServeHTTP(w, r)
