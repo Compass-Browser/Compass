@@ -1,41 +1,125 @@
-# Brave Sync Server v2
+# Compass sync server
 
-A sync server implemented in go to communicate with Brave sync clients using
-[components/sync/protocol/sync.proto](https://cs.chromium.org/chromium/src/components/sync/protocol/sync.proto).
-Current Chromium version for sync protocol buffer files used in this repo is Chromium 116.0.5845.183.
+The server Compass syncs through: Chromium's sync protocol (a fork of
+[brave/go-sync](https://github.com/brave/go-sync), see `NOTICE.md`) with
+its data in one SQLite file, plus the relay Compass uses to add a device to
+a sync chain. Everything a browser uploads is encrypted on the device with
+the chain's key; the server stores blobs it can't read and never sees a
+password or an email address. There are no accounts: a chain is an Ed25519
+public key, and each request is signed with its private key.
 
-This server supports endpoints as bellow.
-- The `POST /v2/command/` endpoint handles Commit and GetUpdates requests from sync clients and return corresponding responses both in protobuf format. Detailed of requests and their corresponding responses are defined in `schema/protobuf/sync_pb/sync.proto`. Sync clients are responsible for generating valid access tokens and present them to the server in the Authorization header of requests.
+There is no Compass-run instance: you run your own. It needs about 20 MB of
+memory and as much disk as your chains store (at most 200 MB each by
+default).
 
-Currently we use dynamoDB as the datastore, the schema could be found in `schema/dynamodb/table.json`.
+In Compass, the server URL is the server's address followed by `/v2`, e.g.
+`https://sync.example.com/v2`.
 
-## Developer Setup
-1. [Install Go 1.22](https://golang.org/doc/install)
-2. [Install GolangCI-Lint](https://github.com/golangci/golangci-lint#install)
-3. [Install gowrap](https://github.com/hexdigest/gowrap#installation)
-4. Clone this repo
-5. [Install protobuf protocol compiler](https://github.com/protocolbuffers/protobuf#protocol-compiler-installation) if you need to compile protobuf files, which could be built using `make protobuf`.
-6. Build via `make`
+## On a VPS, with HTTPS
 
-## Local development using Docker and DynamoDB Local
-1. Clone this repo
-2. Run `make docker`
-3. Run `make docker-up`
-4. To connect to your local server from a Brave browser client use `--sync-url="http://localhost:8295/v2"`
-5. For running unit tests, run `make docker-test`
+You need a machine with Docker (or Podman with `podman compose`), a domain
+name pointing at it, and ports 80 and 443 open.
 
-# Updating protocol definitions
-1. Copy the `.proto` files from `components/sync/protocol` in `chromium` to `schema/protobuf/sync_pb` in `go-sync`.
-2. Copy the `.proto` files from `components/sync/protocol` in `brave-core` to `schema/protobuf/sync_pb` in `go-sync`.
-3. Run `make repath-proto` to set correct import paths in `.proto` files.
-4. Run `make proto-go-module` to add the `go_module` option to `.proto` files.
-5. Run `make protobuf` to generate the Go code from `.proto` definitions.
-
-## Prometheus Instrumentation
-The instrumented datastore and redis interfaces are generated, providing integration with Prometheus.  The following will re-generate the instrumented code, required when updating protocl definitions:
-
-```
-make instrumented
+```sh
+git clone https://github.com/<you>/compass.git
+cd compass/server
+# Put your domain in place of sync.example.com:
+sed -i 's/sync.example.com/sync.your-domain.org/' Caddyfile
+docker compose up -d
+docker compose logs -f
 ```
 
-Changes to `datastore/datastore.go` or `cache/cache.go` should be followed with the above command.
+Caddy fetches a certificate on the first request. Check it with
+`curl https://sync.your-domain.org/healthz` (answers `ok`).
+
+## On a home server, behind Tailscale
+
+If your devices are all on your tailnet, the server doesn't need to be on
+the internet. Run the container alone and publish its port on the
+machine's Tailscale address only:
+
+```sh
+docker build -t compass-sync-server .
+docker run -d --name compass-sync --restart unless-stopped \
+  -p 100.x.y.z:8295:8295 -v compass-sync-data:/data compass-sync-server
+```
+
+(`100.x.y.z` is the machine's address from `tailscale ip -4`.) The server
+URL is then `http://100.x.y.z:8295/v2`, or with MagicDNS
+`http://<machine-name>:8295/v2`. Plain HTTP is fine here: Tailscale encrypts
+the traffic, and the data is encrypted by Compass anyway.
+
+For HTTPS inside the tailnet, `tailscale serve --bg --https=443
+http://127.0.0.1:8295` (with `-p 127.0.0.1:8295:8295` above) gives
+`https://<machine-name>.<tailnet>.ts.net/v2`. Then also set
+`COMPASS_SYNC_TRUSTED_PROXIES=127.0.0.1` so pairing rate limits see the
+real device addresses.
+
+## Configuration
+
+Environment variables (all optional):
+
+| Variable | Default | |
+|---|---|---|
+| `COMPASS_SYNC_DB` | `/data/compass-sync.db` | Database file |
+| `COMPASS_SYNC_ADDR` | `:8295` | Listen address |
+| `COMPASS_SYNC_MAX_ENTITIES` | `100000` | Live entities per chain (history counts, up to 30000 of it) |
+| `COMPASS_SYNC_MAX_BYTES` | `209715200` (200 MiB) | Stored bytes per chain; `0` = no limit |
+| `COMPASS_SYNC_TRUSTED_PROXIES` | none | CIDRs whose `X-Forwarded-For` is believed (your reverse proxy) |
+| `COMPASS_SYNC_SHUTDOWN_DELAY` | `0s` | Wait before closing on SIGTERM (for load balancers) |
+| `COMPASS_SYNC_METRICS` | off | `1` serves Prometheus metrics on `/metrics` |
+| `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
+
+Never list a proxy as trusted unless every request reaches the server
+through it: anyone who can connect directly could then choose the address
+the pairing rate limits see.
+
+## Backups
+
+The database is the file `compass-sync.db` in the `/data` volume. Don't copy
+it with `cp` while the server runs (SQLite also has `-wal` and `-shm` files
+next to it, and a copy taken mid-write can be torn). Instead let the server
+write a consistent copy, which is safe at any time:
+
+```sh
+docker compose exec -T sync /compass-sync-server backup - > compass-sync-$(date +%F).db
+```
+
+(`-T` matters: without it the terminal mangles the bytes.) The copy is
+compacted, and a cron job running that line is a complete backup plan.
+With `sqlite3` installed on the host, `sqlite3 <volume dir>/compass-sync.db
+".backup ./compass-sync-$(date +%F).db"` does the same
+(`docker volume inspect compass-sync_sync-data` shows the directory).
+
+To restore, stop the server, put the backup in the volume as
+`compass-sync.db` (removing any `compass-sync.db-wal` and `-shm`), and
+start it again.
+
+Losing the server isn't losing your data: every device keeps its own copy,
+and a new, empty server gets everything again from the devices
+(Compass: "Reset sync"). Backups save the devices that upload, and keep
+history that no device has any more.
+
+## Upgrades
+
+```sh
+git pull
+docker compose build sync
+docker compose up -d
+```
+
+The server migrates the database on start. A server never opens a database
+written by a newer version (it refuses to start), so take a backup before
+upgrading if you may want to go back.
+
+## Development
+
+From the repository root, `tools/compass sync-server` runs it locally on
+port 8296 (`--podman` to run the image instead of `go run`). Tests:
+
+```sh
+cd server && go test ./...
+```
+
+`docs/design/sync.md` in the repository describes the protocol, the token
+format and the pairing API.

@@ -1,1 +1,8 @@
 tmp/
+*.db
+*.db-wal
+*.db-shm
+Caddyfile
+docker-compose.yml
+README.md
+NOTICE.md

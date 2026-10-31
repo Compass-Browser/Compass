@@ -21,3 +21,9 @@
 # Temp files
 
 /tmp/
+
+# Compass
+/compass-sync-server
+*.db
+*.db-wal
+*.db-shm

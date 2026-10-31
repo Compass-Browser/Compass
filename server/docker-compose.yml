@@ -1,70 +1,53 @@
-networks:
-  sync:
-    driver: bridge
+# Compass sync server behind Caddy (HTTPS with automatic certificates).
+# Set your domain in Caddyfile, then: docker compose up -d
+# See README.md.
+
+name: compass-sync
 
 services:
-  dev:
-    build:
-      context: .
-      target: builder
-      args:
-        VERSION: "${VERSION}"
-        COMMIT: "${COMMIT}"
-        BUILD_TIME: "${BUILD_TIME}"
+  sync:
+    build: .
+    image: compass-sync-server:latest
+    restart: unless-stopped
+    volumes:
+      - sync-data:/data
+    environment:
+      # Caddy's address range: its X-Forwarded-For is trusted for the
+      # client IP (pairing rate limits). Must match the network below.
+      COMPASS_SYNC_TRUSTED_PROXIES: 172.30.240.0/24
+      # COMPASS_SYNC_MAX_ENTITIES: "100000"
+      # COMPASS_SYNC_MAX_BYTES: "209715200"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "/compass-sync-server", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+    # No published port: only Caddy reaches it.
+
+  caddy:
+    image: docker.io/library/caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
     depends_on:
-      - dynamo-local
-      - redis
-    networks:
       - sync
-    environment:
-      - PPROF_ENABLED=true
-      - SENTRY_DSN
-      - ENV=local
-      - DEBUG=1
-      - AWS_ACCESS_KEY_ID=GOSYNC
-      - AWS_SECRET_ACCESS_KEY=GOSYNC
-      - AWS_REGION=us-west-2
-      - AWS_ENDPOINT=http://dynamo-local:8000
-      - REDIS_URL=redis:6379
-  web:
-    build:
-      context: .
-      target: artifact
-      args:
-        VERSION: "${VERSION}"
-        COMMIT: "${COMMIT}"
-        BUILD_TIME: "${BUILD_TIME}"
-    ports:
-      - "8295:8295"
-    depends_on:
-      - dynamo-local
-      - redis
-    networks:
-      - sync
-    environment:
-      - PPROF_ENABLED=true
-      - SENTRY_DSN
-      - ENV=local
-      - DEBUG=1
-      - AWS_ACCESS_KEY_ID=GOSYNC
-      - AWS_SECRET_ACCESS_KEY=GOSYNC
-      - AWS_REGION=us-west-2
-      - AWS_ENDPOINT=http://dynamo-local:8000
-      - TABLE_NAME=client-entity-dev
-      - REDIS_URL=redis:6379
-  dynamo-local:
-    build:
-      context: .
-      dockerfile: dynamo.Dockerfile
-    ports:
-      - "8000:8000"
-    networks:
-      - sync
-  redis:
-    image: public.ecr.aws/docker/library/redis:6.2
-    ports:
-      - "6379:6379"
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    networks:
-      - sync
+
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.240.0/24
+
+volumes:
+  sync-data:
+  caddy-data:
+  caddy-config:
