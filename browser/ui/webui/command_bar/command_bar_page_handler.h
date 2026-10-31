@@ -45,6 +45,8 @@ enum class CommandBarCommand {
   kSettings,
   // Opens chrome://compass-import (docs/design/arc-import.md).
   kImportFromArc,
+  // Opens chrome://compass-settings (docs/design/shortcuts.md).
+  kKeyboardShortcuts,
 };
 
 // Serves the command bar page its results and acts on the chosen one. Merges

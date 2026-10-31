@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/global_keyboard_shortcuts_mac.mm b/chrome/browser/global_keyboard_shortcuts_mac.mm
-index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..00f696b70e22dd0ad99264192182d61a765e146d 100644
+index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..0f10fbb43908ec78c97d6b8254281d753edb6649 100644
 --- a/chrome/browser/global_keyboard_shortcuts_mac.mm
 +++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
 @@ -24,6 +24,7 @@
@@ -10,7 +10,7 @@ index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..00f696b70e22dd0ad99264192182d61a
  
  namespace {
  
-@@ -174,6 +175,7 @@ CommandForKeyEventResult ShortcutCommand(int cmd) {
+@@ -174,6 +175,7 @@
                        IDC_DEBUG_PRINT_VIEW_TREE_DETAILS});
      }
  
@@ -18,3 +18,31 @@ index 1bbe4c5fab65668acadce3f60c0e6d181f83036e..00f696b70e22dd0ad99264192182d61a
      return keys;
    }());
    return *keys;
+@@ -207,10 +209,16 @@
+   DCHECK(event);
+   if ([event type] != NSEventTypeKeyDown)
+     return NoCommand();
++  if (compass::IsRecordingShortcut())
++    return NoCommand();
+ 
+   int cmdNum = MenuCommandForKeyEvent(event);
+   if (cmdNum != NO_COMMAND)
+     return MainMenuCommand(cmdNum);
++
++  if (std::optional<int> custom = compass::CustomCommandForKeyEvent(event)) {
++    return *custom == NO_COMMAND ? NoCommand() : ShortcutCommand(*custom);
++  }
+ 
+   // Scan through keycodes and see if it corresponds to one of the non-menu
+   // shortcuts.
+@@ -258,6 +266,10 @@
+ 
+ bool GetDefaultMacAcceleratorForCommandId(int command_id,
+                                           ui::Accelerator* accelerator) {
++  if (std::optional<bool> custom =
++          compass::CustomAcceleratorForCommand(command_id, accelerator)) {
++    return *custom;
++  }
+   // See if it corresponds to one of the non-menu shortcuts.
+   for (const auto& shortcut : GetShortcutsNotPresentInMainMenu()) {
+     if (shortcut.chrome_command == command_id) {

@@ -15,6 +15,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/tabs/public/tab_interface.h"
+#include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/peek/peek.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -35,9 +36,11 @@ class View;
 namespace compass {
 
 // Switches |browser|'s window to its Nth space on Ctrl+N (N = 1 to 9;
-// Ctrl+Shift+N outside macOS, where Ctrl+N picks tabs), while registered with
-// the window's focus manager. Pages get the keys first.
-class SpaceShortcuts : public ui::AcceleratorTarget {
+// Ctrl+Shift+N outside macOS, where Ctrl+N picks tabs), or the keys the user
+// gave it (ShortcutSettings), while registered with the window's focus
+// manager. Pages get the keys first.
+class SpaceShortcuts : public ui::AcceleratorTarget,
+                       public ShortcutSettings::Observer {
  public:
   explicit SpaceShortcuts(BrowserWindowInterface* browser);
   SpaceShortcuts(const SpaceShortcuts&) = delete;
@@ -51,9 +54,14 @@ class SpaceShortcuts : public ui::AcceleratorTarget {
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
   bool CanHandleAccelerators() const override;
 
+  // ShortcutSettings::Observer:
+  void OnShortcutsChanged() override;
+
  private:
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::FocusManager> focus_manager_ = nullptr;
+  base::ScopedObservation<ShortcutSettings, ShortcutSettings::Observer>
+      settings_observation_{this};
 };
 
 // Hosts chrome://compass-sidebar inside the vertical tab strip region, where

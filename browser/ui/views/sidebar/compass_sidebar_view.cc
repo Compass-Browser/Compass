@@ -49,12 +49,6 @@ namespace compass {
 
 namespace {
 
-#if BUILDFLAG(IS_MAC)
-constexpr int kModifiers = ui::EF_CONTROL_DOWN;
-#else
-constexpr int kModifiers = ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN;
-#endif
-
 // Takes whatever height the region's content area has left.
 views::FlexSpecification SidebarFlex() {
   return views::FlexSpecification(views::LayoutOrientation::kVertical,
@@ -66,7 +60,9 @@ views::FlexSpecification SidebarFlex() {
 }  // namespace
 
 SpaceShortcuts::SpaceShortcuts(BrowserWindowInterface* browser)
-    : browser_(browser) {}
+    : browser_(browser) {
+  settings_observation_.Observe(&ShortcutSettings::Get());
+}
 
 SpaceShortcuts::~SpaceShortcuts() {
   Unregister();
@@ -75,11 +71,11 @@ SpaceShortcuts::~SpaceShortcuts() {
 void SpaceShortcuts::Register(views::FocusManager* focus_manager) {
   Unregister();
   focus_manager_ = focus_manager;
-  for (int n = 0; n < 9; ++n) {
-    focus_manager_->RegisterAccelerator(
-        ui::Accelerator(static_cast<ui::KeyboardCode>(ui::VKEY_1 + n),
-                        kModifiers),
-        ui::AcceleratorManager::kNormalPriority, this);
+  for (int n = 0; n < kSpaceShortcutCount; ++n) {
+    for (const ui::Accelerator& accelerator : GetSpaceAccelerators(n)) {
+      focus_manager_->RegisterAccelerator(
+          accelerator, ui::AcceleratorManager::kNormalPriority, this);
+    }
   }
 }
 
@@ -98,7 +94,13 @@ bool SpaceShortcuts::AcceleratorPressed(const ui::Accelerator& accelerator) {
   // Counted across profiles, as the switcher shows them.
   const std::vector<SpaceDirectory::Entry> spaces =
       GetSwitchableSpaces(browser_);
-  const size_t index = accelerator.key_code() - ui::VKEY_1;
+  size_t index = spaces.size();
+  for (int n = 0; n < kSpaceShortcutCount; ++n) {
+    if (std::ranges::contains(GetSpaceAccelerators(n), accelerator)) {
+      index = n;
+      break;
+    }
+  }
   if (index >= spaces.size()) {
     // Nothing there; let the key go on.
     return false;
@@ -110,6 +112,12 @@ bool SpaceShortcuts::AcceleratorPressed(const ui::Accelerator& accelerator) {
 bool SpaceShortcuts::CanHandleAccelerators() const {
   // Also while the sidebar is collapsed.
   return true;
+}
+
+void SpaceShortcuts::OnShortcutsChanged() {
+  if (focus_manager_) {
+    Register(focus_manager_);
+  }
 }
 
 CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)

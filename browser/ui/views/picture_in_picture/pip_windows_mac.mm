@@ -128,8 +128,9 @@ gfx::Rect PipWindows::Snap(const gfx::Rect& bounds,
 
 // static
 ui::Accelerator PipWindows::GetAccelerator() {
-  return ui::Accelerator(
-      ui::VKEY_P, ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
+  const std::vector<ui::Accelerator> accelerators =
+      GetPipClickThroughAccelerators();
+  return accelerators.empty() ? ui::Accelerator() : accelerators.front();
 }
 
 // static
@@ -138,7 +139,9 @@ PipWindows& PipWindows::Get() {
   return *instance;
 }
 
-PipWindows::PipWindows() = default;
+PipWindows::PipWindows() {
+  settings_observation_.Observe(&ShortcutSettings::Get());
+}
 PipWindows::~PipWindows() = default;
 
 void PipWindows::AddWindow(views::Widget* widget) {
@@ -253,9 +256,18 @@ void PipWindows::RemoveWindow(views::Widget* widget) {
 }
 
 void PipWindows::OnKeyPressed(const ui::Accelerator& accelerator) {
-  if (accelerator == GetAccelerator()) {
+  if (accelerator.key_code() != ui::VKEY_UNKNOWN &&
+      accelerator == GetAccelerator()) {
     Toggle();
   }
+}
+
+void PipWindows::OnShortcutsChanged() {
+  UpdateListening();
+}
+
+void PipWindows::OnRecordingChanged() {
+  UpdateListening();
 }
 
 void PipWindows::Apply(views::Widget* widget) {
@@ -292,15 +304,21 @@ void PipWindows::SetHovered(views::Widget* widget, bool hovered) {
 void PipWindows::UpdateListening() {
   ui::GlobalAcceleratorListener* listener =
       ui::GlobalAcceleratorListener::GetInstance();
-  const bool listen = !windows_.empty();
-  if (!listener || listen == listening_) {
+  if (!listener) {
     return;
   }
-  if (listen) {
-    listening_ = listener->RegisterAccelerator(GetAccelerator(), this);
-  } else {
-    listener->UnregisterAccelerator(GetAccelerator(), this);
+  const ui::Accelerator accelerator = GetAccelerator();
+  // Not while the settings page records keys: the hot key would take them.
+  const bool listen = !windows_.empty() &&
+                      !ShortcutSettings::Get().recording() &&
+                      accelerator.key_code() != ui::VKEY_UNKNOWN;
+  if (listening_ && (!listen || accelerator != listening_accelerator_)) {
+    listener->UnregisterAccelerator(listening_accelerator_, this);
     listening_ = false;
+  }
+  if (listen && !listening_) {
+    listening_ = listener->RegisterAccelerator(accelerator, this);
+    listening_accelerator_ = accelerator;
   }
 }
 

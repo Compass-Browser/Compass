@@ -284,3 +284,58 @@ interface ArcImportHandler {
   // Shows the first imported space in this window.
   OpenImported();
 };
+
+// One shortcut on chrome://compass-settings (docs/design/shortcuts.md
+// "Customizing").
+struct Shortcut {
+  // Its key in the "compass.shortcuts" pref ("copy-url", "space-1").
+  string id;
+  string section;
+  string label;
+  // Its keys in force, as menus show them (with the modifier symbols on
+  // macOS); empty: none.
+  array<string> keys;
+  // Its keys as Compass ships them.
+  array<string> default_keys;
+  // The user changed it (keys or none).
+  bool customized;
+};
+
+// Keys pressed on the settings page, from a keydown event.
+struct ShortcutKeys {
+  // KeyboardEvent.keyCode: a ui::KeyboardCode.
+  int32 key_code;
+  bool shift;
+  bool ctrl;
+  bool alt;
+  bool meta;
+};
+
+// What giving a shortcut some keys would do.
+struct ShortcutCheck {
+  // The keys, as menus show them.
+  string text;
+  // Why they can't be used; empty if they can.
+  string error;
+  // A listed shortcut that has them now, which taking them leaves with none.
+  // Empty if none.
+  string conflict_id;
+  string conflict_label;
+};
+
+// Browser-side handler for chrome://compass-settings.
+interface SettingsHandler {
+  GetShortcuts() => (array<Shortcut> shortcuts);
+  // While the page records keys, the browser's shortcuts don't run, so the
+  // keys reach it.
+  SetRecording(bool recording);
+  CheckShortcut(string id, ShortcutKeys keys) => (ShortcutCheck check);
+  // Gives |id| the keys, taking them from the shortcut that had them (see
+  // ShortcutCheck). Does nothing if they can't be used.
+  SetShortcut(string id, ShortcutKeys keys) => ();
+  // Leaves |id| without a shortcut.
+  RemoveShortcut(string id) => ();
+  // Back to the keys Compass ships.
+  ResetShortcut(string id) => ();
+  ResetAllShortcuts() => ();
+};

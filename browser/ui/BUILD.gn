@@ -40,6 +40,8 @@ source_set("ui") {
     "webui/command_bar/command_bar_ui.h",
     "webui/placeholder/compass_placeholder_ui.cc",
     "webui/placeholder/compass_placeholder_ui.h",
+    "webui/settings/compass_settings_ui.cc",
+    "webui/settings/compass_settings_ui.h",
     "webui/sidebar/sidebar_page_handler.cc",
     "webui/sidebar/sidebar_page_handler.h",
     "webui/sidebar/compass_favicon_source.cc",
@@ -62,6 +64,7 @@ source_set("ui") {
   ]
   deps = [
     "//compass/browser/arc_import",
+    "//compass/browser/shortcuts",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//compass/common:url",
@@ -133,6 +136,7 @@ source_set("ui") {
       "views/little_window/little_window_mac.mm",
       "arc_import/arc_importer_mac.mm",
     ]
+    deps += [ "//compass/browser/ui/cocoa:shortcuts" ]
   }
 }
 
@@ -211,6 +215,7 @@ source_set("browser_tests") {
     "//content/public/browser",
     "//content/test:test_support",
     "//net:test_support",
+    "//compass/browser/shortcuts",
     "//compass/browser/sidebar",
     "//compass/browser/window_sync",
     "//testing/gmock",
@@ -229,6 +234,7 @@ source_set("browser_tests") {
       "views/little_window/little_window_browsertest.mm",
     ]
     deps += [
+      "//compass/browser/ui/cocoa:shortcuts",
       "//ui/base/clipboard:clipboard_test_support",
       "//ui/events:events_base",
     ]

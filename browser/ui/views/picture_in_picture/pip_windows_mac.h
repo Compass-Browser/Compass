@@ -9,7 +9,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
+#include "base/scoped_observation.h"
 #include "base/timer/timer.h"
+#include "compass/browser/shortcuts/shortcut_settings.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
 #include "ui/gfx/geometry/rect.h"
@@ -22,7 +24,8 @@ namespace compass {
 
 // What Compass adds to video picture-in-picture windows on macOS
 // (docs/design/picture-in-picture.md):
-// - Click-through: Ctrl+Option+Cmd+P, from any app while a window is open,
+// - Click-through: Ctrl+Option+Cmd+P (or the keys the user gave it,
+//   ShortcutSettings), from any app while a window is open,
 //   makes it ignore the mouse, so clicks land on what's under it; again makes
 //   it take clicks again. Meanwhile it turns translucent under the pointer
 //   and shows no controls.
@@ -30,9 +33,12 @@ namespace compass {
 // - Trackpad gestures: pinch resizes it, two fingers move it, and at the end
 //   of a gesture or a drag it snaps to a screen edge it's close to.
 class PipWindows : public views::WidgetObserver,
-                        public ui::GlobalAcceleratorListener::Observer {
+                   public ui::GlobalAcceleratorListener::Observer,
+                   public ShortcutSettings::Observer {
  public:
-  // The shortcut, global while a picture-in-picture window is open.
+  // The shortcut, global while a picture-in-picture window is open (and the
+  // settings page isn't recording keys). ui::Accelerator() if the user
+  // removed it.
   static ui::Accelerator GetAccelerator();
   // The window's opacity under the pointer while it ignores the mouse.
   static constexpr float kHoverOpacity = 0.25f;
@@ -106,6 +112,10 @@ class PipWindows : public views::WidgetObserver,
   void ExecuteCommand(const std::string& accelerator_group_id,
                       const std::string& command_id) override {}
 
+  // ShortcutSettings::Observer:
+  void OnShortcutsChanged() override;
+  void OnRecordingChanged() override;
+
  private:
   friend class base::NoDestructor<PipWindows>;
   PipWindows();
@@ -134,10 +144,14 @@ class PipWindows : public views::WidgetObserver,
   std::vector<raw_ptr<views::Widget>> hovered_;
   bool enabled_ = false;
   bool listening_ = false;
+  // What |listening_| is for.
+  ui::Accelerator listening_accelerator_;
   base::RepeatingTimer hover_timer_;
 
   base::ScopedMultiSourceObservation<views::Widget, views::WidgetObserver>
       observations_{this};
+  base::ScopedObservation<ShortcutSettings, ShortcutSettings::Observer>
+      settings_observation_{this};
 };
 
 }  // namespace compass

@@ -11,6 +11,8 @@ source_set("pip_windows") {
       "pip_windows_mac.h",
       "pip_windows_mac.mm",
     ]
+    # Its header includes ShortcutSettings.
+    public_deps = [ "//compass/browser/shortcuts" ]
     deps = [
       "//base",
       "//ui/base",
