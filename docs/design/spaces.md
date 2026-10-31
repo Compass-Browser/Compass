@@ -214,8 +214,11 @@ theme chip shows the same three stops, diagonally (`--space-color`,
 (the user asked for no circle or background, 2026-10-31): just the icon,
 emoji or letter, the window's space at full opacity, the others dimmed.
 Symbols are 17px, letters 13px and emoji 11px, which look about as big.
-Other spaces' emoji are grey (`filter: grayscale(1)`) and fade into color
-in 240 ms when their space becomes the window's.
+Other spaces' emoji are a silhouette in the text color, as their symbols
+and letters are (the glyph's fill transparent over a text shadow in
+`currentColor`; `color: transparent` would make `currentColor` transparent
+too), and fade into their colors in 240 ms when their space becomes the
+window's.
 
 In the space menu, a Gradient row under the swatches (hidden for grey):
 each gradient color as a color well with ×, then + (while there's room),
