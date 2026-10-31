@@ -94,7 +94,8 @@ nothing else.
 | `chrome-common-chrome_content_client.cc.patch`, `chrome-common-BUILD.gn.patch` | Registers `compass` as a standard scheme in every process (branding.md "compass://") |
 | `chrome-browser-chrome_content_browser_client.cc.patch` | `BrowserURLHandlerCreated()` adds `compass::AddCompassURLHandler()` first: compass://x loads chrome://x |
 | `chrome-browser-profiles-profile_io_data.cc.patch`, `chrome-browser-profiles-BUILD.gn.patch` | `compass` is a handled protocol: the omnibox takes compass:// as a URL, startup and context menus accept it, and it never goes to the OS |
-| `chrome-browser-ui-toolbar-chrome_location_bar_model_delegate.cc.patch`, `chrome-browser-ui-toolbar-BUILD.gn.patch` | The location bar shows chrome:// URLs as compass:// |
+| `chrome-browser-ui-toolbar-chrome_location_bar_model_delegate.cc.patch`, `chrome-browser-ui-toolbar-BUILD.gn.patch` (1st hunk) | The location bar shows chrome:// URLs as compass:// |
+| `chrome-browser-ui-toolbar-app_menu_model.cc.patch`, `chrome-browser-ui-toolbar-BUILD.gn.patch` (2nd hunk) | The app menu has a sync row above Settings (`compass::GetAppMenuSyncLabel()`, command `compass::kOpenSyncPageCommand`, run by the command controller's Compass hook); Compass commands are always enabled in the menu (docs/design/sync.md, "Slice 4 notes") |
 | `chrome-browser-ui-browser_commands.cc.patch` | Copy URL (Cmd+Shift+C) copies chrome:// URLs as compass:// |
 | `content-renderer-render_frame_impl.cc.patch` | An Option+clicked GET http(s) link goes to the browser as `OpenURL` with `SAVE_TO_DISK` instead of `DownloadURL`, so the browser can peek at it (docs/design/peek.md) |
 | `third_party-blink-renderer-core-html-html_anchor_element.cc.patch` | Option+click on a link navigates at once, without upstream's double-click delay, so Peek opens on the click |

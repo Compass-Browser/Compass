@@ -6,6 +6,7 @@
 
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser_manager_service_factory.h"
 #include "compass/browser/sync/compass_spaces_sync.h"
@@ -34,6 +35,8 @@ CompassSyncServiceFactory* CompassSyncServiceFactory::GetInstance() {
 CompassSyncServiceFactory::CompassSyncServiceFactory()
     : ProfileKeyedServiceFactory("CompassSyncService") {
   DependsOn(SyncServiceFactory::GetInstance());
+  // The devices list on chrome://compass-sync.
+  DependsOn(DeviceInfoSyncServiceFactory::GetInstance());
   // ProfileBrowserCollection, for the refresh on focus.
   DependsOn(BrowserManagerServiceFactory::GetInstance());
   // Built before any profile loads: from now on, sync services get the

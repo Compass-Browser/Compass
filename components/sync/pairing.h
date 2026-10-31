@@ -39,9 +39,28 @@
 // K_confirm_a, K_confirm_b = HKDF-SHA256(SPAKE2 key, salt="",
 // info="compass-pair-enc" / "compass-pair-confirm-a" /
 // "compass-pair-confirm-b", 32 bytes).
+//
+// Since slice 4 (docs/design/sync.md, "Slice 4 notes") the server names
+// itself: both sides bind the "server" of the open/join replies into SPAKE2
+// instead of the host each typed (older servers don't send it; then each
+// side's own host), and a closed slot answers 410 with why it closed.
 namespace compass::sync {
 
 enum class PairingRole { kA, kB };
+
+// Why a slot closed: DELETE's ?reason= and the server's 410 replies.
+enum class PairingClosedReason {
+  // An older server (404), or a reason this client doesn't know.
+  kUnknown,
+  // A confirmation didn't match: a wrong code.
+  kMismatch,
+  kCancel,
+  kDeny,
+  kExpired,
+};
+// "mismatch", "cancel", "deny", "expired"; empty for kUnknown.
+std::string_view PairingClosedReasonName(PairingClosedReason reason);
+PairingClosedReason ParsePairingClosedReason(std::string_view name);
 
 // "7-482913": the slot number, a dash, then 6 digits (the secret).
 struct PairingCode {
@@ -70,14 +89,25 @@ struct PairingMessage {
 };
 
 // The server's pairing endpoints. Every callback gets the HTTP status of
-// the reply, or 0 if there was none or it couldn't be parsed.
+// the reply, or 0 if there was none or it couldn't be parsed, and with a
+// 410 why the slot closed.
 class PairingTransport {
  public:
-  using OpenCallback = base::OnceCallback<
-      void(int status, int slot, base::TimeDelta expires_in)>;
-  using StatusCallback = base::OnceCallback<void(int status)>;
-  using ReceiveCallback =
-      base::OnceCallback<void(int status, std::vector<PairingMessage>)>;
+  // |server|: the name to bind into SPAKE2, empty from older servers.
+  using OpenCallback = base::OnceCallback<void(int status,
+                                               int slot,
+                                               base::TimeDelta expires_in,
+                                               std::string server)>;
+  // |expires_in| is the slot's remaining life (zero from older servers).
+  using JoinCallback = base::OnceCallback<void(int status,
+                                               PairingClosedReason closed,
+                                               std::string server,
+                                               base::TimeDelta expires_in)>;
+  using StatusCallback =
+      base::OnceCallback<void(int status, PairingClosedReason closed)>;
+  using ReceiveCallback = base::OnceCallback<void(int status,
+                                                  PairingClosedReason closed,
+                                                  std::vector<PairingMessage>)>;
 
   virtual ~PairingTransport() = default;
 
@@ -85,7 +115,7 @@ class PairingTransport {
   virtual void Open(OpenCallback callback) = 0;
   // B: POST /compass/pair/{slot}/join. Keeps the b_token for B's later
   // requests.
-  virtual void Join(int slot, StatusCallback callback) = 0;
+  virtual void Join(int slot, JoinCallback callback) = 0;
   // POST /compass/pair/{slot}/msg.
   virtual void Send(int slot,
                     PairingRole from,
@@ -96,8 +126,9 @@ class PairingTransport {
                        PairingRole reader,
                        int after,
                        ReceiveCallback callback) = 0;
-  // DELETE /compass/pair/{slot}. Fire and forget: it may outlive |this|.
-  virtual void Close(int slot, PairingRole by) = 0;
+  // DELETE /compass/pair/{slot}?reason=<reason>. Fire and forget: it may
+  // outlive |this|.
+  virtual void Close(int slot, PairingRole by, PairingClosedReason reason) = 0;
 };
 
 // A's side.
@@ -108,6 +139,8 @@ class PairingHost {
     kDenied,
     // B's confirmation didn't match: a wrong code, or someone in the middle.
     kWrongCode,
+    // B gave up.
+    kCanceled,
     kExpired,
     kRateLimited,
     kFailed,
@@ -125,7 +158,8 @@ class PairingHost {
     virtual void OnPairingFinished(Result result) = 0;
   };
 
-  // |host| is the server's host name, bound into SPAKE2.
+  // |host| is the server's host name, bound into SPAKE2 unless the server
+  // names itself.
   PairingHost(std::unique_ptr<PairingTransport> transport,
               std::string host,
               const Seed& seed,
@@ -150,19 +184,25 @@ class PairingHost {
     kDone,
   };
 
-  void OnOpened(int status, int slot, base::TimeDelta expires_in);
+  void OnOpened(int status,
+                int slot,
+                base::TimeDelta expires_in,
+                std::string server);
   void Poll();
-  void OnReceived(int status, std::vector<PairingMessage> messages);
+  void OnReceived(int status,
+                  PairingClosedReason closed,
+                  std::vector<PairingMessage> messages);
   // Returns false if pairing ended.
   bool HandleMessage(const PairingMessage& message);
-  void OnAlicePosted(int status);
-  void OnAnswerPosted(bool allow, int status);
+  void OnAlicePosted(int status, PairingClosedReason closed);
+  void OnAnswerPosted(bool allow, int status, PairingClosedReason closed);
   void OnExpired();
-  // Ends with |result|, closing the slot if |close|.
+  // Ends with |result|, closing the slot if |close| (saying why: a wrong
+  // code, else a cancel).
   void Finish(Result result, bool close);
 
   std::unique_ptr<PairingTransport> transport_;
-  const std::string host_;
+  std::string host_;
   const Seed seed_;
   raw_ptr<Delegate> delegate_;
 
@@ -191,10 +231,12 @@ class PairingJoiner {
     kNoSuchCode,
     // Someone already joined that slot: 409.
     kCodeUsed,
-    // A's confirmation didn't match.
+    // A's confirmation didn't match, or A saw B's didn't (the server says
+    // so).
     kWrongCode,
-    // A closed the slot while B waited: A saw a wrong code, or was
-    // canceled, or the slot expired.
+    // A gave up (or opened a new code).
+    kCanceled,
+    // A closed the slot and the server doesn't say why (an older server).
     kClosed,
     kExpired,
     kRateLimited,
@@ -204,9 +246,12 @@ class PairingJoiner {
       base::OnceCallback<void(Result result, std::optional<Seed> seed)>;
 
   // How long B waits for the whole exchange, the user's answer on A
-  // included. The slot itself lives 5 minutes.
+  // included, when the server doesn't say how long the slot lives. The slot
+  // itself lives 5 minutes.
   static constexpr base::TimeDelta kTimeout =
       base::Minutes(5) + base::Seconds(30);
+  // Past the slot's remaining life (join's expires_in), how long B waits.
+  static constexpr base::TimeDelta kTimeoutMargin = base::Seconds(30);
 
   PairingJoiner(std::unique_ptr<PairingTransport> transport,
                 std::string host,
@@ -233,18 +278,23 @@ class PairingJoiner {
     kDone,
   };
 
-  void OnJoined(int status);
-  void OnBobPosted(int status);
+  void OnJoined(int status,
+                PairingClosedReason closed,
+                std::string server,
+                base::TimeDelta expires_in);
+  void OnBobPosted(int status, PairingClosedReason closed);
   void Poll();
-  void OnReceived(int status, std::vector<PairingMessage> messages);
+  void OnReceived(int status,
+                  PairingClosedReason closed,
+                  std::vector<PairingMessage> messages);
   // Returns false if pairing ended.
   bool HandleMessage(const PairingMessage& message);
-  void OnConfirmationPosted(int status);
+  void OnConfirmationPosted(int status, PairingClosedReason closed);
   void OnTimeout();
   void Finish(Result result, std::optional<Seed> seed, bool close);
 
   std::unique_ptr<PairingTransport> transport_;
-  const std::string host_;
+  std::string host_;
   const std::string device_name_;
   base::OnceClosure waiting_;
   DoneCallback done_;

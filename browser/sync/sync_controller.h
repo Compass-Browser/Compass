@@ -11,6 +11,7 @@
 
 #include "base/functional/callback.h"
 #include "base/observer_list_types.h"
+#include "base/time/time.h"
 
 class GURL;
 
@@ -55,6 +56,36 @@ struct PairingStatus {
   std::string message;
 };
 
+// The switches on chrome://compass-sync, one per kind of data the user
+// sees (docs/design/sync.md, "Slice 4 notes"). All but kSpaces are upstream
+// UserSelectableTypes; kSpaces is COMPASS_SPACES.
+enum class SyncDataType {
+  kPasswords,
+  kHistory,
+  kBookmarks,
+  kAutofill,
+  kExtensions,
+  kSettings,
+  kReadingList,
+  kOpenTabs,
+  kSpaces,
+};
+
+struct SyncDataTypeState {
+  SyncDataType type = SyncDataType::kPasswords;
+  bool enabled = true;
+};
+
+// A device of the chain, from DEVICE_INFO.
+struct SyncDevice {
+  std::string name;
+  // "Mac", "Windows PC", "Android phone"...
+  std::string kind;
+  // When the device last said it's alive (null if unknown).
+  base::Time last_seen;
+  bool this_device = false;
+};
+
 // What chrome://compass-sync drives: CompassSyncService, or a fake in tests.
 class SyncController {
  public:
@@ -95,6 +126,20 @@ class SyncController {
   // On: leaves the chain; local data stays.
   virtual void Leave() = 0;
   virtual void Restart() = 0;
+
+  // On: the chain's devices, this one included.
+  virtual std::vector<SyncDevice> GetDevices() const = 0;
+  // The switches, in the page's order. Kept while sync is off.
+  virtual std::vector<SyncDataTypeState> GetDataTypes() const = 0;
+  virtual void SetDataTypeEnabled(SyncDataType type, bool enabled) = 0;
+  // On: the chain's 12 words, or empty if the seed isn't loaded. The page
+  // asks the user to authenticate (Touch ID or the Mac's password) first.
+  virtual std::vector<std::string> GetRecoveryCode() const = 0;
+  // On: replaces the chain with a new one (new seed, so new keys and a new
+  // account on the same server); |words| is its recovery code. This
+  // device's data goes up again after a restart; the other devices must
+  // join again.
+  virtual void ResetChain(StartCallback callback) = 0;
 };
 
 // A server URL as typed, or an invalid GURL: http or https, with a host.

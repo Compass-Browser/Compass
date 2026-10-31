@@ -136,12 +136,18 @@ func TestLowestFreeSlot(t *testing.T) {
 
 	code, _ := f.do(req{method: "DELETE", path: "/2", chain: "c2"})
 	require.Equal(t, http.StatusNoContent, code)
-	assert.Equal(t, 2, f.open("c4"), "a closed slot's number is reused")
+	assert.Equal(t, 4, f.open("c4"), "a closed slot's number stays reserved")
 
-	// Expired slots free their numbers too.
+	// 300 s after it closed, 2 is free again; 1, 3 and 4 expired just now
+	// and stay reserved.
 	f.clock.Advance(301 * time.Second)
-	assert.Equal(t, 1, f.open("c5"))
-	assert.Equal(t, 2, f.open("c6"))
+	assert.Equal(t, 2, f.open("c5"))
+	assert.Equal(t, 5, f.open("c6"))
+
+	// Expired slots free their numbers 300 s after expiring.
+	f.clock.Advance(300 * time.Second)
+	assert.Equal(t, 1, f.open("c7"))
+	assert.Equal(t, 3, f.open("c8"))
 }
 
 func TestOneSlotPerChain(t *testing.T) {
@@ -150,14 +156,20 @@ func TestOneSlotPerChain(t *testing.T) {
 	assert.Equal(t, 2, f.open("c2"))
 	f.join("2")
 
-	// c2 opens again: its slot 2 closes, and 2 is the lowest free number.
-	assert.Equal(t, 2, f.open("c2"))
-	f.join("2") // A new slot: its first join succeeds.
+	// c2 opens again: its slot 2 closes (canceled), and 3 is the lowest
+	// free number.
+	assert.Equal(t, 3, f.open("c2"))
+	f.join("3") // A new slot: its first join succeeds.
+	code, out := f.do(req{method: "POST", path: "/2/join"})
+	assert.Equal(t, http.StatusGone, code)
+	assert.Equal(t, "cancel", out["reason"])
 
 	// Chain IDs compare case-insensitively (Chromium sends upper-case hex).
-	assert.Equal(t, 3, f.open("ab"))
-	assert.Equal(t, 3, f.open("AB"))
-	code, _ := f.do(req{method: "POST", path: "/3/join"})
+	assert.Equal(t, 4, f.open("ab"))
+	assert.Equal(t, 5, f.open("AB"))
+	code, _ = f.do(req{method: "POST", path: "/4/join"})
+	assert.Equal(t, http.StatusGone, code)
+	code, _ = f.do(req{method: "POST", path: "/5/join"})
 	assert.Equal(t, http.StatusOK, code)
 	code, _ = f.do(req{method: "POST", path: "/1/msg", chain: "c1", body: msg("a", []byte("x"))})
 	assert.Equal(t, http.StatusOK, code, "other chains' slots stay open")
@@ -172,9 +184,10 @@ func TestFirstJoinOnly(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, code)
 }
 
-func TestNotFoundAfterExpiryAndClose(t *testing.T) {
-	f := newFixture(t, nil)
-	everywhere := func(slot, token string) {
+func TestClosedSlotsSayWhy(t *testing.T) {
+	f := newFixture(t, func(c *pairing.Config) { c.JoinsPerIP = 1000 })
+	// |want| 404 for unknown slots, else 410 with |reason|.
+	everywhere := func(slot, token string, want int, reason string) {
 		t.Helper()
 		for _, r := range []req{
 			{method: "POST", path: "/" + slot + "/join"},
@@ -184,27 +197,101 @@ func TestNotFoundAfterExpiryAndClose(t *testing.T) {
 			{method: "GET", path: "/" + slot + "/msg?for=b", bToken: token},
 			{method: "DELETE", path: "/" + slot, chain: "c1"},
 		} {
-			code, _ := f.do(r)
-			assert.Equal(t, http.StatusNotFound, code, "%s %s", r.method, r.path)
+			code, out := f.do(r)
+			assert.Equal(t, want, code, "%s %s", r.method, r.path)
+			if want == http.StatusGone {
+				assert.Equal(t, reason, out["reason"], "%s %s", r.method, r.path)
+			}
 		}
 	}
-	everywhere("1", "00")
-	everywhere("0", "00")
-	everywhere("x", "00")
+	everywhere("1", "00", http.StatusNotFound, "")
+	everywhere("0", "00", http.StatusNotFound, "")
+	everywhere("x", "00", http.StatusNotFound, "")
 
-	f.open("c1")
-	token := f.join("1")
+	// Expiry.
+	slot := strconv.Itoa(f.open("c1"))
+	token := f.join(slot)
 	f.clock.Advance(299 * time.Second)
-	code, _ := f.do(req{method: "POST", path: "/1/msg", chain: "c1", body: msg("a", []byte("x"))})
+	code, _ := f.do(req{method: "POST", path: "/" + slot + "/msg", chain: "c1", body: msg("a", []byte("x"))})
 	require.Equal(t, http.StatusOK, code, "still open at 299 s")
 	f.clock.Advance(time.Second)
-	everywhere("1", token)
+	everywhere(slot, token, http.StatusGone, "expired")
+	// Kept for 300 s after closing, then unknown.
+	f.clock.Advance(299 * time.Second)
+	everywhere(slot, token, http.StatusGone, "expired")
+	f.clock.Advance(time.Second)
+	everywhere(slot, token, http.StatusNotFound, "")
 
-	f.open("c1")
-	token = f.join("1")
-	code, _ = f.do(req{method: "DELETE", path: "/1", bToken: token})
-	require.Equal(t, http.StatusNoContent, code, "B may close")
-	everywhere("1", token)
+	// Each reason a DELETE gives, from A or B; none is a cancel.
+	for _, c := range []struct {
+		query, byB, reason string
+	}{
+		{"?reason=mismatch", "", "mismatch"},
+		{"?reason=deny", "", "deny"},
+		{"?reason=cancel", "b", "cancel"},
+		{"", "b", "cancel"},
+		{"?reason=mismatch", "b", "mismatch"},
+	} {
+		slot := strconv.Itoa(f.open("c1"))
+		token := f.join(slot)
+		r := req{method: "DELETE", path: "/" + slot + c.query, chain: "c1"}
+		if c.byB != "" {
+			r = req{method: "DELETE", path: "/" + slot + c.query, bToken: token}
+		}
+		code, _ := f.do(r)
+		require.Equal(t, http.StatusNoContent, code, "%s", c.query)
+		everywhere(slot, token, http.StatusGone, c.reason)
+	}
+
+	// An unknown reason (or "expired", the server's own) is refused and
+	// closes nothing.
+	slot = strconv.Itoa(f.open("c2"))
+	for _, q := range []string{"?reason=bored", "?reason=expired"} {
+		code, _ := f.do(req{method: "DELETE", path: "/" + slot + q, chain: "c2"})
+		assert.Equal(t, http.StatusBadRequest, code, q)
+	}
+	f.join(slot)
+}
+
+func TestServerName(t *testing.T) {
+	f := newFixture(t, nil)
+	// The Host the opening request came to, without the port, lower-case.
+	open := func(host string) map[string]any {
+		t.Helper()
+		hr := httptest.NewRequest("POST", "/", strings.NewReader(""))
+		hr.Host = host
+		hr.Header.Set("Authorization", "Bearer chain:c-"+host)
+		hr.Header.Set("X-Test-IP", "192.0.2.9")
+		rec := httptest.NewRecorder()
+		f.h.ServeHTTP(rec, hr)
+		require.Equal(t, http.StatusCreated, rec.Code)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
+		return out
+	}
+	out := open("Sync.Example.com:8295")
+	assert.Equal(t, "sync.example.com", out["server"])
+	assert.Equal(t, "192.168.1.20", open("192.168.1.20:8295")["server"])
+	assert.Equal(t, "::1", open("[::1]:8295")["server"])
+
+	// join echoes it, with the slot's remaining life.
+	slot := strconv.Itoa(int(out["slot"].(float64)))
+	f.clock.Advance(100*time.Second + 500*time.Millisecond)
+	// Another Host on B's side doesn't change it.
+	code, joined := f.do(req{method: "POST", path: "/" + slot + "/join"})
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, "sync.example.com", joined["server"])
+	assert.EqualValues(t, 200, joined["expires_in"])
+
+	// COMPASS_SYNC_PUBLIC_HOST wins.
+	g := newFixture(t, func(c *pairing.Config) { c.PublicHost = "sync.example.org" })
+	code, out = g.do(req{method: "POST", path: "/", chain: "c1"})
+	require.Equal(t, http.StatusCreated, code)
+	assert.Equal(t, "sync.example.org", out["server"])
+	code, joined = g.do(req{method: "POST", path: "/1/join"})
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, "sync.example.org", joined["server"])
+	assert.EqualValues(t, 300, joined["expires_in"])
 }
 
 func TestWhoMayPostAndRead(t *testing.T) {
@@ -359,11 +446,11 @@ func TestLongPollEndsWhenSlotCloses(t *testing.T) {
 		done <- code
 	}()
 	time.Sleep(100 * time.Millisecond)
-	code, _ := f.do(req{method: "DELETE", path: "/1", chain: "c1"})
+	code, _ := f.do(req{method: "DELETE", path: "/1?reason=mismatch", chain: "c1"})
 	require.Equal(t, http.StatusNoContent, code)
 	select {
 	case code := <-done:
-		assert.Equal(t, http.StatusNotFound, code)
+		assert.Equal(t, http.StatusGone, code)
 	case <-time.After(5 * time.Second):
 		t.Fatal("long poll didn't end when the slot closed")
 	}
@@ -481,6 +568,7 @@ func TestRoundTrip(t *testing.T) {
 
 	code, _ = call("DELETE", slot, a, nil)
 	assert.Equal(t, http.StatusNoContent, code)
-	code, _ = call("GET", slot+"/msg?for=b", b, nil)
-	assert.Equal(t, http.StatusNotFound, code)
+	code, out = call("GET", slot+"/msg?for=b", b, nil)
+	assert.Equal(t, http.StatusGone, code)
+	assert.Equal(t, "cancel", out["reason"])
 }

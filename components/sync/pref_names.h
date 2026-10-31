@@ -18,6 +18,15 @@ inline constexpr char kServerUrl[] = "compass.sync.server_url";
 // profile isn't in a chain.
 inline constexpr char kSeed[] = "compass.sync.seed";
 
+// The chrome://compass-sync switches turned off, by name
+// (compass/browser/sync/sync_settings.h). Kept across leaving and joining.
+inline constexpr char kDisabledTypes[] = "compass.sync.disabled_types";
+
+// "Reset sync" replaced the chain: until this device has put the new chain's
+// passphrase in place, a passphrase it finds already set (its old chain's,
+// cached) doesn't release the data types.
+inline constexpr char kResetPending[] = "compass.sync.reset_pending";
+
 }  // namespace compass::sync::prefs
 
 #endif  // COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_

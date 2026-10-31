@@ -40,6 +40,7 @@ constexpr int kHttpOk = 200;
 constexpr int kHttpCreated = 201;
 constexpr int kHttpNotFound = 404;
 constexpr int kHttpConflict = 409;
+constexpr int kHttpGone = 410;
 constexpr int kHttpTooManyRequests = 429;
 constexpr int kHttpUnavailable = 503;
 
@@ -145,7 +146,67 @@ void Append(std::vector<uint8_t>& out, base::span<const uint8_t> data) {
   out.insert(out.end(), data.begin(), data.end());
 }
 
+// What A makes of a slot the server says closed.
+PairingHost::Result HostResultForClosed(PairingClosedReason closed) {
+  switch (closed) {
+    case PairingClosedReason::kMismatch:
+      return PairingHost::Result::kWrongCode;
+    case PairingClosedReason::kCancel:
+      return PairingHost::Result::kCanceled;
+    case PairingClosedReason::kDeny:
+      return PairingHost::Result::kDenied;
+    case PairingClosedReason::kExpired:
+    case PairingClosedReason::kUnknown:
+      return PairingHost::Result::kExpired;
+  }
+  return PairingHost::Result::kExpired;
+}
+
+// What B makes of it.
+PairingJoiner::Result JoinerResultForClosed(PairingClosedReason closed) {
+  switch (closed) {
+    case PairingClosedReason::kMismatch:
+      return PairingJoiner::Result::kWrongCode;
+    case PairingClosedReason::kCancel:
+      return PairingJoiner::Result::kCanceled;
+    case PairingClosedReason::kDeny:
+      return PairingJoiner::Result::kDenied;
+    case PairingClosedReason::kExpired:
+      return PairingJoiner::Result::kExpired;
+    case PairingClosedReason::kUnknown:
+      return PairingJoiner::Result::kClosed;
+  }
+  return PairingJoiner::Result::kClosed;
+}
+
 }  // namespace
+
+std::string_view PairingClosedReasonName(PairingClosedReason reason) {
+  switch (reason) {
+    case PairingClosedReason::kMismatch:
+      return "mismatch";
+    case PairingClosedReason::kCancel:
+      return "cancel";
+    case PairingClosedReason::kDeny:
+      return "deny";
+    case PairingClosedReason::kExpired:
+      return "expired";
+    case PairingClosedReason::kUnknown:
+      return std::string_view();
+  }
+  return std::string_view();
+}
+
+PairingClosedReason ParsePairingClosedReason(std::string_view name) {
+  for (PairingClosedReason reason :
+       {PairingClosedReason::kMismatch, PairingClosedReason::kCancel,
+        PairingClosedReason::kDeny, PairingClosedReason::kExpired}) {
+    if (name == PairingClosedReasonName(reason)) {
+      return reason;
+    }
+  }
+  return PairingClosedReason::kUnknown;
+}
 
 std::optional<PairingCode> ParsePairingCode(std::string_view text) {
   std::string code;
@@ -215,7 +276,7 @@ PairingHost::PairingHost(std::unique_ptr<PairingTransport> transport,
 
 PairingHost::~PairingHost() {
   if (slot_open_) {
-    transport_->Close(slot_, PairingRole::kA);
+    transport_->Close(slot_, PairingRole::kA, PairingClosedReason::kCancel);
   }
 }
 
@@ -226,7 +287,10 @@ void PairingHost::Start() {
       base::BindOnce(&PairingHost::OnOpened, weak_factory_.GetWeakPtr()));
 }
 
-void PairingHost::OnOpened(int status, int slot, base::TimeDelta expires_in) {
+void PairingHost::OnOpened(int status,
+                           int slot,
+                           base::TimeDelta expires_in,
+                           std::string server) {
   if (status != kHttpCreated || slot < 1) {
     // 429: too many opens from this IP; 503: the server's slots are full.
     // Both mean "try again later".
@@ -238,6 +302,11 @@ void PairingHost::OnOpened(int status, int slot, base::TimeDelta expires_in) {
   }
   slot_ = slot;
   slot_open_ = true;
+  // The server's own name, so both sides bind the same one however each
+  // reaches it (an IP, a Tailscale name).
+  if (!server.empty()) {
+    host_ = std::move(server);
+  }
   const PairingCode code{slot, RandomDigits()};
   spake_ = NewSpake(PairingRole::kA, host_, slot);
   alice_message_ = GenerateSpakeMessage(spake_.get(), code.digits);
@@ -259,7 +328,9 @@ void PairingHost::Poll() {
       base::BindOnce(&PairingHost::OnReceived, weak_factory_.GetWeakPtr()));
 }
 
-void PairingHost::OnReceived(int status, std::vector<PairingMessage> messages) {
+void PairingHost::OnReceived(int status,
+                             PairingClosedReason closed,
+                             std::vector<PairingMessage> messages) {
   if (step_ != Step::kWaitingForB && step_ != Step::kWaitingForConfirmation) {
     return;
   }
@@ -267,6 +338,11 @@ void PairingHost::OnReceived(int status, std::vector<PairingMessage> messages) {
     retry_timer_.Start(
         FROM_HERE, kRetryDelay,
         base::BindOnce(&PairingHost::Poll, base::Unretained(this)));
+    return;
+  }
+  if (status == kHttpGone) {
+    slot_open_ = false;
+    Finish(HostResultForClosed(closed), /*close=*/false);
     return;
   }
   if (status == kHttpNotFound) {
@@ -332,11 +408,14 @@ bool PairingHost::HandleMessage(const PairingMessage& message) {
   }
 }
 
-void PairingHost::OnAlicePosted(int status) {
+void PairingHost::OnAlicePosted(int status, PairingClosedReason closed) {
   if (step_ != Step::kWaitingForConfirmation) {
     return;
   }
-  if (status == kHttpNotFound) {
+  if (status == kHttpGone) {
+    slot_open_ = false;
+    Finish(HostResultForClosed(closed), /*close=*/false);
+  } else if (status == kHttpNotFound) {
     Finish(Result::kExpired, /*close=*/false);
   } else if (!IsSuccess(status)) {
     Finish(
@@ -368,15 +447,30 @@ void PairingHost::Answer(bool allow) {
                                   weak_factory_.GetWeakPtr(), allow));
 }
 
-void PairingHost::OnAnswerPosted(bool allow, int status) {
+void PairingHost::OnAnswerPosted(bool allow,
+                                 int status,
+                                 PairingClosedReason closed) {
+  if (status == kHttpGone) {
+    slot_open_ = false;
+    Finish(HostResultForClosed(closed), /*close=*/false);
+    return;
+  }
   if (!IsSuccess(status)) {
     Finish(status == kHttpNotFound ? Result::kExpired : Result::kFailed,
            /*close=*/status != kHttpNotFound);
     return;
   }
-  // B reads the answer, then closes the slot; it expires anyway.
+  if (allow) {
+    // B reads the answer, then closes the slot; it expires anyway.
+    slot_open_ = false;
+    Finish(Result::kAdded, /*close=*/false);
+    return;
+  }
+  // Denied: B learns it from the answer or, if the slot closes first, from
+  // the server ("deny").
   slot_open_ = false;
-  Finish(allow ? Result::kAdded : Result::kDenied, /*close=*/false);
+  transport_->Close(slot_, PairingRole::kA, PairingClosedReason::kDeny);
+  Finish(Result::kDenied, /*close=*/false);
 }
 
 void PairingHost::OnExpired() {
@@ -397,7 +491,10 @@ void PairingHost::Finish(Result result, bool close) {
   spake_.reset();
   keys_.reset();
   if (close && slot_open_) {
-    transport_->Close(slot_, PairingRole::kA);
+    transport_->Close(slot_, PairingRole::kA,
+                      result == Result::kWrongCode
+                          ? PairingClosedReason::kMismatch
+                          : PairingClosedReason::kCancel);
   }
   slot_open_ = false;
   delegate_->OnPairingFinished(result);
@@ -414,7 +511,8 @@ PairingJoiner::PairingJoiner(std::unique_ptr<PairingTransport> transport,
 
 PairingJoiner::~PairingJoiner() {
   if (joined_ && step_ != Step::kDone) {
-    transport_->Close(code_.slot, PairingRole::kB);
+    transport_->Close(code_.slot, PairingRole::kB,
+                      PairingClosedReason::kCancel);
   }
 }
 
@@ -443,10 +541,16 @@ void PairingJoiner::Start(std::string_view code,
                                               weak_factory_.GetWeakPtr()));
 }
 
-void PairingJoiner::OnJoined(int status) {
+void PairingJoiner::OnJoined(int status,
+                             PairingClosedReason closed,
+                             std::string server,
+                             base::TimeDelta expires_in) {
   if (!IsSuccess(status)) {
     Result result = Result::kFailed;
-    if (status == kHttpNotFound) {
+    if (status == kHttpGone) {
+      // The code was right but its slot closed: A canceled, or it expired.
+      result = JoinerResultForClosed(closed);
+    } else if (status == kHttpNotFound) {
       result = Result::kNoSuchCode;
     } else if (status == kHttpConflict) {
       result = Result::kCodeUsed;
@@ -457,6 +561,15 @@ void PairingJoiner::OnJoined(int status) {
     return;
   }
   joined_ = true;
+  if (!server.empty()) {
+    host_ = std::move(server);
+  }
+  if (expires_in.is_positive()) {
+    // Wait as long as the slot lives, not a fixed 5.5 minutes.
+    timeout_timer_.Start(
+        FROM_HERE, expires_in + kTimeoutMargin,
+        base::BindOnce(&PairingJoiner::OnTimeout, base::Unretained(this)));
+  }
   spake_ = NewSpake(PairingRole::kB, host_, code_.slot);
   std::vector<uint8_t> bob = GenerateSpakeMessage(spake_.get(), code_.digits);
   if (bob.empty()) {
@@ -470,7 +583,11 @@ void PairingJoiner::OnJoined(int status) {
       base::BindOnce(&PairingJoiner::OnBobPosted, weak_factory_.GetWeakPtr()));
 }
 
-void PairingJoiner::OnBobPosted(int status) {
+void PairingJoiner::OnBobPosted(int status, PairingClosedReason closed) {
+  if (status == kHttpGone) {
+    Finish(JoinerResultForClosed(closed), std::nullopt, /*close=*/false);
+    return;
+  }
   if (!IsSuccess(status)) {
     Finish(status == kHttpNotFound ? Result::kClosed : Result::kFailed,
            std::nullopt, /*close=*/status != kHttpNotFound);
@@ -487,6 +604,7 @@ void PairingJoiner::Poll() {
 }
 
 void PairingJoiner::OnReceived(int status,
+                               PairingClosedReason closed,
                                std::vector<PairingMessage> messages) {
   if (step_ != Step::kWaitingForAlice && step_ != Step::kWaitingForAnswer) {
     return;
@@ -495,6 +613,10 @@ void PairingJoiner::OnReceived(int status,
     retry_timer_.Start(
         FROM_HERE, kRetryDelay,
         base::BindOnce(&PairingJoiner::Poll, base::Unretained(this)));
+    return;
+  }
+  if (status == kHttpGone) {
+    Finish(JoinerResultForClosed(closed), std::nullopt, /*close=*/false);
     return;
   }
   if (status == kHttpNotFound) {
@@ -581,7 +703,12 @@ bool PairingJoiner::HandleMessage(const PairingMessage& message) {
   }
 }
 
-void PairingJoiner::OnConfirmationPosted(int status) {
+void PairingJoiner::OnConfirmationPosted(int status,
+                                         PairingClosedReason closed) {
+  if (status == kHttpGone) {
+    Finish(JoinerResultForClosed(closed), std::nullopt, /*close=*/false);
+    return;
+  }
   if (!IsSuccess(status)) {
     Finish(status == kHttpNotFound ? Result::kClosed : Result::kFailed,
            std::nullopt, /*close=*/status != kHttpNotFound);
@@ -611,7 +738,10 @@ void PairingJoiner::Finish(Result result,
   spake_.reset();
   keys_.reset();
   if (close && joined_) {
-    transport_->Close(code_.slot, PairingRole::kB);
+    transport_->Close(code_.slot, PairingRole::kB,
+                      result == Result::kWrongCode
+                          ? PairingClosedReason::kMismatch
+                          : PairingClosedReason::kCancel);
   }
   if (done_) {
     std::move(done_).Run(result, seed);
