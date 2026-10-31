@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
+index ead883ef957da19dd88cfb75e85be72a5c31918c..1da158a290cebea859a98d69cbd0d74ab1f15fd5 100644
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -122,6 +122,7 @@
+ #include "chrome/common/webui_url_constants.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
++#include "compass/browser/ui/views/little_window/little_window.h"
+ #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
+ #include "components/handoff/handoff_manager.h"
+ #include "components/handoff/handoff_utility.h"
+@@ -2650,6 +2651,10 @@ void OpenStartupTabsInBrowserWithProfile(const StartupTabs& tabs,
+     profile = ProfileManager::MaybeForceOffTheRecordMode(
+         profile->GetOriginalProfile());
+   }
++  // Compass: links from other apps open in little windows.
++  if (compass::OpenInLittleWindows(tabs, profile)) {
++    return;
++  }
+   // Use FindTabbedBrowser() to ensure URLs open in a normal tabbed browser
+   // window, not in PWA/app windows which cannot accept new tabs.
+   BrowserWindowInterface* browser =

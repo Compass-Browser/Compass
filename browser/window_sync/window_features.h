@@ -255,6 +255,10 @@ bool HandOffTabsBeforeClose(BrowserWindowInterface* browser);
 // moved there as switched away from (see docs/design/picture-in-picture.md).
 bool IsInParkingWindow(content::WebContents* contents);
 
+// |profile|'s most recently active window the user can see tabs in (normal,
+// not parking, not closing or swapped away), or null.
+BrowserWindowInterface* FindLastActiveWindow(Profile* profile);
+
 // Shows |contents|, a tab in its profile's parking window, as a click on its
 // entry would: the window the user was in last switches to the tab's space
 // (another profile's too) and activates it. For pages and picture-in-picture

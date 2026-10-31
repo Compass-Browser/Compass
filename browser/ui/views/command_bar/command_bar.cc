@@ -20,6 +20,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
+#include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/views/peek/peek.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 #include "compass/common/compass_url.h"
@@ -159,7 +160,8 @@ CommandBarPageHandler* CommandBar::GetPageHandler() {
 }
 
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
-  if (HandlePeekCommand(browser, id)) {
+  if (HandlePeekCommand(browser, id) ||
+      HandleLittleWindowCommand(browser, id)) {
     return true;
   }
   if (id != IDC_NEW_TAB && id != IDC_FOCUS_LOCATION) {

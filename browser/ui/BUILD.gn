@@ -13,6 +13,8 @@ source_set("ui") {
     "views/frame/browser_view_exchange.h",
     "views/frame/window_frame.cc",
     "views/frame/window_frame.h",
+    "views/little_window/little_window.cc",
+    "views/little_window/little_window.h",
     "views/peek/peek.cc",
     "views/peek/peek.h",
     "views/sidebar/sidebar_context_menu.cc",
@@ -205,7 +207,10 @@ source_set("browser_tests") {
     "//url",
   ]
   if (is_mac) {
-    sources += [ "cocoa/shortcuts_mac_browsertest.mm" ]
+    sources += [
+      "cocoa/shortcuts_mac_browsertest.mm",
+      "views/little_window/little_window_browsertest.mm",
+    ]
     deps += [
       "//ui/base/clipboard:clipboard_test_support",
       "//ui/events:events_base",

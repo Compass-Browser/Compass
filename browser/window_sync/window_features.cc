@@ -966,6 +966,19 @@ bool HandOffTabsBeforeClose(BrowserWindowInterface* browser) {
   return true;
 }
 
+BrowserWindowInterface* FindLastActiveWindow(Profile* profile) {
+  BrowserWindowInterface* found = nullptr;
+  ProfileBrowserCollection::GetForProfile(profile)->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        if (IsUsableNormalWindow(browser)) {
+          found = browser;
+        }
+        return !found;
+      },
+      BrowserCollection::Order::kActivation);
+  return found;
+}
+
 bool IsInParkingWindow(content::WebContents* contents) {
   tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(contents);
   BrowserWindowInterface* browser =
