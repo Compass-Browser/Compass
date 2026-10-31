@@ -303,8 +303,9 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.spaces_.find(space => space.id === this.menuSpaceId_) ?? null;
   }
 
-  // A space button's colors: its gradient's three stops, all its color for
-  // a plain one, as the sidebar's tint samples them (sidebar_tint.cc).
+  // The theme chip's colors: the space's gradient's three stops, all its
+  // color for a plain one, as the sidebar's tint samples them
+  // (sidebar_tint.cc).
   protected getSpaceStyle_(space: Space): string {
     const colors = [space.color, ...space.gradient];
     const stop = (at: number) => {

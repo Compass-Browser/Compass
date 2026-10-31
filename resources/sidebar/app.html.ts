@@ -214,7 +214,6 @@ ${this.archiveOpen_ ? html`
         data-flip="space-${space.id}" draggable="true"
         title="${this.getSpaceTitle_(space)}"
         aria-label="${this.getSpaceTitle_(space)}"
-        style="${this.getSpaceStyle_(space)}"
         aria-selected="${this.isActiveSpace_(space)}"
         ?active="${this.isActiveSpace_(space)}"
         @click="${this.onSpaceClick_}"

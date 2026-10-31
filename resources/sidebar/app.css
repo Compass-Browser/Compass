@@ -212,11 +212,9 @@ compass-sidebar-preview[side='next'] {
   transform: scale(0.92);
 }
 
+/* Just the icon, emoji or letter: the window's own space at full opacity,
+ * the others dimmed (the user, 2026-10-31: no circle or background). */
 .space {
-  background: linear-gradient(135deg,
-      color-mix(in srgb, var(--space-color) 35%, transparent),
-      color-mix(in srgb, var(--space-color-2) 35%, transparent),
-      color-mix(in srgb, var(--space-color-3) 35%, transparent));
   position: relative;
 }
 
@@ -257,17 +255,7 @@ compass-sidebar-preview[side='next'] {
 }
 
 .space[active] {
-  --space-active-base: var(--color-tab-background-active-frame-active,
-                           rgba(255, 255, 255, 0.9));
-  background: linear-gradient(135deg,
-      color-mix(in srgb, var(--space-color) 55%, var(--space-active-base)),
-      color-mix(in srgb, var(--space-color-2) 55%, var(--space-active-base)),
-      color-mix(in srgb, var(--space-color-3) 55%, var(--space-active-base)));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  color: var(--color-tab-foreground-active-frame-active, inherit);
   opacity: 1;
-  outline: 1.5px solid currentColor;
-  outline-offset: 2px;
 }
 
 #addSpace {
@@ -420,8 +408,10 @@ compass-sidebar-preview[side='next'] {
   width: 14px;
 }
 
+/* Emoji glyphs fill their em box: at the letters' size they look as big as
+ * the 14px symbols. */
 .space-emoji {
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
 }
 

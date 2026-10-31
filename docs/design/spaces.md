@@ -208,9 +208,11 @@ gradient is dithered: at 14% it spans only a few levels of each channel
 across the window, and without dithering each level showed as a band 50-100
 DIP wide (measured in a screenshot of the fast build: 34 changes along the
 1600 px bottom edge, 895 with dithering).
-The little window's frame keeps the space's color only. The switcher's
-buttons show the same three stops, diagonally (`--space-color`,
-`--space-color-2`, `--space-color-3`).
+The little window's frame keeps the space's color only. The space menu's
+theme chip shows the same three stops, diagonally (`--space-color`,
+`--space-color-2`, `--space-color-3`). The switcher's buttons show no color
+(the user asked for no circle or background, 2026-10-31): just the icon,
+emoji or letter, the window's space at full opacity, the others dimmed.
 
 In the space menu, a Gradient row under the swatches (hidden for grey):
 each gradient color as a color well with ×, then + (while there's room),
