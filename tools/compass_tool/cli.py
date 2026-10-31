@@ -208,15 +208,36 @@ def cmd_run(layout: Layout, args) -> None:
       passthrough(args.browser_args), layout.src, check=False)
 
 
+def browser_test_args(test_args, headed: bool, platform: str = sys.platform):
+  """Switches every browser test run gets, ahead of |test_args|."""
+  # Headless browser windows never show or take focus, so tests run in the
+  # background. --headed shows them, for watching or debugging a test.
+  extra = [] if headed else ['--headless']
+  if platform == 'darwin':
+    # Upstream launches the GPU process as its own responsible process for
+    # macOS privacy (TCC), so it needs its own "removable volume" permission
+    # to load the build's dylibs from an external disk, and crashes when that
+    # is missing ("GPU process isn't usable"). Kept off, it shares the
+    # terminal's access, like every other child process.
+    disabled = ['MacDisclaimGpuTccResponsibility']
+    rest = []
+    for arg in test_args:
+      if arg.startswith('--disable-features='):
+        disabled += [f for f in arg.split('=', 1)[1].split(',') if f]
+      else:
+        rest.append(arg)
+    extra.append('--disable-features=' + ','.join(disabled))
+    test_args = rest
+  return extra + list(test_args)
+
+
 def cmd_test(layout: Layout, args) -> None:
   target = BROWSER_TEST_TARGET if args.browser else TEST_TARGET
   out_dir = build(layout, args.config, [target], args.jobs)
   exe = target + ('.exe' if sys.platform == 'win32' else '')
   test_args = passthrough(args.test_args)
-  # Headless browser windows never show or take focus, so tests run in the
-  # background. --headed shows them, for watching or debugging a test.
-  if args.browser and not args.headed:
-    test_args = ['--headless'] + test_args
+  if args.browser:
+    test_args = browser_test_args(test_args, args.headed)
   result = run([out_dir / exe] + test_args, layout.src, check=False)
   sys.exit(result.returncode)
 
