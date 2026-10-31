@@ -1,8 +1,9 @@
 # Sync between devices
 
 Status: slices 0, 1, 2, 2b, 3, 3b and 4 done and merged into `sync-main`
-(MacBook runs in each slice's notes); 6 (push) next, then 5 (profiles). Based on Chromium
-156.0.8078.48.
+(MacBook runs in each slice's notes); 6 (push) next, then 5 (profiles); 7
+(hardening) written on `sync/slice-7-hardening`, MacBook run pending
+("Slice 7 notes"). Based on Chromium 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
@@ -20,6 +21,7 @@ Read this first when resuming the sync work.
 | `sync/slice-4-ui` (`41ae636`) | merged (resume, 31 Oct night): MacBook run passed, see "Slice 4 notes" |
 | `sync/slice-5-profiles` (`cb13f65`) | profiles; never built; merge sync-main (after slice 4) into it before its run: overlaps slice 4 in compass_sync_service, sync_controller, the mojom, page handler, compass_sync.{html,ts}, pairing |
 | `sync/slice-6-push` (`1990840`) | push (SSE); never built; no patches; Go tests pass; small overlap with 4 in server/server/server.go and compass_sync_service |
+| `sync/slice-7-hardening` | hardening ("Slice 7 notes"); on slice 6; never built; three history patches; Go tests pass; merges after 5 (small overlaps listed in the notes); server not deployed |
 
 **Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → merge sync-main
 into 6, deploy the combined server (the sync server, and the Mac mini if it's up),
@@ -1196,6 +1198,183 @@ sync requests). Today and title throttling (3b) still applies on the
 sending side: a tab's content change can wait up to 10 s before it's
 committed, and only then announced.
 
+### Slice 7 notes
+
+Branch `sync/slice-7-hardening` (on `sync/slice-6-push`; slice 5 isn't in
+it). The browser side is written without a compiler; the MacBook build and
+run are in [sync-slice-7-steps.md](sync-slice-7-steps.md). The server side
+is tested (`go vet ./... && go test ./...`). Nothing was deployed: the sync server
+still runs slice 6's server (or slice 4's).
+
+**Quota errors shown.** How the server says no, case by case:
+
+| Limit | Server answer | What Chromium did with it |
+|---|---|---|
+| 100k entities (`COMPASS_SYNC_MAX_ENTITIES`) | the entry gets `OVER_QUOTA` | treated as a transient error: backoff and retry, nothing shown |
+| 200 MB (`COMPASS_SYNC_MAX_BYTES`) | the entry gets `OVER_QUOTA` | same |
+| History quota | `SUCCESS`, the visit is dropped | nothing to see |
+| 50 devices per chain | `THROTTLED` for the new device's GetUpdates | the engine throttles every type (`SyncStatus::throttled_types`) |
+| SSE streams (20 per chain, 50 per address) | `429` on `/compass/events` | the notifier backs off (slice 6); polling still works |
+
+There's no rate limit on `/command/` (go-sync never had one). An entry's
+error message isn't passed on (`FailedCommitResponseData` keeps the type
+only), and a top-level `THROTTLED` with the over-quota types would change
+how the engine commits (it skips throttled types, also for their deletes).
+So the server keeps telling the engine what it always did, and Compass asks
+the server separately:
+
+- Each chain remembers which limit refused its commits (`chains.quota_full`,
+  bits entities/bytes/history, with the time). A commit that stores a new
+  entity clears entities and bytes; a stored visit clears history.
+- `GET /v2/compass/quota` (`server/quota`), signed like `/command/`,
+  answers the counts and limits and `"full": [...]`: a remembered refusal,
+  or live counts at a limit (bytes within 64 KiB of it).
+- `CompassSyncService` asks after a sync cycle: at most every 30 min,
+  every minute while the last commit failed or a limit is in the way, and
+  at the first cycle after a start (`QuotaFetcher`,
+  `compass_sync_quota.{h,cc}` in `//compass/components/sync:notifier`). An
+  older server's 404 is no answer and changes nothing.
+- `SyncStatus` has a `SyncLimit`: server full (entities or bytes) or
+  throttled turn an "on" status into an error with its own message; history
+  full keeps it on and adds a sentence. The menu row says "Sync: server
+  full", "Sync: paused by server" or "Synced (history full)". Other errors
+  (can't reach the server, a wrong key) come first. No mojom or page change:
+  the page shows the message and the label as before.
+- Log: `[compass-sync] quota: entities N/M, bytes N/M, history N/M (D
+  days), full: ...`.
+
+The history cap is reported, not turned into an error. The server still
+answers `SUCCESS` (so other types keep syncing and the engine doesn't retry
+forever), but the user should know their newer visits stay on one Mac.
+It's a soft warning because nothing else is wrong.
+
+**History settings** (server). `COMPASS_SYNC_HISTORY_DAYS` (default 14,
+1-30) and `COMPASS_SYNC_MAX_HISTORY` (default 30,000; never above
+`COMPASS_SYNC_MAX_ENTITIES`). The four history count periods are each a
+quarter of the retention. 30 days is the cap because devices keep delete
+directives on the server for 30 days (below).
+
+**Deleted history coming back.** Not done the way "Slice 2b notes"
+suggested. `HistorySyncBridge` keeps no metadata for synced visits (it
+untracks them after each commit), so `Delete()` on one is a no-op, and a
+`Put()` then `Delete()` of a visit never committed sends no tombstone
+(`ProcessorEntity::RecordLocalDeletion()`). Committing visit deletions
+would mean tracking every synced visit again, a large change to an upstream
+bridge without a compiler. Instead, the directives stay: upstream deletes
+the directives a device processed at its next start (act-once), which is
+what lets a later device get the visits without the directive. Under local
+sync, a directive whose end time is less than 30 days old now stays on the
+server; older ones go as before (`IsCompassKeptDirective()`). So while a
+visit can be on the server, so can the directive that deletes it, and a
+device that joins later applies it. A kept directive is applied again at
+every start (deleting nothing new: its times are fixed). Three patches,
+gated on local sync: `delete_directive_handler.{h,cc}` (the setter and the
+split at startup) and the directives controller (sets it when
+`IsLocalSyncEnabled()`; local sync only changes with a restart). On a
+joining device the directive can arrive before the visit and apply to
+nothing; the visit then shows until that device's next start, which applies
+the kept directive again (Brave's priority swap would close that gap; not
+done, it isn't gated).
+
+The server purges directives after the history retention, while a device
+may delete its copy later: a delete of an entity the server no longer has
+now answers `SUCCESS` (it was a `CONFLICT` retried forever, which upstream's
+act-once could already hit after 14 days offline).
+
+**Server tombstone cleanup.** Deleted entities whose last change is older
+than `COMPASS_SYNC_TOMBSTONE_DAYS` (default 30; 0 keeps them) are purged
+with the hourly expiry. A device away longer doesn't learn of those
+deletions and keeps its copy. If it then commits an update for one, the
+server re-creates the entity (when it has a client tag, which all Compass
+types and modern bookmarks have), as Chromium's conflict rule would (local
+edit wins over remote delete); without a tag it's a conflict, as before.
+
+**Old chains (Reset sync).** Picked: server-side expiry, not a delete
+request at reset. Reset leaves the other devices on the old chain until
+they join again ("Slice 4 notes"), so deleting it at reset would cut them
+off at once; and a request from the old identity needs a C++ path (a
+`ClearServerData` message or a new endpoint, signed with the old seed
+before it's replaced) that can't be tested here. Instead the server records
+when a device of each chain last talked to it (`chains.last_active`,
+written at most hourly per chain, by the `/command/` middleware) and,
+hourly, clears and disables chains idle for `COMPASS_SYNC_IDLE_CHAIN_DAYS`
+(default 180; 0 keeps them), as go-sync's `ClearServerData` does. A device
+coming back to an expired chain gets `DISABLED_BY_ADMIN` and stops syncing;
+its local data stays. Existing chains start their 180 days at the
+migration. A reset chain's old data so goes 180 days after its last device
+leaves. Schema 2 (`PRAGMA user_version`) adds the three columns; a schema 1
+database migrates on start (a slice 6 server refuses a schema 2 database,
+so take a backup before updating, as the update script does).
+
+**"kept" log line.** The 3b run saw A keep the entry B closed, with no
+"kept" line. The line existed for the focused-window rule; the run most
+likely took the other path: A had a change of that entry not yet committed
+(the archiver stamps the shown tab's last-active time), so the processor met
+B's delete as a conflict and kept the local entity (upstream's default:
+local wins over a remote delete), which never reaches the bridge.
+`CompassSpacesSyncBridge::ResolveConflict()` now keeps upstream's choice
+and logs `[compass-sync] spaces: kept <id>, deleted elsewhere while
+changed here; it goes up again`. The MacBook run says which path it takes.
+
+**Server backups.** Every `COMPASS_SYNC_BACKUP_INTERVAL` (default 24h; 0
+off) the server writes `VACUUM INTO` copies to `COMPASS_SYNC_BACKUP_DIR`
+(default `backups/` next to the database, so `/data/backups` in the image),
+named `compass-sync-<UTC time>.db`, under a temporary name renamed when
+complete, keeping `COMPASS_SYNC_BACKUP_KEEP` (default 7). The first one is
+due an interval after the newest on disk, so restarts don't add backups.
+Restore: `server/README.md`, "Backups" (stop, move the database and its
+`-wal`/`-shm` away, copy a backup in, owner 65532, start).
+
+**Scripted update.** `server/deploy/update-remote.sh --host H [--port P]
+[--user U] [--dir D] [--service S] [--local-port 8295] [--public-url URL]
+[--dry-run]`: refuses uncommitted `server/` changes, takes a backup through
+the running server (`backup -`) into `D/backups` (a tar of `D/data` if it
+isn't running), rsyncs `server/` to `D/src`, `docker compose build` with
+`COMMIT`/`VERSION` = the short SHA and `BUILD_TIME`, `up -d`, then waits up
+to 60 s for `/health-check` to name the commit and `/healthz` to say `ok`
+on the machine, and checks the public URL. ssh uses the caller's keys; no
+secrets in the script. Written and dry-run here; not run against the sync server.
+
+**Arc-derived IDs.** "Slice 3 notes" proposed it: the Arc importer gave
+fresh random IDs, so importing the same Arc data on two Macs doubled every
+entry after the merge. Now spaces, folders, splits, tabs and favorites
+imported from Arc get `ArcDerivedId(Arc's ID)`: a name-based UUID, version
+8 (RFC 9562), from SHA-256 of `compass-arc-import:<id>` (not UUIDv5:
+`crypto/` deprecates SHA-1). Same Arc data, same IDs, so the merge takes
+them as one. An ID already in use here (a second import on the same Mac)
+gets a fresh one, so a re-import adds copies, as before. The reused
+starting space keeps its own ID. A split made from Arc's split gets the
+split's derived ID (`AddSplit()` and two moves, instead of `Split()`). On
+main, the Arc import session changed `sidebar_import.cc` by 4 lines and the
+sidebar model more; expect a small conflict there when sync-main merges
+into main.
+
+**Tests.** Go: `datastore` (tombstone purge, update of a purged entity,
+touch and idle chains, quota state, schema 1 migration, history days),
+`command` (refusals recorded for bytes, entities and history; a delete of a
+missing entity succeeds; the env), `quota` (the answer, full lists, 401,
+403, 405), `server` (the endpoint end to end, the settings, backup rotation
+and restore-ability, the purge). C++: `CompassSyncQuotaTest.*`,
+`QuotaFetcherTest.*`, `SyncSettingsTest.Limits`,
+`CompassSpacesSyncBridgeTest.ConflictsKeepLocalOverRemoteDeletes`,
+`CompassKeptDirectivesTest.*`, `SidebarImportIdsTest.*`.
+
+**Overlaps with slice 5**: `compass_sync_service.{h,cc}` (an include, three
+members and three methods in their own "Quota (slice 7)" block, one line
+each in `GetStatus`, `OnSyncCycleCompleted`, `OnSyncShutdown`, `Shutdown`),
+`sync_controller.h` (`SyncLimit` and a field of `SyncStatus`, next to
+nothing slice 5 adds), `components/sync/BUILD.gn` (two sources and a test),
+`compass_spaces_sync_bridge.{h,cc}` (one override), `sync.md`. No change to
+the mojom, the page handler, `compass_sync.{html,ts}` or pairing. With
+slice 5's per-profile accounts, each profile's service asks with its own
+token, so each sees its own account's quota.
+
+**Known limits.** The history-full warning appears at the next check (up to
+30 min, or at the next start), since dropped visits don't fail a commit. A
+device that comes back to an expired chain is told only "sync stopped" in
+upstream's words; a Compass message for `DISABLED_BY_ADMIN` would be nicer.
+The throttled message can't tell 50 devices from other throttling.
+
 ### Change notifications
 
 Chromium learns about remote changes through FCM invalidations, which need
@@ -1449,8 +1628,12 @@ As built in slice 4: "Slice 4 notes".
 6. **Push** (written, see "Slice 6 notes"; MacBook run in
    [sync-slice-6-steps.md](sync-slice-6-steps.md)): SSE from the server,
    `CompassSyncNotifier`, long poll interval.
-7. **Hardening**: quota errors shown, key rotation ("Reset sync"), server
-   backups, and a real check on two Macs (this one and the MacBook).
+7. **Hardening** (written, see "Slice 7 notes"; MacBook run in
+   [sync-slice-7-steps.md](sync-slice-7-steps.md)): quota errors shown,
+   deleted history kept deleted, history settings, tombstone and idle-chain
+   cleanup, server backups, a scripted server update, the "kept" log line,
+   Arc-derived IDs. Still open: a real check on two Macs (this one and the
+   MacBook), checking chrome://history by eye.
 
 Each slice is one or two sessions. Slices 1 and 2 can run in parallel
 after slice 0.

@@ -10,12 +10,14 @@ const read = () => ({
   code: $('pairingCode').textContent,
   pairing: $('pairingMessage').textContent,
   device: $('deviceName').textContent,
+  // The app menu's sync row (slice 4), e.g. "Sync: server full" (slice 7).
+  menu: document.documentElement.dataset.menuLabel,
 });
 if (ARGS.wait) {
   const re = new RegExp(ARGS.wait);
   for (let i = 0; i < 480; ++i) {
     const now = read();
-    if (re.test(now.status) || re.test(now.pairing) ||
+    if (re.test(now.status) || re.test(now.pairing) || re.test(now.menu) ||
         re.test(now.visible.join(' '))) {
       return now;
     }
