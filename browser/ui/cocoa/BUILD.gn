@@ -10,6 +10,8 @@ source_set("shortcuts") {
     "shortcuts_mac.h",
     "shortcuts_mac.mm",
   ]
+  # Header only, no target of its own.
+  sources += [ "../compass_command_ids.h" ]
   public_deps = [ "//ui/base" ]
   deps = [
     "//chrome/app:command_ids",

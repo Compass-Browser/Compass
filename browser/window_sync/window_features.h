@@ -10,6 +10,7 @@
 #include <optional>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/callback_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -141,6 +142,9 @@ class WindowFeatures : public SpaceList::Observer {
   const raw_ptr<SpaceService> service_;
   raw_ptr<SpaceModel> space_;
   const bool is_parking_window_;
+  // A little window: its tabs aren't the sidebar's (see
+  // CreatingWindowOutsideSidebar()).
+  const bool outside_sidebar_;
   bool switching_ = false;
   bool swapped_away_ = false;
   // By ID: the space can be deleted mid-swipe.
@@ -258,6 +262,15 @@ bool IsInParkingWindow(content::WebContents* contents);
 // |profile|'s most recently active window the user can see tabs in (normal,
 // not parking, not closing or swapped away), or null.
 BrowserWindowInterface* FindLastActiveWindow(Profile* profile);
+
+// Held while creating a window whose tabs stay out of the sidebar (a little
+// window, docs/design/little-window.md): its bridge mirrors nothing, so its
+// page becomes an entry only when it moves into a window of a space.
+[[nodiscard]] base::AutoReset<bool> CreatingWindowOutsideSidebar();
+// The most recently active usable normal window of |profile| that shows
+// |space|, or null.
+BrowserWindowInterface* FindLastActiveWindowShowing(Profile* profile,
+                                                    const SpaceModel& space);
 
 // Shows |contents|, a tab in its profile's parking window, as a click on its
 // entry would: the window the user was in last switches to the tab's space

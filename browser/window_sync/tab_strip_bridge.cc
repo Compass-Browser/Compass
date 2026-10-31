@@ -154,18 +154,23 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
                                SpaceModel* space_model,
                                SpaceModel* favorites,
                                LiveTabRegistry* registry,
-                               RestoredTabMatcher* restored_tab_matcher)
+                               RestoredTabMatcher* restored_tab_matcher,
+                               bool mirrors_tabs)
     : browser_(browser),
-      tab_strip_model_(browser->GetTabStripModel()),
+      tab_strip_model_(mirrors_tabs ? browser->GetTabStripModel() : nullptr),
       space_model_(space_model),
       favorites_(favorites),
       registry_(registry),
-      restored_tab_matcher_(restored_tab_matcher) {
-  CHECK(tab_strip_model_);
+      restored_tab_matcher_(restored_tab_matcher),
+      mirrors_tabs_(mirrors_tabs) {
   CHECK(space_model_);
   CHECK(favorites_);
   CHECK(registry_);
   CHECK(restored_tab_matcher_);
+  if (!mirrors_tabs_) {
+    return;
+  }
+  CHECK(tab_strip_model_);
   for (int i = 0; i < tab_strip_model_->count(); ++i) {
     AddNodeForTab(tab_strip_model_->GetTabAtIndex(i), i);
   }
@@ -179,6 +184,9 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
 }
 
 TabStripBridge::~TabStripBridge() {
+  if (!mirrors_tabs_) {
+    return;
+  }
   registry_->RemoveObserver(this);
   favorites_->RemoveObserver(this);
   space_model_->RemoveObserver(this);

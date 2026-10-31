@@ -23,7 +23,11 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "ui/base/hit_test.h"
 #include "ui/color/color_provider.h"
@@ -31,6 +35,7 @@
 #include "ui/views/controls/button/button.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/non_client_view.h"
+#include "compass/browser/sidebar/sidebar_node.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -101,10 +106,64 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OpenInSpaceMovesThePage) {
   ASSERT_TRUE(little);
   content::WebContents* page = PageOf(little);
   ASSERT_TRUE(content::WaitForLoadStop(page));
+  // Not in the sidebar while it's in the little window.
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  auto in_today = [&] {
+    for (const auto& entry : space.today_root()->children()) {
+      if (entry->url() == page->GetLastCommittedURL()) {
+        return true;
+      }
+    }
+    return false;
+  };
+  EXPECT_FALSE(in_today());
 
   chrome::ExecuteCommand(little, IDC_OPEN_FILE);
   EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
   EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), page);
+  EXPECT_TRUE(base::test::RunUntil(in_today));
+  EXPECT_TRUE(base::test::RunUntil([&] { return !FindLittleWindow(); }));
+}
+
+// Cmd+Option+N opens a little window on the new tab page, in every window
+// (a little one too).
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, NewLittleWindowCommand) {
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kNewLittleWindowCommand));
+  BrowserWindowInterface* little = FindLittleWindow();
+  ASSERT_TRUE(little);
+  ASSERT_EQ(little->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "newtab");
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+  EXPECT_TRUE(chrome::ExecuteCommand(little, kNewLittleWindowCommand));
+}
+
+// Opening in a space the window doesn't show switches it there, and the
+// page lands in that space's Today.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OpenInAnotherSpace) {
+  SpaceList& spaces =
+      SpaceService::Get(browser()->GetProfile())->space_list();
+  SpaceModel* work = spaces.AddSpace(spaces.spaces().size(), u"Work");
+  ASSERT_TRUE(work);
+  WindowFeatures* features = WindowFeatures::From(browser());
+  ASSERT_NE(&features->space_model(), work);
+
+  BrowserWindowInterface* little = OpenLittleWindow(
+      browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(little);
+  content::WebContents* page = PageOf(little);
+  ASSERT_TRUE(content::WaitForLoadStop(page));
+
+  EXPECT_EQ(OpenLittleWindowInSpace(little, work), browser());
+  EXPECT_EQ(&features->space_model(), work);
+  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), page);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    for (const auto& entry : work->today_root()->children()) {
+      if (entry->url() == page->GetLastCommittedURL()) {
+        return true;
+      }
+    }
+    return false;
+  }));
   EXPECT_TRUE(base::test::RunUntil([&] { return !FindLittleWindow(); }));
 }
 

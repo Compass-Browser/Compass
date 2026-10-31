@@ -26,6 +26,16 @@ and close it, or keep it and move it into a space.
 - **Open in <space>** or **Cmd+O** moves the page, as it is (no reload),
   into that window as the active tab: a new Today entry. The little window
   closes. With no window open, a new one is made.
+- The **⌄ button** beside it (shown when the profile has more than one
+  space) lists the profile's spaces, the default checked. Picking one moves
+  the page into the last active window showing it, else switches the last
+  active window to it.
+- **Cmd+Option+N** opens an empty little window (the new tab page, whose
+  search box navigates it) centered on the current window's display. It
+  takes upstream's New Split Tab shortcut; Compass splits by dragging a tab
+  onto another or from the menu.
+- The page isn't in the sidebar while it's in a little window; it becomes
+  an entry when it moves into a space.
 - Links that open a new tab go to the last active window, as from any
   popup. Extensions work in the page (content scripts, permissions,
   downloads); the window has no extension buttons.
@@ -73,15 +83,36 @@ mix) opens as upstream does.
     `MultiContentsView::SetBackgroundRadii()` rounds it.
   - `BrowserView::NonClientHitTest()` asks `IsOnLittleWindowCaption()`
     (patch): the frame and the bar's empty space drag the window.
-- Moving: `OpenLittleWindowInSpace()` detaches the tab and appends it to
-  `FindLastActiveWindow()`'s strip, whose bridge adopts it as any new tab.
-  Cmd+O reaches it as `IDC_OPEN_FILE` through
-  `compass::HandleBrowserCommand()`.
+- Moving: `OpenLittleWindowInSpace(browser, space)` detaches the tab and
+  appends it to the target window's strip (`FindLastActiveWindowShowing()`,
+  else `FindLastActiveWindow()` switched with `SwitchWindowToSpace()`),
+  whose bridge adopts it as any new tab. Cmd+O reaches it as
+  `IDC_OPEN_FILE` through `compass::HandleBrowserCommand()`.
+- Out of the sidebar: the window is created under
+  `CreatingWindowOutsideSidebar()`, so its `WindowFeatures` gets a
+  `TabStripBridge` that mirrors nothing (`mirrors_tabs = false`). Before,
+  every popup's bridge put its tab in the active space's Today, and a page
+  moved into another space's window kept that entry. Other popups still do.
+- The space menu: `LittleSpaceMenuButton`, a `views::MenuRunner` over a
+  `ui::SimpleMenuModel` of the profile's `SpaceList`; same-profile spaces
+  only (a WebContents can't change profile).
+- Cmd+Option+N: `kNewLittleWindowCommand` (`compass_command_ids.h`, 39950,
+  outside upstream's IDs) in the shortcuts outside the main menu
+  (`AdjustShortcutsNotInMenu()`); `IDC_NEW_SPLIT_TAB` loses its key
+  equivalent. With browser actions on, upstream's command updater only knows
+  commands that have an action, so `BrowserCommandController` hands
+  Compass's own commands to `HandleBrowserCommand()` before its
+  supported/enabled check (patch). It works while a Compass window is key;
+  there's no File menu item (Compass has no string resources of its own).
 
 ## Not done
 
-- A space picker (Arc lets you pick the space); Arc's Cmd+Option+N for a
-  new empty little window.
+- Other profiles' spaces in the picker (the page would have to reload in
+  that profile).
+- Cmd+Option+N with no Compass window open, and a File menu item.
+- The address can't be edited (upstream's popup location bar is
+  read-only); a new little window starts on the new tab page instead of
+  Arc's command bar.
 - Settings: off, and per-domain routing to spaces (Arc's Air Traffic
   Control).
 - Other platforms: links from other apps come through the process
@@ -90,6 +121,6 @@ mix) opens as upstream does.
 Checked by screenshot (2026-10-31): a link opened from iTerm with Compass
 behind it.
 
-Tests: `LittleWindowBrowserTest.*` (6)
+Tests: `LittleWindowBrowserTest.*` (8)
 (`browser/ui/views/little_window/little_window_browsertest.mm`), including
 the real `application:openURLs:` path.

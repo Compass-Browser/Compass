@@ -8,6 +8,7 @@
 
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/global_keyboard_shortcuts_mac.h"
+#include "compass/browser/ui/compass_command_ids.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 
@@ -15,6 +16,9 @@ namespace compass {
 
 void AdjustMenuAccelerators(std::map<int, ui::Accelerator>& accelerators) {
   accelerators.erase(IDC_SAVE_PAGE);
+  // Cmd+Option+N is a new little window's (AdjustShortcutsNotInMenu()).
+  // Compass splits by dragging a tab onto another, or from its menu.
+  accelerators.erase(IDC_NEW_SPLIT_TAB);
   // In place of Cmd+Shift+L. The View menu's item shows it.
   accelerators[IDC_TOGGLE_VERTICAL_TABS_COLLAPSE] =
       ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN);
@@ -28,6 +32,9 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
       shortcut.chrome_command = IDC_COPY_URL;
     }
   }
+  shortcuts.push_back({/*command_key=*/true, /*shift_key=*/false,
+                       /*cntrl_key=*/false, /*opt_key=*/true, kVK_ANSI_N,
+                       kNewLittleWindowCommand});
 }
 
 }  // namespace compass

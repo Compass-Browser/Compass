@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
 #define COMPASS_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_
 
+#include "compass/browser/ui/compass_command_ids.h"
 #include <memory>
 #include <string>
 
@@ -72,7 +73,9 @@ class CommandBar {
 
 // Offers browser command |id| to Compass before upstream runs it. Called from
 // BrowserCommandController (see patches/). Returns true if Compass handled it:
-// IDC_NEW_TAB and IDC_FOCUS_LOCATION open the command bar.
+// IDC_NEW_TAB and IDC_FOCUS_LOCATION open the command bar. Compass's own
+// commands (compass_command_ids.h) come here before upstream checks whether
+// a command is enabled, which they never are.
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id);
 
 }  // namespace compass

@@ -8,6 +8,8 @@
 #include <optional>
 #include <vector>
 
+#include "compass/browser/ui/compass_command_ids.h"
+
 class BrowserWindowInterface;
 class GURL;
 class Profile;
@@ -23,6 +25,8 @@ class View;
 
 namespace compass {
 
+class SpaceModel;
+
 // Little windows (Arc's Little Arc, docs/design/little-window.md): a link
 // another app opens shows in a small window of its own, a popup-type
 // `Browser` with a back button and "Open in <space>" (Cmd+O), which moves
@@ -35,8 +39,13 @@ namespace compass {
 bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
                          Profile* profile);
 
-// Opens |url| in a new little window of |profile| and returns it.
+// Opens |url|, from another app, in a new little window of |profile| over
+// that app's window, and returns it.
 BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url);
+
+// Cmd+Option+N (kNewLittleWindowCommand, docs/design/shortcuts.md): a new
+// little window on the new tab page, centered on |from|'s display.
+BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from);
 
 // Whether |browser| is a little window.
 bool IsLittleWindow(BrowserWindowInterface* browser);
@@ -56,13 +65,17 @@ std::optional<int> GetLittleWindowBarHeight(views::View* browser_view);
 bool IsOnLittleWindowCaption(views::View* browser_view,
                              const gfx::Point& point);
 
-// Moves |browser|'s page into |profile|'s last active window (a new one if
-// there's none) as the active tab; |browser| then closes. Returns the window
-// it went to, or null if |browser| isn't a little window.
-BrowserWindowInterface* OpenLittleWindowInSpace(BrowserWindowInterface* browser);
+// Moves |browser|'s page into its profile's last active window (a new one if
+// there's none) as the active tab; |browser| then closes. With |space| (one
+// of the profile's spaces), into the last active window showing it, else the
+// last active window switched to it. Returns the window it went to, or null
+// if |browser| isn't a little window.
+BrowserWindowInterface* OpenLittleWindowInSpace(BrowserWindowInterface* browser,
+                                                SpaceModel* space = nullptr);
 
-// IDC_OPEN_FILE (Cmd+O) in a little window opens it in a space. Returns true
-// if it handled |id|. Called from compass::HandleBrowserCommand().
+// IDC_OPEN_FILE (Cmd+O) in a little window opens it in a space;
+// kNewLittleWindowCommand opens a little window. Returns true if it handled
+// |id|. Called from compass::HandleBrowserCommand().
 bool HandleLittleWindowCommand(BrowserWindowInterface* browser, int id);
 
 }  // namespace compass

@@ -283,6 +283,14 @@ void MoveWindowsOff(Profile* profile,
 
 }  // namespace
 
+namespace {
+bool g_creating_window_outside_sidebar = false;
+}  // namespace
+
+base::AutoReset<bool> CreatingWindowOutsideSidebar() {
+  return base::AutoReset<bool>(&g_creating_window_outside_sidebar, true);
+}
+
 DEFINE_USER_DATA(WindowFeatures);
 
 WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
@@ -290,6 +298,7 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
       service_(SpaceService::Get(browser->GetProfile())),
       space_(&service_->space_list().active_space()),
       is_parking_window_(service_->creating_parking_window()),
+      outside_sidebar_(g_creating_window_outside_sidebar),
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {
   service_->space_list().AddObserver(this);
   if (is_parking_window_) {
@@ -304,7 +313,7 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
   }
   bridge_ = std::make_unique<TabStripBridge>(
       browser_, space_, &service_->space_list().favorites(), &registry(),
-      &service_->restored_tab_matcher(*space_));
+      &service_->restored_tab_matcher(*space_), !outside_sidebar_);
   active_tab_subscription_ =
       browser_->RegisterActiveTabDidChange(base::BindRepeating(
           &WindowFeatures::OnActiveTabChanged, base::Unretained(this)));
@@ -456,7 +465,7 @@ void WindowFeatures::EnterCurrentSpace() {
   // 4. Every tab already has a node, so the bridge adds none.
   bridge_ = std::make_unique<TabStripBridge>(
       browser_, space_, &service_->space_list().favorites(), &registry(),
-      &service_->restored_tab_matcher(target));
+      &service_->restored_tab_matcher(target), !outside_sidebar_);
 
   // 5. Show what the space showed last.
   SidebarNode* last = service_->GetLastActiveNode(target);
@@ -977,6 +986,11 @@ BrowserWindowInterface* FindLastActiveWindow(Profile* profile) {
       },
       BrowserCollection::Order::kActivation);
   return found;
+}
+
+BrowserWindowInterface* FindLastActiveWindowShowing(Profile* profile,
+                                                    const SpaceModel& space) {
+  return FindWindowShowing(profile, space, /*except=*/nullptr);
 }
 
 bool IsInParkingWindow(content::WebContents* contents) {

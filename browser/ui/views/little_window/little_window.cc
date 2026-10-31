@@ -11,6 +11,10 @@
 
 #include "base/auto_reset.h"
 #include "base/functional/bind.h"
+#include "base/memory/weak_ptr.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/uuid.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -33,9 +37,13 @@
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/toolbar/back_forward_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/common/webui_url_constants.h"
+#include "components/vector_icons/vector_icons.h"
+#include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -45,10 +53,14 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/button/image_button.h"
+#include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_observer.h"
 #include "ui/views/view_tracker.h"
@@ -94,13 +106,13 @@ bool IsLittleWindowURL(const GURL& url) {
   return url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile();
 }
 
-// Centered on the display the link came from: the opener's window's, or
-// the pointer's.
-gfx::Rect GetNewWindowBounds(const std::optional<OpenerWindow>& opener) {
+// Centered on the display of |near| (the window the link came from, or the
+// one Cmd+Option+N was typed in), else the pointer's.
+gfx::Rect GetNewWindowBounds(const std::optional<gfx::Rect>& near) {
   display::Screen* screen = display::Screen::Get();
   const display::Display display =
-      opener ? screen->GetDisplayMatching(opener->bounds)
-             : screen->GetDisplayNearestPoint(screen->GetCursorScreenPoint());
+      near ? screen->GetDisplayMatching(*near)
+           : screen->GetDisplayNearestPoint(screen->GetCursorScreenPoint());
   const gfx::Rect work_area = display.work_area();
   gfx::Size size = kWindowSize;
   size.SetToMin(gfx::Size(work_area.width() * 9 / 10,
@@ -109,6 +121,13 @@ gfx::Rect GetNewWindowBounds(const std::optional<OpenerWindow>& opener) {
   bounds.set_origin(work_area.CenterPoint() -
                     gfx::Vector2d(size.width() / 2, size.height() / 2));
   return bounds;
+}
+
+// A space's name, or "Space <n>" for one without a name, as the switcher.
+std::u16string GetSpaceName(const SpaceModel& space, size_t index) {
+  return space.name().empty()
+             ? u"Space " + base::NumberToString16(index + 1)
+             : space.name();
 }
 
 // The space "Open in" goes to: the last active window's.
@@ -318,6 +337,117 @@ DEFINE_USER_DATA(LittleWindowButton);
 BEGIN_METADATA(LittleWindowButton)
 END_METADATA
 
+// Beside "Open in": a menu of the profile's spaces, to open the page in
+// another one than the last active window's. Hidden while there's only one.
+class LittleSpaceMenuButton : public views::ImageButton,
+                              public ui::SimpleMenuModel::Delegate,
+                              public views::WidgetObserver {
+  METADATA_HEADER(LittleSpaceMenuButton, views::ImageButton)
+
+ public:
+  explicit LittleSpaceMenuButton(BrowserWindowInterface* browser)
+      : views::ImageButton(
+            base::BindRepeating(&LittleSpaceMenuButton::ShowMenu,
+                                base::Unretained(this))),
+        browser_(browser) {
+    views::ConfigureVectorImageButton(this);
+    views::SetImageFromVectorIconWithColor(
+        this, vector_icons::kKeyboardArrowDownIcon, kMenuIconSize,
+        views::IconColors(kColorOmniboxText, kColorOmniboxText));
+    SetBackground(views::CreateRoundedRectBackground(
+        kColorLocationBarBackground, kPillHeight / 2.f));
+    SetPreferredSize(gfx::Size(kPillHeight, kPillHeight));
+    SetTooltipText(u"Open in Another Space");
+    GetViewAccessibility().SetName(u"Open in Another Space");
+    Update();
+  }
+  LittleSpaceMenuButton(const LittleSpaceMenuButton&) = delete;
+  LittleSpaceMenuButton& operator=(const LittleSpaceMenuButton&) = delete;
+  ~LittleSpaceMenuButton() override = default;
+
+  void Update() {
+    SpaceService* service = SpaceService::Get(browser_->GetProfile());
+    SetVisible(service && service->space_list().spaces().size() > 1);
+  }
+
+  // ui::SimpleMenuModel::Delegate:
+  bool IsCommandIdChecked(int command_id) const override {
+    const SpaceModel* target = GetTargetSpace(browser_->GetProfile());
+    return target && command_id >= 0 &&
+           static_cast<size_t>(command_id) < space_ids_.size() &&
+           target->id() == space_ids_[command_id];
+  }
+  void ExecuteCommand(int command_id, int event_flags) override {
+    if (command_id < 0 || static_cast<size_t>(command_id) >= space_ids_.size()) {
+      return;
+    }
+    // After the menu: the window closes.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&LittleSpaceMenuButton::OpenIn,
+                                  weak_factory_.GetWeakPtr(),
+                                  space_ids_[command_id]));
+  }
+
+  // views::View:
+  void AddedToWidget() override {
+    widget_observation_.Observe(GetWidget());
+    Update();
+  }
+  void RemovedFromWidget() override { widget_observation_.Reset(); }
+
+  // views::WidgetObserver:
+  void OnWidgetActivationChanged(views::Widget* widget, bool active) override {
+    if (active) {
+      Update();
+    }
+  }
+
+ private:
+  static constexpr int kMenuIconSize = 16;
+
+  void ShowMenu() {
+    SpaceService* service = SpaceService::Get(browser_->GetProfile());
+    if (!service) {
+      return;
+    }
+    model_ = std::make_unique<ui::SimpleMenuModel>(this);
+    space_ids_.clear();
+    const auto& spaces = service->space_list().spaces();
+    for (size_t i = 0; i < spaces.size(); ++i) {
+      space_ids_.push_back(spaces[i]->id());
+      model_->AddCheckItem(static_cast<int>(i),
+                           GetSpaceName(*spaces[i], i));
+    }
+    runner_ = std::make_unique<views::MenuRunner>(
+        model_.get(), views::MenuRunner::HAS_MNEMONICS);
+    runner_->RunMenuAt(GetWidget(), /*button_controller=*/nullptr,
+                       GetBoundsInScreen(),
+                       views::MenuAnchorPosition::kTopRight,
+                       ui::mojom::MenuSourceType::kMouse);
+  }
+
+  void OpenIn(const base::Uuid& space_id) {
+    SpaceService* service = SpaceService::Get(browser_->GetProfile());
+    SpaceModel* space =
+        service ? service->space_list().FindSpace(space_id) : nullptr;
+    if (space) {
+      OpenLittleWindowInSpace(browser_, space);
+    }
+  }
+
+  const raw_ptr<BrowserWindowInterface> browser_;
+  std::unique_ptr<ui::SimpleMenuModel> model_;
+  std::unique_ptr<views::MenuRunner> runner_;
+  // The menu's spaces, by command id.
+  std::vector<base::Uuid> space_ids_;
+  base::ScopedObservation<views::Widget, views::WidgetObserver>
+      widget_observation_{this};
+  base::WeakPtrFactory<LittleSpaceMenuButton> weak_factory_{this};
+};
+
+BEGIN_METADATA(LittleSpaceMenuButton)
+END_METADATA
+
 // Gives the popup the frame: its color behind everything, the toolbar on it
 // with the back button first and "Open in <space>" last (a horizontal
 // FlexLayout in location mode), and the page as a rounded card
@@ -343,8 +473,11 @@ void Decorate(BrowserWindowInterface* browser) {
   toolbar->AddChildViewAt(std::move(traffic_lights), 0);
 #endif
   auto open = std::make_unique<LittleWindowButton>(browser, frame);
-  open->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(0, 6, 0, 8));
+  open->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(0, 6, 0, 4));
   toolbar->AddChildView(std::move(open));
+  auto spaces = std::make_unique<LittleSpaceMenuButton>(browser);
+  spaces->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(0, 0, 0, 8));
+  toolbar->AddChildView(std::move(spaces));
 
   browser_view->multi_contents_view()->SetBackgroundRadii(
       gfx::RoundedCornersF(kContentCornerRadius));
@@ -380,13 +513,18 @@ bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
   return true;
 }
 
-BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url) {
-  // Before Compass's own windows can come over it.
-  const std::optional<OpenerWindow> opener = FindOpenerWindow();
+namespace {
 
+// A little window on |url|, centered on |near|'s display (else the
+// pointer's). Over |opener|, another app's window, if there's one.
+BrowserWindowInterface* CreateLittleWindow(
+    Profile* profile,
+    const GURL& url,
+    const std::optional<gfx::Rect>& near,
+    const std::optional<OpenerWindow>& opener) {
   BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_POPUP, profile,
                                    /*from_user_gesture=*/true);
-  params.initial_bounds = GetNewWindowBounds(opener);
+  params.initial_bounds = GetNewWindowBounds(near);
   // A little window is for now: it isn't restored, and opening one isn't the
   // start of a session.
   params.omit_from_session_restore = true;
@@ -394,6 +532,7 @@ BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url) {
   BrowserWindowInterface* browser;
   {
     base::AutoReset<bool> creating(&g_creating_little_window, true);
+    base::AutoReset<bool> outside_sidebar = CreatingWindowOutsideSidebar();
     browser = CreateBrowserWindow(std::move(params));
   }
   if (!browser) {
@@ -411,6 +550,32 @@ BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   if (opener && browser_view && browser_view->GetWidget()) {
     KeepOtherWindowsBehind(browser_view->GetWidget(), *opener);
+  }
+  return browser;
+}
+
+}  // namespace
+
+BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url) {
+  // Before Compass's own windows can come over it.
+  const std::optional<OpenerWindow> opener = FindOpenerWindow();
+  return CreateLittleWindow(
+      profile, url,
+      opener ? std::optional<gfx::Rect>(opener->bounds) : std::nullopt,
+      opener);
+}
+
+BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from) {
+  BrowserView* from_view = BrowserView::GetBrowserViewForBrowser(from);
+  std::optional<gfx::Rect> near;
+  if (from_view && from_view->GetWidget()) {
+    near = from_view->GetWidget()->GetWindowBoundsInScreen();
+  }
+  BrowserWindowInterface* browser =
+      CreateLittleWindow(from->GetProfile(), GURL(chrome::kChromeUINewTabURL),
+                         near, /*opener=*/std::nullopt);
+  if (browser) {
+    browser->GetWindow()->Activate();
   }
   return browser;
 }
@@ -446,8 +611,8 @@ bool IsOnLittleWindowCaption(views::View* view, const gfx::Point& point) {
          target == static_cast<views::View*>(browser_view->top_container());
 }
 
-BrowserWindowInterface* OpenLittleWindowInSpace(
-    BrowserWindowInterface* browser) {
+BrowserWindowInterface* OpenLittleWindowInSpace(BrowserWindowInterface* browser,
+                                                SpaceModel* space) {
   if (!IsLittleWindow(browser)) {
     return nullptr;
   }
@@ -456,10 +621,22 @@ BrowserWindowInterface* OpenLittleWindowInSpace(
     return nullptr;
   }
   Profile* profile = browser->GetProfile();
-  BrowserWindowInterface* target = FindLastActiveWindow(profile);
+  BrowserWindowInterface* target =
+      space ? FindLastActiveWindowShowing(profile, *space) : nullptr;
+  if (!target) {
+    target = FindLastActiveWindow(profile);
+  }
   if (!target) {
     target = CreateBrowserWindow(
         BrowserWindowCreateParams(profile, /*from_user_gesture=*/true));
+    if (!target) {
+      return nullptr;
+    }
+  }
+  // Not showing |space|: the window switches to it.
+  WindowFeatures* features = WindowFeatures::From(target);
+  if (space && features && &features->space_model() != space) {
+    target = SwitchWindowToSpace(target, profile, *space);
     if (!target) {
       return nullptr;
     }
@@ -475,6 +652,10 @@ BrowserWindowInterface* OpenLittleWindowInSpace(
 }
 
 bool HandleLittleWindowCommand(BrowserWindowInterface* browser, int id) {
+  if (id == kNewLittleWindowCommand) {
+    OpenNewLittleWindow(browser);
+    return true;
+  }
   if (id != IDC_OPEN_FILE || !IsLittleWindow(browser)) {
     return false;
   }

@@ -25,6 +25,8 @@
 #include "ui/gfx/animation/animation_test_api.h"
 #include "url/gurl.h"
 
+#include "compass/browser/ui/compass_command_ids.h"
+
 namespace compass {
 namespace {
 
@@ -77,6 +79,9 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
   EXPECT_EQ(CommandForKeys(kVK_ANSI_C, kCommand | NSEventModifierFlagOption),
             IDC_DEV_TOOLS_INSPECT);
   EXPECT_EQ(CommandForKeys(kVK_ANSI_L, kCommandShift), NO_COMMAND);
+  // Cmd+Option+N, upstream's new split tab, opens a little window.
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_N, kCommand | NSEventModifierFlagOption),
+            kNewLittleWindowCommand);
 }
 
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CopyLinkCopiesThePageURL) {

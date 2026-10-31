@@ -7,6 +7,7 @@
 # same way upstream does for //chrome/browser/ui/webui/tab_search.
 source_set("ui") {
   sources = [
+    "compass_command_ids.h",
     "views/command_bar/command_bar.cc",
     "views/command_bar/command_bar.h",
     "views/frame/browser_view_exchange.cc",

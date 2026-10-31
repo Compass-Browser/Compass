@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
-index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..1967f6ee788a0a4efe8a201e4f5adfac3233bd2b 100644
+index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..a5e5bee5d95aec193d0c58297341bf9798a7dbba 100644
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,20 @@ index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..1967f6ee788a0a4efe8a201e4f5adfac
  #include <stddef.h>
  
  #include <algorithm>
-@@ -657,6 +659,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+@@ -640,6 +642,12 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+     WindowOpenDisposition disposition,
+     std::optional<actions::ActionInvocationContext> context,
+     base::TimeTicks time_stamp) {
++  // Compass: its own commands (compass_command_ids.h) aren't upstream's to
++  // enable.
++  if (compass::IsCompassCommand(id)) {
++    return compass::HandleBrowserCommand(browser_, id);
++  }
++
+   if (!SupportsCommand(id) || !IsCommandEnabled(id)) {
+     return false;
+   }
+@@ -657,6 +665,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
  
    DCHECK(IsCommandEnabled(id)) << "Invalid/disabled command " << id;
  

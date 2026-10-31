@@ -51,7 +51,8 @@ class TabStripBridge : public TabStripModelObserver,
                  SpaceModel* space_model,
                  SpaceModel* favorites,
                  LiveTabRegistry* registry,
-                 RestoredTabMatcher* restored_tab_matcher);
+                 RestoredTabMatcher* restored_tab_matcher,
+                 bool mirrors_tabs = true);
   TabStripBridge(const TabStripBridge&) = delete;
   TabStripBridge& operator=(const TabStripBridge&) = delete;
   ~TabStripBridge() override;
@@ -227,6 +228,10 @@ class TabStripBridge : public TabStripModelObserver,
   const raw_ptr<SpaceModel> favorites_;
   const raw_ptr<LiveTabRegistry> registry_;
   const raw_ptr<RestoredTabMatcher> restored_tab_matcher_;
+
+  // False for a window outside the sidebar (a little window): the bridge
+  // then neither mirrors its strip nor follows the model.
+  const bool mirrors_tabs_;
 
   // Set while the bridge changes either side, so it ignores its own echoes.
   bool updating_ = false;
