@@ -100,3 +100,7 @@ nothing else.
 | `third_party-blink-renderer-core-html-html_anchor_element.cc.patch` | Option+click on a link navigates at once, without upstream's double-click delay, so Peek opens on the click |
 | `chrome-browser-app_controller_mac.mm.patch` | URLs from other apps open in little windows: `OpenStartupTabsInBrowserWithProfile()` asks `compass::OpenInLittleWindows()` first (docs/design/little-window.md) |
 | `chrome-browser-ui-views-frame-layout-browser_view_popup_layout_impl.cc.patch` | A little window's page sits in a card inside the frame (`compass::GetPopupContentFrameInsets()`), with no separator |
+| `components-sync-service-BUILD.gn.patch` | `//components/sync/service` depends on `//compass/components/sync:engine` (docs/design/sync.md, "Slice 2 notes") |
+| `components-sync-service-sync_service_impl.cc.patch` | In `TryStartImpl()`, local sync with a Compass chain uses `compass::sync::CreateEngineComponentsFactory()`: the engine talks to the chain's server instead of the loopback file (route 2) |
+| `chrome-browser-sync-sync_service_factory.cc.patch` | `WEBAUTHN_CREDENTIAL` is a disabled sync type (passkeys need Google's security domain; no flag turns it off) |
+| `chrome-browser-profiles-chrome_browser_main_extra_parts_profiles.cc.patch`, `chrome-browser-profiles-BUILD.gn.patch` (2nd hunk) | Builds `compass::sync::CompassSyncServiceFactory` with the other factories, which registers the `compass.sync.*` prefs and creates the service with each profile |

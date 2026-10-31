@@ -1,6 +1,9 @@
 # Sync between devices
 
-Status: planned (2026-10-31), decisions taken (see "Decisions"), nothing built. Based on Chromium 156.0.8078.48.
+Status: slice 0 done, slice 1 (server) merged into `sync-main`, slice 2
+(chain, Chromium types, pairing client, minimal page) on
+`sync/slice-2-chain`, not yet built (see "Slice 2 notes"). Based on Chromium
+156.0.8078.48.
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
@@ -50,7 +53,8 @@ Compass data (`COMPASS_SPACES`, new):
   has a tab, which window shows what), sidebar width and collapse, the
   selected entry.
 
-Chromium types, on by default: `PASSWORDS`, `HISTORY`, `AUTOFILL` (and
+Chromium types, on by default: `PASSWORDS`, `HISTORY` (not yet: see "Slice
+2 notes", History), `AUTOFILL` (and
 addresses), `EXTENSIONS`, `EXTENSION_SETTINGS`, `PREFERENCES`
 (only syncable prefs), `SESSIONS` (open tabs per device), `DEVICE_INFO`
 (device list), `SEARCH_ENGINES`, `READING_LIST`, `BOOKMARKS`, `NIGORI`.
@@ -92,6 +96,22 @@ incoming password sharing. Exact list from the spike (slice 0).
   Ed25519 private seed; `HKDF(..., info="compass-sync-passphrase", L=32)`,
   base64 (standard, padded) = the custom passphrase. Profile accounts
   (slice 5) append `":" + profile_uuid` to the auth info.
+  Test vectors (`components/sync/chain_unittest.cc`, `bip39_unittest.cc`;
+  computed independently with Go's `crypto/hkdf` and `crypto/ed25519`):
+
+  | | |
+  |---|---|
+  | seed | `000102030405060708090a0b0c0d0e0f` |
+  | recovery code | `abandon amount liar amount expire adjust cage candy arch gather drum buyer` |
+  | auth key (Ed25519 seed) | `be6eabbf861e7b696f17ae6bd46b4bd745d1190e0658e720ca55fa65104139ad` |
+  | public key = chain ID | `696a94d1a2ebbabf8e5012c07df3c65c7c6beaaf8ccaf4a67e6cdd3da9743467` |
+  | passphrase | `xoFg1Bm10gjM8Ahji5ibCeSkV6zo7kZEcjBFP9M8s50=` |
+  | auth key, profile `2b5c3e1a-0000-4000-8000-000000000001` | `1b28e57a6e3ca95bc1b4b9c30f10f8d554ef09eed00844b52048aea6d90f4cf4` |
+  | token at ts 1700000000000 | `MzEzNzMwMzAzMDMwMzAzMDMwMzAzMDMwMzB8MkY1REY4REVCNDUwRUJBMTk5MTgxNjdGODZFQjVDOThBRkQxREYyRUI5MTUzQjBDOENGMDQ1RDhGQjZDODk3MERFMjhFOUI0Qzg0QzJCMjUzRDcxMzI4QTVCNUJENzcwNUE0QTQ1QjFCQkVERkJBRjM5MzcyQTA1RTZEOTZCMDV8Njk2QTk0RDFBMkVCQkFCRjhFNTAxMkMwN0RGM0M2NUM3QzZCRUFBRjhDQ0FGNEE2N0U2Q0REM0RBOTc0MzQ2Nw==` |
+
+  The recovery code is BIP39 (English list, 128-bit entropy + 4-bit
+  SHA-256 checksum); the reference vectors (e.g. `7f7f…7f` → `legal winner
+  thank year wave sausage worth useful legal winner thank yellow`) pass.
 - **Stored on the device**: the seed, encrypted with `os_crypt_async` (the
   same Keychain key as passwords), in a profile pref.
 - **Removing a device** deletes its `DEVICE_INFO` entry; it can't revoke
@@ -160,6 +180,25 @@ Messages (client-side, the server doesn't read them):
 4. A → B: A's confirmation MAC, then either `AES-256-GCM(K_enc, {"seed":
    ..., "profiles": [...]})` or a denial. A wrong MAC on either side →
    `DELETE` and a new code.
+
+Framing as slice 2 implements it (`components/sync/pairing.h`); one relay
+message per step:
+
+- 1 and 2: the raw 32-byte SPAKE2 message (BoringSSL's SPAKE2 over
+  edwards25519; its key is 64 bytes, all of it the HKDF input, salt empty,
+  32 bytes per subkey).
+- 3: `MAC_b (32) || nonce (12) || AES-256-GCM(K_enc, name, ad="compass-pair-b")`.
+- 4: `MAC_a (32) || verdict (1 byte: 0x01 allow, 0x00 deny)`, then on allow
+  `nonce (12) || AES-256-GCM(K_enc, {"seed": base64(16 bytes), "profiles": []}, ad="compass-pair-a")`.
+- `host` in the SPAKE2 names is `GURL::host()` of the server URL each side
+  has (no port, lowercase).
+- A doesn't close the slot after sending 4 (B must still read it); B closes
+  it once it has 4. A closes it on a wrong MAC, cancel or expiry.
+- Vectors for K = `00 01 … 3f`: K_enc `5144144d…7a857653`, K_confirm_a
+  `d71f8461…63ef6a2a`, K_confirm_b `46d4fef6…dd61a05a`, MAC_a
+  `5640ef87…7f3366f8`, MAC_b `d0ccb754…12ff0ac4` (full values in
+  `pairing_unittest.cc`, `PairingKeysTest`).
+
 "Use a recovery code" on B is the fallback: type the 12 words (BIP39
 autocomplete, checksum checked as you type).
 
@@ -248,11 +287,174 @@ Steps: `docs/design/sync-spike-0-steps.md` on the branch; evidence in
   `netlog_hosts.py` must accept net logs cut short by SIGTERM (a missing
   final `}`).
 
+### Slice 2 notes
+
+Branch `sync/slice-2-chain` (on `sync-main`). Written without a compiler;
+the MacBook build and run are in
+[sync-slice-2-steps.md](sync-slice-2-steps.md).
+
+**Code.**
+
+- `//compass/components/sync:chain`: seed, BIP39 recovery code,
+  derivations, tokens (`chain.h`, `bip39.h`), pairing on both sides with a
+  transport interface (`pairing.h`) and its HTTP implementation
+  (`pairing_network_transport.h`).
+- `//compass/components/sync:engine`: the spike's engine components,
+  renamed (`CompassEngineComponentsFactory`, a connection manager that signs
+  each request), `SyncCredentials` (the chain key shared between the
+  browser side and the sync sequence; the first request waits up to 20 s
+  for the seed to decrypt) and `sync_hooks.h`, what `SyncServiceImpl`
+  calls. `//components/sync/service` depends on this target: unlike the
+  spike's observer, nothing in it needs `SyncService`, so it's a separate
+  target with no cycle, and the patch is one `deps` line instead of a
+  source list.
+- `//compass/browser/sync`: `CompassSyncService` (keyed service, created
+  with each regular profile): the seed (`compass.sync.seed`, os_crypt_async,
+  base64) and server (`compass.sync.server_url`) prefs, passphrase, type
+  selection, refresh on focus (`ProfileBrowserCollection`) and wake
+  (`PowerSuspendObserver`, at most every 10 s), pairing. `SyncController`
+  is its interface for the page.
+- `chrome://compass-sync` (`browser/ui/webui/sync/`,
+  `resources/sidebar/compass_sync.{html,ts}`).
+
+**When sync runs.** The engine talks to the chain's server when the
+profile has `kEnableLocalSyncBackend` (route 2), a seed and a server URL
+(`--sync-url` wins over the pref). `SyncServiceImpl` reads
+`kEnableLocalSyncBackend` once, when the profile loads, so "Start sync",
+joining and "Leave sync" take effect after a restart; the page says so and
+has a "Restart Compass" button. Turning sync on also sets
+`kLocalSyncBackendDir` (to `<profile>/Compass Sync`, never written): on
+macOS `SyncServiceFactory` doesn't create a local-sync service without it.
+Leaving clears the seed and the local-sync pref; the next launch's sync
+service, not signed in, clears sync's metadata as for a signed-out user and
+keeps the data.
+
+**Passphrase.** At each start with a chain, `CompassSyncService` selects
+no data type (Nigori and Device Info still run), so nothing is committed
+before the chain's passphrase is in place (the
+spike set it only once the types were running, so a first device's
+initial commits went out under the server-known keystore key). With the
+engine up: if the server's Nigori needs a passphrase (a joining device, or
+keys lost), `SetDecryptionPassphrase()`, once per time it's asked; if the
+passphrase type isn't explicit yet (first device), `SetEncryptionPassphrase()`;
+once it's explicit, the wanted types are selected and start. (A
+`SyncSetupInProgressHandle` doesn't work for this: it holds Nigori back
+too, so the passphrase type never becomes known; seen on the MacBook.) Any device sets
+it, not only the one that made the chain: a device that finds no custom
+passphrase on the server (a wiped server) must not upload in the clear,
+and two devices racing to set it converge, since the passphrase is the
+same and the loser is asked to decrypt. A rejected passphrase (another
+chain's data on the server) keeps the handle: nothing syncs, and the page
+says why.
+
+**Types.** No feature flag turns off the unwanted types in 156:
+Themes, Apps (with App settings and Web Apps) and Saved Tab Group
+controllers are built unconditionally, and `WEBAUTHN_CREDENTIAL` belongs to
+the Passwords selectable type. So `CompassSyncService` deselects the
+selectable types Apps, Payments (Wallet types, including Wallet
+Credential), Product Comparison, Saved Tab Groups and Themes, and a
+one-line patch passes `WEBAUTHN_CREDENTIAL` as a disabled type to
+`CommonControllerBuilder::Build()` in `sync_service_factory.cc`.
+`RegisterFeatureOverrides()` is unchanged. Expected running types (15):
+Bookmarks, Preferences, Priority Preferences, Passwords, Autofill,
+Autofill Profiles, Extensions, Extension settings, Search Engines,
+Sessions, Device Info, Reading List, plus Nigori (control). To check on
+the MacBook run.
+
+**History: not in this slice, by upstream design.** Widening
+`LocalSyncSupportedTypes()` wouldn't be enough, so it isn't patched:
+
+1. `HISTORY` and `HISTORY_DELETE_DIRECTIVES` are
+   `EncryptionPolicy::kNeverEncrypted` in `data_type.cc` ("History Sync is
+   disabled if encryption is enabled"): Google's server reads history for
+   Web & App Activity, so upstream never encrypts it.
+2. Their controllers (`history_data_type_controller.cc`,
+   `history_delete_directives_data_type_controller.cc`) return
+   `kMustStopAndClearData` whenever `IsEncryptEverythingEnabled()`, which a
+   custom passphrase always is. Compass's chain always has one.
+3. `HistoryDataTypeController` also uses
+   `AccountManagedStatusPolicy::kDisallowEnterprise`, and with local sync
+   the account's managed status stays `kPending` (no account), which means
+   `kMustStopAndKeepData`.
+4. The local-sync exclusion itself (`LocalSyncSupportPolicy::kUnsupported`)
+   carries no comment; local sync was built for Windows roaming profiles,
+   and 1-3 already make history unusable with any custom passphrase, so
+   it's likely just consistent with them (an inference, not documented
+   upstream).
+
+Syncing history end-to-end encrypted would take: `kNeverEncrypted` →
+encryptable for both types in `data_type.cc`, `kSupported` for local sync
+there too, and the two controllers' passphrase check and the managed-status
+policy relaxed: four upstream files, two of them outside sync, and a
+behaviour upstream deliberately avoids (history sync's server-side
+features don't apply to us, so encryption itself should be fine). Proposed
+as its own slice ("2b: History"), after checking how Brave's tree handles
+the same three blockers.
+
+**FakeServer integration test: skipped.** `FakeServer` itself works with
+route 2 (`SyncServiceFactory`'s HTTP post provider override reaches
+`CompassEngineComponentsFactory` the same way), but the two-client harness
+(`SyncTest`, `SyncServiceImplHarness`) signs each client in with a test
+Gaia account and waits on states that assume one; local sync has none, and
+upstream only tests it single-client (`LocalSyncTest`). A two-client
+local-sync harness is a slice of its own; slice 3's
+`TwoClientCompassSpacesSyncTest` needs it too, so it belongs there.
+Pairing and chain logic are covered by unit tests; the two-client check is
+the MacBook run.
+
+**Contract (slice 1 ↔ 2) as built, and proposed changes.** The client
+follows "Pairing API" as written and slice 1's details (403 for another
+chain or a wrong `b_token`; 404 before auth and for a long poll whose slot
+closes; 413/400 for bad data; 429/503 on open = try later). Open points,
+none blocking:
+
+1. B can't tell why a slot closed (A saw a wrong code, A canceled, or it
+   expired): all are 404. Proposed: `DELETE` takes `?reason=mismatch|cancel`
+   and later requests answer `410 {"reason": ...}`, so B can say "wrong
+   code" instead of "the other device ended pairing".
+2. `host` in the SPAKE2 names: two devices that reach the server by
+   different names (IP vs hostname, Tailscale name) compute different keys
+   and fail as "wrong code". Proposed: have `POST /pair` return a
+   canonical server name (`"server": "sync.example.com"`) and `join` echo
+   it, and bind that instead of what each side typed.
+3. `join` doesn't return the slot's remaining lifetime; B uses its own
+   5.5-minute timeout. Proposed: `{"b_token", "expires_in"}`.
+4. The framing of messages 3 and 4 ("then") and the denial encoding were
+   open; fixed here as above.
+
+### Slice 2 run on the MacBook
+
+2026-10-31, out/Debug, branch `sync/slice-2-chain` at `0499ea3`, against
+the slice 1 server on the Mac mini. Evidence in
+`~/compass-sync-slice2-evidence.tgz` on the MacBook.
+
+- Fixes the run needed: a hand-written patch with a missing context line
+  (all patches regenerated with `git diff --full-index`), two test compile
+  errors (`base/containers/contains.h` is gone in 156; a missing
+  `pref_registry_simple.h`), a missing test helper, and the setup-handle
+  deadlock (see "Passphrase" above).
+- 42 unit tests pass. No crash or DCHECK in any instance.
+- A started a chain, set the passphrase before any data type ran, then
+  synced. B joined by recovery code and got A's bookmark and password
+  (about 20 s with a refresh); B's reached A (about 27 s). Passwords land
+  in the profile store.
+- Pairing: right code + Allow → C joins and has the data after a restart;
+  wrong code → both sides fail, D stays off; Deny → D stays off. With a
+  wrong code, B says "The other device ended pairing" instead of "wrong
+  code": the contract change "a closed slot says why" fixes it (later).
+- Running types: Bookmarks, Preferences, Priority Preferences, Passwords,
+  Autofill, Autofill Profiles, Extensions, Extension settings, Search
+  Engines, Sessions, Device Info, Reading List. The unwanted ones and
+  History don't run. Custom passphrase on every instance.
+- No Google host from sync (same set as with sync off); the server logged
+  no errors.
+
 ### Change notifications
 
 Chromium learns about remote changes through FCM invalidations, which need
 Google's keys, so they're off. First slices: the server sets a short poll
-interval (60 s) through `ClientCommand`, and Compass calls
+interval (30 s, go-sync's default, as slice 1 ships it) through
+`ClientCommand`, which the engine honours as is, and Compass calls
 `SyncService::TriggerRefresh()` (public, no patch) when a window gains focus
 and when the Mac wakes. Later (slice 6): a long-lived SSE/WebSocket from
 `CompassSyncNotifier` to the server, which calls `TriggerRefresh(types)`
@@ -450,10 +652,11 @@ Upstream's sync settings are replaced by a page of our own,
    (that changes passwords/bookmarks behaviour: separate account store);
    which types start and which fail without Google; that nothing calls
    Google endpoints (watch the network log). Write the findings here.
-1. **Server, minimal**: go-sync fork in `server/`, SQLite storage, Ed25519
+1. **Server, minimal** (done 2026-10-31, merged into `sync-main`): go-sync fork in `server/`, SQLite storage, Ed25519
    auth, pairing slots and relay, Docker image, Go tests. A `compass sync-server` CLI command runs it
    locally for development.
-2. **Chain + Chromium types**: seed, recovery code, pairing (SPAKE2,
+2. **Chain + Chromium types** (done 2026-10-31, "Slice 2 run on the
+   MacBook"; History moved to 2b): seed, recovery code, pairing (SPAKE2,
    unit tests for wrong code and expiry), HKDF derivations, the auth
    route from slice 0, server URL pref, custom passphrase, Google-only types
    off (through `compass::RegisterFeatureOverrides()` where a feature flag

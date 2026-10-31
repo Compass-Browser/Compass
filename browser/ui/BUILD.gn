@@ -46,13 +46,19 @@ source_set("ui") {
     "webui/sidebar/compass_favicon_source.h",
     "webui/sidebar/compass_sidebar_ui.cc",
     "webui/sidebar/compass_sidebar_ui.h",
+    "webui/sync/compass_sync_page_handler.cc",
+    "webui/sync/compass_sync_page_handler.h",
+    "webui/sync/compass_sync_ui.cc",
+    "webui/sync/compass_sync_ui.h",
     "webui/compass_web_ui_registry.cc",
     "webui/compass_web_ui_registry.h",
   ]
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
+    "//compass/browser/sync",
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
     "//compass/browser/ui/webui/sidebar:mojo_bindings",
+    "//compass/browser/ui/webui/sync:mojo_bindings",
 
     # BrowserView's close hook calls into it (see patches/).
     "//compass/browser/window_sync",
@@ -142,9 +148,12 @@ source_set("unit_tests") {
     "views/sidebar/sidebar_header_unittest.cc",
     "webui/command_bar/command_bar_page_handler_unittest.cc",
     "webui/sidebar/sidebar_page_handler_unittest.cc",
+    "webui/sync/compass_sync_page_handler_unittest.cc",
   ]
   deps = [
     ":ui",
+    "//compass/browser/sync",
+    "//compass/browser/ui/webui/sync:mojo_bindings",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/autocomplete",

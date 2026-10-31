@@ -1,0 +1,147 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Sync</title>
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <style>
+      body {
+        background: var(--color-sys-base, #fff);
+        color: var(--color-sys-on-surface, #1f1f1f);
+        margin: 0;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 560px;
+        padding: 32px 24px;
+      }
+
+      h1 {
+        font-size: 22px;
+        font-weight: 500;
+        margin: 0 0 16px;
+      }
+
+      h2 {
+        font-size: 15px;
+        font-weight: 500;
+        margin: 24px 0 8px;
+      }
+
+      section {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin: 12px 0 4px;
+      }
+
+      input,
+      textarea {
+        box-sizing: border-box;
+        font: inherit;
+        padding: 6px 8px;
+        width: 100%;
+      }
+
+      textarea {
+        height: 72px;
+      }
+
+      button {
+        font: inherit;
+        margin: 8px 8px 0 0;
+        padding: 6px 14px;
+      }
+
+      .note {
+        opacity: 0.7;
+      }
+
+      .error {
+        color: var(--color-sys-error, #b3261e);
+      }
+
+      #words {
+        column-count: 3;
+        font-family: monospace;
+        font-size: 15px;
+        margin: 12px 0;
+      }
+
+      .code {
+        font-family: monospace;
+        font-size: 32px;
+        letter-spacing: 2px;
+        margin: 12px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sync</h1>
+      <p id="status" class="note"></p>
+
+      <!-- Off. -->
+      <section id="off" hidden>
+        <label for="server">Server URL</label>
+        <input id="server" type="url"
+            placeholder="https://sync.example.com/v2">
+        <button id="start">Start sync</button>
+        <button id="showJoin">I have another device</button>
+
+        <div id="joinPanel" hidden>
+          <label for="code">Code shown on the other device</label>
+          <input id="code" placeholder="7-482913" autocomplete="off">
+          <button id="join">Join</button>
+          <button id="showRecovery">Use a recovery code</button>
+        </div>
+
+        <div id="recoveryPanel" hidden>
+          <label for="recovery">Recovery code (12 words)</label>
+          <textarea id="recovery" autocomplete="off"
+              spellcheck="false"></textarea>
+          <button id="recover">Join with the recovery code</button>
+        </div>
+        <p id="offError" class="error"></p>
+      </section>
+
+      <!-- The recovery code, once, after "Start sync". -->
+      <section id="wordsPanel" hidden>
+        <h2>Your recovery code</h2>
+        <p>Save these 12 words somewhere safe, such as a password manager.
+          You only need them if you lose every device that syncs: without
+          them, the synced data is gone.</p>
+        <ol id="words"></ol>
+        <button id="saved">I saved it</button>
+      </section>
+
+      <!-- Restart needed. -->
+      <section id="restartPanel" hidden>
+        <button id="restart">Restart Compass</button>
+      </section>
+
+      <!-- On. -->
+      <section id="on" hidden>
+        <button id="addDevice">Add a device</button>
+        <button id="leave">Leave sync</button>
+      </section>
+
+      <!-- Pairing, on either side. -->
+      <section id="pairing" hidden>
+        <div id="pairingCode" class="code"></div>
+        <p id="pairingMessage"></p>
+        <div id="confirm" hidden>
+          <p>Add <strong id="deviceName"></strong> to sync?</p>
+          <button id="allow">Allow</button>
+          <button id="deny">Deny</button>
+        </div>
+        <button id="cancelPairing">Cancel</button>
+      </section>
+    </main>
+    <script type="module" src="compass_sync.js"></script>
+  </body>
+</html>

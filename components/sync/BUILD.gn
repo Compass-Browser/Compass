@@ -1,0 +1,83 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass sync below the browser: the chain's crypto, pairing, and the sync
+# engine's components for a Compass server. See docs/design/sync.md.
+
+# The seed, the recovery code, key derivations, tokens and pairing.
+source_set("chain") {
+  sources = [
+    "bip39.cc",
+    "bip39.h",
+    "bip39_wordlist.cc",
+    "chain.cc",
+    "chain.h",
+    "pairing.cc",
+    "pairing.h",
+    "pairing_network_transport.cc",
+    "pairing_network_transport.h",
+  ]
+  public_deps = [
+    "//base",
+    "//third_party/boringssl",
+    "//url",
+  ]
+  deps = [
+    "//crypto",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+  ]
+}
+
+# The engine side. //components/sync/service depends on it, and
+# SyncServiceImpl calls sync_hooks.h (see
+# patches/components-sync-service-BUILD.gn.patch and
+# patches/components-sync-service-sync_service_impl.cc.patch). It must not
+# depend on //components/sync/service.
+source_set("engine") {
+  sources = [
+    "engine_components_factory.cc",
+    "engine_components_factory.h",
+    "pref_names.h",
+    "sync_credentials.cc",
+    "sync_credentials.h",
+    "sync_hooks.cc",
+    "sync_hooks.h",
+  ]
+  public_deps = [
+    ":chain",
+    "//components/sync/engine",
+  ]
+  deps = [
+    "//base",
+    "//components/prefs",
+    "//components/signin/public/identity_manager",
+    "//components/sync/base",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "bip39_unittest.cc",
+    "chain_unittest.cc",
+    "engine_unittest.cc",
+    "pairing_unittest.cc",
+  ]
+  deps = [
+    ":chain",
+    ":engine",
+    "//base",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//components/sync/base",
+    "//crypto",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/boringssl",
+    "//url",
+  ]
+}
