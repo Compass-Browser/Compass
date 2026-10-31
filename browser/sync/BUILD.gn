@@ -33,6 +33,7 @@ source_set("sync") {
     "//compass/browser/sidebar",
     "//compass/browser/window_sync",
     "//compass/components/sync:controllers_hook",
+    "//compass/components/sync:notifier",
     "//components/sync/model",
     "//chrome/browser:browser_process",
     "//chrome/browser/lifetime",
