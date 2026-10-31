@@ -172,16 +172,14 @@ header above it and the region's margin below it stayed frame-colored.
 A space can have any color, not only the palette's (2026-10-31, for Arc's
 themes). `SpaceColor` is a value: grey (no tint) or an opaque `SkColor`.
 The palette is its constants (`SpaceColor::kBlue`, ...) and
-`kSpaceColorPalette`, mirrored by the page's `SPACE_COLORS` for the space
-buttons and the menu's swatches. Mojo carries `SpaceColor? color` as
+`kSpaceColorPalette`, mirrored by the page's `SPACE_COLORS`
+(resources/sidebar/colors.ts) for the theme editor's palette. Mojo carries `SpaceColor? color` as
 `{red, green, blue}`, null for grey. The file saves a palette color by name
 (`"blue"`, so older builds still read it) and any other as `"#rrggbb"`;
-a color it can't read stays grey. After the eight swatches the menu has a
-color well (`#customColor`, a hue wheel until the space has a color outside
-the palette, then that color with the selection ring): an `<input
-type="color">` over it opens Chromium's color picker. While a color is
-dragged in the picker, the page passes one on every 50 ms
-(`CUSTOM_COLOR_MS`), since each one reseeds the window's theme. Arc's
+a color it can't read stays grey. Any color is picked in the theme editor
+(below): on its pad, or with its color well (an `<input type="color">`,
+Chromium's color picker). While a color is dragged, the page passes one on
+every 50 ms (`CUSTOM_COLOR_MS`), since each one reseeds the window's theme. Arc's
 spaces come in with their theme's exact mid tone (arc-import.md).
 
 The tint fades over 280 ms (`gfx::LinearAnimation`, eased out, blending
