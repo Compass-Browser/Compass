@@ -272,6 +272,51 @@ func TestEndToEndTwoDevices(t *testing.T) {
 	assert.Len(t, got, 90)
 }
 
+func TestEndToEndCreateOverTombstone(t *testing.T) {
+	// A deletes an entity of the future type; B, which saw the delete, puts
+	// it back with the same client tag (a space re-created under its old
+	// ID): it comes back under its server ID, and A gets it undeleted.
+	url := serverURL(t)
+	seed := randomSeed(t)
+	a := newDevice(t, url, seed, "cache-guid-a")
+	b := newDevice(t, url, seed, "cache-guid-b")
+	a.getUpdates(sync_pb.SyncEnums_NEW_CLIENT, nigoriTypeID, bookmarkTypeID)
+
+	spec, _ := futureSpecifics(t, []byte("v1"))
+	entity := func(id string, version int64, s *sync_pb.EntitySpecifics) *sync_pb.SyncEntity {
+		return &sync_pb.SyncEntity{IdString: ptr.String(id), Version: ptr.Int64(version),
+			ClientTagHash: ptr.String("space-tag"), Specifics: s}
+	}
+	rs := a.commit(entity("local-a", 0, spec))
+	require.Equal(t, sync_pb.CommitResponse_SUCCESS, rs[0].GetResponseType())
+	serverID := rs[0].GetIdString()
+	tomb := entity(serverID, rs[0].GetVersion(), spec)
+	tomb.Deleted = ptr.Bool(true)
+	rs = a.commit(tomb)
+	require.Equal(t, sync_pb.CommitResponse_SUCCESS, rs[0].GetResponseType())
+	got := b.getUpdates(sync_pb.SyncEnums_GU_TRIGGER, futureTypeID)
+	require.Len(t, got, 1)
+	require.True(t, got[0].GetDeleted())
+	a.getUpdates(sync_pb.SyncEnums_PERIODIC, futureTypeID)
+
+	spec2, raw2 := futureSpecifics(t, []byte("v2"))
+	rs = b.commit(entity("local-b", 0, spec2))
+	require.Equal(t, sync_pb.CommitResponse_SUCCESS, rs[0].GetResponseType(), rs[0].GetErrorMessage())
+	assert.Equal(t, serverID, rs[0].GetIdString())
+
+	got = a.getUpdates(sync_pb.SyncEnums_PERIODIC, futureTypeID)
+	require.Len(t, got, 1)
+	assert.Equal(t, serverID, got[0].GetIdString())
+	assert.False(t, got[0].GetDeleted())
+	back, err := proto.Marshal(got[0].GetSpecifics())
+	require.NoError(t, err)
+	assert.Equal(t, raw2, back)
+
+	// A, not knowing yet, creates it too: the tag is live, a conflict.
+	rs = a.commit(entity("local-a2", 0, spec))
+	assert.Equal(t, sync_pb.CommitResponse_CONFLICT, rs[0].GetResponseType())
+}
+
 func TestEndToEndAuth(t *testing.T) {
 	url := serverURL(t)
 	d := newDevice(t, url, randomSeed(t), "guid")

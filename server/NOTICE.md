@@ -22,6 +22,10 @@ What Compass changed, in short:
   pages that never split equal mtimes.
 - Entities of data types newer than the bundled protos are stored as they
   arrive instead of failing (`datastore.DataTypeOfSpecifics`).
+- A create whose client tag belongs to a deleted entity revives that
+  entity under its server ID, as Chromium's servers do (go-sync stored a
+  second entity with a new ID, or answered CONFLICT if the tag item was
+  left over); an update that undeletes an entity takes its tag back.
 - A byte quota per chain and a configurable entity quota.
 - The pairing relay (`pairing/`) and a client IP resolver that trusts
   `X-Forwarded-For` only from configured proxies (`clientip/`).

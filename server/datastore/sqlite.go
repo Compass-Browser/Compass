@@ -55,6 +55,10 @@ CREATE INDEX IF NOT EXISTS entities_by_type_mtime
 	ON entities (client_id, data_type, mtime);
 CREATE INDEX IF NOT EXISTS entities_by_expiration
 	ON entities (expiration_time) WHERE expiration_time > 0;
+-- A create finds the entity a client tag belongs to (InsertSyncEntity).
+CREATE INDEX IF NOT EXISTS entities_by_client_tag
+	ON entities (client_id, client_defined_unique_tag)
+	WHERE client_defined_unique_tag IS NOT NULL;
 
 -- "Client#<client tag hash>" and "Server#<server tag>" per chain, so a tag
 -- is used by one live entity at a time.
@@ -334,9 +338,78 @@ func (s *SQLite) insertEntity(ctx context.Context, tx *sql.Tx, entity *SyncEntit
 	return rowsAffected(res) == 1, nil
 }
 
+// taggedEntity is the latest entity of a data type holding a client tag.
+type taggedEntity struct {
+	id      string
+	deleted bool
+	size    int64
+}
+
+// findTaggedEntity returns the latest entity (by mtime) of entity's chain and
+// data type with its client tag, or nil. go-sync gave a create over a
+// tombstone a new ID, so older data can hold several rows with one tag; the
+// latest is the one clients know.
+func findTaggedEntity(ctx context.Context, tx *sql.Tx, entity *SyncEntity) (*taggedEntity, error) {
+	var t taggedEntity
+	var deleted sql.NullBool
+	err := tx.QueryRowContext(ctx, `
+		SELECT id, deleted, size FROM entities
+		WHERE client_id = ? AND client_defined_unique_tag = ? AND data_type = ?
+		ORDER BY mtime DESC, rowid DESC LIMIT 1`,
+		entity.ClientID, *entity.ClientDefinedUniqueTag, *entity.DataType).
+		Scan(&t.id, &deleted, &t.size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error reading the entity of a client tag: %w", err)
+	}
+	t.deleted = deleted.Valid && deleted.Bool
+	return &t, nil
+}
+
+// reviveEntity writes a create over the tombstone old: the entity keeps
+// old's ID and takes everything else from the create (version, times,
+// content, deleted = false), as Chromium's servers do (LoopbackServer gives
+// a client-tagged entity an ID derived from its tag, so a create replaces the
+// tombstone). entity.ID becomes old's ID, for the commit response.
+func (s *SQLite) reviveEntity(ctx context.Context, tx *sql.Tx, entity *SyncEntity, old *taggedEntity) error {
+	size := entitySize(entity.Specifics, entity.UniquePosition, entity.Name, entity.NonUniqueName)
+	if err := s.addBytes(ctx, tx, entity.ClientID, size-old.size); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `
+		UPDATE entities SET
+			parent_id = ?, version = ?, mtime = ?, ctime = ?, name = ?,
+			non_unique_name = ?, server_defined_unique_tag = ?, deleted = ?,
+			originator_cache_guid = ?, originator_client_item_id = ?,
+			specifics = ?, folder = ?, unique_position = ?, data_type_mtime = ?,
+			expiration_time = ?, size = ?
+		WHERE client_id = ? AND id = ?`,
+		entity.ParentID, entity.Version, entity.Mtime, entity.Ctime, entity.Name,
+		entity.NonUniqueName, entity.ServerDefinedUniqueTag, entity.Deleted,
+		entity.OriginatorCacheGUID, entity.OriginatorClientItemID,
+		blob(entity.Specifics), entity.Folder, blob(entity.UniquePosition), entity.DataTypeMtime,
+		entity.ExpirationTime, size, entity.ClientID, old.id)
+	if err != nil {
+		return fmt.Errorf("error reviving sync entity: %w", err)
+	}
+	// The tag item is normally gone with the delete; one left over (a delete
+	// committed without the tag) is this entity's anyway.
+	if _, err = s.insertTag(ctx, tx, entity.ClientID, *entity.ClientDefinedUniqueTag, false); err != nil {
+		return err
+	}
+	entity.ID = old.id
+	return nil
+}
+
 // InsertSyncEntity inserts a new sync entity. If ClientDefinedUniqueTag is
 // set (and the type isn't history, which doesn't use tag items), a tag item
 // is written in the same transaction; a tag already in use is a conflict.
+//
+// Compass: a create whose client tag belongs to a deleted entity of the same
+// type revives that entity under its ID (Chromium's semantics, see
+// reviveEntity) and sets entity.ID to it; a live one is a conflict.
 func (s *SQLite) InsertSyncEntity(ctx context.Context, entity *SyncEntity) (bool, error) {
 	tx, err := s.w.BeginTx(ctx, nil)
 	if err != nil {
@@ -344,13 +417,32 @@ func (s *SQLite) InsertSyncEntity(ctx context.Context, entity *SyncEntity) (bool
 	}
 	defer tx.Rollback() //nolint:errcheck // no-op after Commit
 
+	withTag := entity.ClientDefinedUniqueTag != nil && *entity.DataType != HistoryTypeID
+	if withTag {
+		old, findErr := findTaggedEntity(ctx, tx, entity)
+		if findErr != nil {
+			return false, findErr
+		}
+		if old != nil && !old.deleted {
+			return true, errors.New("error inserting sync item with client tag: tag in use")
+		}
+		if old != nil && (entity.Deleted == nil || !*entity.Deleted) {
+			if err = s.reviveEntity(ctx, tx, entity, old); err != nil {
+				return false, err
+			}
+			if err = tx.Commit(); err != nil {
+				return false, fmt.Errorf("error committing revived sync item: %w", err)
+			}
+			return false, nil
+		}
+	}
+
 	err = s.addBytes(ctx, tx, entity.ClientID,
 		entitySize(entity.Specifics, entity.UniquePosition, entity.Name, entity.NonUniqueName))
 	if err != nil {
 		return false, err
 	}
 
-	withTag := entity.ClientDefinedUniqueTag != nil && *entity.DataType != HistoryTypeID
 	if withTag {
 		inserted, tagErr := s.insertTag(ctx, tx, entity.ClientID, *entity.ClientDefinedUniqueTag, false)
 		if tagErr != nil {
@@ -591,6 +683,15 @@ func (s *SQLite) UpdateSyncEntity(ctx context.Context, entity *SyncEntity, oldVe
 		}
 		deleted = true
 	} else {
+		if oldDeleted.Valid && oldDeleted.Bool && entity.Deleted != nil && !*entity.Deleted &&
+			entity.ClientDefinedUniqueTag != nil && *entity.DataType != HistoryTypeID {
+			// Compass: an update undeleting an entity with a client tag (a
+			// client that kept its edit over a remote delete) takes the tag
+			// back, so a later create with it conflicts.
+			if _, err = s.insertTag(ctx, tx, entity.ClientID, *entity.ClientDefinedUniqueTag, false); err != nil {
+				return false, false, err
+			}
+		}
 		switch {
 		case entity.Deleted == nil: // No updates on Deleted this time.
 			deleted = false
