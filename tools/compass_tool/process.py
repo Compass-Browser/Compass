@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,12 @@ def depot_tool(name: str) -> str:
 def run(cmd, cwd: Path, env=None, check=True, capture=False,
         quiet=False) -> subprocess.CompletedProcess:
   cmd = [str(c) for c in cmd]
+  if env is not None and 'PATH' in env:
+    # Windows' CreateProcess looks a bare program name up on the parent's
+    # PATH, not env's, so depot_tools' gclient.bat etc. wouldn't be found.
+    found = shutil.which(cmd[0], path=env['PATH'])
+    if found:
+      cmd[0] = found
   if not quiet:
     print('$ ' + ' '.join(cmd), flush=True)
   result = subprocess.run(cmd, cwd=str(cwd), env=env, text=True,
