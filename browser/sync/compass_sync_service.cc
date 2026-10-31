@@ -54,7 +54,10 @@ constexpr base::TimeDelta kMinRefreshInterval = base::Seconds(10);
 // The types docs/design/sync.md, "What syncs", turns off that have a
 // selectable type. WebAuthn credentials ride with Passwords, so their
 // controller is left out instead (patches/
-// chrome-browser-sync-sync_service_factory.cc.patch).
+// chrome-browser-sync-sync_service_factory.cc.patch). History (kHistory:
+// HISTORY and HISTORY_DELETE_DIRECTIVES) is wanted and selected like the rest;
+// it runs under local sync, encrypted, since slice 2b (sync.md, "Slice 2b
+// notes"). Its USER_EVENTS and JOURNEY stay off: local sync leaves them out.
 constexpr syncer::UserSelectableType kUnwantedTypes[] = {
     syncer::UserSelectableType::kApps,
     syncer::UserSelectableType::kPayments,

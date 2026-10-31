@@ -1,9 +1,8 @@
 # Sync between devices
 
-Status: slice 0 done, slice 1 (server) merged into `sync-main`, slice 2
-(chain, Chromium types, pairing client, minimal page) on
-`sync/slice-2-chain`, not yet built (see "Slice 2 notes"). Based on Chromium
-156.0.8078.48.
+Status: slices 0-2 done and merged into `sync-main`; slice 2b (History,
+encrypted) on `sync/slice-2b-history`, not yet built (see "Slice 2b
+notes"). Based on Chromium 156.0.8078.48.
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
@@ -53,8 +52,8 @@ Compass data (`COMPASS_SPACES`, new):
   has a tab, which window shows what), sidebar width and collapse, the
   selected entry.
 
-Chromium types, on by default: `PASSWORDS`, `HISTORY` (not yet: see "Slice
-2 notes", History), `AUTOFILL` (and
+Chromium types, on by default: `PASSWORDS`, `HISTORY` (with its delete
+directives; slice 2b, see "Slice 2b notes"), `AUTOFILL` (and
 addresses), `EXTENSIONS`, `EXTENSION_SETTINGS`, `PREFERENCES`
 (only syncable prefs), `SESSIONS` (open tabs per device), `DEVICE_INFO`
 (device list), `SEARCH_ENGINES`, `READING_LIST`, `BOOKMARKS`, `NIGORI`.
@@ -389,7 +388,7 @@ policy relaxed: four upstream files, two of them outside sync, and a
 behaviour upstream deliberately avoids (history sync's server-side
 features don't apply to us, so encryption itself should be fine). Proposed
 as its own slice ("2b: History"), after checking how Brave's tree handles
-the same three blockers.
+the same three blockers. Done in slice 2b ("Slice 2b notes").
 
 **FakeServer integration test: skipped.** `FakeServer` itself works with
 route 2 (`SyncServiceFactory`'s HTTP post provider override reaches
@@ -448,6 +447,95 @@ the slice 1 server on the Mac mini. Evidence in
   History don't run. Custom passphrase on every instance.
 - No Google host from sync (same set as with sync off); the server logged
   no errors.
+
+### Slice 2b notes
+
+Branch `sync/slice-2b-history` (on `sync-main`). Written without a
+compiler; the MacBook build and run are in
+[sync-slice-2b-steps.md](sync-slice-2b-steps.md).
+
+**What turned History off, and what changes.** The four blockers of
+"Slice 2 notes" plus a fifth found here:
+
+| Blocker | Change | Gate |
+|---|---|---|
+| 1. `kNeverEncrypted` for both types | `chromium_src/components/sync/base/data_type.cc` wraps `EncryptableUserTypes()` to add HISTORY and HISTORY_DELETE_DIRECTIVES | none needed: only read with a custom passphrase, under which upstream stops history unless local sync is on (row 2) |
+| 4. `LocalSyncSupportPolicy::kUnsupported` | same override wraps `LocalSyncSupportedTypes()` | only read with local sync on |
+| 2. Controllers stop on `IsEncryptEverythingEnabled()` | patches to `history_data_type_controller.cc` and `history_delete_directives_data_type_controller.cc`: not when `SyncService::IsLocalSyncEnabled()` | local sync |
+| 3. Managed status `kPending` (no account) stops HISTORY | patch to `history_data_type_controller_helper.cc`: `kDisallowEnterprise` passes when `IsLocalSyncEnabled()` | local sync |
+| 5. Delete directives are only made when a `WebHistoryService` exists (`WebHistoryServiceFactory` returns none with local sync), so a deletion never left the device | patch to `browsing_history_service.cc` (chrome://history "Remove"): also with `IsLocalSyncEnabled()`; patch to `history_service.cc` (Clear browsing data, extensions API): without web history, ask the directive handler anyway | the first: local sync. The second has no `SyncService`; the handler only commits while HISTORY_DELETE_DIRECTIVES runs (else it returns an ignored error), and outside local sync that type runs only together with web history, so in practice local sync too |
+
+The `kPreconditionsMet` paths still honour `SavingBrowserHistoryDisabled`
+(policy). `data_type.cc`'s table is untouched, so the override doesn't
+conflict with slice 3's patch to that file (a new type); it's the tree's
+first `chromium_src` override (`build/redirect_cc.py`, wired by `compass
+gen`). Upstream's `DataTypeTest.LocalSyncSupportedTypes` and
+`LocalSyncTest.ShouldStart` now fail by design (they assert History is
+out of local sync).
+
+**Type selection.** Nothing to change in `CompassSyncService`: `kHistory`
+was never in `kUnwantedTypes`, so `SelectTypes()` already selected it and
+local sync filtered it out; `HoldTypes()` holds it until the passphrase like
+the rest. kHistory's other types (USER_EVENTS, JOURNEY, and DICTIONARY
+when its feature is on) stay out: local sync doesn't support them.
+
+**Brave.** Brave syncs History through an account (route 1), with
+subclassed controllers (`BraveHistoryDataTypeController`,
+`BraveHistoryDeleteDirectivesDataTypeController`) whose
+`GetPreconditionState()` always returns `kPreconditionsMet`, swapped in by a
+`chromium_src` override of `common_controller_builder.cc` (`#define` of the
+class names). Its `data_type.cc` override adds HISTORY (and DEVICE_INFO)
+to `EncryptableUserTypes()`, but not HISTORY_DELETE_DIRECTIVES, and it
+disables URL delete directives (`CreateUrlDeleteDirective()` returns
+false), presumably because those would carry a URL in the clear. Its
+`LowPriorityUserTypes()` override makes delete directives low priority and
+History regular (go-sync issue #178): on a first sync, directives applied
+before the history they delete arrives leave the entries in place. Brave
+has a `WebHistoryService` (an account), so its directives come from
+upstream's code paths; ours need blocker 5. Compass encrypts both types,
+so URL directives stay on, and keeps upstream's priorities (that override
+isn't gated, it would change every profile; see "Deletions" for the
+consequence).
+
+**Server.** No change needed. go-sync's history rules work on encrypted
+entities (the type comes from the empty specifics field, the ID is the
+client tag hash, updates go by tag); `server/server/e2e_history_test.go`
+covers it (commit, update by tag, directive tombstone, a later joiner).
+Limits as shipped: HISTORY and directives expire 14 days after their last
+write (`HistoryExpirationIntervalSecs`, purged hourly); at most 30,000
+history items per chain in that window (counted in four 3.5-day periods),
+past which the server drops new history silently (answers SUCCESS) so
+other types keep syncing; history counts toward the 100k entities and 200
+MB of the chain. Encrypted visits are about 1-2 KB, so 30k is about
+30-60 MB. That's roughly 2,000 visits a day for the whole chain, enough
+for a few devices; a heavy user could hit it, and `COMPASS_SYNC_MAX_ENTITIES`
+can only lower it. Possible later: make retention and the history quota
+configurable (the period counts derive from the retention constant).
+
+**Consequences to know.**
+
+- Only visits made while History syncs are uploaded (upstream: local
+  history is never uploaded), and a device joining sees the other devices'
+  last 14 days at most. Each device keeps what it received for its own
+  local retention (90 days).
+- Deletions: the server can't delete the HISTORY entities a directive
+  covers (it can't read either), and the bridge never commits deletions.
+  Devices that are syncing apply a directive when it arrives. But each
+  device drops processed directives from the server at its next start
+  (act-once), so a device that joins later, while the deleted visits are
+  still within the server's 14 days, gets them back. Fixes for later: a
+  delete commit for the HISTORY entities from the device that deletes
+  (patch `HistorySyncBridge::OnVisitDeleted` under local sync), and/or
+  Brave's priority swap.
+- A device offline for more than 14 days misses directives too.
+
+**Tests.** `components/sync/history_sync_unittest.cc` (target
+`//compass/components/sync:history_unit_tests`, in `compass_unittests`):
+the override, both controllers' preconditions with and without local sync,
+directives from `HistoryService` and `BrowsingHistoryService` without web
+history. Filter: `CompassHistorySyncTypesTest.*:CompassHistoryControllerTest.*:CompassHistoryDeleteDirectivesTest.*`.
+Go: `go test ./server -run TestEndToEndEncryptedHistory`. The two-client
+check is the MacBook run (history from A on B, a removal on B reaches A).
 
 ### Change notifications
 
@@ -664,6 +752,8 @@ Upstream's sync settings are replaced by a page of our own,
    Minimal `chrome://compass-sync` (start, add a device, join by pairing
    or recovery code, leave). Two-client
    integration test on `FakeServer` for passwords.
+2b. **History** (slice 2b, "Slice 2b notes"): HISTORY and delete
+   directives under local sync, encrypted.
 3. **`COMPASS_SPACES` type**: patches, proto, bridge, apply rules above,
    one profile. Unit tests with `MockDataTypeLocalChangeProcessor`;
    integration tests `TwoClientCompassSpacesSyncTest` (Chromium's

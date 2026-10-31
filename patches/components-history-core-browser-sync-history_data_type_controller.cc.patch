@@ -1,0 +1,16 @@
+diff --git a/components/history/core/browser/sync/history_data_type_controller.cc b/components/history/core/browser/sync/history_data_type_controller.cc
+index fd2ff8758f0e8b02cea3d89bb9476c6cf7649d53..c26890dff318183285165b77d61473e1b697186b 100644
+--- a/components/history/core/browser/sync/history_data_type_controller.cc
++++ b/components/history/core/browser/sync/history_data_type_controller.cc
+@@ -62,7 +62,10 @@ syncer::DataTypeController::PreconditionState
+ HistoryDataTypeController::GetPreconditionState(
+     const PreconditionContext& context) const {
+   // syncer::HISTORY doesn't support custom passphrase encryption.
+-  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled()) {
++  // Compass: except with local sync, whose server is the user's own and only
++  // ever sees encrypted data (docs/design/sync.md, "Slice 2b notes").
++  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled() &&
++      !helper_.sync_service()->IsLocalSyncEnabled()) {
+     return PreconditionState::kMustStopAndClearData;
+   }
+ 
