@@ -135,10 +135,31 @@ drop get added to Compass before the import is finished. From Arc's files:
   lets Compass derive the key). The databases are opened with upstream's
   "FirefoxImporter" metrics tag. `ChromiumMacCipherTest.*`,
   `ProfileCopyTest.*` (4).
-- Next (2b): Arc's Keychain password, Compass's encryptor
-  (`os_crypt_async`), Arc's signed preferences (`Secure Preferences` MACs
-  don't validate in Compass, which would reset protected settings and
-  extensions), and a run on a copy of a real Arc profile.
+- Slice 2b (a profile, end to end) done: `compass::arc::ImportArcProfile()`
+  (`browser/ui/arc_import/`) gets Compass's encryptor (`os_crypt_async`),
+  then on a sequenced background runner reads Arc's Keychain password
+  (`ReadArcKeychainPassword()`, `SecItemCopyMatching` on "Arc Safe
+  Storage"), copies the profile into `GenerateNextProfileDirectoryPath()`
+  and its cache into that profile's cache folder, re-encrypts with Compass's
+  key, and signs the preferences (`SignImportedPreferences()`); then loads
+  the profile (`CreateProfileAsync`) and names it as in Arc.
+  - **Preferences:** Arc signs its protected preferences (home page,
+    startup pages, search engine, extensions...) with its own key; macOS
+    builds enforce the signatures (`GROUP_ENFORCE_DEFAULT`), so Compass would
+    reset them. Preferences and Secure Preferences are merged without Arc's
+    `protection` sections and written with
+    `chrome_prefs::InitializePrefsFromMasterPrefs()`, as first run writes
+    initial preferences: signed for Compass, split into the two files on
+    load, where the encrypted signatures are added. The profile records
+    `compass.arc_import.profile_dir`.
+  - Tests: `ArcImporterBrowserTest.*` (2). The first builds an "Arc
+    profile" from real Chromium data (this browser's cookie database,
+    re-encrypted with an Arc test key) plus Arc-signed preferences, imports
+    it, and checks the cookie through the network service, the home page,
+    and that nothing was reset.
+- Next (3): the sidebar: spaces, Pinned, Today, Favorites of each imported
+  profile. Then (4) the page. A run on a real Arc profile waits for Arc to
+  be quit.
 
 ## Open questions
 

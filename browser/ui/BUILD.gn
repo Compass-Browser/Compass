@@ -7,6 +7,8 @@
 # same way upstream does for //chrome/browser/ui/webui/tab_search.
 source_set("ui") {
   sources = [
+    "arc_import/arc_importer.cc",
+    "arc_import/arc_importer.h",
     "compass_command_ids.h",
     "views/command_bar/command_bar.cc",
     "views/command_bar/command_bar.h",
@@ -57,6 +59,9 @@ source_set("ui") {
     "//compass/browser/ui/views/frame:content_frame",
   ]
   deps = [
+    "//compass/browser/arc_import",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
     "//compass/common:url",
     "//chrome/app/vector_icons",
     "//components/download/public/common:public",
@@ -124,6 +129,7 @@ source_set("ui") {
       "views/frame/window_frame_mac.mm",
       "views/little_window/little_window_mac.h",
       "views/little_window/little_window_mac.mm",
+      "arc_import/arc_importer_mac.mm",
     ]
   }
 }
@@ -162,6 +168,7 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
+    "arc_import/arc_importer_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
     "views/peek/peek_browsertest.cc",
@@ -170,6 +177,11 @@ source_set("browser_tests") {
   ]
   deps = [
     ":ui",
+    "//compass/browser/arc_import",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
+    "//services/network/public/mojom",
+    "//sql",
     "//base",
     "//base/test:test_support",
     "//chrome/app:command_ids",
