@@ -109,6 +109,108 @@ class PatchesTest(unittest.TestCase):
     self.assertEqual((v8 / 'v8.h').read_text(), 'int x;\n')
 
 
+class PatchSyncTest(unittest.TestCase):
+  """patches.sync(), which `compass build` runs: the checkout follows
+  patches/ after a pull that adds, changes or removes patches."""
+
+  def setUp(self):
+    self.tmp = tempfile.TemporaryDirectory()
+    # The Compass repository (base, holding patches/) and the Chromium
+    # checkout (src, its own repository).
+    self.base = Path(self.tmp.name)
+    self.src = self.base / 'src'
+    self.patches_dir = self.base / 'patches'
+    (self.src / 'chrome').mkdir(parents=True)
+    self.build_gn = self.src / 'chrome' / 'BUILD.gn'
+    self.build_gn.write_text('deps = [\n  ":a",\n]\n')
+    git(self.src, 'init', '-q')
+    git(self.src, 'add', '-A')
+    git(self.src, 'commit', '-qm', 'upstream')
+    self.patches_dir.mkdir()
+    git(self.base, 'init', '-q')
+    (self.base / 'README').write_text('compass\n')
+    git(self.base, 'add', 'README')
+    git(self.base, 'commit', '-qm', 'compass')
+
+  def tearDown(self):
+    self.tmp.cleanup()
+
+  def quietly(self, fn, *args, **kwargs):
+    with redirect_stdout(StringIO()):
+      return fn(*args, **kwargs)
+
+  # Edits the checkout, exports and commits the patches, as a developer
+  # does, then puts the checkout back as it was before the edit.
+  def commit_patches(self, build_gn, new_h=None, keep_applied=False):
+    before = {p: p.read_text() for p in [self.build_gn]}
+    self.build_gn.write_text(build_gn)
+    new = self.src / 'chrome' / 'new.h'
+    if new_h is not None:
+      new.write_text(new_h)
+    elif new.exists():
+      new.unlink()
+    self.quietly(patches.export, self.patches_dir, self.src)
+    git(self.base, 'add', '-A', 'patches')
+    git(self.base, 'commit', '-qm', 'patches')
+    if not keep_applied:
+      for path, text in before.items():
+        path.write_text(text)
+      if new.exists():
+        git(self.src, 'clean', '-qf', 'chrome/new.h')
+
+  def test_applies_new_patches(self):
+    self.commit_patches('deps = [\n  ":a",\n  ":b",\n]\n', new_h='// new\n')
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(problems, [])
+    self.assertIn(':b', self.build_gn.read_text())
+    self.assertTrue((self.src / 'chrome' / 'new.h').exists())
+
+  def test_updates_patches_changed_by_a_pull(self):
+    self.commit_patches('deps = [\n  ":a",\n  ":b",\n]\n', new_h='// v1\n',
+                        keep_applied=True)
+    # A pull brings a new version of both patches; the checkout still has
+    # the old ones.
+    self.commit_patches('deps = [\n  ":c",\n  ":a",\n]\n', new_h='// v2\n')
+    self.build_gn.write_text('deps = [\n  ":a",\n  ":b",\n]\n')
+    (self.src / 'chrome' / 'new.h').write_text('// v1\n')
+
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(problems, [])
+    self.assertEqual(self.build_gn.read_text(), 'deps = [\n  ":c",\n  ":a",\n]\n')
+    self.assertEqual((self.src / 'chrome' / 'new.h').read_text(), '// v2\n')
+    self.assertTrue(all(
+        state == patches.APPLIED
+        for state in patches.status(self.patches_dir, self.src).values()))
+
+  def test_keeps_edits_that_no_patch_has(self):
+    self.commit_patches('deps = [\n  ":a",\n  ":b",\n]\n')
+    self.build_gn.write_text('deps = [\n  ":local",\n]\n')
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(len(problems), 1)
+    self.assertIn('chrome-BUILD.gn.patch', problems[0])
+    self.assertEqual(self.build_gn.read_text(), 'deps = [\n  ":local",\n]\n')
+
+  def test_undoes_patches_removed_by_a_pull(self):
+    self.commit_patches('deps = [\n  ":a",\n  ":b",\n]\n', new_h='// new\n',
+                        keep_applied=True)
+    # A pull removes both patches.
+    for patch in self.patches_dir.glob('*.patch'):
+      patch.unlink()
+    git(self.base, 'add', '-A', 'patches')
+    git(self.base, 'commit', '-qm', 'no more patches')
+
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(problems, [])
+    self.assertEqual(self.build_gn.read_text(), 'deps = [\n  ":a",\n]\n')
+    self.assertFalse((self.src / 'chrome' / 'new.h').exists())
+
+  def test_leaves_unexported_edits_of_unpatched_files(self):
+    (self.src / 'chrome' / 'other.cc').write_text('// mine\n')
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(problems, [])
+    self.assertTrue((self.src / 'chrome' / 'other.cc').exists())
+
+
 class OverridesTest(unittest.TestCase):
 
   def test_touches_upstream_when_override_appears_or_disappears(self):

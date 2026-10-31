@@ -145,12 +145,32 @@ def cmd_gen(layout: Layout, args) -> None:
       layout.src, env=layout.env())
 
 
-def build(layout: Layout, config: str, targets, jobs: int | None = None) -> Path:
+def add_skip_patches(parser) -> None:
+  parser.add_argument(
+      '--skip-patches', action='store_true',
+      help='build the checkout as it is, without applying patches/ first')
+
+
+def sync_patches(layout: Layout) -> None:
+  """Applies patches/ as it is now, so a pull's patches go into the build."""
+  problems = patches.sync(layout.patches_dir, layout.src)
+  if problems:
+    raise CommandError(
+        'patches/ doesn\'t match the checkout:\n  ' + '\n  '.join(problems) +
+        '\nThose files have changes no version of their patch has. Export '
+        'them (`compass patches export`) or put them back (`git checkout`), '
+        'or build with --skip-patches.')
+
+
+def build(layout: Layout, config: str, targets, jobs: int | None = None,
+          skip_patches: bool = False) -> Path:
   require_checkout(layout)
   out_dir = layout.out_dir(config)
   if not (out_dir / 'args.gn').exists():
     raise CommandError('%s is not set up; run `compass gen %s`' %
                        (out_dir, config))
+  if not skip_patches:
+    sync_patches(layout)
   for path in overrides.orphans(layout.overrides_dir, layout.src):
     print('warning: override has no upstream file: chromium_src/' + path)
   for path in overrides.sync(layout.overrides_dir, layout.src, out_dir):
@@ -188,7 +208,8 @@ def sign_for_tcc(binary: Path) -> None:
 
 
 def cmd_build(layout: Layout, args) -> None:
-  build(layout, args.config, args.targets or [DEFAULT_TARGET], args.jobs)
+  build(layout, args.config, args.targets or [DEFAULT_TARGET], args.jobs,
+        args.skip_patches)
 
 
 def passthrough(extra_args):
@@ -233,7 +254,8 @@ def browser_test_args(test_args, headed: bool, platform: str = sys.platform):
 
 def cmd_test(layout: Layout, args) -> None:
   target = BROWSER_TEST_TARGET if args.browser else TEST_TARGET
-  out_dir = build(layout, args.config, [target], args.jobs)
+  out_dir = build(layout, args.config, [target], args.jobs,
+                  args.skip_patches)
   exe = target + ('.exe' if sys.platform == 'win32' else '')
   test_args = passthrough(args.test_args)
   if args.browser:
@@ -290,6 +312,7 @@ def parser() -> argparse.ArgumentParser:
   s = sub.add_parser('build', help='build with autoninja')
   s.add_argument('targets', nargs='*', help='default: ' + DEFAULT_TARGET)
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
+  add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_build)
 
@@ -302,6 +325,7 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('test', help='build and run compass_unittests')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
+  add_skip_patches(s)
   s.add_argument('--browser', action='store_true',
                  help='run compass_browsertests (real browser windows) instead')
   s.add_argument('--headed', action='store_true',

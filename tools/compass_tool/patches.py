@@ -136,6 +136,98 @@ def export(patches_dir: Path, src: Path,
           print('removed   ' + _display(stale, patches_dir))
 
 
+def target_path(patch: Path) -> str:
+  """The file |patch| changes, relative to its repository."""
+  old = None
+  for line in patch.read_bytes().split(b'\n'):
+    if line.startswith(b'+++ b/'):
+      return line[len(b'+++ b/'):].decode()
+    if line.startswith(b'--- a/') and old is None:
+      old = line[len(b'--- a/'):].decode()
+  if old is None:
+    raise ValueError('no file in ' + str(patch))
+  return old
+
+
+def past_versions(patches_dir: Path, patch: Path) -> List[bytes]:
+  """Every committed version of |patch| (which may be gone now), newest
+  first, from the history of the repository holding |patches_dir|. Empty if
+  that isn't a git repository."""
+  root = patches_dir.parent
+  if git(['rev-parse', '--git-dir'], root, check=False).returncode != 0:
+    return []
+  relative = patch.relative_to(root).as_posix()
+  revisions = git(['log', '--format=%H', '--', relative], root,
+                  check=False).stdout.split()
+  versions = []
+  for revision in revisions:
+    result = subprocess.run(['git', 'show', revision + ':' + relative],
+                            cwd=str(root), stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL)
+    if result.returncode == 0:
+      versions.append(result.stdout)
+  return versions
+
+
+def restore(repo: Path, path: str) -> None:
+  """Puts |path| back as the checkout has it (removes it if it's new)."""
+  if git(['ls-files', '--error-unmatch', path], repo,
+         check=False).returncode == 0:
+    git(['checkout', 'HEAD', '--', path], repo)
+  else:
+    (repo / path).unlink()
+
+
+def sync(patches_dir: Path, src: Path) -> List[str]:
+  """Brings the checkout in line with patches/, as after a pull.
+
+  - A patch that isn't applied is applied.
+  - A patch that conflicts because its file still has an older version of
+    it is updated: the file goes back to the checkout's version and the patch
+    is applied.
+  - A file changed by a patch that's gone is put back.
+
+  Only changes that match a committed version of a patch are undone, so
+  edits of the checkout that aren't exported are never lost. Returns the
+  problems left, empty if none.
+  """
+  problems = []
+  for repo, repo_patches in patches_by_repo(patches_dir, src).items():
+    for patch in repo_patches:
+      current = state(repo, patch)
+      if current == APPLIED:
+        continue
+      if current == NOT_APPLIED:
+        git(['apply', patch], repo)
+        print('applied   ' + _display(patch, patches_dir))
+        continue
+      path = target_path(patch)
+      if diff(repo, path) in past_versions(patches_dir, patch):
+        restore(repo, path)
+        if state(repo, patch) == NOT_APPLIED:
+          git(['apply', patch], repo)
+          print('updated   ' + _display(patch, patches_dir))
+          continue
+      problems.append('%s conflicts with %s in %s' %
+                      (_display(patch, patches_dir), path, repo))
+
+  # Patches deleted from patches/ leave their change behind.
+  repos = set(patches_by_repo(patches_dir, src))
+  repos.add(src)
+  for repo in sorted(repos):
+    patch_dir = patches_dir / repo.relative_to(src)
+    exclude = ('compass',) if repo == src else ()
+    for path in changed_files(repo, exclude):
+      patch = patch_dir / patch_name(path)
+      if patch.exists():
+        continue
+      versions = past_versions(patches_dir, patch)
+      if versions and diff(repo, path) in versions:
+        restore(repo, path)
+        print('removed   ' + _display(patch, patches_dir))
+  return problems
+
+
 def status(patches_dir: Path, src: Path) -> Dict[Path, str]:
   return {patch: state(repo, patch)
           for repo, patches in patches_by_repo(patches_dir, src).items()

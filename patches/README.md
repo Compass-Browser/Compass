@@ -21,6 +21,14 @@ tools/compass patches export            # add --repo v8 for a nested repo
 # 3. Commit the patch together with the //compass code that needs it.
 ```
 
+`compass build` (and `compass test`) first bring the checkout in line with
+patches/, as after a pull: they apply patches that aren't applied, update
+ones whose file still has an older version of the patch (the file goes back
+to the pinned tag, then the patch applies), and put back files whose patch
+was removed. Only changes that match a committed version of a patch are
+undone; anything else stops the build with the files to look at.
+`--skip-patches` builds the checkout as it is.
+
 Other commands: `compass patches status | apply | revert`. Applying is
 idempotent, so patches that are already applied are skipped.
 
