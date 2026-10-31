@@ -1516,8 +1516,12 @@ void CompassSyncService::DirectoryObserver::OnDirectoryChanged() {
 
 void CompassSyncService::OnSpaceDirectoryChanged() {
   // A profile listed (a space assigned to it, a window of it opened) joins
-  // the chain.
-  ReconcileProfiles();
+  // the chain. Posted: the directory changes from inside SpaceList
+  // notifications (a space moved into a new profile), and enrolling or
+  // creating profiles there is too much; ReconcileProfiles is idempotent.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&CompassSyncService::ReconcileProfiles,
+                                weak_factory_.GetWeakPtr()));
 }
 
 void CompassSyncService::OnProfileNameChanged(

@@ -226,13 +226,29 @@ class SpacesSyncHolder : public SpaceService::Attachment,
 
   // SpaceDirectory::Observer:
   void OnDirectoryChanged() override {
+    // Not now: the directory can change from inside a SpaceList
+    // notification (AddSpace -> SpaceDirectory::OnSpaceAdded, e.g. moving a
+    // space into a new profile), and MoveSpace would notify the same
+    // observer list again, which it disallows (slice 5 MacBook crash).
+    // One posted pull covers a burst of changes.
+    if (directory_pull_pending_) {
+      return;
+    }
+    directory_pull_pending_ = true;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&SpacesSyncHolder::OnDirectoryChangedLater,
+                                  weak_factory_.GetWeakPtr()));
+  }
+
+ private:
+  void OnDirectoryChangedLater() {
+    directory_pull_pending_ = false;
     PullOrderFromDirectory();
     // The switcher's order may have changed around this profile's spaces
     // (another profile's moved): their positions may need to follow.
     bridge_->NotifyLocalChange();
   }
 
- private:
   void OnLoaded() {
     PullOrderFromDirectory();
     bridge_->OnModelLoaded();
@@ -302,6 +318,7 @@ class SpacesSyncHolder : public SpaceService::Attachment,
   const raw_ptr<SpaceService> service_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   bool syncing_order_ = false;
+  bool directory_pull_pending_ = false;
   base::WeakPtrFactory<SpacesSyncHolder> weak_factory_{this};
 };
 
