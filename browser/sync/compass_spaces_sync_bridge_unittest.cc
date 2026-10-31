@@ -17,6 +17,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -87,6 +88,26 @@ std::string Describe(const SpaceList& list) {
   return result + "fav(" + Describe(*list.favorites().pinned_root()) + ")";
 }
 
+// |space|'s archive, newest first: titles, a split's as "[a|b]".
+std::string DescribeArchive(const SpaceModel& space) {
+  std::string result;
+  for (const ArchivedEntry& entry : space.archive()) {
+    if (!result.empty()) {
+      result += ",";
+    }
+    std::string tabs;
+    for (const ArchivedEntry::Tab& tab : entry.tabs) {
+      tabs += (tabs.empty() ? "" : "|") + base::UTF16ToUTF8(tab.title);
+    }
+    result += entry.tabs.size() > 1 ? "[" + tabs + "]" : tabs;
+  }
+  return result;
+}
+
+bool KeepNothing(const SidebarNode&) {
+  return false;
+}
+
 SidebarNode* FindByTitle(const SidebarNode& parent, std::u16string title) {
   for (const auto& child : parent.children()) {
     if (child->display_title() == title) {
@@ -108,6 +129,55 @@ struct Server {
   };
   std::map<std::string, sync_pb::CompassSpacesSpecifics> entities;
   std::vector<Change> log;
+};
+
+// What windows would answer: which entries the focused window shows, which
+// are in use, and live tabs handed from one entry to another.
+class TestDelegate : public CompassSpacesSyncBridge::Delegate {
+ public:
+  explicit TestDelegate(SpaceList* list) : list_(list) {}
+
+  void DeleteSpace(SpaceModel& space) override {
+    if (list_->spaces().size() > 1) {
+      list_->RemoveSpace(space);
+    }
+  }
+  void MoveEntry(SidebarNode* node,
+                 SpaceModel& target,
+                 SidebarNode* parent,
+                 size_t index) override {
+    SpaceModel* source = list_->favorites().Contains(node)
+                             ? &list_->favorites()
+                             : list_->FindSpaceOf(node);
+    source->MoveToSpace(node, target, parent, index);
+  }
+  bool IsShownInFocusedWindow(const SidebarNode& entry) override {
+    return Contains(focused, entry);
+  }
+  bool IsInUse(const SidebarNode& entry) override {
+    return Contains(in_use, entry);
+  }
+  void TransferLiveTab(const SidebarNode& from, SidebarNode& to) override {
+    transfers.emplace_back(from.id(), to.id());
+  }
+
+  // Entries by ID, tabs included.
+  std::set<base::Uuid> focused;
+  std::set<base::Uuid> in_use;
+  std::vector<std::pair<base::Uuid, base::Uuid>> transfers;
+
+ private:
+  static bool Contains(const std::set<base::Uuid>& ids,
+                       const SidebarNode& entry) {
+    if (ids.contains(entry.id())) {
+      return true;
+    }
+    return std::ranges::any_of(entry.children(), [&ids](const auto& child) {
+      return ids.contains(child->id());
+    });
+  }
+
+  const raw_ptr<SpaceList> list_;
 };
 
 // One Compass: its spaces, a processor that records commits, a store, and
@@ -142,7 +212,7 @@ class Device {
     bridge_ = std::make_unique<CompassSpacesSyncBridge>(
         processor_.CreateForwardingProcessor(),
         syncer::DataTypeStoreTestUtil::FactoryForForwardingStore(store_.get()),
-        &list_, /*delegate=*/nullptr);
+        &list_, &delegate_);
     bridge_->OnModelLoaded();
     task_environment_->RunUntilIdle();
   }
@@ -181,13 +251,17 @@ class Device {
   }
 
   // Applies the other devices' changes since the last pull, then commits
-  // what that made it change (fix-ups; last_push() says how many).
+  // what that made it change (fix-ups; last_push() says how many). An
+  // entity this device committed last (the server has its version) isn't
+  // sent back to it.
   void Pull() {
     std::map<std::string, std::optional<sync_pb::CompassSpacesSpecifics>>
         latest;
+    std::map<std::string, int> last_from;
     std::vector<std::string> order;
     for (size_t i = cursor_; i < server_->log.size(); ++i) {
       const Server::Change& change = server_->log[i];
+      last_from[change.key] = change.from;
       if (change.from == id_) {
         continue;
       }
@@ -196,6 +270,9 @@ class Device {
       }
       latest[change.key] = change.specifics;
     }
+    std::erase_if(order, [&](const std::string& key) {
+      return last_from[key] == id_;
+    });
     cursor_ = server_->log.size();
     ApplyRemote(order, latest);
     Push();
@@ -232,6 +309,7 @@ class Device {
   }
 
   SpaceList& list() { return list_; }
+  TestDelegate& delegate() { return delegate_; }
   SpaceModel& space(size_t i) { return *list_.spaces()[i]; }
   SpaceModel& favorites() { return list_.favorites(); }
   CompassSpacesSyncBridge& bridge() { return *bridge_; }
@@ -251,6 +329,7 @@ class Device {
   const raw_ptr<Server> server_;
   raw_ptr<base::test::TaskEnvironment> task_environment_ = nullptr;
   SpaceList list_;
+  TestDelegate delegate_{&list_};
   NiceMock<syncer::MockDataTypeLocalChangeProcessor> processor_;
   std::unique_ptr<syncer::DataTypeStore> store_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
@@ -286,7 +365,9 @@ class CompassSpacesSyncBridgeTest : public testing::Test {
                               GURL("https://fav.test/"), u"Fav");
   }
 
-  base::test::TaskEnvironment task_environment_;
+  // Mock time: commit throttling and the archive's age.
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   Server server_;
   int next_id_ = 1;
 };
@@ -320,13 +401,17 @@ TEST_F(CompassSpacesSyncBridgeTest, CommitsNothingBeforeTheInitialSync) {
   task_environment_.RunUntilIdle();
 }
 
-TEST_F(CompassSpacesSyncBridgeTest, FirstDeviceUploadsPinnedAndFavorites) {
+TEST_F(CompassSpacesSyncBridgeTest, FirstDeviceUploadsItsSidebar) {
   std::unique_ptr<Device> a = MakeDevice();
   Populate(*a);
   a->Join();
 
-  // One space, a folder, two pinned tabs, a favorite; not the Today tab.
-  EXPECT_EQ(server_.entities.size(), 5u);
+  // One space, a folder, two pinned tabs, the Today tab, a favorite.
+  EXPECT_EQ(server_.entities.size(), 6u);
+  const SidebarNode* today_tab =
+      a->space(0).today_root()->children()[0].get();
+  EXPECT_EQ(server_.entities[Key(today_tab->id())].node().section(),
+            kSectionToday);
   SpaceModel& space = a->space(0);
   const sync_pb::CompassSpace& synced_space =
       server_.entities[Key(space.id())].space();
@@ -580,32 +665,33 @@ TEST_F(CompassSpacesSyncBridgeTest, InvalidPlacementGoesToTheRoot) {
   EXPECT_TRUE(server_.entities[key].node().parent_uuid().empty());
 }
 
-TEST_F(CompassSpacesSyncBridgeTest, UnpinningIsADeleteElsewhere) {
+TEST_F(CompassSpacesSyncBridgeTest, PinningAndUnpinningAreMoves) {
   std::unique_ptr<Device> a = MakeDevice();
   Populate(*a);
   a->Join();
   std::unique_ptr<Device> b = MakeDevice();
   b->Join();
 
+  // A unpins News: the same entity moves to Today.
   SpaceModel& space_a = a->space(0);
-  space_a.Move(FindByTitle(*space_a.pinned_root(), u"News"),
-               space_a.today_root(), 0);
+  SidebarNode* news = FindByTitle(*space_a.pinned_root(), u"News");
+  space_a.Move(news, space_a.today_root(), 0);
   EXPECT_EQ(a->Push(), 1u);
+  EXPECT_EQ(server_.entities[Key(news->id())].node().section(), kSectionToday);
   b->Pull();
   EXPECT_EQ(Describe(*b->space(0).pinned_root()), "Work{Mail}");
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "News,Today tab");
+  EXPECT_EQ(b->last_push(), 0u);
 
-  // A later client that syncs Today moves it there: it goes to Today here.
-  SidebarNode* mail = FindByTitle(*b->space(0).pinned_root(), u"Mail");
-  sync_pb::CompassSpacesSpecifics today = server_.entities[Key(mail->id())];
-  today.mutable_node()->set_section(kSectionToday);
-  today.mutable_node()->clear_parent_uuid();
-  std::map<std::string, std::optional<sync_pb::CompassSpacesSpecifics>>
-      latest = {{Key(mail->id()), today}};
-  b->ApplyRemote({Key(mail->id())}, latest);
-  EXPECT_EQ(Describe(*b->space(0).pinned_root()), "Work{}");
-  EXPECT_EQ(Describe(*b->space(0).today_root()), "Mail");
-  // Not deleted from the server: it's Today's now.
-  EXPECT_EQ(b->Push(), 0u);
+  // B pins the Today tab: back the other way, at once.
+  SpaceModel& space_b = b->space(0);
+  space_b.Move(FindByTitle(*space_b.today_root(), u"Today tab"),
+               space_b.pinned_root(), 1);
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(Describe(*a->space(0).pinned_root()), "Work{Mail},Today tab");
+  EXPECT_EQ(Describe(*a->space(0).today_root()), "News");
+  EXPECT_EQ(a->last_push(), 0u);
 }
 
 TEST_F(CompassSpacesSyncBridgeTest, RemoteUrlAndTitleChangesApply) {
@@ -738,6 +824,390 @@ TEST_F(CompassSpacesSyncBridgeTest, DisablingSyncKeepsTheSpaces) {
   a->bridge().ApplyDisableSyncChanges(a->bridge().CreateMetadataChangeList());
   task_environment_.RunUntilIdle();
   EXPECT_EQ(Describe(a->list()), "Main/1(Work{Mail},News) fav(Fav)");
+}
+
+// Slice 3b: Today and the archive ----------------------------------------------
+
+TEST_F(CompassSpacesSyncBridgeTest, TodayShowsOnTheOtherDeviceUnloaded) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* tab = FindByTitle(*space_a.today_root(), u"Today tab");
+  const base::Time seen = base::Time::Now() - base::Hours(1);
+  space_a.SetLastActive(tab, seen);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  // Same ID, URL and last-active time; it's an entry there (the bridge
+  // knows no tabs: B's windows load it when it's clicked).
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "Today tab");
+  SidebarNode* tab_b = b->space(0).FindById(tab->id());
+  ASSERT_TRUE(tab_b);
+  EXPECT_EQ(tab_b->url(), GURL("https://today.test/"));
+  EXPECT_EQ(tab_b->last_active(), seen);
+  EXPECT_EQ(b->last_push(), 0u);
+
+  // Folders and splits in Today too.
+  SidebarNode* folder = space_a.AddFolder(space_a.today_root(), 0, u"Trip");
+  space_a.AddTab(folder, 0, GURL("https://hotel.test/"), u"Hotel");
+  SidebarNode* left = space_a.AddTab(space_a.today_root(), 2,
+                                     GURL("https://l.test/"), u"L");
+  SidebarNode* right = space_a.AddTab(space_a.today_root(), 3,
+                                      GURL("https://r.test/"), u"R");
+  space_a.Split(left, right);
+  EXPECT_EQ(a->Push(), 5u);  // The folder, Hotel, the split and its panes.
+  b->Pull();
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "Trip{Hotel},Today tab,[L|R]");
+  EXPECT_EQ(b->last_push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, NewTabPagesStayLocal) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SpaceModel& space = a->space(0);
+  SidebarNode* today = space.today_root();
+  SidebarNode* new_tab =
+      space.AddTab(today, 0, GURL("chrome://newtab/"), u"New Tab");
+  space.AddTab(today, 1, GURL("about:blank"), u"Blank");
+  SidebarNode* left =
+      space.AddTab(today, 2, GURL("https://left.test/"), u"Left");
+  SidebarNode* blank = space.AddTab(today, 3, GURL("about:blank"), u"Pane");
+  space.Split(left, blank);
+  a->Join();
+  // Only the space: no blank page, nor a split with one.
+  EXPECT_EQ(server_.entities.size(), 1u);
+
+  // Once they show a page, they sync.
+  space.SetUrl(new_tab, GURL("https://n.test/"));
+  EXPECT_EQ(a->Push(), 1u);
+  space.SetUrl(blank, GURL("https://right.test/"));
+  EXPECT_EQ(a->Push(), 3u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ContentCommitsAtMostEveryTenSeconds) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* tab = FindByTitle(*space_a.today_root(), u"Today tab");
+  const std::string key = Key(tab->id());
+
+  // Redirects and title changes right after the last commit wait.
+  task_environment_.FastForwardBy(base::Seconds(2));
+  space_a.SetUrl(tab, GURL("https://today.test/2"));
+  space_a.SetTitle(tab, u"Two");
+  EXPECT_EQ(a->Push(), 0u);
+  task_environment_.FastForwardBy(base::Seconds(3));
+  space_a.SetTitle(tab, u"Three");
+  EXPECT_EQ(a->Push(), 0u);
+  // Ten seconds after it: the last state goes, once.
+  task_environment_.FastForwardBy(base::Seconds(5));
+  EXPECT_EQ(a->Push(), 1u);
+  EXPECT_EQ(server_.entities[key].node().title(), "Three");
+  EXPECT_EQ(server_.entities[key].node().url(), "https://today.test/2");
+  b->Pull();
+  EXPECT_EQ(b->space(0).FindById(tab->id())->title(), u"Three");
+  // Applying it sent nothing back.
+  EXPECT_EQ(b->last_push(), 0u);
+
+  // Structure doesn't wait, and takes the content along.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  space_a.SetTitle(tab, u"Four");
+  EXPECT_EQ(a->Push(), 0u);
+  space_a.Move(tab, space_a.pinned_root(), 0);
+  EXPECT_EQ(a->Push(), 1u);
+  EXPECT_EQ(server_.entities[key].node().title(), "Four");
+  EXPECT_EQ(server_.entities[key].node().section(), kSectionPinned);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, NavigatingOnBothTheLastCommitWins) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  task_environment_.FastForwardBy(base::Seconds(10));
+  SpaceModel& space_a = a->space(0);
+  SpaceModel& space_b = b->space(0);
+  SidebarNode* tab_a = FindByTitle(*space_a.today_root(), u"Today tab");
+  SidebarNode* tab_b = space_b.FindById(tab_a->id());
+
+  // B navigates twice; the second waits.
+  space_b.SetUrl(tab_b, GURL("https://b.test/1"));
+  EXPECT_EQ(b->Push(), 1u);
+  task_environment_.FastForwardBy(base::Seconds(1));
+  space_b.SetUrl(tab_b, GURL("https://b.test/2"));
+  EXPECT_EQ(b->Push(), 0u);
+  // A navigates meanwhile, and commits.
+  space_a.SetUrl(tab_a, GURL("https://a.test/1"));
+  EXPECT_EQ(a->Push(), 1u);
+
+  // B's waiting navigation isn't overwritten: it goes next, and wins.
+  b->Pull();
+  EXPECT_EQ(tab_b->url(), GURL("https://b.test/2"));
+  EXPECT_EQ(b->last_push(), 0u);
+  task_environment_.FastForwardBy(base::Seconds(10));
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(tab_a->url(), GURL("https://b.test/2"));
+  // And it ends there: nothing goes back and forth.
+  EXPECT_EQ(a->last_push(), 0u);
+  task_environment_.FastForwardBy(base::Seconds(10));
+  EXPECT_EQ(a->Push(), 0u);
+  b->Pull();
+  EXPECT_EQ(b->last_push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ClosingAnEntryClosesItEverywhere) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  b->space(0).Remove(FindByTitle(*b->space(0).today_root(), u"Today tab"));
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(Describe(*a->space(0).today_root()), "");
+  EXPECT_EQ(a->last_push(), 0u);
+  EXPECT_TRUE(a->delegate().transfers.empty());
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, TheFocusedTabSurvivesACloseElsewhere) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  const base::Uuid old_id =
+      FindByTitle(*a->space(0).today_root(), u"Today tab")->id();
+  a->delegate().focused.insert(old_id);
+
+  b->space(0).Remove(FindByTitle(*b->space(0).today_root(), u"Today tab"));
+  b->Push();
+  a->Pull();
+
+  // Still there, with its live tab, under a new ID (the server doesn't take
+  // a deleted one back), and sent again.
+  EXPECT_EQ(Describe(*a->space(0).today_root()), "Today tab");
+  const SidebarNode* kept = a->space(0).today_root()->children()[0].get();
+  EXPECT_NE(kept->id(), old_id);
+  ASSERT_EQ(a->delegate().transfers.size(), 1u);
+  EXPECT_EQ(a->delegate().transfers[0], std::make_pair(old_id, kept->id()));
+  EXPECT_EQ(a->last_push(), 1u);
+  b->Pull();
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "Today tab");
+  EXPECT_TRUE(b->space(0).FindById(kept->id()));
+  EXPECT_EQ(b->last_push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, QuittingDoesntEmptyTodayElsewhere) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel& space_a = a->space(0);
+  space_a.AddTab(space_a.today_root(), 1, GURL("chrome://newtab/"),
+                 u"New Tab");
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  // Quitting: the windows close, Today keeps its entries unloaded except the
+  // new tab page (TabStripBridge), and the bridge goes with the profile.
+  space_a.Remove(FindByTitle(*space_a.today_root(), u"New Tab"));
+  a->StartBridge();
+  EXPECT_EQ(a->Push(), 0u);
+  b->Pull();
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "Today tab");
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ArchivingIsAMoveToTheArchive) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* tab = FindByTitle(*space_a.today_root(), u"Today tab");
+  const base::Uuid id = tab->id();
+  const base::Time archived = base::Time::Now();
+  space_a.Archive(tab, archived);
+  EXPECT_EQ(a->Push(), 1u);
+  const sync_pb::CompassNode& synced = server_.entities[Key(id)].node();
+  EXPECT_EQ(synced.section(), kSectionArchive);
+  EXPECT_EQ(synced.archived_time(),
+            archived.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  EXPECT_EQ(synced.url(), "https://today.test/");
+
+  b->Pull();
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "");
+  ASSERT_EQ(b->space(0).archive().size(), 1u);
+  EXPECT_EQ(b->space(0).archive()[0].id, id);
+  EXPECT_EQ(b->space(0).archive()[0].archived_at, archived);
+  EXPECT_EQ(DescribeArchive(b->space(0)), "Today tab");
+  EXPECT_EQ(b->last_push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ArchivingOnBothDevicesIsHarmless) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  // Both timers archive it, a second apart, before either hears of the
+  // other.
+  a->space(0).Archive(FindByTitle(*a->space(0).today_root(), u"Today tab"),
+                      base::Time::Now());
+  task_environment_.FastForwardBy(base::Seconds(1));
+  b->space(0).Archive(FindByTitle(*b->space(0).today_root(), u"Today tab"),
+                      base::Time::Now());
+  a->Push();
+  b->Push();
+  a->Pull();
+  b->Pull();
+
+  EXPECT_EQ(DescribeArchive(a->space(0)), "Today tab");
+  EXPECT_EQ(DescribeArchive(b->space(0)), "Today tab");
+  EXPECT_EQ(a->space(0).archive()[0].archived_at,
+            b->space(0).archive()[0].archived_at);
+  EXPECT_EQ(a->Push(), 0u);
+  EXPECT_EQ(b->Push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ArchivedSplitsAndRestoring) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* left = space_a.AddTab(space_a.today_root(), 1,
+                                     GURL("https://l.test/"), u"L");
+  SidebarNode* right = space_a.AddTab(space_a.today_root(), 2,
+                                      GURL("https://r.test/"), u"R");
+  SidebarNode* split = space_a.Split(left, right);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  space_a.Archive(split, base::Time::Now());
+  EXPECT_EQ(a->Push(), 3u);  // The split and its panes.
+  b->Pull();
+  EXPECT_EQ(DescribeArchive(b->space(0)), "[L|R]");
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "Today tab");
+  EXPECT_EQ(b->last_push(), 0u);
+
+  // B restores it: a new entry in Today, and gone from every archive.
+  ASSERT_TRUE(b->space(0).Unarchive(b->space(0).archive()[0].id, 0));
+  EXPECT_EQ(b->Push(), 6u);  // Three new, three deleted.
+  a->Pull();
+  EXPECT_EQ(DescribeArchive(a->space(0)), "");
+  EXPECT_EQ(Describe(*a->space(0).today_root()), "[L|R],Today tab");
+  EXPECT_EQ(a->last_push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, OldArchivedEntriesLeaveOnlyTheServer) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  SidebarNode* tab = FindByTitle(*a->space(0).today_root(), u"Today tab");
+  const std::string key = Key(tab->id());
+  a->space(0).Archive(tab, base::Time::Now());
+  a->Push();
+  b->Pull();
+  ASSERT_EQ(DescribeArchive(b->space(0)), "Today tab");
+
+  // A month on, the entry leaves the server (both devices delete it), and
+  // stays in both archives.
+  task_environment_.FastForwardBy(kArchiveSyncPeriod + base::Minutes(1));
+  a->Push();
+  b->Push();
+  EXPECT_FALSE(server_.entities.contains(key));
+  a->Pull();
+  b->Pull();
+  EXPECT_EQ(DescribeArchive(a->space(0)), "Today tab");
+  EXPECT_EQ(DescribeArchive(b->space(0)), "Today tab");
+  EXPECT_EQ(a->Push(), 0u);
+  EXPECT_EQ(b->Push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ArchivingGoesByTheLatestUseAnywhere) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* tab = FindByTitle(*space_a.today_root(), u"Today tab");
+  space_a.SetLastActive(tab, base::Time::Now() - base::Hours(13));
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  task_environment_.FastForwardBy(base::Seconds(10));
+
+  // B used it an hour ago: A's timer leaves it.
+  SidebarNode* tab_b = b->space(0).FindById(tab->id());
+  b->space(0).SetLastActive(tab_b, base::Time::Now() - base::Hours(1));
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(space_a.ArchiveIdleEntries(base::Time::Now(), &KeepNothing), 0u);
+  EXPECT_EQ(a->last_push(), 0u);
+
+  // Unseen anywhere for the delay: archived, on both.
+  task_environment_.FastForwardBy(kDefaultArchiveAfter);
+  EXPECT_EQ(space_a.ArchiveIdleEntries(base::Time::Now(), &KeepNothing), 1u);
+  a->Push();
+  b->Pull();
+  EXPECT_EQ(DescribeArchive(b->space(0)), "Today tab");
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "");
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, AnEntryInUseStaysWhenArchivedElsewhere) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  SidebarNode* tab_a = FindByTitle(*a->space(0).today_root(), u"Today tab");
+  const std::string key = Key(tab_a->id());
+  a->delegate().in_use.insert(tab_a->id());
+
+  b->space(0).Archive(FindByTitle(*b->space(0).today_root(), u"Today tab"),
+                      base::Time::Now());
+  b->Push();
+  a->Pull();
+  // Kept, seen now, and back in Today on the server.
+  EXPECT_EQ(Describe(*a->space(0).today_root()), "Today tab");
+  EXPECT_EQ(DescribeArchive(a->space(0)), "");
+  EXPECT_EQ(tab_a->last_active(), base::Time::Now());
+  EXPECT_EQ(a->last_push(), 1u);
+  EXPECT_EQ(server_.entities[key].node().section(), kSectionToday);
+  b->Pull();
+  EXPECT_EQ(Describe(*b->space(0).today_root()), "Today tab");
+  EXPECT_EQ(DescribeArchive(b->space(0)), "");
+  EXPECT_EQ(b->last_push(), 0u);
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, MergeAddsTodayWithoutDuplicates) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+
+  // C's untouched Home has the chain's Today page, and one of its own.
+  std::unique_ptr<Device> c = MakeDevice();
+  SpaceModel& home = c->space(0);
+  const base::Uuid dup_id =
+      home.AddTab(home.today_root(), 0, GURL("https://today.test/"), u"Dup")
+          ->id();
+  home.AddTab(home.today_root(), 1, GURL("https://own.test/"), u"Own");
+  c->Join();
+
+  EXPECT_EQ(Describe(*c->space(0).today_root()), "Today tab,Own");
+  // A live tab of the duplicate would go to the chain's entry.
+  ASSERT_EQ(c->delegate().transfers.size(), 1u);
+  EXPECT_EQ(c->delegate().transfers[0].first, dup_id);
+  a->Pull();
+  EXPECT_EQ(Describe(*a->space(0).today_root()), "Today tab,Own");
+  EXPECT_EQ(a->last_push(), 0u);
 }
 
 TEST_F(CompassSpacesSyncBridgeTest, ValidatesEntities) {

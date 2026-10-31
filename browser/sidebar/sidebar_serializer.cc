@@ -255,15 +255,26 @@ base::ListValue SerializeArchive(const SpaceModel& model) {
   for (const ArchivedEntry& entry : model.archive()) {
     base::ListValue tabs;
     for (const ArchivedEntry::Tab& tab : entry.tabs) {
-      tabs.Append(base::DictValue()
-                      .Set(kTitleKey, base::UTF16ToUTF8(tab.title))
-                      .Set(kUrlKey, tab.url.spec()));
+      base::DictValue tab_dict;
+      tab_dict.Set(kTitleKey, base::UTF16ToUTF8(tab.title));
+      tab_dict.Set(kUrlKey, tab.url.spec());
+      if (tab.id.is_valid()) {
+        tab_dict.Set(kIdKey, tab.id.AsLowercaseString());
+      }
+      tabs.Append(std::move(tab_dict));
     }
     entries.Append(base::DictValue()
+                       .Set(kIdKey, entry.id.AsLowercaseString())
                        .Set(kArchivedAtKey, base::TimeToValue(entry.archived_at))
                        .Set(kTabsKey, std::move(tabs)));
   }
   return entries;
+}
+
+// The "id" of an archived entry or tab, or an invalid one.
+base::Uuid ArchivedId(const base::DictValue& dict) {
+  const std::string* id = dict.FindString(kIdKey);
+  return id ? base::Uuid::ParseLowercase(*id) : base::Uuid();
 }
 
 void DeserializeArchive(const base::DictValue& data, SpaceModel& model) {
@@ -278,6 +289,12 @@ void DeserializeArchive(const base::DictValue& data, SpaceModel& model) {
       continue;
     }
     ArchivedEntry entry;
+    // Older files have no IDs: the entry keeps the fresh one it has, and a
+    // single tab shares it (see ArchivedEntry::id).
+    const base::Uuid saved_id = ArchivedId(*dict);
+    if (saved_id.is_valid() && !model.FindArchived(saved_id)) {
+      entry.id = saved_id;
+    }
     if (const base::Value* archived_at = dict->Find(kArchivedAtKey)) {
       entry.archived_at = base::ValueToTime(*archived_at).value_or(base::Time());
     }
@@ -288,8 +305,13 @@ void DeserializeArchive(const base::DictValue& data, SpaceModel& model) {
         continue;
       }
       const std::string* title = tab_dict->FindString(kTitleKey);
+      // Without one (an older file), a lone tab shares the entry's.
+      base::Uuid tab_id = ArchivedId(*tab_dict);
+      if (!tab_id.is_valid()) {
+        tab_id = tabs->size() == 1 ? entry.id : base::Uuid::GenerateRandomV4();
+      }
       entry.tabs.push_back(
-          {title ? base::UTF8ToUTF16(*title) : u"", GURL(*url)});
+          {title ? base::UTF8ToUTF16(*title) : u"", GURL(*url), tab_id});
     }
     model.AddArchived(std::move(entry));
   }

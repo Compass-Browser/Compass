@@ -49,6 +49,9 @@ struct ArchivedEntry {
   struct Tab {
     std::u16string title;
     GURL url;
+    // The tab node's ID when it was archived. Sync identifies the archived
+    // panes of a split by it.
+    base::Uuid id;
   };
 
   ArchivedEntry();
@@ -58,7 +61,10 @@ struct ArchivedEntry {
   ArchivedEntry& operator=(ArchivedEntry&&);
   ~ArchivedEntry();
 
-  // Unlike node IDs, only stable for a session.
+  // The archived node's ID: the tab's (also when it's the one pane of a
+  // split worth keeping), or the split's. Saved, and the same on every synced
+  // device, which sees archiving as a move of that entry (docs/design/sync.md,
+  // "Slice 3b notes").
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<Tab> tabs;
   base::Time archived_at;
@@ -219,8 +225,17 @@ class SpaceModel {
       base::FunctionRef<bool(const SidebarNode&)> keep);
 
   // Puts the archived entry |id| back into Today at |index|, unloaded, and
-  // returns it (a tab, or a split), or null if there's no such entry.
+  // returns it (a tab, or a split), or null if there's no such entry. The
+  // restored nodes get fresh IDs.
   SidebarNode* Unarchive(const base::Uuid& id, size_t index);
+
+  // The archived entry |id|, or null.
+  const ArchivedEntry* FindArchived(const base::Uuid& id) const;
+
+  // Adds |entry| to the archive in the place its time gives it (newest
+  // first), replacing the entry with its ID if there's one. For sync, which
+  // applies another device's archiving. An entry with no tabs is dropped.
+  void PutArchived(ArchivedEntry entry);
 
   // Drops the archived entry |id|.
   void RemoveArchived(const base::Uuid& id);

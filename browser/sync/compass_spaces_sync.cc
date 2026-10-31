@@ -19,6 +19,7 @@
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
 #include "compass/browser/sync/compass_sync_service.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -82,6 +83,22 @@ class SpacesSyncHolder : public SpaceService::Attachment,
                  SidebarNode* parent,
                  size_t index) override {
     ::compass::MoveEntry(profile_, node, target, parent, index);
+  }
+  bool IsShownInFocusedWindow(const SidebarNode& entry) override {
+    return ::compass::IsEntryShownInFocusedWindow(profile_, entry);
+  }
+  bool IsInUse(const SidebarNode& entry) override {
+    return ::compass::IsEntryInUse(profile_, entry);
+  }
+  void TransferLiveTab(const SidebarNode& from, SidebarNode& to) override {
+    LiveTabRegistry& registry = service_->registry();
+    tabs::TabInterface* tab = registry.GetTab(&from);
+    if (!tab || registry.GetTab(&to)) {
+      return;
+    }
+    // Unregistered first, so removing |from| doesn't close it.
+    registry.Unregister(tab);
+    registry.Register(tab, &to);
   }
 
   // SpaceList::Observer:
