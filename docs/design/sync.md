@@ -126,26 +126,87 @@ autocomplete, checksum checked as you type).
 ### Plugging it into Chromium
 
 The engine wants a signed-in account (`SyncAuthManager` gets an OAuth token
-from `IdentityManager`). Two ways, picked by slice 0:
+from `IdentityManager`). Two ways. **Slice 0 chose route 2** (see "Slice 0
+findings"); route 1 stays as the fallback.
 
-1. **Synthesized account (preferred)**: `SyncAuthManager` (patch or
+1. **Synthesized account**: `SyncAuthManager` (patch or
    `chromium_src` override) returns a `SyncAccountInfo` with
    `gaia = "compass:" + hex(pubkey[0..16])` and our signed token from
    `RequestAccessToken()`, and Compass sets that account as primary in
    `IdentityManager` without Gaia (accounts mutator, no cookies). Brave
    does this. Keeps account-keyed prefs (passphrase bootstrap token,
    selected types per account) working.
-2. **Local-sync path**: `kEnableLocalSyncBackend` already runs the engine
-   with no identity at all, but `EngineComponentsFactoryImpl` then builds a
-   `LoopbackConnectionManager`; we'd patch it to build a network connection
-   with our token instead. Fewer identity patches, but local sync limits
-   types (`LocalSyncSupportedTypes()`) and can't keep a custom passphrase
-   bootstrap token (no Gaia ID, `SetEncryptionBootstrapToken()`), so the
-   passphrase would be asked again every launch unless patched.
+2. **Local-sync path (chosen)**: `kEnableLocalSyncBackend` already runs the
+   engine with no identity at all, but `EngineComponentsFactoryImpl` then
+   builds a `LoopbackConnectionManager`; a hook in
+   `SyncServiceImpl::TryStartImpl()` swaps in our own engine components
+   factory, whose connection manager posts to the server and signs each
+   request. Local sync limits types (`LocalSyncSupportedTypes()`; History is
+   the one we want back). The feared passphrase prompt on every launch
+   doesn't happen (slice 0).
 
 Either way: the server URL comes from pref `compass.sync.server_url`
 (hook in `GetSyncServiceURL()`; `--sync-url` keeps working), and Google
 sign-in UI and sync promos stay hidden.
+
+### Slice 0 findings
+
+Run 2026-10-31 on the MacBook (out/Debug, DCHECKs on), branch
+`spike/sync-0` at `b8e729a`, against brave/go-sync `31ad41a` on the Mac
+mini over the LAN (`http://192.168.1.20:8295/v2`, plain HTTP accepted).
+Steps: `docs/design/sync-spike-0-steps.md` on the branch; evidence in
+`~/compass-sync-spike-evidence.tgz` on the MacBook.
+
+- **Route 2 works with two small upstream patches**:
+  `components/sync/service/BUILD.gn` (adds `//compass/components/sync_spike`
+  sources to the `service` target, plus a BoringSSL dep; a separate target
+  would be a dependency cycle) and `sync_service_impl.cc` (include; factory
+  swap in `TryStartImpl()`; an `Initialize()` hook). It compiled on the
+  first try (about 425 actions incremental). Route 1 wasn't built: it needs
+  `AccountsMutator`/`PrimaryAccountMutator`, a quiet account reconciler and
+  other Gaia services, and a `RequestAccessToken()` patch.
+- **No server change**: the client signs go-sync's own token format
+  (Ed25519 over a timestamp). All requests got 200 except the very first
+  (52 bytes, `CONNECTION_UNAVAILABLE`, 1.6 s before the engine was ready),
+  then fine. go-sync logged no errors.
+- **Mode**: sync-the-feature stays off (`sync_consent=0`,
+  `IsSyncFeatureEnabled()` false, first-time setup not complete), yet the
+  data types run as full sync. Synced passwords land in the profile store
+  (`storedIn: DEVICE`), not an account store, which is what we want.
+- **Both directions**: a bookmark and a password from A reached B; a
+  bookmark from B reached A. About 14–20 s, with a manual refresh trigger
+  (so change notifications, slice 6, matter).
+- **Encryption**: custom passphrase set on A, accepted on B, and a wrong
+  one on C gives a clean "Needs passphrase" state (cryptographer pending
+  keys, data types stopped, nothing decrypted). **The passphrase survives a
+  restart**: A came back with `kCustomPassphrase` and nothing required,
+  without the passphrase being supplied again. Sync's own Nigori storage
+  keeps the keys, so the missing Gaia-keyed bootstrap token doesn't matter.
+  The server sees 37 encrypted types.
+- **Running types (19)**: Bookmarks, Preferences, Priority Preferences,
+  Passwords, Autofill, Autofill Profiles, Autofill Wallet Credential,
+  Themes, Extensions, Extension settings, Apps, App settings, Web Apps,
+  Search Engines, Sessions, Device Info, Reading List, Saved Tab Group,
+  WebAuthn Credentials. Slice 2 turns off the ones this doc doesn't want
+  (Wallet Credential, Themes, Saved Tab Group, WebAuthn, Apps).
+- **Not running in local mode**: History, History Delete Directives, Send
+  Tab To Self, Contact Info, Sharing, password sharing, User Events/Consents,
+  Security Events, the Wallet types, shared tab groups and collaboration.
+  Of these we want **History** (and its delete directives): slice 2 widens
+  `LocalSyncSupportedTypes()` (a third small patch) and checks why upstream
+  left it out.
+- **No Google traffic from sync**: every Google host seen with sync on
+  (`update.googleapis.com`, `edgedl.me.gvt1.com`, `www.google.com`,
+  `clients2`, `accounts`, `safebrowsing`) also shows with `--disable-sync`;
+  `clients4.google.com/chrome-sync` and `oauth2.googleapis.com` never
+  appear. That baseline Google traffic (component updater, Safe Browsing,
+  DNS-over-HTTPS) is a separate privacy task, not sync's.
+- **go-sync and Chromium 156**: no protocol errors with 19 types, including
+  ones newer than go-sync's protos (WebAuthn, Saved Tab Group), at least
+  with small data.
+- **Fix in the steps doc**: `$CDP` needs bash (zsh doesn't word-split), and
+  `netlog_hosts.py` must accept net logs cut short by SIGTERM (a missing
+  final `}`).
 
 ### Change notifications
 
@@ -338,7 +399,8 @@ Upstream's sync settings are replaced by a page of our own,
 
 ## Slices
 
-0. **Spike** (one session, throwaway branch). Run go-sync locally
+0. **Spike**: done 2026-10-31, route 2 chosen ("Slice 0 findings"). Was:
+   (one session, throwaway branch). Run go-sync locally
    (Docker, its own DynamoDB-local), start two Compass instances with
    separate `--user-data-dir`s and `--sync-url=http://localhost:8295/v2`,
    try auth options 1 and 2 with a hard-coded token, and sync a bookmark
