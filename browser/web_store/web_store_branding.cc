@@ -4,7 +4,8 @@
 
 #include "compass/browser/web_store/web_store_branding.h"
 
-#include "base/strings/utf_string_conversions.h"
+#include <string>
+
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -24,7 +25,7 @@ constexpr char kWebStoreHost[] = "chromewebstore.google.com";
 // <button> and swaps it as the state changes (Add, Adding, Remove), so the
 // observer renames whatever lands in a button. "Chrome" stays in Latin
 // letters in every language the store speaks, as a whole word.
-constexpr char kScript[] = R"js((() => {
+constexpr char16_t kScript[] = uR"js((() => {
   if (window.compassWebStoreBranding) {
     return;
   }
@@ -92,7 +93,7 @@ class WebStoreBranding
       return;
     }
     frame->ExecuteJavaScriptInIsolatedWorld(
-        base::UTF8ToUTF16(kScript), base::NullCallback(),
+        std::u16string(kScript), base::NullCallback(),
         ISOLATED_WORLD_ID_CHROME_INTERNAL);
   }
 
@@ -119,7 +120,7 @@ bool IsWebStoreURL(const GURL& url) {
 }
 
 std::u16string WebStoreBrandingScriptForTesting() {
-  return base::UTF8ToUTF16(kScript);
+  return std::u16string(kScript);
 }
 
 }  // namespace compass
