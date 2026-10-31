@@ -26,6 +26,7 @@
 #include "components/history/core/browser/sync/history_delete_directives_data_type_controller.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history/core/test/history_service_test_util.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/account_managed_status_finder_outcome.h"
 #include "components/sync/base/data_type.h"
