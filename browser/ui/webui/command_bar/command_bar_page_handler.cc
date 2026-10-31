@@ -41,6 +41,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/common/compass_url.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -111,8 +112,9 @@ void ForEachTab(const SidebarNode& node, Visit&& visit) {
 }
 
 std::u16string GetEntryTitle(const SidebarNode& node) {
-  return node.display_title().empty() ? base::UTF8ToUTF16(node.url().spec())
-                                      : node.display_title();
+  return node.display_title().empty()
+             ? base::UTF8ToUTF16(ToCompassURL(node.url()).spec())
+             : node.display_title();
 }
 
 }  // namespace
@@ -291,7 +293,7 @@ CommandBarPageHandler::Item CommandBarPageHandler::MatchItem(
   Item item;
   const bool search = AutocompleteMatch::IsSearchType(match.type);
   item.kind = search ? ResultKind::kSearch : ResultKind::kNavigate;
-  item.title = match.contents;
+  item.title = ToCompassText(match.contents);
   item.subtitle = match.description;
   item.action = search ? "Search" : "Open";
   if (!search) {
@@ -326,7 +328,8 @@ void CommandBarPageHandler::AddEntryItems(std::vector<Item>& items) {
             !ContainsAll(
                 base::i18n::ToLower(node.custom_title() + u" " + node.title() +
                                     u" " +
-                                    base::UTF8ToUTF16(node.url().spec())),
+                                    base::UTF8ToUTF16(
+                                        ToCompassURL(node.url()).spec())),
                 words)) {
           return;
         }
@@ -365,7 +368,7 @@ CommandBarPageHandler::Item CommandBarPageHandler::EntryItem(
   Item item;
   item.kind = ResultKind::kEntry;
   item.title = GetEntryTitle(node);
-  item.subtitle = base::UTF8ToUTF16(node.url().spec());
+  item.subtitle = base::UTF8ToUTF16(ToCompassURL(node.url()).spec());
   if (favorite) {
     item.subtitle = u"Favorites · " + item.subtitle;
   } else if (!own_space) {

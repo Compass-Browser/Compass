@@ -1,6 +1,6 @@
 # Branding
 
-Status: strings done; `compass://` not started. Based on Chromium
+Status: strings and `compass://` done. Based on Chromium
 156.0.8078.48.
 
 ## Goal
@@ -85,9 +85,71 @@ Tests: `tools/tests/test_rebrand_strings.py`.
 
 ## `compass://`
 
-Not started. Plan: Brave's approach. Register `compass` as a standard scheme
-handled by the same WebUI: a `BrowserURLHandler` rewriter maps `compass://`
-to `chrome://` on the way in, and a reverse rewrite shows `compass://` in the
-pill, the omnibox and history. Our pages (compass-sidebar,
-compass-command-bar, compass-placeholder, compass-favicon) would then be
-reached as `compass://`.
+The user types and sees `compass://`; pages still load as `chrome://`, so
+every WebUI config, `chrome://` check and content security policy upstream
+(and ours: `chrome://compass-sidebar` and the others) stays as it is.
+`compass://compass-sidebar` reaches the sidebar page like any other.
+
+### In
+
+- `compass` is a standard scheme in every process
+  (`ChromeContentClient::AddAdditionalSchemes()` patch), so `compass://x/y`
+  parses with a host and path.
+- `compass::AddCompassURLHandler()` (`browser/compass_url_handler.cc`) is
+  the first `BrowserURLHandler` pair (patch in
+  `ChromeContentBrowserClient::BrowserURLHandlerCreated()`). It turns
+  `compass://x` into `chrome://x` and runs the rest of the handlers on it
+  itself, then returns true: the first handler that returns true ends the
+  chain, so returning false would keep upstream's rewrites (new tab page,
+  `chrome://about`, `chrome://help`) but leave the entry's virtual URL as
+  `compass://` for good. Its reverse handler keeps the committed URL, so
+  once the page commits the tab's visible URL is `chrome://x`, which is what
+  upstream code checks (new tab page, WebUI, sessions). While it loads, the
+  visible URL is the typed `compass://x` (`IsNewTabPage()` and the command
+  bar map it back with `ToChromeURL()`).
+- `ProfileIOData::IsHandledProtocol()` lists `compass` (patch): the omnibox
+  and command bar take `compass://settings` as a URL, not a search; startup
+  and link context menus accept it; it never goes to the OS as an external
+  protocol.
+- A web page can't reach `chrome://` through it. Since `compass` is a
+  handled scheme, content won't let a renderer request it
+  (`ChildProcessSecurityPolicy::CanRequestURL()`), so a page's
+  `compass://` link or `window.open()` is blocked like one to `chrome://`.
+  Test `WebPagesCantOpenCompassURLs`.
+
+### Out
+
+`compass/common/compass_url.h`: `ToCompassURL()` and `ToCompassText()`
+write a `chrome://` URL as `compass://` where the user sees or copies it:
+
+- the pill (`SidebarHeader::GetPillText()`), the command bar's starting text
+  (Cmd+L), its entry titles and subtitles and its omnibox matches;
+- Copy Link in the sidebar's context menu, and upstream's Copy URL
+  (Cmd+Shift+C, `chrome::CopyURL()` patch);
+- the (hidden) location bar
+  (`ChromeLocationBarModelDelegate::FormattedStringWithEquivalentMeaning()`
+  patch).
+
+`chrome://` pages aren't saved in history, so nothing to do there. Saved
+sidebar entries keep whatever URL the tab had (`chrome://` after commit);
+both load.
+
+### Not covered
+
+- `view-source:compass://...` (upstream's view-source handler only takes
+  the schemes it knows).
+- The omnibox's built-in suggestions (`BuiltinProvider`) list `chrome://`
+  pages for "chrome://" input, not for "compass://"; their text shows as
+  `compass://` in the command bar.
+- Upstream UI that prints a URL some other way (page info, the task
+  manager, `chrome://chrome-urls` itself) still says `chrome://`.
+
+### Rebuild cost
+
+Six one-line hooks in `.cc` files plus `deps` in their targets; no header
+anyone else includes changes. 18 steps in out/Debug, 21 in out/Fast.
+
+Tests: `compass/common/compass_url_unittest.cc`,
+`SidebarHeaderTest.PillText`,
+`SidebarHeaderBrowserTest.CompassSchemeOpensChromePages` and
+`.WebPagesCantOpenCompassURLs`.

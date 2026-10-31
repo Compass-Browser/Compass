@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
+index 14f5a7598dd8bf5b9df578f56c3365a7dd6f96ce..928e06bb815076b2733b797302d2dab2b729bb37 100644
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -142,6 +142,7 @@
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/url_constants.h"
+ #include "chrome/common/webui_url_constants.h"
++#include "compass/common/compass_url.h"
+ #include "components/bookmarks/browser/bookmark_model.h"
+ #include "components/bookmarks/browser/bookmark_node.h"
+ #include "components/bookmarks/browser/bookmark_utils.h"
+@@ -2892,7 +2893,8 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
+ void CopyURL(BrowserWindowInterface* browser,
+              content::WebContents* web_contents) {
+   ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
+-  scw.WriteText(base::UTF8ToUTF16(web_contents->GetVisibleURL().spec()));
++  scw.WriteText(base::UTF8ToUTF16(
++      compass::ToCompassURL(web_contents->GetVisibleURL()).spec()));
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+   if (toast_features::IsEnabled(toast_features::kLinkCopiedToast)) {

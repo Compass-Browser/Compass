@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
+index 080e9b0e43c70913f84490ccafb068ab1e9fbc62..51f89a949b0b3d6dc8dbda148c7576a3d16b04e0 100644
+--- a/chrome/browser/profiles/profile_io_data.cc
++++ b/chrome/browser/profiles/profile_io_data.cc
+@@ -11,6 +11,7 @@
+ #include "build/build_config.h"
+ #include "chrome/common/buildflags.h"
+ #include "chrome/common/url_constants.h"
++#include "compass/common/compass_url.h"
+ #include "components/dom_distiller/core/url_constants.h"
+ #include "extensions/buildflags/buildflags.h"
+ #include "net/net_buildflags.h"
+@@ -45,6 +46,7 @@ bool ProfileIOData::IsHandledProtocol(std::string_view scheme) {
+ #endif
+       content::kChromeUIScheme,
+       content::kChromeUIUntrustedScheme,
++      compass::kCompassScheme,
+       url::kDataScheme,
+ #if BUILDFLAG(IS_CHROMEOS)
+       content::kExternalFileScheme,

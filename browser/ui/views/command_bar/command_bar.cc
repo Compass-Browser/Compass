@@ -21,6 +21,7 @@
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
+#include "compass/common/compass_url.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
@@ -45,13 +46,13 @@ std::u16string GetCurrentUrlText(BrowserWindowInterface* browser) {
   if (!tab) {
     return std::u16string();
   }
-  const GURL& url = tab->GetContents()->GetVisibleURL();
+  const GURL url = ToChromeURL(tab->GetContents()->GetVisibleURL());
   if (url.SchemeIs(content::kChromeUIScheme) &&
       (url.host() == chrome::kChromeUINewTabHost ||
        url.host() == chrome::kChromeUINewTabPageHost)) {
     return std::u16string();
   }
-  return base::UTF8ToUTF16(url.spec());
+  return base::UTF8ToUTF16(ToCompassURL(url).spec());
 }
 
 }  // namespace

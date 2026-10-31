@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 2e0f287290b7656d1b97dffc79bf117da240507a..29cf92f340745b62f282829cd771e8b32e25978a 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -241,6 +241,7 @@
+ #include "chrome/common/webui_url_constants.h"
+ #include "chrome/common/webui_url_utils.h"
+ #include "chrome/installer/util/google_update_settings.h"
++#include "compass/browser/compass_url_handler.h"
+ #include "components/autofill/core/common/autofill_features.h"
+ #include "components/autofill/core/common/autofill_switches.h"
+ #include "components/blocked_content/popup_blocker.h"
+@@ -5126,6 +5127,9 @@ bool ChromeContentBrowserClient::
+ 
+ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
+     BrowserURLHandler* handler) {
++  // compass:// → chrome://, then the handlers below.
++  compass::AddCompassURLHandler(handler);
++
+   // The group policy NTP URL handler must be registered before the other NTP
+   // URL handlers below. Also register it before the "parts" handlers, so the
+   // NTP policy takes precedence over extensions that override the NTP.

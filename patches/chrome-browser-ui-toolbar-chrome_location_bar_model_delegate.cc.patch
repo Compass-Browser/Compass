@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.cc b/chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.cc
+index 4e23238dea7450b72de44d4fdc73df72ad13f336..1c50a326ddaafcdfc92dea7b41bf5353dd9cd92a 100644
+--- a/chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.cc
++++ b/chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.cc
+@@ -19,6 +19,7 @@
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/url_constants.h"
+ #include "chrome/common/webui_url_constants.h"
++#include "compass/common/compass_url.h"
+ #include "components/contextual_tasks/public/features.h"
+ #include "components/google/core/common/google_util.h"
+ #include "components/offline_pages/buildflags/buildflags.h"
+@@ -64,9 +65,10 @@ std::u16string
+ ChromeLocationBarModelDelegate::FormattedStringWithEquivalentMeaning(
+     const GURL& url,
+     const std::u16string& formatted_url) const {
+-  return AutocompleteInput::FormattedStringWithEquivalentMeaning(
+-      url, formatted_url, ChromeAutocompleteSchemeClassifier(GetProfile()),
+-      nullptr);
++  return compass::ToCompassText(
++      AutocompleteInput::FormattedStringWithEquivalentMeaning(
++          url, formatted_url, ChromeAutocompleteSchemeClassifier(GetProfile()),
++          nullptr));
+ }
+ 
+ bool ChromeLocationBarModelDelegate::GetURL(GURL* url) const {

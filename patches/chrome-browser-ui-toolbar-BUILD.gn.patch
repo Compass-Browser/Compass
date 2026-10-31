@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/toolbar/BUILD.gn b/chrome/browser/ui/toolbar/BUILD.gn
+index cbcfc3ab2ea3f43ca527959b0b36f2e5225501cd..5f4d987e9bcba608787efdce1d08557447e6853a 100644
+--- a/chrome/browser/ui/toolbar/BUILD.gn
++++ b/chrome/browser/ui/toolbar/BUILD.gn
+@@ -14,6 +14,7 @@ source_set("toolbar") {
+   ]
+   public_deps = [ "//components/omnibox/browser:location_bar" ]
+   deps = [
++    "//compass/common:url",
+     "//base",
+     "//chrome/browser/autocomplete",
+     "//chrome/browser/contextual_tasks",

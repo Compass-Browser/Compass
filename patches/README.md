@@ -39,7 +39,7 @@ nothing else.
 | `tools-grit-grit_rule.gni.patch` | The `grit` template builds the Chromium-branded strings in `compass_rebranded_grds` from renamed copies (`//compass/strings`), with their start IDs from `gen/compass/strings/resource_ids` (docs/design/branding.md) |
 | `.gn.patch` | Lets `//compass/strings/BUILD.gn` call `exec_script` (it lists the copies it writes) |
 | `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`) |
-| `chrome-browser-BUILD.gn.patch` | Links `//compass/browser` into the browser, and `//compass/browser:feature_overrides` and `//compass/browser/ui/cocoa:shortcuts` into `:core` |
+| `chrome-browser-BUILD.gn.patch` | Links `//compass/browser` into the browser, and `//compass/browser:feature_overrides`, `:url_handler` and `//compass/browser/ui/cocoa:shortcuts` into `:core` |
 | `chrome-browser-global_keyboard_shortcuts_mac.mm.patch` | The shortcuts outside the main menu go through `compass::AdjustShortcutsNotInMenu()`: Cmd+Shift+C copies the page's link (docs/design/shortcuts.md) |
 | `chrome-browser-ui-cocoa-accelerators_cocoa.mm.patch` | The main menu's key equivalents go through `compass::AdjustMenuAccelerators()`: Cmd+S opens or closes the sidebar, Save Page As has none |
 | `chrome-browser-ui-cocoa-BUILD.gn.patch` | Lets `accelerators_cocoa.mm` depend on `//compass/browser/ui/cocoa:shortcuts` |
@@ -49,7 +49,7 @@ nothing else.
 | `chrome-browser-picture_in_picture-auto_picture_in_picture_tab_strip_observer_helper.cc.patch` | A tab moved into the parking window (`compass::IsInParkingWindow()`) counts as switched away from |
 | `chrome-browser-picture_in_picture-BUILD.gn.patch` | Lets that helper depend on `//compass/browser/window_sync` |
 | `chrome-browser-ui-views-overlay-video_overlay_window_views.cc.patch` | On macOS the picture-in-picture window shows over other apps' fullscreen spaces and takes clicks without activating the browser |
-| `chrome-browser-ui-BUILD.gn.patch` | Links `//compass/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`); `browser_command_controller_impl` depends on the command bar |
+| `chrome-browser-ui-BUILD.gn.patch` | Links `//compass/browser/ui` into `//chrome/browser/ui` and lets it include ui headers (same as upstream `tab_search`); `browser_command_controller_impl` depends on the command bar; `browser_commands_impl` on `//compass/common:url` |
 | `chrome-browser-ui-browser_command_controller.cc.patch` | `ExecuteCommandWithDispositionAndContext()` gives `compass::CommandBar` first refusal on New Tab and Focus Location (Cmd+T, Cmd+L), before upstream picks between its command handler and browser actions |
 | `chrome-browser-ui-browser_window-internal-BUILD.gn.patch` | Links `//compass/browser/window_sync` into the window features |
 | `chrome-browser-ui-browser_window-internal-embedder_browser_window_features.cc.patch` | Creates `compass::WindowFeatures` in the embedder hook's `Init()` |
@@ -81,3 +81,8 @@ nothing else.
 | `chrome-browser-ui-views-extensions-extension_keybinding_registry_views.h.patch`, `.cc.patch` | `SetFocusManager()`: extension shortcuts follow the view to its new widget |
 | `chrome-browser-ui-views-color_provider_browser_helper.h.patch`, `.cc.patch` | `SetColorProviderSource()`: pages take colors from the widget the view is in |
 | `chrome-browser-ui-browser_web_contents_delegate-browser_web_contents_delegate.cc.patch` | `ActivateContents()` asks `compass::RevealParkedTab()` first: a parked tab (picture-in-picture's "back to tab", `window.focus()`) shows in the window the user was in, in its space, never in the parking window |
+| `chrome-common-chrome_content_client.cc.patch`, `chrome-common-BUILD.gn.patch` | Registers `compass` as a standard scheme in every process (branding.md "compass://") |
+| `chrome-browser-chrome_content_browser_client.cc.patch` | `BrowserURLHandlerCreated()` adds `compass::AddCompassURLHandler()` first: compass://x loads chrome://x |
+| `chrome-browser-profiles-profile_io_data.cc.patch`, `chrome-browser-profiles-BUILD.gn.patch` | `compass` is a handled protocol: the omnibox takes compass:// as a URL, startup and context menus accept it, and it never goes to the OS |
+| `chrome-browser-ui-toolbar-chrome_location_bar_model_delegate.cc.patch`, `chrome-browser-ui-toolbar-BUILD.gn.patch` | The location bar shows chrome:// URLs as compass:// |
+| `chrome-browser-ui-browser_commands.cc.patch` | Copy URL (Cmd+Shift+C) copies chrome:// URLs as compass:// |

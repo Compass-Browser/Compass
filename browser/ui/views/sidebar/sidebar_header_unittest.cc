@@ -20,8 +20,10 @@ TEST(SidebarHeaderTest, PillText) {
   EXPECT_EQ(SidebarHeader::GetPillText(GURL("about:blank")),
             u"Search or enter URL");
   EXPECT_EQ(SidebarHeader::GetPillText(GURL()), u"Search or enter URL");
+  EXPECT_EQ(SidebarHeader::GetPillText(GURL("compass://newtab/")),
+            u"Search or enter URL");
   EXPECT_EQ(SidebarHeader::GetPillText(GURL("chrome://settings/")),
-            u"chrome://settings/");
+            u"compass://settings/");
   EXPECT_EQ(SidebarHeader::GetPillText(GURL("file:///tmp/a.html")),
             u"file:///tmp/a.html");
 }

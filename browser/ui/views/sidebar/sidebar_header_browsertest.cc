@@ -11,7 +11,9 @@
 #include "base/files/file_util.h"
 #include "base/functional/function_ref.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -53,6 +55,9 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/metrics_proto/omnibox_input_type.pb.h"
+#include "ui/base/clipboard/clipboard.h"
+#include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/events/base_event_utils.h"
@@ -281,6 +286,65 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PillOpensTheCommandBar) {
       document.querySelector('compass-command-bar-app').shadowRoot
           .querySelector('#input').value)"),
             url.spec());
+}
+
+// compass://x loads chrome://x. Once it commits the tab's URL is the
+// chrome:// one (upstream checks it), and the pill and Copy URL say
+// compass://. The omnibox takes a typed compass:// URL as a URL.
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       CompassSchemeOpensChromePages) {
+  // Not the user's clipboard.
+  ui::TestClipboard::CreateForCurrentThread();
+
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("compass://version/")));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  EXPECT_EQ(contents->GetLastCommittedURL(), GURL("chrome://version/"));
+  EXPECT_EQ(contents->GetVisibleURL(), GURL("chrome://version/"));
+  EXPECT_EQ(pill_text(), u"compass://version/");
+
+  chrome::ExecuteCommand(browser(), IDC_COPY_URL);
+  std::u16string copied;
+  ui::Clipboard::GetForCurrentThread()->ReadText(
+      ui::ClipboardBuffer::kCopyPaste, std::nullopt,
+      base::BindLambdaForTesting(
+          [&](std::u16string result) { copied = std::move(result); }));
+  EXPECT_EQ(copied, u"compass://version/");
+
+  EXPECT_EQ(ChromeAutocompleteSchemeClassifier(browser()->GetProfile())
+                .GetInputTypeForScheme("compass"),
+            metrics::OmniboxInputType::URL);
+
+  // A typed compass://newtab still gets upstream's new tab page rewrite.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("compass://newtab/")));
+  EXPECT_FALSE(contents->GetVisibleURL().SchemeIs("compass"));
+  EXPECT_EQ(pill_text(), u"Search or enter URL");
+
+  ui::Clipboard::DestroyClipboardForCurrentThread();
+}
+
+// Web pages can't reach chrome:// pages through compass://: compass is a
+// handled scheme, so a renderer may not request it (link or window.open).
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       WebPagesCantOpenCompassURLs) {
+  const GURL page = embedded_test_server()->GetURL("a.test", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  ui_test_utils::TabAddedWaiter tab_added(browser());
+  ASSERT_TRUE(content::ExecJs(contents, "window.open('compass://version/')"));
+  content::WebContents* popup = tab_added.Wait();
+  ASSERT_TRUE(content::WaitForLoadStop(popup));
+  EXPECT_FALSE(popup->GetLastCommittedURL().SchemeIs("chrome"));
+  EXPECT_FALSE(popup->GetVisibleURL().SchemeIs("chrome"));
+
+  ASSERT_TRUE(content::ExecJs(contents, "location.href = 'compass://version/'"));
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  EXPECT_FALSE(contents->GetLastCommittedURL().SchemeIs("chrome"));
+  EXPECT_FALSE(contents->GetVisibleURL().SchemeIs("chrome"));
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, CollapsingHidesTheHeader) {

@@ -1,0 +1,12 @@
+diff --git a/chrome/common/BUILD.gn b/chrome/common/BUILD.gn
+index 582f9b21931b8bbb7a95d887a18036ba9609bacb..0d573decdac53a31527f2e5e9e771995af7acba7 100644
+--- a/chrome/common/BUILD.gn
++++ b/chrome/common/BUILD.gn
+@@ -269,6 +269,7 @@ static_library("common_lib") {
+   ]
+ 
+   deps = [
++    "//compass/common:url",
+     "//components/cdm/common:buildflags",
+     "//components/crash/core/app",
+     "//components/google/core/common",

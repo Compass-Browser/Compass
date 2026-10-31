@@ -11,6 +11,7 @@ import("//testing/test.gni")
 test("compass_unittests") {
   deps = [
     "//chrome/test:test_support_unit",
+    "//compass/common:unit_tests",
     "//compass/browser/sidebar:unit_tests",
     "//compass/browser/ui:unit_tests",
     "//compass/browser/window_sync:unit_tests",

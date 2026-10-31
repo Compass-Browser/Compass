@@ -34,6 +34,7 @@
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/common/compass_url.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
@@ -633,7 +634,7 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
   switch (command) {
     case kCopyLink:
       ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
-          .WriteText(base::UTF8ToUTF16(node->url().spec()));
+          .WriteText(base::UTF8ToUTF16(ToCompassURL(node->url()).spec()));
       break;
     case kDuplicate:
       if (node->type() == SidebarNode::Type::kTab) {

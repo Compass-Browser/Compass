@@ -45,6 +45,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/common/compass_url.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
@@ -101,10 +102,12 @@ void ExecuteNavCommand(BrowserWindowInterface* browser,
 }
 
 bool IsNewTabPage(const GURL& url) {
+  // Shown as compass:// while a typed compass:// URL loads.
+  const GURL chrome_url = ToChromeURL(url);
   return url.is_empty() || url == GURL(url::kAboutBlankURL) ||
-         (url.SchemeIs(content::kChromeUIScheme) &&
-          (url.host() == chrome::kChromeUINewTabHost ||
-           url.host() == chrome::kChromeUINewTabPageHost));
+         (chrome_url.SchemeIs(content::kChromeUIScheme) &&
+          (chrome_url.host() == chrome::kChromeUINewTabHost ||
+           chrome_url.host() == chrome::kChromeUINewTabPageHost));
 }
 
 // The toolbar's child with |id| as its element identifier, or null.
@@ -298,7 +301,7 @@ std::u16string SidebarHeader::GetPillText(const GURL& url) {
   if (url.SchemeIsHTTPOrHTTPS() && url.has_host()) {
     return base::UTF8ToUTF16(url_formatter::StripWWW(std::string(url.host())));
   }
-  return base::UTF8ToUTF16(url.spec());
+  return base::UTF8ToUTF16(ToCompassURL(url).spec());
 }
 
 views::ProposedLayout SidebarHeader::CalculateProposedLayout(

@@ -21,3 +21,18 @@ source_set("feature_overrides") {
     "//third_party/blink/public/common",
   ]
 }
+
+# compass:// loads chrome:// pages. //chrome/browser:core, which sets up the
+# browser's URL handlers, depends on this target (see
+# patches/chrome-browser-BUILD.gn.patch).
+source_set("url_handler") {
+  sources = [
+    "compass_url_handler.cc",
+    "compass_url_handler.h",
+  ]
+  deps = [
+    "//compass/common:url",
+    "//content/public/browser",
+    "//url",
+  ]
+}
