@@ -7,7 +7,8 @@
   compare_trees.py A.json B.json [C.json...]
 
 Compares what COMPASS_SPACES syncs: the spaces in order (name, color,
-archive delay) with their pinned trees, and the favorites. Not the space
+archive delay) with their pinned trees and Today (empty in older dumps), and
+the favorites. Not the space
 IDs (compared too, but reported separately), the active space, or live
 state. Titles of tabs that were never loaded on an instance can differ
 (the page title comes from the page), so tabs compare by URL and custom
@@ -33,6 +34,18 @@ def node(n):
   return out
 
 
+def local_only(n):
+  """New tab and blank pages stay on their device, and chrome:// pages the
+  steps open for a moment (sync-internals) come and go."""
+  url = n.get('url') or ''
+  return n['type'] == 'tab' and (url.startswith('about:') or
+                                 url.startswith('chrome://'))
+
+
+def today(nodes):
+  return [node(n) for n in nodes if not local_only(n)]
+
+
 def synced(dump):
   return {
       'spaces': [{
@@ -40,6 +53,7 @@ def synced(dump):
           'color': s['color'],
           'archiveAfterHours': s.get('archiveAfterHours'),
           'pinned': [node(n) for n in s.get('pinned', [])],
+          'today': today(s.get('today', [])),
       } for s in dump['spaces']],
       'favorites': [node(n) for n in dump.get('favorites', [])],
   }
