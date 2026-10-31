@@ -4,6 +4,7 @@ Status: slices 0, 1, 2, 2b and 3 done and merged into `sync-main`
 (MacBook runs: "Slice 2 run on the MacBook", "Slice 2b notes", "Slice 3
 notes"); 3b (Today and the archive) on `sync/slice-3b-today`. Based on
 Chromium 156.0.8078.48.
+
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
