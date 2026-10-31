@@ -23,6 +23,9 @@ enum ResultKind {
   kEntry,
   kSpace,
   kCommand,
+  // An open tab of another device of the sync chain (SESSIONS); opens as a
+  // new Today entry.
+  kOtherDeviceTab,
 };
 
 struct Result {

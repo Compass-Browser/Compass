@@ -5,9 +5,11 @@
 #include "compass/browser/ui/webui/sync/compass_sync_page_handler.h"
 
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/observer_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -57,6 +59,27 @@ class FakeController : public sync::SyncController {
   void CancelPairing() override { calls_.push_back("cancel"); }
   void Leave() override { calls_.push_back("leave"); }
   void Restart() override { calls_.push_back("restart"); }
+  std::vector<sync::SyncDevice> GetDevices() const override { return devices_; }
+  std::vector<sync::SyncDataTypeState> GetDataTypes() const override {
+    return types_;
+  }
+  void SetDataTypeEnabled(sync::SyncDataType type, bool enabled) override {
+    calls_.push_back(std::string("type ") +
+                     std::to_string(static_cast<int>(type)) +
+                     (enabled ? " on" : " off"));
+  }
+  std::vector<std::string> GetRecoveryCode() const override { return words_; }
+  void ResetChain(StartCallback callback) override {
+    calls_.push_back("reset");
+    std::move(callback).Run(true, std::string(), {"zoo", "wrong"});
+  }
+
+  void SetDetails(std::vector<sync::SyncDevice> devices,
+                  std::vector<sync::SyncDataTypeState> types) {
+    devices_ = std::move(devices);
+    types_ = std::move(types);
+  }
+  void set_words(std::vector<std::string> words) { words_ = std::move(words); }
 
   void Set(sync::SyncStatus status, sync::PairingStatus pairing) {
     status_ = std::move(status);
@@ -71,6 +94,9 @@ class FakeController : public sync::SyncController {
  private:
   sync::SyncStatus status_;
   sync::PairingStatus pairing_;
+  std::vector<sync::SyncDevice> devices_;
+  std::vector<sync::SyncDataTypeState> types_;
+  std::vector<std::string> words_;
   std::vector<std::string> calls_;
   base::ObserverList<Observer> observers_;
 };
@@ -81,16 +107,20 @@ class FakePage : public sync::mojom::Page {
     return receiver_.BindNewPipeAndPassRemote();
   }
   void OnStateChanged(sync::mojom::StatusPtr status,
-                      sync::mojom::PairingPtr pairing) override {
+                      sync::mojom::PairingPtr pairing,
+                      sync::mojom::DetailsPtr details) override {
     status_ = std::move(status);
     pairing_ = std::move(pairing);
+    details_ = std::move(details);
   }
   const sync::mojom::StatusPtr& status() const { return status_; }
   const sync::mojom::PairingPtr& pairing() const { return pairing_; }
+  const sync::mojom::DetailsPtr& details() const { return details_; }
 
  private:
   sync::mojom::StatusPtr status_;
   sync::mojom::PairingPtr pairing_;
+  sync::mojom::DetailsPtr details_;
   mojo::Receiver<sync::mojom::Page> receiver_{this};
 };
 
@@ -100,9 +130,19 @@ class CompassSyncPageHandlerTest : public testing::Test {
       : handler_(std::make_unique<CompassSyncPageHandler>(
             remote_.BindNewPipeAndPassReceiver(),
             page_.BindAndPassRemote(),
-            &controller_)) {}
+            &controller_,
+            base::BindRepeating(&CompassSyncPageHandlerTest::Reauthenticate,
+                                base::Unretained(this)))) {}
+
+  // The fake Touch ID: answers as |reauth_answer_| says, counting the asks.
+  void Reauthenticate(base::OnceCallback<void(bool)> done) {
+    ++reauth_asks_;
+    std::move(done).Run(reauth_answer_);
+  }
 
   base::test::TaskEnvironment task_environment_;
+  bool reauth_answer_ = true;
+  int reauth_asks_ = 0;
   FakeController controller_;
   FakePage page_;
   mojo::Remote<sync::mojom::PageHandler> remote_;
@@ -112,13 +152,17 @@ class CompassSyncPageHandlerTest : public testing::Test {
 TEST_F(CompassSyncPageHandlerTest, GetState) {
   controller_.Set({sync::SyncState::kOn, "http://h:8295/v2", "Last synced"},
                   {sync::PairingStep::kShowingCode, "7-482913", "", ""});
-  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr>
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
       future;
   remote_->GetState(future.GetCallback());
-  auto [status, pairing] = future.Take();
+  auto [status, pairing, details] = future.Take();
+  ASSERT_TRUE(details);
+  EXPECT_TRUE(details->devices.empty());
   EXPECT_EQ(status->state, sync::mojom::State::kOn);
   EXPECT_EQ(status->server_url, "http://h:8295/v2");
   EXPECT_EQ(status->message, "Last synced");
+  EXPECT_EQ(status->menu_label, "Synced");
   EXPECT_EQ(pairing->step, sync::mojom::PairingStep::kShowingCode);
   EXPECT_EQ(pairing->code, "7-482913");
 }
@@ -171,6 +215,97 @@ TEST_F(CompassSyncPageHandlerTest, PushesChanges) {
   ASSERT_TRUE(page_.pairing());
   EXPECT_EQ(page_.pairing()->step, sync::mojom::PairingStep::kConfirm);
   EXPECT_EQ(page_.pairing()->device_name, "MacBook");
+  ASSERT_TRUE(page_.details());
+}
+
+TEST_F(CompassSyncPageHandlerTest, DevicesAndTypes) {
+  sync::SyncDevice mac;
+  mac.name = "Studio";
+  mac.kind = "Mac";
+  mac.last_seen =
+      base::Time::FromMillisecondsSinceUnixEpoch(int64_t{1'800'000'000'000});
+  mac.this_device = true;
+  sync::SyncDevice phone;
+  phone.name = "Phone";
+  phone.kind = "iPhone";
+  controller_.SetDetails({mac, phone}, {{sync::SyncDataType::kPasswords, true},
+                                        {sync::SyncDataType::kBookmarks, false},
+                                        {sync::SyncDataType::kSpaces, true}});
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      future;
+  remote_->GetState(future.GetCallback());
+  const sync::mojom::DetailsPtr details = std::get<2>(future.Take());
+  ASSERT_EQ(details->devices.size(), 2u);
+  EXPECT_EQ(details->devices[0]->name, "Studio");
+  EXPECT_EQ(details->devices[0]->kind, "Mac");
+  EXPECT_EQ(details->devices[0]->last_seen_ms, 1'800'000'000'000.0);
+  EXPECT_TRUE(details->devices[0]->this_device);
+  EXPECT_EQ(details->devices[1]->last_seen_ms, 0.0);
+  EXPECT_FALSE(details->devices[1]->this_device);
+  ASSERT_EQ(details->types.size(), 3u);
+  EXPECT_EQ(details->types[1]->type, sync::mojom::DataType::kBookmarks);
+  EXPECT_FALSE(details->types[1]->enabled);
+  EXPECT_EQ(details->types[2]->type, sync::mojom::DataType::kSpaces);
+  EXPECT_TRUE(details->types[2]->enabled);
+}
+
+TEST_F(CompassSyncPageHandlerTest, SwitchesReachTheController) {
+  remote_->SetDataTypeEnabled(sync::mojom::DataType::kBookmarks, false);
+  remote_->SetDataTypeEnabled(sync::mojom::DataType::kSpaces, true);
+  remote_.FlushForTesting();
+  EXPECT_THAT(
+      controller_.calls(),
+      ElementsAre(
+          "type " +
+              std::to_string(static_cast<int>(sync::SyncDataType::kBookmarks)) +
+              " off",
+          "type " +
+              std::to_string(static_cast<int>(sync::SyncDataType::kSpaces)) +
+              " on"));
+}
+
+TEST_F(CompassSyncPageHandlerTest, RecoveryCodeNeedsReauth) {
+  controller_.set_words({"abandon", "amount"});
+
+  reauth_answer_ = false;
+  base::test::TestFuture<bool, const std::string&,
+                         const std::vector<std::string>&>
+      refused;
+  remote_->RevealRecoveryCode(refused.GetCallback());
+  EXPECT_FALSE(refused.Get<0>());
+  EXPECT_TRUE(refused.Get<2>().empty());
+  EXPECT_EQ(reauth_asks_, 1);
+
+  reauth_answer_ = true;
+  base::test::TestFuture<bool, const std::string&,
+                         const std::vector<std::string>&>
+      shown;
+  remote_->RevealRecoveryCode(shown.GetCallback());
+  EXPECT_TRUE(shown.Get<0>());
+  EXPECT_THAT(shown.Get<2>(), ElementsAre("abandon", "amount"));
+  EXPECT_EQ(reauth_asks_, 2);
+}
+
+TEST_F(CompassSyncPageHandlerTest, NoRecoveryCodeWithoutAChain) {
+  base::test::TestFuture<bool, const std::string&,
+                         const std::vector<std::string>&>
+      future;
+  remote_->RevealRecoveryCode(future.GetCallback());
+  EXPECT_FALSE(future.Get<0>());
+  EXPECT_FALSE(future.Get<1>().empty());
+  // Nothing to protect: no prompt.
+  EXPECT_EQ(reauth_asks_, 0);
+}
+
+TEST_F(CompassSyncPageHandlerTest, ResetSyncReturnsTheNewWords) {
+  base::test::TestFuture<bool, const std::string&,
+                         const std::vector<std::string>&>
+      future;
+  remote_->ResetSync(future.GetCallback());
+  EXPECT_TRUE(future.Get<0>());
+  EXPECT_THAT(future.Get<2>(), ElementsAre("zoo", "wrong"));
+  EXPECT_THAT(controller_.calls(), ElementsAre("reset"));
 }
 
 TEST_F(CompassSyncPageHandlerTest, StopsObservingWhenGone) {

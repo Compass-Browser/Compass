@@ -1,0 +1,44 @@
+diff --git a/chrome/browser/ui/toolbar/app_menu_model.cc b/chrome/browser/ui/toolbar/app_menu_model.cc
+index faaded8ad5427c95787fde91961ae6d543902336..6466b364d3e4eed89ed607bd6bc3eabcf4855005 100644
+--- a/chrome/browser/ui/toolbar/app_menu_model.cc
++++ b/chrome/browser/ui/toolbar/app_menu_model.cc
+@@ -4,6 +4,9 @@
+ 
+ #include "chrome/browser/ui/toolbar/app_menu_model.h"
+ 
++#include "compass/browser/ui/app_menu_sync.h"
++#include "compass/browser/ui/compass_command_ids.h"
++
+ #include <algorithm>
+ #include <cmath>
+ #include <memory>
+@@ -2020,6 +2023,12 @@ bool AppMenuModel::IsCommandIdChecked(int command_id) const {
+ }
+ 
+ bool AppMenuModel::IsCommandIdEnabled(int command_id) const {
++  // Compass: its commands (compass_command_ids.h) aren't in upstream's
++  // command updater; they run through compass::HandleBrowserCommand().
++  if (compass::IsCompassCommand(command_id)) {
++    return true;
++  }
++
+   GlobalError* error =
+       GlobalErrorServiceFactory::GetForProfile(browser_->GetProfile())
+           ->GetGlobalErrorByMenuItemCommandID(command_id);
+@@ -2397,6 +2406,16 @@ void AppMenuModel::Build() {
+ #endif
+ #endif
+ 
++  // Compass: sync's status, opening chrome://compass-sync
++  // (docs/design/sync.md, "Slice 4 notes").
++  if (std::optional<std::u16string> sync_label =
++          compass::GetAppMenuSyncLabel(browser_)) {
++    AddItemWithIcon(compass::kOpenSyncPageCommand, *sync_label,
++                    ui::ImageModel::FromVectorIcon(vector_icons::kSyncIcon,
++                                                   ui::kColorMenuIcon,
++                                                   kDefaultIconSize));
++  }
++
+   AddItemWithStringIdAndVectorIcon(
+       this, IDC_OPTIONS, IDS_SETTINGS,
+       features::IsRoundedIconsEnabled() ? kSettingsIcon : kSettingsMenuOldIcon);

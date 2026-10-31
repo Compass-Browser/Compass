@@ -80,6 +80,13 @@ per change:
   favorite opens or activates it in this window, as a click on its tile
   does.
 - **Spaces**: whose name contains the query. Choosing one switches to it.
+- **Tabs on other devices** (sync slice 4, docs/design/sync.md "Slice 4
+  notes"): open tabs of the sync chain's other devices (the SESSIONS type,
+  `OpenTabsUIDelegate`), whose title, URL or device name contains every
+  word, at most six, grouped by device (most recently active device
+  first). Subtitle "On <device> · <URL>". Choosing one opens the URL as a
+  new Today entry of the window's space, in either mode. Not in incognito
+  or with an empty query; nothing when Open tabs doesn't sync.
 - **Commands**: a fixed list (new space, pin or unpin the current entry,
   add it to or remove it from Favorites, copy URL, reload, history,
   downloads, extensions, settings), matched by name. Commands that need an
@@ -89,7 +96,7 @@ per change:
   the top of the window's Today, as unpinning does.
 
 Order: the default omnibox match, entries, the other omnibox matches,
-spaces, commands. With an empty query in new-entry mode the list is the
+tabs on other devices, spaces, commands. With an empty query in new-entry mode the list is the
 window's Today entries, most recent first, then the commands.
 
 ### Accepting

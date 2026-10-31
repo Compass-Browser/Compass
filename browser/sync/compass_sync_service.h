@@ -23,6 +23,7 @@
 #include "compass/components/sync/pairing.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/service/sync_service_observer.h"
+#include "components/sync_device_info/device_info_tracker.h"
 #include "url/gurl.h"
 
 class PrefService;
@@ -34,6 +35,7 @@ class OSCryptAsync;
 }  // namespace os_crypt_async
 
 namespace syncer {
+class DeviceInfoSyncService;
 class SyncService;
 class SyncSetupInProgressHandle;
 }  // namespace syncer
@@ -57,6 +59,7 @@ class SyncCredentials;
 class CompassSyncService : public KeyedService,
                            public SyncController,
                            public syncer::SyncServiceObserver,
+                           public syncer::DeviceInfoTracker::Observer,
                            public BrowserCollectionObserver,
                            public base::PowerSuspendObserver,
                            public PairingHost::Delegate {
@@ -71,9 +74,9 @@ class CompassSyncService : public KeyedService,
 
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
-  // Whether data types may run: the chain is running and its passphrase is
-  // in place. COMPASS_SPACES, which isn't a selectable type, runs only then
-  // (compass_spaces_sync.cc); the selectable ones are selected then.
+  // Whether COMPASS_SPACES may run (compass_spaces_sync.cc asks): the chain
+  // is running, its passphrase is in place (when the selectable types are
+  // selected), and the page's Spaces switch is on.
   bool AreDataTypesReleased() const;
 
   // KeyedService:
@@ -96,6 +99,14 @@ class CompassSyncService : public KeyedService,
   void CancelPairing() override;
   void Leave() override;
   void Restart() override;
+  std::vector<SyncDevice> GetDevices() const override;
+  std::vector<SyncDataTypeState> GetDataTypes() const override;
+  void SetDataTypeEnabled(SyncDataType type, bool enabled) override;
+  std::vector<std::string> GetRecoveryCode() const override;
+  void ResetChain(StartCallback callback) override;
+
+  // syncer::DeviceInfoTracker::Observer:
+  void OnDeviceInfoChange() override;
 
   // syncer::SyncServiceObserver:
   void OnStateChanged(syncer::SyncService* sync) override;
@@ -117,6 +128,8 @@ class CompassSyncService : public KeyedService,
  private:
   // Whether this run's sync engine talks to the chain's server.
   bool IsChainRunning() const;
+  // The passphrase is in place: the selectable types are selected.
+  bool AreTypesSelected() const;
   bool HasSeed() const;
   GURL GetServerUrl() const;
 
@@ -130,9 +143,16 @@ class CompassSyncService : public KeyedService,
                           DoneCallback callback,
                           scoped_refptr<os_crypt_async::Encryptor> encryptor);
 
-  // Turns off the types Compass doesn't sync.
+  // Selects no type, until the passphrase is in place.
   void HoldTypes();
+  // Selects the types of the page's switches, except those Compass never
+  // syncs.
   void SelectTypes();
+  // After ResetChain() saved the new seed.
+  void OnChainReset(StartCallback callback,
+                    std::vector<std::string> words,
+                    bool ok,
+                    std::string error);
   // Sets or supplies the chain's passphrase, and lets the data types start
   // once it's in place.
   void UpdatePassphrase();
@@ -150,6 +170,7 @@ class CompassSyncService : public KeyedService,
   const raw_ptr<Profile> profile_;
   const raw_ptr<PrefService> prefs_;
   raw_ptr<syncer::SyncService> sync_service_;
+  raw_ptr<syncer::DeviceInfoSyncService> device_info_;
   const raw_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
   const scoped_refptr<SyncCredentials> credentials_;
 
@@ -164,8 +185,13 @@ class CompassSyncService : public KeyedService,
   bool decryption_tried_ = false;
   bool passphrase_rejected_ = false;
   bool encryption_requested_ = false;
+  // This run set the passphrase, or had it accepted: after a reset, only
+  // then do the types start (prefs::kResetPending).
+  bool passphrase_set_here_ = false;
   // Left the chain (or joined one) during this run.
   bool left_ = false;
+  // Replaced the chain during this run; the new one starts after a restart.
+  bool reset_ = false;
   base::TimeTicks last_refresh_;
   std::string last_logged_;
 
@@ -176,6 +202,9 @@ class CompassSyncService : public KeyedService,
   base::ObserverList<Observer> observers_;
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
       sync_observation_{this};
+  base::ScopedObservation<syncer::DeviceInfoTracker,
+                          syncer::DeviceInfoTracker::Observer>
+      device_info_observation_{this};
   base::ScopedObservation<ProfileBrowserCollection, BrowserCollectionObserver>
       browser_observation_{this};
   bool observing_power_ = false;
