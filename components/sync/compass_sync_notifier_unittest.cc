@@ -22,6 +22,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/test/test_network_connection_tracker.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -150,6 +151,14 @@ class FakeStream : public EventStream {
 };
 
 class CompassSyncNotifierTest : public testing::Test {
+ public:
+  // Called from ~FakeStream.
+  void StreamGone(FakeStream* stream) {
+    if (stream_ == stream) {
+      stream_ = nullptr;
+    }
+  }
+
  protected:
   CompassSyncNotifierTest()
       : network_(network::TestNetworkConnectionTracker::CreateInstance()) {}
@@ -184,13 +193,7 @@ class CompassSyncNotifierTest : public testing::Test {
         base::BindLambdaForTesting([this]() { return client_id_; }),
         base::BindLambdaForTesting(
             [this](syncer::DataTypeSet types) { refreshes_.push_back(types); }),
-        network::TestNetworkConnectionTracker::GetInstance());
-  }
-
-  void StreamGone(FakeStream* stream) {
-    if (stream_ == stream) {
-      stream_ = nullptr;
-    }
+        network_.get());
   }
 
   // The open stream starts with |status|, and says hello.

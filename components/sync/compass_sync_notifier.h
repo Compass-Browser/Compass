@@ -199,7 +199,6 @@ class CompassSyncNotifier
   bool connected_ = false;
   // A stream was up before: the next one refreshes everything.
   bool was_connected_ = false;
-  bool offline_ = false;
   base::TimeTicks connected_at_;
   net::BackoffEntry backoff_;
   base::OneShotTimer retry_timer_;
