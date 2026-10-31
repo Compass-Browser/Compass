@@ -34,6 +34,10 @@ constexpr base::TimeDelta kLongPoll = base::Seconds(25);
 // The pairing endpoints of docs/design/sync.md, "Pairing API", in memory.
 class FakePairingServer {
  public:
+  base::WeakPtr<FakePairingServer> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
   struct Slot {
     base::TimeTicks expires;
     bool joined = false;
