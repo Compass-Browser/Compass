@@ -265,7 +265,7 @@ switch (ARGS.op) {
     return entries.map(e => ({
       id: e.id,
       archivedAt: e.archivedAt,
-      tabs: e.tabs.map(t => ({title: t.title, url: t.url.url})),
+      tabs: e.tabs.map(t => ({title: t.title, url: urlOf(t)})),
     }));
   }
   case 'archive-after': {
