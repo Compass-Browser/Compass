@@ -1,9 +1,7 @@
 # Sync between devices
 
-Status: slices 0, 1, 2, 2b, 3 and 3b done and merged into `sync-main`
-(MacBook runs in each slice's notes); 4 (the UI and the pairing contract
-changes) on `sync/slice-4-ui`, waiting for its MacBook run ("Slice 4
-notes"); 5 (profiles) and 6 (push) in progress. Based on Chromium
+Status: slices 0, 1, 2, 2b, 3, 3b and 4 done and merged into `sync-main`
+(MacBook runs in each slice's notes); 6 (push) next, then 5 (profiles). Based on Chromium
 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
@@ -18,12 +16,12 @@ Read this first when resuming the sync work.
 
 | Branch | State |
 |---|---|
-| `sync-main` (`02efe11`+) | slices 0, 1, 2, 2b, 3, 3b and the server revive fix merged; built on the MacBook, Gioele's Fast runs it |
-| `sync/slice-4-ui` (`1e44100`) | settings page, app-menu row, other-device tabs, pairing reasons; includes sync-main 02efe11. MacBook run in progress (the build failed once on an ambiguous `Observer`, fixed in `1e44100`) |
+| `sync-main` (`001b2f1`+) | slices 0, 1, 2, 2b, 3, 3b, 4 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
+| `sync/slice-4-ui` (`41ae636`) | merged (resume, 31 Oct night): MacBook run passed, see "Slice 4 notes" |
 | `sync/slice-5-profiles` (`cb13f65`) | profiles; never built; merge sync-main (after slice 4) into it before its run: overlaps slice 4 in compass_sync_service, sync_controller, the mojom, page handler, compass_sync.{html,ts}, pairing |
 | `sync/slice-6-push` (`1990840`) | push (SSE); never built; no patches; Go tests pass; small overlap with 4 in server/server/server.go and compass_sync_service |
 
-**Order:** slice 4's MacBook run → merge 4 into sync-main → merge sync-main
+**Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → merge sync-main
 into 6, deploy the combined server (the sync server, and the Mac mini if it's up),
 run 6 → merge 6 → merge sync-main into 5, run 5 → merge 5 → slice 7.
 
@@ -33,6 +31,9 @@ is Gioele's (only `update-and-run.sh` builds it, only sync-main). Told on
 shutdown: use `https://sync.example.org/v2` instead of the Mac mini
 server, keep going on slice 4, on any problem stop, write
 `~/Developer/compass-build/slice4-report.md` and wait for a message.
+
+**Network (resume):** the MacBook is no longer on the Mac mini's LAN, so
+its runs use the public server only; deploy server changes to the sync server first.
 
 **Servers:** public `https://sync.example.org/v2` runs slice 4's
 server (`/opt/compass-sync` on the sync server, `ssh -p 22 user@server`;
@@ -1045,6 +1046,23 @@ functions, and the MacBook run covers the rest.
 Touch ID prompt); the steps skip it. Reset doesn't delete the old chain on
 the server. The Spaces switch off keeps COMPASS_SPACES's metadata, the
 other switches drop theirs (upstream's behavior).
+
+**MacBook run (31 Oct, `1e44100`, against sync.example.org).** The
+first build (1e571a4) failed on an ambiguous `Observer` (fixed in
+1e44100). Then: build and `compass_unittests` OK, 68 tests in 7 batches
+passed. End to end, steps 5–10 passed: off page and menu label, start and
+restart (`passphrase in place`, nine types on, one device), pairing B
+(both list two devices), the Bookmarks and Spaces switches off/on on B
+(nothing arrives while off, arrives within ~58 s after on), C's wrong
+code, deny and cancel (C stays off), menu labels, tabs on other devices.
+sync-internals on A and B: kCustomPassphrase, no type errors; no
+crashes or DCHECKs in A, B, C. Found by eye: in dark mode the status card
+and the "This device" badge kept a light background, because colors.css
+has no `--color-sys-surface-container`; fixed in 41ae636 with
+`--color-sys-base-container` (`arc_import.html` has the same token on
+main). Device times ("9 minuti fa") follow the system locale while the
+page's own strings are English only. Not checked headless: "Show
+recovery code" (Touch ID) and "Reset sync".
 
 ### Change notifications
 
