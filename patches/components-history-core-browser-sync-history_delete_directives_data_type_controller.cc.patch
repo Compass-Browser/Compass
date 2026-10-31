@@ -1,0 +1,15 @@
+diff --git a/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc b/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
+index 154bd84a1c6a3dab8fe3172b3bab0ba46020d001..3c187a8267f4f0be3ece43b817e35c02efc59379 100644
+--- a/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
++++ b/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
+@@ -65,7 +65,9 @@ syncer::DataTypeController::PreconditionState
+ HistoryDeleteDirectivesDataTypeController::GetPreconditionState(
+     const PreconditionContext& context) const {
+   DCHECK(CalledOnValidThread());
+-  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled()) {
++  // Compass: custom passphrase allowed with local sync, as for HISTORY.
++  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled() &&
++      !helper_.sync_service()->IsLocalSyncEnabled()) {
+     return PreconditionState::kMustStopAndClearData;
+   }
+   return helper_.GetPreconditionState(context);

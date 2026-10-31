@@ -1,0 +1,17 @@
+diff --git a/components/history/core/browser/sync/history_data_type_controller_helper.cc b/components/history/core/browser/sync/history_data_type_controller_helper.cc
+index 7dcb990a78730fc6dd7332d4690ecbede6760ce9..c350cea92b9d82d5fea6ed55be7deda0ff411236 100644
+--- a/components/history/core/browser/sync/history_data_type_controller_helper.cc
++++ b/components/history/core/browser/sync/history_data_type_controller_helper.cc
+@@ -72,6 +72,12 @@ HistoryDataTypeControllerHelper::GetPreconditionState(
+     case AccountManagedStatusPolicy::kAllowAll:
+       return syncer::DataTypeController::PreconditionState::kPreconditionsMet;
+     case AccountManagedStatusPolicy::kDisallowEnterprise:
++      // Compass: local sync has no account, so its managed status stays
++      // kPending; there's no enterprise account to keep history from.
++      if (sync_service_->IsLocalSyncEnabled()) {
++        return syncer::DataTypeController::PreconditionState::
++            kPreconditionsMet;
++      }
+       return GetPreconditionStateFromManagedStatus(
+           context.account_managed_status);
+   }
