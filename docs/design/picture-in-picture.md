@@ -80,7 +80,10 @@ windows (a `Browser` of their own) aren't changed.
 **Ctrl+Option+Cmd+P**, from any app, while a video's picture-in-picture
 window is open, makes it ignore the mouse: clicks, scrolls and hovers go to
 whatever is under it. While it does, the window fades to 25% under the
-pointer (150 ms), so you can see what you're clicking. The same shortcut
+pointer (150 ms), so you can see what you're clicking. Its controls stay
+hidden meanwhile: macOS still sends the window pointer moves, which would
+show them (`VideoOverlayWindowViews::UpdateControlsVisibility()` asks
+`PipClickThrough::IsClickThrough()`, patch). The same shortcut
 makes it take clicks again; so does closing it (the next one takes clicks).
 
 `compass::PipClickThrough` (`browser/ui/views/picture_in_picture/`, a
@@ -98,6 +101,12 @@ The shortcut is fixed until shortcuts can be set (plan.md, item 14).
 
 Test: `CompassAutoPipBrowserTest.ClickThroughShortcut` (not the hover fade,
 which needs the real pointer).
+
+## Rounded corners (macOS)
+
+The window is frameless, so macOS barely rounds it. `PipClickThrough`
+rounds its content view's layer (12 pt continuous corners, as the page
+card) and redraws the shadow to follow.
 
 ## Known gaps
 

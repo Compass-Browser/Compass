@@ -19,6 +19,9 @@ source_set("click_through") {
       "//ui/gfx",
       "//ui/views",
     ]
-    frameworks = [ "AppKit.framework" ]
+    frameworks = [
+      "AppKit.framework",
+      "QuartzCore.framework",
+    ]
   }
 }

@@ -5,6 +5,7 @@
 #include "compass/browser/ui/views/picture_in_picture/pip_click_through_mac.h"
 
 #import <AppKit/AppKit.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include <algorithm>
 
@@ -49,6 +50,7 @@ void PipClickThrough::AddWindow(views::Widget* widget) {
     windows_.push_back(widget);
     observations_.AddObservation(widget);
   }
+  RoundCorners(widget);
   Apply(widget);
   UpdateListening();
 }
@@ -75,6 +77,27 @@ void PipClickThrough::Toggle() {
 
 bool PipClickThrough::IsIgnoringMouseForTesting(views::Widget* widget) const {
   return GetNSWindow(widget).ignoresMouseEvents;
+}
+
+bool PipClickThrough::IsClickThrough(const views::Widget* widget) const {
+  return enabled_ && std::ranges::contains(windows_, widget);
+}
+
+double PipClickThrough::GetCornerRadiusForTesting(
+    views::Widget* widget) const {
+  NSView* content = GetNSWindow(widget).contentView;
+  return content.layer ? content.layer.cornerRadius : 0;
+}
+
+void PipClickThrough::RoundCorners(views::Widget* widget) {
+  NSWindow* window = GetNSWindow(widget);
+  NSView* content = window.contentView;
+  content.wantsLayer = YES;
+  content.layer.cornerRadius = kCornerRadius;
+  content.layer.cornerCurve = kCACornerCurveContinuous;
+  content.layer.masksToBounds = YES;
+  // The shadow is drawn from what the window paints: redraw it rounded.
+  [window invalidateShadow];
 }
 
 bool PipClickThrough::IsHoveredForTesting(views::Widget* widget) const {

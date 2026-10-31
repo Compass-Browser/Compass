@@ -29,6 +29,8 @@ class PipClickThrough : public views::WidgetObserver,
   static ui::Accelerator GetAccelerator();
   // The window's opacity under the pointer while it ignores the mouse.
   static constexpr float kHoverOpacity = 0.25f;
+  // Its corners, as the page card's (docs/design/window-frame.md).
+  static constexpr double kCornerRadius = 12;
 
   static PipClickThrough& Get();
 
@@ -43,10 +45,15 @@ class PipClickThrough : public views::WidgetObserver,
   // Turns click-through on or off for every picture-in-picture window.
   void Toggle();
   bool enabled() const { return enabled_; }
+  // Whether |widget| lets clicks through now. Its controls then stay hidden
+  // (VideoOverlayWindowViews::UpdateControlsVisibility(), see patches/): the
+  // window still sees the pointer move, though not clicks.
+  bool IsClickThrough(const views::Widget* widget) const;
 
   bool IsIgnoringMouseForTesting(views::Widget* widget) const;
   bool is_listening_for_testing() const { return listening_; }
   bool IsHoveredForTesting(views::Widget* widget) const;
+  double GetCornerRadiusForTesting(views::Widget* widget) const;
   const std::vector<raw_ptr<views::Widget>>& windows_for_testing() const {
     return windows_;
   }
@@ -68,6 +75,8 @@ class PipClickThrough : public views::WidgetObserver,
   ~PipClickThrough() override;
 
   void Apply(views::Widget* widget);
+  // Rounds the window's corners; its shadow follows.
+  void RoundCorners(views::Widget* widget);
   // Stops tracking |widget|, which takes clicks again.
   void RemoveWindow(views::Widget* widget);
   // Follows the pointer while click-through is on: the window under it fades.

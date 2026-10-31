@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..57ddddcf281a9b63a91021371a47b823f8982bfc 100644
+index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..b2aa923a8bb54f51f4a89f531feb2a6a049cac6d 100644
 --- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 +++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 @@ -4,6 +4,10 @@
@@ -13,7 +13,20 @@ index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..57ddddcf281a9b63a91021371a47b823
  #include <memory>
  #include <string>
  
-@@ -1744,6 +1748,14 @@ void VideoOverlayWindowViews::ShowInactive() {
+@@ -777,6 +781,12 @@ bool VideoOverlayWindowViews::AreControlsVisible() const {
+ 
+ void VideoOverlayWindowViews::UpdateControlsVisibility(bool is_visible,
+                                                        bool should_animate) {
++#if BUILDFLAG(IS_MAC)
++  // Compass: no controls while the window lets clicks through.
++  if (compass::PipClickThrough::Get().IsClickThrough(this)) {
++    is_visible = false;
++  }
++#endif
+   if (is_moving_) {
+     // If we've already queued a visibility change for the same visibility, then
+     // only animate if both should animate (which matches what would have
+@@ -1744,6 +1754,14 @@ void VideoOverlayWindowViews::ShowInactive() {
  #endif
  
    views::Widget::SetVisibleOnAllWorkspaces(true);

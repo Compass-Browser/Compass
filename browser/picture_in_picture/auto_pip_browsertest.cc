@@ -267,10 +267,13 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   views::Widget* window = click_through.windows_for_testing()[0];
   EXPECT_TRUE(click_through.is_listening_for_testing());
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
+  EXPECT_EQ(click_through.GetCornerRadiusForTesting(window),
+            PipClickThrough::kCornerRadius);
 
   click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
   EXPECT_TRUE(click_through.enabled());
   EXPECT_TRUE(click_through.IsIgnoringMouseForTesting(window));
+  EXPECT_TRUE(click_through.IsClickThrough(window));
 
   click_through.OnKeyPressed(PipClickThrough::GetAccelerator());
   EXPECT_FALSE(click_through.enabled());
