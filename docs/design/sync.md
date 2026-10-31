@@ -8,6 +8,44 @@ ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since
 2021). This doc says how.
 
+## Hand-off (2026-10-31, 22:45 CET; Mac mini shut down)
+
+Read this first when resuming the sync work.
+
+**Branches** (all pushed to origin; the MacBook follows `sync-main`):
+
+| Branch | State |
+|---|---|
+| `sync-main` (`02efe11`+) | slices 0, 1, 2, 2b, 3, 3b and the server revive fix merged; built on the MacBook, Gioele's Fast runs it |
+| `sync/slice-4-ui` (`1e44100`) | settings page, app-menu row, other-device tabs, pairing reasons; includes sync-main 02efe11. MacBook run in progress (the build failed once on an ambiguous `Observer`, fixed in `1e44100`) |
+| `sync/slice-5-profiles` (`cb13f65`) | profiles; never built; merge sync-main (after slice 4) into it before its run: overlaps slice 4 in compass_sync_service, sync_controller, the mojom, page handler, compass_sync.{html,ts}, pairing |
+| `sync/slice-6-push` (`1990840`) | push (SSE); never built; no patches; Go tests pass; small overlap with 4 in server/server/server.go and compass_sync_service |
+
+**Order:** slice 4's MacBook run → merge 4 into sync-main → merge sync-main
+into 6, deploy the combined server (the sync server, and the Mac mini if it's up),
+run 6 → merge 6 → merge sync-main into 5, run 5 → merge 5 → slice 7.
+
+**MacBook:** session "Chromium fetch and compass build" (Remote Control),
+repo `~/Developer/compass-build/compass`, tests in out/Debug only, out/Fast
+is Gioele's (only `update-and-run.sh` builds it, only sync-main). Told on
+shutdown: use `https://sync.example.org/v2` instead of the Mac mini
+server, keep going on slice 4, on any problem stop, write
+`~/Developer/compass-build/slice4-report.md` and wait for a message.
+
+**Servers:** public `https://sync.example.org/v2` runs slice 4's
+server (`/opt/compass-sync` on the sync server, `ssh -p 22 user@server`;
+update: rsync `server/` to `./src`, `docker compose up -d --build`). The Mac
+mini test server (Podman `compass-sync`, volume `compass-sync-data`, port
+8295) is down with the Mac mini; it ran slice 4's server; restart with
+`podman start compass-sync`.
+
+**Open items for slice 7:** quota errors shown; deleted history can come
+back within 14 days and history retention/30k cap configurable; server
+tombstone cleanup; "kept" log line (3b); Arc-derived UUIDs; check
+chrome://history by eye; server backups on the sync server; a scripted the sync server
+update; merging sync-main into main (sidebar node IDs now saved: watch the
+Arc import session's sidebar changes); the real two-Mac test.
+
 ## Goal
 
 A second Mac (and later Windows/Linux) shows the same spaces, pinned
