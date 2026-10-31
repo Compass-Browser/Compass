@@ -18,7 +18,14 @@
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "compass/browser/ui/views/frame/content_frame.h"
+#include "ui/base/hit_test.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/window/non_client_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -94,6 +101,51 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OpenInSpaceMovesThePage) {
   EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
   EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents(), page);
   EXPECT_TRUE(base::test::RunUntil([&] { return !FindLittleWindow(); }));
+}
+
+// The page is a card inside the frame, as in the main window.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, PageSitsInTheFrame) {
+  BrowserWindowInterface* little = OpenLittleWindow(
+      browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(little);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(little);
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+  const gfx::Rect page = browser_view->multi_contents_view()->bounds();
+  EXPECT_EQ(page.x(), kContentFrameInset);
+  EXPECT_EQ(browser_view->width() - page.right(), kContentFrameInset);
+  EXPECT_EQ(browser_view->height() - page.bottom(), kContentFrameInset);
+  // Other popups keep upstream's layout.
+  EXPECT_TRUE(GetPopupContentFrameInsets(
+                  BrowserView::GetBrowserViewForBrowser(browser()))
+                  .IsEmpty());
+}
+
+// No native title bar: the frame and the bar's empty space drag the window,
+// its controls and the page don't.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, FrameDragsTheWindow) {
+  BrowserWindowInterface* little = OpenLittleWindow(
+      browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(little);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(little);
+  views::Widget* widget = browser_view->GetWidget();
+  widget->LayoutRootViewIfNecessary();
+  auto hit_test = [&](gfx::Point point) {
+    views::View::ConvertPointToWidget(browser_view, &point);
+    return widget->non_client_view()->NonClientHitTest(point);
+  };
+  const gfx::Rect page = browser_view->multi_contents_view()->bounds();
+  // The frame beside and under the page.
+  EXPECT_EQ(hit_test(gfx::Point(2, page.CenterPoint().y())), HTCAPTION);
+  EXPECT_EQ(hit_test(gfx::Point(page.CenterPoint().x(),
+                                browser_view->height() - 2)),
+            HTCAPTION);
+  // The page.
+  EXPECT_EQ(hit_test(page.CenterPoint()), HTCLIENT);
+  // The address in the bar.
+  views::View* location_bar = browser_view->GetLocationBarView();
+  gfx::Point address = location_bar->GetLocalBounds().CenterPoint();
+  views::View::ConvertPointToTarget(location_bar, browser_view, &address);
+  EXPECT_EQ(hit_test(address), HTCLIENT);
 }
 
 // Back is there, and follows the page's history.

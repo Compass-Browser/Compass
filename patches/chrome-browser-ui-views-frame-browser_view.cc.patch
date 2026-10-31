@@ -1,19 +1,20 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index b68f089aebf83b82499611404433d430e9971f14..03c9e5f7fbcc32e3cb9e3b4e2fc967df95073fad 100644
+index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486930ae1ae 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,10 @@
+@@ -4,6 +4,11 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
  
 +#include "compass/browser/ui/views/frame/window_frame.h"
++#include "compass/browser/ui/views/little_window/little_window.h"
 +#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +#include "compass/browser/window_sync/window_features.h"
 +
  #include <stdint.h>
  
  #include <algorithm>
-@@ -1108,6 +1112,10 @@ BrowserView::BrowserView(BrowserWindowInterface* browser)
+@@ -1108,6 +1113,10 @@ BrowserView::BrowserView(BrowserWindowInterface* browser)
  }
  
  BrowserView::~BrowserView() {
@@ -24,7 +25,7 @@ index b68f089aebf83b82499611404433d430e9971f14..03c9e5f7fbcc32e3cb9e3b4e2fc967df
    // Remove the layout manager to avoid dangling. This needs to be earlier than
    // other cleanups that destroy views referenced in the layout manager.
    SetLayoutManager(nullptr);
-@@ -3064,6 +3072,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
+@@ -3064,6 +3073,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
  }
  
  bool BrowserView::IsToolbarVisible() const {
@@ -36,7 +37,7 @@ index b68f089aebf83b82499611404433d430e9971f14..03c9e5f7fbcc32e3cb9e3b4e2fc967df
  #if BUILDFLAG(IS_MAC)
    // Immersive full screen makes it possible to display the toolbar when
    // kShowFullscreenToolbar is not set.
-@@ -4595,6 +4608,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
+@@ -4595,6 +4609,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
      return views::CloseRequestResult::kCannotClose;
    }
  
@@ -49,7 +50,7 @@ index b68f089aebf83b82499611404433d430e9971f14..03c9e5f7fbcc32e3cb9e3b4e2fc967df
    // Give beforeunload handlers, the user, or policy the chance to cancel the
    // close before we hide the window below.
    if (!UnloadController::From(browser_)->HandleBeforeClose()) {
-@@ -4736,6 +4755,10 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4736,6 +4756,10 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
          // controls before finally falling back to HTCAPTION.
          return HTNOWHERE;
        }
@@ -60,7 +61,19 @@ index b68f089aebf83b82499611404433d430e9971f14..03c9e5f7fbcc32e3cb9e3b4e2fc967df
      }
    } else if (GetTabStripVisible()) {
      // Determine if the Horizontal TabStrip exists and is capable of being
-@@ -5029,6 +5052,7 @@ void BrowserView::AddedToWidget() {
+@@ -4794,6 +4818,11 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+     }
+   }
+ 
++  // Compass: a little window's frame and the empty part of its bar drag it.
++  if (compass::IsOnLittleWindowCaption(this, point_in_browser_view_coords)) {
++    return HTNOWHERE;
++  }
++
+   // If the point's y coordinate is below the top of the topmost view and
+   // otherwise within the bounds of this view, the point is considered to be
+   // within the client area.
+@@ -5029,6 +5058,7 @@ void BrowserView::AddedToWidget() {
  #endif
  
    toolbar_->Init();

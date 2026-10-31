@@ -38,11 +38,15 @@ constexpr SkAlpha kTintAlpha = 0x24;  // 14%
 constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
 
 SkColor ToTintColor(SpaceColor color) {
-  const std::optional<SkColor> tint = GetSpaceTint(color);
-  return tint ? SkColorSetA(*tint, kTintAlpha) : SK_ColorTRANSPARENT;
+  return GetSpaceFrameTint(color);
 }
 
 }  // namespace
+
+SkColor GetSpaceFrameTint(SpaceColor color) {
+  const std::optional<SkColor> tint = GetSpaceTint(color);
+  return tint ? SkColorSetA(*tint, kTintAlpha) : SK_ColorTRANSPARENT;
+}
 
 std::optional<SkColor> GetSpaceTint(SpaceColor color) {
   switch (color) {

@@ -5,12 +5,21 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_LITTLE_WINDOW_LITTLE_WINDOW_H_
 #define COMPASS_BROWSER_UI_VIEWS_LITTLE_WINDOW_LITTLE_WINDOW_H_
 
+#include <optional>
 #include <vector>
 
 class BrowserWindowInterface;
 class GURL;
 class Profile;
 struct StartupTab;
+
+namespace gfx {
+class Point;
+}  // namespace gfx
+
+namespace views {
+class View;
+}  // namespace views
 
 namespace compass {
 
@@ -31,6 +40,21 @@ BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url);
 
 // Whether |browser| is a little window.
 bool IsLittleWindow(BrowserWindowInterface* browser);
+
+// Whether the window being created now is a little window: it has no native
+// title bar, as a normal window (BrowserNativeWidgetMac, see patches/).
+bool IsCreatingLittleWindow();
+
+// The height of a little window's bar, which macOS centers the traffic
+// lights on (BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(), see
+// patches/), if |browser_view| is a little window's or is being created.
+std::optional<int> GetLittleWindowBarHeight(views::View* browser_view);
+
+// Whether |point| (in |browser_view|'s coordinates) is on a little window's
+// frame or the empty part of its bar, which drag the window
+// (BrowserView::NonClientHitTest(), see patches/).
+bool IsOnLittleWindowCaption(views::View* browser_view,
+                             const gfx::Point& point);
 
 // Moves |browser|'s page into |profile|'s last active window (a new one if
 // there's none) as the active tab; |browser| then closes. Returns the window

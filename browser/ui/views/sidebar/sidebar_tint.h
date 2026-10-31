@@ -28,6 +28,10 @@ namespace compass {
 // sidebar page's palette (resources/sidebar/app.ts) shows the same colors.
 std::optional<SkColor> GetSpaceTint(SpaceColor color);
 
+// What a space paints over the frame color: its tint, partly transparent, or
+// transparent for none.
+SkColor GetSpaceFrameTint(SpaceColor color);
+
 // Tints the whole vertical tab strip region (the header, the sidebar page
 // and the margins around it) with the window's space color, over the
 // region's background and under its children. Ignored by the region's

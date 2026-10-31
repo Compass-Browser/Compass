@@ -1,17 +1,28 @@
 diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-index bac174d0b227aa593d369b6e2e7f7b58179f2c16..4c59077082bd6e07df8a1bcf3aa475ddf908b51a 100644
+index bac174d0b227aa593d369b6e2e7f7b58179f2c16..9529a0b8e0185e163be4118a001b57736c41286c 100644
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  
  #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
  
++#include "compass/browser/ui/views/little_window/little_window.h"
 +#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +
  #include <algorithm>
  #include <memory>
  #include <ranges>
-@@ -1465,6 +1467,9 @@ bool LocationBarView::RefreshContentSettingViews() {
+@@ -1432,7 +1435,8 @@ void LocationBarView::RefreshBackground() {
+     border_color = color_provider->GetColor(kColorLocationBarBorderOnMismatch);
+   }
+ 
+-  if (is_popup_mode_) {
++  // Compass: a little window's location bar is a pill, as the sidebar's.
++  if (is_popup_mode_ && !compass::IsLittleWindow(browser_)) {
+     SetBackground(views::CreateSolidBackground(background_color_));
+   } else {
+     SetBackground(CreateRoundRectBackground(
+@@ -1465,6 +1469,9 @@ bool LocationBarView::RefreshContentSettingViews() {
      }
    }
  

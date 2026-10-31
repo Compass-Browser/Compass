@@ -7,6 +7,10 @@
 
 #include "ui/gfx/geometry/insets.h"
 
+namespace views {
+class View;
+}  // namespace views
+
 namespace compass {
 
 // As in Arc, the page sits in a rounded card inside a frame of the space's
@@ -29,6 +33,12 @@ inline constexpr gfx::Insets GetContentFrameInsets() {
   return gfx::Insets::TLBR(kContentFrameInset, 0, kContentFrameInset,
                            kContentFrameInset);
 }
+
+// The card's insets in a popup's |browser_view| under its toolbar: the
+// frame's in a little window (docs/design/little-window.md), none in other
+// popups. Upstream's popup layout asks (see patches/); defined with the
+// little windows, in //compass/browser/ui.
+gfx::Insets GetPopupContentFrameInsets(const views::View* browser_view);
 
 }  // namespace compass
 

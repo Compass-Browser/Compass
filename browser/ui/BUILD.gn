@@ -121,6 +121,8 @@ source_set("ui") {
     sources += [
       "views/frame/browser_view_exchange_mac.mm",
       "views/frame/window_frame_mac.mm",
+      "views/little_window/little_window_mac.h",
+      "views/little_window/little_window_mac.mm",
     ]
   }
 }

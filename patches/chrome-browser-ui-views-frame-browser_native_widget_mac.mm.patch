@@ -1,8 +1,52 @@
 diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-index 818924fc76681c38faad1c2082b686cbf67f3cdd..fc50375e8ec8524e7410d3535b4b0caaa10d4bcc 100644
+index 818924fc76681c38faad1c2082b686cbf67f3cdd..2b39c3a0b654adc74f47eb5377fdc1ecf64fadc5 100644
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -755,6 +755,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -48,6 +48,7 @@
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/grit/generated_resources.h"
++#include "compass/browser/ui/views/little_window/little_window.h"
+ #include "components/bookmarks/common/bookmark_pref_names.h"
+ #include "components/dom_distiller/content/browser/distillable_page_utils.h"
+ #include "components/dom_distiller/core/url_utils.h"
+@@ -268,6 +269,13 @@ - (NSTouchBar*)makeTouchBar {
+ void BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
+     bool* override_titlebar_height,
+     float* titlebar_height) {
++  // Compass: a little window's traffic lights sit on its bar's row.
++  if (std::optional<int> bar_height =
++          compass::GetLittleWindowBarHeight(browser_view_)) {
++    *override_titlebar_height = true;
++    *titlebar_height = *bar_height;
++    return;
++  }
+   if (browser_view_ && browser_view_->browser_widget() &&
+       browser_view_->browser_widget()->GetFrameView()) {
+     *override_titlebar_height = true;
+@@ -726,15 +734,18 @@ - (NSTouchBar*)makeTouchBar {
+                          NSWindowStyleMaskTitled | NSWindowStyleMaskResizable;
+     params->window_title_hidden = true;
+   } else if (browser_view_->GetIsNormalType() ||
+-             browser_view_->GetIsWebAppType()) {
++             browser_view_->GetIsWebAppType() ||
++             compass::IsCreatingLittleWindow()) {
+     params->window_class = remote_cocoa::mojom::WindowClass::kBrowser;
+     params->style_mask |= NSWindowStyleMaskFullSizeContentView;
+ 
+     // Ensure tabstrip/profile button are visible.
+     params->titlebar_appears_transparent = true;
+ 
+-    // Hosted apps draw their own window title.
+-    if (browser_view_->GetIsWebAppType()) {
++    // Hosted apps draw their own window title. Compass: so do little windows
++    // (none).
++    if (browser_view_->GetIsWebAppType() ||
++        compass::IsCreatingLittleWindow()) {
+       params->window_title_hidden = true;
+     }
+   } else {
+@@ -755,6 +766,17 @@ - (NSTouchBar*)makeTouchBar {
    return ns_window;
  }
  
