@@ -979,9 +979,12 @@ void CompassSpacesSyncBridge::PlaceNode(const std::string& key,
       parked = true;
     }
   }
-  const size_t index =
-      parked ? root->children().size() - (node->parent() == root ? 1 : 0)
-             : InsertionIndex(*parent, node, remote.position());
+  if (parked && node->parent() == root) {
+    return;
+  }
+  const size_t index = parked
+                           ? root->children().size()
+                           : InsertionIndex(*parent, node, remote.position());
   MoveNode(node, *target, parent, index);
 }
 
