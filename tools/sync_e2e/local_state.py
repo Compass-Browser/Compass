@@ -15,6 +15,7 @@ headless way to name a profile, so the steps name them here.
       prints the profile's compass.sync prefs (the seed left out)
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -47,7 +48,11 @@ def main(argv):
       prefs = json.load(f)
     sync = dict(prefs.get('compass', {}).get('sync', {}))
     if sync.get('seed'):
-      sync['seed'] = '<%d chars>' % len(sync['seed'])
+      # Its length and a short hash: enough to tell whether two profiles
+      # (or a profile before and after a reset) hold the same seed.
+      sync['seed'] = '<%d chars, sha256 %s>' % (
+          len(sync['seed']),
+          hashlib.sha256(sync['seed'].encode()).hexdigest()[:8])
     sync['local_sync_backend'] = prefs.get('sync', {}).get(
         'enable_local_sync_backend')
     print(json.dumps(sync, indent=1))
