@@ -6,13 +6,18 @@ import CompassModel
 import SwiftUI
 import WebKit
 
-/// One entry, full screen, with a slim bottom bar: back, the address pill
-/// (opens the command bar), forward and the sidebar. Swiping the bar left
-/// or right moves between the space's entries; swiping it up opens the
+/// One entry, full screen, under a floating glass bar: back, the address
+/// pill (opens the command bar; shows the load progress along its bottom),
+/// forward when there's somewhere to go, and the sidebar. Swiping the bar
+/// left or right moves between the space's entries; swiping it up opens the
 /// sidebar. With no entry selected it's an empty page in the space's color.
 struct BrowserScreen: View {
   @Environment(AppModel.self) private var app
   let node: SidebarNode?
+  /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
+  /// the 2 pt gap under it. A constant, not measured: feeding a measured
+  /// height back into the web view's inset loops layout.
+  static let barHeight: CGFloat = 44 + 2 * 5 + 2
 
   var body: some View {
     @Bindable var app = app
@@ -27,16 +32,24 @@ struct BrowserScreen: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
       }
-      if let tab = app.shownTab {
-        WebView(webView: app.tabs.webView(for: tab))
-          .id(tab.id)
-          .ignoresSafeArea(edges: node?.isSplit == true ? [] : .top)
-          .overlay(alignment: .top) { progress(tab) }
-      } else {
-        emptyPage
+      Group {
+        if let tab = app.shownTab {
+          WebView(webView: app.tabs.webView(for: tab), bottomInset: Self.barHeight)
+            .id(tab.id)
+            // The page runs under the bar; WKWebView insets its content by
+            // the safe area, so the page's end still scrolls clear of it.
+            .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
+        } else {
+          emptyPage
+        }
       }
-      if let pending = app.passwords.pendingSave { saveBanner(pending) }
-      bar
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        VStack(spacing: 8) {
+          if let pending = app.passwords.pendingSave { saveBanner(pending) }
+          bar
+        }
+        .animation(.snappy(duration: 0.25), value: app.passwords.pendingSave == nil)
+      }
     }
   }
 
@@ -67,9 +80,8 @@ struct BrowserScreen: View {
         .buttonStyle(.borderedProminent)
     }
     .padding(12)
-    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-    .padding(.horizontal, 10)
-    .padding(.bottom, 6)
+    .floatingGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .padding(.horizontal, 12)
     .transition(.move(edge: .bottom).combined(with: .opacity))
   }
 
@@ -90,55 +102,53 @@ struct BrowserScreen: View {
             Button(login.username.isEmpty ? login.host : login.username) { app.passwords.fill(login, in: view) }
           }
         } label: {
-          Image(systemName: "key.fill")
+          BarIcon(symbol: "key.fill")
         }
         .accessibilityLabel("Fill password")
+        .transition(.scale.combined(with: .opacity))
       }
     }
   }
 
-  @ViewBuilder private func progress(_ tab: SidebarNode) -> some View {
-    let _ = app.tabs.revision
-    if let view = app.tabs.live[tab.id], view.isLoading {
-      ProgressView(value: view.estimatedProgress)
-        .progressViewStyle(.linear)
-        .tint(app.store.space(of: tab)?.color.color ?? .accentColor)
-    }
+  /// How far the shown page has loaded, or nil once it has.
+  private var loadProgress: Double? {
+    guard let tab = app.shownTab, let view = app.tabs.live[tab.id], view.isLoading else { return nil }
+    return max(view.estimatedProgress, 0.05)
+  }
+
+  private var tint: Color {
+    app.shownTab.flatMap { app.store.space(of: $0)?.color.color }
+      ?? app.selectedSpace?.color.color ?? .accentColor
   }
 
   private var bar: some View {
     let _ = app.tabs.revision
     let view = app.shownTab.flatMap { app.tabs.live[$0.id] }
-    return HStack(spacing: 18) {
-      Button { view?.goBack() } label: { Image(systemName: "chevron.left") }
-        .disabled(!(view?.canGoBack ?? false))
-        .opacity(view?.canGoBack == true ? 1 : 0.3)
-      Button { app.showingCommandBar = true } label: {
-        HStack(spacing: 6) {
-          if let tab = app.shownTab { SiteIcon(url: tab.url, size: 14) }
-          Text(host)
-            .font(.callout)
-            .lineLimit(1)
-            .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(SidebarStyle.fill, in: Capsule())
+    let canBack = view?.canGoBack ?? false
+    let canForward = view?.canGoForward ?? false
+    return HStack(spacing: 2) {
+      Button { view?.goBack() } label: { BarIcon(symbol: "chevron.backward") }
+        .disabled(!canBack)
+        .opacity(canBack ? 1 : 0.3)
+        .accessibilityLabel("Back")
+      addressPill
+      if canForward {
+        Button { view?.goForward() } label: { BarIcon(symbol: "chevron.forward") }
+          .accessibilityLabel("Forward")
+          .transition(.scale.combined(with: .opacity))
       }
-      Button { view?.goForward() } label: { Image(systemName: "chevron.right") }
-        .disabled(!(view?.canGoForward ?? false))
-        .opacity(view?.canGoForward == true ? 1 : 0.3)
       keyButton
-      Button { app.showSidebar() } label: { Image(systemName: "sidebar.left") }
+      Button { app.showSidebar() } label: { BarIcon(symbol: "sidebar.left") }
         .accessibilityLabel("Sidebar")
     }
-    .font(.system(size: 19, weight: .medium))
+    .animation(.snappy(duration: 0.2), value: canForward)
     // The sidebar's neutral look, not the system tint.
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
-    .padding(.horizontal, 18)
-    .padding(.vertical, 8)
-    .background(.bar)
+    .padding(5)
+    .floatingGlass(in: Capsule())
+    .padding(.horizontal, 12)
+    .padding(.bottom, 2)
     .gesture(
       DragGesture(minimumDistance: 30).onEnded { value in
         let (dx, dy) = (value.translation.width, value.translation.height)
@@ -148,6 +158,44 @@ struct BrowserScreen: View {
           app.showSidebar()
         }
       })
+  }
+
+  /// The site's icon and host, centered; the load progress as a thin line in
+  /// the space's color along its bottom edge.
+  private var addressPill: some View {
+    Button { app.showingCommandBar = true } label: {
+      HStack(spacing: 7) {
+        if let tab = app.shownTab {
+          SiteIcon(url: tab.url, size: 16)
+        } else {
+          Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).opacity(0.5)
+        }
+        Text(host)
+          .font(.system(size: 16, weight: app.shownTab == nil ? .regular : .medium))
+          .foregroundStyle(app.shownTab == nil ? .secondary : .primary)
+          .lineLimit(1)
+      }
+      .padding(.horizontal, 14)
+      .frame(maxWidth: .infinity)
+      .frame(height: 44)
+      .background(Color.primary.opacity(0.07), in: Capsule())
+      .overlay(alignment: .bottom) {
+        if let progress = loadProgress {
+          // Scaled, not measured: a GeometryReader here re-lays out the
+          // glass bar endlessly.
+          Capsule().fill(tint)
+            .frame(maxWidth: .infinity)
+            .frame(height: 2.5)
+            .scaleEffect(x: progress, anchor: .leading)
+            .animation(.easeOut(duration: 0.25), value: progress)
+          .padding(.horizontal, 16)
+          .transition(.opacity)
+        }
+      }
+      .contentShape(Capsule())
+    }
+    .accessibilityLabel("Address")
+    .accessibilityValue(host)
   }
 
   private var host: String {
@@ -164,5 +212,17 @@ struct BrowserScreen: View {
     let next = index + delta
     guard entries.indices.contains(next) else { return }
     withAnimation(.easeInOut(duration: 0.2)) { app.show(entries[next]) }
+  }
+}
+
+/// A bottom-bar glyph on a 44 pt round target.
+private struct BarIcon: View {
+  let symbol: String
+
+  var body: some View {
+    Image(systemName: symbol)
+      .font(.system(size: 18, weight: .semibold))
+      .frame(width: 44, height: 44)
+      .contentShape(Circle())
   }
 }

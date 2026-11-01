@@ -17,8 +17,11 @@ final class TabManager: NSObject {
   static let maxLive = 6
 
   private(set) var live: [String: WKWebView] = [:]
-  private var recent: [String] = []
-  private var observations: [String: [NSKeyValueObservation]] = [:]
+  // Bookkeeping, not shown: unobserved, since views call webView(for:)
+  // (which bumps `recent`) while rendering, and an observed write there
+  // re-renders them forever.
+  @ObservationIgnored private var recent: [String] = []
+  @ObservationIgnored private var observations: [String: [NSKeyValueObservation]] = [:]
   /// Bumped when a live tab's state (loading, back/forward) changes.
   private(set) var revision = 0
   private let store: SpaceStore

@@ -166,3 +166,17 @@ struct SpaceIcon: View {
     "lock": "lock.fill", "celebration": "party.popper.fill", "bolt": "bolt.fill",
   ]
 }
+
+extension View {
+  /// Floating chrome (the browser's bottom bar, banners): Liquid Glass on
+  /// iOS 26 and later, a material with a soft shadow before.
+  @ViewBuilder func floatingGlass<S: Shape>(in shape: S) -> some View {
+    if #available(iOS 26.0, *) {
+      glassEffect(.regular, in: shape)
+    } else {
+      background(.regularMaterial, in: shape)
+        .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.12), radius: 14, y: 4)
+    }
+  }
+}

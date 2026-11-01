@@ -85,6 +85,13 @@ final class AppModel {
       }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
+      //   -CompassCommandBar YES: open the command bar.
+      if defaults.bool(forKey: "CompassCommandBar") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(800))
+          self?.showingCommandBar = true
+        }
+      }
       //   -CompassDebugJS <js>: run in each page once it has loaded.
       if let js = defaults.string(forKey: "CompassDebugJS") {
         let previous = tabs.onPageLoaded
