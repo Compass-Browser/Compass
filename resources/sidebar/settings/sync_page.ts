@@ -73,6 +73,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   // The profile mapping the rows show (slice 5), so a status change doesn't
   // reset the user's choices.
   private mappingShown_ = '';
+  // The invite whose QR code is drawn, so a status change doesn't redraw it.
+  private qrShown_ = '';
 
   protected get pageTitle() {
     return 'Sync';
@@ -298,6 +300,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
 
     this.show('pairing', pairingActive);
     this.$('pairingCode').textContent = pairing.code;
+    this.renderQr_(pairing);
     this.$('pairingMessage').textContent = pairing.message;
     this.$('pairingMessage')
         .classList.toggle('error', pairing.step === PairingStep.kFailed);
@@ -312,6 +315,54 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       this.show('restartPanel', true);
     }
     this.renderMapping_();
+  }
+
+  // The invite as a QR code while the code shows, for a phone's camera
+  // (docs/design/ios.md). Dark on white whatever the theme: scanners need
+  // the contrast, and the four-module quiet zone is part of the white.
+  private renderQr_(pairing: Pairing) {
+    const box = this.$('pairingQr');
+    const size = pairing.qrSize;
+    const shown = pairing.step === PairingStep.kShowingCode && size > 0 &&
+        pairing.qr.length === size * size;
+    this.show('pairingQrPanel', shown);
+    if (!shown) {
+      box.replaceChildren();
+      delete box.dataset['invite'];
+      this.qrShown_ = '';
+      return;
+    }
+    if (this.qrShown_ === pairing.inviteUrl) {
+      return;
+    }
+    this.qrShown_ = pairing.inviteUrl;
+    const quiet = 4;
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    const extent = size + 2 * quiet;
+    svg.setAttribute('viewBox', `0 0 ${extent} ${extent}`);
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'QR code to add a phone');
+    const background = document.createElementNS(ns, 'rect');
+    background.setAttribute('width', String(extent));
+    background.setAttribute('height', String(extent));
+    background.setAttribute('fill', '#fff');
+    const path = document.createElementNS(ns, 'path');
+    let d = '';
+    for (let y = 0; y < size; ++y) {
+      for (let x = 0; x < size; ++x) {
+        if (pairing.qr[y * size + x]) {
+          d += `M${x + quiet} ${y + quiet}h1v1h-1z`;
+        }
+      }
+    }
+    path.setAttribute('d', d);
+    path.setAttribute('fill', '#000');
+    svg.append(background, path);
+    box.replaceChildren(svg);
+    // For tools/sync_e2e/sync_status.js.
+    box.dataset['invite'] = pairing.inviteUrl;
   }
 
   // Slice 5: this Mac's other profiles, each mapped to one of the chain's

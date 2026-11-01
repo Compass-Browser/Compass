@@ -18,20 +18,21 @@
     opacity: 0.7;
   }
 
+  /* Rows with separators, as upstream's settings rows; no box inside the
+     card. */
   .compass-page ul {
-    border: 1px solid var(--color-sys-divider, #dadce0);
-    border-radius: 12px;
     list-style: none;
     margin: 0;
     padding: 0;
   }
 
   .compass-page li {
-    padding: 8px 12px 8px 16px;
+    padding: 8px 0;
   }
 
   .compass-page li + li {
-    border-top: 1px solid var(--color-sys-divider, #dadce0);
+    border-top: var(--cr-separator-line,
+        1px solid var(--color-sys-divider, #dadce0));
   }
 
   .compass-page .row {

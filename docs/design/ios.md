@@ -428,7 +428,7 @@ The phone syncs every profile of the chain, each in its own account, as the desk
 
 ## Open items
 
-1. **Desktop QR code** (desktop item 1). On sync-main, `chrome://compass-sync`'s "Add a device" should also show a QR of `PairingInvite.url`: `compass-pair:?server=<server URL>&code=<slot>-<digits>`. Typing the code works today. This is desktop work (WebUI, plus a QR encoder such as upstream's `components/qr_code_generator`), so it needs a Chromium build and the MacBook.
+1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
 2. **Interop run against the desktop.** Pair the simulator, then a device, with a desktop Compass on sync-main. Check what the Swift tests can't:
    - a NIGORI made by Chromium opens;
    - the desktop shows the phone's spaces, Today entries, visits and passwords;

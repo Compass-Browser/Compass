@@ -152,8 +152,6 @@
 
   /* Lists: devices and what syncs. */
   .compass-page ul.rows {
-    border: 1px solid var(--color-sys-divider, #dadce0);
-    border-radius: 12px;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -164,11 +162,12 @@
     display: flex;
     gap: 12px;
     min-height: 24px;
-    padding: 10px 16px;
+    padding: 10px 0;
   }
 
   .compass-page ul.rows > li + li {
-    border-top: 1px solid var(--color-sys-divider, #dadce0);
+    border-top: var(--cr-separator-line,
+        1px solid var(--color-sys-divider, #dadce0));
   }
 
   .compass-page .grow {
@@ -243,6 +242,14 @@
 
   .compass-page #words li {
     padding: 3px 0;
+  }
+
+  .compass-page #pairingQr svg {
+    display: block;
+    width: 184px;
+    height: 184px;
+    margin: 4px 0 8px;
+    border-radius: 8px;
   }
 
   .compass-page .code {
@@ -344,6 +351,11 @@
 
 <!-- Pairing, on either side. -->
 <section id="pairing" class="card" hidden>
+  <div id="pairingQrPanel" hidden>
+    <div id="pairingQr"></div>
+    <p class="note">On an iPhone, scan this with the camera, or type the
+      code below in Compass.</p>
+  </div>
   <div id="pairingCode" class="code"></div>
   <p id="pairingMessage"></p>
   <div id="confirm" hidden>
