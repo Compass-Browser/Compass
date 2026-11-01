@@ -422,7 +422,8 @@ def ios_archive(ios: Path, args) -> None:
     auth += ['-authenticationKeyPath', str(Path(args.api_key).resolve()),
              '-authenticationKeyID', args.api_key_id,
              '-authenticationKeyIssuerID', args.api_issuer]
-  build_number = time.strftime('%Y%m%d%H%M')
+  # Two parts: one 12-digit number overflows what iOS keeps per part.
+  build_number = time.strftime('%Y%m%d.%H%M')
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
        'Compass', '-configuration', 'Release', '-destination',
        'generic/platform=iOS', '-archivePath', archive,
