@@ -170,7 +170,7 @@ TEST_F(SyncSettingsTest, MenuLabels) {
   EXPECT_EQ(label(SyncState::kNeedsRestart), "Sync: restart to finish");
 }
 
-TEST(SyncSettingsTest, Limits) {
+TEST_F(SyncSettingsTest, Limits) {
   EXPECT_EQ(SyncLimit::kNone, GetSyncLimit(false, false, false));
   EXPECT_EQ(SyncLimit::kHistoryFull, GetSyncLimit(false, false, true));
   EXPECT_EQ(SyncLimit::kThrottled, GetSyncLimit(true, false, true));
