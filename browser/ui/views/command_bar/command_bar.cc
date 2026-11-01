@@ -5,6 +5,7 @@
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
@@ -13,6 +14,9 @@
 #include "compass/browser/ui/compass_command_ids.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_muted_utils.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/bubble/webui_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
@@ -162,6 +166,16 @@ CommandBarPageHandler* CommandBar::GetPageHandler() {
 }
 
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
+  if (id == kToggleTabMuteCommand) {
+    // The active tab (the focused pane of a split), as its speaker in the
+    // sidebar would.
+    if (content::WebContents* contents =
+            browser->GetTabStripModel()->GetActiveWebContents()) {
+      SetTabAudioMuted(contents, !contents->IsAudioMuted(),
+                       TabMutedReason::kAudioIndicator, std::string());
+    }
+    return true;
+  }
   if (HandlePeekCommand(browser, id) ||
       HandleLittleWindowCommand(browser, id) ||
       HandleAppMenuSyncCommand(browser, id)) {

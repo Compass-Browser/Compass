@@ -24,6 +24,30 @@
   scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
       transparent;
   scrollbar-width: thin;
+  /* The browser's UI, not a page: no text selection, no text cursor, no
+   * callout (both inherited). */
+  cursor: default;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Lists don't rubber-band past their ends (or pass the scroll on), and
+ * horizontal swipes are the space switcher's, never back and forward. */
+* {
+  overscroll-behavior: none;
+}
+
+/* Favicons and icons can't be dragged out on their own: a drag that starts
+ * on one moves its row. */
+img,
+svg {
+  -webkit-user-drag: none;
+}
+
+/* Fields being edited (names, emoji) stay selectable. */
+input {
+  cursor: text;
+  user-select: text;
 }
 
 /* Favorites: as in Arc, tiles share each row's whole width, four or more

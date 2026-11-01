@@ -192,6 +192,29 @@ TEST_F(CompassSyncPageHandlerTest, ShowingCodeCarriesTheInviteAndItsQr) {
   }
 }
 
+TEST_F(CompassSyncPageHandlerTest, ShowingCodeCarriesItsExpiry) {
+  const base::Time expires_at =
+      base::Time::FromMillisecondsSinceUnixEpoch(1700000300000);
+  controller_.Set({sync::SyncState::kOn, "http://h/v2", ""},
+                  {sync::PairingStep::kShowingCode, "7-482913", "", "",
+                   expires_at});
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      future;
+  remote_->GetState(future.GetCallback());
+  EXPECT_EQ(future.Get<1>()->expires_at_ms, 1700000300000.0);
+
+  // Once B has joined (kConfirm) the code no longer counts down.
+  controller_.Set({sync::SyncState::kOn, "http://h/v2", ""},
+                  {sync::PairingStep::kConfirm, "7-482913", "iPhone", "",
+                   expires_at});
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      confirm;
+  remote_->GetState(confirm.GetCallback());
+  EXPECT_EQ(confirm.Get<1>()->expires_at_ms, 0.0);
+}
+
 TEST_F(CompassSyncPageHandlerTest, NoInviteOutsideShowingCode) {
   controller_.Set(
       {sync::SyncState::kOn, "https://sync.example.org/v2", ""},

@@ -252,6 +252,15 @@
     border-radius: 8px;
   }
 
+  .compass-page #pairingExpiry {
+    font-variant-numeric: tabular-nums;
+    margin-top: -6px;
+  }
+
+  .compass-page #pairingExpiry.soon {
+    color: var(--color-sys-error, #b3261e);
+  }
+
   .compass-page .code {
     font-family: ui-monospace, monospace;
     font-size: 36px;
@@ -357,6 +366,7 @@
       code below in Compass.</p>
   </div>
   <div id="pairingCode" class="code"></div>
+  <p id="pairingExpiry" class="note" hidden></p>
   <p id="pairingMessage"></p>
   <div id="confirm" hidden>
     <p>Add <strong id="deviceName"></strong> to sync?</p>

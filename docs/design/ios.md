@@ -466,6 +466,7 @@ The user asked for this. The sidebar's native look is replaced with the desktop 
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
+   Countdown ("Expires in m:ss", `sync/pairing-countdown`): MacBook run passed (2026-11-01), `CompassSyncPageHandlerTest.*` 15/15, 4:57 then 4:47 nine seconds later, red under 0:30, then "The code expired. Try again with a new code." with no QR.
 2. **Interop run against the desktop.** Pair the simulator, then a device, with a desktop Compass on sync-main. Check what the Swift tests can't:
    - a NIGORI made by Chromium opens;
    - the desktop shows the phone's spaces, Today entries, visits and passwords;

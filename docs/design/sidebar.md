@@ -509,6 +509,24 @@ serializer (last active, delay and archive round trip; older files get the
 default), a bridge test (unseen tabs close and archive, the shown one stays)
 and a page handler test.
 
+## Browser UI, not a page
+
+The sidebar's page drops what a web page would do but the browser's own UI
+doesn't:
+
+- No zoom. `CompassSidebarView::PreHandleGestureEvent()` drops pinches and
+  smart zoom (a two-finger double tap) before the page sees them; the page
+  cancels Ctrl+wheel, which a pinch also arrives as. `CompassSidebarUI` is a
+  `TopChromeWebUIController`, so the page stays at 100% whatever the default
+  page zoom.
+- No text selection or text cursor (`app.css`), except in the name fields
+  being edited, which have no spellcheck or autocomplete either.
+- No rubber band or scroll chaining (`overscroll-behavior: none`), so a
+  horizontal swipe is the space switcher's, never back or forward.
+- Favicons can't be dragged out alone: a drag from one moves its row.
+- No native context menu outside the name fields, and drops outside the
+  drop targets do nothing (both already in `app.ts`).
+
 ## Keyboard navigation
 
 Goal: the sidebar's entries can be used without a mouse.
@@ -661,6 +679,8 @@ time from its context menu.
   `SetTabAudioMuted()` with `TabMutedReason::kAudioIndicator`, as the tab
   strip's icon does.
 - **Mute Tab** / **Unmute Tab** in a live tab's context menu do the same.
+- **Cmd+Shift+M** (`kToggleTabMuteCommand`, shortcuts.md) mutes or unmutes
+  the window's active tab; it can be changed on the shortcuts settings page.
 
 ## Folder collapse state
 

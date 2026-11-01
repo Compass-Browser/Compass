@@ -119,6 +119,19 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
             kNewLittleWindowCommand);
 }
 
+// Cmd+Shift+M mutes the active tab, and unmutes it. It was upstream's
+// profile menu, which no longer has a shortcut.
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, MuteTabShortcut) {
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_M, kCommandShift), kToggleTabMuteCommand);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_FALSE(contents->IsAudioMuted());
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleTabMuteCommand));
+  EXPECT_TRUE(contents->IsAudioMuted());
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleTabMuteCommand));
+  EXPECT_FALSE(contents->IsAudioMuted());
+}
+
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CopyLinkCopiesThePageURL) {
   // Not the user's own clipboard.
   ui::TestClipboard* clipboard = ui::TestClipboard::CreateForCurrentThread();
@@ -165,10 +178,13 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
   EXPECT_TRUE(GetDefaultMacAcceleratorForCommandId(
       IDC_TOGGLE_VERTICAL_TABS_COLLAPSE, &shown));
   EXPECT_EQ(shown, cmd_shift_l);
-  // Save Page As, which has no shortcut, gets Cmd+S.
-  settings.SetCustom("save-page",
+  // The keys the sidebar toggle left go to another menu command: History,
+  // always enabled (Save Page As, which has none, is disabled in a test
+  // window, and a disabled item's keys run nothing).
+  settings.SetCustom("history",
                      ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN));
-  EXPECT_EQ(CommandForKeys(kVK_ANSI_S, kCommand), IDC_SAVE_PAGE);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_S, kCommand), IDC_SHOW_HISTORY);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_Y, kCommand), NO_COMMAND);
   // None: Reload loses Cmd+R.
   settings.SetCustom("reload", ui::Accelerator());
   EXPECT_EQ(CommandForKeys(kVK_ANSI_R, kCommand), NO_COMMAND);
@@ -185,6 +201,7 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
             IDC_TOGGLE_VERTICAL_TABS_COLLAPSE);
   EXPECT_EQ(CommandForKeys(kVK_ANSI_L, kCommandShift), NO_COMMAND);
   EXPECT_EQ(CommandForKeys(kVK_ANSI_R, kCommand), IDC_RELOAD);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_Y, kCommand), IDC_SHOW_HISTORY);
 }
 
 // While the settings page records keys, none of them runs a command.

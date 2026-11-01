@@ -1285,7 +1285,11 @@ export class CompassSidebarAppElement extends CrLitElement {
   // Two fingers across the sidebar pull in the next or the previous space.
   // Vertical scrolling and pinch zoom (ctrlKey) go on as usual.
   private onWheel_ = (e: WheelEvent) => {
+    // Ctrl+wheel, and a trackpad pinch (which pages get as Ctrl+wheel), would
+    // zoom the sidebar. CompassSidebarView drops pinches before they get
+    // here; this covers the rest.
     if (e.ctrlKey) {
+      e.preventDefault();
       return;
     }
     this.clearWheelQuietTimer_();

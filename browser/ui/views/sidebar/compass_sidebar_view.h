@@ -24,6 +24,10 @@
 
 class BrowserWindowInterface;
 
+namespace blink {
+class WebGestureEvent;
+}  // namespace blink
+
 namespace content {
 class WebContents;
 }  // namespace content
@@ -98,6 +102,10 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
   // views::WebView:
   void AddedToWidget() override;
   void RemovedFromWidget() override;
+  // The sidebar is the browser's UI, not a page: no pinch zoom and no smart
+  // zoom (a two-finger double tap on a trackpad).
+  bool PreHandleGestureEvent(content::WebContents* source,
+                             const blink::WebGestureEvent& event) override;
 
  private:
   // Shows |contents| and binds its page to this window.

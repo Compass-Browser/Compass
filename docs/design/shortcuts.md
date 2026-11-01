@@ -15,6 +15,7 @@ wins and upstream's command loses it. The user can change them (see
 | Cmd+Shift+R | Reloads without the cache (`IDC_RELOAD_BYPASSING_CACHE`) | The same: nothing to change |
 | Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
 | Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md) | New Split Tab, which keeps its Tab menu item without a shortcut |
+| Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
 
 Cmd+T and Cmd+L open the command bar (command-bar.md "Keyboard").
 
@@ -26,7 +27,7 @@ comes from `AcceleratorsCocoa` for command items, or one of
 Both call into `compass/browser/ui/cocoa/shortcuts_mac.h` once they're built:
 `AdjustMenuAccelerators()` and `AdjustShortcutsNotInMenu()`. There's no menu
 item for Copy URL, so Cmd+Shift+C is in the second list, in place of inspect
-element.
+element; Cmd+Shift+M, there too, takes the profile menu's entry.
 
 Tests: `CompassShortcutsBrowserTest` resolves key events through
 `CommandForKeyEvent()`, as typing does, and runs the commands.
@@ -85,7 +86,7 @@ get the focus. The pref is registered by a hook in `RegisterLocalState()`
   user's keys (or the defaults it copied before its first change) into the map
   and into the menu items with that command's tag. Menus show them, and
   `CommandForKeyEvent()` finds them through the menu as before.
-- **Commands outside the menu** (Copy URL, Next tab, little window): a hook in
+- **Commands outside the menu** (Copy URL, Next tab, little window, mute tab): a hook in
   `CommandForKeyEvent()`, after the menu, matches the user's keys
   (`CustomCommandForKeyEvent()`); upstream's keys for a command the user
   changed then run nothing. `GetDefaultMacAcceleratorForCommandId()`, which

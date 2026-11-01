@@ -20,7 +20,8 @@ ${this.isTab_() ? html`
       @dblclick="${this.onTabDblclick_}">
     <img class="favicon" src="${this.getFaviconUrl_(this.node!)}" alt="">
     ${this.isEditing_(this.node!) ? html`
-      <input class="title-input tab-title-input"
+      <input class="title-input tab-title-input" spellcheck="false"
+          autocomplete="off"
           .value="${this.getTitle_(this.node!)}" aria-label="Tab name"
           @click="${this.onTitleInputClick_}"
           @dblclick="${this.onTitleInputDblclick_}"
@@ -49,7 +50,8 @@ ${this.isSplit_() ? html`
           @dblclick="${this.onTabDblclick_}">
         <img class="favicon" src="${this.getFaviconUrl_(pane)}" alt="">
         ${this.isEditing_(pane) ? html`
-          <input class="title-input tab-title-input"
+          <input class="title-input tab-title-input" spellcheck="false"
+          autocomplete="off"
               .value="${this.getTitle_(pane)}" aria-label="Tab name"
               @click="${this.onTitleInputClick_}"
               @dblclick="${this.onTitleInputDblclick_}"
@@ -75,7 +77,8 @@ ${this.isFolder_() ? html`
       @click="${this.onFolderClick_}">
     <span class="chevron" ?collapsed="${this.isCollapsed_()}"></span>
     ${this.isEditing_(this.node!) ? html`
-      <input class="title-input folder-title-input" .value="${this.node!.title}"
+      <input class="title-input folder-title-input" spellcheck="false"
+          autocomplete="off" .value="${this.node!.title}"
           aria-label="Folder name" @click="${this.onTitleInputClick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title" @dblclick="${this.onFolderTitleDblclick_}">

@@ -7,6 +7,12 @@
 #include <string_view>
 #include <vector>
 
+#include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
+#include "content/public/browser/host_zoom_map.h"
+#include "content/public/browser/web_contents_delegate.h"
+#include "third_party/blink/public/common/input/web_gesture_event.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/page/page_zoom.h"
 #include "base/strings/strcat.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
@@ -1188,6 +1194,43 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuAssignsAProfile) {
             GURL("data:text/html,<title>One</title>"));
 }
 
+
+// The sidebar is the browser's UI, not a page: pinches and smart zoom never
+// reach it, it stays at 100% whatever the default page zoom, and its text
+// can't be selected (names being edited can).
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, BehavesLikeBrowserUI) {
+  content::WebContents* contents = sidebar_contents();
+  content::WebContentsDelegate* delegate = contents->GetDelegate();
+  ASSERT_TRUE(delegate);
+  for (blink::WebInputEvent::Type type :
+       {blink::WebInputEvent::Type::kGesturePinchBegin,
+        blink::WebInputEvent::Type::kGesturePinchUpdate,
+        blink::WebInputEvent::Type::kGesturePinchEnd,
+        blink::WebInputEvent::Type::kGestureDoubleTap}) {
+    blink::WebGestureEvent event(type, blink::WebInputEvent::kNoModifiers,
+                                 base::TimeTicks::Now(),
+                                 blink::WebGestureDevice::kTouchpad);
+    EXPECT_TRUE(delegate->PreHandleGestureEvent(contents, event));
+  }
+  // Scrolling still gets through.
+  blink::WebGestureEvent scroll(
+      blink::WebInputEvent::Type::kGestureScrollUpdate,
+      blink::WebInputEvent::kNoModifiers, base::TimeTicks::Now(),
+      blink::WebGestureDevice::kTouchpad);
+  EXPECT_FALSE(delegate->PreHandleGestureEvent(contents, scroll));
+
+  browser()->GetProfile()->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(
+      blink::ZoomFactorToZoomLevel(1.25));
+  EXPECT_EQ(content::HostZoomMap::GetZoomLevel(contents), 0.0);
+
+  EXPECT_EQ(content::EvalJs(contents, R"(
+      getComputedStyle(document.querySelector('compass-sidebar-app'))
+          .userSelect)"),
+            "none");
+  EXPECT_EQ(content::EvalJs(contents, R"(
+      getComputedStyle(document.body).overscrollBehaviorX)"),
+            "none");
+}
 
 // With spaces of two profiles there's no profile picker at startup, and the
 // window shows the switcher's first space in its profile, though the profile

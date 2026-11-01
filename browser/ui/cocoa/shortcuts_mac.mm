@@ -42,6 +42,7 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
     {"next-tab", IDC_SELECT_NEXT_TAB, "Tabs", "Next tab"},
     {"previous-tab", IDC_SELECT_PREVIOUS_TAB, "Tabs", "Previous tab"},
+    {"mute-tab", kToggleTabMuteCommand, "Tabs", "Mute or unmute the tab"},
     {"reload", IDC_RELOAD, "Tabs", "Reload"},
     {"hard-reload", IDC_RELOAD_BYPASSING_CACHE, "Tabs",
      "Reload without the cache"},
@@ -269,6 +270,10 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
         !shortcut.opt_key && shortcut.vkey_code == kVK_ANSI_C) {
       // Was inspect element.
       shortcut.chrome_command = IDC_COPY_URL;
+    }
+    if (shortcut.chrome_command == IDC_SHOW_AVATAR_MENU) {
+      // Cmd+Shift+M mutes the tab; the profile menu goes without a shortcut.
+      shortcut.chrome_command = kToggleTabMuteCommand;
     }
   }
   shortcuts.push_back({/*command_key=*/true, /*shift_key=*/false,

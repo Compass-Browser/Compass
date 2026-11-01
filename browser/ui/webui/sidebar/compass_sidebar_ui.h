@@ -16,7 +16,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
-#include "ui/webui/mojo_web_ui_controller.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 
 namespace compass {
 
@@ -36,7 +36,9 @@ class CompassSidebarUIConfig
 // region. Its host (CompassSidebarView) sets the window it belongs to with
 // webui::SetBrowserWindowInterface(), and sets it again when the page moves
 // to another window. See docs/design/sidebar.md.
-class CompassSidebarUI : public ui::MojoWebUIController,
+// A TopChromeWebUIController, like upstream's tab strip pages: the browser's
+// own UI, always at 100% zoom whatever the user's default page zoom.
+class CompassSidebarUI : public TopChromeWebUIController,
                         public sidebar::mojom::PageHandlerFactory {
  public:
   explicit CompassSidebarUI(content::WebUI* web_ui);

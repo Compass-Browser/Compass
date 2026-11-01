@@ -20,8 +20,13 @@ inline constexpr int kNewLittleWindowCommand = 39950;
 // The app menu's sync row: opens chrome://compass-sync (app_menu_sync.h).
 inline constexpr int kOpenSyncPageCommand = 39951;
 
+// Cmd+Shift+M: mutes the active tab, or unmutes it (docs/design/sidebar.md,
+// "Sound").
+inline constexpr int kToggleTabMuteCommand = 39952;
+
 inline bool IsCompassCommand(int id) {
-  return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand;
+  return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand ||
+         id == kToggleTabMuteCommand;
 }
 
 }  // namespace compass
