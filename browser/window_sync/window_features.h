@@ -82,6 +82,8 @@ class WindowFeatures : public SpaceList::Observer {
   // The window is swapping to another profile's space
   // (SwitchWindowToSpace()): it's about to empty and close.
   bool swapped_away() const { return swapped_away_; }
+  // False for a moment while the window switches spaces.
+  bool has_tab_strip_bridge() const { return !!bridge_; }
   // Not for the parking window.
   TabStripBridge& tab_strip_bridge() {
     CHECK(bridge_);
@@ -254,6 +256,14 @@ void SetSwapPresenter(SwapPresenter presenter);
 // true if it did; the emptied window then closes on its own, and the caller
 // must not go on closing it. See docs/design/sidebar.md, "Window sync".
 bool HandOffTabsBeforeClose(BrowserWindowInterface* browser);
+
+// Called by Browser::TabStripEmpty() and UnloadController::TabStripEmpty()
+// (see patches/) when |browser|'s last tab has gone, unless the window is
+// closing; both get the same answer. Returns true if the window stays
+// open: its last tab was closed (not moved to another window), and an empty
+// tab with the command bar follows in a moment. The caller must then not close
+// the window. See docs/design/command-bar.md, "No new tab page".
+bool KeepWindowWithNoTabs(BrowserWindowInterface* browser);
 
 // Whether |contents| is a tab in its profile's parking window: alive, but in
 // no window the user can see. Upstream's auto picture-in-picture counts a tab

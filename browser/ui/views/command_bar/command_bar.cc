@@ -29,6 +29,7 @@
 #include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/views/peek/peek.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/bubble/bubble_border.h"
@@ -55,9 +56,7 @@ std::u16string GetCurrentUrlText(BrowserWindowInterface* browser) {
     return std::u16string();
   }
   const GURL url = ToChromeURL(tab->GetContents()->GetVisibleURL());
-  if (url.SchemeIs(content::kChromeUIScheme) &&
-      (url.host() == chrome::kChromeUINewTabHost ||
-       url.host() == chrome::kChromeUINewTabPageHost)) {
+  if (IsEmptyTabURL(url)) {
     return std::u16string();
   }
   return base::UTF8ToUTF16(ToCompassURL(url).spec());

@@ -266,6 +266,14 @@ interface PlaceholderHandler {
   BringHere();
 };
 
+// Browser-side handler for chrome://compass-empty, what a window with nothing
+// else to show shows.
+interface EmptyPageHandler {
+  // Opens the window's command bar, unless it's open. A window without one
+  // loads the new tab page instead.
+  ShowCommandBar();
+};
+
 // An Arc space chrome://compass-import offers.
 struct ArcImportSpace {
   // Arc's space ID.

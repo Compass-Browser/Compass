@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/unload_controller.cc b/chrome/browser/ui/unload_controller.cc
+index fb499c2360cea197cd5c43052725f4b56d28629c..cdb43a70c61fa37c45e8ad18c0a3bbd92bb7a272 100644
+--- a/chrome/browser/ui/unload_controller.cc
++++ b/chrome/browser/ui/unload_controller.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/unload_controller.h"
+ 
++#include "compass/browser/window_sync/window_features.h"
++
+ #include <algorithm>
+ 
+ #include "base/functional/bind.h"
+@@ -630,7 +632,10 @@ void UnloadController::OnTabStripModelChanged(
+ void UnloadController::TabStripEmpty() {
+   // Set state_ here, so that extensions, etc, do not attempt to add tabs to the
+   // browser before it closes.
+-  if (state_ == State::kIdle) {
++  if (state_ == State::kIdle &&
++      // Compass: unless the window stays open (Browser::TabStripEmpty()).
++      (browser_->GetTabStripModel()->closing_all() ||
++       !compass::KeepWindowWithNoTabs(browser_))) {
+     TransitionTo(State::kUnloadCompleted);
+   }
+ }

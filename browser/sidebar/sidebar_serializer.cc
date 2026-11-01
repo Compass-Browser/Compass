@@ -553,9 +553,11 @@ bool IsRestorableURL(const GURL& url) {
   if (!url.is_valid() || url.IsAboutBlank()) {
     return false;
   }
-  // chrome://newtab/ and the WebUI page it commits as.
+  // chrome://newtab/, the WebUI page it committed as, and the empty page
+  // that replaced it (window_sync/empty_tab.h).
   return !url.SchemeIs("chrome") ||
-         (url.host() != "newtab" && url.host() != "new-tab-page");
+         (url.host() != "newtab" && url.host() != "new-tab-page" &&
+          url.host() != "compass-empty");
 }
 
 }  // namespace compass

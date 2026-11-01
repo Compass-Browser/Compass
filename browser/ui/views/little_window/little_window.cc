@@ -574,8 +574,9 @@ BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from) {
     near = from_view->GetWidget()->GetWindowBoundsInScreen();
   }
   BrowserWindowInterface* browser =
-      CreateLittleWindow(from->GetProfile(), GURL(chrome::kChromeUINewTabURL),
-                         near, /*opener=*/std::nullopt);
+      CreateLittleWindow(from->GetProfile(),
+                         GURL(chrome::kChromeUINewTabPageURL), near,
+                         /*opener=*/std::nullopt);
   if (browser) {
     browser->GetWindow()->Activate();
   }

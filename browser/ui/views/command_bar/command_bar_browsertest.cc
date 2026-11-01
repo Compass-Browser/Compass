@@ -23,6 +23,7 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -153,6 +154,85 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, EscapeCloses) {
   EXPECT_TRUE(base::test::RunUntil([&] { return !bar()->IsShowing(); }));
   // Nothing was opened.
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+}
+
+// Whether |window|'s Today section has an entry for |url|.
+bool HasTodayEntry(BrowserWindowInterface* window, const GURL& url) {
+  const SidebarNode* today =
+      WindowFeatures::From(window)->space_model().today_root();
+  for (const auto& entry : today->children()) {
+    if (entry->url() == url) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Whether |window| shows only an empty tab, with its command bar open.
+bool ShowsEmptyTab(BrowserWindowInterface* window) {
+  TabStripModel* model = window->GetTabStripModel();
+  return model->count() == 1 && IsEmptyTab(model->GetActiveTab()) &&
+         CommandBar::From(window)->IsShowing();
+}
+
+// No new tab page (docs/design/command-bar.md, "No new tab page"): a new tab
+// is the empty page, with the command bar over it, and no entry.
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, NewTabPageIsTheEmptyPage) {
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(model->count(), 2);
+  content::WebContents* empty = model->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(empty));
+  // The empty page's own title: no new tab page loaded.
+  EXPECT_EQ(empty->GetTitle(), u"Compass");
+  EXPECT_TRUE(IsEmptyTab(empty));
+  EXPECT_TRUE(base::test::RunUntil([&] { return bar()->IsShowing(); }));
+  EXPECT_EQ(
+      WindowFeatures::From(browser())->tab_strip_bridge().GetNode(
+          model->GetActiveTab()),
+      nullptr);
+
+  // Going back to the page closes it.
+  bar()->Close();
+  model->ActivateTabAt(0);
+  EXPECT_TRUE(base::test::RunUntil([&] { return model->count() == 1; }));
+  EXPECT_EQ(model->GetActiveWebContents()->GetVisibleURL(), url);
+}
+
+// Closing the last tab leaves the window open on the empty page; what the
+// command bar opens then takes its place.
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, ClosingTheLastTabKeepsTheWindow) {
+  const GURL first = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first));
+  chrome::CloseTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] { return ShowsEmptyTab(browser()); }));
+  EXPECT_FALSE(browser()->IsDeleteScheduled());
+  EXPECT_FALSE(HasTodayEntry(browser(), first));
+
+  const GURL second = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(content::ExecJs(bar()->web_contents_for_testing(),
+                              content::JsReplace(kTypeAndEnter, second.spec())));
+  TabStripModel* model = browser()->tab_strip_model();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return model->count() == 1 &&
+           model->GetActiveWebContents()->GetVisibleURL() == second;
+  }));
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return HasTodayEntry(browser(), second); }));
+}
+
+// Closing the empty tab closes the window, as closing the window does.
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, ClosingTheEmptyTabClosesTheWindow) {
+  BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      second, embedded_test_server()->GetURL("/title1.html")));
+  chrome::CloseTab(second);
+  ASSERT_TRUE(base::test::RunUntil([&] { return ShowsEmptyTab(second); }));
+
+  chrome::CloseTab(second);
+  ui_test_utils::WaitForBrowserToClose(second);
 }
 
 // Sends a pointermove at screen position ($2, $3), moved by $4 pixels, to

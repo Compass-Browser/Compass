@@ -58,10 +58,42 @@ action and never reaches the latter. It takes:
 | `IDC_NEW_TAB` (Cmd+T, File menu) | new entry | empty |
 | `IDC_FOCUS_LOCATION` (Cmd+L) | current entry | the active tab's URL, selected |
 
-Code that calls `chrome::NewTab()` directly (session restore, tests, a
-window with no tabs) still gets a new tab page. The sidebar's New Tab row
-opens the bar in new-entry mode. Dismissing the bar does nothing: no empty
-tab is left behind.
+Code that calls `chrome::NewTab()` directly (session restore, Cmd+N, a
+space with nothing to show) gets the empty page, not a new tab page (see "No
+new tab page" below). The sidebar's New Tab row opens the bar in new-entry
+mode. Dismissing the bar does nothing: no empty tab is left behind.
+
+### No new tab page
+
+Compass has no new tab page; the command bar is how a page opens.
+
+- **The empty page**, `chrome://compass-empty` (`window_sync/empty_tab.h`,
+  `CompassEmptyUI`): the window's theme color, and a faint "Click anywhere
+  to search or enter a URL". Whenever it comes into view (page visibility),
+  and on a click, it asks for the window's command bar in new-entry mode.
+- **chrome://newtab loads it.** `AddCompassURLHandler()` rewrites
+  `chrome://newtab` to it, ahead of upstream's own NTP rewrite, so every path
+  that opened a new tab page (Cmd+N, `chrome::NewTab()`, a space switched to
+  with nothing to show, startup) opens the empty page. The tab keeps
+  `chrome://newtab/` as its shown URL, as upstream's rewrite does, so
+  upstream's "replace the NTP" logic still works.
+- **No entry.** The bridge gives an empty tab no sidebar node. If it
+  navigates somewhere (upstream opens some pages in place of an NTP), it
+  gets its Today entry then. It closes as soon as the window shows another
+  tab, so it lasts only while it's shown.
+- **The last tab.** Closing a window's last tab doesn't close the window.
+  `Browser::TabStripEmpty()` (patch) asks `compass::KeepWindowWithNoTabs()`;
+  the bridge says yes when the strip's last removal closed a tab (not a move
+  to another window, not a hand-off, not the empty tab itself), and opens an
+  empty tab in a task. A window that's closing (`closing_all()`, unload
+  controller busy, quitting), swapping or switching spaces closes as before.
+  Closing the empty tab (Cmd+W again) closes the window.
+- **Little windows** have no command bar: their empty page goes on to
+  `chrome://new-tab-page`, upstream's NTP, for its search box, and Cmd+Option+N
+  opens that directly.
+
+Tests: `CommandBarBrowserTest.NewTabPageIsTheEmptyPage`,
+`ClosingTheLastTabKeepsTheWindow`, `ClosingTheEmptyTabClosesTheWindow`.
 
 ### Results
 

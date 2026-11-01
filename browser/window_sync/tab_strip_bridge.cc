@@ -39,6 +39,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/restored_tab_matcher.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -334,7 +335,7 @@ void TabStripBridge::HandOffTabsTo(TabStripBridge& target) {
   for (int pass = tab_strip_model_->count();
        pass > 0 && !tab_strip_model_->empty(); --pass) {
     tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(0);
-    if (IsPlaceholder(tab)) {
+    if (IsPlaceholder(tab) || (IsEmptyTab(tab) && !GetNode(tab))) {
       tab_strip_model_->CloseWebContentsAt(0, CLOSE_NONE);
       continue;
     }
@@ -367,6 +368,21 @@ void TabStripBridge::OnTabStripModelChanged(
     // Using any other tab dismisses this window's placeholders.
     if (!placeholders_.empty() && !IsPlaceholder(selection.new_tab)) {
       ScheduleClosePlaceholders();
+    }
+    // And its empty tab.
+    if (IsEmptyTab(selection.old_tab.get()) &&
+        !IsEmptyTab(selection.new_tab.get())) {
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(&TabStripBridge::CloseHiddenEmptyTabs,
+                                    weak_factory_.GetWeakPtr()));
+    }
+  }
+  if (change.type() == TabStripModelChange::kRemoved) {
+    for (const auto& removed : change.GetRemove()->contents) {
+      last_removal_closed_tab_ =
+          TabRemoveReasonUtils::WillDeleteTab(removed.remove_reason) &&
+          !handing_off_ &&
+          !(IsEmptyTab(removed.tab) && !GetNode(removed.tab));
     }
   }
   if (updating_) {
@@ -412,9 +428,20 @@ void TabStripBridge::OnTabStripModelChanged(
 void TabStripBridge::OnTabChangedAt(tabs::TabInterface* tab,
                                     TabChangeType change_type) {
   // Titles and URLs arrive with kAll; kLoadingOnly fires every frame.
-  if (change_type == TabChangeType::kAll) {
-    UpdateNode(tab);
+  if (change_type != TabChangeType::kAll) {
+    return;
   }
+  // An empty tab that navigated to a page (upstream opens some pages in
+  // place of a new tab page): it gets its entry now.
+  if (!updating_ && tab_strip_model_ && !GetNode(tab) &&
+      !IsPlaceholder(tab) && !IsEmptyTab(tab)) {
+    const int index = tab_strip_model_->GetIndexOfTab(tab);
+    if (index != TabStripModel::kNoTab) {
+      AddNodeForTab(tab, index);
+    }
+    return;
+  }
+  UpdateNode(tab);
 }
 
 void TabStripBridge::OnTabStripModelDestroyed(TabStripModel* tab_strip_model) {
@@ -728,6 +755,10 @@ void TabStripBridge::AddNodeForTab(tabs::TabInterface* tab, int index) {
   if (adopting_node_) {
     registry_->Register(tab, adopting_node_);
     adopting_node_ = nullptr;
+    return;
+  }
+  // Not an entry until it shows a page.
+  if (IsEmptyTab(tab)) {
     return;
   }
   content::WebContents* contents = tab->GetContents();
@@ -1124,6 +1155,46 @@ void TabStripBridge::ClosePlaceholders() {
     const int index = tab_strip_model_->GetIndexOfTab(handle.Get());
     if (index != TabStripModel::kNoTab) {
       tab_strip_model_->CloseWebContentsAt(index, CLOSE_NONE);
+    }
+  }
+}
+
+bool TabStripBridge::KeepWindowWithNoTabs() {
+  if (!tab_strip_model_ || !tab_strip_model_->empty()) {
+    return false;
+  }
+  // Both upstream observers of the empty strip ask.
+  if (keeping_window_) {
+    return true;
+  }
+  if (!last_removal_closed_tab_) {
+    return false;
+  }
+  keeping_window_ = true;
+  // The strip can't change while it notifies.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&TabStripBridge::OpenEmptyTabIfStillEmpty,
+                                weak_factory_.GetWeakPtr()));
+  return true;
+}
+
+void TabStripBridge::OpenEmptyTabIfStillEmpty() {
+  keeping_window_ = false;
+  if (tab_strip_model_ && tab_strip_model_->empty()) {
+    OpenEmptyTab(browser_);
+  }
+}
+
+void TabStripBridge::CloseHiddenEmptyTabs() {
+  if (!tab_strip_model_) {
+    return;
+  }
+  for (int i = tab_strip_model_->count() - 1; i >= 0; --i) {
+    tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(i);
+    // An entry with no URL opens on chrome://newtab too; it stays.
+    if (i != tab_strip_model_->active_index() && IsEmptyTab(tab) &&
+        !GetNode(tab)) {
+      tab_strip_model_->CloseWebContentsAt(i, CLOSE_NONE);
     }
   }
 }

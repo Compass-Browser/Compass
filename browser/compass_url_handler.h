@@ -16,7 +16,9 @@ namespace compass {
 // upstream's own rewrites (chrome://newtab, chrome://about, WebUI) still see
 // the chrome:// URL. Once the page commits, the tab's shown (virtual) URL is
 // the chrome:// one, so upstream code that checks it keeps working; display
-// code writes it as compass:// (ToCompassURL(), ToCompassText()).
+// code writes it as compass:// (ToCompassURL(), ToCompassText()). Also makes
+// chrome://newtab load chrome://compass-empty: Compass has no new tab page
+// (docs/design/command-bar.md, "No new tab page").
 void AddCompassURLHandler(content::BrowserURLHandler* handler);
 
 }  // namespace compass

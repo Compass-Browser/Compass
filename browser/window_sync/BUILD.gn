@@ -7,6 +7,8 @@
 # patches/chrome-browser-ui-browser_window-internal-BUILD.gn.patch).
 source_set("window_sync") {
   sources = [
+    "empty_tab.cc",
+    "empty_tab.h",
     "live_tab_registry.cc",
     "live_tab_registry.h",
     "restored_tab_matcher.cc",

@@ -125,14 +125,14 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OpenInSpaceMovesThePage) {
   EXPECT_TRUE(base::test::RunUntil([&] { return !FindLittleWindow(); }));
 }
 
-// Cmd+Option+N opens a little window on the new tab page, in every window
-// (a little one too).
+// Cmd+Option+N opens a little window on upstream's new tab page (a little
+// window has no command bar), in every window (a little one too).
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, NewLittleWindowCommand) {
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), kNewLittleWindowCommand));
   BrowserWindowInterface* little = FindLittleWindow();
   ASSERT_TRUE(little);
   ASSERT_EQ(little->GetTabStripModel()->count(), 1);
-  EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "newtab");
+  EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "new-tab-page");
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
   EXPECT_TRUE(chrome::ExecuteCommand(little, kNewLittleWindowCommand));
 }

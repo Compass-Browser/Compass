@@ -40,6 +40,8 @@ source_set("ui") {
     "webui/command_bar/command_bar_ui.h",
     "webui/command_bar/other_device_tabs.cc",
     "webui/command_bar/other_device_tabs.h",
+    "webui/empty/compass_empty_ui.cc",
+    "webui/empty/compass_empty_ui.h",
     "webui/placeholder/compass_placeholder_ui.cc",
     "webui/placeholder/compass_placeholder_ui.h",
     "webui/settings/compass_settings_ui.cc",

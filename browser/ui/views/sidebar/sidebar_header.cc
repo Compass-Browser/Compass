@@ -46,6 +46,7 @@
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
@@ -107,9 +108,7 @@ bool IsNewTabPage(const GURL& url) {
   // Shown as compass:// while a typed compass:// URL loads.
   const GURL chrome_url = ToChromeURL(url);
   return url.is_empty() || url == GURL(url::kAboutBlankURL) ||
-         (chrome_url.SchemeIs(content::kChromeUIScheme) &&
-          (chrome_url.host() == chrome::kChromeUINewTabHost ||
-           chrome_url.host() == chrome::kChromeUINewTabPageHost));
+         IsEmptyTabURL(chrome_url);
 }
 
 // The toolbar's child with |id| as its element identifier, or null.

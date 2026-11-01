@@ -34,6 +34,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/sidebar_store.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/startup_space.h"
@@ -197,13 +198,6 @@ void CopySidebarState(BrowserWindowInterface* from, BrowserWindowInterface* to) 
   if (new_state->IsCollapsed() != old_state->IsCollapsed()) {
     new_state->RequestCollapse(old_state->IsCollapsed());
   }
-}
-
-void OpenNewTab(BrowserWindowInterface* browser) {
-  NavigateParams params(browser, GURL(chrome::kChromeUINewTabURL),
-                        ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-  Navigate(&params);
 }
 
 // The spaces |profile|'s windows can switch to, in the switcher's order.
@@ -496,7 +490,7 @@ void WindowFeatures::EnterCurrentSpace() {
     if (entry) {
       shown = bridge_->OpenNode(entry);
     } else {
-      OpenNewTab(browser_);
+      OpenEmptyTab(browser_);
     }
   }
   if (shown && strip->GetIndexOfTab(shown) != TabStripModel::kNoTab) {
@@ -695,7 +689,7 @@ void MoveEntry(Profile* profile,
       staying = i;
     }
     if (staying == TabStripModel::kNoTab) {
-      OpenNewTab(window);
+      OpenEmptyTab(window);
     } else {
       strip->ActivateTabAt(staying);
     }
@@ -1001,6 +995,20 @@ bool HandOffTabsBeforeClose(BrowserWindowInterface* browser) {
   }
   source->tab_strip_bridge().HandOffTabsTo(target->tab_strip_bridge());
   return true;
+}
+
+bool KeepWindowWithNoTabs(BrowserWindowInterface* browser) {
+  if (browser_shutdown::IsTryingToQuit() ||
+      browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
+      !browser->GetTabStripModel()->empty()) {
+    return false;
+  }
+  WindowFeatures* features = WindowFeatures::From(browser);
+  if (!features || features->is_parking_window() ||
+      features->swapped_away() || !features->has_tab_strip_bridge()) {
+    return false;
+  }
+  return features->tab_strip_bridge().KeepWindowWithNoTabs();
 }
 
 BrowserWindowInterface* FindLastActiveWindow(Profile* profile) {

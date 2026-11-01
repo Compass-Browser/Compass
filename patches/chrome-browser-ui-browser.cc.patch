@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 07de580deb67c305fdbf25ddb9c168b3cc646a4f..3b10630221fd2b170efb8fa098a8330312da5dca 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/browser.h"
+ 
++#include "compass/browser/window_sync/window_features.h"
++
+ #include <stddef.h>
+ 
+ #include <algorithm>
+@@ -623,6 +625,14 @@ void Browser::TabStripEmpty() {
+     return;
+   }
+ 
++  // Compass: a window whose last tab was closed stays open, on an empty tab
++  // with the command bar.
++  if (!tab_strip_model_->closing_all() &&
++      !UnloadController::From(this)->is_attempting_to_close_browser() &&
++      compass::KeepWindowWithNoTabs(this)) {
++    return;
++  }
++
+   // Note: even though the tab strip is empty, the call to Close() may not
+   // result in closing this Browser. This can happen in the case of closing
+   // the last Browser with ongoing downloads.

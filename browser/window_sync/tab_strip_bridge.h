@@ -100,6 +100,12 @@ class TabStripBridge : public TabStripModelObserver,
   // placeholders. The strip ends up empty.
   void HandOffTabsTo(TabStripBridge& target);
 
+  // The strip just emptied (see compass::KeepWindowWithNoTabs()). Returns
+  // true if the window stays: its last tab was closed, not moved away, and
+  // wasn't an empty tab. An empty tab then opens, in a task. Asking again
+  // before then gives the same answer.
+  bool KeepWindowWithNoTabs();
+
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -231,6 +237,10 @@ class TabStripBridge : public TabStripModelObserver,
   void ClosePlaceholders();
   void ScheduleClosePlaceholders();
 
+  // Empty tabs (empty_tab.h) last only while they're shown.
+  void CloseHiddenEmptyTabs();
+  void OpenEmptyTabIfStillEmpty();
+
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   const raw_ptr<SpaceModel> space_model_;
@@ -247,6 +257,11 @@ class TabStripBridge : public TabStripModelObserver,
   bool updating_ = false;
   // Set while HandOffTabsTo() empties this closing window.
   bool handing_off_ = false;
+  // Whether the strip's last removal closed a tab the user had open, rather
+  // than moving it away or closing an empty tab.
+  bool last_removal_closed_tab_ = false;
+  // Set from KeepWindowWithNoTabs() until the empty tab opens.
+  bool keeping_window_ = false;
 
   // Set while OpenNode() inserts a tab: that tab belongs to this node.
   raw_ptr<SidebarNode> adopting_node_ = nullptr;

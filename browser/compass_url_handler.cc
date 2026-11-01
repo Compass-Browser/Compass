@@ -28,6 +28,18 @@ bool RewriteCompassURL(GURL* url, content::BrowserContext* browser_context) {
   return true;
 }
 
+// There's no new tab page: chrome://newtab/ loads the empty page
+// (window_sync/empty_tab.h), which shows the command bar. The tab keeps
+// chrome://newtab/ as its shown URL, as upstream's own rewrite does. A little
+// window, which has no command bar, goes on to chrome://new-tab-page/.
+bool RewriteNewTabURL(GURL* url, content::BrowserContext* browser_context) {
+  if (!url->SchemeIs("chrome") || url->host() != "newtab") {
+    return false;
+  }
+  *url = GURL("chrome://compass-empty/");
+  return true;
+}
+
 bool ReverseCompassURL(GURL* url, content::BrowserContext* browser_context) {
   // Keep the committed URL: it's what upstream expects a tab's URL to be.
   return true;
@@ -37,6 +49,8 @@ bool ReverseCompassURL(GURL* url, content::BrowserContext* browser_context) {
 
 void AddCompassURLHandler(content::BrowserURLHandler* handler) {
   handler->AddHandlerPair(&RewriteCompassURL, &ReverseCompassURL);
+  handler->AddHandlerPair(&RewriteNewTabURL,
+                          content::BrowserURLHandler::null_handler());
 }
 
 }  // namespace compass
