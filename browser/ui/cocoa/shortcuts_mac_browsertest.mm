@@ -162,6 +162,8 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
   // disabled menu item's keys run nothing.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<p>Hello")));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return chrome::IsCommandEnabled(browser(), IDC_SAVE_PAGE); }));
   ShortcutSettings& settings = ShortcutSettings::Get();
   const ui::Accelerator cmd_shift_k(ui::VKEY_K,
                                     ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN);
