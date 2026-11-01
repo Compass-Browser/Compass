@@ -27,6 +27,33 @@ inline constexpr char kDisabledTypes[] = "compass.sync.disabled_types";
 // cached) doesn't release the data types.
 inline constexpr char kResetPending[] = "compass.sync.reset_pending";
 
+// Slice 5 (docs/design/sync.md, "Slice 5 notes").
+//
+// The profile's sync UUID, lowercase: made once, kept for the profile's life
+// unless joining maps the profile to another device's (it then takes that
+// one's). A profile account derives its keys from it.
+inline constexpr char kProfileUuid[] = "compass.sync.profile_uuid";
+
+// True: the profile syncs with its own account, HKDF(seed,
+// "compass-sync-auth:" + uuid), and passphrase. False (the default, and every
+// chain of slices 2-4): the chain's own account; with a seed, that's the home
+// profile, which also carries the chain's profile list.
+inline constexpr char kProfileAccount[] = "compass.sync.profile_account";
+
+// Home profile: joined by recovery code while other profiles of this device
+// can sync, so they still wait to be mapped to the chain's (the list comes
+// with the first sync).
+inline constexpr char kProfilesPending[] = "compass.sync.profiles_pending";
+
+// Home profile: this device's profiles in the chain, as {sync UUID: profile
+// directory name}, so one that isn't loaded (no space in the switcher) isn't
+// created again.
+inline constexpr char kProfileDirs[] = "compass.sync.profile_dirs";
+
+// Home profile: sync UUIDs of the chain's profiles deleted on this device,
+// which it doesn't create again.
+inline constexpr char kProfilesRemoved[] = "compass.sync.profiles_removed";
+
 }  // namespace compass::sync::prefs
 
 #endif  // COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_

@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
+#include "compass/components/sync/profile_list.h"
 
 class GURL;
 
@@ -99,6 +100,24 @@ struct SyncDevice {
   bool this_device = false;
 };
 
+// Joining a chain on a device with other profiles (slice 5): how each of them
+// syncs. See docs/design/sync.md, "Slice 5 notes".
+struct ProfileMappingStatus {
+  ProfileMappingStatus();
+  ProfileMappingStatus(const ProfileMappingStatus&);
+  ProfileMappingStatus& operator=(const ProfileMappingStatus&);
+  ~ProfileMappingStatus();
+
+  // Whether the join waits for the user to confirm a mapping.
+  bool needed = false;
+  // The chain's profiles; the home one is the joining profile's.
+  std::vector<ChainProfile> chain;
+  // This device's other profiles that can sync.
+  std::vector<LocalProfile> local;
+  // The default: same name, else a new profile of the chain.
+  ProfileMapping proposed;
+};
+
 // What chrome://compass-sync drives: CompassSyncService, or a fake in tests.
 class SyncController {
  public:
@@ -153,6 +172,16 @@ class SyncController {
   // device's data goes up again after a restart; the other devices must
   // join again.
   virtual void ResetChain(StartCallback callback) = 0;
+
+  // Slice 5. While joining (pairing gave the chain's profiles), or after
+  // joining by recovery code once the first sync brought them: the mapping
+  // to confirm. Default: none needed.
+  virtual ProfileMappingStatus GetProfileMapping() const;
+  // Confirms a mapping: |mapping| has one entry per local profile of
+  // GetProfileMapping(). Fails (and changes nothing) if none is needed or it
+  // isn't valid.
+  virtual void SetProfileMapping(const ProfileMapping& mapping,
+                                 DoneCallback callback);
 };
 
 // A server URL as typed, or an invalid GURL: http or https, with a host.

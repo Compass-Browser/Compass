@@ -314,5 +314,71 @@ TEST_F(CompassSyncPageHandlerTest, StopsObservingWhenGone) {
   EXPECT_FALSE(controller_.HasObservers());
 }
 
+// Slice 5: the mapping step goes through to the controller.
+class MappingController : public FakeController {
+ public:
+  sync::ProfileMappingStatus GetProfileMapping() const override {
+    sync::ProfileMappingStatus status;
+    status.needed = true;
+    status.chain = {{"u-home", "Personal", 3, true},
+                    {"u-work", "Work", -1, false}};
+    status.local = {{"Profile 1", "u-local", "Work", 0}};
+    status.proposed = {{"Profile 1", "u-work"}};
+    return status;
+  }
+  void SetProfileMapping(const sync::ProfileMapping& mapping,
+                         DoneCallback callback) override {
+    mapping_ = mapping;
+    std::move(callback).Run(true, std::string());
+  }
+  const sync::ProfileMapping& mapping() const { return mapping_; }
+
+ private:
+  sync::ProfileMapping mapping_;
+};
+
+TEST(CompassSyncPageHandlerMappingTest, GetsAndSetsTheMapping) {
+  base::test::TaskEnvironment task_environment;
+  MappingController controller;
+  FakePage page;
+  mojo::Remote<sync::mojom::PageHandler> remote;
+  CompassSyncPageHandler handler(
+      remote.BindNewPipeAndPassReceiver(), page.BindAndPassRemote(),
+      &controller,
+      base::BindRepeating([](base::OnceCallback<void(bool)> done) {
+        std::move(done).Run(false);
+      }));
+
+  base::test::TestFuture<sync::mojom::ProfileMappingPtr> mapping;
+  remote->GetProfileMapping(mapping.GetCallback());
+  const sync::mojom::ProfileMappingPtr& got = mapping.Get();
+  EXPECT_TRUE(got->needed);
+  ASSERT_EQ(got->chain.size(), 2u);
+  EXPECT_EQ(got->chain[0]->name, "Personal");
+  EXPECT_TRUE(got->chain[0]->home);
+  ASSERT_EQ(got->local.size(), 1u);
+  EXPECT_EQ(got->local[0]->id, "Profile 1");
+  ASSERT_EQ(got->proposed.size(), 1u);
+  EXPECT_EQ(got->proposed[0]->chain_uuid, "u-work");
+
+  std::vector<sync::mojom::ProfileMappingEntryPtr> entries;
+  entries.push_back(sync::mojom::ProfileMappingEntry::New("Profile 1", ""));
+  base::test::TestFuture<bool, const std::string&> done;
+  remote->SetProfileMapping(std::move(entries), done.GetCallback());
+  EXPECT_TRUE(done.Get<0>());
+  EXPECT_EQ(controller.mapping(),
+            (sync::ProfileMapping{{"Profile 1", std::string()}}));
+}
+
+// The defaults of controllers that don't map profiles.
+TEST(CompassSyncPageHandlerMappingTest, NothingToMapByDefault) {
+  base::test::TaskEnvironment task_environment;
+  FakeController controller;
+  EXPECT_FALSE(controller.GetProfileMapping().needed);
+  base::test::TestFuture<bool, std::string> done;
+  controller.SetProfileMapping({}, done.GetCallback());
+  EXPECT_FALSE(done.Get<0>());
+}
+
 }  // namespace
 }  // namespace compass

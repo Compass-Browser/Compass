@@ -20,6 +20,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "compass/components/sync/chain.h"
+#include "compass/components/sync/profile_list.h"
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 
 // Adding a device: a device already syncing (A) passes the chain's seed to a
@@ -34,7 +35,8 @@
 //      ad="compass-pair-b").
 //   4. A -> B: MAC_a (32) || verdict (1: 0x01 allow, 0x00 deny)
 //      [allow only: || nonce (12) || AES-256-GCM(K_enc, JSON {"seed":
-//      base64, "profiles": []}, ad="compass-pair-a")].
+//      base64, "profiles": [...]}, ad="compass-pair-a")]; "profiles" is the
+//      chain's profile list (profile_list.h, ChainProfilesToValue()).
 // MAC_x = HMAC-SHA256(K_confirm_x, "compass-pair-confirm-x"), and K_enc,
 // K_confirm_a, K_confirm_b = HKDF-SHA256(SPAKE2 key, salt="",
 // info="compass-pair-enc" / "compass-pair-confirm-a" /
@@ -170,6 +172,9 @@ class PairingHost {
   ~PairingHost();
 
   void Start();
+  // The chain's profiles, sent to B with the seed (slice 5). Empty by
+  // default.
+  void SetProfiles(std::vector<ChainProfile> profiles);
   // After OnPairingRequest().
   void Answer(bool allow);
 
@@ -204,6 +209,7 @@ class PairingHost {
   std::unique_ptr<PairingTransport> transport_;
   std::string host_;
   const Seed seed_;
+  std::vector<ChainProfile> profiles_;
   raw_ptr<Delegate> delegate_;
 
   Step step_ = Step::kIdle;
@@ -267,6 +273,11 @@ class PairingJoiner {
              base::OnceClosure waiting,
              DoneCallback done);
 
+  // Once joined (when |done| runs): the chain's profiles A sent, so the user
+  // can map them to this device's before the first sync. Empty from a
+  // version that sends none.
+  const std::vector<ChainProfile>& profiles() const { return profiles_; }
+
  private:
   enum class Step {
     kIdle,
@@ -296,6 +307,7 @@ class PairingJoiner {
   std::unique_ptr<PairingTransport> transport_;
   std::string host_;
   const std::string device_name_;
+  std::vector<ChainProfile> profiles_;
   base::OnceClosure waiting_;
   DoneCallback done_;
 

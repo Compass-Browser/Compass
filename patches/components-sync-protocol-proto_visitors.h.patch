@@ -1,5 +1,5 @@
 diff --git a/components/sync/protocol/proto_visitors.h b/components/sync/protocol/proto_visitors.h
-index 4cf920a7ee773b2477b178885a21833deb637256..7ed7d18906be35dafcbc13e140a3a8e9ec1a9400 100644
+index 4cf920a7ee773b2477b178885a21833deb637256..a1576bd1909a1915ea9c9a6aae93f0a8887e2f26 100644
 --- a/components/sync/protocol/proto_visitors.h
 +++ b/components/sync/protocol/proto_visitors.h
 @@ -76,6 +76,7 @@
@@ -28,7 +28,7 @@ index 4cf920a7ee773b2477b178885a21833deb637256..7ed7d18906be35dafcbc13e140a3a8e9
  }
  
  VISIT_PROTO_FIELDS(const sync_pb::ExtensionSettingSpecifics& proto) {
-@@ -2486,6 +2489,37 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillEntitySuppressionSpecifics& proto) {
+@@ -2486,6 +2489,45 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillEntitySuppressionSpecifics& proto) {
    VISIT(schema_version);
  }
  
@@ -36,6 +36,14 @@ index 4cf920a7ee773b2477b178885a21833deb637256..7ed7d18906be35dafcbc13e140a3a8e9
 +VISIT_PROTO_FIELDS(const sync_pb::CompassSpacesSpecifics& proto) {
 +  VISIT(space);
 +  VISIT(node);
++  VISIT(profile);
++}
++
++VISIT_PROTO_FIELDS(const sync_pb::CompassProfile& proto) {
++  VISIT(uuid);
++  VISIT(name);
++  VISIT(avatar);
++  VISIT(home);
 +}
 +
 +VISIT_PROTO_FIELDS(const sync_pb::CompassSpace& proto) {

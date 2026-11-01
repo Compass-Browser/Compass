@@ -8,6 +8,8 @@
 # drives it through SyncController.
 source_set("sync") {
   sources = [
+    "compass_profile_creator.cc",
+    "compass_profile_creator.h",
     "compass_spaces_sync.cc",
     "compass_spaces_sync.h",
     "compass_sync_service.cc",
@@ -19,9 +21,12 @@ source_set("sync") {
     ":settings",
     "//base",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_util",
     "//chrome/browser/ui/browser_window",
     "//components/keyed_service/core",
+    "//components/sync/protocol",
     "//components/sync/service",
+    "//compass/browser/window_sync",
     "//compass/components/sync:chain",
     "//url",
   ]
@@ -31,14 +36,15 @@ source_set("sync") {
     "//chrome/browser/sync:data_type_store_service_factory",
     "//chrome/common:channel_info",
     "//compass/browser/sidebar",
-    "//compass/browser/window_sync",
     "//compass/components/sync:controllers_hook",
     "//compass/components/sync:notifier",
     "//components/sync/model",
     "//chrome/browser:browser_process",
     "//chrome/browser/lifetime",
+    "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/sync",
     "//chrome/browser/sync:factories",
+    "//chrome/common",
     "//chrome/browser/ui:browser_manager_service",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
@@ -59,12 +65,14 @@ source_set("sync") {
 # notes"). SyncController is the page's interface to CompassSyncService.
 source_set("settings") {
   sources = [
+    "sync_controller.cc",
     "sync_controller.h",
     "sync_settings.cc",
     "sync_settings.h",
   ]
   public_deps = [
     "//base",
+    "//compass/components/sync:chain",
     "//components/sync/base",
     "//components/sync_device_info",
   ]
@@ -96,6 +104,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "compass_spaces_sync_bridge_unittest.cc",
+    "compass_spaces_sync_profiles_unittest.cc",
     "sync_settings_unittest.cc",
   ]
   deps = [

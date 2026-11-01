@@ -23,6 +23,14 @@ std::array<uint8_t, 32> Derive(const Seed& seed, std::string_view info) {
                                base::as_byte_span(info));
 }
 
+// |base| alone, or |base| + ":" + |profile_uuid|.
+std::string Info(std::string_view base, std::string_view profile_uuid) {
+  if (profile_uuid.empty()) {
+    return std::string(base);
+  }
+  return base::StrCat({base, ":", profile_uuid});
+}
+
 struct KeyPair {
   PublicKey public_key{};
   std::array<uint8_t, 64> private_key{};
@@ -42,14 +50,11 @@ Seed GenerateSeed() {
 }
 
 AuthKey DeriveAuthKey(const Seed& seed, std::string_view profile_uuid) {
-  if (profile_uuid.empty()) {
-    return Derive(seed, kAuthInfo);
-  }
-  return Derive(seed, base::StrCat({kAuthInfo, ":", profile_uuid}));
+  return Derive(seed, Info(kAuthInfo, profile_uuid));
 }
 
-std::string DerivePassphrase(const Seed& seed) {
-  return base::Base64Encode(Derive(seed, kPassphraseInfo));
+std::string DerivePassphrase(const Seed& seed, std::string_view profile_uuid) {
+  return base::Base64Encode(Derive(seed, Info(kPassphraseInfo, profile_uuid)));
 }
 
 PublicKey GetPublicKey(const AuthKey& key) {

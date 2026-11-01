@@ -48,6 +48,21 @@ TEST(ChainTest, DerivePassphrase) {
             "xoFg1Bm10gjM8Ahji5ibCeSkV6zo7kZEcjBFP9M8s50=");
 }
 
+// Slice 5: a profile account's own key, chain ID and passphrase (computed
+// independently with Go's crypto/hkdf and crypto/ed25519).
+TEST(ChainTest, ProfileAccountVectors) {
+  constexpr char kProfile[] = "2b5c3e1a-0000-4000-8000-000000000001";
+  const AuthKey key = DeriveAuthKey(TestSeed(), kProfile);
+  EXPECT_EQ(GetChainId(key),
+            "f1fe31e2c21e376e8d3b2ef57560b8466b37486e5fa46cc60bb39f1ea2ec9fab");
+  EXPECT_EQ(DerivePassphrase(TestSeed(), kProfile),
+            "C89l8oqXaTa997+mU79acx+BGgUNf6YPtMoPU9ODyEc=");
+  // An empty UUID is the chain's own (the home profile's).
+  EXPECT_EQ(DerivePassphrase(TestSeed(), ""), DerivePassphrase(TestSeed()));
+  EXPECT_EQ(DeriveAuthKey(TestSeed(), ""), DeriveAuthKey(TestSeed()));
+  EXPECT_NE(DeriveAuthKey(TestSeed(), kProfile), DeriveAuthKey(TestSeed()));
+}
+
 TEST(ChainTest, AccessTokenVector) {
   // Ed25519 signatures are deterministic, so the whole token is fixed.
   EXPECT_EQ(

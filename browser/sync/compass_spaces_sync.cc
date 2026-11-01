@@ -4,13 +4,19 @@
 
 #include "compass/browser/sync/compass_spaces_sync.h"
 
+#include <algorithm>
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/auto_reset.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/data_type_store_service_factory.h"
@@ -34,6 +40,54 @@
 namespace compass::sync {
 
 namespace {
+
+// Each listed space's directory position as its profile's bridge last synced
+// it, browser-wide, so every bridge places its spaces among the others' and
+// the switcher can sort spaces of several accounts (slice 5).
+std::map<std::string, syncer::UniquePosition>& DirectoryPositions() {
+  static base::NoDestructor<std::map<std::string, syncer::UniquePosition>>
+      positions;
+  return *positions;
+}
+
+// Set while the switcher is being sorted by those positions.
+bool g_sorting_directory = false;
+
+// Sorts the switcher's spaces that have a synced position by it; the others
+// keep their slots.
+void SortDirectoryByPositions() {
+  SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+  if (!directory || g_sorting_directory) {
+    return;
+  }
+  base::AutoReset<bool> sorting(&g_sorting_directory, true);
+  const std::vector<SpaceDirectory::Entry> spaces = directory->GetSpaces();
+  std::vector<SpaceModel*> wanted;
+  std::vector<size_t> slots;
+  std::vector<std::pair<syncer::UniquePosition, SpaceModel*>> positioned;
+  for (size_t i = 0; i < spaces.size(); ++i) {
+    SpaceModel* space = spaces[i].space;
+    wanted.push_back(space);
+    auto it = DirectoryPositions().find(space->id().AsLowercaseString());
+    if (it != DirectoryPositions().end()) {
+      slots.push_back(i);
+      positioned.emplace_back(it->second, space);
+    }
+  }
+  std::ranges::stable_sort(positioned, [](const auto& a, const auto& b) {
+    return a.first.LessThan(b.first);
+  });
+  for (size_t k = 0; k < slots.size(); ++k) {
+    wanted[slots[k]] = positioned[k].second;
+  }
+  for (size_t i = 0; i < wanted.size(); ++i) {
+    const std::vector<SpaceDirectory::Entry> now = directory->GetSpaces();
+    if (i < now.size() && now[i].space != wanted[i]) {
+      // It's further down: the slots before i hold wanted[0..i).
+      directory->MoveSpace(*wanted[i], i);
+    }
+  }
+}
 
 // The bridge, and what it needs from windows: deleting spaces and moving
 // entries with their live tabs (window_features.h), and the switcher's order
@@ -100,6 +154,70 @@ class SpacesSyncHolder : public SpaceService::Attachment,
     registry.Unregister(tab);
     registry.Register(tab, &to);
   }
+  std::optional<std::vector<sync_pb::CompassProfile>> GetLocalProfiles()
+      override {
+    CompassSyncService* service =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile_);
+    return service ? service->GetLocalChainProfiles() : std::nullopt;
+  }
+  void OnChainProfiles(
+      const std::vector<sync_pb::CompassProfile>& profiles) override {
+    if (CompassSyncService* service =
+            CompassSyncServiceFactory::GetForProfileIfExists(profile_)) {
+      service->OnChainProfiles(profiles);
+    }
+  }
+  std::string GetProfileUuid() override {
+    CompassSyncService* service =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile_);
+    return service ? service->GetProfileUuid() : std::string();
+  }
+  SpaceModel* AdoptSpace(const base::Uuid& id) override {
+    SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+    const SpaceDirectory::Entry entry =
+        directory ? directory->FindSpace(id) : SpaceDirectory::Entry();
+    if (!entry.space || !entry.profile || entry.profile == profile_) {
+      return nullptr;
+    }
+    // As the user's move on the other device: the same space (ID, entries,
+    // place in the switcher) leaves |entry.profile| for this one; its live
+    // tabs reload here.
+    ::compass::MoveSpaceToProfile(entry.profile, *entry.space, profile_);
+    return service_->space_list().FindSpace(id);
+  }
+  std::vector<DirectorySlot> GetDirectoryOrder() override {
+    std::vector<DirectorySlot> order;
+    SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+    if (!directory || !directory->IsListed(profile_)) {
+      return order;
+    }
+    for (const SpaceDirectory::Entry& entry : directory->GetSpaces()) {
+      const std::string key = entry.space->id().AsLowercaseString();
+      std::optional<syncer::UniquePosition> position;
+      if (entry.profile != profile_) {
+        auto it = DirectoryPositions().find(key);
+        if (it != DirectoryPositions().end()) {
+          position = it->second;
+        }
+      }
+      order.emplace_back(key, std::move(position));
+    }
+    return order;
+  }
+  void OnSpacePositions(
+      const std::map<std::string, syncer::UniquePosition>& positions,
+      bool remote) override {
+    for (const auto& space : service_->space_list().spaces()) {
+      const std::string key = space->id().AsLowercaseString();
+      auto it = positions.find(key);
+      if (it != positions.end()) {
+        DirectoryPositions().insert_or_assign(key, it->second);
+      }
+    }
+    if (remote) {
+      SortDirectoryByPositions();
+    }
+  }
 
   // SpaceList::Observer:
   void OnSpaceMoved(const SpaceModel& space) override {
@@ -107,9 +225,30 @@ class SpacesSyncHolder : public SpaceService::Attachment,
   }
 
   // SpaceDirectory::Observer:
-  void OnDirectoryChanged() override { PullOrderFromDirectory(); }
+  void OnDirectoryChanged() override {
+    // Not now: the directory can change from inside a SpaceList
+    // notification (AddSpace -> SpaceDirectory::OnSpaceAdded, e.g. moving a
+    // space into a new profile), and MoveSpace would notify the same
+    // observer list again, which it disallows (slice 5 MacBook crash).
+    // One posted pull covers a burst of changes.
+    if (directory_pull_pending_) {
+      return;
+    }
+    directory_pull_pending_ = true;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&SpacesSyncHolder::OnDirectoryChangedLater,
+                                  weak_factory_.GetWeakPtr()));
+  }
 
  private:
+  void OnDirectoryChangedLater() {
+    directory_pull_pending_ = false;
+    PullOrderFromDirectory();
+    // The switcher's order may have changed around this profile's spaces
+    // (another profile's moved): their positions may need to follow.
+    bridge_->NotifyLocalChange();
+  }
+
   void OnLoaded() {
     PullOrderFromDirectory();
     bridge_->OnModelLoaded();
@@ -179,6 +318,7 @@ class SpacesSyncHolder : public SpaceService::Attachment,
   const raw_ptr<SpaceService> service_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   bool syncing_order_ = false;
+  bool directory_pull_pending_ = false;
   base::WeakPtrFactory<SpacesSyncHolder> weak_factory_{this};
 };
 
@@ -248,6 +388,18 @@ syncer::DataTypeController::TypeVector CreateControllers(
 
 void RegisterSpacesSyncController() {
   SetExtraControllersFactory(base::BindRepeating(&CreateControllers));
+}
+
+void NotifySpacesSyncOfLocalChange(Profile* profile) {
+  SpaceService* service =
+      profile ? SpaceService::GetIfExists(profile) : nullptr;
+  // This is the only kind of attachment.
+  auto* holder =
+      service ? static_cast<SpacesSyncHolder*>(service->sync_attachment())
+              : nullptr;
+  if (holder) {
+    holder->bridge().NotifyLocalChange();
+  }
 }
 
 }  // namespace compass::sync
