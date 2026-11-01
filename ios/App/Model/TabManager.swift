@@ -131,6 +131,7 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         let id = live.first(where: { $0.value === webView })?.key
       else { return }
       onPageLoaded?(url, webView.title ?? "", id)
+      Favicons.shared.pageLoaded(webView)
     }
   }
 

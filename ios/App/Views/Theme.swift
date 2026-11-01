@@ -33,17 +33,17 @@ extension SpaceColor {
   }
 }
 
-/// A site's icon, from its favicon service-free origin (the first letter
-/// while it loads or when there's none).
+/// A site's icon (Favicons: cached, from the page or the host), or its
+/// first letter while it loads or when there's none.
 struct SiteIcon: View {
   let url: String
   var size: CGFloat = 18
 
   var body: some View {
     let host = URL(string: url)?.host() ?? ""
-    AsyncImage(url: URL(string: "https://\(host)/favicon.ico")) { phase in
-      if let image = phase.image {
-        image.resizable().interpolation(.high)
+    Group {
+      if let image = Favicons.shared.image(for: url) {
+        Image(uiImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
       } else {
         Text(host.replacingOccurrences(of: "www.", with: "").prefix(1).uppercased())
           .font(.system(size: size * 0.6, weight: .semibold))

@@ -17,6 +17,7 @@
 		64E325502103288EB0F1FDA9 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */; };
 		6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79254E7DBBF744D531F94471 /* SettingsView.swift */; };
 		72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */; };
+		77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD52168629F96C8A4ABCDBDF /* Favicons.swift */; };
 		86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEA337DD801A959B39B43F /* SyncController.swift */; };
 		90E62600DBC31089EED9F6D5 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9916DE7F5FD4040F40A90C /* CompassSync */; };
 		92E78CB5FCC5B40329F43E09 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */; };
@@ -77,6 +78,7 @@
 		99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordManager.swift; sourceTree = "<group>"; };
+		AD52168629F96C8A4ABCDBDF /* Favicons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Favicons.swift; sourceTree = "<group>"; };
 		BEC2CC0BF44F21272D32F82C /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
 		C98F12601AB2AF4C69845C13 /* CompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassApp.swift; sourceTree = "<group>"; };
 		D19E94079AACC148BDF33673 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
@@ -197,6 +199,7 @@
 			isa = PBXGroup;
 			children = (
 				9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */,
+				AD52168629F96C8A4ABCDBDF /* Favicons.swift */,
 				D19E94079AACC148BDF33673 /* Keychain.swift */,
 				29EEA337DD801A959B39B43F /* SyncController.swift */,
 				BEC2CC0BF44F21272D32F82C /* TabManager.swift */,
@@ -340,6 +343,7 @@
 				F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */,
 				4968D00362621422D48BCA8B /* CommandBar.swift in Sources */,
 				BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */,
+				77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */,
 				0D76BE83326730393C9D18BE /* Keychain.swift in Sources */,
 				F3F0081DEDB6744DFCFEAEE0 /* PasswordManager.swift in Sources */,
 				72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */,
