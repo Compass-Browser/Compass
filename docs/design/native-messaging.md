@@ -25,8 +25,9 @@ Chrome's folder leaves Compass's copy as it is. Chrome doesn't need to be
 installed.
 
 1Password's helper also checks the browser's code signature before it talks
-to the desktop app; a browser 1Password doesn't trust is refused there, with
-the reason in 1Password's `BrowserSupport` log
+to the desktop app. Compass, signed with its own Developer ID, passes (checked
+with 1Password 8.12.42 on 2026-11-01); if it ever doesn't, the reason is in
+1Password's `BrowserSupport` log
 (`~/Library/Group Containers/2BUA8C4S2C.com.1password/Library/Application
 Support/1Password/Data/logs/BrowserSupport/`).
 
