@@ -12,7 +12,6 @@ struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var showingRecovery = false
   @State private var confirmLeave = false
-  @State private var confirmClear = false
   @State private var showingArchive = false
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
 
@@ -43,15 +42,27 @@ struct SettingsView: View {
             SettingsLabel("Passwords", "key.fill", .gray)
           }
         }
-        if app.sync.isOn { syncOn } else { syncOff }
-        Section("Privacy") {
-          Button("Clear History", role: .destructive) { confirmClear = true }
+        Section {
+          NavigationLink { ArchiveAfterPicker() } label: {
+            HStack {
+              SettingsLabel("Archive Inactive Tabs", "archivebox.fill", .purple)
+              Spacer()
+              Text(ArchiveAfter.current(app.store.spaces)?.name ?? "Mixed").foregroundStyle(.secondary)
+            }
+          }
+          NavigationLink { ClearDataView() } label: {
+            SettingsLabel("Clear Browsing Data", "eraser.fill", .red)
+          }
+          ShareLink(item: app.openTabsText, subject: Text("Open tabs")) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("Export Open Tabs", "square.and.arrow.up", .blue)
+              Text("Share your open tab URLs").font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
+            }
+          }
+          // Like the other rows, not the accent color.
+          .tint(.primary)
         }
-      }
-      .confirmationDialog("Clear all history?", isPresented: $confirmClear) {
-        Button("Clear History", role: .destructive) { app.sync.clearHistory() }
-      } message: {
-        Text(app.sync.isOn ? "History is cleared on every synced device." : "History on this iPhone is cleared.")
+        if app.sync.isOn { syncOn } else { syncOff }
       }
       .navigationTitle("Settings")
       .navigationBarTitleDisplayMode(.inline)

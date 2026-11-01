@@ -419,18 +419,27 @@ final class SyncController {
     }
   }
 
-  /// Clears history here, and in every profile's account.
-  func clearHistory() {
+  /// Clears history here, and in every profile's account: all of it, or
+  /// what's newer than `since`.
+  func clearHistory(since: Date? = nil) {
+    let now = Date()
+    let clearLocal = { [history] in
+      if let since {
+        history.delete(from: Visit.time(since), to: Visit.time(now))
+      } else {
+        history.deleteAll()
+      }
+    }
     guard !accounts.isEmpty else {
-      history.deleteAll()
+      clearLocal()
       return
     }
     let all = Array(accounts.values)
     Task {
       for account in all {
-        await account.directives.deleteHistory(from: Date(timeIntervalSince1970: 0), to: Date())
+        await account.directives.deleteHistory(from: since ?? Date(timeIntervalSince1970: 0), to: now)
       }
-      history.deleteAll()
+      clearLocal()
       syncSoon()
     }
   }

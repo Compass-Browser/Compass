@@ -177,6 +177,13 @@ final class TabManager: NSObject {
 
   private var stores: [String: WKWebsiteDataStore] = [:]
 
+  /// Every profile's website data store: the home profile's (the default)
+  /// and each other profile's in the sidebar.
+  func allDataStores() -> [WKWebsiteDataStore] {
+    let profiles = Set(store.spaces.map(\.profileUUID).filter { !store.isHome($0) })
+    return [.default()] + profiles.sorted().map(dataStore(for:))
+  }
+
   private func dataStore(for profile: String) -> WKWebsiteDataStore {
     guard !profile.isEmpty, let uuid = UUID(uuidString: profile) else { return .default() }
     if let store = stores[profile] { return store }

@@ -275,6 +275,15 @@ struct SpacePage: View {
       }
     }
     Button("Archive", systemImage: "archivebox") { showingArchive = true }
+    Picker(selection: Binding(
+      get: { ArchiveAfter(space.archiveAfter) },
+      set: { app.store.setArchiveAfter(space, $0.interval) })
+    ) {
+      ForEach(ArchiveAfter.allCases) { Text($0.name).tag($0) }
+    } label: {
+      Label("Archive Tabs", systemImage: "clock.arrow.circlepath")
+    }
+    .pickerStyle(.menu)
     // Asks first: the space's tabs lose their cookies (another profile's
     // website data store).
     let others = app.sync.profiles.filter { $0.uuid != app.sync.profile(of: space)?.uuid }
