@@ -426,6 +426,14 @@ The phone syncs every profile of the chain, each in its own account, as the desk
   - Devices in Settings come from the home account only.
   - A chain profile the desktop deletes stays listed (sync never deletes profiles, as on the desktop).
 
+### Sidebar as a bottom sheet, 2026-11-01
+
+The user asked for this. On the iPhone the sidebar is no longer a screen that the browser replaces. It's a system sheet over the browser, using `.sheet` with `presentationDetents([.medium, .large])` and a drag indicator.
+
+- It opens at full height, at launch and from the sidebar button. Swiping it down to half height shows the page; swiping it all the way down closes it. Swiping up on the browser's bottom bar opens it again.
+- Picking an entry closes the sheet. With nothing selected, the browser shows an empty page in the space's color.
+- The command bar and Settings are presented by whichever view is in front: the sidebar while it's up, the browser otherwise (`AppModel.presented(_:fromSidebar:)`). One view can't present a second sheet over its own.
+
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).

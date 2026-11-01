@@ -19,8 +19,10 @@ final class AppModel {
 
   /// The space the sidebar shows.
   var selectedSpaceID: String?
-  /// The entry the browser shows; nil = the sidebar.
+  /// The entry the browser shows; nil = an empty page.
   var selectedNodeID: String?
+  /// The sidebar, a bottom sheet over the browser. Up at launch.
+  var showingSidebar = true
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
@@ -184,9 +186,13 @@ final class AppModel {
       selectedPane = 0
     }
     store.touch(node)
+    // Both close: the command bar would otherwise move from the sidebar to
+    // the browser (AppModel.presented).
+    showingCommandBar = false
+    showingSidebar = false
   }
 
-  func showSidebar() { selectedNodeID = nil }
+  func showSidebar() { showingSidebar = true }
 
   /// Opens text from the command bar: a URL, or a search.
   func open(_ text: String, replacing node: SidebarNode? = nil) {

@@ -6,8 +6,9 @@ import CompassModel
 import CompassSync
 import SwiftUI
 
-/// The app's home: the spaces side by side (swipe between them), each with
-/// the favorites, its pinned tree and Today, tinted with the space's color.
+/// The sidebar, a bottom sheet over the browser: the spaces side by side
+/// (swipe between them), each with the favorites, its pinned tree and Today,
+/// tinted with the space's color.
 struct SidebarScreen: View {
   @Environment(AppModel.self) private var app
 
@@ -32,6 +33,10 @@ struct SidebarScreen: View {
       .ignoresSafeArea()
     )
     .animation(.easeInOut(duration: 0.25), value: app.selectedSpaceID)
+    .sheet(isPresented: app.presented(\.showingCommandBar, fromSidebar: true)) {
+      CommandBar(replacing: nil)
+    }
+    .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: true)) { SettingsView() }
   }
 
   private var bottomBar: some View {
@@ -151,7 +156,7 @@ struct SpacePage: View {
         if let moving {
           // Live tabs reload in the new profile's website data store.
           for tab in space.allNodes where tab.isTab { app.tabs.unload(tab.id) }
-          if let shown = app.selectedNode, app.store.space(of: shown) === space { app.showSidebar() }
+          if let shown = app.selectedNode, app.store.space(of: shown) === space { app.selectedNodeID = nil }
           app.store.setProfile(space, to: app.sync.spaceProfile(for: moving))
         }
         moving = nil

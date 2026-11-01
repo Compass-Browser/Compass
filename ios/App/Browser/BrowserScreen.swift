@@ -8,15 +8,16 @@ import WebKit
 
 /// One entry, full screen, with a slim bottom bar: back, the address pill
 /// (opens the command bar), forward and the sidebar. Swiping the bar left
-/// or right moves between the space's entries.
+/// or right moves between the space's entries; swiping it up opens the
+/// sidebar. With no entry selected it's an empty page in the space's color.
 struct BrowserScreen: View {
   @Environment(AppModel.self) private var app
-  let node: SidebarNode
+  let node: SidebarNode?
 
   var body: some View {
     @Bindable var app = app
     VStack(spacing: 0) {
-      if node.isSplit {
+      if let node, node.isSplit {
         Picker("Pane", selection: $app.selectedPane) {
           ForEach(Array(node.children.enumerated()), id: \.offset) { index, pane in
             Text(pane.displayTitle).lineLimit(1).tag(index)
@@ -29,14 +30,22 @@ struct BrowserScreen: View {
       if let tab = app.shownTab {
         WebView(webView: app.tabs.webView(for: tab))
           .id(tab.id)
-          .ignoresSafeArea(edges: node.isSplit ? [] : .top)
+          .ignoresSafeArea(edges: node?.isSplit == true ? [] : .top)
           .overlay(alignment: .top) { progress(tab) }
       } else {
-        Spacer()
+        emptyPage
       }
       if let pending = app.passwords.pendingSave { saveBanner(pending) }
       bar
     }
+  }
+
+  private var emptyPage: some View {
+    LinearGradient(
+      colors: [(app.selectedSpace?.color.color ?? .blue).opacity(0.28), Color(.systemBackground)],
+      startPoint: .top, endPoint: .bottom
+    )
+    .ignoresSafeArea(edges: .top)
   }
 
   private func saveBanner(_ p: PasswordManager.PendingSave) -> some View {
@@ -127,8 +136,12 @@ struct BrowserScreen: View {
     .background(.bar)
     .gesture(
       DragGesture(minimumDistance: 30).onEnded { value in
-        guard abs(value.translation.width) > abs(value.translation.height) else { return }
-        step(value.translation.width < 0 ? 1 : -1)
+        let (dx, dy) = (value.translation.width, value.translation.height)
+        if abs(dx) > abs(dy) {
+          step(dx < 0 ? 1 : -1)
+        } else if dy < 0 {
+          app.showSidebar()
+        }
       })
   }
 
@@ -139,7 +152,7 @@ struct BrowserScreen: View {
 
   /// The next or previous entry of the space: pinned, then Today (newest first).
   private func step(_ delta: Int) {
-    guard let space = app.store.space(of: node) else { return }
+    guard let node, let space = app.store.space(of: node) else { return }
     let entries = (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
       .filter { !$0.isFolder && $0.parent?.isSplit != true }
     guard let index = entries.firstIndex(where: { $0 === node }) else { return }

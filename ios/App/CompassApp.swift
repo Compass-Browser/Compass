@@ -56,22 +56,36 @@ struct CompassApp: App {
 
 struct RootView: View {
   @Environment(AppModel.self) private var app
+  @State private var sidebarDetent: PresentationDetent = .large
 
   var body: some View {
     @Bindable var app = app
-    ZStack {
-      if let node = app.selectedNode {
-        BrowserScreen(node: node)
-          .transition(.move(edge: .trailing))
-      } else {
+    // The browser is always underneath; the sidebar is a bottom sheet over
+    // it (swipe down to close, or to half height to see the page).
+    BrowserScreen(node: app.selectedNode)
+      .sheet(isPresented: $app.showingSidebar) {
         SidebarScreen()
-          .transition(.move(edge: .leading))
+          .presentationDetents([.medium, .large], selection: $sidebarDetent)
+          .presentationDragIndicator(.visible)
       }
-    }
-    .animation(.easeInOut(duration: 0.22), value: app.selectedNodeID)
-    .sheet(isPresented: $app.showingCommandBar) {
-      CommandBar(replacing: app.selectedNode.flatMap { $0.isTab ? $0 : nil })
-    }
-    .sheet(isPresented: $app.showingSettings) { SettingsView() }
+      .onChange(of: app.showingSidebar) { _, showing in
+        if showing { sidebarDetent = .large }
+      }
+      // While the sidebar is up, it presents these itself (a sheet can't
+      // present over another from the same view).
+      .sheet(isPresented: app.presented(\.showingCommandBar, fromSidebar: false)) {
+        CommandBar(replacing: app.selectedNode.flatMap { $0.isTab ? $0 : nil })
+      }
+      .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: false)) { SettingsView() }
+  }
+}
+
+extension AppModel {
+  /// A sheet flag, for the view that presents it now: the sidebar while it's
+  /// up, the browser otherwise.
+  func presented(_ flag: ReferenceWritableKeyPath<AppModel, Bool>, fromSidebar: Bool) -> Binding<Bool> {
+    Binding(
+      get: { self[keyPath: flag] && self.showingSidebar == fromSidebar },
+      set: { self[keyPath: flag] = $0 })
   }
 }
