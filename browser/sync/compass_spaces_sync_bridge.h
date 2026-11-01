@@ -188,6 +188,11 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   sync_pb::EntitySpecifics TrimAllSupportedFieldsFromRemoteSpecifics(
       const sync_pb::EntitySpecifics& entity_specifics) const override;
   bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
+  // Upstream's choice (a local change wins over a remote delete), logged:
+  // the entity stays here and goes up again (slice 7).
+  syncer::ConflictResolution ResolveConflict(
+      const std::string& storage_key,
+      const syncer::EntityData& remote_data) const override;
 
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;

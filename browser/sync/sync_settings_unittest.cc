@@ -170,5 +170,58 @@ TEST_F(SyncSettingsTest, MenuLabels) {
   EXPECT_EQ(label(SyncState::kNeedsRestart), "Sync: restart to finish");
 }
 
+TEST_F(SyncSettingsTest, Limits) {
+  EXPECT_EQ(SyncLimit::kNone, GetSyncLimit(false, false, false));
+  EXPECT_EQ(SyncLimit::kHistoryFull, GetSyncLimit(false, false, true));
+  EXPECT_EQ(SyncLimit::kThrottled, GetSyncLimit(true, false, true));
+  EXPECT_EQ(SyncLimit::kServerFull, GetSyncLimit(true, true, true));
+
+  const auto on = [] {
+    SyncStatus status;
+    status.state = SyncState::kOn;
+    status.message = "Last synced today.";
+    return status;
+  };
+  const auto label = [](const SyncStatus& status) {
+    return base::UTF16ToUTF8(GetSyncMenuLabel(status));
+  };
+
+  SyncStatus status = on();
+  ApplySyncLimit(SyncLimit::kNone, status);
+  EXPECT_EQ(SyncState::kOn, status.state);
+  EXPECT_EQ("Last synced today.", status.message);
+  EXPECT_EQ("Synced", label(status));
+
+  status = on();
+  ApplySyncLimit(SyncLimit::kHistoryFull, status);
+  EXPECT_EQ(SyncState::kOn, status.state);
+  EXPECT_EQ(
+      "Last synced today. History is full on the server: new visits stay on "
+      "this device until older ones expire.",
+      status.message);
+  EXPECT_EQ("Synced (history full)", label(status));
+
+  status = on();
+  ApplySyncLimit(SyncLimit::kServerFull, status);
+  EXPECT_EQ(SyncState::kError, status.state);
+  EXPECT_EQ(SyncLimit::kServerFull, status.limit);
+  EXPECT_NE(std::string::npos, status.message.find("server is full"));
+  EXPECT_EQ("Sync: server full", label(status));
+
+  status = on();
+  ApplySyncLimit(SyncLimit::kThrottled, status);
+  EXPECT_EQ(SyncState::kError, status.state);
+  EXPECT_EQ("Sync: paused by server", label(status));
+
+  // Another error comes first.
+  SyncStatus offline;
+  offline.state = SyncState::kError;
+  offline.message = "Can't reach the server.";
+  ApplySyncLimit(SyncLimit::kServerFull, offline);
+  EXPECT_EQ("Can't reach the server.", offline.message);
+  EXPECT_EQ(SyncLimit::kNone, offline.limit);
+  EXPECT_EQ("Sync error", label(offline));
+}
+
 }  // namespace
 }  // namespace compass::sync

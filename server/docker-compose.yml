@@ -19,6 +19,12 @@ services:
       # COMPASS_SYNC_MAX_ENTITIES: "100000"
       # COMPASS_SYNC_MAX_BYTES: "209715200"
       # COMPASS_SYNC_POLL_SECONDS: "900"
+      # COMPASS_SYNC_MAX_HISTORY: "30000"
+      # COMPASS_SYNC_HISTORY_DAYS: "14"
+      # COMPASS_SYNC_TOMBSTONE_DAYS: "30"
+      # COMPASS_SYNC_IDLE_CHAIN_DAYS: "180"
+      # COMPASS_SYNC_BACKUP_INTERVAL: "24h"   # into /data/backups
+      # COMPASS_SYNC_BACKUP_KEEP: "7"
     networks:
       - internal
     healthcheck:

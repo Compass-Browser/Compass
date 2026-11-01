@@ -24,10 +24,32 @@ const (
 	reasonDeleted                    = "deleted"
 	HistoryTypeID                int = 963985
 	HistoryDeleteDirectiveTypeID int = 150251
-	// HistoryExpirationIntervalSecs is the expiration time for history and
-	// history delete directive entities in seconds.
-	HistoryExpirationIntervalSecs = 14 * 24 * 60 * 60 // 14 days
+	// DefaultHistoryDays is how long history and history delete directive
+	// entities stay after their last write, by default.
+	DefaultHistoryDays = 14
+	// MaxHistoryDays caps COMPASS_SYNC_HISTORY_DAYS: Compass devices keep
+	// the delete directives they processed for 30 days and then remove
+	// them from the server (sync.md, "Slice 7 notes"), so history kept
+	// longer could come back on a device that joins later.
+	MaxHistoryDays = 30
 )
+
+// HistoryExpirationIntervalSecs is the expiration time for history and
+// history delete directive entities in seconds (Compass: a variable, set by
+// SetHistoryDays from COMPASS_SYNC_HISTORY_DAYS; go-sync's constant was 14
+// days).
+var HistoryExpirationIntervalSecs int64 = DefaultHistoryDays * 24 * 60 * 60
+
+// SetHistoryDays sets how long history stays on the server (1 to
+// MaxHistoryDays). The history quota's four counting periods are a quarter
+// of it each.
+func SetHistoryDays(days int) error {
+	if days < 1 || days > MaxHistoryDays {
+		return fmt.Errorf("history days must be 1-%d, not %d", MaxHistoryDays, days)
+	}
+	HistoryExpirationIntervalSecs = int64(days) * 24 * 60 * 60
+	return nil
+}
 
 // SyncEntity is one row of the entities table. (The dynamodbav tags are
 // left from go-sync's DynamoDB store; nothing reads them now.)

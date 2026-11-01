@@ -47,6 +47,9 @@
 #include "components/sync/base/passphrase_enums.h"
 #include "components/sync/base/pref_names.h"
 #include "components/sync/base/user_selectable_type.h"
+#include "components/sync/engine/cycle/model_neutral_state.h"
+#include "components/sync/engine/cycle/sync_cycle_snapshot.h"
+#include "components/sync/engine/sync_status.h"
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_token_status.h"
@@ -65,6 +68,11 @@ namespace {
 
 // Focus and wake ask the server for changes at most this often.
 constexpr base::TimeDelta kMinRefreshInterval = base::Seconds(10);
+
+// How often the server's quota status is asked for (slice 7): normally, and
+// while commits fail or a limit is in the way.
+constexpr base::TimeDelta kQuotaCheckInterval = base::Minutes(30);
+constexpr base::TimeDelta kQuotaRecheckInterval = base::Minutes(1);
 
 // The types Compass never syncs are GetUnwantedSelectableTypes()
 // (sync_settings.h). History (kHistory: HISTORY and
@@ -247,6 +255,7 @@ void CompassSyncService::RegisterProfilePrefs(
 
 void CompassSyncService::Shutdown() {
   notifier_.reset();
+  quota_fetcher_.reset();
   host_.reset();
   joiner_.reset();
   missing_profiles_.reset();
@@ -391,6 +400,8 @@ SyncStatus CompassSyncService::GetStatus() const {
                 {"Last synced ",
                  base::UTF16ToUTF8(base::TimeFormatShortDateAndTime(last)),
                  "."});
+  // Slice 7: a server limit in the way turns this into its message.
+  ApplySyncLimit(GetLimit(), status);
   return status;
 }
 
@@ -768,6 +779,74 @@ void CompassSyncService::UpdateNotifier() {
   notifier_->Start();
 }
 
+// Quota (slice 7) ---------------------------------------------------------------
+
+void CompassSyncService::MaybeCheckQuota() {
+  if (!sync_service_ || !IsChainRunning() || !seed_ ||
+      sync_service_->GetTransportState() !=
+          syncer::SyncService::TransportState::ACTIVE) {
+    return;
+  }
+  // The engine retries a commit refused for quota as a transient error;
+  // that's when to look soon.
+  const bool commit_failed =
+      sync_service_->GetLastCycleSnapshotForDebugging()
+          .model_neutral_state()
+          .commit_result.type() != syncer::SyncerError::Type::kSuccess;
+  const bool limited =
+      quota_ && (quota_->IsServerFull() || quota_->history_full);
+  const base::TimeTicks now = base::TimeTicks::Now();
+  if (!last_quota_check_.is_null() &&
+      now - last_quota_check_ < (commit_failed || limited
+                                     ? kQuotaRecheckInterval
+                                     : kQuotaCheckInterval)) {
+    return;
+  }
+  if (!quota_fetcher_) {
+    quota_fetcher_ = std::make_unique<QuotaFetcher>(
+        profile_->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        GetServerUrl(),
+        base::BindRepeating(
+            [](scoped_refptr<SyncCredentials> credentials) {
+              return credentials->MakeToken(base::Time::Now());
+            },
+            credentials_));
+  }
+  if (quota_fetcher_->Fetch(base::BindOnce(&CompassSyncService::OnQuotaStatus,
+                                           weak_factory_.GetWeakPtr()))) {
+    last_quota_check_ = now;
+  }
+}
+
+void CompassSyncService::OnQuotaStatus(std::optional<QuotaStatus> status) {
+  // No answer (an older server, the network): keep what was known.
+  if (!status) {
+    return;
+  }
+  VLOG(1) << "[compass-sync] quota: entities " << status->entities << "/"
+          << status->max_entities << ", bytes " << status->bytes << "/"
+          << status->max_bytes << ", history " << status->history << "/"
+          << status->max_history << " (" << status->history_days
+          << " days), full:" << (status->entities_full ? " entities" : "")
+          << (status->bytes_full ? " bytes" : "")
+          << (status->history_full ? " history" : "");
+  quota_ = std::move(status);
+  NotifyObservers();
+}
+
+SyncLimit CompassSyncService::GetLimit() const {
+  bool throttled = false;
+  if (sync_service_) {
+    syncer::SyncStatus engine_status;
+    if (sync_service_->QueryDetailedSyncStatusForDebugging(&engine_status)) {
+      throttled = !engine_status.throttled_types.empty();
+    }
+  }
+  return GetSyncLimit(throttled, quota_ && quota_->IsServerFull(),
+                      quota_ && quota_->history_full);
+}
+
 void CompassSyncService::OnStateChanged(syncer::SyncService* sync) {
   UpdatePassphrase();
   UpdateNotifier();
@@ -775,6 +854,7 @@ void CompassSyncService::OnStateChanged(syncer::SyncService* sync) {
 }
 
 void CompassSyncService::OnSyncCycleCompleted(syncer::SyncService* sync) {
+  MaybeCheckQuota();
   NotifyObservers();
 }
 
@@ -784,6 +864,7 @@ void CompassSyncService::OnDeviceInfoChange() {
 
 void CompassSyncService::OnSyncShutdown(syncer::SyncService* sync) {
   notifier_.reset();
+  quota_fetcher_.reset();
   setup_handle_.reset();
   sync_observation_.Reset();
   sync_service_ = nullptr;

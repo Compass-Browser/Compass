@@ -23,6 +23,7 @@
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
+#include "components/sync/model/conflict_resolution.h"
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/metadata_batch.h"
@@ -1990,6 +1991,24 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
     return specifics.profile().uuid();
   }
   return specifics.node().uuid();
+}
+
+syncer::ConflictResolution CompassSpacesSyncBridge::ResolveConflict(
+    const std::string& storage_key,
+    const syncer::EntityData& remote_data) const {
+  const syncer::ConflictResolution resolution =
+      syncer::DataTypeSyncBridge::ResolveConflict(storage_key, remote_data);
+  // A delete from another device (a tab closed there) that meets a change
+  // here not yet committed (a title, a last-active time) never reaches
+  // ApplyIncrementalSyncChanges(): the processor keeps the entity and
+  // commits it again, which undeletes it on the server. That's the other
+  // way an entry is kept; say so as the focused-window rule does.
+  if (remote_data.is_deleted() &&
+      resolution == syncer::ConflictResolution::kUseLocal) {
+    VLOG(1) << "[compass-sync] spaces: kept " << storage_key
+            << ", deleted elsewhere while changed here; it goes up again";
+  }
+  return resolution;
 }
 
 void CompassSpacesSyncBridge::ApplyDisableSyncChanges(

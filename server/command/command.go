@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/brave/go-sync/ptr"
 	"github.com/rs/zerolog/log"
@@ -22,7 +23,7 @@ var (
 	// Compass: 100k (go-sync: 50k), set from COMPASS_SYNC_MAX_ENTITIES by
 	// LoadQuotaFromEnv. History counts towards it, up to its own quota.
 	maxClientObjectQuota        = DefaultMaxEntities
-	maxClientHistoryObjectQuota = 30000
+	maxClientHistoryObjectQuota = DefaultMaxHistory
 	// Compass: the poll interval sent to clients in every ClientCommand.
 	// go-sync sends 30 s (its setSyncPollInterval constant); with change
 	// notifications (slice 6) devices hear of changes at once, so polling is
@@ -52,20 +53,64 @@ func LoadPollIntervalFromEnv() {
 // DefaultMaxEntities is the default cap on a chain's non-deleted entities.
 const DefaultMaxEntities = 100000
 
-// LoadQuotaFromEnv sets the entity quota from COMPASS_SYNC_MAX_ENTITIES.
-func LoadQuotaFromEnv() {
-	v := os.Getenv("COMPASS_SYNC_MAX_ENTITIES")
+// DefaultMaxHistory is the default cap on a chain's history items (visits
+// and delete directives) within the history retention.
+const DefaultMaxHistory = 30000
+
+// positiveEnv reads a positive integer from the environment: ok is false if
+// it's unset or invalid (logged).
+func positiveEnv(name string) (int, bool) {
+	v := os.Getenv(name)
 	if v == "" {
-		return
+		return 0, false
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil || n <= 0 {
-		log.Error().Str("value", v).Msg("Ignoring invalid COMPASS_SYNC_MAX_ENTITIES")
-		return
+		log.Error().Str("value", v).Msgf("Ignoring invalid %s", name)
+		return 0, false
 	}
-	maxClientObjectQuota = n
+	return n, true
+}
+
+// LoadQuotaFromEnv sets the entity quota from COMPASS_SYNC_MAX_ENTITIES, the
+// history quota from COMPASS_SYNC_MAX_HISTORY and the history retention
+// from COMPASS_SYNC_HISTORY_DAYS (sync.md, "Slice 7 notes"). Invalid values
+// are logged and ignored.
+func LoadQuotaFromEnv() {
+	maxClientObjectQuota = DefaultMaxEntities
+	maxClientHistoryObjectQuota = DefaultMaxHistory
+	if n, ok := positiveEnv("COMPASS_SYNC_MAX_ENTITIES"); ok {
+		maxClientObjectQuota = n
+	}
+	if n, ok := positiveEnv("COMPASS_SYNC_MAX_HISTORY"); ok {
+		maxClientHistoryObjectQuota = n
+	}
 	// The history quota can't be larger than the whole.
-	maxClientHistoryObjectQuota = min(maxClientHistoryObjectQuota, n)
+	maxClientHistoryObjectQuota = min(maxClientHistoryObjectQuota, maxClientObjectQuota)
+	days := datastore.DefaultHistoryDays
+	if n, ok := positiveEnv("COMPASS_SYNC_HISTORY_DAYS"); ok {
+		days = n
+	}
+	if err := datastore.SetHistoryDays(days); err != nil {
+		log.Error().Err(err).Msg("Ignoring invalid COMPASS_SYNC_HISTORY_DAYS")
+		_ = datastore.SetHistoryDays(datastore.DefaultHistoryDays)
+	}
+}
+
+// Quotas are the limits a chain is held to.
+type Quotas struct {
+	MaxEntities int // Non-deleted entities, history included.
+	MaxHistory  int // History items within the retention.
+	HistoryDays int // How long history stays after its last write.
+}
+
+// CurrentQuotas returns the limits in force (after LoadQuotaFromEnv).
+func CurrentQuotas() Quotas {
+	return Quotas{
+		MaxEntities: maxClientObjectQuota,
+		MaxHistory:  maxClientHistoryObjectQuota,
+		HistoryDays: int(datastore.HistoryExpirationIntervalSecs / (24 * 60 * 60)),
+	}
 }
 
 const (
@@ -409,6 +454,10 @@ type commitCountState struct {
 	newNormal      int
 	newHistory     int
 	boostedQuota   int
+	// Compass: which quotas refused an entry of this commit, and which ones
+	// an entry got past (a new entity stored), for RecordQuota.
+	refused datastore.QuotaFull
+	passed  datastore.QuotaFull
 }
 
 func adjustInterimCount(
@@ -445,6 +494,7 @@ func insertCommitEntity(
 ) (bool, error) {
 	total := counts.currentNormal + counts.currentHistory + counts.newNormal + counts.newHistory
 	if total >= maxClientObjectQuota+counts.boostedQuota {
+		counts.refused |= datastore.QuotaEntities
 		rspType := sync_pb.CommitResponse_OVER_QUOTA
 		entryRsp.ResponseType = &rspType
 		entryRsp.ErrorMessage = ptr.String(
@@ -459,13 +509,17 @@ func insertCommitEntity(
 	// Insert all non-history items. For history items, ignore any items above history quota
 	// and lie to the client about the objects being synced instead of returning OVER_QUOTA
 	// so the client can continue to sync other entities.
+	// Compass: the chain remembers it (RecordQuota), so its devices can
+	// show that history is full (sync.md, "Slice 7 notes").
 	if isHistoryRelatedItem && counts.currentHistory+counts.newHistory >= maxClientHistoryObjectQuota {
+		counts.refused |= datastore.QuotaHistory
 		return false, nil
 	}
 
 	conflict, err := db.InsertSyncEntity(ctx, entity)
 	if errors.Is(err, datastore.ErrQuotaExceeded) {
 		setOverQuota(entryRsp)
+		counts.refused |= datastore.QuotaBytes
 		return true, nil
 	}
 	if err != nil {
@@ -483,6 +537,11 @@ func insertCommitEntity(
 	// a new entry with OriginatorClientItemID (client-generated ID).
 	if entity.OriginatorClientItemID != nil {
 		idMap[*entity.OriginatorClientItemID] = entity.ID
+	}
+	if isHistoryRelatedItem {
+		counts.passed |= datastore.QuotaHistory
+	} else {
+		counts.passed |= datastore.QuotaEntities | datastore.QuotaBytes
 	}
 
 	return false, adjustInterimCount(ctx, cache, clientID, isHistoryRelatedItem, false, counts)
@@ -502,6 +561,7 @@ func updateCommitEntity(
 	conflict, deleted, err := db.UpdateSyncEntity(ctx, entity, oldVersion)
 	if errors.Is(err, datastore.ErrQuotaExceeded) {
 		setOverQuota(entryRsp)
+		counts.refused |= datastore.QuotaBytes
 		return true, nil
 	}
 	if err != nil {
@@ -710,6 +770,12 @@ func handleCommitRequest(
 	// Save (clientID#dataType, mtime) into cache after writing into DB.
 	for dataType, mtime := range typeMtimeMap {
 		cache.SetTypeMtime(ctx, clientID, dataType, mtime)
+	}
+
+	if r, ok := db.(datastore.QuotaRecorder); ok {
+		if err = r.RecordQuota(ctx, clientID, counts.refused, counts.passed, time.Now()); err != nil {
+			log.Error().Err(err).Msg("Recording the chain's quota state failed")
+		}
 	}
 
 	err = db.UpdateClientItemCount(ctx, itemCounts, newNormalCount, newHistoryCount)

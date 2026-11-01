@@ -63,8 +63,15 @@ Environment variables (all optional):
 |---|---|---|
 | `COMPASS_SYNC_DB` | `/data/compass-sync.db` | Database file |
 | `COMPASS_SYNC_ADDR` | `:8295` | Listen address |
-| `COMPASS_SYNC_MAX_ENTITIES` | `100000` | Live entities per chain (history counts, up to 30000 of it) |
+| `COMPASS_SYNC_MAX_ENTITIES` | `100000` | Live entities per chain (history counts, up to `COMPASS_SYNC_MAX_HISTORY` of it) |
 | `COMPASS_SYNC_MAX_BYTES` | `209715200` (200 MiB) | Stored bytes per chain; `0` = no limit |
+| `COMPASS_SYNC_MAX_HISTORY` | `30000` | History items (visits, deletions) per chain within the retention; past it new visits stay on the devices (never more than `COMPASS_SYNC_MAX_ENTITIES`) |
+| `COMPASS_SYNC_HISTORY_DAYS` | `14` | How long history stays on the server after its last change (1-30; a device joining later sees this much of the others' history) |
+| `COMPASS_SYNC_TOMBSTONE_DAYS` | `30` | Deletions are kept this long so devices that were away learn of them; `0` = forever |
+| `COMPASS_SYNC_IDLE_CHAIN_DAYS` | `180` | A chain none of whose devices has talked to the server for this long is deleted (a device coming back is told to start again); `0` = never |
+| `COMPASS_SYNC_BACKUP_INTERVAL` | `24h` | How often the server backs up its database (Go duration; `0` = no backups) |
+| `COMPASS_SYNC_BACKUP_KEEP` | `7` | Backups kept; older ones are deleted |
+| `COMPASS_SYNC_BACKUP_DIR` | `backups` next to the database | Where backups go |
 | `COMPASS_SYNC_TRUSTED_PROXIES` | none | CIDRs whose `X-Forwarded-For` is believed (your reverse proxy) |
 | `COMPASS_SYNC_POLL_SECONDS` | `900` | How often devices poll for changes (30-86400); they hear of changes at once through change notifications, so this is the fallback |
 | `COMPASS_SYNC_EVENTS_PER_IP` | `50` | Open change-notification streams per client address |
@@ -99,12 +106,30 @@ Limits: 20 open streams per chain and 50 per client address
 the 50 are for all devices together. If the stream can't be held open, devices still sync on their
 poll (`COMPASS_SYNC_POLL_SECONDS`), on window focus and on wake.
 
+## Limits
+
+Each chain may hold `COMPASS_SYNC_MAX_ENTITIES` items and
+`COMPASS_SYNC_MAX_BYTES` bytes, and `COMPASS_SYNC_MAX_HISTORY` history items
+within the last `COMPASS_SYNC_HISTORY_DAYS`. A device that hits one keeps
+its data; Compass shows "Sync: server full" (or "History full") in its menu
+and on `chrome://compass-sync`, which reads `GET /v2/compass/quota`. Deleted
+items are forgotten after `COMPASS_SYNC_TOMBSTONE_DAYS`, and chains nobody
+uses after `COMPASS_SYNC_IDLE_CHAIN_DAYS`.
+
 ## Backups
+
+The server backs itself up: once a day (`COMPASS_SYNC_BACKUP_INTERVAL`) it
+writes a consistent, compacted copy of its database to `/data/backups`
+(`compass-sync-<UTC time>.db`) and keeps the newest 7
+(`COMPASS_SYNC_BACKUP_KEEP`). The first one is made at start if the newest on
+disk is older than the interval. They sit on the same disk as the database,
+so copy `/data/backups` elsewhere now and then (rsync, restic, the VPS's
+snapshots).
 
 The database is the file `compass-sync.db` in the `/data` volume. Don't copy
 it with `cp` while the server runs (SQLite also has `-wal` and `-shm` files
-next to it, and a copy taken mid-write can be torn). Instead let the server
-write a consistent copy, which is safe at any time:
+next to it, and a copy taken mid-write can be torn). To take a copy by hand,
+let the server write one, which is safe at any time:
 
 ```sh
 docker compose exec -T sync /compass-sync-server backup - > compass-sync-$(date +%F).db
@@ -116,9 +141,22 @@ With `sqlite3` installed on the host, `sqlite3 <volume dir>/compass-sync.db
 ".backup ./compass-sync-$(date +%F).db"` does the same
 (`docker volume inspect compass-sync_sync-data` shows the directory).
 
-To restore, stop the server, put the backup in the volume as
-`compass-sync.db` (removing any `compass-sync.db-wal` and `-shm`), and
-start it again.
+To restore:
+
+```sh
+docker compose stop sync
+cd <volume dir>                     # holds compass-sync.db and backups/
+mkdir -p replaced && mv compass-sync.db* replaced/   # the db, -wal and -shm
+cp backups/compass-sync-20261031T220000Z.db compass-sync.db
+chown 65532:65532 compass-sync.db   # the image's user
+docker compose start sync
+curl -fsS http://127.0.0.1:8295/healthz   # or your public URL
+```
+
+Devices carry on from where the backup was: changes made after it come
+back as they commit again, and devices that synced later may show those
+changes as conflicts they resolve themselves. Delete `replaced/` once all
+is well.
 
 Losing the server isn't losing your data: every device keeps its own copy,
 and a new, empty server gets everything again from the devices
@@ -132,6 +170,20 @@ git pull
 docker compose build sync
 docker compose up -d
 ```
+
+For a server on another machine that builds from a copy of `server/` (as
+sync.example.org does), `deploy/update-remote.sh` does all of it from
+your checkout: backs up the database, rsyncs `server/` to `<dir>/src`,
+builds with `COMMIT` set to the checkout's short SHA, restarts, and checks
+`/health-check` names that commit and `/healthz` answers:
+
+```sh
+server/deploy/update-remote.sh --host example.org --port 22 \
+  --dir /opt/compass-sync --service sync --public-url https://sync.example.org
+```
+
+`--dry-run` prints the commands without running them. It uses your own ssh
+keys and config; nothing secret is in the script.
 
 The server migrates the database on start. A server never opens a database
 written by a newer version (it refuses to start), so take a backup before

@@ -1,0 +1,26 @@
+diff --git a/components/history/core/browser/sync/delete_directive_handler.h b/components/history/core/browser/sync/delete_directive_handler.h
+index a9ad56c7d1073dc39354e9f8c54dfa64249c5585..2e2a4e59304e59348e3fd2c5f488a3bdc9be1174 100644
+--- a/components/history/core/browser/sync/delete_directive_handler.h
++++ b/components/history/core/browser/sync/delete_directive_handler.h
+@@ -67,6 +67,13 @@ class DeleteDirectiveHandler final : public syncer::SyncableService {
+   std::optional<syncer::ModelError> ProcessLocalDeleteDirective(
+       const sync_pb::HistoryDeleteDirectiveSpecifics& delete_directive);
+ 
++  // Compass: under local sync, directives processed at startup stay on the
++  // server for as long as the history they delete can (docs/design/sync.md,
++  // "Slice 7 notes"), so a device that joins later still applies them.
++  void set_compass_keep_processed_directives(bool keep) {
++    compass_keep_processed_directives_ = keep;
++  }
++
+   // syncer::SyncableService implementation.
+   void WaitUntilReadyToSync(base::OnceClosure done) override;
+   std::optional<syncer::ModelError> MergeDataAndStartSyncing(
+@@ -96,6 +103,7 @@ class DeleteDirectiveHandler final : public syncer::SyncableService {
+ 
+   const BackendTaskScheduler backend_task_scheduler_;
+   bool backend_loaded_ = false;
++  bool compass_keep_processed_directives_ = false;
+   base::OnceClosure wait_until_ready_to_sync_cb_;
+   base::CancelableTaskTracker internal_tracker_;
+   std::unique_ptr<syncer::SyncChangeProcessor> sync_processor_;

@@ -76,8 +76,20 @@ std::string GetDeviceKind(syncer::DeviceInfo::OsType os,
                           syncer::DeviceInfo::FormFactor form_factor);
 
 // The app menu's sync row: "Synced", "Syncing…", "Sync error", "Sync is
-// off", "Restart to sync".
+// off", "Restart to sync"; with a limit, "Sync: server full", "Sync: paused
+// by server", "Synced (history full)".
 std::u16string GetSyncMenuLabel(const SyncStatus& status);
+
+// The limit in the way, the worst first (slice 7). |throttled|: the engine
+// has types throttled by the server; the others from the server's quota
+// status.
+SyncLimit GetSyncLimit(bool throttled, bool server_full, bool history_full);
+
+// Puts |limit| into a status that is otherwise on (SyncState::kOn): the
+// server full or throttling is an error with its own message; history full
+// keeps it on and says so after the last-synced line. Other states are left
+// alone (their error comes first).
+void ApplySyncLimit(SyncLimit limit, SyncStatus& status);
 
 }  // namespace compass::sync
 

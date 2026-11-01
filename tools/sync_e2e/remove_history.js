@@ -3,8 +3,12 @@
 // delete directive per entry), and returns what it removed.
 const m = await import('chrome://history/history.js');
 const handler = m.BrowserProxyImpl.getInstance().handler;
+// Searched by TEXT, as a user finds a visit to remove: the page's default
+// list (an empty search) returned only the newest entry for visits made by
+// opening tabs over CDP (MacBook, slice 7).
 const {results} = await handler.queryHistory(
-    '', 150, null, /*includeUserVisits=*/ true, /*includeActorVisits=*/ false);
+    ARGS.match, 150, null, /*includeUserVisits=*/ true,
+    /*includeActorVisits=*/ false);
 const entries = results.value.filter(e => e.url.includes(ARGS.match));
 const removalList = entries.flatMap(
     e => Object.entries(e.allTimestamps)

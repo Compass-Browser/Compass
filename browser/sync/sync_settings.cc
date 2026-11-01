@@ -4,6 +4,7 @@
 
 #include "compass/browser/sync/sync_settings.h"
 
+#include "base/strings/strcat.h"
 #include "base/values.h"
 #include "compass/components/sync/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -171,6 +172,19 @@ std::string GetDeviceKind(syncer::DeviceInfo::OsType os,
 }
 
 std::u16string GetSyncMenuLabel(const SyncStatus& status) {
+  switch (status.limit) {
+    case SyncLimit::kServerFull:
+      return u"Sync: server full";
+    case SyncLimit::kThrottled:
+      return u"Sync: paused by server";
+    case SyncLimit::kHistoryFull:
+      if (status.state == SyncState::kOn) {
+        return u"Synced (history full)";
+      }
+      break;
+    case SyncLimit::kNone:
+      break;
+  }
   switch (status.state) {
     case SyncState::kOff:
       return u"Sync is off";
@@ -184,6 +198,49 @@ std::u16string GetSyncMenuLabel(const SyncStatus& status) {
       return u"Sync error";
   }
   return u"Sync";
+}
+
+SyncLimit GetSyncLimit(bool throttled, bool server_full, bool history_full) {
+  if (server_full) {
+    return SyncLimit::kServerFull;
+  }
+  if (throttled) {
+    return SyncLimit::kThrottled;
+  }
+  if (history_full) {
+    return SyncLimit::kHistoryFull;
+  }
+  return SyncLimit::kNone;
+}
+
+void ApplySyncLimit(SyncLimit limit, SyncStatus& status) {
+  if (status.state != SyncState::kOn || limit == SyncLimit::kNone) {
+    return;
+  }
+  status.limit = limit;
+  switch (limit) {
+    case SyncLimit::kServerFull:
+      status.state = SyncState::kError;
+      status.message =
+          "The sync server is full for this chain: new changes stay on this "
+          "device. Remove data you don't need, or ask the server's owner to "
+          "raise its limits.";
+      return;
+    case SyncLimit::kThrottled:
+      status.state = SyncState::kError;
+      status.message =
+          "The sync server is holding this device back (too many devices in "
+          "the chain, or too many requests). Compass tries again by itself.";
+      return;
+    case SyncLimit::kHistoryFull:
+      status.message = base::StrCat(
+          {status.message, status.message.empty() ? "" : " ",
+           "History is full on the server: new visits stay on this device "
+           "until older ones expire."});
+      return;
+    case SyncLimit::kNone:
+      return;
+  }
 }
 
 }  // namespace compass::sync

@@ -29,11 +29,24 @@ enum class SyncState {
   kError,
 };
 
+// A server limit in the way of syncing (docs/design/sync.md, "Slice 7
+// notes"), from the server's quota status and the engine's throttling.
+enum class SyncLimit {
+  kNone,
+  // The chain's history quota is used up: new visits stay on this device.
+  kHistoryFull,
+  // The server refuses new data for the chain (items or storage).
+  kServerFull,
+  // The server holds this device back (too many devices, or requests).
+  kThrottled,
+};
+
 struct SyncStatus {
   SyncState state = SyncState::kOff;
   std::string server_url;
   // One line for the page: last synced, or what's wrong.
   std::string message;
+  SyncLimit limit = SyncLimit::kNone;
 };
 
 enum class PairingStep {

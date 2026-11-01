@@ -24,6 +24,7 @@
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
+#include "components/sync/model/conflict_resolution.h"
 #include "components/sync/model/data_type_store.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/metadata_change_list.h"
@@ -391,6 +392,20 @@ TEST(CompassSpacesAssignPositionsTest, KeepsTheLongestRunInOrder) {
   for (size_t i = 1; i < positions.size(); ++i) {
     EXPECT_TRUE(positions[i - 1].LessThan(positions[i])) << i;
   }
+}
+
+// Slice 7: a remote delete that meets a local change keeps the local entity
+// (upstream's rule, now logged as "kept"); other conflicts take the remote.
+TEST_F(CompassSpacesSyncBridgeTest, ConflictsKeepLocalOverRemoteDeletes) {
+  std::unique_ptr<Device> a = MakeDevice();
+  syncer::EntityData deleted;
+  EXPECT_EQ(syncer::ConflictResolution::kUseLocal,
+            a->bridge().ResolveConflict("some-uuid", deleted));
+  syncer::EntityData changed;
+  changed.specifics.mutable_compass_spaces()->mutable_node()->set_uuid(
+      "some-uuid");
+  EXPECT_EQ(syncer::ConflictResolution::kUseRemote,
+            a->bridge().ResolveConflict("some-uuid", changed));
 }
 
 TEST_F(CompassSpacesSyncBridgeTest, CommitsNothingBeforeTheInitialSync) {
