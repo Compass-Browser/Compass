@@ -3,8 +3,12 @@
 // URL, the device a synced visit came from, and each visit's timestamps.
 const m = await import('chrome://history/history.js');
 const handler = m.BrowserProxyImpl.getInstance().handler;
+// Searched by TEXT, as a user finds a visit to remove: the page's default
+// list (an empty search) returned only the newest entry for visits made by
+// opening tabs over CDP (MacBook, slice 7).
 const {results} = await handler.queryHistory(
-    '', 150, null, /*includeUserVisits=*/ true, /*includeActorVisits=*/ false);
+    ARGS.match, 150, null, /*includeUserVisits=*/ true,
+    /*includeActorVisits=*/ false);
 return results.value.filter(e => e.url.includes(ARGS.match)).map(e => ({
   url: e.url,
   title: e.title,
