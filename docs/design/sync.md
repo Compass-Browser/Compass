@@ -1337,6 +1337,14 @@ per profile where slice 5 gives each profile its own account:
 - The home's Spaces switch off stops the profile list (see the merge notes
   above).
 
+**MacBook run, step 7 finding (1 Nov).** `AssignSpaceToProfile` returns
+once the new profile is listed in the switcher; the move itself runs when
+that profile's SpaceService has loaded. Quitting within a second or two
+drops it: the space stays in the old profile (nothing lost, the switcher
+shows it there again at the next start). The steps wait 15 s after an
+assign. Possible later: finish a pending move at shutdown, or keep it in
+Local State and redo it at the next start.
+
 ### Slice 6 notes
 
 Branch `sync/slice-6-push` (on `sync-main` `02efe11`). The browser side is
