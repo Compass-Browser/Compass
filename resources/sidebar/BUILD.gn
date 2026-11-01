@@ -37,6 +37,7 @@ build_webui("build") {
     "settings/page_base.ts",
     "settings/standalone.ts",
     "space_icons.ts",
+    "speaker_icon.ts",
     "theme_editor.html.ts",
     "theme_editor.ts",
   ]
