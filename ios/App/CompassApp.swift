@@ -56,41 +56,17 @@ struct CompassApp: App {
 
 struct RootView: View {
   @Environment(AppModel.self) private var app
-  @State private var sidebar: SidebarSheet?
 
   var body: some View {
-    // The browser is always underneath; the sidebar is a bottom sheet over
-    // it (SidebarSheet: swipe down to close, or to half height to see the
-    // page).
+    @Bindable var app = app
+    // The browser is always underneath; the sidebar is a panel over it
+    // (SidebarPanel), and the command bar and Settings are sheets over both.
     BrowserScreen(node: app.selectedNode)
-      .onAppear {
-        if sidebar == nil { sidebar = SidebarSheet(app: app) }
-        sidebar?.sync()
+      .overlay { SidebarPanel() }
+      .sheet(isPresented: $app.showingCommandBar) {
+        // From the sidebar, a new tab; from the browser, the shown tab.
+        CommandBar(replacing: app.showingSidebar ? nil : app.selectedNode.flatMap { $0.isTab ? $0 : nil })
       }
-      .onChange(of: app.showingSidebar) {
-        // Coming from a swipe up: the swiped-up copy is where the sheet
-        // goes, so it appears there with no animation.
-        sidebar?.sync(instant: app.sidebarPeek != nil)
-      }
-      // While the sidebar is up, it presents these itself (a sheet can't
-      // present over another from the same view).
-      .sheet(isPresented: app.presented(\.showingCommandBar, fromSidebar: false)) {
-        CommandBar(replacing: app.selectedNode.flatMap { $0.isTab ? $0 : nil })
-      }
-      .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: false)) { SettingsView() }
-      .overlay {
-        SidebarDim()
-        if app.sidebarPeek != nil { SidebarPeek() }
-      }
-  }
-}
-
-extension AppModel {
-  /// A sheet flag, for the view that presents it now: the sidebar while it's
-  /// up, the browser otherwise.
-  func presented(_ flag: ReferenceWritableKeyPath<AppModel, Bool>, fromSidebar: Bool) -> Binding<Bool> {
-    Binding(
-      get: { self[keyPath: flag] && self.showingSidebar == fromSidebar },
-      set: { self[keyPath: flag] = $0 })
+      .sheet(isPresented: $app.showingSettings) { SettingsView() }
   }
 }

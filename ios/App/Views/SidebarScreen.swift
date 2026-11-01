@@ -26,12 +26,7 @@ struct SidebarScreen: View {
       .tabViewStyle(.page(indexDisplayMode: .never))
       bottomBar
     }
-    .presentationBackground { SpaceTint(color: app.selectedSpace?.color.color ?? .blue) }
     .animation(.easeInOut(duration: 0.25), value: app.selectedSpaceID)
-    .sheet(isPresented: app.presented(\.showingCommandBar, fromSidebar: true)) {
-      CommandBar(replacing: nil)
-    }
-    .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: true)) { SettingsView() }
   }
 
   /// Settings, the space switcher (`#spaces`: each space's icon, the shown
@@ -197,14 +192,18 @@ struct SpacePage: View {
           NodeTree(node: node, depth: 0)
         }
       }
+      // Pulled down past its top, the panel moves instead (SidebarPanel):
+      // the list stays put in it.
+      .offset(y: -app.sidebarPull)
       .padding(.horizontal, 12)
       .padding(.bottom, 12)
       // Entries appearing, closing and moving animate, also when the change
       // comes from another device. Folders have their own (NodeTree).
       .animation(SidebarStyle.motion, value: layout)
     }
-    // Clear of the sheet's grab handle.
+    // Clear of the panel's grab handle.
     .contentMargins(.top, 22, for: .scrollContent)
+    .sidebarPullToClose(app)
     .scrollIndicators(.hidden)
     .foregroundStyle(.primary)
     .alert("Rename Space", isPresented: $renaming) {

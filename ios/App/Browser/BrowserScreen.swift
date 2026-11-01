@@ -158,45 +158,22 @@ struct BrowserScreen: View {
         .onChanged { value in
           let (dx, dy) = (value.translation.width, value.translation.height)
           if dragAxis == nil { dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical }
-          if dragAxis == .vertical { app.sidebarPeek = peek(at: value.location.y) }
+          if dragAxis == .vertical { app.sidebarDrag = sidebarPosition(at: value.location.y) }
         }
         .onEnded { value in
           defer { dragAxis = nil }
           if dragAxis == .horizontal {
             if abs(value.translation.width) > 30 { step(value.translation.width < 0 ? 1 : -1) }
-          } else if app.sidebarPeek != nil {
-            finishPeek(predicted: peek(at: value.predictedEndLocation.y))
+          } else if let drag = app.sidebarDrag {
+            app.settleSidebar(at: drag, predicted: sidebarPosition(at: value.predictedEndLocation.y))
           }
         })
   }
 
-  private var screenHeight: CGFloat {
-    (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 800
-  }
-
   /// The sidebar's 0...1 position with its top edge under the finger (at
   /// `y` on screen): it comes up with the finger, not behind it.
-  private func peek(at y: CGFloat) -> CGFloat {
-    let height = max(screenHeight - SidebarPeek.top(app), 1)
-    return min(max((screenHeight - y) / height, 0), 1)
-  }
-
-  /// Open if it's past halfway, or flicked up far enough to get there;
-  /// otherwise slide back down. Opening hands over to the real sheet, in
-  /// place.
-  private func finishPeek(predicted: CGFloat) {
-    let open = max(app.sidebarPeek ?? 0, predicted) > 0.5 && predicted > 0.3
-    withAnimation(.snappy(duration: 0.3)) {
-      app.sidebarPeek = open ? 1 : 0
-    } completion: {
-      guard open else {
-        app.sidebarPeek = nil
-        return
-      }
-      // SidebarSheet presents it where the peek is, with no animation,
-      // and drops the peek once it's up.
-      app.showingSidebar = true
-    }
+  private func sidebarPosition(at y: CGFloat) -> CGFloat {
+    min(max((SidebarPanel.screenHeight - y) / SidebarPanel.height, 0), 1)
   }
 
   /// The site's icon and host, centered; the load progress as a thin line in
