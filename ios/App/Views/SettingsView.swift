@@ -13,15 +13,20 @@ struct SettingsView: View {
   @State private var showingRecovery = false
   @State private var confirmLeave = false
   @State private var showingArchive = false
+  @State private var showingDownloads = false
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
 
   var body: some View {
     NavigationStack {
       Form {
         Section {
-          SettingsTile(title: "Archive", symbol: "archivebox") { showingArchive = true }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+          HStack(spacing: 12) {
+            // A button, not a NavigationLink: in a Form that adds a chevron.
+            SettingsTile(title: "Downloads", symbol: "folder") { showingDownloads = true }
+            SettingsTile(title: "Archive", symbol: "archivebox") { showingArchive = true }
+          }
+          .listRowInsets(EdgeInsets())
+          .listRowBackground(Color.clear)
         }
         Section {
           NavigationLink { SiteSettingsView(site: nil) } label: {
@@ -73,6 +78,7 @@ struct SettingsView: View {
       ) { JoinView() }
       .sheet(isPresented: Bindable(app).showingJoinSummary) { JoinSummaryView() }
       .sheet(isPresented: $showingArchive) { ArchiveView(space: nil) }
+      .navigationDestination(isPresented: $showingDownloads) { DownloadsView() }
     }
   }
 
@@ -438,15 +444,19 @@ struct SettingsTile: View {
   let action: () -> Void
 
   var body: some View {
-    Button(action: action) {
-      Label(title, systemImage: symbol)
-        .font(.body.weight(.medium))
-        .foregroundStyle(.primary)
-        .frame(maxWidth: .infinity)
-        .frame(height: 50)
-        .background(Color(.secondarySystemGroupedBackground), in: Capsule())
-    }
-    .buttonStyle(.plain)
+    Button(action: action) { Label(title, systemImage: symbol).tileLabel() }
+      .buttonStyle(.plain)
+  }
+}
+
+extension Label where Title == Text, Icon == Image {
+  /// A Settings tile's look: a wide capsule.
+  func tileLabel() -> some View {
+    self.font(.body.weight(.medium))
+      .foregroundStyle(.primary)
+      .frame(maxWidth: .infinity)
+      .frame(height: 50)
+      .background(Color(.secondarySystemGroupedBackground), in: Capsule())
   }
 }
 

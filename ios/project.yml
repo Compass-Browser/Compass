@@ -69,6 +69,9 @@ targets:
           - CFBundleURLName: it.cipi1965.compass.pair
             CFBundleURLSchemes: [compass-pair]
         BGTaskSchedulerPermittedIdentifiers: [it.cipi1965.compass.refresh]
+        # Downloads show in the Files app (Documents/Downloads).
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cipi1965.compass.shared
         # Export compliance: standard algorithms (AES, HMAC, Ed25519,
         # SPAKE2, scrypt) protecting the user's own data, which is exempt.

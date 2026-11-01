@@ -42,8 +42,8 @@ struct SidebarPanel: View {
         .allowsHitTesting(app.showingSidebar)
         .onTapGesture { app.showingSidebar = false }
       // Always there, off screen when closed. (Inserting it on opening
-      // left it invisible; hiding it from VoiceOver when closed doesn't
-      // reach its UIKit-backed pages: an open item.)
+      // left it invisible; hiding it from VoiceOver when closed reaches
+      // neither through accessibilityHidden nor opacity 0: an open item.)
       content(height: height, position: position)
     }
     .ignoresSafeArea()

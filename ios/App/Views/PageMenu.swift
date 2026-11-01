@@ -58,6 +58,7 @@ struct PageMenu: View {
             }) {
           Image(systemName: "gearshape.fill").menuIcon(.gray)
         }
+        .accessibilityIdentifier("MenuSettings")
       }
     }
     .padding(.horizontal, 14)

@@ -18,6 +18,7 @@ final class AppModel {
   let passwords = PasswordManager()
   let siteSettings: SiteSettings
   let contentBlocking = ContentBlocking()
+  let downloads = Downloads()
   let directory: URL
 
   /// The space the sidebar shows.
@@ -71,6 +72,7 @@ final class AppModel {
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
     selectedSpaceID = store.spaces.first?.id
+    tabs.downloads = downloads
     contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
     Task { [contentBlocking] in await contentBlocking.refresh() }
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }

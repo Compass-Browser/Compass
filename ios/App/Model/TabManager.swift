@@ -27,6 +27,8 @@ final class TabManager: NSObject {
   private let store: SpaceStore
   private let siteSettings: SiteSettings
   private let contentBlocking: ContentBlocking
+  /// Where downloads go (set by AppModel).
+  var downloads: Downloads?
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
@@ -202,6 +204,8 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     preferences: WKWebpagePreferences
   ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
     await MainActor.run {
+      // <a download> links.
+      let policy: WKNavigationActionPolicy = navigationAction.shouldPerformDownload ? .download : .allow
       if navigationAction.targetFrame?.isMainFrame != false {
         let site = SiteSettings.site(navigationAction.request.url)
         preferences.preferredContentMode = siteSettings.value(.desktopSite, site: site) ? .desktop : .mobile
@@ -209,8 +213,33 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         // Before the page's own requests go out.
         applyContentBlocking(webView, site: site)
       }
+      return (policy, preferences)
     }
-    return (.allow, preferences)
+  }
+
+  /// What the browser can't show, or the server sends as an attachment, is
+  /// downloaded instead.
+  nonisolated func webView(
+    _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse
+  ) async -> WKNavigationResponsePolicy {
+    await MainActor.run {
+      let disposition = (navigationResponse.response as? HTTPURLResponse)?
+        .value(forHTTPHeaderField: "Content-Disposition")?.lowercased() ?? ""
+      let download = !navigationResponse.canShowMIMEType || disposition.hasPrefix("attachment")
+      return navigationResponse.isForMainFrame && download ? .download : .allow
+    }
+  }
+
+  nonisolated func webView(
+    _ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload
+  ) {
+    MainActor.assumeIsolated { downloads?.track(download) }
+  }
+
+  nonisolated func webView(
+    _ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload
+  ) {
+    MainActor.assumeIsolated { downloads?.track(download) }
   }
 
   nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

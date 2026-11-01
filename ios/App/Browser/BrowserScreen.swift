@@ -154,7 +154,20 @@ struct BrowserScreen: View {
       Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
         .accessibilityLabel("New tab")
         .accessibilityIdentifier("BarNewTab")
-      Button { app.showingMenu = true } label: { BarIcon(symbol: "ellipsis") }
+      Button { app.showingMenu = true } label: {
+        BarIcon(symbol: "ellipsis")
+          .overlay {
+            // A download running: its progress around the menu button.
+            if let progress = app.downloads.overallProgress {
+              Circle().stroke(Color.primary.opacity(0.12), lineWidth: 2.5).frame(width: 30, height: 30)
+              Circle().trim(from: 0, to: max(progress, 0.03))
+                .stroke(tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .frame(width: 30, height: 30)
+                .animation(.easeOut(duration: 0.2), value: progress)
+            }
+          }
+      }
         .accessibilityLabel("Menu")
     }
     // The sidebar's neutral look, not the system tint.
