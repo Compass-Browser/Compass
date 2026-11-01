@@ -56,31 +56,21 @@ struct CompassApp: App {
 
 struct RootView: View {
   @Environment(AppModel.self) private var app
-  @State private var sidebarDetent: PresentationDetent = .large
+  @State private var sidebar: SidebarSheet?
 
   var body: some View {
-    @Bindable var app = app
     // The browser is always underneath; the sidebar is a bottom sheet over
-    // it (swipe down to close, or to half height to see the page).
+    // it (SidebarSheet: swipe down to close, or to half height to see the
+    // page).
     BrowserScreen(node: app.selectedNode)
-      .sheet(isPresented: $app.showingSidebar) {
-        SidebarScreen()
-          .presentationDetents([.medium, .large], selection: $sidebarDetent)
-          .presentationDragIndicator(.visible)
-          .presentationCornerRadius(SidebarPeek.radius)
-          .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minY }) { top in
-            // At full height, where a swipe up lands. The sheet moves while
-            // it slides in or out, or follows a drag down; it rests at the
-            // highest point it reaches.
-            if sidebarDetent == .large, top > 0,
-              app.sidebarSheetTop == 0 || top < app.sidebarSheetTop - 0.5
-            {
-              app.sidebarSheetTop = top
-            }
-          }
+      .onAppear {
+        if sidebar == nil { sidebar = SidebarSheet(app: app) }
+        sidebar?.sync()
       }
-      .onChange(of: app.showingSidebar) { _, showing in
-        if showing { sidebarDetent = .large }
+      .onChange(of: app.showingSidebar) {
+        // Coming from a swipe up: the swiped-up copy is where the sheet
+        // goes, so it appears there with no animation.
+        sidebar?.sync(instant: app.sidebarPeek != nil)
       }
       // While the sidebar is up, it presents these itself (a sheet can't
       // present over another from the same view).

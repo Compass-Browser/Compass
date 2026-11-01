@@ -22,6 +22,10 @@ struct SidebarPeek: View {
     return window?.safeAreaInsets.top ?? 59
   }
 
+  static var bottomInset: CGFloat {
+    (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom ?? 34
+  }
+
   var body: some View {
     let progress = app.sidebarPeek ?? 0
     GeometryReader { geo in
@@ -30,6 +34,9 @@ struct SidebarPeek: View {
       ZStack(alignment: .top) {
         Color.black.opacity(0.18 * progress)
         SidebarScreen()
+          // The sheet keeps its content above the home indicator; this
+          // copy is laid out with the safe areas ignored, so it adds that.
+          .padding(.bottom, Self.bottomInset)
           .frame(height: height)
           .background { SpaceTint(color: app.selectedSpace?.color.color ?? .blue) }
           .clipShape(UnevenRoundedRectangle(topLeadingRadius: Self.radius, topTrailingRadius: Self.radius))

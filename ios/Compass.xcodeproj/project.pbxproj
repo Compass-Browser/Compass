@@ -30,6 +30,7 @@
 		C50098134F965E6A549044FE /* CompassCrypto in Frameworks */ = {isa = PBXBuildFile; productRef = 6CF1BD16AA45CC47E4C07023 /* CompassCrypto */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassModel in Frameworks */ = {isa = PBXBuildFile; productRef = 8529FEBC80A94CC60F3F9BC7 /* CompassModel */; };
 		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
+		EAD61A4FCBCF6015911AE1C2 /* SidebarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9628E20B3ED00CF24D6E580 /* SidebarSheet.swift */; };
 		EF878A901726400229527CA0 /* AutoFill.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7E7EB3C486245AA52EAADF2F /* AutoFill.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2B8A168816D005B0C1644F /* BrowserScreen.swift */; };
 		F3F0081DEDB6744DFCFEAEE0 /* PasswordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */; };
@@ -98,6 +99,7 @@
 		EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F00421F26DEF62FA9775146B /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		F4A5EB9B8FCF536C41FE6951 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F9628E20B3ED00CF24D6E580 /* SidebarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +166,7 @@
 				79254E7DBBF744D531F94471 /* SettingsView.swift */,
 				47E9F9BA347A2A4F05C9C7CC /* SidebarPeek.swift */,
 				73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */,
+				F9628E20B3ED00CF24D6E580 /* SidebarSheet.swift */,
 				F00421F26DEF62FA9775146B /* Theme.swift */,
 			);
 			path = Views;
@@ -398,6 +401,7 @@
 				6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */,
 				0C7002AAD560C1F582CB7133 /* SidebarPeek.swift in Sources */,
 				FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */,
+				EAD61A4FCBCF6015911AE1C2 /* SidebarSheet.swift in Sources */,
 				86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */,
 				AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */,
 				017915037F4DAC4C17921D93 /* Theme.swift in Sources */,

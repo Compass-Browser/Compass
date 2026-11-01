@@ -182,8 +182,8 @@ struct BrowserScreen: View {
   }
 
   /// Open if it's past halfway, or flicked up far enough to get there;
-  /// otherwise slide back down. Opening hands over to the real sheet, with
-  /// no animation, where the peek ends.
+  /// otherwise slide back down. Opening hands over to the real sheet, in
+  /// place.
   private func finishPeek(predicted: CGFloat) {
     let open = max(app.sidebarPeek ?? 0, predicted) > 0.5 && predicted > 0.3
     withAnimation(.snappy(duration: 0.3)) {
@@ -193,14 +193,9 @@ struct BrowserScreen: View {
         app.sidebarPeek = nil
         return
       }
-      var instant = Transaction()
-      instant.disablesAnimations = true
-      withTransaction(instant) { app.showingSidebar = true }
-      // The sheet is over the peek by then; drop it once the sheet is in.
-      Task {
-        try? await Task.sleep(for: .milliseconds(400))
-        app.sidebarPeek = nil
-      }
+      // SidebarSheet presents it where the peek is, with no animation,
+      // and drops the peek once it's up.
+      app.showingSidebar = true
     }
   }
 
