@@ -32,6 +32,8 @@
 #include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "third_party/blink/public/common/input/web_gesture_event.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator_manager.h"
 #include "ui/events/event_constants.h"
@@ -221,6 +223,13 @@ void CompassSidebarView::AddedToWidget() {
 void CompassSidebarView::RemovedFromWidget() {
   space_shortcuts_.Unregister();
   views::WebView::RemovedFromWidget();
+}
+
+bool CompassSidebarView::PreHandleGestureEvent(
+    content::WebContents* source,
+    const blink::WebGestureEvent& event) {
+  return blink::WebInputEvent::IsPinchGestureEventType(event.GetType()) ||
+         event.GetType() == blink::WebInputEvent::Type::kGestureDoubleTap;
 }
 
 BEGIN_METADATA(CompassSidebarView)

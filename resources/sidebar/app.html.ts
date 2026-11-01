@@ -137,7 +137,8 @@ ${this.getMenuSpace_() && this.themeOpen_ ? html`
 ${this.getMenuSpace_() && !this.themeOpen_ ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
-    <input id="spaceNameInput" aria-label="Space name"
+    <input id="spaceNameInput" aria-label="Space name" spellcheck="false"
+        autocomplete="off"
         .value="${this.getMenuSpace_()!.name}"
         @keydown="${this.onSpaceNameKeydown_}"
         @change="${this.onSpaceNameChange_}">
@@ -166,6 +167,7 @@ ${this.getMenuSpace_() && !this.themeOpen_ ? html`
           </svg>
         </button>`)}
       <input id="emojiInput" aria-label="Emoji" placeholder="Emoji"
+          spellcheck="false" autocomplete="off"
           title="Emoji (Fn E opens the picker)"
           ?selected="${!!this.getMenuSpace_()!.icon?.emoji}"
           .value="${this.getMenuSpace_()!.icon?.emoji ?? ''}"

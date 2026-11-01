@@ -31,7 +31,7 @@ CompassSidebarUIConfig::CompassSidebarUIConfig()
     : DefaultWebUIConfig(content::kChromeUIScheme, kCompassSidebarHost) {}
 
 CompassSidebarUI::CompassSidebarUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui) {
+    : TopChromeWebUIController(web_ui) {
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source =
       content::WebUIDataSource::CreateAndAdd(profile, kCompassSidebarHost);
