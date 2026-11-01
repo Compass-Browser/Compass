@@ -4,6 +4,8 @@
 
 #include "compass/browser/feature_overrides.h"
 
+#include "build/build_config.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/network_time/network_time_tracker.h"
@@ -36,6 +38,13 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // Asks accounts.google.com which Google accounts the cookies hold only when
   // a Google cookie changes, not at launch: there's no browser sign-in.
   overrides.EnableFeature(switches::kAvoidAutoTriggerListAccountsOnStale);
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // No "Continue where you left off: Compass can restore your tabs..." bar:
+  // Compass brings its sidebar back itself, and the bar's setting is about
+  // upstream's session restore.
+  overrides.DisableFeature(features::kSessionRestoreInfobar);
+#endif
 }
 
 }  // namespace compass

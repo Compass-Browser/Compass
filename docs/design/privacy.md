@@ -59,6 +59,11 @@ window of every launch of a build without Google's API keys. Compass has
 none on purpose, so the bar is gone
 (`patches/chrome-browser-ui-startup-infobar_utils.cc.patch`).
 
+**"Continue where you left off".** Upstream's bar offering to restore tabs at
+every restart (`kSessionRestoreInfobar`) is off (`browser/feature_overrides.cc`):
+Compass brings its sidebar back itself (docs/design/sidebar.md, "Today
+persistence"). Not a privacy matter, listed here with the other startup bar.
+
 ## Kept on purpose
 
 | What | Why |

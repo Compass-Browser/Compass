@@ -20,6 +20,8 @@ source_set("feature_overrides") {
     "feature_overrides.h",
   ]
   deps = [
+    "//build:buildflag_header_h",
+    "//chrome/browser/ui:ui_features",
     "//chrome/common:chrome_features",
     "//components/autofill/core/common:features",
     "//components/network_time",
