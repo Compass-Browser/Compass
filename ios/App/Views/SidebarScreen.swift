@@ -138,14 +138,14 @@ struct SpacePage: View {
     ScrollView {
       LazyVStack(spacing: 2) {
         let favorites = app.store.favorites(for: space)
-        if !favorites.children.isEmpty {
+        if !favorites.children.phoneVisible.isEmpty {
           FavoritesGrid(root: favorites)
         }
         header
 
         SectionHeader(title: "Pinned") { EmptyView() }
           .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.pinned) }
-        if space.pinned.children.isEmpty {
+        if space.pinned.children.phoneVisible.isEmpty {
           Text("Pin tabs to keep them in this space.")
             .font(.footnote)
             .opacity(0.55)
@@ -158,15 +158,16 @@ struct SpacePage: View {
             )
             .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.pinned) }
         }
-        ForEach(space.pinned.children) { node in
+        ForEach(space.pinned.children.phoneVisible) { node in
           NodeTree(node: node, depth: 0)
         }
 
         SectionHeader(title: "Today") {
-          if !space.today.children.isEmpty {
+          if !space.today.children.phoneVisible.isEmpty {
             Button("Clear") {
               withAnimation(SidebarStyle.motion) {
-                for entry in space.today.children { app.store.archive(entry) }
+                // What the phone shows; the desktop's own pages stay.
+                for entry in space.today.children.phoneVisible { app.store.archive(entry) }
               }
             }
             .font(.system(size: 13, weight: .medium))
@@ -192,7 +193,7 @@ struct SpacePage: View {
         .buttonStyle(SidebarPressStyle())
         // Dropped here: Today's newest entry.
         .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.today) }
-        ForEach(space.today.children.reversed()) { node in
+        ForEach(space.today.children.phoneVisible.reversed()) { node in
           NodeTree(node: node, depth: 0)
         }
       }
@@ -336,7 +337,7 @@ struct FavoritesGrid: View {
   var body: some View {
     // Rows of four; a shorter last row's tiles grow to fill it, as on the
     // desktop (`flex: 1 1 48px`).
-    let favorites = root.children
+    let favorites = root.children.phoneVisible
     let rows = stride(from: 0, to: favorites.count, by: 4).map { Array(favorites[$0..<min($0 + 4, favorites.count)]) }
     VStack(spacing: 8) {
       ForEach(rows, id: \.first!.id) { row in
@@ -382,7 +383,7 @@ struct NodeTree: View {
         VStack(spacing: 0) {
           if !node.collapsed {
             VStack(spacing: 2) {
-              ForEach(node.children) { child in
+              ForEach(node.children.phoneVisible) { child in
                 NodeTree(node: child, depth: depth + 1)
               }
             }
@@ -410,7 +411,7 @@ struct NodeRow: View {
       if node.isSplit {
         // Panes of a split share one row (`.split`), each its own entry.
         HStack(spacing: 4) {
-          ForEach(node.children) { pane in
+          ForEach(node.children.phoneVisible) { pane in
             entry(pane, shown: app.selectedNodeID == node.id && app.shownTab === pane)
           }
         }
