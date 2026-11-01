@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
@@ -108,7 +109,10 @@ void ArcImportPageHandler::OnOverview(GetStateCallback callback,
         auto space_entry = sidebar::mojom::ArcImportSpace::New();
         space_entry->id = space.id;
         space_entry->name = base::UTF16ToUTF8(space.name);
-        space_entry->tab_count = CountTabs(space.pinned) + CountTabs(space.today);
+        space_entry->tab_count =
+            CountTabs(space.pinned) + CountTabs(space.today);
+        space_entry->archived_count =
+            base::checked_cast<int32_t>(space.archive.size());
         space_entry->imported =
             entry->imported && imported->second.spaces.contains(space.id);
         tabs += space_entry->tab_count;

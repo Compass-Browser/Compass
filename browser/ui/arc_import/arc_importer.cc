@@ -152,7 +152,7 @@ void StartCopy(const std::string& arc_dir,
                      std::move(callback)));
 }
 
-// Reads Arc's sidebar and its profiles' names. Blocking.
+// Reads Arc's sidebar, its profiles' names and its archive. Blocking.
 std::optional<Sidebar> ReadSidebar(const ArcPaths& paths) {
   std::optional<base::DictValue> sidebar = ReadJsonDict(paths.sidebar);
   if (!sidebar) {
@@ -160,7 +160,16 @@ std::optional<Sidebar> ReadSidebar(const ArcPaths& paths) {
   }
   std::optional<base::DictValue> local_state =
       ReadJsonDict(paths.user_data.Append(chrome::kLocalStateFilename));
-  return ParseSidebar(*sidebar, local_state ? &*local_state : nullptr);
+  std::optional<Sidebar> parsed =
+      ParseSidebar(*sidebar, local_state ? &*local_state : nullptr);
+  // The archive is optional: without it, spaces come with an empty one.
+  if (parsed && !paths.archive.empty()) {
+    if (std::optional<base::DictValue> archive =
+            ReadJsonDict(paths.archive)) {
+      AddArchive(ParseArchive(*archive), parsed->spaces);
+    }
+  }
+  return parsed;
 }
 
 // One step of an import: an Arc profile and the spaces to bring in, into a
@@ -459,6 +468,8 @@ ArcPaths GetArcPaths() {
     paths.user_data = app_support.AppendASCII("Arc").AppendASCII("User Data");
     paths.sidebar =
         app_support.AppendASCII("Arc").AppendASCII("StorableSidebar.json");
+    paths.archive = app_support.AppendASCII("Arc").AppendASCII(
+        "StorableArchiveItems.json");
   }
   if (base::PathService::Get(base::DIR_CACHE, &caches)) {
     paths.cache = caches.AppendASCII("Arc").AppendASCII("User Data");

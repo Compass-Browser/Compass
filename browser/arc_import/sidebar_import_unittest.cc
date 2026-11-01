@@ -95,6 +95,33 @@ TEST_F(SidebarImportTest, AnImportedProfileGetsNewSpacesOnly) {
   EXPECT_TRUE(list_.favorites().pinned_root()->children().empty());
 }
 
+// Arc's archive goes into the space's, with derived IDs, the host for a
+// tab with no title, and without pages Compass doesn't restore.
+TEST_F(SidebarImportTest, ArchiveComesAlong) {
+  auto archived = [](std::string id, std::string url, std::u16string title,
+                     int seconds) {
+    ArchivedItem item;
+    item.id = std::move(id);
+    item.url = GURL(url);
+    item.title = std::move(title);
+    item.archived_at = base::Time::FromSecondsSinceUnixEpoch(seconds);
+    return item;
+  };
+  spaces_[1].archive = {archived("a1", "https://new.test/", u"New", 300),
+                        archived("a2", "chrome://newtab/", u"", 200),
+                        archived("a3", "https://old.test/a", u"", 100)};
+  AddArcSidebar(list_, profile_, spaces_, kNow);
+  const std::vector<ArchivedEntry>& archive = list_.spaces()[1]->archive();
+  ASSERT_EQ(archive.size(), 2u);
+  EXPECT_EQ(archive[0].id, ArcDerivedId("a1"));
+  EXPECT_EQ(archive[0].archived_at, base::Time::FromSecondsSinceUnixEpoch(300));
+  ASSERT_EQ(archive[0].tabs.size(), 1u);
+  EXPECT_EQ(archive[0].tabs[0].title, u"New");
+  EXPECT_EQ(archive[0].tabs[0].url, GURL("https://new.test/"));
+  EXPECT_EQ(archive[1].tabs[0].title, u"old.test");
+  EXPECT_TRUE(list_.spaces()[0]->archive().empty());
+}
+
 TEST_F(SidebarImportTest, PinnedKeepsFoldersTitlesAndTimes) {
   AddArcSidebar(list_, profile_, spaces_, kNow);
   const SidebarNode* pinned = list_.spaces()[0]->pinned_root();

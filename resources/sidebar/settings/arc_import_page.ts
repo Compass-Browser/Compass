@@ -91,7 +91,8 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
         space.imported ? `${space.name} (imported)` : space.name;
     const details = document.createElement('span');
     details.className = 'details';
-    details.textContent = plural(space.tabCount, 'tab', 'tabs');
+    details.textContent = plural(space.tabCount, 'tab', 'tabs') +
+        (space.archivedCount ? ` · ${space.archivedCount} archived` : '');
     label.append(input, name, details);
     item.append(label);
     return item;

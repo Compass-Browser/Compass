@@ -31,6 +31,8 @@ struct ArcPaths {
   base::FilePath cache;
   // ~/Library/Application Support/Arc/StorableSidebar.json.
   base::FilePath sidebar;
+  // ~/Library/Application Support/Arc/StorableArchiveItems.json.
+  base::FilePath archive;
 };
 
 ArcPaths GetArcPaths();

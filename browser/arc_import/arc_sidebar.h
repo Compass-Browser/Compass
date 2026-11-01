@@ -44,6 +44,19 @@ struct Item {
   std::vector<Item> children;
 };
 
+// An entry of Arc's archive (StorableArchiveItems.json): a tab archived from
+// a space.
+struct ArchivedItem {
+  // Arc's item ID.
+  std::string id;
+  // The space it was archived from.
+  std::string space_id;
+  // The user's own title for the tab, else the page's (may be empty).
+  std::u16string title;
+  GURL url;
+  base::Time archived_at;
+};
+
 struct Space {
   Space();
   Space(const Space&);
@@ -65,6 +78,8 @@ struct Space {
   SpaceIcon icon;
   std::vector<Item> pinned;
   std::vector<Item> today;
+  // Its archive, newest first, at most kMaxArchivedEntries (AddArchive()).
+  std::vector<ArchivedItem> archive;
 };
 
 struct Profile {
@@ -103,6 +118,16 @@ struct Sidebar {
 // it isn't a sidebar Compass understands.
 std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
                                     const base::DictValue* local_state);
+
+// Reads |storable_archive| (StorableArchiveItems.json): the tabs Arc archived
+// from spaces, in the file's order. Entries archived from Little Arc
+// windows (no space) and other kinds of entries are left out.
+std::vector<ArchivedItem> ParseArchive(const base::DictValue& storable_archive);
+
+// Gives each of |spaces| its entries of |archive|: the newest
+// kMaxArchivedEntries, newest first, as Compass keeps no more (older ones
+// are dropped).
+void AddArchive(std::vector<ArchivedItem> archive, std::vector<Space>& spaces);
 
 // The space color for an Arc theme color (components in 0-1; Arc's extended
 // sRGB may go beyond, they're clamped): the same color, or grey for an

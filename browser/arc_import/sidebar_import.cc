@@ -12,6 +12,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "crypto/sha2.h"
@@ -152,6 +153,29 @@ class Builder {
   const std::optional<base::Time> last_active_;
 };
 
+// Puts Arc's archived tabs in |model|'s archive, with IDs derived from
+// Arc's, so an entry already there (or synced from another Mac's import)
+// isn't added twice.
+void AddArchive(SpaceModel& model, const std::vector<ArchivedItem>& archive) {
+  for (const ArchivedItem& item : archive) {
+    if (!IsRestorableURL(item.url)) {
+      continue;
+    }
+    ArchivedEntry entry;
+    if (const base::Uuid id = ArcDerivedId(item.id); id.is_valid()) {
+      if (model.FindArchived(id)) {
+        continue;
+      }
+      entry.id = id;
+    }
+    entry.archived_at = item.archived_at;
+    entry.tabs.push_back(
+        {item.title.empty() ? base::UTF8ToUTF16(item.url.host()) : item.title,
+         item.url, entry.id});
+    model.PutArchived(std::move(entry));
+  }
+}
+
 // A profile's untouched starting space.
 bool IsUnused(const SpaceList& list) {
   return list.spaces().size() == 1 &&
@@ -194,6 +218,7 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
     Builder(list, *model, std::nullopt)
         .AddAll(model->pinned_root(), space.pinned);
     Builder(list, *model, now).AddAll(model->today_root(), space.today);
+    AddArchive(*model, space.archive);
     added.push_back(model);
   }
   // Favorites the user removed since the first import stay removed.

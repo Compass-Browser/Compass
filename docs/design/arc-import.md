@@ -59,7 +59,8 @@ lists alternating an ID and an object:
 | `timeLastActiveAt` | Last active time (Today's auto-archive counts from it) |
 | Favorites (top apps) | The profile's Favorites |
 | Split view | A split (two panes), else its tabs side by side |
-| Archive | The space's archive (later) |
+| Archive (from a space) | The space's archive: the newest 100 (Compass's cap), the user's title else the page's, Arc's archive time |
+| Archive (from Little Arc) | Not imported (no space) |
 
 Not imported: Arc's own features with no Compass equivalent (Boosts, Easels,
 Notes, Library media), Arc's account and sync state, open windows.
@@ -144,7 +145,7 @@ drop get added to Compass before the import is finished. From Arc's files:
 | Space icon (`customInfo.iconType`: emoji or symbol) | Done (spaces.md "Space icons"; symbols mapped to Compass's) | Spaces looking as in Arc |
 | Theme gradients (`windowTheme`) | Done: base colors, intensity, grain (spaces.md "Gradients", "Intensity and grain"); not overlayColors, wheel, translucency, vibrancy | Gradient sidebars |
 | Tab mute status (`savedMuteStatus`) | Done (sidebar.md "Muted entries"); imported | Muted entries staying muted |
-| Archive (`StorableArchiveItems.json`) | Yes (per space) | Importing it |
+| Archive (`StorableArchiveItems.json`) | Yes (per space); imported (newest 100 per space) | Importing it |
 | Link routing (`StorableLinkRouting.json`, Air Traffic Control) | No (little-window.md "Not done") | Links from other apps going to the right space |
 | Key bindings (`StorableKeyBindings.json`) | No (plan item 14) | Custom shortcuts |
 
@@ -223,9 +224,23 @@ drop get added to Compass before the import is finished. From Arc's files:
   `SidebarImportTest.AnImportedProfileGetsNewSpacesOnly`,
   `ArcImporterBrowserTest.ImportsChosenSpacesOnly`,
   `ImportingAgainAddsNewSpaces`, `OffersImportOnFirstRun`, `ImportPage`.
-- Not done: the archive, link routing and key bindings (above; the user's
-  Arc has 951 archived entries, one routing rule and no custom key
-  bindings); a run on the user's real Arc data.
+- Slice 6 (archive) done (2026-11-01): `ParseArchive()` reads
+  `StorableArchiveItems.json` (a list alternating IDs and entries:
+  `sidebarItem` with `data.tab`, `archivedAt`, `source.space._0` or
+  `source.littleArc`, `reason` manual/auto, not kept). `AddArchive()` gives
+  each space its newest 100 (the user decided: the newest 100 now, an SQLite
+  archive with no cap maybe later; the user's Arc has 785 in one space), and
+  `AddArcSidebar()` puts them in the space's archive with IDs derived from
+  Arc's, so importing again or syncing doesn't double them. Pages Compass
+  doesn't restore (new tab) are left out; a tab with no title shows its
+  host. Arc's own pages (`arc://downloads`, `arc://extensions`,
+  `arc://settings`), in the archive or the sidebar, become chrome:// ones. The page shows "N archived" per space. Little Arc's 84 entries
+  aren't imported. `ArcSidebarTest.ArchiveGoesToItsSpacesNewestFirst`,
+  `ArchiveKeepsTheNewestHundred`, `SidebarImportTest.ArchiveComesAlong`,
+  `ArcImporterBrowserTest.ImportsProfilesAndSpaces`, `ImportPage`.
+- Not done: link routing and key bindings (above; the user's Arc has one
+  routing rule and no custom key bindings); a run on the user's real Arc
+  data.
 
 ## Open questions
 

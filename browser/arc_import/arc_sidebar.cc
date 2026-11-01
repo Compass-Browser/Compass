@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <set>
 #include <utility>
@@ -69,6 +70,18 @@ std::optional<std::string> ProfileDir(const base::Value& profile) {
     return *dir;
   }
   return std::nullopt;
+}
+
+// A URL Arc saved: its own pages (arc://downloads, arc://extensions,
+// arc://settings...) are Chromium's, so they become chrome:// ones.
+GURL ArcURL(const std::string& spec) {
+  GURL url(spec);
+  if (url.SchemeIs("arc")) {
+    GURL::Replacements chrome;
+    chrome.SetSchemeStr("chrome");
+    url = url.ReplaceComponents(chrome);
+  }
+  return url;
 }
 
 // The objects of a Swift-encoded dictionary (a list alternating keys and
@@ -152,7 +165,7 @@ class TreeReader {
     if (const base::DictValue* tab = data->FindDict("tab")) {
       item.kind = Item::Kind::kTab;
       if (const std::string* url = tab->FindString("savedURL")) {
-        item.url = GURL(*url);
+        item.url = ArcURL(*url);
       }
       if (!item.url.is_valid()) {
         return std::nullopt;
@@ -440,6 +453,70 @@ std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
     profile_for(dir);
   }
   return sidebar;
+}
+
+std::vector<ArchivedItem> ParseArchive(
+    const base::DictValue& storable_archive) {
+  std::vector<ArchivedItem> archive;
+  const base::ListValue* items = storable_archive.FindList("items");
+  if (!items) {
+    return archive;
+  }
+  // A list alternating IDs and entries.
+  for (const base::Value& value : *items) {
+    const base::DictValue* entry = value.GetIfDict();
+    if (!entry) {
+      continue;
+    }
+    const std::string* space_id =
+        entry->FindStringByDottedPath("source.space._0");
+    const base::DictValue* item = entry->FindDict("sidebarItem");
+    const base::DictValue* tab =
+        item ? item->FindDictByDottedPath("data.tab") : nullptr;
+    std::optional<double> archived_at = entry->FindDouble("archivedAt");
+    if (!space_id || !tab || !archived_at) {
+      continue;
+    }
+    ArchivedItem archived;
+    if (const std::string* url = tab->FindString("savedURL")) {
+      archived.url = ArcURL(*url);
+    }
+    if (!archived.url.is_valid()) {
+      continue;
+    }
+    if (const std::string* id = item->FindString("id")) {
+      archived.id = *id;
+    }
+    archived.space_id = *space_id;
+    const std::string* title = item->FindString("title");
+    if (!title || title->empty()) {
+      title = tab->FindString("savedTitle");
+    }
+    if (title) {
+      archived.title = base::UTF8ToUTF16(*title);
+    }
+    archived.archived_at = FromArcTime(*archived_at);
+    archive.push_back(std::move(archived));
+  }
+  return archive;
+}
+
+void AddArchive(std::vector<ArchivedItem> archive,
+                std::vector<Space>& spaces) {
+  std::ranges::stable_sort(archive, std::ranges::greater(),
+                           &ArchivedItem::archived_at);
+  std::map<std::string, Space*> by_id;
+  for (Space& space : spaces) {
+    space.archive.clear();
+    by_id[space.id] = &space;
+  }
+  for (ArchivedItem& item : archive) {
+    auto it = by_id.find(item.space_id);
+    if (it != by_id.end() &&
+        it->second->archive.size() < kMaxArchivedEntries) {
+      it->second->archive.push_back(std::move(item));
+    }
+  }
 }
 
 }  // namespace compass::arc

@@ -273,6 +273,8 @@ struct ArcImportSpace {
   string name;
   // Tabs in its Pinned and Today.
   int32 tab_count;
+  // Entries of its archive that come along (the newest, at most 100).
+  int32 archived_count;
   // Brought in already.
   bool imported;
 };

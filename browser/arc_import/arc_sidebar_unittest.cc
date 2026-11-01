@@ -10,6 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compass::arc {
@@ -246,9 +247,78 @@ TEST(ArcSidebarTest, ArcTimesCountFrom2001) {
   EXPECT_EQ(FromArcTime(0).InSecondsFSinceUnixEpoch(), 978307200);
 }
 
+// StorableArchiveItems.json, cut down: tabs archived from two spaces (one
+// with the user's title), one from a Little Arc window, Arc's welcome item,
+// a tab with no URL, and one of Arc's own pages.
+constexpr char kArchive[] = R"json({"version": 1, "items": [
+  "a1", {"sidebarItem": {"id": "a1", "title": null, "childrenIds": [],
+         "data": {"tab": {"savedURL": "https://old.test/",
+                          "savedTitle": "Old"}}},
+         "reason": "auto", "archivedAt": 100, "source": {"space": {"_0": "s1"}}},
+  "a2", {"sidebarItem": {"id": "a2", "title": "Mine", "childrenIds": [],
+         "data": {"tab": {"savedURL": "https://new.test/",
+                          "savedTitle": "New"}}},
+         "reason": "manual", "archivedAt": 200,
+         "source": {"space": {"_0": "s1"}}},
+  "a3", {"sidebarItem": {"id": "a3", "data": {"tab": {
+           "savedURL": "https://work.test/"}}},
+         "archivedAt": 150, "source": {"space": {"_0": "s2"}}},
+  "a4", {"sidebarItem": {"id": "a4", "data": {"tab": {
+           "savedURL": "https://little.test/"}}},
+         "archivedAt": 300, "source": {"littleArc": {"_0": {}}}},
+  "a5", {"sidebarItem": {"id": "a5", "data": {"welcomeToArc": {}}},
+         "archivedAt": 50, "source": {"space": {"_0": "s1"}}},
+  "a6", {"sidebarItem": {"id": "a6", "data": {"tab": {}}},
+         "archivedAt": 60, "source": {"space": {"_0": "s1"}}},
+  "a7", {"sidebarItem": {"id": "a7", "data": {"tab": {
+           "savedURL": "arc://downloads/"}}},
+         "archivedAt": 40, "source": {"space": {"_0": "s2"}}}
+]})json";
+
+TEST(ArcSidebarTest, ArchiveGoesToItsSpacesNewestFirst) {
+  std::optional<base::Value> archive = base::JSONReader::Read(kArchive, 0);
+  ASSERT_TRUE(archive);
+  std::vector<ArchivedItem> items = ParseArchive(archive->GetDict());
+  ASSERT_EQ(items.size(), 4u);
+
+  std::vector<Space> spaces(2);
+  spaces[0].id = "s1";
+  spaces[1].id = "s2";
+  AddArchive(std::move(items), spaces);
+  ASSERT_EQ(spaces[0].archive.size(), 2u);
+  EXPECT_EQ(spaces[0].archive[0].id, "a2");
+  EXPECT_EQ(spaces[0].archive[0].title, u"Mine");
+  EXPECT_EQ(spaces[0].archive[0].url, GURL("https://new.test/"));
+  EXPECT_EQ(spaces[0].archive[0].archived_at, FromArcTime(200));
+  EXPECT_EQ(spaces[0].archive[1].title, u"Old");
+  ASSERT_EQ(spaces[1].archive.size(), 2u);
+  EXPECT_EQ(spaces[1].archive[0].title, u"");
+  // Arc's own pages are Chromium's.
+  EXPECT_EQ(spaces[1].archive[1].url, GURL("chrome://downloads/"));
+}
+
+TEST(ArcSidebarTest, ArchiveKeepsTheNewestHundred) {
+  std::vector<ArchivedItem> items;
+  for (int i = 0; i < 150; ++i) {
+    ArchivedItem item;
+    item.id = base::NumberToString(i);
+    item.space_id = "s1";
+    item.url = GURL("https://a.test/");
+    item.archived_at = FromArcTime(i);
+    items.push_back(std::move(item));
+  }
+  std::vector<Space> spaces(1);
+  spaces[0].id = "s1";
+  AddArchive(std::move(items), spaces);
+  ASSERT_EQ(spaces[0].archive.size(), kMaxArchivedEntries);
+  EXPECT_EQ(spaces[0].archive.front().id, "149");
+  EXPECT_EQ(spaces[0].archive.back().id, "50");
+}
+
 // Reads a real Arc sidebar and prints what it found (counts only), to check
 // the reader against Arc's current format by hand:
 //   ARC_SIDEBAR=~/Library/Application\ Support/Arc/StorableSidebar.json \
+//   ARC_ARCHIVE=~/Library/Application\ Support/Arc/StorableArchiveItems.json \
 //   compass_unittests --gtest_also_run_disabled_tests \
 //       --gtest_filter=ArcSidebarTest.DISABLED_RealSidebar
 TEST(ArcSidebarTest, DISABLED_RealSidebar) {
@@ -280,6 +350,24 @@ TEST(ArcSidebarTest, DISABLED_RealSidebar) {
   for (const Profile& profile : sidebar->profiles) {
     LOG(INFO) << "profile " << profile.dir
               << " favorites=" << profile.favorites.size();
+  }
+  // ARC_ARCHIVE (StorableArchiveItems.json), if set.
+  std::optional<std::string> archive_path =
+      base::Environment::Create()->GetVar("ARC_ARCHIVE");
+  if (!archive_path) {
+    return;
+  }
+  std::string archive_json;
+  ASSERT_TRUE(base::ReadFileToString(
+      base::FilePath::FromUTF8Unsafe(*archive_path), &archive_json));
+  std::optional<base::Value> archive = base::JSONReader::Read(archive_json, 0);
+  ASSERT_TRUE(archive && archive->is_dict());
+  std::vector<ArchivedItem> items = ParseArchive(archive->GetDict());
+  LOG(INFO) << "archive tabs from spaces=" << items.size();
+  AddArchive(std::move(items), sidebar->spaces);
+  for (const Space& space : sidebar->spaces) {
+    LOG(INFO) << "space profile=" << space.profile_dir
+              << " archived=" << space.archive.size();
   }
 }
 

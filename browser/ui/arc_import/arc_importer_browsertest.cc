@@ -57,6 +57,8 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
     paths.user_data = arc_dir_.GetPath().AppendASCII("User Data");
     paths.cache = arc_dir_.GetPath().AppendASCII("Caches");
     paths.sidebar = arc_dir_.GetPath().AppendASCII("StorableSidebar.json");
+    paths.archive =
+        arc_dir_.GetPath().AppendASCII("StorableArchiveItems.json");
     SetArcPathsForTesting(paths);
     SetArcKeychainPasswordForTesting(kArcPassword);
     SetArcRunningForTesting(false);
@@ -231,6 +233,11 @@ void WriteArcSidebar(std::string_view more_spaces = "") {
   std::string sidebar = kSidebar;
   sidebar.replace(sidebar.find("%s"), 2, more_spaces);
   ASSERT_TRUE(base::WriteFile(paths.sidebar, sidebar));
+  // A tab archived from "Personal".
+  ASSERT_TRUE(base::WriteFile(paths.archive, R"json({"items": [
+    "a1", {"sidebarItem": {"id": "a1", "data": {"tab": {
+             "savedURL": "https://archived.test/", "savedTitle": "Gone"}}},
+           "archivedAt": 100, "source": {"space": {"_0": "s1"}}}]})json"));
   ASSERT_TRUE(
       base::WriteFile(paths.user_data.AppendASCII("Local State"), kLocalState));
 }
@@ -256,6 +263,8 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
   EXPECT_EQ(personal_spaces.spaces()[0]->pinned_root()->children()[0]->url(),
             GURL("https://news.test/"));
   ASSERT_EQ(personal_spaces.favorites().pinned_root()->children().size(), 1u);
+  ASSERT_EQ(personal_spaces.spaces()[0]->archive().size(), 1u);
+  EXPECT_EQ(personal_spaces.spaces()[0]->archive()[0].tabs[0].title, u"Gone");
 
   // "Work": its space and Today tab.
   ::Profile* work = result.profiles[1];
@@ -383,6 +392,10 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
                             "'#profiles .space-name')].map(e => e.textContent)"
                             ".join()"),
             "Personal,Hobbies,Job");
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.querySelector('#profiles .spaces "
+                            ".details').textContent"),
+            "1 tab · 1 archived");
   EXPECT_EQ(false, content::EvalJs(page, "document.getElementById('import')"
                                          ".disabled"));
 
