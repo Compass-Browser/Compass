@@ -135,13 +135,13 @@ struct ProfilesServerTests {
     await mac.publishProfiles([
       ChainProfile(uuid: home, name: "Personal", home: true), ChainProfile(uuid: work, name: "Work"),
     ])
-    let personal = mac.store.addSpace(name: "Personal", color: .green, profile: home)
+    let personal = mac.store.addSpace(name: "Personal", theme: SpaceTheme(.green), profile: home)
     mac.store.addTab(url: "https://news.example/", title: "News", to: personal.pinned)
-    let w = mac.store.addSpace(name: "Work", color: .purple, profile: work)
+    let w = mac.store.addSpace(name: "Work", theme: SpaceTheme(.purple), profile: work)
     let folder = mac.store.addFolder(name: "Projects", to: w.pinned)!
     mac.store.addTab(url: "https://git.example/", title: "Git", to: folder)
     mac.store.addTab(url: "https://chat.example/", title: "Chat", to: w.today)
-    let side = mac.store.addSpace(name: "Side", color: .orange, profile: home)
+    let side = mac.store.addSpace(name: "Side", theme: SpaceTheme(.orange), profile: home)
     mac.store.addTab(url: "https://side.example/", title: "Side project", to: side.pinned)
     mac.store.addTab(url: "https://mail.example/", title: "Mail", to: mac.store.favorites(forProfile: home))
     mac.store.addTab(url: "https://jira.example/", title: "Jira", to: mac.store.favorites(forProfile: work))

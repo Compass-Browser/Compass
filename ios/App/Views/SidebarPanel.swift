@@ -60,9 +60,10 @@ struct SidebarPanel: View {
         // itself runs to the screen's bottom edge.
         .padding(.bottom, Self.bottomInset)
         .frame(height: height)
-        .background { SpaceTint(color: app.selectedSpace?.color.color ?? .blue) }
+        .background { SpaceTint(theme: app.selectedSpace?.theme ?? .blue) }
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: Self.radius, topTrailingRadius: Self.radius))
         .overlay(alignment: .top) { grabber }
+        .spaceAppearance(app.selectedSpace?.theme)
         // Laid out at full height (so its safe areas are right), moved down
         // visually.
         .padding(.top, Self.top)

@@ -118,7 +118,7 @@ struct CompassSpacesBridgeTests {
       node(folder, space: s, type: .folder, title: "F"),
     ])
     let space = store.space(id: s)!
-    #expect(space.name == "Work" && space.color == .purple && space.archiveAfter == nil)
+    #expect(space.name == "Work" && space.theme == SpaceTheme(.purple) && space.archiveAfter == nil)
     #expect(store.node(id: child)?.parent?.id == folder)
     // The orphan waits at the root, and nothing is committed for it.
     #expect(store.node(id: orphan)?.parent === space.pinned)

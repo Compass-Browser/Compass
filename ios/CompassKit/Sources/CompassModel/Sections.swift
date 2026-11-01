@@ -18,8 +18,3 @@ public enum NodeType: Int32, Sendable, CaseIterable {
   case folder = 2
   case split = 3
 }
-
-/// Space colors: compass_spaces_specifics.proto's SpaceColor values.
-public enum SpaceColor: Int32, Sendable, CaseIterable {
-  case grey = 1, blue, purple, pink, red, orange, yellow, green
-}

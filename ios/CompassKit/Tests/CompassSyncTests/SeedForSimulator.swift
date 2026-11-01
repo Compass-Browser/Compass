@@ -32,11 +32,11 @@ struct SeedForSimulator {
     if ProcessInfo.processInfo.environment["COMPASS_SEED_PUSH"] != nil {
       // A later run while the app is open: one more space, which should
       // appear through push without touching the app.
-      store.addSpace(name: "Pushed", color: .orange)
+      store.addSpace(name: "Pushed", theme: SpaceTheme(.orange))
       try await mac.sync()
       return
     }
-    let work = store.addSpace(name: "Work", color: .purple)
+    let work = store.addSpace(name: "Work", theme: SpaceTheme(.purple))
     let docs = store.addFolder(name: "Projects", to: work.pinned)!
     store.addTab(url: "https://github.com/", title: "GitHub", to: docs)
     store.addTab(url: "https://developer.apple.com/documentation/swiftui", title: "SwiftUI", to: docs)
@@ -52,7 +52,7 @@ struct SeedForSimulator {
     ] {
       store.addTab(url: url, title: title, to: store.favorites)
     }
-    let home = store.addSpace(name: "Personal", color: .green)
+    let home = store.addSpace(name: "Personal", theme: SpaceTheme(.green))
     store.addTab(url: "https://www.bbc.com/news", title: "BBC News", to: home.pinned)
     store.addTab(url: "https://www.nytimes.com/", title: "NYTimes", to: home.today)
     try await mac.sync()
@@ -69,16 +69,16 @@ struct SeedForSimulator {
       ChainProfile(uuid: home, name: "Matteo", home: true), ChainProfile(uuid: work, name: "Work"),
     ])
     let store = mac.store
-    let personal = store.addSpace(name: "Personal", color: .green, profile: home)
+    let personal = store.addSpace(name: "Personal", theme: SpaceTheme(.green), profile: home)
     store.addTab(url: "https://www.bbc.com/news", title: "BBC News", to: personal.pinned)
     store.addTab(url: "https://www.nytimes.com/", title: "NYTimes", to: personal.today)
-    let w = store.addSpace(name: "Work", color: .purple, profile: work)
+    let w = store.addSpace(name: "Work", theme: SpaceTheme(.purple), profile: work)
     let docs = store.addFolder(name: "Projects", to: w.pinned)!
     store.addTab(url: "https://github.com/", title: "GitHub", to: docs)
     store.addTab(url: "https://linear.app/", title: "Linear", to: w.pinned)
     store.addTab(url: "https://www.figma.com/", title: "Figma", to: w.pinned)
     store.addTab(url: "https://news.ycombinator.com/", title: "Hacker News", to: w.today)
-    let side = store.addSpace(name: "Side", color: .orange, profile: home)
+    let side = store.addSpace(name: "Side", theme: SpaceTheme(.orange), profile: home)
     store.addTab(url: "https://en.wikipedia.org/wiki/Compass", title: "Compass - Wikipedia", to: side.pinned)
     for (url, title) in [("https://mail.google.com/", "Mail"), ("https://www.youtube.com/", "YouTube")] {
       store.addTab(url: url, title: title, to: store.favorites(forProfile: home))

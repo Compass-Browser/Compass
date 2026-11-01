@@ -205,7 +205,7 @@ final class AppModel {
 
   private func observeForSaving() {
     withObservationTracking {
-      _ = store.spaces.map { ($0.name, $0.color, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
+      _ = store.spaces.map { ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
       _ = store.favoritesRoots.map(\.children.count)
       _ = store.spaces.map(\.profileUUID)
     } onChange: { [weak self] in

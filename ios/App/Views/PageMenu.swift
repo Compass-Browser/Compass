@@ -70,7 +70,8 @@ struct PageMenu: View {
     .padding(.horizontal, 14)
     .padding(.top, 26)
     .frame(maxHeight: .infinity, alignment: .top)
-    .background(SpaceTint(color: app.selectedSpace?.color.color ?? .blue))
+    .background(SpaceTint(theme: app.selectedSpace?.theme ?? .blue))
+    .spaceAppearance(app.selectedSpace?.theme)
     .presentationDetents([.height(404)])
     .presentationDragIndicator(.visible)
     .sheet(isPresented: Binding(get: { app.showingSiteSettings }, set: { app.showingSiteSettings = $0 })) {

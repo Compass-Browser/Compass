@@ -34,7 +34,7 @@ struct FaviconServerTests {
     let server = try await TestServer()
     let mac = await SidebarDevice(server: server.url, chain: chain, first: true)
     try await mac.sync()
-    let space = mac.store.addSpace(name: "Work", color: .blue)
+    let space = mac.store.addSpace(name: "Work", theme: SpaceTheme(.blue))
     let tab = mac.store.addTab(url: "https://www.example.com/a", title: "A", to: space.pinned)!
     try await mac.sync()
 

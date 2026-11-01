@@ -45,7 +45,7 @@ struct SidebarDevice {
     }
     var out = ["favorites"] + store.favorites.children.flatMap { line($0, 1) }
     for s in store.spaces {
-      out.append("space \(s.name) \(s.color)")
+      out.append("space \(s.name) \(s.theme.palette.map { "\($0)" } ?? "custom")")
       for root in [s.pinned, s.today, s.archive] {
         out.append(" \(root.id.split(separator: ":")[0])")
         out += root.children.flatMap { line($0, 2) }
@@ -65,7 +65,7 @@ struct SpacesServerTests {
     let mac = await SidebarDevice(server: server.url, chain: chain, first: true)
     try await mac.sync()
 
-    let work = mac.store.addSpace(name: "Work", color: .green)
+    let work = mac.store.addSpace(name: "Work", theme: SpaceTheme(.green))
     let docs = mac.store.addFolder(name: "Docs", to: work.pinned)!
     mac.store.addTab(url: "https://docs.example/", title: "Docs home", to: docs)
     let inner = mac.store.addFolder(name: "Inner", to: docs)!
@@ -74,7 +74,7 @@ struct SpacesServerTests {
     let b = mac.store.addTab(url: "https://b.example/", title: "B", to: work.today)!
     mac.store.split(a, with: b)
     mac.store.addTab(url: "https://fav.example/", title: "Fav", to: mac.store.favorites)
-    let play = mac.store.addSpace(name: "Play", color: .pink)
+    let play = mac.store.addSpace(name: "Play", theme: SpaceTheme(.pink))
     mac.store.addTab(url: "https://play.example/", title: "Play", to: play.pinned)
     try await mac.sync()
 

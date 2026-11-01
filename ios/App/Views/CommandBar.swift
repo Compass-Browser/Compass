@@ -94,7 +94,8 @@ struct CommandBar: View {
       }
       .scrollDismissesKeyboard(.interactively)
     }
-    .background(SpaceTint(color: tint))
+    .background(SpaceTint(theme: app.selectedSpace?.theme ?? .blue))
+    .spaceAppearance(app.selectedSpace?.theme)
     .presentationDragIndicator(.visible)
     .onAppear {
       text = replacing?.url ?? ""
@@ -168,7 +169,7 @@ struct CommandBar: View {
     dismiss()
   }
 
-  private var tint: Color { app.selectedSpace?.color.color ?? .accentColor }
+  private var tint: Color { app.selectedSpace?.theme.accent ?? .accentColor }
 
   private var looksLikeURL: Bool { AppModel.address(text) != nil }
 

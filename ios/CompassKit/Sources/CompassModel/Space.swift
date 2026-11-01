@@ -5,13 +5,14 @@
 import Foundation
 import Observation
 
-/// A space: a name, a color, and its own pinned, Today and archive trees.
+/// A space: a name, a theme, and its own pinned, Today and archive trees.
 @Observable
 public final class Space: Identifiable {
   /// Lowercase UUID, the same on every device.
   public let id: String
   public internal(set) var name: String
-  public internal(set) var color: SpaceColor
+  /// Its color, gradient, intensity, grain and mode (SpaceTheme.swift).
+  public internal(set) var theme: SpaceTheme
   /// Kept as received (the desktop doesn't use it yet).
   public internal(set) var icon: String
   /// The profile it belongs to; empty = the default profile.
@@ -26,13 +27,13 @@ public final class Space: Identifiable {
   @ObservationIgnored public var unknownFields: Data?
 
   init(
-    id: String = UUID().uuidString.lowercased(), name: String, color: SpaceColor = .blue, icon: String = "",
+    id: String = UUID().uuidString.lowercased(), name: String, theme: SpaceTheme = .blue, icon: String = "",
     profileUUID: String = "", archiveAfter: TimeInterval? = 12 * 60 * 60,
     position: UniquePosition = UniquePosition(compressed: [])
   ) {
     self.id = id
     self.name = name
-    self.color = color
+    self.theme = theme
     self.icon = icon
     self.profileUUID = profileUUID
     self.archiveAfter = archiveAfter

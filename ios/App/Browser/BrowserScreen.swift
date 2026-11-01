@@ -99,11 +99,7 @@ struct BrowserScreen: View {
   }
 
   private var emptyPage: some View {
-    LinearGradient(
-      colors: [(app.selectedSpace?.color.color ?? .blue).opacity(0.28), Color(.systemBackground)],
-      startPoint: .top, endPoint: .bottom
-    )
-    .ignoresSafeArea(edges: .top)
+    SpaceTint(theme: app.selectedSpace?.theme ?? .blue)
   }
 
   private func saveBanner(_ p: PasswordManager.PendingSave) -> some View {
@@ -162,8 +158,8 @@ struct BrowserScreen: View {
   }
 
   private var tint: Color {
-    app.shownTab.flatMap { app.store.space(of: $0)?.color.color }
-      ?? app.selectedSpace?.color.color ?? .accentColor
+    app.shownTab.flatMap { app.store.space(of: $0)?.theme.accent }
+      ?? app.selectedSpace?.theme.accent ?? .accentColor
   }
 
   private var bar: some View {

@@ -45,7 +45,7 @@ struct SidebarScreen: View {
             let shown = space.id == app.selectedSpace?.id
             Button { app.selectedSpaceID = space.id } label: {
               SpaceIcon(space: space)
-                .foregroundStyle(shown ? space.color.color : .primary)
+                .foregroundStyle(shown ? space.theme.accent : .primary)
                 .opacity(shown ? 1 : 0.45)
                 .scaleEffect(shown ? 1.15 : 1)
                 .frame(width: 34, height: 34)
@@ -61,7 +61,7 @@ struct SidebarScreen: View {
           Button {
             // In the profile of the space it was made from.
             let space = app.store.addSpace(
-              name: "Space \(app.store.spaces.count + 1)", color: .allCases.randomElement()!,
+              name: "Space \(app.store.spaces.count + 1)", theme: SpaceTheme(SpaceColor.allCases.filter { $0 != .grey }.randomElement()!),
               profile: app.selectedSpace?.profileUUID ?? "")
             app.selectedSpaceID = space.id
           } label: {
@@ -124,6 +124,7 @@ struct SpacePage: View {
   @State private var renaming = false
   @State private var newName = ""
   @State private var showingArchive = false
+  @State private var editingTheme = false
   @State private var moving: ChainProfile?
 
   var body: some View {
@@ -214,6 +215,7 @@ struct SpacePage: View {
       Button("Cancel", role: .cancel) {}
     }
     .sheet(isPresented: $showingArchive) { ArchiveView(space: space) }
+    .sheet(isPresented: $editingTheme) { ThemeEditor(space: space) }
     .alert(
       "Move “\(space.name)” to \(moving?.name ?? "")?",
       isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })
@@ -269,11 +271,7 @@ struct SpacePage: View {
       newName = space.name
       renaming = true
     }
-    Menu("Color", systemImage: "paintpalette") {
-      ForEach(SpaceColor.allCases, id: \.self) { color in
-        Button(color.name) { app.store.setColor(space, color) }
-      }
-    }
+    Button("Edit Theme", systemImage: "paintpalette") { editingTheme = true }
     Button("Archive", systemImage: "archivebox") { showingArchive = true }
     Picker(selection: Binding(
       get: { ArchiveAfter(space.archiveAfter) },

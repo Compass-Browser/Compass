@@ -5,20 +5,19 @@
 import CompassModel
 import SwiftUI
 
-extension SpaceColor {
-  var color: Color {
-    switch self {
-    case .grey: Color(red: 0.55, green: 0.57, blue: 0.62)
-    case .blue: Color(red: 0.33, green: 0.47, blue: 0.95)
-    case .purple: Color(red: 0.55, green: 0.38, blue: 0.93)
-    case .pink: Color(red: 0.93, green: 0.36, blue: 0.62)
-    case .red: Color(red: 0.92, green: 0.30, blue: 0.30)
-    case .orange: Color(red: 0.96, green: 0.55, blue: 0.22)
-    case .yellow: Color(red: 0.93, green: 0.75, blue: 0.18)
-    case .green: Color(red: 0.25, green: 0.70, blue: 0.45)
-    }
-  }
+extension RGB {
+  var color: Color { Color(red: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255) }
 
+  init(_ color: Color) {
+    let c = UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    c.getRed(&r, green: &g, blue: &b, alpha: &a)
+    func byte(_ v: CGFloat) -> UInt8 { UInt8(min(max((v * 255).rounded(), 0), 255)) }
+    self.init(byte(r), byte(g), byte(b))
+  }
+}
+
+extension SpaceColor {
   var name: String {
     switch self {
     case .grey: "Grey"
@@ -29,6 +28,35 @@ extension SpaceColor {
     case .orange: "Orange"
     case .yellow: "Yellow"
     case .green: "Green"
+    }
+  }
+}
+
+extension SpaceTheme {
+  /// Grey spaces' accent.
+  static let greyAccent = Color(red: 0.55, green: 0.57, blue: 0.62)
+
+  /// For icons and controls: the space's color, or a neutral grey.
+  var accent: Color { color?.color ?? Self.greyAccent }
+
+  /// The mode its chrome takes; nil follows the system.
+  var colorScheme: ColorScheme? {
+    switch appearance {
+    case .auto: nil
+    case .light: .light
+    case .dark: .dark
+    }
+  }
+}
+
+extension View {
+  /// The space's chrome in its light or dark mode (the theme editor's Mode);
+  /// web pages keep the system's.
+  @ViewBuilder func spaceAppearance(_ theme: SpaceTheme?) -> some View {
+    if let scheme = theme?.colorScheme {
+      environment(\.colorScheme, scheme)
+    } else {
+      self
     }
   }
 }
@@ -102,18 +130,80 @@ enum SidebarStyle {
   static let folder = Animation.snappy(duration: 0.22)
 }
 
-/// The space's tint behind the whole sidebar, as the desktop's SidebarTint.
+/// The space's tint behind the whole sidebar, as the desktop's SidebarTint:
+/// its stops as one gradient from the top left corner to the bottom right,
+/// as strong as its intensity, fading a little toward the bottom, with its
+/// grain over it. Grey tints nothing.
 struct SpaceTint: View {
-  let color: Color
+  let theme: SpaceTheme
+
+  /// The tint's opacity at full intensity; the default intensity (0.31)
+  /// gives about the 34% the phone had before themes.
+  static let maxOpacity = 1.1
+  /// Grain at full strength (the desktop's is 4.4%, on a much larger tint).
+  static let maxGrain = 0.09
 
   var body: some View {
     ZStack {
       Color(.systemBackground)
+      let alpha = min(theme.intensity * Self.maxOpacity, 1)
+      let stops = theme.stops
       LinearGradient(
-        colors: [color.opacity(0.34), color.opacity(0.16)],
-        startPoint: .top, endPoint: .bottom)
+        colors: stops.isEmpty ? [.clear, .clear] : stops.map { $0.color.opacity(alpha) },
+        startPoint: .topLeading, endPoint: .bottomTrailing
+      )
+      .mask(LinearGradient(colors: [.white, .white.opacity(0.5)], startPoint: .top, endPoint: .bottom))
+      if theme.grain > 0, !stops.isEmpty {
+        Image(uiImage: Grain.tile)
+          .resizable(resizingMode: .tile)
+          .blendMode(.overlay)
+          .opacity(theme.grain * Self.maxGrain)
+          .allowsHitTesting(false)
+      }
     }
+    .animation(.easeOut(duration: 0.28), value: theme)
     .ignoresSafeArea()
+  }
+}
+
+/// A tile of grey noise, the same every time (the desktop's GrainTile()),
+/// one grain per pixel.
+enum Grain {
+  static let tile: UIImage = {
+    let size = 128
+    var pixels = [UInt8](repeating: 255, count: size * size * 4)
+    var state: UInt32 = 0x2545f491
+    for i in 0..<(size * size) {
+      state = state &* 1664525 &+ 1013904223
+      let v = UInt8(state >> 24)
+      pixels[i * 4] = v
+      pixels[i * 4 + 1] = v
+      pixels[i * 4 + 2] = v
+    }
+    let provider = CGDataProvider(data: Data(pixels) as CFData)!
+    let image = CGImage(
+      width: size, height: size, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: size * 4,
+      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+      provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
+    return UIImage(cgImage: image, scale: UITraitCollection.current.displayScale, orientation: .up)
+  }()
+}
+
+/// The space's colors in a small circle, diagonally (the desktop menu's
+/// theme chip).
+struct ThemeChip: View {
+  let theme: SpaceTheme
+  var size: CGFloat = 22
+
+  var body: some View {
+    Circle()
+      .fill(
+        theme.stops.isEmpty
+          ? AnyShapeStyle(SpaceTheme.greyAccent)
+          : AnyShapeStyle(LinearGradient(colors: theme.stops.map(\.color), startPoint: .topLeading, endPoint: .bottomTrailing))
+      )
+      .overlay(Circle().stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+      .frame(width: size, height: size)
   }
 }
 
