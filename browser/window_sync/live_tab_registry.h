@@ -13,6 +13,10 @@
 #include "base/observer_list_types.h"
 #include "components/tabs/public/tab_interface.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace compass {
 
 class SidebarNode;
@@ -40,6 +44,10 @@ class LiveTabRegistry {
     virtual void OnNodeLiveChanged(const SidebarNode& node, bool live) {}
     // GetAudioState(|node|) changed.
     virtual void OnNodeAudioChanged(const SidebarNode& node) {}
+    // The contents of |node|'s live tab were muted or unmuted, or a muted
+    // tab gained |node|, which isn't muted(). Not called for the registry's
+    // own muting (see Register()).
+    virtual void OnNodeMutingChanged(const SidebarNode& node, bool muted) {}
   };
 
   LiveTabRegistry();
@@ -47,6 +55,8 @@ class LiveTabRegistry {
   LiveTabRegistry& operator=(const LiveTabRegistry&) = delete;
   ~LiveTabRegistry();
 
+  // A muted() |node| mutes |tab|, and the contents a discard swaps in
+  // (docs/design/sidebar.md, "Sound").
   void Register(tabs::TabInterface* tab, SidebarNode* node);
   void Unregister(tabs::TabInterface* tab);
 
@@ -65,11 +75,16 @@ class LiveTabRegistry {
 
   // A registered tab's sound changed.
   void OnAudioChanged(tabs::TabInterface* tab);
+  void OnMutingChanged(tabs::TabInterface* tab, bool muted);
+  // Mutes |contents| if |tab|'s node is muted().
+  void ApplyNodeMuted(tabs::TabInterface* tab, content::WebContents* contents);
 
   base::flat_map<tabs::TabHandle, raw_ptr<SidebarNode>> node_for_tab_;
   base::flat_map<const SidebarNode*, tabs::TabHandle> tab_for_node_;
   base::flat_map<tabs::TabHandle, std::unique_ptr<AudioWatch>> audio_;
   base::ObserverList<Observer> observers_;
+  // Set while ApplyNodeMuted() mutes a tab.
+  bool applying_muted_ = false;
 };
 
 }  // namespace compass

@@ -44,7 +44,8 @@ base::TimeDelta GetArchiveHour();
 // Attached to the Profile as user data, so it outlives the profile's windows.
 // See docs/design/sidebar.md, slice d, and docs/design/spaces.md.
 class SpaceService : public base::SupportsUserData::Data,
-                     public SpaceList::Observer {
+                     public SpaceList::Observer,
+                     public LiveTabRegistry::Observer {
  public:
   // Creates the parking window for a profile. Tests can't create real
   // windows, so they set their own.
@@ -113,10 +114,17 @@ class SpaceService : public base::SupportsUserData::Data,
   void OnSpaceAdded(SpaceModel& space) override;
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
 
+  // LiveTabRegistry::Observer: keeps each tab node's muted() in step with
+  // its live tab (the registry mutes a muted node's tab when it opens).
+  void OnNodeMutingChanged(const SidebarNode& node, bool muted) override;
+
  private:
   explicit SpaceService(Profile* profile);
 
   void OnLoaded();
+
+  // Sets the muted() of the node |id|, if it's still there.
+  void SetNodeMuted(const base::Uuid& id, bool muted);
 
   const raw_ptr<Profile> profile_;
   SpaceList space_list_;

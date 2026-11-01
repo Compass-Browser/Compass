@@ -112,7 +112,7 @@ drop get added to Compass before the import is finished. From Arc's files:
 |---|---|---|
 | Space icon (`customInfo.iconType`: emoji or symbol) | Done (spaces.md "Space icons"; symbols mapped to Compass's) | Spaces looking as in Arc |
 | Theme gradients (`windowTheme`) | Done: base colors, intensity, grain (spaces.md "Gradients", "Intensity and grain"); not overlayColors, wheel, translucency, vibrancy | Gradient sidebars |
-| Tab mute status (`savedMuteStatus`) | No | Muted entries staying muted |
+| Tab mute status (`savedMuteStatus`) | Done (sidebar.md "Muted entries"); imported | Muted entries staying muted |
 | Archive (`StorableArchiveItems.json`) | Yes (per space) | Importing it |
 | Link routing (`StorableLinkRouting.json`, Air Traffic Control) | No (little-window.md "Not done") | Links from other apps going to the right space |
 | Key bindings (`StorableKeyBindings.json`) | No (plan item 14) | Custom shortcuts |
@@ -162,7 +162,9 @@ drop get added to Compass before the import is finished. From Arc's files:
   spaces with their names and colors, Pinned (folders kept) and Today
   (folders and splits kept; a split takes two panes, more tabs follow it),
   tabs with Arc's saved title (else the host) and the user's own title as
-  the custom title, and the favorites (tabs only; folders flattened). A new
+  the custom title, Arc's mute status (`savedMuteStatus` "muted": the entry
+  opens muted, sidebar.md "Muted entries"), and the favorites (tabs only;
+  folders flattened). A new
   profile's untouched "Home" space becomes the first Arc space. Pinned
   entries keep Arc's last active time; Today's count as used at the import,
   or Today's 12 h auto-archive would take them at once. Entries come in

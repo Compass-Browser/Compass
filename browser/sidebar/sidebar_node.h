@@ -58,6 +58,10 @@ class SidebarNode {
   // Whether a folder shows only its own row. Shared by every window, and
   // saved. False for other nodes.
   bool collapsed() const { return collapsed_; }
+  // Whether a tab is muted: its live tab is, and it will be when it next
+  // opens. Follows the live tab's mute state, and saved. False for other
+  // nodes (docs/design/sidebar.md, "Sound").
+  bool muted() const { return muted_; }
   SidebarNode* parent() const { return parent_.get(); }
   const std::vector<std::unique_ptr<SidebarNode>>& children() const {
     return children_;
@@ -82,6 +86,7 @@ class SidebarNode {
   GURL url_;
   base::Time last_active_;
   bool collapsed_ = false;
+  bool muted_ = false;
   raw_ptr<SidebarNode> parent_ = nullptr;
   std::vector<std::unique_ptr<SidebarNode>> children_;
 };

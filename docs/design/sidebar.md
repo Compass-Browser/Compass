@@ -682,6 +682,33 @@ time from its context menu.
 - **Cmd+Shift+M** (`kToggleTabMuteCommand`, shortcuts.md) mutes or unmutes
   the window's active tab; it can be changed on the shortcuts settings page.
 
+### Muted entries
+
+As in Arc (`savedMuteStatus`), muting belongs to the entry, not only to its
+live tab: a muted pinned tab or favorite closed and opened again, or a
+muted Today entry after a relaunch, comes back muted.
+
+- `SidebarNode::muted()` (tabs only), set with `SpaceModel::SetMuted()`,
+  which notifies `OnNodeChanged()`. The store saves it on the tab
+  (`"muted": true`; absent means not muted, so older files load as before).
+- It follows the live tab, however that was muted (speaker, menu,
+  Cmd+Shift+M, an extension, upstream's UI): `LiveTabRegistry` reports
+  `Observer::OnNodeMutingChanged()` from the contents'
+  `DidUpdateAudioMutingState()`, and `SpaceService` sets the node's flag in
+  a posted task (the call can come in the middle of the registry's or a
+  model's notifications, which don't allow nesting). A muted tab that gains
+  an entry mutes the entry. Closing a tab leaves the flag as it is.
+- `LiveTabRegistry::Register()` mutes a muted entry's tab before it tells
+  anyone the entry is live, and mutes the contents a discard swaps in. Its
+  own muting isn't reported back.
+- An unloaded muted entry shows no speaker; it shows the crossed-out one
+  once it opens.
+- Not synced to other devices (the spaces sync proto has no field for it);
+  the sync bridge keeps it when it copies a node locally.
+- Tests: `SidebarSerializerTest.RoundTripsMutedTabs`,
+  `SidebarPageHandlerTest.AMutedEntryReopensMuted`, and the Arc import's
+  `SidebarImportTest.MutedTabsStayMuted`.
+
 ## Folder collapse state
 
 Whether a folder is collapsed is part of the model, as in Arc: a

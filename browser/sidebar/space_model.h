@@ -338,6 +338,9 @@ class SpaceModel {
   void SetLastActive(SidebarNode* tab, base::Time time);
   // Observers see OnNodeChanged().
   void SetCollapsed(SidebarNode* folder, bool collapsed);
+  // Observers see OnNodeChanged(). Doesn't touch a live tab: LiveTabRegistry
+  // and SpaceService keep the two in step.
+  void SetMuted(SidebarNode* tab, bool muted);
 
   // Archived Today entries, most recent first.
   const std::vector<ArchivedEntry>& archive() const { return archive_; }

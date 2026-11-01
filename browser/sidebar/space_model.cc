@@ -402,6 +402,17 @@ void SpaceModel::SetCollapsed(SidebarNode* folder, bool collapsed) {
   }
 }
 
+void SpaceModel::SetMuted(SidebarNode* tab, bool muted) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  if (tab->muted_ == muted) {
+    return;
+  }
+  tab->muted_ = muted;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*tab);
+  }
+}
+
 void SpaceModel::SetLastActive(SidebarNode* tab, base::Time time) {
   CHECK_EQ(tab->type(), Type::kTab);
   if (tab->last_active_ == time) {

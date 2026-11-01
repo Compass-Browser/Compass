@@ -47,6 +47,7 @@ source_set("window_sync") {
     "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui/tabs:tab_model",
     "//chrome/browser/ui/tabs:tabs",
+    "//chrome/browser/ui/tabs:utils",
     "//chrome/common",
     "//components/prefs",
     "//components/viz/common",

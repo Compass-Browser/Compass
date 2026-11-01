@@ -944,7 +944,9 @@ TEST_F(SidebarPageHandlerTest, MutesSilentTabsFromTheMenu) {
 
   Choose(a, Command::kMute);
   EXPECT_TRUE(contents->IsAudioMuted());
-  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test muted"));
+  // The entry is muted too (saved, so it reopens muted).
+  EXPECT_THAT(page_.TakeEvents(),
+              ElementsAre("a.test muted", "changed a.test"));
   EXPECT_EQ(GetTree()->today->children[0]->audio,
             sidebar::mojom::AudioState::kMuted);
   EXPECT_THAT(MenuCommands(a), AllOf(Contains(Command::kUnmute),
@@ -952,7 +954,39 @@ TEST_F(SidebarPageHandlerTest, MutesSilentTabsFromTheMenu) {
 
   Choose(a, Command::kUnmute);
   EXPECT_FALSE(contents->IsAudioMuted());
-  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test silent"));
+  EXPECT_THAT(page_.TakeEvents(),
+              ElementsAre("a.test silent", "changed a.test"));
+}
+
+// An entry stays muted while its tab is closed (docs/design/sidebar.md,
+// "Sound").
+TEST_F(SidebarPageHandlerTest, AMutedEntryReopensMuted) {
+  handler_remote_->MoveNode(TodayId(0), PinnedId(), 0);
+  Settle();
+  SidebarNode* node = space_model().pinned_root()->children()[0].get();
+  const std::string id = node->id().AsLowercaseString();
+  EXPECT_FALSE(node->muted());
+
+  Choose(id, Command::kMute);
+  EXPECT_TRUE(node->muted());
+
+  handler_remote_->CloseNode(id);
+  Settle();
+  ASSERT_EQ(tab_strip_model()->count(), 1);
+  EXPECT_TRUE(node->muted());
+
+  handler_remote_->ActivateNode(id);
+  Settle();
+  ASSERT_EQ(tab_strip_model()->count(), 2);
+  content::WebContents* contents = tab_strip_model()->GetWebContentsAt(0);
+  EXPECT_TRUE(contents->IsAudioMuted());
+  EXPECT_EQ(GetTree()->pinned->children[0]->audio,
+            sidebar::mojom::AudioState::kMuted);
+
+  // Unmuting the tab unmutes the entry.
+  Choose(id, Command::kUnmute);
+  EXPECT_FALSE(contents->IsAudioMuted());
+  EXPECT_FALSE(node->muted());
 }
 
 TEST_F(SidebarPageHandlerTest, ShowsAndMutesPlayingTabs) {
@@ -973,11 +1007,13 @@ TEST_F(SidebarPageHandlerTest, ShowsAndMutesPlayingTabs) {
   handler_remote_->SetNodeMuted(a, true);
   Settle();
   EXPECT_TRUE(contents->IsAudioMuted());
-  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test muted"));
+  EXPECT_THAT(page_.TakeEvents(),
+              ElementsAre("a.test muted", "changed a.test"));
   handler_remote_->SetNodeMuted(a, false);
   Settle();
   EXPECT_FALSE(contents->IsAudioMuted());
-  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test audible"));
+  EXPECT_THAT(page_.TakeEvents(),
+              ElementsAre("a.test audible", "changed a.test"));
 
   // Silent again, a moment after the sound stops.
   audible->SetNotRecentlyAudibleForTesting();

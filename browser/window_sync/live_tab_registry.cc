@@ -4,9 +4,13 @@
 
 #include "compass/browser/window_sync/live_tab_registry.h"
 
+#include <string>
+
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
+#include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -52,11 +56,19 @@ class LiveTabRegistry::AudioWatch : public content::WebContentsObserver {
                              content::WebContents* old_contents,
                              content::WebContents* new_contents) {
     Watch(new_contents);
+    if (new_contents != old_contents) {
+      registry_->ApplyNodeMuted(tab_, new_contents);
+    }
     Update();
   }
 
   // content::WebContentsObserver:
-  void DidUpdateAudioMutingState(bool muted) override { Update(); }
+  void DidUpdateAudioMutingState(bool muted) override {
+    if (!registry_->applying_muted_) {
+      registry_->OnMutingChanged(tab_, muted);
+    }
+    Update();
+  }
 
   AudioState ComputeState() const {
     content::WebContents* contents = web_contents();
@@ -98,12 +110,21 @@ void LiveTabRegistry::Register(tabs::TabInterface* tab, SidebarNode* node) {
   CHECK(!GetTab(node));
   node_for_tab_[tab->GetHandle()] = node;
   tab_for_node_[node] = tab->GetHandle();
+  // Before anyone hears of it, so observers see it muted.
+  ApplyNodeMuted(tab, tab->GetContents());
   auto& watch = audio_[tab->GetHandle()];
   if (!watch) {
     watch = std::make_unique<AudioWatch>(this, tab);
   }
   for (auto& observer : observers_) {
     observer.OnNodeLiveChanged(*node, true);
+  }
+  // A tab muted before it had this node mutes it.
+  if (!node->muted() && tab->GetContents() &&
+      tab->GetContents()->IsAudioMuted()) {
+    for (auto& observer : observers_) {
+      observer.OnNodeMutingChanged(*node, true);
+    }
   }
   // A tab that moved here, or that played before it had a node.
   if (watch->state() != AudioState::kNone) {
@@ -166,6 +187,25 @@ void LiveTabRegistry::OnAudioChanged(tabs::TabInterface* tab) {
       observer.OnNodeAudioChanged(*node);
     }
   }
+}
+
+void LiveTabRegistry::OnMutingChanged(tabs::TabInterface* tab, bool muted) {
+  if (SidebarNode* node = GetNode(tab)) {
+    for (auto& observer : observers_) {
+      observer.OnNodeMutingChanged(*node, muted);
+    }
+  }
+}
+
+void LiveTabRegistry::ApplyNodeMuted(tabs::TabInterface* tab,
+                                     content::WebContents* contents) {
+  SidebarNode* node = GetNode(tab);
+  if (!node || !node->muted() || !contents || contents->IsAudioMuted()) {
+    return;
+  }
+  base::AutoReset<bool> applying(&applying_muted_, true);
+  SetTabAudioMuted(contents, true, TabMutedReason::kAudioIndicator,
+                   std::string());
 }
 
 void LiveTabRegistry::AddObserver(Observer* observer) {

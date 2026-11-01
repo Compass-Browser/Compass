@@ -96,6 +96,19 @@ TEST_F(SidebarImportTest, PinnedKeepsFoldersTitlesAndTimes) {
   EXPECT_EQ(folder->children()[1]->custom_title(), u"My B");
 }
 
+TEST_F(SidebarImportTest, MutedTabsStayMuted) {
+  spaces_[0].pinned[0].children[0].muted = true;
+  spaces_[1].today[0].muted = true;
+  profile_.favorites[0].muted = true;
+  AddArcSidebar(list_, profile_, spaces_, kNow);
+  const SidebarNode* folder =
+      list_.spaces()[0]->pinned_root()->children()[0].get();
+  EXPECT_TRUE(folder->children()[0]->muted());
+  EXPECT_FALSE(folder->children()[1]->muted());
+  EXPECT_TRUE(list_.spaces()[1]->today_root()->children()[0]->muted());
+  EXPECT_TRUE(list_.favorites().pinned_root()->children()[0]->muted());
+}
+
 TEST_F(SidebarImportTest, TodayKeepsSplitsAndCountsAsUsedNow) {
   AddArcSidebar(list_, profile_, spaces_, kNow);
   const SidebarNode* today = list_.spaces()[0]->today_root();

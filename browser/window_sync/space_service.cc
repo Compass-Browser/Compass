@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
@@ -71,6 +72,7 @@ SpaceService::SpaceService(Profile* profile)
     : profile_(profile),
       parking_window_factory_(base::BindRepeating(&CreateParkingWindow)) {
   space_list_.AddObserver(this);
+  registry_.AddObserver(this);
   for (const auto& space : space_list_.spaces()) {
     OnSpaceAdded(*space);
   }
@@ -97,6 +99,7 @@ SpaceService::~SpaceService() {
   // These observe the list, so they go first.
   sync_attachment_.reset();
   store_.reset();
+  registry_.RemoveObserver(this);
   space_list_.RemoveObserver(this);
 }
 
@@ -203,6 +206,32 @@ void SpaceService::OnSpaceAdded(SpaceModel& space) {
 void SpaceService::OnSpaceWillBeRemoved(SpaceModel& space) {
   matchers_.erase(&space);
   last_active_nodes_.erase(&space);
+}
+
+void SpaceService::OnNodeMutingChanged(const SidebarNode& node, bool muted) {
+  if (node.type() != SidebarNode::Type::kTab || node.muted() == muted) {
+    return;
+  }
+  // Later: this can come in the middle of the registry's or a model's
+  // notifications (a tab opening for a node), which don't allow nesting.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&SpaceService::SetNodeMuted,
+                                weak_factory_.GetWeakPtr(), node.id(), muted));
+}
+
+void SpaceService::SetNodeMuted(const base::Uuid& id, bool muted) {
+  std::vector<SpaceModel*> spaces = {&space_list_.favorites()};
+  for (const auto& space : space_list_.spaces()) {
+    spaces.push_back(space.get());
+  }
+  for (SpaceModel* space : spaces) {
+    if (SidebarNode* node = space->FindById(id)) {
+      if (node->type() == SidebarNode::Type::kTab) {
+        space->SetMuted(node, muted);
+      }
+      return;
+    }
+  }
 }
 
 void SpaceService::OnLoaded() {

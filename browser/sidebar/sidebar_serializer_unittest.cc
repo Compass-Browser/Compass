@@ -109,6 +109,27 @@ TEST(SidebarSerializerTest, RoundTripsCustomTitles) {
   EXPECT_EQ(entries[1]->children()[1]->custom_title(), u"Bee");
 }
 
+TEST(SidebarSerializerTest, RoundTripsMutedTabs) {
+  SpaceModel model;
+  SidebarNode* a =
+      model.AddTab(model.pinned_root(), 0, GURL("https://a.test/"), u"A");
+  model.AddTab(model.pinned_root(), 1, GURL("https://b.test/"), u"B");
+  SidebarNode* c =
+      model.AddTab(model.today_root(), 0, GURL("https://c.test/"), u"C");
+  model.SetMuted(a, true);
+  model.SetMuted(c, true);
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  const auto& pinned = restored.pinned_root()->children();
+  ASSERT_EQ(pinned.size(), 2u);
+  EXPECT_TRUE(pinned[0]->muted());
+  EXPECT_FALSE(pinned[1]->muted());
+  ASSERT_EQ(restored.today_root()->children().size(), 1u);
+  EXPECT_TRUE(restored.today_root()->children()[0]->muted());
+}
+
 TEST(SidebarSerializerTest, RoundTripsTodayFolders) {
   SpaceModel model;
   SidebarNode* trip = model.AddFolder(model.today_root(), 0, u"Trip");

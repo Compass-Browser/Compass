@@ -54,6 +54,7 @@ constexpr char kChildrenKey[] = "children";
 constexpr char kLastActiveKey[] = "last_active";
 constexpr char kCollapsedKey[] = "collapsed";
 constexpr char kCustomTitleKey[] = "custom_title";
+constexpr char kMutedKey[] = "muted";
 constexpr char kArchiveAfterKey[] = "archive_after_hours";
 constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
@@ -128,6 +129,9 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       if (!node.custom_title().empty()) {
         dict.Set(kCustomTitleKey, base::UTF16ToUTF8(node.custom_title()));
       }
+      if (node.muted()) {
+        dict.Set(kMutedKey, true);
+      }
       break;
     case SidebarNode::Type::kFolder:
       dict.Set(kTypeKey, kFolder);
@@ -180,6 +184,7 @@ void SetTabState(const base::DictValue& dict,
   if (const std::string* custom_title = dict.FindString(kCustomTitleKey)) {
     model.SetCustomTitle(tab, base::UTF8ToUTF16(*custom_title));
   }
+  model.SetMuted(tab, dict.FindBool(kMutedKey).value_or(false));
 }
 
 // The saved ID of |dict|, unless it's missing, invalid or already taken in

@@ -90,6 +90,7 @@ class Builder {
     if (!item.title.empty()) {
       model_->SetCustomTitle(tab, item.title);
     }
+    model_->SetMuted(tab, item.muted);
     const base::Time last_active = last_active_.value_or(item.last_active);
     if (!last_active.is_null()) {
       model_->SetLastActive(tab, last_active);

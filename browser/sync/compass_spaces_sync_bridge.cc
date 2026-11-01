@@ -2126,6 +2126,7 @@ SidebarNode* CompassSpacesSyncBridge::CopyNode(SpaceModel& model,
     case Type::kTab:
       copy = model.AddTab(parent, index, node.url(), node.title());
       model.SetCustomTitle(copy, node.custom_title());
+      model.SetMuted(copy, node.muted());
       if (!node.last_active().is_null()) {
         model.SetLastActive(copy, node.last_active());
       }
