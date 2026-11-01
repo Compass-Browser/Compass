@@ -661,6 +661,8 @@ time from its context menu.
   `SetTabAudioMuted()` with `TabMutedReason::kAudioIndicator`, as the tab
   strip's icon does.
 - **Mute Tab** / **Unmute Tab** in a live tab's context menu do the same.
+- **Ctrl+Shift+M** (`kToggleTabMuteCommand`, shortcuts.md) mutes or unmutes
+  the window's active tab; it can be changed on the shortcuts settings page.
 
 ## Folder collapse state
 

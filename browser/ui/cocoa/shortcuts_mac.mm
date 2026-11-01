@@ -42,6 +42,7 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
     {"next-tab", IDC_SELECT_NEXT_TAB, "Tabs", "Next tab"},
     {"previous-tab", IDC_SELECT_PREVIOUS_TAB, "Tabs", "Previous tab"},
+    {"mute-tab", kToggleTabMuteCommand, "Tabs", "Mute or unmute the tab"},
     {"reload", IDC_RELOAD, "Tabs", "Reload"},
     {"hard-reload", IDC_RELOAD_BYPASSING_CACHE, "Tabs",
      "Reload without the cache"},
@@ -274,6 +275,9 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
   shortcuts.push_back({/*command_key=*/true, /*shift_key=*/false,
                        /*cntrl_key=*/false, /*opt_key=*/true, kVK_ANSI_N,
                        kNewLittleWindowCommand});
+  shortcuts.push_back({/*command_key=*/false, /*shift_key=*/true,
+                       /*cntrl_key=*/true, /*opt_key=*/false, kVK_ANSI_M,
+                       kToggleTabMuteCommand});
 }
 
 base::span<const CustomizableCommand> GetCustomizableCommands() {

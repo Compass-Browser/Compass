@@ -119,6 +119,20 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
             kNewLittleWindowCommand);
 }
 
+// Ctrl+Shift+M mutes the active tab, and unmutes it.
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, MuteTabShortcut) {
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_M,
+                           NSEventModifierFlagControl | NSEventModifierFlagShift),
+            kToggleTabMuteCommand);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_FALSE(contents->IsAudioMuted());
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleTabMuteCommand));
+  EXPECT_TRUE(contents->IsAudioMuted());
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleTabMuteCommand));
+  EXPECT_FALSE(contents->IsAudioMuted());
+}
+
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CopyLinkCopiesThePageURL) {
   // Not the user's own clipboard.
   ui::TestClipboard* clipboard = ui::TestClipboard::CreateForCurrentThread();
