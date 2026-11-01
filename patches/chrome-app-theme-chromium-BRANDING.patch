@@ -1,5 +1,5 @@
 diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
-index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..a83dcdbefbb441c4bf9631dca826483ec3d6ebfa 100644
+index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..96593ded7910b778228f25892cffce9af563e796 100644
 --- a/chrome/app/theme/chromium/BRANDING
 +++ b/chrome/app/theme/chromium/BRANDING
 @@ -1,10 +1,10 @@
@@ -19,6 +19,6 @@ index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..a83dcdbefbb441c4bf9631dca826483e
 +PRODUCT_INSTALLER_FULLNAME=Compass Installer
 +PRODUCT_INSTALLER_SHORTNAME=Compass Installer
 +COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Compass Authors. All rights reserved.
-+MAC_BUNDLE_ID=org.compass-browser.Compass
++MAC_BUNDLE_ID=it.cipi1965.compass
 +MAC_CREATOR_CODE=Cmps
  MAC_TEAM_ID=
