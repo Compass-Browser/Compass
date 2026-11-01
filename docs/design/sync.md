@@ -172,7 +172,9 @@ can't read, and a wrong guess burns the code.
 1. On A, "Add a device": A opens a pairing slot on the server (signed
    request, as for sync). The server gives the lowest free slot number;
    the slot lives 5 minutes. A shows the code `<slot>-<6 digits>`, e.g.
-   `7-482913`, and a QR of the server URL and code (for phones later).
+   `7-482913`, and a QR code of the invite
+   `compass-pair:?server=<escaped server URL>&code=<code>` that a phone's
+   camera opens in Compass for iOS ("Pairing QR code" below).
    The slot number only finds the pairing; the 6 digits are the secret and
    never reach the server.
 2. On B, "I have another device": B enters the server URL (self-hosted:
@@ -265,6 +267,20 @@ message per step:
 "Use a recovery code" on B is the fallback: type the 12 words (BIP39
 autocomplete, checksum checked as you type).
 
+
+#### Pairing QR code
+
+While A shows the code (`kShowingCode`), the page handler also sends the
+invite and its QR (`Pairing.invite_url`, `qr`, `qr_size` in
+`compass_sync.mojom`): `CompassSyncPageHandler::PairingInviteUrl()` builds
+`compass-pair:?server=` + `base::EscapeQueryParamValue(server URL)` +
+`&code=` + the code, and `//components/qr_code_generator` (upstream's,
+Rust-backed) makes the modules. The page draws them as SVG, black on white
+with a four-module quiet zone whatever the theme. The iOS app's
+`PairingInvite(url:)` reads the escaped form (`PairingCryptoTests.
+parsesTheDesktopsEscapedInvite`). `tools/sync_e2e/sync_status.js` reports
+the invite as `qr`, and `decode_qr.swift` reads a screenshot back
+(MacBook run: [pairing-qr-steps.md](pairing-qr-steps.md)).
 ### Plugging it into Chromium
 
 The engine wants a signed-in account (`SyncAuthManager` gets an OAuth token

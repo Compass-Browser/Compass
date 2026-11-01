@@ -245,6 +245,14 @@
     padding: 3px 0;
   }
 
+  .compass-page #pairingQr svg {
+    display: block;
+    width: 184px;
+    height: 184px;
+    margin: 4px 0 8px;
+    border-radius: 8px;
+  }
+
   .compass-page .code {
     font-family: ui-monospace, monospace;
     font-size: 36px;
@@ -344,6 +352,11 @@
 
 <!-- Pairing, on either side. -->
 <section id="pairing" class="card" hidden>
+  <div id="pairingQrPanel" hidden>
+    <div id="pairingQr"></div>
+    <p class="note">On an iPhone, scan this with the camera, or type the
+      code below in Compass.</p>
+  </div>
   <div id="pairingCode" class="code"></div>
   <p id="pairingMessage"></p>
   <div id="confirm" hidden>

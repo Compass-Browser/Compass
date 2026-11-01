@@ -8,9 +8,11 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/strings/escape.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "compass/browser/sync/sync_settings.h"
+#include "components/qr_code_generator/qr_code_generator.h"
 
 namespace compass {
 namespace {
@@ -144,10 +146,43 @@ sync::mojom::ProfileMappingPtr CompassSyncPageHandler::ToMojo(
 }
 
 // static
+std::string CompassSyncPageHandler::PairingInviteUrl(
+    const std::string& server_url,
+    const std::string& code) {
+  if (server_url.empty() || code.empty()) {
+    return std::string();
+  }
+  return "compass-pair:?server=" +
+         base::EscapeQueryParamValue(server_url, /*use_plus=*/false) +
+         "&code=" + base::EscapeQueryParamValue(code, /*use_plus=*/false);
+}
+
+// static
 sync::mojom::PairingPtr CompassSyncPageHandler::ToMojo(
-    const sync::PairingStatus& pairing) {
-  return sync::mojom::Pairing::New(StepToMojo(pairing.step), pairing.code,
-                                   pairing.device_name, pairing.message);
+    const sync::PairingStatus& pairing,
+    const std::string& server_url) {
+  auto result = sync::mojom::Pairing::New();
+  result->step = StepToMojo(pairing.step);
+  result->code = pairing.code;
+  result->device_name = pairing.device_name;
+  result->message = pairing.message;
+  if (pairing.step != sync::PairingStep::kShowingCode) {
+    return result;
+  }
+  result->invite_url = PairingInviteUrl(server_url, pairing.code);
+  if (result->invite_url.empty()) {
+    return result;
+  }
+  auto qr = qr_code_generator::GenerateCode(
+      base::as_byte_span(result->invite_url));
+  if (qr.has_value()) {
+    result->qr.reserve(qr->data.size());
+    for (uint8_t module : qr->data) {
+      result->qr.push_back(module & 1);
+    }
+    result->qr_size = qr->qr_size;
+  }
+  return result;
 }
 
 // static
@@ -174,10 +209,14 @@ sync::mojom::DetailsPtr CompassSyncPageHandler::GetDetails() const {
   return ToMojo(controller_->GetDevices(), controller_->GetDataTypes());
 }
 
+sync::mojom::PairingPtr CompassSyncPageHandler::GetPairing() const {
+  return ToMojo(controller_->GetPairingStatus(),
+                controller_->GetStatus().server_url);
+}
+
 void CompassSyncPageHandler::GetState(GetStateCallback callback) {
   std::move(callback).Run(ToMojo(controller_->GetStatus()),
-                          ToMojo(controller_->GetPairingStatus()),
-                          GetDetails());
+                          GetPairing(), GetDetails());
 }
 
 void CompassSyncPageHandler::StartSync(const std::string& server_url,
@@ -296,8 +335,8 @@ void CompassSyncPageHandler::SetProfileMapping(
 }
 
 void CompassSyncPageHandler::OnSyncControllerChanged() {
-  page_->OnStateChanged(ToMojo(controller_->GetStatus()),
-                        ToMojo(controller_->GetPairingStatus()), GetDetails());
+  page_->OnStateChanged(ToMojo(controller_->GetStatus()), GetPairing(),
+                        GetDetails());
 }
 
 }  // namespace compass
