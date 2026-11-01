@@ -169,6 +169,30 @@ def past_versions(patches_dir: Path, patch: Path) -> List[bytes]:
   return versions
 
 
+def same_change(a: bytes, b: bytes) -> bool:
+  """Whether diffs |a| and |b| make the same change.
+
+  Ignores the function name git prints after a hunk's "@@ ... @@": it comes
+  from the diff driver, which differs between machines (e.g. an Objective-C
+  driver for .mm files on one Mac and none on Windows), so a patch exported
+  on one machine wouldn't match the same change diffed on another.
+  """
+  def normalized(text: bytes) -> List[bytes]:
+    lines = []
+    for line in text.replace(b'\r\n', b'\n').split(b'\n'):
+      if line.startswith(b'@@ '):
+        end = line.find(b' @@', 3)
+        if end != -1:
+          line = line[:end + 3]
+      lines.append(line)
+    return lines
+  return normalized(a) == normalized(b)
+
+
+def matches_a_version(change: bytes, versions: List[bytes]) -> bool:
+  return any(same_change(change, version) for version in versions)
+
+
 def restore(repo: Path, path: str) -> None:
   """Puts |path| back as the checkout has it (removes it if it's new)."""
   if git(['ls-files', '--error-unmatch', path], repo,
@@ -202,7 +226,8 @@ def sync(patches_dir: Path, src: Path) -> List[str]:
         print('applied   ' + _display(patch, patches_dir))
         continue
       path = target_path(patch)
-      if diff(repo, path) in past_versions(patches_dir, patch):
+      if matches_a_version(diff(repo, path),
+                            past_versions(patches_dir, patch)):
         restore(repo, path)
         if state(repo, patch) == NOT_APPLIED:
           git(['apply', patch], repo)
@@ -222,7 +247,7 @@ def sync(patches_dir: Path, src: Path) -> List[str]:
       if patch.exists():
         continue
       versions = past_versions(patches_dir, patch)
-      if versions and diff(repo, path) in versions:
+      if versions and matches_a_version(diff(repo, path), versions):
         restore(repo, path)
         print('removed   ' + _display(patch, patches_dir))
   return problems
