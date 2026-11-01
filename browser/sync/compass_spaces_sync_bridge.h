@@ -16,6 +16,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/components/sync/protocol/compass_spaces_specifics.pb.h"
@@ -49,11 +50,26 @@ inline constexpr base::TimeDelta kArchiveSyncPeriod = base::Days(30);
 // delays they drive are hours.
 inline constexpr base::TimeDelta kLastActiveGranularity = base::Minutes(1);
 
+// A space of the switcher (SpaceDirectory), of any profile, and the directory
+// position its profile's bridge last synced for it, if known (slice 5).
+struct DirectorySlot {
+  DirectorySlot();
+  DirectorySlot(std::string key,
+                std::optional<syncer::UniquePosition> position);
+  DirectorySlot(const DirectorySlot&);
+  DirectorySlot& operator=(const DirectorySlot&);
+  ~DirectorySlot();
+
+  std::string key;
+  std::optional<syncer::UniquePosition> position;
+};
+
 // Syncs a profile's spaces, their pinned trees and Today, their archives, its
 // favorites and folder collapse as COMPASS_SPACES (docs/design/sync.md, "The
 // COMPASS_SPACES data type", "Today across devices", "Slice 3 notes" and
 // "Slice 3b notes"). One per profile, owned (through SpaceService::Attachment)
-// by its SpaceService. New tab and blank pages in Today stay local.
+// by its SpaceService. New tab and blank pages in Today stay local. The home
+// profile's also carries the chain's profile list ("Slice 5 notes").
 //
 // It keeps a mirror: the specifics of every entity as the server last had
 // them (from a remote change or our own commit), saved in its DataTypeStore
@@ -96,6 +112,37 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     virtual bool IsInUse(const SidebarNode& entry);
     // Hands |from|'s live tab, if it has one, to |to|, if it has none.
     virtual void TransferLiveTab(const SidebarNode& from, SidebarNode& to) {}
+
+    // Profiles (slice 5; docs/design/sync.md, "Slice 5 notes"). The defaults
+    // are one profile that carries no profile list.
+    //
+    // The chain's profiles this device has, as entities, if this bridge
+    // carries the chain's profile list (the home profile's, once its
+    // chain is loaded); nullopt otherwise.
+    virtual std::optional<std::vector<sync_pb::CompassProfile>>
+    GetLocalProfiles();
+    // Every CompassProfile entity the bridge has, after it started and after
+    // a remote change brought one. Called while applying, before the pass
+    // that follows, so a profile renamed here doesn't echo.
+    virtual void OnChainProfiles(
+        const std::vector<sync_pb::CompassProfile>& profiles);
+    // The sync UUID of the bridge's profile, put on its spaces. Empty: left
+    // as received.
+    virtual std::string GetProfileUuid();
+    // Space |id| came from the server but isn't this profile's here; if
+    // another profile here has it, it was moved between profiles on another
+    // device: moves it here with its entries (MoveSpaceToProfile()) and
+    // returns it. Null if no other profile has it.
+    virtual SpaceModel* AdoptSpace(const base::Uuid& id);
+    // The switcher's spaces of every profile, in order, with the positions
+    // the other profiles' bridges synced for theirs, so this one's positions
+    // fall between them. Empty: only this profile's spaces count.
+    virtual std::vector<DirectorySlot> GetDirectoryOrder();
+    // This profile's spaces' directory positions as synced, after a pass
+    // (|remote| false) or a remote change (true).
+    virtual void OnSpacePositions(
+        const std::map<std::string, syncer::UniquePosition>& positions,
+        bool remote);
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -112,6 +159,10 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // The list's file has loaded. Sync starts once it has and the store is
   // read.
   void OnModelLoaded();
+
+  // Something the bridge doesn't observe changed (the switcher's order, the
+  // profiles): a pass looks for what to commit.
+  void NotifyLocalChange();
 
   // Commits local changes now rather than in a task.
   void SendLocalChangesForTesting() { SendLocalChanges(); }
@@ -177,6 +228,19 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   size_t SendLocalChangesTo(syncer::DataTypeStore::WriteBatch& batch);
   // Each entity's specifics as the model has it.
   Mirror ComputeLocalSpecifics() const;
+  // Directory positions for this profile's spaces |keys|, in the list's
+  // order, which had |existing|: among every profile's spaces if the
+  // delegate gives their order, else among these alone.
+  std::vector<syncer::UniquePosition> AssignSpacePositions(
+      const std::vector<std::string>& keys,
+      const std::vector<std::optional<syncer::UniquePosition>>& existing) const;
+  // The profile entities of |profiles| (GetLocalProfiles()) into |out|.
+  void AddLocalProfiles(const std::vector<sync_pb::CompassProfile>& profiles,
+                        Mirror& out) const;
+  // The CompassProfile entities of the mirror.
+  std::vector<sync_pb::CompassProfile> MirrorProfiles() const;
+  // Hands the spaces' synced positions to the delegate.
+  void ReportSpacePositions(bool remote);
   void AddLocalNodes(const SidebarNode& parent,
                      const std::string& parent_key,
                      int section,

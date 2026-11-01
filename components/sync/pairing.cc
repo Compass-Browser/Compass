@@ -424,6 +424,10 @@ void PairingHost::OnAlicePosted(int status, PairingClosedReason closed) {
   }
 }
 
+void PairingHost::SetProfiles(std::vector<ChainProfile> profiles) {
+  profiles_ = std::move(profiles);
+}
+
 void PairingHost::Answer(bool allow) {
   if (step_ != Step::kAsking) {
     return;
@@ -436,7 +440,7 @@ void PairingHost::Answer(bool allow) {
   if (allow) {
     base::DictValue payload;
     payload.Set("seed", base::Base64Encode(seed_));
-    payload.Set("profiles", base::ListValue());
+    payload.Set("profiles", ChainProfilesToValue(profiles_));
     std::optional<std::string> json =
         base::WriteJson(base::Value(std::move(payload)));
     CHECK(json);
@@ -695,6 +699,9 @@ bool PairingJoiner::HandleMessage(const PairingMessage& message) {
       }
       Seed seed;
       std::ranges::copy(*seed_bytes, seed.begin());
+      if (const base::ListValue* profiles = payload->FindList("profiles")) {
+        profiles_ = ChainProfilesFromValue(*profiles);
+      }
       Finish(Result::kJoined, seed, /*close=*/true);
       return false;
     }

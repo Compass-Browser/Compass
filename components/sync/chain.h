@@ -43,9 +43,14 @@ Seed GenerateSeed();
 // accounts (slice 5) pass the profile's sync UUID.
 AuthKey DeriveAuthKey(const Seed& seed, std::string_view profile_uuid = {});
 
-// HKDF-SHA256(seed, salt="", info="compass-sync-passphrase"), base64
-// (standard alphabet, padded): Chromium's custom sync passphrase.
-std::string DerivePassphrase(const Seed& seed);
+// HKDF-SHA256(seed, salt="", info="compass-sync-passphrase"[":" +
+// profile_uuid]), base64 (standard alphabet, padded): Chromium's custom sync
+// passphrase. As for DeriveAuthKey(), an empty |profile_uuid| gives the
+// chain's own (the home profile's); a profile account passes its sync UUID,
+// so each account has its own Nigori keys (docs/design/sync.md, "Slice 5
+// notes").
+std::string DerivePassphrase(const Seed& seed,
+                             std::string_view profile_uuid = {});
 
 PublicKey GetPublicKey(const AuthKey& key);
 

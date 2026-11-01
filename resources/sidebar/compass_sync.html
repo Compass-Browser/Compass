@@ -115,6 +115,21 @@
         opacity: 0.45;
       }
 
+      #mappingRows label {
+        display: block;
+        margin: 8px 0 0;
+      }
+
+      #mappingRows select {
+        background: var(--color-sys-base, #fff);
+        border: 1px solid var(--color-sys-outline, #747775);
+        border-radius: 8px;
+        color: inherit;
+        font: inherit;
+        margin-inline-start: 4px;
+        padding: 4px 8px;
+      }
+
       textarea {
         height: 76px;
         resize: vertical;
@@ -378,6 +393,18 @@
         </div>
       </section>
 
+      <!-- Joining with other profiles here: which of the chain's each takes
+           (slice 5). -->
+      <section id="mapping" class="card" hidden>
+        <p>This Mac has other profiles. Choose which profile of your other
+          devices each one syncs with.</p>
+        <div id="mappingRows"></div>
+        <div class="buttons">
+          <button id="mapProfiles">Continue</button>
+        </div>
+        <p id="mappingError" class="error"></p>
+      </section>
+
       <!-- On. -->
       <section id="on" hidden>
         <h2>Devices</h2>
@@ -389,6 +416,8 @@
         </div>
 
         <h2>What syncs</h2>
+        <p class="note">In this profile. Each profile has its own
+          switches.</p>
         <ul id="types" class="rows"></ul>
 
         <h2>Recovery code</h2>
@@ -416,6 +445,7 @@
         </div>
         <p id="onError" class="error"></p>
       </section>
+
     </main>
 
     <dialog id="confirmDialog">

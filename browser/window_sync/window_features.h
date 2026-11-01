@@ -195,7 +195,8 @@ void MoveEntry(Profile* profile,
 void DeleteSpace(Profile* profile, SpaceModel& space);
 
 // Assigns |space|, one of |from|'s, to |to|, as Arc does: a space of |to|
-// takes its place in the switcher with its name, color, entries and archive.
+// takes its place in the switcher with its ID (so sync sees the same space
+// move between the profiles' accounts), name, color, entries and archive.
 // Its live tabs can't change profile: they close, their entries stay, and
 // windows showing it swap to a window of |to| that loads the entry it showed.
 // |from| leaves the switcher if that was its last space. See

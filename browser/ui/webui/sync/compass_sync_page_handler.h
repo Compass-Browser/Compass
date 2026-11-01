@@ -58,6 +58,10 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void RevealRecoveryCode(RevealRecoveryCodeCallback callback) override;
   void ResetSync(ResetSyncCallback callback) override;
   void Restart() override;
+  void GetProfileMapping(GetProfileMappingCallback callback) override;
+  void SetProfileMapping(
+      std::vector<sync::mojom::ProfileMappingEntryPtr> mapping,
+      SetProfileMappingCallback callback) override;
 
   // sync::SyncController::Observer:
   void OnSyncControllerChanged() override;
@@ -67,6 +71,8 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   static sync::mojom::DetailsPtr ToMojo(
       const std::vector<sync::SyncDevice>& devices,
       const std::vector<sync::SyncDataTypeState>& types);
+  static sync::mojom::ProfileMappingPtr ToMojo(
+      const sync::ProfileMappingStatus& mapping);
 
  private:
   void OnReauthenticated(RevealRecoveryCodeCallback callback,

@@ -158,7 +158,9 @@ void SpaceDirectory::Unlist(Profile* profile) {
   auto it = members_.find(profile->GetPath());
   if (it != members_.end() && it->second->service) {
     for (const auto& space : it->second->service->space_list().spaces()) {
-      std::erase(order_, space->id());
+      if (!HasOtherSpaceWithId(*space)) {
+        std::erase(order_, space->id());
+      }
     }
   }
   Detach(profile->GetPath());
@@ -286,7 +288,23 @@ void SpaceDirectory::OnSpaceUpdated(const SpaceModel& space) {
 }
 
 void SpaceDirectory::OnSpaceWillBeRemoved(SpaceModel& space) {
-  std::erase(order_, space.id());
+  // A space moving to another profile keeps its ID, and its copy there its
+  // place.
+  if (!HasOtherSpaceWithId(space)) {
+    std::erase(order_, space.id());
+  }
+}
+
+bool SpaceDirectory::HasOtherSpaceWithId(const SpaceModel& space) const {
+  for (const auto& [path, member] : members_) {
+    SpaceModel* found =
+        member->service ? member->service->space_list().FindSpace(space.id())
+                        : nullptr;
+    if (found && found != &space) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void SpaceDirectory::OnSpaceRemoved() {
