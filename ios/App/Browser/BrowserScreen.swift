@@ -129,21 +129,23 @@ struct BrowserScreen: View {
     let canBack = view?.canGoBack ?? false
     let canForward = view?.canGoForward ?? false
     return HStack(spacing: 2) {
+      // Back and forward together on the left; both always there (dimmed
+      // when there's nowhere to go), so nothing shifts.
       Button { view?.goBack() } label: { BarIcon(symbol: "chevron.backward") }
         .disabled(!canBack)
         .opacity(canBack ? 1 : 0.3)
         .accessibilityLabel("Back")
+      Button { view?.goForward() } label: { BarIcon(symbol: "chevron.forward") }
+        .disabled(!canForward)
+        .opacity(canForward ? 1 : 0.3)
+        .accessibilityLabel("Forward")
       addressPill
-      if canForward {
-        Button { view?.goForward() } label: { BarIcon(symbol: "chevron.forward") }
-          .accessibilityLabel("Forward")
-          .transition(.scale.combined(with: .opacity))
-      }
       keyButton
+      Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
+        .accessibilityLabel("New tab")
       Button { app.showSidebar() } label: { BarIcon(symbol: "sidebar.left") }
         .accessibilityLabel("Sidebar")
     }
-    .animation(.snappy(duration: 0.2), value: canForward)
     // The sidebar's neutral look, not the system tint.
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
@@ -179,7 +181,8 @@ struct BrowserScreen: View {
   /// The site's icon and host, centered; the load progress as a thin line in
   /// the space's color along its bottom edge.
   private var addressPill: some View {
-    Button { app.showingCommandBar = true } label: {
+    // Edits the shown tab's address (a new tab when there's none).
+    Button { app.openCommandBar(newTab: app.shownTab == nil) } label: {
       HStack(spacing: 7) {
         if let tab = app.shownTab {
           SiteIcon(url: tab.url, size: 16)
@@ -231,14 +234,15 @@ struct BrowserScreen: View {
   }
 }
 
-/// A bottom-bar glyph on a 44 pt round target.
+/// A bottom-bar glyph on a 44 pt tall, 40 pt wide target (five fit beside
+/// the address pill).
 private struct BarIcon: View {
   let symbol: String
 
   var body: some View {
     Image(systemName: symbol)
       .font(.system(size: 18, weight: .semibold))
-      .frame(width: 44, height: 44)
+      .frame(width: 40, height: 44)
       .contentShape(Circle())
   }
 }

@@ -76,7 +76,7 @@ struct SidebarScreen: View {
       .scrollBounceBehavior(.basedOnSize)
       .fixedSize(horizontal: app.store.spaces.count < 7, vertical: false)
       Spacer(minLength: 4)
-      Button { app.showingCommandBar = true } label: {
+      Button { app.openCommandBar(newTab: true) } label: {
         Image(systemName: "plus").font(.system(size: 18, weight: .semibold)).frame(width: 44, height: 44)
       }
       .accessibilityLabel("New tab")
@@ -171,7 +171,7 @@ struct SpacePage: View {
           }
         }
         Button {
-          app.showingCommandBar = true
+          app.openCommandBar(newTab: true)
         } label: {
           HStack(spacing: 10) {
             Image(systemName: "plus")

@@ -34,6 +34,9 @@ final class AppModel {
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
+  /// The command bar opens a new tab (the "+" buttons), not the shown tab's
+  /// address (the address pill).
+  var commandBarNewTab = true
   var showingSettings = false
   /// After joining a chain: what came over (profiles and spaces).
   var showingJoinSummary = false
@@ -105,7 +108,7 @@ final class AppModel {
       if defaults.bool(forKey: "CompassCommandBar") {
         Task { [weak self] in
           try? await Task.sleep(for: .milliseconds(800))
-          self?.showingCommandBar = true
+          self?.openCommandBar(newTab: false)
         }
       }
       //   -CompassDebugJS <js>: run in each page once it has loaded.
@@ -216,6 +219,12 @@ final class AppModel {
     showingCommandBar = false
     showingSidebar = false
     sidebarHalf = false
+  }
+
+  /// The command bar: for a new tab, or to edit the shown tab's address.
+  func openCommandBar(newTab: Bool) {
+    commandBarNewTab = newTab
+    showingCommandBar = true
   }
 
   func showSidebar() {

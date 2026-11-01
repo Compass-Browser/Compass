@@ -83,6 +83,14 @@ struct CommandBar: View {
     .onAppear {
       text = replacing?.url ?? ""
       focused = true
+      // Editing the shown tab's address: all of it selected, so typing
+      // replaces it. Once the field has focus.
+      if !text.isEmpty {
+        Task {
+          try? await Task.sleep(for: .milliseconds(150))
+          UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
+        }
+      }
     }
   }
 

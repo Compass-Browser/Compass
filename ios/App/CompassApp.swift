@@ -64,8 +64,8 @@ struct RootView: View {
     BrowserScreen(node: app.selectedNode)
       .overlay { SidebarPanel() }
       .sheet(isPresented: $app.showingCommandBar) {
-        // From the sidebar, a new tab; from the browser, the shown tab.
-        CommandBar(replacing: app.showingSidebar ? nil : app.selectedNode.flatMap { $0.isTab ? $0 : nil })
+        // A new tab, or the shown tab's address.
+        CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)
       }
       .sheet(isPresented: $app.showingSettings) { SettingsView() }
   }
