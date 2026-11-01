@@ -17,6 +17,7 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/prefs/chrome_pref_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -308,6 +309,7 @@ ArcPaths GetArcPaths() {
     return *PathsForTesting();
   }
   ArcPaths paths;
+#if BUILDFLAG(IS_MAC)
   base::FilePath app_support;
   base::FilePath caches;
   if (base::PathService::Get(base::DIR_APP_DATA, &app_support)) {
@@ -318,6 +320,9 @@ ArcPaths GetArcPaths() {
   if (base::PathService::Get(base::DIR_CACHE, &caches)) {
     paths.cache = caches.AppendASCII("Arc").AppendASCII("User Data");
   }
+#endif
+  // Elsewhere the paths stay empty: Arc's data isn't found, so there is
+  // nothing to import (Arc for Windows keeps it inside its MSIX package).
   return paths;
 }
 
