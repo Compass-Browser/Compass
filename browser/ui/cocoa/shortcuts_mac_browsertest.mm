@@ -158,12 +158,6 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ToggleSidebar) {
 // The user's shortcuts (docs/design/shortcuts.md "Customizing") take over
 // from the defaults, in the main menu and outside it, and go away again.
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
-  // A page that can be saved: Save Page As is disabled on about:blank, and a
-  // disabled menu item's keys run nothing.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL("data:text/html,<p>Hello")));
-  ASSERT_TRUE(base::test::RunUntil(
-      [&] { return chrome::IsCommandEnabled(browser(), IDC_SAVE_PAGE); }));
   ShortcutSettings& settings = ShortcutSettings::Get();
   const ui::Accelerator cmd_shift_k(ui::VKEY_K,
                                     ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN);
@@ -184,10 +178,13 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
   EXPECT_TRUE(GetDefaultMacAcceleratorForCommandId(
       IDC_TOGGLE_VERTICAL_TABS_COLLAPSE, &shown));
   EXPECT_EQ(shown, cmd_shift_l);
-  // Save Page As, which has no shortcut, gets Cmd+S.
-  settings.SetCustom("save-page",
+  // The keys the sidebar toggle left go to another menu command: History,
+  // always enabled (Save Page As, which has none, is disabled in a test
+  // window, and a disabled item's keys run nothing).
+  settings.SetCustom("history",
                      ui::Accelerator(ui::VKEY_S, ui::EF_COMMAND_DOWN));
-  EXPECT_EQ(CommandForKeys(kVK_ANSI_S, kCommand), IDC_SAVE_PAGE);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_S, kCommand), IDC_SHOW_HISTORY);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_Y, kCommand), NO_COMMAND);
   // None: Reload loses Cmd+R.
   settings.SetCustom("reload", ui::Accelerator());
   EXPECT_EQ(CommandForKeys(kVK_ANSI_R, kCommand), NO_COMMAND);
@@ -204,6 +201,7 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
             IDC_TOGGLE_VERTICAL_TABS_COLLAPSE);
   EXPECT_EQ(CommandForKeys(kVK_ANSI_L, kCommandShift), NO_COMMAND);
   EXPECT_EQ(CommandForKeys(kVK_ANSI_R, kCommand), IDC_RELOAD);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_Y, kCommand), IDC_SHOW_HISTORY);
 }
 
 // While the settings page records keys, none of them runs a command.
