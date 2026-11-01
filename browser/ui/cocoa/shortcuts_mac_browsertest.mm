@@ -119,11 +119,10 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
             kNewLittleWindowCommand);
 }
 
-// Ctrl+Shift+M mutes the active tab, and unmutes it.
+// Cmd+Shift+M mutes the active tab, and unmutes it. It was upstream's
+// profile menu, which no longer has a shortcut.
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, MuteTabShortcut) {
-  EXPECT_EQ(CommandForKeys(kVK_ANSI_M,
-                           NSEventModifierFlagControl | NSEventModifierFlagShift),
-            kToggleTabMuteCommand);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_M, kCommandShift), kToggleTabMuteCommand);
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_FALSE(contents->IsAudioMuted());

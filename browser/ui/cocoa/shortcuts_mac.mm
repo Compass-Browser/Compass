@@ -271,13 +271,14 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
       // Was inspect element.
       shortcut.chrome_command = IDC_COPY_URL;
     }
+    if (shortcut.chrome_command == IDC_SHOW_AVATAR_MENU) {
+      // Cmd+Shift+M mutes the tab; the profile menu goes without a shortcut.
+      shortcut.chrome_command = kToggleTabMuteCommand;
+    }
   }
   shortcuts.push_back({/*command_key=*/true, /*shift_key=*/false,
                        /*cntrl_key=*/false, /*opt_key=*/true, kVK_ANSI_N,
                        kNewLittleWindowCommand});
-  shortcuts.push_back({/*command_key=*/false, /*shift_key=*/true,
-                       /*cntrl_key=*/true, /*opt_key=*/false, kVK_ANSI_M,
-                       kToggleTabMuteCommand});
 }
 
 base::span<const CustomizableCommand> GetCustomizableCommands() {
