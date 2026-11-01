@@ -34,7 +34,7 @@ struct SidebarPeek: View {
       let top = Self.top(app)
       let height = geo.size.height - top
       ZStack(alignment: .top) {
-        Color.black.opacity(Self.dim * progress)
+        Color.black.opacity(app.sidebarHandingOver ? 0 : Self.dim * progress)
         SidebarScreen()
           // The sheet keeps its content above the home indicator; this
           // copy is laid out with the safe areas ignored, so it adds that.

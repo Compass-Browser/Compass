@@ -26,6 +26,9 @@ final class AppModel {
   /// While the sidebar follows a swipe up from the browser's bar: how far
   /// up it is, 0 (hidden) to 1 (where the sheet sits). nil otherwise.
   var sidebarPeek: CGFloat?
+  /// The sheet is taking over from the peek: the peek stays under it but
+  /// stops dimming, as the sheet dims.
+  var sidebarHandingOver = false
   /// The sidebar sheet's top at full height, in screen points (measured
   /// while it's up), so the swipe hands over to the sheet in place.
   var sidebarSheetTop: CGFloat = 0

@@ -42,7 +42,9 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
       return
     }
     let host = UIHostingController(rootView: SidebarSheetRoot().environment(app))
-    host.view.backgroundColor = .clear
+    // Opaque: nothing behind the content shows through (black) before
+    // it has drawn.
+    host.view.backgroundColor = .systemBackground
     host.modalPresentationStyle = .pageSheet
     if let sheet = host.sheetPresentationController {
       sheet.detents = [.medium(), .large()]
@@ -54,10 +56,19 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
     controller = host
     var top = root
     while let presented = top.presentedViewController { top = presented }
-    top.present(host, animated: animated)
-    // The swiped-up copy goes in the same update the sheet comes in, so
-    // their dimming never stacks for a frame.
-    if app.sidebarPeek != nil { app.sidebarPeek = nil }
+    // Drawn before it's shown, so its first frame isn't empty.
+    host.view.frame = top.view.bounds
+    host.view.layoutIfNeeded()
+    // The swiped-up copy stays under the sheet until it's in, so there's
+    // always a sidebar on screen; only its dimming goes now, as the
+    // sheet's comes in, so the two never stack.
+    let handover = app.sidebarPeek != nil
+    if handover { app.sidebarHandingOver = true }
+    top.present(host, animated: animated) { [app] in
+      guard handover else { return }
+      app.sidebarPeek = nil
+      app.sidebarHandingOver = false
+    }
   }
 
   /// Closed by dragging it down.
