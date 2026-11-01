@@ -52,13 +52,13 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     ASSERT_TRUE(arc_dir_.CreateUniqueTempDir());
     ArcPaths paths;
-    paths.user_data = arc_dir_.GetPath().Append("User Data");
-    paths.cache = arc_dir_.GetPath().Append("Caches");
-    paths.sidebar = arc_dir_.GetPath().Append("StorableSidebar.json");
+    paths.user_data = arc_dir_.GetPath().AppendASCII("User Data");
+    paths.cache = arc_dir_.GetPath().AppendASCII("Caches");
+    paths.sidebar = arc_dir_.GetPath().AppendASCII("StorableSidebar.json");
     SetArcPathsForTesting(paths);
     SetArcKeychainPasswordForTesting(kArcPassword);
     SetArcRunningForTesting(false);
-    arc_profile_ = paths.user_data.Append("Default");
+    arc_profile_ = paths.user_data.AppendASCII("Default");
   }
 
   void TearDownOnMainThread() override {
@@ -90,10 +90,10 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
     const ChromiumMacCipher arc_cipher(kArcPassword);
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(base::CreateDirectory(arc_profile_));
-    ASSERT_TRUE(base::CopyFile(profile->GetPath().Append("Cookies"),
-                               arc_profile_.Append("Cookies")));
+    ASSERT_TRUE(base::CopyFile(profile->GetPath().AppendASCII("Cookies"),
+                               arc_profile_.AppendASCII("Cookies")));
     sql::Database db(sql::Database::Tag("Test"));
-    ASSERT_TRUE(db.Open(arc_profile_.Append("Cookies")));
+    ASSERT_TRUE(db.Open(arc_profile_.AppendASCII("Cookies")));
     std::vector<std::pair<int64_t, std::string>> rows;
     {
       sql::Statement select(db.GetUniqueStatement(
@@ -119,13 +119,11 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
   void WriteArcPreferences() {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(base::CreateDirectory(arc_profile_));
-    ASSERT_TRUE(base::WriteFile(
-        arc_profile_.Append("Preferences"),
-        R"({"profile": {"name": "Arc name"},
+    ASSERT_TRUE(base::WriteFile(arc_profile_.AppendASCII("Preferences"),
+                                R"({"profile": {"name": "Arc name"},
             "protection": {"super_mac": "ARC"}})"));
-    ASSERT_TRUE(base::WriteFile(
-        arc_profile_.Append("Secure Preferences"),
-        R"({"homepage": "https://home.test/",
+    ASSERT_TRUE(base::WriteFile(arc_profile_.AppendASCII("Secure Preferences"),
+                                R"({"homepage": "https://home.test/",
             "protection": {"macs": {"homepage": "ARCSIGNATURE"},
                            "super_mac": "ARC"}})"));
   }
@@ -217,13 +215,13 @@ void WriteArcSidebar() {
   base::ScopedAllowBlockingForTesting allow_blocking;
   const ArcPaths paths = GetArcPaths();
   for (const char* dir : {"Default", "Profile 1"}) {
-    ASSERT_TRUE(base::CreateDirectory(paths.user_data.Append(dir)));
+    ASSERT_TRUE(base::CreateDirectory(paths.user_data.AppendASCII(dir)));
     ASSERT_TRUE(base::WriteFile(
-        paths.user_data.Append(dir).Append("Preferences"), "{}"));
+        paths.user_data.AppendASCII(dir).AppendASCII("Preferences"), "{}"));
   }
   ASSERT_TRUE(base::WriteFile(paths.sidebar, kSidebar));
   ASSERT_TRUE(
-      base::WriteFile(paths.user_data.Append("Local State"), kLocalState));
+      base::WriteFile(paths.user_data.AppendASCII("Local State"), kLocalState));
 }
 
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
@@ -231,12 +229,12 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
     base::ScopedAllowBlockingForTesting allow_blocking;
     const ArcPaths paths = GetArcPaths();
     for (const char* dir : {"Default", "Profile 1"}) {
-      ASSERT_TRUE(base::CreateDirectory(paths.user_data.Append(dir)));
+      ASSERT_TRUE(base::CreateDirectory(paths.user_data.AppendASCII(dir)));
       ASSERT_TRUE(base::WriteFile(
-          paths.user_data.Append(dir).Append("Preferences"), "{}"));
+          paths.user_data.AppendASCII(dir).AppendASCII("Preferences"), "{}"));
     }
     ASSERT_TRUE(base::WriteFile(paths.sidebar, kSidebar));
-    ASSERT_TRUE(base::WriteFile(paths.user_data.Append("Local State"),
+    ASSERT_TRUE(base::WriteFile(paths.user_data.AppendASCII("Local State"),
                                 kLocalState));
   }
 

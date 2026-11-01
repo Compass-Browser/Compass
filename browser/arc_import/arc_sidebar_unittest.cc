@@ -256,7 +256,8 @@ TEST(ArcSidebarTest, DISABLED_RealSidebar) {
       base::Environment::Create()->GetVar("ARC_SIDEBAR");
   ASSERT_TRUE(path);
   std::string json;
-  ASSERT_TRUE(base::ReadFileToString(base::FilePath(*path), &json));
+  ASSERT_TRUE(
+      base::ReadFileToString(base::FilePath::FromUTF8Unsafe(*path), &json));
   std::optional<base::Value> value = base::JSONReader::Read(json, 0);
   ASSERT_TRUE(value && value->is_dict());
   std::optional<Sidebar> sidebar = ParseSidebar(value->GetDict(), nullptr);

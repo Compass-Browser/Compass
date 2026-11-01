@@ -91,8 +91,10 @@ namespace {
 // The bar: the traffic lights, back, the address and "Open in", centered on
 // one row at the top of the frame.
 constexpr int kBarHeight = 40;
+#if BUILDFLAG(IS_MAC)
 // Room for the traffic lights before the bar's controls.
 constexpr int kTrafficLightsWidth = 78;
+#endif
 
 bool g_creating_little_window = false;
 

@@ -154,6 +154,8 @@ source_set("ui") {
       "arc_import/arc_importer_mac.mm",
     ]
     deps += [ "//compass/browser/ui/cocoa:shortcuts" ]
+  } else {
+    sources += [ "arc_import/arc_importer_other.cc" ]
   }
 }
 

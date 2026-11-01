@@ -182,6 +182,28 @@ class PatchSyncTest(unittest.TestCase):
         state == patches.APPLIED
         for state in patches.status(self.patches_dir, self.src).values()))
 
+  def test_updates_patches_exported_with_another_diff_driver(self):
+    # The old version was exported on a machine whose diff driver puts a
+    # function name after the hunk header; this one prints none.
+    self.commit_patches('deps = [\n  ":a",\n  ":b",\n]\n', keep_applied=True)
+    patch = self.patches_dir / 'chrome-BUILD.gn.patch'
+    text = patch.read_bytes()
+    self.assertIn(b' @@\n', text)
+    patch.write_bytes(text.replace(b' @@\n', b' @@ deps = [\n', 1))
+    git(self.base, 'commit', '-qa', '--amend', '--no-edit')
+    self.commit_patches('deps = [\n  ":c",\n  ":a",\n]\n')
+    self.build_gn.write_text('deps = [\n  ":a",\n  ":b",\n]\n')
+
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(problems, [])
+    self.assertEqual(self.build_gn.read_text(), 'deps = [\n  ":c",\n  ":a",\n]\n')
+
+  def test_same_change_ignores_hunk_header_context(self):
+    a = b'--- a/x\n+++ b/x\n@@ -1,2 +1,3 @@ int f() {\n a\n+b\n'
+    b = b'--- a/x\n+++ b/x\n@@ -1,2 +1,3 @@\n a\n+b\n'
+    self.assertTrue(patches.same_change(a, b))
+    self.assertFalse(patches.same_change(a, b.replace(b'+b', b'+c')))
+
   def test_keeps_edits_that_no_patch_has(self):
     self.commit_patches('deps = [\n  ":a",\n  ":b",\n]\n')
     self.build_gn.write_text('deps = [\n  ":local",\n]\n')

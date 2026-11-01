@@ -32,25 +32,28 @@ class ProfileCopyTest : public testing::Test {
  protected:
   void SetUp() override {
     ASSERT_TRUE(dir_.CreateUniqueTempDir());
-    arc_ = dir_.GetPath().Append("Arc/Default");
-    arc_cache_ = dir_.GetPath().Append("ArcCache/Default");
-    compass_ = dir_.GetPath().Append("Compass/Profile 3");
-    compass_cache_ = dir_.GetPath().Append("CompassCache/Profile 3");
-    ASSERT_TRUE(base::CreateDirectory(arc_.Append("Local Storage/leveldb")));
-    ASSERT_TRUE(base::WriteFile(arc_.Append("Local Storage/leveldb/000003.log"),
-                                "storage"));
-    ASSERT_TRUE(base::WriteFile(arc_.Append("Preferences"), "{}"));
-    ASSERT_TRUE(base::WriteFile(arc_.Append("LOCK"), ""));
-    ASSERT_TRUE(base::CreateDirectory(arc_.Append("Sessions")));
-    ASSERT_TRUE(base::WriteFile(arc_.Append("Sessions/Session_1"), "tabs"));
-    ASSERT_TRUE(base::CreateDirectory(arc_cache_.Append("Cache/Cache_Data")));
+    arc_ = dir_.GetPath().AppendASCII("Arc/Default");
+    arc_cache_ = dir_.GetPath().AppendASCII("ArcCache/Default");
+    compass_ = dir_.GetPath().AppendASCII("Compass/Profile 3");
+    compass_cache_ = dir_.GetPath().AppendASCII("CompassCache/Profile 3");
     ASSERT_TRUE(
-        base::WriteFile(arc_cache_.Append("Cache/Cache_Data/index"), "idx"));
+        base::CreateDirectory(arc_.AppendASCII("Local Storage/leveldb")));
+    ASSERT_TRUE(base::WriteFile(
+        arc_.AppendASCII("Local Storage/leveldb/000003.log"), "storage"));
+    ASSERT_TRUE(base::WriteFile(arc_.AppendASCII("Preferences"), "{}"));
+    ASSERT_TRUE(base::WriteFile(arc_.AppendASCII("LOCK"), ""));
+    ASSERT_TRUE(base::CreateDirectory(arc_.AppendASCII("Sessions")));
+    ASSERT_TRUE(
+        base::WriteFile(arc_.AppendASCII("Sessions/Session_1"), "tabs"));
+    ASSERT_TRUE(
+        base::CreateDirectory(arc_cache_.AppendASCII("Cache/Cache_Data")));
+    ASSERT_TRUE(base::WriteFile(
+        arc_cache_.AppendASCII("Cache/Cache_Data/index"), "idx"));
 
     // Cookies: two encrypted with Arc's key, one Arc's key can't read, one
     // unencrypted.
     sql::Database cookies(sql::Database::Tag("Test"));
-    ASSERT_TRUE(cookies.Open(arc_.Append("Cookies")));
+    ASSERT_TRUE(cookies.Open(arc_.AppendASCII("Cookies")));
     ASSERT_TRUE(cookies.Execute(
         "CREATE TABLE cookies (host_key TEXT, value TEXT, "
         "encrypted_value BLOB)"));
@@ -62,7 +65,7 @@ class ProfileCopyTest : public testing::Test {
     cookies.Close();
 
     sql::Database logins(sql::Database::Tag("Test"));
-    ASSERT_TRUE(logins.Open(arc_.Append("Login Data")));
+    ASSERT_TRUE(logins.Open(arc_.AppendASCII("Login Data")));
     ASSERT_TRUE(logins.Execute(
         "CREATE TABLE logins (origin_url TEXT, password_value BLOB)"));
     ASSERT_TRUE(logins.Execute(
@@ -106,17 +109,17 @@ class ProfileCopyTest : public testing::Test {
 
 TEST_F(ProfileCopyTest, CopiesFilesButNotLocksOrWindows) {
   ASSERT_TRUE(Copy().ok);
-  EXPECT_TRUE(base::PathExists(compass_.Append("Preferences")));
+  EXPECT_TRUE(base::PathExists(compass_.AppendASCII("Preferences")));
   std::string storage;
   ASSERT_TRUE(base::ReadFileToString(
-      compass_.Append("Local Storage/leveldb/000003.log"), &storage));
+      compass_.AppendASCII("Local Storage/leveldb/000003.log"), &storage));
   EXPECT_EQ(storage, "storage");
-  EXPECT_FALSE(base::PathExists(compass_.Append("LOCK")));
-  EXPECT_FALSE(base::PathExists(compass_.Append("Sessions")));
+  EXPECT_FALSE(base::PathExists(compass_.AppendASCII("LOCK")));
+  EXPECT_FALSE(base::PathExists(compass_.AppendASCII("Sessions")));
   EXPECT_TRUE(
-      base::PathExists(compass_cache_.Append("Cache/Cache_Data/index")));
+      base::PathExists(compass_cache_.AppendASCII("Cache/Cache_Data/index")));
   // Arc's own files are left as they were.
-  EXPECT_TRUE(base::PathExists(arc_.Append("Sessions/Session_1")));
+  EXPECT_TRUE(base::PathExists(arc_.AppendASCII("Sessions/Session_1")));
 }
 
 TEST_F(ProfileCopyTest, ReencryptsCookiesAndPasswords) {
@@ -126,7 +129,7 @@ TEST_F(ProfileCopyTest, ReencryptsCookiesAndPasswords) {
   EXPECT_EQ(result.dropped_cookies, 1);
 
   sql::Database cookies(sql::Database::Tag("Test"));
-  ASSERT_TRUE(cookies.Open(compass_.Append("Cookies")));
+  ASSERT_TRUE(cookies.Open(compass_.AppendASCII("Cookies")));
   sql::Statement select(cookies.GetUniqueStatement(
       "SELECT host_key, encrypted_value FROM cookies ORDER BY host_key"));
   std::vector<std::pair<std::string, std::string>> rows;
@@ -141,7 +144,7 @@ TEST_F(ProfileCopyTest, ReencryptsCookiesAndPasswords) {
   EXPECT_EQ(rows[2].first, "d.test");
 
   sql::Database logins(sql::Database::Tag("Test"));
-  ASSERT_TRUE(logins.Open(compass_.Append("Login Data")));
+  ASSERT_TRUE(logins.Open(compass_.AppendASCII("Login Data")));
   sql::Statement password(
       logins.GetUniqueStatement("SELECT password_value FROM logins"));
   ASSERT_TRUE(password.Step());

@@ -179,7 +179,7 @@ CopyResult CopyProfile(const base::FilePath& from,
   }
   bool ok = CopyTree(from, to);
   for (const char* name : kEncryptedDatabases) {
-    const base::FilePath database = to.Append(name);
+    const base::FilePath database = to.AppendASCII(name);
     if (ok && base::PathExists(database)) {
       ok = ReencryptDatabase(database, reencrypt, result);
     }
