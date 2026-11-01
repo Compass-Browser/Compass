@@ -21,6 +21,8 @@ targets:
   Compass:
     type: application
     platform: iOS
+    scheme:
+      testTargets: [CompassUITests]
     sources:
       - path: App
       # The desktop's Icon Composer icon, shared.
@@ -116,3 +118,16 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.autofill
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
+  # Real touches (gestures), checked from screenshots taken meanwhile.
+  CompassUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Compass
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"

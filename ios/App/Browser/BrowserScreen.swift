@@ -151,32 +151,35 @@ struct BrowserScreen: View {
     .floatingGlass(in: Capsule())
     .padding(.horizontal, 12)
     .padding(.bottom, 2)
-    .gesture(
-      DragGesture(minimumDistance: 12)
+    // Over the buttons' own gestures (the address pill covers most of the
+    // bar): a tap never moves 12 pt, so buttons still get taps.
+    .highPriorityGesture(
+      DragGesture(minimumDistance: 12, coordinateSpace: .global)
         .onChanged { value in
           let (dx, dy) = (value.translation.width, value.translation.height)
           if dragAxis == nil { dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical }
-          if dragAxis == .vertical { app.sidebarPeek = peek(dy) }
+          if dragAxis == .vertical { app.sidebarPeek = peek(at: value.location.y) }
         }
         .onEnded { value in
           defer { dragAxis = nil }
           if dragAxis == .horizontal {
             if abs(value.translation.width) > 30 { step(value.translation.width < 0 ? 1 : -1) }
           } else if app.sidebarPeek != nil {
-            finishPeek(predicted: peek(value.predictedEndTranslation.height))
+            finishPeek(predicted: peek(at: value.predictedEndLocation.y))
           }
         })
   }
 
-  /// The sidebar's height while it follows the finger: the screen below
-  /// where the sheet sits.
-  private var peekHeight: CGFloat {
-    let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 800
-    return max(screen - SidebarPeek.top(app), 1)
+  private var screenHeight: CGFloat {
+    (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 800
   }
 
-  /// A drag's vertical translation as the sidebar's 0...1 position.
-  private func peek(_ dy: CGFloat) -> CGFloat { min(max(-dy / peekHeight, 0), 1) }
+  /// The sidebar's 0...1 position with its top edge under the finger (at
+  /// `y` on screen): it comes up with the finger, not behind it.
+  private func peek(at y: CGFloat) -> CGFloat {
+    let height = max(screenHeight - SidebarPeek.top(app), 1)
+    return min(max((screenHeight - y) / height, 0), 1)
+  }
 
   /// Open if it's past halfway, or flicked up far enough to get there;
   /// otherwise slide back down. Opening hands over to the real sheet, with

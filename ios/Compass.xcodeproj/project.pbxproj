@@ -29,6 +29,7 @@
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		C50098134F965E6A549044FE /* CompassCrypto in Frameworks */ = {isa = PBXBuildFile; productRef = 6CF1BD16AA45CC47E4C07023 /* CompassCrypto */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassModel in Frameworks */ = {isa = PBXBuildFile; productRef = 8529FEBC80A94CC60F3F9BC7 /* CompassModel */; };
+		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
 		EF878A901726400229527CA0 /* AutoFill.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7E7EB3C486245AA52EAADF2F /* AutoFill.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2B8A168816D005B0C1644F /* BrowserScreen.swift */; };
 		F3F0081DEDB6744DFCFEAEE0 /* PasswordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */; };
@@ -42,6 +43,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A23BF008CEC807ECD67334CB;
 			remoteInfo = AutoFill;
+		};
+		C6DC551B5354B18925BE0A07 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C1B9F3454E75584C81FDDD47 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C23284A2EB3EEBECE44ACBF;
+			remoteInfo = Compass;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -65,8 +73,10 @@
 		1BD1561E3D74DB1D613CF34A /* Compass.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Compass.entitlements; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
+		274CFEB2D09654A821D49C1C /* CompassUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CompassUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		29EEA337DD801A959B39B43F /* SyncController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncController.swift; sourceTree = "<group>"; };
 		2B2B8A168816D005B0C1644F /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
+		2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeUpTests.swift; sourceTree = "<group>"; };
 		32AD0FC2A4DD49EA6D182F11 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordScript.swift; sourceTree = "<group>"; };
 		40E0A58F6209D1FDB5E4BF4A /* AutoFill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutoFill.entitlements; sourceTree = "<group>"; };
@@ -128,6 +138,14 @@
 			);
 			name = "ios-m0";
 			path = ..;
+			sourceTree = "<group>";
+		};
+		4EDF2C416F9996DA147F9EFF /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */,
+			);
+			path = UITests;
 			sourceTree = "<group>";
 		};
 		527A527228FCD9348C7FBC59 /* assets */ = {
@@ -193,6 +211,7 @@
 				96595F1E9E11998FE879E9F7 /* AutoFill */,
 				486DDEF44B2C55A0F474D2E5 /* ios-m0 */,
 				F402BF037897FEB15FFE5C17 /* Packages */,
+				4EDF2C416F9996DA147F9EFF /* UITests */,
 				2327E145F8CF5C840AC1DCA3 /* Frameworks */,
 				FB16DD71CBDF85F8C3F2A524 /* Products */,
 			);
@@ -232,6 +251,7 @@
 			children = (
 				7E7EB3C486245AA52EAADF2F /* AutoFill.appex */,
 				1BF57BA01F2477CA55BC7407 /* Compass.app */,
+				274CFEB2D09654A821D49C1C /* CompassUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -239,6 +259,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3A28C90D87E32ECAA38DBD09 /* CompassUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1C43D12E4D36DE74131258F4 /* Build configuration list for PBXNativeTarget "CompassUITests" */;
+			buildPhases = (
+				AA153FEAB387E9FB1995F041 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB85D0327070A81D0E8DC4C8 /* PBXTargetDependency */,
+			);
+			name = CompassUITests;
+			packageProductDependencies = (
+			);
+			productName = CompassUITests;
+			productReference = 274CFEB2D09654A821D49C1C /* CompassUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		5C23284A2EB3EEBECE44ACBF /* Compass */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 736BBCFB300E9B48B77F5B03 /* Build configuration list for PBXNativeTarget "Compass" */;
@@ -291,6 +329,11 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					3A28C90D87E32ECAA38DBD09 = {
+						DevelopmentTeam = 4M33B5HNDS;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 5C23284A2EB3EEBECE44ACBF;
+					};
 					5C23284A2EB3EEBECE44ACBF = {
 						DevelopmentTeam = 4M33B5HNDS;
 						ProvisioningStyle = Automatic;
@@ -320,6 +363,7 @@
 			targets = (
 				5C23284A2EB3EEBECE44ACBF /* Compass */,
 				A23BF008CEC807ECD67334CB /* AutoFill */,
+				3A28C90D87E32ECAA38DBD09 /* CompassUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -369,6 +413,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA153FEAB387E9FB1995F041 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -376,6 +428,11 @@
 			isa = PBXTargetDependency;
 			target = A23BF008CEC807ECD67334CB /* AutoFill */;
 			targetProxy = 872B4DF7676069B5BF1EE014 /* PBXContainerItemProxy */;
+		};
+		AB85D0327070A81D0E8DC4C8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C23284A2EB3EEBECE44ACBF /* Compass */;
+			targetProxy = C6DC551B5354B18925BE0A07 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -465,6 +522,23 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
+		};
+		180D9CE686A9D1E38465CFEC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Compass;
+			};
+			name = Debug;
 		};
 		2BBFBFAF960935E7517992A8 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -579,9 +653,35 @@
 			};
 			name = Debug;
 		};
+		E5271BDE7818755699A921F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Compass;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1C43D12E4D36DE74131258F4 /* Build configuration list for PBXNativeTarget "CompassUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				180D9CE686A9D1E38465CFEC /* Debug */,
+				E5271BDE7818755699A921F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		6BCFD8AB960C03639906176B /* Build configuration list for PBXNativeTarget "AutoFill" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
