@@ -1,6 +1,6 @@
 # Compass for iOS
 
-Status: M0–M7 written and tested on the Mac and in the simulator (2026-11-01). Still open: the desktop QR code, an interop run against a desktop Compass on sync-main, and a signed device / TestFlight build ("Open items" at the end).
+Status: M0–M7 written and tested on the Mac and in the simulator (2026-11-01). Still open: the desktop QR code, an interop run against a desktop Compass on sync-main, and the first TestFlight upload ("Open items" at the end).
 
 **Working on it:**
 
@@ -210,7 +210,7 @@ Desktop QR pairing (desktop item 1) runs in parallel with M2.
 - **SyncProto.** It holds 96 generated files (2.4 MB) from 156.0.8078.48 with protoc-gen-swift 1.39.0. SwiftProtobuf is pinned to exactly 1.39.0 to match the generator.
   - The Compass files are `components/sync/protocol/compass_spaces_specifics.proto` and the EntitySpecifics patch. `gen_protos.sh` reads them from the tree, or from `origin/sync-main` until that branch is merged.
   - The real proto is the reference, not this doc's sketch. It uses int32 values, not proto enums (section 1 PINNED … 4 ARCHIVE; type 1 TAB, 2 FOLDER, 3 SPLIT; 0 = unset), and `UniquePosition` messages, not bytes.
-- **App.** The bundle ID is `it.cvm.compass`. `DEVELOPMENT_TEAM` is empty; set it for device and TestFlight builds.
+- **App.** The bundle ID is `it.cvm.compass`. Team `4M33B5HNDS` since 2026-11-01 (see "Open items", TestFlight).
   - The icon is the desktop's Icon Composer file (`assets/Compass.icon`), used as is.
   - M0 is one WKWebView with an address bar, run in the simulator (iPhone 18 Pro, iOS 27.1).
 
@@ -387,10 +387,11 @@ The command bar's history and "Tabs on <Mac>" come with M5.
    - the phone appears in the desktop's device list and its "Tabs on other devices".
 
    Everything is built to the desktop's code and test vectors, but nothing has met a real Chromium yet.
-3. **Device and TestFlight build.**
-   - Set `DEVELOPMENT_TEAM` in `ios/project.yml` and run `compass ios gen`.
-   - Enable the capabilities "AutoFill Credential Provider" and "Keychain Sharing" (group `it.cvm.compass.shared`) for `it.cvm.compass` and `it.cvm.compass.autofill`.
-   - Archive in Xcode and upload. iOS then lists Compass under Settings → Passwords → AutoFill.
+3. **First TestFlight upload.** Set up on 2026-11-01:
+   - Team `4M33B5HNDS`, automatic signing. The entitlements are in `project.yml`: the Keychain group `<team>.it.cvm.compass.shared` in both targets (no capability needed on the developer site) and the AutoFill Credential Provider in the extension (that one is a capability of the App ID `it.cvm.compass.autofill`).
+   - `ITSAppUsesNonExemptEncryption = false` (standard algorithms protecting the user's own data) and `App/PrivacyInfo.xcprivacy` (no tracking, no collected data, `UserDefaults` CA92.1).
+   - `compass ios archive` makes a Release archive with the build number set to the time (`YYYYMMDDHHMM`) and exports `ios/build/archive/export/Compass.ipa`. `--upload` sends it to App Store Connect instead; `--api-key/--api-key-id/--api-issuer` sign with an API key when Xcode has no account. The first export worked with the Xcode account on the Mac mini.
+   - Still to do: the app record in App Store Connect (bundle ID `it.cvm.compass`), then the first `--upload`. iOS then lists Compass under Settings → Passwords → AutoFill.
 4. **Per-profile accounts (desktop slice 5).** The phone syncs the chain's home account only. Spaces of other profiles live in their own accounts (`compass-sync-auth:<uuid>`) and don't appear yet. The `CompassProfile` entities are kept in the mirror, unused.
 5. **iPad.** A desktop-style sidebar next to the page, and splits side by side.
 6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.

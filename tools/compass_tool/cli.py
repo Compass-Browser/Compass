@@ -324,6 +324,9 @@ def cmd_ios(layout: Layout, args) -> None:
     run(['xcodegen'], ios)
     return
   run([ios / 'scripts' / 'fetch_boringssl.sh'], ios)
+  if args.action == 'archive':
+    ios_archive(ios, args)
+    return
   if args.action == 'test':
     cmd = ['swift', 'test']
     if args.filter:
@@ -360,6 +363,47 @@ def cmd_ios(layout: Layout, args) -> None:
     import time
     time.sleep(args.wait)
     run(['xcrun', 'simctl', 'io', udid, 'screenshot', args.screenshot], ios)
+
+
+IOS_TEAM = '4M33B5HNDS'
+
+
+def ios_archive(ios: Path, args) -> None:
+  """A Release archive exported for App Store Connect (TestFlight), signed
+  automatically with the team in project.yml. The build number is the time,
+  so every upload is higher than the last."""
+  import plistlib
+  import time
+  out = ios / 'build' / 'archive'
+  if out.exists():
+    shutil.rmtree(out)
+  out.mkdir(parents=True)
+  archive = out / 'Compass.xcarchive'
+  auth = ['-allowProvisioningUpdates']
+  if args.api_key:
+    # App Store Connect API key, for signing without an Xcode account.
+    auth += ['-authenticationKeyPath', str(Path(args.api_key).resolve()),
+             '-authenticationKeyID', args.api_key_id,
+             '-authenticationKeyIssuerID', args.api_issuer]
+  build_number = time.strftime('%Y%m%d%H%M')
+  run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
+       'Compass', '-configuration', 'Release', '-destination',
+       'generic/platform=iOS', '-archivePath', archive,
+       '-derivedDataPath', ios / 'build' / 'DerivedData-archive',
+       'CURRENT_PROJECT_VERSION=' + build_number, 'archive'] + auth, ios)
+  options = out / 'ExportOptions.plist'
+  options.write_bytes(plistlib.dumps({
+      'method': 'app-store-connect',
+      'destination': 'upload' if args.upload else 'export',
+      'teamID': IOS_TEAM,
+      'signingStyle': 'automatic',
+      'manageAppVersionAndBuildNumber': False,
+  }))
+  run(['xcodebuild', '-exportArchive', '-archivePath', archive,
+       '-exportOptionsPlist', options, '-exportPath', out / 'export'] + auth,
+      ios)
+  print('build %s: %s' % (build_number, 'uploaded to App Store Connect'
+                          if args.upload else out / 'export' / 'Compass.ipa'))
 
 
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
@@ -445,7 +489,7 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('ios', help='Compass for iOS: gen the Xcode project, '
                      'test CompassKit, build, or run in a headless simulator')
-  s.add_argument('action', choices=['gen', 'test', 'build', 'sim'])
+  s.add_argument('action', choices=['gen', 'test', 'build', 'sim', 'archive'])
   s.add_argument('--filter', help='test: only tests matching this')
   s.add_argument('--sync-server', metavar='PATH|build',
                  help='test: also run the engine tests against this sync '
@@ -457,6 +501,14 @@ def parser() -> argparse.ArgumentParser:
                  help='sim: seconds before the screenshot')
   s.add_argument('--app-arg', dest='app_args', action='append', default=[],
                  help='sim: a launch argument for the app (repeatable)')
+  s.add_argument('--upload', action='store_true',
+                 help='archive: upload to App Store Connect (TestFlight) '
+                 'instead of exporting the .ipa')
+  s.add_argument('--api-key', metavar='P8',
+                 help='archive: App Store Connect API key (.p8), when Xcode '
+                 'has no account signed in')
+  s.add_argument('--api-key-id', help='archive: with --api-key, its key ID')
+  s.add_argument('--api-issuer', help='archive: with --api-key, the issuer ID')
   s.set_defaults(func=cmd_ios)
   return p
 

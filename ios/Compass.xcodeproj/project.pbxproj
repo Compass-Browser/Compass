@@ -20,6 +20,7 @@
 		86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEA337DD801A959B39B43F /* SyncController.swift */; };
 		90E62600DBC31089EED9F6D5 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9916DE7F5FD4040F40A90C /* CompassSync */; };
 		92E78CB5FCC5B40329F43E09 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */; };
+		9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */; };
 		A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */; };
 		AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC2CC0BF44F21272D32F82C /* TabManager.swift */; };
 		B9397EAC3B0E3F43993B7540 /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 19C930BCE2BBF5B7C689E3A9 /* Compass.icon */; };
@@ -80,6 +81,7 @@
 		C98F12601AB2AF4C69845C13 /* CompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassApp.swift; sourceTree = "<group>"; };
 		D19E94079AACC148BDF33673 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F00421F26DEF62FA9775146B /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		F4A5EB9B8FCF536C41FE6951 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -170,6 +172,7 @@
 				1BD1561E3D74DB1D613CF34A /* Compass.entitlements */,
 				C98F12601AB2AF4C69845C13 /* CompassApp.swift */,
 				0655D4DC672C6C26B715EF5E /* Info.plist */,
+				EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */,
 				D3B3BFB50B54351850942339 /* Browser */,
 				D03B8DA0821794B8BA9FD4BF /* Model */,
 				B991DC56A32061AF58E7EA14 /* Passwords */,
@@ -283,10 +286,12 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					5C23284A2EB3EEBECE44ACBF = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 4M33B5HNDS;
+						ProvisioningStyle = Automatic;
 					};
 					A23BF008CEC807ECD67334CB = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 4M33B5HNDS;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -320,6 +325,7 @@
 			files = (
 				A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */,
 				B9397EAC3B0E3F43993B7540 /* Compass.icon in Resources */,
+				9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -399,10 +405,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 4M33B5HNDS;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -484,10 +491,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 4M33B5HNDS;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

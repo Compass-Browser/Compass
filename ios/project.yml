@@ -10,8 +10,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    # Set your team here, or in Xcode, for device and TestFlight builds.
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: 4M33B5HNDS
+    CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 packages:
@@ -28,6 +28,11 @@ targets:
         buildPhase: resources
     entitlements:
       path: App/Compass.entitlements
+      properties:
+        # Shared with the AutoFill extension (passwords). Needs no
+        # capability on the developer site; the team prefix is enough.
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)it.cvm.compass.shared
     dependencies:
       - target: AutoFill
         embed: true
@@ -41,6 +46,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Compass
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -57,6 +64,10 @@ targets:
             CFBundleURLSchemes: [compass-pair]
         BGTaskSchedulerPermittedIdentifiers: [it.cvm.compass.refresh]
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cvm.compass.shared
+        # Export compliance: standard algorithms (AES, HMAC, Ed25519,
+        # SPAKE2, scrypt) protecting the user's own data, which is exempt.
+        # Saves answering the question for every TestFlight build.
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.cvm.compass
@@ -71,6 +82,12 @@ targets:
       - path: AutoFill
     entitlements:
       path: AutoFill/AutoFill.entitlements
+      properties:
+        # The App ID it.cvm.compass.autofill needs the AutoFill Credential
+        # Provider capability on the developer site.
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)it.cvm.compass.shared
     dependencies:
       - package: CompassKit
         product: CompassSync
@@ -79,6 +96,8 @@ targets:
       path: AutoFill/Info.plist
       properties:
         CFBundleDisplayName: Compass
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cvm.compass.shared
         NSExtension:
           NSExtensionPointIdentifier: com.apple.authentication-services-credential-provider-ui
