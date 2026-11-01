@@ -913,10 +913,9 @@ void CompassSyncService::AddDevice() {
 
 void CompassSyncService::OnPairingCode(const std::string& code,
                                        base::TimeDelta expires_in) {
-  SetPairing({PairingStep::kShowingCode,
-              code,
-              {},
-              "Enter this code on the other device within 5 minutes."});
+  SetPairing({PairingStep::kShowingCode, code, {},
+              "Enter this code on the other device.",
+              base::Time::Now() + expires_in});
 }
 
 void CompassSyncService::OnPairingRequest(const std::string& device_name) {

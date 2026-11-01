@@ -46,6 +46,9 @@ struct Pairing {
   string invite_url;
   array<uint8> qr;
   int32 qr_size;
+  // While A shows the code: when it expires, in ms since the Unix epoch
+  // (the page counts down to it). 0 otherwise.
+  double expires_at_ms;
 };
 
 // The page's switches; see compass::sync::SyncDataType.

@@ -68,6 +68,9 @@ struct PairingStatus {
   std::string code;
   std::string device_name;
   std::string message;
+  // kShowingCode: when the code stops working (the server's slot
+  // expires_in after it opened). Null otherwise.
+  base::Time expires_at;
 };
 
 // The switches on chrome://compass-sync, one per kind of data the user
