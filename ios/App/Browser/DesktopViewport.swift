@@ -6,12 +6,14 @@ import WebKit
 
 /// The desktop site's viewport. On the iPhone, WebKit's desktop content mode
 /// changes the user agent but still honors a page's `width=device-width`,
-/// so media queries see a phone. This sets the page's viewport to 980 px
-/// (Safari's desktop width) whenever the desktop user agent is in use, that
-/// is when the site's Desktop Site setting is on.
+/// so media queries see a phone. This sets the page's viewport to 1200 px,
+/// the common desktop breakpoint (Safari's 980 px is under many sites'),
+/// whenever the desktop user agent is in use, that is when the site's
+/// Desktop Site setting is on. WebKit fits it to the screen (it zooms out
+/// to 25%, so up to 1608 px on a 402 pt screen).
 @MainActor
 enum DesktopViewport {
-  static let width = 980
+  static let width = 1200
 
   static var script: WKUserScript { WKUserScript(
     source: """
