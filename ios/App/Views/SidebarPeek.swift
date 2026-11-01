@@ -12,8 +12,6 @@ import SwiftUI
 struct SidebarPeek: View {
   @Environment(AppModel.self) private var app
 
-  /// The sheet's dimming of the page at full height (measured: 238 → 190).
-  static let dim: CGFloat = 0.2
   /// The sheet's corners, set on both so the handover doesn't show.
   static let radius: CGFloat = 32
 
@@ -34,7 +32,6 @@ struct SidebarPeek: View {
       let top = Self.top(app)
       let height = geo.size.height - top
       ZStack(alignment: .top) {
-        Color.black.opacity(app.sidebarHandingOver ? 0 : Self.dim * progress)
         SidebarScreen()
           // The sheet keeps its content above the home indicator; this
           // copy is laid out with the safe areas ignored, so it adds that.
@@ -53,5 +50,34 @@ struct SidebarPeek: View {
     }
     .ignoresSafeArea()
     .allowsHitTesting(false)
+  }
+}
+
+/// The page's dimming under the sidebar: one layer for both the swiped-up
+/// copy and the sheet (which doesn't dim itself), so nothing changes when
+/// one takes over from the other. Darkest with the sidebar at full height,
+/// lighter at half height, gone as it closes. Tapping it closes the sidebar.
+struct SidebarDim: View {
+  @Environment(AppModel.self) private var app
+  /// At full height: the system sheet's own dimming (measured: 238 → 190).
+  static let full: CGFloat = 0.2
+
+  var body: some View {
+    let amount = Self.full * fraction
+    Color.black.opacity(amount)
+      .ignoresSafeArea()
+      .allowsHitTesting(app.showingSidebar && amount > 0)
+      .onTapGesture { app.showingSidebar = false }
+  }
+
+  /// How far up the sidebar is, 0...1, from the sheet if it's up, else
+  /// from the swipe.
+  private var fraction: CGFloat {
+    if let top = app.sidebarSheetCurrentTop {
+      let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 800
+      let full = SidebarPeek.top(app)
+      return min(max((screen - top) / max(screen - full, 1), 0), 1)
+    }
+    return app.sidebarPeek ?? 0
   }
 }

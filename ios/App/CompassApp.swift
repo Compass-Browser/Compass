@@ -79,6 +79,7 @@ struct RootView: View {
       }
       .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: false)) { SettingsView() }
       .overlay {
+        SidebarDim()
         if app.sidebarPeek != nil { SidebarPeek() }
       }
   }

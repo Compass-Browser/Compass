@@ -27,7 +27,9 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
       present(animated: !instant)
     } else if let controller {
       self.controller = nil
-      controller.dismiss(animated: true)
+      controller.dismiss(animated: true) { [app] in
+        if !app.showingSidebar { app.sidebarSheetCurrentTop = nil }
+      }
     }
   }
 
@@ -50,6 +52,9 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
       sheet.detents = [.medium(), .large()]
       sheet.selectedDetentIdentifier = .large
       sheet.prefersGrabberVisible = true
+      // SidebarDim dims the page instead (one layer with the swiped-up
+      // copy's), and taps on it close the sheet.
+      sheet.largestUndimmedDetentIdentifier = .large
       sheet.preferredCornerRadius = SidebarPeek.radius
       sheet.delegate = self
     }
@@ -60,14 +65,9 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
     host.view.frame = top.view.bounds
     host.view.layoutIfNeeded()
     // The swiped-up copy stays under the sheet until it's in, so there's
-    // always a sidebar on screen; only its dimming goes now, as the
-    // sheet's comes in, so the two never stack.
-    let handover = app.sidebarPeek != nil
-    if handover { app.sidebarHandingOver = true }
+    // always a sidebar on screen.
     top.present(host, animated: animated) { [app] in
-      guard handover else { return }
-      app.sidebarPeek = nil
-      app.sidebarHandingOver = false
+      if app.sidebarPeek != nil { app.sidebarPeek = nil }
     }
   }
 
@@ -75,6 +75,7 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
     controller = nil
     app.showingSidebar = false
+    app.sidebarSheetCurrentTop = nil
   }
 
   private static func rootController() -> UIViewController? {
@@ -93,6 +94,7 @@ private struct SidebarSheetRoot: View {
     SidebarScreen()
       .background { SpaceTint(color: app.selectedSpace?.color.color ?? .blue) }
       .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minY }) { top in
+        app.sidebarSheetCurrentTop = top
         // The sheet moves while it slides in or out, follows a drag, or
         // sits at half height; at full height it's at the highest point
         // it reaches.
