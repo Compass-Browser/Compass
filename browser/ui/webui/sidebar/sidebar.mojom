@@ -14,6 +14,15 @@ enum NodeType {
   kSplit,
 };
 
+// What a tab node's tab sounds like (compass::LiveTabRegistry::AudioState):
+// the sidebar shows a speaker on a tab that plays sound, crossed out on a
+// muted one.
+enum AudioState {
+  kNone,
+  kAudible,
+  kMuted,
+};
+
 // One entry of the window's SpaceModel, with its subtree.
 struct Node {
   // The node's UUID. Stable for its lifetime.
@@ -26,6 +35,8 @@ struct Node {
   // Whether a tab node has a tab in this window. Pinned tab nodes can be
   // unloaded; Today's are always live.
   bool live;
+  // A live tab's sound; kNone for other nodes.
+  AudioState audio;
   // Whether a folder shows only its own row. The same in every window.
   bool collapsed;
   array<Node> children;
@@ -127,6 +138,9 @@ interface PageHandler {
   CloseNode(string id);
   // Opens the command bar for a new entry (docs/design/command-bar.md).
   NewTab();
+  // Mutes or unmutes a tab node's live tab: its speaker was clicked.
+  // Ignored for other nodes.
+  SetNodeMuted(string id, bool muted);
 
   // Drag and drop. |index| is the slot among |new_parent_id|'s current
   // children, counted with the node still in place. Invalid moves are
@@ -230,6 +244,7 @@ interface Page {
               bool collapsed);
   NodeRemoved(string id);
   NodeLiveChanged(string id, bool live);
+  NodeAudioChanged(string id, AudioState audio);
   ActiveNodeChanged(string? id);
   // The window's space's archived entries, most recent first. Sent after the
   // tree, and whenever they change.

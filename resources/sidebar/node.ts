@@ -8,7 +8,7 @@ import {SidebarBrowserProxy} from './browser_proxy.js';
 import {getFaviconUrl} from './favicon.js';
 import {getHtml} from './node.html.js';
 import type {Node} from './sidebar.mojom-webui.js';
-import {NodeType} from './sidebar.mojom-webui.js';
+import {AudioState, NodeType} from './sidebar.mojom-webui.js';
 
 // One sidebar entry: a tab, a split (its panes in a row) or a folder (its
 // children, indented). Renders into the light DOM, so the app's styles and
@@ -85,6 +85,20 @@ export class CompassSidebarNodeElement extends CrLitElement {
     return node.live ? 'Close tab' : 'Remove';
   }
 
+  // A speaker shows on a tab that plays sound, crossed out on a muted one
+  // (docs/design/sidebar.md, "Sound").
+  protected hasAudio_(node: Node): boolean {
+    return node.live && node.audio !== AudioState.kNone;
+  }
+
+  protected isMuted_(node: Node): boolean {
+    return node.audio === AudioState.kMuted;
+  }
+
+  protected getAudioLabel_(node: Node): string {
+    return this.isMuted_(node) ? 'Unmute tab' : 'Mute tab';
+  }
+
   protected getFaviconUrl_(node: Node): string {
     return getFaviconUrl(node.url, 16, this.profileId);
   }
@@ -95,6 +109,24 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   protected onTabClick_(e: Event) {
     SidebarBrowserProxy.getInstance().handler.activateNode(this.getNodeId_(e));
+  }
+
+  // Clicking the speaker mutes the tab, or unmutes it.
+  protected onAudioClick_(e: Event) {
+    e.stopPropagation();
+    const id = this.getNodeId_(e);
+    const node = this.node?.id === id ?
+        this.node :
+        this.getChildren_().find(pane => pane.id === id);
+    if (node) {
+      SidebarBrowserProxy.getInstance().handler.setNodeMuted(
+          id, !this.isMuted_(node));
+    }
+  }
+
+  protected onAudioDblclick_(e: Event) {
+    // Quick clicks on the speaker don't rename the tab.
+    e.stopPropagation();
   }
 
   protected onCloseClick_(e: Event) {

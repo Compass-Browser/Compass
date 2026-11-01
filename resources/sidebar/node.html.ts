@@ -7,6 +7,24 @@ import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 import type {CompassSidebarNodeElement} from './node.js';
 import type {Node} from './sidebar.mojom-webui.js';
 
+// A speaker, with sound waves, or crossed out when |muted|. Tab rows and
+// favorites' tiles show it on tabs that play sound. Whole <svg>s: lit can't
+// put a nested template's paths in the SVG namespace.
+export function speakerIcon(muted: boolean) {
+  // clang-format off
+  return muted ? html`
+    <svg class="speaker-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path class="speaker-body" d="M2.5 6h2.5l3.5-3v10l-3.5-3h-2.5z"></path>
+      <path class="speaker-line" d="M11 6l4 4M15 6l-4 4"></path>
+    </svg>` : html`
+    <svg class="speaker-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path class="speaker-body" d="M2.5 6h2.5l3.5-3v10l-3.5-3h-2.5z"></path>
+      <path class="speaker-line" d="M10.75 5.75a3 3 0 0 1 0 4.5"></path>
+      <path class="speaker-line" d="M12.5 3.75a6 6 0 0 1 0 8.5"></path>
+    </svg>`;
+  // clang-format on
+}
+
 export function getHtml(this: CompassSidebarNodeElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
@@ -25,6 +43,14 @@ ${this.isTab_() ? html`
           @dblclick="${this.onTitleInputDblclick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title">${this.getTitle_(this.node!)}</span>`}
+    ${this.hasAudio_(this.node!) ? html`
+      <button class="audio" data-node-id="${this.node!.id}"
+          ?muted="${this.isMuted_(this.node!)}"
+          aria-label="${this.getAudioLabel_(this.node!)}"
+          title="${this.getAudioLabel_(this.node!)}"
+          @click="${this.onAudioClick_}" @dblclick="${this.onAudioDblclick_}">
+        ${speakerIcon(this.isMuted_(this.node!))}
+      </button>` : nothing}
     <button class="close" data-node-id="${this.node!.id}"
         aria-label="${this.getCloseLabel_(this.node!)}"
         @click="${this.onCloseClick_}">&times;</button>
@@ -46,6 +72,15 @@ ${this.isSplit_() ? html`
               @dblclick="${this.onTitleInputDblclick_}"
               @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
           <span class="title">${this.getTitle_(pane)}</span>`}
+        ${this.hasAudio_(pane) ? html`
+          <button class="audio" data-node-id="${pane.id}"
+              ?muted="${this.isMuted_(pane)}"
+              aria-label="${this.getAudioLabel_(pane)}"
+              title="${this.getAudioLabel_(pane)}"
+              @click="${this.onAudioClick_}"
+              @dblclick="${this.onAudioDblclick_}">
+            ${speakerIcon(this.isMuted_(pane))}
+          </button>` : nothing}
         <button class="close" data-node-id="${pane.id}"
             aria-label="${this.getCloseLabel_(pane)}"
             @click="${this.onCloseClick_}">&times;</button>

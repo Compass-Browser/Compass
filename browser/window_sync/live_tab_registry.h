@@ -5,6 +5,8 @@
 #ifndef COMPASS_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
 #define COMPASS_BROWSER_WINDOW_SYNC_LIVE_TAB_REGISTRY_H_
 
+#include <memory>
+
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
@@ -18,12 +20,26 @@ class SidebarNode;
 // Which sidebar nodes have a live tab, and the tab, across all windows of a
 // profile (ARCHITECTURE.md §7). Each window's TabStripBridge registers the
 // tabs of its strip. A tab keeps its entry while it moves between windows.
+// It also follows the live tabs' sound, for the sidebar's speaker icons
+// (docs/design/sidebar.md, "Sound").
 class LiveTabRegistry {
  public:
+  // What a node's tab sounds like.
+  enum class AudioState {
+    // Silent, or no live tab.
+    kNone,
+    // Playing sound now, or a moment ago (RecentlyAudibleHelper).
+    kAudible,
+    // Muted, playing or not.
+    kMuted,
+  };
+
   class Observer : public base::CheckedObserver {
    public:
     // |node| gained or lost its live tab.
     virtual void OnNodeLiveChanged(const SidebarNode& node, bool live) {}
+    // GetAudioState(|node|) changed.
+    virtual void OnNodeAudioChanged(const SidebarNode& node) {}
   };
 
   LiveTabRegistry();
@@ -38,13 +54,21 @@ class LiveTabRegistry {
   tabs::TabInterface* GetTab(const SidebarNode* node) const;
   // The node of |tab|, or null.
   SidebarNode* GetNode(const tabs::TabInterface* tab) const;
+  // kNone for a node without a live tab.
+  AudioState GetAudioState(const SidebarNode* node) const;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
  private:
+  class AudioWatch;
+
+  // A registered tab's sound changed.
+  void OnAudioChanged(tabs::TabInterface* tab);
+
   base::flat_map<tabs::TabHandle, raw_ptr<SidebarNode>> node_for_tab_;
   base::flat_map<const SidebarNode*, tabs::TabHandle> tab_for_node_;
+  base::flat_map<tabs::TabHandle, std::unique_ptr<AudioWatch>> audio_;
   base::ObserverList<Observer> observers_;
 };
 

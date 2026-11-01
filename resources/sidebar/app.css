@@ -791,6 +791,55 @@ compass-sidebar-node {
   opacity: 1;
 }
 
+/* A tab's speaker (docs/design/sidebar.md, "Sound"): the tab plays sound, or
+ * it's muted. Clicking it mutes or unmutes the tab. */
+.audio {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  display: flex;
+  flex-shrink: 0;
+  height: 20px;
+  justify-content: center;
+  opacity: 0.75;
+  padding: 0;
+  transition: background-color 120ms, opacity 120ms;
+  width: 20px;
+}
+
+.audio[muted] {
+  opacity: 0.55;
+}
+
+.audio:hover {
+  background: rgba(128, 128, 128, 0.2);
+  opacity: 1;
+}
+
+.tile .audio {
+  inset-inline-start: 0;
+  position: absolute;
+  top: 0;
+}
+
+.speaker-icon {
+  height: 14px;
+  width: 14px;
+}
+
+.speaker-body {
+  fill: currentColor;
+}
+
+.speaker-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
 /* Drag and drop. */
 .row[dragging] {
   opacity: 0.4;

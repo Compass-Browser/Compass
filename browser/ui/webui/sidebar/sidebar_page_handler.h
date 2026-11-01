@@ -70,6 +70,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     kRemove,
     kOpenInSplit,
     kSeparate,
+    kMute,
+    kUnmute,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
   };
@@ -105,6 +107,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ActivateNode(const std::string& id) override;
   void CloseNode(const std::string& id) override;
   void NewTab() override;
+  void SetNodeMuted(const std::string& id, bool muted) override;
   void MoveNode(const std::string& id,
                 const std::string& new_parent_id,
                 uint32_t index) override;
@@ -195,6 +198,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   // LiveTabRegistry::Observer:
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
+  void OnNodeAudioChanged(const SidebarNode& node) override;
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(

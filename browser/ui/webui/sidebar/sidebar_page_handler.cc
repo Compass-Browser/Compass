@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
@@ -44,6 +45,18 @@
 namespace compass {
 
 namespace {
+
+sidebar::mojom::AudioState ToMojoAudio(LiveTabRegistry::AudioState audio) {
+  switch (audio) {
+    case LiveTabRegistry::AudioState::kNone:
+      return sidebar::mojom::AudioState::kNone;
+    case LiveTabRegistry::AudioState::kAudible:
+      return sidebar::mojom::AudioState::kAudible;
+    case LiveTabRegistry::AudioState::kMuted:
+      return sidebar::mojom::AudioState::kMuted;
+  }
+  NOTREACHED();
+}
 
 sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
   switch (type) {
@@ -259,6 +272,18 @@ void SidebarPageHandler::NewTab() {
   }
   // No views (unit tests).
   chrome::NewTab(browser_, NewTabTypes::kNewTabButton);
+}
+
+void SidebarPageHandler::SetNodeMuted(const std::string& id, bool muted) {
+  SidebarNode* node = FindNode(id);
+  if (!node || node->type() != SidebarNode::Type::kTab) {
+    return;
+  }
+  // Live in any window: its speaker shows in every window of the space.
+  if (tabs::TabInterface* tab = registry().GetTab(node)) {
+    SetTabAudioMuted(tab->GetContents(), muted,
+                     TabMutedReason::kAudioIndicator, std::string());
+  }
 }
 
 void SidebarPageHandler::MoveNode(const std::string& id,
@@ -678,6 +703,13 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
     }
     if (live) {
       menu->AddItem(kReload, u"Reload");
+      // Its speaker mutes it while it plays; this mutes it before it does.
+      if (registry().GetAudioState(node) ==
+          LiveTabRegistry::AudioState::kMuted) {
+        menu->AddItem(kUnmute, u"Unmute Tab");
+      } else {
+        menu->AddItem(kMute, u"Mute Tab");
+      }
     }
   }
   if (entry && !favorite) {
@@ -779,6 +811,10 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
       }
       break;
     }
+    case kMute:
+    case kUnmute:
+      SetNodeMuted(id, command == kMute);
+      break;
     case kCloseTab:
       CloseNode(id);
       break;
@@ -901,6 +937,11 @@ void SidebarPageHandler::OnNodeLiveChanged(const SidebarNode& node, bool live) {
   page_->NodeLiveChanged(node.id().AsLowercaseString(), live);
 }
 
+void SidebarPageHandler::OnNodeAudioChanged(const SidebarNode& node) {
+  page_->NodeAudioChanged(node.id().AsLowercaseString(),
+                          ToMojoAudio(registry().GetAudioState(&node)));
+}
+
 void SidebarPageHandler::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
@@ -1018,6 +1059,7 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   result->url = node.url();
   // Live in any window: activating it here moves it here.
   result->live = registry.GetTab(&node) != nullptr;
+  result->audio = ToMojoAudio(registry.GetAudioState(&node));
   result->collapsed = node.collapsed();
   for (const auto& child : node.children()) {
     result->children.push_back(ToMojo(*child, registry));

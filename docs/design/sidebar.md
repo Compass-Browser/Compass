@@ -601,14 +601,15 @@ an entry's menu under its row.
 
 | Entry | Menu |
 |---|---|
-| Today tab | Copy Link, Duplicate, Reload · Pin, Add to Favorites, Move to Space ▸ · Close Tab |
-| Pinned tab | Copy Link, Duplicate, Reload · Unpin, Add to Favorites, Move to Space ▸ · Close Tab, Remove from Pinned |
-| Favorite | Copy Link, Duplicate, Reload · Close Tab, Remove from Favorites |
+| Today tab | Copy Link, Duplicate, Reload, Mute Tab · Pin, Add to Favorites, Move to Space ▸ · Close Tab |
+| Pinned tab | Copy Link, Duplicate, Reload, Mute Tab · Unpin, Add to Favorites, Move to Space ▸ · Close Tab, Remove from Pinned |
+| Favorite | Copy Link, Duplicate, Reload, Mute Tab · Close Tab, Remove from Favorites |
 | Folder | New Folder, Rename, Move to Space ▸ · Delete Folder |
 | Split | Pin or Unpin, Move to Space ▸ · Close Split |
-| Pane | Copy Link, Reload · Close Tab |
+| Pane | Copy Link, Reload, Mute Tab · Close Tab |
 
-- **Reload** and **Close Tab** only for live tabs. An unloaded Today entry
+- **Reload**, **Mute Tab** and **Close Tab** only for live tabs; a muted
+  tab gets **Unmute Tab** instead (see "Sound"). An unloaded Today entry
   gets **Remove** instead, as its × does.
 - **Pin** adds to the end of Pinned; **Unpin** puts the entry at the top of
   Today, which keeps its tab where it was in the strip.
@@ -626,7 +627,7 @@ Labels are English literals for now, like the rest of Compass's UI; they move
 to a grit file when the UI is localized.
 
 **Not yet:** menus for the section headers and empty space (New Folder, New
-Tab), Mute, Copy Link of a split, and opening in a new window (which needs
+Tab), Copy Link of a split, and opening in a new window (which needs
 drag-out's window creation).
 
 **Tests:** page handler tests build each kind of menu and choose its
@@ -636,6 +637,30 @@ browser test right-clicks rows in the page and checks the menu, its
 position and Rename (`SidebarContextMenu::SetShowCallbackForTesting()`
 hands the model over instead of running a native menu, which would block the
 test).
+
+## Sound
+
+Goal: as in Arc, a tab that plays sound shows a speaker on its row, and
+clicking the speaker mutes it. A tab that isn't playing is muted ahead of
+time from its context menu.
+
+- `LiveTabRegistry` follows every live tab's sound, profile-wide, so a
+  tab's speaker shows in every window of its space: whether its contents
+  are muted (`WebContentsObserver::DidUpdateAudioMutingState()`), and
+  whether they played sound in the last two seconds (upstream's
+  `RecentlyAudibleHelper`, the same signal as the tab strip's alert icon,
+  so the speaker doesn't flicker between sounds). It follows the contents a
+  discarded tab swaps to. `Observer::OnNodeAudioChanged()` reports changes.
+- `Node.audio` (`kNone`, `kAudible`, `kMuted`) carries it in the tree, and
+  `Page.NodeAudioChanged()` sends changes. Muted wins over playing: a muted
+  tab shows the crossed-out speaker whether or not it plays, so a tab muted
+  from the menu shows it can be unmuted.
+- The speaker sits after the title on tab rows and panes, and in a
+  favorite tile's top-left corner (the × is top-right). Clicking it sends
+  `PageHandler.SetNodeMuted(id, muted)`, which mutes through upstream's
+  `SetTabAudioMuted()` with `TabMutedReason::kAudioIndicator`, as the tab
+  strip's icon does.
+- **Mute Tab** / **Unmute Tab** in a live tab's context menu do the same.
 
 ## Folder collapse state
 

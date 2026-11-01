@@ -15,6 +15,7 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
@@ -42,6 +43,7 @@
 namespace compass {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
@@ -109,6 +111,20 @@ class FakePage : public sidebar::mojom::Page {
   }
   void NodeLiveChanged(const std::string& id, bool live) override {
     events_.push_back(hosts_[id] + (live ? " live" : " unloaded"));
+  }
+  void NodeAudioChanged(const std::string& id,
+                        sidebar::mojom::AudioState audio) override {
+    switch (audio) {
+      case sidebar::mojom::AudioState::kNone:
+        events_.push_back(hosts_[id] + " silent");
+        break;
+      case sidebar::mojom::AudioState::kAudible:
+        events_.push_back(hosts_[id] + " audible");
+        break;
+      case sidebar::mojom::AudioState::kMuted:
+        events_.push_back(hosts_[id] + " muted");
+        break;
+    }
   }
   void ActiveNodeChanged(const std::optional<std::string>& id) override {
     events_.push_back("active " + (id ? hosts_[*id] : "none"));
@@ -801,8 +817,9 @@ TEST_F(SidebarPageHandlerTest, ClosingAnUnloadedFavoriteRemovesIt) {
 TEST_F(SidebarPageHandlerTest, TodayEntryMenu) {
   EXPECT_THAT(MenuCommands(TodayId(0)),
               ElementsAre(Command::kRename, Command::kCopyLink,
-                          Command::kDuplicate, Command::kReload, Command::kPin,
-                          Command::kAddToFavorites, Command::kCloseTab));
+                          Command::kDuplicate, Command::kReload, Command::kMute,
+                          Command::kPin, Command::kAddToFavorites,
+                          Command::kCloseTab));
   EXPECT_THAT(MenuCommands(TodayRootId()), IsEmpty());
   EXPECT_THAT(MenuCommands("not-a-uuid"), IsEmpty());
 
@@ -821,7 +838,7 @@ TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
   EXPECT_THAT(MenuCommands(b),
               ElementsAre(Command::kOpenInSplit, Command::kRename,
                           Command::kCopyLink, Command::kDuplicate,
-                          Command::kReload, Command::kUnpin,
+                          Command::kReload, Command::kMute, Command::kUnpin,
                           Command::kAddToFavorites, Command::kCloseTab,
                           Command::kRemove));
 
@@ -830,6 +847,7 @@ TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
   EXPECT_EQ(tab_strip_model()->count(), 1);
   EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kCloseTab)));
   EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kReload)));
+  EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kMute)));
 
   // Unpinned entries go to the top of Today.
   Choose(b, Command::kUnpin);
@@ -857,7 +875,7 @@ TEST_F(SidebarPageHandlerTest, AddsToAndRemovesFromFavoritesFromTheMenu) {
   // Favorites aren't pinned or moved between spaces.
   EXPECT_THAT(MenuCommands(b),
               ElementsAre(Command::kCopyLink, Command::kDuplicate,
-                          Command::kReload, Command::kCloseTab,
+                          Command::kReload, Command::kMute, Command::kCloseTab,
                           Command::kRemove));
 
   Choose(b, Command::kRemove);
@@ -917,6 +935,60 @@ TEST_F(SidebarPageHandlerTest, CopiesLinksFromTheMenu) {
           [&](std::u16string result) { text = std::move(result); }));
   EXPECT_EQ(text, u"https://b.test/");
   ui::Clipboard::DestroyClipboardForCurrentThread();
+}
+
+TEST_F(SidebarPageHandlerTest, MutesSilentTabsFromTheMenu) {
+  const std::string a = TodayId(0);
+  content::WebContents* contents = tab_strip_model()->GetWebContentsAt(0);
+  page_.TakeEvents();
+
+  Choose(a, Command::kMute);
+  EXPECT_TRUE(contents->IsAudioMuted());
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test muted"));
+  EXPECT_EQ(GetTree()->today->children[0]->audio,
+            sidebar::mojom::AudioState::kMuted);
+  EXPECT_THAT(MenuCommands(a), AllOf(Contains(Command::kUnmute),
+                                     Not(Contains(Command::kMute))));
+
+  Choose(a, Command::kUnmute);
+  EXPECT_FALSE(contents->IsAudioMuted());
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test silent"));
+}
+
+TEST_F(SidebarPageHandlerTest, ShowsAndMutesPlayingTabs) {
+  const std::string a = TodayId(0);
+  content::WebContents* contents = tab_strip_model()->GetWebContentsAt(0);
+  RecentlyAudibleHelper* audible =
+      RecentlyAudibleHelper::FromWebContents(contents);
+  ASSERT_TRUE(audible);
+  page_.TakeEvents();
+
+  audible->SetCurrentlyAudibleForTesting();
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test audible"));
+  EXPECT_EQ(GetTree()->today->children[0]->audio,
+            sidebar::mojom::AudioState::kAudible);
+
+  // Its speaker mutes it, and unmutes it.
+  handler_remote_->SetNodeMuted(a, true);
+  Settle();
+  EXPECT_TRUE(contents->IsAudioMuted());
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test muted"));
+  handler_remote_->SetNodeMuted(a, false);
+  Settle();
+  EXPECT_FALSE(contents->IsAudioMuted());
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test audible"));
+
+  // Silent again, a moment after the sound stops.
+  audible->SetNotRecentlyAudibleForTesting();
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test silent"));
+
+  // Only tabs.
+  handler_remote_->SetNodeMuted(TodayRootId(), true);
+  handler_remote_->SetNodeMuted("not-a-uuid", true);
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), IsEmpty());
 }
 
 TEST_F(SidebarPageHandlerTest, FolderMenu) {

@@ -5,6 +5,7 @@
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ArchiveDelay, CompassSidebarAppElement, Preview} from './app.js';
+import {speakerIcon} from './node.html.js';
 import type {SpaceSymbol} from './space_icons.js';
 import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
 
@@ -33,6 +34,14 @@ export function getHtml(this: CompassSidebarAppElement) {
         ?active="${this.isActive_(node)}" ?unloaded="${!node.live}"
         @click="${this.onTileClick_}">
       <img class="favicon" alt="" src="${this.getFaviconUrl_(node.url, 32)}">
+      ${this.hasAudio_(node) ? html`
+        <button class="audio" data-node-id="${node.id}"
+            ?muted="${this.isMuted_(node)}"
+            aria-label="${this.getAudioLabel_(node)}"
+            title="${this.getAudioLabel_(node)}"
+            @click="${this.onTileAudioClick_}">
+          ${speakerIcon(this.isMuted_(node))}
+        </button>` : nothing}
       <button class="close" data-node-id="${node.id}"
           aria-label="${this.getTileCloseLabel_(node)}"
           title="${this.getTileCloseLabel_(node)}"

@@ -9,7 +9,7 @@ import './node.js';
 import {getCss as getPreviewCss} from './preview.css.js';
 import {getHtml} from './preview.html.js';
 import type {Node, Space, Tree} from './sidebar.mojom-webui.js';
-import {NodeType} from './sidebar.mojom-webui.js';
+import {AudioState, NodeType} from './sidebar.mojom-webui.js';
 
 // What a space with no entries shows once the window switches to it: the new
 // tab the browser opens there (docs/design/spaces.md, "Switching, step by
@@ -21,6 +21,7 @@ const NEW_TAB: Node = {
   customTitle: '',
   url: 'chrome://newtab/',
   live: true,
+  audio: AudioState.kNone,
   collapsed: false,
   children: [],
 };

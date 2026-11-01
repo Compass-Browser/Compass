@@ -17,7 +17,7 @@ import type {SpaceSymbol} from './space_icons.js';
 import './theme_editor.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
 import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
-import {NodeType} from './sidebar.mojom-webui.js';
+import {AudioState, NodeType} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
@@ -253,6 +253,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       router.nodeChanged.addListener(this.onNodeChanged_.bind(this)),
       router.nodeRemoved.addListener(this.onNodeRemoved_.bind(this)),
       router.nodeLiveChanged.addListener(this.onNodeLiveChanged_.bind(this)),
+      router.nodeAudioChanged.addListener(this.onNodeAudioChanged_.bind(this)),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
       router.setArchive.addListener(
@@ -714,6 +715,28 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected onTileClick_(e: Event) {
     this.browserProxy_.handler.activateNode(
         (e.currentTarget as HTMLElement).dataset['nodeId']!);
+  }
+
+  // As on a tab's row (node.ts).
+  protected hasAudio_(node: Node): boolean {
+    return node.live && node.audio !== AudioState.kNone;
+  }
+
+  protected isMuted_(node: Node): boolean {
+    return node.audio === AudioState.kMuted;
+  }
+
+  protected getAudioLabel_(node: Node): string {
+    return this.isMuted_(node) ? 'Unmute tab' : 'Mute tab';
+  }
+
+  protected onTileAudioClick_(e: Event) {
+    e.stopPropagation();
+    const id = (e.currentTarget as HTMLElement).dataset['nodeId']!;
+    const node = this.nodes_.get(id);
+    if (node) {
+      this.browserProxy_.handler.setNodeMuted(id, !this.isMuted_(node));
+    }
   }
 
   protected onTileCloseClick_(e: Event) {
@@ -2010,6 +2033,14 @@ export class CompassSidebarAppElement extends CrLitElement {
     const node = this.nodes_.get(id);
     if (node) {
       node.live = live;
+      this.requestUpdate();
+    }
+  }
+
+  private onNodeAudioChanged_(id: string, audio: AudioState) {
+    const node = this.nodes_.get(id);
+    if (node) {
+      node.audio = audio;
       this.requestUpdate();
     }
   }

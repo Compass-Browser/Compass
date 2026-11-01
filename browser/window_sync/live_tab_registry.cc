@@ -5,9 +5,88 @@
 #include "compass/browser/window_sync/live_tab_registry.h"
 
 #include "base/check.h"
+#include "base/functional/bind.h"
+#include "chrome/browser/ui/recently_audible_helper.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 
 namespace compass {
+
+// Follows a registered tab's sound: whether its contents are muted, and
+// whether they played sound recently, through the contents the tab swaps to
+// when it's discarded.
+class LiveTabRegistry::AudioWatch : public content::WebContentsObserver {
+ public:
+  AudioWatch(LiveTabRegistry* registry, tabs::TabInterface* tab)
+      : registry_(registry), tab_(tab) {
+    discard_subscription_ = tab->RegisterWillDiscardContents(
+        base::BindRepeating(&AudioWatch::OnWillDiscardContents,
+                            base::Unretained(this)));
+    Watch(tab->GetContents());
+    state_ = ComputeState();
+  }
+  AudioWatch(const AudioWatch&) = delete;
+  AudioWatch& operator=(const AudioWatch&) = delete;
+  ~AudioWatch() override = default;
+
+  AudioState state() const { return state_; }
+
+ private:
+  void Watch(content::WebContents* contents) {
+    Observe(contents);
+    audible_subscription_ = {};
+    if (!contents) {
+      return;
+    }
+    // Tab helpers attach it to every tab; tests' tabs may lack it.
+    RecentlyAudibleHelper::CreateForWebContents(contents);
+    audible_subscription_ =
+        RecentlyAudibleHelper::FromWebContents(contents)
+            ->RegisterRecentlyAudibleChangedCallback(base::BindRepeating(
+                [](AudioWatch* watch, bool) { watch->Update(); },
+                base::Unretained(this)));
+  }
+
+  void OnWillDiscardContents(tabs::TabInterface* tab,
+                             content::WebContents* old_contents,
+                             content::WebContents* new_contents) {
+    Watch(new_contents);
+    Update();
+  }
+
+  // content::WebContentsObserver:
+  void DidUpdateAudioMutingState(bool muted) override { Update(); }
+
+  AudioState ComputeState() const {
+    content::WebContents* contents = web_contents();
+    if (!contents) {
+      return AudioState::kNone;
+    }
+    if (contents->IsAudioMuted()) {
+      return AudioState::kMuted;
+    }
+    RecentlyAudibleHelper* helper =
+        RecentlyAudibleHelper::FromWebContents(contents);
+    return helper && helper->WasRecentlyAudible() ? AudioState::kAudible
+                                                  : AudioState::kNone;
+  }
+
+  void Update() {
+    const AudioState state = ComputeState();
+    if (state == state_) {
+      return;
+    }
+    state_ = state;
+    registry_->OnAudioChanged(tab_);
+  }
+
+  const raw_ptr<LiveTabRegistry> registry_;
+  const raw_ptr<tabs::TabInterface> tab_;
+  AudioState state_ = AudioState::kNone;
+  base::CallbackListSubscription discard_subscription_;
+  base::CallbackListSubscription audible_subscription_;
+};
 
 LiveTabRegistry::LiveTabRegistry() = default;
 
@@ -19,8 +98,18 @@ void LiveTabRegistry::Register(tabs::TabInterface* tab, SidebarNode* node) {
   CHECK(!GetTab(node));
   node_for_tab_[tab->GetHandle()] = node;
   tab_for_node_[node] = tab->GetHandle();
+  auto& watch = audio_[tab->GetHandle()];
+  if (!watch) {
+    watch = std::make_unique<AudioWatch>(this, tab);
+  }
   for (auto& observer : observers_) {
     observer.OnNodeLiveChanged(*node, true);
+  }
+  // A tab that moved here, or that played before it had a node.
+  if (watch->state() != AudioState::kNone) {
+    for (auto& observer : observers_) {
+      observer.OnNodeAudioChanged(*node);
+    }
   }
 }
 
@@ -32,8 +121,19 @@ void LiveTabRegistry::Unregister(tabs::TabInterface* tab) {
   SidebarNode* node = it->second;
   node_for_tab_.erase(it);
   tab_for_node_.erase(node);
+  auto watch = audio_.find(tab->GetHandle());
+  const bool had_audio =
+      watch != audio_.end() && watch->second->state() != AudioState::kNone;
+  if (watch != audio_.end()) {
+    audio_.erase(watch);
+  }
   for (auto& observer : observers_) {
     observer.OnNodeLiveChanged(*node, false);
+  }
+  if (had_audio) {
+    for (auto& observer : observers_) {
+      observer.OnNodeAudioChanged(*node);
+    }
   }
 }
 
@@ -48,6 +148,24 @@ SidebarNode* LiveTabRegistry::GetNode(const tabs::TabInterface* tab) const {
   }
   auto it = node_for_tab_.find(tab->GetHandle());
   return it == node_for_tab_.end() ? nullptr : it->second.get();
+}
+
+LiveTabRegistry::AudioState LiveTabRegistry::GetAudioState(
+    const SidebarNode* node) const {
+  tabs::TabInterface* tab = GetTab(node);
+  if (!tab) {
+    return AudioState::kNone;
+  }
+  auto it = audio_.find(tab->GetHandle());
+  return it == audio_.end() ? AudioState::kNone : it->second->state();
+}
+
+void LiveTabRegistry::OnAudioChanged(tabs::TabInterface* tab) {
+  if (SidebarNode* node = GetNode(tab)) {
+    for (auto& observer : observers_) {
+      observer.OnNodeAudioChanged(*node);
+    }
+  }
 }
 
 void LiveTabRegistry::AddObserver(Observer* observer) {
