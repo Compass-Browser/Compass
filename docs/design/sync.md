@@ -1,8 +1,7 @@
 # Sync between devices
 
-Status: slices 0, 1, 2, 2b, 3, 3b, 4, 5 and 6 done and merged into
-`sync-main` (MacBook runs in each slice's notes); 7 (hardening) on
-`sync/slice-7-hardening`, MacBook run pending ("Slice 7 notes"). Based on
+Status: slices 0 to 7 done and merged into `sync-main` (MacBook runs in
+each slice's notes). Based on
 Chromium 156.0.8078.48.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
@@ -1689,6 +1688,22 @@ token, so each sees its own account's quota.
 device that comes back to an expired chain is told only "sync stopped" in
 upstream's words; a Compass message for `DISABLED_BY_ADMIN` would be nicer.
 The throttled message can't tell 50 devices from other throttling.
+
+**Slice 7 MacBook run (1 Nov, 25cdcd8, scripts 3ddb8da).** First build
+(412e9ba): three missing includes (`conflict_resolution.h` twice,
+`callback_helpers.h`), then `SyncSettingsTest.Limits` was a `TEST` among
+`TEST_F`s. Then all unit tests pass, Go vet/test pass. History full (local
+server, 3 visits): status and menu "Synced (history full)"; server full
+(7 entities): "Sync: server full" ~40 s after the commits, back to normal
+once the limit was raised. Deleted history (public server): A removed a2;
+after A's and B's restarts C joined: a2 showed on C until C's first
+restart (the directive is applied at merge, before the visit arrives: the
+gap described above), then a1 and a3 only; A and B a1 and a3. The history
+page groups visits that differ only by query and lists only what a search
+finds, so the scripts search exact text. The "kept" line showed:
+`kept <id>, closed elsewhere but shown in the focused window, as <id>`.
+No crashes. Not covered: the page's status right after Reset (slice 5's
+run read "on / Last synced" there).
 
 ### Change notifications
 
