@@ -102,21 +102,6 @@ struct SidebarScreen: View {
   }
 }
 
-/// A plain row of the sidebar's List: no separator, no system background
-/// (each row draws its own pill), the desktop's 2 px between rows.
-private struct SidebarRowStyle: ViewModifier {
-  func body(content: Content) -> some View {
-    content
-      .listRowBackground(Color.clear)
-      .listRowSeparator(.hidden)
-      .listRowInsets(EdgeInsets(top: 1, leading: 12, bottom: 1, trailing: 12))
-  }
-}
-
-extension View {
-  fileprivate func sidebarRow() -> some View { modifier(SidebarRowStyle()) }
-}
-
 /// A section's title: small, uppercase, dimmed (`.section-header`).
 private struct SectionHeader<Trailing: View>: View {
   let title: String
@@ -147,73 +132,79 @@ struct SpacePage: View {
   @State private var moving: ChainProfile?
 
   var body: some View {
-    List {
-      let favorites = app.store.favorites(for: space)
-      if !favorites.children.isEmpty {
-        FavoritesGrid(root: favorites)
-          .sidebarRow()
-      }
-      header.sidebarRow()
+    // A plain stack, not a List: List rows only fade and jump in height,
+    // while here a folder's children slide down and everything below moves
+    // with them in one animation.
+    ScrollView {
+      LazyVStack(spacing: 2) {
+        let favorites = app.store.favorites(for: space)
+        if !favorites.children.isEmpty {
+          FavoritesGrid(root: favorites)
+        }
+        header
 
-      SectionHeader(title: "Pinned") { EmptyView() }.sidebarRow()
-      if space.pinned.children.isEmpty {
-        Text("Pin tabs to keep them in this space.")
-          .font(.footnote)
-          .opacity(0.55)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(12)
-          .overlay(
-            RoundedRectangle(cornerRadius: SidebarStyle.rowRadius)
-              .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-              .opacity(0.3)
-          )
-          .sidebarRow()
-      }
-      ForEach(space.pinned.children) { node in
-        NodeTree(node: node)
-      }
-      .onMove { from, to in move(in: space.pinned, from: from, to: to) }
+        SectionHeader(title: "Pinned") { EmptyView() }
+          .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.pinned) }
+        if space.pinned.children.isEmpty {
+          Text("Pin tabs to keep them in this space.")
+            .font(.footnote)
+            .opacity(0.55)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .overlay(
+              RoundedRectangle(cornerRadius: SidebarStyle.rowRadius)
+                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .opacity(0.3)
+            )
+            .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.pinned) }
+        }
+        ForEach(space.pinned.children) { node in
+          NodeTree(node: node, depth: 0)
+        }
 
-      SectionHeader(title: "Today") {
-        if !space.today.children.isEmpty {
-          Button("Clear") {
-            for entry in space.today.children { app.store.archive(entry) }
+        SectionHeader(title: "Today") {
+          if !space.today.children.isEmpty {
+            Button("Clear") {
+              withAnimation(SidebarStyle.motion) {
+                for entry in space.today.children { app.store.archive(entry) }
+              }
+            }
+            .font(.system(size: 13, weight: .medium))
+            .buttonStyle(.plain)
+            .opacity(0.6)
           }
-          .font(.system(size: 13, weight: .medium))
-          .buttonStyle(.plain)
-          .opacity(0.6)
+        }
+        Button {
+          app.showingCommandBar = true
+        } label: {
+          HStack(spacing: 10) {
+            Image(systemName: "plus")
+              .font(.system(size: 15, weight: .semibold))
+              .frame(width: SidebarStyle.favicon)
+            Text("New Tab")
+            Spacer()
+          }
+          .padding(.horizontal, 12)
+          .frame(height: SidebarStyle.rowHeight)
+          .contentShape(Rectangle())
+          .opacity(0.7)
+        }
+        .buttonStyle(SidebarPressStyle())
+        // Dropped here: Today's newest entry.
+        .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.today) }
+        ForEach(space.today.children.reversed()) { node in
+          NodeTree(node: node, depth: 0)
         }
       }
-      .sidebarRow()
-      Button {
-        app.showingCommandBar = true
-      } label: {
-        HStack(spacing: 10) {
-          Image(systemName: "plus")
-            .font(.system(size: 15, weight: .semibold))
-            .frame(width: SidebarStyle.favicon)
-          Text("New Tab")
-          Spacer()
-        }
-        .padding(.horizontal, 12)
-        .frame(height: SidebarStyle.rowHeight)
-        .contentShape(Rectangle())
-        .opacity(0.7)
-      }
-      .buttonStyle(SidebarPressStyle())
-      .sidebarRow()
-      ForEach(space.today.children.reversed()) { node in
-        NodeTree(node: node)
-      }
+      .padding(.horizontal, 12)
+      .padding(.bottom, 12)
+      // Entries appearing, closing and moving animate, also when the change
+      // comes from another device. Folders have their own (NodeTree).
+      .animation(SidebarStyle.motion, value: layout)
     }
-    .listStyle(.plain)
-    // Entries appearing, closing, moving and folders opening animate, also
-    // when the change comes from another device.
-    .animation(SidebarStyle.motion, value: layout)
-    .scrollContentBackground(.hidden)
     // Clear of the sheet's grab handle.
     .contentMargins(.top, 22, for: .scrollContent)
-    .environment(\.defaultMinListRowHeight, 0)
+    .scrollIndicators(.hidden)
     .foregroundStyle(.primary)
     .alert("Rename Space", isPresented: $renaming) {
       TextField("Name", text: $newName)
@@ -300,19 +291,23 @@ struct SpacePage: View {
     }
   }
 
-  /// What the List shows, for its animation: entries, open folders, the
-  /// shown entry and the favorites.
+  /// What the List shows, for its animation: entries, the shown entry and
+  /// the favorites. Not open folders: they have their own (SidebarStyle.folder).
   private var layout: [String] {
     let entries = (space.pinned.children + space.today.children).flatMap(\.subtree)
-    return entries.map { $0.collapsed ? $0.id + "-" : $0.id }
+    return entries.map(\.id)
       + app.store.favorites(for: space).children.map(\.id)
       + [app.selectedNodeID ?? ""]
   }
 
-  private func move(in root: SidebarNode, from: IndexSet, to: Int) {
-    guard let index = from.first else { return }
-    let node = root.children[index]
-    app.store.move(node, to: root, at: to > index ? to - 1 : to)
+  /// Dropped on a section's header: the end of Pinned, Today's top.
+  private func drop(_ ids: [String], into root: SidebarNode) -> Bool {
+    guard let id = ids.first, let node = app.store.node(id: id), node.parent !== root || root.section == .today
+    else { return false }
+    withAnimation(SidebarStyle.motion) {
+      _ = app.store.move(node, to: root, at: root.children.filter { $0 !== node }.count)
+    }
+    return true
   }
 }
 
@@ -372,19 +367,33 @@ struct FavoritesGrid: View {
   }
 }
 
-/// A row and, for open folders, its children.
+/// An entry and, for an open folder, its children, which slide down from
+/// under the folder's row as they fade in.
 struct NodeTree: View {
-  @Environment(AppModel.self) private var app
   let node: SidebarNode
-  var depth = 0
+  let depth: Int
 
   var body: some View {
-    NodeRow(node: node, depth: depth)
-      .sidebarRow()
-    if node.isFolder && !node.collapsed {
-      ForEach(node.children) { child in
-        NodeTree(node: child, depth: depth + 1)
+    if node.isFolder {
+      VStack(spacing: 2) {
+        NodeRow(node: node, depth: depth)
+        // Clipped below the folder's row, so the children come out from
+        // under it rather than over it.
+        VStack(spacing: 0) {
+          if !node.collapsed {
+            VStack(spacing: 2) {
+              ForEach(node.children) { child in
+                NodeTree(node: child, depth: depth + 1)
+              }
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+          }
+        }
+        .frame(maxWidth: .infinity)
+        .clipped()
       }
+    } else {
+      NodeRow(node: node, depth: depth)
     }
   }
 }
@@ -410,14 +419,31 @@ struct NodeRow: View {
       }
     }
     .padding(.leading, CGFloat(depth) * SidebarStyle.indent)
-    .swipeActions(edge: .trailing) {
-      if node.section == .today {
-        Button("Close", systemImage: "xmark") { app.close(node) }.tint(.red)
-      } else {
-        Button("Delete", systemImage: "trash", role: .destructive) { app.close(node) }
+    .overlay(alignment: .trailing) {
+      // Today's entries close from the row, as on the desktop (`.close`).
+      if node.section == .today && !node.isFolder {
+        Button {
+          withAnimation(SidebarStyle.motion) { app.close(node) }
+        } label: {
+          Image(systemName: "xmark")
+            .font(.system(size: 12, weight: .bold))
+            .opacity(0.45)
+            .frame(width: 40, height: SidebarStyle.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Close \(node.displayTitle)")
       }
     }
     .contextMenu { menu }
+    // Long press and drag to reorder: dropped on an entry, it goes before
+    // it (into it, for a folder).
+    .draggable(node.id) {
+      Label(node.displayTitle, systemImage: node.isFolder ? "folder" : "globe")
+        .padding(8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+    .dropDestination(for: String.self) { ids, _ in drop(ids) }
     .alert(node.isFolder ? "Rename Folder" : "Rename Tab", isPresented: $renaming) {
       TextField("Name", text: $newTitle)
       Button("Rename") { app.store.rename(node, customTitle: newTitle) }
@@ -431,7 +457,7 @@ struct NodeRow: View {
     let dimmed = item.section == .pinned && !item.isFolder && !item.tabs.contains(where: app.tabs.isLive)
     return Button {
       if item.isFolder {
-        withAnimation(SidebarStyle.motion) { app.show(item) }
+        withAnimation(SidebarStyle.folder) { app.show(item) }
       } else {
         app.show(item)
       }
@@ -456,7 +482,8 @@ struct NodeRow: View {
           .opacity(dimmed ? 0.55 : 1)
         Spacer(minLength: 0)
       }
-      .padding(.horizontal, 12)
+      .padding(.leading, 12)
+      .padding(.trailing, item.section == .today && !item.isFolder ? 36 : 12)
       .frame(height: SidebarStyle.rowHeight)
       .background(
         shown ? SidebarStyle.active : .clear,
@@ -467,6 +494,34 @@ struct NodeRow: View {
       .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: SidebarStyle.rowRadius))
     }
     .buttonStyle(SidebarPressStyle())
+  }
+
+  private func drop(_ ids: [String]) -> Bool {
+    guard let id = ids.first, id != node.id, let moved = app.store.node(id: id),
+      !isInside(node, moved)
+    else { return false }
+    withAnimation(SidebarStyle.motion) {
+      if node.isFolder {
+        _ = app.store.move(moved, to: node, at: node.children.filter { $0 !== moved }.count)
+      } else if let parent = node.parent {
+        let siblings = parent.children.filter { $0 !== moved }
+        let index = siblings.firstIndex { $0 === node } ?? siblings.count
+        // Today's top level is shown newest first: before on screen is after.
+        let reversed = parent === app.store.space(of: node)?.today
+        _ = app.store.move(moved, to: parent, at: reversed ? index + 1 : index)
+      }
+    }
+    return true
+  }
+
+  /// Whether `node` is `ancestor` or inside it (no folder into itself).
+  private func isInside(_ node: SidebarNode, _ ancestor: SidebarNode) -> Bool {
+    var current: SidebarNode? = node
+    while let c = current {
+      if c === ancestor { return true }
+      current = c.parent
+    }
+    return false
   }
 
   private func title(_ item: SidebarNode) -> String {

@@ -436,7 +436,7 @@ The user asked for this. On the iPhone the sidebar is no longer a screen that th
 
 ### Sidebar styled as the desktop's, 2026-11-01
 
-The user asked for this. The sidebar keeps SwiftUI's List, so swipe actions, reordering and context menus still work, but its native look is replaced with the desktop sidebar's (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
+The user asked for this. The sidebar's native look is replaced with the desktop sidebar's (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
 
 - **Background.** The space's tint (`SpaceTint`) is the sheet's `presentationBackground`, like the desktop's SidebarTint.
 - **Favorites.** Tiles are 52 pt, four to a row, and a shorter last row's tiles grow to fill it. The shown favorite gets the light pill.
@@ -447,7 +447,8 @@ The user asked for this. The sidebar keeps SwiftUI's List, so swipe actions, reo
   - Pinned entries without a live tab are dimmed, as on the desktop.
   - Folders have a rotating chevron. A split's panes share one row.
 - **Space switcher.** Each space's icon in the bottom bar (`SpaceIcon`), the shown one in its color and the others dimmed, then "+". The icon is the desktop's `{"symbol"}` or `{"emoji"}`, mapped to SF Symbols, or the space's initial.
-- **Motion.** Opening or closing a folder slides its children in and out, with a turning chevron and a folder icon that swaps. Every other change to the List animates too (`SidebarStyle.motion`, keyed on the entries, open folders, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
+- **A stack, not a List.** List rows only fade, and a row's height changes in one jump. So the sidebar is a `LazyVStack` in a ScrollView, and List's built-ins are replaced the desktop's way: Today rows have an × button, and a long press and drag reorders (`.draggable`/`.dropDestination`; dropped on an entry it goes before it, on a folder into it, on a section's header to that section). The long-press menu still works.
+- **Motion.** A folder's children slide down from under its row as they fade in, and slide back up on close, in 0.22 s (`SidebarStyle.folder`). The rows below move with them, the chevron turns and the folder icon swaps. Every other change animates too (`SidebarStyle.motion`, keyed on the entries, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
 - **Browser bar.** It's neutral too: primary-colored icons and a grey address pill, not the system tint.
 
 ## Open items

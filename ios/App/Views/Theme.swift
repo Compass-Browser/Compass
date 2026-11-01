@@ -71,7 +71,9 @@ enum SidebarStyle {
   /// The shown entry: the desktop's active tab, a light pill with a shadow.
   static let active = Color(.secondarySystemGroupedBackground)
   /// Folders opening, entries coming and going.
-  static let motion = Animation.snappy(duration: 0.28)
+  static let motion = Animation.snappy(duration: 0.25)
+  /// A folder opening or closing: quick, its children sliding down.
+  static let folder = Animation.snappy(duration: 0.22)
 }
 
 /// The space's tint behind the whole sidebar, as the desktop's SidebarTint.
