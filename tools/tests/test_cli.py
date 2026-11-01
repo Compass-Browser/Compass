@@ -62,6 +62,15 @@ class IosParserTest(unittest.TestCase):
     self.assertEqual(args.screenshot, '/tmp/a.png')
     self.assertEqual(args.app_args, ['-ResetState'])
 
+  def test_archive_arguments(self):
+    args = parser().parse_args(
+        ['ios', 'archive', '--upload', '--api-key', 'k.p8', '--api-key-id',
+         'ABC', '--api-issuer', 'uuid'])
+    self.assertEqual(args.action, 'archive')
+    self.assertTrue(args.upload)
+    self.assertEqual((args.api_key, args.api_key_id, args.api_issuer),
+                     ('k.p8', 'ABC', 'uuid'))
+
   def test_rejects_unknown_action(self):
     with self.assertRaises(SystemExit):
       parser().parse_args(['ios', 'deploy'])

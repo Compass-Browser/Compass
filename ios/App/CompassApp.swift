@@ -10,7 +10,7 @@ import SwiftUI
 struct CompassApp: App {
   @State private var app: AppModel
   @Environment(\.scenePhase) private var phase
-  static let refreshTask = "it.cvm.compass.refresh"
+  static let refreshTask = "it.cipi1965.compass.refresh"
 
   init() {
     let app = AppModel()
