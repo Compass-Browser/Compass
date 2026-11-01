@@ -5,9 +5,10 @@
 #ifndef COMPASS_BROWSER_UI_ARC_IMPORT_ARC_IMPORTER_H_
 #define COMPASS_BROWSER_UI_ARC_IMPORT_ARC_IMPORTER_H_
 
+#include <map>
 #include <optional>
-#include <string>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -17,6 +18,7 @@
 #include "compass/browser/arc_import/arc_sidebar.h"
 #include "compass/browser/arc_import/profile_copy.h"
 
+class BrowserWindowInterface;
 class Profile;
 
 namespace compass::arc {
@@ -65,19 +67,52 @@ struct ArcImportResult {
   bool ok = false;
   // The Compass profiles made, in Arc's order.
   std::vector<raw_ptr<::Profile>> profiles;
+  // Compass profiles imported before that got Arc's newer spaces.
+  std::vector<raw_ptr<::Profile>> updated;
   // Arc profile folders that failed (copy, Keychain, load).
   std::vector<std::string> failed;
   // The first space imported, to show it.
   base::Uuid first_space;
 };
 
-// Imports everything from Arc: each of its profiles (ImportArcProfile()),
-// then that profile's spaces, Pinned and Today entries and favorites
-// (AddArcSidebar()), and lists the profile so its spaces show in the
-// switcher. Profiles one after another. Arc must not be running. On the UI
-// thread. Only the Arc profiles in |dirs|, or all if it's empty.
-void ImportFromArc(std::vector<std::string> dirs,
+// What to import (docs/design/arc-import.md, "Choosing", "Importing again").
+// Nothing imported before comes in again.
+struct ArcImportChoice {
+  ArcImportChoice();
+  ArcImportChoice(const ArcImportChoice&);
+  ArcImportChoice& operator=(const ArcImportChoice&);
+  ~ArcImportChoice();
+
+  // The Arc profiles to import as new Compass profiles (folders: "Default",
+  // "Profile 1", ...); nullopt: every one not imported yet.
+  std::optional<std::vector<std::string>> profiles;
+  // The Arc spaces (IDs) to bring in, into the new profiles or into the
+  // Compass profiles their Arc profile was imported as before; nullopt:
+  // every one not imported yet. Spaces of an Arc profile that is neither
+  // imported nor chosen stay out.
+  std::optional<std::set<std::string>> spaces;
+};
+
+// Imports from Arc: each chosen profile (ImportArcProfile()), then its
+// spaces, Pinned and Today entries and favorites (AddArcSidebar()), and
+// Arc's newer spaces of profiles imported before. Lists each profile so its
+// spaces show in the switcher, and records the spaces it brought in
+// (prefs::kArcImportSpaces). Profiles one after another. Arc must not be
+// running. On the UI thread.
+void ImportFromArc(ArcImportChoice choice,
                    base::OnceCallback<void(ArcImportResult)> callback);
+
+// A Compass profile imported from Arc.
+struct ImportedProfile {
+  ImportedProfile();
+  ImportedProfile(const ImportedProfile&);
+  ImportedProfile& operator=(const ImportedProfile&);
+  ~ImportedProfile();
+
+  base::FilePath path;
+  // The Arc spaces brought into it.
+  std::set<std::string> spaces;
+};
 
 // What Arc has, for the import page.
 struct ArcOverview {
@@ -87,10 +122,18 @@ struct ArcOverview {
   ~ArcOverview();
 
   std::optional<Sidebar> sidebar;
-  // Arc profile folders a Compass profile was imported from already.
-  std::set<std::string> imported;
+  // By Arc profile folder: the Compass profile it was imported as.
+  std::map<std::string, ImportedProfile> imported;
 };
 void GetArcOverview(base::OnceCallback<void(ArcOverview)> callback);
+
+// On the first run, if Arc is on this Mac and nothing was imported from it,
+// opens the import page (compass://settings/importArc) in the process's
+// first normal window. Called by the sidebar of each window.
+void MaybeOfferImportOnFirstRun(BrowserWindowInterface* browser);
+// Tests: the next normal window is considered again, as a first run or not
+// (nullopt: as first_run::IsChromeFirstRun() says).
+void SetFirstRunForArcImportOfferForTesting(std::optional<bool> first_run);
 
 // Whether Arc is open, and asking it to quit (macOS). QuitArc() returns
 // whether it asked.
@@ -100,7 +143,7 @@ void SetArcRunningForTesting(std::optional<bool> running);
 
 // Merges an Arc profile's Preferences and Secure Preferences into one
 // dictionary without Arc's signatures, records where it came from
-// (`compass.arc_import.profile_dir`), and writes it signed for Compass, as
+// (prefs::kArcImportProfileDir), and writes it signed for Compass, as
 // first run does with initial preferences. Removes Secure Preferences.
 // Blocking.
 bool SignImportedPreferences(const base::FilePath& profile_dir,

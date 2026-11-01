@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {ArcImportProfile, ArcImportState} from '../sidebar.mojom-webui.js';
+import type {ArcImportProfile, ArcImportSpace, ArcImportState} from '../sidebar.mojom-webui.js';
 import {ArcImportHandler} from '../sidebar.mojom-webui.js';
 
 import {getTemplate} from './arc_import_page.html.js';
@@ -11,13 +11,21 @@ import {CompassSettingsPage} from './page_base.js';
 // Importing from Arc: compass://settings/importArc, and alone on
 // chrome://compass-import. See docs/design/arc-import.md.
 
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? `1 ${one}` : `${count} ${many}`;
+}
+
 function describe(profile: ArcImportProfile): string {
-  const spaces = profile.spaces.length === 1 ?
-      '1 space' :
-      `${profile.spaces.length} spaces`;
-  const names = profile.spaces.length ? ` (${profile.spaces.join(', ')})` : '';
-  const tabs = profile.tabCount === 1 ? '1 tab' : `${profile.tabCount} tabs`;
-  return `${spaces}${names} · ${tabs}`;
+  return `${plural(profile.spaces.length, 'space', 'spaces')} · ${
+      plural(profile.tabCount, 'tab', 'tabs')}`;
+}
+
+function checkbox(className: string, value: string): HTMLInputElement {
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.className = className;
+  input.value = value;
+  return input;
 }
 
 export class CompassArcImportPageElement extends CompassSettingsPage {
@@ -46,16 +54,93 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     this.refresh_();
   }
 
-  private chosenDirs_(): string[] {
+  // New profiles to import.
+  private chosenProfiles_(): string[] {
     return Array
         .from(this.querySelectorAll<HTMLInputElement>(
-            '#profiles input:checked'))
+            '#profiles .profile-check:checked:not(:disabled)'))
+        .map(input => input.value);
+  }
+
+  // Spaces to bring in, of new profiles or of profiles imported before.
+  private chosenSpaces_(): string[] {
+    return Array
+        .from(this.querySelectorAll<HTMLInputElement>(
+            '#profiles .space-check:checked:not(:disabled)'))
         .map(input => input.value);
   }
 
   private updateImportButton_() {
     this.$<HTMLButtonElement>('import').disabled = !this.state_ ||
-        this.state_.arcRunning || this.chosenDirs_().length === 0;
+        this.state_.arcRunning ||
+        (this.chosenProfiles_().length === 0 &&
+         this.chosenSpaces_().length === 0);
+  }
+
+  private renderSpace_(space: ArcImportSpace): HTMLLIElement {
+    const item = document.createElement('li');
+    item.classList.toggle('imported', space.imported);
+    const label = document.createElement('label');
+    const input = checkbox('space-check', space.id);
+    input.checked = !space.imported;
+    input.disabled = space.imported;
+    input.addEventListener('change', () => this.updateImportButton_());
+    const name = document.createElement('span');
+    name.className = 'space-name';
+    name.textContent =
+        space.imported ? `${space.name} (imported)` : space.name;
+    const details = document.createElement('span');
+    details.className = 'details';
+    details.textContent = plural(space.tabCount, 'tab', 'tabs');
+    label.append(input, name, details);
+    item.append(label);
+    return item;
+  }
+
+  private renderProfile_(profile: ArcImportProfile): HTMLLIElement {
+    const item = document.createElement('li');
+    item.className = 'profile';
+    const newSpaces = profile.spaces.filter(space => !space.imported).length;
+    // Imported before, nothing new: nothing to choose.
+    item.classList.toggle('imported', profile.imported && !newSpaces);
+    const label = document.createElement('label');
+    const input = checkbox('profile-check', profile.dir);
+    input.checked = true;
+    input.disabled = profile.imported;
+    const text = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent =
+        profile.imported ? `${profile.name} (imported)` : profile.name;
+    const details = document.createElement('div');
+    details.className = 'details';
+    details.textContent = profile.imported && newSpaces ?
+        `${plural(newSpaces, 'new space', 'new spaces')} to add. Its ` +
+            'cookies, history and passwords stay as first imported.' :
+        describe(profile);
+    text.append(name, details);
+    label.append(input, text);
+    item.append(label);
+
+    if (profile.spaces.length) {
+      const spaces = document.createElement('ul');
+      spaces.className = 'spaces';
+      for (const space of profile.spaces) {
+        spaces.append(this.renderSpace_(space));
+      }
+      item.append(spaces);
+    }
+    // A new profile's spaces come with it or not at all.
+    if (!profile.imported) {
+      input.addEventListener('change', () => {
+        for (const space of item.querySelectorAll<HTMLInputElement>(
+                 '.space-check')) {
+          space.disabled = !input.checked;
+        }
+        this.updateImportButton_();
+      });
+    }
+    return item;
   }
 
   private render_() {
@@ -67,31 +152,8 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     this.show('notFound', !state.found);
     this.show('chooser', state.found);
     this.show('arcRunning', state.arcRunning);
-    const list = this.$('profiles');
-    list.replaceChildren();
-    for (const profile of state.profiles) {
-      const item = document.createElement('li');
-      item.classList.toggle('imported', profile.imported);
-      const label = document.createElement('label');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = profile.dir;
-      checkbox.checked = !profile.imported;
-      checkbox.disabled = profile.imported;
-      checkbox.addEventListener('change', () => this.updateImportButton_());
-      const text = document.createElement('div');
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent =
-          profile.imported ? `${profile.name} (imported)` : profile.name;
-      const details = document.createElement('div');
-      details.className = 'details';
-      details.textContent = describe(profile);
-      text.append(name, details);
-      label.append(checkbox, text);
-      item.append(label);
-      list.append(item);
-    }
+    this.$('profiles').replaceChildren(
+        ...state.profiles.map(profile => this.renderProfile_(profile)));
     this.updateImportButton_();
   }
 
@@ -101,18 +163,26 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
   }
 
   private async import_() {
-    const dirs = this.chosenDirs_();
-    if (!dirs.length) {
+    const profiles = this.chosenProfiles_();
+    const spaces = this.chosenSpaces_();
+    if (!profiles.length && !spaces.length) {
       return;
     }
     this.show('chooser', false);
     this.show('importing', true);
-    const {imported, failed} = await this.handler_.import(dirs);
+    const {imported, updated, failed} =
+        await this.handler_.import(profiles, spaces);
     this.show('importing', false);
     this.show('done', true);
-    this.$('doneText').textContent = imported.length ?
-        `Imported ${imported.join(', ')}.` :
-        'Nothing was imported.';
+    const sentences = [];
+    if (imported.length) {
+      sentences.push(`Imported ${imported.join(', ')}.`);
+    }
+    if (updated.length) {
+      sentences.push(`Added new spaces to ${updated.join(', ')}.`);
+    }
+    this.$('doneText').textContent =
+        sentences.length ? sentences.join(' ') : 'Nothing was imported.';
     this.show('failedText', failed.length > 0);
     this.$('failedText').textContent = failed.length ?
         `Couldn't import ${
@@ -121,7 +191,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
             '. Check that Arc is closed and that Compass was allowed to use ' +
             '"Arc Safe Storage", then try again.' :
         '';
-    this.show('open', imported.length > 0);
+    this.show('open', imported.length > 0 || updated.length > 0);
   }
 }
 

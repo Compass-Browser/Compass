@@ -74,7 +74,9 @@ source_set("ui") {
     "//compass/browser/ui/views/frame:content_frame",
   ]
   deps = [
+    "//chrome/browser/first_run",
     "//compass/browser/arc_import",
+    "//compass/browser/prefs",
     "//compass/browser/shortcuts",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
@@ -224,6 +226,7 @@ source_set("browser_tests") {
     ":ui",
     "//compass/browser/shortcuts",
     "//compass/browser/arc_import",
+    "//compass/browser/prefs",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//services/network/public/mojom",

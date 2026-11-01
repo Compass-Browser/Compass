@@ -19,17 +19,25 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/prefs/chrome_pref_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/arc_import/arc_crypto.h"
 #include "compass/browser/arc_import/sidebar_import.h"
+#include "compass/browser/prefs/compass_prefs.h"
+#include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 
@@ -41,8 +49,6 @@ constexpr base::FilePath::CharType kSecurePreferencesFilename[] =
     FILE_PATH_LITERAL("Secure Preferences");
 // Arc's and Compass's signatures of protected preferences.
 constexpr char kProtectionKey[] = "protection";
-// Where an imported profile came from, for importing again.
-constexpr char kImportedFromPath[] = "compass.arc_import.profile_dir";
 
 std::optional<ArcPaths>& PathsForTesting() {
   static base::NoDestructor<std::optional<ArcPaths>> paths;
@@ -157,49 +163,93 @@ std::optional<Sidebar> ReadSidebar(const ArcPaths& paths) {
   return ParseSidebar(*sidebar, local_state ? &*local_state : nullptr);
 }
 
-// One import from Arc: its profiles one after another. Owns itself until
-// it reports.
+// One step of an import: an Arc profile and the spaces to bring in, into a
+// new profile or into the one it was imported as before.
+struct Job {
+  Profile arc;
+  // The Compass profile it was imported as before; empty: a new one.
+  base::FilePath existing;
+  std::vector<Space> spaces;
+};
+
+// What |choice| brings in from |sidebar|, given what's |imported| already.
+std::vector<Job> PlanImport(const Sidebar& sidebar,
+                            const std::map<std::string, ImportedProfile>&
+                                imported,
+                            const ArcImportChoice& choice) {
+  std::vector<Job> jobs;
+  for (const Profile& arc_profile : sidebar.profiles) {
+    const auto before = imported.find(arc_profile.dir);
+    Job job;
+    job.arc = arc_profile;
+    for (const Space& space : sidebar.spaces) {
+      if (space.profile_dir != arc_profile.dir ||
+          (choice.spaces && !choice.spaces->contains(space.id)) ||
+          (before != imported.end() &&
+           before->second.spaces.contains(space.id))) {
+        continue;
+      }
+      job.spaces.push_back(space);
+    }
+    if (before != imported.end()) {
+      // Imported before: only its newer spaces, if any were chosen.
+      if (job.spaces.empty()) {
+        continue;
+      }
+      job.existing = before->second.path;
+    } else if (choice.profiles &&
+               !std::ranges::contains(*choice.profiles, arc_profile.dir)) {
+      continue;
+    }
+    jobs.push_back(std::move(job));
+  }
+  return jobs;
+}
+
+// One import from Arc: its jobs one after another. Owns itself until it
+// reports.
 class WholeImport {
  public:
-  WholeImport(Sidebar sidebar,
+  WholeImport(std::vector<Job> jobs,
               base::OnceCallback<void(ArcImportResult)> callback)
-      : sidebar_(std::move(sidebar)), callback_(std::move(callback)) {
+      : jobs_(std::move(jobs)), callback_(std::move(callback)) {
     result_.ok = true;
   }
 
-  // Only these Arc profiles.
-  void KeepOnly(const std::vector<std::string>& dirs) {
-    if (dirs.empty()) {
-      return;
-    }
-    std::erase_if(sidebar_.profiles, [&](const Profile& profile) {
-      return !std::ranges::contains(dirs, profile.dir);
-    });
-  }
-
   void Next() {
-    if (next_ >= sidebar_.profiles.size()) {
+    if (next_ >= jobs_.size()) {
       std::move(callback_).Run(std::move(result_));
       delete this;
       return;
     }
-    const Profile& arc_profile = sidebar_.profiles[next_];
-    ImportArcProfile(arc_profile.dir, arc_profile.name,
+    const Job& job = jobs_[next_];
+    if (!job.existing.empty()) {
+      // Loads it if it isn't (imported profiles are listed, so usually are).
+      g_browser_process->profile_manager()->CreateProfileAsync(
+          job.existing, base::BindOnce(&WholeImport::OnProfileReady,
+                                       weak_factory_.GetWeakPtr()));
+      return;
+    }
+    ImportArcProfile(job.arc.dir, job.arc.name,
                      base::BindOnce(&WholeImport::OnProfileImported,
                                     weak_factory_.GetWeakPtr()));
   }
 
  private:
   void OnProfileImported(ProfileImport import) {
-    const Profile& arc_profile = sidebar_.profiles[next_];
-    ::Profile* profile = import.profile;
+    OnProfileReady(import.profile);
+  }
+
+  void OnProfileReady(::Profile* profile) {
+    const Job& job = jobs_[next_];
     if (!profile) {
-      result_.failed.push_back(arc_profile.dir);
+      result_.failed.push_back(job.arc.dir);
       ++next_;
       Next();
       return;
     }
-    result_.profiles.push_back(profile);
+    (job.existing.empty() ? result_.profiles : result_.updated)
+        .push_back(profile);
     SpaceService* service = SpaceService::Get(profile);
     service->RunWhenLoaded(base::BindOnce(&WholeImport::OnSpacesLoaded,
                                           weak_factory_.GetWeakPtr(),
@@ -207,62 +257,77 @@ class WholeImport {
   }
 
   void OnSpacesLoaded(base::WeakPtr<::Profile> profile) {
-    const Profile& arc_profile = sidebar_.profiles[next_];
-    if (profile) {
-      std::vector<Space> spaces;
-      for (const Space& space : sidebar_.spaces) {
-        if (space.profile_dir == arc_profile.dir) {
-          spaces.push_back(space);
+    const Job& job = jobs_[next_];
+    if (!profile) {
+      ++next_;
+      Next();
+      return;
+    }
+    std::vector<SpaceModel*> added =
+        AddArcSidebar(SpaceService::Get(profile.get())->space_list(), job.arc,
+                      job.spaces, base::Time::Now(),
+                      job.existing.empty() ? ArcImportInto::kNewProfile
+                                           : ArcImportInto::kImportedProfile);
+    if (!added.empty() && !result_.first_space.is_valid()) {
+      result_.first_space = added.front()->id();
+    }
+    PrefService* pref_service = profile->GetPrefs();
+    {
+      ScopedListPrefUpdate imported(pref_service, prefs::kArcImportSpaces);
+      for (const Space& space : job.spaces) {
+        if (!imported->contains(space.id)) {
+          imported->Append(space.id);
         }
       }
-      std::vector<SpaceModel*> added =
-          AddArcSidebar(SpaceService::Get(profile.get())->space_list(),
-                        arc_profile, spaces, base::Time::Now());
-      if (!added.empty() && !result_.first_space.is_valid()) {
-        result_.first_space = added.front()->id();
-      }
-      // Its spaces show in every window's switcher.
-      if (SpaceDirectory* directory = SpaceDirectory::Get()) {
-        directory->List(profile.get());
-      }
     }
+    // Its spaces show in every window's switcher.
+    if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+      directory->List(profile.get());
+    }
+    // On disk before the page asks what was imported.
+    pref_service->CommitPendingWrite(base::BindOnce(
+        &WholeImport::OnCommitted, weak_factory_.GetWeakPtr()));
+  }
+
+  void OnCommitted() {
     ++next_;
     Next();
   }
 
-  Sidebar sidebar_;
+  std::vector<Job> jobs_;
   base::OnceCallback<void(ArcImportResult)> callback_;
   ArcImportResult result_;
   size_t next_ = 0;
   base::WeakPtrFactory<WholeImport> weak_factory_{this};
 };
 
-void OnSidebarRead(std::vector<std::string> dirs,
-                   base::OnceCallback<void(ArcImportResult)> callback,
-                   std::optional<Sidebar> sidebar) {
-  if (!sidebar) {
-    std::move(callback).Run(ArcImportResult());
-    return;
-  }
-  auto* import = new WholeImport(std::move(*sidebar), std::move(callback));
-  import->KeepOnly(dirs);
-  import->Next();
-}
-
-// The Arc profile folders Compass's profiles under |user_data| came from.
-// Blocking.
-std::set<std::string> FindImported(const base::FilePath& user_data) {
-  std::set<std::string> imported;
+// The Compass profiles under |user_data| imported from Arc, by Arc profile
+// folder (the first one if two came from the same). Blocking.
+std::map<std::string, ImportedProfile> FindImported(
+    const base::FilePath& user_data) {
+  std::map<std::string, ImportedProfile> imported;
   base::FileEnumerator profiles(user_data, /*recursive=*/false,
                                 base::FileEnumerator::DIRECTORIES);
   for (base::FilePath dir = profiles.Next(); !dir.empty();
        dir = profiles.Next()) {
-    std::optional<base::DictValue> prefs =
+    std::optional<base::DictValue> preferences =
         ReadJsonDict(dir.Append(chrome::kPreferencesFilename));
     const std::string* from =
-        prefs ? prefs->FindStringByDottedPath(kImportedFromPath) : nullptr;
-    if (from) {
-      imported.insert(*from);
+        preferences
+            ? preferences->FindStringByDottedPath(prefs::kArcImportProfileDir)
+            : nullptr;
+    if (!from || from->empty() || imported.contains(*from)) {
+      continue;
+    }
+    ImportedProfile& profile = imported[*from];
+    profile.path = dir;
+    if (const base::ListValue* spaces =
+            preferences->FindListByDottedPath(prefs::kArcImportSpaces)) {
+      for (const base::Value& space : *spaces) {
+        if (space.is_string()) {
+          profile.spaces.insert(space.GetString());
+        }
+      }
     }
   }
   return imported;
@@ -276,6 +341,46 @@ ArcOverview ReadOverview(const ArcPaths& paths,
   return overview;
 }
 
+// Leaves out profiles the user deleted (their folders go later).
+ArcOverview DropDeleted(ArcOverview overview) {
+  ProfileAttributesStorage& storage =
+      g_browser_process->profile_manager()->GetProfileAttributesStorage();
+  std::erase_if(overview.imported, [&](const auto& imported) {
+    return !storage.GetProfileAttributesWithPath(imported.second.path);
+  });
+  return overview;
+}
+
+void OnOverviewForImport(ArcImportChoice choice,
+                         base::OnceCallback<void(ArcImportResult)> callback,
+                         ArcOverview overview) {
+  overview = DropDeleted(std::move(overview));
+  if (!overview.sidebar) {
+    std::move(callback).Run(ArcImportResult());
+    return;
+  }
+  (new WholeImport(PlanImport(*overview.sidebar, overview.imported, choice),
+                   std::move(callback)))
+      ->Next();
+}
+
+void ReadOverviewThen(base::OnceCallback<void(ArcOverview)> callback) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&ReadOverview, GetArcPaths(),
+                     g_browser_process->profile_manager()->user_data_dir()),
+      std::move(callback));
+}
+
+bool g_offer_considered = false;
+std::optional<bool> g_first_run_for_testing;
+
+// Whether |sidebar| exists and nothing was imported yet. Blocking.
+bool ShouldOffer(const ArcPaths& paths, const base::FilePath& user_data) {
+  return !paths.sidebar.empty() && base::PathExists(paths.sidebar) &&
+         FindImported(user_data).empty();
+}
+
 }  // namespace
 
 ArcImportResult::ArcImportResult() = default;
@@ -283,13 +388,21 @@ ArcImportResult::ArcImportResult(ArcImportResult&&) = default;
 ArcImportResult& ArcImportResult::operator=(ArcImportResult&&) = default;
 ArcImportResult::~ArcImportResult() = default;
 
-void ImportFromArc(std::vector<std::string> dirs,
+void ImportFromArc(ArcImportChoice choice,
                    base::OnceCallback<void(ArcImportResult)> callback) {
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&ReadSidebar, GetArcPaths()),
-      base::BindOnce(&OnSidebarRead, std::move(dirs), std::move(callback)));
+  ReadOverviewThen(base::BindOnce(&OnOverviewForImport, std::move(choice),
+                                  std::move(callback)));
 }
+
+ArcImportChoice::ArcImportChoice() = default;
+ArcImportChoice::ArcImportChoice(const ArcImportChoice&) = default;
+ArcImportChoice& ArcImportChoice::operator=(const ArcImportChoice&) = default;
+ArcImportChoice::~ArcImportChoice() = default;
+
+ImportedProfile::ImportedProfile() = default;
+ImportedProfile::ImportedProfile(const ImportedProfile&) = default;
+ImportedProfile& ImportedProfile::operator=(const ImportedProfile&) = default;
+ImportedProfile::~ImportedProfile() = default;
 
 ArcOverview::ArcOverview() = default;
 ArcOverview::ArcOverview(ArcOverview&&) = default;
@@ -297,11 +410,41 @@ ArcOverview& ArcOverview::operator=(ArcOverview&&) = default;
 ArcOverview::~ArcOverview() = default;
 
 void GetArcOverview(base::OnceCallback<void(ArcOverview)> callback) {
+  ReadOverviewThen(base::BindOnce(&DropDeleted).Then(std::move(callback)));
+}
+
+void MaybeOfferImportOnFirstRun(BrowserWindowInterface* browser) {
+  if (g_offer_considered) {
+    return;
+  }
+  WindowFeatures* features = WindowFeatures::From(browser);
+  if (browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
+      browser->GetProfile()->IsOffTheRecord() || !features ||
+      features->is_parking_window()) {
+    return;
+  }
+  // The first window the user sees decides.
+  g_offer_considered = true;
+  if (!g_first_run_for_testing.value_or(first_run::IsChromeFirstRun())) {
+    return;
+  }
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&ReadOverview, GetArcPaths(),
+      base::BindOnce(&ShouldOffer, GetArcPaths(),
                      g_browser_process->profile_manager()->user_data_dir()),
-      std::move(callback));
+      base::BindOnce(
+          [](base::WeakPtr<BrowserWindowInterface> browser, bool offer) {
+            if (browser && offer) {
+              chrome::ShowSettingsSubPage(browser.get(),
+                                          kArcImportSettingsSubPage);
+            }
+          },
+          browser->GetWeakPtr()));
+}
+
+void SetFirstRunForArcImportOfferForTesting(std::optional<bool> first_run) {
+  g_offer_considered = false;
+  g_first_run_for_testing = first_run;
 }
 
 ArcPaths GetArcPaths() {
@@ -343,7 +486,7 @@ bool SignImportedPreferences(const base::FilePath& profile_dir,
     secure->Remove(kProtectionKey);
     merged.Merge(std::move(*secure));
   }
-  merged.SetByDottedPath(kImportedFromPath, arc_dir);
+  merged.SetByDottedPath(prefs::kArcImportProfileDir, arc_dir);
   base::DeleteFile(secure_preferences);
   base::DeleteFile(preferences);
   // Signed without Compass's encryption service, as first run seeds initial

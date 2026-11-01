@@ -11,6 +11,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -24,6 +25,7 @@
 #include "content/public/browser/web_contents.h"
 #include "ui/base/page_transition_types.h"
 #include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/ui/arc_import/arc_importer.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
@@ -132,9 +134,20 @@ CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
   InstallSwapPresenter();
   // A swap's window takes the page of the window it replaces
   // (sidebar_swap.cc).
-  if (!IsCreatingSwapWindow()) {
-    LoadPage();
+  if (IsCreatingSwapWindow()) {
+    return;
   }
+  LoadPage();
+  // On the first run, the import from Arc; once the window is built (its
+  // WindowFeatures too).
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::WeakPtr<BrowserWindowInterface> browser) {
+                       if (browser) {
+                         arc::MaybeOfferImportOnFirstRun(browser.get());
+                       }
+                     },
+                     browser->GetWeakPtr()));
 }
 
 CompassSidebarView::~CompassSidebarView() {

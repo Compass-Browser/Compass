@@ -7,6 +7,8 @@
 # patches/).
 source_set("prefs") {
   sources = [
+    "compass_prefs.cc",
+    "compass_prefs.h",
     "pref_defaults.cc",
     "pref_defaults.h",
   ]

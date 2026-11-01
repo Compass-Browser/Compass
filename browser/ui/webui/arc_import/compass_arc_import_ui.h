@@ -58,7 +58,8 @@ class ArcImportPageHandler : public sidebar::mojom::ArcImportHandler {
   // sidebar::mojom::ArcImportHandler:
   void GetState(GetStateCallback callback) override;
   void QuitArc(QuitArcCallback callback) override;
-  void Import(const std::vector<std::string>& dirs,
+  void Import(const std::vector<std::string>& profiles,
+              const std::vector<std::string>& spaces,
               ImportCallback callback) override;
   void OpenImported() override;
 

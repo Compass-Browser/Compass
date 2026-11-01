@@ -19,14 +19,23 @@ class SpaceModel;
 
 namespace compass::arc {
 
+// Where AddArcSidebar() adds to.
+enum class ArcImportInto {
+  // A profile just copied from Arc: its lone empty space takes the first
+  // Arc space's place, and Arc's favorites come along.
+  kNewProfile,
+  // A profile imported before, getting Arc spaces added since: they go
+  // after its spaces, its favorites stay as they are.
+  kImportedProfile,
+};
+
 // Adds an imported Arc profile's sidebar to its Compass profile's |list|
 // (docs/design/arc-import.md, "Mapping to Compass"): each of |spaces| (the
 // profile's, in Arc's order) as a space with its name and color, its Pinned
-// and Today entries (folders, splits, tabs with their own titles), and
-// |profile|'s favorites. A new profile's lone empty space takes the first
-// one's place. Today's entries count as used at |now|, so Today's
-// auto-archive doesn't sweep them up at once. Entries come in unloaded.
-// Returns the spaces it filled, in order.
+// and Today entries (folders, splits, tabs with their own titles), and, for
+// a new profile, |profile|'s favorites. Today's entries count as used at
+// |now|, so Today's auto-archive doesn't sweep them up at once. Entries come
+// in unloaded. Returns the spaces it filled, in order.
 //
 // Entries and spaces get IDs derived from Arc's (ArcDerivedId()), so the same
 // Arc data imported on two Macs gives the same entries, which merge when the
@@ -35,7 +44,9 @@ namespace compass::arc {
 std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
                                        const Profile& profile,
                                        const std::vector<Space>& spaces,
-                                       base::Time now);
+                                       base::Time now,
+                                       ArcImportInto into =
+                                           ArcImportInto::kNewProfile);
 
 // The ID an Arc item or space with |arc_id| gets: a name-based UUID
 // (version 8, RFC 9562) from SHA-256 of Arc's ID. Invalid (empty) for an

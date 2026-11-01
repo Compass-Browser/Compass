@@ -95,18 +95,26 @@ void ArcImportPageHandler::OnOverview(GetStateCallback callback,
   state->arc_running = arc::IsArcRunning();
   if (overview.sidebar) {
     for (const arc::Profile& profile : overview.sidebar->profiles) {
+      const auto imported = overview.imported.find(profile.dir);
       auto entry = sidebar::mojom::ArcImportProfile::New();
       entry->dir = profile.dir;
       entry->name = base::UTF16ToUTF8(profile.name);
+      entry->imported = imported != overview.imported.end();
       int tabs = CountTabs(profile.favorites);
       for (const arc::Space& space : overview.sidebar->spaces) {
-        if (space.profile_dir == profile.dir) {
-          entry->spaces.push_back(base::UTF16ToUTF8(space.name));
-          tabs += CountTabs(space.pinned) + CountTabs(space.today);
+        if (space.profile_dir != profile.dir) {
+          continue;
         }
+        auto space_entry = sidebar::mojom::ArcImportSpace::New();
+        space_entry->id = space.id;
+        space_entry->name = base::UTF16ToUTF8(space.name);
+        space_entry->tab_count = CountTabs(space.pinned) + CountTabs(space.today);
+        space_entry->imported =
+            entry->imported && imported->second.spaces.contains(space.id);
+        tabs += space_entry->tab_count;
+        entry->spaces.push_back(std::move(space_entry));
       }
       entry->tab_count = tabs;
-      entry->imported = overview.imported.contains(profile.dir);
       state->profiles.push_back(std::move(entry));
     }
   }
@@ -135,41 +143,54 @@ void ArcImportPageHandler::CheckArcQuit(QuitArcCallback callback,
                      attempts_left - 1));
 }
 
-void ArcImportPageHandler::Import(const std::vector<std::string>& dirs,
-                                ImportCallback callback) {
+void ArcImportPageHandler::Import(const std::vector<std::string>& profiles,
+                                  const std::vector<std::string>& spaces,
+                                  ImportCallback callback) {
   // Its databases are in use while it runs.
-  if (arc::IsArcRunning() || dirs.empty()) {
-    std::move(callback).Run({}, dirs);
+  if (arc::IsArcRunning() || (profiles.empty() && spaces.empty())) {
+    std::move(callback).Run({}, {}, profiles);
     return;
   }
-  arc::ImportFromArc(dirs, base::BindOnce(&ArcImportPageHandler::OnImported,
-                                          weak_factory_.GetWeakPtr(),
-                                          std::move(callback)));
+  arc::ArcImportChoice choice;
+  choice.profiles = profiles;
+  choice.spaces.emplace(spaces.begin(), spaces.end());
+  arc::ImportFromArc(std::move(choice),
+                     base::BindOnce(&ArcImportPageHandler::OnImported,
+                                    weak_factory_.GetWeakPtr(),
+                                    std::move(callback)));
 }
 
 void ArcImportPageHandler::OnImported(ImportCallback callback,
-                                    arc::ArcImportResult result) {
-  std::vector<std::string> imported;
+                                      arc::ArcImportResult result) {
   ProfileAttributesStorage& storage =
       g_browser_process->profile_manager()->GetProfileAttributesStorage();
-  for (const raw_ptr<Profile>& profile : result.profiles) {
-    ProfileAttributesEntry* entry =
-        storage.GetProfileAttributesWithPath(profile->GetPath());
-    imported.push_back(entry ? base::UTF16ToUTF8(entry->GetLocalProfileName())
-                             : profile->GetBaseName().AsUTF8Unsafe());
-  }
-  if (!result.profiles.empty() && result.first_space.is_valid()) {
-    // The space belongs to the first profile that has spaces.
-    for (const raw_ptr<Profile>& profile : result.profiles) {
-      if (SpaceService::Get(profile)->space_list().FindSpace(
-              result.first_space)) {
-        imported_profile_ = profile->GetWeakPtr();
-        imported_space_ = result.first_space;
-        break;
+  auto names = [&](const std::vector<raw_ptr<Profile>>& profiles) {
+    std::vector<std::string> names;
+    for (const raw_ptr<Profile>& profile : profiles) {
+      ProfileAttributesEntry* entry =
+          storage.GetProfileAttributesWithPath(profile->GetPath());
+      names.push_back(entry ? base::UTF16ToUTF8(entry->GetLocalProfileName())
+                            : profile->GetBaseName().AsUTF8Unsafe());
+    }
+    return names;
+  };
+  imported_profile_.reset();
+  imported_space_ = base::Uuid();
+  if (result.first_space.is_valid()) {
+    // The space belongs to the first profile that got spaces.
+    for (const auto* profiles : {&result.profiles, &result.updated}) {
+      for (const raw_ptr<Profile>& profile : *profiles) {
+        if (!imported_profile_ &&
+            SpaceService::Get(profile)->space_list().FindSpace(
+                result.first_space)) {
+          imported_profile_ = profile->GetWeakPtr();
+          imported_space_ = result.first_space;
+        }
       }
     }
   }
-  std::move(callback).Run(imported, result.failed);
+  std::move(callback).Run(names(result.profiles), names(result.updated),
+                          result.failed);
 }
 
 void ArcImportPageHandler::OpenImported() {

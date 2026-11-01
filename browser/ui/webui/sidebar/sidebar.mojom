@@ -266,16 +266,28 @@ interface PlaceholderHandler {
   BringHere();
 };
 
+// An Arc space chrome://compass-import offers.
+struct ArcImportSpace {
+  // Arc's space ID.
+  string id;
+  string name;
+  // Tabs in its Pinned and Today.
+  int32 tab_count;
+  // Brought in already.
+  bool imported;
+};
+
 // An Arc profile chrome://compass-import offers (docs/design/arc-import.md).
 struct ArcImportProfile {
   // Its folder in Arc ("Default", "Profile 1", ...).
   string dir;
   string name;
-  // Its spaces' names, in Arc's order.
-  array<string> spaces;
+  // Its spaces, in Arc's order.
+  array<ArcImportSpace> spaces;
   // Tabs in its spaces and favorites.
   int32 tab_count;
-  // Imported already: a Compass profile came from it.
+  // Imported already: a Compass profile came from it. Its newer spaces can
+  // still be brought in.
   bool imported;
 };
 
@@ -292,10 +304,16 @@ interface ArcImportHandler {
   GetState() => (ArcImportState state);
   // Asks Arc to quit; answers once it has, or false after a few seconds.
   QuitArc() => (bool quit);
-  // Imports the Arc profiles |dirs|: profiles, cookies, history, passwords,
-  // settings, extensions, then spaces and favorites. macOS asks whether
-  // Compass may use Arc's Keychain key.
-  Import(array<string> dirs) => (array<string> imported, array<string> failed);
+  // Imports the Arc profiles |profiles| (folders) as new Compass profiles:
+  // cookies, history, passwords, settings, extensions, favorites, and those
+  // of |spaces| (Arc space IDs) that are theirs. Spaces of profiles imported
+  // before go into the Compass profile each became. macOS asks whether
+  // Compass may use Arc's Keychain key. Answers with the names of the
+  // profiles made and of those that got spaces, and the Arc profiles
+  // (folders) that failed.
+  Import(array<string> profiles, array<string> spaces)
+      => (array<string> imported, array<string> updated,
+          array<string> failed);
   // Shows the first imported space in this window.
   OpenImported();
 };

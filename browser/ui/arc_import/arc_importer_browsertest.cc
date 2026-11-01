@@ -23,6 +23,7 @@
 #include "base/test/run_until.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/arc_import/arc_crypto.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -38,6 +39,7 @@
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -163,7 +165,7 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsCookiesAndSettings) {
             "session=1");
 
   // The protected setting kept its value; nothing was reset.
-  EXPECT_EQ(imported->GetPrefs()->GetString(prefs::kHomePage),
+  EXPECT_EQ(imported->GetPrefs()->GetString(::prefs::kHomePage),
             "https://home.test/");
   EXPECT_TRUE(chrome_prefs::GetTamperedPrefList(imported).empty());
   EXPECT_TRUE(chrome_prefs::GetResetTime(imported).is_null());
@@ -179,9 +181,10 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, FailsWithoutArcsKey) {
 }
 
 // Arc's sidebar for two profiles: "Your Arc" (Default) with two spaces and a
-// favorite, "Work" (Profile 1) with one space.
+// favorite, "Work" (Profile 1) with one space. More spaces go in for the
+// "%s" (WriteArcSidebar()).
 constexpr char kSidebar[] = R"json({"sidebar": {"containers": [{"global": {}}, {
-  "spaces": [
+  "spaces": [%s
     "s1", {"id": "s1", "title": "Personal", "profile": {"default": true},
            "containerIDs": ["pinned", "p1", "unpinned", "u1"]},
     "s2", {"id": "s2", "title": "Job",
@@ -211,7 +214,13 @@ constexpr char kSidebar[] = R"json({"sidebar": {"containers": [{"global": {}}, {
 constexpr char kLocalState[] = R"json({"profile": {"info_cache": {
   "Default": {"name": "Your Arc"}, "Profile 1": {"name": "Work"}}}})json";
 
-void WriteArcSidebar() {
+// A space of "Your Arc" added later, for importing again.
+constexpr char kTravelSpace[] = R"json(
+    "s4", {"id": "s4", "title": "Travel", "profile": {"default": true},
+           "containerIDs": ["pinned", "p3", "unpinned", "u3"]},)json";
+
+// Writes Arc's sidebar, with |more_spaces| first.
+void WriteArcSidebar(std::string_view more_spaces = "") {
   base::ScopedAllowBlockingForTesting allow_blocking;
   const ArcPaths paths = GetArcPaths();
   for (const char* dir : {"Default", "Profile 1"}) {
@@ -219,24 +228,15 @@ void WriteArcSidebar() {
     ASSERT_TRUE(base::WriteFile(
         paths.user_data.AppendASCII(dir).AppendASCII("Preferences"), "{}"));
   }
-  ASSERT_TRUE(base::WriteFile(paths.sidebar, kSidebar));
+  std::string sidebar = kSidebar;
+  sidebar.replace(sidebar.find("%s"), 2, more_spaces);
+  ASSERT_TRUE(base::WriteFile(paths.sidebar, sidebar));
   ASSERT_TRUE(
       base::WriteFile(paths.user_data.AppendASCII("Local State"), kLocalState));
 }
 
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
-  {
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    const ArcPaths paths = GetArcPaths();
-    for (const char* dir : {"Default", "Profile 1"}) {
-      ASSERT_TRUE(base::CreateDirectory(paths.user_data.AppendASCII(dir)));
-      ASSERT_TRUE(base::WriteFile(
-          paths.user_data.AppendASCII(dir).AppendASCII("Preferences"), "{}"));
-    }
-    ASSERT_TRUE(base::WriteFile(paths.sidebar, kSidebar));
-    ASSERT_TRUE(base::WriteFile(paths.user_data.AppendASCII("Local State"),
-                                kLocalState));
-  }
+  ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
 
   base::test::TestFuture<ArcImportResult> future;
   ImportFromArc({}, future.GetCallback());
@@ -269,6 +269,90 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {
   EXPECT_TRUE(SpaceDirectory::Get()->IsListed(work));
 }
 
+std::vector<std::u16string> SpaceNames(::Profile* profile) {
+  std::vector<std::u16string> names;
+  for (const auto& space : SpaceService::Get(profile)->space_list().spaces()) {
+    names.push_back(space->name());
+  }
+  return names;
+}
+
+// Only the chosen profiles and spaces come in, and the profile records
+// which spaces it got.
+IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsChosenSpacesOnly) {
+  ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
+
+  ArcImportChoice choice;
+  choice.profiles = std::vector<std::string>{"Default"};
+  choice.spaces = std::set<std::string>{"s3"};
+  base::test::TestFuture<ArcImportResult> future;
+  ImportFromArc(choice, future.GetCallback());
+  ArcImportResult result = future.Take();
+  ASSERT_TRUE(result.ok);
+  ASSERT_EQ(result.profiles.size(), 1u);
+  EXPECT_THAT(SpaceNames(result.profiles[0]),
+              testing::ElementsAre(u"Hobbies"));
+  EXPECT_EQ(result.profiles[0]->GetPrefs()->GetList(prefs::kArcImportSpaces),
+            base::ListValue().Append("s3"));
+}
+
+// Importing again adds only Arc's newer spaces, into the profile made the
+// first time; no new profile, no second copy of the favorites.
+IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportingAgainAddsNewSpaces) {
+  ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
+  base::test::TestFuture<ArcImportResult> first;
+  ImportFromArc({}, first.GetCallback());
+  ArcImportResult result = first.Take();
+  ASSERT_EQ(result.profiles.size(), 2u);
+  ::Profile* personal = result.profiles[0];
+  const size_t profiles = g_browser_process->profile_manager()
+                              ->GetProfileAttributesStorage()
+                              .GetNumberOfProfiles();
+
+  // Nothing new: nothing happens.
+  base::test::TestFuture<ArcImportResult> again;
+  ImportFromArc({}, again.GetCallback());
+  result = again.Take();
+  EXPECT_TRUE(result.profiles.empty());
+  EXPECT_TRUE(result.updated.empty());
+
+  // A new space in Arc.
+  ASSERT_NO_FATAL_FAILURE(WriteArcSidebar(kTravelSpace));
+  base::test::TestFuture<ArcImportResult> newer;
+  ImportFromArc({}, newer.GetCallback());
+  result = newer.Take();
+  ASSERT_TRUE(result.ok);
+  EXPECT_TRUE(result.profiles.empty());
+  ASSERT_EQ(result.updated.size(), 1u);
+  EXPECT_EQ(result.updated[0], personal);
+  EXPECT_THAT(SpaceNames(personal),
+              testing::ElementsAre(u"Personal", u"Hobbies", u"Travel"));
+  EXPECT_EQ(SpaceService::Get(personal)
+                ->space_list()
+                .favorites()
+                .pinned_root()
+                ->children()
+                .size(),
+            1u);
+  EXPECT_EQ(g_browser_process->profile_manager()
+                ->GetProfileAttributesStorage()
+                .GetNumberOfProfiles(),
+            profiles);
+}
+
+// On the first run, with Arc on the Mac, the first window opens the import.
+IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, OffersImportOnFirstRun) {
+  ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
+  SetFirstRunForArcImportOfferForTesting(true);
+  BrowserWindowInterface* window = CreateBrowser(browser()->GetProfile());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    content::WebContents* active =
+        window->GetTabStripModel()->GetActiveWebContents();
+    return active && active->GetVisibleURL().path() == "/importArc";
+  }));
+  SetFirstRunForArcImportOfferForTesting(std::nullopt);
+}
+
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, NoSidebarNoImport) {
   base::test::TestFuture<ArcImportResult> future;
   ImportFromArc({}, future.GetCallback());
@@ -286,20 +370,25 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
       browser()->GetTabStripModel()->GetActiveWebContents();
   ASSERT_TRUE(content::WaitForLoadStop(page));
   ASSERT_TRUE(base::test::RunUntil([&] {
-    return content::EvalJs(page, "document.querySelectorAll('#profiles li')"
+    return content::EvalJs(page, "document.querySelectorAll('#profiles > li')"
                                  ".length")
                .ExtractInt() == 2;
   }));
   EXPECT_EQ(content::EvalJs(page,
                             "document.querySelector('#profiles .details')"
                             ".textContent"),
-            "2 spaces (Personal, Hobbies) · 2 tabs");
+            "2 spaces · 2 tabs");
+  EXPECT_EQ(content::EvalJs(page,
+                            "[...document.querySelectorAll("
+                            "'#profiles .space-name')].map(e => e.textContent)"
+                            ".join()"),
+            "Personal,Hobbies,Job");
   EXPECT_EQ(false, content::EvalJs(page, "document.getElementById('import')"
                                          ".disabled"));
 
   // Only "Work".
   ASSERT_TRUE(content::ExecJs(
-      page, "document.querySelector('#profiles input').click();"
+      page, "document.querySelector('#profiles .profile-check').click();"
             "document.getElementById('import').click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     return content::EvalJs(page, "!document.getElementById('done').hidden")
@@ -314,7 +403,7 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
       browser(), GURL("chrome://compass-import/")));
   page = browser()->GetTabStripModel()->GetActiveWebContents();
   ASSERT_TRUE(base::test::RunUntil([&] {
-    return content::EvalJs(page, "document.querySelectorAll('#profiles li')"
+    return content::EvalJs(page, "document.querySelectorAll('#profiles > li')"
                                  ".length")
                .ExtractInt() == 2;
   }));
@@ -322,6 +411,10 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
                             "document.querySelectorAll('#profiles .name')[1]"
                             ".textContent"),
             "Work (imported)");
+  // Its space was brought in: nothing to choose there.
+  EXPECT_EQ(true, content::EvalJs(
+                      page, "document.querySelectorAll('#profiles "
+                            ".space-check')[2].disabled"));
 }
 
 }  // namespace

@@ -81,6 +81,20 @@ TEST_F(SidebarImportTest, AnUsedProfileKeepsItsSpaces) {
   EXPECT_EQ(list_.spaces()[1]->name(), u"Arc Home");
 }
 
+// Spaces added to Arc after the first import go after the profile's own,
+// even into an empty one, and the favorites stay as the user left them.
+TEST_F(SidebarImportTest, AnImportedProfileGetsNewSpacesOnly) {
+  std::vector<SpaceModel*> added =
+      AddArcSidebar(list_, profile_, {spaces_[1]}, kNow,
+                    ArcImportInto::kImportedProfile);
+  ASSERT_EQ(list_.spaces().size(), 2u);
+  ASSERT_EQ(added.size(), 1u);
+  EXPECT_EQ(list_.spaces()[0]->name(), u"Home");
+  EXPECT_EQ(added[0], list_.spaces()[1].get());
+  EXPECT_EQ(list_.spaces()[1]->name(), u"Work");
+  EXPECT_TRUE(list_.favorites().pinned_root()->children().empty());
+}
+
 TEST_F(SidebarImportTest, PinnedKeepsFoldersTitlesAndTimes) {
   AddArcSidebar(list_, profile_, spaces_, kNow);
   const SidebarNode* pinned = list_.spaces()[0]->pinned_root();

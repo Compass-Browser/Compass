@@ -164,9 +164,10 @@ bool IsUnused(const SpaceList& list) {
 std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
                                        const Profile& profile,
                                        const std::vector<Space>& spaces,
-                                       base::Time now) {
+                                       base::Time now,
+                                       ArcImportInto into) {
   std::vector<SpaceModel*> added;
-  bool reuse_first = IsUnused(list);
+  bool reuse_first = into == ArcImportInto::kNewProfile && IsUnused(list);
   for (const Space& space : spaces) {
     SpaceModel* model = nullptr;
     if (reuse_first) {
@@ -195,9 +196,12 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
     Builder(list, *model, now).AddAll(model->today_root(), space.today);
     added.push_back(model);
   }
-  SpaceModel& favorites = list.favorites();
-  Builder(list, favorites, std::nullopt)
-      .AddAll(favorites.pinned_root(), profile.favorites);
+  // Favorites the user removed since the first import stay removed.
+  if (into == ArcImportInto::kNewProfile) {
+    SpaceModel& favorites = list.favorites();
+    Builder(list, favorites, std::nullopt)
+        .AddAll(favorites.pinned_root(), profile.favorites);
+  }
   return added;
 }
 

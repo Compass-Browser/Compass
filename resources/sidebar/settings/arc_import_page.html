@@ -38,8 +38,36 @@
     padding: 12px 0;
   }
 
-  .compass-page li.imported label {
+  .compass-page li.imported > label {
     cursor: default;
+    opacity: 0.6;
+  }
+
+  /* A profile's spaces, indented under it. */
+  .compass-page ul.spaces {
+    margin: -4px 0 8px 28px;
+  }
+
+  .compass-page ul.spaces li + li {
+    border-top: none;
+  }
+
+  .compass-page ul.spaces label {
+    align-items: baseline;
+    padding: 4px 0;
+  }
+
+  .compass-page ul.spaces input[type=checkbox] {
+    align-self: center;
+    margin: 0;
+  }
+
+  .compass-page .space-name {
+    flex: 1;
+  }
+
+  .compass-page input:disabled + .space-name,
+  .compass-page input:disabled + .space-name + .details {
     opacity: 0.6;
   }
 
@@ -55,6 +83,10 @@
     font-size: 12px;
     margin-top: 2px;
     opacity: 0.7;
+  }
+
+  .compass-page ul.spaces .details {
+    margin-top: 0;
   }
 
   .compass-page button {

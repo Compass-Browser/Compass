@@ -1,6 +1,7 @@
 # Import from Arc
 
-Status: designing (2026-10-31). Based on Chromium 156.0.8078.48; Arc on the
+Status: slices 1-5 done (2026-11-01), not yet run on real Arc data.
+Based on Chromium 156.0.8078.48; Arc on the
 user's Mac is Chromium 156.0.8078.74.
 
 ## Goal
@@ -97,11 +98,41 @@ its 32-byte domain hash prefix), `Login Data` / `Login Data For Account`
 cookie lost rather than garbage). Reading Arc's key makes macOS ask once
 whether Compass may use "Arc Safe Storage"; the page says so first.
 
+### Choosing
+
+The page lists each Arc profile with its spaces, each with a checkbox. A new
+profile comes with the checked spaces among its own (unchecking the profile
+leaves all of them out); with none checked, it still brings its cookies,
+history, passwords, settings, extensions and favorites. The import is
+`ImportFromArc(ArcImportChoice)`: the Arc profiles to copy and the Arc
+space IDs to bring in (nullopt for either: everything not imported yet).
+
 ### Importing again
 
-Each imported profile records its Arc profile folder (a pref); each imported
-space keeps Arc's space ID. A second import skips those, so only new profiles
-and spaces come in.
+Each imported profile records the Arc profile folder it came from
+(`compass.arc_import.profile_dir`) and the Arc spaces brought into it
+(`compass.arc_import.spaces`, Arc space IDs), both profile prefs
+(`compass/browser/prefs/compass_prefs.h`, registered by the
+`browser_prefs.cc` patch). The page shows an imported profile as such,
+with its imported spaces greyed out and Arc's newer ones checked. Importing
+them doesn't copy the profile again: they're added after the Compass
+profile's own spaces (`ArcImportInto::kImportedProfile`; no space reused,
+favorites left as the user has them), and the page says its cookies,
+history and passwords stay as first imported. A space the user deleted in
+Compass stays recorded, so it isn't offered again. A profile whose folder
+is gone from Compass's profile list (deleted) no longer counts as imported.
+The import commits the profile's prefs before it reports, so the page,
+which reads the Preferences files, sees the new state at once.
+
+### First run
+
+On the first run (`first_run::IsChromeFirstRun()`; upstream's first-run
+experience is off, privacy.md), the first normal window opens
+compass://settings/importArc if Arc's `StorableSidebar.json` exists and no
+profile was imported from Arc (`MaybeOfferImportOnFirstRun()`, posted by
+`CompassSidebarView` once the window is built). Only that first window
+considers it; a later run never offers it again (the command bar's "Import
+from Arc" and Settings still do).
 
 ## Arc features to add to Compass first
 
@@ -187,9 +218,14 @@ drop get added to Compass before the import is finished. From Arc's files:
   profiles (`ImportFromArc(dirs)`), names them, and "Open my spaces"
   switches the window to the first imported space. Tests:
   `ArcImporterBrowserTest.ImportPage`.
-- Not done: offering it on first run; per-space choice (profiles are the
-  unit); the Arc features Compass lacks (above); a run on the user's real
-  Arc data.
+- Slice 5 (choosing, importing again, first run) done (2026-11-01): see
+  "Choosing", "Importing again" and "First run" above.
+  `SidebarImportTest.AnImportedProfileGetsNewSpacesOnly`,
+  `ArcImporterBrowserTest.ImportsChosenSpacesOnly`,
+  `ImportingAgainAddsNewSpaces`, `OffersImportOnFirstRun`, `ImportPage`.
+- Not done: the archive, link routing and key bindings (above; the user's
+  Arc has 951 archived entries, one routing rule and no custom key
+  bindings); a run on the user's real Arc data.
 
 ## Open questions
 
