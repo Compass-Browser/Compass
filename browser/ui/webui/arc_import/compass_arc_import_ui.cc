@@ -68,17 +68,27 @@ CompassArcImportUI::~CompassArcImportUI() = default;
 
 void CompassArcImportUI::BindInterface(
     mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver) {
-  receiver_.reset();
-  receiver_.Bind(std::move(receiver));
+  handler_.reset();
+  handler_ =
+      std::make_unique<ArcImportPageHandler>(web_ui(), std::move(receiver));
 }
 
-void CompassArcImportUI::GetState(GetStateCallback callback) {
-  arc::GetArcOverview(base::BindOnce(&CompassArcImportUI::OnOverview,
+WEB_UI_CONTROLLER_TYPE_IMPL(CompassArcImportUI)
+
+ArcImportPageHandler::ArcImportPageHandler(
+    content::WebUI* web_ui,
+    mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver)
+    : web_ui_(web_ui), receiver_(this, std::move(receiver)) {}
+
+ArcImportPageHandler::~ArcImportPageHandler() = default;
+
+void ArcImportPageHandler::GetState(GetStateCallback callback) {
+  arc::GetArcOverview(base::BindOnce(&ArcImportPageHandler::OnOverview,
                                      weak_factory_.GetWeakPtr(),
                                      std::move(callback)));
 }
 
-void CompassArcImportUI::OnOverview(GetStateCallback callback,
+void ArcImportPageHandler::OnOverview(GetStateCallback callback,
                                     arc::ArcOverview overview) {
   auto state = sidebar::mojom::ArcImportState::New();
   state->found = overview.sidebar.has_value();
@@ -103,7 +113,7 @@ void CompassArcImportUI::OnOverview(GetStateCallback callback,
   std::move(callback).Run(std::move(state));
 }
 
-void CompassArcImportUI::QuitArc(QuitArcCallback callback) {
+void ArcImportPageHandler::QuitArc(QuitArcCallback callback) {
   if (!arc::IsArcRunning()) {
     std::move(callback).Run(true);
     return;
@@ -112,7 +122,7 @@ void CompassArcImportUI::QuitArc(QuitArcCallback callback) {
   CheckArcQuit(std::move(callback), kQuitChecks);
 }
 
-void CompassArcImportUI::CheckArcQuit(QuitArcCallback callback,
+void ArcImportPageHandler::CheckArcQuit(QuitArcCallback callback,
                                       int attempts_left) {
   if (!arc::IsArcRunning() || attempts_left <= 0) {
     std::move(callback).Run(!arc::IsArcRunning());
@@ -120,24 +130,24 @@ void CompassArcImportUI::CheckArcQuit(QuitArcCallback callback,
   }
   quit_timer_.Start(
       FROM_HERE, kQuitCheckInterval,
-      base::BindOnce(&CompassArcImportUI::CheckArcQuit,
+      base::BindOnce(&ArcImportPageHandler::CheckArcQuit,
                      weak_factory_.GetWeakPtr(), std::move(callback),
                      attempts_left - 1));
 }
 
-void CompassArcImportUI::Import(const std::vector<std::string>& dirs,
+void ArcImportPageHandler::Import(const std::vector<std::string>& dirs,
                                 ImportCallback callback) {
   // Its databases are in use while it runs.
   if (arc::IsArcRunning() || dirs.empty()) {
     std::move(callback).Run({}, dirs);
     return;
   }
-  arc::ImportFromArc(dirs, base::BindOnce(&CompassArcImportUI::OnImported,
+  arc::ImportFromArc(dirs, base::BindOnce(&ArcImportPageHandler::OnImported,
                                           weak_factory_.GetWeakPtr(),
                                           std::move(callback)));
 }
 
-void CompassArcImportUI::OnImported(ImportCallback callback,
+void ArcImportPageHandler::OnImported(ImportCallback callback,
                                     arc::ArcImportResult result) {
   std::vector<std::string> imported;
   ProfileAttributesStorage& storage =
@@ -162,9 +172,9 @@ void CompassArcImportUI::OnImported(ImportCallback callback,
   std::move(callback).Run(imported, result.failed);
 }
 
-void CompassArcImportUI::OpenImported() {
+void ArcImportPageHandler::OpenImported() {
   tabs::TabInterface* tab =
-      tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
+      tabs::TabInterface::MaybeGetFromContents(web_ui_->GetWebContents());
   BrowserWindowInterface* browser =
       tab ? tab->GetBrowserWindowInterface() : nullptr;
   if (!browser || !imported_profile_) {
@@ -177,7 +187,5 @@ void CompassArcImportUI::OpenImported() {
     SwitchWindowToSpace(browser, imported_profile_.get(), *space);
   }
 }
-
-WEB_UI_CONTROLLER_TYPE_IMPL(CompassArcImportUI)
 
 }  // namespace compass

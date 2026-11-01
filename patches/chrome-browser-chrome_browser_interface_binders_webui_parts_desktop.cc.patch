@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
-index 378e1a6f0c8b438ea3fc754dc9614a68d77406aa..807d938bde9f20564496eca1e978c07fabc12b88 100644
+index 378e1a6f0c8b438ea3fc754dc9614a68d77406aa..b5b853bb69fa8f5c85ba1fb6bdaea71f2aedb9e3 100644
 --- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 +++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 @@ -4,6 +4,8 @@
@@ -19,3 +19,16 @@ index 378e1a6f0c8b438ea3fc754dc9614a68d77406aa..807d938bde9f20564496eca1e978c07f
    registry.ForWebUI<OrganizerPanelUI>()
        .Add<organizer_panel::mojom::PageHandlerFactory>()
        .Add<tab_search::mojom::PageHandlerFactory>()
+@@ -630,7 +633,11 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
+       .Add<batch_upload_promo::mojom::PageHandlerFactory>()
+       .Add<customize_color_scheme_mode::mojom::
+                CustomizeColorSchemeModeHandlerFactory>()
+-      .Add<help_bubble::mojom::HelpBubbleHandlerFactory>();
++      .Add<help_bubble::mojom::HelpBubbleHandlerFactory>()
++      // Compass's sections (compass::SettingsSections).
++      .Add<compass::sidebar::mojom::SettingsHandler>()
++      .Add<compass::sidebar::mojom::ArcImportHandler>()
++      .Add<compass::sync::mojom::PageHandlerFactory>();
+ 
+   if (webui_browser::IsWebUIBrowserEnabled()) {
+     registry.ForWebUI<WebUIBrowserUI>()

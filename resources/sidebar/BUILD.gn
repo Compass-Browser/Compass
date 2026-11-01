@@ -5,7 +5,8 @@
 import("//ui/webui/resources/tools/build_webui.gni")
 
 # chrome://compass-sidebar, and the other Compass pages (the placeholder, the
-# command bar). Produces :resources, whose pak is added to Chrome's resources
+# command bar, the settings sections, which chrome://settings also serves
+# under compass/). Produces :resources, whose pak is added to Chrome's resources
 # (see patches/chrome-chrome_paks.gni.patch).
 build_webui("build") {
   grd_prefix = "compass_sidebar"
@@ -22,24 +23,32 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
-    "arc_import.ts",
     "browser_proxy.ts",
     "colors.ts",
     "command_bar/app.html.ts",
     "command_bar/app.ts",
     "command_bar/browser_proxy.ts",
-    "compass_sync.ts",
     "favicon.ts",
     "node.html.ts",
     "node.ts",
     "placeholder.ts",
     "preview.html.ts",
     "preview.ts",
-    "settings.ts",
+    "settings/page_base.ts",
+    "settings/standalone.ts",
     "space_icons.ts",
     "theme_editor.html.ts",
     "theme_editor.ts",
   ]
+  # Compass's settings sections (settings/page_base.ts): native elements whose
+  # markup is in their .html file.
+  web_component_files = [
+    "settings/arc_import_page.ts",
+    "settings/shortcuts_page.ts",
+    "settings/sync_page.ts",
+  ]
+  html_to_wrapper_template = "native"
+
   css_files = [
     "app.css",
     "command_bar/app.css",
@@ -48,6 +57,9 @@ build_webui("build") {
   ]
 
   webui_context_type = "trusted"
+
+  # chrome://settings imports the settings sections (/compass/settings/...).
+  ts_composite = true
 
   ts_deps = [
     "//third_party/lit/v3_0:build_ts",

@@ -1,0 +1,421 @@
+<style>
+  .compass-page h2 {
+    font-size: 15px;
+    font-weight: 500;
+    margin: 32px 0 10px;
+  }
+
+  .compass-page p {
+    margin: 0 0 12px;
+  }
+
+  .compass-page .lead {
+    margin: 0 0 24px;
+    opacity: 0.75;
+  }
+
+  .compass-page .note {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .compass-page .error {
+    color: var(--color-sys-error, #b3261e);
+  }
+
+  .compass-page .card {
+    background: var(--color-sys-base-container, #f1f3f4);
+    border-radius: 12px;
+    margin: 0 0 12px;
+    padding: 14px 16px;
+  }
+
+  /* The status line, with a dot for the state. */
+  .compass-page #statusCard {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+  }
+
+  .compass-page #statusDot {
+    background: var(--color-sys-outline, #747775);
+    border-radius: 50%;
+    flex: none;
+    height: 10px;
+    width: 10px;
+  }
+
+  .compass-page #statusDot[data-state=on] {
+    background: #1e8e3e;
+  }
+
+  .compass-page #statusDot[data-state=starting],
+  .compass-page #statusDot[data-state=restart] {
+    background: #f9ab00;
+  }
+
+  .compass-page #statusDot[data-state=error] {
+    background: var(--color-sys-error, #b3261e);
+  }
+
+  .compass-page #status {
+    flex: 1;
+    margin: 0;
+  }
+
+  .compass-page label.field {
+    display: block;
+    font-weight: 500;
+    margin: 16px 0 6px;
+  }
+
+  .compass-page input[type=url],
+  .compass-page input[type=text],
+  .compass-page textarea {
+    background: var(--color-sys-base, #fff);
+    border: 1px solid var(--color-sys-outline, #747775);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: inherit;
+    font: inherit;
+    padding: 8px 10px;
+    width: 100%;
+  }
+
+  .compass-page input::placeholder,
+  .compass-page textarea::placeholder {
+    color: inherit;
+    opacity: 0.45;
+  }
+
+  .compass-page #mappingRows label {
+    display: block;
+    margin: 8px 0 0;
+  }
+
+  .compass-page #mappingRows select {
+    background: var(--color-sys-base, #fff);
+    border: 1px solid var(--color-sys-outline, #747775);
+    border-radius: 8px;
+    color: inherit;
+    font: inherit;
+    margin-inline-start: 4px;
+    padding: 4px 8px;
+  }
+
+  .compass-page textarea {
+    height: 76px;
+    resize: vertical;
+  }
+
+  .compass-page .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0 0;
+  }
+
+  .compass-page button {
+    background: var(--color-sys-primary, #0b57d0);
+    border: none;
+    border-radius: 18px;
+    color: var(--color-sys-on-primary, #fff);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 500;
+    padding: 8px 20px;
+  }
+
+  .compass-page button.secondary {
+    background: none;
+    border: 1px solid var(--color-sys-outline, #747775);
+    color: inherit;
+  }
+
+  .compass-page button.danger {
+    background: none;
+    border: 1px solid var(--color-sys-error, #b3261e);
+    color: var(--color-sys-error, #b3261e);
+  }
+
+  .compass-page button.link {
+    background: none;
+    border: none;
+    color: var(--color-sys-primary, #0b57d0);
+    padding: 8px 4px;
+  }
+
+  .compass-page button:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  /* Lists: devices and what syncs. */
+  .compass-page ul.rows {
+    border: 1px solid var(--color-sys-divider, #dadce0);
+    border-radius: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .compass-page ul.rows > li {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    min-height: 24px;
+    padding: 10px 16px;
+  }
+
+  .compass-page ul.rows > li + li {
+    border-top: 1px solid var(--color-sys-divider, #dadce0);
+  }
+
+  .compass-page .grow {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .compass-page .name {
+    font-weight: 500;
+  }
+
+  .compass-page .details {
+    font-size: 12px;
+    margin-top: 2px;
+    opacity: 0.7;
+  }
+
+  .compass-page .badge {
+    background: var(--color-sys-base-container, #f1f3f4);
+    border-radius: 8px;
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  /* A checkbox drawn as a switch. */
+  .compass-page input.switch {
+    appearance: none;
+    background: var(--color-sys-outline, #747775);
+    border-radius: 10px;
+    cursor: pointer;
+    flex: none;
+    height: 20px;
+    margin: 0;
+    position: relative;
+    transition: background 120ms;
+    width: 34px;
+  }
+
+  .compass-page input.switch::after {
+    background: #fff;
+    border-radius: 50%;
+    content: '';
+    height: 16px;
+    left: 2px;
+    position: absolute;
+    top: 2px;
+    transition: left 120ms;
+    width: 16px;
+  }
+
+  .compass-page input.switch:checked {
+    background: var(--color-sys-primary, #0b57d0);
+  }
+
+  .compass-page input.switch:checked::after {
+    left: 16px;
+  }
+
+  .compass-page input.switch:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  .compass-page #words {
+    column-gap: 24px;
+    columns: 3;
+    font-family: ui-monospace, monospace;
+    font-size: 15px;
+    margin: 16px 0;
+    padding-inline-start: 28px;
+  }
+
+  .compass-page #words li {
+    padding: 3px 0;
+  }
+
+  .compass-page .code {
+    font-family: ui-monospace, monospace;
+    font-size: 36px;
+    letter-spacing: 3px;
+    margin: 4px 0 12px;
+  }
+
+  .compass-page #serverUrl {
+    font-family: ui-monospace, monospace;
+    overflow-wrap: anywhere;
+  }
+
+  .compass-page dialog {
+    background: var(--color-sys-base, #fff);
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    color: inherit;
+    max-width: 420px;
+    padding: 24px;
+  }
+
+  .compass-page dialog::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .compass-page dialog h2 {
+    margin-top: 0;
+  }
+</style>
+<p class="lead">Your spaces, passwords, history and more on all your
+  devices, encrypted on each device: the server can't read them.</p>
+
+<div id="statusCard" class="card">
+  <span id="statusDot" aria-hidden="true"></span>
+  <p id="status"></p>
+</div>
+
+<!-- Off. -->
+<section id="off" hidden>
+  <label class="field" for="server">Sync server</label>
+  <input id="server" type="url" autocomplete="off" spellcheck="false"
+      placeholder="https://sync.example.com/v2">
+  <p class="note">The address of the Compass sync server you run, or
+    one you trust. Every device of a chain uses the same one.</p>
+  <div class="buttons">
+    <button id="start">Start sync</button>
+    <button id="showJoin" class="secondary">I have another
+      device</button>
+  </div>
+
+  <div id="joinPanel" hidden>
+    <label class="field" for="code">The code shown on the other
+      device</label>
+    <input id="code" type="text" placeholder="7-482913"
+        autocomplete="off" spellcheck="false">
+    <p class="note">On a device that syncs, open Sync and choose Add a
+      device.</p>
+    <div class="buttons">
+      <button id="join">Join</button>
+      <button id="showRecovery" class="link">Use a recovery
+        code</button>
+    </div>
+  </div>
+
+  <div id="recoveryPanel" hidden>
+    <label class="field" for="recovery">Recovery code (12
+      words)</label>
+    <textarea id="recovery" autocomplete="off"
+        spellcheck="false"></textarea>
+    <div class="buttons">
+      <button id="recover">Join with the recovery code</button>
+    </div>
+  </div>
+  <p id="offError" class="error"></p>
+</section>
+
+<!-- A recovery code: once after "Start sync" or "Reset sync", or on
+     request. -->
+<section id="wordsPanel" hidden>
+  <h2>Your recovery code</h2>
+  <p>Save these 12 words somewhere safe, such as a password manager.
+    You only need them if you lose every device that syncs: without
+    them, the synced data is gone.</p>
+  <ol id="words"></ol>
+  <div class="buttons">
+    <button id="saved">I saved it</button>
+  </div>
+</section>
+
+<!-- Restart needed. -->
+<section id="restartPanel" hidden>
+  <div class="buttons">
+    <button id="restart">Restart Compass</button>
+  </div>
+</section>
+
+<!-- Pairing, on either side. -->
+<section id="pairing" class="card" hidden>
+  <div id="pairingCode" class="code"></div>
+  <p id="pairingMessage"></p>
+  <div id="confirm" hidden>
+    <p>Add <strong id="deviceName"></strong> to sync?</p>
+    <div class="buttons">
+      <button id="allow">Allow</button>
+      <button id="deny" class="secondary">Deny</button>
+    </div>
+  </div>
+  <div class="buttons">
+    <button id="cancelPairing" class="secondary">Cancel</button>
+  </div>
+</section>
+
+<!-- Joining with other profiles here: which of the chain's each takes
+     (slice 5). -->
+<section id="mapping" class="card" hidden>
+  <p>This Mac has other profiles. Choose which profile of your other
+    devices each one syncs with.</p>
+  <div id="mappingRows"></div>
+  <div class="buttons">
+    <button id="mapProfiles">Continue</button>
+  </div>
+  <p id="mappingError" class="error"></p>
+</section>
+
+<!-- On. -->
+<section id="on" hidden>
+  <h2>Devices</h2>
+  <ul id="devices" class="rows"></ul>
+  <p id="noDevices" class="note" hidden>The devices show once this one
+    has synced.</p>
+  <div class="buttons">
+    <button id="addDevice">Add a device</button>
+  </div>
+
+  <h2>What syncs</h2>
+  <p class="note">In this profile. Each profile has its own
+    switches.</p>
+  <ul id="types" class="rows"></ul>
+
+  <h2>Recovery code</h2>
+  <p>The 12 words that bring your data back if you lose every device.
+    Compass asks for Touch ID or your password first.</p>
+  <div class="buttons">
+    <button id="showWords" class="secondary">Show recovery
+      code</button>
+  </div>
+  <p id="wordsError" class="error"></p>
+
+  <h2>Server</h2>
+  <p id="serverUrl"></p>
+  <p class="note">To use another server, leave sync and join again
+    with the new one.</p>
+
+  <h2>Leave or reset</h2>
+  <p class="note">Leaving keeps this device's data and stops syncing
+    it. Resetting makes a new chain with a new recovery code: this
+    device's data goes up again, and your other devices must join
+    again.</p>
+  <div class="buttons">
+    <button id="leave" class="secondary">Leave sync</button>
+    <button id="reset" class="danger">Reset sync</button>
+  </div>
+  <p id="onError" class="error"></p>
+</section>
+
+<dialog id="confirmDialog">
+  <h2 id="confirmTitle"></h2>
+  <p id="confirmText"></p>
+  <div class="buttons">
+    <button id="confirmOk"></button>
+    <button id="confirmCancel" class="secondary">Cancel</button>
+  </div>
+</dialog>

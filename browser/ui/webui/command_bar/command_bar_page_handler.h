@@ -45,9 +45,9 @@ enum class CommandBarCommand {
   kDownloads,
   kExtensions,
   kSettings,
-  // Opens chrome://compass-import (docs/design/arc-import.md).
+  // Opens compass://settings/importArc (docs/design/arc-import.md).
   kImportFromArc,
-  // Opens chrome://compass-settings (docs/design/shortcuts.md).
+  // Opens compass://settings/shortcuts (docs/design/shortcuts.md).
   kKeyboardShortcuts,
 };
 

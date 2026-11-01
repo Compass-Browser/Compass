@@ -1,0 +1,113 @@
+<style>
+  .compass-page .lead {
+    margin: 0 0 20px;
+    opacity: 0.75;
+  }
+
+  .compass-page .notice {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    border-radius: 12px;
+    margin: 0 0 20px;
+    padding: 12px 16px;
+  }
+
+  .compass-page .notice.warning {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .compass-page ul {
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+  }
+
+  .compass-page li {
+    border: 1px solid var(--color-sys-divider, #dadce0);
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+
+  .compass-page label {
+    align-items: flex-start;
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .compass-page li.imported label {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .compass-page input[type=checkbox] {
+    margin: 3px 0 0;
+  }
+
+  .compass-page .name {
+    font-weight: 500;
+  }
+
+  .compass-page .details {
+    font-size: 12px;
+    margin-top: 2px;
+    opacity: 0.7;
+  }
+
+  .compass-page button {
+    background: var(--color-sys-primary, #0b57d0);
+    border: none;
+    border-radius: 18px;
+    color: var(--color-sys-on-primary, #fff);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 500;
+    padding: 8px 20px;
+  }
+
+  .compass-page button.secondary {
+    background: none;
+    border: 1px solid var(--color-sys-outline, #747775);
+    color: inherit;
+  }
+
+  .compass-page button:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+</style>
+<p class="lead">
+  Bring your Arc profiles to Compass: you stay signed in to your sites,
+  and your history, passwords, extensions and settings come along, with
+  your spaces, pinned tabs and favorites.
+</p>
+
+<p id="loading">Looking for Arc…</p>
+<p id="notFound" hidden>Arc wasn't found on this computer.</p>
+
+<div id="chooser" hidden>
+  <div id="arcRunning" class="notice warning" hidden>
+    <span>Arc is open. Quit it to import: its data is in use while it
+      runs.</span>
+    <button id="quitArc" class="secondary">Quit Arc</button>
+  </div>
+  <ul id="profiles"></ul>
+  <p class="notice">
+    macOS will ask whether Compass may use "Arc Safe Storage", the key
+    Arc encrypts your cookies and passwords with. Choose
+    <b>Always Allow</b> (or Allow) so Compass can bring them over.
+  </p>
+  <button id="import" disabled>Import</button>
+</div>
+
+<p id="importing" hidden>Importing… This takes a moment for each
+  profile.</p>
+
+<div id="done" hidden>
+  <p id="doneText"></p>
+  <p id="failedText" class="notice" hidden></p>
+  <button id="open">Open my spaces</button>
+</div>

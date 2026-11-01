@@ -38,8 +38,9 @@ Other platforms' shortcuts (`accelerator_table.cc`) are unchanged.
 Status: written 2026-11-01 in a worktree, without a build (the Mac was busy
 with other sessions' builds): not yet compiled or run.
 
-`chrome://compass-settings` (compass://compass-settings, or "Keyboard
-shortcuts" in the command bar) lists the shortcuts the user can change, by
+compass://settings/shortcuts ("Keyboard shortcuts" in the settings menu or
+the command bar; also alone on chrome://compass-settings, see settings.md)
+lists the shortcuts the user can change, by
 section: Compass's (command bar, address, sidebar, copy link, little window,
 picture-in-picture click-through), tabs, windows, browser pages, developer
 tools, and the nine space shortcuts. Clicking a shortcut's keys records the

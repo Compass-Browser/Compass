@@ -80,7 +80,9 @@ nothing else.
 | `chrome-browser-ui-views-tabs-vertical-vertical_tab_strip_top_container.h.patch` | Makes `IsPositionInWindowCaption()` virtual, so `compass::SidebarHeader`'s buttons don't drag the window |
 | `chrome-browser-ui-ui_features.cc.patch` | Hover card preview images on by default on macOS too (upstream turns them off there); the sidebar's hover cards show them |
 | `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Compass's WebUI configs |
-| `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Compass's WebUI Mojo interfaces |
+| `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Compass's WebUI Mojo interfaces, and on chrome://settings those of Compass's sections (docs/design/settings.md) |
+| `chrome-browser-ui-webui-settings-settings_ui.{h,cc}.patch`, `chrome-browser-ui-webui-settings-BUILD.gn.patch` | chrome://settings owns a `compass::SettingsSections`: it serves Compass's resources under compass/ and binds the sections' interfaces (a templated `BindInterface()`) (docs/design/settings.md) |
+| `chrome-browser-resources-settings-BUILD.gn.patch`, `...-settings_main-settings_main.{ts,html}.patch`, `...-route.ts.patch`, `...-router.ts.patch`, `...-settings_menu-settings_menu.html.patch` | Compass's settings sections (Sync, Keyboard shortcuts, Import from Arc): `/compass/` mapped to `//compass/resources/sidebar` (as `/shared/settings/`), their imports, routes (`/sync`, `/shortcuts`, `/importArc`), menu items and views |
 | `chrome-chrome_paks.gni.patch` | Ships `compass_sidebar_resources.pak` |
 | `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//compass/*` to depend on Lit |
 | `tools-gritsettings-resource_ids.spec.patch` | Reserves resource IDs for the sidebar's grit file |

@@ -170,18 +170,24 @@ CompassSettingsUI::CompassSettingsUI(content::WebUI* web_ui)
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 
-CompassSettingsUI::~CompassSettingsUI() {
+CompassSettingsUI::~CompassSettingsUI() = default;
+
+void CompassSettingsUI::BindInterface(
+    mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver) {
+  handler_.reset();
+  handler_ = std::make_unique<ShortcutsPageHandler>(std::move(receiver));
+}
+
+ShortcutsPageHandler::ShortcutsPageHandler(
+    mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
+    : receiver_(this, std::move(receiver)) {}
+
+ShortcutsPageHandler::~ShortcutsPageHandler() {
   // The page went away while recording.
   SetRecording(false);
 }
 
-void CompassSettingsUI::BindInterface(
-    mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver) {
-  receiver_.reset();
-  receiver_.Bind(std::move(receiver));
-}
-
-void CompassSettingsUI::GetShortcuts(GetShortcutsCallback callback) {
+void ShortcutsPageHandler::GetShortcuts(GetShortcutsCallback callback) {
   std::vector<sidebar::mojom::ShortcutPtr> result;
   for (const ListedShortcut& listed : ListShortcuts()) {
     auto shortcut = sidebar::mojom::Shortcut::New();
@@ -196,7 +202,7 @@ void CompassSettingsUI::GetShortcuts(GetShortcutsCallback callback) {
   std::move(callback).Run(std::move(result));
 }
 
-void CompassSettingsUI::SetRecording(bool recording) {
+void ShortcutsPageHandler::SetRecording(bool recording) {
   if (recording_ == recording) {
     return;
   }
@@ -204,7 +210,7 @@ void CompassSettingsUI::SetRecording(bool recording) {
   ShortcutSettings::Get().SetRecording(recording);
 }
 
-void CompassSettingsUI::CheckShortcut(const std::string& id,
+void ShortcutsPageHandler::CheckShortcut(const std::string& id,
                                       sidebar::mojom::ShortcutKeysPtr keys,
                                       CheckShortcutCallback callback) {
   const ui::Accelerator accelerator = ToAccelerator(*keys);
@@ -222,7 +228,7 @@ void CompassSettingsUI::CheckShortcut(const std::string& id,
   std::move(callback).Run(std::move(result));
 }
 
-void CompassSettingsUI::SetShortcut(const std::string& id,
+void ShortcutsPageHandler::SetShortcut(const std::string& id,
                                     sidebar::mojom::ShortcutKeysPtr keys,
                                     SetShortcutCallback callback) {
   const ui::Accelerator accelerator = ToAccelerator(*keys);
@@ -250,7 +256,7 @@ void CompassSettingsUI::SetShortcut(const std::string& id,
   std::move(callback).Run();
 }
 
-void CompassSettingsUI::RemoveShortcut(const std::string& id,
+void ShortcutsPageHandler::RemoveShortcut(const std::string& id,
                                        RemoveShortcutCallback callback) {
   const std::vector<ListedShortcut> listed = ListShortcuts();
   if (const ListedShortcut* shortcut = FindListed(listed, id)) {
@@ -262,7 +268,7 @@ void CompassSettingsUI::RemoveShortcut(const std::string& id,
   std::move(callback).Run();
 }
 
-void CompassSettingsUI::ResetShortcut(const std::string& id,
+void ShortcutsPageHandler::ResetShortcut(const std::string& id,
                                       ResetShortcutCallback callback) {
   const std::vector<ListedShortcut> listed = ListShortcuts();
   const ListedShortcut* shortcut = FindListed(listed, id);
@@ -281,7 +287,7 @@ void CompassSettingsUI::ResetShortcut(const std::string& id,
   std::move(callback).Run();
 }
 
-void CompassSettingsUI::ResetAllShortcuts(
+void ShortcutsPageHandler::ResetAllShortcuts(
     ResetAllShortcutsCallback callback) {
   ShortcutSettings::Get().ResetAll();
   std::move(callback).Run();

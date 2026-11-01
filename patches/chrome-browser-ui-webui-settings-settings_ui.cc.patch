@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
+index c1bb5d445e89d04df601b51295adadaf8452b2ee..8bf11440d7b72ccfa8bddb4eecd58a48508dd0ee 100644
+--- a/chrome/browser/ui/webui/settings/settings_ui.cc
++++ b/chrome/browser/ui/webui/settings/settings_ui.cc
+@@ -99,6 +99,7 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "chrome/grit/settings_resources.h"
+ #include "chrome/grit/settings_resources_map.h"
++#include "compass/browser/ui/webui/settings/settings_sections.h"
+ #include "components/account_manager_core/account_manager_facade.h"
+ #include "components/autofill/content/browser/content_autofill_client.h"
+ #include "components/autofill/core/browser/at_memory/at_memory_enablement_util.h"
+@@ -240,6 +241,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+   html_source->OverrideContentSecurityPolicy(
+       network::mojom::CSPDirectiveName::WorkerSrc,
+       "worker-src blob: chrome://resources 'self';");
++  // Compass's sections: Sync, Keyboard shortcuts, Import from Arc.
++  compass_sections_ = compass::SettingsSections::Create(web_ui, html_source);
+ 
+   AddSettingsPageUIHandler(std::make_unique<AppearanceHandler>(web_ui));
+ 

@@ -23,6 +23,7 @@
 #include "chrome/browser/sync/session_sync_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
@@ -43,6 +44,7 @@
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "compass/common/compass_url.h"
@@ -671,24 +673,12 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kSettings:
       chrome::ExecuteCommand(browser_, IDC_OPTIONS);
       break;
-    case CommandBarCommand::kImportFromArc: {
-      NavigateParams params(
-          browser_,
-          GURL(std::string(content::kChromeUIScheme) + "://" + kArcImportHost),
-          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-      params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-      Navigate(&params);
+    case CommandBarCommand::kImportFromArc:
+      chrome::ShowSettingsSubPage(browser_, kArcImportSettingsSubPage);
       break;
-    }
-    case CommandBarCommand::kKeyboardShortcuts: {
-      NavigateParams params(
-          browser_,
-          GURL(std::string(content::kChromeUIScheme) + "://" + kSettingsHost),
-          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-      params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-      Navigate(&params);
+    case CommandBarCommand::kKeyboardShortcuts:
+      chrome::ShowSettingsSubPage(browser_, kShortcutsSettingsSubPage);
       break;
-    }
   }
 }
 

@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_WEBUI_SETTINGS_COMPASS_SETTINGS_UI_H_
 #define COMPASS_BROWSER_UI_WEBUI_SETTINGS_COMPASS_SETTINGS_UI_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -45,19 +46,17 @@ struct ListedShortcut {
 // (macOS), click-through picture-in-picture (macOS), then the spaces.
 std::vector<ListedShortcut> ListShortcuts();
 
-// chrome://compass-settings (compass://compass-settings): Compass's own
-// settings. For now its shortcuts: each one's keys, recorded by pressing
-// them. See docs/design/shortcuts.md "Customizing".
-class CompassSettingsUI : public ui::MojoWebUIController,
-                          public sidebar::mojom::SettingsHandler {
+// The page side of the keyboard shortcuts section: each shortcut's keys,
+// recorded by pressing them. Owned by chrome://compass-settings and by
+// chrome://settings (SettingsSections). See docs/design/shortcuts.md
+// "Customizing".
+class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
  public:
-  explicit CompassSettingsUI(content::WebUI* web_ui);
-  CompassSettingsUI(const CompassSettingsUI&) = delete;
-  CompassSettingsUI& operator=(const CompassSettingsUI&) = delete;
-  ~CompassSettingsUI() override;
-
-  void BindInterface(
+  explicit ShortcutsPageHandler(
       mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver);
+  ShortcutsPageHandler(const ShortcutsPageHandler&) = delete;
+  ShortcutsPageHandler& operator=(const ShortcutsPageHandler&) = delete;
+  ~ShortcutsPageHandler() override;
 
   // sidebar::mojom::SettingsHandler:
   void GetShortcuts(GetShortcutsCallback callback) override;
@@ -76,7 +75,23 @@ class CompassSettingsUI : public ui::MojoWebUIController,
 
  private:
   bool recording_ = false;
-  mojo::Receiver<sidebar::mojom::SettingsHandler> receiver_{this};
+  mojo::Receiver<sidebar::mojom::SettingsHandler> receiver_;
+};
+
+// chrome://compass-settings (compass://compass-settings): the keyboard
+// shortcuts section alone, as compass://settings/shortcuts shows it.
+class CompassSettingsUI : public ui::MojoWebUIController {
+ public:
+  explicit CompassSettingsUI(content::WebUI* web_ui);
+  CompassSettingsUI(const CompassSettingsUI&) = delete;
+  CompassSettingsUI& operator=(const CompassSettingsUI&) = delete;
+  ~CompassSettingsUI() override;
+
+  void BindInterface(
+      mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver);
+
+ private:
+  std::unique_ptr<ShortcutsPageHandler> handler_;
 
   WEB_UI_CONTROLLER_TYPE_DECL();
 };

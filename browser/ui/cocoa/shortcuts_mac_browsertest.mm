@@ -81,9 +81,8 @@ class CompassShortcutsBrowserTest : public InProcessBrowserTest {
   void StartRecording(content::WebContents* contents, const std::string& id) {
     ASSERT_TRUE(content::ExecJs(
         contents,
-        content::JsReplace(
-            "document.querySelector(`li[data-id=\"${$1}\"] .keys`).click()",
-            id)));
+        content::JsReplace("document.querySelector($1).click()",
+                           "li[data-id=\"" + id + "\"] .keys")));
     ASSERT_TRUE(base::test::RunUntil(
         [] { return ShortcutSettings::Get().recording(); }));
   }

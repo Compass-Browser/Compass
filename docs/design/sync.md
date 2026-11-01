@@ -916,7 +916,8 @@ Branch `sync/slice-4-ui` (on `sync-main` `63d3418`). Written without a
 compiler; the MacBook build and run are in
 [sync-slice-4-steps.md](sync-slice-4-steps.md). Go tests pass here.
 
-**`chrome://compass-sync`** (`resources/sidebar/compass_sync.{html,ts}`,
+**`chrome://compass-sync`** (since 2026-11-01 compass://settings/sync, a
+section of the settings page, see settings.md; `resources/sidebar/settings/sync_page.{html,ts}`,
 `browser/ui/webui/sync/`), in the look of `chrome://compass-import`
 (colors.css tokens, so light and dark follow the browser):
 
@@ -992,7 +993,9 @@ adds a row above Settings when `compass::GetAppMenuSyncLabel()` gives one
 finish"; none in incognito or guest), with the sync icon, and makes
 Compass commands enabled in the menu. Its command, `kOpenSyncPageCommand`
 (39951), runs through the command controller's existing Compass hook and
-opens `chrome://compass-sync` as a new entry. The menu is rebuilt each
+opens compass://settings/sync (`chrome::ShowSettingsSubPage()`, which reuses
+an open settings tab; until 2026-11-01 chrome://compass-sync as a new
+entry). The menu is rebuilt each
 time it opens, so the label is current. The declarations live in a
 dependency-free target (`//compass/browser/ui:app_menu_hooks`), which the
 toolbar's `:impl` depends on (second hunk of the toolbar `BUILD.gn`

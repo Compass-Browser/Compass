@@ -1,0 +1,118 @@
+<style>
+  .compass-page .shortcuts-heading {
+    align-items: baseline;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+  }
+
+  .compass-page .lead {
+    margin: 0;
+    opacity: 0.75;
+  }
+
+  .compass-page h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin: 24px 0 8px;
+    opacity: 0.7;
+  }
+
+  .compass-page ul {
+    border: 1px solid var(--color-sys-divider, #dadce0);
+    border-radius: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .compass-page li {
+    padding: 8px 12px 8px 16px;
+  }
+
+  .compass-page li + li {
+    border-top: 1px solid var(--color-sys-divider, #dadce0);
+  }
+
+  .compass-page .row {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    min-height: 32px;
+  }
+
+  .compass-page .label {
+    flex: 1;
+  }
+
+  .compass-page .default {
+    font-size: 12px;
+    opacity: 0.6;
+  }
+
+  .compass-page .keys {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    min-width: 88px;
+    padding: 4px 10px;
+    text-align: center;
+  }
+
+  .compass-page .keys:hover {
+    border-color: var(--color-sys-outline, #747775);
+  }
+
+  .compass-page .keys.none {
+    opacity: 0.6;
+  }
+
+  .compass-page .keys.recording {
+    border-color: var(--color-sys-primary, #0b57d0);
+    color: var(--color-sys-primary, #0b57d0);
+  }
+
+  .compass-page button.link {
+    background: none;
+    border: none;
+    color: var(--color-sys-primary, #0b57d0);
+    cursor: pointer;
+    font: inherit;
+    padding: 4px;
+  }
+
+  .compass-page button.link:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  /* Reset and Remove keep their place when they don't apply. */
+  .compass-page button.link.hidden {
+    visibility: hidden;
+  }
+
+  .compass-page .message {
+    font-size: 12px;
+    margin: 6px 0 2px;
+  }
+
+  .compass-page .message.error {
+    color: var(--color-sys-error, #b3261e);
+  }
+
+  .compass-page .message button.link {
+    font-size: 12px;
+  }
+</style>
+<div class="shortcuts-heading">
+  <p class="lead">
+    Click a shortcut, then press the keys you want. Esc cancels, Delete
+    leaves it without a shortcut.
+  </p>
+  <button id="resetAll" class="link">Reset all</button>
+</div>
+<div id="sections"></div>

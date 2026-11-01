@@ -175,7 +175,9 @@ drop get added to Compass before the import is finished. From Arc's files:
 - Slice 4 (page) done: `chrome://compass-import` (`compass://compass-import`;
   `CompassArcImportUI`, `resources/sidebar/arc_import.{html,ts}`,
   `sidebar.mojom` `ArcImportHandler`), opened by the command bar's "Import
-  from Arc". It lists Arc's profiles with their spaces and tab counts,
+  from Arc". Since 2026-11-01 it's compass://settings/importArc, a section
+  of the settings page (settings.md); the command bar opens that, and
+  chrome://compass-import shows the same section alone. It lists Arc's profiles with their spaces and tab counts,
   checked unless imported already (a Compass profile whose preferences
   record that Arc profile); while Arc runs it says so with a "Quit Arc"
   button (`NSRunningApplication terminate`, then waits up to 10 s) and won't

@@ -48,34 +48,44 @@ CompassSyncUI::~CompassSyncUI() = default;
 
 void CompassSyncUI::BindInterface(
     mojo::PendingReceiver<sync::mojom::PageHandlerFactory> receiver) {
-  page_factory_receiver_.reset();
-  page_factory_receiver_.Bind(std::move(receiver));
+  factory_.reset();
+  factory_ =
+      std::make_unique<SyncPageHandlerFactory>(web_ui(), std::move(receiver));
 }
 
-void CompassSyncUI::CreatePageHandler(
+WEB_UI_CONTROLLER_TYPE_IMPL(CompassSyncUI)
+
+SyncPageHandlerFactory::SyncPageHandlerFactory(
+    content::WebUI* web_ui,
+    mojo::PendingReceiver<sync::mojom::PageHandlerFactory> receiver)
+    : web_ui_(web_ui), receiver_(this, std::move(receiver)) {}
+
+SyncPageHandlerFactory::~SyncPageHandlerFactory() = default;
+
+void SyncPageHandlerFactory::CreatePageHandler(
     mojo::PendingRemote<sync::mojom::Page> page,
     mojo::PendingReceiver<sync::mojom::PageHandler> receiver) {
   sync::CompassSyncService* service =
       sync::CompassSyncServiceFactory::GetForProfile(
-          Profile::FromWebUI(web_ui()));
+          Profile::FromWebUI(web_ui_));
   if (!service) {
     // Incognito and guest profiles don't sync.
     return;
   }
   page_handler_ = std::make_unique<CompassSyncPageHandler>(
       std::move(receiver), std::move(page), service,
-      base::BindRepeating(&CompassSyncUI::Reauthenticate,
+      base::BindRepeating(&SyncPageHandlerFactory::Reauthenticate,
                           base::Unretained(this)));
 }
 
-void CompassSyncUI::Reauthenticate(base::OnceCallback<void(bool)> done) {
+void SyncPageHandlerFactory::Reauthenticate(base::OnceCallback<void(bool)> done) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   if (authenticator_) {
     authenticator_->Cancel();
   }
   authenticator_ = ChromeDeviceAuthenticatorFactory::GetForProfile(
-      Profile::FromWebUI(web_ui()),
-      web_ui()->GetWebContents()->GetTopLevelNativeWindow(),
+      Profile::FromWebUI(web_ui_),
+      web_ui_->GetWebContents()->GetTopLevelNativeWindow(),
       device_reauth::DeviceAuthParams(
           base::Seconds(0), device_reauth::DeviceAuthSource::kPasswordManager));
   if (!authenticator_ ||
@@ -93,7 +103,5 @@ void CompassSyncUI::Reauthenticate(base::OnceCallback<void(bool)> done) {
   std::move(done).Run(true);
 #endif
 }
-
-WEB_UI_CONTROLLER_TYPE_IMPL(CompassSyncUI)
 
 }  // namespace compass

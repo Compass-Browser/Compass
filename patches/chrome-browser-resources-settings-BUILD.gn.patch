@@ -1,0 +1,33 @@
+diff --git a/chrome/browser/resources/settings/BUILD.gn b/chrome/browser/resources/settings/BUILD.gn
+index 1795e894fc56def1e6c6e6fdf716ec3064d2f2fe..2cb2dd19452085818b1181ae3e51f7f632c706c8 100644
+--- a/chrome/browser/resources/settings/BUILD.gn
++++ b/chrome/browser/resources/settings/BUILD.gn
+@@ -695,6 +695,7 @@ build_webui("build") {
+ 
+   ts_deps = [
+     "//chrome/browser/resources/settings_shared:build_ts",
++    "//compass/resources/sidebar:build_ts",
+     "//third_party/lit/v3_0:build_ts",
+     "//third_party/polymer/v3_0:library",
+     "//ui/webui/resources/cr_components/color_change_listener:build_ts",
+@@ -722,6 +723,11 @@ build_webui("build") {
+             "$root_gen_dir/chrome/browser/resources/settings_shared/tsc/*",
+             target_gen_dir) ]
+ 
++  # Compass's sections, served under compass/ (compass::SettingsSections).
++  ts_path_mappings += [ "/compass/*|" + rebase_path(
++                          "$root_gen_dir/compass/resources/sidebar/tsc/*",
++                          target_gen_dir) ]
++
+   if (is_chromeos) {
+     # TODO(crbug.com/1013466): Browser Settings should not depend on ash/webui/
+     # code. The codepath needing this (in people_page.ts) should be removed when
+@@ -744,5 +750,8 @@ build_webui("build") {
+         [ "/shared/settings|" + rebase_path(
+               "$root_gen_dir/chrome/browser/resources/settings_shared/tsc",
+               root_build_dir) ]
++    optimize_webui_external_paths +=
++        [ "/compass|" + rebase_path("$root_gen_dir/compass/resources/sidebar/tsc",
++                                    root_build_dir) ]
+   }
+ }

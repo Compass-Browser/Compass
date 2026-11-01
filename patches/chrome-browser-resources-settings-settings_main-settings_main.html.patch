@@ -1,0 +1,34 @@
+diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html b/chrome/browser/resources/settings/settings_main/settings_main.html
+index 2ef4dcad53f0e98803ec4cba596a0e01e64e49fc..413e6f0ba4f19e7dca1af73fa36540eff9f6eb3b 100644
+--- a/chrome/browser/resources/settings/settings_main/settings_main.html
++++ b/chrome/browser/resources/settings/settings_main/settings_main.html
+@@ -60,6 +60,29 @@
+     </div>
+   </template>
+ 
++  <!-- Compass's sections (compass/resources/sidebar/settings), defined by
++       compass/settings/compass_settings.js (settings.html). -->
++  <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
++    <div slot="view" id="compassSync">
++      <template is="dom-if" if="[[renderPlugin_(
++          routes_.COMPASS_SYNC, lastRoute_, inSearchMode_)]]">
++        <compass-sync-page></compass-sync-page>
++      </template>
++    </div>
++  </template>
++  <div slot="view" id="compassShortcuts">
++    <template is="dom-if" if="[[renderPlugin_(
++        routes_.COMPASS_SHORTCUTS, lastRoute_, inSearchMode_)]]">
++      <compass-shortcuts-page></compass-shortcuts-page>
++    </template>
++  </div>
++  <div slot="view" id="compassArcImport">
++    <template is="dom-if" if="[[renderPlugin_(
++        routes_.COMPASS_ARC_IMPORT, lastRoute_, inSearchMode_)]]">
++      <compass-arc-import-page></compass-arc-import-page>
++    </template>
++  </div>
++
+   <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
+     <div slot="view" id="privacy">
+       <template is="dom-if" if="[[renderPlugin_(

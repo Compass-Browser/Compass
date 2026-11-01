@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
+index 0d30190f42bf2e259481422bd0445be5ebc1f6de..83ba86012fe13bc4b06945f23b633188ae6807bd 100644
+--- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
++++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
+@@ -98,6 +98,25 @@
+           <span class="menu-label">$i18n{peoplePageTitle}</span>
+           <cr-ripple></cr-ripple>
+         </a>
++        <!-- Compass's sections (compass/resources/sidebar/settings). -->
++        <a role="menuitem" id="compassSync" href="/sync"
++            hidden="[[!pageVisibility_.people]]" class="cr-nav-menu-item">
++          <cr-icon icon="cr:sync"></cr-icon>
++          <span class="menu-label">Sync</span>
++          <cr-ripple></cr-ripple>
++        </a>
++        <a role="menuitem" id="compassShortcuts" href="/shortcuts"
++            class="cr-nav-menu-item">
++          <cr-icon icon="settings20:keyboard-lock"></cr-icon>
++          <span class="menu-label">Keyboard shortcuts</span>
++          <cr-ripple></cr-ripple>
++        </a>
++        <a role="menuitem" id="compassArcImport" href="/importArc"
++            class="cr-nav-menu-item">
++          <cr-icon icon="settings20:archive"></cr-icon>
++          <span class="menu-label">Import from Arc</span>
++          <cr-ripple></cr-ripple>
++        </a>
+         <a role="menuitem" id="autofill" href="/autofill"
+             on-click="onAutofillClick_"
+             class="cr-nav-menu-item"

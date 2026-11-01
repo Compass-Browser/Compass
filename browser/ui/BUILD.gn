@@ -44,6 +44,7 @@ source_set("ui") {
     "webui/placeholder/compass_placeholder_ui.h",
     "webui/settings/compass_settings_ui.cc",
     "webui/settings/compass_settings_ui.h",
+    "webui/settings/settings_sections.cc",
     "webui/sidebar/sidebar_page_handler.cc",
     "webui/sidebar/sidebar_page_handler.h",
     "webui/sidebar/compass_favicon_source.cc",
@@ -62,6 +63,7 @@ source_set("ui") {
     "//chrome/browser:browser_public_dependencies",
     "//compass/browser/sync",
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
+    "//compass/browser/ui/webui/settings:sections",
     "//compass/browser/ui/webui/sidebar:mojo_bindings",
     "//compass/browser/ui/webui/sync:mojo_bindings",
 
@@ -212,9 +214,11 @@ source_set("browser_tests") {
     "views/peek/peek_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
     "views/sidebar/compass_sidebar_browsertest.cc",
+    "webui/settings/settings_sections_browsertest.cc",
   ]
   deps = [
     ":ui",
+    "//compass/browser/shortcuts",
     "//compass/browser/arc_import",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
