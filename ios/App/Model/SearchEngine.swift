@@ -4,8 +4,8 @@
 
 import Foundation
 
-/// Where the command bar searches (Settings → Search Engine). DuckDuckGo
-/// by default, as before there was a choice.
+/// Where the command bar searches (Settings → Search Engine). Google by
+/// default.
 enum SearchEngine: String, CaseIterable, Identifiable {
   case duckDuckGo, google, bing, ecosia, brave, startpage
 
@@ -13,7 +13,7 @@ enum SearchEngine: String, CaseIterable, Identifiable {
 
   /// The chosen one.
   static var current: SearchEngine {
-    UserDefaults.standard.string(forKey: key).flatMap(SearchEngine.init(rawValue:)) ?? .duckDuckGo
+    UserDefaults.standard.string(forKey: key).flatMap(SearchEngine.init(rawValue:)) ?? .google
   }
 
   var id: String { rawValue }

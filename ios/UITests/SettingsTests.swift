@@ -20,18 +20,18 @@ final class SettingsTests: XCTestCase {
     app = XCUIApplication()
     app.launchArguments = ["-CompassOpenURL", "https://example.org/", "-CompassSettings", "YES"]
     app.launch()
-    pickEngine("Google")
+    pickEngine("Bing")
     app.buttons["Done"].tap()
     sleep(1)
     app.buttons["BarNewTab"].tap()
     sleep(1)
     app.typeText("compass browser")
-    let found = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Search Google'")).firstMatch
+    let found = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Search Bing'")).firstMatch
       .waitForExistence(timeout: 5)
     // Back to the default for the other tests.
     app.terminate()
     app.launch()
-    pickEngine("DuckDuckGo")
-    XCTAssertTrue(found, "the command bar searches Google")
+    pickEngine("Google")
+    XCTAssertTrue(found, "the command bar searches Bing")
   }
 }

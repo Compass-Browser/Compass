@@ -14,7 +14,7 @@ struct SettingsView: View {
   @State private var confirmLeave = false
   @State private var confirmClear = false
   @State private var showingArchive = false
-  @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.duckDuckGo.rawValue
+  @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
 
   var body: some View {
     NavigationStack {
