@@ -47,6 +47,14 @@ final class TabManager: NSObject {
     view.navigationDelegate = self
     view.uiDelegate = self
     let id = node.id
+    observe(view, as: id)
+    live[id] = view
+    bump(id)
+    if let url = URL(string: node.url), !node.url.isEmpty { view.load(URLRequest(url: url)) }
+    return view
+  }
+
+  private func observe(_ view: WKWebView, as id: String) {
     observations[id] = [
       view.observe(\.url, options: [.new]) { [weak self] view, _ in
         Task { @MainActor in self?.changed(id, view) }
@@ -58,10 +66,15 @@ final class TabManager: NSObject {
         Task { @MainActor in self?.revision += 1 }
       },
     ]
-    live[id] = view
-    bump(id)
-    if let url = URL(string: node.url), !node.url.isEmpty { view.load(URLRequest(url: url)) }
-    return view
+  }
+
+  /// An entry got a new ID (kept after a remote close): its page follows.
+  func rekey(_ old: String, to new: String) {
+    guard let view = live.removeValue(forKey: old) else { return }
+    observations[old] = nil
+    observe(view, as: new)
+    live[new] = view
+    recent = recent.map { $0 == old ? new : $0 }
   }
 
   func unload(_ id: String) {

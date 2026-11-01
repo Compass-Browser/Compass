@@ -37,6 +37,10 @@ final class SyncController {
   private var spaces: CompassSpacesBridge?
   private var deviceInfo: DeviceInfoBridge?
   private var scheduled: Task<Void, Never>?
+  /// Whether an entry is on screen (it survives a close elsewhere).
+  var isShown: ((String) -> Bool)?
+  /// A kept entry's new ID.
+  var onReplaced: ((String, String) -> Void)?
   private var running = false
   private var again = false
 
@@ -121,6 +125,8 @@ final class SyncController {
       Task { @MainActor in self?.devices = devices }
     }
     spaces.onLocalCommit = { [weak self] in self?.syncSoon(after: 2) }
+    spaces.isShown = { [weak self] id in self?.isShown?(id) ?? false }
+    spaces.onReplaced = { [weak self] old, new in self?.onReplaced?(old, new) }
     self.engine = engine
     self.spaces = spaces
     self.deviceInfo = deviceInfo

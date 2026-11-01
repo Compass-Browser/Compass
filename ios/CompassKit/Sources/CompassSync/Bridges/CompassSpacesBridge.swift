@@ -38,6 +38,11 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor var throttled: [String: Task<Void, Never>] = [:]
   @MainActor private var queue: [Op] = []
   @MainActor private var draining = false
+  /// Whether an entry (tab or split) is on screen now.
+  @MainActor public var isShown: ((String) -> Bool)?
+  /// A kept entry got a new ID (old, new): live tabs and selection follow.
+  @MainActor public var onReplaced: ((String, String) -> Void)?
+  @MainActor var keptEntries: Set<String> = []
   /// Called after local changes were queued (the app schedules a sync).
   @MainActor public var onLocalCommit: (() -> Void)?
   @MainActor public var now: () -> Date = Date.init
@@ -344,6 +349,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       applyNodeDeletions(deleted)
       place()
     }
+    recreateKeptEntries()
     // Fix-ups (cycles, invalid placements, normalized splits) commit;
     // everything else equals the mirror and doesn't.
     for id in Set(putNodes).union(parked) {
@@ -432,6 +438,12 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   func applyNodeDeletions(_ ids: Set<String>) {
     for id in ids {
       guard let node = store.node(id: id), let root = Optional(node.root) else { continue }
+      // The Today entry on screen survives a close elsewhere: it's
+      // re-created under fresh UUIDs once this batch is applied.
+      if node.section == .today, let entry = Self.entry(of: node), isShown?(entry.id) == true {
+        keptEntries.insert(entry.id)
+        continue
+      }
       // Children that weren't deleted themselves go to the end of the root.
       for child in node.children where !ids.contains(child.id) {
         store.rawDetach(child)
@@ -441,6 +453,46 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       let parent = node.parent
       store.rawDetach(node)
       if let parent, parent.isSplit { store.rawNormalize(parent) }
+    }
+  }
+
+  /// A tab, or the split it's a pane of.
+  static func entry(of node: SidebarNode) -> SidebarNode? {
+    node.parent?.isSplit == true ? node.parent : (node.isTab || node.isSplit ? node : nil)
+  }
+
+  /// The desktop keeps a Today entry shown in the focused window when
+  /// another device closes it, under fresh UUIDs so no device re-creates a
+  /// deleted one (bridge.cc, ApplyNodeDeletions). Same here for the entry
+  /// on screen.
+  @MainActor
+  func recreateKeptEntries() {
+    let kept = keptEntries
+    keptEntries.removeAll()
+    for id in kept {
+      guard let entry = store.node(id: id), let parent = entry.parent else { continue }
+      let index = parent.children.firstIndex { $0 === entry } ?? parent.children.count
+      let tabs = entry.tabs
+      var replacement: SidebarNode?
+      store.batch {
+        guard let first = tabs.first,
+          let copy = store.addTab(url: first.url, title: first.title, to: parent, at: index, now: now())
+        else { return }
+        replacement = copy
+        onReplaced?(first.id, copy.id)
+        if tabs.count > 1,
+          let second = store.addTab(url: tabs[1].url, title: tabs[1].title, to: parent, at: index + 1, now: now())
+        {
+          onReplaced?(tabs[1].id, second.id)
+          replacement = store.split(copy, with: second)
+        }
+      }
+      store.applyingRemote {
+        for tab in tabs { mirror[tab.id] = nil }
+        mirror[id] = nil
+        store.rawDetach(entry)
+      }
+      if let replacement { onReplaced?(id, replacement.id) }
     }
   }
 

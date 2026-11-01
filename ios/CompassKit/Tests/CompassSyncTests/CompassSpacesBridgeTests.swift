@@ -187,6 +187,30 @@ struct CompassSpacesBridgeTests {
     #expect(store.node(id: c)?.parent === store.space(id: s)!.pinned)
   }
 
+  @Test func theShownEntrySurvivesARemoteClose() async {
+    let (store, bridge, engine) = make()
+    let s = Self.uuid(), t = Self.uuid(), other = Self.uuid()
+    bridge.applyRemote([
+      space(s, "W"), node(t, space: s, section: .today, url: "https://shown/"),
+      node(other, space: s, section: .today, url: "https://other/"),
+    ])
+    var replaced: [(String, String)] = []
+    bridge.isShown = { $0 == t }
+    bridge.onReplaced = { replaced.append(($0, $1)) }
+    func deletion(_ id: String) -> RemoteChange {
+      RemoteChange(
+        clientTagHash: ClientTagHash.make(type: .compassSpaces, tag: id), specifics: nil, serverID: id, version: 2,
+        mtime: 0, ctime: 0, originatorCacheGUID: "mac")
+    }
+    bridge.applyRemote([deletion(t), deletion(other)])
+    let today = store.space(id: s)!.today
+    #expect(today.children.map(\.url) == ["https://shown/"])
+    #expect(today.children[0].id != t)
+    #expect(replaced.first?.0 == t && replaced.first?.1 == today.children[0].id)
+    await bridge.flush()
+    #expect(await engine.hasPendingChanges)  // the new entry goes to the chain
+  }
+
   @Test func initialMergeFoldsAnUntouchedHome() {
     let store = SpaceStore()
     let engine = SyncEngine(connection: NoConnection(), passphrase: "p", store: MemorySyncMetadataStore())

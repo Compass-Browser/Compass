@@ -40,6 +40,12 @@ final class AppModel {
     sync = SyncController(store: store, directory: directory)
     selectedSpaceID = store.spaces.first?.id
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
+    sync.isShown = { [weak self] id in self?.selectedNodeID == id }
+    sync.onReplaced = { [weak self] old, new in
+      guard let self else { return }
+      self.tabs.rekey(old, to: new)
+      if self.selectedNodeID == old { self.selectedNodeID = new }
+    }
     #if DEBUG
       // Simulator checks (docs/design/ios.md, "Verification"):
       //   -CompassServer <url> -CompassJoinRecovery "<12 words>"

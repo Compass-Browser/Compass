@@ -302,3 +302,12 @@ The tests pass on the desktop's vectors and Chromium's own, byte for byte. Every
 - **Verified.**
   - Two-device sidebar tests on the real server: a full tree (folders, nested folder, split, favorites, two spaces) arrives identical; a reorder, rename, move and delete come back; no echo commits afterwards; archive moves and a restore go across.
   - In the simulator, a debug build launched with `-CompassServer <url> -CompassJoinRecovery "<words>"` joined a chain seeded by `SeedForSimulator` (a test that plays "the Mac") and showed its sidebar and favorites. `-CompassShow <title>` opened an entry in the browser.
+
+### M4 (Today, archive, command bar), 2026-11-01
+
+Most of M4 shipped with M3: the Today throttle, auto-archive on the synced `last_active_time` (a 60 s timer in `AppModel`), the 30-day archive cap, splits with a pane picker, per-profile data stores, and the command bar. This milestone adds the desktop's rule for a remote close of the entry on screen:
+- The entry stays and is re-created under fresh UUIDs, so no device re-creates a deleted UUID (`recreateKeptEntries`).
+- `onReplaced` moves the live WKWebView and the selection to the new ID, so the page isn't reloaded.
+- It's covered by `theShownEntrySurvivesARemoteClose`.
+
+The command bar's history and "Tabs on <Mac>" come with M5.
