@@ -26,6 +26,7 @@ final class TabManager: NSObject {
   private(set) var revision = 0
   private let store: SpaceStore
   private let siteSettings: SiteSettings
+  private let contentBlocking: ContentBlocking
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
@@ -38,9 +39,25 @@ final class TabManager: NSObject {
   /// A page finished loading (a history visit): (URL, title, tab ID).
   var onPageLoaded: ((String, String, String) -> Void)?
 
-  init(store: SpaceStore, siteSettings: SiteSettings) {
+  init(store: SpaceStore, siteSettings: SiteSettings, contentBlocking: ContentBlocking) {
     self.store = store
     self.siteSettings = siteSettings
+    self.contentBlocking = contentBlocking
+  }
+
+  /// The filter lists `site`'s settings allow, on `view` from its next load.
+  func applyContentBlocking(_ view: WKWebView, site: String?) {
+    let controller = view.configuration.userContentController
+    controller.removeAllContentRuleLists()
+    let lists = contentBlocking.lists(
+      blockAds: siteSettings.value(.blockAds, site: site),
+      blockCookieBanners: siteSettings.value(.blockCookieBanners, site: site))
+    for list in lists { controller.add(list) }
+  }
+
+  /// New or updated filter lists: every open tab, for its site.
+  func applyContentBlockingToAll() {
+    for view in live.values { applyContentBlocking(view, site: SiteSettings.site(view.url)) }
   }
 
   func isLive(_ node: SidebarNode) -> Bool { live[node.id] != nil }
@@ -64,6 +81,7 @@ final class TabManager: NSObject {
     let view = WKWebView(frame: .zero, configuration: configuration)
     view.allowsBackForwardNavigationGestures = true
     view.isFindInteractionEnabled = true
+    applyContentBlocking(view, site: SiteSettings.site(URL(string: node.url)))
     view.isInspectable = true
     view.navigationDelegate = self
     view.uiDelegate = self
@@ -135,6 +153,9 @@ final class TabManager: NSObject {
         view.allowsBackForwardNavigationGestures = siteSettings.value(.swipeToNavigate, site: viewSite)
       case .desktopSite:
         view.reload()
+      case .blockAds, .blockCookieBanners:
+        applyContentBlocking(view, site: viewSite)
+        view.reload()
       default:
         break
       }
@@ -178,6 +199,8 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         let site = SiteSettings.site(navigationAction.request.url)
         preferences.preferredContentMode = siteSettings.value(.desktopSite, site: site) ? .desktop : .mobile
         webView.allowsBackForwardNavigationGestures = siteSettings.value(.swipeToNavigate, site: site)
+        // Before the page's own requests go out.
+        applyContentBlocking(webView, site: site)
       }
     }
     return (.allow, preferences)

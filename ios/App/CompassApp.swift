@@ -19,6 +19,7 @@ struct CompassApp: App {
     BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: nil) { task in
       let work = Task { @MainActor in
         await app.sync.syncNow()
+        await app.contentBlocking.refresh()
         task.setTaskCompleted(success: true)
       }
       task.expirationHandler = { work.cancel() }
@@ -46,6 +47,8 @@ struct CompassApp: App {
     }
     .onChange(of: phase) { _, phase in
       app.sync.setActive(phase == .active)
+      // Filter lists: checked at most daily.
+      if phase == .active { Task { await app.contentBlocking.refresh() } }
       if phase == .background {
         try? app.store.save(to: app.sidebarURL)
         Self.scheduleRefresh()

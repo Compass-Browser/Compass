@@ -17,6 +17,7 @@ final class AppModel {
   let sync: SyncController
   let passwords = PasswordManager()
   let siteSettings: SiteSettings
+  let contentBlocking = ContentBlocking()
   let directory: URL
 
   /// The space the sidebar shows.
@@ -65,11 +66,13 @@ final class AppModel {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
     siteSettings = SiteSettings(directory: directory)
-    tabs = TabManager(store: store, siteSettings: siteSettings)
+    tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
     selectedSpaceID = store.spaces.first?.id
+    contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
+    Task { [contentBlocking] in await contentBlocking.refresh() }
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
     tabs.onPageLoaded = { [weak self] url, title, id in
       guard let self else { return }
