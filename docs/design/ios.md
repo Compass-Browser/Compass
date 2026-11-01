@@ -1,6 +1,6 @@
 # Compass for iOS
 
-Status: M0–M8 written and tested on the Mac and in the simulator (2026-11-01); M8 syncs every profile of the chain, each in its own account. Still open: the desktop QR code, an interop run against a desktop Compass on sync-main, and the first TestFlight upload ("Open items" at the end).
+Status: M0–M8 written and tested on the Mac and in the simulator (2026-11-01); M8 syncs every profile of the chain, each in its own account. The desktop pairing QR code is on main and the first TestFlight build is uploaded. Still open: an interop run against a real desktop Compass, profiles included ("Open items" at the end).
 
 **Working on it:**
 
