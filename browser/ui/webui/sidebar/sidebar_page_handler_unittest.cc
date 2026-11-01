@@ -552,12 +552,82 @@ TEST_F(SidebarPageHandlerTest, RenamesAndColorsSpaces) {
 
   handler_remote_->RenameSpace(id, "  Work ");
   handler_remote_->RenameSpace(id, " ");
-  handler_remote_->SetSpaceColor(id, sidebar::mojom::SpaceColor::kGreen);
+  handler_remote_->SetSpaceColor(id,
+                                 sidebar::mojom::SpaceColor::New(34, 197, 94));
   Settle();
 
   EXPECT_EQ(page_.spaces(), "[Work]");
   EXPECT_EQ(home.name(), u"Work");
   EXPECT_EQ(home.color(), SpaceColor::kGreen);
+
+  // Any color, and back to grey.
+  handler_remote_->SetSpaceColor(id,
+                                 sidebar::mojom::SpaceColor::New(1, 2, 3));
+  Settle();
+  EXPECT_EQ(home.color(), SpaceColor::FromRGB(1, 2, 3));
+  handler_remote_->SetSpaceColor(id, nullptr);
+  Settle();
+  EXPECT_EQ(home.color(), SpaceColor::kGrey);
+}
+
+TEST_F(SidebarPageHandlerTest, SetsSpaceGradients) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+  home.SetColor(SpaceColor::kBlue);
+
+  std::vector<sidebar::mojom::SpaceColorPtr> gradient;
+  gradient.push_back(sidebar::mojom::SpaceColor::New(236, 72, 153));
+  gradient.push_back(sidebar::mojom::SpaceColor::New(1, 2, 3));
+  handler_remote_->SetSpaceGradient(id, std::move(gradient));
+  Settle();
+  EXPECT_EQ(home.gradient(), (std::vector<SpaceColor>{
+                                 SpaceColor::kPink, SpaceColor::FromRGB(1, 2, 3)}));
+
+  handler_remote_->SetSpaceGradient(id, {});
+  Settle();
+  EXPECT_TRUE(home.gradient().empty());
+}
+
+TEST_F(SidebarPageHandlerTest, SetsSpaceIntensityAndGrain) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+
+  handler_remote_->SetSpaceIntensity(id, 0.6);
+  handler_remote_->SetSpaceGrain(id, 5);
+  Settle();
+
+  EXPECT_EQ(home.intensity(), 0.6);
+  EXPECT_EQ(home.grain(), 1);
+
+  handler_remote_->SetSpaceAppearance(id,
+                                      sidebar::mojom::SpaceAppearance::kDark);
+  Settle();
+  EXPECT_EQ(home.appearance(), SpaceAppearance::kDark);
+}
+
+TEST_F(SidebarPageHandlerTest, SetsSpaceIcons) {
+  SpaceModel& home = space_model();
+  const std::string id = home.id().AsLowercaseString();
+
+  handler_remote_->SetSpaceIcon(id,
+                                sidebar::mojom::SpaceIcon::NewSymbol("home"));
+  Settle();
+  EXPECT_EQ(home.icon(), *SpaceIcon::Symbol("home"));
+
+  // Invalid ones are ignored.
+  handler_remote_->SetSpaceIcon(id, sidebar::mojom::SpaceIcon::NewEmoji(" "));
+  handler_remote_->SetSpaceIcon(id,
+                                sidebar::mojom::SpaceIcon::NewSymbol("../x"));
+  Settle();
+  EXPECT_EQ(home.icon(), *SpaceIcon::Symbol("home"));
+
+  handler_remote_->SetSpaceIcon(id, sidebar::mojom::SpaceIcon::NewEmoji("🚀"));
+  Settle();
+  EXPECT_EQ(home.icon(), *SpaceIcon::Emoji("🚀"));
+
+  handler_remote_->SetSpaceIcon(id, nullptr);
+  Settle();
+  EXPECT_TRUE(home.icon().is_none());
 }
 
 TEST_F(SidebarPageHandlerTest, MovesAnEntryAndItsTabToAnotherSpace) {

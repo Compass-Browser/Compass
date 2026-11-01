@@ -34,6 +34,7 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/profile_destruction_waiter.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -209,6 +210,47 @@ class CompassProfileSwitchBrowserTest : public InProcessBrowserTest {
   raw_ptr<SpaceModel> other_home_ = nullptr;
   gfx::NativeWindow native_;
 };
+
+VerticalTabStripRegionView* FindSidebarRegion(BrowserWindowInterface* browser) {
+  std::vector<views::View*> pending = {
+      BrowserView::GetBrowserViewForBrowser(browser)};
+  while (!pending.empty()) {
+    views::View* view = pending.back();
+    pending.pop_back();
+    if (auto* region = views::AsViewClass<VerticalTabStripRegionView>(view)) {
+      return region;
+    }
+    for (views::View* child : view->children()) {
+      pending.push_back(child);
+    }
+  }
+  return nullptr;
+}
+
+// The sidebar keeps its width across a switch to another profile's space:
+// the new window's sidebar is as wide as the old one's, not that profile's.
+IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest, SidebarKeepsItsWidth) {
+  VerticalTabStripRegionView* region = FindSidebarRegion(browser());
+  ASSERT_TRUE(region);
+  BrowserView::GetBrowserViewForBrowser(browser())
+      ->GetWidget()
+      ->LayoutRootViewIfNecessary();
+  // As a drag of its edge does.
+  const int wider = region->width() + 60;
+  region->OnResize(60, /*done_resizing=*/true);
+  BrowserView::GetBrowserViewForBrowser(browser())
+      ->GetWidget()
+      ->LayoutRootViewIfNecessary();
+  ASSERT_EQ(region->width(), wider);
+
+  BrowserWindowInterface* shown = SwitchToOther(browser());
+  ASSERT_TRUE(shown);
+  BrowserView* view = BrowserView::GetBrowserViewForBrowser(shown);
+  view->GetWidget()->LayoutRootViewIfNecessary();
+  VerticalTabStripRegionView* new_region = FindSidebarRegion(shown);
+  ASSERT_TRUE(new_region);
+  EXPECT_EQ(new_region->width(), wider);
+}
 
 // Cmd+T in the window after a switch opens the command bar of the new
 // profile, and its tab is the new profile's.

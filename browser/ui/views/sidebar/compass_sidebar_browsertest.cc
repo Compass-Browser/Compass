@@ -7,8 +7,11 @@
 #include <string_view>
 #include <vector>
 
+#include "base/strings/strcat.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -66,6 +69,7 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_container.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
@@ -109,9 +113,15 @@ class CompassSidebarBrowserTest : public InProcessBrowserTest {
   // Motions end as they start. With frames (an unlocked screen), Reset()
   // would end a running motion without stopping its animator, whose next
   // frame then fails a CHECK.
-  gfx::AnimationTestApi::RenderModeResetter animation_mode_ =
-      gfx::AnimationTestApi::SetRichAnimationRenderMode(
-          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  CompassSidebarBrowserTest()
+      : CompassSidebarBrowserTest(
+            gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED) {}
+  explicit CompassSidebarBrowserTest(
+      gfx::Animation::RichAnimationRenderMode mode)
+      : animation_mode_(
+            gfx::AnimationTestApi::SetRichAnimationRenderMode(mode)) {}
+
+  gfx::AnimationTestApi::RenderModeResetter animation_mode_;
 
   views::View* browser_view() {
     return BrowserView::GetBrowserViewForBrowser(browser());
@@ -127,6 +137,75 @@ class CompassSidebarBrowserTest : public InProcessBrowserTest {
     return contents;
   }
 };
+
+// A long Pinned and Today scroll together, one under the other: shrunk to
+// fit, Pinned's entries spilled over Today's header, and the space's name
+// lost height (the gap above Pinned changed between spaces). Scrollbars are
+// thin on a transparent track.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LongPinnedScrollsWithToday) {
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  for (int i = 0; i < 60; ++i) {
+    model.AddTab(model.pinned_root(), model.pinned_root()->children().size(),
+                 GURL("https://pinned" + base::NumberToString(i) + ".test/"),
+                 u"Pinned " + base::NumberToString16(i));
+  }
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(R"(
+    (async () => {
+      const r = () => document.querySelector('compass-sidebar-app').shadowRoot;
+      while (r().querySelectorAll('#pinned .tab').length < $1) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    })())", 60)));
+  constexpr char kLayout[] = R"(
+    (() => {
+      const r = document.querySelector('compass-sidebar-app').shadowRoot;
+      const sections = r.querySelector('#sections');
+      // The list's own Pinned, then Today's header, where layout puts them
+      // (entries glide there: their boxes may still be on their way).
+      const pinned = sections.querySelector(':scope > #pinned');
+      const header = sections.querySelectorAll(':scope > .section-header')[1];
+      const style = getComputedStyle(sections);
+      // All of Pinned's entries, not just its box (they spilled out of it).
+      // The space's name keeps its height beside a long list.
+      const name = r.querySelector('#spacePane > #spaceName');
+      return [header.offsetTop >= pinned.offsetTop + pinned.scrollHeight,
+              sections.scrollHeight > sections.clientHeight,
+              style.scrollbarColor.endsWith('rgba(0, 0, 0, 0)'),
+              name.offsetHeight >= name.scrollHeight];
+    })())";
+  EXPECT_EQ(content::EvalJs(contents, kLayout),
+            base::ListValue().Append(true).Append(true).Append(true).Append(
+                true));
+}
+
+// The previews a switch slides in line up with the live sidebar, so nothing
+// jumps when the live one takes over: their section headers (plain copies of
+// the live buttons) were shorter, moving every entry up.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PreviewsLineUpWithTheSidebar) {
+  SpaceList& spaces =
+      WindowFeatures::From(browser())->service().space_list();
+  spaces.AddSpace(spaces.spaces().size(), u"Second");
+  content::WebContents* contents = sidebar_contents();
+  constexpr char kHeaderHeights[] = R"(
+    (async () => {
+      const r = () => document.querySelector('compass-sidebar-app').shadowRoot;
+      const preview = () => r().querySelector(
+          'compass-sidebar-preview[side=next]')?.shadowRoot;
+      while (!preview()?.querySelector('#sections .section-header')) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      const heights = root => [...root.querySelectorAll(
+          '#sections > .section-header')].map(h => h.offsetHeight);
+      return [heights(r().querySelector('#spacePane')), heights(preview())];
+    })())";
+  base::ListValue result =
+      content::EvalJs(contents, kHeaderHeights).ExtractList().Clone();
+  ASSERT_EQ(result.size(), 2u);
+  // Pinned's and Today's, the same height in both.
+  EXPECT_EQ(result[0].GetList().size(), 2u);
+  EXPECT_EQ(result[0], result[1]);
+}
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ReplacesNativeTabStrip) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
@@ -220,6 +299,64 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintFollowsASwipe) {
   EXPECT_EQ(SkColorSetA(*tint->GetTintForTesting(), SK_AlphaOPAQUE),
             *GetSpaceTint(SpaceColor::kGreen));
   EXPECT_FALSE(tint->IsAnimatingForTesting());
+}
+
+// A gradient's colors are the tint's stops, in the region's tint and the
+// frame's alike; a swipe blends them stop by stop, and the theme seed stays
+// the space's color.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  auto* tint = FindDescendant<SidebarTint>(region);
+  ASSERT_TRUE(tint);
+  auto* frame_tint =
+      views::AsViewClass<SidebarTint>(browser_view()->children().front());
+  ASSERT_TRUE(frame_tint);
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& home = features->space_model();
+  home.SetColor(SpaceColor::kBlue);
+  home.SetGradient({SpaceColor::kPink});
+
+  const SidebarTint::Stops& stops = tint->GetStopsForTesting();
+  EXPECT_EQ(SkColorSetA(stops[0], SK_AlphaOPAQUE), *SpaceColor::kBlue.tint());
+  EXPECT_EQ(SkColorSetA(stops[2], SK_AlphaOPAQUE), *SpaceColor::kPink.tint());
+  // Halfway between them.
+  EXPECT_GT(SkColorGetR(stops[1]), SkColorGetR(stops[0]));
+  EXPECT_LT(SkColorGetR(stops[1]), SkColorGetR(stops[2]));
+  EXPECT_EQ(browser_view()->GetWidget()->user_color_override(),
+            SpaceColor::kBlue.tint());
+  // The frame's tint paints the same gradient.
+  EXPECT_EQ(frame_tint->GetStopsForTesting(), stops);
+
+  // Three colors, then a swipe toward a plain green space.
+  home.SetGradient({SpaceColor::kPink, SpaceColor::kYellow});
+  EXPECT_EQ(SkColorSetA(tint->GetStopsForTesting()[1], SK_AlphaOPAQUE),
+            *SpaceColor::kPink.tint());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  work->SetColor(SpaceColor::kGreen);
+  features->SetSpacePreview(work, 1);
+  for (SkColor stop : tint->GetStopsForTesting()) {
+    EXPECT_EQ(SkColorSetA(stop, SK_AlphaOPAQUE), *SpaceColor::kGreen.tint());
+  }
+  features->SetSpacePreview(nullptr, 0);
+
+  // Intensity sets the tint's opacity; grain blends like the colors.
+  home.SetIntensity(1);
+  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]),
+            base::ClampRound<SkColor>(kMaxSpaceTintOpacity * 255));
+  home.SetIntensity(kDefaultSpaceIntensity);
+  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]), 0x24u);
+  home.SetGrain(0.6);
+  EXPECT_FLOAT_EQ(tint->GetGrainForTesting(), 0.6f);
+  EXPECT_FLOAT_EQ(frame_tint->GetGrainForTesting(), 0.6f);
+  features->SetSpacePreview(work, 0.5);
+  EXPECT_FLOAT_EQ(tint->GetGrainForTesting(), 0.3f);
+  features->SetSpacePreview(nullptr, 0);
+
+  // Grey drops the gradient.
+  home.SetColor(SpaceColor::kGrey);
+  EXPECT_TRUE(home.gradient().empty());
+  EXPECT_FALSE(tint->GetTintForTesting());
 }
 
 // The space color seeds the window's theme: its frame color follows the
@@ -320,6 +457,61 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, CollapsesAndResizes) {
     return region->width() == resized_width;
   }));
   EXPECT_TRUE(sidebar()->IsDrawn());
+}
+
+// Closing, the header and the page slide out sideways at their expanded size:
+// nothing moves up or down. Measured at the shrinking width, the header took
+// its taller collapsed layout halfway and pushed the page down.
+// Motions run here; tests step them by hand (never Reset() one that plays).
+class CompassSidebarMotionBrowserTest : public CompassSidebarBrowserTest {
+ protected:
+  CompassSidebarMotionBrowserTest()
+      : CompassSidebarBrowserTest(
+            gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED) {}
+};
+
+IN_PROC_BROWSER_TEST_F(CompassSidebarMotionBrowserTest,
+                       SlidesOutWithoutMovingDown) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::Widget* widget = browser_view()->GetWidget();
+  widget->LayoutRootViewIfNecessary();
+  const int expanded_width = region->width();
+  const gfx::Rect page = sidebar()->GetBoundsInScreen();
+  ASSERT_FALSE(page.IsEmpty());
+
+  auto container = base::MakeRefCounted<gfx::AnimationContainer>();
+  auto* controller = BrowserAnimationController::From(browser());
+  controller->SetAnimationContainerForTesting(
+      TabStripAnimations::kVerticalTabStrip, container.get());
+  gfx::AnimationContainerTestApi test_api(container.get());
+
+  region->RequestCollapse(true);
+  ASSERT_TRUE(controller->IsAnimating(TabStripAnimations::kVerticalTabStrip));
+  bool went_below_snap = false;
+  for (int step = 0;
+       step < 100 &&
+       controller->IsAnimating(TabStripAnimations::kVerticalTabStrip);
+       ++step) {
+    test_api.IncrementTime(base::Milliseconds(10));
+    widget->LayoutRootViewIfNecessary();
+    if (!sidebar()->IsDrawn()) {
+      continue;
+    }
+    SCOPED_TRACE(testing::Message() << "region width " << region->width());
+    went_below_snap |=
+        region->width() < VerticalTabStripRegionView::kCollapseSnapWidth;
+    const gfx::Rect now = sidebar()->GetBoundsInScreen();
+    EXPECT_EQ(now.y(), page.y());
+    EXPECT_EQ(now.height(), page.height());
+    EXPECT_EQ(now.width(), page.width());
+    EXPECT_EQ(now.right() - page.right(), region->width() - expanded_width);
+  }
+  EXPECT_TRUE(went_below_snap);
+  EXPECT_FALSE(controller->IsAnimating(TabStripAnimations::kVerticalTabStrip));
+  widget->LayoutRootViewIfNecessary();
+  EXPECT_EQ(region->width(), kCollapsedSidebarWidth);
+  EXPECT_FALSE(sidebar()->IsDrawn());
 }
 
 // The page sits in a round-cornered card inside a frame of the space's color,
@@ -1095,7 +1287,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DraggingASpaceReordersThem) {
   EXPECT_EQ(&features->space_model(), play);
 }
 
-IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDeletes) {
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel* home = &features->space_model();
   content::WebContents* contents = sidebar_contents();
@@ -1120,12 +1312,41 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
       const input = await until(() => root.querySelector('#spaceNameInput'));
       input.value = 'Work';
       input.dispatchEvent(new Event('change'));
-      root.querySelector('.swatch[title="Blue"]').click();
       return true;
     })())"));
-  ASSERT_TRUE(base::test::RunUntil([&] {
-    return added->name() == u"Work" && added->color() == SpaceColor::kBlue;
-  }));
+  ASSERT_TRUE(base::test::RunUntil([&] { return added->name() == u"Work"; }));
+
+  // A symbol, then an emoji (only its first character is kept), as the
+  // switcher's button shows them.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (() => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('.icon-choice[title="Travel"]').click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return added->icon() == *SpaceIcon::Symbol("travel"); }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      while (!root.querySelectorAll('.space')[1].querySelector('svg path')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      const input = root.querySelector('#emojiInput');
+      input.value = '🚀✨';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      return input.value === '🚀';
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return added->icon() == *SpaceIcon::Emoji("🚀"); }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const emoji = () =>
+          root.querySelectorAll('.space')[1].querySelector('.space-emoji');
+      while (!emoji()) await new Promise(r => setTimeout(r, 20));
+      return emoji().textContent === '🚀';
+    })())"));
 
   // Delete wants a second click. The window goes back to Home.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
@@ -1148,6 +1369,116 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesColorsDeletes)
     return features->service().space_list().spaces().size() == 1u;
   }));
   EXPECT_EQ(&features->space_model(), home);
+}
+
+// The space menu's "Edit theme" opens the editor in its place: the palette
+// (colors, then gradients and any color), the pad's dots and their count,
+// the intensity wave, the grain dial and the mode; Esc goes back.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  content::WebContents* contents = sidebar_contents();
+  // |action| runs in the editor's shadow root, |editor|.
+  auto in_editor = [&](std::string_view action) {
+    return content::EvalJs(contents, base::StrCat({R"(
+      (async () => {
+        const root = document.querySelector('compass-sidebar-app').shadowRoot;
+        const until = async (f) => {
+          while (!f()) await new Promise(r => setTimeout(r, 20));
+          return f();
+        };
+        const host = await until(
+            () => root.querySelector('compass-theme-editor'));
+        await host.updateComplete;
+        const editor = host.shadowRoot;
+        )", action, R"(
+        return true;
+      })())"}));
+  };
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('.space').dispatchEvent(new MouseEvent(
+          'contextmenu', {bubbles: true, cancelable: true, composed: true}));
+      while (!root.querySelector('#editTheme')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      root.querySelector('#editTheme').click();
+      return true;
+    })())"));
+
+  ASSERT_EQ(true, in_editor("editor.querySelector('.swatch[title=Blue]').click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return space.color() == SpaceColor::kBlue; }));
+
+  // + adds a dot, its keys turn it, − takes it away.
+  ASSERT_EQ(true, in_editor("editor.querySelector('#addColor').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.gradient().size() == 1; }));
+  const SpaceColor added = space.gradient()[0];
+  ASSERT_EQ(true, in_editor(R"(
+      const dot = await until(
+          () => editor.querySelector('.dot[data-index="1"]'));
+      dot.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight'}));)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.gradient().size() == 1 && space.gradient()[0] != added;
+  }));
+  EXPECT_EQ(space.color(), SpaceColor::kBlue);
+  ASSERT_EQ(true, in_editor("editor.querySelector('#removeColor').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.gradient().empty(); }));
+
+  // Dragging the big dot takes the gradient along.
+  space.SetGradient({SpaceColor::kPink});
+  ASSERT_EQ(true, in_editor(R"(
+      await until(() => editor.querySelectorAll('.dot').length === 2);
+      editor.querySelector('.dot[main]').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'ArrowLeft'}));)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.color() != SpaceColor::kBlue &&
+           space.gradient() != std::vector<SpaceColor>{SpaceColor::kPink};
+  }));
+
+  // The gradients' page, and any color for the main one.
+  ASSERT_EQ(true, in_editor(R"(
+      editor.querySelector('.page[title=Gradients]').click();
+      await host.updateComplete;
+      editor.querySelector('.swatch[title=Ember]').click();)"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.gradient().size() == 2; }));
+  EXPECT_EQ(space.color(), SpaceColor::kRed);
+  ASSERT_EQ(true, in_editor(R"(
+      const input = editor.querySelector('#customColor input');
+      input.value = '#12ab0f';
+      input.dispatchEvent(new Event('input', {bubbles: true}));)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.color() == SpaceColor::FromRGB(0x12, 0xab, 0x0f);
+  }));
+  EXPECT_EQ(space.gradient().size(), 2u);
+
+  // Intensity and grain by their keys; the dark mode.
+  ASSERT_EQ(true, in_editor(R"(
+      editor.querySelector('#wave').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'End'}));
+      editor.querySelector('#dial').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'PageUp'}));
+      editor.querySelector('.mode[title=Dark]').click();)"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return space.intensity() == 1 && space.grain() > 0.09 &&
+           space.appearance() == SpaceAppearance::kDark;
+  }));
+  EXPECT_EQ(browser_view()->GetWidget()->color_mode_override(),
+            ui::ColorProviderKey::ColorMode::kDark);
+
+  // Esc goes back to the menu.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      root.querySelector('#spaceMenu').dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+      while (!root.querySelector('#spaceNameInput')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return !root.querySelector('compass-theme-editor');
+    })())"));
+  space.SetAppearance(SpaceAppearance::kAuto);
+  EXPECT_FALSE(browser_view()->GetWidget()->color_mode_override());
 }
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragIntoAFolder) {

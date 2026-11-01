@@ -8,12 +8,16 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
+import {colorToCss} from './colors.js';
 import {getFaviconUrl} from './favicon.js';
 import './node.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
+import type {SpaceSymbol} from './space_icons.js';
+import './theme_editor.js';
+import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
 import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
-import {NodeType, SpaceColor} from './sidebar.mojom-webui.js';
+import {NodeType} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
@@ -26,18 +30,13 @@ interface DropTarget {
   position: 'before'|'after'|'into'|'end'|'split-left'|'split-right';
 }
 
-// What each space color looks like, and its name. Grey spaces aren't tinted.
-// SidebarTint (sidebar_tint.cc) tints the region with the same colors.
-const SPACE_COLORS: Map<SpaceColor, {css: string, name: string}> = new Map([
-  [SpaceColor.kGrey, {css: 'rgb(128, 128, 128)', name: 'Grey'}],
-  [SpaceColor.kBlue, {css: 'rgb(59, 130, 246)', name: 'Blue'}],
-  [SpaceColor.kPurple, {css: 'rgb(139, 92, 246)', name: 'Purple'}],
-  [SpaceColor.kPink, {css: 'rgb(236, 72, 153)', name: 'Pink'}],
-  [SpaceColor.kRed, {css: 'rgb(239, 68, 68)', name: 'Red'}],
-  [SpaceColor.kOrange, {css: 'rgb(249, 115, 22)', name: 'Orange'}],
-  [SpaceColor.kYellow, {css: 'rgb(234, 179, 8)', name: 'Yellow'}],
-  [SpaceColor.kGreen, {css: 'rgb(34, 197, 94)', name: 'Green'}],
-]);
+function firstGrapheme(text: string): string {
+  const segments = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
+  for (const {segment} of segments.segment(text)) {
+    return segment;
+  }
+  return '';
+}
 
 export interface ArchiveDelay {
   hours: number;
@@ -165,6 +164,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       activeSpaceId_: {type: String},
       menuSpaceId_: {type: String},
       confirmingDelete_: {type: Boolean},
+      themeOpen_: {type: Boolean},
       archive_: {type: Array},
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
@@ -186,7 +186,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor menuSpaceId_: string|null = null;
   // Delete asks to be clicked twice.
   protected accessor confirmingDelete_: boolean = false;
-  protected readonly spaceColors_: SpaceColor[] = Array.from(SPACE_COLORS.keys());
+  // The space menu shows the theme editor instead.
+  protected accessor themeOpen_: boolean = false;
+  protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
   protected accessor archiveOpen_: boolean = false;
@@ -297,20 +299,21 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.spaces_.find(space => this.isActiveSpace_(space))?.name ?? '';
   }
 
-  protected getSpaceColor_(color: SpaceColor): string {
-    return (SPACE_COLORS.get(color) ?? SPACE_COLORS.get(SpaceColor.kGrey)!).css;
-  }
-
-  protected getColorName_(color: SpaceColor): string {
-    return SPACE_COLORS.get(color)?.name ?? '';
-  }
-
   protected getMenuSpace_(): Space|null {
     return this.spaces_.find(space => space.id === this.menuSpaceId_) ?? null;
   }
 
-  protected isMenuSpaceColor_(color: SpaceColor): boolean {
-    return this.getMenuSpace_()?.color === color;
+  // The theme chip's colors: the space's gradient's three stops, all its
+  // color for a plain one, as the sidebar's tint samples them
+  // (sidebar_tint.cc).
+  protected getSpaceStyle_(space: Space): string {
+    const colors = [space.color, ...space.gradient];
+    const stop = (at: number) => {
+      const index = Math.round(at * (colors.length - 1));
+      return colorToCss(colors[index] ?? null);
+    };
+    return `--space-color: ${stop(0)}; --space-color-2: ${stop(0.5)}; ` +
+        `--space-color-3: ${stop(1)}`;
   }
 
   protected canDeleteSpace_(): boolean {
@@ -333,6 +336,16 @@ export class CompassSidebarAppElement extends CrLitElement {
   private closeSpaceMenu_() {
     this.menuSpaceId_ = null;
     this.confirmingDelete_ = false;
+    this.themeOpen_ = false;
+  }
+
+  protected onEditThemeClick_() {
+    this.themeOpen_ = true;
+  }
+
+  // Esc too: back to the menu.
+  protected onThemeBackClick_() {
+    this.themeOpen_ = false;
   }
 
   protected onSpaceContextmenu_(e: MouseEvent) {
@@ -445,7 +458,12 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   protected onSpaceMenuKeydown_(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
+    if (e.key !== 'Escape') {
+      return;
+    }
+    if (this.themeOpen_) {
+      this.themeOpen_ = false;
+    } else {
       this.closeSpaceMenu_();
     }
   }
@@ -466,14 +484,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     const name = input.value.trim();
     if (space && name && name !== space.name) {
       this.browserProxy_.handler.renameSpace(space.id, name);
-    }
-  }
-
-  protected onSwatchClick_(e: Event) {
-    const color =
-        Number((e.currentTarget as HTMLElement).dataset['color']) as SpaceColor;
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.setSpaceColor(this.menuSpaceId_, color);
     }
   }
 
@@ -521,6 +531,49 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected getSpaceInitial_(space: Space): string {
     return Array.from(space.name.trim())[0]?.toUpperCase() ?? '•';
+  }
+
+  // A space shows its symbol, its emoji, or its name's first letter
+  // (docs/design/spaces.md, "Space icons"). An unknown symbol (from a later
+  // version) shows the letter.
+  protected getSpaceSymbol_(space: Space): SpaceSymbol|null {
+    return space.icon?.symbol ? findSpaceSymbol(space.icon.symbol) : null;
+  }
+
+  protected getSymbolViewBox_(): string {
+    return SPACE_SYMBOL_VIEW_BOX;
+  }
+
+  protected getSpaceIconText_(space: Space): string {
+    return space.icon?.emoji ?? this.getSpaceInitial_(space);
+  }
+
+  protected getSpaceIconClass_(space: Space): string {
+    return space.icon?.emoji ? 'space-emoji' : 'space-initial';
+  }
+
+  // |symbol| '' stands for no icon.
+  protected isMenuSpaceIcon_(symbol: string): boolean {
+    const icon = this.getMenuSpace_()?.icon;
+    return symbol ? icon?.symbol === symbol : !icon;
+  }
+
+  protected onSymbolClick_(e: Event) {
+    const name = (e.currentTarget as HTMLElement).dataset['symbol'];
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceIcon(
+          this.menuSpaceId_, name ? {symbol: name} : null);
+    }
+  }
+
+  // Keeps the first character typed or picked (a whole emoji sequence).
+  protected onEmojiInput_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const first = firstGrapheme(input.value.trim());
+    input.value = first;
+    if (first && this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceIcon(this.menuSpaceId_, {emoji: first});
+    }
   }
 
   // Slides the space's preview in at once, as a swipe would, rather than
@@ -1421,12 +1474,35 @@ export class CompassSidebarAppElement extends CrLitElement {
       easing: EASE_OUT,
       fill: 'forwards',
     };
-    const animations = [this.getSpacePane_().animate(
-        [
-          {opacity: 1 - progress / 2, transform: `translateX(${shift}px)`},
-          {opacity: 0.5, transform: `translateX(${-direction * width}px)`},
-        ],
-        options)];
+    // The old space leaves as a frozen copy: the browser switches mid-slide
+    // and the live pane renders the new space's entries as they arrive,
+    // which flashed in the half sliding out. The live pane stays out of sight
+    // until the new space's preview has slid in, and takes its place then.
+    const pane = this.getSpacePane_();
+    const {host, copy} = this.makeGhost_(pane, this.getStage_());
+    Object.assign(host.style, {
+      height: `${pane.offsetHeight}px`,
+      left: '0',
+      padding: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    });
+    // The swipe moved the live pane; the copy moves by its animation only.
+    copy.style.removeProperty('transform');
+    copy.style.removeProperty('opacity');
+    const sections = copy.querySelector<HTMLElement>('#sections')!;
+    sections.style.overflow = 'hidden';
+    sections.scrollTop = this.getSections_().scrollTop;
+    const animations = [
+      host.animate(
+          [
+            {opacity: 1 - progress / 2, transform: `translateX(${shift}px)`},
+            {opacity: 0.5, transform: `translateX(${-direction * width}px)`},
+          ],
+          options),
+      pane.animate([{opacity: 0}, {opacity: 0}], options),
+    ];
     if (preview) {
       animations.push(preview.animate(
           [
@@ -1439,6 +1515,8 @@ export class CompassSidebarAppElement extends CrLitElement {
           options));
     }
     this.endSlide_();
+    // After endSlide_(), which removes the last slide's copy.
+    this.slideGhost_ = host;
     this.setSliding_(true);
     const slide: Slide = {
       direction,

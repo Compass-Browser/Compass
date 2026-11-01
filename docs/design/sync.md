@@ -1733,7 +1733,7 @@ message CompassSpacesSpecifics {
 message CompassSpace {
   string uuid = 1;
   string name = 2;
-  int32 color = 3;              // SpaceColor enum value
+  int32 color = 3;              // palette index; see "space themes" below
   string icon = 4;
   bytes directory_position = 5; // UniquePosition in the browser-wide order
   string profile_uuid = 6;      // see "Profiles"
@@ -1784,6 +1784,40 @@ Applying remote changes keeps `SpaceModel::CanMove`'s invariants:
   deletes its subtree (one tombstone per node).
 - **Live tabs**: a remote URL change of an unloaded entry just updates it;
   of a live one, it doesn't navigate (see below).
+
+### Merged with main (space themes)
+
+Main made `SpaceColor` a class (grey, or any opaque RGB tint; the palette is
+`kSpaceColorPalette`) and gave spaces a theme: gradient, intensity, grain,
+appearance and icon (docs/design/spaces.md). All of it syncs, in
+`CompassSpace` (the sketch above predates it; the .proto is the reference):
+
+- `color = 3` stays the palette index, 1 grey ... 8 green. A color off the
+  palette also sets `uint32 color_rgb = 8` (0xRRGGBB), and `color` is then
+  the index of the palette color closest to it (never grey), so clients from
+  before themes show something close. `color_rgb` counts only while `color`
+  is still that closest index: an older client that picks another palette
+  color writes `color` and keeps the stale `color_rgb` as received, and the
+  palette color wins.
+- `repeated CompassColor gradient = 9`, each `{int32 palette = 1; uint32 rgb
+  = 2}`: rgb when set, else the palette index (1 is grey, which the model
+  drops from gradients).
+- `double intensity = 10` (absent = 0.31, the default), `double grain = 11`
+  (absent = 0), `int32 appearance = 12` (1 or absent auto, 2 light, 3 dark).
+- `string icon = 4`, unused before: `emoji:<emoji>` or `symbol:<name>`,
+  empty or absent for none.
+
+Defaults are never written. Remote values go through the model's setters,
+which clamp and validate; an unreadable color or gradient entry is ignored,
+an unknown appearance or icon reads as auto/none and stays on the server
+until it's changed here. Writing compares each field, decoded, with what the
+entity says, so an equivalent encoding isn't rewritten and an applied remote
+theme isn't committed back. Every theme setter fires
+`SpaceModel::Observer::OnSpaceChanged`, which `SpaceList` passes on as
+`OnSpaceUpdated`, so a theme-only edit commits the space entity on its own
+(`CompassSpacesSyncBridgeTest.ThemeOnlyChangesCommit`). The iOS client keeps
+the new fields as unknown fields and the icon string as received; it only
+reads and writes `color`.
 
 ### Today across devices
 

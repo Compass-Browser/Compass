@@ -82,6 +82,7 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kExtensions, u"Extensions"},
     {CommandBarCommand::kSettings, u"Settings"},
     {CommandBarCommand::kImportFromArc, u"Import from Arc"},
+    {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts"},
 };
 
 metrics::OmniboxEventProto::PageClassification GetPageClassification(
@@ -679,6 +680,15 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
       Navigate(&params);
       break;
     }
+    case CommandBarCommand::kKeyboardShortcuts: {
+      NavigateParams params(
+          browser_,
+          GURL(std::string(content::kChromeUIScheme) + "://" + kSettingsHost),
+          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+      params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+      Navigate(&params);
+      break;
+    }
   }
 }
 
@@ -717,6 +727,7 @@ bool CommandBarPageHandler::IsCommandAvailable(
     case CommandBarCommand::kDownloads:
     case CommandBarCommand::kExtensions:
     case CommandBarCommand::kSettings:
+    case CommandBarCommand::kKeyboardShortcuts:
       return true;
     case CommandBarCommand::kImportFromArc:
       return !browser_->GetProfile()->IsOffTheRecord();

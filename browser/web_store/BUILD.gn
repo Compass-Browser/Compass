@@ -1,0 +1,40 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The Chrome Web Store's buttons say Compass. Upstream's tab helpers
+# (//chrome/browser/ui:tab_helpers_impl) depend on this target (see
+# patches/chrome-browser-ui-BUILD.gn.patch and
+# patches/chrome-browser-ui-tab_helpers.cc.patch).
+source_set("web_store") {
+  sources = [
+    "web_store_branding.cc",
+    "web_store_branding.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/common",
+    "//content/public/browser",
+    "//url",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "web_store_branding_browsertest.cc" ]
+  deps = [
+    ":web_store",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//net:test_support",
+    "//testing/gtest",
+    "//url",
+  ]
+}

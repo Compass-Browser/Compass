@@ -405,5 +405,142 @@ TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {
   EXPECT_EQ(list.spaces()[1]->archive_after(), kDefaultArchiveAfter);
 }
 
+// Palette colors are saved by name, as older versions read them; any other
+// color as #rrggbb.
+TEST(SidebarSerializerTest, SavesCustomColorsAsHex) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  list.active_space().SetColor(SpaceColor::kBlue);
+  work->SetColor(SpaceColor::FromRGB(0x12, 0xab, 0x0f));
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* spaces = data.FindList("spaces");
+  ASSERT_TRUE(spaces);
+  EXPECT_EQ(*(*spaces)[0].GetDict().FindString("color"), "blue");
+  EXPECT_EQ(*(*spaces)[1].GetDict().FindString("color"), "#12ab0f");
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.spaces()[0]->color(), SpaceColor::kBlue);
+  EXPECT_EQ(restored.spaces()[1]->color(), SpaceColor::FromRGB(0x12, 0xab, 0x0f));
+}
+
+TEST(SidebarSerializerTest, RoundTripsGradients) {
+  SpaceList list;
+  list.active_space().SetColor(SpaceColor::kBlue);
+  list.active_space().SetGradient(
+      {SpaceColor::kPink, SpaceColor::FromRGB(1, 2, 3)});
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* gradient =
+      (*data.FindList("spaces"))[0].GetDict().FindList("gradient");
+  ASSERT_TRUE(gradient);
+  EXPECT_EQ(*gradient, base::ListValue().Append("pink").Append("#010203"));
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.active_space().gradient(),
+            (std::vector<SpaceColor>{SpaceColor::kPink,
+                                     SpaceColor::FromRGB(1, 2, 3)}));
+}
+
+TEST(SidebarSerializerTest, PlainColorsSaveNoGradient) {
+  SpaceList list;
+  list.active_space().SetColor(SpaceColor::kBlue);
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::DictValue& space = (*data.FindList("spaces"))[0].GetDict();
+  EXPECT_FALSE(space.Find("gradient"));
+  // Defaults aren't saved.
+  EXPECT_FALSE(space.Find("intensity"));
+  EXPECT_FALSE(space.Find("grain"));
+}
+
+TEST(SidebarSerializerTest, RoundTripsIntensityAndGrain) {
+  SpaceList list;
+  list.active_space().SetColor(SpaceColor::kBlue);
+  list.active_space().SetIntensity(0.75);
+  list.active_space().SetGrain(0.5);
+
+  SpaceList restored;
+  DeserializeSpaceList(SerializeSpaceList(list), restored);
+  EXPECT_EQ(restored.active_space().intensity(), 0.75);
+  EXPECT_EQ(restored.active_space().grain(), 0.5);
+}
+
+TEST(SidebarSerializerTest, RoundTripsAppearance) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  work->SetAppearance(SpaceAppearance::kLight);
+  play->SetAppearance(SpaceAppearance::kDark);
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue& spaces = *data.FindList("spaces");
+  EXPECT_FALSE(spaces[0].GetDict().Find("appearance"));
+  EXPECT_EQ(*spaces[1].GetDict().FindString("appearance"), "light");
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.spaces()[0]->appearance(), SpaceAppearance::kAuto);
+  EXPECT_EQ(restored.spaces()[1]->appearance(), SpaceAppearance::kLight);
+  EXPECT_EQ(restored.spaces()[2]->appearance(), SpaceAppearance::kDark);
+}
+
+TEST(SidebarSerializerTest, RoundTripsIcons) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  SpaceModel* play = list.AddSpace(2, u"Play");
+  work->SetIcon(*SpaceIcon::Symbol("work"));
+  play->SetIcon(*SpaceIcon::Emoji("🎮"));
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* spaces = data.FindList("spaces");
+  ASSERT_TRUE(spaces);
+  // None isn't saved.
+  EXPECT_FALSE((*spaces)[0].GetDict().Find("icon"));
+  EXPECT_EQ(*(*spaces)[1].GetDict().FindStringByDottedPath("icon.symbol"),
+            "work");
+  EXPECT_EQ(*(*spaces)[2].GetDict().FindStringByDottedPath("icon.emoji"),
+            "🎮");
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_TRUE(restored.spaces()[0]->icon().is_none());
+  EXPECT_EQ(restored.spaces()[1]->icon(), *SpaceIcon::Symbol("work"));
+  EXPECT_EQ(restored.spaces()[2]->icon(), *SpaceIcon::Emoji("🎮"));
+}
+
+TEST(SidebarSerializerTest, UnreadableIconsAreLeftOut) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "A", "icon": {"symbol": "Bad!"}},
+                                   {"name": "B", "icon": {"shape": "x"}},
+                                   {"name": "C", "icon": "home"}]})",
+      base::JSON_PARSE_RFC);
+  SpaceList list;
+
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 3u);
+
+  for (const auto& space : list.spaces()) {
+    EXPECT_TRUE(space->icon().is_none());
+  }
+}
+
+TEST(SidebarSerializerTest, UnreadableColorsStayGrey) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "A", "color": "teal"},
+                                   {"name": "B", "color": "#12ab0"},
+                                   {"name": "C", "color": "#0x12ab"},
+                                   {"name": "D", "color": "#FFAA00"}]})",
+      base::JSON_PARSE_RFC);
+  SpaceList list;
+
+  EXPECT_EQ(DeserializeSpaceList(data->GetDict(), list), 4u);
+
+  EXPECT_EQ(list.spaces()[0]->color(), SpaceColor::kGrey);
+  EXPECT_EQ(list.spaces()[1]->color(), SpaceColor::kGrey);
+  EXPECT_EQ(list.spaces()[2]->color(), SpaceColor::kGrey);
+  EXPECT_EQ(list.spaces()[3]->color(), SpaceColor::FromRGB(0xff, 0xaa, 0x00));
+}
+
 }  // namespace
 }  // namespace compass

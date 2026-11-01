@@ -15,6 +15,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -78,12 +79,22 @@ std::string Describe(const SidebarNode& parent) {
   return result;
 }
 
+// A space's color: its place in the palette (0 grey, 1 blue...), or "#rgb".
+std::string DescribeColor(SpaceColor color) {
+  for (size_t i = 0; i < kSpaceColorPalette.size(); ++i) {
+    if (kSpaceColorPalette[i].color == color) {
+      return base::NumberToString(i);
+    }
+  }
+  return base::StringPrintf("#%06x", *color.tint() & 0xFFFFFF);
+}
+
 // Spaces (name, color, pinned tree) in order, then the favorites.
 std::string Describe(const SpaceList& list) {
   std::string result;
   for (const auto& space : list.spaces()) {
     result += base::UTF16ToUTF8(space->name()) + "/" +
-              base::NumberToString(static_cast<int>(space->color())) + "(" +
+              DescribeColor(space->color()) + "(" +
               Describe(*space->pinned_root()) + ") ";
   }
   return result + "fav(" + Describe(*list.favorites().pinned_root()) + ")";
@@ -431,7 +442,9 @@ TEST_F(CompassSpacesSyncBridgeTest, FirstDeviceUploadsItsSidebar) {
   const sync_pb::CompassSpace& synced_space =
       server_.entities[Key(space.id())].space();
   EXPECT_EQ(synced_space.name(), "Main");
-  EXPECT_EQ(synced_space.color(), static_cast<int>(SpaceColor::kBlue) + 1);
+  // Blue is the palette's second color.
+  EXPECT_EQ(synced_space.color(), 2);
+  EXPECT_FALSE(synced_space.has_color_rgb());
   EXPECT_EQ(synced_space.archive_after_seconds(),
             kDefaultArchiveAfter.InSeconds());
   EXPECT_TRUE(synced_space.has_directory_position());
@@ -802,7 +815,7 @@ TEST_F(CompassSpacesSyncBridgeTest, KeepsFieldsItDoesntKnow) {
   std::unique_ptr<Device> b = MakeDevice();
   b->Join();
 
-  // Another client set an icon and a profile.
+  // Another client set an icon this version can't read, and a profile.
   const std::string key = Key(b->space(0).id());
   sync_pb::CompassSpacesSpecifics space = server_.entities[key];
   space.mutable_space()->set_icon("star");
@@ -815,6 +828,160 @@ TEST_F(CompassSpacesSyncBridgeTest, KeepsFieldsItDoesntKnow) {
   EXPECT_EQ(server_.entities[key].space().icon(), "star");
   EXPECT_EQ(server_.entities[key].space().profile_uuid(), "p");
   EXPECT_EQ(server_.entities[key].space().name(), "Renamed");
+}
+
+// Main's space themes: color (off the palette too), gradient, intensity,
+// grain, appearance and icon go to other devices, and don't come back.
+TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  SpaceModel& space = a->space(0);
+  // Closest to blue.
+  const SpaceColor custom = SpaceColor::FromRGB(40, 120, 230);
+  const SpaceColor custom_stop = SpaceColor::FromRGB(1, 2, 3);
+  space.SetColor(custom);
+  space.SetGradient({SpaceColor::kPink, custom_stop});
+  space.SetIntensity(0.8);
+  space.SetGrain(0.25);
+  space.SetAppearance(SpaceAppearance::kDark);
+  space.SetIcon(*SpaceIcon::Emoji("\U0001F9ED"));
+  EXPECT_EQ(a->Push(), 1u);
+
+  const sync_pb::CompassSpace& synced = server_.entities[Key(space.id())].space();
+  EXPECT_EQ(synced.color(), 2);
+  EXPECT_EQ(synced.color_rgb(), 0x2878e6u);
+  ASSERT_EQ(synced.gradient_size(), 2);
+  EXPECT_EQ(synced.gradient(0).palette(), 4);
+  EXPECT_FALSE(synced.gradient(0).has_rgb());
+  EXPECT_EQ(synced.gradient(1).rgb(), 0x010203u);
+  EXPECT_DOUBLE_EQ(synced.intensity(), 0.8);
+  EXPECT_DOUBLE_EQ(synced.grain(), 0.25);
+  EXPECT_EQ(synced.appearance(), 3);
+  EXPECT_EQ(synced.icon(), "emoji:\U0001F9ED");
+
+  b->Pull();
+  SpaceModel& space_b = b->space(0);
+  EXPECT_EQ(space_b.color(), custom);
+  EXPECT_EQ(space_b.gradient(),
+            (std::vector<SpaceColor>{SpaceColor::kPink, custom_stop}));
+  EXPECT_DOUBLE_EQ(space_b.intensity(), 0.8);
+  EXPECT_DOUBLE_EQ(space_b.grain(), 0.25);
+  EXPECT_EQ(space_b.appearance(), SpaceAppearance::kDark);
+  EXPECT_EQ(space_b.icon(), *SpaceIcon::Emoji("\U0001F9ED"));
+  EXPECT_EQ(b->last_push(), 0u);
+  EXPECT_EQ(Describe(b->list()), "Main/#2878e6(Work{Mail},News) fav(Fav)");
+
+  // Back to the defaults, which leave the fields out.
+  space_b.SetColor(SpaceColor::kGrey);
+  space_b.SetIntensity(kDefaultSpaceIntensity);
+  space_b.SetGrain(0);
+  space_b.SetAppearance(SpaceAppearance::kAuto);
+  space_b.SetIcon(*SpaceIcon::Symbol("star"));
+  EXPECT_EQ(b->Push(), 1u);
+  const sync_pb::CompassSpace& reset =
+      server_.entities[Key(space.id())].space();
+  EXPECT_EQ(reset.color(), 1);
+  EXPECT_FALSE(reset.has_color_rgb());
+  EXPECT_EQ(reset.gradient_size(), 0);
+  EXPECT_FALSE(reset.has_intensity());
+  EXPECT_FALSE(reset.has_grain());
+  EXPECT_FALSE(reset.has_appearance());
+  EXPECT_EQ(reset.icon(), "symbol:star");
+  a->Pull();
+  EXPECT_EQ(space.color(), SpaceColor::kGrey);
+  EXPECT_TRUE(space.gradient().empty());
+  EXPECT_EQ(space.intensity(), kDefaultSpaceIntensity);
+  EXPECT_EQ(space.grain(), 0);
+  EXPECT_EQ(space.appearance(), SpaceAppearance::kAuto);
+  EXPECT_EQ(space.icon(), *SpaceIcon::Symbol("star"));
+  EXPECT_EQ(a->last_push(), 0u);
+}
+
+// A client from before themes only knows `color`: its palette color
+// applies, over a `color_rgb` it kept as received, and isn't rewritten.
+// Invalid theme values are ignored or clamped.
+TEST_F(CompassSpacesSyncBridgeTest, OldClientsPaletteColorApplies) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->space(0).SetColor(SpaceColor::FromRGB(40, 120, 230));
+  a->space(0).SetGradient({SpaceColor::kPink});
+  a->Join();
+
+  const std::string key = Key(a->space(0).id());
+  sync_pb::CompassSpacesSpecifics old = server_.entities[key];
+  ASSERT_TRUE(old.space().has_color_rgb());
+  // Red.
+  old.mutable_space()->set_color(5);
+  std::map<std::string, std::optional<sync_pb::CompassSpacesSpecifics>>
+      latest = {{key, old}};
+  a->ApplyRemote({key}, latest);
+  EXPECT_EQ(a->space(0).color(), SpaceColor::kRed);
+  EXPECT_EQ(a->space(0).gradient(),
+            std::vector<SpaceColor>{SpaceColor::kPink});
+  EXPECT_EQ(a->Push(), 0u);
+
+  // An entity with nothing but a palette color: the theme's defaults.
+  sync_pb::CompassSpacesSpecifics plain;
+  plain.mutable_space()->set_uuid(key);
+  plain.mutable_space()->set_name("Main");
+  plain.mutable_space()->set_color(7);
+  latest = {{key, plain}};
+  a->ApplyRemote({key}, latest);
+  EXPECT_EQ(a->space(0).color(), SpaceColor::kYellow);
+  EXPECT_TRUE(a->space(0).gradient().empty());
+  EXPECT_EQ(a->space(0).intensity(), kDefaultSpaceIntensity);
+
+  // Out of range: an unknown color stays, intensity is clamped, a broken
+  // gradient entry and an unknown appearance are ignored.
+  sync_pb::CompassSpacesSpecifics invalid = plain;
+  sync_pb::CompassSpace& theme = *invalid.mutable_space();
+  theme.set_color(42);
+  theme.add_gradient()->set_rgb(0x1000000);
+  theme.add_gradient()->set_palette(3);
+  theme.set_intensity(7);
+  theme.set_appearance(9);
+  latest = {{key, invalid}};
+  a->ApplyRemote({key}, latest);
+  EXPECT_EQ(a->space(0).color(), SpaceColor::kYellow);
+  EXPECT_EQ(a->space(0).gradient(),
+            std::vector<SpaceColor>{SpaceColor::kPurple});
+  EXPECT_EQ(a->space(0).intensity(), 1);
+  EXPECT_EQ(a->space(0).appearance(), SpaceAppearance::kAuto);
+}
+
+// Each theme setter alone schedules a commit of the space, by itself.
+TEST_F(CompassSpacesSyncBridgeTest, ThemeOnlyChangesCommit) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  SpaceModel& space = a->space(0);
+  const std::string key = Key(space.id());
+
+  auto commits_alone = [&](auto change) {
+    change();
+    task_environment_.RunUntilIdle();
+    EXPECT_EQ(a->puts().size(), 1u);
+    EXPECT_TRUE(a->puts().contains(key));
+    a->Push();
+  };
+  commits_alone([&] { space.SetGradient({SpaceColor::kGreen}); });
+  commits_alone([&] { space.SetIntensity(0.5); });
+  commits_alone([&] { space.SetGrain(0.4); });
+  commits_alone([&] { space.SetAppearance(SpaceAppearance::kLight); });
+  commits_alone([&] { space.SetIcon(*SpaceIcon::Symbol("book")); });
+  commits_alone([&] { space.SetColor(SpaceColor::FromRGB(10, 20, 30)); });
+  const sync_pb::CompassSpace& synced = server_.entities[key].space();
+  EXPECT_EQ(synced.gradient(0).palette(), 8);
+  EXPECT_DOUBLE_EQ(synced.intensity(), 0.5);
+  EXPECT_DOUBLE_EQ(synced.grain(), 0.4);
+  EXPECT_EQ(synced.appearance(), 2);
+  EXPECT_EQ(synced.icon(), "symbol:book");
+  EXPECT_EQ(synced.color_rgb(), 0x0a141eu);
+  EXPECT_EQ(a->Push(), 0u);
 }
 
 TEST_F(CompassSpacesSyncBridgeTest, RestartSendsNothing) {

@@ -5,6 +5,9 @@
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
+#include <string_view>
 #include <utility>
 
 #include "base/auto_reset.h"
@@ -15,6 +18,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -194,6 +198,248 @@ void CollectSplits(const SidebarNode& node, std::vector<base::Uuid>& splits) {
     }
     CollectSplits(*child, splits);
   }
+}
+
+
+// Space themes (docs/design/sync.md, "Merged with main (space themes)").
+// Each value is compared with what the entity already says, decoded, so an
+// equivalent encoding (an older client's, or a stale `color_rgb`) isn't
+// rewritten, and an applied remote value isn't committed back.
+
+constexpr uint32_t kMaxRgb = 0xFFFFFF;
+constexpr std::string_view kIconEmojiPrefix = "emoji:";
+constexpr std::string_view kIconSymbolPrefix = "symbol:";
+constexpr int kAppearanceAuto = 1;
+constexpr int kAppearanceLight = 2;
+constexpr int kAppearanceDark = 3;
+
+// |color|'s 1-based index in kSpaceColorPalette, or 0 if it's off it.
+int PaletteIndex(SpaceColor color) {
+  for (size_t i = 0; i < kSpaceColorPalette.size(); ++i) {
+    if (kSpaceColorPalette[i].color == color) {
+      return static_cast<int>(i) + 1;
+    }
+  }
+  return 0;
+}
+
+std::optional<SpaceColor> FromPaletteIndex(int index) {
+  if (index < 1 || index > static_cast<int>(kSpaceColorPalette.size())) {
+    return std::nullopt;
+  }
+  return kSpaceColorPalette[index - 1].color;
+}
+
+// The index of the palette color closest to |rgb| (0xRRGGBB), grey aside:
+// what clients that only know CompassSpace.color show for it.
+int NearestPaletteIndex(uint32_t rgb) {
+  const int red = (rgb >> 16) & 0xFF;
+  const int green = (rgb >> 8) & 0xFF;
+  const int blue = rgb & 0xFF;
+  int best = 0;
+  int best_distance = std::numeric_limits<int>::max();
+  for (size_t i = 0; i < kSpaceColorPalette.size(); ++i) {
+    const std::optional<SkColor> tint = kSpaceColorPalette[i].color.tint();
+    if (!tint) {
+      continue;
+    }
+    const int dr = static_cast<int>(SkColorGetR(*tint)) - red;
+    const int dg = static_cast<int>(SkColorGetG(*tint)) - green;
+    const int db = static_cast<int>(SkColorGetB(*tint)) - blue;
+    const int distance = dr * dr + dg * dg + db * db;
+    if (distance < best_distance) {
+      best_distance = distance;
+      best = static_cast<int>(i) + 1;
+    }
+  }
+  return best;
+}
+
+SpaceColor FromRgb(uint32_t rgb) {
+  return SpaceColor::FromSkColor(static_cast<SkColor>(rgb));
+}
+
+uint32_t ToRgb(SpaceColor color) {
+  return color.tint().value_or(SK_ColorBLACK) & kMaxRgb;
+}
+
+// The space's color, or nullopt if the entity has none this version reads.
+std::optional<SpaceColor> SpaceColorFromProto(
+    const sync_pb::CompassSpace& space) {
+  // `color_rgb` counts only while `color` still matches it: a client that
+  // predates it may have picked a palette color since.
+  if (space.has_color_rgb() && space.color_rgb() <= kMaxRgb &&
+      space.color() == NearestPaletteIndex(space.color_rgb())) {
+    return FromRgb(space.color_rgb());
+  }
+  return FromPaletteIndex(space.color());
+}
+
+std::optional<SpaceColor> ColorFromProto(const sync_pb::CompassColor& proto) {
+  if (proto.has_rgb()) {
+    if (proto.rgb() > kMaxRgb) {
+      return std::nullopt;
+    }
+    return FromRgb(proto.rgb());
+  }
+  return FromPaletteIndex(proto.palette());
+}
+
+sync_pb::CompassColor ColorToProto(SpaceColor color) {
+  sync_pb::CompassColor proto;
+  if (const int index = PaletteIndex(color)) {
+    proto.set_palette(index);
+  } else {
+    proto.set_rgb(ToRgb(color));
+  }
+  return proto;
+}
+
+// The gradient's colors this version reads; unreadable ones are left out.
+std::vector<SpaceColor> GradientFromProto(const sync_pb::CompassSpace& space) {
+  std::vector<SpaceColor> gradient;
+  for (const sync_pb::CompassColor& proto : space.gradient()) {
+    if (std::optional<SpaceColor> color = ColorFromProto(proto)) {
+      gradient.push_back(*color);
+    }
+  }
+  return gradient;
+}
+
+// nullopt for values this version doesn't know.
+std::optional<SpaceAppearance> AppearanceFromProto(int value) {
+  switch (value) {
+    case 0:
+    case kAppearanceAuto:
+      return SpaceAppearance::kAuto;
+    case kAppearanceLight:
+      return SpaceAppearance::kLight;
+    case kAppearanceDark:
+      return SpaceAppearance::kDark;
+    default:
+      return std::nullopt;
+  }
+}
+
+int AppearanceToProto(SpaceAppearance appearance) {
+  switch (appearance) {
+    case SpaceAppearance::kAuto:
+      return kAppearanceAuto;
+    case SpaceAppearance::kLight:
+      return kAppearanceLight;
+    case SpaceAppearance::kDark:
+      return kAppearanceDark;
+  }
+  NOTREACHED();
+}
+
+// nullopt for an icon this version can't read (another kind, or invalid).
+std::optional<SpaceIcon> IconFromProto(std::string_view value) {
+  if (value.empty()) {
+    return SpaceIcon();
+  }
+  if (base::StartsWith(value, kIconEmojiPrefix)) {
+    return SpaceIcon::Emoji(value.substr(kIconEmojiPrefix.size()));
+  }
+  if (base::StartsWith(value, kIconSymbolPrefix)) {
+    return SpaceIcon::Symbol(value.substr(kIconSymbolPrefix.size()));
+  }
+  return std::nullopt;
+}
+
+std::string IconToProto(const SpaceIcon& icon) {
+  switch (icon.kind()) {
+    case SpaceIcon::Kind::kNone:
+      return std::string();
+    case SpaceIcon::Kind::kEmoji:
+      return std::string(kIconEmojiPrefix) + icon.value();
+    case SpaceIcon::Kind::kSymbol:
+      return std::string(kIconSymbolPrefix) + icon.value();
+  }
+  NOTREACHED();
+}
+
+// Writes |model|'s theme into |space|, leaving what already says the same.
+void ThemeToProto(const SpaceModel& model, sync_pb::CompassSpace& space) {
+  if (SpaceColorFromProto(space) != model.color()) {
+    if (const int index = PaletteIndex(model.color())) {
+      space.set_color(index);
+      space.clear_color_rgb();
+    } else {
+      const uint32_t rgb = ToRgb(model.color());
+      space.set_color(NearestPaletteIndex(rgb));
+      space.set_color_rgb(rgb);
+    }
+  }
+
+  bool gradient_same = space.gradient_size() ==
+                       static_cast<int>(model.gradient().size());
+  for (int i = 0; gradient_same && i < space.gradient_size(); ++i) {
+    gradient_same = ColorFromProto(space.gradient(i)) ==
+                    model.gradient()[static_cast<size_t>(i)];
+  }
+  if (!gradient_same) {
+    space.clear_gradient();
+    for (SpaceColor color : model.gradient()) {
+      *space.add_gradient() = ColorToProto(color);
+    }
+  }
+
+  // Defaults are left out.
+  const double intensity =
+      space.has_intensity() ? space.intensity() : kDefaultSpaceIntensity;
+  if (intensity != model.intensity()) {
+    if (model.intensity() == kDefaultSpaceIntensity) {
+      space.clear_intensity();
+    } else {
+      space.set_intensity(model.intensity());
+    }
+  }
+  const double grain = space.has_grain() ? space.grain() : 0;
+  if (grain != model.grain()) {
+    if (model.grain() == 0) {
+      space.clear_grain();
+    } else {
+      space.set_grain(model.grain());
+    }
+  }
+
+  // A value this version doesn't know was applied as auto, and stays until
+  // the appearance changes here; the same for icons.
+  const std::optional<SpaceAppearance> appearance =
+      AppearanceFromProto(space.appearance());
+  if (appearance.value_or(SpaceAppearance::kAuto) != model.appearance()) {
+    if (model.appearance() == SpaceAppearance::kAuto) {
+      space.clear_appearance();
+    } else {
+      space.set_appearance(AppearanceToProto(model.appearance()));
+    }
+  }
+  const std::optional<SpaceIcon> icon = IconFromProto(space.icon());
+  if (icon.value_or(SpaceIcon()) != model.icon()) {
+    if (model.icon().is_none()) {
+      space.clear_icon();
+    } else {
+      space.set_icon(IconToProto(model.icon()));
+    }
+  }
+}
+
+// Applies |space|'s theme to |model| through its setters, which clamp and
+// validate. Absent fields are the defaults; unreadable values are ignored
+// (a color, a gradient entry) or read as the default (appearance, icon).
+void ThemeFromProto(const sync_pb::CompassSpace& space, SpaceModel& model) {
+  if (std::optional<SpaceColor> color = SpaceColorFromProto(space)) {
+    model.SetColor(*color);
+  }
+  // After the color: a grey space has no gradient.
+  model.SetGradient(GradientFromProto(space));
+  model.SetIntensity(space.has_intensity() ? space.intensity()
+                                           : kDefaultSpaceIntensity);
+  model.SetGrain(space.has_grain() ? space.grain() : 0);
+  model.SetAppearance(
+      AppearanceFromProto(space.appearance()).value_or(SpaceAppearance::kAuto));
+  model.SetIcon(IconFromProto(space.icon()).value_or(SpaceIcon()));
 }
 
 }  // namespace
@@ -587,17 +833,14 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
     sync_pb::CompassSpacesSpecifics specifics;
     auto it = mirror_.find(keys[i]);
     if (it != mirror_.end() && it->second.has_space()) {
-      // Keeps what this version doesn't know (icon, profile).
+      // Keeps what this version doesn't know (fields from later versions).
       specifics = it->second;
     }
     sync_pb::CompassSpace& space = *specifics.mutable_space();
     const SpaceModel& model = *spaces[i];
     COMPASS_SET_STRING(space, uuid, keys[i]);
     COMPASS_SET_STRING(space, name, base::UTF16ToUTF8(model.name()));
-    const int color = static_cast<int>(model.color()) + 1;
-    if (space.color() != color) {
-      space.set_color(color);
-    }
+    ThemeToProto(model, space);
     const int64_t archive_after = model.archive_after().InSeconds();
     if (!space.has_archive_after_seconds() ||
         space.archive_after_seconds() != archive_after) {
@@ -1160,10 +1403,7 @@ std::set<std::string> CompassSpacesSyncBridge::ApplySpaces(
     } else if (!remote.name().empty()) {
       space->SetName(base::UTF8ToUTF16(remote.name()));
     }
-    const int color = remote.color();
-    if (color >= 1 && color <= static_cast<int>(SpaceColor::kMaxValue) + 1) {
-      space->SetColor(static_cast<SpaceColor>(color - 1));
-    }
+    ThemeFromProto(remote, *space);
     if (remote.has_archive_after_seconds() &&
         remote.archive_after_seconds() >= 0) {
       space->SetArchiveAfter(base::Seconds(remote.archive_after_seconds()));

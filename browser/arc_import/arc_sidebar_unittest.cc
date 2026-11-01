@@ -4,6 +4,7 @@
 
 #include "compass/browser/arc_import/arc_sidebar.h"
 
+#include "base/strings/strcat.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -27,7 +28,8 @@ constexpr char kSidebar[] = R"json({
           "id": "s1", "title": "Home", "profile": {"default": true},
           "containerIDs": ["pinned", "p1", "unpinned", "u1"],
           "customInfo": {"windowTheme": {"primaryColorPalette": {"midTone":
-            {"red": -0.38, "green": 0.85, "blue": 0.34, "alpha": 1}}}}
+            {"red": -0.38, "green": 0.85, "blue": 0.34, "alpha": 1}}},
+            "iconType": {"icon": "planet"}}
         },
         "s2", {
           "id": "s2", "title": "Work",
@@ -99,11 +101,89 @@ TEST(ArcSidebarTest, SpacesInOrderWithTheirProfiles) {
   EXPECT_EQ(sidebar.spaces[0].id, "s1");
   EXPECT_EQ(sidebar.spaces[0].name, u"Home");
   EXPECT_EQ(sidebar.spaces[0].profile_dir, "Default");
-  EXPECT_EQ(sidebar.spaces[0].color, SpaceColor::kGreen);
+  EXPECT_EQ(sidebar.spaces[0].color, SpaceColor::FromRGB(0, 217, 87));
   EXPECT_EQ(sidebar.spaces[1].name, u"Work");
   EXPECT_EQ(sidebar.spaces[1].profile_dir, "Profile 1");
   // No theme: grey.
   EXPECT_EQ(sidebar.spaces[1].color, SpaceColor::kGrey);
+  EXPECT_EQ(sidebar.spaces[0].icon, *SpaceIcon::Symbol("globe"));
+  EXPECT_TRUE(sidebar.spaces[1].icon.is_none());
+}
+
+// A gradient theme's base colors are the space's color and gradient; a plain
+// theme's mid tone its color.
+TEST(ArcSidebarTest, GradientsComeFromTheirBaseColors) {
+  std::optional<base::Value> sidebar = base::JSONReader::Read(
+      R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s", "title": "S",
+          "containerIDs": [], "customInfo": {"windowTheme": {
+            "background": {"single": {"_0": {"style": {"color": {"_0": {
+              "blendedGradient": {"_0": {
+                "modifiers": {"intensityFactor": 0.8, "noiseFactor": 0.5,
+                              "overlay": "grain"},
+                "baseColors": [
+                {"red": 0.2, "green": 0.4, "blue": 0.95},
+                {"red": 0.5, "green": 0.5, "blue": 0.52},
+                {"red": 0.9, "green": 0.1, "blue": 0.1},
+                {"red": 0.1, "green": 0.9, "blue": 0.1},
+                {"red": 0.9, "green": 0.9, "blue": 0.1}]}}}}}}}},
+            "primaryColorPalette": {"midTone":
+              {"red": 0.1, "green": 0.9, "blue": 0.1}}}}}]}]}})",
+      base::JSON_PARSE_RFC);
+  std::optional<Sidebar> parsed = ParseSidebar(sidebar->GetDict(), nullptr);
+  ASSERT_TRUE(parsed);
+  ASSERT_EQ(parsed->spaces.size(), 1u);
+  EXPECT_EQ(parsed->spaces[0].color, SpaceColor::FromRGB(51, 102, 242));
+  // The grey one is left out, and those past the limit.
+  EXPECT_EQ(parsed->spaces[0].gradient,
+            (std::vector<SpaceColor>{SpaceColor::FromRGB(230, 26, 26),
+                                     SpaceColor::FromRGB(26, 230, 26)}));
+  EXPECT_EQ(parsed->spaces[0].intensity, 0.8);
+  EXPECT_EQ(parsed->spaces[0].grain, 0.5);
+}
+
+// A plain color has the same modifiers; no grain overlay means no grain.
+TEST(ArcSidebarTest, PlainColorsKeepTheirIntensity) {
+  std::optional<base::Value> sidebar = base::JSONReader::Read(
+      R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s", "title": "S",
+          "containerIDs": [], "customInfo": {"windowTheme": {
+            "background": {"single": {"_0": {"style": {"color": {"_0": {
+              "blendedSingleColor": {"_0": {
+                "modifiers": {"intensityFactor": 0.4, "noiseFactor": 0.7,
+                              "overlay": "none"},
+                "color": {"red": 0.2, "green": 0.4, "blue": 0.95}}}}}}}}},
+            "primaryColorPalette": {"midTone":
+              {"red": 0.2, "green": 0.4, "blue": 0.95}}}}}]}]}})",
+      base::JSON_PARSE_RFC);
+  std::optional<Sidebar> parsed = ParseSidebar(sidebar->GetDict(), nullptr);
+  ASSERT_TRUE(parsed);
+  ASSERT_EQ(parsed->spaces.size(), 1u);
+  EXPECT_EQ(parsed->spaces[0].color, SpaceColor::FromRGB(51, 102, 242));
+  EXPECT_TRUE(parsed->spaces[0].gradient.empty());
+  EXPECT_EQ(parsed->spaces[0].intensity, 0.4);
+  EXPECT_EQ(parsed->spaces[0].grain, 0);
+}
+
+TEST(ArcSidebarTest, SpaceIcons) {
+  auto icon_of = [](std::string_view icon_type) {
+    std::optional<base::Value> sidebar = base::JSONReader::Read(
+        base::StrCat({R"({"sidebar": {"containers": [{"spaces": ["s", {"id": "s",
+            "title": "S", "containerIDs": [], "customInfo": {"iconType": )",
+                      icon_type, "}}]}]}}"}),
+        base::JSON_PARSE_RFC);
+    std::optional<Sidebar> parsed = ParseSidebar(sidebar->GetDict(), nullptr);
+    return parsed && parsed->spaces.size() == 1 ? parsed->spaces[0].icon
+                                                : SpaceIcon();
+  };
+  EXPECT_EQ(icon_of(R"({"emoji_v2": "🚑", "emoji": 128657})"),
+            *SpaceIcon::Emoji("🚑"));
+  // Older spaces have only the code point.
+  EXPECT_EQ(icon_of(R"({"emoji": 127744})"), *SpaceIcon::Emoji("🌀"));
+  EXPECT_EQ(icon_of(R"({"icon": "github"})"), *SpaceIcon::Symbol("code"));
+  EXPECT_EQ(icon_of(R"({"icon": "colorPallete"})"),
+            *SpaceIcon::Symbol("palette"));
+  // Symbols Compass has nothing like show the space's letter.
+  EXPECT_TRUE(icon_of(R"({"icon": "somethingElse"})").is_none());
+  EXPECT_TRUE(icon_of(R"({"emoji": -5})").is_none());
 }
 
 TEST(ArcSidebarTest, ProfilesWithNamesAndFavorites) {
@@ -153,14 +233,13 @@ TEST(ArcSidebarTest, NotASidebar) {
   EXPECT_FALSE(ParseSidebar(empty, nullptr));
 }
 
-TEST(ArcSidebarTest, ColorsByHue) {
-  EXPECT_EQ(NearestSpaceColor(0.9, 0.1, 0.1), SpaceColor::kRed);
-  EXPECT_EQ(NearestSpaceColor(0.95, 0.55, 0.1), SpaceColor::kOrange);
-  EXPECT_EQ(NearestSpaceColor(0.9, 0.85, 0.2), SpaceColor::kYellow);
-  EXPECT_EQ(NearestSpaceColor(0.2, 0.4, 0.95), SpaceColor::kBlue);
-  EXPECT_EQ(NearestSpaceColor(0.55, 0.25, 0.9), SpaceColor::kPurple);
-  EXPECT_EQ(NearestSpaceColor(0.95, 0.3, 0.7), SpaceColor::kPink);
-  EXPECT_EQ(NearestSpaceColor(0.5, 0.5, 0.52), SpaceColor::kGrey);
+TEST(ArcSidebarTest, ColorsKeepTheirRGB) {
+  EXPECT_EQ(ArcSpaceColor(0.9, 0.1, 0.1), SpaceColor::FromRGB(230, 26, 26));
+  EXPECT_EQ(ArcSpaceColor(0.2, 0.4, 0.95), SpaceColor::FromRGB(51, 102, 242));
+  // Extended sRGB is clamped.
+  EXPECT_EQ(ArcSpaceColor(-0.38, 0.85, 0.34), SpaceColor::FromRGB(0, 217, 87));
+  EXPECT_EQ(ArcSpaceColor(0.5, 0.5, 0.52), SpaceColor::kGrey);
+  EXPECT_EQ(ArcSpaceColor(0.03, 0.01, 0.05), SpaceColor::kGrey);
 }
 
 TEST(ArcSidebarTest, ArcTimesCountFrom2001) {
@@ -191,7 +270,8 @@ TEST(ArcSidebarTest, DISABLED_RealSidebar) {
   };
   for (const Space& space : sidebar->spaces) {
     LOG(INFO) << "space profile=" << space.profile_dir
-              << " color=" << static_cast<int>(space.color)
+              << " color=" << std::hex
+              << space.color.tint().value_or(0) << std::dec
               << " pinned_entries=" << space.pinned.size()
               << " pinned_tabs=" << count(space.pinned, count)
               << " today_tabs=" << count(space.today, count);

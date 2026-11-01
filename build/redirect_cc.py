@@ -54,11 +54,23 @@ def rewrite_command(command, out_dir, src_dir=None):
     args[source_index] = _relative_to(override, out_dir)
 
   include = '/I' if 'clang-cl' in os.path.basename(command[0]) else '-I'
-  # Overrides go first so they shadow upstream headers. The checkout root
-  # (for "src/..." includes in overrides) goes last: projects such as V8 use
-  # "src/..." for their own headers and their include dirs must win.
-  return ([command[0], include + _relative_to(overrides_dir, out_dir)] +
-          args +
+  # Overrides go right before the source root's include dir (-I../..), so
+  # they shadow upstream headers, but not before other include dirs.
+  # compass/chromium_src is as deep as those dirs, so an include like
+  # "../../third_party/ffmpeg/x.c" (meant for -I../../third_party/ffmpeg)
+  # would otherwise be found through the overrides dir where ".." is
+  # resolved lexically (Windows, or the in-tree layout), and path-based
+  # checks such as the unsafe-buffers plugin would no longer see third_party/.
+  # Without a source root include dir, overrides go first.
+  root_includes = {flag + _relative_to(src_dir, out_dir) + suffix
+                   for flag in ('-I', '/I') for suffix in ('', '/')}
+  position = next((i for i, arg in enumerate(args) if arg in root_includes),
+                  0)
+  args.insert(position, include + _relative_to(overrides_dir, out_dir))
+  # The checkout root (for "src/..." includes in overrides) goes last:
+  # projects such as V8 use "src/..." for their own headers and their include
+  # dirs must win.
+  return ([command[0]] + args +
           [include + _relative_to(os.path.dirname(src_dir), out_dir)])
 
 

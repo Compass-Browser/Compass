@@ -34,11 +34,31 @@ to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
 - The checkout must be on a case-insensitive APFS volume (the default).
 
 **Windows**
-- Visual Studio 2022 with "Desktop development with C++", the MFC/ATL
-  components, and the Windows 11 SDK, including *Debugging Tools for Windows*.
-- Git for Windows, and Python 3 on `PATH`.
-- Developer Mode isn't required: `//compass` is linked into the checkout with
-  a directory junction.
+- Visual Studio with "Desktop development with C++" and the MFC/ATL
+  components. VS 2022 Build Tools works. Chromium prefers VS 2026: if VS 2026
+  is installed *without* the C++ workload, `gn gen` fails with
+  "vcvarsall.bat is missing". Either add the workload to VS 2026, or point
+  Chromium at VS 2022 with the environment variable
+  `GYP_MSVS_OVERRIDE_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`.
+- The exact Windows SDK version Chromium pins (`SDK_VERSION` in
+  `build/toolchain/win/setup_toolchain.py`; 10.0.28000 for Chromium 156),
+  including *Debugging Tools for Windows*:
+  `winget install --id Microsoft.WindowsSDK.10.0.28000 -e --override "/features OptionId.DesktopCPPx64 OptionId.DesktopCPPx86 OptionId.WindowsDesktopDebuggers /quiet /norestart"`
+- `DEPOT_TOOLS_WIN_TOOLCHAIN=0` as a system environment variable, and
+  `git config --global core.longpaths true`.
+- Git for Windows, and Python 3 (the `py` launcher or `python` on `PATH`;
+  `python3` is usually the Microsoft Store stub, which `compass.bat` avoids).
+- **Use the in-tree layout.** `compass init` links `//compass` into the
+  checkout with a directory junction, but siso doesn't follow junctions
+  ("../../compass/BUILD.gn not exist"), so `compass gen`/`build` refuse the
+  linked layout on Windows. After `compass init`, move the repository into
+  the checkout and optionally leave a junction at the old path:
+  ```bat
+  rmdir C:\src\compass-chromium\src\compass
+  move C:\src\compass C:\src\compass-chromium\src\compass
+  mklink /J C:\src\compass C:\src\compass-chromium\src\compass
+  ```
+  Run `compass` from `C:\src\compass-chromium\src\compass` afterwards.
 
 **Linux**
 - After `compass init`, run

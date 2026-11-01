@@ -46,23 +46,38 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
-// Mirrors compass::SpaceColor.
-enum SpaceColor {
-  kGrey,
-  kBlue,
-  kPurple,
-  kPink,
-  kRed,
-  kOrange,
-  kYellow,
-  kGreen,
+// A space's color (compass::SpaceColor): a palette color or any other. Null
+// stands for grey, which leaves the sidebar untinted.
+struct SpaceColor {
+  uint8 red;
+  uint8 green;
+  uint8 blue;
 };
+
+// A space's icon (compass::SpaceIcon). A space without one is shown by its
+// name's first letter.
+union SpaceIcon {
+  string emoji;
+  // A name from the page's SPACE_SYMBOLS (space_icons.ts).
+  string symbol;
+};
+
+// Mirrors compass::SpaceAppearance.
+enum SpaceAppearance { kAuto, kLight, kDark };
 
 // A space, as the switcher shows it.
 struct Space {
   string id;
   string name;
-  SpaceColor color;
+  SpaceColor? color;
+  // The colors the sidebar's gradient goes on to after |color|; empty for a
+  // plain color (compass::SpaceModel::gradient()).
+  array<SpaceColor> gradient;
+  // How strong the tint is and how much grain it has, 0 to 1.
+  double intensity;
+  double grain;
+  SpaceAppearance appearance;
+  SpaceIcon? icon;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
   // The profile it belongs to: its ID (as ProfileOption's) and name.
@@ -145,7 +160,16 @@ interface PageHandler {
   AddSpace();
   // Empty names are ignored.
   RenameSpace(string id, string name);
-  SetSpaceColor(string id, SpaceColor color);
+  // Null makes it grey.
+  SetSpaceColor(string id, SpaceColor? color);
+  // At most 2; ignored for a grey space.
+  SetSpaceGradient(string id, array<SpaceColor> gradient);
+  // 0 to 1, clamped.
+  SetSpaceIntensity(string id, double intensity);
+  SetSpaceGrain(string id, double grain);
+  SetSpaceAppearance(string id, SpaceAppearance appearance);
+  // Null removes it. Invalid ones (compass::SpaceIcon) are ignored.
+  SetSpaceIcon(string id, SpaceIcon? icon);
   // Assigns a space to profile |profile_id|, or to a new profile if null: its
   // entries go along, its open tabs reload there (docs/design/spaces.md,
   // "Assigning a profile").
@@ -259,4 +283,59 @@ interface ArcImportHandler {
   Import(array<string> dirs) => (array<string> imported, array<string> failed);
   // Shows the first imported space in this window.
   OpenImported();
+};
+
+// One shortcut on chrome://compass-settings (docs/design/shortcuts.md
+// "Customizing").
+struct Shortcut {
+  // Its key in the "compass.shortcuts" pref ("copy-url", "space-1").
+  string id;
+  string section;
+  string label;
+  // Its keys in force, as menus show them (with the modifier symbols on
+  // macOS); empty: none.
+  array<string> keys;
+  // Its keys as Compass ships them.
+  array<string> default_keys;
+  // The user changed it (keys or none).
+  bool customized;
+};
+
+// Keys pressed on the settings page, from a keydown event.
+struct ShortcutKeys {
+  // KeyboardEvent.keyCode: a ui::KeyboardCode.
+  int32 key_code;
+  bool shift;
+  bool ctrl;
+  bool alt;
+  bool meta;
+};
+
+// What giving a shortcut some keys would do.
+struct ShortcutCheck {
+  // The keys, as menus show them.
+  string text;
+  // Why they can't be used; empty if they can.
+  string error;
+  // A listed shortcut that has them now, which taking them leaves with none.
+  // Empty if none.
+  string conflict_id;
+  string conflict_label;
+};
+
+// Browser-side handler for chrome://compass-settings.
+interface SettingsHandler {
+  GetShortcuts() => (array<Shortcut> shortcuts);
+  // While the page records keys, the browser's shortcuts don't run, so the
+  // keys reach it.
+  SetRecording(bool recording);
+  CheckShortcut(string id, ShortcutKeys keys) => (ShortcutCheck check);
+  // Gives |id| the keys, taking them from the shortcut that had them (see
+  // ShortcutCheck). Does nothing if they can't be used.
+  SetShortcut(string id, ShortcutKeys keys) => ();
+  // Leaves |id| without a shortcut.
+  RemoveShortcut(string id) => ();
+  // Back to the keys Compass ships.
+  ResetShortcut(string id) => ();
+  ResetAllShortcuts() => ();
 };

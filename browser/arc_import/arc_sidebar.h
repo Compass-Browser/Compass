@@ -57,6 +57,12 @@ struct Space {
   // The Arc profile's folder ("Default", "Profile 1", ...).
   std::string profile_dir;
   SpaceColor color = SpaceColor::kGrey;
+  // After |color|, for a gradient theme (SpaceModel::gradient()).
+  std::vector<SpaceColor> gradient;
+  // The theme's modifiers (SpaceModel::intensity() and grain()).
+  double intensity = kDefaultSpaceIntensity;
+  double grain = 0;
+  SpaceIcon icon;
   std::vector<Item> pinned;
   std::vector<Item> today;
 };
@@ -98,9 +104,14 @@ struct Sidebar {
 std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
                                     const base::DictValue* local_state);
 
-// The Compass color nearest to an Arc theme color (components in 0-1; Arc's
-// extended sRGB may go beyond, they're clamped).
-SpaceColor NearestSpaceColor(double red, double green, double blue);
+// The space color for an Arc theme color (components in 0-1; Arc's extended
+// sRGB may go beyond, they're clamped): the same color, or grey for an
+// unsaturated one.
+SpaceColor ArcSpaceColor(double red, double green, double blue);
+
+// The Compass symbol (resources/sidebar/space_icons.ts) for one of Arc's
+// space symbols, or nullopt if there's none like it.
+std::optional<std::string_view> ArcSymbolToCompass(std::string_view arc_name);
 
 // Arc's times are seconds since 2001-01-01 (Apple's reference date).
 base::Time FromArcTime(double seconds);

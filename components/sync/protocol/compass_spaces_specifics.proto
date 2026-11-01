@@ -42,10 +42,14 @@ message CompassSpace {
   // The space's ID (SpaceModel::id()), lowercase.
   optional string uuid = 1;
   optional string name = 2;
-  // SpaceColor: 1 grey, 2 blue, 3 purple, 4 pink, 5 red, 6 orange,
-  // 7 yellow, 8 green.
+  // The space's color as a palette index: 1 grey, 2 blue, 3 purple, 4 pink,
+  // 5 red, 6 orange, 7 yellow, 8 green. For a color off the palette, the
+  // index of the palette color closest to it (never grey), which is what
+  // clients that predate `color_rgb` show.
   optional int32 color = 3;
-  // Not used yet; kept as received.
+  // The space's icon: "emoji:" followed by the emoji, or "symbol:" followed
+  // by the symbol's name (SpaceIcon); empty or absent for none. A value this
+  // version can't read shows no icon, and is kept until the icon is changed.
   optional string icon = 4;
   // In the browser-wide list of spaces.
   optional UniquePosition directory_position = 5;
@@ -54,6 +58,33 @@ message CompassSpace {
   optional string profile_uuid = 6;
   // How long a Today entry may go unseen before it's archived; 0 = never.
   optional int64 archive_after_seconds = 7;
+
+  // The theme (docs/design/spaces.md, "Theme editor"). Absent fields are the
+  // defaults, which are never written; clients that predate them keep them as
+  // received.
+
+  // A color off the palette, as 0xRRGGBB. It applies only while `color` is
+  // the palette index closest to it: a client that only knows `color` and
+  // picks another palette color leaves a stale value here, which this rule
+  // then ignores. Absent for palette colors.
+  optional uint32 color_rgb = 8;
+  // The colors the gradient goes on to after `color`, in order; none for a
+  // plain color.
+  repeated CompassColor gradient = 9;
+  // How strongly the color tints, 0 to 1; absent = 0.31 (the default).
+  optional double intensity = 10;
+  // How much grain the tint has, 0 to 1; absent = 0.
+  optional double grain = 11;
+  // 1 auto (follows the system; also absent), 2 light, 3 dark.
+  optional int32 appearance = 12;
+}
+
+// A color of a space's gradient.
+message CompassColor {
+  // A palette color, numbered as CompassSpace.color; 1 is grey.
+  optional int32 palette = 1;
+  // Any other color, as 0xRRGGBB; wins over `palette`.
+  optional uint32 rgb = 2;
 }
 
 message CompassNode {

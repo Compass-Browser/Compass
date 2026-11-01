@@ -12,6 +12,7 @@ test("compass_unittests") {
   deps = [
     "//chrome/test:test_support_unit",
     "//compass/browser/arc_import:unit_tests",
+    "//compass/browser/shortcuts:unit_tests",
     "//compass/common:unit_tests",
     "//compass/browser/sidebar:unit_tests",
     "//compass/browser/sync:unit_tests",
@@ -31,6 +32,7 @@ test("compass_browsertests") {
     "//chrome/test/base:browser_tests_runner",
     "//compass/browser/picture_in_picture:browser_tests",
     "//compass/browser/ui:browser_tests",
+    "//compass/browser/web_store:browser_tests",
   ]
   if (is_mac) {
     # Headless runs don't take the user's focus.

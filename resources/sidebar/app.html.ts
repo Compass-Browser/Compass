@@ -4,8 +4,9 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ArchiveDelay, Preview, CompassSidebarAppElement} from './app.js';
-import type {ArchivedEntry, Node, ProfileOption, Space, SpaceColor} from './sidebar.mojom-webui.js';
+import type {ArchiveDelay, CompassSidebarAppElement, Preview} from './app.js';
+import type {SpaceSymbol} from './space_icons.js';
+import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
@@ -61,7 +62,11 @@ export function getHtml(this: CompassSidebarAppElement) {
         <span>Pinned</span>
         <button id="newFolder" class="new-folder" data-section="pinned"
             aria-label="New folder" title="New folder"
-            @click="${this.onNewFolderClick_}">+</button>
+            @click="${this.onNewFolderClick_}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 3v10M3 8h10"></path>
+          </svg>
+        </button>
       </div>
       <div id="pinned" class="section" role="tree">
         ${this.isPinnedEmpty_() ? html`
@@ -79,7 +84,11 @@ export function getHtml(this: CompassSidebarAppElement) {
         <span>Today</span>
         <button id="newTodayFolder" class="new-folder" data-section="today"
             aria-label="New folder in Today" title="New folder"
-            @click="${this.onNewFolderClick_}">+</button>
+            @click="${this.onNewFolderClick_}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 3v10M3 8h10"></path>
+          </svg>
+        </button>
         <button id="archiveButton" aria-label="Archived tabs"
             title="Archived tabs" aria-expanded="${this.archiveOpen_}"
             ?open="${this.archiveOpen_}"
@@ -108,23 +117,50 @@ export function getHtml(this: CompassSidebarAppElement) {
         .space="${preview.space}" .tree="${preview.tree}">
     </compass-sidebar-preview>`)}
 </div>
-${this.getMenuSpace_() ? html`
+${this.getMenuSpace_() && this.themeOpen_ ? html`
+  <div id="spaceMenu" class="theme" role="dialog" aria-label="Theme"
+      @keydown="${this.onSpaceMenuKeydown_}">
+    <button id="themeBack" title="Back" aria-label="Back"
+        @click="${this.onThemeBackClick_}">‹ ${this.getMenuSpace_()!.name}</button>
+    <compass-theme-editor .space="${this.getMenuSpace_()}">
+    </compass-theme-editor>
+  </div>` : nothing}
+${this.getMenuSpace_() && !this.themeOpen_ ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
     <input id="spaceNameInput" aria-label="Space name"
         .value="${this.getMenuSpace_()!.name}"
         @keydown="${this.onSpaceNameKeydown_}"
         @change="${this.onSpaceNameChange_}">
-    <div id="swatches" role="group" aria-label="Color">
-      ${this.spaceColors_.map((color: SpaceColor) => html`
-        <button class="swatch" role="menuitemradio" data-color="${color}"
-            aria-label="${this.getColorName_(color)}"
-            title="${this.getColorName_(color)}"
-            style="--swatch-color: ${this.getSpaceColor_(color)}"
-            aria-checked="${this.isMenuSpaceColor_(color)}"
-            ?selected="${this.isMenuSpaceColor_(color)}"
-            @click="${this.onSwatchClick_}">
+    <button id="editTheme" role="menuitem" @click="${this.onEditThemeClick_}">
+      <span>Edit theme</span>
+      <span id="themeChip" style="${this.getSpaceStyle_(this.getMenuSpace_()!)}">
+      </span>
+    </button>
+    <div id="icons" role="group" aria-label="Icon">
+      <button class="icon-choice" role="menuitemradio" data-symbol=""
+          title="No icon" aria-label="No icon"
+          aria-checked="${this.isMenuSpaceIcon_('')}"
+          ?selected="${this.isMenuSpaceIcon_('')}"
+          @click="${this.onSymbolClick_}">
+        ${this.getSpaceInitial_(this.getMenuSpace_()!)}
+      </button>
+      ${this.spaceSymbols_.map((symbol: SpaceSymbol) => html`
+        <button class="icon-choice" role="menuitemradio"
+            data-symbol="${symbol.name}" title="${symbol.label}"
+            aria-label="${symbol.label}"
+            aria-checked="${this.isMenuSpaceIcon_(symbol.name)}"
+            ?selected="${this.isMenuSpaceIcon_(symbol.name)}"
+            @click="${this.onSymbolClick_}">
+          <svg viewBox="${this.getSymbolViewBox_()}" aria-hidden="true">
+            <path d="${symbol.path}"></path>
+          </svg>
         </button>`)}
+      <input id="emojiInput" aria-label="Emoji" placeholder="Emoji"
+          title="Emoji (Fn E opens the picker)"
+          ?selected="${!!this.getMenuSpace_()!.icon?.emoji}"
+          .value="${this.getMenuSpace_()!.icon?.emoji ?? ''}"
+          @input="${this.onEmojiInput_}">
     </div>
     <label id="archiveDelay">
       Archive Today tabs after
@@ -186,7 +222,6 @@ ${this.archiveOpen_ ? html`
         data-flip="space-${space.id}" draggable="true"
         title="${this.getSpaceTitle_(space)}"
         aria-label="${this.getSpaceTitle_(space)}"
-        style="--space-color: ${this.getSpaceColor_(space.color)}"
         aria-selected="${this.isActiveSpace_(space)}"
         ?active="${this.isActiveSpace_(space)}"
         @click="${this.onSpaceClick_}"
@@ -196,10 +231,20 @@ ${this.archiveOpen_ ? html`
         @dragover="${this.onSpaceDragover_}"
         @dragleave="${this.onSpaceDragleave_}"
         @drop="${this.onSpaceDrop_}">
-      ${this.getSpaceInitial_(space)}
+      ${this.getSpaceSymbol_(space) ? html`
+        <svg class="space-symbol" viewBox="${this.getSymbolViewBox_()}"
+            aria-hidden="true">
+          <path d="${this.getSpaceSymbol_(space)!.path}"></path>
+        </svg>` :
+        html`<span class="${this.getSpaceIconClass_(space)}">${
+            this.getSpaceIconText_(space)}</span>`}
     </button>`)}
   <button id="addSpace" aria-label="New space" title="New space"
-      @click="${this.onAddSpaceClick_}">+</button>
+      @click="${this.onAddSpaceClick_}">
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 3v10M3 8h10"></path>
+    </svg>
+  </button>
 </div>
 <div id="ghosts" aria-hidden="true"></div>
 <!--_html_template_end_-->`;

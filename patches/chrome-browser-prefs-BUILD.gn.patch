@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/prefs/BUILD.gn b/chrome/browser/prefs/BUILD.gn
+index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..dc34a5d725034ae881e15681e73d19e10adef3a5 100644
+--- a/chrome/browser/prefs/BUILD.gn
++++ b/chrome/browser/prefs/BUILD.gn
+@@ -61,6 +61,7 @@
+     ":prefs",
+     ":util",
+     "//chrome/browser:browser_process",
++    "//compass/browser/shortcuts",
+     "//chrome/browser:browser_process_impl",
+     "//chrome/browser:chrome_content_browser_client",
+     "//chrome/browser:defaults",

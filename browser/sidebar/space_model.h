@@ -5,9 +5,13 @@
 #ifndef COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 #define COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/function_ref.h"
@@ -16,24 +20,134 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "third_party/skia/include/core/SkColor.h"
 
 namespace compass {
 
 // Matches upstream split tabs (MultiContentsView). See ARCHITECTURE.md §9.
 inline constexpr size_t kMaxSplitPanes = 2;
 
-// A space's color, from a fixed palette. The sidebar is tinted with it. Saved
-// by name (see sidebar_serializer.cc), so values can be reordered.
-enum class SpaceColor {
-  kGrey,
-  kBlue,
-  kPurple,
-  kPink,
-  kRed,
-  kOrange,
-  kYellow,
-  kGreen,
-  kMaxValue = kGreen,
+// A space's color: grey, which leaves the sidebar untinted, or any opaque
+// color, from the palette the space menu offers (the constants below) or
+// picked freely. Saved by palette name or as #rrggbb (sidebar_serializer.cc).
+// See docs/design/spaces.md, "Space colors".
+class SpaceColor {
+ public:
+  // Grey.
+  constexpr SpaceColor() = default;
+
+  static constexpr SpaceColor FromRGB(uint8_t red,
+                                      uint8_t green,
+                                      uint8_t blue) {
+    return SpaceColor(SkColorSetRGB(red, green, blue));
+  }
+  // |color|'s alpha is ignored.
+  static constexpr SpaceColor FromSkColor(SkColor color) {
+    return SpaceColor(SkColorSetA(color, SK_AlphaOPAQUE));
+  }
+
+  static const SpaceColor kGrey;
+  static const SpaceColor kBlue;
+  static const SpaceColor kPurple;
+  static const SpaceColor kPink;
+  static const SpaceColor kRed;
+  static const SpaceColor kOrange;
+  static const SpaceColor kYellow;
+  static const SpaceColor kGreen;
+
+  constexpr bool is_grey() const { return !tint_.has_value(); }
+  // What the sidebar is tinted with, opaque; nullopt for grey.
+  constexpr std::optional<SkColor> tint() const { return tint_; }
+
+  friend constexpr bool operator==(const SpaceColor&,
+                                   const SpaceColor&) = default;
+
+ private:
+  constexpr explicit SpaceColor(SkColor tint) : tint_(tint) {}
+
+  std::optional<SkColor> tint_;
+};
+
+inline constexpr SpaceColor SpaceColor::kGrey{};
+inline constexpr SpaceColor SpaceColor::kBlue = SpaceColor::FromRGB(59, 130, 246);
+inline constexpr SpaceColor SpaceColor::kPurple =
+    SpaceColor::FromRGB(139, 92, 246);
+inline constexpr SpaceColor SpaceColor::kPink = SpaceColor::FromRGB(236, 72, 153);
+inline constexpr SpaceColor SpaceColor::kRed = SpaceColor::FromRGB(239, 68, 68);
+inline constexpr SpaceColor SpaceColor::kOrange =
+    SpaceColor::FromRGB(249, 115, 22);
+inline constexpr SpaceColor SpaceColor::kYellow =
+    SpaceColor::FromRGB(234, 179, 8);
+inline constexpr SpaceColor SpaceColor::kGreen = SpaceColor::FromRGB(34, 197, 94);
+
+// A space's color and its gradient colors, at most this many in all.
+inline constexpr size_t kMaxSpaceGradientColors = 3;
+
+// How strongly a space's color tints the sidebar and frame, 0 to 1: the
+// tint's opacity is kMaxSpaceTintOpacity times this. The default gives the
+// 14% plain colors always had.
+inline constexpr double kMaxSpaceTintOpacity = 0.45;
+inline constexpr double kDefaultSpaceIntensity = 0.31;
+
+// Whether a space's windows follow the system's light or dark mode or keep
+// one (docs/design/spaces.md, "Theme editor"). Saved by name.
+enum class SpaceAppearance { kAuto, kLight, kDark };
+
+// The space menu's palette, by the names files save them under. The sidebar
+// page (resources/sidebar/app.ts) shows the same colors.
+struct NamedSpaceColor {
+  std::string_view name;
+  SpaceColor color;
+};
+inline constexpr auto kSpaceColorPalette = std::to_array<NamedSpaceColor>({
+    {"grey", SpaceColor::kGrey},
+    {"blue", SpaceColor::kBlue},
+    {"purple", SpaceColor::kPurple},
+    {"pink", SpaceColor::kPink},
+    {"red", SpaceColor::kRed},
+    {"orange", SpaceColor::kOrange},
+    {"yellow", SpaceColor::kYellow},
+    {"green", SpaceColor::kGreen},
+});
+
+// A space's icon, which the switcher shows instead of the name's first
+// letter: none, an emoji, or a symbol of Compass's set (named as the sidebar
+// page's SPACE_SYMBOLS, resources/sidebar/space_icons.ts). See
+// docs/design/spaces.md, "Space icons".
+class SpaceIcon {
+ public:
+  enum class Kind { kNone, kEmoji, kSymbol };
+
+  // The longest emoji and symbol name accepted, in bytes. Emoji sequences
+  // (families, flags with tags) take up to ~35.
+  static constexpr size_t kMaxEmojiBytes = 64;
+  static constexpr size_t kMaxSymbolBytes = 32;
+
+  // None.
+  SpaceIcon();
+  // nullopt unless |emoji| is non-empty UTF-8 of at most kMaxEmojiBytes
+  // without whitespace or control characters. Whether it's one emoji is the
+  // page's to check.
+  static std::optional<SpaceIcon> Emoji(std::string_view emoji);
+  // nullopt unless |name| is 1-kMaxSymbolBytes of [a-z0-9-].
+  static std::optional<SpaceIcon> Symbol(std::string_view name);
+
+  SpaceIcon(const SpaceIcon&);
+  SpaceIcon& operator=(const SpaceIcon&);
+  ~SpaceIcon();
+
+  Kind kind() const { return kind_; }
+  bool is_none() const { return kind_ == Kind::kNone; }
+  // The emoji or the symbol's name; empty for none.
+  const std::string& value() const { return value_; }
+
+  friend bool operator==(const SpaceIcon&, const SpaceIcon&) = default;
+
+ private:
+  SpaceIcon(Kind kind, std::string value);
+
+  Kind kind_ = Kind::kNone;
+  std::string value_;
 };
 
 // How long a Today entry may go unseen before it's archived, unless the space
@@ -128,6 +242,26 @@ class SpaceModel {
 
   SpaceColor color() const { return color_; }
   void SetColor(SpaceColor color);
+
+  // The colors the sidebar's gradient goes on to after color(), none for a
+  // plain color; at most kMaxSpaceGradientColors - 1, none of them grey. A
+  // grey space has none. See docs/design/spaces.md, "Gradients".
+  const std::vector<SpaceColor>& gradient() const { return gradient_; }
+  // Drops grey entries and those past the limit.
+  void SetGradient(std::vector<SpaceColor> gradient);
+
+  // How strong the tint is and how much grain it has, 0 to 1 (clamped; NaN
+  // is ignored). See docs/design/spaces.md, "Intensity and grain".
+  double intensity() const { return intensity_; }
+  void SetIntensity(double intensity);
+  double grain() const { return grain_; }
+  void SetGrain(double grain);
+
+  SpaceAppearance appearance() const { return appearance_; }
+  void SetAppearance(SpaceAppearance appearance);
+
+  const SpaceIcon& icon() const { return icon_; }
+  void SetIcon(SpaceIcon icon);
 
   // How long a Today entry may go unseen before ArchiveIdleEntries() archives
   // it. Zero means never.
@@ -266,6 +400,11 @@ class SpaceModel {
   base::Uuid id_;
   std::u16string name_;
   SpaceColor color_ = SpaceColor::kGrey;
+  std::vector<SpaceColor> gradient_;
+  double intensity_ = kDefaultSpaceIntensity;
+  double grain_ = 0;
+  SpaceAppearance appearance_ = SpaceAppearance::kAuto;
+  SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
   std::vector<ArchivedEntry> archive_;
   std::unique_ptr<SidebarNode> pinned_root_;

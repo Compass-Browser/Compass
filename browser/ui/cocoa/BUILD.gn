@@ -2,7 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Compass's shortcuts on macOS. Upstream's main menu accelerators and its
+# Compass's shortcuts on macOS, and the user's changes to them
+# (docs/design/shortcuts.md). Upstream's main menu accelerators and its
 # shortcuts outside the menu call into it (see patches/), so this depends on
 # little of Chrome's.
 source_set("shortcuts") {
@@ -12,10 +13,17 @@ source_set("shortcuts") {
   ]
   # Header only, no target of its own.
   sources += [ "../compass_command_ids.h" ]
-  public_deps = [ "//ui/base" ]
+  public_deps = [
+    "//base",
+    "//ui/base",
+  ]
   deps = [
     "//chrome/app:command_ids",
+    "//compass/browser/shortcuts",
     "//ui/events:events_base",
   ]
-  frameworks = [ "Carbon.framework" ]
+  frameworks = [
+    "AppKit.framework",
+    "Carbon.framework",
+  ]
 }

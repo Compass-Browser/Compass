@@ -15,6 +15,7 @@ source_set("sidebar") {
   ]
   public_deps = [
     "//base",
+    "//skia",
     "//url",
   ]
 }

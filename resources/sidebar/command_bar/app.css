@@ -12,6 +12,10 @@
   display: flex;
   flex-direction: column;
   font-size: 13px;
+  /* A thin thumb on a transparent track, as the sidebar's. */
+  scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+      transparent;
+  scrollbar-width: thin;
 }
 
 #field {

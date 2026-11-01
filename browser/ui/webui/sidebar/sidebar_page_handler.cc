@@ -10,6 +10,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -59,9 +60,32 @@ sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
 
 constexpr uint32_t kMaxArchiveAfterHours = 365 * 24;
 
+// Null for grey.
+sidebar::mojom::SpaceColorPtr ToMojoColor(SpaceColor color) {
+  if (color.is_grey()) {
+    return nullptr;
+  }
+  const SkColor tint = *color.tint();
+  return sidebar::mojom::SpaceColor::New(
+      SkColorGetR(tint), SkColorGetG(tint), SkColorGetB(tint));
+}
+
 // The handler casts between the two.
-static_assert(static_cast<int>(sidebar::mojom::SpaceColor::kMaxValue) ==
-              static_cast<int>(SpaceColor::kMaxValue));
+static_assert(static_cast<int>(sidebar::mojom::SpaceAppearance::kMaxValue) ==
+              static_cast<int>(SpaceAppearance::kDark));
+
+// Null for none.
+sidebar::mojom::SpaceIconPtr ToMojoIcon(const SpaceIcon& icon) {
+  switch (icon.kind()) {
+    case SpaceIcon::Kind::kNone:
+      return nullptr;
+    case SpaceIcon::Kind::kEmoji:
+      return sidebar::mojom::SpaceIcon::NewEmoji(icon.value());
+    case SpaceIcon::Kind::kSymbol:
+      return sidebar::mojom::SpaceIcon::NewSymbol(icon.value());
+  }
+  NOTREACHED();
+}
 
 // A node's context menu. Commands go to the handler by the node's ID, so a
 // node that's gone by then is left alone.
@@ -405,11 +429,68 @@ void SidebarPageHandler::RenameSpace(const std::string& id,
   }
 }
 
-void SidebarPageHandler::SetSpaceColor(const std::string& id,
-                                       sidebar::mojom::SpaceColor color) {
-  // Mojo has validated |color|.
+void SidebarPageHandler::SetSpaceColor(
+    const std::string& id,
+    sidebar::mojom::SpaceColorPtr color) {
   if (SpaceModel* space = FindAnySpace(id).space) {
-    space->SetColor(static_cast<SpaceColor>(color));
+    space->SetColor(color ? SpaceColor::FromRGB(color->red, color->green,
+                                                color->blue)
+                          : SpaceColor::kGrey);
+  }
+}
+
+void SidebarPageHandler::SetSpaceGradient(
+    const std::string& id,
+    std::vector<sidebar::mojom::SpaceColorPtr> gradient) {
+  SpaceModel* space = FindAnySpace(id).space;
+  if (!space) {
+    return;
+  }
+  std::vector<SpaceColor> colors;
+  for (const sidebar::mojom::SpaceColorPtr& color : gradient) {
+    colors.push_back(
+        SpaceColor::FromRGB(color->red, color->green, color->blue));
+  }
+  space->SetGradient(std::move(colors));
+}
+
+void SidebarPageHandler::SetSpaceIntensity(const std::string& id,
+                                           double intensity) {
+  if (SpaceModel* space = FindAnySpace(id).space) {
+    space->SetIntensity(intensity);
+  }
+}
+
+void SidebarPageHandler::SetSpaceGrain(const std::string& id, double grain) {
+  if (SpaceModel* space = FindAnySpace(id).space) {
+    space->SetGrain(grain);
+  }
+}
+
+void SidebarPageHandler::SetSpaceAppearance(
+    const std::string& id,
+    sidebar::mojom::SpaceAppearance appearance) {
+  // Mojo has validated |appearance|.
+  if (SpaceModel* space = FindAnySpace(id).space) {
+    space->SetAppearance(static_cast<SpaceAppearance>(appearance));
+  }
+}
+
+void SidebarPageHandler::SetSpaceIcon(const std::string& id,
+                                      sidebar::mojom::SpaceIconPtr icon) {
+  SpaceModel* space = FindAnySpace(id).space;
+  if (!space) {
+    return;
+  }
+  if (!icon) {
+    space->SetIcon(SpaceIcon());
+    return;
+  }
+  std::optional<SpaceIcon> valid =
+      icon->is_emoji() ? SpaceIcon::Emoji(icon->get_emoji())
+                       : SpaceIcon::Symbol(icon->get_symbol());
+  if (valid) {
+    space->SetIcon(std::move(*valid));
   }
 }
 
@@ -876,7 +957,15 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->own_profile = entry.profile == own_profile;
     mojo_space->id = space->id().AsLowercaseString();
     mojo_space->name = base::UTF16ToUTF8(space->name());
-    mojo_space->color = static_cast<sidebar::mojom::SpaceColor>(space->color());
+    mojo_space->color = ToMojoColor(space->color());
+    for (SpaceColor color : space->gradient()) {
+      mojo_space->gradient.push_back(ToMojoColor(color));
+    }
+    mojo_space->intensity = space->intensity();
+    mojo_space->grain = space->grain();
+    mojo_space->appearance =
+        static_cast<sidebar::mojom::SpaceAppearance>(space->appearance());
+    mojo_space->icon = ToMojoIcon(space->icon());
     mojo_space->archive_after_hours =
         static_cast<uint32_t>(space->archive_after().IntDiv(GetArchiveHour()));
     spaces.push_back(std::move(mojo_space));

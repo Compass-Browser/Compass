@@ -45,6 +45,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/common/compass_url.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
@@ -54,6 +55,7 @@
 #include "ui/color/color_provider.h"
 #include "ui/events/event.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/accessible_pane_view.h"
@@ -349,6 +351,26 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
     layout.child_layouts.emplace_back(content_settings_.get(), show_icons,
                                       icons_bounds);
     return layout;
+  }
+
+  // Upstream centers its row (collapse button and the rest, after the
+  // caption buttons) in its own height; center it on the caption buttons'
+  // line instead (GetWindowTitlebarHeight() puts them there). Wrapped under
+  // the caption buttons, the collapse button starts the row.
+  if (const views::ChildLayout* collapse =
+          FindChildLayout(layout, collapse_button_);
+      collapse && collapse->visible && collapse->bounds.x() > 0) {
+    gfx::Point origin;
+    views::View::ConvertPointToWidget(this, &origin);
+    const int row_center_y = collapse->bounds.CenterPoint().y();
+    const int shift = kCaptionButtonsCenterY - origin.y() - row_center_y;
+    for (views::ChildLayout& child : layout.child_layouts) {
+      if (child.visible &&
+          child.bounds.CenterPoint().y() == row_center_y) {
+        child.bounds.Offset(0, shift);
+        bottom = std::max(bottom, child.bounds.bottom());
+      }
+    }
   }
 
   // The nav buttons end the top row, left of the combo button if any of it

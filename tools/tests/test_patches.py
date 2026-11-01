@@ -252,7 +252,8 @@ class LayoutTest(unittest.TestCase):
   def test_environment_overrides_chromium_dir(self):
     layout = detect(Path('/work/Compass'),
                     environ={'COMPASS_CHROMIUM_DIR': '/big/disk/cr'})
-    self.assertEqual(layout.src, Path('/big/disk/cr/src'))
+    # resolve() adds the current drive on Windows.
+    self.assertEqual(layout.src, Path('/big/disk/cr').resolve() / 'src')
 
   def test_detects_in_tree_layout(self):
     with tempfile.TemporaryDirectory() as tmp:

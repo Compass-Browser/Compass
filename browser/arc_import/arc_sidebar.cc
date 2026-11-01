@@ -10,6 +10,9 @@
 #include <set>
 #include <utility>
 
+#include "base/containers/fixed_flat_map.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 
 namespace compass::arc {
@@ -190,62 +193,146 @@ class TreeReader {
   std::set<std::string> seen_;
 };
 
-// The color of a space: its theme's mid tone.
-SpaceColor ReadSpaceColor(const base::DictValue& space) {
-  const base::DictValue* color = space.FindDictByDottedPath(
-      "customInfo.windowTheme.primaryColorPalette.midTone");
-  if (!color) {
-    return SpaceColor::kGrey;
+SpaceColor ReadArcColor(const base::DictValue& color) {
+  return ArcSpaceColor(color.FindDouble("red").value_or(0),
+                       color.FindDouble("green").value_or(0),
+                       color.FindDouble("blue").value_or(0));
+}
+
+// A space's colors. A gradient theme
+// (windowTheme.background.single._0.style.color._0.blendedGradient._0) has
+// the colors the user picked as its baseColors: the first is the space's
+// color, the others its gradient. Otherwise, the theme's mid tone.
+void ReadSpaceColors(const base::DictValue& object, Space& space) {
+  const base::DictValue* theme =
+      object.FindDictByDottedPath("customInfo.windowTheme");
+  if (!theme) {
+    return;
   }
-  return NearestSpaceColor(color->FindDouble("red").value_or(0),
-                           color->FindDouble("green").value_or(0),
-                           color->FindDouble("blue").value_or(0));
+  // Gradients and plain colors have the same modifiers: intensityFactor
+  // (0-1) and a grain overlay of noiseFactor (0-1).
+  const base::DictValue* style =
+      theme->FindDictByDottedPath("background.single._0.style.color._0");
+  const base::DictValue* blend =
+      style ? style->FindDictByDottedPath("blendedGradient._0") : nullptr;
+  if (!blend && style) {
+    blend = style->FindDictByDottedPath("blendedSingleColor._0");
+  }
+  if (const base::DictValue* modifiers =
+          blend ? blend->FindDict("modifiers") : nullptr) {
+    if (std::optional<double> intensity =
+            modifiers->FindDouble("intensityFactor")) {
+      space.intensity = std::clamp(*intensity, 0.0, 1.0);
+    }
+    const std::string* overlay = modifiers->FindString("overlay");
+    if (std::optional<double> noise = modifiers->FindDouble("noiseFactor");
+        noise && overlay && *overlay == "grain") {
+      space.grain = std::clamp(*noise, 0.0, 1.0);
+    }
+  }
+  const base::ListValue* base_colors =
+      style ? style->FindListByDottedPath("blendedGradient._0.baseColors")
+            : nullptr;
+  if (base_colors && base_colors->size() >= 2) {
+    std::vector<SpaceColor> colors;
+    for (const base::Value& entry : *base_colors) {
+      if (entry.is_dict()) {
+        if (SpaceColor color = ReadArcColor(entry.GetDict());
+            !color.is_grey()) {
+          colors.push_back(color);
+        }
+      }
+    }
+    if (!colors.empty()) {
+      space.color = colors.front();
+      space.gradient.assign(colors.begin() + 1, colors.end());
+      if (space.gradient.size() > kMaxSpaceGradientColors - 1) {
+        space.gradient.resize(kMaxSpaceGradientColors - 1);
+      }
+      return;
+    }
+  }
+  if (const base::DictValue* mid_tone =
+          theme->FindDictByDottedPath("primaryColorPalette.midTone")) {
+    space.color = ReadArcColor(*mid_tone);
+  }
+}
+
+// A space's icon: customInfo.iconType is {"emoji_v2": "🚑", "emoji": 128657}
+// or {"icon": "planet"}.
+SpaceIcon ReadSpaceIcon(const base::DictValue& space) {
+  const base::DictValue* type =
+      space.FindDictByDottedPath("customInfo.iconType");
+  if (!type) {
+    return SpaceIcon();
+  }
+  std::optional<SpaceIcon> icon;
+  if (const std::string* emoji = type->FindString("emoji_v2")) {
+    icon = SpaceIcon::Emoji(*emoji);
+  } else if (std::optional<int> code_point = type->FindInt("emoji");
+             code_point && base::IsValidCharacter(*code_point)) {
+    std::string utf8;
+    base::WriteUnicodeCharacter(*code_point, &utf8);
+    icon = SpaceIcon::Emoji(utf8);
+  } else if (const std::string* name = type->FindString("icon")) {
+    if (std::optional<std::string_view> symbol = ArcSymbolToCompass(*name)) {
+      icon = SpaceIcon::Symbol(*symbol);
+    }
+  }
+  return icon.value_or(SpaceIcon());
 }
 
 }  // namespace
+
+std::optional<std::string_view> ArcSymbolToCompass(std::string_view arc_name) {
+  // Only "github", "planet" and "colorPallete" (sic) were seen in real Arc
+  // data; the rest are Arc's likely names for the same ideas. Brands become
+  // what they stand for.
+  static constexpr auto kSymbols =
+      base::MakeFixedFlatMap<std::string_view, std::string_view>({
+          {"airplane", "travel"},     {"bag", "shopping"},
+          {"bolt", "bolt"},           {"book", "book"},
+          {"briefcase", "work"},      {"bulb", "lightbulb"},
+          {"camera", "image"},        {"car", "car"},
+          {"cart", "shopping"},       {"chart", "finance"},
+          {"code", "code"},           {"colorPallete", "palette"},
+          {"compass", "compass"},     {"confetti", "celebration"},
+          {"earth", "globe"},         {"flask", "science"},
+          {"gamecontroller", "game"}, {"github", "code"},
+          {"globe", "globe"},         {"graduationcap", "graduation"},
+          {"hammer", "build"},        {"home", "home"},
+          {"house", "home"},          {"lightbulb", "lightbulb"},
+          {"lock", "lock"},           {"music", "music"},
+          {"palette", "palette"},     {"person", "person"},
+          {"photo", "image"},         {"planet", "globe"},
+          {"shield", "shield"},       {"terminal", "code"},
+          {"wallet", "wallet"},       {"work", "work"},
+          {"wrench", "build"},
+      });
+  if (const auto it = kSymbols.find(arc_name); it != kSymbols.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
 
 base::Time FromArcTime(double seconds) {
   return base::Time::FromSecondsSinceUnixEpoch(seconds + kAppleEpochOffset);
 }
 
-SpaceColor NearestSpaceColor(double red, double green, double blue) {
+SpaceColor ArcSpaceColor(double red, double green, double blue) {
   red = std::clamp(red, 0.0, 1.0);
   green = std::clamp(green, 0.0, 1.0);
   blue = std::clamp(blue, 0.0, 1.0);
   const double max = std::max({red, green, blue});
   const double min = std::min({red, green, blue});
-  const double chroma = max - min;
-  // Unsaturated or nearly black.
-  if (max < 0.08 || chroma / max < 0.15) {
+  // Unsaturated or nearly black: Arc's plain themes.
+  if (max < 0.08 || (max - min) / max < 0.15) {
     return SpaceColor::kGrey;
   }
-  double hue;
-  if (max == red) {
-    hue = 60 * std::fmod((green - blue) / chroma + 6, 6);
-  } else if (max == green) {
-    hue = 60 * ((blue - red) / chroma + 2);
-  } else {
-    hue = 60 * ((red - green) / chroma + 4);
-  }
-  if (hue < 15 || hue >= 345) {
-    return SpaceColor::kRed;
-  }
-  if (hue < 45) {
-    return SpaceColor::kOrange;
-  }
-  if (hue < 70) {
-    return SpaceColor::kYellow;
-  }
-  if (hue < 170) {
-    return SpaceColor::kGreen;
-  }
-  if (hue < 255) {
-    return SpaceColor::kBlue;
-  }
-  if (hue < 290) {
-    return SpaceColor::kPurple;
-  }
-  return SpaceColor::kPink;
+  auto to_byte = [](double component) {
+    return base::ClampRound<uint8_t>(component * 255);
+  };
+  return SpaceColor::FromRGB(to_byte(red), to_byte(green), to_byte(blue));
 }
 
 std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
@@ -317,7 +404,8 @@ std::optional<Sidebar> ParseSidebar(const base::DictValue& storable_sidebar,
     space.profile_dir =
         (profile ? ProfileDir(*profile) : std::nullopt)
             .value_or(kDefaultProfileDir);
-    space.color = ReadSpaceColor(*object);
+    ReadSpaceColors(*object, space);
+    space.icon = ReadSpaceIcon(*object);
     const base::ListValue* container_ids = object->FindList("containerIDs");
     if (const std::string* pinned = ValueAfter(container_ids, "pinned")) {
       space.pinned = tree.ReadChildren(*pinned);

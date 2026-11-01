@@ -16,7 +16,11 @@ ${this.tree ? html`
   <div id="sections">
     <div class="section-header">
       <span>Pinned</span>
-      <span id="newFolder">+</span>
+      <span id="newFolder" class="new-folder">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8 3v10M3 8h10"></path>
+        </svg>
+      </span>
     </div>
     <div class="section">
       ${this.isPinnedEmpty_() ? html`
@@ -29,6 +33,11 @@ ${this.tree ? html`
     <div class="divider"></div>
     <div class="section-header">
       <span>Today</span>
+      <span id="newTodayFolder" class="new-folder">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8 3v10M3 8h10"></path>
+        </svg>
+      </span>
       <span id="archiveButton">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <rect x="2" y="3" width="12" height="3.5" rx="1"></rect>

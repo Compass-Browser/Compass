@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
+
 #include "compass/browser/sidebar/space_model.h"
 
 #include <string>
@@ -313,6 +315,80 @@ TEST_F(SpaceModelTest, NotifiesNameAndColorChanges) {
   EXPECT_EQ(model_.color(), SpaceColor::kBlue);
   EXPECT_THAT(observer.events, ElementsAre("space", "space"));
   model_.RemoveObserver(&observer);
+}
+
+TEST_F(SpaceModelTest, NotifiesIconChanges) {
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  model_.SetIcon(*SpaceIcon::Symbol("home"));
+  model_.SetIcon(*SpaceIcon::Symbol("home"));
+  model_.SetIcon(*SpaceIcon::Emoji("🚀"));
+  model_.SetIcon(SpaceIcon());
+
+  EXPECT_TRUE(model_.icon().is_none());
+  EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
+TEST_F(SpaceModelTest, GradientsNeedAColor) {
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  // Grey has none.
+  model_.SetGradient({SpaceColor::kPink});
+  EXPECT_TRUE(model_.gradient().empty());
+  EXPECT_TRUE(observer.events.empty());
+
+  model_.SetColor(SpaceColor::kBlue);
+  // Grey entries and those past the limit are dropped.
+  model_.SetGradient({SpaceColor::kPink, SpaceColor::kGrey, SpaceColor::kRed,
+                      SpaceColor::kGreen});
+  EXPECT_EQ(model_.gradient(),
+            (std::vector<SpaceColor>{SpaceColor::kPink, SpaceColor::kRed}));
+  model_.SetGradient({SpaceColor::kPink, SpaceColor::kRed});
+
+  // Turning grey drops it.
+  model_.SetColor(SpaceColor::kGrey);
+  EXPECT_TRUE(model_.gradient().empty());
+  EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
+TEST_F(SpaceModelTest, IntensityAndGrainStayInRange) {
+  EXPECT_EQ(model_.intensity(), kDefaultSpaceIntensity);
+  EXPECT_EQ(model_.grain(), 0);
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  model_.SetIntensity(0.8);
+  model_.SetIntensity(0.8);
+  model_.SetGrain(2);
+  model_.SetGrain(std::nan(""));
+  model_.SetIntensity(-1);
+
+  EXPECT_EQ(model_.intensity(), 0);
+  EXPECT_EQ(model_.grain(), 1);
+  EXPECT_THAT(observer.events, ElementsAre("space", "space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
+TEST(SpaceIconTest, AcceptsEmojiAndSymbolNamesOnly) {
+  EXPECT_EQ(SpaceIcon::Emoji("🚑")->value(), "🚑");
+  // A whole sequence: family, flag.
+  EXPECT_TRUE(SpaceIcon::Emoji("👨‍👩‍👧‍👦"));
+  EXPECT_TRUE(SpaceIcon::Emoji("🇮🇹"));
+  EXPECT_FALSE(SpaceIcon::Emoji(""));
+  EXPECT_FALSE(SpaceIcon::Emoji(" "));
+  EXPECT_FALSE(SpaceIcon::Emoji("a\nb"));
+  EXPECT_FALSE(SpaceIcon::Emoji("\xff"));
+  EXPECT_FALSE(SpaceIcon::Emoji(std::string(65, 'a')));
+
+  EXPECT_EQ(SpaceIcon::Symbol("travel-2")->kind(), SpaceIcon::Kind::kSymbol);
+  EXPECT_FALSE(SpaceIcon::Symbol(""));
+  EXPECT_FALSE(SpaceIcon::Symbol("Home"));
+  EXPECT_FALSE(SpaceIcon::Symbol("../x"));
+  EXPECT_FALSE(SpaceIcon::Symbol(std::string(33, 'a')));
 }
 
 TEST(SpaceModelArchiveTest, ArchivesEntriesLeftUnseen) {

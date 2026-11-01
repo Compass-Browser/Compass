@@ -38,7 +38,8 @@ inline constexpr int kSectionArchive = 4;
 inline constexpr int kNodeTab = 1;
 inline constexpr int kNodeFolder = 2;
 inline constexpr int kNodeSplit = 3;
-// CompassSpace.color is SpaceColor's value + 1 (0 = not set).
+// CompassSpace's theme fields: see compass_spaces_specifics.proto and
+// ThemeToProto() in the .cc.
 
 // A tab's URL, title and last-active time change as it's used; an entity
 // whose only change is those commits at most this often. Structure (new,

@@ -54,6 +54,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -233,6 +234,24 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, ShowsNavButtonsAndPill) {
   // Upstream's combo button is unpinned by default.
   EXPECT_TRUE(header()->GetComboButton()->bounds().IsEmpty() ||
               !header()->GetComboButton()->GetVisible());
+}
+
+// The top row and the traffic lights are centered on one line: macOS centers
+// the lights in the title bar height the window reports.
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, RowLinesUpWithTrafficLights) {
+  ASSERT_TRUE(header());
+  views::View* collapse = header()->GetCollapseButton();
+  views::View* reload = header()->reload_button_for_testing();
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(),
+                              [&] { return !reload->bounds().IsEmpty(); }));
+  for (views::View* view : {collapse, static_cast<views::View*>(reload)}) {
+    gfx::Point center = view->GetLocalBounds().CenterPoint();
+    views::View::ConvertPointToWidget(view, &center);
+    EXPECT_EQ(center.y(), kCaptionButtonsCenterY);
+  }
+  EXPECT_EQ(GetWindowTitlebarHeight(browser_view()),
+            2 * kCaptionButtonsCenterY);
+  EXPECT_GE(header()->pill_for_testing()->y(), reload->bounds().bottom());
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, BackAndForward) {

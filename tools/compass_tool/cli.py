@@ -79,6 +79,23 @@ def require_checkout(layout: Layout) -> None:
                        layout.src)
 
 
+def require_buildable_layout(layout: Layout,
+                             platform: str = sys.platform) -> None:
+  """Siso on Windows can't see through the src/compass junction."""
+  if platform != 'win32' or layout.in_tree:
+    return
+  link = layout.src / 'compass'
+  raise CommandError(
+      'on Windows the build needs the in-tree layout: siso does not follow '
+      'the directory junction %s (it reports "../../compass/BUILD.gn not '
+      'exist"). Move the repository into the checkout, from outside it:\n'
+      '  rmdir "%s"\n'
+      '  move "%s" "%s"\n'
+      '  mklink /J "%s" "%s"   (optional: keeps the old path working)\n'
+      'then run compass from %s.' %
+      (link, link, layout.root, link, layout.root, link, link))
+
+
 def cmd_info(layout: Layout, _args) -> None:
   print('repository:       %s' % layout.root)
   print('chromium dir:     %s' % layout.chromium_dir)
@@ -136,6 +153,7 @@ def cmd_patches(layout: Layout, args) -> None:
 def cmd_gen(layout: Layout, args) -> None:
   require_lowercase_name(layout)
   require_checkout(layout)
+  require_buildable_layout(layout)
   out_dir = layout.out_dir(args.config)
   args_file = out_dir / 'args.gn'
   if args.force or not args_file.exists():
@@ -165,6 +183,7 @@ def sync_patches(layout: Layout) -> None:
 def build(layout: Layout, config: str, targets, jobs: int | None = None,
           skip_patches: bool = False) -> Path:
   require_checkout(layout)
+  require_buildable_layout(layout)
   out_dir = layout.out_dir(config)
   if not (out_dir / 'args.gn').exists():
     raise CommandError('%s is not set up; run `compass gen %s`' %
@@ -281,6 +300,65 @@ def cmd_sync_server(layout: Layout, args) -> None:
   run(cmd, cwd, env=env, check=False)
 
 
+IOS_BUNDLE_ID = 'it.cvm.compass'
+IOS_DEFAULT_DEVICE = 'iPhone 18 Pro'
+
+
+def ios_simulator_udid(name: str) -> str:
+  """The UDID of the available simulator called `name`."""
+  import json
+  out = run(['xcrun', 'simctl', 'list', 'devices', 'available', '--json'],
+            Path.cwd(), capture=True).stdout
+  for devices in json.loads(out)['devices'].values():
+    for device in devices:
+      if device['name'] == name:
+        return device['udid']
+  raise CommandError('no available simulator named "%s"' % name)
+
+
+def cmd_ios(layout: Layout, args) -> None:
+  """Compass for iOS (docs/design/ios.md). Simulators boot headless."""
+  ios = layout.root / 'ios'
+  derived = ios / 'build' / 'DerivedData'
+  if args.action == 'gen':
+    run(['xcodegen'], ios)
+    return
+  run([ios / 'scripts' / 'fetch_boringssl.sh'], ios)
+  if args.action == 'test':
+    cmd = ['swift', 'test']
+    if args.filter:
+      cmd += ['--filter', args.filter]
+    env = dict(os.environ)
+    if args.sync_server == 'build':
+      # The repo's Go server (server/, on sync-main until it's merged).
+      server_dir = layout.root / 'server'
+      if not (server_dir / 'go.mod').is_file():
+        raise CommandError('no server/ in this tree; pass the binary instead')
+      binary = ios / 'build' / 'compass-sync-server'
+      run(['go', 'build', '-o', binary, '.'], server_dir)
+      env['COMPASS_SYNC_SERVER'] = str(binary)
+    elif args.sync_server:
+      env['COMPASS_SYNC_SERVER'] = str(Path(args.sync_server).resolve())
+    sys.exit(run(cmd, ios / 'CompassKit', env=env, check=False).returncode)
+  run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
+       'Compass', '-destination', 'generic/platform=iOS Simulator',
+       '-derivedDataPath', derived, 'CODE_SIGNING_ALLOWED=NO', 'build'], ios)
+  if args.action == 'build':
+    return
+  # sim: install and launch in a headless simulator (no Simulator.app
+  # window, so it never takes focus), then optionally screenshot.
+  udid = ios_simulator_udid(args.device)
+  run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], ios)
+  app = derived / 'Build/Products/Debug-iphonesimulator/Compass.app'
+  run(['xcrun', 'simctl', 'install', udid, app], ios)
+  run(['xcrun', 'simctl', 'launch', '--terminate-running-process', udid,
+       IOS_BUNDLE_ID] + args.app_args, ios)
+  if args.screenshot:
+    import time
+    time.sleep(args.wait)
+    run(['xcrun', 'simctl', 'io', udid, 'screenshot', args.screenshot], ios)
+
+
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
   default = os.environ.get('COMPASS_JOBS')
   p.add_argument('-j', '--jobs', type=int,
@@ -361,6 +439,22 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--fresh', action='store_true',
                  help='start from an empty database')
   s.set_defaults(func=cmd_sync_server)
+
+  s = sub.add_parser('ios', help='Compass for iOS: gen the Xcode project, '
+                     'test CompassKit, build, or run in a headless simulator')
+  s.add_argument('action', choices=['gen', 'test', 'build', 'sim'])
+  s.add_argument('--filter', help='test: only tests matching this')
+  s.add_argument('--sync-server', metavar='PATH|build',
+                 help='test: also run the engine tests against this sync '
+                 'server binary ("build": go build server/)')
+  s.add_argument('--device', default=IOS_DEFAULT_DEVICE,
+                 help='sim: simulator name (default: %(default)s)')
+  s.add_argument('--screenshot', help='sim: save a screenshot here')
+  s.add_argument('--wait', type=float, default=8,
+                 help='sim: seconds before the screenshot')
+  s.add_argument('--app-arg', dest='app_args', action='append', default=[],
+                 help='sim: a launch argument for the app (repeatable)')
+  s.set_defaults(func=cmd_ios)
   return p
 
 

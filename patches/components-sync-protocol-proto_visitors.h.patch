@@ -28,7 +28,7 @@ index 4cf920a7ee773b2477b178885a21833deb637256..a1576bd1909a1915ea9c9a6aae93f0a8
  }
  
  VISIT_PROTO_FIELDS(const sync_pb::ExtensionSettingSpecifics& proto) {
-@@ -2486,6 +2489,45 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillEntitySuppressionSpecifics& proto) {
+@@ -2486,6 +2489,55 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillEntitySuppressionSpecifics& proto) {
    VISIT(schema_version);
  }
  
@@ -54,6 +54,16 @@ index 4cf920a7ee773b2477b178885a21833deb637256..a1576bd1909a1915ea9c9a6aae93f0a8
 +  VISIT(directory_position);
 +  VISIT(profile_uuid);
 +  VISIT(archive_after_seconds);
++  VISIT(color_rgb);
++  VISIT_REP(gradient);
++  VISIT(intensity);
++  VISIT(grain);
++  VISIT(appearance);
++}
++
++VISIT_PROTO_FIELDS(const sync_pb::CompassColor& proto) {
++  VISIT(palette);
++  VISIT(rgb);
 +}
 +
 +VISIT_PROTO_FIELDS(const sync_pb::CompassNode& proto) {

@@ -148,9 +148,10 @@ tree and when the list changes; `PageHandler.SwitchSpace(id)` and
 model and sends a fresh tree.
 
 Right-clicking a space button, or double-clicking the space name, opens the
-space's menu: its name, eight colors and "Delete space" (click twice). The
-color (`SpaceColor`, saved by name as `"color"` in the file) tints the
-sidebar's background and the space's button. Grey, the default, doesn't
+space's menu: its name, eight colors, a color well for any other color
+(below) and "Delete space" (click twice). The color (`SpaceColor`, saved as
+`"color"` in the file, see below) tints the sidebar's background and the
+space's button. Grey, the default, doesn't
 tint. `SpaceList` relays name and color changes of any space
 (`OnSpaceUpdated()`), so every window's switcher follows. Mojo:
 `RenameSpace()`, `SetSpaceColor()`, `DeleteSpace()`, `MoveNodeToSpace()`.
@@ -166,15 +167,184 @@ it are one color. A tint drawn by the page stopped at the page's edges: the
 header above it and the region's margin below it stayed frame-colored.
 `InstallSidebar()` adds it. It repaints when the window switches spaces
 (`WindowFeatures::Observer`) or its space's color changes
-(`SpaceList::Observer`). The palette is in both `GetSpaceTint()` and the
-page's `SPACE_COLORS`, which still colors the space buttons and the menu's
-swatches.
+(`SpaceList::Observer`).
+
+A space can have any color, not only the palette's (2026-10-31, for Arc's
+themes). `SpaceColor` is a value: grey (no tint) or an opaque `SkColor`.
+The palette is its constants (`SpaceColor::kBlue`, ...) and
+`kSpaceColorPalette`, mirrored by the page's `SPACE_COLORS`
+(resources/sidebar/colors.ts) for the theme editor's palette. Mojo carries `SpaceColor? color` as
+`{red, green, blue}`, null for grey. The file saves a palette color by name
+(`"blue"`, so older builds still read it) and any other as `"#rrggbb"`;
+a color it can't read stays grey. Any color is picked in the theme editor
+(below): on its pad, or with its color well (an `<input type="color">`,
+Chromium's color picker). While a color is dragged, the page passes one on
+every 50 ms (`CUSTOM_COLOR_MS`), since each one reseeds the window's theme. Arc's
+spaces come in with their theme's exact mid tone (arc-import.md).
 
 The tint fades over 280 ms (`gfx::LinearAnimation`, eased out, blending
 premultiplied with `gfx::Tween::ColorValueBetween()`, so a grey space fades
 the tint out rather than through black) whenever the window's space or its
 color changes. While a swipe pulls in another space, the tint is the blend
 of the two colors at the swipe's progress (next section), with no fade.
+
+### Gradients
+
+A space with a color can go on to one or two more (2026-10-31, as Arc's
+gradient themes): `SpaceModel::gradient()`, the colors after `color()`, at
+most `kMaxSpaceGradientColors` (3) in all. Grey has none, and turning a
+space grey drops it. The color stays the window's theme seed. Saved as
+`"gradient": ["pink", "#010203"]` after `"color"`, left out when empty;
+mojo `Space.gradient`, `SetSpaceGradient(id, colors)`. Moving a space to
+another profile keeps it.
+
+`SidebarTint` paints three stops evenly spaced (a plain color three times,
+two colors with their blend in the middle), each at the tint's 14%, as one
+linear gradient from the window's top left corner to its bottom right, in
+widget coordinates: the region's tint and the frame's are two views but one
+gradient, and both repaint when the window resizes. Fades and swipes blend
+stop by stop, so a gradient fades into a plain color or another gradient. The
+gradient is dithered: at 14% it spans only a few levels of each channel
+across the window, and without dithering each level showed as a band 50-100
+DIP wide (measured in a screenshot of the fast build: 34 changes along the
+1600 px bottom edge, 895 with dithering).
+The little window's frame keeps the space's color only. The space menu's
+theme chip shows the same three stops, diagonally (`--space-color`,
+`--space-color-2`, `--space-color-3`). The switcher's buttons show no color
+(the user asked for no circle or background, 2026-10-31): just the icon,
+emoji or letter, the window's space at full opacity, the others dimmed.
+Symbols are 18px, letters 14px and emoji 11px (nudged up half a pixel),
+which look about as big; even sizes sit on whole pixels in the 24px
+buttons. The + is drawn (a "+" character sat 1.25px below the others).
+Other spaces' emoji are a silhouette in the text color, as their symbols
+and letters are (the glyph's fill transparent over a text shadow in
+`currentColor`; `color: transparent` would make `currentColor` transparent
+too), and fade into their colors in 240 ms when their space becomes the
+window's.
+
+In the space menu, a Gradient row under the swatches (hidden for grey):
+each gradient color as a color well with ×, then + (while there's room),
+which adds the last color turned 40° round the hue wheel. Wells pass colors
+on every 50 ms while dragged, as the custom color well does. Picking a
+swatch keeps the gradient.
+
+Arc: a `blendedGradient` theme with two or more `baseColors` gives the
+space its first base color as color and the next ones as gradient; other
+themes the mid tone (arc-import.md). Intensity and grain: next section.
+
+**Tests:** `SpaceModelTest.GradientsNeedAColor`,
+`SidebarSerializerTest.RoundTripsGradients`, `PlainColorsSaveNoGradient`,
+`SidebarPageHandlerTest.SetsSpaceGradients`,
+`ArcSidebarTest.GradientsComeFromTheirBaseColors`, browser tests
+`TintPaintsAGradient` and `ThemeEditorEditsTheSpace`.
+
+### Intensity and grain
+
+Two per-space settings from Arc's theme modifiers (2026-10-31), 0 to 1,
+for plain colors and gradients alike (not grey): `SpaceModel::intensity()`
+and `grain()`, clamped, NaN ignored. Saved as `"intensity"` and `"grain"`
+only when not the defaults; mojo `Space.intensity`/`grain`,
+`SetSpaceIntensity()`, `SetSpaceGrain()`; kept when the space moves to
+another profile.
+
+- Intensity: the tint's opacity is `kMaxSpaceTintOpacity` (45%) times it.
+  The default, `kDefaultSpaceIntensity` 0.31, gives the 14% tints had
+  before. Arc's usual 0.8 is about 36%. The window's theme seed doesn't
+  change with it.
+- Grain: a 128 px tile of grey noise (fixed sequence, built once) over the
+  tint, in the tint's shape, blended as an overlay (grey 128 leaves the
+  color, so hue stays), at up to 4.4% (`kMaxGrainOpacity`; 22% at first,
+  which the user capped to its first fifth). One grain per
+  physical pixel, tiled in widget coordinates so the region's tint and the
+  frame's line up.
+
+Both blend in fades and swipes with the colors (`SidebarTint::Look`). The
+menu has an Intensity and a Grain slider (0-100) under the gradient row,
+hidden for grey, passing values on every 50 ms while dragged. Arc:
+`modifiers.intensityFactor` as is, `noiseFactor` as grain when
+`overlay` is `"grain"`, from `blendedGradient` or `blendedSingleColor`.
+
+**Tests:** `SpaceModelTest.IntensityAndGrainStayInRange`,
+`SidebarSerializerTest.RoundTripsIntensityAndGrain`,
+`PlainColorsSaveNoGradient`, `SidebarPageHandlerTest.SetsSpaceIntensityAndGrain`,
+`ArcSidebarTest.GradientsComeFromTheirBaseColors`,
+`PlainColorsKeepTheirIntensity`, browser test `TintPaintsAGradient`.
+
+### Theme editor
+
+The space menu's "Edit theme" row (with a chip of the space's colors)
+opens the theme editor in the menu's place (2026-10-31, laid out after
+Arc's, which the user shared a screenshot of): `<compass-theme-editor>`
+(`resources/sidebar/theme_editor.{ts,html.ts,css}`). "‹ <name>" or Esc
+goes back to the menu. It replaced the menu's swatches, color well,
+Gradient row and sliders. From the top:
+
+- Mode: automatic (sparkles), light (sun), dark (moon), hand-drawn
+  glyphs. `SpaceModel::appearance()` (`SpaceAppearance`), saved as
+  `"appearance": "light"|"dark"` (auto left out), mojo
+  `SetSpaceAppearance()`. `SidebarTint::UpdateWindowTheme()` sets
+  `Widget::SetColorModeOverride()`, so the browser's UI (frame, sidebar,
+  menus, WebUI) takes that mode; web pages keep the system's. Off the
+  record stays dark. Arc's equivalent wasn't found in its file, so imports
+  stay automatic.
+- The pad: the space's colors as dots, hue as the angle round the center
+  (red at the top, clockwise) and saturation as the distance (to 42% of
+  the pad's half size). The big dot is the color, the small ones the
+  gradient. Dragging a dot keeps its lightness; dragging the big one turns
+  and pushes the others by as much, so the gradient keeps its shape (Arc's
+  "analogous" wheel). A press on the pad moves the big dot there; on a grey
+  space it makes the first color, at 55% lightness. Arrow keys on a dot:
+  hue ±5°, saturation ±5%. − and + under the dots: one color less or more
+  (the new one 40° on from the last), 1 to 3.
+- Palette: ‹ › between the colors (grey and the eight) and eight gradients
+  (`GRADIENT_PRESETS` in colors.ts) plus a color well for any main color.
+  A palette color replaces the gradient.
+- The wave (intensity): a wave up to the thumb, growing with the value,
+  flat after it; and the dial (grain): ticks lit up to the value, dragged
+  up or right. Both are `role=slider` with arrow, Page and Home/End keys.
+
+What's dragged shows at once (the editor's own copy until the browser's
+space matches, or 600 ms after letting go) and goes to the browser every
+50 ms. Color helpers moved to `resources/sidebar/colors.ts`.
+
+**Tests:** `ThemeEditorEditsTheSpace` (palette, + and −, a dot's keys and
+the big dot taking the gradient along, the gradients' page and any color,
+the wave, the dial and dark mode, Esc),
+`SidebarSerializerTest.RoundTripsAppearance`,
+`SidebarPageHandlerTest.SetsSpaceIntensityAndGrain`.
+
+### Space icons
+
+A space can have an icon (2026-10-31, as in Arc), which its switcher button
+shows instead of the name's first letter: an emoji or a symbol. The menu
+lists them under the colors: "no icon" (the letter), 28 symbols and an
+"Emoji" field that keeps the first character typed or picked (a whole
+grapheme, so ZWJ sequences and flags stay one; macOS's Fn E / Ctrl Cmd
+Space picker types into it).
+
+`SpaceIcon` (space_model.h) is none, an emoji (non-empty UTF-8 of at most
+64 bytes, no whitespace or controls) or a symbol name (`[a-z0-9-]`, at most
+32). The handler drops invalid ones, as does the file reader. Saved as
+`"icon": {"emoji": "🚀"}` or `{"symbol": "travel"}`, left out for none.
+Mojo: `union SpaceIcon { string emoji; string symbol; }`, `Space.icon`,
+`SetSpaceIcon(id, icon?)`. Moving a space to another profile keeps it.
+
+The symbols are Compass's own set, `SPACE_SYMBOLS` in
+`resources/sidebar/space_icons.ts`: Material Symbols paths (Apache 2.0) as
+Chromium's WebUI iconsets carry them, all in the `0 -960 960 960` view box
+so they share one style. Arc's own symbol artwork isn't copied: an Arc
+symbol becomes the Compass one closest in meaning (`ArcSymbolToCompass()`:
+planet → globe, github → code, colorPallete → palette, ...), or none.
+Saved names must not change; a name the page doesn't know (a later
+version's) shows the letter.
+
+Not done: the icon elsewhere (command bar's space results, the little
+window's space picker, the space name at the top).
+
+**Tests:** `SpaceIconTest.*`, `SpaceModelTest.NotifiesIconChanges`,
+`SidebarSerializerTest.RoundTripsIcons`, `UnreadableIconsAreLeftOut`,
+`SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`;
+`SpaceMenuRenamesSetsIconsDeletes` picks a symbol and an emoji.
 
 ### Window theme
 
@@ -203,7 +373,9 @@ page kept the colors it loaded with (a grey active row on a blue sidebar).
 Upstream's tab group "focus mode" sets the same override from the tab strip
 controllers. Compass doesn't mirror tab groups, so it doesn't clash.
 
-**Tests:** `WindowThemeFollowsTheSpace`: the override and the frame color
+**Tests:** `SidebarSerializerTest.SavesCustomColorsAsHex`,
+`UnreadableColorsStayGrey`; `ThemeEditorEditsTheSpace` (palette swatch,
+then the color well). `WindowThemeFollowsTheSpace`: the override and the frame color
 follow the space's color and a switch, not a swipe; grey goes back to the
 profile's frame color; the sidebar page's colors change with it; an
 off-the-record window isn't themed.

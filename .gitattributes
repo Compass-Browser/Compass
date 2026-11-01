@@ -1,2 +1,5 @@
 # Patches must stay byte-for-byte identical on every platform.
 *.patch -text
+
+# cmd.exe mis-parses LF batch files.
+*.bat text eol=crlf

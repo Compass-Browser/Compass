@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
 #define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_TINT_H_
 
+#include <array>
 #include <optional>
 
 #include "base/callback_list.h"
@@ -14,18 +15,19 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
+#include "ui/views/widget/widget_observer.h"
 
 class BrowserWindowInterface;
 
 namespace compass {
 
-// The color a space tints the sidebar with, or nullopt for none (grey). The
-// sidebar page's palette (resources/sidebar/app.ts) shows the same colors.
+// The color a space tints the sidebar with, or nullopt for none (grey).
 std::optional<SkColor> GetSpaceTint(SpaceColor color);
 
 // What a space paints over the frame color: its tint, partly transparent, or
@@ -41,6 +43,11 @@ SkColor GetSpaceFrameTint(SpaceColor color);
 // A swipe in the sidebar blends in the color of the space it pulls in
 // (WindowFeatures::SetSpacePreview()), and other changes fade.
 //
+// A space with a gradient paints it from the window's top left corner to its
+// bottom right one, in both tints, so the frame goes on where the
+// region leaves off. Fades and swipes blend the gradients stop by stop. See
+// docs/design/spaces.md, "Gradients".
+//
 // It also themes the window: the space color is the window's theme seed
 // (Widget::SetUserColorOverride()), so the frame, the page's margins, menus,
 // bubbles and WebUI take colors from it, as from a profile's theme color.
@@ -50,6 +57,7 @@ SkColor GetSpaceFrameTint(SpaceColor color);
 class SidebarTint : public views::View,
                     public gfx::AnimationDelegate,
                     public views::ViewObserver,
+                    public views::WidgetObserver,
                     public WindowFeatures::Observer,
                     public SpaceList::Observer {
   METADATA_HEADER(SidebarTint, views::View)
@@ -71,12 +79,20 @@ class SidebarTint : public views::View,
   // where its tint was.
   void ContinueFrom(const SidebarTint& other);
 
+  // Where the gradient starts, ends and is halfway, evenly spaced; all the
+  // same for a plain color, transparent for none.
+  using Stops = std::array<SkColor, kMaxSpaceGradientColors>;
+
   std::optional<SkColor> GetTintForTesting() const;
+  const Stops& GetStopsForTesting() const { return look_.stops; }
+  // The grain's strength now, 0 to 1.
+  float GetGrainForTesting() const { return look_.grain; }
   bool IsAnimatingForTesting() const { return animation_.is_animating(); }
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
   void AddedToWidget() override;
+  void RemovedFromWidget() override;
 
   // gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
@@ -84,6 +100,10 @@ class SidebarTint : public views::View,
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
   void OnViewIsDeleting(views::View* observed_view) override;
+
+  // views::WidgetObserver:
+  void OnWidgetBoundsChanged(views::Widget* widget,
+                             const gfx::Rect& new_bounds) override;
 
   // WindowFeatures::Observer:
   void OnSpaceSwitched() override;
@@ -94,9 +114,19 @@ class SidebarTint : public views::View,
   void OnSpaceUpdated(const SpaceModel& space) override;
 
  private:
-  // The color for the window's space, blended toward the swiped-in space's;
-  // transparent for none.
-  SkColor GetTargetColor() const;
+  // What a space paints: its stops (opacity from its intensity) and grain.
+  struct Look {
+    Stops stops{};
+    float grain = 0;
+    friend bool operator==(const Look&, const Look&) = default;
+  };
+  static Look ToLook(const SpaceModel& space);
+  static Look Blend(double progress, const Look& from, const Look& to);
+
+  // The window's space's look, blended toward the swiped-in space's.
+  Look GetTargetLook() const;
+  // Grain over the tint (docs/design/spaces.md, "Intensity and grain").
+  void PaintGrain(gfx::Canvas* canvas, const SkPath* clip);
   // Fades from the color painted now to the target, or jumps there.
   void UpdateColor(bool animate);
   // Seeds the window's theme with its space's color.
@@ -104,13 +134,15 @@ class SidebarTint : public views::View,
 
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<WindowFeatures> features_;
-  // Painted now; transparent for none.
-  SkColor color_ = SK_ColorTRANSPARENT;
+  // Painted now.
+  Look look_;
   // Where the fade started.
-  SkColor from_ = SK_ColorTRANSPARENT;
-  // Once the window swaps away mid-slide, the color of the space it slides
+  Look from_;
+  // Once the window swaps away mid-slide, the look of the space it slides
   // to, which the page can no longer blend toward.
-  std::optional<SkColor> swap_color_;
+  std::optional<Look> swap_look_;
+  base::ScopedObservation<views::Widget, views::WidgetObserver>
+      widget_observation_{this};
   gfx::LinearAnimation animation_;
   base::CallbackListSubscription paint_as_active_subscription_;
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{

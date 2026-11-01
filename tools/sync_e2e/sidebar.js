@@ -33,8 +33,32 @@ const {SidebarBrowserProxy} =
 const proxy = SidebarBrowserProxy.getInstance();
 const handler = proxy.handler;
 const router = proxy.callbackRouter;
-const COLORS =
-    ['grey', 'blue', 'purple', 'pink', 'red', 'orange', 'yellow', 'green'];
+// The palette (compass::kSpaceColorPalette) as sidebar.mojom's SpaceColor;
+// grey is null.
+const COLORS = {
+  grey: null,
+  blue: {red: 59, green: 130, blue: 246},
+  purple: {red: 139, green: 92, blue: 246},
+  pink: {red: 236, green: 72, blue: 153},
+  red: {red: 239, green: 68, blue: 68},
+  orange: {red: 249, green: 115, blue: 22},
+  yellow: {red: 234, green: 179, blue: 8},
+  green: {red: 34, green: 197, blue: 94},
+};
+// A mojom SpaceColor by its palette name, or as #rrggbb.
+function colorName(color) {
+  if (!color) {
+    return 'grey';
+  }
+  for (const [name, c] of Object.entries(COLORS)) {
+    if (c && c.red === color.red && c.green === color.green &&
+        c.blue === color.blue) {
+      return name;
+    }
+  }
+  return '#' + [color.red, color.green, color.blue]
+      .map(v => v.toString(16).padStart(2, '0')).join('');
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // A tab's URL (url.mojom.Url is a plain string in these bindings).
@@ -149,7 +173,7 @@ switch (ARGS.op) {
       result.spaces.push({
         id: space.id,
         name: space.name,
-        color: COLORS[space.color],
+        color: colorName(space.color),
         archiveAfterHours: space.archiveAfterHours,
         pinned: (t.pinned.children || []).map(plain),
         today: (t.today.children || []).map(plain),
@@ -167,7 +191,7 @@ switch (ARGS.op) {
       if (added) {
         handler.renameSpace(added.id, ARGS.name);
         if (ARGS.color) {
-          handler.setSpaceColor(added.id, COLORS.indexOf(ARGS.color));
+          handler.setSpaceColor(added.id, COLORS[ARGS.color] ?? null);
         }
         await settle();
         return {added: added.id};

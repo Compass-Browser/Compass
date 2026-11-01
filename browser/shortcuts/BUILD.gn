@@ -1,0 +1,35 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The user's shortcuts (docs/design/shortcuts.md "Customizing"). Its own
+# target, depending on little of Chrome's, because upstream's prefs
+# registration and macOS shortcut tables reach it (see patches/).
+source_set("shortcuts") {
+  sources = [
+    "shortcut_settings.cc",
+    "shortcut_settings.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/prefs",
+    "//ui/base",
+  ]
+  deps = [
+    "//chrome/browser:browser_process",
+    "//ui/events:events_base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "shortcut_settings_unittest.cc" ]
+  deps = [
+    ":shortcuts",
+    "//base",
+    "//components/prefs:test_support",
+    "//testing/gtest",
+    "//ui/base",
+    "//ui/events:events_base",
+  ]
+}

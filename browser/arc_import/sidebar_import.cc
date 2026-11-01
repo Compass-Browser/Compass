@@ -185,6 +185,10 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
       continue;
     }
     model->SetColor(space.color);
+    model->SetGradient(space.gradient);
+    model->SetIntensity(space.intensity);
+    model->SetGrain(space.grain);
+    model->SetIcon(space.icon);
     Builder(list, *model, std::nullopt)
         .AddAll(model->pinned_root(), space.pinned);
     Builder(list, *model, now).AddAll(model->today_root(), space.today);

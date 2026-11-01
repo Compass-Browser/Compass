@@ -33,6 +33,9 @@ class RestoredTabMatcher;
 inline constexpr char kPlaceholderHost[] = "compass-placeholder";
 // chrome://compass-import: importing from Arc (docs/design/arc-import.md).
 inline constexpr char kArcImportHost[] = "compass-import";
+// chrome://compass-settings: Compass's own settings, the shortcuts for now
+// (docs/design/shortcuts.md "Customizing").
+inline constexpr char kSettingsHost[] = "compass-settings";
 inline constexpr char kPlaceholderURL[] = "chrome://compass-placeholder/";
 
 // Keeps a window's TabStripModel in line with its space's SpaceModel and the

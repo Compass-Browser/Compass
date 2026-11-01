@@ -203,13 +203,14 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
   OpenAndQuery(Mode::kNewEntry, "");
 
   EXPECT_EQ(page_.text(), "");
-  EXPECT_THAT(
-      page_.LocalResults(),
-      ElementsAre("entry b.test", "entry a.test", "command New space",
-                  "command Pin tab", "command Add to Favorites",
-                  "command Copy URL", "command Reload", "command History",
-                  "command Downloads", "command Extensions", "command Settings",
-                  "command Import from Arc"));
+  EXPECT_THAT(page_.LocalResults(),
+              ElementsAre("entry b.test", "entry a.test", "command New space",
+                          "command Pin tab", "command Add to Favorites",
+                          "command Copy URL",
+                          "command Reload", "command History",
+                          "command Downloads", "command Extensions",
+                          "command Settings", "command Import from Arc",
+                          "command Keyboard shortcuts"));
 }
 
 TEST_F(CommandBarPageHandlerTest, EmptyCurrentEntryQueryShowsCommandsOnly) {
