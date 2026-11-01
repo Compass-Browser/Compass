@@ -39,7 +39,8 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
-/// One entity per space and per sidebar node. The client tag is `uuid`.
+/// One entity per space and per sidebar node, and in the home profile's
+/// account one per profile of the chain. The client tag is `uuid`.
 public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -63,11 +64,20 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .node(newValue)}
   }
 
+  public var profile: SyncPb_CompassProfile {
+    get {
+      if case .profile(let v)? = entity {return v}
+      return SyncPb_CompassProfile()
+    }
+    set {entity = .profile(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
     case space(SyncPb_CompassSpace)
     case node(SyncPb_CompassNode)
+    case profile(SyncPb_CompassProfile)
 
   }
 
@@ -129,7 +139,8 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   /// Clears the value of `directoryPosition`. Subsequent reads from it will return its default value.
   public mutating func clearDirectoryPosition() {self._directoryPosition = nil}
 
-  /// The profile it belongs to (slice 5). Not set yet; kept as received.
+  /// The sync UUID of the profile it belongs to (slice 5), whose account it's
+  /// in. Informational: the account decides.
   public var profileUuid: String {
     get {_profileUuid ?? String()}
     set {_profileUuid = newValue}
@@ -307,13 +318,72 @@ public nonisolated struct SyncPb_CompassNode: Sendable {
   fileprivate var _archivedTime: Int64? = nil
 }
 
+/// A profile of the chain (slice 5); only in the home profile's account. Each
+/// profile syncs with its own account, derived from the chain's seed and
+/// `uuid` (docs/design/sync.md, "Slice 5 notes"); a device that doesn't have
+/// one creates it.
+public nonisolated struct SyncPb_CompassProfile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Its sync UUID (compass.sync.profile_uuid), lowercase.
+  public var uuid: String {
+    get {_uuid ?? String()}
+    set {_uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {self._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {self._uuid = nil}
+
+  public var name: String {
+    get {_name ?? String()}
+    set {_name = newValue}
+  }
+  /// Returns true if `name` has been explicitly set.
+  public var hasName: Bool {self._name != nil}
+  /// Clears the value of `name`. Subsequent reads from it will return its default value.
+  public mutating func clearName() {self._name = nil}
+
+  /// Chromium's default avatar icon index + 1 (0 = not set).
+  public var avatar: Int32 {
+    get {_avatar ?? 0}
+    set {_avatar = newValue}
+  }
+  /// Returns true if `avatar` has been explicitly set.
+  public var hasAvatar: Bool {self._avatar != nil}
+  /// Clears the value of `avatar`. Subsequent reads from it will return its default value.
+  public mutating func clearAvatar() {self._avatar = nil}
+
+  /// The home profile: its account is the chain's own, and it carries this
+  /// list.
+  public var home: Bool {
+    get {_home ?? false}
+    set {_home = newValue}
+  }
+  /// Returns true if `home` has been explicitly set.
+  public var hasHome: Bool {self._home != nil}
+  /// Clears the value of `home`. Subsequent reads from it will return its default value.
+  public mutating func clearHome() {self._home = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _uuid: String? = nil
+  fileprivate var _name: String? = nil
+  fileprivate var _avatar: Int32? = nil
+  fileprivate var _home: Bool? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -347,6 +417,19 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .node(v)
         }
       }()
+      case 3: try {
+        var v: SyncPb_CompassProfile?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .profile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .profile(v)
+        }
+      }()
       default: break
       }
     }
@@ -365,6 +448,10 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
     case .node?: try {
       guard case .node(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .profile?: try {
+      guard case .profile(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     }()
     case nil: break
     }
@@ -526,6 +613,55 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs._collapsed != rhs._collapsed {return false}
     if lhs._lastActiveTime != rhs._lastActiveTime {return false}
     if lhs._archivedTime != rhs._archivedTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassProfile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}name\0\u{1}avatar\0\u{1}home\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._name) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self._avatar) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self._home) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._uuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._name {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._avatar {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._home {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassProfile, rhs: SyncPb_CompassProfile) -> Bool {
+    if lhs._uuid != rhs._uuid {return false}
+    if lhs._name != rhs._name {return false}
+    if lhs._avatar != rhs._avatar {return false}
+    if lhs._home != rhs._home {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -39,6 +39,7 @@ let package = Package(
     .target(name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel"]),
     .testTarget(name: "CompassCryptoTests", dependencies: ["CompassCrypto"]),
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
+    .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),
   ],
   // BoringSSL's C++ needs C++17 (swift-crypto sets the same).
   cxxLanguageStandard: .cxx17
