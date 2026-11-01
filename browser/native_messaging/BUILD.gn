@@ -1,0 +1,29 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Native messaging hosts Compass takes from Chrome's folder (1Password's).
+# //chrome/browser:core, whose chrome_browser_main.cc calls it at launch,
+# depends on this target (see patches/chrome-browser-BUILD.gn.patch). Empty
+# outside macOS.
+source_set("native_messaging") {
+  if (is_mac) {
+    sources = [
+      "chrome_hosts_mac.cc",
+      "chrome_hosts_mac.h",
+    ]
+    deps = [ "//base" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  if (is_mac) {
+    sources = [ "chrome_hosts_mac_unittest.cc" ]
+    deps = [
+      ":native_messaging",
+      "//base",
+      "//testing/gtest",
+    ]
+  }
+}

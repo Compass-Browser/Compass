@@ -1,18 +1,19 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 33a6696fd803af080bb0a7d71b66e06d6950f86d..b44df8bfb500875894bb5887ddce4a9e5d1e38f1 100644
+index 33a6696fd803af080bb0a7d71b66e06d6950f86d..80a6fb21254315af3a9050bf57ffb858b0ffb7f4 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -881,6 +881,9 @@ source_set("core") {
+@@ -881,6 +881,10 @@ source_set("core") {
    }
  
    deps = [
 +    "//compass/browser:url_handler",
++    "//compass/browser/native_messaging",
 +    "//compass/browser:feature_overrides",
 +    "//compass/browser/ui/cocoa:shortcuts",
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -2062,6 +2065,7 @@ source_set("browser") {
+@@ -2062,6 +2066,7 @@ source_set("browser") {
    ]
  
    deps = [
