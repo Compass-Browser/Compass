@@ -213,3 +213,26 @@ Desktop QR pairing (desktop item 1) runs in parallel with M2.
 - **App.** The bundle ID is `it.cvm.compass`. `DEVELOPMENT_TEAM` is empty; set it for device and TestFlight builds.
   - The icon is the desktop's Icon Composer file (`assets/Compass.icon`), used as is.
   - M0 is one WKWebView with an address bar, run in the simulator (iPhone 18 Pro, iOS 27.1).
+
+### M1 (crypto and chain), 2026-11-01
+
+The tests pass on the desktop's vectors and Chromium's own, byte for byte. Everything is in `CompassCrypto`, apart from the pairing state machine and the cryptographer, which are in `CompassSync`.
+
+- **`Chain`.**
+  - Seed → auth key, chain ID and passphrase; per-profile auth keys; recovery code ↔ seed.
+  - The access token is deterministic Ed25519 through BoringSSL, and the sync.md token vector matches.
+- **`Bip39`.** A port of bip39.cc with the same wordlist; its SHA-256 is checked when it's generated.
+- **Pairing (side B).**
+  - `Spake2` wraps BoringSSL's SPAKE2. `PairingKeys` checks against the PairingKeysTest vectors.
+  - `PairingCode` and `PairingInvite` are new. The invite is the QR payload `compass-pair:?server=<url>&code=<slot>-<digits>`, which the desktop has yet to show (desktop item 1).
+  - `PairingJoiner` is one async function in place of the desktop's callbacks. `NetworkPairingTransport` uses URLSession.
+  - The tests run against an in-memory relay with a scripted Mac (side A): right code, wrong code (the Mac closes with `mismatch`), deny, bad code, unknown slot and used code.
+- **`Nigori`.**
+  - PBKDF2 and scrypt derivations, the key name, and encrypt/decrypt.
+  - Chromium's nigori_unittest goldens pass: the key name, both MAC forms, and the PBKDF2 and scrypt keys.
+  - It writes with the MAC over the ciphertext only, as Chromium 156 does by default.
+- **`Cryptographer`.**
+  - It opens a custom-passphrase NIGORI's keybag (a serialized `EncryptionKeys`) and keeps every key, so older data stays readable. The default key is the keybag's `key_name`.
+  - It encrypts and decrypts `EntitySpecifics` with the type's empty field set.
+  - It can also make a new chain's NIGORI. The engine tests need that, and so will "Start sync" on the phone.
+- **Still open:** no desktop-made NIGORI fixture yet. The M2 interop run (the phone joining a desktop chain) covers it.

@@ -25,6 +25,41 @@ struct ChainTests {
     #expect(chain.passphrase == "xoFg1Bm10gjM8Ahji5ibCeSkV6zo7kZEcjBFP9M8s50=")
   }
 
+  @Test func profileAuthKey() {
+    #expect(chain.authKey(profileUUID: "2b5c3e1a-0000-4000-8000-000000000001")
+      .hexString(uppercase: false)
+      == "1b28e57a6e3ca95bc1b4b9c30f10f8d554ef09eed00844b52048aea6d90f4cf4")
+    #expect(chain.authKey(profileUUID: "") == chain.authKey)
+  }
+
+  @Test func accessTokenVector() {
+    #expect(chain.accessToken(now: Date(timeIntervalSince1970: 1_700_000_000))
+      == "MzEzNzMwMzAzMDMwMzAzMDMwMzAzMDMwMzB8MkY1REY4REVCNDUwRUJBMTk5MTgxNjdGODZFQjVDOThBRkQxREYyRUI5MTUzQjBDOENGMDQ1RDhGQjZDODk3MERFMjhFOUI0Qzg0QzJCMjUzRDcxMzI4QTVCNUJENzcwNUE0QTQ1QjFCQkVERkJBRjM5MzcyQTA1RTZEOTZCMDV8Njk2QTk0RDFBMkVCQkFCRjhFNTAxMkMwN0RGM0M2NUM3QzZCRUFBRjhDQ0FGNEE2N0U2Q0REM0RBOTc0MzQ2Nw==")
+  }
+
+  @Test func accessTokenKeepsMilliseconds() throws {
+    let token = chain.accessToken(now: Date(timeIntervalSince1970: 1_761_900_000.123))
+    let plain = String(decoding: Data(base64Encoded: token
+      .replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/"))!,
+      as: UTF8.self)
+    let parts = plain.split(separator: "|")
+    #expect(parts.count == 3)
+    #expect(String(decoding: Data(hex: String(parts[0]))!, as: UTF8.self) == "1761900000123")
+  }
+
+  @Test func recoveryCodeRoundTrip() throws {
+    #expect(chain.recoveryWords.joined(separator: " ")
+      == "abandon amount liar amount expire adjust cage candy arch gather drum buyer")
+    let back = try Chain(recoveryCode: chain.recoveryWords.joined(separator: " "))
+    #expect(back.seed == chain.seed)
+    #expect(throws: ChainError.badRecoveryCode) { try Chain(recoveryCode: "abandon") }
+  }
+
+  @Test func generatedSeedsDiffer() {
+    #expect(Chain.generateSeed() != Chain.generateSeed())
+    #expect(Chain.generateSeed().count == 16)
+  }
+
   @Test func rejectsShortSeed() {
     #expect(throws: ChainError.badSeedLength(15)) {
       try Chain(seed: Data(count: 15))
