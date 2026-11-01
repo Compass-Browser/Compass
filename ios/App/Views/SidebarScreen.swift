@@ -204,6 +204,8 @@ struct SpacePage: View {
     // Clear of the panel's grab handle.
     .contentMargins(.top, 22, for: .scrollContent)
     .sidebarPullToClose(app)
+    // At half height a drag moves the panel instead (SidebarPanel).
+    .scrollDisabled(app.sidebarHalf)
     .scrollIndicators(.hidden)
     .foregroundStyle(.primary)
     .alert("Rename Space", isPresented: $renaming) {

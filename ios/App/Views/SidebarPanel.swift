@@ -15,6 +15,8 @@ import SwiftUI
 /// its top (iOS 18), or a tap on the dimmed page.
 struct SidebarPanel: View {
   @Environment(AppModel.self) private var app
+  /// A drag on the content at half height: nil until it picks an axis.
+  @State private var contentDragAxis: Axis?
 
   static let radius: CGFloat = 32
   /// The page's dimming with the panel at full height.
@@ -40,6 +42,9 @@ struct SidebarPanel: View {
         .allowsHitTesting(app.showingSidebar)
         .onTapGesture { app.showingSidebar = false }
       SidebarScreen()
+        // At half height, as a sheet: a vertical drag anywhere moves the
+        // panel (the list doesn't scroll until it's at full height).
+        .simultaneousGesture(contentDrag, including: app.sidebarHalf ? .all : .subviews)
         // Content above the home indicator, as a sheet keeps it; the panel
         // itself runs to the screen's bottom edge.
         .padding(.bottom, Self.bottomInset)
@@ -51,11 +56,27 @@ struct SidebarPanel: View {
         // visually.
         .padding(.top, Self.top)
         .offset(y: height * (1 - position))
-        .allowsHitTesting(app.showingSidebar && app.sidebarDrag == nil)
+        .allowsHitTesting(app.showingSidebar)
     }
     .ignoresSafeArea()
     .animation(.snappy(duration: 0.32), value: app.showingSidebar)
     .animation(.snappy(duration: 0.32), value: app.sidebarHalf)
+  }
+
+  private var contentDrag: some Gesture {
+    DragGesture(minimumDistance: 10, coordinateSpace: .global)
+      .onChanged { value in
+        let (dx, dy) = (value.translation.width, value.translation.height)
+        if contentDragAxis == nil { contentDragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical }
+        guard contentDragAxis == .vertical else { return }
+        app.sidebarDrag = clamp(app.sidebarRest - dy / Self.height)
+      }
+      .onEnded { value in
+        defer { contentDragAxis = nil }
+        guard contentDragAxis == .vertical, let drag = app.sidebarDrag else { return }
+        let predicted = app.sidebarRest - value.predictedEndTranslation.height / Self.height
+        app.settleSidebar(at: drag, predicted: predicted)
+      }
   }
 
   /// The grab handle, on a strip across the panel's top that drags it.

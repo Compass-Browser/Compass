@@ -59,7 +59,31 @@ final class SidebarPanelTests: XCTestCase {
     sleep(1)
     // Scrolled: the header moved up, but the panel is still up.
     XCTAssertLessThan(headerY, 0.3, "still open")
+  }
+
+  /// At half height a drag on the list moves the panel, as a sheet does.
+  func testHalfHeightListDragExpands() {
+    openWithButton()
     let grabber = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
-    _ = grabber
+    grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+    sleep(1)
+    XCTAssertGreaterThan(headerY, 0.45, "at half height")
+    XCTAssertLessThan(headerY, 0.8, "at half height")
+    let list = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+    list.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)))
+    sleep(1)
+    XCTAssertLessThan(headerY, 0.3, "back at full height")
+  }
+
+  /// At half height a drag down on the list closes it.
+  func testHalfHeightListDragCloses() {
+    openWithButton()
+    let grabber = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
+    grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+    sleep(1)
+    let list = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+    list.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+    sleep(1)
+    XCTAssertGreaterThan(headerY, 0.95, "closed")
   }
 }
