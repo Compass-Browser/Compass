@@ -68,6 +68,12 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: it.cipi1965.compass.pair
             CFBundleURLSchemes: [compass-pair]
+          # Web links, for when Compass is the default browser (that needs
+          # the com.apple.developer.web-browser entitlement; until Apple
+          # grants it, iOS doesn't send these here).
+          - CFBundleURLName: it.cipi1965.compass.web
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [http, https]
         BGTaskSchedulerPermittedIdentifiers: [it.cipi1965.compass.refresh]
         # Downloads show in the Files app (Documents/Downloads).
         UIFileSharingEnabled: true

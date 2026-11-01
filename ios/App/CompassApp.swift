@@ -38,6 +38,12 @@ struct CompassApp: App {
       RootView()
         .environment(app)
         .onOpenURL { url in
+          // A web link, with Compass as the default browser: straight to
+          // the page, in a new tab of the shown space.
+          if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            app.openLink(url)
+            return
+          }
           // compass-pair: links from the Mac's QR code (camera app).
           if let invite = PairingInvite(url: url), !app.sync.isOn {
             app.pendingInvite = invite

@@ -118,6 +118,8 @@ final class AppModel {
           showingJoinSummary = true
         }
       }
+      //   -CompassOpenLink <url>: as a link from another app.
+      if let link = defaults.string(forKey: "CompassOpenLink").flatMap(URL.init(string:)) { openLink(link) }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
       //   -CompassSidebarDrag <0...1>: hold the sidebar there, as under a
@@ -310,6 +312,20 @@ final class AppModel {
   }
 
   /// Opens text from the command bar: a URL, or a search.
+  /// A link from another app: whatever was up closes, and the page opens
+  /// as it is, in a new Today tab of the shown space.
+  func openLink(_ url: URL) {
+    showingCommandBar = false
+    showingMenu = false
+    showingSettings = false
+    showingSiteSettings = false
+    guard let space = selectedSpace ?? store.spaces.first,
+      let tab = store.addTab(url: url.absoluteString, to: space.today)
+    else { return }
+    selectedSpaceID = space.id
+    show(tab)
+  }
+
   func open(_ text: String, replacing node: SidebarNode? = nil) {
     let url = Self.url(for: text)
     if let node, node.isTab {
