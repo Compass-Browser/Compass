@@ -66,6 +66,8 @@ struct CommandBar: View {
         }
         ForEach(app.sync.foreignSessions(account: account)) { session in
           let tabs = session.tabs.filter {
+            PhoneVisible.url($0.url)
+          }.filter {
             text.isEmpty || $0.title.localizedCaseInsensitiveContains(text) || $0.url.localizedCaseInsensitiveContains(text)
           }
           if !tabs.isEmpty {
@@ -117,7 +119,7 @@ struct CommandBar: View {
 
   private var matches: [SidebarNode] {
     let q = text.lowercased()
-    let all = app.store.tabs(inProfileOf: app.selectedSpace)
+    let all = app.store.tabs(inProfileOf: app.selectedSpace).filter(\.isPhoneVisible)
     let found = q.isEmpty ? all.filter { $0.section == .today } : all.filter {
       $0.displayTitle.lowercased().contains(q) || $0.url.lowercased().contains(q)
     }

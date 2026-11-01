@@ -19,7 +19,7 @@ struct BrowserScreen: View {
     VStack(spacing: 0) {
       if let node, node.isSplit {
         Picker("Pane", selection: $app.selectedPane) {
-          ForEach(Array(node.children.enumerated()), id: \.offset) { index, pane in
+          ForEach(Array(node.children.enumerated()).filter { $0.element.isPhoneVisible }, id: \.offset) { index, pane in
             Text(pane.displayTitle).lineLimit(1).tag(index)
           }
         }
@@ -159,7 +159,7 @@ struct BrowserScreen: View {
   private func step(_ delta: Int) {
     guard let node, let space = app.store.space(of: node) else { return }
     let entries = (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
-      .filter { !$0.isFolder && $0.parent?.isSplit != true }
+      .filter { !$0.isFolder && $0.parent?.isSplit != true && $0.isPhoneVisible }
     guard let index = entries.firstIndex(where: { $0 === node }) else { return }
     let next = index + delta
     guard entries.indices.contains(next) else { return }
