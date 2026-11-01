@@ -32,6 +32,9 @@ final class TabManager: NSObject {
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
+  /// The page scrolled: (tab ID, how far down since the last call, whether
+  /// the user is scrolling it, whether it's at its top).
+  var onScroll: ((String, CGFloat, Bool, Bool) -> Void)?
   /// A page finished loading (a history visit): (URL, title, tab ID).
   var onPageLoaded: ((String, String, String) -> Void)?
 
@@ -83,6 +86,19 @@ final class TabManager: NSObject {
       view.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
         Task { @MainActor in self?.revision += 1 }
       },
+      // On the main thread, every frame of a scroll: no Task per call.
+      view.scrollView.observe(\.contentOffset, options: [.old, .new]) { [weak self] scroll, change in
+        guard let old = change.oldValue, let new = change.newValue else { return }
+        MainActor.assumeIsolated {
+          let inset = scroll.adjustedContentInset
+          let atTop = new.y <= -inset.top + 4
+          // Bouncing past either end isn't scrolling the page.
+          let bottom = scroll.contentSize.height - scroll.bounds.height + inset.bottom
+          let inBounds = new.y >= -inset.top && new.y <= max(bottom, -inset.top)
+          let user = (scroll.isTracking || scroll.isDecelerating) && inBounds
+          self?.onScroll?(id, new.y - old.y, user, atTop)
+        }
+      },
     ]
   }
 
@@ -105,6 +121,24 @@ final class TabManager: NSObject {
   /// Drops web views whose entries are gone (closed here or elsewhere).
   func prune() {
     for id in live.keys where store.node(id: id) == nil { unload(id) }
+  }
+
+  /// A site setting changed (`site` nil: the default for every site): open
+  /// tabs on the sites it reaches follow. Swipe to navigate at once; the
+  /// desktop site with a reload (the content mode is chosen per load).
+  func apply(_ option: SiteSettings.Option, site: String?) {
+    for view in live.values {
+      let viewSite = SiteSettings.site(view.url)
+      guard site == nil || viewSite == site else { continue }
+      switch option {
+      case .swipeToNavigate:
+        view.allowsBackForwardNavigationGestures = siteSettings.value(.swipeToNavigate, site: viewSite)
+      case .desktopSite:
+        view.reload()
+      default:
+        break
+      }
+    }
   }
 
   private func bump(_ id: String) {
@@ -143,6 +177,7 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
       if navigationAction.targetFrame?.isMainFrame != false {
         let site = SiteSettings.site(navigationAction.request.url)
         preferences.preferredContentMode = siteSettings.value(.desktopSite, site: site) ? .desktop : .mobile
+        webView.allowsBackForwardNavigationGestures = siteSettings.value(.swipeToNavigate, site: site)
       }
     }
     return (.allow, preferences)

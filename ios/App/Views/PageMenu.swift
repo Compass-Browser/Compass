@@ -30,8 +30,8 @@ struct PageMenu: View {
         Tile(title: desktop ? "Mobile Site" : "Desktop Site", symbol: desktop ? "iphone" : "desktopcomputer",
              on: desktop) {
           guard let site else { return }
+          // Reloads the site's tabs (TabManager.apply).
           app.siteSettings.set(.desktopSite, !desktop, site: site)
-          view?.reload()
         }
         .disabled(site == nil)
         pinTile(tab)

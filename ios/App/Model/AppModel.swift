@@ -5,6 +5,7 @@
 import CompassCrypto
 import CompassModel
 import Foundation
+import SwiftUI
 import Observation
 
 /// The app's state: the sidebar, what's selected, live tabs and sync.
@@ -37,6 +38,10 @@ final class AppModel {
   var showingCommandBar = false
   /// The bottom bar's menu (PageMenu), and Site Settings from it.
   var showingMenu = false
+  /// The bottom bar shrunk to a small address pill while the page scrolls
+  /// down (Site Settings → Collapse Bottom Bar).
+  private(set) var barCollapsed = false
+  @ObservationIgnored private var scrolled: CGFloat = 0
   var showingSiteSettings = false
   /// The command bar opens a new tab (the "+" buttons), not the shown tab's
   /// address (the address pill).
@@ -74,7 +79,16 @@ final class AppModel {
       guard let self else { return }
       self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
     }
-    tabs.onNavigated = { [weak self] id in self?.passwords.pageChanged(id) }
+    tabs.onNavigated = { [weak self] id in
+      self?.passwords.pageChanged(id)
+      self?.setBarCollapsed(false)
+    }
+    tabs.onScroll = { [weak self] id, dy, user, atTop in self?.pageScrolled(id, dy, user: user, atTop: atTop) }
+    siteSettings.onChange = { [weak self] option, site in
+      guard let self else { return }
+      tabs.apply(option, site: site)
+      if option == .collapseBar { setBarCollapsed(false) }
+    }
     Favicons.shared.onPageIcon = { [weak self] host, png, size, tab in
       guard let self else { return }
       self.sync.offerFavicon(host: host, png: png, sourceSize: size, account: self.accountProfile(ofTab: tab))
@@ -235,9 +249,37 @@ final class AppModel {
       selectedPane = 0
     }
     store.touch(node)
+    setBarCollapsed(false)
     showingCommandBar = false
     showingSidebar = false
     sidebarHalf = false
+  }
+
+  /// The shown page scrolled: down by the user collapses the bar, up (or
+  /// back at the top) brings it back. A scroll has to go 24 pt one way.
+  private func pageScrolled(_ id: String, _ dy: CGFloat, user: Bool, atTop: Bool) {
+    guard id == shownTab?.id else { return }
+    if atTop {
+      setBarCollapsed(false)
+      return
+    }
+    // Sub-point jitter during a drag goes both ways: it mustn't reset the
+    // count.
+    guard user, abs(dy) >= 1 else { return }
+    let site = SiteSettings.site(tabs.live[id]?.url)
+    guard siteSettings.value(.collapseBar, site: site) else { return }
+    if (dy > 0) != (scrolled > 0) { scrolled = 0 }
+    scrolled += dy
+    if scrolled > 24 {
+      setBarCollapsed(true)
+    } else if scrolled < -24 {
+      setBarCollapsed(false)
+    }
+  }
+
+  func setBarCollapsed(_ collapsed: Bool) {
+    guard barCollapsed != collapsed else { return }
+    withAnimation(.snappy(duration: 0.25)) { barCollapsed = collapsed }
   }
 
   /// Opens the find bar on the shown page, with `text` already searched.

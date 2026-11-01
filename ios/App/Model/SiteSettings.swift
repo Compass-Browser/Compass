@@ -19,6 +19,9 @@ final class SiteSettings {
 
   private(set) var global: [Option: Bool] = [:]
   private(set) var sites: [String: [Option: Bool]] = [:]
+  /// After a change: the option and the site (nil: the default for every
+  /// site), so open tabs follow at once (AppModel).
+  @ObservationIgnored var onChange: ((Option, String?) -> Void)?
   private let file: URL
 
   init(directory: URL) {
@@ -57,6 +60,7 @@ final class SiteSettings {
       global[option] = on == option.defaultValue ? nil : on
     }
     save()
+    onChange?(option, site)
   }
 
   private struct Saved: Codable {

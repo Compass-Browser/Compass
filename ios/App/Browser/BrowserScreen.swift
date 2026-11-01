@@ -20,6 +20,8 @@ struct BrowserScreen: View {
   /// the 2 pt gap under it. A constant, not measured: feeding a measured
   /// height back into the web view's inset loops layout.
   static let barHeight: CGFloat = 44 + 2 * 5 + 2
+  /// Collapsed while the page scrolls down: a small address pill.
+  static let collapsedHeight: CGFloat = 30 + 2
 
   var body: some View {
     @Bindable var app = app
@@ -36,7 +38,9 @@ struct BrowserScreen: View {
       }
       Group {
         if let tab = app.shownTab {
-          WebView(webView: app.tabs.webView(for: tab), bottomInset: Self.barHeight)
+          WebView(
+            webView: app.tabs.webView(for: tab),
+            bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
             .id(tab.id)
             // The page runs under the bar; WKWebView insets its content by
             // the safe area, so the page's end still scrolls clear of it.
@@ -48,7 +52,13 @@ struct BrowserScreen: View {
       .safeAreaInset(edge: .bottom, spacing: 0) {
         VStack(spacing: 8) {
           if let pending = app.passwords.pendingSave { saveBanner(pending) }
-          bar
+          if app.barCollapsed {
+            collapsedBar
+              .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
+          } else {
+            bar
+              .transition(.scale(scale: 0.9, anchor: .bottom).combined(with: .opacity))
+          }
         }
         .animation(.snappy(duration: 0.25), value: app.passwords.pendingSave == nil)
       }
@@ -177,6 +187,26 @@ struct BrowserScreen: View {
   /// `y` on screen): it comes up with the finger, not behind it.
   private func sidebarPosition(at y: CGFloat) -> CGFloat {
     min(max((SidebarPanel.screenHeight - y) / SidebarPanel.height, 0), 1)
+  }
+
+  /// The bar while the page scrolls down: the site's icon and host, small,
+  /// on a narrow pill. A tap brings the whole bar back.
+  private var collapsedBar: some View {
+    Button { app.setBarCollapsed(false) } label: {
+      HStack(spacing: 5) {
+        if let tab = app.shownTab { SiteIcon(url: tab.url, size: 12) }
+        Text(host).font(.system(size: 13, weight: .medium)).lineLimit(1)
+      }
+      .padding(.horizontal, 14)
+      .frame(height: 30)
+      .floatingGlass(in: Capsule())
+      .contentShape(Capsule())
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(.primary)
+    .padding(.bottom, 2)
+    .accessibilityLabel("Show toolbar")
+    .accessibilityValue(host)
   }
 
   /// The site's icon and host, centered; the load progress as a thin line in
