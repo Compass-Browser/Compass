@@ -281,6 +281,13 @@ with a four-module quiet zone whatever the theme. The iOS app's
 parsesTheDesktopsEscapedInvite`). `tools/sync_e2e/sync_status.js` reports
 the invite as `qr`, and `decode_qr.swift` reads a screenshot back
 (MacBook run: [pairing-qr-steps.md](pairing-qr-steps.md)).
+
+Under the code, "Expires in m:ss" counts down to the slot's end
+(`PairingStatus.expires_at` = when the code showed + the server's
+`expires_in`; `Pairing.expires_at_ms` on the page), red in the last 30 s.
+At zero the host's own timer ends the pairing with "The code expired. Try
+again with a new code."; the page only displays the time. The message
+above it no longer says "within 5 minutes".
 ### Plugging it into Chromium
 
 The engine wants a signed-in account (`SyncAuthManager` gets an OAuth token

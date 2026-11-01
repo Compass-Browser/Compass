@@ -73,6 +73,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   // The profile mapping the rows show (slice 5), so a status change doesn't
   // reset the user's choices.
   private mappingShown_ = '';
+  // Ticks the "Expires in m:ss" line while a code shows.
+  private expiryTimer_: number|null = null;
   // The invite whose QR code is drawn, so a status change doesn't redraw it.
   private qrShown_ = '';
 
@@ -301,6 +303,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.show('pairing', pairingActive);
     this.$('pairingCode').textContent = pairing.code;
     this.renderQr_(pairing);
+    this.renderExpiry_(pairing);
     this.$('pairingMessage').textContent = pairing.message;
     this.$('pairingMessage')
         .classList.toggle('error', pairing.step === PairingStep.kFailed);
@@ -315,6 +318,34 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       this.show('restartPanel', true);
     }
     this.renderMapping_();
+  }
+
+  // "Expires in 4:12" under the code, once a second, while A shows it. At
+  // zero the browser side ends the pairing ("The code expired…"), which
+  // replaces the panel.
+  private renderExpiry_(pairing: Pairing) {
+    if (this.expiryTimer_ !== null) {
+      clearInterval(this.expiryTimer_);
+      this.expiryTimer_ = null;
+    }
+    const line = this.$('pairingExpiry');
+    const expiresAt = pairing.expiresAtMs;
+    const shown = pairing.step === PairingStep.kShowingCode && expiresAt > 0;
+    this.show('pairingExpiry', shown);
+    if (!shown) {
+      line.textContent = '';
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      const minutes = Math.floor(left / 60);
+      const seconds = String(left % 60).padStart(2, '0');
+      line.textContent =
+          left > 0 ? `Expires in ${minutes}:${seconds}` : 'Expired';
+      line.classList.toggle('soon', left <= 30);
+    };
+    tick();
+    this.expiryTimer_ = setInterval(tick, 1000);
   }
 
   // The invite as a QR code while the code shows, for a phone's camera

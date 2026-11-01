@@ -169,6 +169,10 @@ sync::mojom::PairingPtr CompassSyncPageHandler::ToMojo(
   if (pairing.step != sync::PairingStep::kShowingCode) {
     return result;
   }
+  if (!pairing.expires_at.is_null()) {
+    result->expires_at_ms =
+        pairing.expires_at.InMillisecondsFSinceUnixEpochIgnoringNull();
+  }
   result->invite_url = PairingInviteUrl(server_url, pairing.code);
   if (result->invite_url.empty()) {
     return result;

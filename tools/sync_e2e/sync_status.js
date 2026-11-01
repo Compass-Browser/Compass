@@ -10,6 +10,10 @@ const read = () => ({
   code: $('pairingCode').textContent,
   pairing: $('pairingMessage').textContent,
   device: $('deviceName').textContent,
+  // "Expires in m:ss" while the code shows, else ''.
+  expiry: $('pairingExpiry') && !$('pairingExpiry').hidden ?
+      $('pairingExpiry').textContent :
+      '',
   // The "Add a device" QR code's invite while the code shows, else null.
   qr: $('pairingQr') && !$('pairingQrPanel').hidden ?
       ($('pairingQr').dataset.invite || '') :
