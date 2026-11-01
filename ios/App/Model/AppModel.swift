@@ -25,6 +25,8 @@ final class AppModel {
   var selectedPane = 0
   var showingCommandBar = false
   var showingSettings = false
+  /// After joining a chain: what came over (profiles and spaces).
+  var showingJoinSummary = false
   /// A pairing link opened from the camera, for the join screen.
   var pendingInvite: PairingInvite?
 
@@ -46,8 +48,14 @@ final class AppModel {
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
     selectedSpaceID = store.spaces.first?.id
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
-    tabs.onPageLoaded = { [weak self] url, title in self?.sync.recordVisit(url: url, title: title) }
-    tabs.onPasswordMessage = { [weak self] body, id, url in self?.passwords.handle(body, tabID: id, pageURL: url) }
+    tabs.onPageLoaded = { [weak self] url, title, id in
+      guard let self else { return }
+      self.sync.recordVisit(url: url, title: title, profile: self.accountProfile(ofTab: id))
+    }
+    tabs.onPasswordMessage = { [weak self] body, id, url in
+      guard let self else { return }
+      self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
+    }
     tabs.onNavigated = { [weak self] id in self?.passwords.pageChanged(id) }
     sync.isShown = { [weak self] id in self?.selectedNodeID == id }
     sync.onReplaced = { [weak self] old, new in
@@ -63,16 +71,33 @@ final class AppModel {
         let server = defaults.string(forKey: "CompassServer").flatMap(URL.init(string:))
       {
         try? sync.join(recoveryCode: words, server: server)
+        //   -CompassJoinSummary YES: the screen a join from Settings ends on.
+        if defaults.bool(forKey: "CompassJoinSummary") {
+          showingSettings = true
+          showingJoinSummary = true
+        }
       }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
       //   -CompassDebugJS <js>: run in each page once it has loaded.
       if let js = defaults.string(forKey: "CompassDebugJS") {
         let previous = tabs.onPageLoaded
-        tabs.onPageLoaded = { [weak self] url, title in
-          previous?(url, title)
+        tabs.onPageLoaded = { [weak self] url, title, id in
+          previous?(url, title, id)
           guard let self, let tab = self.shownTab, let view = self.tabs.live[tab.id] else { return }
           view.evaluateJavaScript(js, in: nil, in: .page, completionHandler: nil)
+        }
+      }
+      //   -CompassSpace <name>: show that space once it's there.
+      if let name = defaults.string(forKey: "CompassSpace") {
+        Task { [weak self] in
+          for _ in 0..<50 {
+            if let self, let space = self.store.spaces.first(where: { $0.name == name }) {
+              self.selectedSpaceID = space.id
+              return
+            }
+            try? await Task.sleep(for: .milliseconds(200))
+          }
         }
       }
       //   -CompassShow <title>: open that entry once it's there.
@@ -101,10 +126,16 @@ final class AppModel {
 
   var sidebarURL: URL { directory.appendingPathComponent("Sidebar.json") }
 
+  /// The profile account a tab's history and passwords go to (its space's).
+  func accountProfile(ofTab id: String) -> String {
+    store.node(id: id).map(sync.accountProfile(of:)) ?? ""
+  }
+
   private func observeForSaving() {
     withObservationTracking {
       _ = store.spaces.map { ($0.name, $0.color, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
-      _ = store.favorites.children.count
+      _ = store.favoritesRoots.map(\.children.count)
+      _ = store.spaces.map(\.profileUUID)
     } onChange: { [weak self] in
       Task { @MainActor in
         self?.scheduleSave()

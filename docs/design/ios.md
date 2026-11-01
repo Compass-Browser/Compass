@@ -1,6 +1,6 @@
 # Compass for iOS
 
-Status: M0–M7 written and tested on the Mac and in the simulator (2026-11-01). Still open: the desktop QR code, an interop run against a desktop Compass on sync-main, and the first TestFlight upload ("Open items" at the end).
+Status: M0–M8 written and tested on the Mac and in the simulator (2026-11-01); M8 syncs every profile of the chain, each in its own account. Still open: the desktop QR code, an interop run against a desktop Compass on sync-main, and the first TestFlight upload ("Open items" at the end).
 
 **Working on it:**
 
@@ -116,7 +116,7 @@ This is a Swift port of the desktop model in `browser/sidebar/` (`SidebarNode`, 
 
 Live state is separate. A `LiveTabRegistry` maps node → WKWebView, keeps at most 6–8 web views live with LRU unloading, and keeps a snapshot thumbnail for each.
 
-**Profiles.** Each `profile_uuid` gets its own `WKWebsiteDataStore(forIdentifier:)`, so cookies are separated as on desktop. Space ↔ profile follows the synced space field. Multi-account sync per profile waits for desktop slice 5; v1 syncs the chain's home account.
+**Profiles.** Each `profile_uuid` gets its own `WKWebsiteDataStore(forIdentifier:)`, so cookies are separated as on desktop. Space ↔ profile follows the account the space syncs in. Since M8 every profile of the chain syncs in its own account (desktop slice 5).
 
 ## UI (SwiftUI, Arc-inspired, original implementation)
 
@@ -378,6 +378,54 @@ The command bar's history and "Tabs on <Mac>" come with M5.
   - After a relaunch the app keeps its chain and syncs.
   - With the app open, a space added by the "Mac" (`SeedForSimulator` with `COMPASS_SEED_PUSH=1`) appeared within about 3 s, with no relaunch.
 
+### M8 (per-profile accounts), 2026-11-01
+
+The phone syncs every profile of the chain, each in its own account, as the desktop's slice 5 does, and shows all their spaces in one sidebar.
+
+- **Keys.** `Chain.passphrase(profileUUID:)` = base64 HKDF(seed, "compass-sync-passphrase:" + uuid), next to `authKey(profileUUID:)`. sync.md's slice 5 vectors (account ID and passphrase) pass in `ChainTests.profileAccountVectors`.
+- **Profile list.** `ChainProfile` (CompassSync) mirrors `profile_list.h`. It comes from the home account's `CompassProfile` entities (the home bridge's mirror), or from pairing message 4's `"profiles"` (`PairingJoiner.Result.joined(seed:profiles:)`, parsed like `ChainProfilesFromValue()`).
+  - A pairing join starts every account at once. A recovery-code join starts the home account; the others start when its first sync brings the list (`SpaceDirectory.onProfilesChanged`).
+  - Home UUID: the entity marked home, the smallest of several (the desktop's rule for two homes). It goes into `SpaceStore.homeProfileUUID`, and the home's spaces carry it in `profile_uuid`, as the desktop's do.
+  - The phone never writes, creates or deletes chain profiles.
+- **Accounts.** `SyncController.Account` per profile: its own engine, metadata file, cache GUID, NIGORI (its own passphrase), bridges (spaces, DEVICE_INFO, history, delete directives, sessions, passwords) and `SyncNotifier` stream, as each desktop profile runs its own. The home's files keep their pre-M8 names; the others live in `Profiles/<uuid>/`. A cycle runs the home first, then the others. DEVICE_INFO goes in every account, so each profile's device list on the Mac shows the phone; Settings shows the home's list.
+- **`SpaceDirectory`** (CompassSync), the phone's SpaceDirectory: one `SpaceStore`, one `CompassSpacesBridge` per account, and who owns what.
+  - A space belongs to the bridge of its profile UUID; home spaces (empty UUID or the home's) and profiles without an account here go to the home's. Nodes follow their space.
+  - **Favorites are per profile**, as on the desktop (each profile's `SpaceList` has its own): `SpaceStore.favorites` is the home's, `favorites(forProfile:)` the others' (root ID `favorites:<uuid>`). A space page shows its profile's favorites.
+  - Local changes go to every bridge; each commits only what it owns. After any change, local or remote, `reconcile()` has each bridge give up (delete from its account) what another owns now. A node still waiting for its space isn't given up.
+  - **Cross-account order.** The store keeps every profile's spaces in one `UniquePosition` order, so a move puts a space between its neighbours' positions whatever their accounts are. That is what the desktop's `GetDirectoryOrder()` + `SortDirectoryByPositions()` do with a registry; the phone needs neither.
+  - **Space moved between profiles** (the desktop's `MoveSpaceToProfile()`). `SpaceStore.setProfile(_:to:)` keeps the IDs: the new account creates the space and its entries, and the old one deletes them through `reconcile()`. Arriving from another device in either order:
+    - create first: the new account's bridge adopts the space with its entries (`AdoptSpace()`);
+    - delete first: the space goes, then comes back.
+  - A remote delete only removes what that bridge owns, so a late delete from the old account doesn't remove an adopted space.
+  - Fixed on the way: moving a folder to another space now re-commits its subtree (the children's `space_uuid` changes).
+- **Passwords.** `KeychainPasswordStore(profile:)`: the home keeps the service `it.cipi1965.compass.passwords`, the others use `….<uuid>`. `SavedPassword.profile` and `recordID` (unique across profiles) exist for this.
+  - In-page fill and saves use the account of the tab's space.
+  - `everyProfile(accessGroup:)` feeds Settings, the `ASCredentialIdentityStore` list and the AutoFill extension.
+- **History.** `visits.profile` column (migrated in place, old rows the home's). Visits go to the tab's account, and a delete directive deletes only its account's visits. "Clear History" sends one per account.
+- **Sessions.** Each account publishes the Today tabs of its own spaces. Foreign sessions are kept per account.
+- **UX (user decisions, 2026-11-01).**
+  1. One row of spaces, ordered across profiles as on the desktop. A profile is only an attribute of a space: a small profile label on the space header, only when the chain has more than one profile, and a wider gap in the page dots where the profile changes. No profile switcher.
+  2. Only spaces are selected. A new tab goes in the current space, a new space in the current space's profile. The phone never asks for a profile.
+  3. "Move to Profile ▸ <names>" in the space's menu (the ⋯ button and a long press on the header). It asks first: "Move "<space>" to <profile>? Its tabs will be signed out of sites, because each profile keeps its own cookies." The space's live tabs are unloaded, so they reload in the new profile's data store. The wire behaviour is the desktop's (above).
+  4. The command bar is scoped to the current space's profile: open and pinned entries of that profile's spaces, its favorites (`SpaceStore.tabs(inProfileOf:)`), its account's history (`HistoryStore.search(_:profile:)`) and its account's "Tabs on <device>". Profiles never mix.
+  5. The save banner says "Save to <profile>?" when there's more than one profile. The AutoFill extension groups credentials under one header per profile. Names come from a shared Keychain item (`KeychainPasswordStore.saveProfileNames`).
+  6. After joining (pairing or recovery code): one summary screen, "Synced N profiles: Personal, Work · M spaces", with Continue (`JoinSummaryView`). Settings → Profiles lists each profile with its number of spaces.
+- **Differences from the plan.** The SSE stream is one per account, not multiplexed, which matches the desktop and keeps `SyncNotifier` unchanged. Moving a space to another profile is on the phone (user decision 3), not left out.
+- **Verified.**
+  - Unit tests: `SpaceDirectoryTests` (the pairing list, the smallest home, routing by profile, a tab and a space moved across profiles, command bar scoping) and `PairingJoinerTests` (the profile list from message 4).
+  - `ProfilesServerTests`, two Swift clients on one chain with two profiles; "the Mac" writes the `CompassProfile` list and spaces in both accounts:
+    - the phone gets every profile's spaces in cross-account order, with per-profile favorites;
+    - phone edits go to the right account, and a new space and a reordering land between the other account's spaces;
+    - a space moved Work → Home arrives in both orders and goes back from the phone;
+    - passwords and history stay in their profile, and a Work delete directive clears only Work;
+    - no names, URLs, passwords or profile UUIDs are readable in the server's database.
+  - The existing spaces, passwords, history/sessions and engine server suites pass.
+  - Simulator: `SeedForSimulator` with `COMPASS_SEED_PROFILES=1` seeds Home ("Matteo": Personal, Side) and Work (Work). A recovery-code join showed Personal, Work and Side in that order, each with its profile label and its profile's favorites (`-CompassSpace <name>` picks the page). `-CompassJoinSummary YES` showed "Synced 2 profiles: Matteo, Work · 3 spaces".
+- **Not done.**
+  - A remote adoption doesn't reload the adopted space's live tabs in the new data store. They change store the next time they load.
+  - Devices in Settings come from the home account only.
+  - A chain profile the desktop deletes stays listed (sync never deletes profiles, as on the desktop).
+
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). On sync-main, `chrome://compass-sync`'s "Add a device" should also show a QR of `PairingInvite.url`: `compass-pair:?server=<server URL>&code=<slot>-<digits>`. Typing the code works today. This is desktop work (WebUI, plus a QR encoder such as upstream's `components/qr_code_generator`), so it needs a Chromium build and the MacBook.
@@ -392,6 +440,6 @@ The command bar's history and "Tabs on <Mac>" come with M5.
    - `ITSAppUsesNonExemptEncryption = false` (standard algorithms protecting the user's own data) and `App/PrivacyInfo.xcprivacy` (no tracking, no collected data, `UserDefaults` CA92.1).
    - `compass ios archive` makes a Release archive with the build number set to the time (`YYYYMMDD.HHMM`) and exports `ios/build/archive/export/Compass.ipa`. `--upload` sends it to App Store Connect instead; `--api-key/--api-key-id/--api-issuer` sign with an API key when Xcode has no account. The first export worked with the Xcode account on the Mac mini.
    - Build 20261101.1125 is the first in TestFlight (2026-11-01). The two before it failed processing with ITMS-90129: "Compass" is taken as a bundle name, so the app is "Compass Browser". The app needs the AutoFill Credential Provider entitlement too, not only the extension, or App Store Connect refuses the upload. iOS lists Compass under Settings → Passwords → AutoFill.
-4. **Per-profile accounts (desktop slice 5).** The phone syncs the chain's home account only. Spaces of other profiles live in their own accounts (`compass-sync-auth:<uuid>`) and don't appear yet. The `CompassProfile` entities are kept in the mirror, unused.
+4. **Per-profile accounts against a real desktop.** Done in M8 against Swift clients that write what the desktop writes; the interop run (item 2) should include a two-profile Mac, a space moved between profiles on each side, and the phone in each profile's device list.
 5. **iPad.** A desktop-style sidebar next to the page, and splits side by side.
 6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.

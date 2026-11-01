@@ -13,12 +13,19 @@ import Testing
 /// fixed seed below and fills a sidebar; then launch the app with
 /// -CompassServer <url> -CompassJoinRecovery "abandon amount liar amount
 /// expire adjust cage candy arch gather drum buyer".
+/// With COMPASS_SEED_PROFILES=1 the chain has two profiles (M8): Home with
+/// "Personal" and "Side", Work (its own account) with "Work", in the order
+/// Personal, Work, Side.
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["COMPASS_SEED_SERVER"] != nil))
 @MainActor
 struct SeedForSimulator {
   @Test func seed() async throws {
     let server = URL(string: ProcessInfo.processInfo.environment["COMPASS_SEED_SERVER"]!)!
     let chain = try Chain(seed: Data(hex: "000102030405060708090a0b0c0d0e0f")!)
+    if ProcessInfo.processInfo.environment["COMPASS_SEED_PROFILES"] != nil {
+      try await seedProfiles(server: server, chain: chain)
+      return
+    }
     let mac = await SidebarDevice(server: server, chain: chain, first: true)
     try await mac.sync()
     let store = mac.store
@@ -49,5 +56,38 @@ struct SeedForSimulator {
     store.addTab(url: "https://www.bbc.com/news", title: "BBC News", to: home.pinned)
     store.addTab(url: "https://www.nytimes.com/", title: "NYTimes", to: home.today)
     try await mac.sync()
+  }
+
+  func seedProfiles(server: URL, chain: Chain) async throws {
+    let home = "5eed0000-0000-4000-8000-00000000000a"
+    let work = "5eed0000-0000-4000-8000-00000000000b"
+    let mac = await ProfilesDevice(server: server, chain: chain, first: true)
+    await mac.addAccount(work)
+    mac.store.homeProfileUUID = home
+    try await mac.sync()
+    await mac.publishProfiles([
+      ChainProfile(uuid: home, name: "Matteo", home: true), ChainProfile(uuid: work, name: "Work"),
+    ])
+    let store = mac.store
+    let personal = store.addSpace(name: "Personal", color: .green, profile: home)
+    store.addTab(url: "https://www.bbc.com/news", title: "BBC News", to: personal.pinned)
+    store.addTab(url: "https://www.nytimes.com/", title: "NYTimes", to: personal.today)
+    let w = store.addSpace(name: "Work", color: .purple, profile: work)
+    let docs = store.addFolder(name: "Projects", to: w.pinned)!
+    store.addTab(url: "https://github.com/", title: "GitHub", to: docs)
+    store.addTab(url: "https://linear.app/", title: "Linear", to: w.pinned)
+    store.addTab(url: "https://www.figma.com/", title: "Figma", to: w.pinned)
+    store.addTab(url: "https://news.ycombinator.com/", title: "Hacker News", to: w.today)
+    let side = store.addSpace(name: "Side", color: .orange, profile: home)
+    store.addTab(url: "https://en.wikipedia.org/wiki/Compass", title: "Compass - Wikipedia", to: side.pinned)
+    for (url, title) in [("https://mail.google.com/", "Mail"), ("https://www.youtube.com/", "YouTube")] {
+      store.addTab(url: url, title: title, to: store.favorites(forProfile: home))
+    }
+    for (url, title) in [
+      ("https://calendar.google.com/", "Calendar"), ("https://slack.com/", "Slack"), ("https://www.notion.so/", "Notion"),
+    ] {
+      store.addTab(url: url, title: title, to: store.favorites(forProfile: work))
+    }
+    try await mac.syncUntilQuiet()
   }
 }

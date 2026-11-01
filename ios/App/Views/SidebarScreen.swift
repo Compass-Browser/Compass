@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassModel
+import CompassSync
 import SwiftUI
 
 /// The app's home: the spaces side by side (swipe between them), each with
@@ -41,14 +42,22 @@ struct SidebarScreen: View {
       .accessibilityLabel("Settings")
       Spacer()
       HStack(spacing: 8) {
-        ForEach(app.store.spaces) { space in
+        let spaces = app.store.spaces
+        ForEach(Array(spaces.enumerated()), id: \.element.id) { i, space in
           Circle()
             .fill(space.id == app.selectedSpace?.id ? space.color.color : Color.secondary.opacity(0.35))
             .frame(width: 8, height: 8)
+            // A wider gap where the profile changes.
+            .padding(
+              .leading,
+              i > 0 && !app.store.sameProfile(spaces[i - 1].profileUUID, space.profileUUID) ? 6 : 0)
             .onTapGesture { app.selectedSpaceID = space.id }
         }
         Button {
-          let space = app.store.addSpace(name: "Space \(app.store.spaces.count + 1)", color: .allCases.randomElement()!)
+          // In the profile of the space it was made from.
+          let space = app.store.addSpace(
+            name: "Space \(app.store.spaces.count + 1)", color: .allCases.randomElement()!,
+            profile: app.selectedSpace?.profileUUID ?? "")
           app.selectedSpaceID = space.id
         } label: {
           Image(systemName: "plus").font(.caption.weight(.bold))
@@ -82,6 +91,7 @@ struct SpacePage: View {
   @State private var renaming = false
   @State private var newName = ""
   @State private var showingArchive = false
+  @State private var moving: ChainProfile?
 
   var body: some View {
     List {
@@ -89,8 +99,8 @@ struct SpacePage: View {
         header
           .listRowBackground(Color.clear)
           .listRowSeparator(.hidden)
-        if !app.store.favorites.children.isEmpty {
-          FavoritesGrid()
+        if !app.store.favorites(for: space).children.isEmpty {
+          FavoritesGrid(root: app.store.favorites(for: space))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
@@ -133,32 +143,73 @@ struct SpacePage: View {
       Button("Cancel", role: .cancel) {}
     }
     .sheet(isPresented: $showingArchive) { ArchiveView(space: space) }
+    .alert(
+      "Move “\(space.name)” to \(moving?.name ?? "")?",
+      isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })
+    ) {
+      Button("Move") {
+        if let moving {
+          // Live tabs reload in the new profile's website data store.
+          for tab in space.allNodes where tab.isTab { app.tabs.unload(tab.id) }
+          if let shown = app.selectedNode, app.store.space(of: shown) === space { app.showSidebar() }
+          app.store.setProfile(space, to: app.sync.spaceProfile(for: moving))
+        }
+        moving = nil
+      }
+      Button("Cancel", role: .cancel) { moving = nil }
+    } message: {
+      Text("Its tabs will be signed out of sites, because each profile keeps its own cookies.")
+    }
   }
 
   private var header: some View {
     HStack {
       Circle().fill(space.color.color).frame(width: 12, height: 12)
       Text(space.name).font(.title2.weight(.semibold))
+      if let profile = app.sync.profileName(of: space) {
+        Text(profile)
+          .font(.caption.weight(.medium))
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 7)
+          .padding(.vertical, 2)
+          .background(.regularMaterial, in: Capsule())
+      }
       Spacer()
       Menu {
-        Button("Rename", systemImage: "pencil") {
-          newName = space.name
-          renaming = true
-        }
-        Menu("Color", systemImage: "paintpalette") {
-          ForEach(SpaceColor.allCases, id: \.self) { color in
-            Button(color.name) { app.store.setColor(space, color) }
-          }
-        }
-        Button("Archive", systemImage: "archivebox") { showingArchive = true }
-        if app.store.spaces.count > 1 {
-          Button("Delete Space", systemImage: "trash", role: .destructive) {
-            app.store.deleteSpace(space)
-            app.selectedSpaceID = app.store.spaces.first?.id
-          }
-        }
+        spaceMenu
       } label: {
         Image(systemName: "ellipsis.circle").font(.title3)
+      }
+    }
+    .contentShape(Rectangle())
+    .contextMenu { spaceMenu }  // a long press on the space's header
+  }
+
+  @ViewBuilder private var spaceMenu: some View {
+    Button("Rename", systemImage: "pencil") {
+      newName = space.name
+      renaming = true
+    }
+    Menu("Color", systemImage: "paintpalette") {
+      ForEach(SpaceColor.allCases, id: \.self) { color in
+        Button(color.name) { app.store.setColor(space, color) }
+      }
+    }
+    Button("Archive", systemImage: "archivebox") { showingArchive = true }
+    // Asks first: the space's tabs lose their cookies (another profile's
+    // website data store).
+    let others = app.sync.profiles.filter { $0.uuid != app.sync.profile(of: space)?.uuid }
+    if app.sync.profiles.count > 1 && !others.isEmpty {
+      Menu("Move to Profile", systemImage: "person.crop.circle") {
+        ForEach(others) { profile in
+          Button(profile.name) { moving = profile }
+        }
+      }
+    }
+    if app.store.spaces.count > 1 {
+      Button("Delete Space", systemImage: "trash", role: .destructive) {
+        app.store.deleteSpace(space)
+        app.selectedSpaceID = app.store.spaces.first?.id
       }
     }
   }
@@ -172,10 +223,12 @@ struct SpacePage: View {
 
 struct FavoritesGrid: View {
   @Environment(AppModel.self) private var app
+  /// The favorites of the space's profile.
+  let root: SidebarNode
 
   var body: some View {
     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-      ForEach(app.store.favorites.children) { fav in
+      ForEach(root.children) { fav in
         Button { app.show(fav) } label: {
           SiteIcon(url: fav.url, size: 28)
             .frame(maxWidth: .infinity, minHeight: 54)
@@ -275,7 +328,7 @@ struct NodeRow: View {
       }
       if node.isTab && node.parent?.isSplit != true {
         Button("Add to Favorites", systemImage: "star") {
-          app.store.addTab(url: node.url, title: node.title, to: app.store.favorites)
+          app.store.addTab(url: node.url, title: node.title, to: app.store.favorites(for: space))
         }
       }
       if node.section == .pinned {

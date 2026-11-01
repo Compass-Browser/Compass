@@ -14,13 +14,18 @@ public struct Visit: Sendable, Equatable {
   public var title: String
   /// The cache GUID of the device that made it.
   public var originator: String
+  /// The profile account it syncs in: empty for the home profile's, else
+  /// the profile's UUID (each profile has its own history, as on the
+  /// desktop).
+  public var profile: String
   public var date: Date { Date(timeIntervalSince1970: TimeInterval(time - 11_644_473_600_000_000) / 1_000_000) }
 
-  public init(time: Int64, url: String, title: String, originator: String) {
+  public init(time: Int64, url: String, title: String, originator: String, profile: String = "") {
     self.time = time
     self.url = url
     self.title = title
     self.originator = originator
+    self.profile = profile
   }
 
   public static func time(_ date: Date) -> Int64 {
@@ -73,6 +78,11 @@ public final class HistoryStore {
         INSERT INTO visits_fts (rowid, url, title) VALUES (new.id, new.url, new.title);
       END;
       """)
+    // M8: the profile account of each visit (old rows: the home's).
+    let columns = query("PRAGMA table_info(visits)", []) { $0.text(1) }
+    if !columns.contains("profile") {
+      try exec("ALTER TABLE visits ADD COLUMN profile TEXT NOT NULL DEFAULT ''")
+    }
   }
 
   deinit { sqlite3_close(db) }
@@ -83,50 +93,69 @@ public final class HistoryStore {
   public func add(_ visit: Visit) {
     run(
       """
-      INSERT INTO visits (time, originator, url, title) VALUES (?, ?, ?, ?)
+      INSERT INTO visits (time, originator, url, title, profile) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (originator, time) DO UPDATE SET url = excluded.url, title = excluded.title
-      """, [.int(visit.time), .text(visit.originator), .text(visit.url), .text(visit.title)])
+      """, [.int(visit.time), .text(visit.originator), .text(visit.url), .text(visit.title), .text(visit.profile)])
   }
 
   public func visit(originator: String, time: Int64) -> Visit? {
     query(
-      "SELECT time, url, title, originator FROM visits WHERE originator = ? AND time = ?",
+      "SELECT time, url, title, originator, profile FROM visits WHERE originator = ? AND time = ?",
       [.text(originator), .int(time)]
-    ) { Visit(time: $0.int(0), url: $0.text(1), title: $0.text(2), originator: $0.text(3)) }.first
+    ) { Visit(time: $0.int(0), url: $0.text(1), title: $0.text(2), originator: $0.text(3), profile: $0.text(4)) }
+    .first
   }
 
-  /// Pages matching `text` (URL or title words), most recent first.
-  public func search(_ text: String, limit: Int = 20) -> [HistoryEntry] {
+  /// Pages matching `text` (URL or title words), most recent first; with
+  /// a profile, that profile account's only (the command bar, M8).
+  public func search(_ text: String, limit: Int = 20, profile: String? = nil) -> [HistoryEntry] {
     let words = text.lowercased().split { !$0.isLetter && !$0.isNumber }.map { "\"\($0)\"*" }
-    guard !words.isEmpty else { return recent(limit: limit) }
+    guard !words.isEmpty else { return recent(limit: limit, profile: profile) }
     return query(
       """
       SELECT v.url, v.title, MAX(v.time), COUNT(*) FROM visits_fts f JOIN visits v ON v.id = f.rowid
-      WHERE visits_fts MATCH ? GROUP BY v.url ORDER BY MAX(v.time) DESC LIMIT ?
-      """, [.text(words.joined(separator: " ")), .int(Int64(limit))], entry)
+      WHERE visits_fts MATCH ? AND (? OR v.profile = ?) GROUP BY v.url ORDER BY MAX(v.time) DESC LIMIT ?
+      """,
+      [.text(words.joined(separator: " ")), .int(profile == nil ? 1 : 0), .text(profile ?? ""), .int(Int64(limit))],
+      entry)
   }
 
-  public func recent(limit: Int = 50) -> [HistoryEntry] {
+  public func recent(limit: Int = 50, profile: String? = nil) -> [HistoryEntry] {
     query(
-      "SELECT url, title, MAX(time), COUNT(*) FROM visits GROUP BY url ORDER BY MAX(time) DESC LIMIT ?",
-      [.int(Int64(limit))], entry)
+      """
+      SELECT url, title, MAX(time), COUNT(*) FROM visits WHERE (? OR profile = ?)
+      GROUP BY url ORDER BY MAX(time) DESC LIMIT ?
+      """, [.int(profile == nil ? 1 : 0), .text(profile ?? ""), .int(Int64(limit))], entry)
   }
 
   public var count: Int {
     query("SELECT COUNT(*) FROM visits", []) { Int($0.int(0)) }.first ?? 0
   }
 
-  /// Deletes visits between two times (Windows-epoch µs, inclusive).
-  public func delete(from start: Int64, to end: Int64) {
-    run("DELETE FROM visits WHERE time >= ? AND time <= ?", [.int(start), .int(end)])
+  /// Deletes visits between two times (Windows-epoch µs, inclusive); with
+  /// a profile, only that profile's (a delete directive of its account).
+  public func delete(from start: Int64, to end: Int64, profile: String? = nil) {
+    run(
+      "DELETE FROM visits WHERE time >= ? AND time <= ? AND (? OR profile = ?)",
+      [.int(start), .int(end), .int(profile == nil ? 1 : 0), .text(profile ?? "")])
   }
 
-  public func delete(url: String, until end: Int64) {
-    run("DELETE FROM visits WHERE url = ? AND time <= ?", [.text(url), .int(end)])
+  public func delete(url: String, until end: Int64, profile: String? = nil) {
+    run(
+      "DELETE FROM visits WHERE url = ? AND time <= ? AND (? OR profile = ?)",
+      [.text(url), .int(end), .int(profile == nil ? 1 : 0), .text(profile ?? "")])
   }
 
-  public func delete(times: [Int64]) {
-    for t in times { run("DELETE FROM visits WHERE time = ?", [.int(t)]) }
+  public func delete(times: [Int64], profile: String? = nil) {
+    for t in times {
+      run(
+        "DELETE FROM visits WHERE time = ? AND (? OR profile = ?)",
+        [.int(t), .int(profile == nil ? 1 : 0), .text(profile ?? "")])
+    }
+  }
+
+  public func count(profile: String) -> Int {
+    query("SELECT COUNT(*) FROM visits WHERE profile = ?", [.text(profile)]) { Int($0.int(0)) }.first ?? 0
   }
 
   public func deleteAll() { run("DELETE FROM visits", []) }

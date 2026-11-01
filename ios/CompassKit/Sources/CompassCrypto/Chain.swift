@@ -54,6 +54,15 @@ public struct Chain: Sendable {
       ? authKey : Chain.hkdf(seed, info: "compass-sync-auth:" + profileUUID)
   }
 
+  /// The Nigori passphrase of a profile's own account: base64 of
+  /// HKDF-SHA256(seed, "compass-sync-passphrase:" + uuid), per profile so
+  /// one account's data doesn't decrypt in another (sync.md, "Slice 5
+  /// notes"); an empty UUID gives the chain's home account, `passphrase`.
+  public func passphrase(profileUUID: String) -> String {
+    profileUUID.isEmpty
+      ? passphrase : Chain.hkdf(seed, info: "compass-sync-passphrase:" + profileUUID).base64EncodedString()
+  }
+
   /// The bearer token for one request, in go-sync's format:
   /// base64url_padded(HEX(ts) "|" HEX(ed25519(ts)) "|" HEX(pubkey)), where
   /// ts is the decimal Unix time in milliseconds and HEX is uppercase.

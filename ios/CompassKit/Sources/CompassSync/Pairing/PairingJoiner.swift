@@ -10,7 +10,9 @@ import Foundation
 /// as one async function instead of callbacks.
 public struct PairingJoiner: Sendable {
   public enum Result: Sendable, Equatable {
-    case joined(seed: Data)
+    /// `profiles`: the chain's profile list from message 4 (slice 5); empty
+    /// = not known (an older Mac): the home account's first sync brings it.
+    case joined(seed: Data, profiles: [ChainProfile])
     case denied
     /// Not "7-482913".
     case badCode
@@ -129,7 +131,7 @@ public struct PairingJoiner: Sendable {
       seed.count == Chain.seedLength
     else { return (.failed, true) }
     // A leaves the slot open for us to read the answer; we close it.
-    return (.joined(seed: seed), true)
+    return (.joined(seed: seed, profiles: ChainProfile.list(json: payload["profiles"])), true)
   }
 
   /// The next message from A after `lastSeq`, long-polling until the deadline.

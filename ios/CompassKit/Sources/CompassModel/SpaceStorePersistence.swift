@@ -39,6 +39,9 @@ struct SidebarSnapshot: Codable {
   var version = 1
   var spaces: [SpaceRecord]
   var favorites: [Node]
+  /// Other profiles' favorites, by profile UUID (M8).
+  var profileFavorites: [String: [Node]]?
+  var homeProfileUUID: String?
 }
 
 extension SpaceStore {
@@ -62,7 +65,9 @@ extension SpaceStore {
           archiveAfter: s.archiveAfter, position: Data(s.position.compressed),
           pinned: s.pinned.children.map(node), today: s.today.children.map(node),
           archive: s.archive.children.map(node), unknownFields: s.unknownFields)
-      }, favorites: favorites.children.map(node))
+      }, favorites: favorites.children.map(node),
+      profileFavorites: profileFavorites.isEmpty ? nil : profileFavorites.mapValues { $0.children.map(node) },
+      homeProfileUUID: homeProfileUUID.isEmpty ? nil : homeProfileUUID)
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .millisecondsSince1970
     encoder.outputFormatting = .sortedKeys
@@ -90,7 +95,8 @@ extension SpaceStore {
     }
     applyingRemote {
       for space in spaces { rawRemoveSpace(space) }
-      for child in favorites.children { rawDetach(child) }
+      for root in favoritesRoots { for child in root.children { rawDetach(child) } }
+      homeProfileUUID = snapshot.homeProfileUUID ?? ""
       for record in snapshot.spaces {
         let space = makeSpace(
           id: record.id, name: record.name, color: SpaceColor(rawValue: record.color) ?? .blue, icon: record.icon,
@@ -103,6 +109,10 @@ extension SpaceStore {
         rawInsertSpace(space)
       }
       snapshot.favorites.forEach { build($0, into: favorites) }
+      for (profile, nodes) in snapshot.profileFavorites ?? [:] {
+        let root = favorites(forProfile: profile)
+        nodes.forEach { build($0, into: root) }
+      }
     }
   }
 

@@ -35,7 +35,15 @@ public final class SpaceStore {
   public static let maxSplitPanes = 2
 
   public private(set) var spaces: [Space] = []
+  /// The home profile's favorites. Every profile has its own, as on the
+  /// desktop (each profile's SpaceList has them); see `favorites(forProfile:)`.
   public let favorites = SidebarNode(id: "favorites", kind: .root(.favorites))
+  /// The other profiles' favorites, by profile UUID (root ID
+  /// "favorites:<uuid>").
+  public private(set) var profileFavorites: [String: SidebarNode] = [:]
+  /// The home profile's sync UUID once the chain's profile list gives it;
+  /// empty before. A space with an empty profile or this one is the home's.
+  public var homeProfileUUID = ""
 
   /// Called after each local change (not for remote ones).
   @ObservationIgnored public var onLocalChange: ((SpaceStoreChange) -> Void)?
@@ -54,7 +62,9 @@ public final class SpaceStore {
   public func space(id: String) -> Space? { spaces.first { $0.id == id } }
 
   public func node(id: String) -> SidebarNode? {
-    if let n = favorites.children.first(where: { $0.id == id }) { return n }
+    for root in favoritesRoots {
+      if let n = root.children.first(where: { $0.id == id }) { return n }
+    }
     for space in spaces {
       if let n = space.allNodes.first(where: { $0.id == id }) { return n }
     }
@@ -68,7 +78,64 @@ public final class SpaceStore {
   }
 
   public var allNodes: [SidebarNode] {
-    favorites.children.flatMap(\.subtree) + spaces.flatMap(\.allNodes)
+    favoritesRoots.flatMap { $0.children.flatMap(\.subtree) } + spaces.flatMap(\.allNodes)
+  }
+
+  // MARK: Profiles (docs/design/ios.md, "M8")
+
+  /// Whether `profile` (a space's profile UUID) is the home profile.
+  public func isHome(_ profile: String) -> Bool { profile.isEmpty || profile == homeProfileUUID }
+
+  /// The home's favorites root, then the other profiles' by UUID.
+  public var favoritesRoots: [SidebarNode] {
+    [favorites] + profileFavorites.keys.sorted().map { profileFavorites[$0]! }
+  }
+
+  /// A profile's favorites root (made when first asked for).
+  public func favorites(forProfile profile: String) -> SidebarNode {
+    if isHome(profile) { return favorites }
+    if let root = profileFavorites[profile] { return root }
+    let root = SidebarNode(id: "favorites:" + profile, kind: .root(.favorites))
+    profileFavorites[profile] = root
+    return root
+  }
+
+  /// Whether two spaces' profile UUIDs name the same profile.
+  public func sameProfile(_ a: String, _ b: String) -> Bool { isHome(a) ? isHome(b) : a == b }
+
+  /// The spaces of a space's profile (itself included), in order.
+  public func spaces(inProfileOf space: Space) -> [Space] {
+    spaces.filter { sameProfile($0.profileUUID, space.profileUUID) }
+  }
+
+  /// What the command bar offers for a space (M8: scoped to its profile):
+  /// the tabs of its profile's spaces (not archived) and its favorites.
+  public func tabs(inProfileOf space: Space?) -> [SidebarNode] {
+    let inSpaces = (space.map(spaces(inProfileOf:)) ?? spaces).flatMap { [$0.pinned, $0.today] }
+    return (inSpaces + [favorites(for: space)]).flatMap { $0.children.flatMap(\.subtree) }.filter(\.isTab)
+  }
+
+  /// The favorites shown with a space: its profile's.
+  public func favorites(for space: Space?) -> SidebarNode { favorites(forProfile: space?.profileUUID ?? "") }
+
+  /// The profile a node belongs to: its space's, or its favorites root's.
+  public func profile(of node: SidebarNode) -> String {
+    let root = node.root
+    if root === favorites { return homeProfileUUID }
+    if case .root(.favorites) = root.kind { return String(root.id.dropFirst("favorites:".count)) }
+    return space(of: node)?.profileUUID ?? ""
+  }
+
+  /// Moves a space to another profile (the desktop's MoveSpaceToProfile):
+  /// same ID and entries; sync deletes it from the old profile's account
+  /// and creates it in the new one's.
+  public func setProfile(_ space: Space, to profile: String) {
+    guard space.profileUUID != profile else { return }
+    space.profileUUID = profile
+    record {
+      $0.putSpaces.insert(space.id)
+      $0.putNodes.formUnion(space.allNodes.map(\.id))
+    }
   }
 
   // MARK: Invariants (SpaceModel::CanContain / CanMove)
@@ -102,11 +169,11 @@ public final class SpaceStore {
 
   @discardableResult
   public func addSpace(
-    name: String, color: SpaceColor = .blue, id: String = UUID().uuidString.lowercased()
+    name: String, color: SpaceColor = .blue, id: String = UUID().uuidString.lowercased(), profile: String = ""
   ) -> Space {
     let position = UniquePosition.forInsert(
       after: spaces.last?.position, before: nil, suffix: suffixForID(id))
-    let space = Space(id: id, name: name, color: color, position: position)
+    let space = Space(id: id, name: name, color: color, profileUUID: profile, position: position)
     spaces.append(space)
     record { $0.putSpaces.insert(space.id) }
     return space
@@ -193,9 +260,11 @@ public final class SpaceStore {
     if leavingArchive { node.archivedAt = nil }
     if parent.section == .archive && oldParent.section != .archive { node.archivedAt = now }
     parent.insert(node)
+    let elsewhere = oldParent.root !== parent.root
     record { change in
-      // A move to another section moves the whole subtree (section field).
-      change.putNodes.formUnion(oldParent.section != parent.section ? node.subtree.map(\.id) : [node.id])
+      // A move to another section or space moves the whole subtree (its
+      // section and space fields).
+      change.putNodes.formUnion(elsewhere ? node.subtree.map(\.id) : [node.id])
     }
     normalizeSplit(oldParent)
     return true

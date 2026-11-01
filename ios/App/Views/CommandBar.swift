@@ -6,7 +6,8 @@ import CompassModel
 import SwiftUI
 
 /// Search or type an address; or jump to an open entry, a pinned tab or a
-/// favorite in any space.
+/// favorite. Everything it offers is the current space's profile's: its
+/// spaces, history and other devices' tabs (M8), never another profile's.
 struct CommandBar: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
@@ -44,7 +45,7 @@ struct CommandBar: View {
             }
           }
         }
-        let pages = app.sync.history.search(text, limit: 8)
+        let pages = app.sync.history.search(text, limit: 8, profile: account)
         if !pages.isEmpty {
           Section(text.isEmpty ? "Recently visited" : "History") {
             ForEach(pages) { page in
@@ -63,7 +64,7 @@ struct CommandBar: View {
             }
           }
         }
-        ForEach(app.sync.foreignSessions) { session in
+        ForEach(app.sync.foreignSessions(account: account)) { session in
           let tabs = session.tabs.filter {
             text.isEmpty || $0.title.localizedCaseInsensitiveContains(text) || $0.url.localizedCaseInsensitiveContains(text)
           }
@@ -111,9 +112,12 @@ struct CommandBar: View {
 
   private var looksLikeURL: Bool { AppModel.url(for: text).hasPrefix("https://duckduckgo.com") == false }
 
+  /// The profile account of the current space.
+  private var account: String { app.selectedSpace.map(app.sync.accountProfile(of:)) ?? "" }
+
   private var matches: [SidebarNode] {
     let q = text.lowercased()
-    let all = app.store.allNodes.filter { $0.isTab && $0.section != .archive }
+    let all = app.store.tabs(inProfileOf: app.selectedSpace)
     let found = q.isEmpty ? all.filter { $0.section == .today } : all.filter {
       $0.displayTitle.lowercased().contains(q) || $0.url.lowercased().contains(q)
     }

@@ -96,7 +96,14 @@ struct ScriptedMac {
     if allow {
       answer.append(0x01)
       let json = try! JSONSerialization.data(
-        withJSONObject: ["seed": seed.base64EncodedString(), "profiles": []])
+        withJSONObject: [
+          "seed": seed.base64EncodedString(),
+          "profiles": [
+            ["uuid": "2b5c3e1a-0000-4000-8000-000000000001", "name": "Home", "home": true],
+            ["uuid": "2b5c3e1a-0000-4000-8000-000000000002", "name": "Work", "avatar": 27],
+            ["uuid": "NOT-A-UUID", "name": "Bad"],
+          ],
+        ])
       answer.append(keys.seal(json, from: .a))
     } else {
       answer.append(0x00)
@@ -140,7 +147,14 @@ struct PairingJoinerTests {
 
   @Test func rightCodeJoins() async {
     let (result, name, relay) = await pair(code: "7-482913")
-    #expect(result == .joined(seed: seed))
+    #expect(
+      result
+        == .joined(
+          seed: seed,
+          profiles: [
+            ChainProfile(uuid: "2b5c3e1a-0000-4000-8000-000000000001", name: "Home", home: true),
+            ChainProfile(uuid: "2b5c3e1a-0000-4000-8000-000000000002", name: "Work", avatar: 27),
+          ]))
     #expect(name == "iPhone")
     // B closes the slot once it has the answer.
     let closes = await relay.closes

@@ -32,6 +32,15 @@ struct ChainTests {
     #expect(chain.authKey(profileUUID: "") == chain.authKey)
   }
 
+  // sync.md, "Slice 5 notes" (ChainTest.ProfileAccountVectors).
+  @Test func profileAccountVectors() {
+    let uuid = "2b5c3e1a-0000-4000-8000-000000000001"
+    #expect(Ed25519.publicKey(fromSeed: chain.authKey(profileUUID: uuid)).hexString(uppercase: false)
+      == "f1fe31e2c21e376e8d3b2ef57560b8466b37486e5fa46cc60bb39f1ea2ec9fab")
+    #expect(chain.passphrase(profileUUID: uuid) == "C89l8oqXaTa997+mU79acx+BGgUNf6YPtMoPU9ODyEc=")
+    #expect(chain.passphrase(profileUUID: "") == chain.passphrase)
+  }
+
   @Test func accessTokenVector() {
     #expect(chain.accessToken(now: Date(timeIntervalSince1970: 1_700_000_000))
       == "MzEzNzMwMzAzMDMwMzAzMDMwMzAzMDMwMzB8MkY1REY4REVCNDUwRUJBMTk5MTgxNjdGODZFQjVDOThBRkQxREYyRUI5MTUzQjBDOENGMDQ1RDhGQjZDODk3MERFMjhFOUI0Qzg0QzJCMjUzRDcxMzI4QTVCNUJENzcwNUE0QTQ1QjFCQkVERkJBRjM5MzcyQTA1RTZEOTZCMDV8Njk2QTk0RDFBMkVCQkFCRjhFNTAxMkMwN0RGM0M2NUM3QzZCRUFBRjhDQ0FGNEE2N0U2Q0REM0RBOTc0MzQ2Nw==")
