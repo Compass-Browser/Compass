@@ -13,14 +13,37 @@ struct SettingsView: View {
   @State private var showingRecovery = false
   @State private var confirmLeave = false
   @State private var confirmClear = false
+  @State private var showingArchive = false
+  @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.duckDuckGo.rawValue
 
   var body: some View {
     NavigationStack {
       Form {
-        if app.sync.isOn { syncOn } else { syncOff }
         Section {
-          NavigationLink("Passwords") { PasswordsView() }
+          SettingsTile(title: "Archive", symbol: "archivebox") { showingArchive = true }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
+        Section {
+          NavigationLink { SiteSettingsView(site: nil) } label: {
+            SettingsLabel("Global Site Settings", "globe", .black)
+          }
+        }
+        Section {
+          NavigationLink {
+            SearchEnginePicker(selection: $searchEngine)
+          } label: {
+            HStack {
+              SettingsLabel("Search Engine", "magnifyingglass", .blue)
+              Spacer()
+              Text(SearchEngine(rawValue: searchEngine)?.name ?? "").foregroundStyle(.secondary)
+            }
+          }
+          NavigationLink { PasswordsView() } label: {
+            SettingsLabel("Passwords", "key.fill", .gray)
+          }
+        }
+        if app.sync.isOn { syncOn } else { syncOff }
         Section("Privacy") {
           Button("Clear History", role: .destructive) { confirmClear = true }
         }
@@ -31,12 +54,14 @@ struct SettingsView: View {
         Text(app.sync.isOn ? "History is cleared on every synced device." : "History on this iPhone is cleared.")
       }
       .navigationTitle("Settings")
+      .navigationBarTitleDisplayMode(.inline)
       .toolbar { Button("Done") { dismiss() } }
       // A pairing link from the camera goes straight to joining.
       .navigationDestination(
         isPresented: Binding(get: { app.pendingInvite != nil && !app.sync.isOn }, set: { _ in })
       ) { JoinView() }
       .sheet(isPresented: Bindable(app).showingJoinSummary) { JoinSummaryView() }
+      .sheet(isPresented: $showingArchive) { ArchiveView(space: nil) }
     }
   }
 
@@ -371,5 +396,68 @@ struct PasswordsView: View {
     context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Show your saved passwords") { ok, _ in
       if ok { Task { @MainActor in unlocked = true } }
     }
+  }
+}
+
+/// A row's label in Settings: a white glyph on a colored square, then the
+/// title.
+struct SettingsLabel: View {
+  let title: String
+  let symbol: String
+  let color: Color
+
+  init(_ title: String, _ symbol: String, _ color: Color) {
+    self.title = title
+    self.symbol = symbol
+    self.color = color
+  }
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Image(systemName: symbol).menuIcon(color)
+      Text(title).foregroundStyle(.primary)
+    }
+  }
+}
+
+/// A wide button on top of Settings (Archive, Downloads).
+struct SettingsTile: View {
+  let title: String
+  let symbol: String
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Label(title, systemImage: symbol)
+        .font(.body.weight(.medium))
+        .foregroundStyle(.primary)
+        .frame(maxWidth: .infinity)
+        .frame(height: 50)
+        .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+struct SearchEnginePicker: View {
+  @Binding var selection: String
+
+  var body: some View {
+    List {
+      ForEach(SearchEngine.allCases) { engine in
+        Button {
+          selection = engine.rawValue
+        } label: {
+          HStack {
+            Text(engine.name).foregroundStyle(.primary)
+            Spacer()
+            if selection == engine.rawValue {
+              Image(systemName: "checkmark").foregroundStyle(Color.accentColor)
+            }
+          }
+        }
+      }
+    }
+    .navigationTitle("Search Engine")
   }
 }

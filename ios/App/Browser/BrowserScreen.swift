@@ -143,6 +143,7 @@ struct BrowserScreen: View {
       keyButton
       Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
         .accessibilityLabel("New tab")
+        .accessibilityIdentifier("BarNewTab")
       Button { app.showingMenu = true } label: { BarIcon(symbol: "ellipsis") }
         .accessibilityLabel("Menu")
     }

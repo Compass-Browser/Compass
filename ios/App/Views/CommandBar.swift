@@ -26,7 +26,7 @@ struct CommandBar: View {
         LazyVStack(alignment: .leading, spacing: 4) {
           if !text.isEmpty {
             Card {
-              Row(title: Self.short(text), subtitle: looksLikeURL ? "Open address" : "Search DuckDuckGo",
+              Row(title: Self.short(text), subtitle: looksLikeURL ? "Open address" : "Search \(SearchEngine.current.name)",
                   trailing: "return", action: { go(text) }) {
                 Image(systemName: looksLikeURL ? "globe" : "magnifyingglass")
                   .font(.system(size: 15, weight: .semibold))
@@ -170,7 +170,7 @@ struct CommandBar: View {
 
   private var tint: Color { app.selectedSpace?.color.color ?? .accentColor }
 
-  private var looksLikeURL: Bool { AppModel.url(for: text).hasPrefix("https://duckduckgo.com") == false }
+  private var looksLikeURL: Bool { AppModel.address(text) != nil }
 
   /// The profile account of the current space.
   private var account: String { app.selectedSpace.map(app.sync.accountProfile(of:)) ?? "" }

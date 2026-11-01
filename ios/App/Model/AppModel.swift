@@ -109,6 +109,13 @@ final class AppModel {
           self?.sidebarDrag = drag
         }
       }
+      //   -CompassSettings YES: open Settings.
+      if defaults.bool(forKey: "CompassSettings") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(1500))
+          self?.showingSettings = true
+        }
+      }
       //   -CompassMenu YES: open the bottom bar's menu.
       if defaults.bool(forKey: "CompassMenu") {
         Task { [weak self] in
@@ -268,15 +275,20 @@ final class AppModel {
     show(tab)
   }
 
+  /// `text` as typed in the command bar: an address, or else a search with
+  /// the chosen engine.
   static func url(for text: String) -> String {
+    address(text) ?? SearchEngine.current.url(for: text.trimmingCharacters(in: .whitespacesAndNewlines))
+  }
+
+  /// `text` as an address, if it is one ("example.com", a full URL).
+  static func address(_ text: String) -> String? {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
     if let url = URL(string: trimmed), url.scheme != nil, url.host() != nil { return trimmed }
     if !trimmed.contains(" "), trimmed.contains("."), let url = URL(string: "https://" + trimmed), url.host() != nil {
       return url.absoluteString
     }
-    var c = URLComponents(string: "https://duckduckgo.com/")!
-    c.queryItems = [URLQueryItem(name: "q", value: trimmed)]
-    return c.url!.absoluteString
+    return nil
   }
 
   func close(_ node: SidebarNode) {

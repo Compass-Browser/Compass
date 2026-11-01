@@ -580,31 +580,25 @@ struct NodeRow: View {
   }
 }
 
+/// Archived entries, newest first: one space's (from its menu), or every
+/// space's (from Settings, `space` nil).
 struct ArchiveView: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
-  let space: Space
+  let space: Space?
 
   var body: some View {
     NavigationStack {
       List {
-        if space.archive.children.isEmpty {
+        let spaces = space.map { [$0] } ?? app.store.spaces
+        if spaces.allSatisfy({ $0.archive.children.isEmpty }) {
           Text("Nothing archived").foregroundStyle(.secondary)
         }
-        ForEach(space.archive.children.sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }) { entry in
-          Button {
-            if let restored = app.store.restore(entry) {
-              app.show(restored)
-              dismiss()
-            }
-          } label: {
-            HStack {
-              SiteIcon(url: entry.tabs.first?.url ?? "")
-              VStack(alignment: .leading) {
-                Text(entry.displayTitle).lineLimit(1).foregroundStyle(.primary)
-                if let at = entry.archivedAt {
-                  Text(at, style: .relative).font(.caption).foregroundStyle(.secondary)
-                }
+        ForEach(spaces) { space in
+          if !space.archive.children.isEmpty {
+            Section(self.space == nil ? space.name : "") {
+              ForEach(space.archive.children.sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }) { entry in
+                row(entry)
               }
             }
           }
@@ -612,6 +606,25 @@ struct ArchiveView: View {
       }
       .navigationTitle("Archive")
       .toolbar { Button("Done") { dismiss() } }
+    }
+  }
+
+  private func row(_ entry: SidebarNode) -> some View {
+    Button {
+      if let restored = app.store.restore(entry) {
+        app.show(restored)
+        dismiss()
+      }
+    } label: {
+      HStack {
+        SiteIcon(url: entry.tabs.first?.url ?? "")
+        VStack(alignment: .leading) {
+          Text(entry.displayTitle).lineLimit(1).foregroundStyle(.primary)
+          if let at = entry.archivedAt {
+            Text(at, style: .relative).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+      }
     }
   }
 }

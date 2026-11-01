@@ -41,6 +41,17 @@ struct SidebarPanel: View {
       Color.black.opacity(Self.dim * position)
         .allowsHitTesting(app.showingSidebar)
         .onTapGesture { app.showingSidebar = false }
+      // Always there, off screen when closed. (Inserting it on opening
+      // left it invisible; hiding it from VoiceOver when closed doesn't
+      // reach its UIKit-backed pages: an open item.)
+      content(height: height, position: position)
+    }
+    .ignoresSafeArea()
+    .animation(.snappy(duration: 0.32), value: app.showingSidebar)
+    .animation(.snappy(duration: 0.32), value: app.sidebarHalf)
+  }
+
+  private func content(height: CGFloat, position: CGFloat) -> some View {
       SidebarScreen()
         // At half height, as a sheet: a vertical drag anywhere moves the
         // panel (the list doesn't scroll until it's at full height).
@@ -57,10 +68,6 @@ struct SidebarPanel: View {
         .padding(.top, Self.top)
         .offset(y: height * (1 - position))
         .allowsHitTesting(app.showingSidebar)
-    }
-    .ignoresSafeArea()
-    .animation(.snappy(duration: 0.32), value: app.showingSidebar)
-    .animation(.snappy(duration: 0.32), value: app.sidebarHalf)
   }
 
   private var contentDrag: some Gesture {
