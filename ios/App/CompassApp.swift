@@ -19,6 +19,7 @@ struct CompassApp: App {
     BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: nil) { task in
       let work = Task { @MainActor in
         await app.sync.syncNow()
+        await app.contentBlocking.refresh()
         task.setTaskCompleted(success: true)
       }
       task.expirationHandler = { work.cancel() }
@@ -37,6 +38,12 @@ struct CompassApp: App {
       RootView()
         .environment(app)
         .onOpenURL { url in
+          // A web link, with Compass as the default browser: straight to
+          // the page, in a new tab of the shown space.
+          if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            app.openLink(url)
+            return
+          }
           // compass-pair: links from the Mac's QR code (camera app).
           if let invite = PairingInvite(url: url), !app.sync.isOn {
             app.pendingInvite = invite
@@ -46,6 +53,8 @@ struct CompassApp: App {
     }
     .onChange(of: phase) { _, phase in
       app.sync.setActive(phase == .active)
+      // Filter lists: checked at most daily.
+      if phase == .active { Task { await app.contentBlocking.refresh() } }
       if phase == .background {
         try? app.store.save(to: app.sidebarURL)
         Self.scheduleRefresh()
@@ -56,36 +65,18 @@ struct CompassApp: App {
 
 struct RootView: View {
   @Environment(AppModel.self) private var app
-  @State private var sidebarDetent: PresentationDetent = .large
 
   var body: some View {
     @Bindable var app = app
-    // The browser is always underneath; the sidebar is a bottom sheet over
-    // it (swipe down to close, or to half height to see the page).
+    // The browser is always underneath; the sidebar is a panel over it
+    // (SidebarPanel), and the command bar and Settings are sheets over both.
     BrowserScreen(node: app.selectedNode)
-      .sheet(isPresented: $app.showingSidebar) {
-        SidebarScreen()
-          .presentationDetents([.medium, .large], selection: $sidebarDetent)
-          .presentationDragIndicator(.visible)
+      .overlay { SidebarPanel() }
+      .sheet(isPresented: $app.showingCommandBar) {
+        // A new tab, or the shown tab's address.
+        CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)
       }
-      .onChange(of: app.showingSidebar) { _, showing in
-        if showing { sidebarDetent = .large }
-      }
-      // While the sidebar is up, it presents these itself (a sheet can't
-      // present over another from the same view).
-      .sheet(isPresented: app.presented(\.showingCommandBar, fromSidebar: false)) {
-        CommandBar(replacing: app.selectedNode.flatMap { $0.isTab ? $0 : nil })
-      }
-      .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: false)) { SettingsView() }
-  }
-}
-
-extension AppModel {
-  /// A sheet flag, for the view that presents it now: the sidebar while it's
-  /// up, the browser otherwise.
-  func presented(_ flag: ReferenceWritableKeyPath<AppModel, Bool>, fromSidebar: Bool) -> Binding<Bool> {
-    Binding(
-      get: { self[keyPath: flag] && self.showingSidebar == fromSidebar },
-      set: { self[keyPath: flag] = $0 })
+      .sheet(isPresented: $app.showingSettings) { SettingsView() }
+      .sheet(isPresented: $app.showingMenu) { PageMenu() }
   }
 }

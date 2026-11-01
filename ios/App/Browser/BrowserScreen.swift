@@ -6,15 +6,57 @@ import CompassModel
 import SwiftUI
 import WebKit
 
-/// One entry, full screen, with a slim bottom bar: back, the address pill
-/// (opens the command bar), forward and the sidebar. Swiping the bar left
-/// or right moves between the space's entries; swiping it up opens the
+/// One entry, full screen, under a floating glass bar: back, the address
+/// pill (opens the command bar; shows the load progress along its bottom),
+/// forward when there's somewhere to go, and the sidebar. Swiping the bar
+/// left or right moves between the space's entries; swiping it up opens the
 /// sidebar. With no entry selected it's an empty page in the space's color.
 struct BrowserScreen: View {
   @Environment(AppModel.self) private var app
   let node: SidebarNode?
+  /// The bar's drag: nil until it picks an axis.
+  @State private var dragAxis: Axis?
+  /// The menu button's center on screen: where a download's arrow lands.
+  @State private var menuCenter: CGPoint?
+  /// A download's arrow on its way to the menu button (DownloadFlight).
+  @State private var flight: DownloadFlight.Phase?
+  @State private var menuBounce = false
+  /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
+  /// the 2 pt gap under it. A constant, not measured: feeding a measured
+  /// height back into the web view's inset loops layout.
+  static let barHeight: CGFloat = 44 + 2 * 5 + 2
+  /// Collapsed while the page scrolls down: a small address pill.
+  static let collapsedHeight: CGFloat = 30 + 2
 
   var body: some View {
+    @Bindable var app = app
+    content
+      .overlay {
+        if let flight, let menuCenter {
+          DownloadFlight(phase: flight, target: menuCenter)
+        }
+      }
+      .onChange(of: app.downloads.started) { downloadStarted() }
+  }
+
+  /// A download started: an arrow pops up mid-screen and drops into the
+  /// menu button, which bounces; a light tap goes with it.
+  private func downloadStarted() {
+    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    flight = .appear
+    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { flight = .shown }
+    Task {
+      try? await Task.sleep(for: .milliseconds(380))
+      withAnimation(.easeIn(duration: 0.42)) { flight = .landed }
+      try? await Task.sleep(for: .milliseconds(420))
+      flight = nil
+      withAnimation(.spring(response: 0.25, dampingFraction: 0.4)) { menuBounce = true }
+      try? await Task.sleep(for: .milliseconds(180))
+      withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { menuBounce = false }
+    }
+  }
+
+  @ViewBuilder private var content: some View {
     @Bindable var app = app
     VStack(spacing: 0) {
       if let node, node.isSplit {
@@ -27,25 +69,37 @@ struct BrowserScreen: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
       }
-      if let tab = app.shownTab {
-        WebView(webView: app.tabs.webView(for: tab))
-          .id(tab.id)
-          .ignoresSafeArea(edges: node?.isSplit == true ? [] : .top)
-          .overlay(alignment: .top) { progress(tab) }
-      } else {
-        emptyPage
+      Group {
+        if let tab = app.shownTab {
+          WebView(
+            webView: app.tabs.webView(for: tab),
+            bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
+            .id(tab.id)
+            // The page runs under the bar; WKWebView insets its content by
+            // the safe area, so the page's end still scrolls clear of it.
+            .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
+        } else {
+          emptyPage
+        }
       }
-      if let pending = app.passwords.pendingSave { saveBanner(pending) }
-      bar
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        VStack(spacing: 8) {
+          if let pending = app.passwords.pendingSave { saveBanner(pending) }
+          if app.barCollapsed {
+            collapsedBar
+              .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
+          } else {
+            bar
+              .transition(.scale(scale: 0.9, anchor: .bottom).combined(with: .opacity))
+          }
+        }
+        .animation(.snappy(duration: 0.25), value: app.passwords.pendingSave == nil)
+      }
     }
   }
 
   private var emptyPage: some View {
-    LinearGradient(
-      colors: [(app.selectedSpace?.color.color ?? .blue).opacity(0.28), Color(.systemBackground)],
-      startPoint: .top, endPoint: .bottom
-    )
-    .ignoresSafeArea(edges: .top)
+    SpaceTint(theme: app.selectedSpace?.theme ?? .blue)
   }
 
   private func saveBanner(_ p: PasswordManager.PendingSave) -> some View {
@@ -67,9 +121,8 @@ struct BrowserScreen: View {
         .buttonStyle(.borderedProminent)
     }
     .padding(12)
-    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-    .padding(.horizontal, 10)
-    .padding(.bottom, 6)
+    .floatingGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .padding(.horizontal, 12)
     .transition(.move(edge: .bottom).combined(with: .opacity))
   }
 
@@ -90,64 +143,156 @@ struct BrowserScreen: View {
             Button(login.username.isEmpty ? login.host : login.username) { app.passwords.fill(login, in: view) }
           }
         } label: {
-          Image(systemName: "key.fill")
+          BarIcon(symbol: "key.fill")
         }
         .accessibilityLabel("Fill password")
+        .transition(.scale.combined(with: .opacity))
       }
     }
   }
 
-  @ViewBuilder private func progress(_ tab: SidebarNode) -> some View {
-    let _ = app.tabs.revision
-    if let view = app.tabs.live[tab.id], view.isLoading {
-      ProgressView(value: view.estimatedProgress)
-        .progressViewStyle(.linear)
-        .tint(app.store.space(of: tab)?.color.color ?? .accentColor)
-    }
+  /// How far the shown page has loaded, or nil once it has.
+  private var loadProgress: Double? {
+    guard let tab = app.shownTab, let view = app.tabs.live[tab.id], view.isLoading else { return nil }
+    return max(view.estimatedProgress, 0.05)
+  }
+
+  private var tint: Color {
+    app.shownTab.flatMap { app.store.space(of: $0)?.theme.accent }
+      ?? app.selectedSpace?.theme.accent ?? .accentColor
   }
 
   private var bar: some View {
     let _ = app.tabs.revision
     let view = app.shownTab.flatMap { app.tabs.live[$0.id] }
-    return HStack(spacing: 18) {
-      Button { view?.goBack() } label: { Image(systemName: "chevron.left") }
-        .disabled(!(view?.canGoBack ?? false))
-        .opacity(view?.canGoBack == true ? 1 : 0.3)
-      Button { app.showingCommandBar = true } label: {
-        HStack(spacing: 6) {
-          if let tab = app.shownTab { SiteIcon(url: tab.url, size: 14) }
-          Text(host)
-            .font(.callout)
-            .lineLimit(1)
-            .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(SidebarStyle.fill, in: Capsule())
-      }
-      Button { view?.goForward() } label: { Image(systemName: "chevron.right") }
-        .disabled(!(view?.canGoForward ?? false))
-        .opacity(view?.canGoForward == true ? 1 : 0.3)
+    let canBack = view?.canGoBack ?? false
+    let canForward = view?.canGoForward ?? false
+    return HStack(spacing: 2) {
+      // Back and forward together on the left; both always there (dimmed
+      // when there's nowhere to go), so nothing shifts.
+      Button { view?.goBack() } label: { BarIcon(symbol: "chevron.backward") }
+        .disabled(!canBack)
+        .opacity(canBack ? 1 : 0.3)
+        .accessibilityLabel("Back")
+      Button { view?.goForward() } label: { BarIcon(symbol: "chevron.forward") }
+        .disabled(!canForward)
+        .opacity(canForward ? 1 : 0.3)
+        .accessibilityLabel("Forward")
+      addressPill
       keyButton
-      Button { app.showSidebar() } label: { Image(systemName: "sidebar.left") }
-        .accessibilityLabel("Sidebar")
+      Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
+        .accessibilityLabel("New tab")
+        .accessibilityIdentifier("BarNewTab")
+      Button { app.showingMenu = true } label: {
+        BarIcon(symbol: "ellipsis")
+          .scaleEffect(menuBounce ? 1.35 : 1)
+          .onGeometryChange(for: CGPoint.self, of: { geo in
+            let frame = geo.frame(in: .global)
+            return CGPoint(x: frame.midX, y: frame.midY)
+          }) { menuCenter = $0 }
+          .overlay {
+            // A download running: its progress around the menu button.
+            if let progress = app.downloads.overallProgress {
+              Circle().stroke(Color.primary.opacity(0.12), lineWidth: 2.5).frame(width: 30, height: 30)
+              Circle().trim(from: 0, to: max(progress, 0.03))
+                .stroke(tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .frame(width: 30, height: 30)
+                .animation(.easeOut(duration: 0.2), value: progress)
+            }
+          }
+      }
+        .accessibilityLabel("Menu")
     }
-    .font(.system(size: 19, weight: .medium))
     // The sidebar's neutral look, not the system tint.
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
-    .padding(.horizontal, 18)
-    .padding(.vertical, 8)
-    .background(.bar)
-    .gesture(
-      DragGesture(minimumDistance: 30).onEnded { value in
-        let (dx, dy) = (value.translation.width, value.translation.height)
-        if abs(dx) > abs(dy) {
-          step(dx < 0 ? 1 : -1)
-        } else if dy < 0 {
-          app.showSidebar()
+    .padding(5)
+    .floatingGlass(in: Capsule())
+    .padding(.horizontal, 12)
+    .padding(.bottom, 2)
+    // Over the buttons' own gestures (the address pill covers most of the
+    // bar): a tap never moves 12 pt, so buttons still get taps.
+    .highPriorityGesture(
+      DragGesture(minimumDistance: 12, coordinateSpace: .global)
+        .onChanged { value in
+          let (dx, dy) = (value.translation.width, value.translation.height)
+          if dragAxis == nil { dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical }
+          if dragAxis == .vertical { app.sidebarDrag = sidebarPosition(at: value.location.y) }
         }
-      })
+        .onEnded { value in
+          defer { dragAxis = nil }
+          if dragAxis == .horizontal {
+            if abs(value.translation.width) > 30 { step(value.translation.width < 0 ? 1 : -1) }
+          } else if let drag = app.sidebarDrag {
+            app.settleSidebar(at: drag, predicted: sidebarPosition(at: value.predictedEndLocation.y))
+          }
+        })
+  }
+
+  /// The sidebar's 0...1 position with its top edge under the finger (at
+  /// `y` on screen): it comes up with the finger, not behind it.
+  private func sidebarPosition(at y: CGFloat) -> CGFloat {
+    min(max((SidebarPanel.screenHeight - y) / SidebarPanel.height, 0), 1)
+  }
+
+  /// The bar while the page scrolls down: the site's icon and host, small,
+  /// on a narrow pill. A tap brings the whole bar back.
+  private var collapsedBar: some View {
+    Button { app.setBarCollapsed(false) } label: {
+      HStack(spacing: 5) {
+        if let tab = app.shownTab { SiteIcon(url: tab.url, size: 12) }
+        Text(host).font(.system(size: 13, weight: .medium)).lineLimit(1)
+      }
+      .padding(.horizontal, 14)
+      .frame(height: 30)
+      .floatingGlass(in: Capsule())
+      .contentShape(Capsule())
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(.primary)
+    .padding(.bottom, 2)
+    .accessibilityLabel("Show toolbar")
+    .accessibilityValue(host)
+  }
+
+  /// The site's icon and host, centered; the load progress as a thin line in
+  /// the space's color along its bottom edge.
+  private var addressPill: some View {
+    // Edits the shown tab's address (a new tab when there's none).
+    Button { app.openCommandBar(newTab: app.shownTab == nil) } label: {
+      HStack(spacing: 7) {
+        if let tab = app.shownTab {
+          SiteIcon(url: tab.url, size: 16)
+        } else {
+          Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).opacity(0.5)
+        }
+        Text(host)
+          .font(.system(size: 16, weight: app.shownTab == nil ? .regular : .medium))
+          .foregroundStyle(app.shownTab == nil ? .secondary : .primary)
+          .lineLimit(1)
+      }
+      .padding(.horizontal, 14)
+      .frame(maxWidth: .infinity)
+      .frame(height: 44)
+      .background(Color.primary.opacity(0.07), in: Capsule())
+      .overlay(alignment: .bottom) {
+        if let progress = loadProgress {
+          // Scaled, not measured: a GeometryReader here re-lays out the
+          // glass bar endlessly.
+          Capsule().fill(tint)
+            .frame(maxWidth: .infinity)
+            .frame(height: 2.5)
+            .scaleEffect(x: progress, anchor: .leading)
+            .animation(.easeOut(duration: 0.25), value: progress)
+          .padding(.horizontal, 16)
+          .transition(.opacity)
+        }
+      }
+      .contentShape(Capsule())
+    }
+    .accessibilityLabel("Address")
+    .accessibilityValue(host)
   }
 
   private var host: String {
@@ -164,5 +309,45 @@ struct BrowserScreen: View {
     let next = index + delta
     guard entries.indices.contains(next) else { return }
     withAnimation(.easeInOut(duration: 0.2)) { app.show(entries[next]) }
+  }
+}
+
+/// A bottom-bar glyph on a 44 pt tall, 40 pt wide target (five fit beside
+/// the address pill).
+private struct BarIcon: View {
+  let symbol: String
+
+  var body: some View {
+    Image(systemName: symbol)
+      .font(.system(size: 18, weight: .semibold))
+      .frame(width: 40, height: 44)
+      .contentShape(Circle())
+  }
+}
+
+/// A download's arrow: pops up in the middle of the screen, then drops into
+/// the menu button (`target`, in screen points) and shrinks away.
+struct DownloadFlight: View {
+  enum Phase { case appear, shown, landed }
+  let phase: Phase
+  let target: CGPoint
+
+  var body: some View {
+    GeometryReader { geo in
+      let frame = geo.frame(in: .global)
+      let start = CGPoint(x: frame.midX, y: frame.midY - 40)
+      let at = phase == .landed ? target : start
+      Image(systemName: "arrow.down.circle.fill")
+        .font(.system(size: 64, weight: .semibold))
+        .symbolRenderingMode(.palette)
+        .foregroundStyle(.white, Color.accentColor)
+        .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
+        .scaleEffect(phase == .appear ? 0.3 : phase == .landed ? 0.28 : 1)
+        .opacity(phase == .appear ? 0 : 1)
+        .position(x: at.x - frame.minX, y: at.y - frame.minY)
+    }
+    .ignoresSafeArea()
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
   }
 }

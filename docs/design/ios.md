@@ -110,7 +110,7 @@ It speaks the same wire protocol as desktop Chromium against `server/`, and need
 
 This is a Swift port of the desktop model in `browser/sidebar/` (`SidebarNode`, `SpaceModel`, `SpaceModel::CanMove`):
 
-- spaces (name, color, icon, profile UUID, archive delay) and nodes (TAB, FOLDER, SPLIT; PINNED, TODAY, FAVORITES, ARCHIVE);
+- spaces (name, theme: color, gradient, intensity, grain, mode; icon, profile UUID, archive delay) and nodes (TAB, FOLDER, SPLIT; PINNED, TODAY, FAVORITES, ARCHIVE);
 - the same invariants: folders only in Pinned, splits hold only tabs, and a split of one becomes a tab;
 - the same node UUIDs as desktop, which are also the sync client tags.
 
@@ -462,6 +462,24 @@ The user asked for this. The sidebar's native look is replaced with the desktop 
   Requests use Safari's user agent.
 - **Sync.** `CompassFavicon` in COMPASS_SPACES (sync.md, "Favicons"; the user asked for it). `CompassSpacesBridge+Favicons`: `offerFavicon` writes a page's icon (64 px PNG, at most 8 KiB) into the account of the tab's space, when an entry there is on the host and the icon beats the account's. `onFavicon` and `syncedFavicons` feed the cache, and `collectFavicons` deletes unused icons after a day. Tests: `FaviconKeyTests` (the UUID vectors) and `FaviconServerTests`.
 - **Desktop half.** Handed to compass-a8 (2026-11-01): writing the tab's favicon, `SetOnDemandFavicons` for synced ones, the key, and accepting the entity in `IsEntityDataValid()`.
+
+### Space themes, 2026-11-01
+
+The user asked for the desktop's custom colors and gradients (spaces.md, "Space colors" through "Theme editor").
+
+- **Model.** `SpaceTheme` (CompassModel/SpaceTheme.swift) replaces the palette-only `Space.color`. It holds any `RGB` color or nil for grey, up to two gradient colors (grey has none), intensity (default 0.31), grain and `SpaceAppearance` (auto, light, dark), clamped like the desktop's setters. `SpaceColor` stays as the palette, with the desktop's exact RGB values. `stops` gives the three evenly spaced stops `SidebarTint::ToLook()` paints. `SpaceStore.setTheme()`. The snapshot file adds `colorRGB`, `gradient`, `intensity`, `grain` and `appearance` next to `color`. Older files read as their palette color.
+- **Sync.** `SyncPb_CompassSpace.theme(over:)` and `setTheme()` (SpaceThemeProto.swift) follow compass_spaces_sync_bridge.cc. `color_rgb` counts only while `color` is still its nearest palette index. Every value is compared decoded, so an equivalent encoding isn't rewritten and a remote theme isn't committed back. Defaults are left out, and an unreadable color keeps the space's own.
+- **Look.** `SpaceTint(theme:)` paints the stops as one gradient from the top left to the bottom right, at `intensity × 1.1` opacity (about the 34% the phone had before), fading to half toward the bottom, with the desktop's noise tile as grain (overlay, up to 9%). Changes ease over 280 ms. The mode applies to the sidebar panel, the command bar, the page menu and the editor (`spaceAppearance`). Pages keep the system's. `theme.accent` (the color, or grey) tints the switcher icon and controls.
+- **Editor.** The space menu's "Edit Theme" opens `ThemeEditor`, a sheet laid out after the desktop's:
+  - mode buttons;
+  - `ThemePad`: a hue wheel with the colors as dots. Hue is the angle (red at the top, clockwise) and saturation the distance. A drag keeps the dot's lightness, the big dot takes the others along, and a touch away from the dots moves the big one there;
+  - − and + (1 to 3 colors, the new one 40° on);
+  - the palette, which replaces the gradient, and "Any Color" (`ColorPicker`), which keeps it;
+  - the nine gradient presets;
+  - Intensity and Grain sliders, hidden for grey.
+
+  The draft shows at once and reaches the store (and sync) at most every 50 ms.
+- **Tests.** `SpaceThemeSyncTests` (encoding, stale rgb, round trips, equivalent encodings, saved files, remote apply without a commit back); UI test `ThemeEditorTests` (preset, − and +, dragging the big dot, mode, sliders, grey).
 
 ## Open items
 

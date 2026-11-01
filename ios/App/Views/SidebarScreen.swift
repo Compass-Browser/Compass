@@ -26,12 +26,7 @@ struct SidebarScreen: View {
       .tabViewStyle(.page(indexDisplayMode: .never))
       bottomBar
     }
-    .presentationBackground { SpaceTint(color: app.selectedSpace?.color.color ?? .blue) }
     .animation(.easeInOut(duration: 0.25), value: app.selectedSpaceID)
-    .sheet(isPresented: app.presented(\.showingCommandBar, fromSidebar: true)) {
-      CommandBar(replacing: nil)
-    }
-    .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: true)) { SettingsView() }
   }
 
   /// Settings, the space switcher (`#spaces`: each space's icon, the shown
@@ -50,7 +45,7 @@ struct SidebarScreen: View {
             let shown = space.id == app.selectedSpace?.id
             Button { app.selectedSpaceID = space.id } label: {
               SpaceIcon(space: space)
-                .foregroundStyle(shown ? space.color.color : .primary)
+                .foregroundStyle(shown ? space.theme.accent : .primary)
                 .opacity(shown ? 1 : 0.45)
                 .scaleEffect(shown ? 1.15 : 1)
                 .frame(width: 34, height: 34)
@@ -66,7 +61,7 @@ struct SidebarScreen: View {
           Button {
             // In the profile of the space it was made from.
             let space = app.store.addSpace(
-              name: "Space \(app.store.spaces.count + 1)", color: .allCases.randomElement()!,
+              name: "Space \(app.store.spaces.count + 1)", theme: SpaceTheme(SpaceColor.allCases.filter { $0 != .grey }.randomElement()!),
               profile: app.selectedSpace?.profileUUID ?? "")
             app.selectedSpaceID = space.id
           } label: {
@@ -81,7 +76,7 @@ struct SidebarScreen: View {
       .scrollBounceBehavior(.basedOnSize)
       .fixedSize(horizontal: app.store.spaces.count < 7, vertical: false)
       Spacer(minLength: 4)
-      Button { app.showingCommandBar = true } label: {
+      Button { app.openCommandBar(newTab: true) } label: {
         Image(systemName: "plus").font(.system(size: 18, weight: .semibold)).frame(width: 44, height: 44)
       }
       .accessibilityLabel("New tab")
@@ -129,6 +124,7 @@ struct SpacePage: View {
   @State private var renaming = false
   @State private var newName = ""
   @State private var showingArchive = false
+  @State private var editingTheme = false
   @State private var moving: ChainProfile?
 
   var body: some View {
@@ -176,7 +172,7 @@ struct SpacePage: View {
           }
         }
         Button {
-          app.showingCommandBar = true
+          app.openCommandBar(newTab: true)
         } label: {
           HStack(spacing: 10) {
             Image(systemName: "plus")
@@ -197,14 +193,20 @@ struct SpacePage: View {
           NodeTree(node: node, depth: 0)
         }
       }
+      // Pulled down past its top, the panel moves instead (SidebarPanel):
+      // the list stays put in it.
+      .offset(y: -app.sidebarPull)
       .padding(.horizontal, 12)
       .padding(.bottom, 12)
       // Entries appearing, closing and moving animate, also when the change
       // comes from another device. Folders have their own (NodeTree).
       .animation(SidebarStyle.motion, value: layout)
     }
-    // Clear of the sheet's grab handle.
+    // Clear of the panel's grab handle.
     .contentMargins(.top, 22, for: .scrollContent)
+    .sidebarPullToClose(app)
+    // At half height a drag moves the panel instead (SidebarPanel).
+    .scrollDisabled(app.sidebarHalf)
     .scrollIndicators(.hidden)
     .foregroundStyle(.primary)
     .alert("Rename Space", isPresented: $renaming) {
@@ -213,6 +215,7 @@ struct SpacePage: View {
       Button("Cancel", role: .cancel) {}
     }
     .sheet(isPresented: $showingArchive) { ArchiveView(space: space) }
+    .sheet(isPresented: $editingTheme) { ThemeEditor(space: space) }
     .alert(
       "Move “\(space.name)” to \(moving?.name ?? "")?",
       isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })
@@ -268,12 +271,17 @@ struct SpacePage: View {
       newName = space.name
       renaming = true
     }
-    Menu("Color", systemImage: "paintpalette") {
-      ForEach(SpaceColor.allCases, id: \.self) { color in
-        Button(color.name) { app.store.setColor(space, color) }
-      }
-    }
+    Button("Edit Theme", systemImage: "paintpalette") { editingTheme = true }
     Button("Archive", systemImage: "archivebox") { showingArchive = true }
+    Picker(selection: Binding(
+      get: { ArchiveAfter(space.archiveAfter) },
+      set: { app.store.setArchiveAfter(space, $0.interval) })
+    ) {
+      ForEach(ArchiveAfter.allCases) { Text($0.name).tag($0) }
+    } label: {
+      Label("Archive Tabs", systemImage: "clock.arrow.circlepath")
+    }
+    .pickerStyle(.menu)
     // Asks first: the space's tabs lose their cookies (another profile's
     // website data store).
     let others = app.sync.profiles.filter { $0.uuid != app.sync.profile(of: space)?.uuid }
@@ -579,31 +587,25 @@ struct NodeRow: View {
   }
 }
 
+/// Archived entries, newest first: one space's (from its menu), or every
+/// space's (from Settings, `space` nil).
 struct ArchiveView: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
-  let space: Space
+  let space: Space?
 
   var body: some View {
     NavigationStack {
       List {
-        if space.archive.children.isEmpty {
+        let spaces = space.map { [$0] } ?? app.store.spaces
+        if spaces.allSatisfy({ $0.archive.children.isEmpty }) {
           Text("Nothing archived").foregroundStyle(.secondary)
         }
-        ForEach(space.archive.children.sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }) { entry in
-          Button {
-            if let restored = app.store.restore(entry) {
-              app.show(restored)
-              dismiss()
-            }
-          } label: {
-            HStack {
-              SiteIcon(url: entry.tabs.first?.url ?? "")
-              VStack(alignment: .leading) {
-                Text(entry.displayTitle).lineLimit(1).foregroundStyle(.primary)
-                if let at = entry.archivedAt {
-                  Text(at, style: .relative).font(.caption).foregroundStyle(.secondary)
-                }
+        ForEach(spaces) { space in
+          if !space.archive.children.isEmpty {
+            Section(self.space == nil ? space.name : "") {
+              ForEach(space.archive.children.sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }) { entry in
+                row(entry)
               }
             }
           }
@@ -611,6 +613,25 @@ struct ArchiveView: View {
       }
       .navigationTitle("Archive")
       .toolbar { Button("Done") { dismiss() } }
+    }
+  }
+
+  private func row(_ entry: SidebarNode) -> some View {
+    Button {
+      if let restored = app.store.restore(entry) {
+        app.show(restored)
+        dismiss()
+      }
+    } label: {
+      HStack {
+        SiteIcon(url: entry.tabs.first?.url ?? "")
+        VStack(alignment: .leading) {
+          Text(entry.displayTitle).lineLimit(1).foregroundStyle(.primary)
+          if let at = entry.archivedAt {
+            Text(at, style: .relative).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+      }
     }
   }
 }

@@ -25,7 +25,14 @@ struct SidebarSnapshot: Codable {
   struct SpaceRecord: Codable {
     var id: String
     var name: String
+    /// The palette index, or the closest one to `colorRGB`.
     var color: Int32
+    /// The theme beyond the palette (absent in files from before it).
+    var colorRGB: UInt32?
+    var gradient: [UInt32]?
+    var intensity: Double?
+    var grain: Double?
+    var appearance: SpaceAppearance?
     var icon: String
     var profileUUID: String
     var archiveAfter: TimeInterval?
@@ -42,6 +49,15 @@ struct SidebarSnapshot: Codable {
   /// Other profiles' favorites, by profile UUID (M8).
   var profileFavorites: [String: [Node]]?
   var homeProfileUUID: String?
+}
+
+extension SidebarSnapshot.SpaceRecord {
+  var theme: SpaceTheme {
+    let color = colorRGB.map(RGB.init(hex:)) ?? (SpaceColor(rawValue: color) ?? .blue).rgb
+    return SpaceTheme(
+      color: color, gradient: (gradient ?? []).map(RGB.init(hex:)),
+      intensity: intensity ?? SpaceTheme.defaultIntensity, grain: grain ?? 0, appearance: appearance ?? .auto)
+  }
 }
 
 extension SpaceStore {
@@ -61,7 +77,11 @@ extension SpaceStore {
     let snapshot = SidebarSnapshot(
       spaces: spaces.map { s in
         SidebarSnapshot.SpaceRecord(
-          id: s.id, name: s.name, color: s.color.rawValue, icon: s.icon, profileUUID: s.profileUUID,
+          id: s.id, name: s.name,
+          color: (s.theme.color.map { SpaceColor.nearest(to: $0) } ?? .grey).rawValue,
+          colorRGB: s.theme.color?.hex, gradient: s.theme.gradient.isEmpty ? nil : s.theme.gradient.map(\.hex),
+          intensity: s.theme.intensity, grain: s.theme.grain, appearance: s.theme.appearance,
+          icon: s.icon, profileUUID: s.profileUUID,
           archiveAfter: s.archiveAfter, position: Data(s.position.compressed),
           pinned: s.pinned.children.map(node), today: s.today.children.map(node),
           archive: s.archive.children.map(node), unknownFields: s.unknownFields)
@@ -99,7 +119,7 @@ extension SpaceStore {
       homeProfileUUID = snapshot.homeProfileUUID ?? ""
       for record in snapshot.spaces {
         let space = makeSpace(
-          id: record.id, name: record.name, color: SpaceColor(rawValue: record.color) ?? .blue, icon: record.icon,
+          id: record.id, name: record.name, theme: record.theme, icon: record.icon,
           profileUUID: record.profileUUID, archiveAfter: record.archiveAfter,
           position: UniquePosition(compressed: [UInt8](record.position)))
         space.unknownFields = record.unknownFields

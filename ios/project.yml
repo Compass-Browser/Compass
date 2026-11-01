@@ -21,6 +21,8 @@ targets:
   Compass:
     type: application
     platform: iOS
+    scheme:
+      testTargets: [CompassUITests]
     sources:
       - path: App
       # The desktop's Icon Composer icon, shared.
@@ -66,7 +68,16 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: it.cipi1965.compass.pair
             CFBundleURLSchemes: [compass-pair]
+          # Web links, for when Compass is the default browser (that needs
+          # the com.apple.developer.web-browser entitlement; until Apple
+          # grants it, iOS doesn't send these here).
+          - CFBundleURLName: it.cipi1965.compass.web
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [http, https]
         BGTaskSchedulerPermittedIdentifiers: [it.cipi1965.compass.refresh]
+        # Downloads show in the Files app (Documents/Downloads).
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cipi1965.compass.shared
         # Export compliance: standard algorithms (AES, HMAC, Ed25519,
         # SPAKE2, scrypt) protecting the user's own data, which is exempt.
@@ -116,3 +127,16 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.autofill
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
+  # Real touches (gestures), checked from screenshots taken meanwhile.
+  CompassUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Compass
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"

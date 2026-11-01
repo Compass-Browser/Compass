@@ -169,11 +169,11 @@ public final class SpaceStore {
 
   @discardableResult
   public func addSpace(
-    name: String, color: SpaceColor = .blue, id: String = UUID().uuidString.lowercased(), profile: String = ""
+    name: String, theme: SpaceTheme = .blue, id: String = UUID().uuidString.lowercased(), profile: String = ""
   ) -> Space {
     let position = UniquePosition.forInsert(
       after: spaces.last?.position, before: nil, suffix: suffixForID(id))
-    let space = Space(id: id, name: name, color: color, profileUUID: profile, position: position)
+    let space = Space(id: id, name: name, theme: theme, profileUUID: profile, position: position)
     spaces.append(space)
     record { $0.putSpaces.insert(space.id) }
     return space
@@ -185,9 +185,9 @@ public final class SpaceStore {
     record { $0.putSpaces.insert(space.id) }
   }
 
-  public func setColor(_ space: Space, _ color: SpaceColor) {
-    guard space.color != color else { return }
-    space.color = color
+  public func setTheme(_ space: Space, _ theme: SpaceTheme) {
+    guard space.theme != theme else { return }
+    space.theme = theme
     record { $0.putSpaces.insert(space.id) }
   }
 
@@ -502,11 +502,11 @@ public final class SpaceStore {
   }
 
   public func makeSpace(
-    id: String, name: String, color: SpaceColor, icon: String, profileUUID: String,
+    id: String, name: String, theme: SpaceTheme, icon: String, profileUUID: String,
     archiveAfter: TimeInterval?, position: UniquePosition
   ) -> Space {
     Space(
-      id: id, name: name, color: color, icon: icon, profileUUID: profileUUID, archiveAfter: archiveAfter,
+      id: id, name: name, theme: theme, icon: icon, profileUUID: profileUUID, archiveAfter: archiveAfter,
       position: position)
   }
 
@@ -528,11 +528,11 @@ public final class SpaceStore {
   }
 
   public func rawUpdate(
-    _ space: Space, name: String, color: SpaceColor, icon: String, profileUUID: String,
+    _ space: Space, name: String, theme: SpaceTheme, icon: String, profileUUID: String,
     archiveAfter: TimeInterval?, position: UniquePosition
   ) {
     space.name = name
-    space.color = color
+    space.theme = theme
     space.icon = icon
     space.profileUUID = profileUUID
     space.archiveAfter = archiveAfter

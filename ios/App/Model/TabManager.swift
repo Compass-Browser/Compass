@@ -17,22 +17,49 @@ final class TabManager: NSObject {
   static let maxLive = 6
 
   private(set) var live: [String: WKWebView] = [:]
-  private var recent: [String] = []
-  private var observations: [String: [NSKeyValueObservation]] = [:]
+  // Bookkeeping, not shown: unobserved, since views call webView(for:)
+  // (which bumps `recent`) while rendering, and an observed write there
+  // re-renders them forever.
+  @ObservationIgnored private var recent: [String] = []
+  @ObservationIgnored private var observations: [String: [NSKeyValueObservation]] = [:]
   /// Bumped when a live tab's state (loading, back/forward) changes.
   private(set) var revision = 0
   private let store: SpaceStore
+  private let siteSettings: SiteSettings
+  private let contentBlocking: ContentBlocking
+  /// Where downloads go (set by AppModel).
+  var downloads: Downloads?
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
+  /// The page scrolled: (tab ID, how far down since the last call, whether
+  /// the user is scrolling it, whether it's at its top).
+  var onScroll: ((String, CGFloat, Bool, Bool) -> Void)?
   /// A page finished loading (a history visit): (URL, title, tab ID).
   var onPageLoaded: ((String, String, String) -> Void)?
 
-  init(store: SpaceStore) {
+  init(store: SpaceStore, siteSettings: SiteSettings, contentBlocking: ContentBlocking) {
     self.store = store
+    self.siteSettings = siteSettings
+    self.contentBlocking = contentBlocking
+  }
+
+  /// The filter lists `site`'s settings allow, on `view` from its next load.
+  func applyContentBlocking(_ view: WKWebView, site: String?) {
+    let controller = view.configuration.userContentController
+    controller.removeAllContentRuleLists()
+    let lists = contentBlocking.lists(
+      blockAds: siteSettings.value(.blockAds, site: site),
+      blockCookieBanners: siteSettings.value(.blockCookieBanners, site: site))
+    for list in lists { controller.add(list) }
+  }
+
+  /// New or updated filter lists: every open tab, for its site.
+  func applyContentBlockingToAll() {
+    for view in live.values { applyContentBlocking(view, site: SiteSettings.site(view.url)) }
   }
 
   func isLive(_ node: SidebarNode) -> Bool { live[node.id] != nil }
@@ -50,10 +77,13 @@ final class TabManager: NSObject {
     configuration.allowsInlineMediaPlayback = true
     configuration.allowsPictureInPictureMediaPlayback = true
     configuration.userContentController.addUserScript(PasswordScript.userScript)
+    configuration.userContentController.addUserScript(DesktopViewport.script)
     configuration.userContentController.add(
       MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
     let view = WKWebView(frame: .zero, configuration: configuration)
     view.allowsBackForwardNavigationGestures = true
+    view.isFindInteractionEnabled = true
+    applyContentBlocking(view, site: SiteSettings.site(URL(string: node.url)))
     view.isInspectable = true
     view.navigationDelegate = self
     view.uiDelegate = self
@@ -75,6 +105,19 @@ final class TabManager: NSObject {
       },
       view.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
         Task { @MainActor in self?.revision += 1 }
+      },
+      // On the main thread, every frame of a scroll: no Task per call.
+      view.scrollView.observe(\.contentOffset, options: [.old, .new]) { [weak self] scroll, change in
+        guard let old = change.oldValue, let new = change.newValue else { return }
+        MainActor.assumeIsolated {
+          let inset = scroll.adjustedContentInset
+          let atTop = new.y <= -inset.top + 4
+          // Bouncing past either end isn't scrolling the page.
+          let bottom = scroll.contentSize.height - scroll.bounds.height + inset.bottom
+          let inBounds = new.y >= -inset.top && new.y <= max(bottom, -inset.top)
+          let user = (scroll.isTracking || scroll.isDecelerating) && inBounds
+          self?.onScroll?(id, new.y - old.y, user, atTop)
+        }
       },
     ]
   }
@@ -100,6 +143,27 @@ final class TabManager: NSObject {
     for id in live.keys where store.node(id: id) == nil { unload(id) }
   }
 
+  /// A site setting changed (`site` nil: the default for every site): open
+  /// tabs on the sites it reaches follow. Swipe to navigate at once; the
+  /// desktop site with a reload (the content mode is chosen per load).
+  func apply(_ option: SiteSettings.Option, site: String?) {
+    for view in live.values {
+      let viewSite = SiteSettings.site(view.url)
+      guard site == nil || viewSite == site else { continue }
+      switch option {
+      case .swipeToNavigate:
+        view.allowsBackForwardNavigationGestures = siteSettings.value(.swipeToNavigate, site: viewSite)
+      case .desktopSite:
+        view.reload()
+      case .blockAds, .blockCookieBanners:
+        applyContentBlocking(view, site: viewSite)
+        view.reload()
+      default:
+        break
+      }
+    }
+  }
+
   private func bump(_ id: String) {
     recent.removeAll { $0 == id }
     recent.append(id)
@@ -115,6 +179,13 @@ final class TabManager: NSObject {
 
   private var stores: [String: WKWebsiteDataStore] = [:]
 
+  /// Every profile's website data store: the home profile's (the default)
+  /// and each other profile's in the sidebar.
+  func allDataStores() -> [WKWebsiteDataStore] {
+    let profiles = Set(store.spaces.map(\.profileUUID).filter { !store.isHome($0) })
+    return [.default()] + profiles.sorted().map(dataStore(for:))
+  }
+
   private func dataStore(for profile: String) -> WKWebsiteDataStore {
     guard !profile.isEmpty, let uuid = UUID(uuidString: profile) else { return .default() }
     if let store = stores[profile] { return store }
@@ -125,6 +196,52 @@ final class TabManager: NSObject {
 }
 
 extension TabManager: WKNavigationDelegate, WKUIDelegate {
+  /// Each main-frame load gets its site's settings: the desktop site (the
+  /// desktop user agent and a desktop-width viewport, so media queries lay
+  /// the page out as on a computer).
+  nonisolated func webView(
+    _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+    preferences: WKWebpagePreferences
+  ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+    await MainActor.run {
+      // <a download> links.
+      let policy: WKNavigationActionPolicy = navigationAction.shouldPerformDownload ? .download : .allow
+      if navigationAction.targetFrame?.isMainFrame != false {
+        let site = SiteSettings.site(navigationAction.request.url)
+        preferences.preferredContentMode = siteSettings.value(.desktopSite, site: site) ? .desktop : .mobile
+        webView.allowsBackForwardNavigationGestures = siteSettings.value(.swipeToNavigate, site: site)
+        // Before the page's own requests go out.
+        applyContentBlocking(webView, site: site)
+      }
+      return (policy, preferences)
+    }
+  }
+
+  /// What the browser can't show, or the server sends as an attachment, is
+  /// downloaded instead.
+  nonisolated func webView(
+    _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse
+  ) async -> WKNavigationResponsePolicy {
+    await MainActor.run {
+      let disposition = (navigationResponse.response as? HTTPURLResponse)?
+        .value(forHTTPHeaderField: "Content-Disposition")?.lowercased() ?? ""
+      let download = !navigationResponse.canShowMIMEType || disposition.hasPrefix("attachment")
+      return navigationResponse.isForMainFrame && download ? .download : .allow
+    }
+  }
+
+  nonisolated func webView(
+    _ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload
+  ) {
+    MainActor.assumeIsolated { downloads?.track(download) }
+  }
+
+  nonisolated func webView(
+    _ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload
+  ) {
+    MainActor.assumeIsolated { downloads?.track(download) }
+  }
+
   nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     MainActor.assumeIsolated {
       guard let url = webView.url?.absoluteString,

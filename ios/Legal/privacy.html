@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compass Browser Privacy Policy</title>
+<style>
+  :root { --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --rule: #e5e5ea; --accent: #2f6fe4; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111113; --fg: #f2f2f7; --muted: #a1a1a6; --rule: #2c2c2e; --accent: #6ea0ff; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: 32px; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 36px 0 8px; padding-top: 20px; border-top: 1px solid var(--rule); }
+  p, li { margin: 0 0 10px; }
+  ul { padding-left: 22px; }
+  .meta { color: var(--muted); margin-bottom: 28px; }
+  .summary { background: color-mix(in srgb, var(--accent) 9%, transparent); border-radius: 14px; padding: 16px 20px; }
+  .summary p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); }
+  code { font-size: 15px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Compass Browser Privacy Policy</h1>
+<p class="meta">Effective 1 November 2026</p>
+
+<div class="summary">
+<p><strong>In short:</strong> Compass Browser has no ads, no analytics and no tracking. What you browse stays on your iPhone. If you turn on sync, your data is encrypted on your devices before it leaves them, and the sync server can't read it.</p>
+</div>
+
+<h2>Who this covers</h2>
+<p>This policy covers the Compass Browser app for iPhone ("the app"), its password AutoFill extension, and the Compass sync service at <code>sync.example.org</code> run by the developer of the app ("we").</p>
+
+<h2>What stays on your iPhone</h2>
+<p>The app stores these only on your device:</p>
+<ul>
+  <li>your spaces, tabs, pinned tabs, favorites and archive;</li>
+  <li>your browsing history (kept for 90 days);</li>
+  <li>cookies, site data and the cache of the websites you visit;</li>
+  <li>saved passwords, in the iOS Keychain;</li>
+  <li>files you download;</li>
+  <li>your settings, including per-site settings.</li>
+</ul>
+<p>We don't receive any of it unless you turn on sync (below). You can delete it with Settings → Clear Browsing Data, from each part of the app, or by deleting the app.</p>
+
+<h2>What the app doesn't do</h2>
+<ul>
+  <li>No advertising, and no ad or tracking SDKs.</li>
+  <li>No analytics or usage statistics sent to us.</li>
+  <li>No account with us: sync uses a key made on your devices, not an email address or a phone number.</li>
+  <li>No selling or sharing of data with anyone.</li>
+</ul>
+
+<h2>Sync (optional)</h2>
+<p>Sync is off until you join it from your Mac or with a recovery code. When it's on, the app syncs your spaces and tabs, history, passwords, open tabs and the list of your devices with Compass on your other devices, through a sync server.</p>
+<ul>
+  <li><strong>End-to-end encryption.</strong> Your data is encrypted on your device with a key only your devices have, before it's sent. The server stores it encrypted and can't read it. Without your devices or your recovery code, nobody can decrypt it, including us.</li>
+  <li><strong>What the server can see.</strong> To work, the server sees an identifier for your sync chain (derived from your key), the type, size and time of each stored item, and your devices' list entries. A device entry isn't encrypted: it holds the device name as iOS reports it (usually just "iPhone"), its model, the app's version and when it last synced, so your other devices can list it.</li>
+  <li><strong>Server logs.</strong> The server logs requests that fail, with their time, path and the app's version. It doesn't log IP addresses. Logs are rotated and kept briefly.</li>
+  <li><strong>Your own server.</strong> You can use your own sync server instead of ours; then this section's server is yours.</li>
+  <li><strong>Stopping.</strong> Settings → Leave Sync stops syncing on this iPhone and keeps your data on it. Your encrypted data on the server stays readable only by your remaining devices.</li>
+</ul>
+
+<h2>Services the app contacts</h2>
+<ul>
+  <li><strong>Websites you visit</strong>, as any browser does. They see your IP address and what they normally see, under their own privacy policies.</li>
+  <li><strong>Your search engine.</strong> What you search for in the address bar goes to the search engine you choose in Settings (Google by default).</li>
+  <li><strong>Filter list publishers.</strong> To block ads, trackers and cookie banners, the app downloads public filter lists from <code>easylist.to</code> and <code>secure.fanboy.co.nz</code>, about once a day. These requests carry nothing about you or your browsing.</li>
+  <li><strong>Site icons.</strong> The app fetches a site's icon from that site.</li>
+  <li><strong>The sync server</strong>, if sync is on (above).</li>
+</ul>
+
+<h2>Permissions</h2>
+<ul>
+  <li><strong>Camera:</strong> only to scan the pairing code shown by Compass on your Mac. The image is processed on your iPhone and never sent anywhere.</li>
+  <li><strong>Face ID:</strong> only to unlock your saved passwords and your recovery code. The app never gets your face data; iOS handles it.</li>
+</ul>
+
+<h2>Crash reports</h2>
+<p>If you've allowed it in iOS, Apple may share crash reports with us. They help us fix the app and don't include your browsing.</p>
+
+<h2>Children</h2>
+<p>The app isn't directed at children under 13, and we don't knowingly collect data from them.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, we'll update it on this page and change the date at the top.</p>
+
+<h2>Contact</h2>
+<p>Questions about privacy: send feedback from the app through TestFlight (take a screenshot, then Share Beta Feedback).</p>
+</main>
+</body>
+</html>

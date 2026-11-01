@@ -124,7 +124,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     store.applyingRemote {
       for space in store.spaces where owns(space) && space.profileUUID != uuid {
         store.rawUpdate(
-          space, name: space.name, color: space.color, icon: space.icon, profileUUID: uuid,
+          space, name: space.name, theme: space.theme, icon: space.icon, profileUUID: uuid,
           archiveAfter: space.archiveAfter, position: space.position)
       }
     }
@@ -227,7 +227,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var s = specifics.space
     s.uuid = space.id
     if space.name.isEmpty { s.clearName() } else { s.name = space.name }
-    s.color = space.color.rawValue
+    s.setTheme(space.theme)
     s.directoryPosition = Self.proto(space.position)
     if !ownProfile.isEmpty { s.profileUuid = ownProfile }
     s.archiveAfterSeconds = Int64(space.archiveAfter ?? 0)
@@ -475,7 +475,6 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     for id in ids {
       let s = mirror[id]!.space
       guard store.node(id: id) == nil else { continue }
-      let color = (1...8).contains(s.color) ? SpaceColor(rawValue: s.color) : nil
       // Outer nil: not set (keep ours); inner nil: 0 = never.
       var archiveAfter: TimeInterval?? = .none
       if s.hasArchiveAfterSeconds && s.archiveAfterSeconds >= 0 {
@@ -487,12 +486,12 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         // (the desktop's AdoptSpace()); `reconcile()` then deletes it from
         // the old profile's account.
         store.rawUpdate(
-          space, name: s.name.isEmpty ? space.name : s.name, color: color ?? space.color, icon: s.icon,
+          space, name: s.name.isEmpty ? space.name : s.name, theme: s.theme(over: space.theme), icon: s.icon,
           profileUUID: ownProfile, archiveAfter: archiveAfter ?? space.archiveAfter,
           position: s.hasDirectoryPosition ? Self.position(s.directoryPosition) : space.position)
       } else {
         let space = store.makeSpace(
-          id: id, name: s.name.isEmpty ? "Space" : s.name, color: color ?? .blue, icon: s.icon,
+          id: id, name: s.name.isEmpty ? "Space" : s.name, theme: s.theme(over: .blue), icon: s.icon,
           profileUUID: ownProfile, archiveAfter: archiveAfter ?? 12 * 60 * 60,
           position: s.hasDirectoryPosition
             ? Self.position(s.directoryPosition)
@@ -717,7 +716,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       for space in store.spaces where mirror[space.id] == nil && owns(space) {
         let position = UniquePosition.forInsert(after: last, before: nil, suffix: Self.suffix(for: space.id))
         store.rawUpdate(
-          space, name: space.name, color: space.color, icon: space.icon,
+          space, name: space.name, theme: space.theme, icon: space.icon,
           profileUUID: isHome ? space.profileUUID : ownProfile, archiveAfter: space.archiveAfter, position: position)
         last = position
       }

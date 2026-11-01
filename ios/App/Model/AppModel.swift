@@ -5,6 +5,7 @@
 import CompassCrypto
 import CompassModel
 import Foundation
+import SwiftUI
 import Observation
 
 /// The app's state: the sidebar, what's selected, live tabs and sync.
@@ -15,6 +16,9 @@ final class AppModel {
   let tabs: TabManager
   let sync: SyncController
   let passwords = PasswordManager()
+  let siteSettings: SiteSettings
+  let contentBlocking = ContentBlocking()
+  let downloads = Downloads()
   let directory: URL
 
   /// The space the sidebar shows.
@@ -23,9 +27,27 @@ final class AppModel {
   var selectedNodeID: String?
   /// The sidebar, a bottom sheet over the browser. Up at launch.
   var showingSidebar = true
+  /// The sidebar rests at half height (dragged there) instead of full.
+  var sidebarHalf = false
+  /// While a finger moves the sidebar (a swipe up on the browser's bar, a
+  /// drag on its top strip): where it is, 0 closed to 1 full. nil otherwise.
+  var sidebarDrag: CGFloat?
+  /// How far the sidebar's list is pulled down past its top, in points: the
+  /// panel follows it down (SidebarPanel).
+  var sidebarPull: CGFloat = 0
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
+  /// The bottom bar's menu (PageMenu), and Site Settings from it.
+  var showingMenu = false
+  /// The bottom bar shrunk to a small address pill while the page scrolls
+  /// down (Site Settings → Collapse Bottom Bar).
+  private(set) var barCollapsed = false
+  @ObservationIgnored private var scrolled: CGFloat = 0
+  var showingSiteSettings = false
+  /// The command bar opens a new tab (the "+" buttons), not the shown tab's
+  /// address (the address pill).
+  var commandBarNewTab = true
   var showingSettings = false
   /// After joining a chain: what came over (profiles and spaces).
   var showingJoinSummary = false
@@ -44,11 +66,15 @@ final class AppModel {
     if store.spaces.isEmpty {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
-    tabs = TabManager(store: store)
+    siteSettings = SiteSettings(directory: directory)
+    tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
     selectedSpaceID = store.spaces.first?.id
+    tabs.downloads = downloads
+    contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
+    Task { [contentBlocking] in await contentBlocking.refresh() }
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
     tabs.onPageLoaded = { [weak self] url, title, id in
       guard let self else { return }
@@ -58,7 +84,16 @@ final class AppModel {
       guard let self else { return }
       self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
     }
-    tabs.onNavigated = { [weak self] id in self?.passwords.pageChanged(id) }
+    tabs.onNavigated = { [weak self] id in
+      self?.passwords.pageChanged(id)
+      self?.setBarCollapsed(false)
+    }
+    tabs.onScroll = { [weak self] id, dy, user, atTop in self?.pageScrolled(id, dy, user: user, atTop: atTop) }
+    siteSettings.onChange = { [weak self] option, site in
+      guard let self else { return }
+      tabs.apply(option, site: site)
+      if option == .collapseBar { setBarCollapsed(false) }
+    }
     Favicons.shared.onPageIcon = { [weak self] host, png, size, tab in
       guard let self else { return }
       self.sync.offerFavicon(host: host, png: png, sourceSize: size, account: self.accountProfile(ofTab: tab))
@@ -83,8 +118,39 @@ final class AppModel {
           showingJoinSummary = true
         }
       }
+      //   -CompassOpenLink <url>: as a link from another app.
+      if let link = defaults.string(forKey: "CompassOpenLink").flatMap(URL.init(string:)) { openLink(link) }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
+      //   -CompassSidebarDrag <0...1>: hold the sidebar there, as under a
+      //   finger.
+      if let drag = defaults.object(forKey: "CompassSidebarDrag").flatMap({ Double("\($0)") }) {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(1500))
+          self?.sidebarDrag = drag
+        }
+      }
+      //   -CompassSettings YES: open Settings.
+      if defaults.bool(forKey: "CompassSettings") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(1500))
+          self?.showingSettings = true
+        }
+      }
+      //   -CompassMenu YES: open the bottom bar's menu.
+      if defaults.bool(forKey: "CompassMenu") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(1500))
+          self?.showingMenu = true
+        }
+      }
+      //   -CompassCommandBar YES: open the command bar.
+      if defaults.bool(forKey: "CompassCommandBar") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(800))
+          self?.openCommandBar(newTab: false)
+        }
+      }
       //   -CompassDebugJS <js>: run in each page once it has loaded.
       if let js = defaults.string(forKey: "CompassDebugJS") {
         let previous = tabs.onPageLoaded
@@ -139,7 +205,7 @@ final class AppModel {
 
   private func observeForSaving() {
     withObservationTracking {
-      _ = store.spaces.map { ($0.name, $0.color, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
+      _ = store.spaces.map { ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
       _ = store.favoritesRoots.map(\.children.count)
       _ = store.spaces.map(\.profileUUID)
     } onChange: { [weak self] in
@@ -190,15 +256,76 @@ final class AppModel {
       selectedPane = 0
     }
     store.touch(node)
-    // Both close: the command bar would otherwise move from the sidebar to
-    // the browser (AppModel.presented).
+    setBarCollapsed(false)
     showingCommandBar = false
     showingSidebar = false
+    sidebarHalf = false
   }
 
-  func showSidebar() { showingSidebar = true }
+  /// The shown page scrolled: down by the user collapses the bar, up (or
+  /// back at the top) brings it back. A scroll has to go 24 pt one way.
+  private func pageScrolled(_ id: String, _ dy: CGFloat, user: Bool, atTop: Bool) {
+    guard id == shownTab?.id else { return }
+    if atTop {
+      setBarCollapsed(false)
+      return
+    }
+    // Sub-point jitter during a drag goes both ways: it mustn't reset the
+    // count.
+    guard user, abs(dy) >= 1 else { return }
+    let site = SiteSettings.site(tabs.live[id]?.url)
+    guard siteSettings.value(.collapseBar, site: site) else { return }
+    if (dy > 0) != (scrolled > 0) { scrolled = 0 }
+    scrolled += dy
+    if scrolled > 24 {
+      setBarCollapsed(true)
+    } else if scrolled < -24 {
+      setBarCollapsed(false)
+    }
+  }
+
+  func setBarCollapsed(_ collapsed: Bool) {
+    guard barCollapsed != collapsed else { return }
+    withAnimation(.snappy(duration: 0.25)) { barCollapsed = collapsed }
+  }
+
+  /// Opens the find bar on the shown page, with `text` already searched.
+  /// After a sheet has closed (it can't show while one is up).
+  func findOnPage(_ text: String? = nil) {
+    guard let tab = shownTab, let view = tabs.live[tab.id] else { return }
+    Task {
+      try? await Task.sleep(for: .milliseconds(450))
+      view.findInteraction?.presentFindNavigator(showingReplace: false)
+      if let text { view.findInteraction?.searchText = text }
+    }
+  }
+
+  /// The command bar: for a new tab, or to edit the shown tab's address.
+  func openCommandBar(newTab: Bool) {
+    commandBarNewTab = newTab
+    showingCommandBar = true
+  }
+
+  func showSidebar() {
+    sidebarHalf = false
+    showingSidebar = true
+  }
 
   /// Opens text from the command bar: a URL, or a search.
+  /// A link from another app: whatever was up closes, and the page opens
+  /// as it is, in a new Today tab of the shown space.
+  func openLink(_ url: URL) {
+    showingCommandBar = false
+    showingMenu = false
+    showingSettings = false
+    showingSiteSettings = false
+    guard let space = selectedSpace ?? store.spaces.first,
+      let tab = store.addTab(url: url.absoluteString, to: space.today)
+    else { return }
+    selectedSpaceID = space.id
+    show(tab)
+  }
+
   func open(_ text: String, replacing node: SidebarNode? = nil) {
     let url = Self.url(for: text)
     if let node, node.isTab {
@@ -211,15 +338,20 @@ final class AppModel {
     show(tab)
   }
 
+  /// `text` as typed in the command bar: an address, or else a search with
+  /// the chosen engine.
   static func url(for text: String) -> String {
+    address(text) ?? SearchEngine.current.url(for: text.trimmingCharacters(in: .whitespacesAndNewlines))
+  }
+
+  /// `text` as an address, if it is one ("example.com", a full URL).
+  static func address(_ text: String) -> String? {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
     if let url = URL(string: trimmed), url.scheme != nil, url.host() != nil { return trimmed }
     if !trimmed.contains(" "), trimmed.contains("."), let url = URL(string: "https://" + trimmed), url.host() != nil {
       return url.absoluteString
     }
-    var c = URLComponents(string: "https://duckduckgo.com/")!
-    c.queryItems = [URLQueryItem(name: "q", value: trimmed)]
-    return c.url!.absoluteString
+    return nil
   }
 
   func close(_ node: SidebarNode) {
