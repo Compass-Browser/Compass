@@ -24,10 +24,10 @@
     padding: 0;
   }
 
-  .compass-page li {
-    border: 1px solid var(--color-sys-divider, #dadce0);
-    border-radius: 12px;
-    margin-bottom: 8px;
+  /* Rows with separators, as upstream's settings rows. */
+  .compass-page li + li {
+    border-top: var(--cr-separator-line,
+        1px solid var(--color-sys-divider, #dadce0));
   }
 
   .compass-page label {
@@ -35,7 +35,7 @@
     cursor: pointer;
     display: flex;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 12px 0;
   }
 
   .compass-page li.imported label {
