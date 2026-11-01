@@ -91,6 +91,32 @@ from the same paks, so it follows.
 
 Tests: `tools/tests/test_rebrand_strings.py`.
 
+## Windows
+
+Windows keeps the product's identity apart from `BRANDING`, and before
+2026-11-01 it still said Chromium: desktop and Start menu shortcuts
+("Chromium", "<profile> - Chromium"), the user data folder
+(`%LOCALAPPDATA%\Chromium`), the default-browser registrations.
+
+- `chrome/install_static/chromium_install_modes.h` (patch): product path
+  "Compass" (so `%LOCALAPPDATA%\Compass\User Data`), app name and app ID
+  "Compass" (shortcuts, taskbar grouping), ProgIDs `CompassHTM` /
+  `CompassPDF` with "Compass HTML/PDF Document", and Compass's own Active
+  Setup GUID and toast activator, elevation service and tracing service
+  CLSIDs, so it doesn't collide with a Chromium on the same PC. The
+  interface IIDs stay upstream's (they come with the IDL). The
+  `chromium://` direct-launch scheme stays: `compass://` is the browser's
+  own scheme for its pages.
+- `chrome/installer/util/BUILD.gn` (patch): the installer strings
+  (`IDS_PRODUCT_NAME` is the shortcut name, the app shortcuts folder,
+  firewall rule text) are generated from the renamed `chromium_strings.grd`
+  copy instead of upstream's. Checked on the Mac by running
+  `create_string_rc.py` on the copy: "Compass" in every language, with
+  the inflected forms noted under "Renaming".
+- Written without a Windows build (the PC wasn't available). Upstream's
+  `install_static_unittests` check the old names and GUIDs and would need
+  updating if built.
+
 ## `compass://`
 
 The user types and sees `compass://`; pages still load as `chrome://`, so

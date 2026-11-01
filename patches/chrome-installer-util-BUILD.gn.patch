@@ -1,0 +1,17 @@
+diff --git a/chrome/installer/util/BUILD.gn b/chrome/installer/util/BUILD.gn
+index d0dc85a33426788b4d5fc42bb554a1780e3f6453..858aebf3a7633f64b0c3a5789d65944f5895b9e2 100644
+--- a/chrome/installer/util/BUILD.gn
++++ b/chrome/installer/util/BUILD.gn
+@@ -227,8 +227,11 @@ generate_embedded_i18n("generate_strings") {
+   extractor_datafile =
+       "//chrome/installer/util/prebuild/create_installer_string_rc.py"
+ 
+-  grdfile_folder = "//chrome/app/"
++  # Compass: from the renamed copy, so shortcuts and installer text say
++  # Compass (//compass/strings, docs/design/branding.md).
++  grdfile_folder = "$root_gen_dir/compass/strings/chrome/app/"
+   grdfile_name = "${branding_path_product}_strings"
++  deps = [ "//compass/strings:rebranded_grds" ]
+   xtb_relative_path = "resources"
+   grd_files_info = [ [
+         grdfile_folder,
