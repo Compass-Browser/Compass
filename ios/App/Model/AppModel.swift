@@ -23,6 +23,12 @@ final class AppModel {
   var selectedNodeID: String?
   /// The sidebar, a bottom sheet over the browser. Up at launch.
   var showingSidebar = true
+  /// While the sidebar follows a swipe up from the browser's bar: how far
+  /// up it is, 0 (hidden) to 1 (where the sheet sits). nil otherwise.
+  var sidebarPeek: CGFloat?
+  /// The sidebar sheet's top at full height, in screen points (measured
+  /// while it's up), so the swipe hands over to the sheet in place.
+  var sidebarSheetTop: CGFloat = 0
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
@@ -85,6 +91,16 @@ final class AppModel {
       }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
+      //   -CompassSidebarPeek <0...1>: hold the swipe-up sidebar there
+      //   (after the sheet has been up once, so its top is measured).
+      if let peek = defaults.object(forKey: "CompassSidebarPeek").flatMap({ Double("\($0)") }) {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(1500))
+          self?.showingSidebar = false
+          try? await Task.sleep(for: .milliseconds(800))
+          self?.sidebarPeek = peek
+        }
+      }
       //   -CompassCommandBar YES: open the command bar.
       if defaults.bool(forKey: "CompassCommandBar") {
         Task { [weak self] in

@@ -14,6 +14,8 @@ import WebKit
 struct BrowserScreen: View {
   @Environment(AppModel.self) private var app
   let node: SidebarNode?
+  /// The bar's drag: nil until it picks an axis.
+  @State private var dragAxis: Axis?
   /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
   /// the 2 pt gap under it. A constant, not measured: feeding a measured
   /// height back into the web view's inset loops layout.
@@ -150,14 +152,53 @@ struct BrowserScreen: View {
     .padding(.horizontal, 12)
     .padding(.bottom, 2)
     .gesture(
-      DragGesture(minimumDistance: 30).onEnded { value in
-        let (dx, dy) = (value.translation.width, value.translation.height)
-        if abs(dx) > abs(dy) {
-          step(dx < 0 ? 1 : -1)
-        } else if dy < 0 {
-          app.showSidebar()
+      DragGesture(minimumDistance: 12)
+        .onChanged { value in
+          let (dx, dy) = (value.translation.width, value.translation.height)
+          if dragAxis == nil { dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical }
+          if dragAxis == .vertical { app.sidebarPeek = peek(dy) }
         }
-      })
+        .onEnded { value in
+          defer { dragAxis = nil }
+          if dragAxis == .horizontal {
+            if abs(value.translation.width) > 30 { step(value.translation.width < 0 ? 1 : -1) }
+          } else if app.sidebarPeek != nil {
+            finishPeek(predicted: peek(value.predictedEndTranslation.height))
+          }
+        })
+  }
+
+  /// The sidebar's height while it follows the finger: the screen below
+  /// where the sheet sits.
+  private var peekHeight: CGFloat {
+    let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 800
+    return max(screen - SidebarPeek.top(app), 1)
+  }
+
+  /// A drag's vertical translation as the sidebar's 0...1 position.
+  private func peek(_ dy: CGFloat) -> CGFloat { min(max(-dy / peekHeight, 0), 1) }
+
+  /// Open if it's past halfway, or flicked up far enough to get there;
+  /// otherwise slide back down. Opening hands over to the real sheet, with
+  /// no animation, where the peek ends.
+  private func finishPeek(predicted: CGFloat) {
+    let open = max(app.sidebarPeek ?? 0, predicted) > 0.5 && predicted > 0.3
+    withAnimation(.snappy(duration: 0.3)) {
+      app.sidebarPeek = open ? 1 : 0
+    } completion: {
+      guard open else {
+        app.sidebarPeek = nil
+        return
+      }
+      var instant = Transaction()
+      instant.disablesAnimations = true
+      withTransaction(instant) { app.showingSidebar = true }
+      // The sheet is over the peek by then; drop it once the sheet is in.
+      Task {
+        try? await Task.sleep(for: .milliseconds(400))
+        app.sidebarPeek = nil
+      }
+    }
   }
 
   /// The site's icon and host, centered; the load progress as a thin line in

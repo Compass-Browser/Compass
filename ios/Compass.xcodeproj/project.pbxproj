@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		017915037F4DAC4C17921D93 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00421F26DEF62FA9775146B /* Theme.swift */; };
+		0C7002AAD560C1F582CB7133 /* SidebarPeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E9F9BA347A2A4F05C9C7CC /* SidebarPeek.swift */; };
 		0D76BE83326730393C9D18BE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19E94079AACC148BDF33673 /* Keychain.swift */; };
 		1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32AD0FC2A4DD49EA6D182F11 /* WebView.swift */; };
 		3B957538A2B525C251B71495 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */; };
@@ -69,6 +70,7 @@
 		32AD0FC2A4DD49EA6D182F11 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordScript.swift; sourceTree = "<group>"; };
 		40E0A58F6209D1FDB5E4BF4A /* AutoFill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutoFill.entitlements; sourceTree = "<group>"; };
+		47E9F9BA347A2A4F05C9C7CC /* SidebarPeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPeek.swift; sourceTree = "<group>"; };
 		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
 		73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarScreen.swift; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				56591060B5711506971F138C /* CommandBar.swift */,
 				4E455C53F4AADF06D3632F37 /* QRScannerView.swift */,
 				79254E7DBBF744D531F94471 /* SettingsView.swift */,
+				47E9F9BA347A2A4F05C9C7CC /* SidebarPeek.swift */,
 				73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */,
 				F00421F26DEF62FA9775146B /* Theme.swift */,
 			);
@@ -349,6 +352,7 @@
 				72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */,
 				55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */,
 				6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */,
+				0C7002AAD560C1F582CB7133 /* SidebarPeek.swift in Sources */,
 				FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */,
 				86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */,
 				AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */,

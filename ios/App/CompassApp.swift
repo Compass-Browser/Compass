@@ -67,6 +67,17 @@ struct RootView: View {
         SidebarScreen()
           .presentationDetents([.medium, .large], selection: $sidebarDetent)
           .presentationDragIndicator(.visible)
+          .presentationCornerRadius(SidebarPeek.radius)
+          .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minY }) { top in
+            // At full height, where a swipe up lands. The sheet moves while
+            // it slides in or out, or follows a drag down; it rests at the
+            // highest point it reaches.
+            if sidebarDetent == .large, top > 0,
+              app.sidebarSheetTop == 0 || top < app.sidebarSheetTop - 0.5
+            {
+              app.sidebarSheetTop = top
+            }
+          }
       }
       .onChange(of: app.showingSidebar) { _, showing in
         if showing { sidebarDetent = .large }
@@ -77,6 +88,9 @@ struct RootView: View {
         CommandBar(replacing: app.selectedNode.flatMap { $0.isTab ? $0 : nil })
       }
       .sheet(isPresented: app.presented(\.showingSettings, fromSidebar: false)) { SettingsView() }
+      .overlay {
+        if app.sidebarPeek != nil { SidebarPeek() }
+      }
   }
 }
 
