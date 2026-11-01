@@ -24,6 +24,10 @@ final class TabManager: NSObject {
   private let store: SpaceStore
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
+  /// A message from the password script: (body, tab ID, page URL).
+  var onPasswordMessage: ((Any, String, URL?) -> Void)?
+  /// A tab's URL changed (its page's forms are gone).
+  var onNavigated: ((String) -> Void)?
   /// A page finished loading (a history visit).
   var onPageLoaded: ((String, String) -> Void)?
 
@@ -43,6 +47,9 @@ final class TabManager: NSObject {
     configuration.websiteDataStore = dataStore(for: store.space(of: node)?.profileUUID ?? "")
     configuration.allowsInlineMediaPlayback = true
     configuration.allowsPictureInPictureMediaPlayback = true
+    configuration.userContentController.addUserScript(PasswordScript.userScript)
+    configuration.userContentController.add(
+      MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
     let view = WKWebView(frame: .zero, configuration: configuration)
     view.allowsBackForwardNavigationGestures = true
     view.isInspectable = true
@@ -99,6 +106,7 @@ final class TabManager: NSObject {
 
   private func changed(_ id: String, _ view: WKWebView) {
     revision += 1
+    onNavigated?(id)
     guard let node = store.node(id: id) else { return }
     store.update(node, url: view.url?.absoluteString, title: view.title)
   }
@@ -130,5 +138,21 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
       MainActor.assumeIsolated { openInNewTab?(url) }
     }
     return nil
+  }
+}
+
+/// Forwards script messages without the content controller retaining the
+/// tab manager.
+final class MessageProxy: NSObject, WKScriptMessageHandler {
+  weak var target: TabManager?
+  init(_ target: TabManager) { self.target = target }
+
+  func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+    MainActor.assumeIsolated {
+      guard let target, let view = message.webView,
+        let id = target.live.first(where: { $0.value === view })?.key
+      else { return }
+      target.onPasswordMessage?(message.body, id, view.url)
+    }
   }
 }

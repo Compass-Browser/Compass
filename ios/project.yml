@@ -26,7 +26,11 @@ targets:
       # The desktop's Icon Composer icon, shared.
       - path: ../assets/Compass.icon
         buildPhase: resources
+    entitlements:
+      path: App/Compass.entitlements
     dependencies:
+      - target: AutoFill
+        embed: true
       - package: CompassKit
         product: CompassCrypto
       - package: CompassKit
@@ -52,10 +56,38 @@ targets:
           - CFBundleURLName: it.cvm.compass.pair
             CFBundleURLSchemes: [compass-pair]
         BGTaskSchedulerPermittedIdentifiers: [it.cvm.compass.refresh]
+        CompassKeychainGroup: $(AppIdentifierPrefix)it.cvm.compass.shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.cvm.compass
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: Compass
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+  AutoFill:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AutoFill
+    entitlements:
+      path: AutoFill/AutoFill.entitlements
+    dependencies:
+      - package: CompassKit
+        product: CompassSync
+      - sdk: AuthenticationServices.framework
+    info:
+      path: AutoFill/Info.plist
+      properties:
+        CFBundleDisplayName: Compass
+        CompassKeychainGroup: $(AppIdentifierPrefix)it.cvm.compass.shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.authentication-services-credential-provider-ui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CredentialProviderViewController
+          NSExtensionAttributes:
+            ASCredentialProviderExtensionCapabilities:
+              ProvidesPasswords: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cvm.compass.autofill
+        TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO

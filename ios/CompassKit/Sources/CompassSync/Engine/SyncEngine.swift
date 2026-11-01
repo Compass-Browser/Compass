@@ -228,7 +228,10 @@ public actor SyncEngine {
 
     var specifics: SyncPb_EntitySpecifics?
     if !entity.deleted {
-      guard let decrypted = cryptographer?.decrypt(specifics: entity.specifics) else { return nil }
+      let decrypted =
+        type == .passwords
+        ? cryptographer?.decrypt(password: entity.specifics) : cryptographer?.decrypt(specifics: entity.specifics)
+      guard let decrypted else { return nil }
       specifics = decrypted
     }
 
@@ -312,7 +315,10 @@ public actor SyncEngine {
         entity.mtime = now
         entity.ctime = now
         if let data = pending.specifics, let specifics = try? SyncPb_EntitySpecifics(serializedBytes: data) {
-          if type.isEncrypted {
+          if type == .passwords {
+            entity.specifics = cryptographer.encrypt(password: specifics)
+            entity.nonUniqueName = "encrypted"
+          } else if type.isEncrypted {
             entity.specifics = cryptographer.encrypt(specifics: specifics, type: type)
             entity.nonUniqueName = "encrypted"
           } else {

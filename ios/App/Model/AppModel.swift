@@ -13,6 +13,7 @@ final class AppModel {
   let store = SpaceStore()
   let tabs: TabManager
   let sync: SyncController
+  let passwords = PasswordManager()
   let directory: URL
 
   /// The space the sidebar shows.
@@ -39,10 +40,12 @@ final class AppModel {
     tabs = TabManager(store: store)
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
-    sync = SyncController(store: store, history: history, directory: directory)
+    sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
     selectedSpaceID = store.spaces.first?.id
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
     tabs.onPageLoaded = { [weak self] url, title in self?.sync.recordVisit(url: url, title: title) }
+    tabs.onPasswordMessage = { [weak self] body, id, url in self?.passwords.handle(body, tabID: id, pageURL: url) }
+    tabs.onNavigated = { [weak self] id in self?.passwords.pageChanged(id) }
     sync.isShown = { [weak self] id in self?.selectedNodeID == id }
     sync.onReplaced = { [weak self] old, new in
       guard let self else { return }
@@ -57,6 +60,17 @@ final class AppModel {
         let server = defaults.string(forKey: "CompassServer").flatMap(URL.init(string:))
       {
         try? sync.join(recoveryCode: words, server: server)
+      }
+      //   -CompassOpenURL <url>: open a new tab.
+      if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
+      //   -CompassDebugJS <js>: run in each page once it has loaded.
+      if let js = defaults.string(forKey: "CompassDebugJS") {
+        let previous = tabs.onPageLoaded
+        tabs.onPageLoaded = { [weak self] url, title in
+          previous?(url, title)
+          guard let self, let tab = self.shownTab, let view = self.tabs.live[tab.id] else { return }
+          view.evaluateJavaScript(js, in: nil, in: .page, completionHandler: nil)
+        }
       }
       //   -CompassShow <title>: open that entry once it's there.
       if let title = defaults.string(forKey: "CompassShow") {

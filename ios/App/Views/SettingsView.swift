@@ -18,6 +18,9 @@ struct SettingsView: View {
     NavigationStack {
       Form {
         if app.sync.isOn { syncOn } else { syncOff }
+        Section {
+          NavigationLink("Passwords") { PasswordsView() }
+        }
         Section("Privacy") {
           Button("Clear History", role: .destructive) { confirmClear = true }
         }
@@ -231,6 +234,56 @@ struct JoinView: View {
       case .rateLimited: message = "Too many tries. Wait a few minutes."
       case .failed: message = "Couldn't reach the server."
       }
+    }
+  }
+}
+
+struct PasswordsView: View {
+  @Environment(AppModel.self) private var app
+  @State private var query = ""
+  @State private var unlocked = false
+
+  var body: some View {
+    List {
+      if unlocked {
+        ForEach(app.passwords.all.filter { query.isEmpty || $0.host.localizedCaseInsensitiveContains(query) || $0.username.localizedCaseInsensitiveContains(query) }) { p in
+          NavigationLink {
+            Form {
+              LabeledContent("Website", value: p.host)
+              if p.isBlocked {
+                Text("Never saved for this site").foregroundStyle(.secondary)
+              } else {
+                LabeledContent("Username", value: p.username)
+                LabeledContent("Password") { Text(p.password).textSelection(.enabled).font(.body.monospaced()) }
+              }
+              Button("Delete", role: .destructive) { app.passwords.delete(p) }
+            }
+            .navigationTitle(p.host)
+          } label: {
+            VStack(alignment: .leading) {
+              Text(p.host)
+              Text(p.isBlocked ? "Never saved" : p.username).font(.caption).foregroundStyle(.secondary)
+            }
+          }
+        }
+      } else {
+        Button("Unlock Passwords") { unlock() }
+      }
+    }
+    .searchable(text: $query)
+    .navigationTitle("Passwords")
+    .onAppear(perform: unlock)
+  }
+
+  private func unlock() {
+    let context = LAContext()
+    var error: NSError?
+    guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+      unlocked = true
+      return
+    }
+    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Show your saved passwords") { ok, _ in
+      if ok { Task { @MainActor in unlocked = true } }
     }
   }
 }

@@ -341,3 +341,26 @@ The command bar's history and "Tabs on <Mac>" come with M5.
   - History both ways, a title update, and engine metadata staying empty.
   - A delete directive from the phone clearing the Mac's history.
   - Sessions both ways, a closed tab disappearing, and no re-commit of unchanged tabs.
+
+### M6 (passwords and AutoFill), 2026-11-01
+
+- **Wire format.** It follows Chromium's PasswordSyncBridge and data_type_worker.cc:
+  - `password.encrypted` holds the serialized `PasswordSpecificsData`, and `encrypted_notes_backup` its notes.
+  - The outer `encrypted` field is unused, and no unencrypted metadata is sent with a custom passphrase.
+  - `client_only_encrypted_data` stays local.
+  - The client tag is `EscapePath(origin spec)|EscapePath(username element)|EscapePath(username)|EscapePath(password element)|EscapePath(signon realm)`. Chromium's client-tag test and base's EscapePath test pass.
+  - Saves set `date_created`, `date_last_used` and `date_password_modified` (Windows-epoch µs), `times_used`, scheme 0 (HTML) and type 0. Updates keep the stored data's other fields.
+  - "Never for this site" is Chromium's blocklisted entry.
+- **Storage.** `KeychainPasswordStore` keeps one item per credential, holding the serialized data. The access group `$(AppIdentifierPrefix)it.cvm.compass.shared` is shared with the extension, with a fallback to the app's own Keychain when the build isn't signed with the group (simulator).
+- **In pages.**
+  - The `PasswordScript` user script runs in its own content world. It reports login forms and submitted credentials (on submit, a button click, Enter, or pagehide) and fills on request.
+  - The browser bar shows a key menu when the page has a login form and saved logins match (same realm, or a parent or child host).
+  - A banner offers Save, Update, Never for This Site, or Not Now.
+- **Settings → Passwords**, behind Face ID or the passcode.
+- **AutoFill extension** (`ios/AutoFill`, a credential-provider UI).
+  - It shows a suggested list for the requesting site and fills from QuickType without UI.
+  - The app keeps `ASCredentialIdentityStore` current after every change. The user turns it on in iOS Settings → Passwords → AutoFill.
+  - Device builds need a team with the AutoFill credential provider capability and the shared Keychain group (`App/Compass.entitlements`, `AutoFill/AutoFill.entitlements`).
+- **Verified.**
+  - Server test: a save on the Mac arrives on the phone; an update and a deletion come back; neither the password nor the domain is readable on the server.
+  - Simulator: a debug run filling and submitting a local test login page shows the save banner.

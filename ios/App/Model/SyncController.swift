@@ -49,7 +49,10 @@ final class SyncController {
   private var running = false
   private var again = false
 
-  init(store: SpaceStore, history: HistoryStore, directory: URL) {
+  let passwords: PasswordManager
+
+  init(store: SpaceStore, history: HistoryStore, passwords: PasswordManager, directory: URL) {
+    self.passwords = passwords
     self.store = store
     self.history = history
     self.directory = directory
@@ -104,6 +107,7 @@ final class SyncController {
     devices = []
     foreignSessions = []
     visits = nil
+    passwords.bridge = nil
     directives = nil
     sessions = nil
     state = .off
@@ -138,6 +142,8 @@ final class SyncController {
       Task { @MainActor in self?.foreignSessions = list }
     }
     self.visits = visits
+    let passwordsBridge = PasswordsBridge(store: passwords.store, engine: engine)
+    passwords.bridge = passwordsBridge
     self.directives = directives
     self.sessions = sessions
     let deviceInfo = DeviceInfoBridge(
@@ -157,6 +163,7 @@ final class SyncController {
       await engine.register(visits)
       await engine.register(directives)
       await engine.register(sessions)
+      await engine.register(passwordsBridge)
       syncSoon(after: 0)
     }
   }

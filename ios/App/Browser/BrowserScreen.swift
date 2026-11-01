@@ -34,7 +34,49 @@ struct BrowserScreen: View {
       } else {
         Spacer()
       }
+      if let pending = app.passwords.pendingSave { saveBanner(pending) }
       bar
+    }
+  }
+
+  private func saveBanner(_ p: PasswordManager.PendingSave) -> some View {
+    HStack(spacing: 12) {
+      Image(systemName: "key.fill").foregroundStyle(.secondary)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(p.isUpdate ? "Update password?" : "Save password?").font(.subheadline.weight(.semibold))
+        Text("\(p.username.isEmpty ? "No username" : p.username) · \(URL(string: p.realm)?.host() ?? p.realm)")
+          .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+      }
+      Spacer()
+      Menu {
+        Button("Never for This Site") { app.passwords.neverSave(p) }
+        Button("Not Now") { app.passwords.pendingSave = nil }
+      } label: {
+        Image(systemName: "ellipsis").padding(6)
+      }
+      Button(p.isUpdate ? "Update" : "Save") { app.passwords.save(p) }
+        .buttonStyle(.borderedProminent)
+    }
+    .padding(12)
+    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+    .padding(.horizontal, 10)
+    .padding(.bottom, 6)
+    .transition(.move(edge: .bottom).combined(with: .opacity))
+  }
+
+  @ViewBuilder private var keyButton: some View {
+    if let tab = app.shownTab, app.passwords.hasForm(tab.id), let view = app.tabs.live[tab.id] {
+      let logins = app.passwords.matches(for: view.url)
+      if !logins.isEmpty {
+        Menu {
+          ForEach(logins) { login in
+            Button(login.username.isEmpty ? login.host : login.username) { app.passwords.fill(login, in: view) }
+          }
+        } label: {
+          Image(systemName: "key.fill")
+        }
+        .accessibilityLabel("Fill password")
+      }
     }
   }
 
@@ -67,6 +109,7 @@ struct BrowserScreen: View {
       }
       Button { view?.goForward() } label: { Image(systemName: "chevron.right") }
         .disabled(!(view?.canGoForward ?? false))
+      keyButton
       Button { app.showSidebar() } label: { Image(systemName: "sidebar.left") }
         .accessibilityLabel("Sidebar")
     }
