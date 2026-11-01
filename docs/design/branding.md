@@ -51,6 +51,14 @@ each renamed message's translations under its new ID, with the same renaming
 that names both the product and the project keeps its translations
 unchanged: word order differs, so the two can't be told apart.
 
+One message is replaced rather than renamed: the name a new profile gets
+when the user gives none (`IDS_PROFILE_MENU_PLACEHOLDER_PROFILE_NAME`,
+upstream "Your Chromium") is "Default", in every language (its translations
+are dropped, so grit falls back to the English text). Profiles already named
+"Your Chromium" or "Your Compass" by default are renamed at startup
+(`compass::RenamePlaceholderProfiles()`, `space_directory.h`), since upstream
+recomputes default names only once per install.
+
 Known rough edges: Korean particles follow the old name ("Compass은" where
 "Compass는" reads right), and any other language that inflects the name keeps
 Chromium's form.

@@ -43,6 +43,13 @@ _KEEP = re.compile(
     r'(?=<ph name="END_LINK_CHROMIUM")', re.S)
 _AUTHORS = ('The Chromium Authors', 'The Compass Authors')
 
+# Messages whose text Compass replaces outright, in every language: their
+# translations are dropped, so grit falls back to this English text.
+_REPLACED = {
+    # The name a new profile gets when the user gives none ("Your Chromium").
+    'IDS_PROFILE_MENU_PLACEHOLDER_PROFILE_NAME': 'Default',
+}
+
 _MESSAGE = re.compile(r'(<message\b[^>]*>)(.*?)(</message>)', re.S)
 _PART = re.compile(r'<part\s+file="([^"]+)"')
 _XTB_FILE = re.compile(r'<file\s+path="([^"]+\.xtb)"')
@@ -73,10 +80,27 @@ def _rename_span(text):
       text)
 
 
+def _message_name(open_tag):
+  name = re.search(r'name="(\w+)"', open_tag)
+  return name.group(1) if name else None
+
+
+def _new_body(open_tag, body):
+  replacement = _REPLACED.get(_message_name(open_tag))
+  if replacement is None:
+    return rename(body)
+  # Keeps the body's surrounding whitespace, so the file reads as before.
+  lead = body[:len(body) - len(body.lstrip())]
+  trail = body[len(body.rstrip()):]
+  return lead + replacement + trail
+
+
 def rename_messages(source):
-  """Renames the product in every <message> body of a .grd or .grdp."""
-  return _MESSAGE.sub(lambda m: m.group(1) + rename(m.group(2)) + m.group(3),
-                      source)
+  """Renames the product in every <message> body of a .grd or .grdp, and
+  replaces the text of the messages in _REPLACED."""
+  return _MESSAGE.sub(
+      lambda m: m.group(1) + _new_body(m.group(1), m.group(2)) + m.group(3),
+      source)
 
 
 def read(path):
@@ -156,8 +180,11 @@ def generate(grd, out_dir, grit_dir):
       o for (name, o), (_, n) in zip(old, new)
       if o != n and names_project(sources_by_name.get(name, ''))
   }
+  dropped = {o for name, o in old if name in _REPLACED}
 
   def translate(m):
+    if m.group(2) in dropped:
+      return ''
     if m.group(2) not in new_id:
       return m.group(0)
     text = m.group(4) if m.group(2) in keep_text else rename(m.group(4))

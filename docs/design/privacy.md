@@ -54,6 +54,11 @@ client, so `signin.allowed` is forced false at every start. Signing in to
 Google websites in a tab works as usual. Compass sync doesn't use a Google
 account (docs/design/sync.md).
 
+**"Google API keys are missing".** Chromium shows this bar on the first
+window of every launch of a build without Google's API keys. Compass has
+none on purpose, so the bar is gone
+(`patches/chrome-browser-ui-startup-infobar_utils.cc.patch`).
+
 ## Kept on purpose
 
 | What | Why |

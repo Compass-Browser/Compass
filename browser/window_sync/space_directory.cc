@@ -56,6 +56,7 @@ SpaceDirectory::SpaceDirectory(ProfileManager* profile_manager)
               kCommitInterval,
               "CompassSpaces") {
   profile_manager_observation_.Observe(profile_manager);
+  RenamePlaceholderProfiles(profile_manager->GetProfileAttributesStorage());
 }
 
 SpaceDirectory::~SpaceDirectory() {
@@ -439,6 +440,17 @@ void SpaceDirectory::Changed() {
   }
   for (Observer& observer : observers_) {
     observer.OnDirectoryChanged();
+  }
+}
+
+void RenamePlaceholderProfiles(ProfileAttributesStorage& storage) {
+  for (ProfileAttributesEntry* entry : storage.GetAllProfilesAttributes()) {
+    const std::u16string name = entry->GetLocalProfileName();
+    if (entry->IsUsingDefaultName() &&
+        (name == u"Your Chromium" || name == u"Your Compass")) {
+      entry->SetLocalProfileName(storage.ChooseNameForNewProfile(),
+                                 /*is_default_name=*/true);
+    }
   }
 }
 

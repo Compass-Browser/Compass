@@ -63,6 +63,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "sidebar_store_unittest.cc",
+    "space_directory_unittest.cc",
     "space_swap_unittest.cc",
     "space_switch_unittest.cc",
     "tab_strip_bridge_unittest.cc",

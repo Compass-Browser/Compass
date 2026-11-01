@@ -25,6 +25,7 @@
 #include "compass/browser/sidebar/space_list.h"
 
 class Profile;
+class ProfileAttributesStorage;
 class ProfileManager;
 class ScopedProfileKeepAlive;
 
@@ -167,6 +168,14 @@ class SpaceDirectory : public ProfileManagerObserver,
       profile_manager_observation_{this};
   base::WeakPtrFactory<SpaceDirectory> weak_factory_{this};
 };
+
+// Profiles still named with upstream's placeholder ("Your Chromium", or
+// "Your Compass" from the rebranded strings) by default get a new default
+// name: "Default" (strings/rebrand_strings.py), or "Person N" when that's
+// taken. Upstream renames default-named profiles only once per install, so
+// profiles made before the placeholder changed keep the old one otherwise.
+// Names the user chose are left alone. Run when the directory is created.
+void RenamePlaceholderProfiles(ProfileAttributesStorage& storage);
 
 }  // namespace compass
 

@@ -54,6 +54,17 @@ class RenameTest(unittest.TestCase):
     self.assertEqual(rename('$1<ex>About Chromium</ex> Chromium'),
                      '$1<ex>About Chromium</ex> Compass')
 
+  def test_replaces_the_placeholder_profile_name(self):
+    source = ('<message name="IDS_PROFILE_MENU_PLACEHOLDER_PROFILE_NAME" '
+              'desc="Placeholder profile name.">\n        Your Chromium\n'
+              '      </message>\n'
+              '<message name="IDS_OTHER">\n        Your Chromium\n'
+              '      </message>')
+    self.assertEqual(
+        rebrand_strings.rename_messages(source),
+        source.replace('Your Chromium', 'Default', 1).replace(
+            'Your Chromium', 'Your Compass'))
+
   def test_renames_the_authors(self):
     self.assertEqual(rename('Copyright 2026 The Chromium Authors.'),
                      'Copyright 2026 The Compass Authors.')
