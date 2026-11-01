@@ -422,7 +422,7 @@ def ios_archive(ios: Path, args) -> None:
     auth += ['-authenticationKeyPath', str(Path(args.api_key).resolve()),
              '-authenticationKeyID', args.api_key_id,
              '-authenticationKeyIssuerID', args.api_issuer]
-  # Two parts: one 12-digit number overflows what iOS keeps per part.
+  # Date.time, e.g. 20261101.1114: always higher than the last upload.
   build_number = time.strftime('%Y%m%d.%H%M')
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
        'Compass', '-configuration', 'Release', '-destination',

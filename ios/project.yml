@@ -47,7 +47,9 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Compass
+        # "Compass" is taken on the App Store (ITMS-90129).
+        CFBundleName: Compass Browser
+        CFBundleDisplayName: Compass Browser
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -97,7 +99,9 @@ targets:
     info:
       path: AutoFill/Info.plist
       properties:
-        CFBundleDisplayName: Compass
+        # "Compass" is taken on the App Store (ITMS-90129).
+        CFBundleName: Compass Browser
+        CFBundleDisplayName: Compass Browser
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cipi1965.compass.shared
