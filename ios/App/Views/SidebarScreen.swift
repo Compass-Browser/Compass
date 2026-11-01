@@ -52,7 +52,9 @@ struct SidebarScreen: View {
               SpaceIcon(space: space)
                 .foregroundStyle(shown ? space.color.color : .primary)
                 .opacity(shown ? 1 : 0.45)
+                .scaleEffect(shown ? 1.15 : 1)
                 .frame(width: 34, height: 34)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: shown)
             }
             .accessibilityLabel(space.name)
             .accessibilityAddTraits(shown ? .isSelected : [])
@@ -205,6 +207,9 @@ struct SpacePage: View {
       }
     }
     .listStyle(.plain)
+    // Entries appearing, closing, moving and folders opening animate, also
+    // when the change comes from another device.
+    .animation(SidebarStyle.motion, value: layout)
     .scrollContentBackground(.hidden)
     // Clear of the sheet's grab handle.
     .contentMargins(.top, 22, for: .scrollContent)
@@ -295,6 +300,15 @@ struct SpacePage: View {
     }
   }
 
+  /// What the List shows, for its animation: entries, open folders, the
+  /// shown entry and the favorites.
+  private var layout: [String] {
+    let entries = (space.pinned.children + space.today.children).flatMap(\.subtree)
+    return entries.map { $0.collapsed ? $0.id + "-" : $0.id }
+      + app.store.favorites(for: space).children.map(\.id)
+      + [app.selectedNodeID ?? ""]
+  }
+
   private func move(in root: SidebarNode, from: IndexSet, to: Int) {
     guard let index = from.first else { return }
     let node = root.children[index]
@@ -304,13 +318,15 @@ struct SpacePage: View {
 
 /// A light press highlight, the desktop's hover fill.
 struct SidebarPressStyle: ButtonStyle {
+  var scale: CGFloat = 0.98
+
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .background(
         SidebarStyle.fill.opacity(configuration.isPressed ? 1 : 0),
         in: RoundedRectangle(cornerRadius: SidebarStyle.rowRadius)
       )
-      .scaleEffect(configuration.isPressed ? 0.98 : 1)
+      .scaleEffect(configuration.isPressed ? scale : 1)
       .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
   }
 }
@@ -348,7 +364,7 @@ struct FavoritesGrid: View {
         .shadow(color: .black.opacity(shown ? 0.12 : 0), radius: 1.5, y: 1)
         .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: SidebarStyle.tileRadius))
     }
-    .buttonStyle(.plain)
+    .buttonStyle(SidebarPressStyle(scale: 0.95))
     .accessibilityLabel(fav.displayTitle)
     .contextMenu {
       Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { app.close(fav) }
@@ -413,7 +429,13 @@ struct NodeRow: View {
   private func entry(_ item: SidebarNode, shown: Bool) -> some View {
     // Pinned entries without a live tab are dimmed, as on the desktop.
     let dimmed = item.section == .pinned && !item.isFolder && !item.tabs.contains(where: app.tabs.isLive)
-    return Button { app.show(item) } label: {
+    return Button {
+      if item.isFolder {
+        withAnimation(SidebarStyle.motion) { app.show(item) }
+      } else {
+        app.show(item)
+      }
+    } label: {
       HStack(spacing: 10) {
         if item.isFolder {
           Image(systemName: "chevron.right")
@@ -424,6 +446,7 @@ struct NodeRow: View {
           Image(systemName: item.collapsed ? "folder" : "folder.fill")
             .font(.system(size: 15))
             .opacity(0.7)
+            .contentTransition(.symbolEffect(.replace))
         } else {
           SiteIcon(url: item.url, size: SidebarStyle.favicon).opacity(dimmed ? 0.55 : 1)
         }
@@ -444,7 +467,6 @@ struct NodeRow: View {
       .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: SidebarStyle.rowRadius))
     }
     .buttonStyle(SidebarPressStyle())
-    .animation(.easeOut(duration: 0.12), value: item.collapsed)
   }
 
   private func title(_ item: SidebarNode) -> String {

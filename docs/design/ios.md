@@ -447,6 +447,7 @@ The user asked for this. The sidebar keeps SwiftUI's List, so swipe actions, reo
   - Pinned entries without a live tab are dimmed, as on the desktop.
   - Folders have a rotating chevron. A split's panes share one row.
 - **Space switcher.** Each space's icon in the bottom bar (`SpaceIcon`), the shown one in its color and the others dimmed, then "+". The icon is the desktop's `{"symbol"}` or `{"emoji"}`, mapped to SF Symbols, or the space's initial.
+- **Motion.** Opening or closing a folder slides its children in and out, with a turning chevron and a folder icon that swaps. Every other change to the List animates too (`SidebarStyle.motion`, keyed on the entries, open folders, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
 - **Browser bar.** It's neutral too: primary-colored icons and a grey address pill, not the system tint.
 
 ## Open items
