@@ -59,6 +59,10 @@ final class AppModel {
       self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
     }
     tabs.onNavigated = { [weak self] id in self?.passwords.pageChanged(id) }
+    Favicons.shared.onPageIcon = { [weak self] host, png, size, tab in
+      guard let self else { return }
+      self.sync.offerFavicon(host: host, png: png, sourceSize: size, account: self.accountProfile(ofTab: tab))
+    }
     sync.isShown = { [weak self] id in self?.selectedNodeID == id }
     sync.onReplaced = { [weak self] old, new in
       guard let self else { return }

@@ -92,8 +92,8 @@ struct SpaceTint: View {
 }
 
 /// A space's icon in the switcher, as on the desktop: its symbol, its emoji,
-/// or its initial. The icon is `{"symbol": …}` / `{"emoji": …}` (the
-/// desktop's serializer), or a bare symbol name or emoji.
+/// or its initial. On the wire `icon` is "emoji:<emoji>" or
+/// "symbol:<name>" (compass_spaces_specifics.proto).
 struct SpaceIcon: View {
   let space: Space
   var size: CGFloat = 18
@@ -116,16 +116,14 @@ struct SpaceIcon: View {
   }
 
   static func parse(_ icon: String) -> Kind? {
-    var value = icon.trimmingCharacters(in: .whitespaces)
-    if value.hasPrefix("{"), let data = value.data(using: .utf8),
-      let object = try? JSONSerialization.jsonObject(with: data) as? [String: String]
-    {
-      if let emoji = object["emoji"], !emoji.isEmpty { return .emoji(emoji) }
-      value = object["symbol"] ?? ""
+    if icon.hasPrefix("emoji:") {
+      let emoji = String(icon.dropFirst(6))
+      return emoji.isEmpty ? nil : .emoji(emoji)
     }
-    if value.isEmpty { return nil }
-    if let name = symbols[value] { return .symbol(name) }
-    return value.unicodeScalars.contains(where: \.properties.isEmojiPresentation) ? .emoji(value) : nil
+    if icon.hasPrefix("symbol:") {
+      return symbols[String(icon.dropFirst(7))].map(Kind.symbol)
+    }
+    return nil
   }
 
   /// The desktop's symbols (resources/sidebar/space_icons.ts) as SF Symbols.

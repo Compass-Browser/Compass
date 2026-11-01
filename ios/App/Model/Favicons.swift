@@ -12,7 +12,10 @@ import WebKit
 /// had neither: a load cancelled by a redraw stayed a letter.
 ///
 /// Where an icon comes from, best first: the icons a loaded page declares
-/// (`pageLoaded`), then the host's apple-touch-icon.png, then /favicon.ico.
+/// (`pageLoaded`, or /favicon.ico when it declares none, as browsers do),
+/// then an icon another device synced (`setSynced`), then a guess: the
+/// host's apple-touch-icon.png, then /favicon.ico. Only page icons are
+/// synced (`onPageIcon`; docs/design/sync.md, "Favicons").
 @MainActor
 @Observable
 final class Favicons {
@@ -22,8 +25,12 @@ final class Favicons {
   @ObservationIgnored private var loading: Set<String> = []
   /// Hosts with no icon anywhere, not retried until the next launch.
   @ObservationIgnored private var missing: Set<String> = []
-  /// Hosts whose icon came from their page, which beats the guessed paths.
+  /// Hosts whose icon came from their page, which beats the others.
   @ObservationIgnored private var fromPage: Set<String> = []
+  /// Hosts whose icon came from sync, which beats a guess.
+  @ObservationIgnored private var fromSync: Set<String> = []
+  /// A page's icon, to sync: (host, 64 px PNG, source size, tab ID).
+  @ObservationIgnored var onPageIcon: ((String, Data, Int, String) -> Void)?
   @ObservationIgnored private let directory: URL
   @ObservationIgnored private let session: URLSession
 
@@ -66,7 +73,7 @@ final class Favicons {
         return
       }
       let candidates = ["apple-touch-icon.png", "favicon.ico"].compactMap { URL(string: "https://\(host)/\($0)") }
-      if let image = await fetch(candidates), !fromPage.contains(host) {
+      if let (image, _) = await fetch(candidates), !fromPage.contains(host), !fromSync.contains(host) {
         store(image, for: host)
       } else if images[host] == nil {
         missing.insert(host)
@@ -76,8 +83,8 @@ final class Favicons {
 
   /// A loaded page's own icons (`<link rel=icon>`, apple-touch-icon), the
   /// largest first.
-  func pageLoaded(_ view: WKWebView) {
-    guard let host = view.url?.host()?.lowercased() else { return }
+  func pageLoaded(_ view: WKWebView, tab: String) {
+    guard let host = view.url?.host()?.lowercased(), view.url?.scheme?.hasPrefix("http") == true else { return }
     let script = """
       [...document.querySelectorAll('link[rel~="icon"], link[rel~="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]')]
         .filter(l => l.href && !/\\.svg(\\?|$)/i.test(l.href) && !/svg/.test(l.type))
@@ -87,15 +94,35 @@ final class Favicons {
         .map(l => l.href)
       """
     view.evaluateJavaScript(script) { [weak self] result, _ in
-      let urls = (result as? [String] ?? []).compactMap(URL.init(string:))
-      guard !urls.isEmpty else { return }
+      var urls = (result as? [String] ?? []).compactMap(URL.init(string:))
+      // None declared: what browsers show, the host's /favicon.ico.
+      if urls.isEmpty, let ico = URL(string: "https://\(host)/favicon.ico") { urls = [ico] }
       Task { @MainActor in
-        guard let self, let image = await self.fetch(urls) else { return }
+        guard let self, let (image, sourceSize) = await self.fetch(urls) else { return }
         self.fromPage.insert(host)
         self.missing.remove(host)
         self.store(image, for: host)
+        if let png = Self.syncPNG(image) { self.onPageIcon?(host, png, sourceSize, tab) }
       }
     }
+  }
+
+  /// An icon another device got from its page: better than a guess, not
+  /// than this phone's own page icon.
+  func setSynced(host: String, png: Data) {
+    let host = host.lowercased()
+    guard !fromPage.contains(host), let image = UIImage(data: png) else { return }
+    fromSync.insert(host)
+    missing.remove(host)
+    store(image, for: host)
+  }
+
+  /// At most 64 px a side and 8 KiB, as sync takes it.
+  static func syncPNG(_ image: UIImage) -> Data? {
+    for side in [64.0, 48, 32] {
+      if let data = downscaled(image, to: side).pngData(), data.count <= 8 * 1024 { return data }
+    }
+    return nil
   }
 
   private func store(_ image: UIImage, for host: String) {
@@ -103,22 +130,24 @@ final class Favicons {
     if let data = image.pngData() { try? data.write(to: file(host), options: .atomic) }
   }
 
-  /// The first candidate that is an image, scaled down to at most 128 px.
-  private func fetch(_ urls: [URL]) async -> UIImage? {
+  /// The first candidate that is an image, scaled down to at most 128 px,
+  /// with its larger side in px before that.
+  private func fetch(_ urls: [URL]) async -> (UIImage, Int)? {
     for url in urls {
       guard let (data, response) = try? await session.data(from: url),
         (response as? HTTPURLResponse)?.statusCode == 200,
         let image = UIImage(data: data), image.size.width >= 8
       else { continue }
-      return Self.downscaled(image)
+      let side = Int(max(image.size.width, image.size.height) * image.scale)
+      return (Self.downscaled(image, to: 128), side)
     }
     return nil
   }
 
-  private static func downscaled(_ image: UIImage) -> UIImage {
+  private static func downscaled(_ image: UIImage, to limit: CGFloat) -> UIImage {
     let side = max(image.size.width, image.size.height) * image.scale
-    guard side > 128 else { return image }
-    let scale = 128 / side
+    guard side > limit else { return image }
+    let scale = limit / side
     let size = CGSize(width: image.size.width * image.scale * scale, height: image.size.height * image.scale * scale)
     let format = UIGraphicsImageRendererFormat()
     format.scale = 1

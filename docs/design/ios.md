@@ -451,6 +451,17 @@ The user asked for this. The sidebar's native look is replaced with the desktop 
 - **Motion.** A folder's children slide down from under its row as they fade in, and slide back up on close, in 0.22 s (`SidebarStyle.folder`). The rows below move with them, the chevron turns and the folder icon swaps. Every other change animates too (`SidebarStyle.motion`, keyed on the entries, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
 - **Browser bar.** It's neutral too: primary-colored icons and a grey address pill, not the system tint.
 
+### Favicons, 2026-11-01
+
+- **Loading.** `Favicons` (App/Model) replaces `AsyncImage`, which kept no cache and left a letter when a redraw cancelled its load. Icons are kept by host in memory and in `Caches/Favicons`. Best first:
+  1. a loaded page's declared icons (the largest), or its `/favicon.ico` when it declares none;
+  2. an icon synced from another device;
+  3. a guess: `apple-touch-icon.png`, then `/favicon.ico`.
+
+  Requests use Safari's user agent.
+- **Sync.** `CompassFavicon` in COMPASS_SPACES (sync.md, "Favicons"; the user asked for it). `CompassSpacesBridge+Favicons`: `offerFavicon` writes a page's icon (64 px PNG, at most 8 KiB) into the account of the tab's space, when an entry there is on the host and the icon beats the account's. `onFavicon` and `syncedFavicons` feed the cache, and `collectFavicons` deletes unused icons after a day. Tests: `FaviconKeyTests` (the UUID vectors) and `FaviconServerTests`.
+- **Desktop half.** Handed to compass-a8 (2026-11-01): writing the tab's favicon, `SetOnDemandFavicons` for synced ones, the key, and accepting the entity in `IsEntityDataValid()`.
+
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
