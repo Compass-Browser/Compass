@@ -54,9 +54,10 @@ final class SidebarSheet: NSObject, UISheetPresentationControllerDelegate {
     controller = host
     var top = root
     while let presented = top.presentedViewController { top = presented }
-    top.present(host, animated: animated) { [app] in
-      if app.sidebarPeek != nil { app.sidebarPeek = nil }
-    }
+    top.present(host, animated: animated)
+    // The swiped-up copy goes in the same update the sheet comes in, so
+    // their dimming never stacks for a frame.
+    if app.sidebarPeek != nil { app.sidebarPeek = nil }
   }
 
   /// Closed by dragging it down.

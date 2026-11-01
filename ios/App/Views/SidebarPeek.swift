@@ -12,6 +12,8 @@ import SwiftUI
 struct SidebarPeek: View {
   @Environment(AppModel.self) private var app
 
+  /// The sheet's dimming of the page at full height (measured: 238 → 190).
+  static let dim: CGFloat = 0.2
   /// The sheet's corners, set on both so the handover doesn't show.
   static let radius: CGFloat = 32
 
@@ -32,7 +34,7 @@ struct SidebarPeek: View {
       let top = Self.top(app)
       let height = geo.size.height - top
       ZStack(alignment: .top) {
-        Color.black.opacity(0.18 * progress)
+        Color.black.opacity(Self.dim * progress)
         SidebarScreen()
           // The sheet keeps its content above the home indicator; this
           // copy is laid out with the safe areas ignored, so it adds that.
