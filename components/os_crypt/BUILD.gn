@@ -1,0 +1,33 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_mac)
+
+# Moves the safe storage key from upstream's "Chromium Safe Storage" item to
+# "Compass Safe Storage". //components/os_crypt/common:keychain_password_mac
+# depends on it (patches/components-os_crypt-common-BUILD.gn.patch).
+source_set("legacy_keychain_password") {
+  sources = [
+    "legacy_keychain_password.h",
+    "legacy_keychain_password.mm",
+  ]
+  deps = [
+    "//base",
+    "//crypto",
+  ]
+  frameworks = [ "Security.framework" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "legacy_keychain_password_unittest.mm" ]
+  deps = [
+    ":legacy_keychain_password",
+    "//base",
+    "//components/os_crypt/common:keychain_password_mac",
+    "//crypto",
+    "//crypto:mock_apple_keychain",
+    "//testing/gtest",
+  ]
+}

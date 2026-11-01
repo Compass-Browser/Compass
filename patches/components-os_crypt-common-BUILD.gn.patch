@@ -1,0 +1,14 @@
+diff --git a/components/os_crypt/common/BUILD.gn b/components/os_crypt/common/BUILD.gn
+index 10db0687101b69542f9dd33592d0655c7343e3c8..49aff1d6e29be4a6a86c8d1f12b7eb816c71a0b8 100644
+--- a/components/os_crypt/common/BUILD.gn
++++ b/components/os_crypt/common/BUILD.gn
+@@ -27,6 +27,9 @@ if (is_apple) {
+       "//build:branding_buildflags",
+       "//crypto",
+     ]
++    if (is_mac) {
++      deps += [ "//compass/components/os_crypt:legacy_keychain_password" ]
++    }
+   }
+ }
+ 
