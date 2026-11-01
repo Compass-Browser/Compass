@@ -57,6 +57,11 @@ struct SettingsView: View {
           .tint(.primary)
         }
         if app.sync.isOn { syncOn } else { syncOff }
+        Section {
+          Link(destination: URL(string: "https://sync.example.org/privacy")!) {
+            SettingsLabel("Privacy Policy", "hand.raised.fill", .indigo)
+          }
+        }
       }
       .navigationTitle("Settings")
       .navigationBarTitleDisplayMode(.inline)
