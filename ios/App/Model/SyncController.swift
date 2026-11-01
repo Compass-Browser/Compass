@@ -245,7 +245,7 @@ final class SyncController {
       state = .failed("\(error)")
     }
     if case .failed(let message) = state {
-      Logger(subsystem: "it.cvm.compass", category: "sync").error("Sync failed: \(message, privacy: .public)")
+      Logger(subsystem: "it.cipi1965.compass", category: "sync").error("Sync failed: \(message, privacy: .public)")
     }
     // The server's poll interval while the app is open (push comes in M7).
     let poll = await engine.pollInterval ?? 30

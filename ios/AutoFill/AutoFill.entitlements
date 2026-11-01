@@ -6,7 +6,7 @@
 	<true/>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)it.cvm.compass.shared</string>
+		<string>$(AppIdentifierPrefix)it.cipi1965.compass.shared</string>
 	</array>
 </dict>
 </plist>

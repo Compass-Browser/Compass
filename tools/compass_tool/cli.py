@@ -337,7 +337,7 @@ def cmd_sync_server(layout: Layout, args) -> None:
   run(cmd, cwd, env=env, check=False)
 
 
-IOS_BUNDLE_ID = 'it.cvm.compass'
+IOS_BUNDLE_ID = 'it.cipi1965.compass'
 IOS_DEFAULT_DEVICE = 'iPhone 18 Pro'
 
 

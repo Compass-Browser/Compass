@@ -15,7 +15,7 @@ import WebKit
 @Observable
 final class PasswordManager {
   /// The Keychain group the AutoFill extension shares (Info.plist
-  /// CompassKeychainGroup = $(AppIdentifierPrefix)it.cvm.compass.shared).
+  /// CompassKeychainGroup = $(AppIdentifierPrefix)it.cipi1965.compass.shared).
   static let accessGroup: String? = {
     guard let group = Bundle.main.object(forInfoDictionaryKey: "CompassKeychainGroup") as? String,
       !group.hasPrefix("$")
@@ -57,7 +57,7 @@ final class PasswordManager {
   private static func makeStore() -> any PasswordStore {
     if let group = accessGroup {
       let probe: [String: Any] = [
-        kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "it.cvm.compass.probe",
+        kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "it.cipi1965.compass.probe",
         kSecAttrAccessGroup as String: group, kSecMatchLimit as String: kSecMatchLimitOne,
       ]
       if SecItemCopyMatching(probe as CFDictionary, nil) != errSecMissingEntitlement {

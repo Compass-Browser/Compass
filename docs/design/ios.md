@@ -210,7 +210,7 @@ Desktop QR pairing (desktop item 1) runs in parallel with M2.
 - **SyncProto.** It holds 96 generated files (2.4 MB) from 156.0.8078.48 with protoc-gen-swift 1.39.0. SwiftProtobuf is pinned to exactly 1.39.0 to match the generator.
   - The Compass files are `components/sync/protocol/compass_spaces_specifics.proto` and the EntitySpecifics patch. `gen_protos.sh` reads them from the tree, or from `origin/sync-main` until that branch is merged.
   - The real proto is the reference, not this doc's sketch. It uses int32 values, not proto enums (section 1 PINNED … 4 ARCHIVE; type 1 TAB, 2 FOLDER, 3 SPLIT; 0 = unset), and `UniquePosition` messages, not bytes.
-- **App.** The bundle ID is `it.cvm.compass`. Team `4M33B5HNDS` since 2026-11-01 (see "Open items", TestFlight).
+- **App.** The bundle ID is `it.cipi1965.compass`. Team `4M33B5HNDS` since 2026-11-01 (see "Open items", TestFlight).
   - The icon is the desktop's Icon Composer file (`assets/Compass.icon`), used as is.
   - M0 is one WKWebView with an address bar, run in the simulator (iPhone 18 Pro, iOS 27.1).
 
@@ -351,7 +351,7 @@ The command bar's history and "Tabs on <Mac>" come with M5.
   - The client tag is `EscapePath(origin spec)|EscapePath(username element)|EscapePath(username)|EscapePath(password element)|EscapePath(signon realm)`. Chromium's client-tag test and base's EscapePath test pass.
   - Saves set `date_created`, `date_last_used` and `date_password_modified` (Windows-epoch µs), `times_used`, scheme 0 (HTML) and type 0. Updates keep the stored data's other fields.
   - "Never for this site" is Chromium's blocklisted entry.
-- **Storage.** `KeychainPasswordStore` keeps one item per credential, holding the serialized data. The access group `$(AppIdentifierPrefix)it.cvm.compass.shared` is shared with the extension, with a fallback to the app's own Keychain when the build isn't signed with the group (simulator).
+- **Storage.** `KeychainPasswordStore` keeps one item per credential, holding the serialized data. The access group `$(AppIdentifierPrefix)it.cipi1965.compass.shared` is shared with the extension, with a fallback to the app's own Keychain when the build isn't signed with the group (simulator).
 - **In pages.**
   - The `PasswordScript` user script runs in its own content world. It reports login forms and submitted credentials (on submit, a button click, Enter, or pagehide) and fills on request.
   - The browser bar shows a key menu when the page has a login form and saved logins match (same realm, or a parent or child host).
@@ -371,7 +371,7 @@ The command bar's history and "Tabs on <Mac>" come with M5.
   - It parses event streams per the HTML spec (LF, CR or CRLF; comments; a 64 KiB line cap).
   - It does a full refresh on every connect, and reconnects with backoff from 1 s up to 60 s.
   - The app holds it only while active; a `changed` event triggers a cycle 0.3 s later.
-  - The server poll (15 min by default since slice 6) and `BGAppRefreshTask` (`it.cvm.compass.refresh`, at least 15 min apart, best effort) cover the rest.
+  - The server poll (15 min by default since slice 6) and `BGAppRefreshTask` (`it.cipi1965.compass.refresh`, at least 15 min apart, best effort) cover the rest.
 - **Pairing links.** `compass-pair:` links (the system camera scanning the Mac's QR) open Settings → Join with the server and code filled in, and start joining.
 - **Signing in the simulator.** `compass ios build/sim` now sign simulator builds ad hoc. Unsigned builds get no application identifier, so the chain's Keychain items didn't survive a reinstall: sync came back off.
 - **Verified in the simulator.**
@@ -388,10 +388,10 @@ The command bar's history and "Tabs on <Mac>" come with M5.
 
    Everything is built to the desktop's code and test vectors, but nothing has met a real Chromium yet.
 3. **First TestFlight upload.** Set up on 2026-11-01:
-   - Team `4M33B5HNDS`, automatic signing. The entitlements are in `project.yml`: the Keychain group `<team>.it.cvm.compass.shared` in both targets (no capability needed on the developer site) and the AutoFill Credential Provider in the extension (that one is a capability of the App ID `it.cvm.compass.autofill`).
+   - Team `4M33B5HNDS`, automatic signing. The entitlements are in `project.yml`: the Keychain group `<team>.it.cipi1965.compass.shared` in both targets (no capability needed on the developer site) and the AutoFill Credential Provider in the extension (that one is a capability of the App ID `it.cipi1965.compass.autofill`).
    - `ITSAppUsesNonExemptEncryption = false` (standard algorithms protecting the user's own data) and `App/PrivacyInfo.xcprivacy` (no tracking, no collected data, `UserDefaults` CA92.1).
    - `compass ios archive` makes a Release archive with the build number set to the time (`YYYYMMDDHHMM`) and exports `ios/build/archive/export/Compass.ipa`. `--upload` sends it to App Store Connect instead; `--api-key/--api-key-id/--api-issuer` sign with an API key when Xcode has no account. The first export worked with the Xcode account on the Mac mini.
-   - Still to do: the app record in App Store Connect (bundle ID `it.cvm.compass`), then the first `--upload`. iOS then lists Compass under Settings → Passwords → AutoFill.
+   - Still to do: nothing: build 202611011058 was uploaded on 2026-11-01. The app needs the AutoFill Credential Provider entitlement too, not only the extension, or App Store Connect refuses the upload. iOS lists Compass under Settings → Passwords → AutoFill.
 4. **Per-profile accounts (desktop slice 5).** The phone syncs the chain's home account only. Spaces of other profiles live in their own accounts (`compass-sync-auth:<uuid>`) and don't appear yet. The `CompassProfile` entities are kept in the mirror, unused.
 5. **iPad.** A desktop-style sidebar next to the page, and splits side by side.
 6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.

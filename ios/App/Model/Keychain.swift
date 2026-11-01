@@ -8,7 +8,7 @@ import Security
 /// The chain's secrets in the Keychain, readable after the first unlock and
 /// never leaving this device (no iCloud Keychain: the seed is the chain).
 enum Keychain {
-  static let service = "it.cvm.compass.sync"
+  static let service = "it.cipi1965.compass.sync"
 
   static func data(_ account: String) -> Data? {
     var query = base(account)

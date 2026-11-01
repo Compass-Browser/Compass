@@ -50,7 +50,7 @@ public final class MemoryPasswordStore: PasswordStore, @unchecked Sendable {
 /// serialized PasswordSpecificsData, so fields this client doesn't know
 /// survive.
 public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
-  let service = "it.cvm.compass.passwords"
+  let service = "it.cipi1965.compass.passwords"
   let accessGroup: String?
 
   public init(accessGroup: String?) { self.accessGroup = accessGroup }

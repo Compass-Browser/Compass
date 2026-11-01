@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CompassKeychainGroup</key>
-	<string>$(AppIdentifierPrefix)it.cvm.compass.shared</string>
+	<string>$(AppIdentifierPrefix)it.cipi1965.compass.shared</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
