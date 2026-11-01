@@ -1811,6 +1811,24 @@ Applying remote changes keeps `SpaceModel::CanMove`'s invariants:
 - **Live tabs**: a remote URL change of an unloaded entry just updates it;
   of a live one, it doesn't navigate (see below).
 
+### Favicons
+
+Requested by the user on 2026-11-01. An entry that was never loaded on a device (a tab from another device, a pinned entry after a restart) should still show its site's icon. Fetching it per device is unreliable, because some sites refuse requests that don't come from a browser, and others only declare their icon in the page. So the icon a device got from a loaded page goes through sync, in the same `COMPASS_SPACES` type, as `CompassFavicon` (field 4 of the `entity` oneof).
+
+- **Key.** One entity per host. Its UUID (also the client tag) is derived from the host, so it's UUID-shaped like every other key here: the first 16 bytes of SHA-256(`"compass-favicon:" + host`), with byte 6 = `(b & 0x0f) | 0x50` and byte 8 = `(b & 0x3f) | 0x80`, formatted lowercase 8-4-4-4-12. Vectors: `www.example.com` → `c94c25bc-f583-5f0a-88eb-63e59b454926`, `github.com` → `b73d689b-d088-5dec-9f35-e41fb59757a0` (`FaviconKeyTests` on iOS; the desktop's unit test checks the same).
+- **Content.** A PNG of at most 64 px a side and 8 KiB, the host (lowercase, `www.` kept), the source's larger side before scaling (`source_size`), and `update_time` (µs since the Windows epoch).
+- **Account.** It goes in the account of the profile whose entry uses the host. Two profiles with entries on the same host each have their own.
+- **Writing.** A device writes only icons it got from a page it loaded: the largest of the page's declared icons, or the host's `/favicon.ico` when it declares none (what browsers show; on the desktop, the tab's favicon). It never writes icons it guessed for a page it didn't load. It writes after the page loads, when an entry of that account (any section) points at the host and:
+  - the account has no icon for the host; or
+  - its icon is larger (`source_size`); or
+  - it's the same size, the bytes differ, and the account's icon is at least 7 days old.
+
+  So two devices with different icons don't take turns.
+- **Reading.** A device uses a synced icon for any entry on that host until it has its own from a loaded page. On the desktop it's what `chrome://favicon2` returns for the entry's URL (`FaviconService::SetOnDemandFavicons`, which doesn't overwrite an icon the profile already has). On the phone it's `Favicons`, a cache keyed by host.
+- **Garbage.** A device deletes an icon of its account once no entry of the account points at its host and the icon is more than a day old. The delay keeps an icon alive while an initial download arrives in several batches, with the icon before its entries.
+- **Desktop.** The bridge keeps the icons in its mirror only (they aren't sidebar nodes, so a pass never deletes one for missing from the model, only as garbage). `OfferFavicon()` applies the writing rules and commits at once; the pass collects garbage. `SpacesSyncHolder` (`compass_spaces_sync.cc`) feeds it: `HistoryService::AddFaviconsChangedCallback()` says a page's stored icon changed, and if a tab of the profile shows that page and an entry is on its host, it reads the largest stored `kFavicon` bitmap (`GetRawFaviconForPageURL()`, size 0) and offers it through `MakeSyncedFaviconPng()` (`favicon_png.h`: as stored if it fits, else 64, 48 or 32 px). An icon that doesn't change on a reload isn't stored again, so 30 s after sync starts the holder also offers the icons of the pages open then. Remote icons go to `SetOnDemandFavicons()` under `https://<host>/compass-synced-favicon/<update_time>`, one icon URL per version (FaviconService keeps an icon URL's bitmaps once it knows it); icons under that path are never offered back.
+- **Older clients.** Desktops and phones from before this ignore the entity: the desktop's `IsEntityDataValid()` refuses an entity with none of `space`, `node` or `profile`, and the phone's bridge skips specifics without a UUID it knows. Nothing else changes.
+
 ### Merged with main (space themes)
 
 Main made `SpaceColor` a class (grey, or any opaque RGB tint; the palette is

@@ -33,17 +33,17 @@ extension SpaceColor {
   }
 }
 
-/// A site's icon, from its favicon service-free origin (the first letter
-/// while it loads or when there's none).
+/// A site's icon (Favicons: cached, from the page or the host), or its
+/// first letter while it loads or when there's none.
 struct SiteIcon: View {
   let url: String
   var size: CGFloat = 18
 
   var body: some View {
     let host = URL(string: url)?.host() ?? ""
-    AsyncImage(url: URL(string: "https://\(host)/favicon.ico")) { phase in
-      if let image = phase.image {
-        image.resizable().interpolation(.high)
+    Group {
+      if let image = Favicons.shared.image(for: url) {
+        Image(uiImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
       } else {
         Text(host.replacingOccurrences(of: "www.", with: "").prefix(1).uppercased())
           .font(.system(size: size * 0.6, weight: .semibold))
@@ -54,4 +54,115 @@ struct SiteIcon: View {
     .frame(width: size, height: size)
     .clipShape(RoundedRectangle(cornerRadius: size * 0.25))
   }
+}
+
+/// What the phone can open: web pages. Entries synced from the desktop on
+/// its own pages (compass://, chrome://, about:, file:…) keep syncing but
+/// aren't shown here.
+enum PhoneVisible {
+  static func url(_ url: String) -> Bool {
+    guard let scheme = URL(string: url)?.scheme?.lowercased() else { return false }
+    return scheme == "http" || scheme == "https"
+  }
+}
+
+extension SidebarNode {
+  /// Shown on the phone: a web tab, a split with one, or a folder (folders
+  /// always show, even with nothing visible inside).
+  var isPhoneVisible: Bool {
+    switch kind {
+    case .folder: true
+    case .split: children.contains { PhoneVisible.url($0.url) }
+    default: isTab ? PhoneVisible.url(url) : true
+    }
+  }
+}
+
+extension Array where Element == SidebarNode {
+  var phoneVisible: [SidebarNode] { filter(\.isPhoneVisible) }
+}
+
+/// The desktop sidebar's look (resources/sidebar/app.css), at phone sizes:
+/// rows are 44 pt for touch where the desktop's are 32 px.
+enum SidebarStyle {
+  static let rowHeight: CGFloat = 44
+  static let rowRadius: CGFloat = 10
+  static let favicon: CGFloat = 18
+  static let indent: CGFloat = 18
+  static let tileHeight: CGFloat = 52
+  static let tileRadius: CGFloat = 12
+  /// `.tile` and the hover/pressed fills: grey at low opacity, so the space's
+  /// tint shows through.
+  static let fill = Color.gray.opacity(0.14)
+  /// The shown entry: the desktop's active tab, a light pill with a shadow.
+  static let active = Color(.secondarySystemGroupedBackground)
+  /// Folders opening, entries coming and going.
+  static let motion = Animation.snappy(duration: 0.25)
+  /// A folder opening or closing: quick, its children sliding down.
+  static let folder = Animation.snappy(duration: 0.22)
+}
+
+/// The space's tint behind the whole sidebar, as the desktop's SidebarTint.
+struct SpaceTint: View {
+  let color: Color
+
+  var body: some View {
+    ZStack {
+      Color(.systemBackground)
+      LinearGradient(
+        colors: [color.opacity(0.34), color.opacity(0.16)],
+        startPoint: .top, endPoint: .bottom)
+    }
+    .ignoresSafeArea()
+  }
+}
+
+/// A space's icon in the switcher, as on the desktop: its symbol, its emoji,
+/// or its initial. On the wire `icon` is "emoji:<emoji>" or
+/// "symbol:<name>" (compass_spaces_specifics.proto).
+struct SpaceIcon: View {
+  let space: Space
+  var size: CGFloat = 18
+
+  var body: some View {
+    switch Self.parse(space.icon) {
+    case .symbol(let name):
+      Image(systemName: name).font(.system(size: size * 0.9, weight: .semibold))
+    case .emoji(let emoji):
+      Text(emoji).font(.system(size: size * 0.85))
+    case nil:
+      Text(space.name.first.map { String($0).uppercased() } ?? "•")
+        .font(.system(size: size * 0.9, weight: .bold, design: .rounded))
+    }
+  }
+
+  enum Kind: Equatable {
+    case symbol(String)
+    case emoji(String)
+  }
+
+  static func parse(_ icon: String) -> Kind? {
+    if icon.hasPrefix("emoji:") {
+      let emoji = String(icon.dropFirst(6))
+      return emoji.isEmpty ? nil : .emoji(emoji)
+    }
+    if icon.hasPrefix("symbol:") {
+      return symbols[String(icon.dropFirst(7))].map(Kind.symbol)
+    }
+    return nil
+  }
+
+  /// The desktop's symbols (resources/sidebar/space_icons.ts) as SF Symbols.
+  static let symbols: [String: String] = [
+    "home": "house.fill", "work": "briefcase.fill", "person": "person.fill",
+    "code": "chevron.left.forwardslash.chevron.right", "database": "cylinder.split.1x2.fill",
+    "build": "hammer.fill", "graduation": "graduationcap.fill", "book": "book.fill",
+    "lightbulb": "lightbulb.fill", "palette": "paintpalette.fill", "image": "photo.fill",
+    "music": "music.note", "mic": "mic.fill", "video": "video.fill",
+    "game": "gamecontroller.fill", "travel": "airplane", "globe": "globe",
+    "compass": "safari.fill", "car": "car.fill", "shopping": "cart.fill",
+    "wallet": "wallet.bifold.fill", "finance": "chart.line.uptrend.xyaxis",
+    "science": "flask.fill", "gavel": "building.columns.fill", "shield": "shield.fill",
+    "lock": "lock.fill", "celebration": "party.popper.fill", "bolt": "bolt.fill",
+  ]
 }

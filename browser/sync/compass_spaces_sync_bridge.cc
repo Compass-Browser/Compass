@@ -5,7 +5,9 @@
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <string_view>
 #include <utility>
@@ -18,12 +20,14 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
+#include "crypto/hash.h"
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
@@ -40,9 +44,36 @@
 
 namespace compass::sync {
 
+std::string FaviconKey(std::string_view host) {
+  const std::array<uint8_t, crypto::hash::kSha256Size> digest =
+      crypto::hash::Sha256("compass-favicon:" + base::ToLowerASCII(host));
+  std::array<uint8_t, 16> b;
+  std::copy_n(digest.begin(), 16, b.begin());
+  b[6] = (b[6] & 0x0f) | 0x50;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const std::string hex = base::HexEncodeLower(b);
+  return hex.substr(0, 8) + "-" + hex.substr(8, 4) + "-" + hex.substr(12, 4) +
+         "-" + hex.substr(16, 4) + "-" + hex.substr(20, 12);
+}
+
 namespace {
 
 using Type = SidebarNode::Type;
+
+// update_time's encoding: microseconds since the Windows epoch.
+int64_t ToWindowsMicros(base::Time time) {
+  return time.ToDeltaSinceWindowsEpoch().InMicroseconds();
+}
+
+base::Time FromWindowsMicros(int64_t micros) {
+  return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(micros));
+}
+
+// The host an entry's URL points at, lowercase, or empty.
+std::string HostOf(const GURL& url) {
+  return url.is_valid() && url.has_host() ? base::ToLowerASCII(url.host())
+                                          : std::string();
+}
 
 std::string Key(const base::Uuid& id) {
   return id.AsLowercaseString();
@@ -642,6 +673,9 @@ void CompassSpacesSyncBridge::MaybeStart() {
   }
   // Changes made while sync wasn't running.
   ScheduleSendLocalChanges();
+  if (delegate_ && change_processor()->IsTrackingMetadata()) {
+    delegate_->OnFaviconsWritable();
+  }
 }
 
 void CompassSpacesSyncBridge::Commit(
@@ -726,8 +760,19 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
   }
 
   std::vector<std::string> gone;
+  std::optional<std::set<std::string>> entry_hosts;
   for (const auto& [key, specifics] : mirror_) {
     if (local.contains(key)) {
+      continue;
+    }
+    if (specifics.has_favicon()) {
+      // Not in the model: only garbage goes.
+      if (!entry_hosts) {
+        entry_hosts = GetEntryHosts();
+      }
+      if (IsFaviconGarbage(specifics.favicon(), *entry_hosts)) {
+        gone.push_back(key);
+      }
       continue;
     }
     if (specifics.has_profile()) {
@@ -1211,7 +1256,7 @@ void CompassSpacesSyncBridge::AddLocalNodes(
 bool CompassSpacesSyncBridge::WasDeletedLocally(
     const sync_pb::CompassSpacesSpecifics& specifics,
     const Mirror& local) const {
-  if (specifics.has_profile()) {
+  if (specifics.has_profile() || specifics.has_favicon()) {
     // SendLocalChangesTo() decides.
     return false;
   }
@@ -1264,6 +1309,122 @@ bool CompassSpacesSyncBridge::IsArchiveComplete(
   });
 }
 
+// Favicons --------------------------------------------------------------------
+
+std::map<std::string, std::vector<GURL>>
+CompassSpacesSyncBridge::GetEntryUrlsByHost() const {
+  std::map<std::string, std::vector<GURL>> urls;
+  auto add = [&urls](const GURL& url) {
+    if (std::string host = HostOf(url); !host.empty()) {
+      std::vector<GURL>& host_urls = urls[std::move(host)];
+      if (!std::ranges::contains(host_urls, url)) {
+        host_urls.push_back(url);
+      }
+    }
+  };
+  std::function<void(const SidebarNode&)> walk = [&](const SidebarNode& node) {
+    if (node.type() == Type::kTab) {
+      add(node.url());
+    }
+    for (const auto& child : node.children()) {
+      walk(*child);
+    }
+  };
+  for (const auto& space : list_->spaces()) {
+    walk(*space->pinned_root());
+    walk(*space->today_root());
+    for (const ArchivedEntry& entry : space->archive()) {
+      for (const ArchivedEntry::Tab& tab : entry.tabs) {
+        add(tab.url);
+      }
+    }
+  }
+  walk(*list_->favorites().pinned_root());
+  return urls;
+}
+
+std::set<std::string> CompassSpacesSyncBridge::GetEntryHosts() const {
+  std::set<std::string> hosts;
+  for (const auto& [host, urls] : GetEntryUrlsByHost()) {
+    hosts.insert(host);
+  }
+  return hosts;
+}
+
+bool CompassSpacesSyncBridge::OfferFavicon(const std::string& host,
+                                           const std::string& png,
+                                           int source_size) {
+  const std::string lower_host = base::ToLowerASCII(host);
+  if (!ready_ || !store_ || !change_processor()->IsTrackingMetadata() ||
+      lower_host.empty() || png.empty() || png.size() > kFaviconMaxBytes ||
+      source_size <= 0 || !GetEntryHosts().contains(lower_host)) {
+    return false;
+  }
+  const std::string key = FaviconKey(lower_host);
+  const base::Time now = base::Time::Now();
+  auto it = mirror_.find(key);
+  if (it != mirror_.end() && it->second.has_favicon()) {
+    const sync_pb::CompassFavicon& old = it->second.favicon();
+    const bool larger = source_size > old.source_size();
+    // Two devices with different icons of one size don't take turns.
+    const bool refresh = source_size == old.source_size() &&
+                         png != old.png() &&
+                         now - FromWindowsMicros(old.update_time()) >=
+                             kFaviconRefreshAge;
+    if (!larger && !refresh) {
+      return false;
+    }
+  }
+  sync_pb::CompassSpacesSpecifics specifics;
+  sync_pb::CompassFavicon* favicon = specifics.mutable_favicon();
+  favicon->set_uuid(key);
+  favicon->set_host(lower_host);
+  favicon->set_png(png);
+  favicon->set_source_size(source_size);
+  favicon->set_update_time(ToWindowsMicros(now));
+
+  std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
+      store_->CreateWriteBatch();
+  auto data = std::make_unique<syncer::EntityData>();
+  data->name = key;
+  *data->specifics.mutable_compass_spaces() = specifics;
+  change_processor()->Put(key, std::move(data),
+                          batch->GetMetadataChangeList());
+  batch->WriteData(key, specifics.SerializeAsString());
+  mirror_[key] = std::move(specifics);
+  last_commit_[key] = base::TimeTicks::Now();
+  Commit(std::move(batch));
+  VLOG(1) << "[compass-sync] spaces: favicon of " << lower_host << " ("
+          << source_size << " px source, " << png.size() << " bytes)";
+  return true;
+}
+
+bool CompassSpacesSyncBridge::IsFaviconGarbage(
+    const sync_pb::CompassFavicon& favicon,
+    const std::set<std::string>& hosts) const {
+  return !hosts.contains(base::ToLowerASCII(favicon.host())) &&
+         base::Time::Now() - FromWindowsMicros(favicon.update_time()) >
+             kFaviconGracePeriod;
+}
+
+void CompassSpacesSyncBridge::ApplyMirrorFavicons(
+    const std::optional<std::set<std::string>>& hosts) {
+  if (!delegate_ || (hosts && hosts->empty())) {
+    return;
+  }
+  std::vector<sync_pb::CompassFavicon> favicons;
+  for (const auto& [key, specifics] : mirror_) {
+    if (specifics.has_favicon() && !specifics.favicon().png().empty() &&
+        (!hosts ||
+         hosts->contains(base::ToLowerASCII(specifics.favicon().host())))) {
+      favicons.push_back(specifics.favicon());
+    }
+  }
+  if (!favicons.empty()) {
+    delegate_->ApplyFavicons(favicons);
+  }
+}
+
 // Remote changes --------------------------------------------------------------
 
 std::unique_ptr<syncer::MetadataChangeList>
@@ -1300,6 +1461,8 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   std::vector<std::string> nodes;
   std::set<std::string> deleted;
   bool profiles_changed = false;
+  // Hosts whose icons or entries came: their icons go to the delegate.
+  std::set<std::string> favicon_hosts;
   for (const std::unique_ptr<syncer::EntityChange>& change : changes) {
     const std::string& key = change->storage_key();
     if (change->type() == syncer::EntityChange::ACTION_DELETE) {
@@ -1320,6 +1483,13 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     if (specifics.has_profile()) {
       profiles_changed = true;
       continue;
+    }
+    if (specifics.has_favicon()) {
+      favicon_hosts.insert(base::ToLowerASCII(specifics.favicon().host()));
+      continue;
+    }
+    if (specifics.has_node() && specifics.node().has_url()) {
+      favicon_hosts.insert(HostOf(GURL(specifics.node().url())));
     }
     (specifics.has_space() ? spaces : nodes).push_back(key);
   }
@@ -1365,6 +1535,13 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     SendLocalChangesTo(*batch);
   }
   Commit(std::move(batch));
+  if (initial_merge && delegate_) {
+    delegate_->OnFaviconsWritable();
+  }
+  ApplyMirrorFavicons(initial_merge
+                          ? std::nullopt
+                          : std::optional<std::set<std::string>>(
+                                std::move(favicon_hosts)));
   if (!initial_merge) {
     // Fix-ups the model made (cycles, invalid placements), after this
     // update is done.
@@ -2230,6 +2407,9 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
   if (specifics.has_profile()) {
     return specifics.profile().uuid();
   }
+  if (specifics.has_favicon()) {
+    return specifics.favicon().uuid();
+  }
   return specifics.node().uuid();
 }
 
@@ -2281,8 +2461,14 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
   const sync_pb::CompassSpacesSpecifics& specifics =
       entity_data.specifics.compass_spaces();
   if (!specifics.has_space() && !specifics.has_node() &&
-      !specifics.has_profile()) {
+      !specifics.has_profile() && !specifics.has_favicon()) {
     return false;
+  }
+  if (specifics.has_favicon()) {
+    // Keyed by its host, so two devices' icons for a host are one entity.
+    const sync_pb::CompassFavicon& favicon = specifics.favicon();
+    return !favicon.host().empty() &&
+           favicon.uuid() == FaviconKey(favicon.host());
   }
   return ParseKey(GetStorageKey(entity_data)).is_valid();
 }

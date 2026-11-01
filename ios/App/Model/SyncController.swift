@@ -234,6 +234,9 @@ final class SyncController {
     spaces.onLocalCommit = { [weak self] in self?.syncSoon(after: 2) }
     spaces.isShown = { [weak self] id in self?.isShown?(id) ?? false }
     spaces.onReplaced = { [weak self] old, new in self?.onReplaced?(old, new) }
+    // Site icons other devices got from pages (docs/design/sync.md, "Favicons").
+    spaces.onFavicon = { host, png in Favicons.shared.setSynced(host: host, png: png) }
+    for (host, png) in spaces.syncedFavicons { Favicons.shared.setSynced(host: host, png: png) }
     accounts[profile] = account
     if active { listen(account) }
     Task {
@@ -244,6 +247,13 @@ final class SyncController {
       }
       syncSoon(after: 0)
     }
+  }
+
+  /// An icon from a page this phone loaded, for the account of the tab's
+  /// space (written only if an entry there is on the host and it beats the
+  /// account's).
+  func offerFavicon(host: String, png: Data, sourceSize: Int, account: String) {
+    accounts[account]?.spaces.offerFavicon(host: host, png: png, sourceSize: sourceSize)
   }
 
   /// The account a space's data syncs in.

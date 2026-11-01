@@ -27,6 +27,11 @@
 // enums later. 0 always means "not set"; values a client doesn't know are
 // kept and passed on, not applied.
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -72,12 +77,21 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .profile(newValue)}
   }
 
+  public var favicon: SyncPb_CompassFavicon {
+    get {
+      if case .favicon(let v)? = entity {return v}
+      return SyncPb_CompassFavicon()
+    }
+    set {entity = .favicon(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
     case space(SyncPb_CompassSpace)
     case node(SyncPb_CompassNode)
     case profile(SyncPb_CompassProfile)
+    case favicon(SyncPb_CompassFavicon)
 
   }
 
@@ -108,8 +122,10 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   /// Clears the value of `name`. Subsequent reads from it will return its default value.
   public mutating func clearName() {self._name = nil}
 
-  /// SpaceColor: 1 grey, 2 blue, 3 purple, 4 pink, 5 red, 6 orange,
-  /// 7 yellow, 8 green.
+  /// The space's color as a palette index: 1 grey, 2 blue, 3 purple, 4 pink,
+  /// 5 red, 6 orange, 7 yellow, 8 green. For a color off the palette, the
+  /// index of the palette color closest to it (never grey), which is what
+  /// clients that predate `color_rgb` show.
   public var color: Int32 {
     get {_color ?? 0}
     set {_color = newValue}
@@ -119,7 +135,9 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   /// Clears the value of `color`. Subsequent reads from it will return its default value.
   public mutating func clearColor() {self._color = nil}
 
-  /// Not used yet; kept as received.
+  /// The space's icon: "emoji:" followed by the emoji, or "symbol:" followed
+  /// by the symbol's name (SpaceIcon); empty or absent for none. A value this
+  /// version can't read shows no icon, and is kept until the icon is changed.
   public var icon: String {
     get {_icon ?? String()}
     set {_icon = newValue}
@@ -160,6 +178,53 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   /// Clears the value of `archiveAfterSeconds`. Subsequent reads from it will return its default value.
   public mutating func clearArchiveAfterSeconds() {self._archiveAfterSeconds = nil}
 
+  /// A color off the palette, as 0xRRGGBB. It applies only while `color` is
+  /// the palette index closest to it: a client that only knows `color` and
+  /// picks another palette color leaves a stale value here, which this rule
+  /// then ignores. Absent for palette colors.
+  public var colorRgb: UInt32 {
+    get {_colorRgb ?? 0}
+    set {_colorRgb = newValue}
+  }
+  /// Returns true if `colorRgb` has been explicitly set.
+  public var hasColorRgb: Bool {self._colorRgb != nil}
+  /// Clears the value of `colorRgb`. Subsequent reads from it will return its default value.
+  public mutating func clearColorRgb() {self._colorRgb = nil}
+
+  /// The colors the gradient goes on to after `color`, in order; none for a
+  /// plain color.
+  public var gradient: [SyncPb_CompassColor] = []
+
+  /// How strongly the color tints, 0 to 1; absent = 0.31 (the default).
+  public var intensity: Double {
+    get {_intensity ?? 0}
+    set {_intensity = newValue}
+  }
+  /// Returns true if `intensity` has been explicitly set.
+  public var hasIntensity: Bool {self._intensity != nil}
+  /// Clears the value of `intensity`. Subsequent reads from it will return its default value.
+  public mutating func clearIntensity() {self._intensity = nil}
+
+  /// How much grain the tint has, 0 to 1; absent = 0.
+  public var grain: Double {
+    get {_grain ?? 0}
+    set {_grain = newValue}
+  }
+  /// Returns true if `grain` has been explicitly set.
+  public var hasGrain: Bool {self._grain != nil}
+  /// Clears the value of `grain`. Subsequent reads from it will return its default value.
+  public mutating func clearGrain() {self._grain = nil}
+
+  /// 1 auto (follows the system; also absent), 2 light, 3 dark.
+  public var appearance: Int32 {
+    get {_appearance ?? 0}
+    set {_appearance = newValue}
+  }
+  /// Returns true if `appearance` has been explicitly set.
+  public var hasAppearance: Bool {self._appearance != nil}
+  /// Clears the value of `appearance`. Subsequent reads from it will return its default value.
+  public mutating func clearAppearance() {self._appearance = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -171,6 +236,44 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   fileprivate var _directoryPosition: SyncPb_UniquePosition? = nil
   fileprivate var _profileUuid: String? = nil
   fileprivate var _archiveAfterSeconds: Int64? = nil
+  fileprivate var _colorRgb: UInt32? = nil
+  fileprivate var _intensity: Double? = nil
+  fileprivate var _grain: Double? = nil
+  fileprivate var _appearance: Int32? = nil
+}
+
+/// A color of a space's gradient.
+public nonisolated struct SyncPb_CompassColor: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A palette color, numbered as CompassSpace.color; 1 is grey.
+  public var palette: Int32 {
+    get {_palette ?? 0}
+    set {_palette = newValue}
+  }
+  /// Returns true if `palette` has been explicitly set.
+  public var hasPalette: Bool {self._palette != nil}
+  /// Clears the value of `palette`. Subsequent reads from it will return its default value.
+  public mutating func clearPalette() {self._palette = nil}
+
+  /// Any other color, as 0xRRGGBB; wins over `palette`.
+  public var rgb: UInt32 {
+    get {_rgb ?? 0}
+    set {_rgb = newValue}
+  }
+  /// Returns true if `rgb` has been explicitly set.
+  public var hasRgb: Bool {self._rgb != nil}
+  /// Clears the value of `rgb`. Subsequent reads from it will return its default value.
+  public mutating func clearRgb() {self._rgb = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _palette: Int32? = nil
+  fileprivate var _rgb: UInt32? = nil
 }
 
 public nonisolated struct SyncPb_CompassNode: Sendable {
@@ -377,13 +480,89 @@ public nonisolated struct SyncPb_CompassProfile: Sendable {
   fileprivate var _home: Bool? = nil
 }
 
+/// A site's icon, so every device shows an entry's icon before it (or
+/// without it) loading the page (docs/design/sync.md, "Favicons"). One per
+/// host that an entry of the account (any section, favorites included)
+/// points at. Clients that predate it ignore it (their IsEntityDataValid()
+/// refuses an entity with none of the fields they know).
+public nonisolated struct SyncPb_CompassFavicon: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// UUID-shaped, from the host, so the entity's key is a UUID like every
+  /// other: the first 16 bytes of SHA-256("compass-favicon:" + host), with
+  /// byte 6 = (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted
+  /// lowercase 8-4-4-4-12. Also the client tag.
+  public var uuid: String {
+    get {_uuid ?? String()}
+    set {_uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {self._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {self._uuid = nil}
+
+  /// The URL host, lowercase, as is ("www." kept).
+  public var host: String {
+    get {_host ?? String()}
+    set {_host = newValue}
+  }
+  /// Returns true if `host` has been explicitly set.
+  public var hasHost: Bool {self._host != nil}
+  /// Clears the value of `host`. Subsequent reads from it will return its default value.
+  public mutating func clearHost() {self._host = nil}
+
+  /// A PNG, square or not, at most 64 px a side and 8 KiB.
+  public var png: Data {
+    get {_png ?? Data()}
+    set {_png = newValue}
+  }
+  /// Returns true if `png` has been explicitly set.
+  public var hasPng: Bool {self._png != nil}
+  /// Clears the value of `png`. Subsequent reads from it will return its default value.
+  public mutating func clearPng() {self._png = nil}
+
+  /// The source icon's larger side in px before scaling down; a device
+  /// replaces an icon only with a larger one, or a different one at least
+  /// 7 days newer.
+  public var sourceSize: Int32 {
+    get {_sourceSize ?? 0}
+    set {_sourceSize = newValue}
+  }
+  /// Returns true if `sourceSize` has been explicitly set.
+  public var hasSourceSize: Bool {self._sourceSize != nil}
+  /// Clears the value of `sourceSize`. Subsequent reads from it will return its default value.
+  public mutating func clearSourceSize() {self._sourceSize = nil}
+
+  /// When it was written, in microseconds since the Windows epoch.
+  public var updateTime: Int64 {
+    get {_updateTime ?? 0}
+    set {_updateTime = newValue}
+  }
+  /// Returns true if `updateTime` has been explicitly set.
+  public var hasUpdateTime: Bool {self._updateTime != nil}
+  /// Clears the value of `updateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateTime() {self._updateTime = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _uuid: String? = nil
+  fileprivate var _host: String? = nil
+  fileprivate var _png: Data? = nil
+  fileprivate var _sourceSize: Int32? = nil
+  fileprivate var _updateTime: Int64? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -430,6 +609,19 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .profile(v)
         }
       }()
+      case 4: try {
+        var v: SyncPb_CompassFavicon?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .favicon(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .favicon(v)
+        }
+      }()
       default: break
       }
     }
@@ -453,6 +645,10 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
       guard case .profile(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     }()
+    case .favicon?: try {
+      guard case .favicon(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -467,7 +663,7 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
 
 nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpace"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}name\0\u{1}color\0\u{1}icon\0\u{3}directory_position\0\u{3}profile_uuid\0\u{3}archive_after_seconds\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}name\0\u{1}color\0\u{1}icon\0\u{3}directory_position\0\u{3}profile_uuid\0\u{3}archive_after_seconds\0\u{3}color_rgb\0\u{1}gradient\0\u{1}intensity\0\u{1}grain\0\u{1}appearance\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -482,6 +678,11 @@ nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf.
       case 5: try { try decoder.decodeSingularMessageField(value: &self._directoryPosition) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self._profileUuid) }()
       case 7: try { try decoder.decodeSingularInt64Field(value: &self._archiveAfterSeconds) }()
+      case 8: try { try decoder.decodeSingularUInt32Field(value: &self._colorRgb) }()
+      case 9: try { try decoder.decodeRepeatedMessageField(value: &self.gradient) }()
+      case 10: try { try decoder.decodeSingularDoubleField(value: &self._intensity) }()
+      case 11: try { try decoder.decodeSingularDoubleField(value: &self._grain) }()
+      case 12: try { try decoder.decodeSingularInt32Field(value: &self._appearance) }()
       default: break
       }
     }
@@ -513,6 +714,21 @@ nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._archiveAfterSeconds {
       try visitor.visitSingularInt64Field(value: v, fieldNumber: 7)
     } }()
+    try { if let v = self._colorRgb {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 8)
+    } }()
+    if !self.gradient.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.gradient, fieldNumber: 9)
+    }
+    try { if let v = self._intensity {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 10)
+    } }()
+    try { if let v = self._grain {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 11)
+    } }()
+    try { if let v = self._appearance {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -524,6 +740,50 @@ nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs._directoryPosition != rhs._directoryPosition {return false}
     if lhs._profileUuid != rhs._profileUuid {return false}
     if lhs._archiveAfterSeconds != rhs._archiveAfterSeconds {return false}
+    if lhs._colorRgb != rhs._colorRgb {return false}
+    if lhs.gradient != rhs.gradient {return false}
+    if lhs._intensity != rhs._intensity {return false}
+    if lhs._grain != rhs._grain {return false}
+    if lhs._appearance != rhs._appearance {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassColor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassColor"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}palette\0\u{1}rgb\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self._palette) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self._rgb) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._palette {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._rgb {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassColor, rhs: SyncPb_CompassColor) -> Bool {
+    if lhs._palette != rhs._palette {return false}
+    if lhs._rgb != rhs._rgb {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -662,6 +922,60 @@ nonisolated extension SyncPb_CompassProfile: SwiftProtobuf.Message, SwiftProtobu
     if lhs._name != rhs._name {return false}
     if lhs._avatar != rhs._avatar {return false}
     if lhs._home != rhs._home {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassFavicon: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassFavicon"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}host\0\u{1}png\0\u{3}source_size\0\u{3}update_time\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._host) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self._png) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self._sourceSize) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self._updateTime) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._uuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._host {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._png {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._sourceSize {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._updateTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassFavicon, rhs: SyncPb_CompassFavicon) -> Bool {
+    if lhs._uuid != rhs._uuid {return false}
+    if lhs._host != rhs._host {return false}
+    if lhs._png != rhs._png {return false}
+    if lhs._sourceSize != rhs._sourceSize {return false}
+    if lhs._updateTime != rhs._updateTime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

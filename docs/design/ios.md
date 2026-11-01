@@ -434,6 +434,35 @@ The user asked for this. On the iPhone the sidebar is no longer a screen that th
 - Picking an entry closes the sheet. With nothing selected, the browser shows an empty page in the space's color.
 - The command bar and Settings are presented by whichever view is in front: the sidebar while it's up, the browser otherwise (`AppModel.presented(_:fromSidebar:)`). One view can't present a second sheet over its own.
 
+### Sidebar styled as the desktop's, 2026-11-01
+
+The user asked for this. The sidebar's native look is replaced with the desktop sidebar's (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
+
+- **Background.** The space's tint (`SpaceTint`) is the sheet's `presentationBackground`, like the desktop's SidebarTint.
+- **Favorites.** Tiles are 52 pt, four to a row, and a shorter last row's tiles grow to fill it. The shown favorite gets the light pill.
+- **Header.** The space's name, its profile label and a round ⋯ menu.
+- **Sections.** "PINNED" and "TODAY" headers are small, uppercase and dimmed, as rows rather than sticky List headers.
+- **Entries.**
+  - Borderless 44 pt rows (the desktop's are 32 px), with a light pill and shadow on the shown entry and a grey fill when pressed.
+  - Pinned entries without a live tab are dimmed, as on the desktop.
+  - Folders have a rotating chevron. A split's panes share one row.
+- **Space switcher.** Each space's icon in the bottom bar (`SpaceIcon`), the shown one in its color and the others dimmed, then "+". The icon is the desktop's `{"symbol"}` or `{"emoji"}`, mapped to SF Symbols, or the space's initial.
+- **A stack, not a List.** List rows only fade, and a row's height changes in one jump. So the sidebar is a `LazyVStack` in a ScrollView, and List's built-ins are replaced the desktop's way: Today rows have an × button, and a long press and drag reorders (`.draggable`/`.dropDestination`; dropped on an entry it goes before it, on a folder into it, on a section's header to that section). The long-press menu still works.
+- **Motion.** A folder's children slide down from under its row as they fade in, and slide back up on close, in 0.22 s (`SidebarStyle.folder`). The rows below move with them, the chevron turns and the folder icon swaps. Every other change animates too (`SidebarStyle.motion`, keyed on the entries, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
+- **Desktop-only pages hidden.** Entries that aren't web pages (`compass://`, `chrome://`, `about:`, `file:`…) still sync and stay in the store, but the phone doesn't show them: not in the sidebar, favorites, split panes, the bar's swipe between entries, or the command bar (open entries and "Tabs on <device>"). Folders always show. "Clear" archives only what's shown. The rule is `PhoneVisible` / `SidebarNode.isPhoneVisible` in `Theme.swift`.
+- **Browser bar.** It's neutral too: primary-colored icons and a grey address pill, not the system tint.
+
+### Favicons, 2026-11-01
+
+- **Loading.** `Favicons` (App/Model) replaces `AsyncImage`, which kept no cache and left a letter when a redraw cancelled its load. Icons are kept by host in memory and in `Caches/Favicons`. Best first:
+  1. a loaded page's declared icons (the largest), or its `/favicon.ico` when it declares none;
+  2. an icon synced from another device;
+  3. a guess: `apple-touch-icon.png`, then `/favicon.ico`.
+
+  Requests use Safari's user agent.
+- **Sync.** `CompassFavicon` in COMPASS_SPACES (sync.md, "Favicons"; the user asked for it). `CompassSpacesBridge+Favicons`: `offerFavicon` writes a page's icon (64 px PNG, at most 8 KiB) into the account of the tab's space, when an entry there is on the host and the icon beats the account's. `onFavicon` and `syncedFavicons` feed the cache, and `collectFavicons` deletes unused icons after a day. Tests: `FaviconKeyTests` (the UUID vectors) and `FaviconServerTests`.
+- **Desktop half.** Handed to compass-a8 (2026-11-01): writing the tab's favicon, `SetOnDemandFavicons` for synced ones, the key, and accepting the entity in `IsEntityDataValid()`.
+
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).

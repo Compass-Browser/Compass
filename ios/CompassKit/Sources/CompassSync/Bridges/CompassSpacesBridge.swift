@@ -56,6 +56,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor var keptEntries: Set<String> = []
   /// Called after local changes were queued (the app schedules a sync).
   @MainActor public var onLocalCommit: (() -> Void)?
+  /// A synced site icon arrived: (host, PNG). See +Favicons.
+  @MainActor public var onFavicon: ((String, Data) -> Void)?
   @MainActor public var now: () -> Date = Date.init
 
   struct SavedMirror: Codable {
@@ -196,6 +198,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     case .space(let space): space.uuid
     case .node(let node): node.uuid
     case .profile(let profile): profile.uuid
+    case .favicon(let favicon): favicon.uuid
     case nil: nil
     }
   }
@@ -308,6 +311,13 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       for n in [node] + node.children { commitThrottled(n) }
     }
     drain()
+    if !change.deletedNodes.isEmpty { collectFavicons() }
+  }
+
+  @MainActor
+  func queueDelete(_ id: String) {
+    throttled.removeValue(forKey: id)?.cancel()
+    queue.append(.delete(id))
   }
 
   @MainActor
@@ -407,6 +417,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var putNodes: [String] = []
     var deleted: Set<String> = []
     var profilesChanged = false
+    var favicons: [(String, Data)] = []
     let byHash = Dictionary(
       mirror.keys.map { (ClientTagHash.make(type: .compassSpaces, tag: $0), $0) }, uniquingKeysWith: { a, _ in a })
     for change in changes {
@@ -418,6 +429,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         case .space: putSpaces.append(id)
         case .node: putNodes.append(id)
         case .profile: profilesChanged = true
+        case .favicon(let f): if !f.host.isEmpty && !f.png.isEmpty { favicons.append((f.host, f.png)) }
         case nil: break
         }
       } else if let id = byHash[change.clientTagHash] {
@@ -454,6 +466,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     drain()
     // What came here from another profile leaves that profile's account.
     directory.reconcile()
+    for (host, png) in favicons { onFavicon?(host, png) }
+    collectFavicons()
   }
 
   @MainActor

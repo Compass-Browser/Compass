@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -23,6 +24,7 @@
 #include "components/sync/base/unique_position.h"
 #include "components/sync/model/data_type_store.h"
 #include "components/sync/model/data_type_sync_bridge.h"
+#include "url/gurl.h"
 
 namespace syncer {
 class MetadataBatch;
@@ -50,6 +52,21 @@ inline constexpr base::TimeDelta kArchiveSyncPeriod = base::Days(30);
 // Last-active times commit only once they've moved by this much: the archive
 // delays they drive are hours.
 inline constexpr base::TimeDelta kLastActiveGranularity = base::Minutes(1);
+
+// Favicons (docs/design/sync.md, "Favicons"): a larger icon always replaces
+// the account's; a different one of the same size only once the account's is
+// this old.
+inline constexpr base::TimeDelta kFaviconRefreshAge = base::Days(7);
+// An icon no entry of the account points at goes once it's this old (an
+// initial download may bring it a batch before its entries).
+inline constexpr base::TimeDelta kFaviconGracePeriod = base::Days(1);
+// The PNG's limits.
+inline constexpr size_t kFaviconMaxBytes = 8 * 1024;
+inline constexpr int kFaviconMaxPixels = 64;
+
+// A favicon entity's UUID (and client tag) for |host|: the first 16 bytes of
+// SHA-256("compass-favicon:" + lowercase host), shaped as a version-5 UUID.
+std::string FaviconKey(std::string_view host);
 
 // A space of the switcher (SpaceDirectory), of any profile, and the directory
 // position its profile's bridge last synced for it, if known (slice 5).
@@ -144,6 +161,14 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     virtual void OnSpacePositions(
         const std::map<std::string, syncer::UniquePosition>& positions,
         bool remote);
+    // Synced icons for hosts entries point at, after a remote change brought
+    // the icons or entries on their hosts (and after the initial merge):
+    // the delegate shows them for entries whose page has no icon here.
+    virtual void ApplyFavicons(
+        const std::vector<sync_pb::CompassFavicon>& favicons) {}
+    // Sync runs (after the initial merge, or at startup if it already ran):
+    // the delegate offers the icons of the pages open now (OfferFavicon()).
+    virtual void OnFaviconsWritable() {}
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -164,6 +189,20 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // Something the bridge doesn't observe changed (the switcher's order, the
   // profiles): a pass looks for what to commit.
   void NotifyLocalChange();
+
+  // The URLs of this profile's entries, in every section, archives and
+  // favorites included, by host (lowercase).
+  std::map<std::string, std::vector<GURL>> GetEntryUrlsByHost() const;
+  std::set<std::string> GetEntryHosts() const;
+  // An icon this device took from a page it loaded on |host|: a PNG of at
+  // most kFaviconMaxPixels a side and kFaviconMaxBytes, from a source whose
+  // larger side was |source_size| px. Commits it if an entry points at the
+  // host and the account has no icon for it, a smaller one, or a different
+  // one of the same size at least kFaviconRefreshAge old. Returns whether it
+  // committed.
+  bool OfferFavicon(const std::string& host,
+                    const std::string& png,
+                    int source_size);
 
   // Commits local changes now rather than in a task.
   void SendLocalChangesForTesting() { SendLocalChanges(); }
@@ -263,6 +302,12 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // archived split whose panes haven't come).
   bool WasDeletedLocally(const sync_pb::CompassSpacesSpecifics& specifics,
                          const Mirror& local) const;
+  // Whether the mirror's favicon entity |favicon| goes: no entry points at
+  // its host (|hosts|) and it's older than kFaviconGracePeriod.
+  bool IsFaviconGarbage(const sync_pb::CompassFavicon& favicon,
+                        const std::set<std::string>& hosts) const;
+  // Hands the delegate the mirror's icons for |hosts| (all with nullopt).
+  void ApplyMirrorFavicons(const std::optional<std::set<std::string>>& hosts);
   // Whether the archived entity |node| has what it needs to show: a split
   // its panes, a pane its split.
   bool IsArchiveComplete(const sync_pb::CompassNode& node) const;
