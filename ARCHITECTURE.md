@@ -315,7 +315,7 @@ forks.
 6. **Split view.** Mapped onto upstream split tabs.
 7. **PiP.** Triggers and floating windows on each platform.
 8. **Arc extras.** Command bar, Peek, Boosts, auto-archive.
-9. **Later.** Sync service, Widevine, mobile.
+9. **Later.** Sync service, Widevine. Mobile: Compass for iOS is a native SwiftUI + WebKit app in `ios/` that syncs with the desktop ([docs/design/ios.md](docs/design/ios.md)).
 
 Milestones 2–4 make up the MVP.
 

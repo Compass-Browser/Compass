@@ -1,6 +1,6 @@
 # Compass for iOS
 
-Status: M0 (scaffold) done. Milestone notes are at the end ("Milestone notes").
+Status: M0–M7 written and tested on the Mac and in the simulator (2026-11-01). Still open: the desktop QR code, an interop run against a desktop Compass on sync-main, and a signed device / TestFlight build ("Open items" at the end).
 
 **Working on it:**
 
@@ -364,3 +364,33 @@ The command bar's history and "Tabs on <Mac>" come with M5.
 - **Verified.**
   - Server test: a save on the Mac arrives on the phone; an update and a deletion come back; neither the password nor the domain is readable on the server.
   - Simulator: a debug run filling and submitting a local test login page shows the save banner.
+
+### M7 (freshness and polish), 2026-11-01
+
+- **`SyncNotifier`.** The slice 6 push stream: `GET <server>/compass/events?client_id=<cache guid>`, signed like `/command/`.
+  - It parses event streams per the HTML spec (LF, CR or CRLF; comments; a 64 KiB line cap).
+  - It does a full refresh on every connect, and reconnects with backoff from 1 s up to 60 s.
+  - The app holds it only while active; a `changed` event triggers a cycle 0.3 s later.
+  - The server poll (15 min by default since slice 6) and `BGAppRefreshTask` (`it.cvm.compass.refresh`, at least 15 min apart, best effort) cover the rest.
+- **Pairing links.** `compass-pair:` links (the system camera scanning the Mac's QR) open Settings → Join with the server and code filled in, and start joining.
+- **Signing in the simulator.** `compass ios build/sim` now sign simulator builds ad hoc. Unsigned builds get no application identifier, so the chain's Keychain items didn't survive a reinstall: sync came back off.
+- **Verified in the simulator.**
+  - After a relaunch the app keeps its chain and syncs.
+  - With the app open, a space added by the "Mac" (`SeedForSimulator` with `COMPASS_SEED_PUSH=1`) appeared within about 3 s, with no relaunch.
+
+## Open items
+
+1. **Desktop QR code** (desktop item 1). On sync-main, `chrome://compass-sync`'s "Add a device" should also show a QR of `PairingInvite.url`: `compass-pair:?server=<server URL>&code=<slot>-<digits>`. Typing the code works today. This is desktop work (WebUI, plus a QR encoder such as upstream's `components/qr_code_generator`), so it needs a Chromium build and the MacBook.
+2. **Interop run against the desktop.** Pair the simulator, then a device, with a desktop Compass on sync-main. Check what the Swift tests can't:
+   - a NIGORI made by Chromium opens;
+   - the desktop shows the phone's spaces, Today entries, visits and passwords;
+   - the phone appears in the desktop's device list and its "Tabs on other devices".
+
+   Everything is built to the desktop's code and test vectors, but nothing has met a real Chromium yet.
+3. **Device and TestFlight build.**
+   - Set `DEVELOPMENT_TEAM` in `ios/project.yml` and run `compass ios gen`.
+   - Enable the capabilities "AutoFill Credential Provider" and "Keychain Sharing" (group `it.cvm.compass.shared`) for `it.cvm.compass` and `it.cvm.compass.autofill`.
+   - Archive in Xcode and upload. iOS then lists Compass under Settings → Passwords → AutoFill.
+4. **Per-profile accounts (desktop slice 5).** The phone syncs the chain's home account only. Spaces of other profiles live in their own accounts (`compass-sync-auth:<uuid>`) and don't appear yet. The `CompassProfile` entities are kept in the mirror, unused.
+5. **iPad.** A desktop-style sidebar next to the page, and splits side by side.
+6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.

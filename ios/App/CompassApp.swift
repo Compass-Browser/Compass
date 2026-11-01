@@ -2,13 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import BackgroundTasks
 import CompassCrypto
 import SwiftUI
 
 @main
 struct CompassApp: App {
-  @State private var app = AppModel()
+  @State private var app: AppModel
   @Environment(\.scenePhase) private var phase
+  static let refreshTask = "it.cvm.compass.refresh"
+
+  init() {
+    let app = AppModel()
+    _app = State(initialValue: app)
+    // A best-effort sync while in the background (push needs the app open).
+    BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: nil) { task in
+      let work = Task { @MainActor in
+        await app.sync.syncNow()
+        task.setTaskCompleted(success: true)
+      }
+      task.expirationHandler = { work.cancel() }
+      Self.scheduleRefresh()
+    }
+  }
+
+  static func scheduleRefresh() {
+    let request = BGAppRefreshTaskRequest(identifier: refreshTask)
+    request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+    try? BGTaskScheduler.shared.submit(request)
+  }
 
   var body: some Scene {
     WindowGroup {
@@ -16,12 +38,18 @@ struct CompassApp: App {
         .environment(app)
         .onOpenURL { url in
           // compass-pair: links from the Mac's QR code (camera app).
-          if PairingInvite(url: url) != nil { app.showingSettings = true }
+          if let invite = PairingInvite(url: url), !app.sync.isOn {
+            app.pendingInvite = invite
+            app.showingSettings = true
+          }
         }
     }
     .onChange(of: phase) { _, phase in
-      if phase == .active { app.sync.syncSoon() }
-      if phase == .background { try? app.store.save(to: app.sidebarURL) }
+      app.sync.setActive(phase == .active)
+      if phase == .background {
+        try? app.store.save(to: app.sidebarURL)
+        Self.scheduleRefresh()
+      }
     }
   }
 }

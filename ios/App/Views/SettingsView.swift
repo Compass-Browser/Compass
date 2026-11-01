@@ -32,6 +32,10 @@ struct SettingsView: View {
       }
       .navigationTitle("Settings")
       .toolbar { Button("Done") { dismiss() } }
+      // A pairing link from the camera goes straight to joining.
+      .navigationDestination(
+        isPresented: Binding(get: { app.pendingInvite != nil && !app.sync.isOn }, set: { _ in })
+      ) { JoinView() }
     }
   }
 
@@ -189,6 +193,13 @@ struct JoinView: View {
       }
     }
     .navigationTitle("Join Sync")
+    .onAppear {
+      if let invite = app.pendingInvite, code.isEmpty {
+        server = invite.server.absoluteString
+        code = invite.code.text
+        join()
+      }
+    }
     .sheet(isPresented: $scanning) {
       QRScannerView { text in
         scanning = false
@@ -222,6 +233,7 @@ struct JoinView: View {
       }
       working = false
       waitingForMac = false
+      app.pendingInvite = nil
       switch result {
       case .joined: dismiss()
       case .denied: message = "Your Mac said no."

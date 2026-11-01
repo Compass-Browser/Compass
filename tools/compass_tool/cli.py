@@ -325,7 +325,10 @@ def cmd_ios(layout: Layout, args) -> None:
     sys.exit(run(cmd, ios / 'CompassKit', env=env, check=False).returncode)
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
        'Compass', '-destination', 'generic/platform=iOS Simulator',
-       '-derivedDataPath', derived, 'CODE_SIGNING_ALLOWED=NO', 'build'], ios)
+       # Ad-hoc signed: unsigned simulator apps get no application
+       # identifier, and their Keychain items don't survive a reinstall.
+       '-derivedDataPath', derived, 'CODE_SIGN_IDENTITY=-',
+       'CODE_SIGNING_REQUIRED=NO', 'build'], ios)
   if args.action == 'build':
     return
   # sim: install and launch in a headless simulator (no Simulator.app

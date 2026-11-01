@@ -22,6 +22,13 @@ struct SeedForSimulator {
     let mac = await SidebarDevice(server: server, chain: chain, first: true)
     try await mac.sync()
     let store = mac.store
+    if ProcessInfo.processInfo.environment["COMPASS_SEED_PUSH"] != nil {
+      // A later run while the app is open: one more space, which should
+      // appear through push without touching the app.
+      store.addSpace(name: "Pushed", color: .orange)
+      try await mac.sync()
+      return
+    }
     let work = store.addSpace(name: "Work", color: .purple)
     let docs = store.addFolder(name: "Projects", to: work.pinned)!
     store.addTab(url: "https://github.com/", title: "GitHub", to: docs)

@@ -42,6 +42,9 @@ final class SyncController {
   private var spaces: CompassSpacesBridge?
   private var deviceInfo: DeviceInfoBridge?
   private var scheduled: Task<Void, Never>?
+  private var notifier: SyncNotifier?
+  private var listening: Task<Void, Never>?
+  private var active = true
   /// Whether an entry is on screen (it survives a close elsewhere).
   var isShown: ((String) -> Bool)?
   /// A kept entry's new ID.
@@ -95,6 +98,9 @@ final class SyncController {
   /// Stops syncing; local data stays.
   func leave() {
     scheduled?.cancel()
+    listening?.cancel()
+    listening = nil
+    notifier = nil
     Keychain.set(nil, "seed")
     Keychain.set(nil, "server")
     try? FileManager.default.removeItem(at: metadataURL)
@@ -156,6 +162,8 @@ final class SyncController {
     spaces.onReplaced = { [weak self] old, new in self?.onReplaced?(old, new) }
     self.engine = engine
     self.spaces = spaces
+    notifier = SyncNotifier(serverURL: server, cacheGUID: cacheGUID, authKey: chain.authKey)
+    if active { listen() }
     self.deviceInfo = deviceInfo
     Task {
       await engine.register(spaces)
@@ -169,6 +177,28 @@ final class SyncController {
   }
 
   // MARK: Cycles
+
+  /// The app came to the foreground or left it: hold the push stream only
+  /// while active (iOS suspends background sockets anyway).
+  func setActive(_ isActive: Bool) {
+    active = isActive
+    if isActive {
+      listen()
+      syncSoon()
+    } else {
+      listening?.cancel()
+      listening = nil
+    }
+  }
+
+  private func listen() {
+    guard listening == nil, let notifier else { return }
+    listening = Task { [weak self] in
+      await notifier.run { _ in
+        await MainActor.run { self?.syncSoon(after: 0.3) }
+      }
+    }
+  }
 
   /// Runs a cycle after `delay` seconds (coalesced).
   func syncSoon(after delay: TimeInterval = 0) {

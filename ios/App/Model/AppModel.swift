@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassCrypto
 import CompassModel
 import Foundation
 import Observation
@@ -24,6 +25,8 @@ final class AppModel {
   var selectedPane = 0
   var showingCommandBar = false
   var showingSettings = false
+  /// A pairing link opened from the camera, for the join screen.
+  var pendingInvite: PairingInvite?
 
   private var saveTask: Task<Void, Never>?
   private var archiveTimer: Task<Void, Never>?
