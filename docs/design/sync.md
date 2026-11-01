@@ -1337,6 +1337,24 @@ per profile where slice 5 gives each profile its own account:
 - The home's Spaces switch off stops the profile list (see the merge notes
   above).
 
+**MacBook run (1 Nov, a541332, against sync.example.org).** The
+first end-to-end attempt crashed on `pf op=assign`: AddSpace notified the
+SpaceDirectory, whose SpacesSyncHolder moved spaces in the same SpaceList
+mid-notification (reentrancy CHECK); fixed in a541332 (the holder's pull
+and CompassSyncService's ReconcileProfiles run from a posted task). Then:
+build clean, 136/136 unit tests. Steps 5-9 pass: A's two profiles on two
+chains with one notifier stream each; B joined by recovery words and got
+"Work" created and syncing without a second restart; per-profile
+passwords and switches; C (a local "Work", joined by pairing) mapped onto
+Work, its space and password stayed in Work on A, B and C; a space moved
+Work <-> Personal arrived on B by push within ~20 s; Reset on A gave both
+profiles one new seed, new chains after one restart, and a fresh D joined
+with the new words and got both profiles. No crashes or DCHECKs in seven
+instances. To check in slice 7's run: right after Reset, the page read
+"on / Last synced" before the restart (the code returns kNeedsRestart once
+`reset_` is set; the first reset attempt had timed out with A's page left
+in the pairing UI, so the reading may be stale).
+
 **MacBook run, step 7 finding (1 Nov).** `AssignSpaceToProfile` returns
 once the new profile is listed in the switcher; the move itself runs when
 that profile's SpaceService has loaded. Quitting within a second or two
