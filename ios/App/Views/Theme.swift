@@ -56,6 +56,32 @@ struct SiteIcon: View {
   }
 }
 
+/// What the phone can open: web pages. Entries synced from the desktop on
+/// its own pages (compass://, chrome://, about:, file:…) keep syncing but
+/// aren't shown here.
+enum PhoneVisible {
+  static func url(_ url: String) -> Bool {
+    guard let scheme = URL(string: url)?.scheme?.lowercased() else { return false }
+    return scheme == "http" || scheme == "https"
+  }
+}
+
+extension SidebarNode {
+  /// Shown on the phone: a web tab, a split with one, or a folder (folders
+  /// always show, even with nothing visible inside).
+  var isPhoneVisible: Bool {
+    switch kind {
+    case .folder: true
+    case .split: children.contains { PhoneVisible.url($0.url) }
+    default: isTab ? PhoneVisible.url(url) : true
+    }
+  }
+}
+
+extension Array where Element == SidebarNode {
+  var phoneVisible: [SidebarNode] { filter(\.isPhoneVisible) }
+}
+
 /// The desktop sidebar's look (resources/sidebar/app.css), at phone sizes:
 /// rows are 44 pt for touch where the desktop's are 32 px.
 enum SidebarStyle {
