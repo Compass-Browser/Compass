@@ -13,6 +13,8 @@ struct PageMenu: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
   @State private var copied = false
+  @State private var showingDownloads = false
+  @State private var showingArchive = false
 
   var body: some View {
     let _ = app.tabs.revision
@@ -42,6 +44,10 @@ struct PageMenu: View {
           .buttonStyle(TileStyle())
         }
       }
+      HStack(spacing: 10) {
+        WideButton(title: "Downloads", symbol: "arrow.down.circle", badge: downloadsBadge) { showingDownloads = true }
+        WideButton(title: "Archive", symbol: "archivebox") { showingArchive = true }
+      }
       Card {
         Row(title: "Site Settings", subtitle: site ?? "No page", trailing: "chevron.right",
             action: { app.showingSiteSettings = true }) {
@@ -65,12 +71,21 @@ struct PageMenu: View {
     .padding(.top, 26)
     .frame(maxHeight: .infinity, alignment: .top)
     .background(SpaceTint(color: app.selectedSpace?.color.color ?? .blue))
-    .presentationDetents([.height(352)])
+    .presentationDetents([.height(404)])
     .presentationDragIndicator(.visible)
     .sheet(isPresented: Binding(get: { app.showingSiteSettings }, set: { app.showingSiteSettings = $0 })) {
       SiteSettingsView(site: site)
     }
+    .sheet(isPresented: $showingDownloads) {
+      NavigationStack {
+        DownloadsView().toolbar { Button("Done") { showingDownloads = false } }
+      }
+    }
+    .sheet(isPresented: $showingArchive) { ArchiveView(space: nil) }
   }
+
+  /// Running downloads, as a count on the Downloads button.
+  private var downloadsBadge: Int { app.downloads.items.filter(\.running).count }
 
   /// Back, forward, the host (tap: edit the address), copy link, reload.
   private func addressCard(_ view: WKWebView?) -> some View {
@@ -197,5 +212,37 @@ extension Image {
       .foregroundStyle(.white)
       .frame(width: 32, height: 32)
       .background(color, in: RoundedRectangle(cornerRadius: 9))
+  }
+}
+
+/// A half-width capsule button with a symbol and a title (Downloads,
+/// Archive), and an optional count.
+private struct WideButton: View {
+  let title: String
+  let symbol: String
+  var badge = 0
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 8) {
+        Image(systemName: symbol).font(.system(size: 17, weight: .medium))
+        Text(title).font(.body.weight(.medium))
+        if badge > 0 {
+          Text("\(badge)")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .frame(minWidth: 20, minHeight: 20)
+            .background(Color.accentColor, in: Capsule())
+        }
+      }
+      .foregroundStyle(.primary)
+      .frame(maxWidth: .infinity)
+      .frame(height: 50)
+      .background(cardFill, in: Capsule())
+    }
+    .buttonStyle(TileStyle())
+    .accessibilityLabel(title)
   }
 }

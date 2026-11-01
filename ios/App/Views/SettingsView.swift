@@ -12,22 +12,11 @@ struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var showingRecovery = false
   @State private var confirmLeave = false
-  @State private var showingArchive = false
-  @State private var showingDownloads = false
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
 
   var body: some View {
     NavigationStack {
       Form {
-        Section {
-          HStack(spacing: 12) {
-            // A button, not a NavigationLink: in a Form that adds a chevron.
-            SettingsTile(title: "Downloads", symbol: "folder") { showingDownloads = true }
-            SettingsTile(title: "Archive", symbol: "archivebox") { showingArchive = true }
-          }
-          .listRowInsets(EdgeInsets())
-          .listRowBackground(Color.clear)
-        }
         Section {
           NavigationLink { SiteSettingsView(site: nil) } label: {
             SettingsLabel("Global Site Settings", "globe", .black)
@@ -77,8 +66,7 @@ struct SettingsView: View {
         isPresented: Binding(get: { app.pendingInvite != nil && !app.sync.isOn }, set: { _ in })
       ) { JoinView() }
       .sheet(isPresented: Bindable(app).showingJoinSummary) { JoinSummaryView() }
-      .sheet(isPresented: $showingArchive) { ArchiveView(space: nil) }
-      .navigationDestination(isPresented: $showingDownloads) { DownloadsView() }
+
     }
   }
 

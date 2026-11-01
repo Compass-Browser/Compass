@@ -16,6 +16,11 @@ struct BrowserScreen: View {
   let node: SidebarNode?
   /// The bar's drag: nil until it picks an axis.
   @State private var dragAxis: Axis?
+  /// The menu button's center on screen: where a download's arrow lands.
+  @State private var menuCenter: CGPoint?
+  /// A download's arrow on its way to the menu button (DownloadFlight).
+  @State private var flight: DownloadFlight.Phase?
+  @State private var menuBounce = false
   /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
   /// the 2 pt gap under it. A constant, not measured: feeding a measured
   /// height back into the web view's inset loops layout.
@@ -24,6 +29,34 @@ struct BrowserScreen: View {
   static let collapsedHeight: CGFloat = 30 + 2
 
   var body: some View {
+    @Bindable var app = app
+    content
+      .overlay {
+        if let flight, let menuCenter {
+          DownloadFlight(phase: flight, target: menuCenter)
+        }
+      }
+      .onChange(of: app.downloads.started) { downloadStarted() }
+  }
+
+  /// A download started: an arrow pops up mid-screen and drops into the
+  /// menu button, which bounces; a light tap goes with it.
+  private func downloadStarted() {
+    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    flight = .appear
+    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { flight = .shown }
+    Task {
+      try? await Task.sleep(for: .milliseconds(380))
+      withAnimation(.easeIn(duration: 0.42)) { flight = .landed }
+      try? await Task.sleep(for: .milliseconds(420))
+      flight = nil
+      withAnimation(.spring(response: 0.25, dampingFraction: 0.4)) { menuBounce = true }
+      try? await Task.sleep(for: .milliseconds(180))
+      withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { menuBounce = false }
+    }
+  }
+
+  @ViewBuilder private var content: some View {
     @Bindable var app = app
     VStack(spacing: 0) {
       if let node, node.isSplit {
@@ -156,6 +189,11 @@ struct BrowserScreen: View {
         .accessibilityIdentifier("BarNewTab")
       Button { app.showingMenu = true } label: {
         BarIcon(symbol: "ellipsis")
+          .scaleEffect(menuBounce ? 1.35 : 1)
+          .onGeometryChange(for: CGPoint.self, of: { geo in
+            let frame = geo.frame(in: .global)
+            return CGPoint(x: frame.midX, y: frame.midY)
+          }) { menuCenter = $0 }
           .overlay {
             // A download running: its progress around the menu button.
             if let progress = app.downloads.overallProgress {
@@ -288,5 +326,32 @@ private struct BarIcon: View {
       .font(.system(size: 18, weight: .semibold))
       .frame(width: 40, height: 44)
       .contentShape(Circle())
+  }
+}
+
+/// A download's arrow: pops up in the middle of the screen, then drops into
+/// the menu button (`target`, in screen points) and shrinks away.
+struct DownloadFlight: View {
+  enum Phase { case appear, shown, landed }
+  let phase: Phase
+  let target: CGPoint
+
+  var body: some View {
+    GeometryReader { geo in
+      let frame = geo.frame(in: .global)
+      let start = CGPoint(x: frame.midX, y: frame.midY - 40)
+      let at = phase == .landed ? target : start
+      Image(systemName: "arrow.down.circle.fill")
+        .font(.system(size: 64, weight: .semibold))
+        .symbolRenderingMode(.palette)
+        .foregroundStyle(.white, Color.accentColor)
+        .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
+        .scaleEffect(phase == .appear ? 0.3 : phase == .landed ? 0.28 : 1)
+        .opacity(phase == .appear ? 0 : 1)
+        .position(x: at.x - frame.minX, y: at.y - frame.minY)
+    }
+    .ignoresSafeArea()
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
   }
 }

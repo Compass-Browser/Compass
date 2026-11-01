@@ -37,6 +37,8 @@ struct DownloadsView: View {
             }
           }
         }
+        // Names in the text color, not the accent.
+        .tint(.primary)
         .disabled(item.file == nil)
         .contextMenu {
           if let file = item.file {

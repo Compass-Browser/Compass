@@ -4,7 +4,8 @@
 
 import XCTest
 
-/// A page sent as an attachment is downloaded and listed in Settings.
+/// A page sent as an attachment is downloaded and listed in the menu's
+/// Downloads.
 final class DownloadsTests: XCTestCase {
   func testAttachmentIsDownloaded() {
     let name = "compass-ui-\(Int.random(in: 1000...9999)).txt"
@@ -15,9 +16,8 @@ final class DownloadsTests: XCTestCase {
     ]
     app.launch()
     XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 20))
-    sleep(6)
+    sleep(4)
     app.buttons["Menu"].tap()
-    app.buttons["MenuSettings"].tap()
     XCTAssertTrue(app.buttons["Downloads"].waitForExistence(timeout: 5))
     app.buttons["Downloads"].tap()
     XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5), "listed")

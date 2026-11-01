@@ -25,6 +25,9 @@ final class Downloads: NSObject {
 
   let folder: URL
   private(set) var items: [Item] = []
+  /// Bumped when a download starts: the browser flies an arrow into the
+  /// menu button.
+  private(set) var started = 0
   @ObservationIgnored private var running: [ObjectIdentifier: UUID] = [:]
   @ObservationIgnored private var progress: [UUID: NSKeyValueObservation] = [:]
   @ObservationIgnored private var pending: [ObjectIdentifier: URL] = [:]
@@ -51,6 +54,7 @@ final class Downloads: NSObject {
     download.delegate = self
     running[ObjectIdentifier(download)] = id
     items.insert(Item(id: id, name: download.originalRequest?.url?.lastPathComponent ?? "Download", progress: 0), at: 0)
+    started += 1
     progress[id] = download.progress.observe(\.fractionCompleted) { [weak self] p, _ in
       let fraction = p.totalUnitCount > 0 ? p.fractionCompleted : nil
       let bytes = p.completedUnitCount
