@@ -24,6 +24,7 @@
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
+#include "components/sync/model/conflict_resolution.h"
 #include "components/sync/model/data_type_store.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/metadata_change_list.h"
