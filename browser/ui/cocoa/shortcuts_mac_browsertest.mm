@@ -158,6 +158,10 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ToggleSidebar) {
 // The user's shortcuts (docs/design/shortcuts.md "Customizing") take over
 // from the defaults, in the main menu and outside it, and go away again.
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CustomShortcuts) {
+  // A page that can be saved: Save Page As is disabled on about:blank, and a
+  // disabled menu item's keys run nothing.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<p>Hello")));
   ShortcutSettings& settings = ShortcutSettings::Get();
   const ui::Accelerator cmd_shift_k(ui::VKEY_K,
                                     ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN);
