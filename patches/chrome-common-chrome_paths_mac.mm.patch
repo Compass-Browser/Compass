@@ -1,0 +1,22 @@
+diff --git a/chrome/common/chrome_paths_mac.mm b/chrome/common/chrome_paths_mac.mm
+index 6829c9cb92c228dd19d44c9f739bf4595720cc2d..c053aa428086a645d7c71096439375eaffa863b7 100644
+--- a/chrome/common/chrome_paths_mac.mm
++++ b/chrome/common/chrome_paths_mac.mm
+@@ -20,6 +20,7 @@
+ #include "build/build_config.h"
+ #include "chrome/common/chrome_constants.h"
+ #include "chrome/common/chrome_paths_internal.h"
++#include "compass/common/user_data_dir_mac.h"
+ 
+ namespace {
+ 
+@@ -37,7 +38,8 @@
+ #elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
+       product_dir_name = "Google/Chrome";
+ #else
+-      product_dir_name = "Chromium";
++      // Compass: its own folder, moved from "Chromium" on first launch.
++      product_dir_name = compass::GetMacProductDirName();
+ #endif
+     }
+ 

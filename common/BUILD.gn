@@ -16,6 +16,19 @@ source_set("url") {
   ]
 }
 
+# Compass's user data folder on macOS (docs/design/branding.md, "User data
+# folder"). //chrome/common's chrome_paths uses it (see patches/).
+if (is_mac) {
+  source_set("user_data_dir") {
+    sources = [
+      "user_data_dir_mac.h",
+      "user_data_dir_mac.mm",
+    ]
+    deps = [ "//base" ]
+    frameworks = [ "Foundation.framework" ]
+  }
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [ "compass_url_unittest.cc" ]
@@ -24,4 +37,11 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//url",
   ]
+  if (is_mac) {
+    sources += [ "user_data_dir_mac_unittest.mm" ]
+    deps += [
+      ":user_data_dir",
+      "//base",
+    ]
+  }
 }

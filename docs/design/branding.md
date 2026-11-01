@@ -117,6 +117,29 @@ Windows keeps the product's identity apart from `BRANDING`, and before
   `install_static_unittests` check the old names and GUIDs and would need
   updating if built.
 
+## User data folder (macOS)
+
+Until 2026-11-01 Compass kept its data where an unbranded Chromium does,
+`~/Library/Application Support/Chromium` (and `~/Library/Caches/Chromium`),
+next to any real Chromium's. Now it's `.../Compass`: `chrome_paths_mac.mm`
+(patch) asks `compass::GetMacProductDirName()` (`common/user_data_dir_mac.mm`)
+when the app's Info.plist sets no `CrProductDirName`.
+
+The first launch that finds no `Compass` folder moves the old one, if it's
+Compass's (it has `Compass Spaces.json`, or the older `Strata Spaces.json`):
+a rename on the same disk, so profiles, cookies, logins and extensions come
+along as they are. It then rewrites the absolute paths into the folder saved
+in `Local State` and each profile's `Preferences` (the sync engine's folder,
+`local_sync_backend_dir`, and others), and moves the cache folder. `Secure
+Preferences` is left alone, as its values are signed; the paths there are
+component extensions', which are recomputed. A plain Chromium's folder is
+never touched. If a running Compass still holds the old folder (its
+`SingletonLock` names a live process) or the move fails, that launch keeps
+using "Chromium" and a later one moves it. The Keychain item is unaffected
+(it was moved separately, `components/os_crypt/`).
+
+Tests: `UserDataDirMacTest.*`.
+
 ## `compass://`
 
 The user types and sees `compass://`; pages still load as `chrome://`, so
