@@ -39,6 +39,13 @@ struct Pairing {
   string code;
   string device_name;
   string message;
+  // While A shows the code (kShowingCode): the invite a phone scans,
+  // "compass-pair:?server=<server URL>&code=<code>" (docs/design/ios.md),
+  // and its QR code, |qr_size| x |qr_size| modules, row by row, 1 = dark.
+  // Empty otherwise.
+  string invite_url;
+  array<uint8> qr;
+  int32 qr_size;
 };
 
 // The page's switches; see compass::sync::SyncDataType.

@@ -10,6 +10,10 @@ const read = () => ({
   code: $('pairingCode').textContent,
   pairing: $('pairingMessage').textContent,
   device: $('deviceName').textContent,
+  // The "Add a device" QR code's invite while the code shows, else null.
+  qr: $('pairingQr') && !$('pairingQrPanel').hidden ?
+      ($('pairingQr').dataset.invite || '') :
+      null,
   // The app menu's sync row (slice 4), e.g. "Sync: server full" (slice 7).
   menu: document.documentElement.dataset.menuLabel,
 });

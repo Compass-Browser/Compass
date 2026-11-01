@@ -36,6 +36,7 @@ struct SettingsView: View {
       .navigationDestination(
         isPresented: Binding(get: { app.pendingInvite != nil && !app.sync.isOn }, set: { _ in })
       ) { JoinView() }
+      .sheet(isPresented: Bindable(app).showingJoinSummary) { JoinSummaryView() }
     }
   }
 
@@ -57,6 +58,22 @@ struct SettingsView: View {
         LabeledContent("Last synced") { Text(last, style: .relative) }
       }
       Button("Sync Now") { Task { await app.sync.syncNow() } }
+    }
+    if !app.sync.profiles.isEmpty {
+      Section {
+        ForEach(app.sync.profiles) { profile in
+          LabeledContent {
+            let count = app.sync.spaceCount(profile)
+            Text(count == 1 ? "1 space" : "\(count) spaces")
+          } label: {
+            Text(profile.name.isEmpty ? "Profile" : profile.name)
+          }
+        }
+      } header: {
+        Text("Profiles")
+      } footer: {
+        Text("Each profile of your Mac syncs in its own encrypted account, with its own spaces, passwords and history.")
+      }
     }
     Section("Devices") {
       ForEach(app.sync.devices) { device in
@@ -221,6 +238,7 @@ struct JoinView: View {
       do {
         try app.sync.join(recoveryCode: words, server: url)
         dismiss()
+        app.showingJoinSummary = true
       } catch {
         message = "Check the 12 words."
       }
@@ -235,7 +253,9 @@ struct JoinView: View {
       waitingForMac = false
       app.pendingInvite = nil
       switch result {
-      case .joined: dismiss()
+      case .joined:
+        dismiss()
+        app.showingJoinSummary = true
       case .denied: message = "Your Mac said no."
       case .badCode: message = "A code looks like 7-482913."
       case .noSuchCode, .closed: message = "That code isn't open any more. Get a new one on your Mac."
@@ -247,6 +267,52 @@ struct JoinView: View {
       case .failed: message = "Couldn't reach the server."
       }
     }
+  }
+}
+
+/// After joining: what came over. The phone has nothing to configure (M8):
+/// every profile of the chain syncs, each in its own account.
+struct JoinSummaryView: View {
+  @Environment(AppModel.self) private var app
+
+  var body: some View {
+    VStack(spacing: 18) {
+      Spacer()
+      if app.sync.state == .syncing || app.sync.lastSync == nil, !isFailed {
+        ProgressView()
+        Text("Syncing…").font(.title3.weight(.semibold))
+      } else {
+        Image(systemName: isFailed ? "exclamationmark.icloud" : "checkmark.icloud")
+          .font(.system(size: 44)).foregroundStyle(isFailed ? Color.orange : Color.accentColor)
+      }
+      Text(summary).font(.body).multilineTextAlignment(.center).padding(.horizontal)
+      if case .failed(let message) = app.sync.state {
+        Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.horizontal)
+      }
+      Spacer()
+      Button {
+        app.showingJoinSummary = false
+        app.showingSettings = false
+      } label: {
+        Text("Continue").frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.borderedProminent)
+      .controlSize(.large)
+      .padding()
+    }
+    .interactiveDismissDisabled()
+  }
+
+  private var isFailed: Bool { if case .failed = app.sync.state { true } else { false } }
+
+  /// "Synced 2 profiles: Personal, Work · 5 spaces".
+  private var summary: String {
+    let names = app.sync.profiles.map(\.name).filter { !$0.isEmpty }
+    let count = max(app.sync.profiles.count, 1)
+    let spaces = app.store.spaces.count
+    var text = count == 1 ? "Synced 1 profile" : "Synced \(count) profiles"
+    if !names.isEmpty { text += ": " + names.joined(separator: ", ") }
+    return text + " · " + (spaces == 1 ? "1 space" : "\(spaces) spaces")
   }
 }
 
@@ -274,7 +340,7 @@ struct PasswordsView: View {
           } label: {
             VStack(alignment: .leading) {
               Text(p.host)
-              Text(p.isBlocked ? "Never saved" : p.username).font(.caption).foregroundStyle(.secondary)
+              Text((p.isBlocked ? "Never saved" : p.username) + profileSuffix(p)).font(.caption).foregroundStyle(.secondary)
             }
           }
         }
@@ -285,6 +351,14 @@ struct PasswordsView: View {
     .searchable(text: $query)
     .navigationTitle("Passwords")
     .onAppear(perform: unlock)
+  }
+
+  /// " · Work" for another profile's password.
+  private func profileSuffix(_ p: SavedPassword) -> String {
+    guard !p.profile.isEmpty, let name = app.sync.profiles.first(where: { $0.uuid == p.profile })?.name else {
+      return ""
+    }
+    return " · " + name
   }
 
   private func unlock() {

@@ -43,7 +43,7 @@ struct BrowserScreen: View {
     HStack(spacing: 12) {
       Image(systemName: "key.fill").foregroundStyle(.secondary)
       VStack(alignment: .leading, spacing: 2) {
-        Text(p.isUpdate ? "Update password?" : "Save password?").font(.subheadline.weight(.semibold))
+        Text(saveTitle(p)).font(.subheadline.weight(.semibold))
         Text("\(p.username.isEmpty ? "No username" : p.username) · \(URL(string: p.realm)?.host() ?? p.realm)")
           .font(.caption).foregroundStyle(.secondary).lineLimit(1)
       }
@@ -64,9 +64,17 @@ struct BrowserScreen: View {
     .transition(.move(edge: .bottom).combined(with: .opacity))
   }
 
+  /// "Save to Work?" when the chain has several profiles.
+  private func saveTitle(_ p: PasswordManager.PendingSave) -> String {
+    if app.sync.profiles.count > 1, let name = app.sync.profileName(account: p.profile) {
+      return p.isUpdate ? "Update in \(name)?" : "Save to \(name)?"
+    }
+    return p.isUpdate ? "Update password?" : "Save password?"
+  }
+
   @ViewBuilder private var keyButton: some View {
     if let tab = app.shownTab, app.passwords.hasForm(tab.id), let view = app.tabs.live[tab.id] {
-      let logins = app.passwords.matches(for: view.url)
+      let logins = app.passwords.matches(for: view.url, profile: app.accountProfile(ofTab: tab.id))
       if !logins.isEmpty {
         Menu {
           ForEach(logins) { login in

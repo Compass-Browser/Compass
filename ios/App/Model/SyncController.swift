@@ -10,9 +10,10 @@ import Observation
 import UIKit
 import os
 
-/// Sync for the app: the chain in the Keychain, the engine and its bridges,
-/// and when to run a cycle (launch, foreground, after local changes, the
-/// server's poll interval). docs/design/ios.md, "Sync client".
+/// Sync for the app: the chain in the Keychain, one account per profile of
+/// the chain (each with its engine and bridges), and when to run a cycle
+/// (launch, foreground, after local changes, the server's poll interval).
+/// docs/design/ios.md, "Sync client" and "M8".
 @MainActor
 @Observable
 final class SyncController {
@@ -25,26 +26,55 @@ final class SyncController {
 
   static let defaultServer = URL(string: "https://sync.example.org/v2")!
 
+  /// One profile's server account: the home profile's is the chain's own
+  /// ("" here); every other profile has its own (sync.md, "Slice 5 notes").
+  final class Account {
+    let profile: String
+    let engine: SyncEngine
+    let spaces: CompassSpacesBridge
+    let deviceInfo: DeviceInfoBridge
+    let visits: HistoryBridge
+    let directives: HistoryDeleteDirectivesBridge
+    let sessions: SessionsBridge
+    let passwords: PasswordsBridge
+    let notifier: SyncNotifier
+    var listening: Task<Void, Never>?
+    var foreignSessions: [ForeignSession] = []
+
+    init(
+      profile: String, engine: SyncEngine, spaces: CompassSpacesBridge, deviceInfo: DeviceInfoBridge,
+      visits: HistoryBridge, directives: HistoryDeleteDirectivesBridge, sessions: SessionsBridge,
+      passwords: PasswordsBridge, notifier: SyncNotifier
+    ) {
+      self.profile = profile
+      self.engine = engine
+      self.spaces = spaces
+      self.deviceInfo = deviceInfo
+      self.visits = visits
+      self.directives = directives
+      self.sessions = sessions
+      self.passwords = passwords
+      self.notifier = notifier
+    }
+  }
+
   private(set) var state: State = .off
   private(set) var serverURL: URL?
   private(set) var devices: [SyncDevice] = []
   private(set) var lastSync: Date?
   private(set) var chain: Chain?
+  /// The chain's profiles (home first), from the home account or pairing.
+  private(set) var profiles: [ChainProfile] = []
+  /// Other devices' open tabs, per account ("" = the home's).
+  private(set) var sessionsByAccount: [String: [ForeignSession]] = [:]
   var isOn: Bool { chain != nil }
 
   private let store: SpaceStore
   let history: HistoryStore
-  private(set) var foreignSessions: [ForeignSession] = []
-  private var visits: HistoryBridge?
-  private var directives: HistoryDeleteDirectivesBridge?
-  private var sessions: SessionsBridge?
   private let directory: URL
-  private var engine: SyncEngine?
-  private var spaces: CompassSpacesBridge?
-  private var deviceInfo: DeviceInfoBridge?
+  private var spaceDirectory: SpaceDirectory?
+  private var accounts: [String: Account] = [:]
   private var scheduled: Task<Void, Never>?
-  private var notifier: SyncNotifier?
-  private var listening: Task<Void, Never>?
   private var active = true
   /// Whether an entry is on screen (it survives a close elsewhere).
   var isShown: ((String) -> Bool)?
@@ -75,13 +105,15 @@ final class SyncController {
       transport: NetworkPairingTransport(serverURL: server), host: server.host()?.lowercased() ?? "",
       deviceName: UIDevice.current.name)
     let result = await joiner.join(code: code, waiting: waiting)
-    if case .joined(let seed) = result, let chain = try? Chain(seed: seed) {
+    if case .joined(let seed, let profiles) = result, let chain = try? Chain(seed: seed) {
       save(chain: chain, server: server)
-      start(chain: chain, server: server, first: false)
+      start(chain: chain, server: server, first: false, pairingProfiles: profiles)
     }
     return result
   }
 
+  /// Joins with the 12 words. The chain's profiles come with the home
+  /// account's first sync; their accounts start then.
   func join(recoveryCode: String, server: URL) throws {
     let chain = try Chain(recoveryCode: recoveryCode)
     save(chain: chain, server: server)
@@ -96,27 +128,26 @@ final class SyncController {
     return chain
   }
 
-  /// Stops syncing; local data stays.
+  /// Stops syncing every profile's account; local data stays.
   func leave() {
     scheduled?.cancel()
-    listening?.cancel()
-    listening = nil
-    notifier = nil
+    for account in accounts.values {
+      account.listening?.cancel()
+      spaceDirectory?.remove(account.spaces)
+    }
+    accounts = [:]
     Keychain.set(nil, "seed")
     Keychain.set(nil, "server")
-    try? FileManager.default.removeItem(at: metadataURL)
-    try? FileManager.default.removeItem(at: mirrorURL)
-    engine = nil
-    spaces = nil
-    deviceInfo = nil
+    for name in ["sync-metadata.plist", "sync-spaces-mirror.json", "sync-sessions.json", "Profiles"] {
+      try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+    }
+    spaceDirectory = nil
     chain = nil
     serverURL = nil
     devices = []
-    foreignSessions = []
-    visits = nil
-    passwords.bridge = nil
-    directives = nil
-    sessions = nil
+    profiles = []
+    sessionsByAccount = [:]
+    passwords.removeBridges()
     state = .off
     store.onLocalChange = nil
   }
@@ -126,75 +157,140 @@ final class SyncController {
     Keychain.set(server.dataRepresentation, "server")
   }
 
-  private var metadataURL: URL { directory.appendingPathComponent("sync-metadata.plist") }
-  private var mirrorURL: URL { directory.appendingPathComponent("sync-spaces-mirror.json") }
+  /// Where an account keeps its files: the home's as before M8, the others
+  /// under Profiles/<uuid>/.
+  private func fileURL(_ name: String, profile: String) -> URL {
+    if profile.isEmpty { return directory.appendingPathComponent(name) }
+    let folder = directory.appendingPathComponent("Profiles/\(profile)", isDirectory: true)
+    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    return folder.appendingPathComponent(name)
+  }
 
-  private func start(chain: Chain, server: URL, first: Bool) {
+  private func start(chain: Chain, server: URL, first: Bool, pairingProfiles: [ChainProfile] = []) {
     self.chain = chain
     serverURL = server
-    let metadataStore = FileSyncMetadataStore(url: metadataURL)
+    let spaceDirectory = SpaceDirectory(store: store)
+    self.spaceDirectory = spaceDirectory
+    startAccount("", first: first)
+    spaceDirectory.adoptPairingProfiles(pairingProfiles)
+    spaceDirectory.onProfilesChanged = { [weak self] list in self?.profilesChanged(list) }
+    // The list the home account had (last run), else pairing's.
+    let known = spaceDirectory.profiles.isEmpty ? ChainProfile.sorted(pairingProfiles) : spaceDirectory.profiles
+    profilesChanged(known)
+  }
+
+  /// The chain's profile list changed: every profile but the home gets its
+  /// account here (the phone doesn't create or delete chain profiles).
+  private func profilesChanged(_ list: [ChainProfile]) {
+    guard chain != nil else { return }
+    profiles = list
+    let home = ChainProfile.homeUUID(list) ?? store.homeProfileUUID
+    // For the AutoFill extension's group headers.
+    var names: [String: String] = [:]
+    for p in list { names[p.uuid == home ? "" : p.uuid] = p.name }
+    KeychainPasswordStore.saveProfileNames(names, accessGroup: passwords.group)
+    var started = false
+    for profile in list where profile.uuid != home && accounts[profile.uuid] == nil {
+      startAccount(profile.uuid, first: false)
+      started = true
+    }
+    if started { syncSoon(after: 0) }
+  }
+
+  private func startAccount(_ profile: String, first: Bool) {
+    guard let chain, let server = serverURL, let spaceDirectory else { return }
+    let metadataStore = FileSyncMetadataStore(url: fileURL("sync-metadata.plist", profile: profile))
     let cacheGUID = metadataStore.load()?.cacheGUID ?? SyncMetadata().cacheGUID
     if metadataStore.load() == nil { metadataStore.save(SyncMetadata(cacheGUID: cacheGUID)) }
+    let authKey = chain.authKey(profileUUID: profile)
     let engine = SyncEngine(
-      connection: HTTPSyncConnection(serverURL: server, cacheGUID: cacheGUID, authKey: chain.authKey),
-      passphrase: chain.passphrase, store: metadataStore, createChainIfEmpty: first)
-    let spaces = CompassSpacesBridge(store: store, engine: engine, mirrorURL: mirrorURL)
+      connection: HTTPSyncConnection(serverURL: server, cacheGUID: cacheGUID, authKey: authKey),
+      passphrase: chain.passphrase(profileUUID: profile), store: metadataStore, createChainIfEmpty: first)
+    let spaces = CompassSpacesBridge(
+      directory: spaceDirectory, profile: profile, engine: engine,
+      mirrorURL: fileURL("sync-spaces-mirror.json", profile: profile))
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-    let visits = HistoryBridge(history: history, engine: engine)
-    let directives = HistoryDeleteDirectivesBridge(history: history, engine: engine)
     let sessions = SessionsBridge(
-      engine: engine, deviceName: UIDevice.current.name,
-      stateURL: directory.appendingPathComponent("sync-sessions.json"))
-    sessions.onChange = { [weak self] list in
-      Task { @MainActor in self?.foreignSessions = list }
-    }
-    self.visits = visits
-    let passwordsBridge = PasswordsBridge(store: passwords.store, engine: engine)
-    passwords.bridge = passwordsBridge
-    self.directives = directives
-    self.sessions = sessions
+      engine: engine, deviceName: UIDevice.current.name, stateURL: fileURL("sync-sessions.json", profile: profile))
+    // Every account has this phone in its device list, so each profile's
+    // page on the Mac shows it.
     let deviceInfo = DeviceInfoBridge(
       local: .init(name: UIDevice.current.name, model: UIDevice.current.model, appVersion: version))
-    deviceInfo.onChange = { [weak self] devices in
-      Task { @MainActor in self?.devices = devices }
+    let account = Account(
+      profile: profile, engine: engine, spaces: spaces, deviceInfo: deviceInfo,
+      visits: HistoryBridge(history: history, engine: engine, profile: profile),
+      directives: HistoryDeleteDirectivesBridge(history: history, engine: engine, profile: profile),
+      sessions: sessions, passwords: PasswordsBridge(store: passwords.store(profile), engine: engine),
+      notifier: SyncNotifier(serverURL: server, cacheGUID: cacheGUID, authKey: authKey))
+    if profile.isEmpty {
+      deviceInfo.onChange = { [weak self] devices in
+        Task { @MainActor in self?.devices = devices }
+      }
     }
+    sessions.onChange = { [weak self] _ in
+      Task { @MainActor in self?.collectSessions() }
+    }
+    passwords.setBridge(account.passwords, for: profile)
     spaces.onLocalCommit = { [weak self] in self?.syncSoon(after: 2) }
     spaces.isShown = { [weak self] id in self?.isShown?(id) ?? false }
     spaces.onReplaced = { [weak self] old, new in self?.onReplaced?(old, new) }
-    self.engine = engine
-    self.spaces = spaces
-    notifier = SyncNotifier(serverURL: server, cacheGUID: cacheGUID, authKey: chain.authKey)
-    if active { listen() }
-    self.deviceInfo = deviceInfo
+    accounts[profile] = account
+    if active { listen(account) }
     Task {
-      await engine.register(spaces)
-      await engine.register(deviceInfo)
-      await engine.register(visits)
-      await engine.register(directives)
-      await engine.register(sessions)
-      await engine.register(passwordsBridge)
+      for bridge: any DataTypeBridge in [
+        spaces, deviceInfo, account.visits, account.directives, sessions, account.passwords,
+      ] {
+        await engine.register(bridge)
+      }
       syncSoon(after: 0)
     }
   }
 
+  /// The account a space's data syncs in.
+  func accountProfile(of space: Space) -> String {
+    if let owner = spaceDirectory?.owner(of: space) { return owner.accountProfile }
+    return store.isHome(space.profileUUID) ? "" : space.profileUUID
+  }
+
+  /// "Tabs on <device>" of one account: the command bar shows the current
+  /// space's profile only (M8).
+  func foreignSessions(account: String) -> [ForeignSession] { sessionsByAccount[account] ?? [] }
+
+  /// A profile account's name ("" = the home's).
+  func profileName(account: String) -> String? {
+    account.isEmpty ? profiles.first(where: \.home)?.name : profiles.first { $0.uuid == account }?.name
+  }
+
+  /// The account a profile's data syncs in: its own, or the home's.
+  func accountProfile(of node: SidebarNode) -> String {
+    if let owner = spaceDirectory?.owner(of: node) { return owner.accountProfile }
+    let profile = store.profile(of: node)
+    return store.isHome(profile) ? "" : profile
+  }
+
   // MARK: Cycles
 
-  /// The app came to the foreground or left it: hold the push stream only
+  /// The app came to the foreground or left it: hold the push streams only
   /// while active (iOS suspends background sockets anyway).
   func setActive(_ isActive: Bool) {
     active = isActive
-    if isActive {
-      listen()
-      syncSoon()
-    } else {
-      listening?.cancel()
-      listening = nil
+    for account in accounts.values {
+      if isActive {
+        listen(account)
+      } else {
+        account.listening?.cancel()
+        account.listening = nil
+      }
     }
+    if isActive { syncSoon() }
   }
 
-  private func listen() {
-    guard listening == nil, let notifier else { return }
-    listening = Task { [weak self] in
+  /// Each account has its own stream, as each desktop profile runs its own
+  /// notifier.
+  private func listen(_ account: Account) {
+    guard account.listening == nil else { return }
+    let notifier = account.notifier
+    account.listening = Task { [weak self] in
       await notifier.run { _ in
         await MainActor.run { self?.syncSoon(after: 0.3) }
       }
@@ -203,7 +299,7 @@ final class SyncController {
 
   /// Runs a cycle after `delay` seconds (coalesced).
   func syncSoon(after delay: TimeInterval = 0) {
-    guard engine != nil else { return }
+    guard !accounts.isEmpty else { return }
     scheduled?.cancel()
     scheduled = Task { [weak self] in
       if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
@@ -215,8 +311,10 @@ final class SyncController {
     }
   }
 
+  /// One cycle of every account, the home's first (it brings the profile
+  /// list, which may start more accounts).
   func syncNow() async {
-    guard let engine, let deviceInfo, let spaces else { return }
+    guard !accounts.isEmpty else { return }
     if running {
       again = true
       return
@@ -224,69 +322,127 @@ final class SyncController {
     running = true
     state = .syncing
     defer { running = false }
-    do {
-      await spaces.flush()
-      try await engine.sync()
-      await deviceInfo.refreshLocal(engine: engine)
-      await sessions?.publish(openTabs())
-      await spaces.flush()
-      if await engine.hasPendingChanges { try await engine.sync() }
+    var failure: String?
+    var poll: TimeInterval = .infinity
+    var done: Set<String> = []
+    while let profile = ([""] + accounts.keys.sorted()).first(where: { accounts[$0] != nil && !done.contains($0) }) {
+      done.insert(profile)
+      guard let account = accounts[profile] else { continue }
+      if let message = await cycle(account) {
+        failure = failure ?? message
+        Logger(subsystem: "it.cipi1965.compass", category: "sync")
+          .error("Sync failed (\(profile.isEmpty ? "home" : profile, privacy: .public)): \(message, privacy: .public)")
+      }
+      poll = min(poll, await account.engine.pollInterval ?? 30)
+    }
+    if let failure {
+      state = .failed(failure)
+    } else {
       lastSync = Date()
       state = .on
-      devices = deviceInfo.allDevices
-      foreignSessions = sessions?.foreignSessions() ?? []
-    } catch SyncEngineError.chainNotStarted {
-      state = .failed("No device has started sync on this chain yet.")
-    } catch SyncEngineError.crypto {
-      state = .failed("This chain was reset on another device. Join it again.")
-    } catch SyncEngineError.connection(let error) {
-      state = .failed("Can't reach the sync server (\(error)).")
-    } catch {
-      state = .failed("\(error)")
     }
-    if case .failed(let message) = state {
-      Logger(subsystem: "it.cipi1965.compass", category: "sync").error("Sync failed: \(message, privacy: .public)")
-    }
-    // The server's poll interval while the app is open (push comes in M7).
-    let poll = await engine.pollInterval ?? 30
+    devices = accounts[""]?.deviceInfo.allDevices ?? []
+    collectSessions()
     if again {
       again = false
       syncSoon(after: 0)
     } else {
-      syncSoon(after: max(poll, 15))
+      syncSoon(after: max(poll == .infinity ? 30 : poll, 15))
+    }
+  }
+
+  /// One account's cycle; an error message if it failed.
+  private func cycle(_ account: Account) async -> String? {
+    do {
+      await account.spaces.flush()
+      try await account.engine.sync()
+      await account.deviceInfo.refreshLocal(engine: account.engine)
+      await account.sessions.publish(openTabs(account))
+      await account.spaces.flush()
+      if await account.engine.hasPendingChanges { try await account.engine.sync() }
+      account.foreignSessions = account.sessions.foreignSessions()
+      return nil
+    } catch SyncEngineError.chainNotStarted {
+      return account.profile.isEmpty
+        ? "No device has started sync on this chain yet." : "A profile's sync hasn't started on the Mac yet."
+    } catch SyncEngineError.crypto {
+      return "This chain was reset on another device. Join it again."
+    } catch SyncEngineError.connection(let error) {
+      return "Can't reach the sync server (\(error))."
+    } catch {
+      return "\(error)"
     }
   }
 
   var recoveryWords: [String] { chain?.recoveryWords ?? [] }
 
-  /// This phone's open entries for SESSIONS: every space's Today tabs.
-  private func openTabs() -> [SessionsBridge.LocalTab] {
-    store.spaces.flatMap { $0.today.children.flatMap(\.tabs) }
+  /// The Today tabs of the account's own spaces, for its SESSIONS.
+  private func openTabs(_ account: Account) -> [SessionsBridge.LocalTab] {
+    store.spaces.filter { spaceDirectory?.owner(of: $0) === account.spaces }
+      .flatMap { $0.today.children.flatMap(\.tabs) }
       .filter { !$0.url.isEmpty }
       .sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
       .map { .init(id: $0.id, url: $0.url, title: $0.displayTitle, lastActive: $0.lastActive ?? Date()) }
   }
 
+  /// Each account's other devices (a Mac's profile is a session in that
+  /// profile's account only).
+  private func collectSessions() {
+    var out: [String: [ForeignSession]] = [:]
+    for (profile, account) in accounts {
+      if account.foreignSessions.isEmpty { account.foreignSessions = account.sessions.foreignSessions() }
+      out[profile] = account.foreignSessions
+    }
+    sessionsByAccount = out
+  }
+
   // MARK: History
 
-  /// A page finished loading in a tab: a visit (synced when sync is on).
-  func recordVisit(url: String, title: String) {
-    if let visits {
+  /// A page finished loading in a tab: a visit in the account of the tab's
+  /// profile (synced when sync is on).
+  func recordVisit(url: String, title: String, profile: String) {
+    if let visits = accounts[profile]?.visits ?? accounts[""]?.visits {
       Task { await visits.record(url: url, title: title) }
       syncSoon(after: 5)
     } else {
-      history.add(Visit(time: Visit.time(Date()), url: url, title: title, originator: "local"))
+      history.add(Visit(time: Visit.time(Date()), url: url, title: title, originator: "local", profile: profile))
     }
   }
 
+  /// Clears history here, and in every profile's account.
   func clearHistory() {
-    if let directives {
-      Task {
-        await directives.deleteHistory(from: Date(timeIntervalSince1970: 0), to: Date())
-        syncSoon()
-      }
-    } else {
+    guard !accounts.isEmpty else {
       history.deleteAll()
+      return
     }
+    let all = Array(accounts.values)
+    Task {
+      for account in all {
+        await account.directives.deleteHistory(from: Date(timeIntervalSince1970: 0), to: Date())
+      }
+      history.deleteAll()
+      syncSoon()
+    }
+  }
+
+  /// The chain profile a space belongs to.
+  func profile(of space: Space) -> ChainProfile? {
+    if store.isHome(space.profileUUID) { return profiles.first(where: \.home) }
+    return profiles.first { $0.uuid == space.profileUUID }
+  }
+
+  /// How many spaces a chain profile has here.
+  func spaceCount(_ profile: ChainProfile) -> Int {
+    store.spaces.filter { self.profile(of: $0)?.uuid == profile.uuid }.count
+  }
+
+  /// The chain profile of a space, when the chain has more than one.
+  func profileName(of space: Space) -> String? {
+    profiles.count > 1 ? profile(of: space)?.name : nil
+  }
+
+  /// The profile UUID to give a space moved to `profile`.
+  func spaceProfile(for profile: ChainProfile) -> String {
+    profile.uuid == store.homeProfileUUID || profile.home ? store.homeProfileUUID : profile.uuid
   }
 }

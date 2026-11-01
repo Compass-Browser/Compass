@@ -67,7 +67,13 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void OnSyncControllerChanged() override;
 
   static sync::mojom::StatusPtr ToMojo(const sync::SyncStatus& status);
-  static sync::mojom::PairingPtr ToMojo(const sync::PairingStatus& pairing);
+  // |server_url| goes into the invite while A shows the code.
+  static sync::mojom::PairingPtr ToMojo(const sync::PairingStatus& pairing,
+                                        const std::string& server_url);
+  // The QR payload a phone scans to join: "compass-pair:?server=" +
+  // the escaped |server_url| + "&code=" + |code|. Empty if either is.
+  static std::string PairingInviteUrl(const std::string& server_url,
+                                      const std::string& code);
   static sync::mojom::DetailsPtr ToMojo(
       const std::vector<sync::SyncDevice>& devices,
       const std::vector<sync::SyncDataTypeState>& types);
@@ -78,6 +84,7 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void OnReauthenticated(RevealRecoveryCodeCallback callback,
                          bool authenticated);
   sync::mojom::DetailsPtr GetDetails() const;
+  sync::mojom::PairingPtr GetPairing() const;
 
   mojo::Receiver<sync::mojom::PageHandler> receiver_;
   mojo::Remote<sync::mojom::Page> page_;

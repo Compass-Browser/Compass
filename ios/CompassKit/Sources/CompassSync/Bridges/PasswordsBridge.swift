@@ -9,10 +9,15 @@ import SyncProto
 
 /// A saved password, from its PasswordSpecificsData.
 public struct SavedPassword: Sendable, Equatable, Identifiable {
-  public var id: String { tag }
+  public var id: String { recordID }
   /// Chromium's client tag (see `PasswordsBridge.clientTag(for:)`).
   public var tag: String
   public var data: SyncPb_PasswordSpecificsData
+  /// The profile account it's in: empty for the home profile's, else the
+  /// profile's UUID (each profile has its own passwords, as on the desktop).
+  public var profile = ""
+  /// Unique across profiles (also the AutoFill record identifier).
+  public var recordID: String { profile.isEmpty ? tag : profile + " " + tag }
 
   public var signonRealm: String { data.signonRealm }
   public var username: String { data.usernameValue }
@@ -50,10 +55,71 @@ public final class MemoryPasswordStore: PasswordStore, @unchecked Sendable {
 /// serialized PasswordSpecificsData, so fields this client doesn't know
 /// survive.
 public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
-  let service = "it.cipi1965.compass.passwords"
+  static let baseService = "it.cipi1965.compass.passwords"
+  let service: String
   let accessGroup: String?
+  let profile: String
 
-  public init(accessGroup: String?) { self.accessGroup = accessGroup }
+  /// `profile`: empty for the home profile's passwords, else its UUID
+  /// (Keychain service "it.cipi1965.compass.passwords.<uuid>").
+  public init(accessGroup: String?, profile: String = "") {
+    self.accessGroup = accessGroup
+    self.profile = profile
+    service = profile.isEmpty ? Self.baseService : Self.baseService + "." + profile
+  }
+
+  static let namesService = "it.cipi1965.compass.profile-names"
+
+  /// The chain's profile names by account ("" = the home's), kept in the
+  /// shared Keychain so the AutoFill extension can head its groups.
+  public static func saveProfileNames(_ names: [String: String], accessGroup: String?) {
+    guard let data = try? JSONEncoder().encode(names) else { return }
+    var q: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: namesService,
+      kSecAttrAccount as String: "names",
+    ]
+    if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
+    let update: [String: Any] = [kSecValueData as String: data]
+    if SecItemUpdate(q as CFDictionary, update as CFDictionary) == errSecItemNotFound {
+      q.merge(update) { $1 }
+      q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+      SecItemAdd(q as CFDictionary, nil)
+    }
+  }
+
+  public static func profileNames(accessGroup: String?) -> [String: String] {
+    var q: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: namesService,
+      kSecAttrAccount as String: "names", kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
+    var result: CFTypeRef?
+    guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return [:] }
+    return (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
+  }
+
+  /// Every profile's passwords (the AutoFill extension and QuickType list
+  /// cover them all).
+  public static func everyProfile(accessGroup: String?) -> [SavedPassword] {
+    var q: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword, kSecReturnData as String: true,
+      kSecReturnAttributes as String: true, kSecMatchLimit as String: kSecMatchLimitAll,
+    ]
+    if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
+    var result: CFTypeRef?
+    guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]]
+    else { return [] }
+    return items.compactMap { item in
+      guard let service = item[kSecAttrService as String] as? String,
+        service == baseService || service.hasPrefix(baseService + "."),
+        let data = item[kSecValueData as String] as? Data,
+        let d = try? SyncPb_PasswordSpecificsData(serializedBytes: data)
+      else { return nil }
+      var p = SavedPassword(data: d)
+      p.profile = service == baseService ? "" : String(service.dropFirst(baseService.count + 1))
+      return p
+    }
+  }
 
   private func base() -> [String: Any] {
     var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service]
@@ -69,7 +135,11 @@ public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
     guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let items = result as? [Data] else {
       return []
     }
-    return items.compactMap { try? SyncPb_PasswordSpecificsData(serializedBytes: $0) }.map(SavedPassword.init)
+    return items.compactMap { try? SyncPb_PasswordSpecificsData(serializedBytes: $0) }.map {
+      var p = SavedPassword(data: $0)
+      p.profile = profile
+      return p
+    }
   }
 
   public func put(_ password: SavedPassword) {

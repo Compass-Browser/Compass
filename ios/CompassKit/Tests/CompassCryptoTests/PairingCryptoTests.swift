@@ -77,4 +77,17 @@ struct PairingCryptoTests {
     #expect(PairingInvite(url: URL(string: "compass-pair:?server=ftp://x&code=7-482913")!) == nil)
     #expect(PairingInvite(url: URL(string: "https://x/?server=https://x&code=7-482913")!) == nil)
   }
+
+  /// The desktop's QR (CompassSyncPageHandler::PairingInviteUrl) escapes the
+  /// server URL; it must parse to the same invite.
+  @Test func parsesTheDesktopsEscapedInvite() throws {
+    let url = try #require(URL(string:
+      "compass-pair:?server=https%3A%2F%2Fsync.example.org%2Fv2&code=7-482913"))
+    let invite = try #require(PairingInvite(url: url))
+    #expect(invite.server.absoluteString == "https://sync.example.org/v2")
+    #expect(invite.code.text == "7-482913")
+    let port = try #require(PairingInvite(url: URL(string:
+      "compass-pair:?server=http%3A%2F%2Fh%3A8295%2Fv2&code=12-000001")!))
+    #expect(port.server.absoluteString == "http://h:8295/v2")
+  }
 }

@@ -28,8 +28,8 @@ final class TabManager: NSObject {
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
-  /// A page finished loading (a history visit).
-  var onPageLoaded: ((String, String) -> Void)?
+  /// A page finished loading (a history visit): (URL, title, tab ID).
+  var onPageLoaded: ((String, String, String) -> Void)?
 
   init(store: SpaceStore) {
     self.store = store
@@ -44,7 +44,9 @@ final class TabManager: NSObject {
       return view
     }
     let configuration = WKWebViewConfiguration()
-    configuration.websiteDataStore = dataStore(for: store.space(of: node)?.profileUUID ?? "")
+    // The home profile's spaces (and favorites) use the default store.
+    let profile = store.profile(of: node)
+    configuration.websiteDataStore = dataStore(for: store.isHome(profile) ? "" : profile)
     configuration.allowsInlineMediaPlayback = true
     configuration.allowsPictureInPictureMediaPlayback = true
     configuration.userContentController.addUserScript(PasswordScript.userScript)
@@ -125,8 +127,10 @@ final class TabManager: NSObject {
 extension TabManager: WKNavigationDelegate, WKUIDelegate {
   nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     MainActor.assumeIsolated {
-      guard let url = webView.url?.absoluteString else { return }
-      onPageLoaded?(url, webView.title ?? "")
+      guard let url = webView.url?.absoluteString,
+        let id = live.first(where: { $0.value === webView })?.key
+      else { return }
+      onPageLoaded?(url, webView.title ?? "", id)
     }
   }
 

@@ -20,6 +20,12 @@ import SyncProto
 ///   per entity every 10 s.
 /// - Remote children whose parent hasn't arrived wait ("parked") at the end
 ///   of their section root, and nothing is committed for them meanwhile.
+///
+/// One per profile account (slice 5; docs/design/ios.md, "M8"): it syncs
+/// the spaces of its profile, their entries and the profile's favorites,
+/// which its `SpaceDirectory` says it owns. The home profile's also carries
+/// the chain's profile list (CompassProfile entities), which the phone only
+/// reads.
 public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   public nonisolated let dataType = DataType.compassSpaces
   public static let throttleInterval: TimeInterval = 10
@@ -27,6 +33,11 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   static let archiveCap: TimeInterval = 30 * 24 * 60 * 60
 
   @MainActor let store: SpaceStore
+  @MainActor public let directory: SpaceDirectory
+  /// The profile whose account this is; empty for the home profile's (the
+  /// chain's own account).
+  public nonisolated let accountProfile: String
+  public nonisolated var isHome: Bool { accountProfile.isEmpty }
   let engine: SyncEngine
   let mirrorURL: URL?
   @MainActor var mirror: [String: SyncPb_CompassSpacesSpecifics] = [:]
@@ -57,9 +68,19 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     case delete(String)
   }
 
+  /// The only bridge of a store: the home account's, with a directory of
+  /// its own.
   @MainActor
-  public init(store: SpaceStore, engine: SyncEngine, mirrorURL: URL?) {
-    self.store = store
+  public convenience init(store: SpaceStore, engine: SyncEngine, mirrorURL: URL?) {
+    self.init(directory: SpaceDirectory(store: store), profile: "", engine: engine, mirrorURL: mirrorURL)
+  }
+
+  /// `profile`: the profile UUID of the account, empty for the home's.
+  @MainActor
+  public init(directory: SpaceDirectory, profile: String, engine: SyncEngine, mirrorURL: URL?) {
+    self.directory = directory
+    store = directory.store
+    accountProfile = profile
     self.engine = engine
     self.mirrorURL = mirrorURL
     if let mirrorURL, let data = try? Data(contentsOf: mirrorURL),
@@ -68,8 +89,75 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       mirror = saved.entities.compactMapValues { try? SyncPb_CompassSpacesSpecifics(serializedBytes: $0) }
       tracking = saved.tracking
     }
-    store.suffixForID = Self.suffix(for:)
-    store.onLocalChange = { [weak self] change in self?.localChanged(change) }
+    directory.add(self)
+  }
+
+  // MARK: Profiles
+
+  /// The profile UUID this bridge puts on its spaces (the desktop's
+  /// GetProfileUuid()): its account's, or the chain's home UUID once known.
+  @MainActor var ownProfile: String { isHome ? store.homeProfileUUID : accountProfile }
+
+  @MainActor func owns(_ space: Space) -> Bool { directory.owner(of: space) === self }
+  @MainActor func owns(_ node: SidebarNode) -> Bool { directory.owner(of: node) === self }
+  @MainActor func ownsSpace(id: String) -> Bool { store.space(id: id).map(owns) ?? false }
+  @MainActor var ownFavorites: SidebarNode { store.favorites(forProfile: ownProfile) }
+
+  /// The CompassProfile entities this account has (the home's: the chain's
+  /// profile list).
+  @MainActor
+  public func mirrorProfiles() -> [ChainProfile] {
+    mirror.values.compactMap { s -> ChainProfile? in
+      guard case .profile(let p) = s.entity, Self.isValidUUID(p.uuid) else { return nil }
+      return ChainProfile(p)
+    }
+  }
+
+  /// The home UUID became known: the home's spaces carry it (as the
+  /// desktop's do), and commit it.
+  @MainActor
+  func homeUUIDChanged() {
+    guard isHome else { return }
+    let uuid = store.homeProfileUUID
+    store.applyingRemote {
+      for space in store.spaces where owns(space) && space.profileUUID != uuid {
+        store.rawUpdate(
+          space, name: space.name, color: space.color, icon: space.icon, profileUUID: uuid,
+          archiveAfter: space.archiveAfter, position: space.position)
+      }
+    }
+    guard tracking else { return }
+    for space in store.spaces where owns(space) { commit(space.id, desired(space)) }
+    drain()
+  }
+
+  /// Gives up what another bridge owns now (a space or entry moved to
+  /// another profile, here or on another device): its account deletes it,
+  /// as the desktop's old profile does after MoveSpaceToProfile(). A node
+  /// that still waits for its space here isn't given up.
+  @MainActor
+  func release(owners: [String: ObjectIdentifier]) {
+    let me = ObjectIdentifier(self)
+    var released = false
+    let before = mirror
+    for (id, s) in before {
+      guard let owner = owners[id], owner != me else { continue }
+      switch s.entity {
+      case .space: break
+      case .node(let n):
+        if n.section != Section.favorites.rawValue {
+          guard case .space = before[n.spaceUuid]?.entity else { continue }
+        }
+      default: continue
+      }
+      mirror[id] = nil
+      lastCommit[id] = nil
+      parked.remove(id)
+      throttled.removeValue(forKey: id)?.cancel()
+      queue.append(.delete(id))
+      released = true
+    }
+    if released { drain() }
   }
 
   // MARK: Helpers
@@ -138,7 +226,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     if space.name.isEmpty { s.clearName() } else { s.name = space.name }
     s.color = space.color.rawValue
     s.directoryPosition = Self.proto(space.position)
-    if !space.profileUUID.isEmpty { s.profileUuid = space.profileUUID }
+    if !ownProfile.isEmpty { s.profileUuid = ownProfile }
     s.archiveAfterSeconds = Int64(space.archiveAfter ?? 0)
     specifics.space = s
     return specifics
@@ -210,13 +298,13 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       queue.append(.delete(id))
     }
     for id in change.putSpaces {
-      if let space = store.space(id: id) { commit(id, desired(space)) }
+      if let space = store.space(id: id), owns(space) { commit(id, desired(space)) }
     }
     for id in change.putNodes.subtracting(change.deletedNodes) {
-      if let node = store.node(id: id), let specifics = desired(node) { commit(id, specifics) }
+      if let node = store.node(id: id), owns(node), let specifics = desired(node) { commit(id, specifics) }
     }
     for id in change.todayChurn.subtracting(change.putNodes) {
-      guard let node = store.node(id: id) else { continue }
+      guard let node = store.node(id: id), owns(node) else { continue }
       for n in [node] + node.children { commitThrottled(n) }
     }
     drain()
@@ -245,7 +333,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         try? await Task.sleep(for: .seconds(delay))
         guard let self, !Task.isCancelled else { return }
         self.throttled[id] = nil
-        if let node = self.store.node(id: id) { self.commit(id, self.desired(node)) }
+        if let node = self.store.node(id: id), self.owns(node) { self.commit(id, self.desired(node)) }
         self.drain()
       }
       return
@@ -318,6 +406,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var putSpaces: [String] = []
     var putNodes: [String] = []
     var deleted: Set<String> = []
+    var profilesChanged = false
     let byHash = Dictionary(
       mirror.keys.map { (ClientTagHash.make(type: .compassSpaces, tag: $0), $0) }, uniquingKeysWith: { a, _ in a })
     for change in changes {
@@ -328,20 +417,27 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         switch specifics.entity {
         case .space: putSpaces.append(id)
         case .node: putNodes.append(id)
-        default: break  // profiles: the home account's list (slice 5); kept, not used
+        case .profile: profilesChanged = true
+        case nil: break
         }
       } else if let id = byHash[change.clientTagHash] {
+        if case .profile = mirror[id]?.entity { profilesChanged = true }
         mirror[id] = nil
         deleted.insert(id)
       }
     }
+    // First: the home UUID may come with the list, and the spaces below
+    // carry it (the desktop's OnChainProfiles() before its pass).
+    if profilesChanged && isHome { directory.homeProfilesChanged() }
 
     store.applyingRemote {
       applySpaces(putSpaces, deleted: deleted)
-      // Nodes that waited for a space that's here now.
+      // Nodes that waited for a space that's ours now (it came, or was
+      // adopted from another profile).
       let waiting = mirror.compactMap { id, s -> String? in
-        guard case .node(let n) = s.entity, store.node(id: id) == nil, !putNodes.contains(id),
-          n.spaceUuid.isEmpty || store.space(id: n.spaceUuid) != nil
+        guard case .node(let n) = s.entity, !putNodes.contains(id),
+          store.node(id: id).map({ !owns($0) }) ?? true,
+          n.section == Section.favorites.rawValue || ownsSpace(id: n.spaceUuid)
         else { return nil }
         return id
       }
@@ -353,9 +449,11 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     // Fix-ups (cycles, invalid placements, normalized splits) commit;
     // everything else equals the mirror and doesn't.
     for id in Set(putNodes).union(parked) {
-      if let node = store.node(id: id), let s = desired(node) { commit(id, s) }
+      if let node = store.node(id: id), owns(node), let s = desired(node) { commit(id, s) }
     }
     drain()
+    // What came here from another profile leaves that profile's account.
+    directory.reconcile()
   }
 
   @MainActor
@@ -370,14 +468,18 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         archiveAfter = .some(s.archiveAfterSeconds == 0 ? nil : TimeInterval(s.archiveAfterSeconds))
       }
       if let space = store.space(id: id) {
+        // Ours, or another profile's here: then it was moved to this
+        // profile on another device, and comes over with its entries
+        // (the desktop's AdoptSpace()); `reconcile()` then deletes it from
+        // the old profile's account.
         store.rawUpdate(
           space, name: s.name.isEmpty ? space.name : s.name, color: color ?? space.color, icon: s.icon,
-          profileUUID: s.profileUuid, archiveAfter: archiveAfter ?? space.archiveAfter,
+          profileUUID: ownProfile, archiveAfter: archiveAfter ?? space.archiveAfter,
           position: s.hasDirectoryPosition ? Self.position(s.directoryPosition) : space.position)
       } else {
         let space = store.makeSpace(
           id: id, name: s.name.isEmpty ? "Space" : s.name, color: color ?? .blue, icon: s.icon,
-          profileUUID: s.profileUuid, archiveAfter: archiveAfter ?? 12 * 60 * 60,
+          profileUUID: ownProfile, archiveAfter: archiveAfter ?? 12 * 60 * 60,
           position: s.hasDirectoryPosition
             ? Self.position(s.directoryPosition)
             : UniquePosition.forInsert(after: store.spaces.last?.position, before: nil, suffix: Self.suffix(for: id)))
@@ -385,7 +487,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       }
     }
     for id in deleted {
-      if let space = store.space(id: id), store.spaces.count > 1 { store.rawRemoveSpace(space) }
+      // Only ours: one another profile has now was moved there (its
+      // account brought it first). The last space stays.
+      if let space = store.space(id: id), owns(space), store.spaces.count > 1 { store.rawRemoveSpace(space) }
     }
     store.rawSortSpaces()
   }
@@ -398,7 +502,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         let type = NodeType(rawValue: n.type)
       else { continue }
       if section == .favorites && type != .tab { continue }
-      if section != .favorites && store.space(id: n.spaceUuid) == nil { continue }  // waits
+      // Waits until its space is here and ours.
+      if section != .favorites && !ownsSpace(id: n.spaceUuid) { continue }
       let kind: SidebarNode.Kind =
         switch type {
         case .tab: .tab
@@ -430,14 +535,16 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor
   func root(for n: SyncPb_CompassNode) -> SidebarNode? {
     guard let section = Section(rawValue: n.section) else { return nil }
-    if section == .favorites { return store.favorites }
-    return store.space(id: n.spaceUuid)?.root(section)
+    if section == .favorites { return ownFavorites }
+    guard let space = store.space(id: n.spaceUuid), owns(space) else { return nil }
+    return space.root(section)
   }
 
   @MainActor
   func applyNodeDeletions(_ ids: Set<String>) {
     for id in ids {
-      guard let node = store.node(id: id), let root = Optional(node.root) else { continue }
+      // Only ours: another profile's has moved there.
+      guard let node = store.node(id: id), owns(node), let root = Optional(node.root) else { continue }
       // The Today entry on screen survives a close elsewhere: it's
       // re-created under fresh UUIDs once this batch is applied.
       if node.section == .today, let entry = Self.entry(of: node), isShown?(entry.id) == true {
@@ -565,13 +672,14 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
           guard case .node(let n) = s.entity, n.section == Section.favorites.rawValue else { return nil }
           return n.url
         })
-      for fav in store.favorites.children where mirror[fav.id] == nil && chainFavoriteURLs.contains(fav.url) {
+      for fav in ownFavorites.children where mirror[fav.id] == nil && chainFavoriteURLs.contains(fav.url) {
         store.rawDetach(fav)
       }
       // An untouched local "Home" (empty Pinned) folds its Today into the
       // chain's first space.
-      if let first = store.spaces.first(where: { mirror[$0.id] != nil }) {
-        for space in store.spaces where mirror[space.id] == nil && space.name == "Home" && space.pinned.children.isEmpty {
+      if let first = store.spaces.first(where: { mirror[$0.id] != nil && owns($0) }) {
+        for space in store.spaces
+        where mirror[space.id] == nil && owns(space) && space.name == "Home" && space.pinned.children.isEmpty {
           for entry in space.today.children {
             store.rawDetach(entry)
             store.rawUpdate(
@@ -585,18 +693,18 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         }
       }
       // Today: an own tab with the same URL as a chain tab goes.
-      for space in store.spaces {
+      for space in store.spaces where owns(space) {
         let tabs = space.today.children.flatMap(\.subtree).filter { $0.isTab && $0.parent?.isSplit != true }
         let chainURLs = Set(tabs.filter { mirror[$0.id] != nil }.map(\.url))
         for tab in tabs where mirror[tab.id] == nil && chainURLs.contains(tab.url) { store.rawDetach(tab) }
       }
       // Local spaces go after the chain's.
-      var last = store.spaces.filter { mirror[$0.id] != nil }.map(\.position).max()
-      for space in store.spaces where mirror[space.id] == nil {
+      var last = store.spaces.filter { mirror[$0.id] != nil && owns($0) }.map(\.position).max()
+      for space in store.spaces where mirror[space.id] == nil && owns(space) {
         let position = UniquePosition.forInsert(after: last, before: nil, suffix: Self.suffix(for: space.id))
         store.rawUpdate(
-          space, name: space.name, color: space.color, icon: space.icon, profileUUID: space.profileUUID,
-          archiveAfter: space.archiveAfter, position: position)
+          space, name: space.name, color: space.color, icon: space.icon,
+          profileUUID: isHome ? space.profileUUID : ownProfile, archiveAfter: space.archiveAfter, position: position)
         last = position
       }
     }
@@ -608,8 +716,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       e.compassSpaces = s
       result.append((id, e))
     }
-    for space in store.spaces { add(space.id, desired(space)) }
-    for node in store.allNodes { add(node.id, desired(node)) }
+    for space in store.spaces where owns(space) { add(space.id, desired(space)) }
+    for node in store.allNodes where owns(node) { add(node.id, desired(node)) }
     tracking = true
     saveMirror()
     return result

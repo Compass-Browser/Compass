@@ -167,6 +167,53 @@ TEST_F(CompassSyncPageHandlerTest, GetState) {
   EXPECT_EQ(pairing->code, "7-482913");
 }
 
+// The phone scans the invite: same form as the iOS app's PairingInvite.url,
+// with the server URL escaped (iOS decodes it).
+TEST_F(CompassSyncPageHandlerTest, ShowingCodeCarriesTheInviteAndItsQr) {
+  controller_.Set(
+      {sync::SyncState::kOn, "https://sync.example.org/v2", ""},
+      {sync::PairingStep::kShowingCode, "7-482913", "", ""});
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      future;
+  remote_->GetState(future.GetCallback());
+  sync::mojom::PairingPtr pairing = future.Get<1>().Clone();
+  EXPECT_EQ(pairing->invite_url,
+            "compass-pair:?server=https%3A%2F%2Fsync.example.org%2Fv2"
+            "&code=7-482913");
+  ASSERT_GT(pairing->qr_size, 20);
+  ASSERT_EQ(pairing->qr.size(),
+            static_cast<size_t>(pairing->qr_size * pairing->qr_size));
+  // Finder pattern: the top-left corner module is dark, and every module is
+  // 0 or 1.
+  EXPECT_EQ(pairing->qr[0], 1);
+  for (uint8_t module : pairing->qr) {
+    ASSERT_LE(module, 1);
+  }
+}
+
+TEST_F(CompassSyncPageHandlerTest, NoInviteOutsideShowingCode) {
+  controller_.Set(
+      {sync::SyncState::kOn, "https://sync.example.org/v2", ""},
+      {sync::PairingStep::kConfirm, "7-482913", "iPhone", ""});
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      future;
+  remote_->GetState(future.GetCallback());
+  const sync::mojom::PairingPtr& pairing = future.Get<1>();
+  EXPECT_TRUE(pairing->invite_url.empty());
+  EXPECT_TRUE(pairing->qr.empty());
+  EXPECT_EQ(pairing->qr_size, 0);
+}
+
+TEST_F(CompassSyncPageHandlerTest, PairingInviteUrl) {
+  EXPECT_EQ(CompassSyncPageHandler::PairingInviteUrl("http://h:8295/v2",
+                                                      "12-000001"),
+            "compass-pair:?server=http%3A%2F%2Fh%3A8295%2Fv2&code=12-000001");
+  EXPECT_EQ(CompassSyncPageHandler::PairingInviteUrl("", "7-482913"), "");
+  EXPECT_EQ(CompassSyncPageHandler::PairingInviteUrl("http://h/v2", ""), "");
+}
+
 TEST_F(CompassSyncPageHandlerTest, StartSyncReturnsTheWords) {
   base::test::TestFuture<bool, const std::string&,
                          const std::vector<std::string>&>

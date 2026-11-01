@@ -15,12 +15,15 @@ public final class HistoryBridge: DataTypeBridge, @unchecked Sendable {
   public nonisolated let dataType = DataType.history
   @MainActor let history: HistoryStore
   let engine: SyncEngine
+  /// The profile account (empty: the home's); its visits are tagged with it.
+  let profile: String
   @MainActor private var lastTime: Int64 = 0
 
   @MainActor
-  public init(history: HistoryStore, engine: SyncEngine) {
+  public init(history: HistoryStore, engine: SyncEngine, profile: String = "") {
     self.history = history
     self.engine = engine
+    self.profile = profile
   }
 
   public nonisolated func clientTag(for specifics: SyncPb_EntitySpecifics) -> String {
@@ -35,7 +38,9 @@ public final class HistoryBridge: DataTypeBridge, @unchecked Sendable {
           let last = h.redirectEntries.last, !last.url.isEmpty
         else { continue }
         history.add(
-          Visit(time: h.visitTimeWindowsEpochMicros, url: last.url, title: last.title, originator: h.originatorCacheGuid))
+          Visit(
+            time: h.visitTimeWindowsEpochMicros, url: last.url, title: last.title, originator: h.originatorCacheGuid,
+            profile: profile))
       }
     }
   }
@@ -55,7 +60,7 @@ public final class HistoryBridge: DataTypeBridge, @unchecked Sendable {
       t = max(t, lastTime + 1)
       lastTime = t
     }
-    history.add(Visit(time: t, url: url, title: title, originator: guid))
+    history.add(Visit(time: t, url: url, title: title, originator: guid, profile: profile))
     var h = SyncPb_HistorySpecifics()
     h.visitTimeWindowsEpochMicros = t
     h.originatorCacheGuid = guid
@@ -89,12 +94,15 @@ public final class HistoryDeleteDirectivesBridge: DataTypeBridge, @unchecked Sen
   public nonisolated let dataType = DataType.historyDeleteDirectives
   @MainActor let history: HistoryStore
   let engine: SyncEngine
+  /// The profile account (empty: the home's): directives delete its visits.
+  let profile: String
   static let windowsOffset: Int64 = 11_644_473_600_000_000
 
   @MainActor
-  public init(history: HistoryStore, engine: SyncEngine) {
+  public init(history: HistoryStore, engine: SyncEngine, profile: String = "") {
     self.history = history
     self.engine = engine
+    self.profile = profile
   }
 
   /// Chromium's directives have random tags that aren't in the specifics.
@@ -113,12 +121,13 @@ public final class HistoryDeleteDirectivesBridge: DataTypeBridge, @unchecked Sen
   func apply(_ d: SyncPb_HistoryDeleteDirectiveSpecifics) {
     switch d.directiveType {
     case .timeRangeDirective(let r):
-      history.delete(from: r.startTimeUsec + Self.windowsOffset, to: r.endTimeUsec + Self.windowsOffset)
+      history.delete(
+        from: r.startTimeUsec + Self.windowsOffset, to: r.endTimeUsec + Self.windowsOffset, profile: profile)
     case .urlDirective(let u):
-      history.delete(url: u.url, until: u.endTimeUsec + Self.windowsOffset)
+      history.delete(url: u.url, until: u.endTimeUsec + Self.windowsOffset, profile: profile)
     case .globalIDDirective(let g):
       // Global IDs are visit times (Windows-epoch µs).
-      history.delete(times: g.globalID)
+      history.delete(times: g.globalID, profile: profile)
     case nil:
       break
     }

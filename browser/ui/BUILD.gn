@@ -78,6 +78,7 @@ source_set("ui") {
     "//compass/browser/shortcuts",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
+    "//components/qr_code_generator",
     "//compass/common:url",
     "//chrome/app/vector_icons",
     "//components/download/public/common:public",
