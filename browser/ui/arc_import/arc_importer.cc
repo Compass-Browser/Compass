@@ -36,7 +36,8 @@ namespace compass::arc {
 
 namespace {
 
-constexpr char kSecurePreferencesFilename[] = "Secure Preferences";
+constexpr base::FilePath::CharType kSecurePreferencesFilename[] =
+    FILE_PATH_LITERAL("Secure Preferences");
 // Arc's and Compass's signatures of protected preferences.
 constexpr char kProtectionKey[] = "protection";
 // Where an imported profile came from, for importing again.
@@ -310,11 +311,12 @@ ArcPaths GetArcPaths() {
   base::FilePath app_support;
   base::FilePath caches;
   if (base::PathService::Get(base::DIR_APP_DATA, &app_support)) {
-    paths.user_data = app_support.Append("Arc").Append("User Data");
-    paths.sidebar = app_support.Append("Arc").Append("StorableSidebar.json");
+    paths.user_data = app_support.AppendASCII("Arc").AppendASCII("User Data");
+    paths.sidebar =
+        app_support.AppendASCII("Arc").AppendASCII("StorableSidebar.json");
   }
   if (base::PathService::Get(base::DIR_CACHE, &caches)) {
-    paths.cache = caches.Append("Arc").Append("User Data");
+    paths.cache = caches.AppendASCII("Arc").AppendASCII("User Data");
   }
   return paths;
 }
