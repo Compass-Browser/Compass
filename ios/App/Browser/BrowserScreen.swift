@@ -143,8 +143,8 @@ struct BrowserScreen: View {
       keyButton
       Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
         .accessibilityLabel("New tab")
-      Button { app.showSidebar() } label: { BarIcon(symbol: "sidebar.left") }
-        .accessibilityLabel("Sidebar")
+      Button { app.showingMenu = true } label: { BarIcon(symbol: "ellipsis") }
+        .accessibilityLabel("Menu")
     }
     // The sidebar's neutral look, not the system tint.
     .buttonStyle(.plain)

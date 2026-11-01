@@ -25,19 +25,22 @@ final class SidebarPanelTests: XCTestCase {
     return header.frame.minY / app.frame.height
   }
 
-  private func openWithButton() {
-    app.buttons["Sidebar"].tap()
+  /// A swipe up on the bottom bar, let go near the top.
+  private func openSidebar() {
+    let bar = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.91))
+    bar.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)),
+              withVelocity: .fast, thenHoldForDuration: 0)
     sleep(1)
     XCTAssertLessThan(headerY, 0.3, "sidebar open at full height")
   }
 
-  func testButtonOpens() {
+  func testSwipeOpens() {
     XCTAssertGreaterThan(headerY, 0.95, "starts closed")
-    openWithButton()
+    openSidebar()
   }
 
   func testGrabberDragCloses() {
-    openWithButton()
+    openSidebar()
     let grabber = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
     grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)))
     sleep(1)
@@ -45,7 +48,7 @@ final class SidebarPanelTests: XCTestCase {
   }
 
   func testListPullCloses() {
-    openWithButton()
+    openSidebar()
     let list = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
     list.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
     sleep(1)
@@ -53,7 +56,7 @@ final class SidebarPanelTests: XCTestCase {
   }
 
   func testListScrollStaysOpen() {
-    openWithButton()
+    openSidebar()
     let list = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
     list.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)))
     sleep(1)
@@ -63,7 +66,7 @@ final class SidebarPanelTests: XCTestCase {
 
   /// At half height a drag on the list moves the panel, as a sheet does.
   func testHalfHeightListDragExpands() {
-    openWithButton()
+    openSidebar()
     let grabber = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
     grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
     sleep(1)
@@ -77,7 +80,7 @@ final class SidebarPanelTests: XCTestCase {
 
   /// At half height a drag down on the list closes it.
   func testHalfHeightListDragCloses() {
-    openWithButton()
+    openSidebar()
     let grabber = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
     grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
     sleep(1)

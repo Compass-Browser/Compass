@@ -68,5 +68,6 @@ struct RootView: View {
         CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)
       }
       .sheet(isPresented: $app.showingSettings) { SettingsView() }
+      .sheet(isPresented: $app.showingMenu) { PageMenu() }
   }
 }

@@ -25,6 +25,7 @@ final class TabManager: NSObject {
   /// Bumped when a live tab's state (loading, back/forward) changes.
   private(set) var revision = 0
   private let store: SpaceStore
+  private let siteSettings: SiteSettings
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
@@ -34,8 +35,9 @@ final class TabManager: NSObject {
   /// A page finished loading (a history visit): (URL, title, tab ID).
   var onPageLoaded: ((String, String, String) -> Void)?
 
-  init(store: SpaceStore) {
+  init(store: SpaceStore, siteSettings: SiteSettings) {
     self.store = store
+    self.siteSettings = siteSettings
   }
 
   func isLive(_ node: SidebarNode) -> Bool { live[node.id] != nil }
@@ -53,10 +55,12 @@ final class TabManager: NSObject {
     configuration.allowsInlineMediaPlayback = true
     configuration.allowsPictureInPictureMediaPlayback = true
     configuration.userContentController.addUserScript(PasswordScript.userScript)
+    configuration.userContentController.addUserScript(DesktopViewport.script)
     configuration.userContentController.add(
       MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
     let view = WKWebView(frame: .zero, configuration: configuration)
     view.allowsBackForwardNavigationGestures = true
+    view.isFindInteractionEnabled = true
     view.isInspectable = true
     view.navigationDelegate = self
     view.uiDelegate = self
@@ -128,6 +132,22 @@ final class TabManager: NSObject {
 }
 
 extension TabManager: WKNavigationDelegate, WKUIDelegate {
+  /// Each main-frame load gets its site's settings: the desktop site (the
+  /// desktop user agent and a desktop-width viewport, so media queries lay
+  /// the page out as on a computer).
+  nonisolated func webView(
+    _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+    preferences: WKWebpagePreferences
+  ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+    await MainActor.run {
+      if navigationAction.targetFrame?.isMainFrame != false {
+        let site = SiteSettings.site(navigationAction.request.url)
+        preferences.preferredContentMode = siteSettings.value(.desktopSite, site: site) ? .desktop : .mobile
+      }
+    }
+    return (.allow, preferences)
+  }
+
   nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     MainActor.assumeIsolated {
       guard let url = webView.url?.absoluteString,

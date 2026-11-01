@@ -180,3 +180,101 @@ extension View {
     }
   }
 }
+
+// Cards and rows of the command bar and the page menu.
+
+/// A light rounded card over the space's tint, its rows split by hairlines.
+/// Each row draws a hairline on its top edge; the card hides the first one.
+struct Card<Content: View>: View {
+
+  @ViewBuilder var content: Content
+
+  var body: some View {
+    VStack(spacing: 0) { content }
+      .padding(.top, -1)
+      .background(cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+  }
+}
+
+/// A small uppercase title over a card, as the sidebar's section headers.
+struct CardSection<Content: View>: View {
+  let title: String
+  @ViewBuilder var content: Content
+
+  init(_ title: String, @ViewBuilder content: () -> Content) {
+    self.title = title
+    self.content = content()
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(title.uppercased())
+        .font(.system(size: 12, weight: .semibold))
+        .tracking(0.4)
+        .opacity(0.55)
+        .lineLimit(1)
+        .padding(.leading, 6)
+      Card { content }
+    }
+    .padding(.top, 10)
+  }
+}
+
+/// One suggestion: an icon tile, a title over a dimmed subtitle, and an
+/// optional hint of what tapping does.
+struct Row<Icon: View>: View {
+  let title: String
+  let subtitle: String
+  var trailing: String? = nil
+  let action: () -> Void
+  @ViewBuilder var icon: Icon
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 12) {
+        icon
+        VStack(alignment: .leading, spacing: 1) {
+          Text(title).font(.system(size: 16, weight: .medium)).lineLimit(1)
+          Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+        }
+        Spacer(minLength: 4)
+        if let trailing {
+          Image(systemName: trailing)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.tertiary)
+        }
+      }
+      .padding(.horizontal, 12)
+      .frame(minHeight: 56)
+      .contentShape(Rectangle())
+    }
+    .overlay(alignment: .top) {
+      Rectangle().fill(.separator).frame(height: 1 / 3).padding(.leading, 56)
+    }
+    .buttonStyle(RowPressStyle())
+  }
+}
+
+/// A site's favicon on a soft tile, so icons of any shape line up.
+struct SiteTile: View {
+  let url: String
+
+  var body: some View {
+    SiteIcon(url: url, size: 18)
+      .frame(width: 32, height: 32)
+      .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+  }
+}
+
+/// Rows dim slightly while pressed, without the system tint.
+struct RowPressStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .foregroundStyle(.primary)
+      .background(Color.primary.opacity(configuration.isPressed ? 0.08 : 0))
+  }
+}
+
+/// The cards' and the search field's fill over the space's tint.
+let cardFill = Color(.secondarySystemGroupedBackground).opacity(0.82)

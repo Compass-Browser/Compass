@@ -15,6 +15,7 @@ final class AppModel {
   let tabs: TabManager
   let sync: SyncController
   let passwords = PasswordManager()
+  let siteSettings: SiteSettings
   let directory: URL
 
   /// The space the sidebar shows.
@@ -34,6 +35,9 @@ final class AppModel {
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
+  /// The bottom bar's menu (PageMenu), and Site Settings from it.
+  var showingMenu = false
+  var showingSiteSettings = false
   /// The command bar opens a new tab (the "+" buttons), not the shown tab's
   /// address (the address pill).
   var commandBarNewTab = true
@@ -55,7 +59,8 @@ final class AppModel {
     if store.spaces.isEmpty {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
-    tabs = TabManager(store: store)
+    siteSettings = SiteSettings(directory: directory)
+    tabs = TabManager(store: store, siteSettings: siteSettings)
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
@@ -102,6 +107,13 @@ final class AppModel {
         Task { [weak self] in
           try? await Task.sleep(for: .milliseconds(1500))
           self?.sidebarDrag = drag
+        }
+      }
+      //   -CompassMenu YES: open the bottom bar's menu.
+      if defaults.bool(forKey: "CompassMenu") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(1500))
+          self?.showingMenu = true
         }
       }
       //   -CompassCommandBar YES: open the command bar.
@@ -219,6 +231,17 @@ final class AppModel {
     showingCommandBar = false
     showingSidebar = false
     sidebarHalf = false
+  }
+
+  /// Opens the find bar on the shown page, with `text` already searched.
+  /// After a sheet has closed (it can't show while one is up).
+  func findOnPage(_ text: String? = nil) {
+    guard let tab = shownTab, let view = tabs.live[tab.id] else { return }
+    Task {
+      try? await Task.sleep(for: .milliseconds(450))
+      view.findInteraction?.presentFindNavigator(showingReplace: false)
+      if let text { view.findInteraction?.searchText = text }
+    }
   }
 
   /// The command bar: for a new tab, or to edit the shown tab's address.
