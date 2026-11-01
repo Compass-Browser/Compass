@@ -1,0 +1,7 @@
+# Fetched by scripts/fetch_boringssl.sh.
+/CompassKit/Sources/CCryptoBoringSSL/
+/CompassKit/.build/
+/CompassKit/.swiftpm/
+/build/
+xcuserdata/
+*.xcuserstate

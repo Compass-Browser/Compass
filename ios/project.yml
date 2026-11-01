@@ -1,0 +1,55 @@
+# XcodeGen spec for Compass for iOS. Regenerate the project after editing:
+#   tools/compass ios gen      (= cd ios && xcodegen)
+# Compass.xcodeproj is committed so Xcode opens it without XcodeGen.
+name: Compass
+options:
+  bundleIdPrefix: it.cvm.compass
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # Set your team here, or in Xcode, for device and TestFlight builds.
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  CompassKit:
+    path: CompassKit
+targets:
+  Compass:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      # The desktop's Icon Composer icon, shared.
+      - path: ../assets/Compass.icon
+        buildPhase: resources
+    dependencies:
+      - package: CompassKit
+        product: CompassCrypto
+      - package: CompassKit
+        product: CompassSync
+      - package: CompassKit
+        product: CompassModel
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Compass
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: Compass scans the pairing code shown on your Mac.
+        NSFaceIDUsageDescription: Compass asks for Face ID before showing your recovery code.
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [it.cvm.compass.refresh]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cvm.compass
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: Compass
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO

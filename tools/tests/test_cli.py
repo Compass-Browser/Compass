@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from compass_tool.cli import (browser_test_args,  # noqa: E402
-                              require_buildable_layout)
+                              parser, require_buildable_layout)
 from compass_tool.layout import Layout  # noqa: E402
 from compass_tool.process import CommandError  # noqa: E402
 
@@ -49,6 +49,22 @@ class BrowserTestArgsTest(unittest.TestCase):
         browser_test_args(['--disable-features=Foo,Bar', '-x'], False,
                           'darwin'),
         ['--headless', KEEP_GPU + ',Foo,Bar', '-x'])
+
+
+class IosParserTest(unittest.TestCase):
+
+  def test_sim_arguments(self):
+    args = parser().parse_args(
+        ['ios', 'sim', '--device', 'iPhone X', '--screenshot', '/tmp/a.png',
+         '--app-arg=-ResetState'])
+    self.assertEqual(args.action, 'sim')
+    self.assertEqual(args.device, 'iPhone X')
+    self.assertEqual(args.screenshot, '/tmp/a.png')
+    self.assertEqual(args.app_args, ['-ResetState'])
+
+  def test_rejects_unknown_action(self):
+    with self.assertRaises(SystemExit):
+      parser().parse_args(['ios', 'deploy'])
 
 
 if __name__ == '__main__':

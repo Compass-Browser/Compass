@@ -283,6 +283,54 @@ def cmd_test(layout: Layout, args) -> None:
   sys.exit(result.returncode)
 
 
+IOS_BUNDLE_ID = 'it.cvm.compass'
+IOS_DEFAULT_DEVICE = 'iPhone 18 Pro'
+
+
+def ios_simulator_udid(name: str) -> str:
+  """The UDID of the available simulator called `name`."""
+  import json
+  out = run(['xcrun', 'simctl', 'list', 'devices', 'available', '--json'],
+            Path.cwd(), capture=True).stdout
+  for devices in json.loads(out)['devices'].values():
+    for device in devices:
+      if device['name'] == name:
+        return device['udid']
+  raise CommandError('no available simulator named "%s"' % name)
+
+
+def cmd_ios(layout: Layout, args) -> None:
+  """Compass for iOS (docs/design/ios.md). Simulators boot headless."""
+  ios = layout.root / 'ios'
+  derived = ios / 'build' / 'DerivedData'
+  if args.action == 'gen':
+    run(['xcodegen'], ios)
+    return
+  run([ios / 'scripts' / 'fetch_boringssl.sh'], ios)
+  if args.action == 'test':
+    cmd = ['swift', 'test']
+    if args.filter:
+      cmd += ['--filter', args.filter]
+    sys.exit(run(cmd, ios / 'CompassKit', check=False).returncode)
+  run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
+       'Compass', '-destination', 'generic/platform=iOS Simulator',
+       '-derivedDataPath', derived, 'CODE_SIGNING_ALLOWED=NO', 'build'], ios)
+  if args.action == 'build':
+    return
+  # sim: install and launch in a headless simulator (no Simulator.app
+  # window, so it never takes focus), then optionally screenshot.
+  udid = ios_simulator_udid(args.device)
+  run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], ios)
+  app = derived / 'Build/Products/Debug-iphonesimulator/Compass.app'
+  run(['xcrun', 'simctl', 'install', udid, app], ios)
+  run(['xcrun', 'simctl', 'launch', '--terminate-running-process', udid,
+       IOS_BUNDLE_ID] + args.app_args, ios)
+  if args.screenshot:
+    import time
+    time.sleep(args.wait)
+    run(['xcrun', 'simctl', 'io', udid, 'screenshot', args.screenshot], ios)
+
+
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
   default = os.environ.get('COMPASS_JOBS')
   p.add_argument('-j', '--jobs', type=int,
@@ -353,6 +401,19 @@ def parser() -> argparse.ArgumentParser:
   add_jobs_argument(s)
   s.add_argument('test_args', nargs=argparse.REMAINDER)
   s.set_defaults(func=cmd_test)
+
+  s = sub.add_parser('ios', help='Compass for iOS: gen the Xcode project, '
+                     'test CompassKit, build, or run in a headless simulator')
+  s.add_argument('action', choices=['gen', 'test', 'build', 'sim'])
+  s.add_argument('--filter', help='test: only tests matching this')
+  s.add_argument('--device', default=IOS_DEFAULT_DEVICE,
+                 help='sim: simulator name (default: %(default)s)')
+  s.add_argument('--screenshot', help='sim: save a screenshot here')
+  s.add_argument('--wait', type=float, default=8,
+                 help='sim: seconds before the screenshot')
+  s.add_argument('--app-arg', dest='app_args', action='append', default=[],
+                 help='sim: a launch argument for the app (repeatable)')
+  s.set_defaults(func=cmd_ios)
   return p
 
 
