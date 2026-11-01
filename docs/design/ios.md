@@ -434,6 +434,21 @@ The user asked for this. On the iPhone the sidebar is no longer a screen that th
 - Picking an entry closes the sheet. With nothing selected, the browser shows an empty page in the space's color.
 - The command bar and Settings are presented by whichever view is in front: the sidebar while it's up, the browser otherwise (`AppModel.presented(_:fromSidebar:)`). One view can't present a second sheet over its own.
 
+### Sidebar styled as the desktop's, 2026-11-01
+
+The user asked for this. The sidebar keeps SwiftUI's List, so swipe actions, reordering and context menus still work, but its native look is replaced with the desktop sidebar's (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
+
+- **Background.** The space's tint (`SpaceTint`) is the sheet's `presentationBackground`, like the desktop's SidebarTint.
+- **Favorites.** Tiles are 52 pt, four to a row, and a shorter last row's tiles grow to fill it. The shown favorite gets the light pill.
+- **Header.** The space's name, its profile label and a round ⋯ menu.
+- **Sections.** "PINNED" and "TODAY" headers are small, uppercase and dimmed, as rows rather than sticky List headers.
+- **Entries.**
+  - Borderless 44 pt rows (the desktop's are 32 px), with a light pill and shadow on the shown entry and a grey fill when pressed.
+  - Pinned entries without a live tab are dimmed, as on the desktop.
+  - Folders have a rotating chevron. A split's panes share one row.
+- **Space switcher.** Each space's icon in the bottom bar (`SpaceIcon`), the shown one in its color and the others dimmed, then "+". The icon is the desktop's `{"symbol"}` or `{"emoji"}`, mapped to SF Symbols, or the space's initial.
+- **Browser bar.** It's neutral too: primary-colored icons and a grey address pill, not the system tint.
+
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).

@@ -112,6 +112,7 @@ struct BrowserScreen: View {
     return HStack(spacing: 18) {
       Button { view?.goBack() } label: { Image(systemName: "chevron.left") }
         .disabled(!(view?.canGoBack ?? false))
+        .opacity(view?.canGoBack == true ? 1 : 0.3)
       Button { app.showingCommandBar = true } label: {
         HStack(spacing: 6) {
           if let tab = app.shownTab { SiteIcon(url: tab.url, size: 14) }
@@ -121,16 +122,20 @@ struct BrowserScreen: View {
             .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(.quaternary.opacity(0.6), in: Capsule())
+        .padding(.vertical, 9)
+        .background(SidebarStyle.fill, in: Capsule())
       }
       Button { view?.goForward() } label: { Image(systemName: "chevron.right") }
         .disabled(!(view?.canGoForward ?? false))
+        .opacity(view?.canGoForward == true ? 1 : 0.3)
       keyButton
       Button { app.showSidebar() } label: { Image(systemName: "sidebar.left") }
         .accessibilityLabel("Sidebar")
     }
-    .font(.title3)
+    .font(.system(size: 19, weight: .medium))
+    // The sidebar's neutral look, not the system tint.
+    .buttonStyle(.plain)
+    .foregroundStyle(.primary)
     .padding(.horizontal, 18)
     .padding(.vertical, 8)
     .background(.bar)
