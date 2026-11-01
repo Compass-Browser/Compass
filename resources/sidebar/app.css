@@ -31,10 +31,12 @@
   user-select: none;
 }
 
-/* Lists don't rubber-band past their ends (or pass the scroll on), and
- * horizontal swipes are the space switcher's, never back and forward. */
+/* Horizontal swipes are the space switcher's, never back and forward. Lists
+ * rubber-band at their ends, as native lists do, but don't pass the scroll on
+ * to the list around them. */
 * {
-  overscroll-behavior: none;
+  overscroll-behavior: contain;
+  overscroll-behavior-x: none;
 }
 
 /* Favicons and icons can't be dragged out on their own: a drag that starts

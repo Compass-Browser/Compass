@@ -521,8 +521,10 @@ doesn't:
   page zoom.
 - No text selection or text cursor (`app.css`), except in the name fields
   being edited, which have no spellcheck or autocomplete either.
-- No rubber band or scroll chaining (`overscroll-behavior: none`), so a
-  horizontal swipe is the space switcher's, never back or forward.
+- No horizontal rubber band or scroll chaining (`overscroll-behavior-x:
+  none`), so a horizontal swipe is the space switcher's, never back or
+  forward. Lists still rubber-band vertically at their ends, as native lists
+  do (`contain`: no chaining to the list around them).
 - Favicons can't be dragged out alone: a drag from one moves its row.
 - No native context menu outside the name fields, and drops outside the
   drop targets do nothing (both already in `app.ts`).
