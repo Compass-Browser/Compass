@@ -24,7 +24,7 @@ tabs, nested folders, split view, window sync and automatic picture-in-picture.
 
 - Cross-device sync (Chrome Sync is unavailable to third-party builds, so we
   will run our own end-to-end encrypted, self-hostable service).
-- Widevine DRM (needs a Google agreement and VMP signing; release builds only).
+- Widevine VMP signing (Widevine itself works, unverified: [docs/design/widevine.md](docs/design/widevine.md)).
 - Mobile apps.
 
 ## 2. Base: a pinned Chromium stable
@@ -332,7 +332,7 @@ Milestones 2–4 make up the MVP.
 | D7 | Tabs belong to spaces; windows are views; move on focus | Window sync without duplicating page state |
 | D8 | Hidden parking `Browser` per profile | Extensions always see a `windowId` |
 | D9 | A split is one entry | Moves, pins and archives as a unit; simple sync semantics |
-| D10 | Sync and Widevine deferred | MVP first |
+| D10 | Sync and Widevine VMP deferred | MVP first |
 | D11 | Pin one Chromium stable tag for all platforms | Reproducible builds; one rebase per cycle |
 | D12 | Sidebar persisted as JSON via `ImportantFileWriter`, not SQLite | The pinned tree is small and cheapest to write whole; atomic and proven by bookmarks. SQLite comes in when archive and history need queries |
 | D13 | A closing window hands its tabs to another window of the profile; no parking `Browser` yet (refines D8) | A hidden window would come back visible through session restore and keep the process alive without UI on Windows and Linux. A real window gives extensions a `windowId` too |

@@ -12,8 +12,12 @@ use_remoteexec = false
 proprietary_codecs = true
 ffmpeg_branding = "Chrome"
 
-# Widevine is deferred until we have a CDM agreement and VMP signing.
-enable_widevine = false
+# Widevine DRM (Netflix, Spotify, Prime Video...). Non-branded builds get the
+# CDM from the component updater (<user data>/WidevineCdm), like Chromium.
+# Without Google's VMP signature (CDM host verification, Chrome-branded only)
+# the CDM runs unverified: fine for most sites, but some services refuse
+# their HD streams or all playback. docs/design/widevine.md.
+enable_widevine = true
 
 # No Google API keys: Google services that need them stay disabled.
 use_official_google_api_keys = false
