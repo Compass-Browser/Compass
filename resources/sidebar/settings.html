@@ -14,6 +14,8 @@
 
       /* A thin thumb on a transparent track, as the sidebar's. */
       html {
+        /* Form controls follow the theme, as the page does. */
+        color-scheme: light dark;
         scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
             transparent;
         scrollbar-width: thin;
@@ -90,7 +92,7 @@
       }
 
       .keys {
-        background: var(--color-sys-surface-container, #f1f3f4);
+        background: color-mix(in srgb, currentColor 10%, transparent);
         border: 1px solid transparent;
         border-radius: 8px;
         color: inherit;
