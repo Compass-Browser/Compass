@@ -12,11 +12,20 @@ struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var showingRecovery = false
   @State private var confirmLeave = false
+  @State private var confirmClear = false
 
   var body: some View {
     NavigationStack {
       Form {
         if app.sync.isOn { syncOn } else { syncOff }
+        Section("Privacy") {
+          Button("Clear History", role: .destructive) { confirmClear = true }
+        }
+      }
+      .confirmationDialog("Clear all history?", isPresented: $confirmClear) {
+        Button("Clear History", role: .destructive) { app.sync.clearHistory() }
+      } message: {
+        Text(app.sync.isOn ? "History is cleared on every synced device." : "History on this iPhone is cleared.")
       }
       .navigationTitle("Settings")
       .toolbar { Button("Done") { dismiss() } }

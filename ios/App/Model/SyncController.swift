@@ -32,6 +32,11 @@ final class SyncController {
   var isOn: Bool { chain != nil }
 
   private let store: SpaceStore
+  let history: HistoryStore
+  private(set) var foreignSessions: [ForeignSession] = []
+  private var visits: HistoryBridge?
+  private var directives: HistoryDeleteDirectivesBridge?
+  private var sessions: SessionsBridge?
   private let directory: URL
   private var engine: SyncEngine?
   private var spaces: CompassSpacesBridge?
@@ -44,8 +49,9 @@ final class SyncController {
   private var running = false
   private var again = false
 
-  init(store: SpaceStore, directory: URL) {
+  init(store: SpaceStore, history: HistoryStore, directory: URL) {
     self.store = store
+    self.history = history
     self.directory = directory
     if let seed = Keychain.data("seed"), let server = Keychain.data("server").flatMap({ URL(dataRepresentation: $0, relativeTo: nil) }),
       let chain = try? Chain(seed: seed)
@@ -96,6 +102,10 @@ final class SyncController {
     chain = nil
     serverURL = nil
     devices = []
+    foreignSessions = []
+    visits = nil
+    directives = nil
+    sessions = nil
     state = .off
     store.onLocalChange = nil
   }
@@ -119,6 +129,17 @@ final class SyncController {
       passphrase: chain.passphrase, store: metadataStore, createChainIfEmpty: first)
     let spaces = CompassSpacesBridge(store: store, engine: engine, mirrorURL: mirrorURL)
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    let visits = HistoryBridge(history: history, engine: engine)
+    let directives = HistoryDeleteDirectivesBridge(history: history, engine: engine)
+    let sessions = SessionsBridge(
+      engine: engine, deviceName: UIDevice.current.name,
+      stateURL: directory.appendingPathComponent("sync-sessions.json"))
+    sessions.onChange = { [weak self] list in
+      Task { @MainActor in self?.foreignSessions = list }
+    }
+    self.visits = visits
+    self.directives = directives
+    self.sessions = sessions
     let deviceInfo = DeviceInfoBridge(
       local: .init(name: UIDevice.current.name, model: UIDevice.current.model, appVersion: version))
     deviceInfo.onChange = { [weak self] devices in
@@ -133,6 +154,9 @@ final class SyncController {
     Task {
       await engine.register(spaces)
       await engine.register(deviceInfo)
+      await engine.register(visits)
+      await engine.register(directives)
+      await engine.register(sessions)
       syncSoon(after: 0)
     }
   }
@@ -163,11 +187,13 @@ final class SyncController {
       await spaces.flush()
       try await engine.sync()
       await deviceInfo.refreshLocal(engine: engine)
+      await sessions?.publish(openTabs())
       await spaces.flush()
       if await engine.hasPendingChanges { try await engine.sync() }
       lastSync = Date()
       state = .on
       devices = deviceInfo.allDevices
+      foreignSessions = sessions?.foreignSessions() ?? []
     } catch SyncEngineError.chainNotStarted {
       state = .failed("No device has started sync on this chain yet.")
     } catch SyncEngineError.crypto {
@@ -188,4 +214,35 @@ final class SyncController {
   }
 
   var recoveryWords: [String] { chain?.recoveryWords ?? [] }
+
+  /// This phone's open entries for SESSIONS: every space's Today tabs.
+  private func openTabs() -> [SessionsBridge.LocalTab] {
+    store.spaces.flatMap { $0.today.children.flatMap(\.tabs) }
+      .filter { !$0.url.isEmpty }
+      .sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
+      .map { .init(id: $0.id, url: $0.url, title: $0.displayTitle, lastActive: $0.lastActive ?? Date()) }
+  }
+
+  // MARK: History
+
+  /// A page finished loading in a tab: a visit (synced when sync is on).
+  func recordVisit(url: String, title: String) {
+    if let visits {
+      Task { await visits.record(url: url, title: title) }
+      syncSoon(after: 5)
+    } else {
+      history.add(Visit(time: Visit.time(Date()), url: url, title: title, originator: "local"))
+    }
+  }
+
+  func clearHistory() {
+    if let directives {
+      Task {
+        await directives.deleteHistory(from: Date(timeIntervalSince1970: 0), to: Date())
+        syncSoon()
+      }
+    } else {
+      history.deleteAll()
+    }
+  }
 }

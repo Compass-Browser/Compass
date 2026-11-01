@@ -24,6 +24,8 @@ final class TabManager: NSObject {
   private let store: SpaceStore
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
+  /// A page finished loading (a history visit).
+  var onPageLoaded: ((String, String) -> Void)?
 
   init(store: SpaceStore) {
     self.store = store
@@ -113,6 +115,13 @@ final class TabManager: NSObject {
 }
 
 extension TabManager: WKNavigationDelegate, WKUIDelegate {
+  nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    MainActor.assumeIsolated {
+      guard let url = webView.url?.absoluteString else { return }
+      onPageLoaded?(url, webView.title ?? "")
+    }
+  }
+
   nonisolated func webView(
     _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures

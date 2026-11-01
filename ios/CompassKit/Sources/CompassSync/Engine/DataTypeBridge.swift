@@ -67,4 +67,10 @@ extension DataType {
   /// Compass encrypts every type with the chain's passphrase except these
   /// two, as the desktop does (sync.md; history is encrypted too, "Slice 2b").
   var isEncrypted: Bool { self != .nigori && self != .deviceInfo }
+
+  /// Whether the engine keeps entity metadata after a commit. Chromium's
+  /// history types don't: each device only writes its own visits, the server
+  /// treats a re-commit of a tag as an update, and keeping 30k entries'
+  /// metadata would only cost memory.
+  var tracksEntities: Bool { self != .history && self != .historyDeleteDirectives }
 }

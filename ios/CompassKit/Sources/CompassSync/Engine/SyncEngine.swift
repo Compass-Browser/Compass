@@ -212,6 +212,16 @@ public actor SyncEngine {
       let type = DataType(specifics: entity.specifics), type != .nigori, let bridge = bridges[type]
     else { return nil }
     let hash = entity.clientTagHash
+    if !type.tracksEntities {
+      // History: nothing remembered, every device only writes its own.
+      guard !entity.deleted, let specifics = cryptographer?.decrypt(specifics: entity.specifics) else { return nil }
+      return (
+        type,
+        RemoteChange(
+          clientTagHash: hash, specifics: specifics, serverID: entity.idString, version: entity.version,
+          mtime: entity.mtime, ctime: entity.ctime, originatorCacheGUID: entity.originatorCacheGuid)
+      )
+    }
     var state = metadata.types[type.rawValue, default: TypeState()]
     var meta = state.entities[hash]
     if let meta, entity.version <= meta.baseVersion { return nil }  // our own commit, or old
@@ -329,7 +339,7 @@ public actor SyncEngine {
         switch entry.responseType {
         case .success:
           report.committed[sent.type, default: 0] += 1
-          if sent.deletion && meta.sequence == sent.sequence {
+          if (sent.deletion || !sent.type.tracksEntities) && meta.sequence == sent.sequence {
             metadata.types[sent.type.rawValue]?.entities[sent.hash] = nil
             continue
           }

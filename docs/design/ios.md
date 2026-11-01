@@ -311,3 +311,33 @@ Most of M4 shipped with M3: the Today throttle, auto-archive on the synced `last
 - It's covered by `theShownEntrySurvivesARemoteClose`.
 
 The command bar's history and "Tabs on <Mac>" come with M5.
+
+### M5 (history and sessions), 2026-11-01
+
+- **`HistoryStore`** (CompassModel). SQLite (the system's `SQLite3`) with an FTS5 index over URL and title.
+  - A visit is keyed by (device, visit time in Windows-epoch µs).
+  - History is kept 90 days.
+- **`HistoryBridge`.** It follows Chromium's HistorySyncBridge.
+  - One entity per visit, client tag = the visit time as a decimal string.
+  - The fields the desktop requires are set: visit time, originator cache GUID, one redirect entry. Page transition is LINK or TYPED, browser type tabbed.
+  - Only http(s) pages are synced (Chromium's ShouldSync).
+  - Visits from other devices are added; our own echoes are ignored.
+  - A later title for the same visit re-commits the same tag, which the server treats as an update.
+- **Untracked entities.** The engine keeps no metadata for HISTORY and its delete directives, as Chromium untracks them after a commit (`DataType.tracksEntities`). Every device writes only its own visits, so there's nothing to conflict.
+- **`HistoryDeleteDirectivesBridge`.**
+  - Received time-range, URL and global-ID directives delete local visits. Their times are Unix-epoch µs; global IDs are visit times.
+  - "Clear History" sends a time-range directive with a random 8-character tag, as Chromium does. Directives aren't deleted after use.
+- **`SessionsBridge`.**
+  - Each device has a header (tag = its cache GUID) and one tab entity per tab (tag `"<guid> <tab node id>"`).
+  - The phone publishes its Today tabs as one window. Only changed tabs and the header are committed; tabs that went away are deleted.
+  - Tab node IDs per sidebar UUID are saved, so they stay stable across launches.
+  - Other devices' sessions untouched for 14 days are hidden.
+- **App.**
+  - Visits are recorded when a page finishes loading.
+  - The command bar shows history matches ("Recently visited" when empty) and "Tabs on <device>".
+  - Settings has "Clear History".
+  - SESSIONS is published on every cycle.
+- **Server tests.**
+  - History both ways, a title update, and engine metadata staying empty.
+  - A delete directive from the phone clearing the Mac's history.
+  - Sessions both ways, a closed tab disappearing, and no re-commit of unchanged tabs.

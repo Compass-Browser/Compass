@@ -37,9 +37,12 @@ final class AppModel {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
     tabs = TabManager(store: store)
-    sync = SyncController(store: store, directory: directory)
+    let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
+    history.expire()
+    sync = SyncController(store: store, history: history, directory: directory)
     selectedSpaceID = store.spaces.first?.id
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
+    tabs.onPageLoaded = { [weak self] url, title in self?.sync.recordVisit(url: url, title: title) }
     sync.isShown = { [weak self] id in self?.selectedNodeID == id }
     sync.onReplaced = { [weak self] old, new in
       guard let self else { return }

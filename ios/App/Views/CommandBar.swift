@@ -44,6 +44,45 @@ struct CommandBar: View {
             }
           }
         }
+        let pages = app.sync.history.search(text, limit: 8)
+        if !pages.isEmpty {
+          Section(text.isEmpty ? "Recently visited" : "History") {
+            ForEach(pages) { page in
+              Button {
+                app.open(page.url, replacing: replacing)
+                dismiss()
+              } label: {
+                HStack {
+                  SiteIcon(url: page.url)
+                  VStack(alignment: .leading) {
+                    Text(page.title.isEmpty ? page.url : page.title).lineLimit(1).foregroundStyle(.primary)
+                    Text(page.url).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                  }
+                }
+              }
+            }
+          }
+        }
+        ForEach(app.sync.foreignSessions) { session in
+          let tabs = session.tabs.filter {
+            text.isEmpty || $0.title.localizedCaseInsensitiveContains(text) || $0.url.localizedCaseInsensitiveContains(text)
+          }
+          if !tabs.isEmpty {
+            Section("Tabs on \(session.name)") {
+              ForEach(tabs.prefix(text.isEmpty ? 5 : 20)) { tab in
+                Button {
+                  app.open(tab.url)
+                  dismiss()
+                } label: {
+                  HStack {
+                    SiteIcon(url: tab.url)
+                    Text(tab.title.isEmpty ? tab.url : tab.title).lineLimit(1).foregroundStyle(.primary)
+                  }
+                }
+              }
+            }
+          }
+        }
       }
       .safeAreaInset(edge: .top) {
         TextField("Search or enter address", text: $text)
