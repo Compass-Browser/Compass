@@ -31,8 +31,17 @@ source_set("sync") {
     "//url",
   ]
   deps = [
+    ":favicon_png",
     ":spaces_bridge",
     "//base:i18n",
+    "//chrome/browser/favicon",
+    "//chrome/browser/history",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//components/favicon/core",
+    "//components/favicon_base",
+    "//components/history/core/browser",
+    "//components/keyed_service/core",
+    "//ui/gfx",
     "//chrome/browser/sync:data_type_store_service_factory",
     "//chrome/common:channel_info",
     "//compass/browser/sidebar",
@@ -96,8 +105,23 @@ source_set("spaces_bridge") {
     "//components/sync/base",
     "//components/sync/model",
     "//components/sync/protocol",
+    "//url",
   ]
-  deps = [ "//url" ]
+  deps = [ "//crypto" ]
+}
+
+# A page's icon as COMPASS_SPACES carries it (sync.md, "Favicons").
+source_set("favicon_png") {
+  sources = [
+    "favicon_png.cc",
+    "favicon_png.h",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    ":spaces_bridge",
+    "//skia",
+    "//ui/gfx/codec",
+  ]
 }
 
 source_set("unit_tests") {
@@ -105,9 +129,11 @@ source_set("unit_tests") {
   sources = [
     "compass_spaces_sync_bridge_unittest.cc",
     "compass_spaces_sync_profiles_unittest.cc",
+    "favicon_png_unittest.cc",
     "sync_settings_unittest.cc",
   ]
   deps = [
+    ":favicon_png",
     ":settings",
     ":spaces_bridge",
     "//base",
@@ -122,6 +148,8 @@ source_set("unit_tests") {
     "//components/sync/protocol",
     "//testing/gmock",
     "//testing/gtest",
+    "//skia",
+    "//ui/gfx/codec",
     "//url",
   ]
 }

@@ -172,7 +172,17 @@ class TestDelegate : public CompassSpacesSyncBridge::Delegate {
   void TransferLiveTab(const SidebarNode& from, SidebarNode& to) override {
     transfers.emplace_back(from.id(), to.id());
   }
+  void ApplyFavicons(
+      const std::vector<sync_pb::CompassFavicon>& icons) override {
+    for (const sync_pb::CompassFavicon& icon : icons) {
+      favicons[icon.host()] = icon.png();
+    }
+  }
+  void OnFaviconsWritable() override { ++favicons_writable; }
 
+  // Synced icons handed over, by host: their PNG.
+  std::map<std::string, std::string> favicons;
+  int favicons_writable = 0;
   // Entries by ID, tabs included.
   std::set<base::Uuid> focused;
   std::set<base::Uuid> in_use;
@@ -314,9 +324,10 @@ class Device {
     syncer::EntityData data;
     *data.specifics.mutable_compass_spaces() = specifics;
     data.client_tag_hash = syncer::ClientTagHash::FromUnhashed(
-        syncer::COMPASS_SPACES, specifics.has_space()
-                                    ? specifics.space().uuid()
-                                    : specifics.node().uuid());
+        syncer::COMPASS_SPACES,
+        specifics.has_space()     ? specifics.space().uuid()
+        : specifics.has_favicon() ? specifics.favicon().uuid()
+                                  : specifics.node().uuid());
     return data;
   }
 
@@ -1403,6 +1414,108 @@ TEST_F(CompassSpacesSyncBridgeTest, ValidatesEntities) {
   EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
   EXPECT_EQ(a->bridge().GetStorageKey(data), key);
   EXPECT_EQ(a->bridge().GetClientTag(data), key);
+}
+
+// docs/design/sync.md, "Favicons": the same vectors as iOS's FaviconKeyTests.
+TEST(CompassFaviconKeyTest, MatchesTheSpec) {
+  EXPECT_EQ(FaviconKey("www.example.com"),
+            "c94c25bc-f583-5f0a-88eb-63e59b454926");
+  EXPECT_EQ(FaviconKey("github.com"), "b73d689b-d088-5dec-9f35-e41fb59757a0");
+  EXPECT_EQ(FaviconKey("GitHub.com"), FaviconKey("github.com"));
+}
+
+sync_pb::CompassSpacesSpecifics FaviconSpecifics(const std::string& host,
+                                                 const std::string& png) {
+  sync_pb::CompassSpacesSpecifics specifics;
+  sync_pb::CompassFavicon* favicon = specifics.mutable_favicon();
+  favicon->set_uuid(FaviconKey(host));
+  favicon->set_host(host);
+  favicon->set_png(png);
+  favicon->set_source_size(32);
+  favicon->set_update_time(
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
+  return specifics;
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, FaviconsAreValidOnlyKeyedByTheirHost) {
+  std::unique_ptr<Device> a = MakeDevice();
+  syncer::EntityData data =
+      Device::Data(FaviconSpecifics("news.test", "png"));
+  EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
+  EXPECT_EQ(a->bridge().GetStorageKey(data), FaviconKey("news.test"));
+  data.specifics.mutable_compass_spaces()->mutable_favicon()->set_uuid(
+      FaviconKey("other.test"));
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+  data.specifics.mutable_compass_spaces()->mutable_favicon()->clear_host();
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+}
+
+// Written only for hosts of entries; a larger icon replaces the account's,
+// a different one of the same size only once it's a week old.
+TEST_F(CompassSpacesSyncBridgeTest, OffersFaviconsByTheRules) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  EXPECT_FALSE(a->bridge().OfferFavicon("news.test", "png16", 16))
+      << "not syncing yet";
+  a->Join();
+  EXPECT_EQ(a->delegate().favicons_writable, 1);
+  const std::string key = FaviconKey("news.test");
+
+  EXPECT_FALSE(a->bridge().OfferFavicon("other.test", "png16", 16));
+  EXPECT_FALSE(a->bridge().OfferFavicon("news.test", "", 16));
+  EXPECT_FALSE(a->bridge().OfferFavicon(
+      "news.test", std::string(kFaviconMaxBytes + 1, 'x'), 16));
+  // Favorites count; hosts are matched lowercase.
+  EXPECT_TRUE(a->bridge().OfferFavicon("FAV.test", "fav", 16));
+  EXPECT_TRUE(a->bridge().OfferFavicon("news.test", "png16", 16));
+  a->Push();
+  ASSERT_TRUE(server_.entities.contains(key));
+  EXPECT_EQ(server_.entities[key].favicon().host(), "news.test");
+  EXPECT_EQ(server_.entities[key].favicon().source_size(), 16);
+
+  EXPECT_FALSE(a->bridge().OfferFavicon("news.test", "png8", 8));
+  EXPECT_FALSE(a->bridge().OfferFavicon("news.test", "png16", 16));
+  EXPECT_TRUE(a->bridge().OfferFavicon("news.test", "png32", 32));
+  EXPECT_FALSE(a->bridge().OfferFavicon("news.test", "other32", 32));
+  task_environment_.FastForwardBy(kFaviconRefreshAge);
+  EXPECT_TRUE(a->bridge().OfferFavicon("news.test", "other32", 32));
+  a->Push();
+  EXPECT_EQ(server_.entities[key].favicon().png(), "other32");
+}
+
+// Another device shows the account's icons; nobody deletes them for not being
+// in the sidebar, only once no entry points at the host for a day.
+TEST_F(CompassSpacesSyncBridgeTest, FaviconsReachOtherDevicesAndAreCollected) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  ASSERT_TRUE(a->bridge().OfferFavicon("news.test", "png", 16));
+  a->Push();
+  const std::string key = FaviconKey("news.test");
+
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  EXPECT_EQ(b->delegate().favicons["news.test"], "png");
+  EXPECT_TRUE(server_.entities.contains(key));
+  b->Pull();
+  a->Pull();
+  EXPECT_TRUE(server_.entities.contains(key));
+
+  // A later icon reaches B as a change.
+  task_environment_.FastForwardBy(kFaviconRefreshAge);
+  ASSERT_TRUE(a->bridge().OfferFavicon("news.test", "newer", 16));
+  a->Push();
+  b->Pull();
+  EXPECT_EQ(b->delegate().favicons["news.test"], "newer");
+
+  // No entry on the host: kept for a day, then deleted.
+  SpaceModel& space = a->space(0);
+  space.Remove(FindByTitle(*space.pinned_root(), u"News"));
+  a->Push();
+  EXPECT_TRUE(server_.entities.contains(key));
+  task_environment_.FastForwardBy(kFaviconGracePeriod + base::Minutes(1));
+  a->Push();
+  EXPECT_FALSE(server_.entities.contains(key));
 }
 
 }  // namespace
