@@ -29,11 +29,17 @@ class SidebarNode {
     kSplit,
   };
 
-  SidebarNode(Type type, std::u16string title, GURL url);
+  // |id| is for nodes that keep an identity they had before (saved, or from
+  // another device); an invalid one gets a fresh ID.
+  SidebarNode(Type type,
+              std::u16string title,
+              GURL url,
+              const base::Uuid& id = base::Uuid());
   SidebarNode(const SidebarNode&) = delete;
   SidebarNode& operator=(const SidebarNode&) = delete;
   ~SidebarNode();
 
+  // Stable: saved with the node, and the same on every synced device.
   const base::Uuid& id() const { return id_; }
   Type type() const { return type_; }
   // A tab's page title, a folder's name.

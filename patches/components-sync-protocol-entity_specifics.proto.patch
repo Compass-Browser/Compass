@@ -1,0 +1,24 @@
+diff --git a/components/sync/protocol/entity_specifics.proto b/components/sync/protocol/entity_specifics.proto
+index 7a0fa6456749cebaad2e661273f67bf8d27a5106..b3ef2fc6dc6e9cc9e9716fb921342e8365bb71e5 100644
+--- a/components/sync/protocol/entity_specifics.proto
++++ b/components/sync/protocol/entity_specifics.proto
+@@ -75,6 +75,8 @@ import "components/sync/protocol/webauthn_credential_specifics.proto";
+ import "components/sync/protocol/wifi_configuration_specifics.proto";
+ import "components/sync/protocol/workspace_desk_specifics.proto";
+ // keep-sorted end
++// Compass (compass/components/sync/protocol).
++import "compass/components/sync/protocol/compass_spaces_specifics.proto";
+ 
+ message EntitySpecifics {
+   // If a datatype is encrypted, this field will contain the encrypted
+@@ -198,6 +200,10 @@ message EntitySpecifics {
+     AutofillOfferSpecifics autofill_offer = 774329 [deprecated = true];
+     EmptySpecifics web_apk = 1117170 [deprecated = true];
+     TypedUrlSpecifics typed_url = 40781 [deprecated = true];
++
++    // Compass's sidebar (compass/docs/design/sync.md). Far from upstream's
++    // field numbers, so rebases don't collide.
++    CompassSpacesSpecifics compass_spaces = 970000;
+   }
+   reserved 161496;
+   reserved "experiments";

@@ -17,8 +17,11 @@ namespace compass {
 // Cmd+Option+N: a new little window (docs/design/little-window.md).
 inline constexpr int kNewLittleWindowCommand = 39950;
 
+// The app menu's sync row: opens chrome://compass-sync (app_menu_sync.h).
+inline constexpr int kOpenSyncPageCommand = 39951;
+
 inline bool IsCompassCommand(int id) {
-  return id == kNewLittleWindowCommand;
+  return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand;
 }
 
 }  // namespace compass

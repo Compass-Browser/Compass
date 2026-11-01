@@ -11,6 +11,7 @@
 #include "base/json/json_reader.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -156,6 +157,51 @@ TEST(SidebarSerializerTest, InsertsAheadOfExistingEntries) {
 
   EXPECT_EQ(Describe(model.pinned_root()), "A,X");
   EXPECT_EQ(Describe(model.today_root()), "B,Y");
+}
+
+TEST(SidebarSerializerTest, KeepsNodeIds) {
+  SpaceModel model;
+  SidebarNode* pinned = model.pinned_root();
+  SidebarNode* folder = model.AddFolder(pinned, 0, u"F");
+  SidebarNode* tab = model.AddTab(folder, 0, GURL("https://t.test/"), u"T");
+  SidebarNode* a = model.AddTab(pinned, 1, GURL("https://a.test/"), u"A");
+  SidebarNode* b = model.AddTab(pinned, 2, GURL("https://b.test/"), u"B");
+  SidebarNode* split = model.Split(a, b);
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  for (const SidebarNode* node : {folder, tab, a, b, split}) {
+    const SidebarNode* found = restored.FindById(node->id());
+    ASSERT_TRUE(found) << base::UTF16ToUTF8(node->title());
+    EXPECT_EQ(found->type(), node->type());
+    EXPECT_EQ(found->title(), node->title());
+  }
+}
+
+TEST(SidebarSerializerTest, GivesFreshIdsWhenMissingOrTaken) {
+  const base::Uuid id = base::Uuid::GenerateRandomV4();
+  const std::string json = R"({"version": 1, "pinned": [
+      {"id": ")" + id.AsLowercaseString() + R"(", "type": "tab", "title": "A",
+       "url": "https://a.test/"},
+      {"id": ")" + id.AsLowercaseString() + R"(", "type": "tab", "title": "B",
+       "url": "https://b.test/"},
+      {"id": "not a uuid", "type": "tab", "title": "C",
+       "url": "https://c.test/"},
+      {"type": "folder", "title": "D"}]})";
+  std::optional<base::Value> data =
+      base::JSONReader::Read(json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data && data->is_dict());
+  SpaceModel model;
+
+  EXPECT_EQ(DeserializeSpace(data->GetDict(), model), 4u);
+
+  const auto& entries = model.pinned_root()->children();
+  EXPECT_EQ(entries[0]->id(), id);
+  EXPECT_NE(entries[1]->id(), id);
+  for (const auto& entry : entries) {
+    EXPECT_TRUE(entry->id().is_valid());
+  }
 }
 
 TEST(SidebarSerializerTest, SkipsWhatTheModelCantHold) {
@@ -321,7 +367,9 @@ TEST(SidebarSerializerTest, RoundTripsArchiveState) {
                                 u"A");
   SidebarNode* b = model.AddTab(model.today_root(), 2, GURL("https://b.test/"),
                                 u"B");
-  model.Split(a, b);
+  const base::Uuid a_id = a->id();
+  const base::Uuid b_id = b->id();
+  const base::Uuid split_id = model.Split(a, b)->id();
   const base::Time archived = base::Time::Now();
   model.Archive(model.today_root()->children()[1].get(), archived);
   model.SetArchiveAfter(base::Days(7));
@@ -338,6 +386,10 @@ TEST(SidebarSerializerTest, RoundTripsArchiveState) {
   ASSERT_EQ(space.archive()[0].tabs.size(), 2u);
   EXPECT_EQ(space.archive()[0].tabs[1].title, u"B");
   EXPECT_EQ(space.archive()[0].tabs[1].url, GURL("https://b.test/"));
+  // IDs too: sync knows archived entries by them.
+  EXPECT_EQ(space.archive()[0].id, split_id);
+  EXPECT_EQ(space.archive()[0].tabs[0].id, a_id);
+  EXPECT_EQ(space.archive()[0].tabs[1].id, b_id);
 }
 
 TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {

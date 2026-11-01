@@ -20,6 +20,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
+#include "url/gurl.h"
 
 class BrowserWindowInterface;
 class TabStripModel;
@@ -177,7 +178,11 @@ class TabStripBridge : public TabStripModelObserver,
   // The node |id| in the space or the favorites, or null.
   SidebarNode* FindNode(const base::Uuid& id) const;
 
-  // Copies |tab|'s title and committed URL to its node.
+  // Copies |tab|'s title and committed URL to its node, when they changed
+  // in the tab. A node whose URL or title sync changed (another device
+  // navigated it) keeps them until its tab here navigates or retitles, so the
+  // two devices don't take the entry back and forth (docs/design/sync.md,
+  // "Slice 3b notes").
   void UpdateNode(tabs::TabInterface* tab);
 
   // The Today entry (a direct child of Today) that holds the live tab at
@@ -257,6 +262,13 @@ class TabStripBridge : public TabStripModelObserver,
 
   // This window's placeholder tabs, and the nodes they stand for.
   base::flat_map<tabs::TabHandle, base::Uuid> placeholders_;
+
+  // The URL and title UpdateNode() last saw in each tab.
+  struct SeenContent {
+    GURL url;
+    std::u16string title;
+  };
+  base::flat_map<tabs::TabHandle, SeenContent> seen_;
 
   // Screenshots for this window's placeholders, by node.
   base::flat_map<base::Uuid, Snapshot> snapshots_;

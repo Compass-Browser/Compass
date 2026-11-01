@@ -1,0 +1,156 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module compass.sync.mojom;
+
+// See compass::sync::SyncState.
+enum State {
+  kOff,
+  kNeedsRestart,
+  kStarting,
+  kOn,
+  kError,
+};
+
+struct Status {
+  State state;
+  string server_url;
+  string message;
+  // The app menu's sync row for this state ("Synced"...): the page shows it
+  // in <html data-menu-label>, so the end-to-end steps can check the row's
+  // text without opening a native menu.
+  string menu_label;
+};
+
+// See compass::sync::PairingStep.
+enum PairingStep {
+  kNone,
+  kWorking,
+  kShowingCode,
+  kConfirm,
+  kWaitingForApproval,
+  kDone,
+  kFailed,
+};
+
+struct Pairing {
+  PairingStep step;
+  string code;
+  string device_name;
+  string message;
+};
+
+// The page's switches; see compass::sync::SyncDataType.
+enum DataType {
+  kPasswords,
+  kHistory,
+  kBookmarks,
+  kAutofill,
+  kExtensions,
+  kSettings,
+  kReadingList,
+  kOpenTabs,
+  kSpaces,
+};
+
+struct DataTypeState {
+  DataType type;
+  bool enabled;
+};
+
+// A device of the chain, from DEVICE_INFO.
+struct Device {
+  string name;
+  // "Mac", "Windows PC", "iPhone"...
+  string kind;
+  // When it last said it's alive, in ms since the Unix epoch (JS time);
+  // 0 if unknown.
+  double last_seen_ms;
+  bool this_device;
+};
+
+// What the page shows beside the status.
+struct Details {
+  // Empty unless sync runs.
+  array<Device> devices;
+  // In the page's order.
+  array<DataTypeState> types;
+};
+
+// Slice 5: joining on a device that has other profiles maps them to the
+// chain's (docs/design/sync.md, "Slice 5 notes"). See
+// compass::sync::ProfileMappingStatus.
+struct ChainProfile {
+  string uuid;
+  string name;
+  // The joining profile takes the home one.
+  bool home;
+};
+
+struct LocalProfile {
+  // Its directory's name.
+  string id;
+  string name;
+};
+
+struct ProfileMappingEntry {
+  string local_id;
+  // A ChainProfile's uuid, or empty: a new profile of the chain.
+  string chain_uuid;
+};
+
+struct ProfileMapping {
+  // Whether the join waits for SetProfileMapping().
+  bool needed;
+  array<ChainProfile> chain;
+  array<LocalProfile> local;
+  // Same name, else new.
+  array<ProfileMappingEntry> proposed;
+};
+
+// Bootstraps the connection; called once by the page.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// Browser-side handler for chrome://compass-sync (docs/design/sync.md, "UI"
+// and "Slice 4 notes").
+interface PageHandler {
+  GetState() => (Status status, Pairing pairing, Details details);
+
+  // Off.
+  // Makes a chain; |words| is the recovery code, shown once.
+  StartSync(string server_url) => (bool ok, string error, array<string> words);
+  JoinWithRecoveryCode(string server_url, string words)
+      => (bool ok, string error);
+  // Progress comes through Page.OnStateChanged().
+  JoinWithPairingCode(string server_url, string code);
+
+  // On.
+  AddDevice();
+  AnswerPairing(bool allow);
+  CancelPairing();
+  Leave();
+  SetDataTypeEnabled(DataType type, bool enabled);
+  // Asks the user to authenticate (Touch ID or the Mac's password) first;
+  // |ok| false and empty |words| if they don't.
+  RevealRecoveryCode() => (bool ok, string error, array<string> words);
+  // A new chain: new seed, this device's data uploaded again after a
+  // restart, the other devices join again. |words| is the new recovery code.
+  ResetSync() => (bool ok, string error, array<string> words);
+
+  Restart();
+
+  // Slice 5. Changes come through Page.OnStateChanged().
+  GetProfileMapping() => (ProfileMapping mapping);
+  // One entry per LocalProfile of GetProfileMapping().
+  SetProfileMapping(array<ProfileMappingEntry> mapping)
+      => (bool ok, string error);
+};
+
+// Implemented by the page.
+interface Page {
+  OnStateChanged(Status status, Pairing pairing, Details details);
+};

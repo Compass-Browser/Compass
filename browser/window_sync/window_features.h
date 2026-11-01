@@ -195,7 +195,8 @@ void MoveEntry(Profile* profile,
 void DeleteSpace(Profile* profile, SpaceModel& space);
 
 // Assigns |space|, one of |from|'s, to |to|, as Arc does: a space of |to|
-// takes its place in the switcher with its name, color, entries and archive.
+// takes its place in the switcher with its ID (so sync sees the same space
+// move between the profiles' accounts), name, color, entries and archive.
 // Its live tabs can't change profile: they close, their entries stay, and
 // windows showing it swap to a window of |to| that loads the entry it showed.
 // |from| leaves the switcher if that was its last space. See
@@ -286,6 +287,16 @@ bool RevealParkedTab(content::WebContents* contents);
 // Entries shown in a window, or playing sound, stay. See
 // docs/design/sidebar.md, "Today auto-archive".
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now);
+
+// Whether |entry|, one of |profile|'s, shows in one of its windows (a
+// placeholder counts) or one of its tabs plays sound: what the archiver
+// spares.
+bool IsEntryInUse(Profile* profile, const SidebarNode& entry);
+
+// Whether |entry| (or a pane of it) is the shown tab of the window that has
+// the focus. Sync keeps such an entry when another device closes it
+// (docs/design/sync.md, "Today across devices").
+bool IsEntryShownInFocusedWindow(Profile* profile, const SidebarNode& entry);
 
 }  // namespace compass
 

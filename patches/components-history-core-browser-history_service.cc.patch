@@ -1,0 +1,27 @@
+diff --git a/components/history/core/browser/history_service.cc b/components/history/core/browser/history_service.cc
+index 357a996376c296b022cef5501803ff02dd0f2270..6bde2ca56e916425def184c3976c6346c2fe08f7 100644
+--- a/components/history/core/browser/history_service.cc
++++ b/components/history/core/browser/history_service.cc
+@@ -1777,6 +1777,12 @@ void HistoryService::DeleteLocalAndRemoteHistoryBetween(
+     web_history->ExpireHistoryBetween(
+         /*restrict_urls=*/{}, begin_time, end_time, base::DoNothing(),
+         partial_traffic_annotation);
++  } else if (delete_directive_handler_) {
++    // Compass: local sync has no web history but can sync delete directives.
++    // A no-op (an ignored error) unless HISTORY_DELETE_DIRECTIVES is running,
++    // which without web history only happens with local sync.
++    delete_directive_handler_->CreateTimeRangeDeleteDirective(begin_time,
++                                                              end_time);
+   }
+   ExpireHistoryBetween(/*restrict_urls=*/{}, app_id, begin_time, end_time,
+                        /*user_initiated=*/true, std::move(callback), tracker);
+@@ -1816,6 +1822,9 @@ void HistoryService::DeleteLocalAndRemoteUrl(WebHistoryService* web_history,
+     web_history->ExpireHistoryBetween(
+         /*restrict_urls=*/{url}, base::Time(), base::Time::Max(),
+         base::DoNothing(), partial_traffic_annotation);
++  } else if (delete_directive_handler_) {
++    // Compass: as in DeleteLocalAndRemoteHistoryBetween().
++    delete_directive_handler_->CreateUrlDeleteDirective(url);
+   }
+   DeleteURLs({url});
+ }

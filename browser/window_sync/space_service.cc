@@ -4,13 +4,16 @@
 
 #include "compass/browser/window_sync/space_service.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/auto_reset.h"
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
@@ -43,7 +46,26 @@ BrowserWindowInterface* CreateParkingWindow(Profile* profile) {
   return CreateBrowserWindow(std::move(params));
 }
 
+// Set by --compass-archive-hour-seconds.
+std::optional<base::TimeDelta> GetShortArchiveHour() {
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  int seconds = 0;
+  if (!command_line->HasSwitch(kArchiveHourSecondsSwitch) ||
+      !base::StringToInt(
+          command_line->GetSwitchValueASCII(kArchiveHourSecondsSwitch),
+          &seconds) ||
+      seconds <= 0) {
+    return std::nullopt;
+  }
+  return base::Seconds(seconds);
+}
+
 }  // namespace
+
+base::TimeDelta GetArchiveHour() {
+  return GetShortArchiveHour().value_or(base::Hours(1));
+}
 
 SpaceService::SpaceService(Profile* profile)
     : profile_(profile),
@@ -72,7 +94,8 @@ SpaceService::~SpaceService() {
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
     directory->OnServiceDestroyed(this);
   }
-  // The store observes the list, so it goes first.
+  // These observe the list, so they go first.
+  sync_attachment_.reset();
   store_.reset();
   space_list_.RemoveObserver(this);
 }
@@ -86,6 +109,17 @@ SpaceService* SpaceService::Get(Profile* profile) {
     profile->SetUserData(kUserDataKey, base::WrapUnique(service));
   }
   return service;
+}
+
+// static
+SpaceService* SpaceService::GetIfExists(Profile* profile) {
+  return static_cast<SpaceService*>(profile->GetUserData(kUserDataKey));
+}
+
+void SpaceService::SetSyncAttachment(std::unique_ptr<Attachment> attachment) {
+  // The old one goes first: both may observe the list.
+  sync_attachment_.reset();
+  sync_attachment_ = std::move(attachment);
 }
 
 RestoredTabMatcher& SpaceService::restored_tab_matcher(
@@ -176,9 +210,11 @@ void SpaceService::OnLoaded() {
   for (auto& [space, matcher] : matchers_) {
     matcher->OnLoaded();
   }
-  first_archive_timer_.Start(FROM_HERE, kFirstArchiveDelay, this,
+  const std::optional<base::TimeDelta> short_hour = GetShortArchiveHour();
+  first_archive_timer_.Start(FROM_HERE,
+                             short_hour.value_or(kFirstArchiveDelay), this,
                              &SpaceService::ArchiveIdleEntries);
-  archive_timer_.Start(FROM_HERE, kArchiveInterval, this,
+  archive_timer_.Start(FROM_HERE, short_hour.value_or(kArchiveInterval), this,
                        &SpaceService::ArchiveIdleEntries);
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
     directory->OnServiceLoaded(this);

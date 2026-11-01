@@ -4,6 +4,7 @@
 
 #include "compass/browser/arc_import/sidebar_import.h"
 
+#include "base/uuid.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -118,6 +119,82 @@ TEST_F(SidebarImportTest, FavoritesAreTabsOnly) {
   ASSERT_EQ(favorites->children().size(), 2u);
   EXPECT_EQ(favorites->children()[0]->title(), u"Mail");
   EXPECT_EQ(favorites->children()[1]->url(), GURL("https://cal.test/"));
+}
+
+Item WithId(Item item, std::string id) {
+  item.id = std::move(id);
+  return item;
+}
+
+TEST(SidebarImportIdsTest, DerivedIdsAreStableVersion8Uuids) {
+  const base::Uuid id = ArcDerivedId("AB12-CD34");
+  ASSERT_TRUE(id.is_valid());
+  EXPECT_EQ(id, ArcDerivedId("AB12-CD34"));
+  EXPECT_NE(id, ArcDerivedId("AB12-CD35"));
+  const std::string text = id.AsLowercaseString();
+  ASSERT_EQ(text.size(), 36u);
+  EXPECT_EQ(text[14], '8');
+  EXPECT_TRUE(text[19] == '8' || text[19] == '9' || text[19] == 'a' ||
+              text[19] == 'b');
+  EXPECT_FALSE(ArcDerivedId("").is_valid());
+}
+
+// The same Arc data imported on two Macs gives the same IDs, so the
+// entries merge when the Macs sync (docs/design/sync.md, "Slice 7 notes").
+TEST(SidebarImportIdsTest, TwoImportsOfTheSameArcDataShareIds) {
+  Space home;
+  home.id = "space-home";
+  home.name = u"Home";
+  Space work;
+  work.id = "space-work";
+  work.name = u"Work";
+  work.pinned = {WithId(Group(Item::Kind::kFolder, u"Docs",
+                              {WithId(Tab("https://a.test/"), "tab-a")}),
+                        "folder-docs")};
+  work.today = {WithId(Group(Item::Kind::kSplit, u"",
+                             {WithId(Tab("https://c.test/"), "tab-c"),
+                              WithId(Tab("https://d.test/"), "tab-d")}),
+                       "split-cd")};
+  Profile profile;
+  profile.favorites = {WithId(Tab("https://mail.test/"), "fav-mail")};
+
+  SpaceList mac_a;
+  SpaceList mac_b;
+  AddArcSidebar(mac_a, profile, {home, work}, kNow);
+  AddArcSidebar(mac_b, profile, {home, work}, kNow);
+
+  // The first space was the profile's own (it keeps its ID); the second is
+  // Arc's.
+  ASSERT_EQ(mac_a.spaces().size(), 2u);
+  ASSERT_EQ(mac_b.spaces().size(), 2u);
+  EXPECT_EQ(mac_a.spaces()[1]->id(), ArcDerivedId("space-work"));
+  EXPECT_EQ(mac_a.spaces()[1]->id(), mac_b.spaces()[1]->id());
+
+  const SidebarNode* folder =
+      mac_a.spaces()[1]->pinned_root()->children()[0].get();
+  EXPECT_EQ(folder->id(), ArcDerivedId("folder-docs"));
+  EXPECT_EQ(folder->children()[0]->id(), ArcDerivedId("tab-a"));
+  const SidebarNode* split =
+      mac_a.spaces()[1]->today_root()->children()[0].get();
+  ASSERT_EQ(split->type(), SidebarNode::Type::kSplit);
+  EXPECT_EQ(split->id(), ArcDerivedId("split-cd"));
+  ASSERT_EQ(split->children().size(), 2u);
+  EXPECT_EQ(split->children()[0]->id(), ArcDerivedId("tab-c"));
+  EXPECT_EQ(split->children()[1]->id(), ArcDerivedId("tab-d"));
+  EXPECT_EQ(mac_b.spaces()[1]->today_root()->children()[0]->id(),
+            ArcDerivedId("split-cd"));
+  EXPECT_EQ(mac_a.favorites().pinned_root()->children()[0]->id(),
+            ArcDerivedId("fav-mail"));
+
+  // A second import on the same Mac takes fresh IDs for what's there.
+  AddArcSidebar(mac_a, profile, {home, work}, kNow);
+  ASSERT_EQ(mac_a.spaces().size(), 4u);
+  EXPECT_NE(mac_a.spaces()[3]->id(), ArcDerivedId("space-work"));
+  const SidebarNode* again =
+      mac_a.spaces()[3]->pinned_root()->children()[0].get();
+  EXPECT_NE(again->id(), ArcDerivedId("folder-docs"));
+  EXPECT_EQ(again->children().size(), 1u);
+  EXPECT_EQ(mac_a.favorites().pinned_root()->children().size(), 2u);
 }
 
 }  // namespace

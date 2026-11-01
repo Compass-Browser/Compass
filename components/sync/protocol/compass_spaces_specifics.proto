@@ -1,0 +1,132 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Specifics of COMPASS_SPACES, the sidebar's data type
+// (docs/design/sync.md, "The COMPASS_SPACES data type"). Built as part of
+// //components/sync/protocol (see
+// patches/components-sync-protocol-protocol_sources.gni.patch); the
+// EntitySpecifics field is compass_spaces = 970000.
+//
+// If you change or add fields, update proto_visitors.h (see
+// patches/components-sync-protocol-proto_visitors.h.patch).
+//
+// Enumerations are int32 fields with the values listed in comments, not
+// proto enums: a proto enum would need ProtoEnumToString() overloads, one
+// more upstream patch. On the wire they're the same, so they can become
+// enums later. 0 always means "not set"; values a client doesn't know are
+// kept and passed on, not applied.
+
+syntax = "proto2";
+
+option java_multiple_files = true;
+option java_package = "org.chromium.components.sync.protocol";
+
+option optimize_for = LITE_RUNTIME;
+
+package sync_pb;
+
+import "components/sync/protocol/unique_position.proto";
+
+// One entity per space and per sidebar node, and in the home profile's
+// account one per profile of the chain. The client tag is `uuid`.
+message CompassSpacesSpecifics {
+  oneof entity {
+    CompassSpace space = 1;
+    CompassNode node = 2;
+    CompassProfile profile = 3;
+  }
+}
+
+message CompassSpace {
+  // The space's ID (SpaceModel::id()), lowercase.
+  optional string uuid = 1;
+  optional string name = 2;
+  // The space's color as a palette index: 1 grey, 2 blue, 3 purple, 4 pink,
+  // 5 red, 6 orange, 7 yellow, 8 green. For a color off the palette, the
+  // index of the palette color closest to it (never grey), which is what
+  // clients that predate `color_rgb` show.
+  optional int32 color = 3;
+  // The space's icon: "emoji:" followed by the emoji, or "symbol:" followed
+  // by the symbol's name (SpaceIcon); empty or absent for none. A value this
+  // version can't read shows no icon, and is kept until the icon is changed.
+  optional string icon = 4;
+  // In the browser-wide list of spaces.
+  optional UniquePosition directory_position = 5;
+  // The sync UUID of the profile it belongs to (slice 5), whose account it's
+  // in. Informational: the account decides.
+  optional string profile_uuid = 6;
+  // How long a Today entry may go unseen before it's archived; 0 = never.
+  optional int64 archive_after_seconds = 7;
+
+  // The theme (docs/design/spaces.md, "Theme editor"). Absent fields are the
+  // defaults, which are never written; clients that predate them keep them as
+  // received.
+
+  // A color off the palette, as 0xRRGGBB. It applies only while `color` is
+  // the palette index closest to it: a client that only knows `color` and
+  // picks another palette color leaves a stale value here, which this rule
+  // then ignores. Absent for palette colors.
+  optional uint32 color_rgb = 8;
+  // The colors the gradient goes on to after `color`, in order; none for a
+  // plain color.
+  repeated CompassColor gradient = 9;
+  // How strongly the color tints, 0 to 1; absent = 0.31 (the default).
+  optional double intensity = 10;
+  // How much grain the tint has, 0 to 1; absent = 0.
+  optional double grain = 11;
+  // 1 auto (follows the system; also absent), 2 light, 3 dark.
+  optional int32 appearance = 12;
+}
+
+// A color of a space's gradient.
+message CompassColor {
+  // A palette color, numbered as CompassSpace.color; 1 is grey.
+  optional int32 palette = 1;
+  // Any other color, as 0xRRGGBB; wins over `palette`.
+  optional uint32 rgb = 2;
+}
+
+message CompassNode {
+  // The node's ID (SidebarNode::id()), lowercase.
+  optional string uuid = 1;
+  // Its space; empty in FAVORITES, which belong to the profile.
+  optional string space_uuid = 2;
+  // Its parent; empty for an entry at the root of its section.
+  optional string parent_uuid = 3;
+  // 1 PINNED, 2 TODAY, 3 FAVORITES, 4 ARCHIVE. An archived entry is at the
+  // root of ARCHIVE; an archived split's panes are its children.
+  optional int32 section = 4;
+  // Among its siblings.
+  optional UniquePosition position = 5;
+  // 1 TAB, 2 FOLDER, 3 SPLIT. Never changes for a node.
+  optional int32 type = 6;
+  optional string url = 7;
+  // A tab's page title; a folder's name.
+  optional string title = 8;
+  // The name the user gave a tab.
+  optional string custom_title = 9;
+  // Folders: whether only the folder's own row shows.
+  optional bool collapsed = 10;
+  // TODAY tabs: when a tab was last shown on any device, in microseconds
+  // since the Windows epoch. Drives auto-archive; devices keep the latest.
+  optional int64 last_active_time = 11;
+  // ARCHIVE: when the entry was archived, same unit. Entries archived more
+  // than 30 days ago leave the server.
+  optional int64 archived_time = 12;
+}
+
+// A profile of the chain (slice 5); only in the home profile's account. Each
+// profile syncs with its own account, derived from the chain's seed and
+// `uuid` (docs/design/sync.md, "Slice 5 notes"); a device that doesn't have
+// one creates it.
+message CompassProfile {
+  // Its sync UUID (compass.sync.profile_uuid), lowercase.
+  optional string uuid = 1;
+  optional string name = 2;
+  // Chromium's default avatar icon index + 1 (0 = not set).
+  optional int32 avatar = 3;
+  // The home profile: its account is the chain's own, and it carries this
+  // list.
+  optional bool home = 4;
+}

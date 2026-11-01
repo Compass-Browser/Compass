@@ -1,0 +1,154 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass sync below the browser: the chain's crypto, pairing, and the sync
+# engine's components for a Compass server. See docs/design/sync.md.
+
+# The seed, the recovery code, key derivations, tokens and pairing.
+source_set("chain") {
+  sources = [
+    "bip39.cc",
+    "bip39.h",
+    "bip39_wordlist.cc",
+    "chain.cc",
+    "chain.h",
+    "pairing.cc",
+    "pairing.h",
+    "pairing_network_transport.cc",
+    "pairing_network_transport.h",
+    "profile_list.cc",
+    "profile_list.h",
+  ]
+  public_deps = [
+    "//base",
+    "//third_party/boringssl",
+    "//url",
+  ]
+  deps = [
+    "//crypto",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+  ]
+}
+
+# The engine side. //components/sync/service depends on it, and
+# SyncServiceImpl calls sync_hooks.h (see
+# patches/components-sync-service-BUILD.gn.patch and
+# patches/components-sync-service-sync_service_impl.cc.patch). It must not
+# depend on //components/sync/service.
+source_set("engine") {
+  sources = [
+    "engine_components_factory.cc",
+    "engine_components_factory.h",
+    "pref_names.h",
+    "sync_credentials.cc",
+    "sync_credentials.h",
+    "sync_hooks.cc",
+    "sync_hooks.h",
+  ]
+  public_deps = [
+    ":chain",
+    "//components/sync/engine",
+  ]
+  deps = [
+    "//base",
+    "//components/prefs",
+    "//components/signin/public/identity_manager",
+    "//components/sync/base",
+    "//url",
+  ]
+}
+
+# Compass's data type controllers, made by the browser side and handed to
+# //chrome/browser/sync, which depends on this (see
+# patches/chrome-browser-sync-BUILD.gn.patch). It must not depend on
+# //chrome/browser. The COMPASS_SPACES specifics
+# (protocol/compass_spaces_specifics.proto) are built by
+# //components/sync/protocol (see
+# patches/components-sync-protocol-protocol_sources.gni.patch).
+source_set("controllers_hook") {
+  sources = [
+    "controllers_hook.cc",
+    "controllers_hook.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/sync/service",
+  ]
+}
+
+# Change notifications (slice 6): a Server-Sent Events stream from the
+# chain's server that tells the engine to fetch at once. Owned by the
+# browser's CompassSyncService; nothing here depends on the sync service.
+source_set("notifier") {
+  sources = [
+    "compass_sync_notifier.cc",
+    "compass_sync_notifier.h",
+
+    # Slice 7: how full the chain is on the server.
+    "compass_sync_quota.cc",
+    "compass_sync_quota.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/sync/base",
+    "//net",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+  deps = [ "//services/network/public/mojom" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "bip39_unittest.cc",
+    "chain_unittest.cc",
+    "compass_sync_notifier_unittest.cc",
+    "compass_sync_quota_unittest.cc",
+    "engine_unittest.cc",
+    "pairing_unittest.cc",
+    "profile_list_unittest.cc",
+  ]
+  deps = [
+    ":chain",
+    ":engine",
+    ":notifier",
+    "//base",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//components/sync/base",
+    "//crypto",
+    "//mojo/public/cpp/system",
+    "//net",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/boringssl",
+    "//url",
+  ]
+}
+
+# History sync under local sync (slice 2b): tests the chromium_src override of
+# components/sync/base/data_type.cc and the patches to //components/history.
+source_set("history_unit_tests") {
+  testonly = true
+  sources = [ "history_sync_unittest.cc" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//components/history/core/browser",
+    "//components/history/core/common",
+    "//components/history/core/test",
+    "//components/prefs:test_support",
+    "//components/signin/public/identity_manager",
+    "//components/sync:test_support",
+    "//components/sync/base",
+    "//testing/gtest",
+    "//url",
+  ]
+}

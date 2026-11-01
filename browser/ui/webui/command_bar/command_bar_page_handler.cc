@@ -20,6 +20,7 @@
 #include "chrome/browser/predictors/autocomplete_action_predictor.h"
 #include "chrome/browser/predictors/autocomplete_action_predictor_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sync/session_sync_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -36,6 +37,7 @@
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/shortcuts_backend.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/sync_sessions/session_sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_node.h"
@@ -59,6 +61,8 @@ using command_bar::mojom::ResultKind;
 // query in new-entry mode shows.
 constexpr size_t kMaxEntries = 5;
 constexpr size_t kMaxRecentEntries = 8;
+// How many tabs of other devices a query shows.
+constexpr size_t kMaxOtherDeviceTabs = 6;
 
 struct CommandInfo {
   CommandBarCommand command;
@@ -144,6 +148,21 @@ CommandBarPageHandler::CommandBarPageHandler(
       AutocompleteControllerConfig{
           .provider_types = AutocompleteClassifier::DefaultOmniboxProviders()});
   autocomplete_->AddObserver(this);
+  // Read at each query: the other devices' tabs change as they sync.
+  other_device_tabs_getter_ = base::BindRepeating(
+      [](Profile* profile) {
+        sync_sessions::SessionSyncService* sessions =
+            SessionSyncServiceFactory::GetForProfile(profile);
+        // Null unless Open tabs syncs.
+        return GetOtherDeviceTabs(sessions ? sessions->GetOpenTabsUIDelegate()
+                                           : nullptr);
+      },
+      base::Unretained(profile));
+}
+
+void CommandBarPageHandler::SetOtherDeviceTabsGetterForTesting(
+    OtherDeviceTabsGetter getter) {
+  other_device_tabs_getter_ = std::move(getter);
 }
 
 CommandBarPageHandler::~CommandBarPageHandler() {
@@ -182,9 +201,9 @@ void CommandBarPageHandler::Query(const std::string& text,
     Rebuild();
     return;
   }
-  AutocompleteInput input(text_, text_.size(), GetPageClassification(mode_),
-                          ChromeAutocompleteSchemeClassifier(
-                              browser_->GetProfile()));
+  AutocompleteInput input(
+      text_, text_.size(), GetPageClassification(mode_),
+      ChromeAutocompleteSchemeClassifier(browser_->GetProfile()));
   if (mode_ == Mode::kCurrentEntry) {
     if (tabs::TabInterface* tab = browser_->GetActiveTabInterface()) {
       input.set_current_url(tab->GetContents()->GetLastCommittedURL());
@@ -205,8 +224,8 @@ void CommandBarPageHandler::Accept(uint32_t id,
     if (!base::TrimWhitespace(text16, base::TRIM_ALL).empty()) {
       AutocompleteMatch match;
       AutocompleteClassifierFactory::GetForProfile(browser_->GetProfile())
-          ->Classify(text16, false, true, GetPageClassification(mode_),
-                     &match, nullptr);
+          ->Classify(text16, false, true, GetPageClassification(mode_), &match,
+                     nullptr);
       if (match.destination_url.is_valid()) {
         AcceptMatch(match, std::nullopt, new_entry);
       }
@@ -230,6 +249,9 @@ void CommandBarPageHandler::Accept(uint32_t id,
       break;
     case ResultKind::kCommand:
       RunCommand(item.command);
+      break;
+    case ResultKind::kOtherDeviceTab:
+      AcceptOtherDeviceTab(item.url);
       break;
   }
   Close();
@@ -271,6 +293,7 @@ void CommandBarPageHandler::Rebuild() {
     for (size_t i = first_other; i < result.size(); ++i) {
       items.push_back(MatchItem(result.match_at(i), i));
     }
+    AddOtherDeviceTabItems(items);
     AddSpaceItems(items);
     AddCommandItems(items);
   }
@@ -326,14 +349,14 @@ void CommandBarPageHandler::AddEntryItems(std::vector<Item>& items) {
 
   size_t count = 0;
   for (const SpaceModel* space : spaces) {
-    for (const SidebarNode* root : {space->pinned_root(), space->today_root()}) {
+    for (const SidebarNode* root :
+         {space->pinned_root(), space->today_root()}) {
       ForEachTab(*root, [&](const SidebarNode& node) {
         if (count == kMaxEntries ||
             !ContainsAll(
-                base::i18n::ToLower(node.custom_title() + u" " + node.title() +
-                                    u" " +
-                                    base::UTF8ToUTF16(
-                                        ToCompassURL(node.url()).spec())),
+                base::i18n::ToLower(
+                    node.custom_title() + u" " + node.title() + u" " +
+                    base::UTF8ToUTF16(ToCompassURL(node.url()).spec())),
                 words)) {
           return;
         }
@@ -426,8 +449,32 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
     item.title = info.name;
     item.action = "Run";
     item.command = info.command;
+    AssignId(item, "c:" + base::NumberToString(static_cast<int>(info.command)));
+    items.push_back(std::move(item));
+  }
+}
+
+void CommandBarPageHandler::AddOtherDeviceTabItems(std::vector<Item>& items) {
+  if (browser_->GetProfile()->IsOffTheRecord() || !other_device_tabs_getter_) {
+    return;
+  }
+  const std::vector<OtherDevice> devices = other_device_tabs_getter_.Run();
+  for (const OtherDeviceTabMatch& match :
+       MatchOtherDeviceTabs(devices, text_, kMaxOtherDeviceTabs)) {
+    const OtherDevice& device = devices[match.device];
+    const OtherDeviceTab& tab = device.tabs[match.tab];
+    const std::u16string url = base::UTF8ToUTF16(ToCompassURL(tab.url).spec());
+    Item item;
+    item.kind = ResultKind::kOtherDeviceTab;
+    item.title = tab.title.empty() ? url : tab.title;
+    // Grouped by device: the rows of one device are together, each says
+    // which.
+    item.subtitle = u"On " + device.name + u" · " + url;
+    item.action = "Open";
+    item.icon_url = tab.url;
+    item.url = tab.url;
     AssignId(item,
-             "c:" + base::NumberToString(static_cast<int>(info.command)));
+             "t:" + base::UTF16ToUTF8(device.name) + " " + tab.url.spec());
     items.push_back(std::move(item));
   }
 }
@@ -487,13 +534,12 @@ void CommandBarPageHandler::LogMatch(const AutocompleteMatch& match,
       input.type(), /*in_keyword_mode=*/false,
       metrics::OmniboxEventProto::INVALID, /*is_popup_open=*/true,
       OmniboxPopupSelection(line), disposition, /*is_paste_and_go=*/false,
-      SessionID::InvalidValue(), GetPageClassification(mode_),
-      since_first_edit,
+      SessionID::InvalidValue(), GetPageClassification(mode_), since_first_edit,
       match.allowed_to_be_default_match ? match.inline_autocompletion.length()
                                         : std::u16string::npos,
       since_default_match_changed, autocomplete_->result(),
-      match.destination_url, profile->IsOffTheRecord(),
-      input.IsZeroSuggest(), match.session);
+      match.destination_url, profile->IsOffTheRecord(), input.IsZeroSuggest(),
+      match.session);
   // Only a load in place knows its tab yet.
   if (disposition == WindowOpenDisposition::CURRENT_TAB) {
     if (tabs::TabInterface* tab = browser_->GetActiveTabInterface()) {
@@ -547,6 +593,15 @@ void CommandBarPageHandler::AcceptSpace(const base::Uuid& space_id) {
   }
 }
 
+void CommandBarPageHandler::AcceptOtherDeviceTab(const GURL& url) {
+  // A new foreground tab is a new Today entry of the window's space
+  // (TabStripBridge), whatever the bar's mode.
+  NavigateParams params(browser_, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
+  Navigate(&params);
+}
+
 void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
   if (!IsCommandAvailable(command)) {
     return;
@@ -564,9 +619,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kPinEntry: {
       SidebarNode* node = GetActiveNode();
       // A pane moves with its split.
-      SidebarNode* entry =
-          node->parent()->type() == SidebarNode::Type::kSplit ? node->parent()
-                                                              : node;
+      SidebarNode* entry = node->parent()->type() == SidebarNode::Type::kSplit
+                               ? node->parent()
+                               : node;
       SpaceModel& space = features->space_model();
       if (space.CanMove(entry, space.pinned_root())) {
         space.Move(entry, space.pinned_root(),
@@ -576,9 +631,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     }
     case CommandBarCommand::kUnpinEntry: {
       SidebarNode* node = GetActiveNode();
-      SidebarNode* entry =
-          node->parent()->type() == SidebarNode::Type::kSplit ? node->parent()
-                                                              : node;
+      SidebarNode* entry = node->parent()->type() == SidebarNode::Type::kSplit
+                               ? node->parent()
+                               : node;
       SpaceModel& space = features->space_model();
       if (space.CanMove(entry, space.today_root())) {
         space.Move(entry, space.today_root(), 0);

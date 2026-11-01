@@ -547,7 +547,7 @@ void SidebarPageHandler::SetArchiveAfter(const std::string& space_id,
                                          uint32_t hours) {
   SpaceModel* space = FindAnySpace(space_id).space;
   if (space && hours <= kMaxArchiveAfterHours) {
-    space->SetArchiveAfter(base::Hours(hours));
+    space->SetArchiveAfter(GetArchiveHour() * static_cast<int64_t>(hours));
   }
 }
 
@@ -966,7 +966,8 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->appearance =
         static_cast<sidebar::mojom::SpaceAppearance>(space->appearance());
     mojo_space->icon = ToMojoIcon(space->icon());
-    mojo_space->archive_after_hours = space->archive_after().InHours();
+    mojo_space->archive_after_hours =
+        static_cast<uint32_t>(space->archive_after().IntDiv(GetArchiveHour()));
     spaces.push_back(std::move(mojo_space));
   }
   // The profiles a space can be assigned to, as the profile menu lists them.

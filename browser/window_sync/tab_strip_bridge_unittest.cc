@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
@@ -444,6 +445,27 @@ TEST_F(TabStripBridgeTest, FollowsNavigation) {
   Settle();
 
   EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("z.test"));
+}
+
+// Sync changed the entry of a live tab (another device navigated it): the tab
+// keeps its page, and only its own next navigation takes the entry back, so
+// two devices don't hand the entry back and forth (sync.md, slice 3b).
+TEST_F(TabStripBridgeTest, AnEntryChangedElsewhereFollowsOnlyRealChanges) {
+  OpenTabs({"a.test"});
+  SidebarNode* node = TodayAt(0);
+  space_model().SetUrl(node, GURL("https://remote.test/"));
+  space_model().SetTitle(node, u"Remote");
+
+  // The tab updates without having changed.
+  tab_strip_model()->NotifyTabChanged(tab_strip_model()->GetTabAtIndex(0),
+                                      TabChangeType::kAll);
+  Settle();
+  EXPECT_EQ(node->url(), GURL("https://remote.test/"));
+  EXPECT_EQ(node->title(), u"Remote");
+
+  NavigateAndCommitActiveTab(GURL("https://z.test/"));
+  Settle();
+  EXPECT_EQ(node->url(), GURL("https://z.test/"));
 }
 
 TEST_F(TabStripBridgeTest, PinnedTabsLeadTheStrip) {

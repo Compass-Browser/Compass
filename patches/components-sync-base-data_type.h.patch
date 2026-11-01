@@ -1,0 +1,41 @@
+diff --git a/components/sync/base/data_type.h b/components/sync/base/data_type.h
+index 8251ca7fa4125a51cadbb60599ea2438169c2d80..8e0a88bb32de412a7c370f460098cdabcee4ea77 100644
+--- a/components/sync/base/data_type.h
++++ b/components/sync/base/data_type.h
+@@ -202,7 +202,11 @@ enum DataType {
+   // User entity suppression records for Autofill AI.
+   AUTOFILL_ENTITY_SUPPRESSION,
+ 
+-  LAST_USER_DATA_TYPE = AUTOFILL_ENTITY_SUPPRESSION,
++  // Compass: the sidebar's spaces, pinned trees and favorites
++  // (compass/docs/design/sync.md). Keep it last among the user types.
++  COMPASS_SPACES,
++
++  LAST_USER_DATA_TYPE = COMPASS_SPACES,
+ 
+   // ---- Control Types ----
+   // An object representing a set of Nigori keys.
+@@ -317,7 +321,10 @@ enum class DataTypeForHistograms {
+   kNotebook = 83,
+   kJourney = 84,
+   kAutofillEntitySuppression = 85,
+-  kMaxValue = kAutofillEntitySuppression,
++  // Compass: far from upstream's values, so rebases don't collide. Keep it
++  // kMaxValue.
++  kCompassSpaces = 200,
++  kMaxValue = kCompassSpaces,
+ };
+ // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
+ 
+@@ -352,7 +359,10 @@ inline constexpr DataTypeSet AlwaysPreferredUserTypes() {
+           SKILL,
+           AI_THREAD,
+           GEMINI_THREAD,
+-          AUTOFILL_ENTITY_SUPPRESSION};
++          AUTOFILL_ENTITY_SUPPRESSION,
++          // Compass: not a user-selectable type; held back by its controller
++          // until the chain's passphrase is in place.
++          COMPASS_SPACES};
+ }
+ 
+ // User types which are always encrypted.

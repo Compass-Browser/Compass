@@ -1,0 +1,1138 @@
+package datastore_test
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"sort"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/brave/go-sync/ptr"
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
+
+	"github.com/brave/go-sync/datastore"
+	"github.com/brave/go-sync/datastore/datastoretest"
+	"github.com/brave/go-sync/schema/protobuf/sync_pb"
+)
+
+type SyncEntityTestSuite struct {
+	suite.Suite
+
+	db *datastore.SQLite
+}
+
+func (suite *SyncEntityTestSuite) SetupSuite() {
+	var err error
+	suite.db, err = datastoretest.NewSQLite(suite.T().TempDir())
+	suite.Require().NoError(err, "Failed to open SQLite datastore")
+}
+
+func (suite *SyncEntityTestSuite) SetupTest() {
+	suite.Require().NoError(
+		datastoretest.ResetTable(suite.db), "Failed to reset table")
+}
+
+func (suite *SyncEntityTestSuite) TearDownTest() {
+	suite.Require().NoError(
+		datastoretest.DeleteTable(suite.db), "Failed to delete table")
+}
+
+func (suite *SyncEntityTestSuite) TestNewServerClientUniqueTagItem() {
+	expectedServerTag := datastore.ServerClientUniqueTagItem{
+		ClientID: "id",
+		ID:       "Server#serverTag",
+	}
+	expectedClientTag := datastore.ServerClientUniqueTagItem{
+		ClientID: "id",
+		ID:       "Client#clientTag",
+	}
+	actualClientTag := *datastore.NewServerClientUniqueTagItem("id", "clientTag", false)
+	actualServerTag := *datastore.NewServerClientUniqueTagItem("id", "serverTag", true)
+
+	// We can't know the exact value for Mtime & Ctime.  Make sure they're set,
+	// set zero value for subsequent tests
+	suite.NotNil(actualClientTag.Mtime)
+	suite.NotNil(actualClientTag.Ctime)
+	suite.NotNil(actualServerTag.Mtime)
+	suite.NotNil(actualServerTag.Ctime)
+
+	actualClientTag.Mtime = nil
+	actualClientTag.Ctime = nil
+	actualServerTag.Mtime = nil
+	actualServerTag.Ctime = nil
+
+	suite.Equal(expectedServerTag, actualServerTag)
+	suite.Equal(expectedClientTag, actualClientTag)
+}
+
+func (suite *SyncEntityTestSuite) TestInsertSyncEntity() {
+	entity1 := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         ptr.Int64(12345678),
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(false),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+	}
+	entity2 := entity1
+	entity2.ID = "id2"
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity2)
+	suite.Require().NoError(err, "InsertSyncEntity with other ID should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().Error(err, "InsertSyncEntity with the same ClientID and ID should fail")
+
+	// Each InsertSyncEntity without client tag should result in one sync item saved.
+	tagItems, err := datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Empty(
+		tagItems, "Insert without client tag should not insert tag items")
+	syncItems, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Equal([]datastore.SyncEntity{entity1, entity2}, syncItems)
+
+	// Insert entity with client tag should result in one sync item and one tag
+	// item saved.
+	entity3 := entity1
+	entity3.ID = "id3"
+	entity3.ClientDefinedUniqueTag = ptr.String("tag1")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity3)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+
+	// Insert entity with different tag for same ClientID should succeed.
+	entity4 := entity3
+	entity4.ID = "id4"
+	entity4.ClientDefinedUniqueTag = ptr.String("tag2")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity4)
+	suite.Require().NoError(err, "InsertSyncEntity with different server tag should succeed")
+
+	// Insert entity with the same client tag and ClientID should fail with conflict.
+	entity4Copy := entity4
+	entity4Copy.ID = "id4_copy"
+	conflict, err := suite.db.InsertSyncEntity(context.Background(), &entity4Copy)
+	suite.Require().Error(err, "InsertSyncEntity with the same client tag and ClientID should fail")
+	suite.True(conflict, "Return conflict for duplicate client tag")
+
+	// Insert entity with the same client tag for other client should not fail.
+	entity5 := entity3
+	entity5.ClientID = "client2"
+	entity5.ID = "id5"
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity5)
+	suite.Require().NoError(err,
+		"InsertSyncEntity with the same client tag for another client should succeed")
+
+	// Check sync items are saved for entity1, entity2, entity3, entity4, entity5.
+	syncItems, err = datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	expectedSyncItems := []datastore.SyncEntity{entity1, entity2, entity3, entity4, entity5}
+	sort.Sort(datastore.SyncEntityByClientIDID(syncItems))
+	suite.Equal(expectedSyncItems, syncItems)
+
+	// Check tag items should be saved for entity3, entity4, entity5.
+	tagItems, err = datastoretest.ScanTagItems(suite.db)
+
+	// Check that Ctime and Mtime have been set, reset to zero value for subsequent
+	// tests
+	for i := range tagItems {
+		suite.NotNil(tagItems[i].Ctime)
+		suite.NotNil(tagItems[i].Mtime)
+
+		tagItems[i].Ctime = nil
+		tagItems[i].Mtime = nil
+	}
+
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	expectedTagItems := []datastore.ServerClientUniqueTagItem{
+		{ClientID: "client1", ID: "Client#tag1"},
+		{ClientID: "client1", ID: "Client#tag2"},
+		{ClientID: "client2", ID: "Client#tag1"},
+	}
+	sort.Sort(datastore.TagItemByClientIDID(tagItems))
+	suite.Equal(expectedTagItems, tagItems)
+}
+
+func (suite *SyncEntityTestSuite) TestHasServerDefinedUniqueTag() {
+	// Insert entities with server tags using InsertSyncEntitiesWithServerTags.
+	tag1 := datastore.SyncEntity{
+		ClientID:               "client1",
+		ID:                     "id1",
+		Version:                ptr.Int64(1),
+		Ctime:                  ptr.Int64(12345678),
+		Mtime:                  ptr.Int64(12345678),
+		DataType:               ptr.Int(123),
+		Folder:                 ptr.Bool(true),
+		Deleted:                ptr.Bool(false),
+		DataTypeMtime:          ptr.String("123#12345678"),
+		ServerDefinedUniqueTag: ptr.String("tag1"),
+	}
+	tag2 := tag1
+	tag2.ClientID = "client2"
+	tag2.ID = "id2"
+	tag2.ServerDefinedUniqueTag = ptr.String("tag2")
+	entities := []*datastore.SyncEntity{&tag1, &tag2}
+
+	err := suite.db.InsertSyncEntitiesWithServerTags(context.Background(), entities)
+	suite.Require().NoError(err, "Insert sync entities should succeed")
+
+	hasTag, err := suite.db.HasServerDefinedUniqueTag(context.Background(), "client1", "tag1")
+	suite.Require().NoError(err, "HasServerDefinedUniqueTag should succeed")
+	suite.True(hasTag)
+
+	hasTag, err = suite.db.HasServerDefinedUniqueTag(context.Background(), "client1", "tag2")
+	suite.Require().NoError(err, "HasServerDefinedUniqueTag should succeed")
+	suite.False(hasTag)
+
+	hasTag, err = suite.db.HasServerDefinedUniqueTag(context.Background(), "client2", "tag1")
+	suite.Require().NoError(err, "HasServerDefinedUniqueTag should succeed")
+	suite.False(hasTag)
+
+	hasTag, err = suite.db.HasServerDefinedUniqueTag(context.Background(), "client2", "tag2")
+	suite.Require().NoError(err, "HasServerDefinedUniqueTag should succeed")
+	suite.True(hasTag)
+}
+
+func (suite *SyncEntityTestSuite) TestHasItem() {
+	// Insert entity which will be checked later
+	entity1 := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         ptr.Int64(12345678),
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(false),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+		Specifics:     []byte{1, 2},
+	}
+	entity2 := entity1
+	entity2.ClientID = "client2"
+	entity2.ID = "id2"
+
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity2)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+
+	hasTag, err := suite.db.HasItem(context.Background(), "client1", "id1")
+	suite.Require().NoError(err, "HasItem should succeed")
+	suite.True(hasTag)
+
+	hasTag, err = suite.db.HasItem(context.Background(), "client2", "id2")
+	suite.Require().NoError(err, "HasItem should succeed")
+	suite.True(hasTag)
+
+	hasTag, err = suite.db.HasItem(context.Background(), "client2", "id3")
+	suite.Require().NoError(err, "HasItem should succeed")
+	suite.False(hasTag)
+
+	hasTag, err = suite.db.HasItem(context.Background(), "client3", "id2")
+	suite.Require().NoError(err, "HasItem should succeed")
+	suite.False(hasTag)
+}
+
+func (suite *SyncEntityTestSuite) TestInsertSyncEntitiesWithServerTags() {
+	// Insert with same ClientID and server tag would fail.
+	entity1 := datastore.SyncEntity{
+		ClientID:               "client1",
+		ID:                     "id1",
+		Version:                ptr.Int64(1),
+		Ctime:                  ptr.Int64(12345678),
+		Mtime:                  ptr.Int64(12345678),
+		DataType:               ptr.Int(123),
+		Folder:                 ptr.Bool(false),
+		Deleted:                ptr.Bool(false),
+		DataTypeMtime:          ptr.String("123#12345678"),
+		ServerDefinedUniqueTag: ptr.String("tag1"),
+	}
+	entity2 := entity1
+	entity2.ID = "id2"
+	entities := []*datastore.SyncEntity{&entity1, &entity2}
+	suite.Require().Error(
+		suite.db.InsertSyncEntitiesWithServerTags(context.Background(), entities),
+		"Insert with same ClientID and server tag would fail")
+
+	// Check nothing is written to DB when it fails.
+	syncItems, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Empty(syncItems, "No items should be written if fail")
+	tagItems, err := datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Empty(tagItems, "No items should be written if fail")
+
+	entity2.ServerDefinedUniqueTag = ptr.String("tag2")
+	entity3 := entity1
+	entity3.ClientID = "client2"
+	entity3.ID = "id3"
+	entities = []*datastore.SyncEntity{&entity1, &entity2, &entity3}
+	suite.Require().NoError(
+		suite.db.InsertSyncEntitiesWithServerTags(context.Background(), entities),
+		"InsertSyncEntitiesWithServerTags should succeed")
+
+	// Scan DB and check all items are saved
+	syncItems, err = datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	expectedSyncItems := []datastore.SyncEntity{entity1, entity2, entity3}
+	sort.Sort(datastore.SyncEntityByClientIDID(syncItems))
+	suite.Equal(expectedSyncItems, syncItems)
+	tagItems, err = datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+
+	// Check that Ctime and Mtime have been set, reset to zero value for subsequent
+	// tests
+	for i := range tagItems {
+		suite.NotNil(tagItems[i].Ctime)
+		suite.NotNil(tagItems[i].Mtime)
+
+		tagItems[i].Ctime = nil
+		tagItems[i].Mtime = nil
+	}
+
+	expectedTagItems := []datastore.ServerClientUniqueTagItem{
+		{ClientID: "client1", ID: "Server#tag1"},
+		{ClientID: "client1", ID: "Server#tag2"},
+		{ClientID: "client2", ID: "Server#tag1"},
+	}
+	sort.Sort(datastore.TagItemByClientIDID(tagItems))
+	suite.Equal(expectedTagItems, tagItems)
+}
+
+func (suite *SyncEntityTestSuite) TestUpdateSyncEntity_Basic() {
+	// Insert three new items.
+	entity1 := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         ptr.Int64(12345678),
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(false),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+		Specifics:     []byte{1, 2},
+	}
+	entity2 := entity1
+	entity2.ID = "id2"
+	entity3 := entity1
+	entity3.ID = "id3"
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity2)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity3)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	// Check sync entities are inserted correctly in DB.
+	syncItems, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Equal([]datastore.SyncEntity{entity1, entity2, entity3}, syncItems)
+
+	// Update without optional fields.
+	updateEntity1 := entity1
+	updateEntity1.Version = ptr.Int64(23456789)
+	updateEntity1.Mtime = ptr.Int64(23456789)
+	updateEntity1.Folder = ptr.Bool(true)
+	updateEntity1.Deleted = ptr.Bool(true)
+	updateEntity1.DataTypeMtime = ptr.String("123#23456789")
+	updateEntity1.Specifics = []byte{3, 4}
+	conflict, deleted, err := suite.db.UpdateSyncEntity(context.Background(), &updateEntity1, *entity1.Version)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.True(deleted, "Delete operation should return true")
+
+	// Update with optional fields.
+	updateEntity2 := updateEntity1
+	updateEntity2.ID = "id2"
+	updateEntity2.Deleted = ptr.Bool(false)
+	updateEntity2.Folder = ptr.Bool(false)
+	updateEntity2.UniquePosition = []byte{5, 6}
+	updateEntity2.ParentID = ptr.String("parentID")
+	updateEntity2.Name = ptr.String("name")
+	updateEntity2.NonUniqueName = ptr.String("non_unique_name")
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity2, *entity2.Version)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.False(deleted, "Non-delete operation should return false")
+
+	// Update with nil Folder and Deleted
+	updateEntity3 := updateEntity1
+	updateEntity3.ID = "id3"
+	updateEntity3.Folder = nil
+	updateEntity3.Deleted = nil
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity3, *entity3.Version)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.False(deleted, "Non-delete operation should return false")
+	// Reset these back to false because they will be the expected value in DB.
+	updateEntity3.Folder = ptr.Bool(false)
+	updateEntity3.Deleted = ptr.Bool(false)
+
+	// Update entity again with the wrong old version as (version mismatch)
+	// should return false.
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity2, 12345678)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.True(conflict, "Update with the same version should return conflict")
+	suite.False(deleted, "Conflict operation should return false for delete")
+
+	// Check sync entities are updated correctly in DB.
+	syncItems, err = datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Equal([]datastore.SyncEntity{updateEntity1, updateEntity2, updateEntity3}, syncItems)
+}
+
+func (suite *SyncEntityTestSuite) TestUpdateSyncEntity_HistoryType() {
+	// Insert a history item
+	entity1 := datastore.SyncEntity{
+		ClientID:               "client1",
+		ID:                     "id1",
+		Version:                ptr.Int64(1),
+		ClientDefinedUniqueTag: ptr.String("client_tag1"),
+		Ctime:                  ptr.Int64(12345678),
+		Mtime:                  ptr.Int64(12345678),
+		DataType:               ptr.Int(963985),
+		Folder:                 ptr.Bool(false),
+		Deleted:                ptr.Bool(false),
+		DataTypeMtime:          ptr.String("123#12345678"),
+		Specifics:              []byte{1, 2},
+	}
+	conflict, err := suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	suite.False(conflict, "Successful insert should not have conflict")
+
+	updateEntity1 := entity1
+	updateEntity1.Version = ptr.Int64(2)
+	updateEntity1.Folder = ptr.Bool(true)
+	updateEntity1.Mtime = ptr.Int64(24242424)
+	conflict, deleted, err := suite.db.UpdateSyncEntity(context.Background(), &updateEntity1, 1)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.False(deleted, "Non-delete operation should return false")
+
+	// should still succeed with the same version number,
+	// since the version number should be ignored
+	updateEntity2 := updateEntity1
+	updateEntity2.Mtime = ptr.Int64(42424242)
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity2, 1)
+	suite.Require().NoError(err, "UpdateSyncEntity should not return an error")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.False(deleted, "Non-delete operation should return false")
+
+	updateEntity3 := entity1
+	updateEntity3.Deleted = ptr.Bool(true)
+
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity3, 1)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.True(deleted, "Delete operation should return true")
+
+	syncItems, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Equal([]datastore.SyncEntity{updateEntity3}, syncItems)
+}
+
+func (suite *SyncEntityTestSuite) TestUpdateSyncEntity_ReuseClientTag() {
+	// Insert an item with client tag.
+	entity1 := datastore.SyncEntity{
+		ClientID:               "client1",
+		ID:                     "id1",
+		Version:                ptr.Int64(1),
+		ClientDefinedUniqueTag: ptr.String("client_tag"),
+		Ctime:                  ptr.Int64(12345678),
+		Mtime:                  ptr.Int64(12345678),
+		DataType:               ptr.Int(123),
+		Folder:                 ptr.Bool(false),
+		Deleted:                ptr.Bool(false),
+		DataTypeMtime:          ptr.String("123#12345678"),
+		Specifics:              []byte{1, 2},
+	}
+	conflict, err := suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	suite.False(conflict, "Successful insert should not have conflict")
+
+	// Check a tag item is inserted.
+	tagItems, err := datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Len(tagItems, 1, "Tag item should be inserted")
+
+	// Update it to version 23456789.
+	updateEntity1 := entity1
+	updateEntity1.Version = ptr.Int64(23456789)
+	updateEntity1.Mtime = ptr.Int64(23456789)
+	updateEntity1.Folder = ptr.Bool(true)
+	updateEntity1.DataTypeMtime = ptr.String("123#23456789")
+	updateEntity1.Specifics = []byte{3, 4}
+	conflict, deleted, err := suite.db.UpdateSyncEntity(context.Background(), &updateEntity1, *entity1.Version)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.False(deleted, "Non-delete operation should return false")
+
+	// Soft-delete the item with wrong version should get conflict.
+	updateEntity1.Deleted = ptr.Bool(true)
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity1, *entity1.Version)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.True(conflict, "Version mismatched update should have conflict")
+	suite.False(deleted, "Failed delete operation should return false")
+
+	// Soft-delete the item with matched version.
+	updateEntity1.Version = ptr.Int64(34567890)
+	conflict, deleted, err = suite.db.UpdateSyncEntity(context.Background(), &updateEntity1, 23456789)
+	suite.Require().NoError(err, "UpdateSyncEntity should succeed")
+	suite.False(conflict, "Successful update should not have conflict")
+	suite.True(deleted, "Delete operation should return true")
+
+	// Check tag item is deleted.
+	tagItems, err = datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Empty(tagItems, "Tag item should be deleted")
+
+	// Insert another item with the same client tag again.
+	entity2 := entity1
+	entity2.ID = "id2"
+	conflict, err = suite.db.InsertSyncEntity(context.Background(), &entity2)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	suite.False(conflict, "Successful insert should not have conflict")
+
+	// Check a tag item is inserted.
+	tagItems, err = datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Len(tagItems, 1, "Tag item should be inserted")
+}
+
+func (suite *SyncEntityTestSuite) TestGetUpdatesForType() {
+	// Insert items for testing.
+	entity1 := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         ptr.Int64(12345678),
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(true),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+		Specifics:     []byte{1, 2},
+	}
+
+	entity2 := entity1
+	entity2.ID = "id2"
+	entity2.Folder = ptr.Bool(false)
+	entity2.Mtime = ptr.Int64(12345679)
+	entity2.DataTypeMtime = ptr.String("123#12345679")
+
+	entity3 := entity2
+	entity3.ID = "id3"
+	entity3.DataType = ptr.Int(124)
+	entity3.DataTypeMtime = ptr.String("124#12345679")
+
+	// non-expired item
+	entity4 := entity2
+	entity4.ClientID = "client2"
+	entity4.ID = "id4"
+	entity4.ExpirationTime = ptr.Int64(time.Now().Unix() + 300)
+
+	// expired item
+	entity5 := entity2
+	entity5.ClientID = "client2"
+	entity5.ID = "id5"
+	entity5.ExpirationTime = ptr.Int64(time.Now().Unix() - 300)
+
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity1)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity2)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity3)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity4)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+	_, err = suite.db.InsertSyncEntity(context.Background(), &entity5)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+
+	// Get all updates for type 123 and client1 using token = 0.
+	hasChangesRemaining, syncItems, err := suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		true,
+		"client1",
+		100,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity1, entity2}, syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Get all updates for type 124 and client1 using token = 0.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		124,
+		0,
+		true,
+		"client1",
+		100,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity3}, syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Get all updates for type 123 and client2 using token = 0.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		true,
+		"client2",
+		100,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity4}, syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Get all updates for type 124 and client2 using token = 0.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		124,
+		0,
+		true,
+		"client2",
+		100,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Empty(syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Test maxSize will limit the return entries size, and hasChangesRemaining
+	// should be true when there are more updates available in the DB.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		true,
+		"client1",
+		1,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity1}, syncItems)
+	suite.True(hasChangesRemaining)
+
+	// Test when num of query items equal to the limit, hasChangesRemaining should
+	// be true.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		true,
+		"client1",
+		2,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity1, entity2}, syncItems)
+	suite.True(hasChangesRemaining)
+
+	// Test fetchFolders will remove folder items if false
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		false,
+		"client1",
+		100,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity2}, syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Get all updates for a type for a client using mtime of one item as token.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		12345678,
+		true,
+		"client1",
+		100,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal([]datastore.SyncEntity{entity2}, syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Test batch is working correctly for over 100 items
+	err = datastoretest.ResetTable(suite.db)
+	suite.Require().NoError(err, "Failed to reset table")
+
+	expectedSyncItems := []datastore.SyncEntity{}
+	entity1 = datastore.SyncEntity{
+		ClientID:  "client1",
+		Version:   ptr.Int64(1),
+		Ctime:     ptr.Int64(12345678),
+		DataType:  ptr.Int(123),
+		Folder:    ptr.Bool(false),
+		Deleted:   ptr.Bool(false),
+		Specifics: []byte{1, 2},
+	}
+
+	mtime := time.Now().UnixMilli()
+	for i := 1; i <= 250; i++ {
+		mtime++
+		entity := entity1
+		entity.ID = "id" + strconv.Itoa(i)
+		entity.Mtime = ptr.Int64(mtime)
+		entity.DataTypeMtime = ptr.String("123#" + strconv.FormatInt(*entity.Mtime, 10))
+		_, insertErr := suite.db.InsertSyncEntity(context.Background(), &entity)
+		suite.Require().NoError(insertErr, "InsertSyncEntity should succeed")
+		expectedSyncItems = append(expectedSyncItems, entity)
+	}
+
+	// All items should be returned and sorted by Mtime.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		true,
+		"client1",
+		300,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	sort.Sort(datastore.SyncEntityByMtime(expectedSyncItems))
+	suite.Equal(expectedSyncItems, syncItems)
+	suite.False(hasChangesRemaining)
+
+	// Test that when maxGUBatchSize is smaller than total updates, the first n
+	// items ordered by Mtime should be returned.
+	hasChangesRemaining, syncItems, err = suite.db.GetUpdatesForType(
+		context.Background(),
+		123,
+		0,
+		true,
+		"client1",
+		200,
+	)
+	suite.Require().NoError(err, "GetUpdatesForType should succeed")
+	suite.Equal(syncItems, expectedSyncItems[0:200])
+	suite.True(hasChangesRemaining)
+}
+
+func (suite *SyncEntityTestSuite) TestCreateDBSyncEntity() {
+	nigoriSpecific := &sync_pb.NigoriSpecifics{}
+	nigoriEntitySpecific := &sync_pb.EntitySpecifics_Nigori{Nigori: nigoriSpecific}
+	specifics := &sync_pb.EntitySpecifics{SpecificsVariant: nigoriEntitySpecific}
+	specificsBytes, err := proto.Marshal(specifics)
+	suite.Require().NoError(err, "Marshal specifics should succeed")
+
+	uniquePosition := &sync_pb.UniquePosition{
+		CustomCompressedV1: []byte{1, 2},
+	}
+	uniquePositionBytes, err := proto.Marshal(uniquePosition)
+	suite.Require().NoError(err, "Marshal unique position should succeed")
+
+	guid := ptr.String("guid")
+	pbEntity := sync_pb.SyncEntity{
+		IdString:               ptr.String("client_item_id"),
+		ParentIdString:         ptr.String("parent_id"),
+		Version:                ptr.Int64(0),
+		Name:                   ptr.String("name"),
+		NonUniqueName:          ptr.String("non_unique_name"),
+		ServerDefinedUniqueTag: ptr.String("server_tag"),
+		ClientTagHash:          ptr.String("client_tag"),
+		Deleted:                ptr.Bool(false),
+		Folder:                 ptr.Bool(false),
+		Specifics:              specifics,
+		UniquePosition:         uniquePosition,
+	}
+	expectedDBEntity := datastore.SyncEntity{
+		ClientID:               "client1",
+		ParentID:               pbEntity.ParentIdString,
+		Version:                pbEntity.Version,
+		Name:                   pbEntity.Name,
+		NonUniqueName:          pbEntity.NonUniqueName,
+		ServerDefinedUniqueTag: pbEntity.ServerDefinedUniqueTag,
+		ClientDefinedUniqueTag: pbEntity.ClientTagHash,
+		Deleted:                pbEntity.Deleted,
+		Folder:                 pbEntity.Folder,
+		Specifics:              specificsBytes,
+		UniquePosition:         uniquePositionBytes,
+		DataType:               ptr.Int(47745), // nigori type ID
+		OriginatorCacheGUID:    guid,
+		OriginatorClientItemID: pbEntity.IdString,
+		ExpirationTime:         nil,
+	}
+
+	dbEntity, err := datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.Require().NoError(err, "CreateDBSyncEntity should succeed")
+
+	// Check ID is replaced with a server-generated ID.
+	suite.NotEqual(
+		dbEntity.ID, *pbEntity.IdString,
+		"ID should be a server-generated ID and not equal to the passed IdString")
+	expectedDBEntity.ID = dbEntity.ID
+
+	// Check Mtime and Ctime should be provided by the server if client does not
+	// provide it.
+	suite.NotNil(
+		dbEntity.Ctime, "Mtime should not be nil if client did not pass one")
+	suite.NotNil(
+		dbEntity.Mtime, "Mtime should not be nil if client did not pass one")
+	suite.Equal(
+		*dbEntity.Mtime, *dbEntity.Ctime,
+		"Server should generate the same value for mtime and ctime when they're not provided by the client")
+	expectedDBEntity.Ctime = dbEntity.Ctime
+	expectedDBEntity.Mtime = dbEntity.Mtime
+	expectedDBEntity.DataTypeMtime = ptr.String("47745#" + strconv.FormatInt(*dbEntity.Mtime, 10))
+	suite.Equal(&expectedDBEntity, dbEntity)
+	suite.Nil(dbEntity.ExpirationTime)
+
+	pbEntity.Deleted = nil
+	pbEntity.Folder = nil
+	dbEntity, err = datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.Require().NoError(err, "CreateDBSyncEntity should succeed")
+	suite.False(*dbEntity.Deleted, "Default value should be set for Deleted for new entities")
+	suite.False(*dbEntity.Folder, "Default value should be set for Deleted for new entities")
+	suite.Nil(dbEntity.ExpirationTime)
+
+	// Check the case when Ctime and Mtime are provided by the client.
+	pbEntity.Ctime = ptr.Int64(12345678)
+	pbEntity.Mtime = ptr.Int64(12345678)
+	dbEntity, err = datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.Require().NoError(err, "CreateDBSyncEntity should succeed")
+	suite.Equal(*dbEntity.Ctime, *pbEntity.Ctime, "Client's Ctime should be respected")
+	suite.NotEqual(*dbEntity.Mtime, *pbEntity.Mtime, "Client's Mtime should be replaced")
+	suite.Nil(dbEntity.ExpirationTime)
+
+	// When cacheGUID is nil, ID should be kept and no originator info are filled.
+	dbEntity, err = datastore.CreateDBSyncEntity(&pbEntity, nil, "client1")
+	suite.Require().NoError(err, "CreateDBSyncEntity should succeed")
+	suite.Equal(dbEntity.ID, *pbEntity.IdString)
+	suite.Nil(dbEntity.OriginatorCacheGUID)
+	suite.Nil(dbEntity.OriginatorClientItemID)
+	suite.Nil(dbEntity.ExpirationTime)
+
+	// Check that when updating from a previous version with guid, ID will not be
+	// replaced.
+	pbEntity.Version = ptr.Int64(1)
+	dbEntity, err = datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.Require().NoError(err, "CreateDBSyncEntity should succeed")
+	suite.Equal(dbEntity.ID, *pbEntity.IdString)
+	suite.Nil(dbEntity.Deleted, "Deleted won't apply its default value for updated entities")
+	suite.Nil(dbEntity.Folder, "Deleted won't apply its default value for updated entities")
+	suite.Nil(dbEntity.ExpirationTime)
+
+	// Empty unique position should be marshalled to nil without error.
+	pbEntity.UniquePosition = nil
+	dbEntity, err = datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.Require().NoError(err)
+	suite.Nil(dbEntity.UniquePosition)
+	suite.Nil(dbEntity.ExpirationTime)
+
+	// A history entity should have the client tag hash as the ID,
+	// and an expiration time.
+	historyEntitySpecific := &sync_pb.EntitySpecifics_History{}
+	pbEntity.Specifics = &sync_pb.EntitySpecifics{SpecificsVariant: historyEntitySpecific}
+	dbEntity, err = datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.Require().NoError(err)
+	suite.Equal("client_tag", dbEntity.ID)
+	expectedExpirationTime := time.Now().Unix() + datastore.HistoryExpirationIntervalSecs
+	suite.Greater(*dbEntity.ExpirationTime+2, expectedExpirationTime)
+	suite.Less(*dbEntity.ExpirationTime-2, expectedExpirationTime)
+
+	// Empty specifics should report marshal error.
+	pbEntity.Specifics = nil
+	_, err = datastore.CreateDBSyncEntity(&pbEntity, guid, "client1")
+	suite.NotNil(err.Error(), "empty specifics should fail")
+}
+
+func (suite *SyncEntityTestSuite) TestCreatePBSyncEntity() {
+	nigoriSpecific := &sync_pb.NigoriSpecifics{}
+	nigoriEntitySpecific := &sync_pb.EntitySpecifics_Nigori{Nigori: nigoriSpecific}
+	specifics := &sync_pb.EntitySpecifics{SpecificsVariant: nigoriEntitySpecific}
+	specificsBytes, err := proto.Marshal(specifics)
+	suite.Require().NoError(err, "Marshal specifics should succeed")
+
+	uniquePosition := &sync_pb.UniquePosition{
+		CustomCompressedV1: []byte{1, 2},
+	}
+	uniquePositionBytes, err := proto.Marshal(uniquePosition)
+	suite.Require().NoError(err, "Marshal unique position should succeed")
+
+	dbEntity := datastore.SyncEntity{
+		ClientID:               "client1",
+		ID:                     "id1",
+		ParentID:               ptr.String("parent_id"),
+		Version:                ptr.Int64(10),
+		Mtime:                  ptr.Int64(12345678),
+		Ctime:                  ptr.Int64(12345678),
+		Name:                   ptr.String("name"),
+		NonUniqueName:          ptr.String("non_unique_name"),
+		ServerDefinedUniqueTag: ptr.String("server_tag"),
+		ClientDefinedUniqueTag: ptr.String("client_tag"),
+		Deleted:                ptr.Bool(false),
+		Folder:                 ptr.Bool(false),
+		Specifics:              specificsBytes,
+		UniquePosition:         uniquePositionBytes,
+		DataType:               ptr.Int(47745), // nigori type ID
+		OriginatorCacheGUID:    ptr.String("guid"),
+		OriginatorClientItemID: ptr.String("client_item_id"),
+		DataTypeMtime:          ptr.String("47745#12345678"),
+	}
+	expectedPBEntity := sync_pb.SyncEntity{
+		IdString:               &dbEntity.ID,
+		ParentIdString:         dbEntity.ParentID,
+		Version:                dbEntity.Version,
+		Mtime:                  dbEntity.Mtime,
+		Ctime:                  dbEntity.Ctime,
+		Name:                   dbEntity.Name,
+		NonUniqueName:          dbEntity.NonUniqueName,
+		ServerDefinedUniqueTag: dbEntity.ServerDefinedUniqueTag,
+		ClientTagHash:          dbEntity.ClientDefinedUniqueTag,
+		OriginatorCacheGuid:    dbEntity.OriginatorCacheGUID,
+		OriginatorClientItemId: dbEntity.OriginatorClientItemID,
+		Deleted:                dbEntity.Deleted,
+		Folder:                 dbEntity.Folder,
+		Specifics:              specifics,
+		UniquePosition:         uniquePosition,
+	}
+
+	pbEntity, err := datastore.CreatePBSyncEntity(&dbEntity)
+	suite.Require().NoError(err, "CreatePBSyncEntity should succeed")
+
+	suite.Empty(cmp.Diff(&expectedPBEntity, pbEntity, protocmp.Transform()))
+
+	// Nil UniquePosition should be unmarshalled as nil without error.
+	dbEntity.UniquePosition = nil
+	pbEntity, err = datastore.CreatePBSyncEntity(&dbEntity)
+	suite.Require().NoError(err, "CreatePBSyncEntity should succeed")
+	suite.Nil(pbEntity.UniquePosition)
+
+	// Nil Specifics should be unmarshalled as nil without error.
+	dbEntity.Specifics = nil
+	pbEntity, err = datastore.CreatePBSyncEntity(&dbEntity)
+	suite.Require().NoError(err, "CreatePBSyncEntity should succeed")
+	suite.Nil(pbEntity.Specifics)
+}
+
+func (suite *SyncEntityTestSuite) TestDisableSyncChain() {
+	clientID := "client1"
+	id := "disabled_chain"
+	err := suite.db.DisableSyncChain(context.Background(), clientID)
+	suite.Require().NoError(err, "DisableSyncChain should succeed")
+	e, err := datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Len(e, 1)
+	suite.Equal(clientID, e[0].ClientID)
+	suite.Equal(id, e[0].ID)
+}
+
+func (suite *SyncEntityTestSuite) TestIsSyncChainDisabled() {
+	clientID := "client1"
+
+	disabled, err := suite.db.IsSyncChainDisabled(context.Background(), clientID)
+	suite.Require().NoError(err, "IsSyncChainDisabled should succeed")
+	suite.False(disabled)
+
+	err = suite.db.DisableSyncChain(context.Background(), clientID)
+	suite.Require().NoError(err, "DisableSyncChain should succeed")
+	disabled, err = suite.db.IsSyncChainDisabled(context.Background(), clientID)
+	suite.Require().NoError(err, "IsSyncChainDisabled should succeed")
+	suite.True(disabled)
+}
+
+func (suite *SyncEntityTestSuite) TestClearServerData() {
+	// Test clear sync entities
+	entity := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         ptr.Int64(12345678),
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(false),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+	}
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+
+	e, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Len(e, 1)
+
+	e, err = suite.db.ClearServerData(context.Background(), entity.ClientID)
+	suite.Require().NoError(err, "ClearServerData should succeed")
+	suite.Len(e, 1)
+
+	e, err = datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Empty(e)
+
+	// Test clear tagged items
+	entity1 := datastore.SyncEntity{
+		ClientID:               "client1",
+		ID:                     "id1",
+		Version:                ptr.Int64(1),
+		Ctime:                  ptr.Int64(12345678),
+		Mtime:                  ptr.Int64(12345678),
+		DataType:               ptr.Int(123),
+		Folder:                 ptr.Bool(false),
+		Deleted:                ptr.Bool(false),
+		DataTypeMtime:          ptr.String("123#12345678"),
+		ServerDefinedUniqueTag: ptr.String("tag1"),
+	}
+	entity2 := entity1
+	entity2.ID = "id2"
+	entity2.ServerDefinedUniqueTag = ptr.String("tag2")
+	entities := []*datastore.SyncEntity{&entity1, &entity2}
+	suite.Require().NoError(
+		suite.db.InsertSyncEntitiesWithServerTags(context.Background(), entities),
+		"InsertSyncEntitiesWithServerTags should succeed")
+
+	e, err = datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Len(e, 2, "No items should be written if fail")
+
+	t, err := datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Len(t, 2, "No items should be written if fail")
+
+	e, err = suite.db.ClearServerData(context.Background(), entity.ClientID)
+	suite.Require().NoError(err, "ClearServerData should succeed")
+	suite.Len(e, 4)
+
+	e, err = datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Empty(e, "No items should be written if fail")
+
+	t, err = datastoretest.ScanTagItems(suite.db)
+	suite.Require().NoError(err, "ScanTagItems should succeed")
+	suite.Empty(t, "No items should be written if fail")
+}
+
+// Inserts enough large items that the underlying Query response exceeds the
+// 1MB per-page limit, forcing pagination. Verifies ClearServerData walks every
+// page and deletes every item for the target chain, and that items belonging
+// to other chains are not touched.
+//
+// 30 items × ~350KB Specifics ≈ 10MB of raw item data, which guarantees many
+// Query pages on both dynamodb-local and the real service (both enforce the
+// 1MB Query response limit per the AWS docs). 350KB also stays just under the
+// 400KB DynamoDB per-item size cap, exercising near-worst-case page packing.
+func (suite *SyncEntityTestSuite) TestClearServerDataPagination() {
+	const itemCount = 30
+	const otherClientItemCount = 5
+	const specificsSize = 350 * 1024
+
+	// Deterministic, repeatable, no extra deps — only the size counts toward
+	// the 1MB query budget, not the content.
+	blob := bytes.Repeat([]byte("x"), specificsSize)
+	clientID := "client-pagination"
+	otherClientID := "client-other"
+
+	insert := func(cid string, count int, specifics []byte) {
+		for i := range count {
+			entity := datastore.SyncEntity{
+				ClientID:      cid,
+				ID:            fmt.Sprintf("id-%04d", i),
+				Version:       ptr.Int64(1),
+				Ctime:         ptr.Int64(12345678),
+				Mtime:         ptr.Int64(int64(12345678 + i)),
+				DataType:      ptr.Int(123),
+				Folder:        ptr.Bool(false),
+				Deleted:       ptr.Bool(false),
+				DataTypeMtime: ptr.String("123#12345678"),
+				Specifics:     specifics,
+			}
+			_, err := suite.db.InsertSyncEntity(context.Background(), &entity)
+			suite.Require().NoError(err, "InsertSyncEntity should succeed")
+		}
+	}
+
+	insert(clientID, itemCount, blob)
+	// Keep other-chain items small — ScanSyncEntities doesn't paginate, so a
+	// large blob here could push the post-clear scan past the 1MB page cap
+	// and cause flaky Len assertions.
+	insert(otherClientID, otherClientItemCount, nil)
+
+	cleared, err := suite.db.ClearServerData(context.Background(), clientID)
+	suite.Require().NoError(err, "ClearServerData should succeed")
+	// If pagination is broken (e.g. single Query call), only the first ~1MB
+	// page of items would be fetched and deleted, leaving the rest behind.
+	suite.Len(cleared, itemCount, "pagination must fetch every item, not stop after the first 1MB page")
+	for _, item := range cleared {
+		suite.Equal(clientID, item.ClientID, "ClearServerData must only return items for the target chain")
+	}
+
+	remaining, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Lenf(remaining, otherClientItemCount,
+		"items belonging to other chains must not be deleted: expected %d remaining, got %d",
+		otherClientItemCount, len(remaining))
+	for _, item := range remaining {
+		suite.Equal(otherClientID, item.ClientID, "only the other chain's items should remain")
+	}
+}
+
+// Production clear-data always DisableSyncChain first, leaving a disabled_chain
+// marker that ClearServerData must skip so IsSyncChainDisabled stays true.
+func (suite *SyncEntityTestSuite) TestClearServerDataSkipsDisabledChainMarker() {
+	entity := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         ptr.Int64(12345678),
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(false),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+	}
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+
+	suite.Require().NoError(
+		suite.db.DisableSyncChain(context.Background(), entity.ClientID),
+		"DisableSyncChain should succeed")
+
+	cleared, err := suite.db.ClearServerData(context.Background(), entity.ClientID)
+	suite.Require().NoError(err, "ClearServerData should succeed")
+	suite.GreaterOrEqual(len(cleared), 1)
+
+	remaining, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Empty(remaining, "sync entities should be deleted")
+
+	disabled, err := suite.db.IsSyncChainDisabled(context.Background(), entity.ClientID)
+	suite.Require().NoError(err, "IsSyncChainDisabled should succeed")
+	suite.True(disabled, "disabled_chain marker must not be deleted")
+}
+
+// Some entries have a nil Mtime; ClearServerData must handle them without panicking.
+func (suite *SyncEntityTestSuite) TestClearServerDataLegacyMissingMtime() {
+	entity := datastore.SyncEntity{
+		ClientID:      "client1",
+		ID:            "id1",
+		Version:       ptr.Int64(1),
+		Ctime:         ptr.Int64(12345678),
+		Mtime:         nil,
+		DataType:      ptr.Int(123),
+		Folder:        ptr.Bool(false),
+		Deleted:       ptr.Bool(false),
+		DataTypeMtime: ptr.String("123#12345678"),
+	}
+	_, err := suite.db.InsertSyncEntity(context.Background(), &entity)
+	suite.Require().NoError(err, "InsertSyncEntity should succeed")
+
+	e, err := suite.db.ClearServerData(context.Background(), entity.ClientID)
+	suite.Require().NoError(err, "ClearServerData should not panic on missing Mtime")
+	suite.Len(e, 1)
+
+	remaining, err := datastoretest.ScanSyncEntities(suite.db)
+	suite.Require().NoError(err, "ScanSyncEntities should succeed")
+	suite.Empty(remaining, "row should be deleted even without Mtime")
+}
+
+func TestSyncEntityTestSuite(t *testing.T) {
+	suite.Run(t, new(SyncEntityTestSuite))
+}

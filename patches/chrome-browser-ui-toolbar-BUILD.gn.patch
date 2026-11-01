@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/toolbar/BUILD.gn b/chrome/browser/ui/toolbar/BUILD.gn
-index cbcfc3ab2ea3f43ca527959b0b36f2e5225501cd..5f4d987e9bcba608787efdce1d08557447e6853a 100644
+index cbcfc3ab2ea3f43ca527959b0b36f2e5225501cd..adf8148b00dbfb807b25c78913127ea9d618c5ab 100644
 --- a/chrome/browser/ui/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/toolbar/BUILD.gn
 @@ -14,6 +14,7 @@ source_set("toolbar") {
@@ -10,3 +10,15 @@ index cbcfc3ab2ea3f43ca527959b0b36f2e5225501cd..5f4d987e9bcba608787efdce1d085574
      "//base",
      "//chrome/browser/autocomplete",
      "//chrome/browser/contextual_tasks",
+@@ -103,7 +104,10 @@ source_set("toolbar") {
+ 
+ source_set("impl") {
+   sources = []
+-  deps = [ ":toolbar" ]
++  deps = [
++    ":toolbar",
++    "//compass/browser/ui:app_menu_hooks",
++  ]
+ 
+   if (!is_android) {
+     sources += [

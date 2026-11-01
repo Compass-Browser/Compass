@@ -1,0 +1,41 @@
+diff --git a/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc b/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
+index 154bd84a1c6a3dab8fe3172b3bab0ba46020d001..cc76a36ba3be6e4ac00cc3d725716e4e3fd1df1e 100644
+--- a/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
++++ b/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
+@@ -8,6 +8,7 @@
+ 
+ #include "base/memory/weak_ptr.h"
+ #include "components/history/core/browser/history_service.h"
++#include "components/history/core/browser/sync/delete_directive_handler.h"
+ #include "components/sync/base/features.h"
+ #include "components/sync/model/data_type_store_service.h"
+ #include "components/sync/service/sync_service.h"
+@@ -56,7 +57,16 @@ HistoryDeleteDirectivesDataTypeController::
+               sync_service,
+               pref_service,
+               HistoryDataTypeControllerHelper::AccountManagedStatusPolicy::
+-                  kAllowAll) {}
++                  kAllowAll) {
++  // Compass: under local sync, processed directives stay on the server for
++  // a while (docs/design/sync.md, "Slice 7 notes"). Local sync only changes
++  // with a restart.
++  if (history_service && sync_service->IsLocalSyncEnabled()) {
++    static_cast<DeleteDirectiveHandler*>(
++        history_service->GetDeleteDirectivesSyncableService().get())
++        ->set_compass_keep_processed_directives(true);
++  }
++}
+ 
+ HistoryDeleteDirectivesDataTypeController::
+     ~HistoryDeleteDirectivesDataTypeController() = default;
+@@ -65,7 +75,9 @@ syncer::DataTypeController::PreconditionState
+ HistoryDeleteDirectivesDataTypeController::GetPreconditionState(
+     const PreconditionContext& context) const {
+   DCHECK(CalledOnValidThread());
+-  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled()) {
++  // Compass: custom passphrase allowed with local sync, as for HISTORY.
++  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled() &&
++      !helper_.sync_service()->IsLocalSyncEnabled()) {
+     return PreconditionState::kMustStopAndClearData;
+   }
+   return helper_.GetPreconditionState(context);
