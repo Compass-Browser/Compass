@@ -28,10 +28,16 @@ inline constexpr float kContentCornerRadius = 12.f;
 inline constexpr int kCollapsedSidebarWidth = kContentFrameInset;
 
 // The card's insets in the area beside the sidebar, which sets the leading
-// edge.
-inline constexpr gfx::Insets GetContentFrameInsets() {
-  return gfx::Insets::TLBR(kContentFrameInset, 0, kContentFrameInset,
-                           kContentFrameInset);
+// edge. |trailing_caption_height| is how far down the window's caption
+// buttons reach at its top trailing corner (Windows, Linux; 0 on macOS,
+// where the traffic lights are in the sidebar): the card starts below them,
+// as they paint over the frame (docs/design/window-frame.md, "Windows").
+inline constexpr gfx::Insets GetContentFrameInsets(
+    int trailing_caption_height = 0) {
+  return gfx::Insets::TLBR(
+      trailing_caption_height > kContentFrameInset ? trailing_caption_height
+                                                   : kContentFrameInset,
+      0, kContentFrameInset, kContentFrameInset);
 }
 
 // The card's insets in a popup's |browser_view| under its toolbar: the

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6d1a7f0a7 100644
+index 389c6f8c6e66768cb20a960f11ba620c7516f44b..7c19c4b9bdf98f9c4c328157ff3adcbf85f8fd1e 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
@@ -22,13 +22,14 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
    VerticalTabStripAnimation animation;
    animation.current_motion =
        controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
-@@ -900,6 +904,13 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -900,6 +904,14 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                      layout_data_->tab_strip_type == TabStripType::kVertical);
    }
  
 +  // Compass: beside the sidebar, the page sits in a card inside the frame.
 +  if (layout_data_->tab_strip_type == TabStripType::kVertical) {
-+    params = params.WithInsets(compass::GetContentFrameInsets());
++    params = params.WithInsets(compass::GetContentFrameInsets(base::ClampCeil(
++        params.trailing_exclusion.ContentWithPadding().height())));
 +    unclipped_contents_region.Inset(
 +        gfx::Insets().set_right(compass::kContentFrameInset));
 +  }
@@ -36,7 +37,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
    if (IsParentedTo(views().vertical_tab_strip_background_blur_backdrop,
                     views().browser_view)) {
      layout.AddChild(
-@@ -914,9 +925,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -914,9 +926,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    if (IsParentedTo(views().vertical_tab_strip_top_corner,
                     views().browser_view)) {
      gfx::Rect corner_bounds;
@@ -48,7 +49,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
  
      // The top corner is drawn when the tabstrip goes all the way to the top.
      if (top_corner_visible) {
-@@ -937,9 +947,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -937,9 +948,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    if (IsParentedTo(views().vertical_tab_strip_bottom_corner,
                     views().browser_view)) {
      gfx::Rect corner_bounds;
@@ -59,7 +60,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
      if (bottom_corner_visible) {
        auto preferred =
            views().vertical_tab_strip_bottom_corner->GetPreferredSize();
-@@ -1137,8 +1145,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1137,8 +1146,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    // especially obvious in split view, where turning the separator off provides
    // the required top padding.
    const auto& separator_info = layout_data_->separator_info;
@@ -71,7 +72,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
  
    // Updating the top, left and right insets for contents container view when
    // in split view. This is dependent on a number of other browser states.
-@@ -1260,6 +1270,13 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1260,6 +1271,13 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      }
      views().multi_contents_view->SetBackgroundRadii(content_corners);
    }
@@ -85,7 +86,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
  
    // Make final visual adjustments required for child views to paint.
    if (layout_data_->tab_strip_type == TabStripType::kVertical) {
-@@ -1595,6 +1612,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1595,6 +1613,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
            vertical_tabs_bottom_corner_size;
      }
  
@@ -94,7 +95,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..4a02666f187bcd8bdce1c363256ef2c6
      vertical_tabs_background->SetCorners(vertical_tabs_corners);
  
      // Apply shadow for expand-on-hover.
-@@ -1630,6 +1649,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1630,6 +1650,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
      if (animation.expand_on_hover_width > 0.0) {
        vertical_tabs_outline.bottom = true;
      }

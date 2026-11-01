@@ -1,0 +1,34 @@
+diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
+index d0f0f711eaa58b43837d69c62dbe5e15301dea95..c45549ac293d31ba29195c816b017862d6a3b083 100644
+--- a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
++++ b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
+@@ -16,6 +16,7 @@
+ #include "chrome/browser/win/titlebar_config.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/compositor/layer.h"
+ #include "ui/strings/grit/ui_strings.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/layout/flex_layout.h"
+@@ -86,6 +87,9 @@ BrowserCaptionButtonContainer::BrowserCaptionButtonContainer(
+   if (frame_view_->GetBrowserView()->AppUsesWindowControlsOverlay()) {
+     UpdateButtonToolTipsForWindowControlsOverlay();
+   }
++  // Compass: see OnWindowControlsOverlayEnabledChanged().
++  SetPaintToLayer();
++  layer()->SetFillsBoundsOpaquely(false);
+ }
+ 
+ BrowserCaptionButtonContainer::~BrowserCaptionButtonContainer() = default;
+@@ -145,7 +149,10 @@ void BrowserCaptionButtonContainer::OnWindowControlsOverlayEnabledChanged() {
+     SetPaintToLayer();
+   } else {
+     SetBackground(nullptr);
+-    DestroyLayer();
++    // Compass: the frame around the page paints over the whole browser view
++    // (docs/design/window-frame.md), so the buttons keep a layer on top.
++    SetPaintToLayer();
++    layer()->SetFillsBoundsOpaquely(false);
+   }
+   UpdateButtonToolTipsForWindowControlsOverlay();
+ }
