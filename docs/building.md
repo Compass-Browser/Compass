@@ -104,7 +104,28 @@ tools/compass gen release
 tools/compass build -c release chrome
 ```
 
-Signing, notarization and installers are set up in CI, not locally.
+### Signing and notarization (macOS)
+
+```sh
+tools/compass sign             # build, sign, make the .dmg, notarize, staple
+tools/compass sign --no-notarize   # sign and package only
+```
+
+`compass sign` builds `chrome` and `chrome/installer/mac` in out/Release, then
+runs Chromium's signing driver (`out/Release/Compass Packaging/sign_chrome.py`)
+with the keychain's "Developer ID Application" certificate (`--identity` picks
+one if there are several). The result is `out/Release/signed/Compass-<version>.dmg`.
+
+Notarization uses a `notarytool` keychain profile, `compass` by default
+(`--keychain-profile`). Store it once per Mac, with an app-specific password
+from account.apple.com or an App Store Connect API key:
+
+```sh
+xcrun notarytool store-credentials compass --apple-id <APPLE_ID> --team-id <TEAM_ID>
+```
+
+The driver submits the app and then the .dmg, waits for Apple, staples both
+tickets, and `compass sign` checks the .dmg with `spctl`.
 
 ## Troubleshooting
 

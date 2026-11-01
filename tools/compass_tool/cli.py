@@ -11,7 +11,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import checkout, overrides, patches, sync_server
+from . import checkout, mac_sign, overrides, patches, sync_server
 from .layout import CONFIGS, Layout, detect
 from .process import CommandError, depot_tool, run
 
@@ -283,6 +283,43 @@ def cmd_test(layout: Layout, args) -> None:
   sys.exit(result.returncode)
 
 
+def cmd_sign(layout: Layout, args) -> None:
+  if sys.platform != 'darwin':
+    raise CommandError('compass sign is for macOS builds')
+  out_dir = layout.out_dir(args.config)
+  if not args.skip_build:
+    build(layout, args.config, [DEFAULT_TARGET, mac_sign.PACKAGING_TARGET],
+          args.jobs, args.skip_patches)
+  product = product_name(layout)
+  if not (mac_sign.packaging_dir(out_dir, product) / 'sign_chrome.py').exists():
+    raise CommandError('no signing scripts in %s; build %s first' %
+                       (mac_sign.packaging_dir(out_dir, product),
+                        mac_sign.PACKAGING_TARGET))
+  listed = run(['security', 'find-identity', '-v', '-p', 'codesigning'],
+               out_dir, capture=True, quiet=True)
+  try:
+    identity, name = mac_sign.pick_identity(listed.stdout, args.identity)
+  except ValueError as e:
+    raise CommandError(str(e))
+  profile = None if args.no_notarize else args.keychain_profile
+  if profile and run(['xcrun', 'notarytool', 'history', '--keychain-profile',
+                      profile], out_dir, check=False, capture=True,
+                     quiet=True).returncode != 0:
+    raise CommandError(mac_sign.store_credentials_hint(
+        profile, mac_sign.team_id(name)))
+  output = out_dir / 'signed'
+  if output.exists():
+    shutil.rmtree(output)
+  print('signing as "%s"%s' % (name, ', then notarizing' if profile else ''))
+  run(mac_sign.sign_command(sys.executable, out_dir, product, output,
+                            identity, profile), out_dir)
+  for dmg in sorted(output.glob('*.dmg')):
+    if profile:
+      run(['spctl', '--assess', '--type', 'open', '--context',
+           'context:primary-signature', '--verbose', dmg], out_dir)
+    print('signed: %s' % dmg)
+
+
 def cmd_sync_server(layout: Layout, args) -> None:
   if args.podman:
     if args.fresh:
@@ -432,6 +469,22 @@ def parser() -> argparse.ArgumentParser:
   add_jobs_argument(s)
   s.add_argument('test_args', nargs=argparse.REMAINDER)
   s.set_defaults(func=cmd_test)
+
+  s = sub.add_parser('sign', help='sign a macOS build with Developer ID, '
+                     'package it as a .dmg and notarize it')
+  s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')
+  s.add_argument('--identity', help='certificate hash or part of its name '
+                 '(default: the only "Developer ID Application" one)')
+  s.add_argument('--keychain-profile', default=mac_sign.DEFAULT_NOTARY_PROFILE,
+                 help='notarytool store-credentials profile (default: '
+                 '%(default)s)')
+  s.add_argument('--no-notarize', action='store_true',
+                 help='sign and package only')
+  s.add_argument('--skip-build', action='store_true',
+                 help="sign what's built, without building first")
+  add_skip_patches(s)
+  add_jobs_argument(s)
+  s.set_defaults(func=cmd_sign)
 
   s = sub.add_parser('sync-server', help='run the sync server (server/) '
                      'locally for development')
