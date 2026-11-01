@@ -45,6 +45,12 @@ targets:
         NSCameraUsageDescription: Compass scans the pairing code shown on your Mac.
         NSFaceIDUsageDescription: Compass asks for Face ID before showing your recovery code.
         UIBackgroundModes: [fetch]
+        # Self-hosted servers on the LAN or Tailscale may be plain HTTP.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        CFBundleURLTypes:
+          - CFBundleURLName: it.cvm.compass.pair
+            CFBundleURLSchemes: [compass-pair]
         BGTaskSchedulerPermittedIdentifiers: [it.cvm.compass.refresh]
     settings:
       base:

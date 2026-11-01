@@ -7,25 +7,43 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		017915037F4DAC4C17921D93 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00421F26DEF62FA9775146B /* Theme.swift */; };
+		0D76BE83326730393C9D18BE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19E94079AACC148BDF33673 /* Keychain.swift */; };
 		1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32AD0FC2A4DD49EA6D182F11 /* WebView.swift */; };
+		3B957538A2B525C251B71495 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */; };
+		4968D00362621422D48BCA8B /* CommandBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56591060B5711506971F138C /* CommandBar.swift */; };
+		55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E455C53F4AADF06D3632F37 /* QRScannerView.swift */; };
 		61F53E6DCCDA62783431CF91 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
+		6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79254E7DBBF744D531F94471 /* SettingsView.swift */; };
+		86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEA337DD801A959B39B43F /* SyncController.swift */; };
 		A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */; };
+		AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC2CC0BF44F21272D32F82C /* TabManager.swift */; };
 		B9397EAC3B0E3F43993B7540 /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 19C930BCE2BBF5B7C689E3A9 /* Compass.icon */; };
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		C50098134F965E6A549044FE /* CompassCrypto in Frameworks */ = {isa = PBXBuildFile; productRef = 6CF1BD16AA45CC47E4C07023 /* CompassCrypto */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassModel in Frameworks */ = {isa = PBXBuildFile; productRef = 8529FEBC80A94CC60F3F9BC7 /* CompassModel */; };
 		F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2B8A168816D005B0C1644F /* BrowserScreen.swift */; };
+		FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		19C930BCE2BBF5B7C689E3A9 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		29EEA337DD801A959B39B43F /* SyncController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncController.swift; sourceTree = "<group>"; };
 		2B2B8A168816D005B0C1644F /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
 		32AD0FC2A4DD49EA6D182F11 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
+		73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarScreen.swift; sourceTree = "<group>"; };
+		79254E7DBBF744D531F94471 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		79AFBB3C9E75698CE02F2A10 /* CompassKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CompassKit; path = CompassKit; sourceTree = SOURCE_ROOT; };
+		9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		BEC2CC0BF44F21272D32F82C /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
 		C98F12601AB2AF4C69845C13 /* CompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassApp.swift; sourceTree = "<group>"; };
+		D19E94079AACC148BDF33673 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F00421F26DEF62FA9775146B /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +77,18 @@
 			path = assets;
 			sourceTree = "<group>";
 		};
+		545F210D9F92AE4122D22825 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				56591060B5711506971F138C /* CommandBar.swift */,
+				4E455C53F4AADF06D3632F37 /* QRScannerView.swift */,
+				79254E7DBBF744D531F94471 /* SettingsView.swift */,
+				73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */,
+				F00421F26DEF62FA9775146B /* Theme.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		BAFDAA6D2D195C0F32F9078B /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -66,6 +96,8 @@
 				C98F12601AB2AF4C69845C13 /* CompassApp.swift */,
 				0655D4DC672C6C26B715EF5E /* Info.plist */,
 				D3B3BFB50B54351850942339 /* Browser */,
+				D03B8DA0821794B8BA9FD4BF /* Model */,
+				545F210D9F92AE4122D22825 /* Views */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -78,6 +110,17 @@
 				F402BF037897FEB15FFE5C17 /* Packages */,
 				FB16DD71CBDF85F8C3F2A524 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		D03B8DA0821794B8BA9FD4BF /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */,
+				D19E94079AACC148BDF33673 /* Keychain.swift */,
+				29EEA337DD801A959B39B43F /* SyncController.swift */,
+				BEC2CC0BF44F21272D32F82C /* TabManager.swift */,
+			);
+			path = Model;
 			sourceTree = "<group>";
 		};
 		D3B3BFB50B54351850942339 /* Browser */ = {
@@ -183,8 +226,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3B957538A2B525C251B71495 /* AppModel.swift in Sources */,
 				F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */,
+				4968D00362621422D48BCA8B /* CommandBar.swift in Sources */,
 				BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */,
+				0D76BE83326730393C9D18BE /* Keychain.swift in Sources */,
+				55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */,
+				6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */,
+				FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */,
+				86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */,
+				AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */,
+				017915037F4DAC4C17921D93 /* Theme.swift in Sources */,
 				1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

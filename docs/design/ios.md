@@ -258,3 +258,47 @@ The tests pass on the desktop's vectors and Chromium's own, byte for byte. Every
   - They cover: a round trip both ways with updates and a deletion; both devices in DEVICE_INFO; a joiner on an unstarted chain; a wrong passphrase; remote wins; a local edit beating a remote deletion; the initial merge; and no plaintext in the server's database.
   - Run them with `tools/compass ios test --sync-server <binary|build>`. Without it they're skipped.
 - **Still open:** the desktop interop run (the phone or simulator joining a desktop chain on sync-main) needs the MacBook. The desktop's QR code is still to do.
+
+### M3 (browser shell and spaces), 2026-11-01
+
+- **CompassModel.** It ports the desktop's sidebar:
+  - `SpaceStore` holds the spaces in `UniquePosition` order and the favorites root.
+  - `Space` has pinned, Today and archive roots. `SidebarNode` is a root, folder, tab or split.
+  - The invariants are the desktop's: folders nest in Pinned **and Today** (the desktop's roots accept both), splits hold at most two tabs and a split of one is dissolved, favorites hold only tabs, and roots don't move.
+  - Local edits are reported as a `SpaceStoreChange` (puts, deletes, and Today churn). `applyingRemote` keeps synced changes from echoing.
+  - Restoring from the archive makes fresh IDs, as the desktop's `Unarchive` does.
+  - The store is saved as one JSON snapshot.
+- **UniquePosition.** A byte-for-byte port of Chromium's, including the order-preserving compression. Chromium's insert scenarios and compressed-ordering tests are ported.
+- **CompassSpacesBridge.** It follows the desktop bridge's wire rules, summarized from `compass_spaces_sync_bridge.cc` on sync-main:
+  - **Tags and positions.**
+    - The client tag is the lowercase UUID; `ClientTagHash` gives `C8HbbahHD/9jkO3SUxgcFwf7lVU=` for `0f6d3f4e-1111-4222-8333-444444444444`, as on the desktop.
+    - Position suffixes are base64(SHA1(client tag hash)).
+  - **Fields.**
+    - Times are µs since the Windows epoch. `last_active_time` is only for Today tabs, only moves forward, and only in steps of 60 s or more.
+    - Favorites have no `space_uuid`. An empty string or `collapsed=false` is cleared rather than sent.
+    - `color`, `archive_after_seconds` and `directory_position` always go on spaces.
+  - **Mirror.** Commits start from the mirror of what the server had, so unknown fields survive. Nothing commits until the initial merge (`tracking`, saved with the mirror).
+  - **Throttle.** Tab churn (URL, title, last active) goes at most once per entity every 10 s. Structural changes go at once.
+  - **Applying remote changes.**
+    - Unknown parents are parked at the section root, and nothing is committed for them.
+    - Cycles and invalid placements go to the section root, and the fix-up is committed.
+    - A remote delete re-roots surviving children. Splits are normalized.
+    - Archive entries are section 4, with a split's panes as children.
+  - **Initial merge.**
+    - Favorites are deduped by URL.
+    - An untouched local "Home" (empty Pinned) folds its Today into the chain's first space.
+    - Today is deduped by URL.
+    - Local spaces go after the chain's.
+  - **Not yet:** the desktop's "keep the entry shown in the focused window" rule on a remote close. Here the entry just closes.
+- **App.**
+  - `AppModel`: store, selection, persistence, and the auto-archive timer.
+  - `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID. Links that open a new window become Today tabs.
+  - `SyncController`: Keychain seed and server; joining by pairing code (typed, or from the Mac's QR, `compass-pair:` URL scheme) or by recovery code; cycles on launch, on foreground, 2 s after local edits, and on the server's poll interval.
+  - **Screens.**
+    - **Sidebar:** the spaces paged by swipe and tinted with their color; favorites grid, pinned tree and Today; context menus for pin, unpin, archive, move to a space, split with, favorite, rename and delete; the archive sheet.
+    - **Browser:** a full-bleed web view; a bottom bar with back, address pill, forward and sidebar; a swipe on the bar steps between entries; a pane picker for splits.
+    - **Command bar:** search or URL (DuckDuckGo), and switching to open, pinned or favorite entries.
+    - **Settings:** sync status, devices, recovery code (behind Face ID or passcode), leave, and joining.
+- **Verified.**
+  - Two-device sidebar tests on the real server: a full tree (folders, nested folder, split, favorites, two spaces) arrives identical; a reorder, rename, move and delete come back; no echo commits afterwards; archive moves and a restore go across.
+  - In the simulator, a debug build launched with `-CompassServer <url> -CompassJoinRecovery "<words>"` joined a chain seeded by `SeedForSimulator` (a test that plays "the Mac") and showed its sidebar and favorites. `-CompassShow <title>` opened an entry in the browser.
