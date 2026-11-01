@@ -8,6 +8,7 @@ import CompassSync
 import Foundation
 import Observation
 import UIKit
+import os
 
 /// Sync for the app: the chain in the Keychain, the engine and its bridges,
 /// and when to run a cycle (launch, foreground, after local changes, the
@@ -207,7 +208,10 @@ final class SyncController {
     scheduled = Task { [weak self] in
       if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
       guard !Task.isCancelled else { return }
-      await self?.syncNow()
+      // Cancelling only stops the wait: a cycle that has started runs on
+      // in its own task, or its requests would fail as "cancelled" when
+      // the next syncSoon (for example from the push stream) comes in.
+      await Task { await self?.syncNow() }.value
     }
   }
 
@@ -239,6 +243,9 @@ final class SyncController {
       state = .failed("Can't reach the sync server (\(error)).")
     } catch {
       state = .failed("\(error)")
+    }
+    if case .failed(let message) = state {
+      Logger(subsystem: "it.cvm.compass", category: "sync").error("Sync failed: \(message, privacy: .public)")
     }
     // The server's poll interval while the app is open (push comes in M7).
     let poll = await engine.pollInterval ?? 30
