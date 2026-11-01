@@ -236,3 +236,25 @@ The tests pass on the desktop's vectors and Chromium's own, byte for byte. Every
   - It encrypts and decrypts `EntitySpecifics` with the type's empty field set.
   - It can also make a new chain's NIGORI. The engine tests need that, and so will "Start sync" on the phone.
 - **Still open:** no desktop-made NIGORI fixture yet. The M2 interop run (the phone joining a desktop chain) covers it.
+
+### M2 (sync engine core), 2026-11-01
+
+`CompassSync/Engine` holds the engine.
+
+- **`SyncEngine` (an actor).**
+  - Downloads every registered type through GetUpdates with progress markers. The first time it uses origin `NEW_CLIENT`, as the server's setup needs.
+  - Commits pending changes in batches of 90, or of the server's `max_commit_batch_size`.
+  - Honors `ClientCommand`'s poll interval and keeps the store birthday.
+- **Entities.** They are keyed by client tag hash (`ClientTagHash`, checked against Chromium's ClientTagHashTest vectors).
+- **Encryption.** Everything is encrypted except NIGORI and DEVICE_INFO, as on the desktop. HISTORY is encrypted too (sync.md, "Slice 2b").
+- **Nigori.**
+  - It reads the chain's NIGORI first and opens it with the passphrase.
+  - A chain with an empty NIGORI is `chainNotStarted` for a joining device. A first device (`createChainIfEmpty`) commits a new custom-passphrase NIGORI over the server's root entity.
+- **Conflicts.** The remote wins, except that a local edit beats a remote deletion and re-creates the entity (Chromium's default `ResolveConflict`). A commit `CONFLICT` triggers a fresh download, then another commit round (at most 3).
+- **Metadata.** `SyncMetadata` (cache GUID, birthday, NIGORI, progress tokens, entity metadata with pending changes) is saved as one binary plist per profile by `FileSyncMetadataStore`. It's small, and GRDB comes with history in M5.
+- **Bridges.** A `DataTypeBridge` gives the client tag from specifics, applies remote changes, supplies local data for the initial merge, and gets the cryptographer.
+  - `DeviceInfoBridge` writes the phone's entry: tag `DeviceInfo_<cache guid>`, OS iOS, form factor phone, a 24 h pulse.
+- **Server tests.** `EngineServerTests` run two Swift clients on one chain against the real Go server (`server/` on sync-main, on a random port with its own SQLite file).
+  - They cover: a round trip both ways with updates and a deletion; both devices in DEVICE_INFO; a joiner on an unstarted chain; a wrong passphrase; remote wins; a local edit beating a remote deletion; the initial merge; and no plaintext in the server's database.
+  - Run them with `tools/compass ios test --sync-server <binary|build>`. Without it they're skipped.
+- **Still open:** the desktop interop run (the phone or simulator joining a desktop chain on sync-main) needs the MacBook. The desktop's QR code is still to do.

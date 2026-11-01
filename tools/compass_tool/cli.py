@@ -311,7 +311,18 @@ def cmd_ios(layout: Layout, args) -> None:
     cmd = ['swift', 'test']
     if args.filter:
       cmd += ['--filter', args.filter]
-    sys.exit(run(cmd, ios / 'CompassKit', check=False).returncode)
+    env = dict(os.environ)
+    if args.sync_server == 'build':
+      # The repo's Go server (server/, on sync-main until it's merged).
+      server_dir = layout.root / 'server'
+      if not (server_dir / 'go.mod').is_file():
+        raise CommandError('no server/ in this tree; pass the binary instead')
+      binary = ios / 'build' / 'compass-sync-server'
+      run(['go', 'build', '-o', binary, '.'], server_dir)
+      env['COMPASS_SYNC_SERVER'] = str(binary)
+    elif args.sync_server:
+      env['COMPASS_SYNC_SERVER'] = str(Path(args.sync_server).resolve())
+    sys.exit(run(cmd, ios / 'CompassKit', env=env, check=False).returncode)
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
        'Compass', '-destination', 'generic/platform=iOS Simulator',
        '-derivedDataPath', derived, 'CODE_SIGNING_ALLOWED=NO', 'build'], ios)
@@ -406,6 +417,9 @@ def parser() -> argparse.ArgumentParser:
                      'test CompassKit, build, or run in a headless simulator')
   s.add_argument('action', choices=['gen', 'test', 'build', 'sim'])
   s.add_argument('--filter', help='test: only tests matching this')
+  s.add_argument('--sync-server', metavar='PATH|build',
+                 help='test: also run the engine tests against this sync '
+                 'server binary ("build": go build server/)')
   s.add_argument('--device', default=IOS_DEFAULT_DEVICE,
                  help='sim: simulator name (default: %(default)s)')
   s.add_argument('--screenshot', help='sim: save a screenshot here')
