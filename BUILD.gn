@@ -12,6 +12,7 @@ test("compass_unittests") {
   deps = [
     "//chrome/test:test_support_unit",
     "//compass/browser/arc_import:unit_tests",
+    "//compass/browser/prefs:unit_tests",
     "//compass/browser/shortcuts:unit_tests",
     "//compass/common:unit_tests",
     "//compass/browser/sidebar:unit_tests",
@@ -34,6 +35,7 @@ test("compass_browsertests") {
     "//chrome/test:test_support_ui",
     "//chrome/test/base:browser_tests_runner",
     "//compass/browser/picture_in_picture:browser_tests",
+    "//compass/browser/prefs:browser_tests",
     "//compass/browser/ui:browser_tests",
     "//compass/browser/web_store:browser_tests",
   ]

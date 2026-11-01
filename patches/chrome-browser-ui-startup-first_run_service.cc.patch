@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/startup/first_run_service.cc b/chrome/browser/ui/startup/first_run_service.cc
+index 7e1709c6744f68a4e7aa92556a5a51c85e72c952..859b237e5a216cc7c157b83a288d5e16c6177965 100644
+--- a/chrome/browser/ui/startup/first_run_service.cc
++++ b/chrome/browser/ui/startup/first_run_service.cc
+@@ -295,6 +295,8 @@ FirstRunServiceFactory::BuildServiceInstanceForBrowserContext(
+ // Helpers ---------------------------------------------------------------------
+ 
+ bool ShouldOpenFirstRun(Profile* profile) {
+-  return IsFirstRunEligibleProcess() && IsFirstRunEligibleProfile(profile) &&
++  // Compass has no first-run experience: the first window opens right away.
++  return /* DISABLES CODE */ (false) && IsFirstRunEligibleProcess() &&
++         IsFirstRunEligibleProfile(profile) &&
+          !IsFirstRunMarkedFinishedInPrefs();
+ }

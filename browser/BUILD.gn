@@ -20,6 +20,11 @@ source_set("feature_overrides") {
     "feature_overrides.h",
   ]
   deps = [
+    "//chrome/common:chrome_features",
+    "//components/autofill/core/common:features",
+    "//components/network_time",
+    "//components/omnibox/browser:aim_eligibility_service_features",
+    "//components/signin/public/base:signin_switches",
     "//components/variations",
     "//third_party/blink/public/common",
   ]

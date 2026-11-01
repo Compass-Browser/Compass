@@ -561,6 +561,24 @@ space (its tab can't): dragging onto such a button shows no drop target, and
 tint work for any space. Ctrl+1–9 follow the list. The command bar offers
 every listed space, but only the window's profile's entries.
 
+### Startup with several profiles
+
+There's no profile picker at startup (`BrowserProfilePickerAvailabilityOnStartup`
+defaults to disabled, `compass/browser/prefs/pref_defaults.cc`; policy can
+still turn it on). The first window opens in the last used profile, as
+upstream does without the picker. When the switcher lists spaces of more than
+one profile, that window then shows the switcher's **first** space, in its
+profile (`compass::MaybeShowFirstSpaceAtStartup()`, `startup_space.cc`):
+
+- Only the process's first normal window, and only when the session isn't
+  restored ("Continue where you left off" brings back the spaces the windows
+  showed).
+- It waits until the directory file and every listed profile's spaces are
+  in (`SpaceDirectory::IsLoaded()`), at most 10 seconds, then calls
+  `SwitchWindowToSpace()`: a rebind for a space of the window's profile, a
+  swap for another profile's.
+- With one profile the window keeps the space used last.
+
 ### Known gaps (slice 3)
 
 - To extensions and the session, the window is another window after a

@@ -1,16 +1,17 @@
 diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
-index 35b02686a1d21b4311b222b85f2041a2c2cd5949..bf73a04db59d258b8e1e38b9d7e55b42cf28314a 100644
+index 35b02686a1d21b4311b222b85f2041a2c2cd5949..1125fb5e91f8d9e4baa558420942236a3f338d30 100644
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -109,6 +109,7 @@
+@@ -109,6 +109,8 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/common/secure_origin_allowlist.h"
  #include "components/autofill/core/common/autofill_prefs.h"
++#include "compass/browser/prefs/pref_defaults.h"
 +#include "compass/browser/shortcuts/shortcut_settings.h"
  #include "components/blocked_content/safe_browsing_triggered_popup_blocker.h"
  #include "components/breadcrumbs/core/breadcrumbs_status.h"
  #include "components/browsing_data/core/pref_names.h"
-@@ -1539,6 +1540,7 @@
+@@ -1539,6 +1541,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
    chrome_labs_prefs::RegisterLocalStatePrefs(registry);
    chrome_urls::RegisterPrefs(registry);
    ChromeMetricsServiceClient::RegisterPrefs(registry);
@@ -18,3 +19,19 @@ index 35b02686a1d21b4311b222b85f2041a2c2cd5949..bf73a04db59d258b8e1e38b9d7e55b42
    enterprise_connectors::RegisterLocalStatePrefs(registry);
    enterprise_groups::RegisterLocalStatePrefs(registry);
    enterprise_util::RegisterLocalStatePrefs(registry);
+@@ -1848,6 +1851,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+ 
+   // This is intentionally last.
+   RegisterLocalStatePrefsForMigration(registry);
++  compass::OverrideLocalStatePrefDefaults(registry);
+ }
+ 
+ // Register prefs applicable to all profiles.
+@@ -2383,6 +2387,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+   registry->RegisterBooleanPref(prefs::kStaticStorageQuotaEnabled, false);
++  compass::OverrideProfilePrefDefaults(registry);
+ }
+ 
+ void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {

@@ -1,0 +1,18 @@
+diff --git a/components/unified_consent/unified_consent_service.cc b/components/unified_consent/unified_consent_service.cc
+index d0f8974a250a0992fae0eec512c8f5c0b3155713..afa2bfa59cd91c3cafb060908e50e2cf3c56fc32 100644
+--- a/components/unified_consent/unified_consent_service.cc
++++ b/components/unified_consent/unified_consent_service.cc
+@@ -206,6 +206,13 @@ void UnifiedConsentService::RegisterPrefs(
+ 
+ void UnifiedConsentService::SetUrlKeyedAnonymizedDataCollectionEnabled(
+     bool enabled) {
++  // Compass: never turned on automatically, for instance when Compass sync
++  // turns History on. It sends the pages' URLs to the search engine. The
++  // user can still turn it on in Settings, which sets the pref directly.
++  if (enabled) {
++    return;
++  }
++
+ #if BUILDFLAG(IS_CHROMEOS)
+   if (GetMigrationState() != MigrationState::kCompleted)
+     SetMigrationState(MigrationState::kCompleted);

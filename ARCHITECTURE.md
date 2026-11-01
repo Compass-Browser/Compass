@@ -323,7 +323,7 @@ Milestones 2–4 make up the MVP.
 
 | # | Decision | Rationale |
 |---|---|---|
-| D1 | Full Chromium fork, not Electron or CEF | Full extension support, Google sign-in works, our own security cadence |
+| D1 | Full Chromium fork, not Electron or CEF | Full extension support, signing in to Google sites works (browser sign-in doesn't: there's no Google OAuth client, see docs/design/privacy.md), our own security cadence |
 | D2 | Views shell + WebUI surfaces, not native UI per OS | One UI codebase; proven by Chrome's side panel and Vivaldi |
 | D3 | New code in `//compass`, then `chromium_src`, then patches | Keeps rebases cheap |
 | D4 | Checkout next to the repo, linked in | Avoids symlink cycles; the repo stays IDE-friendly |

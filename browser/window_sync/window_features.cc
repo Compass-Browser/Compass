@@ -36,6 +36,7 @@
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/window_sync/sidebar_store.h"
 #include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/startup_space.h"
 #include "ui/base/base_window.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/page_transition_types.h"
@@ -331,6 +332,9 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
   did_become_active_subscription_ =
       browser_->RegisterDidBecomeActive(base::BindRepeating(
           &WindowFeatures::OnWindowBecameActive, base::Unretained(this)));
+  if (!outside_sidebar_) {
+    MaybeShowFirstSpaceAtStartup(browser_);
+  }
 }
 
 WindowFeatures::~WindowFeatures() {

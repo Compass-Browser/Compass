@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.cc b/chrome/browser/ui/views/profiles/profile_menu_view.cc
+index cea47235846087133452636dd2385b9b90136284..c6e42f22a4b47d03efe608c7486be7463d4deb44 100644
+--- a/chrome/browser/ui/views/profiles/profile_menu_view.cc
++++ b/chrome/browser/ui/views/profiles/profile_menu_view.cc
+@@ -1227,7 +1227,7 @@ void ProfileMenuView::BuildFeatureButtons() {
+    !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync))
+       ? MaybeBuildChromeAccountSettingsButton()
+       : MaybeBuildChromeAccountSettingsButtonWithSync();
+-  MaybeBuildGoogleServicesSettingsButton();
++  // Compass: no "Google services settings": there's no browser sign-in.
+   MaybeBuildCloseBrowsersButton();
+   MaybeBuildSignoutButton();
+ }

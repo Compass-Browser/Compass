@@ -4,6 +4,11 @@
 
 #include "compass/browser/feature_overrides.h"
 
+#include "chrome/common/chrome_features.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
+#include "components/network_time/network_time_tracker.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/variations/feature_overrides.h"
 #include "third_party/blink/public/common/features.h"
 
@@ -15,6 +20,22 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // (docs/design/picture-in-picture.md).
   overrides.EnableFeature(
       blink::features::kBrowserInitiatedAutomaticPictureInPicture);
+
+  // No calls to Google that Compass doesn't need (docs/design/privacy.md).
+  // The clock check behind certificate errors, over plain HTTP to
+  // clients2.google.com.
+  overrides.DisableFeature(network_time::kNetworkTimeServiceQuerying);
+  // AI Mode eligibility, asked of google.com at startup.
+  overrides.DisableFeature(omnibox::kAimServerEligibilityEnabled);
+  // Form field type predictions from content-autofill.googleapis.com. Autofill
+  // keeps its local heuristics.
+  overrides.DisableFeature(
+      autofill::features::debug::kAutofillServerCommunication);
+  // Gemini in the browser.
+  overrides.DisableFeature(features::kGlic);
+  // Asks accounts.google.com which Google accounts the cookies hold only when
+  // a Google cookie changes, not at launch: there's no browser sign-in.
+  overrides.EnableFeature(switches::kAvoidAutoTriggerListAccountsOnStale);
 }
 
 }  // namespace compass

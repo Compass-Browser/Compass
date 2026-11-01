@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/signin/account_consistency_mode_manager.cc b/chrome/browser/signin/account_consistency_mode_manager.cc
+index 7d4c893cbcd995c48a00631f9cbfd736fb188e63..637b1bbab3279a4e511dc94480191e40188518de 100644
+--- a/chrome/browser/signin/account_consistency_mode_manager.cc
++++ b/chrome/browser/signin/account_consistency_mode_manager.cc
+@@ -64,6 +64,11 @@ bool IsBrowserSigninAllowedByCommandLine() {
+ // Returns true if Desktop Identity Consistency can be enabled for this build
+ // (i.e. if OAuth client ID and client secret are configured).
+ bool CanEnableDiceForBuild() {
++  // Compass: no browser sign-in to a Google account, even with an OAuth
++  // client configured (docs/design/privacy.md).
++  if (/* DISABLES CODE */ (true)) {
++    return false;
++  }
+   if (g_ignore_missing_oauth_client_for_testing ||
+       google_apis::HasOAuthClientConfigured()) {
+     return true;

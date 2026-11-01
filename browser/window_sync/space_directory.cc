@@ -126,6 +126,17 @@ std::vector<SpaceDirectory::Entry> SpaceDirectory::GetSpaces() const {
   return spaces;
 }
 
+bool SpaceDirectory::IsLoaded() const {
+  if (!file_loaded_) {
+    return false;
+  }
+  return std::ranges::all_of(listed_, [&](const base::FilePath& path) {
+    auto it = members_.find(path);
+    return it != members_.end() && it->second->service &&
+           it->second->service->loaded();
+  });
+}
+
 SpaceDirectory::Entry SpaceDirectory::FindSpace(const base::Uuid& id) const {
   for (const auto& [path, member] : members_) {
     if (!member->service) {

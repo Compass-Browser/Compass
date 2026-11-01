@@ -20,6 +20,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
+#include "chrome/common/chrome_constants.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -55,6 +56,7 @@
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
 #include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
+#include "compass/browser/window_sync/sidebar_store.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -1186,6 +1188,62 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuAssignsAProfile) {
             GURL("data:text/html,<title>One</title>"));
 }
 
+
+// With spaces of two profiles there's no profile picker at startup, and the
+// window shows the switcher's first space in its profile, though the profile
+// used last is the other one (docs/design/spaces.md, "Startup with several
+// profiles").
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
+                       PRE_StartupShowsTheFirstSpace) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  SpaceService* service = SpaceService::Get(&other);
+  ASSERT_TRUE(base::test::RunUntil([&] { return service->loaded(); }));
+  SpaceDirectory* directory = SpaceDirectory::Get();
+  ASSERT_TRUE(base::test::RunUntil([&] { return directory->IsLoaded(); }));
+  directory->List(&other);
+  SpaceModel* first = service->space_list().AddSpace(0, u"First");
+  directory->MoveSpace(*first, 0);
+  ASSERT_EQ(directory->GetSpaces()[0].space, first);
+  service->store()->Flush();
+  directory->Flush();
+}
+
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, StartupShowsTheFirstSpace) {
+  BrowserWindowInterface* shown = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    shown = nullptr;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          WindowFeatures* features = WindowFeatures::From(window);
+          if (window->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+              features && !features->is_parking_window() &&
+              !features->swapped_away() &&
+              features->space_model().name() == u"First") {
+            shown = window;
+          }
+          return !shown;
+        });
+    return shown != nullptr;
+  }));
+  // Not the default profile, which the test harness opened first.
+  EXPECT_NE(shown->GetProfile()->GetBaseName(),
+            base::FilePath::FromASCII(chrome::kInitialProfile));
+  // The window it swapped from closed.
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    int normal = 0;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface* window) {
+          WindowFeatures* features = WindowFeatures::From(window);
+          normal += window->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+                    features && !features->is_parking_window();
+          return true;
+        });
+    return normal == 1;
+  }));
+  SetBrowser(shown);
+}
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        DragOntoASpaceMovesTheEntryAndShortcutsSwitch) {

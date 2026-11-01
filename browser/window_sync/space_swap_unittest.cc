@@ -21,6 +21,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/startup_space.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -52,6 +53,8 @@ class SpaceSwapTest : public BrowserWithTestWindowTest {
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
+    // The tests switch spaces themselves.
+    SetShowFirstSpaceAtStartupForTesting(false);
     BrowserWithTestWindowTest::SetUp();
     other_profile_ = profile_manager()->CreateTestingProfile("other");
     // Test windows can't be created the production way.

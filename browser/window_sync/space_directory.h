@@ -81,6 +81,11 @@ class SpaceDirectory : public ProfileManagerObserver,
   // The listed space with |id|, or an empty entry.
   Entry FindSpace(const base::Uuid& id) const;
 
+  // Whether the file and every listed profile's spaces are in, so
+  // GetSpaces() has the whole list. A listed profile that fails to load
+  // keeps this false.
+  bool IsLoaded() const;
+
   bool IsListed(const Profile* profile) const;
   // Lists |profile|'s spaces, at the end, if it can be listed.
   void List(Profile* profile);

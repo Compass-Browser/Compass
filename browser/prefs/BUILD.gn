@@ -1,0 +1,62 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass's defaults for upstream prefs (docs/design/privacy.md). Its own
+# target with few deps, because upstream's prefs registration reaches it (see
+# patches/).
+source_set("prefs") {
+  sources = [
+    "pref_defaults.cc",
+    "pref_defaults.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/common:constants",
+    "//components/embedder_support:embedder_support",
+    "//components/password_manager/core/common",
+    "//components/prefs",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "pref_defaults_unittest.cc" ]
+  deps = [
+    ":prefs",
+    "//chrome/common:constants",
+    "//components/embedder_support:embedder_support",
+    "//components/password_manager/core/common",
+    "//components/prefs",
+    "//components/prefs:test_support",
+    "//testing/gtest",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "privacy_defaults_browsertest.cc" ]
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui",
+    "//chrome/common",
+    "//chrome/common:chrome_features",
+    "//chrome/common:constants",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//components/autofill/core/common:features",
+    "//components/embedder_support:embedder_support",
+    "//components/network_time",
+    "//components/omnibox/browser:aim_eligibility_service_features",
+    "//components/password_manager/core/common",
+    "//components/prefs",
+    "//components/signin/public/base",
+    "//components/signin/public/base:signin_switches",
+    "//components/unified_consent",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}
