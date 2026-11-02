@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/common/chrome_isolated_world_ids.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/webui/find_bar/find_bar_ui.h"
 #include "components/find_in_page/find_notification_details.h"
@@ -25,6 +26,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/page.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/site_instance.h"
@@ -53,6 +55,12 @@ constexpr int kShadowRoom = 12;
 
 std::u16string Utf16(const std::string& text) {
   return base::UTF8ToUTF16(text);
+}
+
+// Whether a page's selection is something to look for: one short line.
+bool IsFindableSelection(const std::u16string& text) {
+  return !text.empty() && text.size() <= 200 &&
+         text.find(u'\n') == std::u16string::npos;
 }
 
 // Whether a tab's bar is open. Not FindTabHelper::find_ui_active(), which
@@ -130,13 +138,12 @@ void FindBar::Show() {
   if (!IsShowing()) {
     // The page's selection, else what this tab looked for last, else what
     // the window looked for last (macOS's find pasteboard elsewhere).
+    // The selection the browser knows of; the page is asked too, below.
     std::u16string text;
-    content::RenderWidgetHostView* view =
-        helper->GetWebContents().GetRenderWidgetHostView();
-    if (view) {
+    if (content::RenderWidgetHostView* view =
+            helper->GetWebContents().GetRenderWidgetHostView()) {
       text = view->GetSelectedText();
-      // Only a short selection on one line is something to look for.
-      if (text.size() > 200 || text.find(u'\n') != std::u16string::npos) {
+      if (!IsFindableSelection(text)) {
         text.clear();
       }
     }
@@ -161,8 +168,44 @@ void FindBar::Show() {
     } else if (page_) {
       page_->ClearResult();
     }
+    // The browser hears of a selection only from a focused page; ask the
+    // page itself, and start from its answer unless something was typed
+    // meanwhile.
+    typed_since_show_ = false;
+    content::WebContents* contents = &helper->GetWebContents();
+    content::RenderFrameHost* frame = contents->GetFocusedFrame();
+    if (!frame) {
+      frame = contents->GetPrimaryMainFrame();
+    }
+    if (frame && frame->IsRenderFrameLive()) {
+      frame->ExecuteJavaScriptInIsolatedWorld(
+          u"getSelection().toString()",
+          base::BindOnce(&FindBar::OnPageSelection, weak_factory_.GetWeakPtr(),
+                         contents->GetWeakPtr()),
+          ISOLATED_WORLD_ID_CHROME_INTERNAL);
+    }
   }
   FocusPage();
+}
+
+void FindBar::OnPageSelection(base::WeakPtr<content::WebContents> contents,
+                              base::Value result) {
+  find_in_page::FindTabHelper* helper = GetFindTabHelper();
+  if (!contents || !helper || &helper->GetWebContents() != contents.get() ||
+      !IsShowing() || typed_since_show_ || !result.is_string()) {
+    return;
+  }
+  const std::u16string text = base::UTF8ToUTF16(result.GetString());
+  if (!IsFindableSelection(text) || text == text_) {
+    return;
+  }
+  text_ = text;
+  SendText(text_);
+  helper->StartFinding(text_, /*forward_direction=*/true,
+                       /*case_sensitive=*/false, /*find_match=*/true);
+  if (page_) {
+    page_->FocusAndSelectAll();
+  }
 }
 
 void FindBar::Close() {
@@ -206,6 +249,7 @@ void FindBar::BindPage(
 
 void FindBar::Find(const std::string& text) {
   text_ = Utf16(text);
+  typed_since_show_ = true;
   find_in_page::FindTabHelper* helper = GetFindTabHelper();
   if (!helper) {
     return;

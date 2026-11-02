@@ -15,7 +15,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -138,15 +137,13 @@ IN_PROC_BROWSER_TEST_F(FindBarBrowserTest, EachTabKeepsItsBar) {
 
 IN_PROC_BROWSER_TEST_F(FindBarBrowserTest, StartsFromTheSelection) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kPage)));
+  // Headless, the page never has focus, so only the page itself knows its
+  // selection: the bar asks it.
   ASSERT_TRUE(content::ExecJs(tab(),
                               "getSelection().selectAllChildren("
                               "document.getElementById('b'));"));
-  content::RenderWidgetHostView* view = tab()->GetRenderWidgetHostView();
-  ASSERT_TRUE(base::test::RunUntil(
-      [&] { return view->GetSelectedText() == u"banana"; }));
-
   ASSERT_TRUE(Open());
-  EXPECT_EQ(Field(), "banana");
+  EXPECT_TRUE(base::test::RunUntil([&] { return Field() == "banana"; }));
   EXPECT_TRUE(CountBecomes("1/1"));
 }
 

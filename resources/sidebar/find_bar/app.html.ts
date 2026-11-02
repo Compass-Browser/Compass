@@ -18,7 +18,7 @@ export function getHtml(this: CompassFindBarAppElement) {
       aria-label="Find in page" placeholder="Find in page"
       aria-describedby="count"
       @input="${this.onInput_}" @keydown="${this.onKeydown_}"
-      @compositionend="${this.onCompositionEnd_}">
+      @compositionend="${this.onCompositionend_}">
   <span id="count" role="status" ?no-match="${this.isNoMatch_()}"
       aria-live="polite">${this.getCountText_()}</span>
   <span class="divider" aria-hidden="true"></span>

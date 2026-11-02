@@ -102,14 +102,14 @@ export class CompassFindBarAppElement extends CrLitElement {
   }
 
   protected onInput_(e: InputEvent) {
-    // A composition finds once it's committed (onCompositionEnd_).
+    // A composition finds once it's committed (onCompositionend_).
     if (e.isComposing) {
       return;
     }
     this.find_();
   }
 
-  protected onCompositionEnd_() {
+  protected onCompositionend_() {
     this.find_();
   }
 

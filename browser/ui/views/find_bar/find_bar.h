@@ -10,7 +10,9 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/values.h"
 #include "compass/browser/ui/webui/find_bar/find_bar.mojom.h"
 #include "components/find_in_page/find_result_observer.h"
 #include "components/find_in_page/find_tab_helper.h"
@@ -124,6 +126,9 @@ class FindBar : public views::WebView,
   };
 
   void OnPrimaryPageChanged();
+  // The page's answer to Show()'s question for its selection.
+  void OnPageSelection(base::WeakPtr<content::WebContents> contents,
+                       base::Value result);
   void OnActiveTabChanged(BrowserWindowInterface* browser);
   // The active tab's helper; null without a tab.
   find_in_page::FindTabHelper* GetFindTabHelper();
@@ -143,6 +148,8 @@ class FindBar : public views::WebView,
   std::u16string text_;
   // The page asked to focus before it connected.
   bool focus_pending_ = false;
+  // Something was typed since the bar opened.
+  bool typed_since_show_ = false;
 
   base::ScopedObservation<find_in_page::FindTabHelper,
                           find_in_page::FindResultObserver>
@@ -152,6 +159,7 @@ class FindBar : public views::WebView,
   TabObserver tab_observer_{this};
   base::CallbackListSubscription active_tab_subscription_;
   ui::ScopedUnownedUserData<FindBar> scoped_data_holder_;
+  base::WeakPtrFactory<FindBar> weak_factory_{this};
 };
 
 // Offers browser command |id| to the find bar: IDC_FIND, IDC_FIND_NEXT and
