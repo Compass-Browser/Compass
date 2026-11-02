@@ -64,6 +64,11 @@ const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 // The drag data of a space button dragged along the switcher.
 const SPACE_DRAG_TYPE = 'application/x-compass-space';
 
+// A drag that starts this soon after a wheel event is a press that landed
+// mid-scroll, not a drag (startsDrag_()). Long enough to bridge the gap
+// between the last scroll event and the press's first few pixels of movement.
+const SCROLL_DRAG_GUARD_MS = 350;
+
 // Entries glide to where they moved, and fade in and out
 // (docs/design/sidebar.md, "Motion").
 const FLIP_MS = 220;
@@ -227,6 +232,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   private flipAnimations_: Animation[] = [];
 
   private wheelAxis_: WheelAxis|null = null;
+  // When the last wheel event came (performance.now()), so a press that
+  // lands mid-scroll doesn't start a drag (startsDrag_()).
+  private lastWheelAt_ = -Infinity;
   private swipe_: Swipe|null = null;
   private swipeFrame_: number|null = null;
   // Other spaces' trees, for the previews, by space ID. Refetched whenever
@@ -629,7 +637,22 @@ export class CompassSidebarAppElement extends CrLitElement {
         !!this.spaces_.find(space => space.id === id)?.ownProfile;
   }
 
+  // A finger that presses the trackpad while two fingers scroll makes a
+  // press that moves, which would pick up the row under the pointer. A drag
+  // during a scroll, or right after one, is the scroll's: it's cancelled.
+  private startsDrag_(e: DragEvent): boolean {
+    if (this.swipe_ ||
+        performance.now() - this.lastWheelAt_ < SCROLL_DRAG_GUARD_MS) {
+      e.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
   protected onSpaceDragstart_(e: DragEvent) {
+    if (!this.startsDrag_(e)) {
+      return;
+    }
     this.hideHoverCard_();
     const button = e.currentTarget as HTMLElement;
     if (!e.dataTransfer) {
@@ -1322,6 +1345,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   // Over the parts of the sidebar that don't scroll (favorites, the space's
   // name, now playing), the wheel scrolls the entries.
   private onWheel_ = (e: WheelEvent) => {
+    this.lastWheelAt_ = performance.now();
     if (e.ctrlKey || this.swipe_ || !e.deltaY ||
         Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
       return;
@@ -1741,6 +1765,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   protected onDragstart_(e: DragEvent) {
+    if (!this.startsDrag_(e)) {
+      return;
+    }
     this.hideHoverCard_();
     const row = (e.target as Element).closest<HTMLElement>('.row, .tile');
     if (!row || !e.dataTransfer) {

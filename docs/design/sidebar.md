@@ -228,6 +228,10 @@ its subtree and closes its live tabs.
 
 **Drag and drop** happens in the page, with HTML5 drag events on the rows:
 
+- A drag that starts during a scroll, or within 350 ms of its last wheel
+  event, is cancelled: a finger that presses the trackpad while two fingers
+  scroll makes a press that moves, which would otherwise pick up the row
+  under the pointer (`startsDrag_()`).
 - On a tab row, the top half drops before it and the bottom half after it.
   On a folder row, the middle third drops into it.
 - Section bodies take drops at the end, and the empty Pinned section shows a
