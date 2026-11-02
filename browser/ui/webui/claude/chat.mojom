@@ -52,6 +52,9 @@ interface PageHandler {
   // A link in a reply: opens in a new tab (http and https only).
   OpenLink(string url);
   ClosePanel();
+  // A question asked from the command bar before the page connected, once;
+  // empty if none. Later ones come as Page.OnAsk().
+  TakeQuestion() => (string text);
 };
 
 // Implemented by the page.
@@ -63,4 +66,6 @@ interface Page {
   OnStreamDone(string error);
   OnSetupChanged(Setup setup);
   OnActivePageChanged(ActivePage page);
+  // The command bar's "Ask Claude": send |text|, with the page attached.
+  OnAsk(string text);
 };

@@ -1,7 +1,8 @@
 # Find on page and Claude
 
-Status: milestone 0 done (2026-11-02): this doc and the shared files in
-`common/claude/`. Nothing in the browser or the iOS app uses them yet.
+Status (2026-11-02): milestone 0 (this doc and the shared files in
+`common/claude/`), D1 (find bar) and D2 (settings and client) are on main;
+D3 (chat panel) is on `claude/d3-chat-panel`. Nothing on iOS yet.
 
 `common/claude/test/page_agent_test.html` checks `page_agent.js` without a
 window: open it with `--headless=new --dump-dom` (the command is in the file)
@@ -82,13 +83,17 @@ Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes
 
 ### Chat panel
 
-Status: D3 (text, with the page attached) written on `claude/d3-chat-panel` (2026-11-02), not built yet. Tools come in D4.
+Status: D3 (text, with the page attached) done on `claude/d3-chat-panel` (2026-11-02): `ClaudePanelBrowserTest.*` (3/3), `ClaudeRequestTest.*` and `CommandBarPageHandlerTest.*` pass in out/Fast, headless. Not yet tried with a real key. Tools come in D4.
 
 - **Surface.** `compass::claude::ClaudePanel` (`browser/ui/views/claude/`), owned by the window's sidebar view. It registers a window-wide upstream side panel entry on first use, `SidePanelEntry::Id::kCompassClaude` (one-line patch of `side_panel_entry_id.h`), on the right, since the sidebar is on the left. The entry holds `chrome://compass-claude` (`ClaudeChatUI`) in a `SidePanelWebUIViewT`.
   - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model, New chat, close).
   - Upstream provides resizing, the open and close animation, and the switch with extensions' `sidePanel` pages.
+  - The entry has no toolbar action. Upstream's `SidePanelToolbarPinningController::UpdateActiveState()` `CHECK`s for one, so a second patch makes it skip entries without one.
+  - Closing the panel keeps its view cached, so the conversation survives a close and reopen.
+  - In tests, `ClaudePanel::web_contents_for_testing()` reads the view the panel made. Upstream's `SidePanelUI::GetWebContentsForTest()` builds a new view, and so a new page, on each call.
   - The panel shows once the page calls `ShowUI()`.
-- **Shortcut.** `kToggleClaudeCommand` (`compass_command_ids.h`), default Cmd+Shift+E on macOS (`AdjustShortcutsNotInMenu()`; Cmd+E stays "Use Selection for Find"). It's customizable as "Chat with Claude". Not done yet: an "Ask Claude…" row in the command bar.
+- **Shortcut.** `kToggleClaudeCommand` (`compass_command_ids.h`), default Cmd+Shift+E on macOS (`AdjustShortcutsNotInMenu()`; Cmd+E stays "Use Selection for Find"). It's customizable as "Chat with Claude".
+- **Command bar.** The last row of every query (not in Incognito) is Claude's (`CommandBarCommand::kAskClaude`). With no text, or text naming it, it's "Chat with Claude", which opens the panel. Otherwise it's "Ask Claude", with the text as its subtitle; Enter opens the panel and sends the text, with the page attached (`ClaudePanel::Ask()`). A page that isn't loaded yet collects the question with `TakeQuestion()`; an open one gets `Page.OnAsk()`. While a reply streams, the question waits in the field.
 - **The page** (`resources/sidebar/claude_chat/`):
   - `conversation.ts` keeps the conversation. It puts each streamed reply together from its events into the same content blocks the API returns (text, thinking with its signature, fallback blocks, tool use), so they go back unchanged in the next request.
   - `markdown.ts` renders replies with `createElement` and text nodes only, never `innerHTML`.
@@ -103,6 +108,7 @@ Status: D3 (text, with the page attached) written on `claude/d3-chat-panel` (202
   - automatic caching of the conversation;
   - on the Claude API with Fable 5.1, Opus 5.5, Opus 5 or Sonnet 5.5: `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`.
 - **Conversation lifetime.** In the page, for as long as the panel's page lives. Saved history comes later.
+  - A reply stopped while Claude was thinking leaves a thinking block without its signature, which the API would refuse; it isn't sent back.
 
 ### Browser-side services (per profile, `browser/claude/`, new)
 - **Prefs** (`browser/claude/claude_prefs.{h,cc}`, target `:prefs`, registered from `compass::RegisterCompassProfilePrefs()`; none sync):
@@ -118,7 +124,6 @@ Status: D3 (text, with the page attached) written on `claude/d3-chat-panel` (202
   - An `error` event, an HTTP error (the API's own message, `DescribeError()`), a network failure, or a stream that ends without `message_stop` ends the stream with an error the user can read.
   - It also implements `GET /v1/models?limit=100`, for the model picker and the "Test connection" button.
   - Every request sends `anthropic-version: 2026-10-21` (`kApiVersion`).
-  - Requests send `anthropic-version`.
   - They put prompt caching (`cache_control`) on the system prompt and tools.
   - A key or URL change cancels requests in flight.
 - **`ClaudeTools`**: runs tools for a conversation.
@@ -234,4 +239,4 @@ Desktop browser tests run headless through `compass test --browser`, and never t
 - **Mac Release** at the end; the .dmg goes to Gioele.
 
 ## Open check at implementation time
-- The upstream checkout (`~/src/compass-chromium/src`) wasn't reachable during planning. Check these upstream names before D1/D3: `FindTabHelper`, `SidePanelEntry::Id`, `SidePanelCoordinator`, and the `DevToolsAgentHost` client API.
+- The upstream checkout is `~/src/strata-chromium/src`. `FindTabHelper` (D1) and the side panel names (D3) are checked. Check the `DevToolsAgentHost` client API before D4.

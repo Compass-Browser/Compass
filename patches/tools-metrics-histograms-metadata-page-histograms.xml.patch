@@ -1,12 +1,13 @@
 diff --git a/tools/metrics/histograms/metadata/page/histograms.xml b/tools/metrics/histograms/metadata/page/histograms.xml
-index d1f9b77322647550824101b566fe7477392c35cc..61bb6b833dcd76df608de0193b769905600bbe5a 100644
+index d1f9b77322647550824101b566fe7477392c35cc..af9e99fcb449a45d168e1728188fbe8f58a35c58 100644
 --- a/tools/metrics/histograms/metadata/page/histograms.xml
 +++ b/tools/metrics/histograms/metadata/page/histograms.xml
-@@ -1097,6 +1097,7 @@ chromium-metrics-reviews@google.com.
+@@ -1097,6 +1097,8 @@ chromium-metrics-reviews@google.com.
    <variant name=".ReadingList"/>
    <variant name=".ReloadButtonUI"/>
    <variant name=".ShoppingInsightsSidePanel"/>
 +  <variant name=".CompassCommandBar"/>
++  <variant name=".CompassClaude"/>
    <variant name=".TabSearch"/>
    <variant name=".TabsFromOtherDevicesSidePanel"/>
    <variant name=".UserEducation"/>

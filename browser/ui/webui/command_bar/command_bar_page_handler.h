@@ -49,6 +49,10 @@ enum class CommandBarCommand {
   kImportFromArc,
   // Opens compass://settings/shortcuts (docs/design/shortcuts.md).
   kKeyboardShortcuts,
+  // Opens the chat with Claude, asking it the typed text if any
+  // (docs/design/claude.md, "Chat panel"). Not in the commands' list: its
+  // row comes last, for any text.
+  kAskClaude,
 };
 
 // Serves the command bar page its results and acts on the chosen one. Merges

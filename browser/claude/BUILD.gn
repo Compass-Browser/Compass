@@ -22,15 +22,10 @@ source_set("prefs") {
 # compass/browser/claude/claude_assets.h.
 action("assets") {
   script = "//compass/build/embed_text.py"
-  _files = [
-    "kSystemPrompt=//compass/common/claude/system_prompt.md",
-    "kTools=//compass/common/claude/tools.json",
-    "kPageAgent=//compass/common/claude/page_agent.js",
-  ]
   inputs = [
-    "//compass/common/claude/page_agent.js",
     "//compass/common/claude/system_prompt.md",
     "//compass/common/claude/tools.json",
+    "//compass/common/claude/page_agent.js",
   ]
   outputs = [ "$target_gen_dir/claude_assets.h" ]
   args = [
@@ -38,11 +33,10 @@ action("assets") {
     rebase_path(outputs[0], root_build_dir),
     "--namespace",
     "compass::claude::assets",
+    "kSystemPrompt=" + rebase_path(inputs[0], root_build_dir),
+    "kTools=" + rebase_path(inputs[1], root_build_dir),
+    "kPageAgent=" + rebase_path(inputs[2], root_build_dir),
   ]
-  foreach(file, _files) {
-    _parts = string_split(file, "=")
-    args += [ _parts[0] + "=" + rebase_path(_parts[1], root_build_dir) ]
-  }
 }
 
 source_set("claude") {

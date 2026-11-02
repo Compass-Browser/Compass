@@ -32,6 +32,8 @@ build_webui("build") {
     "claude_chat/browser_proxy.ts",
     "claude_chat/conversation.ts",
     "claude_chat/markdown.ts",
+    "claude_chat/turn.html.ts",
+    "claude_chat/turn.ts",
     "colors.ts",
     "command_bar/app.html.ts",
     "command_bar/app.ts",
@@ -68,6 +70,7 @@ build_webui("build") {
   css_files = [
     "app.css",
     "claude_chat/app.css",
+    "claude_chat/turn.css",
     "command_bar/app.css",
     "find_bar/app.css",
     "now_playing.css",

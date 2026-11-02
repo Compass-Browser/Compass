@@ -12,7 +12,7 @@ import {getHtml} from './app.html.js';
 import {ClaudeChatBrowserProxy} from './browser_proxy.js';
 import type {ContentBlock, UserTurn} from './conversation.js';
 import {Conversation, pageBlock} from './conversation.js';
-import {renderMarkdown} from './markdown.js';
+import './turn.js';
 
 // The chat with Claude, in the window's side panel. The page keeps the
 // conversation and sends it whole for each reply (the browser adds the key,
@@ -81,6 +81,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       router.onStreamDone.addListener(this.onStreamDone_.bind(this)),
       router.onSetupChanged.addListener(this.applySetup_.bind(this)),
       router.onActivePageChanged.addListener(this.applyPage_.bind(this)),
+      router.onAsk.addListener(this.ask_.bind(this)),
     ];
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && this.streaming_) {
@@ -115,6 +116,23 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     await this.updateComplete;
     handler.showUI();
     this.input_.focus();
+    const {text} = await handler.takeQuestion();
+    if (text) {
+      this.ask_(text);
+    }
+  }
+
+  // The command bar's "Ask Claude". While a reply streams, the question
+  // waits in the field.
+  private ask_(text: string) {
+    if (this.streaming_) {
+      this.input_.value = text;
+      this.onInputInput_();
+      this.input_.focus();
+      return;
+    }
+    this.attachPage_ = true;
+    this.send_(text);
   }
 
   private get input_(): HTMLTextAreaElement {
@@ -144,9 +162,13 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     return this.hasKey_ && !this.streaming_ && this.text_.trim() !== '';
   }
 
-  // A reply's text block as DOM nodes.
-  protected renderText_(text: string): DocumentFragment {
-    return renderMarkdown(text);
+  protected hasTurns_(): boolean {
+    return this.conversation.turns.length > 0;
+  }
+
+  protected getAttachTitle_(): string {
+    return this.attachPage_ ? 'Claude gets this page\'s text with your message' :
+                              'Not sent';
   }
 
   private changed_() {
@@ -254,7 +276,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.attachPage_ = !this.attachPage_;
   }
 
-  protected onRetryClick_() {
+  protected onTurnRetry_() {
     // The failed exchange goes; its message is sent again.
     const turns = this.conversation.turns;
     const failed = turns.pop();
@@ -290,7 +312,9 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
   // Links in replies open in a tab, not in the panel.
   protected onMessagesClick_(e: MouseEvent) {
-    const link = (e.target as HTMLElement).closest('a');
+    // The link is inside a turn's shadow tree.
+    const link = e.composedPath().find(
+        (node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement);
     if (link) {
       e.preventDefault();
       this.browserProxy_.handler.openLink(link.href);

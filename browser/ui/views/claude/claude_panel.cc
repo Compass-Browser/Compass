@@ -16,8 +16,10 @@
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "chrome/grit/generated_resources.h"
 #include "compass/browser/ui/compass_command_ids.h"
+#include "compass/browser/ui/webui/claude/claude_chat_page_handler.h"
 #include "compass/browser/ui/webui/claude/claude_chat_ui.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/controls/webview/webview.h"
 #include "ui/views/view.h"
 #include "url/gurl.h"
 
@@ -80,15 +82,44 @@ void ClaudePanel::Toggle() {
   }
 }
 
+void ClaudePanel::Ask(const std::string& question) {
+  Show();
+  if (question.empty()) {
+    return;
+  }
+  if (page_handler_) {
+    page_handler_->Ask(question);
+  } else {
+    pending_question_ = question;
+  }
+}
+
+void ClaudePanel::SetPageHandler(ClaudeChatPageHandler* handler) {
+  page_handler_ = handler;
+}
+
+void ClaudePanel::RemovePageHandler(ClaudeChatPageHandler* handler) {
+  if (page_handler_ == handler) {
+    page_handler_ = nullptr;
+  }
+}
+
+std::string ClaudePanel::TakeQuestion() {
+  return std::exchange(pending_question_, std::string());
+}
+
 bool ClaudePanel::IsShowing() const {
   const SidePanelUI* ui = SidePanelUI::From(browser_);
   return registered_ && ui && ui->IsSidePanelEntryShowing(EntryKey());
 }
 
 content::WebContents* ClaudePanel::web_contents_for_testing() {
-  SidePanelUI* ui = SidePanelUI::From(browser_);
-  return ui ? ui->GetWebContentsForTest(SidePanelEntry::Id::kCompassClaude)
-            : nullptr;
+  if (!IsShowing() || !view_.view()) {
+    return nullptr;
+  }
+  auto* web_view = static_cast<views::WebView*>(
+      view_.view()->GetViewByID(SidePanelWebUIView::kSidePanelWebViewId));
+  return web_view ? web_view->web_contents() : nullptr;
 }
 
 void ClaudePanel::RegisterEntryIfNeeded() {
@@ -110,13 +141,15 @@ void ClaudePanel::RegisterEntryIfNeeded() {
 
 std::unique_ptr<views::View> ClaudePanel::CreateView(
     SidePanelEntryScope& scope) {
-  return std::make_unique<SidePanelWebUIViewT<ClaudeChatUI>>(
+  auto view = std::make_unique<SidePanelWebUIViewT<ClaudeChatUI>>(
       scope, base::RepeatingClosure(), base::RepeatingClosure(),
       std::make_unique<WebUIContentsWrapperT<ClaudeChatUI>>(
           GURL(kClaudeChatURL), browser_->GetProfile(),
           IDS_TASK_MANAGER_TOOL_PREFIX,
           // Esc stops a reply, in the page.
           /*esc_closes_ui=*/false));
+  view_.SetView(view.get());
+  return view;
 }
 
 bool HandleClaudeCommand(BrowserWindowInterface* browser, int id) {

@@ -94,10 +94,19 @@ export class Conversation {
         i++;
         continue;
       }
-      if (turn.role === 'assistant' && (turn.streaming || !turn.content.length)) {
+      if (turn.role === 'assistant' && turn.streaming) {
         continue;
       }
-      messages.push({role: turn.role, content: turn.content});
+      // A reply stopped while Claude thought has a thinking block without
+      // its signature, which the API refuses: it goes.
+      const content = turn.role === 'assistant' ?
+          turn.content.filter(
+              block => block.type !== 'thinking' || !!block.signature) :
+          turn.content;
+      if (!content.length) {
+        continue;
+      }
+      messages.push({role: turn.role, content});
     }
     return messages;
   }

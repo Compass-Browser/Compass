@@ -65,11 +65,15 @@ class FakePage : public command_bar::mojom::Page {
     return results_;
   }
 
-  // The results other than omnibox suggestions, as "kind title". Entries are
-  // named by their URL's host, which the tests keep unique.
+  // The results other than omnibox suggestions and the Claude row (which
+  // every query has; see AsksClaude), as "kind title". Entries are named by
+  // their URL's host, which the tests keep unique.
   std::vector<std::string> LocalResults() const {
     std::vector<std::string> names;
     for (const auto& result : results_) {
+      if (IsClaudeRow(*result)) {
+        continue;
+      }
       switch (result->kind) {
         case ResultKind::kNavigate:
         case ResultKind::kSearch:
@@ -91,6 +95,11 @@ class FakePage : public command_bar::mojom::Page {
       }
     }
     return names;
+  }
+
+  static bool IsClaudeRow(const command_bar::mojom::Result& result) {
+    return result.kind == ResultKind::kCommand &&
+           (result.title == "Ask Claude" || result.title == "Chat with Claude");
   }
 
   // The ID of the first result titled |title| (or, for entries, whose host
@@ -519,6 +528,51 @@ TEST_F(CommandBarPageHandlerTest, AcceptingAStaleIdUsesTheText) {
   handler_remote_->Accept(/*id=*/9999, "  ", false);
   Settle();
   EXPECT_EQ(tab_strip_model()->count(), 3);
+}
+
+// docs/design/claude.md, "Chat panel".
+TEST_F(CommandBarPageHandlerTest, AsksClaude) {
+  // No text: the chat, last.
+  OpenAndQuery(Mode::kNewEntry, "");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_EQ(page_.results().back()->title, "Chat with Claude");
+  EXPECT_EQ(page_.results().back()->subtitle, "");
+
+  // Text naming it: the chat too.
+  OpenAndQuery(Mode::kNewEntry, "claude");
+  EXPECT_EQ(page_.results().back()->title, "Chat with Claude");
+
+  // Any other text: the question, after everything else.
+  OpenAndQuery(Mode::kCurrentEntry, "  what is this page about? ");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_EQ(page_.results().back()->title, "Ask Claude");
+  EXPECT_EQ(page_.results().back()->subtitle, "what is this page about?");
+  EXPECT_EQ(page_.results().back()->action, "Ask");
+
+  // Accepting it opens no tab (the test window has no panel to ask).
+  handler_remote_->Accept(page_.IdOf("Ask Claude"), "what is this page about?",
+                          false);
+  Settle();
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+}
+
+TEST_F(CommandBarPageHandlerTest, NoClaudeInIncognito) {
+  std::unique_ptr<BrowserWindowInterface> incognito = CreateBrowser(
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true),
+      BrowserWindowInterface::TYPE_NORMAL, /*hosted_app=*/false);
+  mojo::Remote<command_bar::mojom::PageHandler> remote;
+  FakePage page;
+  auto handler = std::make_unique<CommandBarPageHandler>(
+      remote.BindNewPipeAndPassReceiver(), page.BindAndPassRemote(),
+      incognito.get(), /*controller=*/nullptr);
+  handler->Open(Mode::kCurrentEntry, std::u16string());
+  remote->Query("what is this?", false);
+  Settle();
+  for (const auto& result : page.results()) {
+    EXPECT_FALSE(FakePage::IsClaudeRow(*result)) << result->title;
+  }
+  handler.reset();
+  incognito->GetTabStripModel()->CloseAllTabs();
 }
 
 }  // namespace

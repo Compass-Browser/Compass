@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc b/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc
+index 812dd960ff1543c48fd602727b74af291168612c..7a5b6081ed3d9ba5d8616616043e7c16c4a9e50f 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc
+@@ -201,7 +201,11 @@ void SidePanelToolbarPinningController::UpdateActiveState(
+ 
+     std::optional<actions::ActionId> action_id =
+         SidePanelEntryIdToActionId(target_id);
+-    CHECK(action_id.has_value());
++    // Compass: entries without a toolbar action (the Claude chat) have no
++    // button to light up.
++    if (!action_id.has_value()) {
++      return;
++    }
+     toolbar_container->UpdateActionState(*action_id, show_active_in_toolbar);
+ 
+     if (other_id.has_value()) {

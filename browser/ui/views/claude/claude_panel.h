@@ -6,9 +6,11 @@
 #define COMPASS_BROWSER_UI_VIEWS_CLAUDE_CLAUDE_PANEL_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+#include "ui/views/view_tracker.h"
 
 class BrowserWindowInterface;
 class SidePanelEntryScope;
@@ -22,6 +24,8 @@ class View;
 }  // namespace views
 
 namespace compass::claude {
+
+class ClaudeChatPageHandler;
 
 // A window's chat with Claude: chrome://compass-claude in the side panel,
 // on the right (the sidebar is on the left), registered as a window-wide
@@ -44,8 +48,20 @@ class ClaudePanel {
   // Cmd+Shift+E.
   void Toggle();
   bool IsShowing() const;
+  // Shows the panel and sends |question| as the user's message, with the
+  // page attached (the command bar's "Ask Claude"). Waits for the page if
+  // it isn't loaded yet.
+  void Ask(const std::string& question);
 
-  // The page's contents while the panel shows; null otherwise.
+  // The page's handler, while the page is connected.
+  void SetPageHandler(ClaudeChatPageHandler* handler);
+  // |handler| goes away; forgotten if it's still the page's.
+  void RemovePageHandler(ClaudeChatPageHandler* handler);
+  // The question asked before the page connected, once.
+  std::string TakeQuestion();
+
+  // The page's contents while the panel shows; null otherwise. (Upstream's
+  // SidePanelUI::GetWebContentsForTest() would make a new page each call.)
   content::WebContents* web_contents_for_testing();
 
  private:
@@ -54,6 +70,10 @@ class ClaudePanel {
 
   const raw_ptr<BrowserWindowInterface> browser_;
   bool registered_ = false;
+  raw_ptr<ClaudeChatPageHandler> page_handler_ = nullptr;
+  // The panel's view, while it exists.
+  views::ViewTracker view_;
+  std::string pending_question_;
   ui::ScopedUnownedUserData<ClaudePanel> scoped_data_holder_;
 };
 

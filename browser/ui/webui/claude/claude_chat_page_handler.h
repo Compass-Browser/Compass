@@ -66,6 +66,10 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void OpenSettings() override;
   void OpenLink(const std::string& url) override;
   void ClosePanel() override;
+  void TakeQuestion(TakeQuestionCallback callback) override;
+
+  // The command bar's "Ask Claude", while the page is connected.
+  void Ask(const std::string& question);
 
   // content::WebContentsObserver (the active tab):
   void PrimaryPageChanged(content::Page& page) override;

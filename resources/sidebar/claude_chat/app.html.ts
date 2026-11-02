@@ -5,72 +5,8 @@
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassClaudeChatAppElement} from './app.js';
-import type {AssistantTurn, ContentBlock, Turn, UserTurn} from './conversation.js';
-
-function userTurn(this: CompassClaudeChatAppElement, turn: UserTurn) {
-  // clang-format off
-  return html`
-<div class="turn user">
-  ${turn.pageTitle ? html`
-    <div class="attached" title="${turn.pageUrl}">
-      <span class="page-glyph" aria-hidden="true"></span>
-      <span>${turn.pageTitle}</span>
-    </div>` : nothing}
-  <div class="bubble">${turn.text}</div>
-</div>`;
-  // clang-format on
-}
-
-function block(this: CompassClaudeChatAppElement, item: ContentBlock,
-               streaming: boolean, last: boolean) {
-  switch (item.type) {
-    case 'text':
-      return html`<div class="markdown">${this.renderText_(item.text || '')}</div>`;
-    case 'thinking':
-      // clang-format off
-      return item.thinking || (streaming && last) ? html`
-        <details class="thinking" ?open="${streaming && last}">
-          <summary>${streaming && last ? 'Thinking…' : 'Thought'}</summary>
-          <div class="thinking-text">${item.thinking}</div>
-        </details>` : nothing;
-      // clang-format on
-    default:
-      return nothing;
-  }
-}
-
-function assistantTurn(this: CompassClaudeChatAppElement,
-                       turn: AssistantTurn) {
-  const blocks = turn.content;
-  // clang-format off
-  return html`
-<div class="turn assistant">
-  ${blocks.map((item, index) => block.call(
-      this, item, turn.streaming, index === blocks.length - 1))}
-  ${turn.streaming && !blocks.length ? html`
-    <div class="pending" aria-label="Claude is answering">
-      <span></span><span></span><span></span>
-    </div>` : nothing}
-  ${turn.stopReason === 'refusal' ? html`
-    <div class="notice">Claude declined to answer this.</div>` : nothing}
-  ${turn.stopReason === 'max_tokens' ? html`
-    <div class="notice">The answer was cut off at its length limit.</div>` :
-    nothing}
-  ${turn.error ? html`
-    <div class="notice error">${turn.error}
-      <button class="link" @click="${this.onRetryClick_}">Retry</button>
-    </div>` : nothing}
-</div>`;
-  // clang-format on
-}
-
-function turnHtml(this: CompassClaudeChatAppElement, turn: Turn) {
-  return turn.role === 'user' ? userTurn.call(this, turn) :
-                                assistantTurn.call(this, turn);
-}
 
 export function getHtml(this: CompassClaudeChatAppElement) {
-  const turns = this.conversation.turns;
   // clang-format off
   return html`<!--_html_template_start_-->
 <header>
@@ -79,7 +15,7 @@ export function getHtml(this: CompassClaudeChatAppElement) {
   <span class="model" title="Model (Claude settings)">${this.model_}</span>
   <span class="spacer"></span>
   <button class="icon" id="newChat" title="New chat" aria-label="New chat"
-      ?disabled="${!turns.length}" @click="${this.onNewChatClick_}">
+      ?disabled="${!this.hasTurns_()}" @click="${this.onNewChatClick_}">
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M8 3.5v9M3.5 8h9"></path>
     </svg>
@@ -100,7 +36,7 @@ export function getHtml(this: CompassClaudeChatAppElement) {
       <button id="openSettings" @click="${this.onOpenSettingsClick_}">
         Add an API key
       </button>
-    </div>` : !turns.length ? html`
+    </div>` : html`${!this.hasTurns_() ? html`
     <div class="empty">
       <p class="lead">Ask about the page you're on, or anything else.</p>
       ${this.pageReadable_ ? html`
@@ -109,16 +45,15 @@ export function getHtml(this: CompassClaudeChatAppElement) {
             <button class="suggestion" @click="${this.onSuggestionClick_}"
                 data-text="${text}">${text}</button>`)}
         </div>` : nothing}
-    </div>` :
-    turns.map(turn => turnHtml.call(this, turn))}
+    </div>` : html`${this.conversation.turns.map(turn => html`
+      <compass-claude-turn .turn="${turn}" .revision="${this.revision_}"
+          @retry="${this.onTurnRetry_}"></compass-claude-turn>`)}`}`}
 </main>
 
 <footer>
   ${this.pageReadable_ ? html`
     <button id="attach" class="chip" ?on="${this.attachPage_}"
-        aria-pressed="${this.attachPage_}"
-        title="${this.attachPage_ ? 'Claude gets this page\'s text with ' +
-                'your message' : 'Not sent'}"
+        aria-pressed="${this.attachPage_}" title="${this.getAttachTitle_()}"
         @click="${this.onAttachClick_}">
       <span class="page-glyph" aria-hidden="true"></span>
       <span class="chip-text">${this.pageTitle_ || this.pageUrl_}</span>

@@ -1,0 +1,224 @@
+/* Copyright 2026 The Compass Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host {
+  --fg: var(--color-sys-on-surface, #1f1f1f);
+  --fg-dim: color-mix(in srgb, var(--fg) 62%, transparent);
+  --line: color-mix(in srgb, var(--fg) 12%, transparent);
+  --tint: color-mix(in srgb, var(--fg) 6%, transparent);
+  --accent: var(--color-sys-primary, #0b57d0);
+  display: block;
+}
+
+button {
+  font: inherit;
+}
+
+.turn.user {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bubble {
+  background: var(--tint);
+  border-radius: 14px 14px 4px 14px;
+  max-width: 88%;
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.attached {
+  align-items: center;
+  color: var(--fg-dim);
+  display: flex;
+  font-size: 11px;
+  gap: 4px;
+  max-width: 88%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.attached span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-glyph {
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  flex: none;
+  height: 9px;
+  width: 7px;
+}
+
+.turn.assistant {
+  word-wrap: break-word;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown pre,
+.markdown blockquote,
+.markdown .table {
+  margin: 0 0 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-inline-start: 20px;
+}
+
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 6px;
+}
+
+.markdown h3 {
+  font-size: 15px;
+}
+
+.markdown code {
+  background: var(--tint);
+  border-radius: 4px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.markdown pre {
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-x: auto;
+  padding: 10px 12px;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+  white-space: pre;
+}
+
+.markdown blockquote {
+  border-inline-start: 3px solid var(--line);
+  color: var(--fg-dim);
+  padding-inline-start: 10px;
+}
+
+.markdown a {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.markdown hr {
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+.markdown .table {
+  overflow-x: auto;
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-align: start;
+}
+
+.thinking {
+  color: var(--fg-dim);
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.thinking summary {
+  cursor: pointer;
+}
+
+.thinking-text {
+  border-inline-start: 2px solid var(--line);
+  margin: 4px 0 0;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-inline-start: 8px;
+  white-space: pre-wrap;
+}
+
+.pending {
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.pending span {
+  animation: pulse 1.2s infinite ease-in-out;
+  background: var(--fg-dim);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.pending span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.pending span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.notice {
+  color: var(--fg-dim);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.notice.error {
+  color: var(--color-sys-error, #b3261e);
+}
+
+button.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0 4px;
+}

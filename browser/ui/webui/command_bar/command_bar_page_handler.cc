@@ -43,6 +43,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
@@ -254,7 +255,14 @@ void CommandBarPageHandler::Accept(uint32_t id,
       AcceptSpace(item.space_id);
       break;
     case ResultKind::kCommand:
-      RunCommand(item.command);
+      if (item.command == CommandBarCommand::kAskClaude) {
+        // The question is the row's subtitle; "Chat with Claude" has none.
+        if (claude::ClaudePanel* panel = claude::ClaudePanel::From(browser_)) {
+          panel->Ask(base::UTF16ToUTF8(item.subtitle));
+        }
+      } else {
+        RunCommand(item.command);
+      }
       break;
     case ResultKind::kOtherDeviceTab:
       AcceptOtherDeviceTab(item.url);
@@ -458,6 +466,27 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
     AssignId(item, "c:" + base::NumberToString(static_cast<int>(info.command)));
     items.push_back(std::move(item));
   }
+
+  // Claude, last: "Chat with Claude" for no text or text naming it, else
+  // "Ask Claude" with the text as the question.
+  if (!IsCommandAvailable(CommandBarCommand::kAskClaude)) {
+    return;
+  }
+  const std::u16string question(
+      base::TrimWhitespace(text_, base::TRIM_ALL));
+  Item item;
+  item.kind = ResultKind::kCommand;
+  item.command = CommandBarCommand::kAskClaude;
+  if (words.empty() || ContainsAll(u"chat with claude", words)) {
+    item.title = u"Chat with Claude";
+    item.action = "Open";
+  } else {
+    item.title = u"Ask Claude";
+    item.subtitle = question;
+    item.action = "Ask";
+  }
+  AssignId(item, "c:claude");
+  items.push_back(std::move(item));
 }
 
 void CommandBarPageHandler::AddOtherDeviceTabItems(std::vector<Item>& items) {
@@ -683,6 +712,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kKeyboardShortcuts:
       chrome::ShowSettingsSubPage(browser_, kShortcutsSettingsSubPage);
       break;
+    case CommandBarCommand::kAskClaude:
+      // Handled by Accept(), which has the question.
+      break;
   }
 }
 
@@ -724,6 +756,9 @@ bool CommandBarPageHandler::IsCommandAvailable(
     case CommandBarCommand::kKeyboardShortcuts:
       return true;
     case CommandBarCommand::kImportFromArc:
+      return !browser_->GetProfile()->IsOffTheRecord();
+    case CommandBarCommand::kAskClaude:
+      // The key and the settings are the profile's.
       return !browser_->GetProfile()->IsOffTheRecord();
   }
 }

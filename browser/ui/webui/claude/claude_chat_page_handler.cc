@@ -59,9 +59,16 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
                           base::Unretained(this)));
   tabs::TabInterface* tab = browser_->GetActiveTabInterface();
   Observe(tab ? tab->GetContents() : nullptr);
+  if (ClaudePanel* panel = ClaudePanel::From(browser_)) {
+    panel->SetPageHandler(this);
+  }
 }
 
-ClaudeChatPageHandler::~ClaudeChatPageHandler() = default;
+ClaudeChatPageHandler::~ClaudeChatPageHandler() {
+  if (ClaudePanel* panel = ClaudePanel::From(browser_)) {
+    panel->RemovePageHandler(this);
+  }
+}
 
 void ClaudeChatPageHandler::SetLoaderFactoryForTesting(
     scoped_refptr<network::SharedURLLoaderFactory> factory) {
@@ -198,6 +205,15 @@ void ClaudeChatPageHandler::ClosePanel() {
   if (ClaudePanel* panel = ClaudePanel::From(browser_)) {
     panel->Close();
   }
+}
+
+void ClaudeChatPageHandler::TakeQuestion(TakeQuestionCallback callback) {
+  ClaudePanel* panel = ClaudePanel::From(browser_);
+  std::move(callback).Run(panel ? panel->TakeQuestion() : std::string());
+}
+
+void ClaudeChatPageHandler::Ask(const std::string& question) {
+  page_->OnAsk(question);
 }
 
 void ClaudeChatPageHandler::PrimaryPageChanged(content::Page& page) {

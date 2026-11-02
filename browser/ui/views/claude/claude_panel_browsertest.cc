@@ -134,6 +134,24 @@ class ClaudePanelBrowserTest : public InProcessBrowserTest {
     return contents;
   }
 
+  // The text of |query| in the last turn of |role| ("user", "assistant").
+  std::string TurnText(content::WebContents* contents,
+                       const std::string& role,
+                       const std::string& query) {
+    return content::EvalJs(
+               contents,
+               content::JsReplace(
+                   std::string("(() => { const turns = [...") + kRoot +
+                       ".querySelectorAll('compass-claude-turn')]"
+                       ".map(t => t.shadowRoot)"
+                       ".filter(r => r.querySelector('.turn.' + $1));"
+                       "const last = turns[turns.length - 1];"
+                       "return (last?.querySelector($2)?.textContent || '')"
+                       ".trim(); })()",
+                   role, query))
+        .ExtractString();
+  }
+
   std::string Text(content::WebContents* contents, const std::string& query) {
     return content::EvalJs(contents, std::string("(") + kRoot +
                                          ".querySelector('" + query +
@@ -177,11 +195,12 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksAboutThePage) {
 
   // The reply streams in, rendered.
   EXPECT_TRUE(base::test::RunUntil([&] {
-    return Text(contents, ".turn.assistant .markdown") ==
+    return TurnText(contents, "assistant", ".markdown") ==
            "Hello from the fake API.";
   }));
-  EXPECT_EQ(Text(contents, ".turn.assistant .markdown strong"), "the fake");
-  EXPECT_EQ(Text(contents, ".turn.user .attached"), "Fox page");
+  EXPECT_EQ(TurnText(contents, "assistant", ".markdown strong"),
+            "the fake");
+  EXPECT_EQ(TurnText(contents, "user", ".attached"), "Fox page");
 
   // The request: the key in its header, the browser's model and prompt, the
   // page's text with the question.
@@ -222,6 +241,36 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksAboutThePage) {
   const base::ListValue& history = *second->FindList("messages");
   EXPECT_EQ(*history[1].GetDict().FindString("role"), "assistant");
   EXPECT_EQ(history[2].GetDict().FindList("content")->size(), 1u);
+}
+
+// The command bar's "Ask Claude".
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AskOpensAndSends) {
+  SetUpClaude();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/page.html")));
+
+  // Closed: the question waits for the page, then goes with the page.
+  panel()->Ask("Which animal jumps?");
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return panel()->IsShowing() && panel()->web_contents_for_testing() &&
+           LastBody().find("Which animal jumps?") != std::string::npos;
+  }));
+  content::WebContents* contents = panel()->web_contents_for_testing();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return TurnText(contents, "assistant", ".markdown") ==
+           "Hello from the fake API.";
+  }));
+  EXPECT_EQ(TurnText(contents, "user", ".attached"), "Fox page");
+
+  // Open: straight to the page, after the first exchange.
+  panel()->Ask("And which one is lazy?");
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return LastBody().find("And which one is lazy?") != std::string::npos;
+  }));
+  std::optional<base::DictValue> body =
+      base::JSONReader::ReadDict(LastBody(), base::JSON_PARSE_RFC);
+  ASSERT_TRUE(body);
+  EXPECT_EQ(body->FindList("messages")->size(), 3u);
 }
 
 }  // namespace
