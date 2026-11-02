@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
-index c1bb5d445e89d04df601b51295adadaf8452b2ee..8bf11440d7b72ccfa8bddb4eecd58a48508dd0ee 100644
+index c1bb5d445e89d04df601b51295adadaf8452b2ee..c056d481ac30eae85fa51a07a15c7e133d3fee7b 100644
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
 @@ -99,6 +99,7 @@
@@ -18,4 +18,18 @@ index c1bb5d445e89d04df601b51295adadaf8452b2ee..8bf11440d7b72ccfa8bddb4eecd58a48
 +  compass_sections_ = compass::SettingsSections::Create(web_ui, html_source);
  
    AddSettingsPageUIHandler(std::make_unique<AppearanceHandler>(web_ui));
+ 
+@@ -658,9 +661,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+   // Within the AI subpage are separate sections for Glic, for GEIC, and for all
+   // other AI features. The visibility of these is separately controlled, but
+   // we want to show the subpage if any of them are enabled.
++  // Compass: no "AI innovations" page, whose features are Google's.
+   html_source->AddBoolean("showAiPage",
+-                          show_glic_section || show_ai_features_section ||
+-                              enable_ai_mode_search || show_geic_section);
++                          false && (show_glic_section ||
++                                    show_ai_features_section ||
++                                    enable_ai_mode_search || show_geic_section));
+   html_source->AddBoolean("showAiPageAiFeatureSection",
+                           show_ai_features_section);
  

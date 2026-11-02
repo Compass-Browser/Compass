@@ -1,0 +1,32 @@
+diff --git a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+index b6cf0bffe2c5e05270dff10c6586a765c0a73134..89deadeb17807885f7df98f560d938eae7ea1813 100644
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -11,6 +11,10 @@ export function getHtml(this: SettingsAppearancePageElement) {
+   return html`<!--_html_template_start_-->
+ <settings-section page-title="$i18n{appearancePageTitle}">
+   <div route-path="default">
++    <!-- Compass: Chrome's theme, toolbar and tab strip rows do nothing
++         here (spaces carry the theme); hidden, which also keeps them out of
++         search. Font size, fonts, zoom and the macOS toggles stay. -->
++    <div id="compassHiddenRows" hidden>
+     <div class="settings-row first" id="themeRow"
+         ?hidden="${!this.pageVisibility_.setTheme}">
+       <cr-link-row id="openTheme" class="first"
+@@ -302,6 +306,7 @@ export function getHtml(this: SettingsAppearancePageElement) {
+         inverted>
+     </settings-toggle-button>
+ </if>
++    </div>
+     <div class="cr-row">
+       <div class="flex cr-padded-text" aria-hidden="true">
+         $i18n{fontSize}
+@@ -340,7 +345,7 @@ export function getHtml(this: SettingsAppearancePageElement) {
+     </settings-toggle-button>
+ </if>
+   </div>
+-  <settings-toggle-button class="hr" id="splitViewDragAndDrop"
++  <settings-toggle-button class="hr" id="splitViewDragAndDrop" hidden
+       pref-key="browser.split_view_drag_and_drop_enabled"
+       label="${this.i18n(this.splitViewHorizontalEnabled_
+                ? 'allowSplitViewDragAndDropHorizontal'
