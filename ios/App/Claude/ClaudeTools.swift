@@ -135,18 +135,41 @@ final class ClaudeTools {
   }
 
   /// The open (live) tabs, by space, as the desktop lists its windows'.
+  /// Built from the live tabs themselves, so none is missed: favorites
+  /// (outside every space) get their own group.
   private func listTabs() -> Result {
     guard let app else { return .error("No window.") }
-    let shown = Set(app.services.windows.compactMap { $0.shownTab?.id })
-    var text = ""
+    let shown = Set(app.services.windows.flatMap(\.displayedTabIDs))
+    let favorites = Set(app.store.favoritesRoots.flatMap { $0.children.flatMap(\.subtree) }.map(\.id))
+    // Sidebar order within each group: pinned, then Today newest first.
+    var order: [String: Int] = [:]
     for space in app.store.spaces {
-      let tabs = (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed().flatMap(\.subtree))
-        .filter { $0.isTab && app.tabs.live[$0.id] != nil }
-      guard !tabs.isEmpty else { continue }
-      text += "\(text.isEmpty ? "" : "\n")Space \(space.name):\n"
-      for tab in tabs {
-        let url = app.tabs.live[tab.id]?.url?.absoluteString ?? tab.url
-        let title = app.tabs.live[tab.id]?.title.flatMap { $0.isEmpty ? nil : $0 } ?? tab.displayTitle
+      for node in space.pinned.children.flatMap(\.subtree) + space.today.children.reversed().flatMap(\.subtree) {
+        order[node.id] = order.count
+      }
+    }
+    var groups: [(name: String, tabs: [SidebarNode])] = app.store.spaces.map { ("Space \($0.name)", []) }
+    groups.append(("Favorites", []))
+    groups.append(("Other tabs", []))
+    for id in app.tabs.live.keys {
+      guard let node = app.store.node(id: id) else { continue }
+      let group: Int
+      if favorites.contains(id) {
+        group = groups.count - 2
+      } else if let space = app.store.space(of: node), let index = app.store.spaces.firstIndex(where: { $0 === space }) {
+        group = index
+      } else {
+        group = groups.count - 1
+      }
+      groups[group].tabs.append(node)
+    }
+    var text = ""
+    for group in groups where !group.tabs.isEmpty {
+      text += "\(text.isEmpty ? "" : "\n")\(group.name):\n"
+      for tab in group.tabs.sorted(by: { (order[$0.id] ?? .max, $0.id) < (order[$1.id] ?? .max, $1.id) }) {
+        let view = app.tabs.live[tab.id]
+        let url = view?.url?.absoluteString ?? tab.url
+        let title = view?.title.flatMap { $0.isEmpty ? nil : $0 } ?? tab.displayTitle
         text += "- \(Self.shortID(tab.id)): \(title.isEmpty ? url : title) — \(url)"
         if shown.contains(tab.id) { text += " [front]" }
         if tab.id == targetTab { text += " [you act on this]" }
