@@ -513,12 +513,7 @@ struct BrowserScreen: View {
   /// The next (1) or previous (-1) entry of the space: pinned, then Today
   /// (newest first).
   private func neighbor(_ delta: Int) -> SidebarNode? {
-    guard let node, let space = app.store.space(of: node) else { return nil }
-    let entries = (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
-      .filter { !$0.isFolder && $0.parent?.isSplit != true && $0.isPhoneVisible }
-    guard let index = entries.firstIndex(where: { $0 === node }) else { return nil }
-    let next = index + delta
-    return entries.indices.contains(next) ? entries[next] : nil
+    node.flatMap { app.neighbor(of: $0, delta) }
   }
 
   /// The swipe let go `dx` from where it started: past a third of the

@@ -69,6 +69,7 @@ struct CompassApp: App {
           }
         }
     }
+    .commands { BrowserCommands(app: app) }
     .onChange(of: phase) { old, phase in
       app.sync.setActive(phase == .active)
       // Auto picture-in-picture: it has to start while the app is still on
@@ -119,6 +120,16 @@ struct RootView: View {
       app.isWide = UIDevice.current.userInterfaceIdiom == .pad && sizeClass == .regular
     }
       .overlay { if !app.isWide { SidebarPanel() } }
+      // ⌘W and ⌃⇧Tab (KeyboardShortcuts.swift), once there's a window.
+      .task {
+        for _ in 0..<20 {
+          if let window = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow {
+            PriorityKeyCommands.install(in: window, app: app)
+            return
+          }
+          try? await Task.sleep(for: .milliseconds(250))
+        }
+      }
       .overlay { TabPicker() }
       .sheet(isPresented: $app.showingCommandBar) {
         // A new tab, or the shown tab's address.

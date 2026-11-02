@@ -1,0 +1,91 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import SwiftUI
+import WebKit
+
+/// Keyboard shortcuts with a hardware keyboard (iPad, or an iPhone with
+/// one), the desktop's where it has them (shortcuts.md): ⌘T and ⌘L the
+/// command bar, ⌘S the sidebar, ⌃1–9 the spaces, ⌘⇧C copy the link.
+/// iPadOS lists them in the menu bar and in the overlay ⌘ held down shows.
+struct BrowserCommands: Commands {
+  let app: AppModel
+
+  private var webView: WKWebView? { app.shownTab.flatMap { app.tabs.live[$0.id] } }
+
+  var body: some Commands {
+    CommandGroup(replacing: .newItem) {
+      Button("New Tab") { app.openCommandBar(newTab: true) }
+        .keyboardShortcut("t")
+      Button("Open Location…") { app.openCommandBar(newTab: false) }
+        .keyboardShortcut("l")
+    }
+    CommandGroup(after: .pasteboard) {
+      Button("Copy Link") {
+        if let url = webView?.url { UIPasteboard.general.url = url }
+      }
+      .keyboardShortcut("c", modifiers: [.command, .shift])
+      Button("Find…") { app.findOnPage() }
+        .keyboardShortcut("f")
+    }
+    CommandGroup(before: .sidebar) {
+      Button(app.isWide && app.showingSidebarColumn ? "Hide Sidebar" : "Show Sidebar") { toggleSidebar() }
+        .keyboardShortcut("s")
+      Button("Reload Page") { webView?.reload() }
+        .keyboardShortcut("r")
+      Button("Reload Without Cache") { webView?.reloadFromOrigin() }
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+    }
+    CommandMenu("History") {
+      Button("Back") { webView?.goBack() }
+        .keyboardShortcut("[")
+      Button("Forward") { webView?.goForward() }
+        .keyboardShortcut("]")
+    }
+    CommandMenu("Tabs") {
+      Button("Next Tab") { app.stepEntry(1) }
+        .keyboardShortcut(.tab, modifiers: .control)
+      Divider()
+      ForEach(Array(app.visibleSpaces.prefix(9).enumerated()), id: \.element.id) { index, space in
+        Button(space.name.isEmpty ? "Space \(index + 1)" : space.name) { app.selectSpace(at: index) }
+          .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .control)
+      }
+    }
+  }
+
+  /// ⌘S: the column on an iPad; on a phone (or a narrow window) the bottom
+  /// panel.
+  private func toggleSidebar() {
+    if app.isWide {
+      app.showingSidebarColumn.toggle()
+    } else if app.showingSidebar {
+      app.showingSidebar = false
+    } else {
+      app.showSidebar()
+    }
+  }
+}
+
+/// ⌘W and ⌃⇧Tab, which the system keeps from SwiftUI's commands: UIKit key
+/// commands that ask for priority over system behavior, on the window's root
+/// view controller (in every responder chain, the page's included).
+enum PriorityKeyCommands {
+  @MainActor static func install(in window: UIWindow, app: AppModel) {
+    guard let root = window.rootViewController, root.keyCommands?.contains(where: { $0.action == #selector(UIViewController.compassCloseTab) }) != true
+    else { return }
+    AppDelegate.app = AppDelegate.app ?? app
+    let close = UIKeyCommand(title: "Close Tab", action: #selector(UIViewController.compassCloseTab), input: "w", modifierFlags: .command)
+    let previous = UIKeyCommand(
+      title: "Previous Tab", action: #selector(UIViewController.compassPreviousTab), input: "\t", modifierFlags: [.control, .shift])
+    for command in [close, previous] {
+      command.wantsPriorityOverSystemBehavior = true
+      root.addKeyCommand(command)
+    }
+  }
+}
+
+extension UIViewController {
+  @objc func compassCloseTab() { AppDelegate.app?.closeShown() }
+  @objc func compassPreviousTab() { AppDelegate.app?.stepEntry(-1) }
+}
