@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca755259c2df938 100644
+index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5fa6bbc9f1 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,21 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
  #include <algorithm>
  #include <memory>
  #include <optional>
-@@ -603,7 +605,9 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation() {
+@@ -268,6 +270,13 @@ BrowserViewTabbedLayoutImpl::CalculateSeparatorInfo() const {
+       break;
+   }
+ 
++  // Compass: no shadow box around the page while a side panel is open. Its
++  // overlay drew a straight-edged frame behind the page card's rounded
++  // corners, and its padding made the page shorter; the card keeps its
++  // size and the panel sits beside it on the window's tint.
++  info.shadow_box = false;
++  info.adjust_for_missing_separator = false;
++
+   return info;
+ }
+ 
+@@ -603,7 +612,9 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation() {
  
    // Now that the proper default value is set, calculate all of the corner
    // animation values.
@@ -22,7 +36,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
    VerticalTabStripAnimation animation;
    animation.current_motion =
        controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
-@@ -900,6 +904,14 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -900,6 +911,14 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                      layout_data_->tab_strip_type == TabStripType::kVertical);
    }
  
@@ -37,7 +51,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
    if (IsParentedTo(views().vertical_tab_strip_background_blur_backdrop,
                     views().browser_view)) {
      layout.AddChild(
-@@ -914,9 +926,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -914,9 +933,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    if (IsParentedTo(views().vertical_tab_strip_top_corner,
                     views().browser_view)) {
      gfx::Rect corner_bounds;
@@ -49,7 +63,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
  
      // The top corner is drawn when the tabstrip goes all the way to the top.
      if (top_corner_visible) {
-@@ -937,9 +948,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -937,9 +955,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    if (IsParentedTo(views().vertical_tab_strip_bottom_corner,
                     views().browser_view)) {
      gfx::Rect corner_bounds;
@@ -60,7 +74,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
      if (bottom_corner_visible) {
        auto preferred =
            views().vertical_tab_strip_bottom_corner->GetPreferredSize();
-@@ -1003,7 +1012,11 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1003,7 +1019,11 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      } else {
        main_background_bounds = params.visual_client_area;
      }
@@ -73,7 +87,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
      main_background_layout =
          &layout.AddChild(views().main_background_region, main_background_bounds,
                           main_background_visibility);
-@@ -1137,8 +1150,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1137,8 +1157,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    // especially obvious in split view, where turning the separator off provides
    // the required top padding.
    const auto& separator_info = layout_data_->separator_info;
@@ -85,7 +99,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
  
    // Updating the top, left and right insets for contents container view when
    // in split view. This is dependent on a number of other browser states.
-@@ -1260,6 +1275,13 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1260,6 +1282,13 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      }
      views().multi_contents_view->SetBackgroundRadii(content_corners);
    }
@@ -99,7 +113,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
  
    // Make final visual adjustments required for child views to paint.
    if (layout_data_->tab_strip_type == TabStripType::kVertical) {
-@@ -1595,6 +1617,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1595,6 +1624,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
            vertical_tabs_bottom_corner_size;
      }
  
@@ -108,7 +122,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..e2ea653b24b8ea9e2e9476c94ca75525
      vertical_tabs_background->SetCorners(vertical_tabs_corners);
  
      // Apply shadow for expand-on-hover.
-@@ -1630,6 +1654,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1630,6 +1661,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
      if (animation.expand_on_hover_width > 0.0) {
        vertical_tabs_outline.bottom = true;
      }

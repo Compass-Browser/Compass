@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -200,19 +201,29 @@ class ClaudePanelBrowserTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, WithoutAKeyAsksForOne) {
   ASSERT_TRUE(panel());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  const gfx::Rect page_before =
+      browser_view->contents_web_view_for_testing()->GetBoundsInScreen();
   content::WebContents* contents = Open();
   ASSERT_TRUE(contents);
   EXPECT_TRUE(base::test::RunUntil([&] {
     return Text(contents, "#openSettings") == "Add an API key";
   }));
-  // No toolbar-colored box behind the page and the panel: upstream's main
-  // background region stays hidden in Compass's toolbarless window.
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  // No toolbar-colored box behind the page and the panel, and no shadow box
+  // around the page: upstream's main background region and shadow overlay
+  // stay hidden in Compass's toolbarless window, and the page keeps its top
+  // and height (only its width gives way to the panel).
   for (views::View* child : browser_view->children()) {
-    if (std::string_view(child->GetClassName()) == "MainBackgroundRegionView") {
-      EXPECT_FALSE(child->GetVisible());
+    const std::string_view name = child->GetClassName();
+    if (name == "MainBackgroundRegionView" || name == "ShadowOverlayView") {
+      EXPECT_FALSE(child->GetVisible()) << name;
     }
   }
+  const gfx::Rect page_after =
+      browser_view->contents_web_view_for_testing()->GetBoundsInScreen();
+  EXPECT_EQ(page_after.y(), page_before.y());
+  EXPECT_EQ(page_after.height(), page_before.height());
+  EXPECT_LT(page_after.width(), page_before.width());
   // Again: it closes.
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleClaudeCommand));
   EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));
