@@ -67,15 +67,20 @@ unchanged, so the desktop needs no new format:
 |---|---|---|
 | iOS: DEVICE_INFO flag, `SendTabBridge`, local notifications, tap opens and marks opened | compass-b2 (iOS session) | written, `ios/send-tab` |
 | iOS: APNs registration, token upload, notification service extension | compass-b2 | written (`ios/send-tab-push`); needs the phone and a real push |
-| Desktop: enable SEND_TAB_TO_SELF and its entry points | compass-0d | in progress (already synced; adding the sidebar tab menu entry) |
-| Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF | compass-0d | done (`server/push`); live on the sync server without a key |
+| Desktop: enable SEND_TAB_TO_SELF and its entry points | compass-0d | the type already ran; sidebar menu "Send to Your Devices" added; the end-to-end send not yet checked |
+| Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF | compass-0d | done (`server/push`); not yet deployed to the sync server |
 | Apple: an APNs auth key (Certificates, Identifiers & Profiles → Keys → Apple Push Notifications service), its key ID and the team ID, on the server | Matteo | to do |
 
 ### Desktop
 
-sync.md lists `SEND_TAB_TO_SELF` among the excluded types ("needs FCM"). It
-only needs FCM for Chromium's own push to Android/iOS Chrome; between
-Compass devices the SSE notifier already brings new entries. To do:
+Done (2026-11-02): nothing excluded the type in code (only
+`WEBAUTHN_CREDENTIAL` is disabled), so its controller already ran; sync.md
+was only out of date. Chromium's page context menu offers it as soon as a
+target device exists (local sync mode never offers sign-in). Compass's tabs
+live in its sidebar, so the sidebar's tab menu got "Send to Your Devices"
+(`SidebarPageHandler`, up to five devices, the toast after sending). Still
+to check by hand: an entry with the phone's cache GUID in
+`chrome://sync-internals`, and the phone marking it opened. Original notes:
 
 - Sync it (remove it from the excluded types).
 - The entry points Chromium has: the tab's context menu "Send to your

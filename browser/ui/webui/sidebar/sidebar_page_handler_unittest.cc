@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback_helpers.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "base/test/task_environment.h"
@@ -20,6 +22,10 @@
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
+#include "components/send_tab_to_self/send_tab_to_self_entry.h"
+#include "components/send_tab_to_self/target_device_info.h"
+#include "components/sync_device_info/device_info.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -957,6 +963,70 @@ TEST_F(SidebarPageHandlerTest, DuplicatesEntriesFromTheMenu) {
               ElementsAre("b.test", "a.test", "a.test"));
   EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
             GURL("https://b.test/"));
+}
+
+TEST_F(SidebarPageHandlerTest, SendsEntriesToDevicesFromTheMenu) {
+  // Without a device to send to (sync off here), no submenu.
+  EXPECT_THAT(MenuCommands(TodayId(1)), Not(Contains(Command::kSendToDevices)));
+
+  send_tab_to_self::FakeSendTabToSelfModel model;
+  std::vector<send_tab_to_self::TargetDeviceInfo> devices;
+  for (int i = 0; i < 7; ++i) {
+    devices.emplace_back(i == 0 ? "iPhone" : "Mac " + base::NumberToString(i),
+                         "guid-" + base::NumberToString(i),
+                         i == 0 ? syncer::DeviceInfo::FormFactor::kPhone
+                                : syncer::DeviceInfo::FormFactor::kDesktop,
+                         i == 0 ? syncer::DeviceInfo::OsType::kIOS
+                                : syncer::DeviceInfo::OsType::kMac,
+                         base::Time::Now());
+  }
+  model.SetTargetDeviceInfoSortedList(devices);
+  std::vector<std::pair<GURL, std::string>> sent;
+  model.SetSendEntryCallback(base::BindLambdaForTesting(
+      [&](const send_tab_to_self::SendTabToSelfEntry* entry) {
+        ASSERT_TRUE(entry);
+        sent.emplace_back(entry->GetURL(), entry->GetTargetDeviceSyncCacheGuid());
+      }));
+  SidebarPageHandler::SetSendTabModelForTesting(&model);
+  base::ScopedClosureRunner reset(base::BindOnce(
+      &SidebarPageHandler::SetSendTabModelForTesting,
+      static_cast<send_tab_to_self::SendTabToSelfModel*>(nullptr)));
+
+  const std::string b = TodayId(1);
+  std::unique_ptr<ui::SimpleMenuModel> menu = handler_->CreateContextMenu(b);
+  std::optional<size_t> index =
+      menu->GetIndexOfCommandId(Command::kSendToDevices);
+  ASSERT_TRUE(index);
+  // Right after Copy Link and Duplicate.
+  EXPECT_EQ(menu->GetCommandIdAt(*index - 1), Command::kDuplicate);
+  ui::MenuModel* targets = menu->GetSubmenuModelAt(*index);
+  // At most five, most recently active first.
+  ASSERT_EQ(targets->GetItemCount(), SidebarPageHandler::kMaxSendTargets);
+  EXPECT_EQ(targets->GetLabelAt(0), u"iPhone");
+  EXPECT_EQ(targets->GetLabelAt(4), u"Mac 4");
+  targets->ActivatedAt(0);
+  Settle();
+  EXPECT_THAT(sent, ElementsAre(std::pair(GURL("https://b.test/"),
+                                          std::string("guid-0"))));
+
+  // An unloaded entry is sent by its saved address.
+  Choose(b, Command::kPin);
+  Choose(b, Command::kCloseTab);
+  menu = handler_->CreateContextMenu(b);
+  index = menu->GetIndexOfCommandId(Command::kSendToDevices);
+  ASSERT_TRUE(index);
+  menu->GetSubmenuModelAt(*index)->ActivatedAt(1);
+  Settle();
+  ASSERT_EQ(sent.size(), 2u);
+  EXPECT_EQ(sent[1], std::pair(GURL("https://b.test/"), std::string("guid-1")));
+
+  // Folders aren't sent.
+  const std::string folder =
+      space_model()
+          .AddFolder(space_model().pinned_root(), 0, u"F")
+          ->id()
+          .AsLowercaseString();
+  EXPECT_THAT(MenuCommands(folder), Not(Contains(Command::kSendToDevices)));
 }
 
 TEST_F(SidebarPageHandlerTest, CopiesLinksFromTheMenu) {

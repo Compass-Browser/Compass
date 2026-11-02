@@ -32,6 +32,14 @@
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_util.h"
+#include "components/send_tab_to_self/entry_point_display_reason.h"
+#include "components/send_tab_to_self/metrics_util.h"
+#include "components/send_tab_to_self/page_context.h"
+#include "components/send_tab_to_self/send_tab_to_self_entry.h"
+#include "components/send_tab_to_self/send_tab_to_self_model.h"
+#include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -75,6 +83,8 @@ sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
 
 constexpr uint32_t kMaxArchiveAfterHours = 365 * 24;
 
+send_tab_to_self::SendTabToSelfModel* g_send_tab_model_for_testing = nullptr;
+
 // Null for grey.
 sidebar::mojom::SpaceColorPtr ToMojoColor(SpaceColor color) {
   if (color.is_grey()) {
@@ -111,7 +121,8 @@ class NodeMenu : public ui::SimpleMenuModel,
       : ui::SimpleMenuModel(this),
         handler_(std::move(handler)),
         id_(std::move(id)),
-        spaces_menu_(this) {}
+        spaces_menu_(this),
+        devices_menu_(this) {}
   NodeMenu(const NodeMenu&) = delete;
   NodeMenu& operator=(const NodeMenu&) = delete;
   ~NodeMenu() override = default;
@@ -135,9 +146,30 @@ class NodeMenu : public ui::SimpleMenuModel,
     }
   }
 
+  // Adds "Send to Your Devices" with |devices|, if there are any.
+  void AddSendToDevices(
+      std::vector<send_tab_to_self::TargetDeviceInfo> devices) {
+    devices_ = std::move(devices);
+    for (size_t i = 0; i < devices_.size(); ++i) {
+      devices_menu_.AddItem(SidebarPageHandler::kSendToDeviceFirst + i,
+                            base::UTF8ToUTF16(devices_[i].device_name));
+    }
+    if (!devices_.empty()) {
+      AddSubMenu(SidebarPageHandler::kSendToDevices, u"Send to Your Devices",
+                 &devices_menu_);
+    }
+  }
+
   // ui::SimpleMenuModel::Delegate:
   void ExecuteCommand(int command_id, int event_flags) override {
     if (!handler_) {
+      return;
+    }
+    if (command_id >= SidebarPageHandler::kSendToDeviceFirst) {
+      const size_t index = command_id - SidebarPageHandler::kSendToDeviceFirst;
+      if (index < devices_.size()) {
+        handler_->SendNodeToDevice(id_, devices_[index]);
+      }
       return;
     }
     if (command_id >= SidebarPageHandler::kMoveToSpaceFirst) {
@@ -153,6 +185,8 @@ class NodeMenu : public ui::SimpleMenuModel,
   const std::string id_;
   ui::SimpleMenuModel spaces_menu_;
   std::vector<std::string> space_ids_;
+  ui::SimpleMenuModel devices_menu_;
+  std::vector<send_tab_to_self::TargetDeviceInfo> devices_;
 };
 
 }  // namespace
@@ -780,6 +814,7 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
     if (entry) {
       menu->AddItem(kDuplicate, u"Duplicate");
     }
+    menu->AddSendToDevices(GetSendTargets(node->url()));
     if (live) {
       menu->AddItem(kReload, u"Reload");
       // Its speaker mutes it while it plays; this mutes it before it does.
@@ -901,6 +936,95 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
       DeleteNode(id);
       break;
   }
+}
+
+// static
+void SidebarPageHandler::SetSendTabModelForTesting(
+    send_tab_to_self::SendTabToSelfModel* model) {
+  g_send_tab_model_for_testing = model;
+}
+
+send_tab_to_self::SendTabToSelfModel* SidebarPageHandler::send_tab_model() {
+  if (g_send_tab_model_for_testing) {
+    return g_send_tab_model_for_testing;
+  }
+  send_tab_to_self::SendTabToSelfSyncService* service =
+      SendTabToSelfSyncServiceFactory::GetForProfile(browser_->GetProfile());
+  return service ? service->GetSendTabToSelfModel() : nullptr;
+}
+
+std::vector<send_tab_to_self::TargetDeviceInfo>
+SidebarPageHandler::GetSendTargets(const GURL& url) {
+  if (!send_tab_to_self::SendTabToSelfEntry::IsValidUrl(url)) {
+    return {};
+  }
+  if (!g_send_tab_model_for_testing) {
+    // Sync must offer it: the chain is on and some other device takes tabs.
+    send_tab_to_self::SendTabToSelfSyncService* service =
+        SendTabToSelfSyncServiceFactory::GetForProfile(browser_->GetProfile());
+    if (!service || service->GetEntryPointDisplayReason(url) !=
+                        send_tab_to_self::EntryPointDisplayReason::
+                            kOfferFeature) {
+      return {};
+    }
+  }
+  send_tab_to_self::SendTabToSelfModel* model = send_tab_model();
+  if (!model) {
+    return {};
+  }
+  std::vector<send_tab_to_self::TargetDeviceInfo> devices =
+      model->GetTargetDeviceInfoSortedList();
+  if (devices.size() > kMaxSendTargets) {
+    devices.resize(kMaxSendTargets);
+  }
+  return devices;
+}
+
+void SidebarPageHandler::SendNodeToDevice(
+    const std::string& id,
+    const send_tab_to_self::TargetDeviceInfo& device) {
+  SidebarNode* node = FindNode(id);
+  send_tab_to_self::SendTabToSelfModel* model = send_tab_model();
+  if (!node || node->type() != SidebarNode::Type::kTab || !model) {
+    return;
+  }
+  // The live tab's title if it has one, else the saved one.
+  std::u16string title = node->title();
+  if (tabs::TabInterface* tab = registry().GetTab(node)) {
+    title = tab->GetContents()->GetTitle();
+  }
+  // The window's page shows the toast.
+  base::WeakPtr<content::WebContents> shown;
+  if (tabs::TabInterface* active = tab_strip_model()->GetActiveTab()) {
+    shown = active->GetContents()->GetWeakPtr();
+  }
+  model->SendEntry(
+      node->url(), base::UTF16ToUTF8(title), device.cache_guid,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory(),
+      base::BindOnce(
+          [](base::WeakPtr<content::WebContents> contents,
+             std::string device_name,
+             syncer::DeviceInfo::FormFactor form_factor,
+             send_tab_to_self::SendTabToSelfResult result) {
+            if (!contents) {
+              return;
+            }
+            switch (result) {
+              case send_tab_to_self::SendTabToSelfResult::kSuccess:
+                send_tab_to_self::ShowTabSentSuccessToast(
+                    contents.get(), device_name, form_factor);
+                break;
+              case send_tab_to_self::SendTabToSelfResult::kSuccessThrottled:
+                send_tab_to_self::ShowTabSentThrottledToast(
+                    contents.get(), device_name, form_factor);
+                break;
+              default:
+                send_tab_to_self::ShowTabSentFailure(contents.get(), result);
+                break;
+            }
+          },
+          shown, device.device_name, device.form_factor),
+      send_tab_to_self::ShareEntryPoint::kTabMenu);
 }
 
 void SidebarPageHandler::OnNodeAdded(const SidebarNode& node) {

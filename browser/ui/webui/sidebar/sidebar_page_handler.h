@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -27,10 +28,16 @@
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "components/send_tab_to_self/target_device_info.h"
 #include "ui/menus/simple_menu_model.h"
 
 class BrowserWindowInterface;
+class GURL;
 class TabStripModel;
+
+namespace send_tab_to_self {
+class SendTabToSelfModel;
+}  // namespace send_tab_to_self
 
 namespace content {
 class WebContents;
@@ -73,9 +80,21 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     kSeparate,
     kMute,
     kUnmute,
+    kSendToDevices,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
+    // Then one per device in "Send to Your Devices", in their order.
+    kSendToDeviceFirst = 200,
   };
+
+  // At most this many devices in "Send to Your Devices" (as Chromium's page
+  // menu).
+  static constexpr size_t kMaxSendTargets = 5;
+
+  // Makes "Send to Your Devices" use |model|, as if sync offered it, while
+  // set (tests). Null restores the profile's.
+  static void SetSendTabModelForTesting(
+      send_tab_to_self::SendTabToSelfModel* model);
 
   // |page_contents| is the sidebar page's, for its hover card and context
   // menus (null in tests).
@@ -165,8 +184,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // Node |id|'s context menu, or null if it has none. Its commands act on the
   // node, if it's still there, while this handler lives.
   std::unique_ptr<ui::SimpleMenuModel> CreateContextMenu(const std::string& id);
-  // Carries out |command|, other than a move to a space, on node |id|.
+  // Carries out |command|, other than a move to a space or a send, on node
+  // |id|.
   void ExecuteMenuCommand(const std::string& id, int command);
+  // Sends node |id|'s page to |device| (send tab to self,
+  // docs/design/send-tab.md).
+  void SendNodeToDevice(const std::string& id,
+                        const send_tab_to_self::TargetDeviceInfo& device);
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -230,6 +254,11 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                                  const LiveTabRegistry& registry);
   void SendSpaces();
   void SendArchive();
+  // The devices |url| can be sent to, most recently active first, or none
+  // if sync doesn't offer sending it.
+  std::vector<send_tab_to_self::TargetDeviceInfo> GetSendTargets(
+      const GURL& url);
+  send_tab_to_self::SendTabToSelfModel* send_tab_model();
   void SendNowPlaying();
 
   // The node with |id| in the window's space or the favorites, or null if
