@@ -174,7 +174,7 @@ func migrate(db *sql.DB) error {
 	if version > schemaVersion {
 		return fmt.Errorf("database schema %d is newer than this server (%d)", version, schemaVersion)
 	}
-	if _, err := db.Exec(schema); err != nil {
+	if _, err := db.Exec(schema + pushSchema); err != nil {
 		return fmt.Errorf("error creating schema: %w", err)
 	}
 	if err := addMissingChainColumns(db); err != nil {
@@ -651,6 +651,7 @@ func (s *SQLite) ClearServerData(ctx context.Context, clientID string) ([]SyncEn
 		`DELETE FROM unique_tags WHERE client_id = ?`,
 		`DELETE FROM item_counts WHERE client_id = ?`,
 		`UPDATE chains SET bytes = 0 WHERE client_id = ?`,
+		`DELETE FROM push_tokens WHERE client_id = ?`,
 	} {
 		if _, err = tx.ExecContext(ctx, stmt, clientID); err != nil {
 			return syncEntities, fmt.Errorf("error deleting sync entities for client %s: %w", clientID, err)
@@ -956,6 +957,6 @@ func (s *SQLite) AllItemCounts(ctx context.Context) ([]ClientItemCounts, error) 
 func (s *SQLite) DeleteAll(ctx context.Context) error {
 	_, err := s.w.ExecContext(ctx, `
 		DELETE FROM entities; DELETE FROM unique_tags;
-		DELETE FROM item_counts; DELETE FROM chains;`)
+		DELETE FROM item_counts; DELETE FROM chains; DELETE FROM push_tokens;`)
 	return err
 }

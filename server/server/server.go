@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/brave/go-sync/events"
 	"github.com/brave/go-sync/middleware"
 	"github.com/brave/go-sync/pairing"
+	"github.com/brave/go-sync/push"
 	"github.com/brave/go-sync/quota"
 	syncContext "github.com/brave/go-sync/synccontext"
 )
@@ -59,6 +61,7 @@ type Config struct {
 	Backup           BackupConfig
 	Pairing          pairing.Config
 	Events           events.Config
+	Push             push.Config // Topics and APNs; Store and Authorize are set by setupRouter.
 }
 
 // Defaults for the slice 7 settings (sync.md, "Slice 7 notes").
@@ -158,6 +161,24 @@ func LoadConfig() (Config, error) {
 		cfg.Backup.Keep = n
 	}
 	cfg.Metrics, _ = strconv.ParseBool(os.Getenv("COMPASS_SYNC_METRICS"))
+	// APNs for sent tabs (docs/design/send-tab.md, "Delivery"); without a
+	// key, registrations are kept and nothing is pushed.
+	cfg.Push.APNs = push.APNsConfig{
+		KeyPath: os.Getenv("COMPASS_SYNC_APNS_KEY"),
+		KeyID:   os.Getenv("COMPASS_SYNC_APNS_KEY_ID"),
+		TeamID:  os.Getenv("COMPASS_SYNC_APNS_TEAM_ID"),
+		Host:    os.Getenv("COMPASS_SYNC_APNS_HOST"),
+	}
+	if cfg.Push.APNs.Enabled() && (cfg.Push.APNs.KeyID == "" || cfg.Push.APNs.TeamID == "") {
+		return cfg, errors.New("COMPASS_SYNC_APNS_KEY needs COMPASS_SYNC_APNS_KEY_ID and COMPASS_SYNC_APNS_TEAM_ID")
+	}
+	if v := os.Getenv("COMPASS_SYNC_APNS_TOPICS"); v != "" {
+		for _, t := range strings.Split(v, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				cfg.Push.Topics = append(cfg.Push.Topics, t)
+			}
+		}
+	}
 	// The name devices bind into pairing (sync.md, "Slice 4 notes"); empty:
 	// the Host each pairing request came to.
 	cfg.Pairing.PublicHost = os.Getenv("COMPASS_SYNC_PUBLIC_HOST")
@@ -244,7 +265,17 @@ func setupRouter(
 			}
 		},
 	})
-	notify := func(chain, cacheGUID string, types []int) { hub.Notify(chain, cacheGUID, types) }
+	pushCfg := cfg.Push
+	pushCfg.Store = db
+	pushCfg.Authorize = auth.Authorize
+	pusher, err := push.New(pushCfg)
+	if err != nil {
+		return ctx, nil, nil, err
+	}
+	notify := func(chain, cacheGUID string, types, created []int) {
+		hub.Notify(chain, cacheGUID, types)
+		pusher.OnCommit(chain, cacheGUID, created)
+	}
 	r.Route("/v2", func(r chi.Router) {
 		// Compass: change notifications (sync.md, "Slice 6 notes"), a
 		// long-lived stream, so outside the request timeout below.
@@ -256,6 +287,8 @@ func setupRouter(
 			r.Mount("/compass/pair", pairing.New(pairCfg).Routes())
 			// Compass: how full the chain is (sync.md, "Slice 7 notes").
 			r.Method(http.MethodGet, "/compass/quota", quotaHandler)
+			// Compass: APNs tokens, for sent tabs (send-tab.md).
+			r.Handle("/compass/push", pusher)
 			r.Mount("/", controller.SyncRouter(c, instrumented, notify))
 		})
 	})

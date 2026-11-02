@@ -78,6 +78,10 @@ Environment variables (all optional):
 | `COMPASS_SYNC_SHUTDOWN_DELAY` | `0s` | Wait before closing on SIGTERM (for load balancers) |
 | `COMPASS_SYNC_METRICS` | off | `1` serves Prometheus metrics on `/metrics` |
 | `COMPASS_SYNC_PUBLIC_HOST` | the request's `Host` | The server's name both devices bind when pairing (e.g. `sync.example.com`); set it when devices reach the server by different names (IP, Tailscale name) |
+| `COMPASS_SYNC_APNS_KEY` | none | An APNs auth key (`.p8`), to wake iPhones when a tab is sent to them (see "Push to iPhones"); without it, sent tabs arrive at the next sync |
+| `COMPASS_SYNC_APNS_KEY_ID` | none | That key's ID (required with the key) |
+| `COMPASS_SYNC_APNS_TEAM_ID` | none | The Apple Developer team ID (required with the key) |
+| `COMPASS_SYNC_APNS_TOPICS` | `it.cipi1965.compass` | Comma-separated bundle IDs devices may register for |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
 
 Never list a proxy as trusted unless every request reaches the server
@@ -105,6 +109,25 @@ Limits: 20 open streams per chain and 50 per client address
 `COMPASS_SYNC_TRUSTED_PROXIES`, or every device has the proxy's address and
 the 50 are for all devices together. If the stream can't be held open, devices still sync on their
 poll (`COMPASS_SYNC_POLL_SECONDS`), on window focus and on wake.
+
+## Push to iPhones
+
+When a tab is sent to an iPhone ("Send to Your Devices" on a Mac), the
+server can wake it through Apple's push service so the notification shows
+at once, not at the phone's next sync. The phone registers its push token
+per chain (`POST /v2/compass/push?client_id=<cache GUID>` with
+`{"token","environment","topic"}`, `DELETE` to stop); a commit that adds a
+SEND_TAB_TO_SELF entry sends every other registered device of the chain an
+alert (the entry is encrypted, so the server can't tell which phone it is
+for; the phone's notification extension decrypts it). A token Apple reports
+as gone is dropped.
+
+To turn it on, make a key in the Apple Developer portal (Certificates,
+Identifiers & Profiles → Keys → Apple Push Notifications service), put the
+`.p8` file where the container can read it (e.g. `./data/apns.p8`, mounted
+at `/data/apns.p8`) and set `COMPASS_SYNC_APNS_KEY`, `COMPASS_SYNC_APNS_KEY_ID`
+and `COMPASS_SYNC_APNS_TEAM_ID`. Without a key, registrations are kept and
+nothing is pushed.
 
 ## Limits
 

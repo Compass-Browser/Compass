@@ -26,8 +26,10 @@ const (
 
 // CommitNotifier is told, after a commit, which data types it changed
 // (their EntitySpecifics field numbers), for chain |clientID|, by the device
-// with |cacheGUID| (Compass: change notifications, events.Hub.Notify).
-type CommitNotifier func(clientID, cacheGUID string, types []int)
+// with |cacheGUID| (Compass: change notifications, events.Hub.Notify), and
+// which of them it added entities of (|created|: push for sent tabs,
+// push.Service.OnCommit).
+type CommitNotifier func(clientID, cacheGUID string, types, created []int)
 
 // SyncRouter add routers for command and auth endpoint requests. |notify|
 // may be nil.
@@ -44,14 +46,29 @@ func Command(cache *cache.Cache, db datastore.Datastore) http.HandlerFunc {
 	return CommandWithNotifier(cache, db, nil)
 }
 
-// changedTypes returns the data types of the entries a commit stored
-// (sorted, without duplicates).
-func changedTypes(msg *sync_pb.ClientToServerMessage, rsp *sync_pb.ClientToServerResponse) []int {
-	if msg.GetMessageContents() != sync_pb.ClientToServerMessage_COMMIT || msg.Commit == nil || rsp.Commit == nil {
+// newEntries says which of a commit's entries create an entity (version 0,
+// not deleted), read before the commit runs (it updates the entries'
+// versions in place).
+func newEntries(msg *sync_pb.ClientToServerMessage) []bool {
+	if msg.GetMessageContents() != sync_pb.ClientToServerMessage_COMMIT || msg.Commit == nil {
 		return nil
 	}
+	out := make([]bool, len(msg.Commit.Entries))
+	for i, entry := range msg.Commit.Entries {
+		out[i] = entry.GetVersion() == 0 && !entry.GetDeleted()
+	}
+	return out
+}
+
+// changedTypes returns the data types of the entries a commit stored, and
+// of those it created (|isNew|, from newEntries); each sorted, without
+// duplicates.
+func changedTypes(msg *sync_pb.ClientToServerMessage, rsp *sync_pb.ClientToServerResponse, isNew []bool) (types, created []int) {
+	if msg.GetMessageContents() != sync_pb.ClientToServerMessage_COMMIT || msg.Commit == nil || rsp.Commit == nil {
+		return nil, nil
+	}
 	seen := map[int]bool{}
-	var types []int
+	seenCreated := map[int]bool{}
 	for i, entry := range msg.Commit.Entries {
 		if i >= len(rsp.Commit.Entryresponse) {
 			break
@@ -60,14 +77,21 @@ func changedTypes(msg *sync_pb.ClientToServerMessage, rsp *sync_pb.ClientToServe
 			continue
 		}
 		t, err := datastore.DataTypeOfSpecifics(entry.Specifics)
-		if err != nil || seen[t] {
+		if err != nil {
 			continue
 		}
-		seen[t] = true
-		types = append(types, t)
+		if !seen[t] {
+			seen[t] = true
+			types = append(types, t)
+		}
+		if i < len(isNew) && isNew[i] && !seenCreated[t] {
+			seenCreated[t] = true
+			created = append(created, t)
+		}
 	}
 	slices.Sort(types)
-	return types
+	slices.Sort(created)
+	return types, created
 }
 
 // CommandWithNotifier is Command that also tells |notify| (if not nil) what
@@ -110,6 +134,7 @@ func CommandWithNotifier(cache *cache.Cache, db datastore.Datastore, notify Comm
 			return
 		}
 
+		isNew := newEntries(pb)
 		pbRsp := &sync_pb.ClientToServerResponse{}
 		err = command.HandleClientToServerMessage(ctx, cache, pb, pbRsp, db, clientID)
 		if err != nil {
@@ -126,8 +151,8 @@ func CommandWithNotifier(cache *cache.Cache, db datastore.Datastore, notify Comm
 		}
 
 		if notify != nil {
-			if types := changedTypes(pb, pbRsp); len(types) > 0 {
-				notify(clientID, pb.Commit.GetCacheGuid(), types)
+			if types, created := changedTypes(pb, pbRsp, isNew); len(types) > 0 {
+				notify(clientID, pb.Commit.GetCacheGuid(), types, created)
 			}
 		}
 

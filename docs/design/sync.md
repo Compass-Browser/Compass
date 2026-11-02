@@ -98,10 +98,12 @@ Chromium types, on by default: `PASSWORDS`, `HISTORY` (with its delete
 directives; slice 2b, see "Slice 2b notes"), `AUTOFILL` (and
 addresses), `EXTENSIONS`, `EXTENSION_SETTINGS`, `PREFERENCES`
 (only syncable prefs), `SESSIONS` (open tabs per device), `DEVICE_INFO`
-(device list), `SEARCH_ENGINES`, `READING_LIST`, `BOOKMARKS`, `NIGORI`.
+(device list), `SEARCH_ENGINES`, `READING_LIST`, `BOOKMARKS`, `NIGORI`,
+`SEND_TAB_TO_SELF` ("Send to Your Devices"; new entries reach Macs through
+change notifications and iPhones through APNs, send-tab.md).
 
 Off (they need Google back ends or don't apply): the `AUTOFILL_WALLET_*`
-types, `PLUS_ADDRESS*`, `SHARING_MESSAGE`, `SEND_TAB_TO_SELF` (needs FCM),
+types, `PLUS_ADDRESS*`, `SHARING_MESSAGE`,
 `SECURITY_EVENTS`, `USER_CONSENTS`, `WEBAUTHN_CREDENTIAL` (needs Google's
 security domain secrets), `SAVED_TAB_GROUP` / `SHARED_TAB_GROUP_*` /
 collaboration types (our folders replace groups), `POWER_BOOKMARK`,
