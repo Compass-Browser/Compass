@@ -21,6 +21,7 @@ struct CompassApp: App {
     AppDelegate.app = app
     // Tabs sent from other devices; a tap that launched the app arrives here.
     SentTabNotifications.shared.setUp(app: app)
+    AutoPiP.configureAudioSession()
     // A best-effort sync while in the background (push needs the app open).
     BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: nil) { task in
       let work = Task { @MainActor in

@@ -124,6 +124,14 @@ final class AppModel {
       guard let self, self.shownTab?.id != id, let node = self.store.node(id: id) else { return }
       self.show(node)
     }
+    // Only the tab shown, with the app active: picture-in-picture can't
+    // start on the way out.
+    tabs.onPictureInPictureScroll = { [weak self] id, out in
+      guard let self, self.shownTab?.id == id, let view = self.tabs.live[id] else { return }
+      guard out else { return AutoPiP.exit(view) }
+      guard AutoPiP.scrollIsOn, UIApplication.shared.applicationState == .active, view.window != nil else { return }
+      AutoPiP.enter(view, scroll: true)
+    }
     tabs.onNavigated = { [weak self] id in
       self?.passwords.pageChanged(id)
       self?.setBarCollapsed(false)
@@ -361,14 +369,21 @@ final class AppModel {
     let left = lastShownTabID
     lastShownTabID = shown
     if let shown { AutoPiP.exit(tabs.live[shown]) }
-    if let left { AutoPiP.enter(tabs.live[left]) }
+    // Kept in the window first (SwiftUI drops it on this update), or its
+    // window would end at once.
+    if let left, tabs.playingVideo.contains(left), AutoPiP.isOn, let view = tabs.live[left] {
+      AutoPiP.park(view)
+      AutoPiP.enter(view)
+    }
   }
 
-  /// Leaving the app (Home, another app): the shown tab's playing video
-  /// goes to picture-in-picture; back in the app, it comes back.
+  /// Back in the app: a video Compass moved to picture-in-picture comes
+  /// back. Leaving the app doesn't start one: iOS ends a window an app on
+  /// its way out starts (checked on an iPhone, iOS 27); the page's
+  /// `autoPictureInPicture` is set in case WebKit honors it.
   func appActiveChanged(_ active: Bool) {
-    guard let id = shownTab?.id else { return }
-    if active { AutoPiP.exit(tabs.live[id]) } else { AutoPiP.enter(tabs.live[id]) }
+    guard active, let id = shownTab?.id else { return }
+    AutoPiP.exit(tabs.live[id])
   }
 
   var shownTab: SidebarNode? {

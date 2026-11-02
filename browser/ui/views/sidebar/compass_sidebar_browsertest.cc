@@ -730,6 +730,41 @@ constexpr char kDrag[] = R"(
     return true;
   })($1, $2, $3))";
 
+// A press that lands while two fingers scroll moves like a drag; the
+// sidebar leaves it to the scroll rather than picking up the row under the
+// pointer. A drag once the scroll has stopped starts as usual.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, NoDragMidScroll) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(contents,
+                            content::JsReplace(kWaitForTitles,
+                                               base::ListValue().Append("One"))));
+
+  constexpr char kDragstart[] = R"(
+    (async (wheel) => {
+      const app = document.querySelector('compass-sidebar-app');
+      const row = [...app.shadowRoot.querySelectorAll('.row')]
+          .find(r => r.title === 'One' || r.textContent.trim() === 'One');
+      if (wheel) {
+        row.dispatchEvent(new WheelEvent(
+            'wheel', {bubbles: true, composed: true, deltaY: 4}));
+      } else {
+        await new Promise(r => setTimeout(r, 500));
+      }
+      const init = {bubbles: true, cancelable: true, composed: true,
+                    dataTransfer: new DataTransfer()};
+      const started = row.dispatchEvent(new DragEvent('dragstart', init));
+      row.dispatchEvent(new DragEvent('dragend', init));
+      return started;
+    })($1))";
+  EXPECT_EQ(false,
+            content::EvalJs(contents, content::JsReplace(kDragstart, true)));
+  EXPECT_EQ(true,
+            content::EvalJs(contents, content::JsReplace(kDragstart, false)));
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragToPinnedPinsATab) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));

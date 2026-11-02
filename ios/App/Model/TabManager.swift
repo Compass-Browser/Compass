@@ -45,6 +45,11 @@ final class TabManager: NSObject {
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
   /// A picture-in-picture window's "back to the page" (AutoPiP): tab ID.
   var onPictureInPictureRestore: ((String) -> Void)?
+  /// A playing video scrolled off screen (true), or the one Compass moved
+  /// for that back on screen (false): tab ID.
+  var onPictureInPictureScroll: ((String, Bool) -> Void)?
+  /// Tabs whose page plays a video with sound (AutoPiP's candidates).
+  var playingVideo: Set<String> = []
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
   /// The page scrolled: (tab ID, how far down since the last call, whether
@@ -375,6 +380,22 @@ final class MessageProxy: NSObject, WKScriptMessageHandler {
         let id = target.live.first(where: { $0.value === view })?.key
       else { return }
       if message.name == AutoPiP.handler {
+        if let state = message.body as? String, state.hasPrefix("state:") {
+          if state == "state:playing" { target.playingVideo.insert(id) } else { target.playingVideo.remove(id) }
+          return
+        }
+        if let scroll = message.body as? String, scroll.hasPrefix("scroll:") {
+          target.onPictureInPictureScroll?(id, scroll == "scroll:out")
+          return
+        }
+        if let log = message.body as? String, log.hasPrefix("log:") {
+          // The window closed: a parked view leaves the lot.
+          if log == "log:mode inline" { DispatchQueue.main.async { AutoPiP.unpark(view) } }
+          #if DEBUG
+            print("AutoPiP: page: \(log.dropFirst(4))")
+          #endif
+          return
+        }
         target.onPictureInPictureRestore?(id)
         return
       }

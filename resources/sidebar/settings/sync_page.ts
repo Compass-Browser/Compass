@@ -15,16 +15,16 @@ import {getTemplate} from './sync_page.html.js';
 // server, leaving and resetting. Joining on a Mac with other profiles: which
 // of the chain's each one syncs with (slice 5).
 
-// The switches, in the page's order: name and what they cover.
+// The switches, in the page's order: name and what they cover. Bookmarks
+// and the reading list have none: Compass has neither (ARCHITECTURE.md
+// D20), so those types keep their setting out of sight.
 const TYPE_LABELS = new Map<DataType, [string, string]>([
   [DataType.kSpaces, ['Spaces', 'Spaces, pinned tabs, folders, favorites']],
   [DataType.kPasswords, ['Passwords', 'Saved passwords and passkeys']],
   [DataType.kHistory, ['History', 'Pages you visited']],
-  [DataType.kBookmarks, ['Bookmarks', '']],
   [DataType.kAutofill, ['Autofill', 'Addresses and form entries']],
   [DataType.kExtensions, ['Extensions', 'Extensions and their settings']],
   [DataType.kSettings, ['Settings', 'Settings and search engines']],
-  [DataType.kReadingList, ['Reading list', '']],
   [DataType.kOpenTabs, ['Open tabs', 'Your tabs, for the other devices']],
 ]);
 
