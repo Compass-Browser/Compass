@@ -24,6 +24,9 @@ final class TabManager: NSObject {
   @ObservationIgnored private var observations: [String: [NSKeyValueObservation]] = [:]
   /// Bumped when a live tab's state (loading, back/forward) changes.
   private(set) var revision = 0
+  /// Tabs whose main-frame load hasn't had an answer yet (connecting: from
+  /// the provisional navigation's start until it commits or fails).
+  private(set) var connecting: Set<String> = []
   /// The last look of each live tab, for the tab picker's cards: taken as a
   /// tab is left and as the picker opens. In memory only; an unloaded tab
   /// loses it (the picker shows only live tabs).
@@ -137,8 +140,12 @@ final class TabManager: NSObject {
       view.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
         Task { @MainActor in self?.revision += 1 }
       },
-      view.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
-        Task { @MainActor in self?.extensions?.tabChanged(id, loading: true) }
+      view.observe(\.isLoading, options: [.new]) { [weak self] view, _ in
+        Task { @MainActor in
+          if !view.isLoading { self?.connecting.remove(id) }
+          self?.revision += 1
+          self?.extensions?.tabChanged(id, loading: true)
+        }
       },
       // On the main thread, every frame of a scroll: no Task per call.
       view.scrollView.observe(\.contentOffset, options: [.old, .new]) { [weak self] scroll, change in
@@ -168,6 +175,7 @@ final class TabManager: NSObject {
 
   func unload(_ id: String) {
     observations[id] = nil
+    connecting.remove(id)
     live[id]?.stopLoading()
     live[id] = nil
     snapshots[id] = nil
@@ -290,6 +298,25 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     _ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload
   ) {
     MainActor.assumeIsolated { downloads?.track(download) }
+  }
+
+  nonisolated func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+    MainActor.assumeIsolated { setConnecting(webView, true) }
+  }
+
+  nonisolated func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+    MainActor.assumeIsolated { setConnecting(webView, false) }
+  }
+
+  nonisolated func webView(
+    _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error
+  ) {
+    MainActor.assumeIsolated { setConnecting(webView, false) }
+  }
+
+  private func setConnecting(_ webView: WKWebView, _ on: Bool) {
+    guard let id = live.first(where: { $0.value === webView })?.key else { return }
+    if on { connecting.insert(id) } else { connecting.remove(id) }
   }
 
   nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

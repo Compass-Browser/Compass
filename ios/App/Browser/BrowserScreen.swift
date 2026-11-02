@@ -7,7 +7,8 @@ import SwiftUI
 import WebKit
 
 /// One entry, full screen, under a floating glass bar: back, the address
-/// pill (opens the command bar; shows the load progress along its bottom),
+/// pill (opens the command bar), with the load progress along the page's
+/// top edge (sweeping back and forth while connecting),
 /// forward when there's somewhere to go, and the sidebar. Swiping the bar
 /// left or right moves between the space's entries, as in Safari: the page
 /// and the bar follow the finger and the next entry's (its last snapshot
@@ -83,6 +84,13 @@ struct BrowserScreen: View {
         .padding(.vertical, 6)
       }
       page
+      .overlay(alignment: .top) {
+        if let progress = loadProgress, !swiping {
+          LoadBar(progress: progress, connecting: isConnecting, tint: tint)
+            .transition(.opacity)
+        }
+      }
+      .animation(.easeOut(duration: 0.2), value: loadProgress == nil)
       .overlay {
         if swiping {
           ZStack {
@@ -250,8 +258,16 @@ struct BrowserScreen: View {
 
   /// How far the shown page has loaded, or nil once it has.
   private var loadProgress: Double? {
+    // Not observable on the web view: the tab manager's revision is.
+    let _ = app.tabs.revision
     guard let tab = app.shownTab, let view = app.tabs.live[tab.id], view.isLoading else { return nil }
     return max(view.estimatedProgress, 0.05)
+  }
+
+  /// The shown page is waiting for its server's first answer.
+  private var isConnecting: Bool {
+    guard let tab = app.shownTab else { return false }
+    return app.tabs.connecting.contains(tab.id)
   }
 
   private var tint: Color {
@@ -383,8 +399,7 @@ struct BrowserScreen: View {
     .accessibilityValue(host)
   }
 
-  /// The site's icon and host, centered; the load progress as a thin line in
-  /// the space's color along its bottom edge.
+  /// The site's icon and host, centered.
   private var addressPill: some View {
     // Edits the shown tab's address (a new tab when there's none).
     Button { app.openCommandBar(newTab: app.shownTab == nil) } label: {
@@ -403,19 +418,6 @@ struct BrowserScreen: View {
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .background(Color.primary.opacity(0.07), in: Capsule())
-      .overlay(alignment: .bottom) {
-        if let progress = loadProgress {
-          // Scaled, not measured: a GeometryReader here re-lays out the
-          // glass bar endlessly.
-          Capsule().fill(tint)
-            .frame(maxWidth: .infinity)
-            .frame(height: 2.5)
-            .scaleEffect(x: progress, anchor: .leading)
-            .animation(.easeOut(duration: 0.25), value: progress)
-          .padding(.horizontal, 16)
-          .transition(.opacity)
-        }
-      }
       .contentShape(Capsule())
     }
     .accessibilityLabel("Address")
@@ -501,6 +503,39 @@ struct DownloadFlight: View {
         .position(x: at.x - frame.minX, y: at.y - frame.minY)
     }
     .ignoresSafeArea()
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
+  }
+}
+
+/// The shown page's load progress: a thin line in the space's color along
+/// the top of the page (under the status bar). While connecting, before the
+/// server has answered, a segment sweeps back and forth instead.
+private struct LoadBar: View {
+  let progress: Double
+  let connecting: Bool
+  let tint: Color
+
+  var body: some View {
+    GeometryReader { geo in
+      let width = geo.size.width
+      if connecting {
+        TimelineView(.animation) { context in
+          // 1.2 s a sweep, eased at each end.
+          let t = context.date.timeIntervalSinceReferenceDate / 1.2
+          let phase = (1 - cos(t * .pi)) / 2
+          let segment = width * 0.3
+          Capsule().fill(tint)
+            .frame(width: segment, height: 2.5)
+            .offset(x: (width - segment) * phase)
+        }
+      } else {
+        Capsule().fill(tint)
+          .frame(width: width * max(progress, 0.05), height: 2.5)
+          .animation(.easeOut(duration: 0.25), value: progress)
+      }
+    }
+    .frame(height: 2.5)
     .allowsHitTesting(false)
     .accessibilityHidden(true)
   }
