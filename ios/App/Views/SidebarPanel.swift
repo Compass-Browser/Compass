@@ -29,6 +29,7 @@ struct SidebarPanel: View {
   static var top: CGFloat { window?.safeAreaInsets.top ?? 59 }
   static var bottomInset: CGFloat { window?.safeAreaInsets.bottom ?? 34 }
   static var screenHeight: CGFloat { window?.screen.bounds.height ?? 800 }
+  static var screenWidth: CGFloat { window?.screen.bounds.width ?? 400 }
   static var height: CGFloat { max(screenHeight - top, 1) }
   private static var window: UIWindow? {
     (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow

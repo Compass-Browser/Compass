@@ -68,10 +68,12 @@ struct RootView: View {
 
   var body: some View {
     @Bindable var app = app
-    // The browser is always underneath; the sidebar is a panel over it
-    // (SidebarPanel), and the command bar and Settings are sheets over both.
+    // The browser is always underneath; the sidebar and the tab picker are
+    // panels over it (SidebarPanel, TabPicker), and the command bar and
+    // Settings are sheets over them.
     BrowserScreen(node: app.selectedNode)
       .overlay { SidebarPanel() }
+      .overlay { TabPicker() }
       .sheet(isPresented: $app.showingCommandBar) {
         // A new tab, or the shown tab's address.
         CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)

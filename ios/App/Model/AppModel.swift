@@ -35,6 +35,15 @@ final class AppModel {
   /// How far the sidebar's list is pulled down past its top, in points: the
   /// panel follows it down (SidebarPanel).
   var sidebarPull: CGFloat = 0
+  /// The tab picker (TabPicker): the live tabs as cards. Opened by a swipe
+  /// up on the bar's left end, which it follows: `pickerDrag` is how far
+  /// open (0...1) under a finger, nil otherwise.
+  var showingPicker = false
+  var pickerDrag: CGFloat?
+  /// The picker's cards (tab IDs, least recently shown first), fixed while
+  /// it's open, and which one is centered (fractional mid-scroll).
+  var pickerTabs: [String] = []
+  var pickerPosition: CGFloat = 0
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
@@ -144,6 +153,21 @@ final class AppModel {
           self?.showingMenu = true
         }
       }
+      //   -CompassOpenURLs "<url> <url>…": open each as a tab, one after
+      //   another (so each has been shown, and has a snapshot).
+      //   -CompassPicker YES: then open the tab picker.
+      let urls = defaults.string(forKey: "CompassOpenURLs")?.split(separator: " ").map(String.init) ?? []
+      let picker = defaults.bool(forKey: "CompassPicker")
+      if !urls.isEmpty || picker {
+        Task { [weak self] in
+          for url in urls {
+            self?.open(url)
+            try? await Task.sleep(for: .seconds(3))
+          }
+          try? await Task.sleep(for: .milliseconds(1500))
+          if picker { self?.openPicker() }
+        }
+      }
       //   -CompassCommandBar YES: open the command bar.
       if defaults.bool(forKey: "CompassCommandBar") {
         Task { [weak self] in
@@ -248,6 +272,8 @@ final class AppModel {
       return
     }
     if let space = store.space(of: node) { selectedSpaceID = space.id }
+    // Its card in the tab picker shows the page as it was left.
+    if let shown = shownTab, shown !== node { tabs.snapshot(shown.id) }
     if let split = node.parent, split.isSplit {
       selectedNodeID = split.id
       selectedPane = split.children.firstIndex { $0 === node } ?? 0
@@ -352,6 +378,64 @@ final class AppModel {
       return url.absoluteString
     }
     return nil
+  }
+
+  /// The picker's cards are set up (the shown tab centered) as a finger
+  /// starts opening it.
+  func preparePicker() {
+    if let shown = shownTab { tabs.snapshot(shown.id) }
+    pickerTabs = tabs.loadedOrder.filter { store.node(id: $0) != nil }
+    let index = shownTab.flatMap { pickerTabs.firstIndex(of: $0.id) } ?? pickerTabs.count - 1
+    pickerPosition = CGFloat(max(index, 0))
+  }
+
+  func openPicker() {
+    preparePicker()
+    withAnimation(.snappy(duration: 0.35)) { showingPicker = true }
+  }
+
+  /// A finger let go of the opening (or closing) picker at `position`,
+  /// heading for `predicted` (both 0...1). Closed, it shows the centered card.
+  func settlePicker(predicted: CGFloat) {
+    if predicted > 0.5 {
+      withAnimation(.snappy(duration: 0.35)) {
+        pickerDrag = nil
+        showingPicker = true
+      }
+    } else {
+      pickTab(at: pickerTabs.isEmpty ? nil : Int(pickerPosition.rounded()))
+    }
+  }
+
+  /// The picker closes onto card `index` (it grows back to the page), or
+  /// onto what's shown when nil.
+  func pickTab(at index: Int?) {
+    withAnimation(.snappy(duration: 0.35)) {
+      if let index, pickerTabs.indices.contains(index) {
+        pickerPosition = CGFloat(index)
+        if let node = store.node(id: pickerTabs[index]), node !== shownTab { show(node) }
+      }
+      pickerDrag = nil
+      showingPicker = false
+    }
+  }
+
+  /// A card flicked away: a Today entry goes to the archive, as on the
+  /// desktop; anything else (pinned, a favorite, a split's pane) unloads.
+  func closeFromPicker(_ id: String) {
+    guard let index = pickerTabs.firstIndex(of: id) else { return }
+    if let node = store.node(id: id) {
+      if node.section == .today, node.parent?.isSplit != true { store.archive(node) }
+      // Not reloaded behind the picker: the page goes empty.
+      if shownTab === node { selectedNodeID = nil }
+    }
+    tabs.unload(id)
+    pickerTabs.remove(at: index)
+    if pickerTabs.isEmpty {
+      pickerPosition = 0
+    } else if CGFloat(index) < pickerPosition || Int(pickerPosition) >= pickerTabs.count {
+      pickerPosition = max(pickerPosition - 1, 0)
+    }
   }
 
   func close(_ node: SidebarNode) {

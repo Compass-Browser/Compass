@@ -24,6 +24,10 @@ final class TabManager: NSObject {
   @ObservationIgnored private var observations: [String: [NSKeyValueObservation]] = [:]
   /// Bumped when a live tab's state (loading, back/forward) changes.
   private(set) var revision = 0
+  /// The last look of each live tab, for the tab picker's cards: taken as a
+  /// tab is left and as the picker opens. In memory only; an unloaded tab
+  /// loses it (the picker shows only live tabs).
+  private(set) var snapshots: [String: UIImage] = [:]
   private let store: SpaceStore
   private let siteSettings: SiteSettings
   private let contentBlocking: ContentBlocking
@@ -63,6 +67,22 @@ final class TabManager: NSObject {
   }
 
   func isLive(_ node: SidebarNode) -> Bool { live[node.id] != nil }
+
+  /// The live tabs, least recently shown first.
+  var loadedOrder: [String] { recent.filter { live[$0] != nil } }
+
+  /// Takes the tab's snapshot (if it's live and on screen), at a card's
+  /// resolution.
+  func snapshot(_ id: String) {
+    guard let view = live[id], view.window != nil, view.bounds.width > 0 else { return }
+    let configuration = WKSnapshotConfiguration()
+    configuration.afterScreenUpdates = false
+    configuration.snapshotWidth = NSNumber(value: Double(min(view.bounds.width, 420)))
+    view.takeSnapshot(with: configuration) { [weak self] image, _ in
+      guard let self, let image, self.live[id] != nil else { return }
+      self.snapshots[id] = image
+    }
+  }
 
   /// The web view of a tab entry, created and loaded on first use.
   func webView(for node: SidebarNode) -> WKWebView {
@@ -126,6 +146,7 @@ final class TabManager: NSObject {
   func rekey(_ old: String, to new: String) {
     guard let view = live.removeValue(forKey: old) else { return }
     observations[old] = nil
+    snapshots[new] = snapshots.removeValue(forKey: old)
     observe(view, as: new)
     live[new] = view
     recent = recent.map { $0 == old ? new : $0 }
@@ -135,6 +156,7 @@ final class TabManager: NSObject {
     observations[id] = nil
     live[id]?.stopLoading()
     live[id] = nil
+    snapshots[id] = nil
     recent.removeAll { $0 == id }
   }
 

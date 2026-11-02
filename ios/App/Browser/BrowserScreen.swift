@@ -9,13 +9,19 @@ import WebKit
 /// One entry, full screen, under a floating glass bar: back, the address
 /// pill (opens the command bar; shows the load progress along its bottom),
 /// forward when there's somewhere to go, and the sidebar. Swiping the bar
-/// left or right moves between the space's entries; swiping it up opens the
-/// sidebar. With no entry selected it's an empty page in the space's color.
+/// left or right moves between the space's entries. Swiping it up opens,
+/// by where the finger starts: on its left third the tab picker, in the
+/// middle the sidebar (both follow the finger), on its right third the
+/// command bar for a new tab. With no entry selected it's an empty page in
+/// the space's color.
 struct BrowserScreen: View {
   @Environment(AppModel.self) private var app
   let node: SidebarNode?
   /// The bar's drag: nil until it picks an axis.
   @State private var dragAxis: Axis?
+  /// Where a swipe up on the bar started: what it opens.
+  @State private var dragZone: Zone = .center
+  enum Zone { case left, center, right }
   /// The menu button's center on screen: where a download's arrow lands.
   @State private var menuCenter: CGPoint?
   /// A download's arrow on its way to the menu button (DownloadFlight).
@@ -217,15 +223,39 @@ struct BrowserScreen: View {
       DragGesture(minimumDistance: 12, coordinateSpace: .global)
         .onChanged { value in
           let (dx, dy) = (value.translation.width, value.translation.height)
-          if dragAxis == nil { dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical }
-          if dragAxis == .vertical { app.sidebarDrag = sidebarPosition(at: value.location.y) }
+          if dragAxis == nil {
+            dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
+            let third = SidebarPanel.screenWidth / 3
+            let x = value.startLocation.x
+            dragZone = x < third ? .left : x > 2 * third ? .right : .center
+            if dragAxis == .vertical, dragZone == .left { app.preparePicker() }
+          }
+          guard dragAxis == .vertical else { return }
+          switch dragZone {
+          case .left: app.pickerDrag = min(max(-dy / TabPicker.travel, 0), 1)
+          case .center: app.sidebarDrag = sidebarPosition(at: value.location.y)
+          case .right: break
+          }
         }
         .onEnded { value in
           defer { dragAxis = nil }
           if dragAxis == .horizontal {
             if abs(value.translation.width) > 30 { step(value.translation.width < 0 ? 1 : -1) }
-          } else if let drag = app.sidebarDrag {
-            app.settleSidebar(at: drag, predicted: sidebarPosition(at: value.predictedEndLocation.y))
+            return
+          }
+          switch dragZone {
+          case .left:
+            if app.pickerDrag != nil {
+              app.settlePicker(predicted: -value.predictedEndTranslation.height / TabPicker.travel)
+            }
+          case .center:
+            if let drag = app.sidebarDrag {
+              app.settleSidebar(at: drag, predicted: sidebarPosition(at: value.predictedEndLocation.y))
+            }
+          case .right:
+            if value.translation.height < -30 || value.predictedEndTranslation.height < -80 {
+              app.openCommandBar(newTab: true)
+            }
           }
         })
   }
