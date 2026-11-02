@@ -192,7 +192,7 @@ Status: done on `claude/d2-claude-client` (2026-11-02): `SseParserTest.*`, `Clau
 
 ### MCP server (D6)
 
-Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBridgeBrowserTest.*` (4/4, including the real `compass-mcp`) passes in out/Fast, headless. Not built on Windows: it would need a named pipe. Not yet tried from Claude Code by hand.
+Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBridgeBrowserTest.*` (4/4, including the real `compass-mcp`) passes in out/Fast, headless. Not built on Windows: it would need a named pipe. Tried from Claude Code 2.1.316 (2026-11-02, `claude -p` with an MCP config running the bundled `compass-mcp` on the Fast dev profile): `list_tabs`, `select_tab` of a background tab, `get_page_text`, `read_console`, `find` and `screenshot` worked; the page tools refused the front tab, a settings page. Claude Code declares itself as `claude-code` ("Claude Code"), the name "Always allow" stores.
 
 - **Rule for D1–D5.** `ClaudeTools` doesn't depend on the chat: the chat panel and MCP are two callers of that one layer, so D6 added no tool code.
 - **`compass-mcp`** (`tools/mcp/compass_mcp.cc`): a relay, not an MCP implementation. MCP clients run it as a stdio server; it copies their stdin to `<user data dir>/compass-mcp.sock` and the socket to their stdout, as is (MCP's stdio framing is a JSON-RPC message per line).
