@@ -215,6 +215,7 @@ struct RootView: View {
         CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)
       }
       .sheet(isPresented: $app.showingSettings) { SettingsView() }
+      .sheet(isPresented: $app.showingClaude) { ClaudeChatSheet() }
       .sheet(isPresented: $app.showingMenu) { PageMenu() }
       .sheet(isPresented: $app.showingDownloads) {
         NavigationStack {

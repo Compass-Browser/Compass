@@ -213,6 +213,24 @@ Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBr
 
 ## iOS (`ios/App/Claude/`, new)
 
+Status (2026-11-02):
+
+- **I1 is done.** The WKWebView's find interaction is on (TabManager), the page menu has a Find tile, the command bar has "Find “…”" for typed text, and a hardware keyboard has ⌘F.
+- **I2 is written** on `claude/i2-ios-chat`, not yet tried with a real key.
+  - `CompassKit/Sources/CompassClaude` holds the pure parts, with unit tests (`CompassClaudeTests`, 11):
+    - `ClaudeEndpoint`: base URL rules, headers, error text, key hint, model list;
+    - `ChatRequest`: the desktop's body;
+    - `Conversation`: a port of conversation.ts (stream events to content blocks, the messages to send, the page block, screenshot pruning).
+  - The SSE parser moved to `CompassShared` (`EventStreamParser`), shared with sync's push stream.
+  - The app side, in `App/Claude/`:
+    - `ClaudeSettings`: the key in the device-only Keychain, the rest in UserDefaults;
+    - `ClaudeClient`: URLSession streaming and `GET /v1/models`;
+    - `ClaudeChat`: one per window; the page's text comes from `page_agent.js` `pageText` in content world "claude";
+    - `ClaudeChatSheet` and `ClaudeSettingsView`.
+  - Opening the chat: an "Ask Claude" tile in the page menu, or ⌘⇧E.
+  - `common/claude/` is bundled through project.yml.
+  - Debug: `-CompassClaude YES` opens the sheet.
+
 - **Find.** Set `isFindInteractionEnabled = true` on the `WKWebView` (`ios/App/Browser/WebView.swift`) and add "Find on page" to `PageMenu.swift`. Cmd+F works with a hardware keyboard.
 - **Settings.** Add a Claude section in `SettingsView.swift` with the same fields. The key is stored with the existing `ios/App/Model/Keychain.swift`, kept in the device's Keychain only and not shared with extensions. The other settings go in UserDefaults.
 - **Client and loop.** `ClaudeClient.swift` streams SSE with `URLSession.bytes(for:)`. `ClaudeAgent.swift` is the same loop as the desktop's `agent.ts`, reading the shared `tools.json` and `system_prompt.md`. The pure parts (the SSE parser, request building, screenshot pruning) go in CompassKit (`CompassKit/Sources/CompassClaude`) so they can have unit tests.

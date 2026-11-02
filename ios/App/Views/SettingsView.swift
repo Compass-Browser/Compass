@@ -39,6 +39,13 @@ struct SettingsView: View {
           NavigationLink { PasswordsView() } label: {
             SettingsLabel("Passwords", "key.fill", .gray)
           }
+          NavigationLink { ClaudeSettingsView() } label: {
+            HStack {
+              SettingsLabel("Claude", "sparkles", .orange)
+              Spacer()
+              Text(ClaudeSettings.shared.hasKey ? "On" : "Off").foregroundStyle(.secondary)
+            }
+          }
           if #available(iOS 18.4, *) {
             NavigationLink { ExtensionsView() } label: {
               HStack {

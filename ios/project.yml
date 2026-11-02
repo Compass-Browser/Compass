@@ -31,6 +31,14 @@ targets:
       # The desktop's Icon Composer icon, shared.
       - path: ../assets/Compass.icon
         buildPhase: resources
+      # Claude's prompt, tools and page script, shared with the desktop
+      # (docs/design/claude.md).
+      - path: ../common/claude/system_prompt.md
+        buildPhase: resources
+      - path: ../common/claude/tools.json
+        buildPhase: resources
+      - path: ../common/claude/page_agent.js
+        buildPhase: resources
     entitlements:
       path: App/Compass.entitlements
       properties:
@@ -66,6 +74,8 @@ targets:
         product: CompassSync
       - package: CompassKit
         product: CompassModel
+      - package: CompassKit
+        product: CompassClaude
     info:
       path: App/Info.plist
       properties:

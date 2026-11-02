@@ -91,6 +91,9 @@ final class AppModel {
   var showingJoinSummary = false
   /// A pairing link opened from the camera, for the join screen.
   var pendingInvite: PairingInvite?
+  /// This window's Claude chat (docs/design/claude.md), and its sheet.
+  let claude = ClaudeChat()
+  var showingClaude = false
 
   /// Side-effect free: SwiftUI may make a window's model more than once.
   /// `attach` starts it.
@@ -205,6 +208,13 @@ final class AppModel {
         Task { [weak self] in
           try? await Task.sleep(for: .milliseconds(1500))
           self?.showingSettings = true
+        }
+      }
+      //   -CompassClaude YES: open the Claude sheet.
+      if defaults.bool(forKey: "CompassClaude") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .milliseconds(4000))
+          self?.showingClaude = true
         }
       }
       //   -CompassMenu YES: open the bottom bar's menu.
