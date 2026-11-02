@@ -570,7 +570,7 @@ Settings → On Launch (`StartScreen`, AppModel.swift): **Sidebar** (default: th
 
 ### Status bar over pages, 2026-11-02
 
-Pages run under the status bar, but fixed and sticky elements (YouTube's header) went behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. Splits on the phone sit under the pane picker and get 0. Checked in the simulator on m.youtube.com.
+Pages run under the status bar, but fixed and sticky elements (YouTube's header) went behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. The same at the bottom: `obscuredContentInsets.bottom` is the bar's measured inset (`BrowserScreen.barInset`: the bar or its collapsed pill, the save banner when it shows, and the home indicator), so fixed footers (YouTube's tab bar) sit above the bar; it follows the bar as it collapses. Splits on the phone sit under the pane picker and get 0 at the top. Checked in the simulator: m.youtube.com, and example.com with a fixed header and footer added (each ends at the status bar or the bar, and WebKit extends its color behind them).
 
 ### iPad, 2026-11-02
 

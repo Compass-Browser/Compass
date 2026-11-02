@@ -43,6 +43,9 @@ struct BrowserScreen: View {
   @State private var pageWidth: CGFloat = 0
   /// The status bar's height over the page, which runs under it.
   @State private var statusInset: CGFloat = 0
+  /// The bar (and the save banner) and the home indicator over the page's
+  /// bottom: WebKit keeps fixed elements above it (`WebView.obscuredBottom`).
+  @State private var barInset: CGFloat = 0
   /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
   /// the 2 pt gap under it. A constant, not measured: feeding a measured
   /// height back into the web view's inset loops layout.
@@ -96,6 +99,7 @@ struct BrowserScreen: View {
       }
       .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
       .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusInset = $0 }
+      .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { barInset = $0 }
       .overlay(alignment: .top) {
         if let progress = loadProgress, !swiping {
           LoadBar(progress: progress, connecting: isConnecting, tint: tint)
@@ -164,7 +168,9 @@ struct BrowserScreen: View {
           .foregroundStyle(front ? .primary : .secondary)
           .accessibilityAddTraits(front ? .isSelected : [])
           let view = app.tabs.webView(for: pane)
-          WebView(webView: view, bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
+          WebView(
+            webView: view, bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
+            obscuredBottom: barInset)
             .id("\(pane.id)/\(ObjectIdentifier(view).hashValue)")
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
         }
@@ -188,7 +194,8 @@ struct BrowserScreen: View {
           webView: view,
           bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
           // Fixed headers (YouTube's) go under the status bar otherwise.
-          topInset: node?.isSplit == true ? 0 : statusInset)
+          topInset: node?.isSplit == true ? 0 : statusInset,
+          obscuredBottom: barInset)
           // A new web view for the same tab (an extension page that went to
           // a website) replaces the old one.
           .id("\(tab.id)/\(ObjectIdentifier(view).hashValue)")
