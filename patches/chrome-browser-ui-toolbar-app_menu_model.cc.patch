@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/toolbar/app_menu_model.cc b/chrome/browser/ui/toolbar/app_menu_model.cc
-index faaded8ad5427c95787fde91961ae6d543902336..6466b364d3e4eed89ed607bd6bc3eabcf4855005 100644
+index faaded8ad5427c95787fde91961ae6d543902336..72a94973d9bb607748446a14b68a26fa8e88ec08 100644
 --- a/chrome/browser/ui/toolbar/app_menu_model.cc
 +++ b/chrome/browser/ui/toolbar/app_menu_model.cc
 @@ -4,6 +4,9 @@
@@ -12,7 +12,20 @@ index faaded8ad5427c95787fde91961ae6d543902336..6466b364d3e4eed89ed607bd6bc3eabc
  #include <algorithm>
  #include <cmath>
  #include <memory>
-@@ -2020,6 +2023,12 @@ bool AppMenuModel::IsCommandIdChecked(int command_id) const {
+@@ -1074,7 +1077,11 @@ void ToolsMenuModel::Build(BrowserWindowInterface* browser) {
+       this, IDC_NAME_WINDOW, IDS_NAME_WINDOW,
+       features::IsRoundedIconsEnabled() ? kWebAssetIcon : kNameWindowOldIcon);
+ 
+-  if (auto* controller = tabs::VerticalTabStripStateController::From(browser)) {
++  // Compass: tabs are always vertical (compass::IsRemovedCommand()).
++  if (auto* controller =
++          compass::IsRemovedCommand(IDC_TOGGLE_VERTICAL_TABS)
++              ? nullptr
++              : tabs::VerticalTabStripStateController::From(browser)) {
+     if (controller->ShouldDisplayVerticalTabs()) {
+       AddItemWithStringIdAndVectorIcon(
+           this, IDC_TOGGLE_VERTICAL_TABS, IDS_SWITCH_TO_HORIZONTAL_TAB,
+@@ -2020,6 +2027,12 @@ bool AppMenuModel::IsCommandIdChecked(int command_id) const {
  }
  
  bool AppMenuModel::IsCommandIdEnabled(int command_id) const {
@@ -25,7 +38,18 @@ index faaded8ad5427c95787fde91961ae6d543902336..6466b364d3e4eed89ed607bd6bc3eabc
    GlobalError* error =
        GlobalErrorServiceFactory::GetForProfile(browser_->GetProfile())
            ->GetGlobalErrorByMenuItemCommandID(command_id);
-@@ -2397,6 +2406,16 @@ void AppMenuModel::Build() {
+@@ -2204,7 +2217,9 @@ void AppMenuModel::Build() {
+       features::IsRoundedIconsEnabled() ? kDownloadIcon : kDownloadMenuOldIcon);
+   SetElementIdentifierAt(GetIndexOfCommandId(IDC_SHOW_DOWNLOADS).value(),
+                          kDownloadsMenuItem);
+-  if (!browser_->GetProfile()->IsGuestSession()) {
++  // Compass: no bookmarks menu (compass::IsRemovedCommand()).
++  if (!browser_->GetProfile()->IsGuestSession() &&
++      !compass::IsRemovedCommand(kBookmarksMenuPlaceholder)) {
+     bookmark_sub_menu_model_ =
+         std::make_unique<BookmarkSubMenuModel>(this, browser_);
+ 
+@@ -2397,6 +2412,16 @@ void AppMenuModel::Build() {
  #endif
  #endif
  

@@ -1,17 +1,36 @@
 diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
-index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..a5e5bee5d95aec193d0c58297341bf9798a7dbba 100644
+index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..5770ae628f44ba7d45577824996928dbb6e8e6a3 100644
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  
  #include "chrome/browser/ui/browser_command_controller.h"
  
++#include "compass/browser/ui/compass_command_ids.h"
 +#include "compass/browser/ui/views/command_bar/command_bar.h"
 +
  #include <stddef.h>
  
  #include <algorithm>
-@@ -640,6 +642,12 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+@@ -628,10 +631,17 @@ void BrowserCommandController::ShowCustomizeChromeSidePanel(
+ // BrowserCommandController, CommandUpdater implementation:
+ 
+ bool BrowserCommandController::SupportsCommand(int id) const {
++  // Compass: commands of features it removes (compass_command_ids.h).
++  if (compass::IsRemovedCommand(id)) {
++    return false;
++  }
+   return command_updater_->SupportsCommand(id);
+ }
+ 
+ bool BrowserCommandController::IsCommandEnabled(int id) const {
++  if (compass::IsRemovedCommand(id)) {
++    return false;
++  }
+   return command_updater_->IsCommandEnabled(id);
+ }
+ 
+@@ -640,6 +650,12 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
      WindowOpenDisposition disposition,
      std::optional<actions::ActionInvocationContext> context,
      base::TimeTicks time_stamp) {
@@ -24,7 +43,7 @@ index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..a5e5bee5d95aec193d0c58297341bf97
    if (!SupportsCommand(id) || !IsCommandEnabled(id)) {
      return false;
    }
-@@ -657,6 +665,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+@@ -657,6 +673,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
  
    DCHECK(IsCommandEnabled(id)) << "Invalid/disabled command " << id;
  

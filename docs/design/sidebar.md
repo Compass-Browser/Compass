@@ -43,8 +43,11 @@ only the native `TabStripView`. Everything else in the region stays upstream.**
 - **The native `TabStripView` isn't built** (since slice e). Until then it
   was hidden in place, because the region's drag, hover-card and resize code
   assumed it. See "Slice e".
-- **Compass always uses vertical mode.** The pref default becomes `true`.
-  Hiding the horizontal/vertical toggle comes later.
+- **Compass always uses vertical mode.** The pref default becomes `true`,
+  `VerticalTabStripStateControllerImpl` sets it back to `true` whenever
+  something writes `false`, and `IDC_TOGGLE_VERTICAL_TABS` is a removed
+  command (`compass::IsRemovedCommand()`), left out of the app menu, the
+  macOS View menu and the title bar menu (D20).
 
 Alternatives we rejected:
 
@@ -65,6 +68,7 @@ in [patches/README.md](../../patches/README.md).
 |---|---|
 | Put the sidebar where the native tab strip would be | `vertical_tab_strip_region_view.{h,cc}`: `InitializeTabStrip()` and friends (slice e) |
 | Vertical tabs on by default | `tab_strip_prefs.cc`: 1 line |
+| Vertical tabs only | `vertical_tab_strip_state_controller_impl.cc`, plus the menus that offer the toggle (D20) |
 | Register `chrome://compass-sidebar` | `chrome_web_ui_configs.cc`: one call to `compass::RegisterWebUIConfigs()` |
 | Bind the sidebar's Mojo interfaces | `chrome_browser_interface_binders_webui_parts_desktop.cc`: one call to `compass::PopulateWebUIInterfaceBrokers()` |
 | Link `//compass/browser/ui` into `//chrome/browser/ui` | `chrome/browser/ui/BUILD.gn`: dep plus `allow_circular_includes_from`, same as `tab_search` |

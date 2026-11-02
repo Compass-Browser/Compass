@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/views/frame/system_menu_model_builder.cc b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
+index 20c579d108dd5211ab635beffbb37ca2e9080090..cdf33e696018667c66f5d314108aa70b554b5534 100644
+--- a/chrome/browser/ui/views/frame/system_menu_model_builder.cc
++++ b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/system_menu_model_builder.h"
+ 
++#include "compass/browser/ui/compass_command_ids.h"
++
+ #include "base/command_line.h"
+ #include "base/feature_list.h"
+ #include "base/strings/utf_string_conversions.h"
+@@ -188,8 +190,11 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
+   }
+ #endif  // BUILDFLAG(IS_WIN)
+ 
++  // Compass: tabs are always vertical (compass::IsRemovedCommand()).
+   if (auto* controller =
+-          tabs::VerticalTabStripStateController::From(browser())) {
++          compass::IsRemovedCommand(IDC_TOGGLE_VERTICAL_TABS)
++              ? nullptr
++              : tabs::VerticalTabStripStateController::From(browser())) {
+     const bool display_vertical_tabs = controller->ShouldDisplayVerticalTabs();
+ 
+     if (!display_vertical_tabs &&
