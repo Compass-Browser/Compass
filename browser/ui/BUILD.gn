@@ -184,6 +184,7 @@ source_set("app_menu_hooks") {
     "app_menu_sync.h",
     "compass_command_ids.h",
   ]
+  public_deps = [ "//chrome/app:command_ids" ]
 }
 
 source_set("unit_tests") {
@@ -235,6 +236,7 @@ source_set("browser_tests") {
     "views/sidebar/compass_sidebar_browsertest.cc",
     "webui/settings/settings_sections_browsertest.cc",
     "webui/sidebar/now_playing_browsertest.cc",
+    "removed_features_browsertest.cc",
   ]
   deps = [
     ":ui",

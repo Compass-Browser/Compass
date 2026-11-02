@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_input.h"
+#include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox_event_global_tracker.h"
 #include "components/omnibox/browser/omnibox_log.h"
@@ -148,7 +149,10 @@ CommandBarPageHandler::CommandBarPageHandler(
   autocomplete_ = std::make_unique<AutocompleteController>(
       std::make_unique<ChromeAutocompleteProviderClient>(profile),
       AutocompleteControllerConfig{
-          .provider_types = AutocompleteClassifier::DefaultOmniboxProviders()});
+          // No bookmark suggestions: pinned tabs are the bookmarks.
+          .provider_types =
+              AutocompleteClassifier::DefaultOmniboxProviders() &
+              ~static_cast<int>(AutocompleteProvider::Type::kBookmark)});
   autocomplete_->AddObserver(this);
   // Read at each query: the other devices' tabs change as they sync.
   other_device_tabs_getter_ = base::BindRepeating(

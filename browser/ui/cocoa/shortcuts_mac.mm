@@ -62,8 +62,6 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
 
     {"history", IDC_SHOW_HISTORY, "Browser", "History"},
     {"downloads", IDC_SHOW_DOWNLOADS, "Browser", "Downloads"},
-    {"bookmark-manager", IDC_SHOW_BOOKMARK_MANAGER, "Browser",
-     "Bookmark manager"},
     {"extensions", IDC_MANAGE_EXTENSIONS, "Browser", "Extensions"},
     {"settings", IDC_OPTIONS, "Browser", "Settings"},
     {"clear-browsing-data", IDC_CLEAR_BROWSING_DATA, "Browser",
