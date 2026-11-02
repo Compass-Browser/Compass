@@ -265,6 +265,37 @@ enum ExtensionPackage {
       if (!globalThis.registration) {
         globalThis.registration = { scope: location.origin + "/", active: null, showNotification: async () => {}, getNotifications: async () => [] };
       }
+      // An extension page in a frame on a web page (1Password's "Save
+      // passkey?" sheet) is laid out for a desktop window: a box with a
+      // fixed width (400 px) runs past the phone's edge. Such a box gets a
+      // max-width of the frame less 16 px a side, the margin 1Password keeps
+      // (measured once it's off the edge: where it is mid-animation varies).
+      try {
+        if (typeof document !== "undefined" && window.top !== window) {
+          const fitted = new WeakSet();
+          const fit = () => {
+            const width = innerWidth;
+            if (!document.body || width >= 480) return;
+            for (const element of document.body.querySelectorAll("*")) {
+              const box = element.getBoundingClientRect();
+              if (box.width < width / 2 || box.right <= 0 || box.left >= width) continue;
+              if (fitted.has(element) || (box.left >= 0 && box.right <= width)) continue;
+              fitted.add(element);
+              element.style.setProperty("box-sizing", "border-box", "important");
+              element.style.setProperty("max-width", "calc(100vw - 32px)", "important");
+            }
+          };
+          let queued = false;
+          const queue = () => {
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(() => { queued = false; fit(); });
+          };
+          new MutationObserver(queue).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
+          addEventListener("resize", queue);
+          addEventListener("load", queue);
+        }
+      } catch (e) {}
     })();
     """
 
