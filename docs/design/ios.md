@@ -528,7 +528,7 @@ Branch `ios/system-extensions`. Everything goes through the App Group `group.it.
 - **Checked:**
   - In the simulator: the snapshot is in the App Group; Inbox pin and open work at launch and live through the Darwin notification; icons are copied.
   - On the iPhone: a signed install with the group on every target.
-  - Still to check on the device: the widgets, the share sheet's direct open, the Focus filter, Spotlight, the Live Activity and the Safari extension.
+  - On the device (user, 2026-11-02): all of it works: the share sheet (direct open included), the widgets, the Focus filter, Spotlight, the Live Activity, the Safari extension and the Shortcuts actions.
 - **Open:** downloads that go on in the background would need a background `URLSession`.
 
 ## Open items
