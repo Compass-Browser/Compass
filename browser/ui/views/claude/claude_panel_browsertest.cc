@@ -18,6 +18,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -204,6 +205,14 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, WithoutAKeyAsksForOne) {
   EXPECT_TRUE(base::test::RunUntil([&] {
     return Text(contents, "#openSettings") == "Add an API key";
   }));
+  // No toolbar-colored box behind the page and the panel: upstream's main
+  // background region stays hidden in Compass's toolbarless window.
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  for (views::View* child : browser_view->children()) {
+    if (std::string_view(child->GetClassName()) == "MainBackgroundRegionView") {
+      EXPECT_FALSE(child->GetVisible());
+    }
+  }
   // Again: it closes.
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleClaudeCommand));
   EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));
