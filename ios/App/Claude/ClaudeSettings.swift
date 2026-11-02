@@ -79,8 +79,15 @@ final class ClaudeSettings {
   static let pageAgent: String = bundled("page_agent", "js") ?? ""
   /// The tool definitions sent to the API (each entry's `definition`;
   /// its `scope` stays here, ClaudeTools.scopes).
+  /// Entries for other platforms (`"platforms": ["desktop"]`) are left
+  /// out; an entry without `platforms` is for every platform.
   static let tools: [JSONValue] = bundled("tools", "json").flatMap { JSONValue.parse($0)?["tools"]?.array }?
-    .compactMap { $0["definition"] } ?? []
+    .filter(isForIOS).compactMap { $0["definition"] } ?? []
+
+  nonisolated static func isForIOS(_ entry: JSONValue) -> Bool {
+    guard let platforms = entry["platforms"]?.array else { return true }
+    return platforms.contains("ios")
+  }
 
   private static func bundled(_ name: String, _ ext: String) -> String? {
     Bundle.main.url(forResource: name, withExtension: ext).flatMap { try? String(contentsOf: $0, encoding: .utf8) }

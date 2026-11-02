@@ -263,7 +263,8 @@ Status (2026-11-02):
     - list_tabs: every tab in the sidebar by space (pinned, Today newest first), then favorites, loaded or not, with 8-character ids and [not loaded] / [front] / [you act on this] / [you opened it] (Matteo, 2026-11-02: Claude should see and load unloaded tabs). select_tab, and any page tool on the target, loads an unloaded tab in the background and waits for it;
     - open_tab: a Today tab in the space of the tab Claude works on, in the background unless `active`, waited for until loaded;
     - select_tab: loads the tab if it isn't loaded;
-    - close_tab: only tabs Claude opened in this chat; it goes back to the chat's tab.
+    - close_tab: any tab, as on the desktop since D7 (the system prompt has Claude ask first): a tab Claude opened goes, a Today tab goes to the archive, a pinned tab or favorite unloads; it goes back to the chat's tab.
+  - The tool list skips tools.json entries whose `platforms` leave out "ios" (D7's desktop-only tools); entries without `platforms` are for every platform.
   - A tab no window shows is kept rendering while Claude uses it (`ClaudeTools.keepRendering`: a full-size, nearly transparent host at the back of the key window; WebKit throttles out-of-window views and can't snapshot them), and released when the reply ends.
   - Indicators:
     - an orange dot fades out where a click or hover landed;
