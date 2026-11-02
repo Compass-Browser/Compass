@@ -35,8 +35,8 @@ enum AutoPiP {
   ///   keep the page in the window before it starts it;
   /// - back inline from the window, still playing, is the window's "back to
   ///   the page";
-  /// - a playing video scrolled off screen (under 30% visible) is reported
-  ///   (`scroll:out`), and the one Compass moved for it again once half of
+  /// - a playing video scrolled off screen (under half visible) is reported
+  ///   (`scroll:out`), and the one Compass moved for it again once 90% of
   ///   it is back (`scroll:in`): only a script the app evaluates may start
   ///   picture-in-picture, so the app answers with enterSource/exitSource.
   ///   After its window closes or goes back to the page, a video isn't
@@ -77,7 +77,7 @@ enum AutoPiP {
               // Its tab is the one shown: back to the page brings the video
               // into view instead.
               window.__compassAutoPiPScroll = null;
-              if ((ratios.get(video) ?? 0) >= 0.5) return;
+              if ((ratios.get(video) ?? 0) >= 0.9) return;
               held.add(video);
               setTimeout(() => { if (!video.paused) video.scrollIntoView({ block: "center" }); }, 400);
               return;
@@ -90,16 +90,23 @@ enum AutoPiP {
           const observer = new IntersectionObserver((entries) => {
             for (const entry of entries) {
               const video = entry.target;
-              const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
+              // Visible share of what could be visible: a video taller than
+              // the viewport counts as fully on screen when it fills it.
+              const fits = Math.min(entry.boundingClientRect.height, entry.rootBounds?.height ?? Infinity);
+              const ratio = entry.isIntersecting && fits > 0 ? Math.min(1, entry.intersectionRect.height / fits) : 0;
               ratios.set(video, ratio);
-              if (ratio >= 0.5) {
+              // Out while half of it is still on screen, so the window grows
+              // from the video and not from a sliver at the edge; back only
+              // once (nearly) all of it is, so it lands where it's seen. The
+              // gap keeps it from flipping in between.
+              if (ratio >= 0.9) {
                 held.delete(video);
                 if (window.__compassAutoPiPScroll === video) post("scroll:in");
-              } else if (ratio < 0.3 && enabled && eligible(video) && !held.has(video) && !window.__compassAutoPiPScroll) {
+              } else if (ratio < 0.5 && enabled && eligible(video) && !held.has(video) && !window.__compassAutoPiPScroll) {
                 post("scroll:out");
               }
             }
-          }, { threshold: [0, 0.3, 0.5] });
+          }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) });
           // Watched from its first play; observing again reports where it
           // is now (a video started while off screen counts).
           const watched = new WeakSet();
