@@ -7,7 +7,16 @@
  * #scheme=relative
  * #css_wrapper_metadata_end */
 
+/* A dimmed box with the page card's rounded corners (kContentCornerRadius):
+ * the window's tint shows through, darkened in dark mode and lightened in
+ * light mode, so the chat reads as its own pane beside the page. */
 :host {
+  background: color-mix(in srgb, var(--color-sys-base, #fff) 50%,
+                        transparent);
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+  border-radius: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
   --fg: var(--color-sys-on-surface, #1f1f1f);
   --fg-dim: color-mix(in srgb, var(--fg) 62%, transparent);
   --line: color-mix(in srgb, var(--fg) 12%, transparent);
