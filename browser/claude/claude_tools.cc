@@ -10,6 +10,7 @@
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
+#include "base/no_destructor.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -128,17 +129,43 @@ constexpr char kNotPermitted[] =
     "browser\" (Compass settings, Claude). Without it, Claude can only use "
     "the tab the chat is about. Tell the user if the task needs more.";
 
+// tools.json's entries for this platform, parsed once.
+const base::ListValue& ToolEntries() {
+  static const base::NoDestructor<base::ListValue> entries([] {
+    base::ListValue entries;
+    std::optional<base::DictValue> file =
+        base::JSONReader::ReadDict(assets::kTools, base::JSON_PARSE_RFC);
+    CHECK(file);
+    for (base::Value& tool : *file->FindList("tools")) {
+      const base::ListValue* platforms = tool.GetDict().FindList("platforms");
+      if (platforms &&
+          !std::ranges::contains(*platforms, base::Value("desktop"))) {
+        continue;
+      }
+      entries.Append(std::move(tool));
+    }
+    return entries;
+  }());
+  return *entries;
+}
+
 bool IsBrowserTool(const std::string& name) {
-  return name == "list_tabs" || name == "open_tab" || name == "select_tab" ||
-         name == "close_tab";
+  for (const base::Value& tool : ToolEntries()) {
+    const base::DictValue& dict = tool.GetDict();
+    const std::string* tool_name = dict.FindStringByDottedPath("definition.name");
+    if (tool_name && *tool_name == name) {
+      return Describe(dict, "scope") == "browser";
+    }
+  }
+  return false;
 }
 
 }  // namespace
 
-TabInfo::TabInfo() = default;
-TabInfo::TabInfo(const TabInfo&) = default;
-TabInfo& TabInfo::operator=(const TabInfo&) = default;
-TabInfo::~TabInfo() = default;
+TabsDelegate::Result::Result() = default;
+TabsDelegate::Result::Result(Result&&) = default;
+TabsDelegate::Result& TabsDelegate::Result::operator=(Result&&) = default;
+TabsDelegate::Result::~Result() = default;
 
 ToolResult::ToolResult() = default;
 ToolResult::ToolResult(ToolResult&&) = default;
@@ -201,11 +228,8 @@ void ClaudeTools::StopActing() {
 // static
 base::ListValue ClaudeTools::Definitions() {
   base::ListValue definitions;
-  std::optional<base::DictValue> file =
-      base::JSONReader::ReadDict(assets::kTools, base::JSON_PARSE_RFC);
-  CHECK(file);
-  for (base::Value& tool : *file->FindList("tools")) {
-    definitions.Append(std::move(*tool.GetDict().FindDict("definition")));
+  for (const base::Value& tool : ToolEntries()) {
+    definitions.Append(tool.GetDict().FindDict("definition")->Clone());
   }
   if (!definitions.empty()) {
     // The tools are the same for every request: cached with the prompt.
@@ -362,8 +386,33 @@ void ClaudeTools::Run(const std::string& name,
       return;
     }
   }
+  if (browser_tool) {
+    RunBrowserTool(name, std::move(input));
+    return;
+  }
   Finish(ToolResult::Error(
       base::StrCat({"Tool ", name, " isn't available here."})));
+}
+
+TabsDelegate::Context ClaudeTools::MakeContext() {
+  TabsDelegate::Context context;
+  context.target = web_contents();
+  context.opened = &opened_;
+  return context;
+}
+
+void ClaudeTools::RunBrowserTool(const std::string& name,
+                                 base::DictValue input) {
+  tabs_->RunTool(name, std::move(input), MakeContext(),
+                 base::BindOnce(&ClaudeTools::OnBrowserToolDone,
+                                run_weak_factory_.GetWeakPtr()));
+}
+
+void ClaudeTools::OnBrowserToolDone(TabsDelegate::Result result) {
+  if (result.act_on) {
+    Retarget(result.act_on.get());
+  }
+  Finish(std::move(result.result));
 }
 
 void ClaudeTools::Finish(ToolResult result) {
@@ -1156,33 +1205,7 @@ void ClaudeTools::Wait(base::DictValue input) {
 }
 
 void ClaudeTools::ListTabs(base::DictValue input) {
-  std::vector<TabInfo> tabs = tabs_->ListTabs();
-  if (tabs.empty()) {
-    Finish(ToolResult::Text("No tabs are open."));
-    return;
-  }
-  std::string text;
-  std::string window;
-  for (const TabInfo& tab : tabs) {
-    if (tab.window != window) {
-      window = tab.window;
-      base::StrAppend(&text, {text.empty() ? "" : "\n", window, ":\n"});
-    }
-    base::StrAppend(&text, {"- ", tab.id, ": ", tab.title.empty() ? tab.url
-                                                                  : tab.title,
-                            " — ", tab.url, " (space: ", tab.space, ")"});
-    if (tab.active) {
-      text += " [front]";
-    }
-    if (tab.contents && tab.contents.get() == web_contents()) {
-      text += " [you act on this]";
-    }
-    if (opened_.contains(tab.id)) {
-      text += " [you opened it]";
-    }
-    text += "\n";
-  }
-  Finish(ToolResult::Text(std::move(text)));
+  Finish(ToolResult::Text(tabs_->ListTabs(MakeContext())));
 }
 
 void ClaudeTools::OpenTab(base::DictValue input) {
@@ -1229,18 +1252,20 @@ void ClaudeTools::OpenTab(base::DictValue input) {
 
 void ClaudeTools::SelectTab(base::DictValue input) {
   const std::string* id = input.FindString("tab_id");
-  content::WebContents* contents = id ? tabs_->FindTab(*id) : nullptr;
-  if (!contents) {
-    Finish(ToolResult::Error(base::StrCat(
-        {"No tab ", id ? *id : std::string(), ". list_tabs gives the ids."})));
+  base::expected<content::WebContents*, std::string> tab =
+      id ? tabs_->LoadTab(*id)
+         : base::unexpected(std::string("Give a tab_id from list_tabs."));
+  if (!tab.has_value()) {
+    Finish(ToolResult::Error(tab.error()));
     return;
   }
+  content::WebContents* contents = *tab;
   Retarget(contents);
   std::string text = base::StrCat(
       {"The page tools act on tab ", *id, " now: ",
        base::UTF16ToUTF8(contents->GetTitle()), " — ",
-       contents->GetLastCommittedURL().spec(), "."});
-  if (!CanUsePage(contents->GetLastCommittedURL())) {
+       contents->GetVisibleURL().spec(), "."});
+  if (!CanUsePage(contents->GetVisibleURL())) {
     text += " It's a browser page, which Claude can't use.";
   }
   Finish(ToolResult::Text(std::move(text)));
@@ -1248,27 +1273,15 @@ void ClaudeTools::SelectTab(base::DictValue input) {
 
 void ClaudeTools::CloseTab(base::DictValue input) {
   const std::string* id = input.FindString("tab_id");
-  if (!id || !opened_.contains(*id)) {
-    Finish(ToolResult::Error(
-        "Claude can only close tabs it opened in this chat (list_tabs marks "
-        "them). The user's own tabs stay."));
-    return;
+  if (id) {
+    opened_.erase(*id);
+    // Claude steps off a tab before it goes: back to the chat's own.
+    content::WebContents* live = tabs_->FindLiveTab(*id);
+    if (live && live == web_contents()) {
+      Retarget(task_tab_.get() != live ? task_tab_.get() : nullptr);
+    }
   }
-  content::WebContents* contents = tabs_->FindTab(*id);
-  opened_.erase(*id);
-  if (!contents) {
-    Finish(ToolResult::Text("That tab was closed already."));
-    return;
-  }
-  std::string text = base::StrCat({"Closed tab ", *id, "."});
-  if (contents == web_contents()) {
-    // Back to the task's tab, before this one goes.
-    Retarget(task_tab_.get());
-    text += task_tab_ ? " The page tools act on the chat's tab again."
-                      : " The page tools have no tab: select_tab one.";
-  }
-  tabs_->CloseTab(contents);
-  Finish(ToolResult::Text(std::move(text)));
+  RunBrowserTool("close_tab", std::move(input));
 }
 
 void ClaudeTools::ReportAfterAction(std::string done) {

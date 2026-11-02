@@ -4,6 +4,8 @@
 
 #include "compass/browser/claude/claude_request.h"
 
+#include <algorithm>
+
 #include <string>
 
 #include "base/values.h"
@@ -58,7 +60,9 @@ TEST(ClaudeRequestTest, Defaults) {
   const base::ListValue& tools = *body.FindList("tools");
   ASSERT_FALSE(tools.empty());
   EXPECT_EQ(*tools[0].GetDict().FindString("name"), "read_page");
-  EXPECT_EQ(*tools.back().GetDict().FindString("name"), "close_tab");
+  EXPECT_TRUE(std::ranges::any_of(tools, [](const base::Value& tool) {
+    return *tool.GetDict().FindString("name") == "close_tab";
+  }));
   EXPECT_TRUE(tools.back().GetDict().FindDict("cache_control"));
   for (const base::Value& tool : tools) {
     EXPECT_TRUE(tool.GetDict().FindDict("input_schema"));

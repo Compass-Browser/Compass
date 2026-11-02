@@ -24,6 +24,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/claude/claude_tabs.h"
@@ -393,7 +394,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, ListsOpensSelectsAndCloses) {
 
   ToolResult listed = Run("list_tabs");
   ASSERT_FALSE(listed.is_error) << Text(listed);
-  EXPECT_THAT(Text(listed), HasSubstr("Window 1"));
+  EXPECT_THAT(Text(listed), HasSubstr("[shown in the user's window]"));
   EXPECT_THAT(Text(listed),
               HasSubstr(chat_id + ": Tools page — " +
                         chat_tab->GetVisibleURL().spec()));
@@ -411,11 +412,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, ListsOpensSelectsAndCloses) {
   EXPECT_THAT(Text(Run("get_page_text")), HasSubstr("Other page"));
   EXPECT_THAT(Text(Run("list_tabs")),
               HasSubstr(new_id + ": Other — " + url +
-                        " (space: " +
-                        base::UTF16ToUTF8(WindowFeatures::From(browser())
-                                              ->space_model()
-                                              .name()) +
-                        ") [you act on this] [you opened it]"));
+                        " [you act on this] [you opened it]"));
 
   ToolResult selected =
       Run("select_tab", "{\"tab_id\": \"" + chat_id + "\"}");
@@ -423,11 +420,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, ListsOpensSelectsAndCloses) {
   EXPECT_THAT(Text(Run("get_page_text")), HasSubstr("Title: Tools page"));
   EXPECT_TRUE(Run("select_tab", R"({"tab_id": "t999999"})").is_error);
 
-  // Only tabs Claude opened close.
-  ToolResult refused =
-      Run("close_tab", "{\"tab_id\": \"" + chat_id + "\"}");
-  EXPECT_TRUE(refused.is_error);
-  EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
+  // Any tab closes (D7); Claude's prompt asks it to check with the user.
   ToolResult closed = Run("close_tab", "{\"tab_id\": \"" + new_id + "\"}");
   EXPECT_FALSE(closed.is_error) << Text(closed);
   EXPECT_TRUE(base::test::RunUntil(
@@ -464,15 +457,167 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, TabsOfHiddenSpaces) {
 
   ToolResult listed = Run("list_tabs");
   ASSERT_FALSE(listed.is_error) << Text(listed);
-  EXPECT_THAT(Text(listed), HasSubstr("Window 1 (shows space Work)"));
-  EXPECT_THAT(Text(listed), HasSubstr("Not shown (spaces no window shows):\n- " +
-                                      tools_id + ": Tools page"));
-  EXPECT_THAT(Text(listed), HasSubstr("(space: " + home_name + ")"));
+  EXPECT_THAT(Text(listed),
+              HasSubstr("Space \"Work\" (s"));
+  EXPECT_THAT(Text(listed), HasSubstr("[shown in the user's window]"));
+  EXPECT_THAT(Text(listed), HasSubstr("Space \"" + home_name + "\" (s"));
+  EXPECT_THAT(Text(listed), HasSubstr(tools_id + ": Tools page"));
 
   ASSERT_FALSE(
       Run("select_tab", "{\"tab_id\": \"" + tools_id + "\"}").is_error);
   EXPECT_THAT(Text(Run("get_page_text")), HasSubstr("Title: Tools page"));
   EXPECT_FALSE(Run("run_js", R"({"code": "1 + 1"})").is_error);
+}
+
+// docs/design/claude.md, D7: the sidebar's own features.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, OrganizesTheSidebar) {
+  SetBrowserScope(true);
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  const std::string chat_id = IdOf(contents());
+  const std::string url = embedded_test_server()->GetURL("/other.html").spec();
+  const std::string other_id =
+      OpenedId(Run("open_tab", "{\"url\": \"" + url + "\"}"));
+  ASSERT_FALSE(other_id.empty());
+  auto in = [&](const SidebarNode* root, const std::string& id) {
+    return Text(Run("list_tabs")).find(id) != std::string::npos &&
+           std::ranges::any_of(root->children(), [&](const auto& child) {
+             return "n" + child->id().AsLowercaseString().substr(0, 8) == id;
+           });
+  };
+
+  // Pin, then unpin; reorder.
+  ASSERT_FALSE(Run("move_tab", "{\"tab_id\": \"" + chat_id +
+                                   "\", \"to\": \"pinned\"}")
+                   .is_error);
+  EXPECT_TRUE(in(space.pinned_root(), chat_id));
+  ASSERT_FALSE(Run("move_tab", "{\"tab_id\": \"" + chat_id +
+                                   "\", \"to\": \"today\", \"index\": 0}")
+                   .is_error);
+  EXPECT_TRUE(in(space.today_root(), chat_id));
+  EXPECT_EQ("n" + space.today_root()->children()[0]->id()
+                      .AsLowercaseString()
+                      .substr(0, 8),
+            chat_id);
+
+  // A favorite, and back.
+  SpaceModel& favorites = WindowFeatures::From(browser())
+                              ->service()
+                              .space_list()
+                              .favorites();
+  ASSERT_FALSE(Run("move_tab", "{\"tab_id\": \"" + other_id +
+                                   "\", \"to\": \"favorites\"}")
+                   .is_error);
+  EXPECT_TRUE(in(favorites.pinned_root(), other_id));
+  EXPECT_THAT(Text(Run("list_tabs")), HasSubstr("Favorites (every space)"));
+  ASSERT_FALSE(Run("move_tab", "{\"tab_id\": \"" + other_id +
+                                   "\", \"to\": \"today\"}")
+                   .is_error);
+  EXPECT_TRUE(in(space.today_root(), other_id));
+
+  // A folder, and a tab in it, renamed.
+  ToolResult folder = Run("create_folder", R"({"name": "Reading"})");
+  ASSERT_FALSE(folder.is_error) << Text(folder);
+  const std::string folder_text = Text(folder);
+  const std::string folder_id =
+      folder_text.substr(folder_text.find("folder_id ") + 10, 9);
+  ASSERT_FALSE(Run("move_tab", "{\"tab_id\": \"" + other_id +
+                                   "\", \"to\": \"folder\", \"folder_id\": \"" +
+                                   folder_id + "\"}")
+                   .is_error);
+  ASSERT_FALSE(Run("rename_tab", "{\"tab_id\": \"" + other_id +
+                                     "\", \"title\": \"Later\"}")
+                   .is_error);
+  const std::string listed = Text(Run("list_tabs"));
+  EXPECT_THAT(listed, HasSubstr("folder \"Reading\" (folder_id " + folder_id +
+                                "):\n      - " + other_id + ": Later"));
+  // Folders don't go to Today.
+  EXPECT_TRUE(Run("move_tab", "{\"tab_id\": \"" + folder_id +
+                                  "\", \"to\": \"today\"}")
+                  .is_error);
+
+  // Mute; show it to the user, which moves Claude to it.
+  ASSERT_FALSE(Run("mute_tab", "{\"tab_id\": \"" + other_id +
+                                   "\", \"muted\": true}")
+                   .is_error);
+  EXPECT_THAT(Text(Run("list_tabs")), HasSubstr("Later — " + url));
+  ASSERT_FALSE(
+      Run("activate_tab", "{\"tab_id\": \"" + other_id + "\"}").is_error);
+  EXPECT_EQ(contents()->GetVisibleURL().spec(), url);
+  EXPECT_TRUE(contents()->IsAudioMuted());
+  EXPECT_EQ(tools_->target(), contents());
+}
+
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, SpacesAndUnloadedEntries) {
+  SetBrowserScope(true);
+  const std::string chat_id = IdOf(contents());
+  // Pinned and closed: it stays, unloaded.
+  ASSERT_FALSE(Run("move_tab", "{\"tab_id\": \"" + chat_id +
+                                   "\", \"to\": \"pinned\"}")
+                   .is_error);
+  const std::string url = embedded_test_server()->GetURL("/other.html").spec();
+  ASSERT_FALSE(Run("open_tab", "{\"url\": \"" + url + "\", \"active\": true}")
+                   .is_error);
+  ToolResult closed = Run("close_tab", "{\"tab_id\": \"" + chat_id + "\"}");
+  ASSERT_FALSE(closed.is_error) << Text(closed);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return Text(Run("list_tabs")).find(chat_id + ": Tools page") !=
+               std::string::npos &&
+           Text(Run("list_tabs")).find("[unloaded]") != std::string::npos;
+  }));
+  // select_tab loads it, in the background.
+  content::WebContents* front = contents();
+  ToolResult selected = Run("select_tab", "{\"tab_id\": \"" + chat_id + "\"}");
+  ASSERT_FALSE(selected.is_error) << Text(selected);
+  EXPECT_EQ(contents(), front);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return Text(Run("get_page_text")).find("Title: Tools page") !=
+           std::string::npos;
+  }));
+
+  // Spaces.
+  ToolResult created = Run("create_space", R"({"name": "Errands"})");
+  ASSERT_FALSE(created.is_error) << Text(created);
+  ASSERT_FALSE(Run("switch_space", R"({"space": "errands"})").is_error);
+  EXPECT_EQ(WindowFeatures::From(browser())->space_model().name(),
+            u"Errands");
+  EXPECT_TRUE(Run("switch_space", R"({"space": "Nowhere"})").is_error);
+  // A tab moves to another space: here, into Errands' Pinned, from the
+  // window that showed its old space.
+  SpaceModel* errands = &WindowFeatures::From(browser())->space_model();
+  const std::string moved_id = IdOf(front);
+  ToolResult moved = Run("move_tab", "{\"tab_id\": \"" + moved_id +
+                                         "\", \"to\": \"pinned\", "
+                                         "\"space\": \"Errands\"}");
+  ASSERT_FALSE(moved.is_error) << Text(moved);
+  EXPECT_TRUE(std::ranges::any_of(
+      errands->pinned_root()->children(), [&](const auto& child) {
+        return "n" + child->id().AsLowercaseString().substr(0, 8) ==
+               moved_id;
+      }));
+  // The entry of a space no window shows doesn't load in the background,
+  // but activate_tab shows it.
+  EXPECT_TRUE(Run("move_tab", "{\"tab_id\": \"" + chat_id +
+                                  "\", \"to\": \"nowhere\"}")
+                  .is_error);
+  ASSERT_FALSE(
+      Run("activate_tab", "{\"tab_id\": \"" + chat_id + "\"}").is_error);
+  EXPECT_NE(WindowFeatures::From(browser())->space_model().name(),
+            u"Errands");
+  EXPECT_EQ(contents()->GetVisibleURL().path(), "/tools.html");
+}
+
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, HistoryDownloadsDevices) {
+  SetBrowserScope(true);
+  // The visit to the test page is in the history, in a moment.
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return Text(Run("search_history", R"({"query": "Tools page"})"))
+               .find("tools.html") != std::string::npos;
+  }));
+  EXPECT_THAT(Text(Run("search_history", R"({"query": "zebra-nothing"})")),
+              HasSubstr("No matching history."));
+  EXPECT_EQ(Text(Run("list_downloads")), "No downloads.");
+  // No sync in tests.
+  EXPECT_TRUE(Run("send_tab_to_device").is_error);
 }
 
 }  // namespace

@@ -205,6 +205,12 @@ SidebarNode* TabStripBridge::GetNode(const tabs::TabInterface* tab) const {
   return registry_->GetNode(tab);
 }
 
+tabs::TabInterface* TabStripBridge::OpenNodeInBackground(
+    SidebarNode* tab_node) {
+  CHECK_EQ(tab_node->type(), SidebarNode::Type::kTab);
+  return OpenTabNode(tab_node, /*foreground=*/false);
+}
+
 tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
   CHECK_EQ(tab_node->type(), SidebarNode::Type::kTab);
   tabs::TabInterface* tab = OpenTabNode(tab_node, /*foreground=*/true);

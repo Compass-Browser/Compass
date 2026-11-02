@@ -77,6 +77,9 @@ class TabStripBridge : public TabStripModelObserver,
   // in the foreground, at the node's place in the strip. A pane brings the
   // rest of its split, in the background, so the split shows.
   tabs::TabInterface* OpenNode(SidebarNode* tab_node);
+  // OpenNode() in the background, for Claude's tools (docs/design/claude.md,
+  // D7): the active tab stays, and a pane doesn't bring its split.
+  tabs::TabInterface* OpenNodeInBackground(SidebarNode* tab_node);
 
   // The node a placeholder tab stands for, or null if |tab| isn't one (or its
   // node is gone).

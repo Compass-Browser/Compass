@@ -14,6 +14,7 @@
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
@@ -46,42 +47,55 @@ struct ToolResult {
   bool is_error = false;
 };
 
-// One open tab, as list_tabs shows it.
-struct TabInfo {
-  TabInfo();
-  TabInfo(const TabInfo&);
-  TabInfo& operator=(const TabInfo&);
-  ~TabInfo();
-
-  std::string id;
-  std::string title;
-  std::string url;
-  // "Window 1", or "Not shown" for tabs of spaces no window shows.
-  std::string window;
-  std::string space;
-  // The front tab of its window.
-  bool active = false;
-  base::WeakPtr<content::WebContents> contents;
-};
-
-// The browser around ClaudeTools, for the browser tools: the profile's tabs
-// in every window and space. Lives in the UI layer (ClaudeTabs), which knows
-// windows and spaces; ClaudeTools only asks.
+// The browser around ClaudeTools, for the browser tools (list_tabs,
+// activate_tab, move_tab, …): the profile's sidebar, windows and data. Lives
+// in the UI layer (ClaudeTabs), which knows windows, spaces and services;
+// ClaudeTools checks the permission and keeps the tab it acts on.
+// docs/design/claude.md, D5 and D7.
 class TabsDelegate {
  public:
+  // What the tools know of the session.
+  struct Context {
+    // The tab the page tools act on, or null.
+    raw_ptr<content::WebContents> target = nullptr;
+    // The ids of the tabs Claude opened.
+    raw_ptr<const std::set<std::string>> opened = nullptr;
+  };
+  struct Result {
+    Result();
+    Result(Result&&);
+    Result& operator=(Result&&);
+    ~Result();
+
+    ToolResult result;
+    // The page tools act on this tab from now on (activate_tab).
+    base::WeakPtr<content::WebContents> act_on;
+  };
+
   virtual ~TabsDelegate() = default;
 
   // "Let Claude use the whole browser", now.
   virtual bool BrowserScopeAllowed() = 0;
-  // The profile's open tabs, front window first.
-  virtual std::vector<TabInfo> ListTabs() = 0;
-  // The tab with list_tabs id |id|, in this profile, or null.
-  virtual content::WebContents* FindTab(const std::string& id) = 0;
+  // list_tabs's text: the sidebar of every space, and other windows' tabs.
+  virtual std::string ListTabs(const Context& context) = 0;
+  // The live tab with list_tabs id |id|, or null (unloaded, or no such tab).
+  virtual content::WebContents* FindLiveTab(const std::string& id) = 0;
+  // The tab |id|, loading an unloaded entry in the background if a window
+  // shows its space; or why not.
+  virtual base::expected<content::WebContents*, std::string> LoadTab(
+      const std::string& id) = 0;
   // Opens |url| in a new tab of the chat's window (its space), in the
   // background unless |active|. Null if it can't.
   virtual content::WebContents* OpenTab(const GURL& url, bool active) = 0;
+  // |contents|' list_tabs id.
   virtual std::string IdOf(content::WebContents* contents) = 0;
-  virtual void CloseTab(content::WebContents* contents) = 0;
+  // The other browser tools: close_tab, activate_tab, move_tab, rename_tab,
+  // create_folder, mute_tab, split_tabs, switch_space, create_space,
+  // search_history, list_downloads, send_tab_to_device.
+  virtual void RunTool(const std::string& name,
+                       base::DictValue input,
+                       const Context& context,
+                       base::OnceCallback<void(Result)> done) = 0;
 };
 
 // Runs Claude's tools (common/claude/tools.json) on a target tab. It knows
@@ -194,6 +208,10 @@ class ClaudeTools : public content::WebContentsObserver {
   void OpenTab(base::DictValue input);
   void SelectTab(base::DictValue input);
   void CloseTab(base::DictValue input);
+  // The browser tools ClaudeTabs runs.
+  void RunBrowserTool(const std::string& name, base::DictValue input);
+  void OnBrowserToolDone(TabsDelegate::Result result);
+  TabsDelegate::Context MakeContext();
   // A short pause after an action, then what changed (the URL).
   void ReportAfterAction(std::string done);
   void ShowIndicator(double x, double y);

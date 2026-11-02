@@ -190,6 +190,18 @@ Status: done on `claude/d2-claude-client` (2026-11-02): `SseParserTest.*`, `Clau
   - "Test connection";
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages.
 
+### Browser tools (D7)
+
+Status: done on `claude/d7-browser-tools` (2026-11-02): `ClaudeToolsBrowserTest.*` (16/16, 3 for D7) passes in out/Fast, headless. Matteo asked for Claude to have every feature of the browser; he chose that Claude may close, move and rename any of the user's tabs, and use the history, downloads and send-to-device.
+
+- **Ids.** Sidebar entries (tabs, splits, folders), loaded or not, are `n` and the first 8 hex digits of their node's UUID; spaces `s` and 8 digits; tabs outside the sidebar (popups, apps) `t` and their `TabHandle`. Every tool takes any of them.
+- **`list_tabs`** is the sidebar: Favorites (every space), then each space (the one the user's window shows, or another window, marked) with Pinned (folders, splits) and Today, then other windows' tabs. Marks: `[front]`, `[you act on this]`, `[you opened it]`, `[unloaded]`, `[muted]`, `[playing]`. A loaded tab shows its page's live title and URL (the entry's are saved lazily); the user's name for it wins.
+- **New tools** (`tools.json`, `"platforms": ["desktop"]`; iOS skips them): `activate_tab` (shows it, switching the window's space or loading it; Claude acts on it), `move_tab` (reorder; `to` pinned, today, favorites or a folder; `space` for another space, through `MoveEntry()`/`SpaceModel::Move()`), `rename_tab` (a tab's own name, or a folder's), `create_folder`, `mute_tab` (a live tab, or the entry, which opens muted), `split_tabs` (`SpaceModel::Split()`), `switch_space` and `create_space` (`SwitchWindowToSpace()`), `search_history` (`HistoryService::QueryHistory()`, one visit per page a day), `list_downloads`, `send_tab_to_device` (the send-tab-to-self model; without a device, the list).
+- **Changed:** `close_tab` closes any tab; a pinned entry or favorite stays, unloaded, unless `remove`; a Today tab goes. Claude steps off the tab first if it acts on it. `select_tab` loads an unloaded entry of a shown space in the background (`TabStripBridge::OpenNodeInBackground()`, new).
+- **Where:** `ClaudeTabs` runs them all (`TabsDelegate::RunTool()`); `ClaudeTools` keeps the permission check, the target and `open_tab`/`select_tab`. `tools.json`'s `scope` says which tools are browser tools; `platforms` which platform has them.
+- **The prompt** (`system_prompt.md`, shared with iOS, so platform-neutral): the tabs and their order are the user's; before closing or removing tabs they didn't mention, or moving many, Claude says what it will do and asks.
+- **Tests** (`ClaudeToolsBrowserTest`): `OrganizesTheSidebar` (pin, unpin, reorder, favorite and back, a folder, a tab in it renamed, a folder refused in Today, mute, activate), `SpacesAndUnloadedEntries` (a closed pinned entry stays unloaded and `select_tab` loads it in the background; create, switch, move a tab to another space; `activate_tab` brings its space back), `HistoryDownloadsDevices`.
+
 ### MCP server (D6)
 
 Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBridgeBrowserTest.*` (4/4, including the real `compass-mcp`) passes in out/Fast, headless. Not built on Windows: it would need a named pipe. Tried from Claude Code 2.1.316 (2026-11-02, `claude -p` with an MCP config running the bundled `compass-mcp` on the Fast dev profile): `list_tabs`, `select_tab` of a background tab, `get_page_text`, `read_console`, `find` and `screenshot` worked; the page tools refused the front tab, a settings page. Claude Code declares itself as `claude-code` ("Claude Code"), the name "Always allow" stores.
@@ -281,6 +293,7 @@ Status (2026-11-02):
 4. **D4: page tools through the DevTools protocol.** Read, screenshot, console, JS, click, type, scroll, plus the indicator and Stop.
 5. **D5: browser scope.** The toggle and the tab tools.
 6. **D6: MCP server.** Lets Claude Code, Claude Desktop and other MCP clients drive the logged-in browser. See "MCP server (D6)" above.
+6b. **D7: browser tools.** The sidebar, spaces, history, downloads and devices (see "Browser tools (D7)").
 7. **I1: iOS find.**
 8. **I2: iOS settings, Keychain, client and chat sheet.**
 9. **I3: iOS page tools and console capture.**

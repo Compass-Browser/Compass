@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Shared by desktop (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it. Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md.",
+  "notes": "Shared by desktop (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it. Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"ios\"); without it, everywhere.",
   "tools": [
     {
       "scope": "page",
@@ -12,7 +12,10 @@
           "properties": {
             "filter": {
               "type": "string",
-              "enum": ["all", "interactive"],
+              "enum": [
+                "all",
+                "interactive"
+              ],
               "description": "\"all\" (default) includes headings, text and structure; \"interactive\" lists only links, buttons, fields and other controls."
             },
             "ref": {
@@ -55,7 +58,9 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "query": { "type": "string" },
+            "query": {
+              "type": "string"
+            },
             "max_results": {
               "type": "integer",
               "minimum": 1,
@@ -63,7 +68,9 @@
               "description": "Default 20."
             }
           },
-          "required": ["query"]
+          "required": [
+            "query"
+          ]
         }
       }
     },
@@ -97,7 +104,16 @@
             },
             "levels": {
               "type": "array",
-              "items": { "type": "string", "enum": ["debug", "log", "info", "warning", "error"] },
+              "items": {
+                "type": "string",
+                "enum": [
+                  "debug",
+                  "log",
+                  "info",
+                  "warning",
+                  "error"
+                ]
+              },
               "description": "Only these levels (default all)."
             },
             "pattern": {
@@ -122,9 +138,13 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "code": { "type": "string" }
+            "code": {
+              "type": "string"
+            }
           },
-          "required": ["code"]
+          "required": [
+            "code"
+          ]
         }
       }
     },
@@ -136,17 +156,25 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "ref": { "type": "string" },
+            "ref": {
+              "type": "string"
+            },
             "coordinate": {
               "type": "array",
-              "items": { "type": "number" },
+              "items": {
+                "type": "number"
+              },
               "minItems": 2,
               "maxItems": 2,
               "description": "[x, y] in screenshot pixels. Use ref when you have one."
             },
             "button": {
               "type": "string",
-              "enum": ["left", "right", "middle"],
+              "enum": [
+                "left",
+                "right",
+                "middle"
+              ],
               "description": "Default left."
             },
             "click_count": {
@@ -171,10 +199,14 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "ref": { "type": "string" },
+            "ref": {
+              "type": "string"
+            },
             "coordinate": {
               "type": "array",
-              "items": { "type": "number" },
+              "items": {
+                "type": "number"
+              },
               "minItems": 2,
               "maxItems": 2
             }
@@ -190,10 +222,16 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "text": { "type": "string" },
-            "ref": { "type": "string" }
+            "text": {
+              "type": "string"
+            },
+            "ref": {
+              "type": "string"
+            }
           },
-          "required": ["text"]
+          "required": [
+            "text"
+          ]
         }
       }
     },
@@ -205,7 +243,9 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "keys": { "type": "string" },
+            "keys": {
+              "type": "string"
+            },
             "repeat": {
               "type": "integer",
               "minimum": 1,
@@ -213,7 +253,9 @@
               "description": "Press the whole sequence this many times (default 1)."
             }
           },
-          "required": ["keys"]
+          "required": [
+            "keys"
+          ]
         }
       }
     },
@@ -225,22 +267,36 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "left",
+                "right"
+              ]
+            },
             "amount": {
               "type": "integer",
               "minimum": 1,
               "maximum": 20,
               "description": "In steps of about a third of the viewport (default 3)."
             },
-            "ref": { "type": "string" },
+            "ref": {
+              "type": "string"
+            },
             "coordinate": {
               "type": "array",
-              "items": { "type": "number" },
+              "items": {
+                "type": "number"
+              },
               "minItems": 2,
               "maxItems": 2
             }
           },
-          "required": ["direction"]
+          "required": [
+            "direction"
+          ]
         }
       }
     },
@@ -252,12 +308,21 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "ref": { "type": "string" },
+            "ref": {
+              "type": "string"
+            },
             "value": {
-              "type": ["string", "number", "boolean"]
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
             }
           },
-          "required": ["ref", "value"]
+          "required": [
+            "ref",
+            "value"
+          ]
         }
       }
     },
@@ -274,7 +339,9 @@
               "description": "An http(s) URL, or one of \"back\", \"forward\", \"reload\"."
             }
           },
-          "required": ["url"]
+          "required": [
+            "url"
+          ]
         }
       }
     },
@@ -286,9 +353,15 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "seconds": { "type": "number", "minimum": 0.1, "maximum": 10 }
+            "seconds": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 10
+            }
           },
-          "required": ["seconds"]
+          "required": [
+            "seconds"
+          ]
         }
       }
     },
@@ -296,8 +369,11 @@
       "scope": "browser",
       "definition": {
         "name": "list_tabs",
-        "description": "List the open tabs in every window and space: tab_id, title, URL, window, space, and which tab is active and which one you are acting on.",
-        "input_schema": { "type": "object", "properties": {} }
+        "description": "List the browser's tabs as the sidebar shows them: every space with its Favorites, Pinned entries (in folders) and Today entries, loaded or not, then tabs in other windows. Each entry has a tab_id for the other tools (folders have a folder_id) and marks: [front] (shown in its window), [you act on this], [you opened it], [unloaded], [muted], [playing]. The space the user's window shows is marked.",
+        "input_schema": {
+          "type": "object",
+          "properties": {}
+        }
       }
     },
     {
@@ -308,13 +384,17 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "url": { "type": "string" },
+            "url": {
+              "type": "string"
+            },
             "active": {
               "type": "boolean",
               "description": "Bring it to the front (default false)."
             }
           },
-          "required": ["url"]
+          "required": [
+            "url"
+          ]
         }
       }
     },
@@ -322,13 +402,17 @@
       "scope": "browser",
       "definition": {
         "name": "select_tab",
-        "description": "Make the page tools act on another tab, by tab_id from list_tabs. It doesn't bring the tab to the front.",
+        "description": "Make the page tools act on another tab, by tab_id from list_tabs. It doesn't bring the tab to the front; an unloaded entry of the shown space is loaded in the background.",
         "input_schema": {
           "type": "object",
           "properties": {
-            "tab_id": { "type": "string" }
+            "tab_id": {
+              "type": "string"
+            }
           },
-          "required": ["tab_id"]
+          "required": [
+            "tab_id"
+          ]
         }
       }
     },
@@ -336,13 +420,308 @@
       "scope": "browser",
       "definition": {
         "name": "close_tab",
-        "description": "Close a tab you opened in this chat, by tab_id. Tabs the user opened can't be closed.",
+        "description": "Close a tab by tab_id. A pinned or favorite entry stays in the sidebar, unloaded, unless remove is true; a Today tab goes away. Before closing or removing tabs the user didn't ask you to close, ask them.",
         "input_schema": {
           "type": "object",
           "properties": {
-            "tab_id": { "type": "string" }
+            "tab_id": {
+              "type": "string"
+            },
+            "remove": {
+              "type": "boolean",
+              "description": "Also remove a pinned or favorite entry from the sidebar (default false)."
+            }
           },
-          "required": ["tab_id"]
+          "required": [
+            "tab_id"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "activate_tab",
+        "description": "Show a tab to the user: bring it to the front of their window, switching the window to the tab's space or loading it if needed. The page tools act on it.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tab_id"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "move_tab",
+        "description": "Move a tab (or a split) in the sidebar: reorder it, pin it (to: pinned), unpin it (to: today), add it to or take it out of Favorites, put it in a folder (to: folder, folder_id), or move it to another space (space). index is its position among its new siblings: 0 is first, default last.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string",
+              "enum": [
+                "pinned",
+                "today",
+                "favorites",
+                "folder"
+              ]
+            },
+            "folder_id": {
+              "type": "string",
+              "description": "With to: folder."
+            },
+            "space": {
+              "type": "string",
+              "description": "A space's name or id, for another space (default: the tab's own)."
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "tab_id",
+            "to"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "rename_tab",
+        "description": "Give a tab its own name in the sidebar; an empty title goes back to the page's title.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tab_id",
+            "title"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "create_folder",
+        "description": "Create a folder in a space's Pinned or Today section, or in another folder. Returns its folder_id, for move_tab.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "in": {
+              "type": "string",
+              "description": "\"pinned\" (default), \"today\", or a folder_id."
+            },
+            "space": {
+              "type": "string",
+              "description": "A space's name or id (default: the one the user's window shows)."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "mute_tab",
+        "description": "Mute or unmute a tab's sound.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": {
+              "type": "string"
+            },
+            "muted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "tab_id",
+            "muted"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "split_tabs",
+        "description": "Show two tabs side by side (a split view) in the sidebar and the window. move_tab of a pane takes it out of the split.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": {
+              "type": "string"
+            },
+            "with_tab_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tab_id",
+            "with_tab_id"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "switch_space",
+        "description": "Show another space in the user's window, by name or id from list_tabs.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "space": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "space"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "create_space",
+        "description": "Create a space, and show it in the user's window if show is true.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "show": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "search_history",
+        "description": "Search the browsing history by words in titles and URLs, newest first.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Empty lists the most recent visits."
+            },
+            "max_results": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Default 20."
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Only the last this many days."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "list_downloads",
+        "description": "List recent downloads, newest first: file name, URL, state, size and where it's saved.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Default 20."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "send_tab_to_device",
+        "description": "Send a tab to one of the user's other devices that sync with Compass; it shows there as a notification. Without device, lists the devices.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": {
+              "type": "string",
+              "description": "Default: the tab you act on."
+            },
+            "device": {
+              "type": "string",
+              "description": "A device's name, from the list."
+            }
+          }
         }
       }
     }
