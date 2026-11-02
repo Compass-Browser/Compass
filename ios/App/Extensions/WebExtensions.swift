@@ -71,6 +71,8 @@ final class WebExtensions: NSObject {
   /// same object (WebKit compares them by identity).
   @ObservationIgnored private var tabAdapters: [String: AnyObject] = [:]
   @ObservationIgnored private var windowAdapters: [String: AnyObject] = [:]
+  /// A tiny page of each running extension in the app's window (keepAlive).
+  @ObservationIgnored private var keepAliveViews: [String: WKWebView] = [:]
 
   static var isSupported: Bool {
     if #available(iOS 18.4, *) { true } else { false }
@@ -381,6 +383,7 @@ final class WebExtensions: NSObject {
       webExtension = loaded
     } else {
       let made: WKWebExtension
+      ExtensionPackage.refresh(in: folderURL(record.id))
       do {
         made = try await WKWebExtension(resourceBaseURL: folderURL(record.id))
       } catch {
@@ -427,6 +430,7 @@ final class WebExtensions: NSObject {
     do {
       try controller.load(context)
       contextsByID[record.id] = context
+      keepAlive(context, id: record.id)
       // Started now rather than on its first event: extensions set their
       // badges and state up as they start.
       context.loadBackgroundContent { error in
@@ -450,6 +454,7 @@ final class WebExtensions: NSObject {
   }
 
   private func unload(_ id: String) {
+    keepAliveViews.removeValue(forKey: id)?.removeFromSuperview()
     guard #available(iOS 18.4, *), let controller,
       let context = contextsByID.removeValue(forKey: id) as? WKWebExtensionContext
     else { return }
@@ -527,6 +532,36 @@ extension WebExtensions {
     let favorites = app.store.favorites(for: space)
     if favorites.children.contains(where: { self.spaceID(of: $0) == spaceID }) { roots.insert(favorites, at: 0) }
     return roots.flatMap { $0.children.flatMap(\.subtree) }.filter(\.isTab).map(\.id)
+  }
+
+  /// iOS suspends a web process with nothing on screen, and a suspended
+  /// process loses its IndexedDB connections: an extension's background
+  /// page (1Password's) finds its database closed a few seconds after it
+  /// starts, and restarts on its error page. An extension's pages share
+  /// its background's process, so one of them, 1 pt and nearly
+  /// transparent in the app's window, keeps that process awake while
+  /// Compass is in front (docs/design/ios.md, "Web extensions").
+  func keepAlive(_ context: WKWebExtensionContext, id: String) {
+    guard keepAliveViews[id] == nil, context.webExtension.hasBackgroundContent,
+      let configuration = context.webViewConfiguration
+    else { return }
+    let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: configuration)
+    view.alpha = 0.011
+    view.isUserInteractionEnabled = false
+    view.accessibilityElementsHidden = true
+    view.load(URLRequest(url: context.baseURL.appendingPathComponent(ExtensionPackage.keepAliveName)))
+    keepAliveViews[id] = view
+    Task { @MainActor in
+      // The window may not be up yet at launch.
+      for _ in 0..<40 {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        if let window = scene?.keyWindow ?? scene?.windows.first {
+          window.insertSubview(view, at: 0)
+          return
+        }
+        try? await Task.sleep(for: .milliseconds(250))
+      }
+    }
   }
 
   /// An extension's page (options) in a sheet, in its own web view.

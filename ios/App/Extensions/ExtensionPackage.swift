@@ -26,6 +26,27 @@ enum ExtensionPackage {
   static let polyfillName = "compass-polyfill.js"
   static let debugName = "compass-debug.js"
   static let entryName = "compass-background-entry.js"
+  static let keepAliveName = "compass-keep-alive.html"
+  static let keepAliveScriptName = "compass-keep-alive.js"
+  static let keepAlivePort = "compass-keep-alive"
+
+  /// The keep-alive page's script (WebExtensions.keepAlive): a port to the
+  /// background, pinged every 4 s, so WebKit doesn't unload it as idle
+  /// (it does after about 5 s on iOS, and 1Password starts over each time).
+  static let keepAliveScript = """
+    (() => {
+      const api = globalThis.browser ?? globalThis.chrome;
+      let port = null;
+      const connect = () => {
+        try {
+          port = api.runtime.connect({ name: "\(keepAlivePort)" });
+          port.onDisconnect.addListener(() => { port = null; setTimeout(connect, 1000); });
+        } catch (e) { setTimeout(connect, 2000); }
+      };
+      connect();
+      setInterval(() => { try { if (port) port.postMessage("ping"); } catch (e) {} }, 4000);
+    })();
+    """
 
   /// Unpacks `zip` into `directory` (made new) and adapts its manifest.
   static func unpack(_ zip: Data, to directory: URL) throws {
@@ -186,7 +207,37 @@ enum ExtensionPackage {
           for (const member of members[name]) {
             if (absent(namespace, member)) add(namespace, member, filler(name, member));
           }
+          // On the phone WebKit swaps some namespace objects out after
+          // startup (storage, losing what was added): pinned, it can't.
+          add(api, name, namespace);
         }
+      }
+      // The keep-alive page's port (ExtensionPackage.keepAliveScript): held
+      // open by the background, so the connection keeps it loaded.
+      try {
+        const runtime = (globalThis.chrome || globalThis.browser || {}).runtime;
+        if (runtime && runtime.onConnect) {
+          const held = [];
+          runtime.onConnect.addListener((port) => {
+            if (port.name !== "\(keepAlivePort)") return;
+            held.push(port);
+            port.onMessage.addListener(() => {});
+            port.onDisconnect.addListener(() => held.splice(held.indexOf(port), 1));
+          });
+        }
+      } catch (e) {}
+      // When WebKit unloads an idle background page, its IndexedDB
+      // connections close first, with a "close" event Chrome never sends
+      // when it stops a service worker: 1Password takes it for a crash and
+      // starts over on its error page. Dropped.
+      if (globalThis.IDBDatabase) {
+        const proto = IDBDatabase.prototype;
+        const addEventListener = proto.addEventListener;
+        proto.addEventListener = function (type, ...rest) {
+          if (type === "close") return;
+          return addEventListener.call(this, type, ...rest);
+        };
+        try { Object.defineProperty(proto, "onclose", { get() { return null; }, set() {}, configurable: true }); } catch (e) {}
       }
       // What a service worker has and a background page doesn't.
       if (typeof globalThis.importScripts !== "function") globalThis.importScripts = function () {};
@@ -208,6 +259,28 @@ enum ExtensionPackage {
   private static var membersJSON: String {
     (try? JSONSerialization.data(withJSONObject: stubbedMembers, options: .sortedKeys))
       .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+  }
+
+  /// Before each load: the polyfill (and debug script) as this build has
+  /// them, since they're written into the folder at install and an
+  /// extension installed by an older build would keep the old ones. A
+  /// folder from before the polyfill gets adapted now.
+  static func refresh(in directory: URL) {
+    let files = FileManager.default
+    try? "<!doctype html><title></title><script src=\"/\(keepAliveScriptName)\"></script>".write(
+      to: directory.appendingPathComponent(keepAliveName), atomically: true, encoding: .utf8)
+    try? keepAliveScript.write(
+      to: directory.appendingPathComponent(keepAliveScriptName), atomically: true, encoding: .utf8)
+    guard files.fileExists(atPath: directory.appendingPathComponent(polyfillName).path) else {
+      try? adaptManifest(in: directory)
+      return
+    }
+    try? polyfill.write(to: directory.appendingPathComponent(polyfillName), atomically: true, encoding: .utf8)
+    #if DEBUG
+      if files.fileExists(atPath: directory.appendingPathComponent(debugName).path) {
+        try? debugScript.write(to: directory.appendingPathComponent(debugName), atomically: true, encoding: .utf8)
+      }
+    #endif
   }
 
   static func adaptManifest(in directory: URL) throws {
