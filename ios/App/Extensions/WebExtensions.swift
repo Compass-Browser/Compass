@@ -34,6 +34,12 @@ final class WebExtensions: NSObject {
     /// Optional permissions and sites granted at the extension's request.
     var grantedOptional: [String] = []
     var grantedOptionalPatterns: [String] = []
+    /// A newer version that asks for more than this one: it waits for the
+    /// user ("Review Update").
+    var availableUpdate: String?
+    /// Only these hosts (and their subdomains) instead of every site it
+    /// asks for; nil = every site it asks for.
+    var onlySites: [String]?
   }
 
   /// An extension downloaded and read, waiting for the user to add it.
@@ -88,6 +94,7 @@ final class WebExtensions: NSObject {
     controllerBox = controller
     Task {
       for record in records { await load(record) }
+      await checkForUpdates()
     }
   }
 
@@ -111,10 +118,24 @@ final class WebExtensions: NSObject {
       let own = context.webViewConfiguration
     {
       own.websiteDataStore = configuration.websiteDataStore
+      ExtensionUnlock.shared.attach(to: own, extensionID: context.uniqueIdentifier, name: Self.name(of: context))
       return own
     }
     configuration.webExtensionController = controller
     return configuration
+  }
+
+  /// The extensions' context menu items for a long press in a tab.
+  func menuItems(forTab id: String) -> [UIMenuElement] {
+    guard #available(iOS 18.4, *), controller != nil else { return [] }
+    let adapter = tab(id)
+    return records.compactMap { context($0.id) }.flatMap { context -> [UIMenuElement] in
+      let items = context.menuItems(for: adapter)
+      guard items.count > 1 else { return items }
+      // Several from one extension go under its name, as on the desktop.
+      return [UIMenu(title: context.webExtension.displayShortName ?? context.webExtension.displayName ?? "",
+                     image: context.webExtension.icon(for: CGSize(width: 18, height: 18)), children: items)]
+    }
   }
 
   /// A tab's page changed (URL, title or loading).
@@ -184,15 +205,19 @@ final class WebExtensions: NSObject {
   }
 
   private func prepare(zip: Data, source: ExtensionSource) async throws {
+    let pending = try await unpack(zip: zip, source: source)
+    cancelPending()
+    self.pending = pending
+    if #available(iOS 18.4, *) { presentInstallSheet(pending) }
+  }
+
+  /// A package unpacked into a pending folder and read by WebKit.
+  private func unpack(zip: Data, source: ExtensionSource) async throws -> Pending {
     guard #available(iOS 18.4, *) else { throw ExtensionError.unsupported }
     let url = directory.appendingPathComponent("pending-\(UUID().uuidString)", isDirectory: true)
     try ExtensionPackage.unpack(zip, to: url)
     do {
-      let webExtension = try await WKWebExtension(resourceBaseURL: url)
-      let pending = Pending(source: source, folder: url, webExtension: webExtension)
-      cancelPending()
-      self.pending = pending
-      presentInstallSheet(pending)
+      return Pending(source: source, folder: url, webExtension: try await WKWebExtension(resourceBaseURL: url))
     } catch {
       try? FileManager.default.removeItem(at: url)
       throw error
@@ -208,7 +233,16 @@ final class WebExtensions: NSObject {
     // Add or Cancel: no swiping it away with the download left pending.
     sheet.isModalInPresentation = true
     sheet.sheetPresentationController?.detents = [.medium(), .large()]
-    Presenter.present(sheet)
+    // At launch (a debug add, a file opened into the app) there may be no
+    // window yet: try for a few seconds.
+    Task {
+      for _ in 0..<20 {
+        if Presenter.present(sheet) { return }
+        try? await Task.sleep(for: .milliseconds(250))
+      }
+      cancelPending()
+      installError = "Couldn't show the extension. Try again."
+    }
   }
 
   func cancelPending() {
@@ -221,11 +255,19 @@ final class WebExtensions: NSObject {
   func confirmPending() async {
     guard let pending else { return }
     self.pending = nil
+    await install(pending, keepState: false)
+  }
+
+  /// Puts a pending package in place and runs it. An update keeps the
+  /// extension's on/off state, data and grants.
+  private func install(_ pending: Pending, keepState: Bool) async {
     var record = records.first { $0.source == pending.source && pending.source != .file }
       ?? Record(id: pending.source.preferredIdentifier, source: pending.source)
     record.installed = Date()
-    record.enabled = true
+    record.availableUpdate = nil
+    if !keepState { record.enabled = true }
     unload(record.id)
+    extensionsByID[record.id] = nil
     let destination = folderURL(record.id)
     try? FileManager.default.removeItem(at: destination)
     do {
@@ -256,6 +298,26 @@ final class WebExtensions: NSObject {
     }
   }
 
+  /// Website access: every site it asks for (nil), or only `sites`. The
+  /// extension restarts with the new grants.
+  func setOnlySites(_ id: String, _ sites: [String]?) {
+    guard let index = records.firstIndex(where: { $0.id == id }) else { return }
+    records[index].onlySites = sites.map { Array(Set($0.map { $0.lowercased() })).sorted() }
+    save()
+    let record = records[index]
+    unload(id)
+    if record.enabled { Task { await load(record) } }
+  }
+
+  /// "Allow on <site>" in the page menu: adds or removes one site, moving
+  /// the extension to "only these sites" if needed.
+  func setAllowed(_ id: String, site: String, _ allowed: Bool) {
+    guard let record = records.first(where: { $0.id == id }) else { return }
+    var sites = record.onlySites ?? []
+    if allowed { sites.append(site) } else { sites.removeAll { $0 == site } }
+    setOnlySites(id, sites)
+  }
+
   func remove(_ id: String) {
     unload(id)
     if #available(iOS 18.4, *), let controller {
@@ -274,10 +336,40 @@ final class WebExtensions: NSObject {
     save()
   }
 
-  /// Fetches the store's current version again.
+  /// Fetches the store's current version again, through the install
+  /// sheet (the detail screen's Update and Review Update).
   func update(_ id: String) async {
     guard let record = records.first(where: { $0.id == id }) else { return }
     await fetch(record.source)
+  }
+
+  /// At most once a day (at launch): each store extension's current
+  /// version. A newer one that asks for nothing more is installed quietly;
+  /// one that asks for more waits for the user (`availableUpdate`).
+  func checkForUpdates(force: Bool = false) async {
+    guard #available(iOS 18.4, *) else { return }
+    let key = "CompassExtensionsUpdateCheck"
+    if !force, let last = UserDefaults.standard.object(forKey: key) as? Date, Date().timeIntervalSince(last) < 24 * 60 * 60 {
+      return
+    }
+    UserDefaults.standard.set(Date(), forKey: key)
+    for record in records where record.source != .file {
+      guard let current = webExtension(record.id), let installed = current.version,
+        let latest = try? await record.source.latestVersion(), ExtensionSource.isNewer(latest, than: installed),
+        let zip = try? await record.source.fetchZip(),
+        let pending = try? await unpack(zip: zip, source: record.source),
+        let next = pending.webExtension as? WKWebExtension
+      else { continue }
+      if ExtensionPermissions.asksForMore(next, than: current) {
+        try? FileManager.default.removeItem(at: pending.folder)
+        if let index = records.firstIndex(where: { $0.id == record.id }) {
+          records[index].availableUpdate = next.version
+          save()
+        }
+      } else {
+        await install(pending, keepState: true)
+      }
+    }
   }
 
   // MARK: Loading
@@ -310,8 +402,19 @@ final class WebExtensions: NSObject {
     for permission in webExtension.requestedPermissions {
       context.setPermissionStatus(.grantedExplicitly, for: permission)
     }
-    for pattern in webExtension.allRequestedMatchPatterns where !optionalPatterns.contains(pattern) {
-      context.setPermissionStatus(.grantedExplicitly, for: pattern)
+    if let sites = record.onlySites {
+      // Website access → Only on these sites.
+      for site in sites {
+        for string in ["*://\(site)/*", "*://*.\(site)/*"] {
+          if let pattern = try? WKWebExtension.MatchPattern(string: string) {
+            context.setPermissionStatus(.grantedExplicitly, for: pattern)
+          }
+        }
+      }
+    } else {
+      for pattern in webExtension.allRequestedMatchPatterns where !optionalPatterns.contains(pattern) {
+        context.setPermissionStatus(.grantedExplicitly, for: pattern)
+      }
     }
     for name in record.grantedOptional {
       context.setPermissionStatus(.grantedExplicitly, for: WKWebExtension.Permission(rawValue: name))
@@ -362,6 +465,12 @@ extension WebExtensions {
   var controller: WKWebExtensionController? { controllerBox as? WKWebExtensionController }
 
   func webExtension(_ id: String) -> WKWebExtension? { extensionsByID[id] as? WKWebExtension }
+
+  /// "1Password", not "1Password – Password Manager".
+  static func name(of context: WKWebExtensionContext) -> String {
+    let full = context.webExtension.displayShortName ?? context.webExtension.displayName ?? "the extension"
+    return String(full.split(separator: " – ").first ?? Substring(full))
+  }
   func context(_ id: String) -> WKWebExtensionContext? { contextsByID[id] as? WKWebExtensionContext }
 
   /// The running extensions with an action (a toolbar button), in the
@@ -423,6 +532,7 @@ extension WebExtensions {
   /// An extension's page (options) in a sheet, in its own web view.
   func presentPage(_ url: URL, context: WKWebExtensionContext) {
     guard let configuration = context.webViewConfiguration else { return }
+    ExtensionUnlock.shared.attach(to: configuration, extensionID: context.uniqueIdentifier, name: Self.name(of: context))
     let view = WKWebView(frame: .zero, configuration: configuration)
     view.isInspectable = true
     view.load(URLRequest(url: url))
@@ -436,12 +546,26 @@ extension WebExtensions {
 
   /// "Allow" or "Don't Allow", for what an extension asks for while it runs.
   fileprivate func ask(_ context: WKWebExtensionContext, _ what: String) async -> Bool {
-    await withCheckedContinuation { continuation in
+    // WebKit waits on the answer: it must come exactly once, and "no" when
+    // the alert couldn't be shown (UIKit drops a presentation over one
+    // that's still animating).
+    final class Once: @unchecked Sendable { var done = false }
+    let once = Once()
+    return await withCheckedContinuation { continuation in
+      let answer: @MainActor (Bool) -> Void = { value in
+        guard !once.done else { return }
+        once.done = true
+        continuation.resume(returning: value)
+      }
       let name = context.webExtension.displayName ?? "An extension"
       let alert = UIAlertController(title: "\(name) wants to \(what)", message: nil, preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "Don't Allow", style: .cancel) { _ in continuation.resume(returning: false) })
-      alert.addAction(UIAlertAction(title: "Allow", style: .default) { _ in continuation.resume(returning: true) })
-      Presenter.present(alert)
+      alert.addAction(UIAlertAction(title: "Don't Allow", style: .cancel) { _ in answer(false) })
+      alert.addAction(UIAlertAction(title: "Allow", style: .default) { _ in answer(true) })
+      guard Presenter.present(alert) else { return answer(false) }
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(2))
+        if alert.presentingViewController == nil { answer(false) }
+      }
     }
   }
 
@@ -476,8 +600,9 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
     guard let app else { return [] }
     // The focused one first.
     let selected = app.selectedSpace?.id
-    let ids = app.store.spaces.map(\.id).sorted { a, _ in a == selected }
-    return ids.map(window)
+    let ids = app.store.spaces.map(\.id)
+    let ordered = ids.filter { $0 == selected } + ids.filter { $0 != selected }
+    return ordered.map(window)
   }
 
   func webExtensionController(
@@ -536,21 +661,16 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
     }
   }
 
+  /// WebKit asks this at the end of every tabs.query (for the matched
+  /// tabs' URLs), so it isn't a prompt: Chrome never asks there. Nothing new
+  /// is granted; WebKit leaves out the URLs and titles of tabs the
+  /// extension can't reach (docs/design/ios.md, "Web extensions").
   func webExtensionController(
     _ controller: WKWebExtensionController, promptForPermissionToAccess urls: Set<URL>,
     in tab: (any WKWebExtensionTab)?, for extensionContext: WKWebExtensionContext,
     completionHandler: @escaping (Set<URL>, Date?) -> Void
   ) {
-    Task {
-      let hosts = Set(urls.compactMap { $0.host() }).sorted().joined(separator: ", ")
-      guard await ask(extensionContext, "read and change your data on \(hosts)") else {
-        completionHandler([], nil)
-        return
-      }
-      let patterns = Set(urls.compactMap { $0.host() }).map { "*://\($0)/*" }
-      remember(extensionContext, patterns: patterns)
-      completionHandler(urls, nil)
-    }
+    completionHandler(urls.filter { extensionContext.hasAccess(to: $0) }, nil)
   }
 
   func webExtensionController(
@@ -576,6 +696,29 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
     revision += 1
   }
 
+  /// Native messaging: there are no native apps to talk to here (1Password
+  /// asks for its desktop app, then works on its own). Debug builds print
+  /// what the debug script sends (ExtensionPackage.addDebugScript).
+  func webExtensionController(
+    _ controller: WKWebExtensionController, sendMessage message: Any, toApplicationWithIdentifier applicationIdentifier: String?,
+    for extensionContext: WKWebExtensionContext, replyHandler: @escaping (Any?, (any Error)?) -> Void
+  ) {
+    #if DEBUG
+      if applicationIdentifier == ExtensionPackage.debugApplication, let body = message as? [String: Any] {
+        print("WebExtensions: [\(extensionContext.webExtension.displayShortName ?? "?")] \(body["level"] ?? "") \(body["where"] ?? ""): \(body["text"] ?? "")")
+        return replyHandler(nil, nil)
+      }
+    #endif
+    replyHandler(nil, ExtensionError.noNativeApp)
+  }
+
+  func webExtensionController(
+    _ controller: WKWebExtensionController, connectUsing port: WKWebExtension.MessagePort,
+    for extensionContext: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void
+  ) {
+    completionHandler(ExtensionError.noNativeApp)
+  }
+
   /// The action's popup, as a sheet over whatever is up.
   func webExtensionController(
     _ controller: WKWebExtensionController, presentActionPopup action: WKWebExtension.Action,
@@ -590,7 +733,24 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
       sheet.detents = [.medium(), .large()]
       sheet.prefersGrabberVisible = true
     }
+    // WebKit draws its title over the page in the system's style, which is
+    // unreadable over a dark popup (and changing the controller's style
+    // hangs it): no title; the popup names itself.
+    popup.title = ""
+    popup.navigationItem.title = ""
     Presenter.present(popup)
+    if let view = action.popupWebView {
+      ExtensionUnlock.shared.attach(to: view, extensionID: context.uniqueIdentifier, name: Self.name(of: context))
+      #if DEBUG
+        //   -CompassPopupJS <js>: run in the popup 1.5 s after it's up.
+        if let js = UserDefaults.standard.string(forKey: "CompassPopupJS") {
+          Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1500))
+            _ = try? await view.evaluateJavaScript(js)
+          }
+        }
+      #endif
+    }
     completionHandler(nil)
   }
 }
@@ -598,11 +758,15 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
 /// Presents UIKit view controllers over whatever is up (sheets included).
 @MainActor
 enum Presenter {
-  static func present(_ controller: UIViewController) {
-    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-    guard var top = scene?.keyWindow?.rootViewController else { return }
+  /// False when there's nothing to present it over (it isn't shown).
+  @discardableResult
+  static func present(_ controller: UIViewController) -> Bool {
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+      .first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    guard var top = (scene?.keyWindow ?? scene?.windows.first)?.rootViewController else { return false }
     while let presented = top.presentedViewController, !presented.isBeingDismissed { top = presented }
     top.present(controller, animated: true)
+    return true
   }
 }
 

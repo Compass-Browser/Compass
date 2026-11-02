@@ -256,6 +256,63 @@ private struct WideButton: View {
   }
 }
 
+@available(iOS 18.4, *)
+extension ExtensionBar {
+  /// The long-press menu of an extension's button: its own items, then
+  /// "Allow on <site>" (when it runs only on chosen sites), Options and
+  /// Turn Off.
+  func menu(_ record: WebExtensions.Record, _ action: WKWebExtension.Action) -> UIMenu {
+    let extensions = app.extensions
+    var ours: [UIMenuElement] = []
+    if let site = page?.host().map({ $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }),
+      page?.scheme?.hasPrefix("http") == true, record.onlySites != nil
+    {
+      let allowed = record.onlySites?.contains(site) == true
+      ours.append(UIAction(title: "Allow on \(site)", image: UIImage(systemName: "globe"), state: allowed ? .on : .off) { _ in
+        extensions.setAllowed(record.id, site: site, !allowed)
+      })
+    }
+    if extensions.context(record.id)?.optionsPageURL != nil {
+      ours.append(UIAction(title: "Options", image: UIImage(systemName: "gearshape")) { _ in
+        dismiss()
+        Task {
+          try? await Task.sleep(for: .milliseconds(450))
+          extensions.openOptions(record.id)
+        }
+      })
+    }
+    ours.append(UIAction(title: "Turn Off", image: UIImage(systemName: "power"), attributes: .destructive) { _ in
+      extensions.setEnabled(record.id, false)
+    })
+    let own = action.menuItems
+    return UIMenu(title: action.label, children: own.isEmpty ? ours : [UIMenu(options: .displayInline, children: own)] + ours)
+  }
+}
+
+/// A clear UIKit button over a SwiftUI label: a tap runs `action`, a long
+/// press shows `menu` (extensions' own items are UIKit menu elements).
+struct MenuButton: UIViewRepresentable {
+  let label: String
+  let menu: () -> UIMenu
+  let action: () -> Void
+
+  func makeUIView(context: Context) -> UIButton {
+    let button = UIButton(type: .custom)
+    button.showsMenuAsPrimaryAction = false
+    update(button)
+    return button
+  }
+
+  func updateUIView(_ button: UIButton, context: Context) { update(button) }
+
+  private func update(_ button: UIButton) {
+    button.accessibilityLabel = label
+    // The same identifier replaces the previous update's action.
+    button.addAction(UIAction(identifier: .init("tap")) { _ in action() }, for: .primaryActionTriggered)
+    button.menu = menu()
+  }
+}
+
 /// The page menu's extensions: "Add to Compass" on a store's extension
 /// page, and a button for each running extension's action (its icon and
 /// badge). A tap closes the menu and runs it: its popup comes up as a
@@ -305,31 +362,31 @@ struct ExtensionBar: View {
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 10) {
           ForEach(actions, id: \.record.id) { record, action in
-            Button {
-              dismiss()
-              // Once the menu is gone, so its popup has somewhere to go.
-              Task {
-                try? await Task.sleep(for: .milliseconds(action.presentsPopup ? 450 : 0))
-                app.extensions.performAction(record.id, tab: tab)
+            ExtensionIcon(image: action.icon(for: CGSize(width: 28, height: 28)), size: 28)
+              .opacity(action.isEnabled ? 1 : 0.4)
+              .frame(width: 50, height: 50)
+              .background(cardFill, in: Circle())
+              .overlay(alignment: .topTrailing) {
+                if !action.badgeText.isEmpty {
+                  Text(action.badgeText)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 4)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Color.red, in: Capsule())
+                }
               }
-            } label: {
-              ExtensionIcon(image: action.icon(for: CGSize(width: 28, height: 28)), size: 28)
-                .opacity(action.isEnabled ? 1 : 0.4)
-                .frame(width: 50, height: 50)
-                .background(cardFill, in: Circle())
-                .overlay(alignment: .topTrailing) {
-                  if !action.badgeText.isEmpty {
-                    Text(action.badgeText)
-                      .font(.system(size: 10, weight: .bold))
-                      .foregroundStyle(.white)
-                      .padding(.horizontal, 4)
-                      .frame(minWidth: 18, minHeight: 18)
-                      .background(Color.red, in: Capsule())
+              .allowsHitTesting(false)
+              .overlay {
+                MenuButton(label: action.label, menu: { menu(record, action) }) {
+                  dismiss()
+                  // Once the menu is gone, so its popup has somewhere to go.
+                  Task {
+                    try? await Task.sleep(for: .milliseconds(action.presentsPopup ? 450 : 0))
+                    app.extensions.performAction(record.id, tab: tab)
                   }
                 }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(action.label)
+              }
           }
         }
       }

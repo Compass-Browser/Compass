@@ -16,6 +16,8 @@ public enum DataType: Int32, Sendable, CaseIterable {
   case history = 963985
   case historyDeleteDirectives = 150251
   case sessions = 50119
+  /// Download only (ExtensionsBridge).
+  case extensions = 48119
 
   /// An EntitySpecifics with only this type's field set (empty). Chromium
   /// hashes its serialization into client tag hashes and sends it in
@@ -30,6 +32,7 @@ public enum DataType: Int32, Sendable, CaseIterable {
     case .history: s.history = .init()
     case .historyDeleteDirectives: s.historyDeleteDirective = .init()
     case .sessions: s.session = .init()
+    case .extensions: s.extension = .init()
     }
     return s
   }

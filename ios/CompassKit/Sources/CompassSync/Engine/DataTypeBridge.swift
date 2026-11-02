@@ -60,6 +60,7 @@ extension DataType {
     case .history: self = .history
     case .historyDeleteDirective: self = .historyDeleteDirectives
     case .session: self = .sessions
+    case .extension: self = .extensions
     default: return nil
     }
   }

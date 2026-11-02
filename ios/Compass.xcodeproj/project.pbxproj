@@ -10,6 +10,7 @@
 		00A6BE257AB3E0E63D12E8FB /* TabPickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */; };
 		017915037F4DAC4C17921D93 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00421F26DEF62FA9775146B /* Theme.swift */; };
 		02D9974025C6C07737B94B93 /* SidebarPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */; };
+		04F16ED8C0EBE26DA0C0FDFF /* ExtensionUnlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */; };
 		0D43D327D6BB8094F0C4FF17 /* WebExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */; };
 		0D76BE83326730393C9D18BE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19E94079AACC148BDF33673 /* Keychain.swift */; };
 		0E02B88F8146B47E7AD85278 /* PageMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8F914BD392DD404C347B1D /* PageMenu.swift */; };
@@ -139,6 +140,7 @@
 		D19E94079AACC148BDF33673 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionTabs.swift; sourceTree = "<group>"; };
 		D248EE47245F87391C4DDC09 /* DownloadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTests.swift; sourceTree = "<group>"; };
+		DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUnlock.swift; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		EFF877C7E8E7C2C1C9767DEF /* SiteSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteSettings.swift; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 				83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */,
 				7886E54D0165384982BAE56C /* ExtensionSource.swift */,
 				D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */,
+				DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */,
 				61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */,
 			);
 			path = Extensions;
@@ -478,6 +481,7 @@
 				9063D67CA8F47F572E0DFE97 /* ExtensionPackage.swift in Sources */,
 				90D15113F681839FCF937BF2 /* ExtensionSource.swift in Sources */,
 				5AC1A706D95C031010B18D6F /* ExtensionTabs.swift in Sources */,
+				04F16ED8C0EBE26DA0C0FDFF /* ExtensionUnlock.swift in Sources */,
 				A8E98B9899DF4E681513407F /* ExtensionsView.swift in Sources */,
 				77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */,
 				0D76BE83326730393C9D18BE /* Keychain.swift in Sources */,

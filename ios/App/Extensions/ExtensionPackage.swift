@@ -15,9 +15,17 @@ import Foundation
 /// so `background.service_worker` becomes `background.scripts` (an ES
 /// module stays one). Files a classic worker loads with importScripts()
 /// (literal names) are listed before it, and importScripts() becomes a
-/// no-op (docs/design/ios.md, "Web extensions").
+/// no-op.
+///
+/// WebKit on iOS also lacks some namespaces desktop extensions take for
+/// granted (chrome.notifications, idle, management, …): touching one at
+/// startup throws and the background never starts (1Password). A polyfill
+/// runs first in the background, popup and options pages and stubs each
+/// missing one (docs/design/ios.md, "Web extensions").
 enum ExtensionPackage {
-  static let shimName = "compass-service-worker-shim.js"
+  static let polyfillName = "compass-polyfill.js"
+  static let debugName = "compass-debug.js"
+  static let entryName = "compass-background-entry.js"
 
   /// Unpacks `zip` into `directory` (made new) and adapts its manifest.
   static func unpack(_ zip: Data, to directory: URL) throws {
@@ -99,27 +107,173 @@ enum ExtensionPackage {
 
   // MARK: Manifest
 
+  /// Namespaces WebKit on iOS may lack. Each missing one becomes a stub:
+  /// on… members are events that never fire, anything else a function that
+  /// does nothing (its promise resolves, its callback gets no value).
+  static let stubbedNamespaces = [
+    "notifications", "idle", "management", "privacy", "downloads", "contextMenus", "menus", "history",
+    "bookmarks", "sessions", "topSites", "offscreen", "identity", "tts", "ttsEngine", "power", "sidePanel",
+    "fontSettings", "proxy", "browsingData", "contentSettings", "debugger", "search", "tabGroups", "webRequest",
+    "enterprise", "gcm", "instanceID", "pageCapture", "printerProvider", "system", "wallpaper",
+  ]
+
+  /// Members of namespaces WebKit has that it may lack, stubbed the same
+  /// way when missing.
+  static let stubbedMembers: [String: [String]] = [
+    "webNavigation": [
+      "onCreatedNavigationTarget", "onHistoryStateUpdated", "onReferenceFragmentUpdated", "onTabReplaced",
+      "onBeforeNavigate", "onCommitted", "onDOMContentLoaded", "onCompleted", "onErrorOccurred",
+    ],
+    "tabs": [
+      "onReplaced", "onHighlighted", "onZoomChange", "onAttached", "onDetached", "highlight", "discard", "group",
+      "ungroup", "captureVisibleTab", "setZoomSettings", "getZoomSettings",
+    ],
+    "runtime": [
+      "onSuspend", "onSuspendCanceled", "onUpdateAvailable", "onRestartRequired", "onConnectExternal",
+      "onMessageExternal", "onUserScriptMessage", "setUninstallURL", "requestUpdateCheck", "restart", "getContexts",
+    ],
+    "windows": ["onBoundsChanged"],
+    "action": ["openPopup", "setBadgeTextColor", "getBadgeTextColor", "getUserSettings", "onUserSettingsChanged", "isEnabled"],
+    "storage": ["managed", "session"],
+    "scripting": ["registerContentScripts", "unregisterContentScripts", "getRegisteredContentScripts"],
+    "permissions": ["onAdded", "onRemoved", "addHostAccessRequest", "removeHostAccessRequest"],
+    "commands": ["onCommand"],
+    "alarms": ["onAlarm"],
+  ]
+
+  static let polyfill = """
+    (() => {
+      const stub = (path) => new Proxy(function () {}, {
+        get(_, key) {
+          if (typeof key !== "string" || key === "then") return undefined;
+          if (key.startsWith("on")) {
+            return { addListener() {}, removeListener() {}, hasListener() { return false; }, hasListeners() { return false; } };
+          }
+          return stub(path + "." + key);
+        },
+        apply(_, __, args) {
+          // What a caller can use: lists for queries, objects for getters.
+          const name = path.split(".").pop();
+          const result = name === "queryState" ? "active"
+            : /^(getAll|query|search|matchAll)/.test(name) ? []
+            : /^get/.test(name) ? {} : undefined;
+          const callback = args.length && typeof args[args.length - 1] === "function" ? args[args.length - 1] : null;
+          if (callback) { setTimeout(() => callback(result), 0); return undefined; }
+          return Promise.resolve(result);
+        },
+      });
+      const members = \(membersJSON);
+      const event = () => ({ addListener() {}, removeListener() {}, hasListener() { return false; }, hasListeners() { return false; } });
+      const filler = (name, member) => (member.startsWith("on") ? event() : stub(name + "." + member));
+      // Some of WebKit's getters throw (a member it lists but doesn't run).
+      const absent = (object, key) => { try { return object[key] === undefined; } catch (e) { return false; } };
+      // Added for good: WebKit redefines its namespaces' properties after
+      // startup and drops configurable additions. The globals themselves
+      // stay WebKit's: a proxy in their place stops events reaching the
+      // page's listeners (action.onClicked never fires).
+      const add = (object, key, value) => {
+        try { Object.defineProperty(object, key, { value, configurable: false, writable: false, enumerable: false }); } catch (e) {}
+      };
+      for (const api of new Set([globalThis.chrome, globalThis.browser])) {
+        if (!api) continue;
+        for (const name of \(stubbedNamespaces.description)) {
+          if (absent(api, name)) add(api, name, stub(name));
+        }
+        for (const name of Object.keys(members)) {
+          let namespace;
+          try { namespace = api[name]; } catch (e) { continue; }
+          if (!namespace) continue;
+          for (const member of members[name]) {
+            if (absent(namespace, member)) add(namespace, member, filler(name, member));
+          }
+        }
+      }
+      // What a service worker has and a background page doesn't.
+      if (typeof globalThis.importScripts !== "function") globalThis.importScripts = function () {};
+      if (!globalThis.clients) {
+        globalThis.clients = {
+          claim: async () => {},
+          get: async () => undefined,
+          matchAll: async () => [],
+          openWindow: async (url) => { try { await globalThis.chrome.tabs.create({ url }); } catch (e) {} return null; },
+        };
+      }
+      if (typeof globalThis.skipWaiting !== "function") globalThis.skipWaiting = async () => {};
+      if (!globalThis.registration) {
+        globalThis.registration = { scope: location.origin + "/", active: null, showNotification: async () => {}, getNotifications: async () => [] };
+      }
+    })();
+    """
+
+  private static var membersJSON: String {
+    (try? JSONSerialization.data(withJSONObject: stubbedMembers, options: .sortedKeys))
+      .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+  }
+
   static func adaptManifest(in directory: URL) throws {
     let url = directory.appendingPathComponent("manifest.json")
     guard var manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any] else {
       throw ExtensionError.badPackage
     }
-    guard var background = manifest["background"] as? [String: Any],
-      let worker = background["service_worker"] as? String
-    else { return }
-    let path = String(worker.drop { $0 == "/" })
-    background["service_worker"] = nil
-    if background["type"] as? String == "module" {
-      background["scripts"] = [path]
-    } else {
-      let imports = importedScripts(of: path, in: directory)
-      try "self.importScripts = function () {};\n".write(
-        to: directory.appendingPathComponent(shimName), atomically: true, encoding: .utf8)
-      background["scripts"] = [shimName] + imports + [path]
+    try polyfill.write(to: directory.appendingPathComponent(polyfillName), atomically: true, encoding: .utf8)
+    var first = [polyfillName]
+    #if DEBUG
+      // -CompassNoPolyfill YES: install without it (to tell its effects apart).
+      if UserDefaults.standard.bool(forKey: "CompassNoPolyfill") { first = [] }
+    #endif
+    #if DEBUG
+      try debugScript.write(to: directory.appendingPathComponent(debugName), atomically: true, encoding: .utf8)
+      first.append(debugName)
+      // The debug script reports through native messaging.
+      var permissions = manifest["permissions"] as? [String] ?? []
+      if !permissions.contains("nativeMessaging") { permissions.append("nativeMessaging") }
+      manifest["permissions"] = permissions
+    #endif
+
+    if var background = manifest["background"] as? [String: Any] {
+      let module = background["type"] as? String == "module"
+      var scripts = (background["scripts"] as? [String] ?? []).map { String($0.drop { $0 == "/" }) }
+      if let worker = background["service_worker"] as? String {
+        let path = String(worker.drop { $0 == "/" })
+        background["service_worker"] = nil
+        scripts = (module ? [] : importedScripts(of: path, in: directory)) + [path]
+      }
+      if let page = background["page"] as? String {
+        inject(first, intoPage: page, in: directory)
+      } else if module {
+        // A classic script can't run before a module background: an entry
+        // module imports ours first.
+        let imports = (first + scripts).map { "import \"/\($0)\";" }.joined(separator: "\n")
+        try (imports + "\n").write(to: directory.appendingPathComponent(entryName), atomically: true, encoding: .utf8)
+        background["scripts"] = [entryName]
+      } else if !scripts.isEmpty {
+        background["scripts"] = first + scripts
+      }
+      manifest["background"] = background
     }
-    manifest["background"] = background
+    let action = (manifest["action"] ?? manifest["browser_action"]) as? [String: Any]
+    let pages = [
+      action?["default_popup"] as? String,
+      (manifest["options_ui"] as? [String: Any])?["page"] as? String,
+      manifest["options_page"] as? String,
+    ]
+    for page in pages.compactMap({ $0 }) { inject(first, intoPage: page, in: directory) }
     let data = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
     try data.write(to: url, options: .atomic)
+  }
+
+  /// Puts `scripts` first in an extension page's <head>.
+  private static func inject(_ scripts: [String], intoPage page: String, in directory: URL) {
+    let path = (page.split(separator: "?").first ?? "").drop { $0 == "/" }
+    let url = directory.appendingPathComponent(String(path))
+    guard var html = try? String(contentsOf: url, encoding: .utf8) else { return }
+    let tags = scripts.map { "<script src=\"/\($0)\"></script>" }.joined()
+    if let head = html.range(of: "<head[^>]*>", options: [.regularExpression, .caseInsensitive]) {
+      html.insert(contentsOf: tags, at: head.upperBound)
+    } else {
+      html = tags + html
+    }
+    try? html.write(to: url, atomically: true, encoding: .utf8)
   }
 
   /// The scripts `path` loads with importScripts("…", '…'), and theirs,
@@ -147,4 +301,31 @@ enum ExtensionPackage {
     visit(path)
     return result
   }
+
+  #if DEBUG
+    /// Debug builds: the background and popup pages forward console errors
+    /// and warnings, uncaught errors and rejections to the app
+    /// (sendNativeMessage), so a simulator run shows why an extension fails.
+    static let debugApplication = "compass-debug"
+    static let debugScript = """
+      (() => {
+        const api = globalThis.browser ?? globalThis.chrome;
+        const where = location.pathname;
+        const text = (args) => args.map((a) => {
+          try { return a instanceof Error ? (a.name + ": " + a.message + " | " + (a.stack || "").split("\\n").slice(0, 4).join(" < ")) : a && typeof a === "object" && a.message ? (a.name + ": " + a.message + " " + JSON.stringify(a)) : typeof a === "string" ? a : JSON.stringify(a); }
+          catch (e) { return String(a); }
+        }).join(" ").slice(0, 3000);
+        const send = (level, args) => {
+          try { api.runtime.sendNativeMessage("\(debugApplication)", { level, where, text: text(args) }).catch(() => {}); } catch (e) {}
+        };
+        for (const level of ["error", "warn"]) {
+          const original = console[level];
+          console[level] = (...args) => { send(level, args); original.apply(console, args); };
+        }
+        addEventListener("error", (e) => send("uncaught", [e.message + " @ " + e.filename + ":" + e.lineno]));
+        addEventListener("unhandledrejection", (e) => send("rejection", [e.reason]));
+        send("start", [where]);
+      })();
+      """
+  #endif
 }

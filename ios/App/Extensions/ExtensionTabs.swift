@@ -21,6 +21,7 @@ final class ExtensionTab: NSObject, WKWebExtensionTab {
   }
 
   private var app: AppModel? { owner?.app }
+
   private var node: SidebarNode? { app?.store.node(id: id) }
   private var view: WKWebView? { app?.tabs.live[id] }
 
@@ -194,6 +195,14 @@ enum ExtensionPermissions {
     if hosts.isEmpty { return "read and change data on some websites" }
     let shown = hosts.prefix(3).joined(separator: ", ")
     return "read and change your data on \(shown)" + (hosts.count > 3 ? " and \(hosts.count - 3) more" : "")
+  }
+
+  /// Whether `next` asks for permissions or sites `current` doesn't have.
+  static func asksForMore(_ next: WKWebExtension, than current: WKWebExtension) -> Bool {
+    if !next.requestedPermissions.isSubset(of: current.requestedPermissions) { return true }
+    let had = current.allRequestedMatchPatterns
+    if had.contains(where: { $0.matchesAllURLs }) { return false }
+    return next.allRequestedMatchPatterns.contains { pattern in !had.contains { $0.matches(pattern) } }
   }
 
   /// The lines of the install sheet: site access first, then what else it

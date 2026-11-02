@@ -13,6 +13,7 @@ struct ExtensionsView: View {
   @Environment(AppModel.self) private var app
   @State private var link = ""
   @State private var importing = false
+  @State private var checking = false
 
   var body: some View {
     let extensions = app.extensions
@@ -28,6 +29,28 @@ struct ExtensionsView: View {
           .onDelete { offsets in
             for index in offsets { extensions.remove(extensions.records[index].id) }
           }
+        }
+      }
+      let installed = Set(extensions.records.map(\.id))
+      let fromMac = app.sync.syncedExtensions.filter { $0.enabled && $0.isFromWebStore && !installed.contains($0.id) }
+      if !fromMac.isEmpty {
+        Section {
+          ForEach(fromMac) { synced in
+            HStack {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(synced.name.isEmpty ? synced.id : synced.name)
+                Text("Chrome Web Store").font(.caption).foregroundStyle(.secondary)
+              }
+              Spacer()
+              Button("Add") { Task { await extensions.fetch(.chromeWebStore(synced.id)) } }
+                .buttonStyle(.bordered)
+                .disabled(extensions.fetching)
+            }
+          }
+        } header: {
+          Text("On Your Other Devices")
+        } footer: {
+          Text("Extensions your Mac syncs. Each one asks before it's added here.")
         }
       }
       Section {
@@ -47,6 +70,16 @@ struct ExtensionsView: View {
         Button("Open the Chrome Web Store") { open("https://chromewebstore.google.com/category/extensions") }
         Button("Open Firefox Add-ons") { open("https://addons.mozilla.org/firefox/extensions/") }
         Button("Add from Files…") { importing = true }
+        if !extensions.records.isEmpty {
+          Button(checking ? "Checking for Updates…" : "Check for Updates") {
+            checking = true
+            Task {
+              await extensions.checkForUpdates(force: true)
+              checking = false
+            }
+          }
+          .disabled(checking)
+        }
       } header: {
         Text("Add an Extension")
       } footer: {
@@ -93,8 +126,9 @@ private struct ExtensionRow: View {
       ExtensionIcon(image: webExtension?.icon(for: CGSize(width: 32, height: 32)), size: 32)
       VStack(alignment: .leading, spacing: 2) {
         Text(webExtension?.displayName ?? "Extension")
-        Text(record.enabled ? (webExtension?.displayVersion ?? "") : "Off")
-          .font(.caption).foregroundStyle(.secondary)
+        Text(record.availableUpdate.map { "Update available: \($0)" }
+          ?? (record.enabled ? (webExtension?.displayVersion ?? "") : "Off"))
+          .font(.caption).foregroundStyle(record.availableUpdate == nil ? Color.secondary : Color.accentColor)
       }
     }
   }
@@ -107,6 +141,7 @@ struct ExtensionDetailView: View {
   @Environment(\.dismiss) private var dismiss
   let id: String
   @State private var confirmRemove = false
+  @State private var unlockSaved = false
 
   var body: some View {
     let extensions = app.extensions
@@ -130,6 +165,23 @@ struct ExtensionDetailView: View {
           get: { record?.enabled ?? false },
           set: { extensions.setEnabled(id, $0) }))
       }
+      if unlockSaved {
+        Section {
+          Toggle("Unlock with \(ExtensionUnlock.biometryName)", isOn: Binding(
+            get: { unlockSaved },
+            set: { on in
+              if !on {
+                ExtensionUnlock.forget(id)
+                unlockSaved = false
+              }
+            }))
+        } footer: {
+          Text("Compass fills in the password you saved when it asks to unlock. Turn off to forget it; type the password again to turn it back on.")
+        }
+      }
+      if let record, let webExtension, !webExtension.allRequestedMatchPatterns.isEmpty {
+        WebsiteAccessSection(id: id, record: record)
+      }
       if let webExtension {
         let lines = ExtensionPermissions.summary(webExtension)
         if !lines.isEmpty {
@@ -151,7 +203,8 @@ struct ExtensionDetailView: View {
           Button("Options") { extensions.openOptions(id) }
         }
         if let record, record.source != .file {
-          Button(extensions.fetching ? "Checking…" : "Update") { Task { await extensions.update(id) } }
+          let title = record.availableUpdate.map { "Review Update to \($0)" } ?? "Update"
+          Button(extensions.fetching ? "Checking…" : title) { Task { await extensions.update(id) } }
             .disabled(extensions.fetching)
           if let page = record.source.pageURL {
             Button("Show in \(record.source.storeName)") {
@@ -166,14 +219,70 @@ struct ExtensionDetailView: View {
         Button("Remove", role: .destructive) { confirmRemove = true }
       }
     }
+    .onAppear { unlockSaved = ExtensionUnlock.isSaved(id) }
     .navigationTitle(webExtension?.displayShortName ?? webExtension?.displayName ?? "Extension")
     .navigationBarTitleDisplayMode(.inline)
     .confirmationDialog("Remove this extension and its data?", isPresented: $confirmRemove, titleVisibility: .visible) {
       Button("Remove", role: .destructive) {
+        ExtensionUnlock.forget(id)
         extensions.remove(id)
         dismiss()
       }
     }
+  }
+}
+
+/// Website access: every site the extension asks for, or only the sites
+/// listed here (and their subdomains).
+@available(iOS 18.4, *)
+private struct WebsiteAccessSection: View {
+  @Environment(AppModel.self) private var app
+  let id: String
+  let record: WebExtensions.Record
+  @State private var newSite = ""
+
+  var body: some View {
+    let extensions = app.extensions
+    Section {
+      Picker("Website Access", selection: Binding(
+        get: { record.onlySites == nil },
+        set: { extensions.setOnlySites(id, $0 ? nil : (record.onlySites ?? [])) })) {
+        Text("All Sites It Asks For").tag(true)
+        Text("Only These Sites").tag(false)
+      }
+      if let sites = record.onlySites {
+        ForEach(sites, id: \.self) { Text($0) }
+          .onDelete { offsets in extensions.setOnlySites(id, sites.enumerated().filter { !offsets.contains($0.offset) }.map(\.element)) }
+        HStack {
+          TextField("example.com", text: $newSite)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.URL)
+            .onSubmit(add)
+          Button("Add", action: add).disabled(Self.host(newSite) == nil)
+        }
+      }
+    } header: {
+      Text("Website Access")
+    } footer: {
+      Text(record.onlySites == nil
+        ? "It runs on every site it asks for."
+        : "It runs only on these sites and their subdomains. Long-press its button in the page menu to allow the site you're on.")
+    }
+  }
+
+  private func add() {
+    guard let host = Self.host(newSite) else { return }
+    newSite = ""
+    app.extensions.setOnlySites(id, (record.onlySites ?? []) + [host])
+  }
+
+  static func host(_ text: String) -> String? {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    guard !trimmed.isEmpty else { return nil }
+    let url = URL(string: trimmed.contains("://") ? trimmed : "https://" + trimmed)
+    guard let host = url?.host(), host.contains(".") else { return nil }
+    return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
   }
 }
 

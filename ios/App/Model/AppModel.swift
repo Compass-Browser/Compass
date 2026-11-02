@@ -157,11 +157,13 @@ final class AppModel {
           if let error = self.extensions.installError { print("CompassAddExtension: \(error)") }
         }
       }
-      //   -CompassExtensionAction <n>: after 8 s, tap the menu's nth
-      //   extension button (its popup comes up).
+      //   -CompassExtensionAction <n>: after 20 s (or
+      //   -CompassExtensionActionDelay <s>), tap the menu's nth extension
+      //   button (its popup comes up).
       if #available(iOS 18.4, *), let index = defaults.object(forKey: "CompassExtensionAction").flatMap({ Int("\($0)") }) {
         Task { [weak self] in
-          try? await Task.sleep(for: .seconds(8))
+          let delay = defaults.object(forKey: "CompassExtensionActionDelay").flatMap { Double("\($0)") } ?? 20
+          try? await Task.sleep(for: .seconds(delay))
           guard let self else { return }
           let actions = self.extensions.actions(forTab: self.shownTab?.id)
           if index < actions.count { self.extensions.performAction(actions[index].record.id, tab: self.shownTab?.id) }

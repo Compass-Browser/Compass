@@ -102,6 +102,42 @@ enum ExtensionSource: Codable, Hashable, Sendable {
     }
   }
 
+  /// The store's current version, without downloading the package.
+  func latestVersion() async throws -> String? {
+    switch self {
+    case .chromeWebStore(let id):
+      var components = URLComponents(string: "https://clients2.google.com/service/update2/crx")!
+      components.queryItems = [
+        URLQueryItem(name: "prodversion", value: "142.0.0.0"),
+        URLQueryItem(name: "acceptformat", value: "crx3"),
+        URLQueryItem(name: "x", value: "id=\(id)&v=0.0.0.0&uc"),
+      ]
+      let xml = String(decoding: try await Self.get(components.url!), as: UTF8.self)
+      return xml.firstMatch(of: /<updatecheck[^>]*\sversion="([^"]+)"/).map { String($0.1) }
+    case .firefoxAddons(let slug):
+      struct Addon: Decodable {
+        struct Version: Decodable { let version: String }
+        let current_version: Version
+      }
+      let api = URL(string: "https://addons.mozilla.org/api/v5/addons/addon/\(slug)/")!
+      return try JSONDecoder().decode(Addon.self, from: try await Self.get(api)).current_version.version
+    case .file:
+      return nil
+    }
+  }
+
+  /// Whether dotted version `a` is later than `b` ("1.10" > "1.9").
+  static func isNewer(_ a: String, than b: String) -> Bool {
+    let x = a.split(separator: ".").map { Int($0) ?? 0 }
+    let y = b.split(separator: ".").map { Int($0) ?? 0 }
+    for i in 0..<max(x.count, y.count) {
+      let l = i < x.count ? x[i] : 0
+      let r = i < y.count ? y[i] : 0
+      if l != r { return l > r }
+    }
+    return false
+  }
+
   private static func get(_ url: URL) async throws -> Data {
     let (data, response) = try await URLSession.shared.data(from: url)
     guard let http = response as? HTTPURLResponse, http.statusCode == 200, !data.isEmpty else {
@@ -134,7 +170,7 @@ enum ExtensionSource: Codable, Hashable, Sendable {
 }
 
 enum ExtensionError: LocalizedError {
-  case notFound, badPackage, notDownloadable, unsupported
+  case notFound, badPackage, notDownloadable, unsupported, noNativeApp
 
   var errorDescription: String? {
     switch self {
@@ -142,6 +178,7 @@ enum ExtensionError: LocalizedError {
     case .badPackage: "That isn't an extension package (.crx, .xpi or .zip)."
     case .notDownloadable: "This extension came from a file; add it again from the file to update it."
     case .unsupported: "Extensions need iOS 18.4 or later."
+    case .noNativeApp: "No native app to talk to on iPhone."
     }
   }
 }
