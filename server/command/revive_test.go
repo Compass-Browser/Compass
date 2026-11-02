@@ -115,18 +115,25 @@ func (suite *CommandTestSuite) TestHandleClientToServerMessage_CreateOverTombsto
 			suite.Equal("local-2", got[0].GetOriginatorClientItemId())
 			suite.True(proto.Equal(tc.specifics("v2"), got[0].GetSpecifics()))
 
-			// A create over the now live tag still conflicts.
+			// A create over the now live tag replaces it, under its ID, and
+			// the chain still counts one.
 			dup := suite.commitOne(taggedCommit("local-3", "tag", 0, false, tc.specifics("v3")))
-			suite.Equal(sync_pb.CommitResponse_CONFLICT, dup.GetResponseType())
+			suite.Equal(sync_pb.CommitResponse_SUCCESS, dup.GetResponseType(), dup.GetErrorMessage())
+			suite.Equal(serverID, dup.GetIdString())
 			suite.Equal(1, suite.itemCount())
 		})
 	}
 }
 
-func (suite *CommandTestSuite) TestHandleClientToServerMessage_CreateOverLiveTagConflicts() {
+func (suite *CommandTestSuite) TestHandleClientToServerMessage_CreateOverLiveTagReplaces() {
+	// A device that lost track of an entity another created (the icon of one
+	// host) creates it again: it replaces it, instead of a CONFLICT that
+	// would keep the device retrying for good.
 	created := suite.commitOne(taggedCommit("local-1", "tag", 0, false, passwordSpecifics("v1")))
 	suite.Require().Equal(sync_pb.CommitResponse_SUCCESS, created.GetResponseType())
 	dup := suite.commitOne(taggedCommit("local-2", "tag", 0, false, passwordSpecifics("v2")))
-	suite.Equal(sync_pb.CommitResponse_CONFLICT, dup.GetResponseType())
+	suite.Equal(sync_pb.CommitResponse_SUCCESS, dup.GetResponseType(), dup.GetErrorMessage())
+	suite.Equal(created.GetIdString(), dup.GetIdString())
+	suite.Greater(dup.GetVersion(), created.GetVersion())
 	suite.Equal(1, suite.itemCount())
 }

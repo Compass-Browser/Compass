@@ -313,9 +313,18 @@ func TestEndToEndCreateOverTombstone(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, raw2, back)
 
-	// A, not knowing yet, creates it too: the tag is live, a conflict.
+	// A, not knowing yet (or having lost track of it), creates it too: the
+	// create replaces it under the same ID, as Chromium's servers do; a
+	// CONFLICT would never clear, since A can't learn of the entity again.
 	rs = a.commit(entity("local-a2", 0, spec))
-	assert.Equal(t, sync_pb.CommitResponse_CONFLICT, rs[0].GetResponseType())
+	require.Equal(t, sync_pb.CommitResponse_SUCCESS, rs[0].GetResponseType(), rs[0].GetErrorMessage())
+	assert.Equal(t, serverID, rs[0].GetIdString())
+	got = b.getUpdates(sync_pb.SyncEnums_PERIODIC, futureTypeID)
+	require.Len(t, got, 1)
+	back, err = proto.Marshal(got[0].GetSpecifics())
+	require.NoError(t, err)
+	_, raw1 := futureSpecifics(t, []byte("v1"))
+	assert.Equal(t, raw1, back)
 }
 
 func TestEndToEndAuth(t *testing.T) {

@@ -419,7 +419,8 @@ func findTaggedEntity(ctx context.Context, tx *sql.Tx, entity *SyncEntity) (*tag
 	return &t, nil
 }
 
-// reviveEntity writes a create over the tombstone old: the entity keeps
+// reviveEntity writes a create over old (a tombstone, or a live entity of
+// the same tag): the entity keeps
 // old's ID and takes everything else from the create (version, times,
 // content, deleted = false), as Chromium's servers do (LoopbackServer gives
 // a client-tagged entity an ID derived from its tag, so a create replaces the
@@ -456,11 +457,14 @@ func (s *SQLite) reviveEntity(ctx context.Context, tx *sql.Tx, entity *SyncEntit
 
 // InsertSyncEntity inserts a new sync entity. If ClientDefinedUniqueTag is
 // set (and the type isn't history, which doesn't use tag items), a tag item
-// is written in the same transaction; a tag already in use is a conflict.
+// is written in the same transaction.
 //
-// Compass: a create whose client tag belongs to a deleted entity of the same
-// type revives that entity under its ID (Chromium's semantics, see
-// reviveEntity) and sets entity.ID to it; a live one is a conflict.
+// Compass: a create whose client tag belongs to an entity of the same type
+// replaces that entity under its ID and sets entity.ID to it, deleted or
+// live (Chromium's semantics, see reviveEntity: the last writer wins). A
+// device that lost track of an entity another device created (both made the
+// icon of one host) re-creates it; answering CONFLICT kept it retrying, and
+// its whole engine in backoff, for good.
 func (s *SQLite) InsertSyncEntity(ctx context.Context, entity *SyncEntity) (bool, error) {
 	tx, err := s.w.BeginTx(ctx, nil)
 	if err != nil {
@@ -474,16 +478,18 @@ func (s *SQLite) InsertSyncEntity(ctx context.Context, entity *SyncEntity) (bool
 		if findErr != nil {
 			return false, findErr
 		}
-		if old != nil && !old.deleted {
+		if old != nil && !old.deleted && entity.Deleted != nil && *entity.Deleted {
 			return true, errors.New("error inserting sync item with client tag: tag in use")
 		}
 		if old != nil && (entity.Deleted == nil || !*entity.Deleted) {
+			replacedLive := !old.deleted
 			if err = s.reviveEntity(ctx, tx, entity, old); err != nil {
 				return false, err
 			}
 			if err = tx.Commit(); err != nil {
 				return false, fmt.Errorf("error committing revived sync item: %w", err)
 			}
+			entity.ReplacedLive = replacedLive
 			return false, nil
 		}
 	}

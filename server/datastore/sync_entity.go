@@ -73,6 +73,9 @@ type SyncEntity struct {
 	UniquePosition         []byte  `dynamodbav:",omitempty"`
 	DataTypeMtime          *string
 	ExpirationTime         *int64
+	// Set by InsertSyncEntity when the create replaced a live entity of its
+	// client tag (so the chain's item count stays). Not stored.
+	ReplacedLive bool `dynamodbav:"-"`
 }
 
 // SyncEntityByClientIDID implements sort.Interface for []SyncEntity based on
