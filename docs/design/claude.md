@@ -216,7 +216,7 @@ Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBr
 Status (2026-11-02):
 
 - **I1 is done.** The WKWebView's find interaction is on (TabManager), the page menu has a Find tile, the command bar has "Find “…”" for typed text, and a hardware keyboard has ⌘F.
-- **I2 is written** on `claude/i2-ios-chat`, not yet tried with a real key.
+- **I2 is done** (on main; Matteo, 2026-11-02: works on the iPhone with a real key).
   - `CompassKit/Sources/CompassClaude` holds the pure parts, with unit tests (`CompassClaudeTests`, 11):
     - `ClaudeEndpoint`: base URL rules, headers, error text, key hint, model list;
     - `ChatRequest`: the desktop's body;
@@ -230,7 +230,7 @@ Status (2026-11-02):
   - Opening the chat: an "Ask Claude" tile in the page menu, or ⌘⇧E.
   - `common/claude/` is bundled through project.yml.
   - Debug: `-CompassClaude YES` opens the sheet.
-- **I3 is written** on the same branch.
+- **I3 is written** (on main), checked in the simulator; to try on the phone with a key.
   - `ClaudeTools.swift` runs the page tools on the tab the chat is about:
     - page_agent.js in content world "claude", with screenshot pixels turned into CSS pixels;
     - `takeSnapshot` of the visible page (JPEG, at most 1280 px on a side);
