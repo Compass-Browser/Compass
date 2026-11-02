@@ -57,7 +57,7 @@ in WebKit yet; I3 runs it in a WKWebView test.
 
 ### Find bar (Cmd+F)
 
-Status: written on `claude/d1-find-bar` (2026-11-02), not yet built or run.
+Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes (4/4, out/Fast, headless). Not yet tried by hand.
 
 - **Command.** `HandleFindBarCommand()` (`browser/ui/views/find_bar/find_bar.cc`) takes `IDC_FIND`, `IDC_FIND_NEXT` and `IDC_FIND_PREVIOUS` from `compass::HandleBrowserCommand()`, as `IDC_NEW_TAB` goes to the command bar, so the user's key bindings (`shortcuts_mac.mm` entry `find`) keep working. Windows without the Compass frame (popups, apps) have no `FindBar` and keep upstream's.
 - **Host.** `compass::FindBar` is a `views::WebView` on `chrome://compass-find`, a child of the browser view that layout ignores, installed by `WindowFrame` next to the load bar. It sits over the active pane's top trailing corner, 8 DIP in (`kContentFrameInset`).
@@ -67,7 +67,7 @@ Status: written on `claude/d1-find-bar` (2026-11-02), not yet built or run.
 - **Matching.** It drives upstream's `find_in_page::FindTabHelper` (`StartFinding`, `StopFinding(kKeep)`, `FindResultObserver`). The helper keeps each tab's text.
   - Whether a tab's bar is open lives in Compass's own `FindBarTabState`, not in `FindTabHelper::find_ui_active()`. Upstream's `FindBarController` exists in every window and reads that flag on tab switches to show its own bar.
 - **Behaviour.**
-  - Opening starts from the page's selection (one line, at most 200 characters), else the tab's last text, else the helper's initial text, and moves to the first match.
+  - Opening starts from the page's selection (one line, at most 200 characters; the focused frame is asked too, since the browser hears of a selection only from a focused page), else the tab's last text, else the helper's initial text, and moves to the first match.
   - Enter and Shift+Enter, the arrow buttons, and Cmd+G / Cmd+Shift+G from anywhere move between matches. Cmd+G with the bar closed opens it.
   - Up, Down, Page Up, Page Down and Ctrl+Home/End scroll the page.
   - Esc closes and keeps the match selected.
