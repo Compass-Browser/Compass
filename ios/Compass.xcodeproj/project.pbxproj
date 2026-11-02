@@ -1069,7 +1069,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1085,7 +1085,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.uitests;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Compass;
 			};
 			name = Debug;
@@ -1163,7 +1163,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.widgets;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1180,7 +1180,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.safari;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1197,7 +1197,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.share;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1214,7 +1214,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.safari;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1231,7 +1231,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.widgets;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1250,7 +1250,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1267,7 +1267,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.autofill;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1284,7 +1284,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.push;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1301,7 +1301,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.share;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1318,7 +1318,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.autofill;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1334,7 +1334,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.uitests;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Compass;
 			};
 			name = Release;
@@ -1352,7 +1352,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.push;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};

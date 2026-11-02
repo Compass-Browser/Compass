@@ -39,6 +39,11 @@ final class AppModel {
   var selectedNodeID: String? { didSet { shownTabChanged() } }
   /// The sidebar, a bottom sheet over the browser. Up at launch.
   var showingSidebar = true
+  /// A wide window (iPad, regular width): the sidebar is a column beside
+  /// the page instead (RootView), shown or hidden by `showingSidebarColumn`,
+  /// and splits show their panes side by side.
+  var isWide = false
+  var showingSidebarColumn = true
   /// The sidebar rests at half height (dragged there) instead of full.
   var sidebarHalf = false
   /// While a finger moves the sidebar (a swipe up on the browser's bar, a
@@ -223,16 +228,25 @@ final class AppModel {
       //   -CompassOpenURLs "<url> <url>…": open each as a tab, one after
       //   another (so each has been shown, and has a snapshot).
       //   -CompassPicker YES: then open the tab picker.
+      //   -CompassSplit YES: then split the last two into one entry.
       let urls = defaults.string(forKey: "CompassOpenURLs")?.split(separator: " ").map(String.init) ?? []
       let picker = defaults.bool(forKey: "CompassPicker")
+      let split = defaults.bool(forKey: "CompassSplit")
       if !urls.isEmpty || picker {
         Task { [weak self] in
+          var opened: [SidebarNode] = []
           for url in urls {
             self?.open(url)
+            if let tab = self?.shownTab { opened.append(tab) }
             try? await Task.sleep(for: .seconds(3))
           }
           try? await Task.sleep(for: .milliseconds(1500))
           if picker { self?.openPicker() }
+          if split, opened.count >= 2, let entry = self?.store.split(opened[opened.count - 2], with: opened[opened.count - 1]),
+            let first = entry.children.first
+          {
+            self?.show(first)
+          }
         }
       }
       //   -CompassCommandBar YES: open the command bar.
@@ -500,6 +514,10 @@ final class AppModel {
   }
 
   func showSidebar() {
+    if isWide {
+      showingSidebarColumn = true
+      return
+    }
     sidebarHalf = false
     showingSidebar = true
   }

@@ -39,6 +39,8 @@ struct BrowserScreen: View {
   /// A download's arrow on its way to the menu button (DownloadFlight).
   @State private var flight: DownloadFlight.Phase?
   @State private var menuBounce = false
+  /// The page's width: the window's, less the sidebar column on an iPad.
+  @State private var pageWidth: CGFloat = 0
   /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
   /// the 2 pt gap under it. A constant, not measured: feeding a measured
   /// height back into the web view's inset loops layout.
@@ -77,7 +79,7 @@ struct BrowserScreen: View {
   @ViewBuilder private var content: some View {
     @Bindable var app = app
     VStack(spacing: 0) {
-      if let node, node.isSplit {
+      if let node, node.isSplit, !app.isWide {
         Picker("Pane", selection: $app.selectedPane) {
           ForEach(Array(node.children.enumerated()).filter { $0.element.isPhoneVisible }, id: \.offset) { index, pane in
             Text(pane.displayTitle).lineLimit(1).tag(index)
@@ -87,7 +89,10 @@ struct BrowserScreen: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
       }
-      page
+      Group {
+        if let node, node.isSplit, app.isWide { panes(node) } else { page }
+      }
+      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
       .overlay(alignment: .top) {
         if let progress = loadProgress, !swiping {
           LoadBar(progress: progress, connecting: isConnecting, tint: tint)
@@ -98,8 +103,8 @@ struct BrowserScreen: View {
       .overlay {
         if swiping {
           ZStack {
-            if let next = neighbor(1) { preview(next).offset(x: Self.width) }
-            if let previous = neighbor(-1) { preview(previous).offset(x: -Self.width) }
+            if let next = neighbor(1) { preview(next).offset(x: width) }
+            if let previous = neighbor(-1) { preview(previous).offset(x: -width) }
           }
           .allowsHitTesting(false)
         }
@@ -116,8 +121,8 @@ struct BrowserScreen: View {
               .overlay {
                 if swiping {
                   ZStack {
-                    if let next = neighbor(1) { ghostBar(next).offset(x: Self.width) }
-                    if let previous = neighbor(-1) { ghostBar(previous).offset(x: -Self.width) }
+                    if let next = neighbor(1) { ghostBar(next).offset(x: width) }
+                    if let previous = neighbor(-1) { ghostBar(previous).offset(x: -width) }
                   }
                   .allowsHitTesting(false)
                 }
@@ -132,6 +137,44 @@ struct BrowserScreen: View {
   }
 
   private static var width: CGFloat { SidebarPanel.screenWidth }
+  /// How far a swipe moves a whole page.
+  private var width: CGFloat { pageWidth > 0 ? pageWidth : Self.width }
+
+  /// A split in a wide window (iPad): its panes side by side, the front
+  /// one (`selectedPane`: the bar, the address, back and forward act on it)
+  /// outlined; a tap on a pane's title strip brings it to the front.
+  private func panes(_ split: SidebarNode) -> some View {
+    HStack(spacing: 6) {
+      ForEach(Array(split.children.enumerated()).filter { $0.element.isPhoneVisible }, id: \.element.id) { index, pane in
+        let front = index == app.selectedPane
+        VStack(spacing: 0) {
+          Button { app.selectedPane = index } label: {
+            HStack(spacing: 6) {
+              SiteIcon(url: pane.url, size: 14)
+              Text(pane.displayTitle).font(.footnote.weight(front ? .semibold : .regular)).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .foregroundStyle(front ? .primary : .secondary)
+          .accessibilityAddTraits(front ? .isSelected : [])
+          let view = app.tabs.webView(for: pane)
+          WebView(webView: view, bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
+            .id("\(pane.id)/\(ObjectIdentifier(view).hashValue)")
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
+        }
+        .overlay {
+          UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10)
+            .stroke(tint.opacity(front ? 0.8 : 0), lineWidth: 2)
+        }
+      }
+    }
+    .padding(.horizontal, 6)
+    .background { emptyPage.ignoresSafeArea() }
+    .ignoresSafeArea(edges: .bottom)
+  }
 
   /// The shown entry's page, or its space's color when there's none.
   @ViewBuilder private var page: some View {
@@ -285,6 +328,12 @@ struct BrowserScreen: View {
     let canBack = view?.canGoBack ?? false
     let canForward = view?.canGoForward ?? false
     return HStack(spacing: 2) {
+      // A wide window: the sidebar column's button, as on the desktop.
+      if app.isWide {
+        Button { app.showingSidebarColumn.toggle() } label: { BarIcon(symbol: "sidebar.left") }
+          .accessibilityLabel(app.showingSidebarColumn ? "Hide sidebar" : "Show sidebar")
+          .accessibilityIdentifier("BarSidebar")
+      }
       // Back and forward together on the left; both always there (dimmed
       // when there's nowhere to go), so nothing shifts.
       Button { view?.goBack() } label: { BarIcon(symbol: "chevron.backward") }
@@ -355,7 +404,7 @@ struct BrowserScreen: View {
           guard dragAxis == .vertical else { return }
           switch dragZone {
           case .left: app.pickerDrag = min(max(-dy / TabPicker.travel, 0), 1)
-          case .center: app.sidebarDrag = sidebarPosition(at: value.location.y)
+          case .center: if !app.isWide { app.sidebarDrag = sidebarPosition(at: value.location.y) }
           case .right: break
           }
         }
@@ -371,6 +420,13 @@ struct BrowserScreen: View {
               app.settlePicker(predicted: -value.predictedEndTranslation.height / TabPicker.travel)
             }
           case .center:
+            // A wide window: a swipe up shows the sidebar column.
+            if app.isWide {
+              if value.translation.height < -30 || value.predictedEndTranslation.height < -80 {
+                app.showingSidebarColumn = true
+              }
+              return
+            }
             if let drag = app.sidebarDrag {
               app.settleSidebar(at: drag, predicted: sidebarPosition(at: value.predictedEndLocation.y))
             }
@@ -458,13 +514,13 @@ struct BrowserScreen: View {
   /// otherwise the page springs back.
   private func settleSwipe(_ dx: CGFloat, predicted: CGFloat) {
     let delta = dx < 0 ? 1 : -1
-    let flicked = abs(predicted) > Self.width / 2 && (predicted < 0) == (dx < 0)
+    let flicked = abs(predicted) > width / 2 && (predicted < 0) == (dx < 0)
     let spring = Animation.spring(duration: 0.32, bounce: 0)
-    guard let next = neighbor(delta), abs(dx) > Self.width / 3 || flicked else {
+    guard let next = neighbor(delta), abs(dx) > width / 3 || flicked else {
       withAnimation(spring) { swipeX = 0 } completion: { swiping = false }
       return
     }
-    withAnimation(spring) { swipeX = -CGFloat(delta) * Self.width } completion: {
+    withAnimation(spring) { swipeX = -CGFloat(delta) * width } completion: {
       // The neighbor is where the page was: swap them in one frame.
       var instant = Transaction()
       instant.disablesAnimations = true
