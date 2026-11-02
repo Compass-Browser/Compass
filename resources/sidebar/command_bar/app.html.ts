@@ -12,7 +12,10 @@ export function getHtml(this: CompassCommandBarAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="field">
-  <span class="glyph" aria-hidden="true">⌕</span>
+  <svg class="search" viewBox="0 0 16 16" aria-hidden="true">
+    <circle cx="7" cy="7" r="4.5"></circle>
+    <line x1="10.4" y1="10.4" x2="13.5" y2="13.5"></line>
+  </svg>
   <input id="input" type="text" spellcheck="false" autocomplete="off"
       aria-label="Command bar" aria-controls="results"
       placeholder="${this.getPlaceholder_()}"

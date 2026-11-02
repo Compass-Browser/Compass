@@ -44,8 +44,8 @@ namespace {
 
 using command_bar::mojom::Mode;
 
-// How far below the top of the content area the bar hangs: a sixth of its
-// height, but at least this.
+// How far below the top of the content area the bar hangs: a quarter of its
+// height, near the middle as Arc's, but at least this.
 constexpr int kMinTopOffset = 48;
 
 // The text the bar starts from in current-entry mode: the active tab's URL,
@@ -99,7 +99,7 @@ void CommandBar::Show(Mode mode) {
       browser_view->contents_container()->GetBoundsInScreen();
   const gfx::Rect anchor(content.CenterPoint().x(),
                          content.y() + std::max(kMinTopOffset,
-                                                content.height() / 6),
+                                                content.height() / 4),
                          0, 0);
 
   WebUIContentsWrapper* contents = GetOrCreateContents();

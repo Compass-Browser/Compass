@@ -18,11 +18,22 @@
   scrollbar-width: thin;
 }
 
+/* Sized as Arc's: a tall field with a large, medium-weight placeholder. */
 #field {
   align-items: center;
   display: flex;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 19px 22px;
+}
+
+.search {
+  fill: none;
+  flex: none;
+  height: 16px;
+  stroke: var(--color-tab-search-primary-foreground);
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  width: 16px;
 }
 
 #input {
@@ -31,6 +42,7 @@
   color: inherit;
   flex: 1;
   font-size: 18px;
+  font-weight: 500;
   min-width: 0;
   outline: none;
   padding: 0;
@@ -40,13 +52,16 @@
   color: var(--color-tab-search-secondary-foreground);
 }
 
+/* The divider is inset from the bar's edges, as Arc's. */
 #results {
   border-top: 1px solid var(--color-tab-search-divider);
   display: flex;
   flex-direction: column;
-  max-height: 400px;
+  gap: 4px;
+  margin: 0 8px;
+  max-height: 480px;
   overflow-y: auto;
-  padding: 6px;
+  padding: 8px 0;
 }
 
 .result {
@@ -55,20 +70,34 @@
   cursor: default;
   display: flex;
   gap: 10px;
-  min-height: 36px;
+  min-height: 46px;
   padding: 0 10px;
 }
 
-/* A tint of the text color, readable in light and dark themes. */
+/* The space's color, with the text on it, as Arc's. */
 .result[selected] {
-  background: color-mix(in srgb, currentColor 14%, transparent);
+  background: var(--color-sys-primary);
+  color: var(--color-sys-on-primary);
 }
 
+.result[selected] .subtitle,
+.result[selected] .action,
+.result[selected] .glyph {
+  color: color-mix(in srgb, var(--color-sys-on-primary) 75%, transparent);
+}
+
+/* The favicon sits on a white tile in the selected row. */
 .icon {
+  border-radius: 5px;
   flex: none;
   height: 16px;
+  padding: 3px;
   text-align: center;
   width: 16px;
+}
+
+.result[selected] img.icon {
+  background: white;
 }
 
 .glyph {
@@ -79,6 +108,7 @@
 
 .title {
   flex: none;
+  font-weight: 600;
   max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -88,10 +118,15 @@
 .subtitle {
   color: var(--color-tab-search-secondary-foreground);
   flex: 1;
+  font-weight: 500;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.subtitle::before {
+  content: '— ';
 }
 
 .action {
