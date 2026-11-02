@@ -247,12 +247,15 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksAboutThePage) {
             assets::kSystemPrompt);
   const base::ListValue& messages = *body->FindList("messages");
   ASSERT_EQ(messages.size(), 1u);
+  // The message: the browser's context, the page, the question.
   const base::ListValue& content = *messages[0].GetDict().FindList("content");
-  ASSERT_EQ(content.size(), 2u);
-  const std::string& page = *content[0].GetDict().FindString("text");
+  ASSERT_EQ(content.size(), 3u);
+  EXPECT_TRUE(base::StartsWith(*content[0].GetDict().FindString("text"),
+                               "<context>"));
+  const std::string& page = *content[1].GetDict().FindString("text");
   EXPECT_TRUE(base::StartsWith(page, "<page url=\""));
   EXPECT_NE(page.find("The quick brown fox"), std::string::npos);
-  EXPECT_EQ(*content[1].GetDict().FindString("text"),
+  EXPECT_EQ(*content[2].GetDict().FindString("text"),
             "What animal is this about?");
   // A gateway (the test server) gets no fallback.
   EXPECT_FALSE(body->contains("fallbacks"));
@@ -273,7 +276,11 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksAboutThePage) {
       base::JSONReader::ReadDict(LastBody(), base::JSON_PARSE_RFC);
   const base::ListValue& history = *second->FindList("messages");
   EXPECT_EQ(*history[1].GetDict().FindString("role"), "assistant");
-  EXPECT_EQ(history[2].GetDict().FindList("content")->size(), 1u);
+  // Context and question, no page; the first message is sent as it was, and
+  // so is the system prompt (thinking is bound to both).
+  EXPECT_EQ(history[2].GetDict().FindList("content")->size(), 2u);
+  EXPECT_EQ(history[0], messages[0]);
+  EXPECT_EQ(*second->FindList("system"), *body->FindList("system"));
 }
 
 // The command bar's "Ask Claude".

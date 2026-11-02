@@ -48,6 +48,13 @@ struct ChatRequest {
 ChatRequest BuildChatRequest(base::ListValue messages,
                              const ChatOptions& options);
 
+// What the browser says about itself in each user message: the date, the
+// permission, the window's tabs, as a <context> element. The page puts it
+// in the message it sends and keeps it there, so the conversation's earlier
+// messages, and the system prompt, never change (thinking blocks are bound
+// to them).
+std::string BuildMessageContext(const ChatOptions& options);
+
 // Whether |model| takes the server-side refusal fallback
 // (fallbacks: "default").
 bool SupportsDefaultFallback(const std::string& model);

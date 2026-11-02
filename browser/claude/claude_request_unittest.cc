@@ -30,18 +30,29 @@ TEST(ClaudeRequestTest, Defaults) {
   EXPECT_EQ(*body.FindStringByDottedPath("thinking.display"), "summarized");
   EXPECT_EQ(*body.FindStringByDottedPath("cache_control.type"), "ephemeral");
   ASSERT_EQ(body.FindList("messages")->size(), 1u);
-  // The shared prompt, cached, then the context.
+  // The shared prompt and how Compass's additions read, cached, and nothing
+  // that changes: thinking is bound to it.
   const base::ListValue& system = *body.FindList("system");
   ASSERT_EQ(system.size(), 2u);
   EXPECT_EQ(*system[0].GetDict().FindString("text"), assets::kSystemPrompt);
-  EXPECT_TRUE(system[0].GetDict().FindDict("cache_control"));
-  EXPECT_FALSE(system[1].GetDict().FindDict("cache_control"));
-  EXPECT_NE(system[1].GetDict().FindString("text")->find("permission is off"),
+  EXPECT_FALSE(system[0].GetDict().FindDict("cache_control"));
+  EXPECT_TRUE(system[1].GetDict().FindDict("cache_control"));
+  EXPECT_NE(system[1].GetDict().FindString("text")->find("<context>"),
             std::string::npos);
-  // The fallback, on the Claude API.
+  ChatOptions later = options;
+  later.now = options.now + base::Days(3);
+  later.browser_scope = true;
+  later.window_tabs = "- Docs — https://docs.test/\n";
+  EXPECT_EQ(*BuildChatRequest(OneMessage(), later).body.FindList("system"),
+            system);
+  // On the Claude API: stale thinking dropped, not refused; the fallback.
+  EXPECT_EQ(*body.FindStringByDottedPath(
+                "thinking.block_binding.prefix_mismatch_behavior"),
+            "drop_block");
   EXPECT_EQ(*body.FindString("fallbacks"), "default");
   EXPECT_EQ(request.betas,
-            std::vector<std::string>{"server-side-fallback-2026-07-01"});
+            (std::vector<std::string>{"thinking-binding-controls-2026-08-01",
+                                      "server-side-fallback-2026-07-01"}));
   // Every tool, the browser ones too (they refuse while the permission is
   // off), the last one cached.
   const base::ListValue& tools = *body.FindList("tools");
@@ -61,38 +72,35 @@ TEST(ClaudeRequestTest, NoFallbackOnGatewaysOrOtherModels) {
   ChatOptions options;
   options.model = "claude-opus-5-5";
   options.claude_api = false;
-  EXPECT_FALSE(
-      BuildChatRequest(OneMessage(), options).body.contains("fallbacks"));
+  ChatRequest gateway = BuildChatRequest(OneMessage(), options);
+  EXPECT_FALSE(gateway.body.contains("fallbacks"));
+  EXPECT_FALSE(gateway.body.FindDictByDottedPath("thinking.block_binding"));
+  EXPECT_TRUE(gateway.betas.empty());
 
   options.claude_api = true;
   options.model = "claude-haiku-5-5";
   ChatRequest request = BuildChatRequest(OneMessage(), options);
   EXPECT_FALSE(request.body.contains("fallbacks"));
-  EXPECT_TRUE(request.betas.empty());
+  EXPECT_EQ(request.betas, std::vector<std::string>{
+                               "thinking-binding-controls-2026-08-01"});
 }
 
-TEST(ClaudeRequestTest, WindowTabsAreInTheContext) {
+TEST(ClaudeRequestTest, MessageContext) {
   ChatOptions options;
-  options.model = "claude-opus-5-5";
+  options.now = base::Time::Now();
   options.window_tabs = "- Docs — https://docs.test/\n";
-  const std::string context = *(*BuildChatRequest(OneMessage(), options)
-                                     .body.FindList("system"))[1]
-                                   .GetDict()
-                                   .FindString("text");
+  const std::string context = BuildMessageContext(options);
+  EXPECT_TRUE(context.starts_with("<context>\nToday is "));
+  EXPECT_TRUE(context.ends_with("</context>"));
   EXPECT_NE(context.find("- Docs — https://docs.test/"), std::string::npos);
+  EXPECT_NE(context.find("permission is off"), std::string::npos);
   EXPECT_NE(context.find("can't read them"), std::string::npos);
-}
 
-TEST(ClaudeRequestTest, BrowserScopeIsInTheContext) {
-  ChatOptions options;
-  options.model = "claude-opus-5-5";
   options.browser_scope = true;
-  ChatRequest request = BuildChatRequest(OneMessage(), options);
-  EXPECT_NE((*request.body.FindList("system"))[1]
-                .GetDict()
-                .FindString("text")
-                ->find("whole browser"),
-            std::string::npos);
+  options.window_tabs.clear();
+  const std::string whole = BuildMessageContext(options);
+  EXPECT_NE(whole.find("whole browser"), std::string::npos);
+  EXPECT_EQ(whole.find("Tabs open"), std::string::npos);
 }
 
 }  // namespace

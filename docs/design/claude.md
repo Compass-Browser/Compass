@@ -101,11 +101,13 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
   - Links in replies open in a new tab (`OpenLink`), not in the panel.
   - Thinking summaries show in a collapsible "Thinking…" row.
   - Refusals and cut-off replies get a note; failures get Retry.
+- **The browser's context** (`BuildMessageContext()`, `GetContext()`): each user message starts with a `<context>` element: the date, whether Claude may use the whole browser, and the window's tabs (titles and URLs). The page asks for it as the user sends and keeps it in that message, so earlier messages are sent unchanged forever.
 - **The page attachment.** A chip above the field names the active tab. When it's on (the default for each new page), the message carries the tab's text from `page_agent.js`'s `pageText()` in an isolated world (`ReadPageText()`, at most 30,000 characters), as `<page url=… title=…>…</page>` in the user's message. The system context says that's content, not instructions. The same page isn't attached twice in a conversation.
   - Only web pages and files are read (`CanUsePage()`): not the browser's own pages or the Web Store.
 - **The request** is built in the browser (`BuildChatRequest()`, `claude_request.cc`). The page sends only the messages; the browser adds:
   - the model, `max_tokens` 64000, and adaptive thinking with summaries;
-  - the system prompt from `common/claude/system_prompt.md` (built in by `build/embed_text.py`, cached), and a context block (date, scope);
+  - the system prompt: `common/claude/system_prompt.md` (built in by `build/embed_text.py`) and a fixed note on Compass's `<context>` and `<page>` elements, cached. **It never changes**, not even the date: the API binds each thinking block's signature to everything before it, the system prompt included, and refuses a conversation whose earlier thinking no longer matches ("Invalid `signature` in `thinking` block … bound to a different conversation"). A first version put the date, the permission and the window's tabs in the system prompt, so a tab's title changing between two messages broke the chat;
+  - on the Claude API, `thinking.block_binding.prefix_mismatch_behavior: "drop_block"` with `anthropic-beta: thinking-binding-controls-2026-08-01`, so a block that still doesn't match (another model picked mid-chat) is dropped instead of refused;
   - automatic caching of the conversation;
   - on the Claude API with Fable 5.1, Opus 5.5, Opus 5 or Sonnet 5.5: `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`.
 - **The agent loop** (D4, `app.ts` `runTools_()`). A reply that ends with `stop_reason: "tool_use"` has its tool calls run one after the other (`RunTool`), their results go back as one user message of `tool_result` blocks, and the next reply is asked for. That repeats until a reply ends otherwise, the user stops, or 40 rounds (Claude then stops and says to send "go on").

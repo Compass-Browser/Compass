@@ -46,6 +46,10 @@ interface PageHandler {
   // Page.OnStreamDone(). The browser sets the model, the system prompt and
   // the rest of the request. A Send while a reply streams replaces it.
   Send(string messages_json);
+  // What the browser says about itself at the start of a user message
+  // (date, permission, the window's tabs), as a <context> element. The page
+  // keeps it in the message: earlier messages must never change.
+  GetContext() => (string text);
   // The user sent a message: Claude's tools act on the active tab from now
   // on, until the next message, even if the user switches tabs.
   StartTask();

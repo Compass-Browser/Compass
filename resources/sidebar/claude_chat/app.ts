@@ -240,6 +240,13 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
     const content: ContentBlock[] = [];
     const turn: UserTurn = {role: 'user', text, content};
+    // The browser's context (date, permission, tabs) as it is now, kept in
+    // this message for good: earlier messages never change, or the API
+    // refuses their replies' thinking.
+    const {text: context} = await this.browserProxy_.handler.getContext();
+    if (context) {
+      content.push({type: 'text', text: context});
+    }
     if (this.pageReadable_ && this.attachPage_ &&
         this.pageUrl_ !== this.attachedUrl_) {
       const {page, error} =

@@ -63,6 +63,7 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void GetActivePage(GetActivePageCallback callback) override;
   void ReadActivePage(ReadActivePageCallback callback) override;
   void Send(const std::string& messages_json) override;
+  void GetContext(GetContextCallback callback) override;
   void StartTask() override;
   void RunTool(const std::string& name,
                const std::string& input_json,

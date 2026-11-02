@@ -157,7 +157,6 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
   options.browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
   options.now = base::Time::Now();
-  options.window_tabs = WindowTabs();
   ChatRequest request =
       BuildChatRequest(std::move(*messages).TakeList(), options);
 
@@ -188,6 +187,15 @@ void ClaudeChatPageHandler::OnStreamDone(int request_id,
     return;
   }
   page_->OnStreamDone(error.value_or(std::string()));
+}
+
+void ClaudeChatPageHandler::GetContext(GetContextCallback callback) {
+  ChatOptions options;
+  options.browser_scope =
+      browser_->GetProfile()->GetPrefs()->GetBoolean(prefs::kBrowserScope);
+  options.now = base::Time::Now();
+  options.window_tabs = WindowTabs();
+  std::move(callback).Run(BuildMessageContext(options));
 }
 
 void ClaudeChatPageHandler::StartTask() {
