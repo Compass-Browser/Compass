@@ -11,12 +11,13 @@ import {SidebarBrowserProxy} from './browser_proxy.js';
 import {colorToCss} from './colors.js';
 import {getFaviconUrl} from './favicon.js';
 import './node.js';
+import './now_playing.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
 import './theme_editor.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
-import type {ArchivedEntry, ArchivedTab, Node, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, Node, NowPlaying, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -166,6 +167,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       confirmingDelete_: {type: Boolean},
       themeOpen_: {type: Boolean},
       archive_: {type: Array},
+      nowPlaying_: {type: Array},
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
     };
@@ -191,6 +193,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
+  // The now playing widgets above the spaces (docs/design/sidebar.md, "Now
+  // playing").
+  protected accessor nowPlaying_: NowPlaying[] = [];
   protected accessor archiveOpen_: boolean = false;
   // The spaces before and after the window's, kept built so a swipe shows
   // them at once. They change only between slides.
@@ -258,6 +263,8 @@ export class CompassSidebarAppElement extends CrLitElement {
           (id: string|null) => this.activeId_ = id),
       router.setArchive.addListener(
           (entries: ArchivedEntry[]) => this.archive_ = entries),
+      router.setNowPlaying.addListener(
+          (items: NowPlaying[]) => this.nowPlaying_ = items),
       router.startRename.addListener((id: string) => {
         this.getRow_(id)?.closest('compass-sidebar-node')?.startRename(id);
       }),

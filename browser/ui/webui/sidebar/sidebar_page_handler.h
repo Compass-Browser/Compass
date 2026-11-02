@@ -38,6 +38,7 @@ class WebContents;
 
 namespace compass {
 
+class NowPlayingTracker;
 class SidebarContextMenu;
 class SidebarHoverCard;
 class TabStripBridge;
@@ -157,6 +158,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                      int32_t row_height) override;
   void HideHoverCard() override;
   void ShowContextMenu(const std::string& id, int32_t x, int32_t y) override;
+  void ActOnNowPlaying(const std::string& id,
+                       sidebar::mojom::NowPlayingAction action) override;
 
   // Node |id|'s context menu, or null if it has none. Its commands act on the
   // node, if it's still there, while this handler lives.
@@ -226,6 +229,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                                  const LiveTabRegistry& registry);
   void SendSpaces();
   void SendArchive();
+  void SendNowPlaying();
 
   // The node with |id| in the window's space or the favorites, or null if
   // there is none (the page can be behind).
@@ -265,6 +269,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                           ProfileAttributesStorageObserver>
       profiles_observation_{this};
   base::RepeatingClosure tree_shown_callback_;
+  // The window's now playing widgets. Only with a page: unit tests have no
+  // media session service.
+  std::unique_ptr<NowPlayingTracker> now_playing_;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 

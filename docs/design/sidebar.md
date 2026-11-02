@@ -711,6 +711,47 @@ muted Today entry after a relaunch, comes back muted.
   `SidebarPageHandlerTest.AMutedEntryReopensMuted`, and the Arc import's
   `SidebarImportTest.MutedTabsStayMuted`.
 
+## Now playing
+
+Goal: as in Arc, a tab that plays media (or paused it) and isn't on screen
+gets a "now playing" widget at the bottom of the sidebar, above the space
+switcher: the tab's icon, previous, play/pause, next and a speaker. Several
+tabs, several widgets, stacked. Its title row (the media's title, a
+picture-in-picture button and ×) shows when the pointer is on it, and on
+every widget when there are several, to tell them apart.
+
+- `NowPlayingTracker` (`browser/ui/webui/sidebar/`), one per sidebar page,
+  finds media sessions through the audio focus manager (every session that
+  ever requests focus, so a tab is watched only once it plays) and follows
+  each with a `MediaSessionObserver` (state, title, actions), a
+  `WebContentsObserver` (muting, title) and its tab's visibility and
+  insert/detach callbacks, until its contents go. Not until its focus
+  request is released: pausing from the widget abandons focus, and the
+  paused widget must stay. Updates are coalesced in a posted task.
+- A session shows in a window if it's the profile's, controllable, not
+  inactive, not in picture-in-picture, and its tab is in the window but not
+  visible (`TabInterface::IsVisible()`, so a split's shown pane counts as
+  shown), or parked (another space's tab, or one a profile swap left). Parked
+  tabs show in every window of the profile.
+- A session must stay eligible for `kShowDelay` (800 ms) before its widget
+  shows, so leaving a tab whose video goes to auto picture-in-picture
+  doesn't flash one. Widgets keep the order they first showed in.
+- `Page.SetNowPlaying()` sends the widgets after the tree and on changes;
+  `PageHandler.ActOnNowPlaying(id, action)` runs a button: play/pause,
+  previous/next track and picture-in-picture through
+  `content::MediaSession`; mute through `SetTabAudioMuted()` as the
+  speakers do; the icon and the title show the tab (`RevealParkedTab()` for a
+  parked one). Previous and next are dimmed unless the site handles them;
+  the picture-in-picture button shows only when the session offers it.
+- Muting a tab takes its players out of its media session (Chromium's
+  rule), which goes inactive. Its widget stays, as the session last was,
+  with the crossed-out speaker: only the speaker works then (play/pause,
+  previous, next and picture-in-picture are dimmed, `can_play_pause`), and
+  unmuting brings the players back.
+- × pauses the media and hides its widget until it plays again.
+- The page side is `compass-now-playing` (`now_playing.ts`).
+- Tests: `NowPlayingBrowserTest.*`.
+
 ## Folder collapse state
 
 Whether a folder is collapsed is part of the model, as in Arc: a

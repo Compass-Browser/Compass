@@ -136,6 +136,9 @@ class FakePage : public sidebar::mojom::Page {
   void StartRename(const std::string& id) override {
     events_.push_back("rename " + id);
   }
+  // No tracker without a page: see now_playing_browsertest.cc.
+  void SetNowPlaying(
+      std::vector<sidebar::mojom::NowPlayingPtr> items) override {}
 
   sidebar::mojom::TreePtr TakeTree() { return std::move(tree_); }
   std::vector<std::string> TakeEvents() { return std::move(events_); }

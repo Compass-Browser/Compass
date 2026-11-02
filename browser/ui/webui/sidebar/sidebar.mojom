@@ -51,6 +51,41 @@ struct Tree {
   string? active_id;
 };
 
+// A tab playing media (or paused) that the window doesn't show: the sidebar
+// shows a "now playing" widget for it above the spaces, as Arc does
+// (docs/design/sidebar.md, "Now playing").
+struct NowPlaying {
+  // Stable while it shows.
+  string id;
+  // The media's title: the page's, unless the site gives one.
+  string title;
+  // The tab's page, for its favicon.
+  url.mojom.Url url;
+  bool playing;
+  bool muted;
+  // False while muted: Chromium takes a muted tab's players out of its media
+  // session, so only the speaker (unmute) works.
+  bool can_play_pause;
+  bool can_previous;
+  bool can_next;
+  bool can_picture_in_picture;
+};
+
+// What a now playing widget's buttons do.
+enum NowPlayingAction {
+  kPlay,
+  kPause,
+  kPreviousTrack,
+  kNextTrack,
+  kPictureInPicture,
+  kMute,
+  kUnmute,
+  // Pauses it and hides the widget until it plays again.
+  kDismiss,
+  // Shows its tab, switching space if it's another space's.
+  kShowTab,
+};
+
 // Bootstraps the connection; called once by the page.
 interface PageHandlerFactory {
   CreatePageHandler(pending_remote<Page> page,
@@ -224,6 +259,9 @@ interface PageHandler {
   // page: shows the node's context menu there (docs/design/sidebar.md,
   // "Context menus").
   ShowContextMenu(string id, int32 x, int32 y);
+
+  // A now playing widget's button. Ignored for a widget that's gone.
+  ActOnNowPlaying(string id, NowPlayingAction action);
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
@@ -252,6 +290,9 @@ interface Page {
   // Rename was chosen in folder |id|'s context menu: shows its name for
   // editing, as a double-click does.
   StartRename(string id);
+  // The window's now playing widgets, top to bottom. Sent after the tree, and
+  // whenever they change.
+  SetNowPlaying(array<NowPlaying> items);
 };
 
 // Browser-side handler for chrome://compass-placeholder, the tab a window shows

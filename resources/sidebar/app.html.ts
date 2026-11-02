@@ -227,6 +227,7 @@ ${this.archiveOpen_ ? html`
         </div>`)}
     </div>
   </div>` : nothing}
+<compass-now-playing .items="${this.nowPlaying_}"></compass-now-playing>
 <div id="spaces" role="tablist" aria-label="Spaces">
   ${repeat(this.spaces_, (space: Space) => space.id, (space: Space) => html`
     <button class="space" role="tab" data-space-id="${space.id}"

@@ -9,6 +9,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
@@ -27,6 +28,7 @@
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "chrome/browser/browser_process.h"
@@ -181,6 +183,11 @@ SidebarPageHandler::SidebarPageHandler(
   features_->AddObserver(this);
   registry().AddObserver(this);
   tab_strip_model()->AddObserver(this);
+  if (page_contents_) {
+    now_playing_ = std::make_unique<NowPlayingTracker>(
+        browser_, base::BindRepeating(&SidebarPageHandler::SendNowPlaying,
+                                      base::Unretained(this)));
+  }
 }
 
 SidebarPageHandler::~SidebarPageHandler() {
@@ -206,6 +213,7 @@ void SidebarPageHandler::StopObserving() {
   observed_space_->RemoveObserver(this);
   observed_space_ = nullptr;
   tab_strip_model()->RemoveObserver(this);
+  now_playing_.reset();
 }
 
 void SidebarPageHandler::RequestTree() {
@@ -217,6 +225,7 @@ void SidebarPageHandler::RequestTree() {
   tree->active_id = GetActiveNodeId();
   page_->SetTree(std::move(tree));
   SendArchive();
+  SendNowPlaying();
 }
 
 void SidebarPageHandler::TreeShown() {
@@ -652,6 +661,28 @@ void SidebarPageHandler::ShowContextMenu(const std::string& id,
   }
 }
 
+void SidebarPageHandler::ActOnNowPlaying(
+    const std::string& id,
+    sidebar::mojom::NowPlayingAction action) {
+  if (!now_playing_) {
+    return;
+  }
+  using Mojo = sidebar::mojom::NowPlayingAction;
+  using Action = NowPlayingTracker::Action;
+  static constexpr auto kActions = base::MakeFixedFlatMap<Mojo, Action>({
+      {Mojo::kPlay, Action::kPlay},
+      {Mojo::kPause, Action::kPause},
+      {Mojo::kPreviousTrack, Action::kPreviousTrack},
+      {Mojo::kNextTrack, Action::kNextTrack},
+      {Mojo::kPictureInPicture, Action::kPictureInPicture},
+      {Mojo::kMute, Action::kMute},
+      {Mojo::kUnmute, Action::kUnmute},
+      {Mojo::kDismiss, Action::kDismiss},
+      {Mojo::kShowTab, Action::kShowTab},
+  });
+  now_playing_->Act(id, kActions.at(action));
+}
+
 std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
     const std::string& id) {
   SidebarNode* node = FindNode(id);
@@ -1042,6 +1073,26 @@ void SidebarPageHandler::SendArchive() {
     entries.push_back(std::move(mojo_entry));
   }
   page_->SetArchive(std::move(entries));
+}
+
+void SidebarPageHandler::SendNowPlaying() {
+  std::vector<sidebar::mojom::NowPlayingPtr> items;
+  if (now_playing_) {
+    for (const NowPlayingTracker::Item& item : now_playing_->items()) {
+      auto mojo_item = sidebar::mojom::NowPlaying::New();
+      mojo_item->id = item.id;
+      mojo_item->title = base::UTF16ToUTF8(item.title);
+      mojo_item->url = item.url;
+      mojo_item->playing = item.playing;
+      mojo_item->muted = item.muted;
+      mojo_item->can_play_pause = item.can_play_pause;
+      mojo_item->can_previous = item.can_previous;
+      mojo_item->can_next = item.can_next;
+      mojo_item->can_picture_in_picture = item.can_picture_in_picture;
+      items.push_back(std::move(mojo_item));
+    }
+  }
+  page_->SetNowPlaying(std::move(items));
 }
 
 sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(const SidebarNode& node) {

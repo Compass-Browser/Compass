@@ -774,6 +774,14 @@ compass-sidebar-node {
   font-weight: 500;
 }
 
+/* Entry names: a step above the sidebar's 13px, which read too small
+ * (2026-11-02). Their rename fields match, so editing doesn't jump. */
+.tab .title,
+.folder-row .title,
+input.title-input {
+  font-size: 14px;
+}
+
 .chevron {
   border-block-start: 4px solid transparent;
   border-block-end: 4px solid transparent;

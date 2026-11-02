@@ -33,6 +33,8 @@ build_webui("build") {
     "favicon.ts",
     "node.html.ts",
     "node.ts",
+    "now_playing.html.ts",
+    "now_playing.ts",
     "placeholder.ts",
     "preview.html.ts",
     "preview.ts",
@@ -55,6 +57,7 @@ build_webui("build") {
   css_files = [
     "app.css",
     "command_bar/app.css",
+    "now_playing.css",
     "preview.css",
     "theme_editor.css",
   ]
