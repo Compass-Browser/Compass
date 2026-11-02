@@ -202,10 +202,6 @@ class SidebarHeaderBrowserTest : public InProcessBrowserTest {
         TabStripAnimations::kVerticalTabStrip,
         collapse ? TabStripAnimations::kCollapse : TabStripAnimations::kExpand);
   }
-  void SetVerticalTabs(bool enabled) {
-    browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
-                                                 enabled);
-  }
 };
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, ShowsNavButtonsAndPill) {
@@ -417,31 +413,6 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, HoldsTheToolbarControls) {
                 ->GetAnchor()
                 .GetIfView(),
             app_menu);
-}
-
-IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
-                       HorizontalTabsGiveTheControlsBack) {
-  ToolbarView* toolbar = browser_view_impl()->toolbar();
-  const std::vector<views::View*> controls = toolbar_controls();
-
-  SetVerticalTabs(false);
-  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return toolbar->IsDrawn(); }));
-  EXPECT_TRUE(browser_view_impl()->IsToolbarVisible());
-  EXPECT_GT(toolbar->height(), 0);
-  for (views::View* view : controls) {
-    EXPECT_EQ(view->parent(), toolbar);
-  }
-  // In upstream's order: the app menu stays at the end.
-  EXPECT_GT(toolbar->GetIndexOf(controls[2]).value(),
-            toolbar->GetIndexOf(controls[1]).value());
-  EXPECT_GT(toolbar->GetIndexOf(controls[1]).value(),
-            toolbar->GetIndexOf(controls[0]).value());
-
-  SetVerticalTabs(true);
-  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return !toolbar->GetVisible(); }));
-  for (views::View* view : controls) {
-    EXPECT_TRUE(header()->Contains(view));
-  }
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, SiteInfoOpensPageInfo) {

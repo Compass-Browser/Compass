@@ -1,8 +1,16 @@
 diff --git a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/frame/BUILD.gn
-index d1973034eed485334dad8980883d3647be2e4759..3f6cf31766c9f2034f7cd31c02df6f8c5ce89583 100644
+index d1973034eed485334dad8980883d3647be2e4759..6e72274526518f598c583c99c9c690095d5b8473 100644
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -2463,6 +2463,9 @@ source_set("browser_view_tabbed_layout_impl") {
+@@ -1813,6 +1813,7 @@ source_set("system_menu_model_builder_impl") {
+     "//chrome/browser/ui/toolbar",
+     "//chrome/browser/ui/web_applications",
+     "//chrome/browser/user_education",
++    "//compass/browser/ui:app_menu_hooks",
+     "//chrome/common:chrome_features",
+     "//chrome/common:constants",
+     "//components/strings:components_strings",
+@@ -2463,6 +2464,9 @@ source_set("browser_view_tabbed_layout_impl") {
      "//chrome/browser/ui/views/infobars",
      "//chrome/browser/ui/views/side_panel",
      "//chrome/browser/ui/views/tabs/organizer",

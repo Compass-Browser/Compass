@@ -1,0 +1,36 @@
+diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
+index 047674248727a122fb3aee712981eefd0a4c3049..e43db1507147293daec451d0cdb902cdd5f73f13 100644
+--- a/chrome/browser/ui/cocoa/main_menu_builder.mm
++++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
+@@ -293,9 +293,10 @@
+       Item(IDS_VIEW_MENU_MAC)
+           .tag(IDC_VIEW_MENU)
+           .submenu({
++              // Compass: no bookmarks bar, tabs are always vertical.
+               Item(IDS_BOOKMARK_BAR_ALWAYS_SHOW_MAC)
+                   .command_id(IDC_SHOW_BOOKMARK_BAR)
+-                  .remove_if(is_pwa),
++                  .remove_if(true),
+               Item(IDS_TOGGLE_FULLSCREEN_TOOLBAR_MAC)
+                   .command_id(IDC_TOGGLE_FULLSCREEN_TOOLBAR),
+               Item(IDS_CONTEXT_MENU_SHOW_FULL_URLS)
+@@ -309,7 +310,8 @@
+               Item(IDS_CONTEXT_MENU_SHOW_SEARCH_TOOLS)
+                   .command_id(IDC_SHOW_SEARCH_TOOLS),
+                Item(IDS_SWITCH_TO_VERTICAL_TAB_MAC)
+-                   .command_id(IDC_TOGGLE_VERTICAL_TABS),
++                   .command_id(IDC_TOGGLE_VERTICAL_TABS)
++                   .remove_if(true),
+               Item(IDS_VERTICAL_TABS_VIEW_MENU_TOGGLE_COLLAPSE)
+                   .command_id(IDC_TOGGLE_VERTICAL_TABS_COLLAPSE)
+                   .key_equivalent(@"L", NSEventModifierFlagCommand),
+@@ -425,6 +427,9 @@
+   NSMenuItem* item =
+       Item(IDS_BOOKMARKS_MENU)
+           .tag(AppMenuModel::kBookmarksMenuPlaceholder)
++          // Compass: no bookmarks. Hidden, not removed: AppController
++          // keeps a bookmark bridge on this item.
++          .set_hidden(true)
+           .submenu({
+               Item(bookmarks_manager_string_id)
+                   .command_id(IDC_SHOW_BOOKMARK_MANAGER),

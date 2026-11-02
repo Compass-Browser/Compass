@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/defaults.cc b/chrome/browser/defaults.cc
+index d7f6b37014ac97747d69a51b5151319db50755d8..b8cb2273a2827666d80e1d0c86827267f82ac8f2 100644
+--- a/chrome/browser/defaults.cc
++++ b/chrome/browser/defaults.cc
+@@ -36,6 +36,8 @@ const bool kScrollEventChangesTab = true;
+ const bool kScrollEventChangesTab = false;
+ #endif
+ 
+-bool bookmarks_enabled = true;
++// Compass: pinned tabs are the bookmarks, so the bookmarks bar, the star,
++// Cmd+D and the bookmark manager are off. The model stays for sync.
++bool bookmarks_enabled = false;
+ 
+ }  // namespace browser_defaults

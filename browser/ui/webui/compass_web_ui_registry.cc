@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
 #include "content/public/browser/webui_config_map.h"
 #include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
@@ -20,6 +21,7 @@
 #include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
 #include "compass/browser/ui/webui/sync/compass_sync.mojom.h"
 #include "compass/browser/ui/webui/sync/compass_sync_ui.h"
+#include "url/gurl.h"
 
 namespace compass {
 
@@ -32,6 +34,10 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   map.AddWebUIConfig(std::make_unique<CompassArcImportUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSyncUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSettingsUIConfig>());
+
+  // No bookmark manager: pinned tabs are the bookmarks. Upstream registers
+  // it before calling here.
+  map.RemoveConfig(GURL(chrome::kChromeUIBookmarksURL));
 }
 
 void PopulateWebUIInterfaceBrokers(

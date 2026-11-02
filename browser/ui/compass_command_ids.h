@@ -5,6 +5,8 @@
 #ifndef COMPASS_BROWSER_UI_COMPASS_COMMAND_IDS_H_
 #define COMPASS_BROWSER_UI_COMPASS_COMMAND_IDS_H_
 
+#include "chrome/app/chrome_command_ids.h"
+
 namespace compass {
 
 // Browser commands of Compass's own, beside upstream's
@@ -27,6 +29,30 @@ inline constexpr int kToggleTabMuteCommand = 39952;
 inline bool IsCompassCommand(int id) {
   return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand ||
          id == kToggleTabMuteCommand;
+}
+
+// Upstream commands of features Compass removes: bookmarks (pinned tabs are
+// the bookmarks) and horizontal tabs (the sidebar is the tab strip).
+// BrowserCommandController reports them unsupported, so no menu, shortcut
+// or caller can run them, and the menus leave them out.
+inline bool IsRemovedCommand(int id) {
+  switch (id) {
+    case IDC_BOOKMARK_THIS_TAB:
+    case IDC_BOOKMARK_ALL_TABS:
+    case IDC_SHOW_BOOKMARK_BAR:
+    case IDC_SHOW_BOOKMARK_MANAGER:
+    case IDC_SHOW_BOOKMARK_SIDE_PANEL:
+    case IDC_BOOKMARKS_MENU:
+    case IDC_FOCUS_BOOKMARKS:
+    case IDC_BOOKMARK_BAR_SUBMENU:
+    case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE:
+    case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW:
+    case IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP:
+    case IDC_TOGGLE_VERTICAL_TABS:
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace compass
