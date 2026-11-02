@@ -401,6 +401,10 @@ final class WebExtensions: NSObject {
     guard record.enabled, contextsByID[record.id] == nil else { return }
     let context = WKWebExtensionContext(for: webExtension)
     context.uniqueIdentifier = record.id
+    // The same origin every launch: WebKit picks a random one otherwise,
+    // and the extension's IndexedDB and localStorage (1Password's
+    // accounts) belong to the origin, so they'd be gone after a restart.
+    if let base = URL(string: "webkit-extension://\(record.id.lowercased())/") { context.baseURL = base }
     context.isInspectable = true
     // What it asked for was shown, and accepted, when it was added.
     let optionalPatterns = webExtension.optionalPermissionMatchPatterns
