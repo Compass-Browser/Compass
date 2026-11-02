@@ -239,6 +239,8 @@ final class WebExtensions: NSObject {
     // window yet: try for a few seconds.
     Task {
       for _ in 0..<20 {
+        // Added or cancelled meanwhile (a debug add): nothing to show.
+        guard self.pending?.id == pending.id else { return }
         if Presenter.present(sheet) { return }
         try? await Task.sleep(for: .milliseconds(250))
       }
@@ -486,6 +488,19 @@ extension WebExtensions {
       guard let context = context(record.id), let action = context.action(for: id.map(tab)) else { return nil }
       return (record, action)
     }
+  }
+
+  /// action.openPopup() from the extension (ExtensionPackage's polyfill):
+  /// its popup over the shown tab, as a tap on its button would. Only when
+  /// it has one, so it can't turn into a click event.
+  func openPopup(_ context: WKWebExtensionContext) {
+    let tabID = app?.shownTab?.id
+    #if DEBUG
+      print("WebExtensions: openPopup asked, has popup:", context.action(for: tabID.map(tab))?.presentsPopup ?? false,
+            "default:", context.action(for: nil)?.presentsPopup ?? false)
+    #endif
+    guard context.action(for: tabID.map(tab))?.presentsPopup == true else { return }
+    context.performAction(for: tabID.map(tab))
   }
 
   /// The menu's tap on an action: its popup, or its click event.
@@ -738,6 +753,10 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
     _ controller: WKWebExtensionController, sendMessage message: Any, toApplicationWithIdentifier applicationIdentifier: String?,
     for extensionContext: WKWebExtensionContext, replyHandler: @escaping (Any?, (any Error)?) -> Void
   ) {
+    if applicationIdentifier == ExtensionPackage.openPopupApplication {
+      openPopup(extensionContext)
+      return replyHandler(nil, nil)
+    }
     #if DEBUG
       if applicationIdentifier == ExtensionPackage.debugApplication, let body = message as? [String: Any] {
         print("WebExtensions: [\(extensionContext.webExtension.displayShortName ?? "?")] \(body["level"] ?? "") \(body["where"] ?? ""): \(body["text"] ?? "")")

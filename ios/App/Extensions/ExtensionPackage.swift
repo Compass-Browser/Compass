@@ -29,6 +29,9 @@ enum ExtensionPackage {
   static let keepAliveName = "compass-keep-alive.html"
   static let keepAliveScriptName = "compass-keep-alive.js"
   static let keepAlivePort = "compass-keep-alive"
+  /// The native app ID action.openPopup() messages (WebKit on iOS has no
+  /// openPopup; 1Password signs in through it).
+  static let openPopupApplication = "compass-open-popup"
 
   /// The keep-alive page's script (WebExtensions.keepAlive): a port to the
   /// background, pinged every 4 s, so WebKit doesn't unload it as idle
@@ -197,6 +200,15 @@ enum ExtensionPackage {
       };
       for (const api of new Set([globalThis.chrome, globalThis.browser])) {
         if (!api) continue;
+        // action.openPopup(): Compass opens the popup (native messaging).
+        try {
+          if (api.action && absent(api.action, "openPopup") && api.runtime && api.runtime.sendNativeMessage) {
+            add(api.action, "openPopup", () => {
+              try { return Promise.resolve(api.runtime.sendNativeMessage("\(openPopupApplication)", {})).then(() => undefined, () => undefined); }
+              catch (e) { return Promise.resolve(); }
+            });
+          }
+        } catch (e) {}
         for (const name of \(stubbedNamespaces.description)) {
           if (absent(api, name)) add(api, name, stub(name));
         }
@@ -276,11 +288,15 @@ enum ExtensionPackage {
       return
     }
     try? polyfill.write(to: directory.appendingPathComponent(polyfillName), atomically: true, encoding: .utf8)
+    var scripts = [polyfillName]
     #if DEBUG
       if files.fileExists(atPath: directory.appendingPathComponent(debugName).path) {
         try? debugScript.write(to: directory.appendingPathComponent(debugName), atomically: true, encoding: .utf8)
+        scripts.append(debugName)
       }
     #endif
+    // Pages an older build left without them.
+    injectIntoAllPages(scripts, in: directory)
   }
 
   static func adaptManifest(in directory: URL) throws {
@@ -331,15 +347,33 @@ enum ExtensionPackage {
       manifest["options_page"] as? String,
     ]
     for page in pages.compactMap({ $0 }) { inject(first, intoPage: page, in: directory) }
+    injectIntoAllPages(first, in: directory)
     let data = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
     try data.write(to: url, options: .atomic)
   }
 
   /// Puts `scripts` first in an extension page's <head>.
+  /// Every HTML page of the extension: its own pages opened in tabs
+  /// (1Password's setup and sign-in, app/app.html) touch the same missing
+  /// APIs as its background.
+  static func injectIntoAllPages(_ scripts: [String], in directory: URL) {
+    guard !scripts.isEmpty,
+      let walker = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)
+    else { return }
+    let root = directory.standardizedFileURL.path
+    for case let url as URL in walker where ["html", "htm"].contains(url.pathExtension.lowercased()) {
+      let path = String(url.standardizedFileURL.path.dropFirst(root.count + 1))
+      guard path != keepAliveName else { continue }
+      inject(scripts, intoPage: path, in: directory)
+    }
+  }
+
   private static func inject(_ scripts: [String], intoPage page: String, in directory: URL) {
     let path = (page.split(separator: "?").first ?? "").drop { $0 == "/" }
     let url = directory.appendingPathComponent(String(path))
     guard var html = try? String(contentsOf: url, encoding: .utf8) else { return }
+    // Already there (a page listed twice, or a refresh).
+    guard let first = scripts.first, !html.contains("/\(first)\"") else { return }
     let tags = scripts.map { "<script src=\"/\($0)\"></script>" }.joined()
     if let head = html.range(of: "<head[^>]*>", options: [.regularExpression, .caseInsensitive]) {
       html.insert(contentsOf: tags, at: head.upperBound)

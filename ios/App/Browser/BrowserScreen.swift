@@ -125,10 +125,13 @@ struct BrowserScreen: View {
   @ViewBuilder private var page: some View {
     Group {
       if let tab = app.shownTab {
+        let view = app.tabs.webView(for: tab)
         WebView(
-          webView: app.tabs.webView(for: tab),
+          webView: view,
           bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
-          .id(tab.id)
+          // A new web view for the same tab (an extension page that went to
+          // a website) replaces the old one.
+          .id("\(tab.id)/\(ObjectIdentifier(view).hashValue)")
           // The page runs under the bar; WKWebView insets its content by
           // the safe area, so the page's end still scrolls clear of it.
           .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])

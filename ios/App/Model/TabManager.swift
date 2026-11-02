@@ -240,6 +240,20 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     preferences: WKWebpagePreferences
   ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
     await MainActor.run {
+      // An extension's page in a tab going to a website (1Password's "Sign
+      // in"): its web view is the extension's and won't load web pages, so
+      // the tab starts over as a web page there.
+      if webView.url?.scheme == "webkit-extension", navigationAction.targetFrame?.isMainFrame != false,
+        let url = navigationAction.request.url, url.scheme == "https" || url.scheme == "http",
+        let id = live.first(where: { $0.value === webView })?.key, let node = store.node(id: id)
+      {
+        store.update(node, url: url.absoluteString)
+        Task { @MainActor in
+          self.unload(id)
+          self.revision += 1
+        }
+        return (.cancel, preferences)
+      }
       // <a download> links.
       let policy: WKNavigationActionPolicy = navigationAction.shouldPerformDownload ? .download : .allow
       if navigationAction.targetFrame?.isMainFrame != false {
