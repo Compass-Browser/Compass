@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 
 class GURL;
 
@@ -31,6 +32,17 @@ struct PageText {
 // the Web Store), which hold settings and passwords. See
 // docs/design/claude.md, "Safety".
 bool CanUsePage(const GURL& url);
+
+// Calls __compassAgent.<method>(opts) of common/claude/page_agent.js in an
+// isolated world of |contents|' main frame, so the page's own scripts can't
+// see or change it. |callback| gets the agent's result without its "ok", or
+// its error.
+void RunPageAgent(
+    content::WebContents* contents,
+    const std::string& method,
+    base::DictValue opts,
+    base::OnceCallback<void(base::expected<base::DictValue, std::string>)>
+        callback);
 
 // The main text of |contents|' page, through common/claude/page_agent.js in
 // an isolated world, so the page's own scripts can't see or change it. At

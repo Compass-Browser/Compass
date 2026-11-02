@@ -18,6 +18,7 @@
 #include "compass/browser/claude/sse_parser.h"
 #include "compass/browser/ui/webui/claude/chat.mojom.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "compass/browser/claude/claude_tools.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -62,6 +63,10 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void GetActivePage(GetActivePageCallback callback) override;
   void ReadActivePage(ReadActivePageCallback callback) override;
   void Send(const std::string& messages_json) override;
+  void StartTask() override;
+  void RunTool(const std::string& name,
+               const std::string& input_json,
+               RunToolCallback callback) override;
   void Stop() override;
   void OpenSettings() override;
   void OpenLink(const std::string& url) override;
@@ -94,6 +99,7 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   const raw_ptr<TopChromeWebUIController> controller_;
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
   std::unique_ptr<ClaudeClient> client_;
+  ClaudeTools tools_;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;
   PrefChangeRegistrar pref_registrar_;

@@ -1,8 +1,9 @@
 # Find on page and Claude
 
 Status (2026-11-02): milestone 0 (this doc and the shared files in
-`common/claude/`), D1 (find bar) and D2 (settings and client) are on main;
-D3 (chat panel) is on `claude/d3-chat-panel`. Nothing on iOS yet.
+`common/claude/`), D1 (find bar), D2 (settings and client) and D3 (chat
+panel) are on main; D4 (page tools) is on `claude/d4-page-tools`. Nothing
+on iOS yet.
 
 `common/claude/test/page_agent_test.html` checks `page_agent.js` without a
 window: open it with `--headless=new --dump-dom` (the command is in the file)
@@ -83,7 +84,7 @@ Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes
 
 ### Chat panel
 
-Status: D3 (text, with the page attached) done on `claude/d3-chat-panel` (2026-11-02): `ClaudePanelBrowserTest.*` (3/3), `ClaudeRequestTest.*` and `CommandBarPageHandlerTest.*` pass in out/Fast, headless. Not yet tried with a real key. Tools come in D4.
+Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand with a real key. D4 (page tools) done on `claude/d4-page-tools` (2026-11-02): `ClaudeToolsBrowserTest.*` (8/8), `ClaudePanelBrowserTest.*` (4/4, with the agent loop), `KeyEventsTest.*` and `ClaudeRequestTest.*` pass in out/Fast, headless. Not yet tried with a real key.
 
 - **Surface.** `compass::claude::ClaudePanel` (`browser/ui/views/claude/`), owned by the window's sidebar view. It registers a window-wide upstream side panel entry on first use, `SidePanelEntry::Id::kCompassClaude` (one-line patch of `side_panel_entry_id.h`), on the right, since the sidebar is on the left. The entry holds `chrome://compass-claude` (`ClaudeChatUI`) in a `SidePanelWebUIViewT`.
   - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model, New chat, close).
@@ -107,6 +108,11 @@ Status: D3 (text, with the page attached) done on `claude/d3-chat-panel` (2026-1
   - the system prompt from `common/claude/system_prompt.md` (built in by `build/embed_text.py`, cached), and a context block (date, scope);
   - automatic caching of the conversation;
   - on the Claude API with Fable 5.1, Opus 5.5, Opus 5 or Sonnet 5.5: `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`.
+- **The agent loop** (D4, `app.ts` `runTools_()`). A reply that ends with `stop_reason: "tool_use"` has its tool calls run one after the other (`RunTool`), their results go back as one user message of `tool_result` blocks, and the next reply is asked for. That repeats until a reply ends otherwise, the user stops, or 40 rounds (Claude then stops and says to send "go on").
+  - `StartTask()` with each message pins the tab Claude acts on: the active one. Switching tabs doesn't move Claude. The footer shows "Using <tab>" with a pulse while Claude works.
+  - Each tool call is a collapsible row in the reply: a few words ("Click e12", "Type “Ada”"), its input and its result; screenshots show under it. Tool-result turns aren't shown as messages.
+  - Stop (or Esc) ends the reply and the running tool. Tool calls left without a result get one ("Stopped by the user."), or the API would refuse the next request. Consecutive user turns (tool results, then a new message) go as one message.
+  - A failed reply to tool results gets Retry, which asks for that reply again.
 - **Conversation lifetime.** In the page, for as long as the panel's page lives. Saved history comes later.
   - A reply stopped while Claude was thinking leaves a thinking block without its signature, which the API would refuse; it isn't sent back.
 
@@ -126,31 +132,36 @@ Status: D3 (text, with the page attached) done on `claude/d3-chat-panel` (2026-1
   - Every request sends `anthropic-version: 2026-10-21` (`kApiVersion`).
   - They put prompt caching (`cache_control`) on the system prompt and tools.
   - A key or URL change cancels requests in flight.
-- **`ClaudeTools`**: runs tools for a conversation.
-  - **Scope is checked here**, in C++, never in TypeScript.
-  - It attaches an internal `content::DevToolsAgentHostClient` to the target tab through `DevToolsAgentHost::GetOrCreateFor(web_contents)`. This is an internal client, so it shows no debugger infobar. It detaches when the chat stops or is idle.
-  - Tools map to the DevTools protocol:
-    - `Runtime.evaluate` in an isolated world runs `page_agent.js`;
-    - `Page.captureScreenshot` takes screenshots, scaled down and JPEG;
-    - `Runtime.enable` and `Log.enable` feed a console ring buffer (about 500 entries) for `read_console`;
-    - `Runtime.evaluate` in the main world runs `run_js`;
-    - `Input.dispatchMouseEvent`, `Input.dispatchKeyEvent` and `Input.insertText` click and type. These are trusted renderer events, and the OS cursor and keyboard never move.
-  - A background tab is kept rendering while Claude uses it, with `WebContents::IncrementCapturerCount`, so input and screenshots work without bringing it to the front.
-  - Pages that refuse are blocked: `chrome://`, `compass://`, devtools, the Web Store, and settings/passwords pages.
-  - Browser-scope tools work through the window-sync layer and the space model (`browser/window_sync/`, `browser/sidebar/`) to list and open tabs in the right space.
-- **Click indicator.** A small overlay dot drawn in the content view where Claude clicks, plus a tint on the tab's row in the sidebar while Claude is acting.
+- **`ClaudeTools`** (`claude_tools.{h,cc}`, D4): runs tools on a target tab, one at a time: `Run(name, input, callback)` gives a `ToolResult`, the `tool_result`'s content blocks (text, image) and `is_error`. It knows nothing of the chat, as the MCP rule below wants. The chat's handler owns one and sets its target with each message.
+  - **Scope is checked here**, in C++, never in TypeScript. Every tool but `navigate` refuses when the target shows a page `CanUsePage()` refuses (the browser's own pages, the Web Store). `navigate` loads only http and https. Browser tools aren't sent yet, and refused if called (D5).
+  - **`DevToolsSession`** (`devtools_session.{h,cc}`): an internal `content::DevToolsAgentHostClient` attached through `DevToolsAgentHost::GetOrCreateFor()`. Internal clients show no "being debugged" bar. It refuses WebUI (`MayAttachToURL`), so DevTools detaches it on a browser page; the next tool attaches again. It attaches on the first tool and enables `Runtime`, `Log`, `DOM` and `Overlay`.
+  - The tools:
+    - `read_page`, `get_page_text`, `find`, `form_input` and `scroll`: `page_agent.js` through `RenderFrameHost::ExecuteJavaScriptInIsolatedWorld()` (`RunPageAgent()`, `page_reader.cc`), not a DevTools isolated world: simpler, and the same isolation from the page's scripts;
+    - `screenshot`: `Page.captureScreenshot` of the visual viewport, JPEG at quality 80, scaled to at most 1,280 pixels on its long side (about 1,200 tokens). Coordinates Claude gives later are divided by that scale;
+    - `read_console`: `Runtime.consoleAPICalled`, `Runtime.exceptionThrown` and `Log.entryAdded` into a ring of 500 messages. `Runtime.enable` replays what V8 kept from before Claude attached. A cursor gives "only new";
+    - `run_js`: `Runtime.evaluate` in the main world, with `awaitPromise`, `returnByValue`, `replMode` (top-level await) and a 20-second timeout; results are cut at 20,000 characters;
+    - `click` and `hover`: `Input.dispatchMouseEvent` at the ref's point (the agent's `rect()`, which scrolls it into view and says what covers it) or the screenshot point. These are trusted renderer events (`isTrusted`), and the OS cursor never moves;
+    - `type`: `Input.insertText` (after the agent's `focus()` for a ref); `key`: `Input.dispatchKeyEvent` from `ParseKeys()` (`key_events.{h,cc}`), which on macOS adds the editing commands (`selectAll`, `deleteBackward`, …) that the Mac renderer edits on, as Puppeteer does;
+    - `navigate` (URL, back, forward, reload) waits for the load to stop, up to 15 seconds; `wait` waits.
+  - After an action, a 300 ms pause, then the result says whether the URL changed or the page is loading.
+  - A tool that takes over 30 seconds ends with an error (a hung page, a reply that never came).
+  - While Claude works on a tab, `IncrementCapturerCount(stay_hidden)` keeps it rendering, so clicks and screenshots work in a background tab, and the page still sees itself as hidden. A minute without tools lets the tab go (the capture and the DevTools client).
+  - Stop ends the running tool with "Stopped by the user."; a closed tab gives "The tab Claude was using closed."
+  - Browser-scope tools (D5) will work through the window-sync layer and the space model (`browser/window_sync/`, `browser/sidebar/`) to list and open tabs in the right space.
+- **Click indicator.** A dot in Claude's orange, drawn for 0.7 s where Claude clicks, through DevTools' `Overlay.highlightRect`: it's over the page but not in it, so the page's DOM and scripts never see it. Not done yet: a tint on the tab's row in the sidebar while Claude acts.
 - **Mojo: `chat.mojom`.**
   - `PageHandler.Send(messages_json)` streams back through `Page.OnStreamEvent`.
-  - `PageHandler.RunTool(name, input_json) → result_json` (text or image blocks).
-  - Also `Stop()`, `GetSettingsState()` and `OpenSettings()`.
-- **Where the agent loop runs.** The loop itself (append the assistant turn, run each `tool_use`, append `tool_result`, repeat until `end_turn`, or stop after a maximum number of steps) lives in TypeScript (`resources/sidebar/chat/agent.ts`). Prompting and loop changes then don't need a C++ rebuild, while the key, the network and the permissions stay in the browser process.
+  - `PageHandler.StartTask()` pins the active tab as the target; `PageHandler.RunTool(name, input_json) → result_json` runs a tool.
+  - Also `Stop()` (the reply and the tool), `GetSetup()`, `OpenSettings()` and the rest.
+- **Where the agent loop runs.** In the page (`resources/sidebar/claude_chat/app.ts`), as above. Prompting and loop changes then don't need a C++ rebuild, while the key, the network and the permissions stay in the browser process.
 - **Request defaults for D3**, from the Claude API reference:
   - adaptive thinking with `display: "summarized"`, so the panel can show what Claude is doing;
   - `cache_control` on the system prompt and tools;
   - `stop_reason: "refusal"` handled before reading `content`;
   - on the Claude API only (not custom endpoints), the server-side fallback (`fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`);
   - no forced `tool_choice`, which Opus 5.5 refuses.
-- **Context control.** Only the two most recent screenshots stay in the request. Long page reads are cut at `maxChars`.
+- **Tools in the request.** `BuildChatRequest()` adds `ClaudeTools::Definitions()`: the page tools of `tools.json` (D5 adds the browser ones), the last one with `cache_control`, so they're cached with the prompt.
+- **Context control.** Only the two most recent screenshots stay in the request (`pruneScreenshots()` in `conversation.ts`; the panel keeps them all). Long page reads are cut at `max_chars`.
 
 ### Settings
 
@@ -222,14 +233,16 @@ Desktop browser tests run headless through `compass test --browser`, and never t
 - **Unit tests** (`browser/claude/*_unittest.cc`): the SSE parser (split chunks, errors, `ping`), request building (caching, auth style), screenshot pruning, scope checks.
 - **Browser tests:**
   - `FindBarBrowserTest`: count, next/previous (keys and Cmd+G), no results, Esc, each tab's bar, the selection as the start, upstream's bar staying closed.
-  - `CompassClaudeToolsBrowserTest`, against a test page:
-    - `read_page` returns refs;
-    - `click` on a ref fires the page's handler, while the real cursor position is unchanged;
-    - `type` fills an input;
-    - `read_console` sees `console.log` and an uncaught error;
-    - `run_js` returns a value;
-    - browser-scope tools are refused while the toggle is off and work once it's on;
-    - `chrome://settings` is refused.
+  - `ClaudeToolsBrowserTest` (`browser/claude/claude_tools_browsertest.cc`), against a test page:
+    - `read_page` returns refs; `click` on a ref fires the page's handler with a trusted event; `find`; `run_js` returns a value or the exception;
+    - `type`, `key` (Backspace, Cmd+A on macOS) and `form_input` (select, checkbox);
+    - `read_console` sees a `console.log` and an uncaught error from before Claude attached, then only new ones, by level and pattern;
+    - `screenshot` returns a JPEG; a click at screenshot coordinates; `scroll`;
+    - clicks and screenshots in a background tab;
+    - `navigate`, back, and `chrome://` and `javascript:` refused; every tool refused on `chrome://version`; browser tools refused;
+    - Stop ends a running `wait`; a closed tab.
+    - Not checked: that the real cursor doesn't move (DevTools input never touches it).
+  - `ClaudePanelBrowserTest.RunsToolsAndSendsResults`: the fake API asks for `get_page_text`, and the next request carries the `tool_use` and its `tool_result` with the page's text.
 - **iOS:** CompassKit tests for the SSE parser and the agent loop, run with the fake script. After each iOS milestone, build, install and launch on Matteo's iPhone. Check by hand against a real key on a form-heavy site and a console-error page.
 - **Manual desktop pass** with a real key in a Fast build:
   - "summarize this page";
@@ -239,4 +252,4 @@ Desktop browser tests run headless through `compass test --browser`, and never t
 - **Mac Release** at the end; the .dmg goes to Gioele.
 
 ## Open check at implementation time
-- The upstream checkout is `~/src/strata-chromium/src`. `FindTabHelper` (D1) and the side panel names (D3) are checked. Check the `DevToolsAgentHost` client API before D4.
+- The upstream checkout is `~/src/strata-chromium/src`. `FindTabHelper` (D1), the side panel names (D3) and the `DevToolsAgentHost` client API (D4) are checked.

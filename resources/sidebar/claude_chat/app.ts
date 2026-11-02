@@ -10,9 +10,31 @@ import type {ActivePage, Setup} from '../chat.mojom-webui.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {ClaudeChatBrowserProxy} from './browser_proxy.js';
-import type {ContentBlock, UserTurn} from './conversation.js';
+import type {AssistantTurn, ContentBlock, ToolView, UserTurn} from './conversation.js';
 import {Conversation, pageBlock} from './conversation.js';
 import './turn.js';
+
+// How many rounds of tools a message may take before Claude stops and the
+// user is asked to go on.
+const MAX_TOOL_ROUNDS = 40;
+
+// A tool result's content as the panel shows it.
+function toolView(result: {content: ContentBlock[], is_error: boolean}):
+    ToolView {
+  const text = result.content.filter(b => b.type === 'text')
+                   .map(b => b.text || '')
+                   .join('\n');
+  const image = result.content.find(b => b.type === 'image');
+  const source = image?.['source'] as {media_type: string, data: string} |
+      undefined;
+  return {
+    running: false,
+    isError: result.is_error,
+    text,
+    image: source ? `data:${source.media_type};base64,${source.data}` :
+                    undefined,
+  };
+}
 
 // The chat with Claude, in the window's side panel. The page keeps the
 // conversation and sends it whole for each reply (the browser adds the key,
@@ -42,6 +64,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       pageUrl_: {type: String},
       revision_: {type: Number},
       streaming_: {type: Boolean},
+      taskTitle_: {type: String},
       text_: {type: String},
     };
   }
@@ -54,7 +77,11 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   protected accessor pageUrl_: string = '';
   // Bumped when the conversation changes, to render it again.
   protected accessor revision_: number = 0;
+  // From a message being sent until Claude's last reply to it, tools and
+  // all.
   protected accessor streaming_: boolean = false;
+  // The tab Claude acts on during the task.
+  protected accessor taskTitle_: string = '';
   protected accessor text_: string = '';
 
   conversation = new Conversation();
@@ -70,6 +97,10 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   private attachedUrl_ = '';
   // Follow the reply down unless the user scrolled up.
   private stickToBottom_ = true;
+  // Bumped by each message and by Stop, so a late tool result from a task
+  // that ended is dropped.
+  private task_ = 0;
+  private toolRounds_ = 0;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -162,6 +193,12 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     return this.hasKey_ && !this.streaming_ && this.text_.trim() !== '';
   }
 
+  // Tool results show in the rows of the reply that asked for them.
+  protected getShownTurns_() {
+    return this.conversation.turns.filter(
+        turn => turn.role !== 'user' || !turn.tools);
+  }
+
   protected hasTurns_(): boolean {
     return this.conversation.turns.length > 0;
   }
@@ -190,9 +227,16 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       return;
     }
     this.streaming_ = true;
+    this.task_++;
+    this.toolRounds_ = 0;
+    this.taskTitle_ = this.pageTitle_ || this.pageUrl_;
     this.text_ = '';
     this.input_.value = '';
     this.resizeInput_();
+    // Claude's tools act on this tab until the next message.
+    this.browserProxy_.handler.startTask();
+    // A reply that failed or stopped with tools open: they get results.
+    this.conversation.closeOpenTools('Not run: the reply ended first.');
 
     const content: ContentBlock[] = [];
     const turn: UserTurn = {role: 'user', text, content};
@@ -222,8 +266,10 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   private stop_() {
+    this.task_++;
     this.browserProxy_.handler.stop();
     this.conversation.finishReply('');
+    this.conversation.closeOpenTools('Stopped by the user.');
     this.streaming_ = false;
     this.changed_();
   }
@@ -234,10 +280,70 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   private onStreamDone_(error: string) {
+    const turn = this.conversation.streamingTurn;
     this.conversation.finishReply(error);
+    if (!error && turn?.stopReason === 'tool_use' && this.streaming_) {
+      this.changed_();
+      this.runTools_(turn);
+      return;
+    }
+    this.endTask_();
+  }
+
+  private endTask_() {
     this.streaming_ = false;
     this.changed_();
     this.input_.focus();
+  }
+
+  // Runs the reply's tool calls one after the other, then asks for the next
+  // reply with their results. The browser checks what each tool may do.
+  private async runTools_(turn: AssistantTurn) {
+    const task = this.task_;
+    if (++this.toolRounds_ > MAX_TOOL_ROUNDS) {
+      this.conversation.closeOpenTools(
+          'Not run: Claude used many steps; the user may ask to go on.');
+      turn.error = `Claude stopped after ${MAX_TOOL_ROUNDS} steps. ` +
+          'Send "go on" to let it continue.';
+      this.endTask_();
+      return;
+    }
+    const results: ContentBlock[] = [];
+    for (const use of turn.content) {
+      if (use.type !== 'tool_use' || !use.id) {
+        continue;
+      }
+      this.conversation.setTool(use.id, {running: true});
+      this.changed_();
+      const {resultJson} = await this.browserProxy_.handler.runTool(
+          use.name || '', JSON.stringify(use.input || {}));
+      if (task !== this.task_) {
+        // Stopped, or another message: its results are closed already.
+        return;
+      }
+      let result: {content: ContentBlock[], is_error: boolean};
+      try {
+        result = JSON.parse(resultJson);
+      } catch {
+        result = {
+          content: [{type: 'text', text: 'The tool failed.'}],
+          is_error: true,
+        };
+      }
+      this.conversation.setTool(use.id, toolView(result));
+      results.push({
+        type: 'tool_result',
+        tool_use_id: use.id,
+        content: result.content,
+        is_error: result.is_error,
+      });
+      this.changed_();
+    }
+    this.conversation.addToolResults(results);
+    const messages = this.conversation.messages();
+    this.conversation.startReply();
+    this.changed_();
+    this.browserProxy_.handler.send(JSON.stringify(messages));
   }
 
   private resizeInput_() {
@@ -282,6 +388,17 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     const failed = turns.pop();
     const asked = turns.pop();
     if (failed?.role !== 'assistant' || asked?.role !== 'user') {
+      return;
+    }
+    if (asked.tools) {
+      // A reply to tool results failed: ask for it again.
+      turns.push(asked);
+      this.streaming_ = true;
+      this.task_++;
+      const messages = this.conversation.messages();
+      this.conversation.startReply();
+      this.changed_();
+      this.browserProxy_.handler.send(JSON.stringify(messages));
       return;
     }
     if (asked.pageUrl === this.attachedUrl_) {

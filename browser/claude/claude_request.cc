@@ -12,6 +12,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/claude/claude_assets.h"
+#include "compass/browser/claude/claude_tools.h"
 
 namespace compass::claude {
 
@@ -75,6 +76,10 @@ ChatRequest BuildChatRequest(base::ListValue messages,
   request.body.Set("max_tokens", kMaxTokens);
   request.body.Set("system", std::move(system));
   request.body.Set("messages", std::move(messages));
+  if (options.tools) {
+    // Cached with the prompt: they come before it in the cache's order.
+    request.body.Set("tools", ClaudeTools::Definitions());
+  }
   // The conversation so far is cached too: each turn resends it.
   request.body.Set("cache_control", Ephemeral());
   // Summaries of Claude's thinking, so the panel shows something while it

@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
@@ -183,11 +184,35 @@ void ClaudeChatPageHandler::OnStreamDone(int request_id,
   page_->OnStreamDone(error.value_or(std::string()));
 }
 
+void ClaudeChatPageHandler::StartTask() {
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  tools_.SetTarget(tab ? tab->GetContents() : nullptr);
+}
+
+void ClaudeChatPageHandler::RunTool(const std::string& name,
+                                    const std::string& input_json,
+                                    RunToolCallback callback) {
+  std::optional<base::DictValue> input =
+      base::JSONReader::ReadDict(input_json, base::JSON_PARSE_RFC);
+  if (!input) {
+    input.emplace();
+  }
+  tools_.Run(name, std::move(*input),
+             base::BindOnce(
+                 [](RunToolCallback callback, ToolResult result) {
+                   std::string json;
+                   base::JSONWriter::Write(std::move(result).ToDict(), &json);
+                   std::move(callback).Run(json);
+                 },
+                 std::move(callback)));
+}
+
 void ClaudeChatPageHandler::Stop() {
   ++request_id_;
   if (client_) {
     client_->Cancel();
   }
+  tools_.Stop();
 }
 
 void ClaudeChatPageHandler::OpenSettings() {

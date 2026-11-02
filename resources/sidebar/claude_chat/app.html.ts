@@ -45,19 +45,24 @@ export function getHtml(this: CompassClaudeChatAppElement) {
             <button class="suggestion" @click="${this.onSuggestionClick_}"
                 data-text="${text}">${text}</button>`)}
         </div>` : nothing}
-    </div>` : html`${this.conversation.turns.map(turn => html`
-      <compass-claude-turn .turn="${turn}" .revision="${this.revision_}"
+    </div>` : html`${this.getShownTurns_().map(turn => html`
+      <compass-claude-turn .turn="${turn}" .tools="${this.conversation.tools}"
+          .revision="${this.revision_}"
           @retry="${this.onTurnRetry_}"></compass-claude-turn>`)}`}`}
 </main>
 
 <footer>
-  ${this.pageReadable_ ? html`
+  ${this.streaming_ && this.taskTitle_ ? html`
+    <div id="using" class="chip using" title="Claude reads and acts in this tab">
+      <span class="pulse" aria-hidden="true"></span>
+      <span class="chip-text">Using ${this.taskTitle_}</span>
+    </div>` : html`${this.pageReadable_ ? html`
     <button id="attach" class="chip" ?on="${this.attachPage_}"
         aria-pressed="${this.attachPage_}" title="${this.getAttachTitle_()}"
         @click="${this.onAttachClick_}">
       <span class="page-glyph" aria-hidden="true"></span>
       <span class="chip-text">${this.pageTitle_ || this.pageUrl_}</span>
-    </button>` : nothing}
+    </button>` : nothing}`}
   <div class="composer">
     <textarea id="input" rows="1" placeholder="Ask Claude…"
         aria-label="Message to Claude" ?disabled="${!this.hasKey_}"

@@ -9,6 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -25,12 +26,14 @@ namespace {
 
 using Callback =
     base::OnceCallback<void(base::expected<PageText, std::string>)>;
+using AgentCallback =
+    base::OnceCallback<void(base::expected<base::DictValue, std::string>)>;
 
-void OnResult(Callback callback, base::Value result) {
-  const base::DictValue* dict = result.GetIfDict();
+void OnAgentResult(AgentCallback callback, base::Value result) {
+  base::DictValue* dict = result.GetIfDict();
   if (!dict) {
     std::move(callback).Run(
-        base::unexpected("The page couldn't be read (it may still be "
+        base::unexpected("The page didn't answer (it may still be "
                          "loading)."));
     return;
   }
@@ -40,17 +43,27 @@ void OnResult(Callback callback, base::Value result) {
         error ? *error : std::string("The page couldn't be read.")));
     return;
   }
+  dict->Remove("ok");
+  std::move(callback).Run(std::move(*dict));
+}
+
+void OnPageText(Callback callback,
+                base::expected<base::DictValue, std::string> result) {
+  if (!result.has_value()) {
+    std::move(callback).Run(base::unexpected(result.error()));
+    return;
+  }
   PageText page;
-  if (const std::string* url = dict->FindString("url")) {
+  if (const std::string* url = result->FindString("url")) {
     page.url = *url;
   }
-  if (const std::string* title = dict->FindString("title")) {
+  if (const std::string* title = result->FindString("title")) {
     page.title = *title;
   }
-  if (const std::string* text = dict->FindString("text")) {
+  if (const std::string* text = result->FindString("text")) {
     page.text = *text;
   }
-  page.truncated = dict->FindBool("truncated").value_or(false);
+  page.truncated = result->FindBool("truncated").value_or(false);
   std::move(callback).Run(std::move(page));
 }
 
@@ -69,6 +82,27 @@ bool CanUsePage(const GURL& url) {
          !(host == "chrome.google.com" && url.path().starts_with("/webstore"));
 }
 
+void RunPageAgent(content::WebContents* contents,
+                  const std::string& method,
+                  base::DictValue opts,
+                  AgentCallback callback) {
+  content::RenderFrameHost* frame = contents->GetPrimaryMainFrame();
+  if (!frame || !frame->IsRenderFrameLive()) {
+    std::move(callback).Run(base::unexpected("The page isn't loaded yet."));
+    return;
+  }
+  std::string json;
+  base::JSONWriter::Write(opts, &json);
+  // The agent installs itself once per document; the last expression is the
+  // result.
+  const std::u16string script = base::StrCat(
+      {base::UTF8ToUTF16(assets::kPageAgent), u"\n;__compassAgent.",
+       base::UTF8ToUTF16(method), u"(", base::UTF8ToUTF16(json), u");"});
+  frame->ExecuteJavaScriptInIsolatedWorld(
+      script, base::BindOnce(&OnAgentResult, std::move(callback)),
+      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+}
+
 void ReadPageText(content::WebContents* contents,
                   int max_chars,
                   Callback callback) {
@@ -78,19 +112,9 @@ void ReadPageText(content::WebContents* contents,
         "Claude can't read the browser's own pages, only web pages."));
     return;
   }
-  content::RenderFrameHost* frame = contents->GetPrimaryMainFrame();
-  if (!frame || !frame->IsRenderFrameLive()) {
-    std::move(callback).Run(base::unexpected("The page isn't loaded yet."));
-    return;
-  }
-  // The agent installs itself once per document; the last expression is the
-  // result.
-  const std::u16string script = base::StrCat(
-      {base::UTF8ToUTF16(assets::kPageAgent), u"\n;__compassAgent.pageText({",
-       u"max_chars: ", base::NumberToString16(max_chars), u"});"});
-  frame->ExecuteJavaScriptInIsolatedWorld(
-      script, base::BindOnce(&OnResult, std::move(callback)),
-      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+  RunPageAgent(contents, "pageText",
+               base::DictValue().Set("max_chars", max_chars),
+               base::BindOnce(&OnPageText, std::move(callback)));
 }
 
 }  // namespace compass::claude

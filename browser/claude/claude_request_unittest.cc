@@ -42,6 +42,15 @@ TEST(ClaudeRequestTest, Defaults) {
   EXPECT_EQ(*body.FindString("fallbacks"), "default");
   EXPECT_EQ(request.betas,
             std::vector<std::string>{"server-side-fallback-2026-07-01"});
+  // The page tools, the last one cached; no browser tools yet (D5).
+  const base::ListValue& tools = *body.FindList("tools");
+  ASSERT_FALSE(tools.empty());
+  EXPECT_EQ(*tools[0].GetDict().FindString("name"), "read_page");
+  EXPECT_TRUE(tools.back().GetDict().FindDict("cache_control"));
+  for (const base::Value& tool : tools) {
+    EXPECT_NE(*tool.GetDict().FindString("name"), "list_tabs");
+    EXPECT_TRUE(tool.GetDict().FindDict("input_schema"));
+  }
   // No sampling parameters, which the API version refuses.
   EXPECT_FALSE(body.contains("temperature"));
 }

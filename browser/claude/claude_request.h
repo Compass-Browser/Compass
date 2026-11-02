@@ -21,6 +21,8 @@ struct ChatOptions {
   bool claude_api = true;
   // "Let Claude use the whole browser".
   bool browser_scope = false;
+  // Send the tools (ClaudeTools::Definitions()).
+  bool tools = true;
   base::Time now;
 };
 

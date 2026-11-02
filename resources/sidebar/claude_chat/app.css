@@ -183,6 +183,26 @@ footer {
   color: var(--fg);
 }
 
+.chip.using {
+  border-style: solid;
+  color: var(--fg);
+}
+
+.pulse {
+  animation: using 1.2s infinite ease-in-out;
+  background: #d97757;
+  border-radius: 50%;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+@keyframes using {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .chip-text {
   overflow: hidden;
   text-overflow: ellipsis;

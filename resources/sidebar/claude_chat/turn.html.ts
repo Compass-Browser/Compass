@@ -21,11 +21,26 @@ ${this.isUser_() ? html`
   <div class="turn assistant">
     ${this.getBlocks_().map((item, index) => html`${item.type === 'text' ?
       html`<div class="markdown">${this.renderText_(item.text)}</div>` :
+      html`${item.type === 'tool_use' ? html`
+        <details class="tool" ?running="${this.getTool_(item).running}"
+            ?error="${!!this.getTool_(item).isError}">
+          <summary>
+            <span class="tool-state" aria-hidden="true"></span>
+            <span class="tool-label">${this.getToolLabel_(item)}</span>
+          </summary>
+          <pre class="tool-input">${this.getToolInput_(item)}</pre>
+          ${this.getTool_(item).text ? html`
+            <pre class="tool-result">${this.getTool_(item).text}</pre>` :
+            nothing}
+        </details>
+        ${this.getTool_(item).image ? html`
+          <img class="shot" src="${this.getTool_(item).image}"
+              alt="Screenshot Claude took">` : nothing}` :
       html`${this.showThinking_(item, index) ? html`
         <details class="thinking" ?open="${this.isLive_(index)}">
           <summary>${this.isLive_(index) ? 'Thinking…' : 'Thought'}</summary>
           <div class="thinking-text">${item.thinking}</div>
-        </details>` : nothing}`}`)}
+        </details>` : nothing}`}`}`)}
     ${this.isPending_() ? html`
       <div class="pending" aria-label="Claude is answering">
         <span></span><span></span><span></span>

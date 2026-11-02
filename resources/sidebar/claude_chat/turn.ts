@@ -4,7 +4,7 @@
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ContentBlock, Turn} from './conversation.js';
+import type {ContentBlock, ToolView, Turn} from './conversation.js';
 import {renderMarkdown} from './markdown.js';
 import {getCss} from './turn.css.js';
 import {getHtml} from './turn.html.js';
@@ -29,11 +29,14 @@ export class CompassClaudeTurnElement extends CrLitElement {
   static override get properties() {
     return {
       turn: {type: Object},
+      tools: {type: Object},
       revision: {type: Number},
     };
   }
 
   accessor turn: Turn|null = null;
+  // The tool calls' states, by id (the conversation's).
+  accessor tools: Map<string, ToolView> = new Map();
   accessor revision: number = 0;
 
   protected isUser_(): boolean {
@@ -81,6 +84,59 @@ export class CompassClaudeTurnElement extends CrLitElement {
 
   protected renderText_(text: string|undefined): DocumentFragment {
     return renderMarkdown(text || '');
+  }
+
+  protected getTool_(item: ContentBlock): ToolView {
+    return this.tools.get(item.id || '') || {running: false};
+  }
+
+  // A tool call, in a few words.
+  protected getToolLabel_(item: ContentBlock): string {
+    const input = (item.input || {}) as Record<string, unknown>;
+    const short = (value: unknown, max = 48) => {
+      const text = String(value ?? '');
+      return text.length > max ? text.slice(0, max - 1) + '…' : text;
+    };
+    const where = () => input['ref'] ? ` ${input['ref']}` :
+        Array.isArray(input['coordinate']) ?
+                                       ` at ${input['coordinate'].join(', ')}` :
+                                       '';
+    switch (item.name) {
+      case 'read_page':
+        return 'Read the page';
+      case 'get_page_text':
+        return 'Read the page\'s text';
+      case 'find':
+        return `Find “${short(input['query'])}”`;
+      case 'screenshot':
+        return 'Screenshot';
+      case 'read_console':
+        return 'Read the console';
+      case 'run_js':
+        return 'Run JavaScript';
+      case 'click':
+        return `Click${where()}`;
+      case 'hover':
+        return `Point${where()}`;
+      case 'type':
+        return `Type “${short(input['text'])}”`;
+      case 'key':
+        return `Press ${short(input['keys'])}`;
+      case 'scroll':
+        return `Scroll ${input['direction'] || ''}`;
+      case 'form_input':
+        return `Fill${where()}`;
+      case 'navigate':
+        return `Go to ${short(input['url'])}`;
+      case 'wait':
+        return `Wait ${input['seconds'] ?? ''} s`;
+      default:
+        return item.name || 'Tool';
+    }
+  }
+
+  protected getToolInput_(item: ContentBlock): string {
+    return JSON.stringify(item.input ?? {}, null, 2);
   }
 
   protected onRetryClick_() {

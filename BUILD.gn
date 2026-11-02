@@ -36,6 +36,7 @@ test("compass_browsertests") {
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
     "//chrome/test/base:browser_tests_runner",
+    "//compass/browser/claude:browser_tests",
     "//compass/browser/picture_in_picture:browser_tests",
     "//compass/browser/prefs:browser_tests",
     "//compass/browser/ui:browser_tests",

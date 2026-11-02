@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -61,6 +62,26 @@ constexpr char kReply[] =
     "\"end_turn\"},\"usage\":{\"output_tokens\":7}}\n\n"
     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
 
+// A reply that asks for a tool: the page's text.
+constexpr char kToolReply[] =
+    "event: message_start\n"
+    "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_2\","
+    "\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}}\n\n"
+    "event: content_block_start\n"
+    "data: {\"type\":\"content_block_start\",\"index\":0,"
+    "\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\","
+    "\"name\":\"get_page_text\",\"input\":{}}}\n\n"
+    "event: content_block_delta\n"
+    "data: {\"type\":\"content_block_delta\",\"index\":0,"
+    "\"delta\":{\"type\":\"input_json_delta\","
+    "\"partial_json\":\"{\\\"max_chars\\\": 2000}\"}}\n\n"
+    "event: content_block_stop\n"
+    "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n"
+    "event: message_delta\n"
+    "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":"
+    "\"tool_use\"}}\n\n"
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
+
 constexpr char kRoot[] =
     "document.querySelector('compass-claude-chat-app').shadowRoot";
 
@@ -90,21 +111,32 @@ class ClaudePanelBrowserTest : public InProcessBrowserTest {
     if (request.relative_url != "/v1/messages") {
       return nullptr;
     }
+    bool wants_tool = false;
     {
       base::AutoLock lock(lock_);
       last_body_ = request.content;
+      bodies_.push_back(request.content);
+      // "Use a tool" asks for one, until its result comes back.
+      wants_tool =
+          request.content.find("Use a tool") != std::string::npos &&
+          request.content.find("tool_result") == std::string::npos;
       const auto key = request.headers.find("x-api-key");
       last_key_ = key != request.headers.end() ? key->second : "";
     }
     response->set_code(net::HTTP_OK);
     response->set_content_type("text/event-stream");
-    response->set_content(kReply);
+    response->set_content(wants_tool ? kToolReply : kReply);
     return response;
   }
 
   std::string LastBody() {
     base::AutoLock lock(lock_);
     return last_body_;
+  }
+
+  std::vector<std::string> Bodies() {
+    base::AutoLock lock(lock_);
+    return bodies_;
   }
 
   std::string LastKey() {
@@ -161,6 +193,7 @@ class ClaudePanelBrowserTest : public InProcessBrowserTest {
 
   base::Lock lock_;
   std::string last_body_;
+  std::vector<std::string> bodies_;
   std::string last_key_;
 };
 
@@ -271,6 +304,63 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AskOpensAndSends) {
       base::JSONReader::ReadDict(LastBody(), base::JSON_PARSE_RFC);
   ASSERT_TRUE(body);
   EXPECT_EQ(body->FindList("messages")->size(), 3u);
+}
+
+// The agent loop: a tool_use reply runs the tool in the browser and sends
+// its result back, then the final reply shows. docs/design/claude.md, D4.
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsToolsAndSendsResults) {
+  SetUpClaude();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/page.html")));
+  content::WebContents* contents = Open();
+  ASSERT_TRUE(contents);
+  ASSERT_TRUE(content::ExecJs(contents, std::string("const root = ") + kRoot +
+                                            R"(;
+      root.querySelector('#attach').click();  // Not attached: use the tool.
+      const input = root.querySelector('#input');
+      input.value = 'Use a tool to read the page.';
+      input.dispatchEvent(new InputEvent('input'));
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}));)"));
+
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return TurnText(contents, "assistant", ".markdown") ==
+           "Hello from the fake API.";
+  }));
+  const std::vector<std::string> bodies = Bodies();
+  ASSERT_EQ(bodies.size(), 2u);
+  // The first request offers the tools.
+  std::optional<base::DictValue> first =
+      base::JSONReader::ReadDict(bodies[0], base::JSON_PARSE_RFC);
+  ASSERT_TRUE(first);
+  EXPECT_FALSE(first->FindList("tools")->empty());
+  // The second: Claude's tool_use, then the browser's result, with the
+  // page's text.
+  std::optional<base::DictValue> second =
+      base::JSONReader::ReadDict(bodies[1], base::JSON_PARSE_RFC);
+  ASSERT_TRUE(second);
+  const base::ListValue& messages = *second->FindList("messages");
+  ASSERT_EQ(messages.size(), 3u);
+  const base::DictValue& use =
+      (*messages[1].GetDict().FindList("content"))[0].GetDict();
+  EXPECT_EQ(*use.FindString("type"), "tool_use");
+  EXPECT_EQ(*use.FindIntByDottedPath("input.max_chars"), 2000);
+  const base::DictValue& result =
+      (*messages[2].GetDict().FindList("content"))[0].GetDict();
+  EXPECT_EQ(*result.FindString("type"), "tool_result");
+  EXPECT_EQ(*result.FindString("tool_use_id"), "toolu_1");
+  EXPECT_EQ(result.FindBool("is_error"), false);
+  const std::string& text =
+      *(*result.FindList("content"))[0].GetDict().FindString("text");
+  EXPECT_NE(text.find("The quick brown fox"), std::string::npos);
+
+  // The tool's row shows in the reply.
+  EXPECT_EQ(content::EvalJs(contents, std::string("[...") + kRoot +
+                                          ".querySelectorAll("
+                                          "'compass-claude-turn')].map(t => "
+                                          "t.shadowRoot.querySelector("
+                                          "'.tool-label')?.textContent)"
+                                          ".filter(Boolean).join()"),
+            "Read the page's text");
 }
 
 }  // namespace

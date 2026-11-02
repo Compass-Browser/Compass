@@ -24,6 +24,9 @@ export interface ContentBlock {
 
 export interface UserTurn {
   role: 'user';
+  // The tools' results going back to Claude, not shown as a message (the
+  // tool rows of the reply before show them).
+  tools?: boolean;
   // What the user typed.
   text: string;
   // The page attached to it, if any.
@@ -43,6 +46,20 @@ export interface AssistantTurn {
 }
 
 export type Turn = UserTurn|AssistantTurn;
+
+// A tool call's state, as its row in the reply shows it.
+export interface ToolView {
+  running: boolean;
+  isError?: boolean;
+  // The result's text.
+  text?: string;
+  // A screenshot, as a data: URL.
+  image?: string;
+}
+
+// How many screenshots the request keeps; older ones are replaced by a note
+// (each costs about 1,200 tokens, and only recent ones matter).
+const MAX_SCREENSHOTS = 2;
 
 // The fields of a streamed event the conversation reads.
 interface StreamEvent {
@@ -68,29 +85,102 @@ export function pageBlock(
       truncated ? ' truncated="true"' : ''}>\n${text}\n</page>`;
 }
 
+// Replaces all but the last MAX_SCREENSHOTS images in tool results with a
+// note. The stored conversation keeps them, for the panel.
+function pruneScreenshots(
+    messages: Array<{role: string, content: ContentBlock[]}>) {
+  let kept = 0;
+  for (let m = messages.length - 1; m >= 0; m--) {
+    const message = messages[m]!;
+    if (message.role !== 'user') {
+      continue;
+    }
+    message.content = message.content.map(block => {
+      if (block.type !== 'tool_result' || !Array.isArray(block['content'])) {
+        return block;
+      }
+      const inner = block['content'] as ContentBlock[];
+      if (!inner.some(b => b.type === 'image')) {
+        return block;
+      }
+      if (kept < MAX_SCREENSHOTS) {
+        kept++;
+        return block;
+      }
+      return {
+        ...block,
+        content: inner.map(
+            b => b.type === 'image' ?
+                {type: 'text', text: '(An earlier screenshot, removed.)'} :
+                b),
+      };
+    });
+  }
+  return messages;
+}
+
 export class Conversation {
   turns: Turn[] = [];
+  // Each tool call's state, by tool_use id.
+  tools = new Map<string, ToolView>();
   // Partial JSON of streaming tool_use blocks, by index.
   private partialJson_ = new Map<number, string>();
 
   clear() {
     this.turns = [];
+    this.tools.clear();
     this.partialJson_.clear();
+  }
+
+  setTool(id: string, view: ToolView) {
+    this.tools.set(id, view);
+  }
+
+  addToolResults(results: ContentBlock[]) {
+    this.turns.push({role: 'user', tools: true, text: '', content: results});
+  }
+
+  // The tool calls of the last reply that have no result (stopped, or the
+  // reply failed): each gets one, or the API refuses the next request.
+  closeOpenTools(why: string) {
+    const last = this.turns[this.turns.length - 1];
+    if (last?.role !== 'assistant') {
+      return;
+    }
+    const open = last.content.filter(
+        block => block.type === 'tool_use' && block.id);
+    if (!open.length) {
+      return;
+    }
+    this.addToolResults(open.map(block => {
+      const view = this.tools.get(block.id!);
+      if (!view || view.running) {
+        this.tools.set(block.id!, {running: false, isError: true, text: why});
+      }
+      return {
+        type: 'tool_result',
+        tool_use_id: block.id,
+        content: [{type: 'text', text: why}],
+        is_error: true,
+      };
+    }));
   }
 
   addUser(turn: UserTurn) {
     this.turns.push(turn);
   }
 
-  // The messages to send: the conversation without failed exchanges (a
-  // reply that failed, and the message it answered).
+  // The messages to send: the conversation without failed replies, and
+  // without a message whose reply failed (it's sent again on Retry).
+  // Consecutive user turns (tool results, then a new message) are one
+  // message. Only the latest screenshots stay.
   messages(): Array<{role: string, content: ContentBlock[]}> {
     const messages: Array<{role: string, content: ContentBlock[]}> = [];
     for (let i = 0; i < this.turns.length; i++) {
       const turn = this.turns[i]!;
       const next = this.turns[i + 1];
-      if (turn.role === 'user' && next?.role === 'assistant' && next.error &&
-          !next.content.length) {
+      if (turn.role === 'user' && !turn.tools && next?.role === 'assistant' &&
+          next.error && !next.content.length) {
         i++;
         continue;
       }
@@ -106,9 +196,14 @@ export class Conversation {
       if (!content.length) {
         continue;
       }
-      messages.push({role: turn.role, content});
+      const previous = messages[messages.length - 1];
+      if (previous?.role === turn.role) {
+        previous.content = [...previous.content, ...content];
+      } else {
+        messages.push({role: turn.role, content});
+      }
     }
-    return messages;
+    return pruneScreenshots(messages);
   }
 
   get streamingTurn(): AssistantTurn|null {

@@ -49,6 +49,12 @@ source_set("claude") {
     "claude_credentials.h",
     "claude_request.cc",
     "claude_request.h",
+    "claude_tools.cc",
+    "claude_tools.h",
+    "devtools_session.cc",
+    "devtools_session.h",
+    "key_events.cc",
+    "key_events.h",
     "page_reader.cc",
     "page_reader.h",
     "sse_parser.cc",
@@ -73,6 +79,9 @@ source_set("claude") {
     "//net",
     "//net/traffic_annotation",
     "//services/network/public/mojom",
+    "//third_party/re2",
+    "//ui/base",
+    "//ui/gfx/geometry",
   ]
 }
 
@@ -81,6 +90,7 @@ source_set("unit_tests") {
   sources = [
     "claude_api_unittest.cc",
     "claude_request_unittest.cc",
+    "key_events_unittest.cc",
     "sse_parser_unittest.cc",
   ]
   deps = [
@@ -90,5 +100,25 @@ source_set("unit_tests") {
     "//net",
     "//testing/gtest",
     "//url",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "claude_tools_browsertest.cc" ]
+  deps = [
+    ":claude",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/ui",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//net:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/base",
   ]
 }

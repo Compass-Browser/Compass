@@ -11,7 +11,7 @@ struct Setup {
   bool browser_scope;
 };
 
-// The tab the chat is about.
+// The tab the chat is about, or the one Claude is acting on.
 struct ActivePage {
   string url;
   string title;
@@ -46,7 +46,14 @@ interface PageHandler {
   // Page.OnStreamDone(). The browser sets the model, the system prompt and
   // the rest of the request. A Send while a reply streams replaces it.
   Send(string messages_json);
-  // Stops the reply; no OnStreamDone follows.
+  // The user sent a message: Claude's tools act on the active tab from now
+  // on, until the next message, even if the user switches tabs.
+  StartTask();
+  // Runs one of Claude's tools (common/claude/tools.json) on the task's
+  // tab. |input_json| is the tool_use's input; |result_json| is
+  // {"content": [blocks], "is_error": bool}, the tool_result's.
+  RunTool(string name, string input_json) => (string result_json);
+  // Stops the reply and any tool; no OnStreamDone follows.
   Stop();
   OpenSettings();
   // A link in a reply: opens in a new tab (http and https only).

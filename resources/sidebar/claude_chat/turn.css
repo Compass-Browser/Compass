@@ -172,6 +172,74 @@ button {
   white-space: pre-wrap;
 }
 
+.tool {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  margin: 0 0 6px;
+}
+
+.tool summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  padding: 4px 8px;
+}
+
+.tool summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Done: a check; running: a pulse; failed: a cross. */
+.tool-state {
+  border-radius: 50%;
+  flex: none;
+  height: 7px;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  width: 7px;
+}
+
+.tool[running] .tool-state {
+  animation: pulse 1.2s infinite ease-in-out;
+  background: #d97757;
+}
+
+.tool[error] .tool-state {
+  background: var(--color-sys-error, #b3261e);
+}
+
+.tool-input,
+.tool-result {
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool[error] .tool-result {
+  color: var(--color-sys-error, #b3261e);
+}
+
+.shot {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: block;
+  margin: 0 0 8px;
+  max-width: 100%;
+}
+
 .pending {
   display: flex;
   gap: 4px;
