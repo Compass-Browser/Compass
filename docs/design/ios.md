@@ -506,6 +506,31 @@ The user asked for web extensions on the phone. WebKit's `WKWebExtension` API (i
 - **App Review.** Guideline 2.5.2 bars downloading code that changes the app. Extensions only run in web content, as in Orion, which ships Chrome and Firefox extensions on the App Store, but TestFlight external review may ask.
 - **Checked (simulator, iPhone 18 Pro, iOS 27.1):** a test MV3 extension with a service worker (content script, `runtime.sendMessage` reply with `sender.tab`, `tabs.create`, `storage`, `action.setBadgeText` showing on the menu button), Dark Reader from the Chrome Web Store (pages go dark; its popup works and shows the current site), uBlock Origin Lite (module worker starts). Debug launch args: `-CompassAddExtension <link, ID or /path.zip>` adds without the sheet (`-CompassExtensionSheet YES` stops at it), `-CompassExtensionAction <n>` taps the menu's nth extension after 8 s.
 
+### System extensions, 2026-11-02
+
+Branch `ios/system-extensions`. Everything goes through the App Group `group.it.cipi1965.compass`, which the app, Share, Widgets and SafariOpen are entitled to:
+
+- **CompassShared** (CompassKit). `Snapshot.json` is the spaces as the extensions see them: style, glyph, favorites, Pinned tabs and folders, Today newest first, at most 16 entries a list, plus other devices' tabs. `Inbox/` holds one JSON file per request (open, or pin to a space or folder). `Focus.json` is the Focus filter's space. `Icons/<host>.png` are copies of the favicons. `DeepLink` covers `compass://open|node|space|search|new|inbox|downloads`.
+- **App** (`App/System/`).
+  - SystemBridge writes the snapshot a second after a change, then reloads the widgets, Spotlight and the icon menu.
+  - It drains the Inbox at launch, when the app comes to the front, and on the Darwin notification `it.cipi1965.compass.shared-changed`.
+- **Share** asks Open or Add to Pinned, then the space and the folder. Open then calls the host app's `openURL:` by selector to bring Compass up; if that doesn't work, the request waits for the next launch.
+- **Widgets** (with `Shared/`):
+  - Space (S/M/L), Today (M/L), Quick Actions (S plus Lock Screen circular, rectangular and inline), Other Devices (M/L);
+  - the New Tab control (iOS 18);
+  - the download Live Activity. It shows "paused" when the app goes to the background, because WebKit downloads stop there.
+  - Small widgets use `OpenLinkIntent` buttons, since they don't support links.
+- **Focus filter** (`CompassFocusFilter`): the space shown while that Focus is on, optionally the only one in the sidebar.
+- **Spotlight**: favorites and Pinned entries, with the node ID as the item ID. Off with Settings → Show in Spotlight.
+- **Icon menu**: New Tab, Search and the 3 most recent spaces.
+- **SafariOpen**: a Safari web extension (popup) with Open, or Pin to a space. It writes to the Inbox, then sends the tab to `compass://inbox`.
+- **Shortcuts** (app only, run in the app's process): Add to Space (Pinned or Today), Open URL in Space, Get Pinned Tabs, Get Today Tabs (tabs and folders, each with its folder path) and Get Spaces. There are no Siri phrases yet (`AppShortcutsProvider`).
+- **Checked:**
+  - In the simulator: the snapshot is in the App Group; Inbox pin and open work at launch and live through the Darwin notification; icons are copied.
+  - On the iPhone: a signed install with the group on every target.
+  - Still to check on the device: the widgets, the share sheet's direct open, the Focus filter, Spotlight, the Live Activity and the Safari extension.
+- **Open:** downloads that go on in the background would need a background `URLSession`.
+
 ## Open items
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
