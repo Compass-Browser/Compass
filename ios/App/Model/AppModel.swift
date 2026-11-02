@@ -19,10 +19,13 @@ final class AppModel {
   let siteSettings: SiteSettings
   let contentBlocking = ContentBlocking()
   let downloads = Downloads()
+  let extensions: WebExtensions
   let directory: URL
 
-  /// The space the sidebar shows.
-  var selectedSpaceID: String?
+  /// The space the sidebar shows (to extensions, the focused window).
+  var selectedSpaceID: String? {
+    didSet { if let id = selectedSpaceID, id != oldValue { extensions.spaceFocused(id) } }
+  }
   /// The entry the browser shows; nil = an empty page.
   var selectedNodeID: String?
   /// The sidebar, a bottom sheet over the browser. Up at launch.
@@ -79,12 +82,15 @@ final class AppModel {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
     siteSettings = SiteSettings(directory: directory)
+    extensions = WebExtensions(directory: directory)
     tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
     selectedSpaceID = store.spaces.first?.id
     tabs.downloads = downloads
+    tabs.extensions = extensions
+    extensions.app = self
     contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
     Task { [contentBlocking] in await contentBlocking.refresh() }
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
@@ -132,6 +138,35 @@ final class AppModel {
       }
       //   -CompassOpenLink <url>: as a link from another app.
       if let link = defaults.string(forKey: "CompassOpenLink").flatMap(URL.init(string:)) { openLink(link) }
+      //   -CompassAddExtension <store link or ID>: add it, as "Add"
+      //   would, without the sheet (docs/design/ios.md, "Web extensions").
+      //   A path (starting with /) adds a package file.
+      if let link = defaults.string(forKey: "CompassAddExtension") {
+        Task { [weak self] in
+          guard let self else { return }
+          if link.hasPrefix("/") {
+            await self.extensions.fetch(file: URL(fileURLWithPath: link))
+          } else if let source = ExtensionSource(link) {
+            await self.extensions.fetch(source)
+          }
+          // -CompassExtensionSheet YES: stop at the install sheet.
+          if self.extensions.pending != nil, !defaults.bool(forKey: "CompassExtensionSheet") {
+            await self.extensions.confirmPending()
+            Presenter.dismissTop()
+          }
+          if let error = self.extensions.installError { print("CompassAddExtension: \(error)") }
+        }
+      }
+      //   -CompassExtensionAction <n>: after 8 s, tap the menu's nth
+      //   extension button (its popup comes up).
+      if #available(iOS 18.4, *), let index = defaults.object(forKey: "CompassExtensionAction").flatMap({ Int("\($0)") }) {
+        Task { [weak self] in
+          try? await Task.sleep(for: .seconds(8))
+          guard let self else { return }
+          let actions = self.extensions.actions(forTab: self.shownTab?.id)
+          if index < actions.count { self.extensions.performAction(actions[index].record.id, tab: self.shownTab?.id) }
+        }
+      }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
       //   -CompassSidebarDrag <0...1>: hold the sidebar there, as under a
@@ -276,7 +311,8 @@ final class AppModel {
     }
     if let space = store.space(of: node) { selectedSpaceID = space.id }
     // Its card in the tab picker shows the page as it was left.
-    if let shown = shownTab, shown !== node { tabs.snapshot(shown.id) }
+    let previous = shownTab
+    if let shown = previous, shown !== node { tabs.snapshot(shown.id) }
     if let split = node.parent, split.isSplit {
       selectedNodeID = split.id
       selectedPane = split.children.firstIndex { $0 === node } ?? 0
@@ -285,6 +321,7 @@ final class AppModel {
       selectedPane = 0
     }
     store.touch(node)
+    if previous !== node, node.isTab { extensions.tabActivated(node.id, previous: previous?.id) }
     setBarCollapsed(false)
     showingCommandBar = false
     showingSidebar = false
@@ -352,6 +389,7 @@ final class AppModel {
       let tab = store.addTab(url: url.absoluteString, to: space.today)
     else { return }
     selectedSpaceID = space.id
+    extensions.tabOpened(tab.id)
     show(tab)
   }
 
@@ -364,6 +402,7 @@ final class AppModel {
       return
     }
     guard let space = selectedSpace, let tab = store.addTab(url: url, to: space.today) else { return }
+    extensions.tabOpened(tab.id)
     show(tab)
   }
 
@@ -459,7 +498,10 @@ final class AppModel {
 
   func close(_ node: SidebarNode) {
     if selectedNodeID == node.id { selectedNodeID = nil }
-    for tab in node.tabs { tabs.unload(tab.id) }
+    for tab in node.tabs {
+      tabs.unload(tab.id)
+      extensions.tabClosed(tab.id)
+    }
     store.remove(node)
   }
 }

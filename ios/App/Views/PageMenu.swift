@@ -48,6 +48,9 @@ struct PageMenu: View {
         WideButton(title: "Downloads", symbol: "arrow.down.circle", badge: downloadsBadge) { showingDownloads = true }
         WideButton(title: "Archive", symbol: "archivebox") { showingArchive = true }
       }
+      if #available(iOS 18.4, *) {
+        ExtensionBar(tab: tab?.id, page: view?.url ?? tab.flatMap { URL(string: $0.url) })
+      }
       Card {
         Row(title: "Site Settings", subtitle: site ?? "No page", trailing: "chevron.right",
             action: { app.showingSiteSettings = true }) {
@@ -72,7 +75,7 @@ struct PageMenu: View {
     .frame(maxHeight: .infinity, alignment: .top)
     .background(SpaceTint(theme: app.selectedSpace?.theme ?? .blue))
     .spaceAppearance(app.selectedSpace?.theme)
-    .presentationDetents([.height(404)])
+    .presentationDetents([.height(404 + extensionsHeight(tab, view))])
     .presentationDragIndicator(.visible)
     .sheet(isPresented: Binding(get: { app.showingSiteSettings }, set: { app.showingSiteSettings = $0 })) {
       SiteSettingsView(site: site)
@@ -83,6 +86,11 @@ struct PageMenu: View {
       }
     }
     .sheet(isPresented: $showingArchive) { ArchiveView(space: nil) }
+  }
+
+  private func extensionsHeight(_ tab: SidebarNode?, _ view: WKWebView?) -> CGFloat {
+    guard #available(iOS 18.4, *) else { return 0 }
+    return ExtensionBar.height(app, tab: tab?.id, page: view?.url ?? tab.flatMap { URL(string: $0.url) })
   }
 
   /// Running downloads, as a count on the Downloads button.
@@ -245,5 +253,87 @@ private struct WideButton: View {
     }
     .buttonStyle(TileStyle())
     .accessibilityLabel(title)
+  }
+}
+
+/// The page menu's extensions: "Add to Compass" on a store's extension
+/// page, and a button for each running extension's action (its icon and
+/// badge). A tap closes the menu and runs it: its popup comes up as a
+/// sheet, or its click goes to the page.
+@available(iOS 18.4, *)
+struct ExtensionBar: View {
+  @Environment(AppModel.self) private var app
+  @Environment(\.dismiss) private var dismiss
+  let tab: String?
+  let page: URL?
+
+  /// The height it adds to the menu.
+  static func height(_ app: AppModel, tab: String?, page: URL?) -> CGFloat {
+    (storeSource(page) != nil ? 64 : 0) + (app.extensions.actions(forTab: tab).isEmpty ? 0 : 64)
+  }
+
+  static func storeSource(_ page: URL?) -> ExtensionSource? {
+    guard let page, let source = ExtensionSource(page.absoluteString) else { return nil }
+    return source
+  }
+
+  var body: some View {
+    let actions = app.extensions.actions(forTab: tab)
+    if let source = Self.storeSource(page) {
+      Button {
+        Task { await app.extensions.fetch(source) }
+      } label: {
+        HStack(spacing: 8) {
+          if app.extensions.fetching {
+            ProgressView()
+          } else {
+            Image(systemName: "puzzlepiece.extension.fill").font(.system(size: 17, weight: .medium))
+          }
+          Text(app.extensions.records.contains { $0.source == source } ? "Update in Compass" : "Add to Compass")
+            .font(.body.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 50)
+        .background(Color.accentColor, in: Capsule())
+      }
+      .buttonStyle(.plain)
+      .disabled(app.extensions.fetching)
+      .accessibilityIdentifier("AddToCompass")
+    }
+    if !actions.isEmpty {
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 10) {
+          ForEach(actions, id: \.record.id) { record, action in
+            Button {
+              dismiss()
+              // Once the menu is gone, so its popup has somewhere to go.
+              Task {
+                try? await Task.sleep(for: .milliseconds(action.presentsPopup ? 450 : 0))
+                app.extensions.performAction(record.id, tab: tab)
+              }
+            } label: {
+              ExtensionIcon(image: action.icon(for: CGSize(width: 28, height: 28)), size: 28)
+                .opacity(action.isEnabled ? 1 : 0.4)
+                .frame(width: 50, height: 50)
+                .background(cardFill, in: Circle())
+                .overlay(alignment: .topTrailing) {
+                  if !action.badgeText.isEmpty {
+                    Text(action.badgeText)
+                      .font(.system(size: 10, weight: .bold))
+                      .foregroundStyle(.white)
+                      .padding(.horizontal, 4)
+                      .frame(minWidth: 18, minHeight: 18)
+                      .background(Color.red, in: Capsule())
+                  }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(action.label)
+          }
+        }
+      }
+      .frame(height: 54)
+    }
   }
 }

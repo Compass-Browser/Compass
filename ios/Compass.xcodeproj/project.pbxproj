@@ -10,6 +10,7 @@
 		00A6BE257AB3E0E63D12E8FB /* TabPickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */; };
 		017915037F4DAC4C17921D93 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00421F26DEF62FA9775146B /* Theme.swift */; };
 		02D9974025C6C07737B94B93 /* SidebarPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */; };
+		0D43D327D6BB8094F0C4FF17 /* WebExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */; };
 		0D76BE83326730393C9D18BE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19E94079AACC148BDF33673 /* Keychain.swift */; };
 		0E02B88F8146B47E7AD85278 /* PageMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8F914BD392DD404C347B1D /* PageMenu.swift */; };
 		1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32AD0FC2A4DD49EA6D182F11 /* WebView.swift */; };
@@ -19,6 +20,7 @@
 		3B957538A2B525C251B71495 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */; };
 		4968D00362621422D48BCA8B /* CommandBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56591060B5711506971F138C /* CommandBar.swift */; };
 		55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E455C53F4AADF06D3632F37 /* QRScannerView.swift */; };
+		5AC1A706D95C031010B18D6F /* ExtensionTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */; };
 		5C6419DC7D700689132E42F4 /* TabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F222E653F398E0E5BA8C9748 /* TabPicker.swift */; };
 		61F53E6DCCDA62783431CF91 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		64E325502103288EB0F1FDA9 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */; };
@@ -31,17 +33,20 @@
 		86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEA337DD801A959B39B43F /* SyncController.swift */; };
 		8DAFAAAC75CDF3AB68D09D02 /* DownloadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D248EE47245F87391C4DDC09 /* DownloadsTests.swift */; };
 		8E292FD1B0506116F383F4DC /* ThemeEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */; };
+		9063D67CA8F47F572E0DFE97 /* ExtensionPackage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */; };
+		90D15113F681839FCF937BF2 /* ExtensionSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7886E54D0165384982BAE56C /* ExtensionSource.swift */; };
 		90E62600DBC31089EED9F6D5 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9916DE7F5FD4040F40A90C /* CompassSync */; };
 		91D855F27AF48E31EE21A8D2 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C104F34AF154CFDADE0CE18 /* Downloads.swift */; };
 		92E78CB5FCC5B40329F43E09 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */; };
 		9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */; };
 		A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */; };
+		A8E98B9899DF4E681513407F /* ExtensionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB9E782B7E6520842234F5D /* ExtensionsView.swift */; };
 		AB4A065A118291BDC5BCE374 /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8869F83B348CDAA446122C7 /* DownloadsView.swift */; };
 		AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC2CC0BF44F21272D32F82C /* TabManager.swift */; };
+		B0E7D6E9DB1DD467DBCB05D1 /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 68962AF385D22698AEE17776 /* Compass.icon */; };
 		B1DF018F14113ACC2CC3B06C /* SwipeTabsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */; };
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		BC4149FED3CDEE2BAD4F8D46 /* DesktopViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44957DA68D5128D0EA074A29 /* DesktopViewport.swift */; };
-		C0BD671E658A7208DC60961E /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5BEABA7BC320887A692FA4D5 /* Compass.icon */; };
 		C50098134F965E6A549044FE /* CompassCrypto in Frameworks */ = {isa = PBXBuildFile; productRef = 6CF1BD16AA45CC47E4C07023 /* CompassCrypto */; };
 		D046A20E1300E3C323FEDA9C /* DataViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41B59BC81621FE63D557277 /* DataViews.swift */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassModel in Frameworks */ = {isa = PBXBuildFile; productRef = 8529FEBC80A94CC60F3F9BC7 /* CompassModel */; };
@@ -91,6 +96,7 @@
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1BD1561E3D74DB1D613CF34A /* Compass.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Compass.entitlements; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1EB9E782B7E6520842234F5D /* ExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsView.swift; sourceTree = "<group>"; };
 		267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
 		274CFEB2D09654A821D49C1C /* CompassUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CompassUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		29EEA337DD801A959B39B43F /* SyncController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncController.swift; sourceTree = "<group>"; };
@@ -105,18 +111,21 @@
 		4D6DFD0447538D43874857BE /* SidebarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPanel.swift; sourceTree = "<group>"; };
 		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
-		5BEABA7BC320887A692FA4D5 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
+		61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensions.swift; sourceTree = "<group>"; };
 		624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenuTests.swift; sourceTree = "<group>"; };
 		630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPickerTests.swift; sourceTree = "<group>"; };
 		63E181E09464F119B3A59058 /* SiteSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteSettingsView.swift; sourceTree = "<group>"; };
 		65277AB39215D86443B8364F /* ThemeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeEditor.swift; sourceTree = "<group>"; };
 		6794D1252E649F6B927EAEF2 /* SearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEngine.swift; sourceTree = "<group>"; };
+		68962AF385D22698AEE17776 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		726541D9BE66CA543B0C251A /* CollapseBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapseBarTests.swift; sourceTree = "<group>"; };
 		73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarScreen.swift; sourceTree = "<group>"; };
+		7886E54D0165384982BAE56C /* ExtensionSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSource.swift; sourceTree = "<group>"; };
 		79254E7DBBF744D531F94471 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		79AFBB3C9E75698CE02F2A10 /* CompassKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CompassKit; path = CompassKit; sourceTree = SOURCE_ROOT; };
 		7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPanelTests.swift; sourceTree = "<group>"; };
 		7E7EB3C486245AA52EAADF2F /* AutoFill.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AutoFill.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackage.swift; sourceTree = "<group>"; };
 		99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		A41B59BC81621FE63D557277 /* DataViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViews.swift; sourceTree = "<group>"; };
@@ -128,6 +137,7 @@
 		CF8F914BD392DD404C347B1D /* PageMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenu.swift; sourceTree = "<group>"; };
 		D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlocking.swift; sourceTree = "<group>"; };
 		D19E94079AACC148BDF33673 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionTabs.swift; sourceTree = "<group>"; };
 		D248EE47245F87391C4DDC09 /* DownloadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTests.swift; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -161,15 +171,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		020DB548E91712182E5354E6 /* compass */ = {
-			isa = PBXGroup;
-			children = (
-				6CEAA10D12A16F57BDBB4C52 /* assets */,
-			);
-			name = compass;
-			path = ..;
-			sourceTree = "<group>";
-		};
 		2327E145F8CF5C840AC1DCA3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -200,6 +201,7 @@
 				56591060B5711506971F138C /* CommandBar.swift */,
 				A41B59BC81621FE63D557277 /* DataViews.swift */,
 				C8869F83B348CDAA446122C7 /* DownloadsView.swift */,
+				1EB9E782B7E6520842234F5D /* ExtensionsView.swift */,
 				CF8F914BD392DD404C347B1D /* PageMenu.swift */,
 				4E455C53F4AADF06D3632F37 /* QRScannerView.swift */,
 				79254E7DBBF744D531F94471 /* SettingsView.swift */,
@@ -213,10 +215,10 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		6CEAA10D12A16F57BDBB4C52 /* assets */ = {
+		62572DA0F5ADD11BC6030FB0 /* assets */ = {
 			isa = PBXGroup;
 			children = (
-				5BEABA7BC320887A692FA4D5 /* Compass.icon */,
+				68962AF385D22698AEE17776 /* Compass.icon */,
 			);
 			path = assets;
 			sourceTree = "<group>";
@@ -229,6 +231,17 @@
 				F4A5EB9B8FCF536C41FE6951 /* Info.plist */,
 			);
 			path = AutoFill;
+			sourceTree = "<group>";
+		};
+		B469E0DBFCE48FC1538DAAE7 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */,
+				7886E54D0165384982BAE56C /* ExtensionSource.swift */,
+				D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */,
+				61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */,
+			);
+			path = Extensions;
 			sourceTree = "<group>";
 		};
 		B991DC56A32061AF58E7EA14 /* Passwords */ = {
@@ -249,6 +262,7 @@
 				0655D4DC672C6C26B715EF5E /* Info.plist */,
 				EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */,
 				D3B3BFB50B54351850942339 /* Browser */,
+				B469E0DBFCE48FC1538DAAE7 /* Extensions */,
 				D03B8DA0821794B8BA9FD4BF /* Model */,
 				B991DC56A32061AF58E7EA14 /* Passwords */,
 				545F210D9F92AE4122D22825 /* Views */,
@@ -261,12 +275,21 @@
 			children = (
 				BAFDAA6D2D195C0F32F9078B /* App */,
 				96595F1E9E11998FE879E9F7 /* AutoFill */,
-				020DB548E91712182E5354E6 /* compass */,
+				CC4F3E5262EA135D251AFC02 /* ios-ext */,
 				F402BF037897FEB15FFE5C17 /* Packages */,
 				4EDF2C416F9996DA147F9EFF /* UITests */,
 				2327E145F8CF5C840AC1DCA3 /* Frameworks */,
 				FB16DD71CBDF85F8C3F2A524 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		CC4F3E5262EA135D251AFC02 /* ios-ext */ = {
+			isa = PBXGroup;
+			children = (
+				62572DA0F5ADD11BC6030FB0 /* assets */,
+			);
+			name = "ios-ext";
+			path = ..;
 			sourceTree = "<group>";
 		};
 		D03B8DA0821794B8BA9FD4BF /* Model */ = {
@@ -431,7 +454,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */,
-				C0BD671E658A7208DC60961E /* Compass.icon in Resources */,
+				B0E7D6E9DB1DD467DBCB05D1 /* Compass.icon in Resources */,
 				9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -452,6 +475,10 @@
 				BC4149FED3CDEE2BAD4F8D46 /* DesktopViewport.swift in Sources */,
 				91D855F27AF48E31EE21A8D2 /* Downloads.swift in Sources */,
 				AB4A065A118291BDC5BCE374 /* DownloadsView.swift in Sources */,
+				9063D67CA8F47F572E0DFE97 /* ExtensionPackage.swift in Sources */,
+				90D15113F681839FCF937BF2 /* ExtensionSource.swift in Sources */,
+				5AC1A706D95C031010B18D6F /* ExtensionTabs.swift in Sources */,
+				A8E98B9899DF4E681513407F /* ExtensionsView.swift in Sources */,
 				77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */,
 				0D76BE83326730393C9D18BE /* Keychain.swift in Sources */,
 				0E02B88F8146B47E7AD85278 /* PageMenu.swift in Sources */,
@@ -469,6 +496,7 @@
 				5C6419DC7D700689132E42F4 /* TabPicker.swift in Sources */,
 				017915037F4DAC4C17921D93 /* Theme.swift in Sources */,
 				DFB02BF326D4B44B34C55AF8 /* ThemeEditor.swift in Sources */,
+				0D43D327D6BB8094F0C4FF17 /* WebExtensions.swift in Sources */,
 				1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

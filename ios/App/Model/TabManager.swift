@@ -33,6 +33,9 @@ final class TabManager: NSObject {
   private let contentBlocking: ContentBlocking
   /// Where downloads go (set by AppModel).
   var downloads: Downloads?
+  /// Web extensions: every tab's web view is attached to them (set by
+  /// AppModel).
+  @ObservationIgnored var extensions: WebExtensions?
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
@@ -100,7 +103,9 @@ final class TabManager: NSObject {
     configuration.userContentController.addUserScript(DesktopViewport.script)
     configuration.userContentController.add(
       MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
-    let view = WKWebView(frame: .zero, configuration: configuration)
+    let view = WKWebView(
+      frame: .zero,
+      configuration: extensions?.configure(configuration, for: URL(string: node.url)) ?? configuration)
     view.allowsBackForwardNavigationGestures = true
     view.isFindInteractionEnabled = true
     applyContentBlocking(view, site: SiteSettings.site(URL(string: node.url)))
@@ -118,13 +123,22 @@ final class TabManager: NSObject {
   private func observe(_ view: WKWebView, as id: String) {
     observations[id] = [
       view.observe(\.url, options: [.new]) { [weak self] view, _ in
-        Task { @MainActor in self?.changed(id, view) }
+        Task { @MainActor in
+          self?.changed(id, view)
+          self?.extensions?.tabChanged(id, url: true)
+        }
       },
       view.observe(\.title, options: [.new]) { [weak self] view, _ in
-        Task { @MainActor in self?.changed(id, view) }
+        Task { @MainActor in
+          self?.changed(id, view)
+          self?.extensions?.tabChanged(id, title: true)
+        }
       },
       view.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
         Task { @MainActor in self?.revision += 1 }
+      },
+      view.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
+        Task { @MainActor in self?.extensions?.tabChanged(id, loading: true) }
       },
       // On the main thread, every frame of a scroll: no Task per call.
       view.scrollView.observe(\.contentOffset, options: [.old, .new]) { [weak self] scroll, change in

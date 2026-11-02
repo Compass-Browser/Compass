@@ -35,6 +35,17 @@ struct SettingsView: View {
           NavigationLink { PasswordsView() } label: {
             SettingsLabel("Passwords", "key.fill", .gray)
           }
+          if #available(iOS 18.4, *) {
+            NavigationLink { ExtensionsView() } label: {
+              HStack {
+                SettingsLabel("Extensions", "puzzlepiece.extension.fill", .green)
+                Spacer()
+                if !app.extensions.records.isEmpty {
+                  Text("\(app.extensions.records.filter(\.enabled).count)").foregroundStyle(.secondary)
+                }
+              }
+            }
+          }
         }
         Section {
           NavigationLink { ArchiveAfterPicker() } label: {
