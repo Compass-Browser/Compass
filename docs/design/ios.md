@@ -558,9 +558,12 @@ As on the desktop (picture-in-picture.md): leaving a tab whose video plays with 
 - Leaving the app: on the scene's active → inactive (picture-in-picture must start while the app is still on screen), and back on active. Pulling down Control Center does the same.
 - The window's "back to the page" button puts the video back inline, still playing: a user script reports that (`compassPiP`), and Compass shows the tab. Its close button pauses the video, so nothing happens.
 - `UIBackgroundModes` has `audio`, so the video keeps playing outside the app.
+- Not working on the phone yet (see Open items).
 - Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
 
 ## Open items
+
+- **Auto picture-in-picture doesn't work on the phone** (Matteo, TestFlight 20261102.1103). Unchecked guesses: on a tab switch the left tab's web view leaves the window before WebKit starts picture-in-picture (keep it attached, e.g. parked behind the page, until it starts); on leaving the app the request lands after the app went inactive (WebKit/AVKit wants it to start while active, or automatic from inline). Debug on the device with the log attached (Nuticast bridge works off the LAN).
 
 - **Start screen** (Matteo, 2026-11-02): a setting for what a launch shows, the sidebar or the last tab (main view).
 
