@@ -105,7 +105,10 @@ TabStripBridge* CompassPlaceholderUI::GetBridge() {
   BrowserWindowInterface* browser =
       tab ? tab->GetBrowserWindowInterface() : nullptr;
   WindowFeatures* features = browser ? WindowFeatures::From(browser) : nullptr;
-  return features ? &features->tab_strip_bridge() : nullptr;
+  // None while the window switches spaces or after it swapped away.
+  return features && features->has_tab_strip_bridge()
+             ? &features->tab_strip_bridge()
+             : nullptr;
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(CompassPlaceholderUI)

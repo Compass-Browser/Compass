@@ -93,14 +93,32 @@ struct CompassApp: App {
 
 struct RootView: View {
   @Environment(AppModel.self) private var app
+  @Environment(\.horizontalSizeClass) private var sizeClass
+  static let columnWidth: CGFloat = 320
 
   var body: some View {
     @Bindable var app = app
     // The browser is always underneath; the sidebar and the tab picker are
     // panels over it (SidebarPanel, TabPicker), and the command bar and
-    // Settings are sheets over them.
-    BrowserScreen(node: app.selectedNode)
-      .overlay { SidebarPanel() }
+    // Settings are sheets over them. In a wide window (iPad) the sidebar is
+    // a column beside the browser instead, as on the desktop.
+    HStack(spacing: 0) {
+      if app.isWide, app.showingSidebarColumn {
+        SidebarScreen()
+          .frame(width: Self.columnWidth)
+          .background { SpaceTint(theme: app.selectedSpace?.theme ?? .blue).ignoresSafeArea() }
+          .spaceAppearance(app.selectedSpace?.theme)
+          .transition(.move(edge: .leading))
+      }
+      BrowserScreen(node: app.selectedNode)
+    }
+    .animation(.snappy(duration: 0.3), value: app.showingSidebarColumn)
+    // iPad only: a Max iPhone in landscape is regular width too, and keeps
+    // the phone's layout.
+    .onChange(of: sizeClass, initial: true) {
+      app.isWide = UIDevice.current.userInterfaceIdiom == .pad && sizeClass == .regular
+    }
+      .overlay { if !app.isWide { SidebarPanel() } }
       .overlay { TabPicker() }
       .sheet(isPresented: $app.showingCommandBar) {
         // A new tab, or the shown tab's address.

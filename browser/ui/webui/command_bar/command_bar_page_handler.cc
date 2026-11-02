@@ -347,7 +347,7 @@ CommandBarPageHandler::Item CommandBarPageHandler::MatchItem(
 }
 
 void CommandBarPageHandler::AddEntryItems(std::vector<Item>& items) {
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   if (!features) {
     return;
   }
@@ -382,7 +382,7 @@ void CommandBarPageHandler::AddEntryItems(std::vector<Item>& items) {
 }
 
 void CommandBarPageHandler::AddRecentTodayItems(std::vector<Item>& items) {
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   if (!features) {
     return;
   }
@@ -401,7 +401,7 @@ void CommandBarPageHandler::AddRecentTodayItems(std::vector<Item>& items) {
 CommandBarPageHandler::Item CommandBarPageHandler::EntryItem(
     const SidebarNode& node,
     const SpaceModel& space) {
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   const bool favorite = space.kind() == SpaceModel::Kind::kFavorites;
   const bool own_space = &features->space_model() == &space;
   const bool live = features->registry().GetTab(&node);
@@ -425,7 +425,7 @@ CommandBarPageHandler::Item CommandBarPageHandler::EntryItem(
 }
 
 void CommandBarPageHandler::AddSpaceItems(std::vector<Item>& items) {
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   if (!features) {
     return;
   }
@@ -593,7 +593,7 @@ void CommandBarPageHandler::LogMatch(const AutocompleteMatch& match,
 }
 
 void CommandBarPageHandler::AcceptEntry(const Item& item) {
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   if (!features) {
     return;
   }
@@ -611,6 +611,9 @@ void CommandBarPageHandler::AcceptEntry(const Item& item) {
   if (!node || node->type() != SidebarNode::Type::kTab) {
     return;
   }
+  if (!features->has_tab_strip_bridge()) {
+    return;
+  }
   if (tabs::TabInterface* tab = features->tab_strip_bridge().OpenNode(node)) {
     TabStripModel* model = browser_->GetTabStripModel();
     model->ActivateTabAt(model->GetIndexOfTab(tab));
@@ -618,7 +621,7 @@ void CommandBarPageHandler::AcceptEntry(const Item& item) {
 }
 
 void CommandBarPageHandler::AcceptSpace(const base::Uuid& space_id) {
-  if (!WindowFeatures::From(browser_)) {
+  if (!GetFeatures()) {
     return;
   }
   // Another profile's swaps the window.
@@ -641,7 +644,7 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
   if (!IsCommandAvailable(command)) {
     return;
   }
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   switch (command) {
     case CommandBarCommand::kNewSpace: {
       SpaceList& list = features->service().space_list();
@@ -720,7 +723,7 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
 
 bool CommandBarPageHandler::IsCommandAvailable(
     CommandBarCommand command) const {
-  WindowFeatures* features = WindowFeatures::From(browser_);
+  WindowFeatures *features = GetFeatures();
   switch (command) {
     case CommandBarCommand::kNewSpace:
       return features && !features->is_parking_window();
@@ -763,26 +766,27 @@ bool CommandBarPageHandler::IsCommandAvailable(
   }
 }
 
-SidebarNode* CommandBarPageHandler::GetActiveNode() const {
+WindowFeatures *CommandBarPageHandler::GetFeatures() const {
   WindowFeatures* features = WindowFeatures::From(browser_);
+  return features && !features->swapped_away() ? features : nullptr;
+}
+
+SidebarNode *CommandBarPageHandler::GetActiveNode() const {
+  WindowFeatures *features = GetFeatures();
   tabs::TabInterface* tab = browser_->GetActiveTabInterface();
-  if (!features || features->is_parking_window() || !tab) {
+  if (!features || features->is_parking_window() ||
+      !features->has_tab_strip_bridge() || !tab) {
     return nullptr;
   }
   return features->tab_strip_bridge().GetNode(tab);
 }
 
 bool CommandBarPageHandler::IsPinned(const SidebarNode& node) const {
-  return WindowFeatures::From(browser_)->space_model().pinned_root()->Contains(
-      &node);
+  return GetFeatures()->space_model().pinned_root()->Contains(&node);
 }
 
 bool CommandBarPageHandler::IsFavorite(const SidebarNode& node) const {
-  return WindowFeatures::From(browser_)
-      ->service()
-      .space_list()
-      .favorites()
-      .Contains(&node);
+  return GetFeatures()->service().space_list().favorites().Contains(&node);
 }
 
 }  // namespace compass

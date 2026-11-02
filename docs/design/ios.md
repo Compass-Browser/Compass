@@ -564,6 +564,23 @@ As on the desktop (picture-in-picture.md): leaving a tab whose video plays with 
 - Checked on the phone (2026-11-02): a tab switch moves the video to the window and back. Scroll-out (a debug probe scrolling a playing video's page): in the window within a second of scrolling it away, back inline and still playing after scrolling back. The window's own buttons after a scroll-out need a hand on the phone.
 - Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
 
+### Start screen, 2026-11-02
+
+Settings → On Launch (`StartScreen`, AppModel.swift): **Sidebar** (default: the sidebar over an empty page, as before) or **Last Tab** (the tab last shown, sidebar down, if it's still open: not closed or archived; else the sidebar). The shown tab and space are kept in `UserDefaults` (`LastShownTab`, `LastShownSpace`) as they change; a launch always opens on the space last shown. Checked: `StartScreenTests` (simulator: a page shown, the app sent home and ended, relaunched with each setting).
+
+### Status bar over pages, 2026-11-02
+
+Pages run under the status bar, but fixed and sticky elements (YouTube's header) went behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. The same at the bottom: `obscuredContentInsets.bottom` is the bar's measured inset (`BrowserScreen.barInset`: the bar or its collapsed pill, the save banner when it shows, and the home indicator), so fixed footers (YouTube's tab bar) sit above the bar; it follows the bar as it collapses. Splits on the phone sit under the pane picker and get 0 at the top. Checked in the simulator: m.youtube.com, and example.com with a fixed header and footer added (each ends at the status bar or the bar, and WebKit extends its color behind them).
+
+### iPad, 2026-11-02
+
+- The app (and its extensions) run on iPad (`TARGETED_DEVICE_FAMILY` 1,2; every orientation, for Split View and Stage Manager).
+- A wide window (iPad, regular width; `AppModel.isWide`, set by `RootView`; not a Max iPhone in landscape) has the desktop's layout: the sidebar (`SidebarScreen`) is a 320 pt column on the left, in the space's tint, beside the browser, instead of the bottom panel. The bar gets a sidebar button on its left that hides or shows the column (`showingSidebarColumn`); a swipe up on the bar's middle shows it. Narrow (Slide Over, a narrow Split View) is the phone's layout.
+- A split shows its panes side by side, each under a title strip; the front pane (`selectedPane`: the bar, address, back and forward act on it) is outlined in the space's accent, and a tap on a pane's strip brings it to the front.
+- Bar swipes between entries move by the page's width (measured), not the window's. `SidebarPanel`'s sizes are the window's, not the screen's.
+- Debug: `-CompassOpenURLs "<a> <b>" -CompassSplit YES` splits the last two tabs.
+- Checked on the iPad Air (2026-11-02, screenshots): the column with a page beside it, and a split of two pages side by side.
+
 ### Tabs sent from the desktop, 2026-11-02
 
 Design and the desktop and server parts: [send-tab.md](send-tab.md).
@@ -579,8 +596,6 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
 
 ## Open items
 
-- **Start screen** (Matteo, 2026-11-02): a setting for what a launch shows, the sidebar or the last tab (main view).
-
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
    Countdown ("Expires in m:ss", `sync/pairing-countdown`): MacBook run passed (2026-11-01), `CompassSyncPageHandlerTest.*` 15/15, 4:57 then 4:47 nine seconds later, red under 0:30, then "The code expired. Try again with a new code." with no QR.
 2. **Interop run against the desktop.** Pair the simulator, then a device, with a desktop Compass on sync-main. Check what the Swift tests can't:
@@ -595,7 +610,7 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
    - `compass ios archive` makes a Release archive with the build number set to the time (`YYYYMMDD.HHMM`) and exports `ios/build/archive/export/Compass.ipa`. `--upload` sends it to App Store Connect instead; `--api-key/--api-key-id/--api-issuer` sign with an API key when Xcode has no account. The first export worked with the Xcode account on the Mac mini.
    - Build 20261101.1125 is the first in TestFlight (2026-11-01). The two before it failed processing with ITMS-90129: "Compass" is taken as a bundle name, so the app is "Compass Browser". The app needs the AutoFill Credential Provider entitlement too, not only the extension, or App Store Connect refuses the upload. iOS lists Compass under Settings → Passwords → AutoFill.
 4. **Per-profile accounts against a real desktop.** Done in M8 against Swift clients that write what the desktop writes; the interop run (item 2) should include a two-profile Mac, a space moved between profiles on each side, and the phone in each profile's device list.
-5. **iPad.** A desktop-style sidebar next to the page, and splits side by side.
+5. **iPad, next.** Done (below, "iPad"); left: keyboard shortcuts (`commands`, web extensions too), a resizable column, dragging tabs between panes, and checking Stage Manager window sizes.
 6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.
 7. **Web extensions, next.** Try 1Password signed in on the phone (Face ID unlock included), a passkey saved and used on webauthn.io, and a link's long-press menu with an extension's items. `commands` (keyboard shortcuts) wait for iPad with a keyboard.
 8. **Background download limits** (plan.md, "iOS background downloads: limits left"): POST, `blob:` and `data:` downloads still pause in the background, and the server sees each download's request twice.

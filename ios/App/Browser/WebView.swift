@@ -10,9 +10,18 @@ import WebKit
 ///
 /// `bottomInset` is the floating chrome over the page's bottom edge: the page
 /// scrolls under it, and its end still scrolls clear of it.
+///
+/// `topInset` is the status bar over the page's top edge. The page scrolls
+/// under it too, but WebKit lays out fixed and sticky elements (YouTube's
+/// header) below it, as in Safari (`obscuredContentInsets`, iOS 26).
+///
+/// `obscuredBottom` is the same at the bottom: the bar and the home
+/// indicator, so fixed footers (YouTube's tab bar) sit above the bar.
 struct WebView: UIViewRepresentable {
   let webView: WKWebView
   var bottomInset: CGFloat = 0
+  var topInset: CGFloat = 0
+  var obscuredBottom: CGFloat = 0
 
   func makeUIView(context: Context) -> WKWebView {
     apply(to: webView)
@@ -22,6 +31,10 @@ struct WebView: UIViewRepresentable {
   func updateUIView(_ uiView: WKWebView, context: Context) { apply(to: uiView) }
 
   private func apply(to view: WKWebView) {
+    if #available(iOS 26.0, *) {
+      let insets = UIEdgeInsets(top: topInset, left: 0, bottom: obscuredBottom, right: 0)
+      if view.obscuredContentInsets != insets { view.obscuredContentInsets = insets }
+    }
     let scroll = view.scrollView
     guard scroll.contentInset.bottom != bottomInset else { return }
     scroll.contentInset.bottom = bottomInset

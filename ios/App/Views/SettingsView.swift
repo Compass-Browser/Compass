@@ -16,6 +16,7 @@ struct SettingsView: View {
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
   @AppStorage(AutoPiP.scrollKey) private var autoPiPScroll = true
+  @AppStorage(StartScreen.key) private var startScreen = StartScreen.sidebar
 
   var body: some View {
     NavigationStack {
@@ -51,6 +52,11 @@ struct SettingsView: View {
           }
         }
         Section {
+          Picker(selection: $startScreen) {
+            ForEach(StartScreen.allCases) { Text($0.name).tag($0) }
+          } label: {
+            SettingsLabel("On Launch", "power", .orange)
+          }
           NavigationLink { ArchiveAfterPicker() } label: {
             HStack {
               SettingsLabel("Archive Inactive Tabs", "archivebox.fill", .purple)

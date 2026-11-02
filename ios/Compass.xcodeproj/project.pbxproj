@@ -40,6 +40,7 @@
 		445E4DD954C74DA28619C050 /* images in Resources */ = {isa = PBXBuildFile; fileRef = 7A263C425888FF1A16E210FB /* images */; };
 		48C7984F94A06309C7BF16C5 /* AutoPiP.swift in Sources */ = {isa = PBXBuildFile; fileRef = C653E784866DBD8FD0997D3B /* AutoPiP.swift */; };
 		4968D00362621422D48BCA8B /* CommandBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56591060B5711506971F138C /* CommandBar.swift */; };
+		4FA408CE7C5ACAE6EAF6D738 /* StartScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF087B09F1E59FE957A0DB0 /* StartScreenTests.swift */; };
 		53FC4E8AFD76D21BB8E10B22 /* DownloadActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217A2B9DD3B37AE3A8F454AC /* DownloadActivityAttributes.swift */; };
 		549B4B7B3DB4F37CEEC7E7AC /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = BFD9AB04219FDCF10F4B4639 /* popup.css */; };
 		5587E7C3A13BDEE5D9B5C8DD /* QuickWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C26E8DD20C168CA5D31BE92 /* QuickWidgets.swift */; };
@@ -88,7 +89,6 @@
 		CB174ABF10470B019CCA44E1 /* WidgetSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F0182977981D5DDCAFCD94 /* WidgetSupport.swift */; };
 		CBB00D56BA03942AC5D48F57 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BC6E0535E2713607366ECF /* ShareView.swift */; };
 		D046A20E1300E3C323FEDA9C /* DataViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41B59BC81621FE63D557277 /* DataViews.swift */; };
-		D12172634DD4AF26B3B18390 /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5CC1AE439BB036D42BD1E033 /* Compass.icon */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		DFB02BF326D4B44B34C55AF8 /* ThemeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65277AB39215D86443B8364F /* ThemeEditor.swift */; };
 		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
@@ -101,6 +101,7 @@
 		F3F0081DEDB6744DFCFEAEE0 /* PasswordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */; };
 		F4617C5B4269A2A19EB32B09 /* CollapseBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726541D9BE66CA543B0C251A /* CollapseBarTests.swift */; };
 		F5974AB5BCD8BAFC89325E7B /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C93F45F6CF3D5B476056A454 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F94CBAFC04002F40ED0AF8DB /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = D3466B0BF34DC82C259C58A0 /* Compass.icon */; };
 		FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */; };
 /* End PBXBuildFile section */
 
@@ -200,7 +201,6 @@
 		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
 		5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPiPTests.swift; sourceTree = "<group>"; };
-		5CC1AE439BB036D42BD1E033 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensions.swift; sourceTree = "<group>"; };
 		624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenuTests.swift; sourceTree = "<group>"; };
 		630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPickerTests.swift; sourceTree = "<group>"; };
@@ -246,12 +246,14 @@
 		C8869F83B348CDAA446122C7 /* DownloadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsView.swift; sourceTree = "<group>"; };
 		C93F45F6CF3D5B476056A454 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C98F12601AB2AF4C69845C13 /* CompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassApp.swift; sourceTree = "<group>"; };
+		CEF087B09F1E59FE957A0DB0 /* StartScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartScreenTests.swift; sourceTree = "<group>"; };
 		CF8F914BD392DD404C347B1D /* PageMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenu.swift; sourceTree = "<group>"; };
 		D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlocking.swift; sourceTree = "<group>"; };
 		D19E94079AACC148BDF33673 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionTabs.swift; sourceTree = "<group>"; };
 		D1EF8B1ADDE7286C61000241 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		D248EE47245F87391C4DDC09 /* DownloadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTests.swift; sourceTree = "<group>"; };
+		D3466B0BF34DC82C259C58A0 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUnlock.swift; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EDC160A2F8C9A864C250F339 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariOpen/Resources/_locales; sourceTree = SOURCE_ROOT; };
@@ -355,6 +357,7 @@
 				624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */,
 				47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */,
 				7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */,
+				CEF087B09F1E59FE957A0DB0 /* StartScreenTests.swift */,
 				038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */,
 				2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */,
 				7F689366907A8A4E495F06FC /* SwipeUpZonesTests.swift */,
@@ -384,10 +387,10 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		7351E24A9F2D8D3C51A82E1B /* assets */ = {
+		879CF962A6792596BBDD49DA /* assets */ = {
 			isa = PBXGroup;
 			children = (
-				5CC1AE439BB036D42BD1E033 /* Compass.icon */,
+				D3466B0BF34DC82C259C58A0 /* Compass.icon */,
 			);
 			path = assets;
 			sourceTree = "<group>";
@@ -400,6 +403,15 @@
 				F4A5EB9B8FCF536C41FE6951 /* Info.plist */,
 			);
 			path = AutoFill;
+			sourceTree = "<group>";
+		};
+		A5E7741EEEDF65376491290E /* compass-ios */ = {
+			isa = PBXGroup;
+			children = (
+				879CF962A6792596BBDD49DA /* assets */,
+			);
+			name = "compass-ios";
+			path = ..;
 			sourceTree = "<group>";
 		};
 		B469E0DBFCE48FC1538DAAE7 /* Extensions */ = {
@@ -456,7 +468,7 @@
 			children = (
 				BAFDAA6D2D195C0F32F9078B /* App */,
 				96595F1E9E11998FE879E9F7 /* AutoFill */,
-				DD72F0D4C4475AFC25A2CFC1 /* ios-ports */,
+				A5E7741EEEDF65376491290E /* compass-ios */,
 				F402BF037897FEB15FFE5C17 /* Packages */,
 				B85E1C911C9D2E3EF9C9E1AA /* PushService */,
 				C9FE15A37E43A58B0F254DFF /* SafariOpen */,
@@ -528,15 +540,6 @@
 				32AD0FC2A4DD49EA6D182F11 /* WebView.swift */,
 			);
 			path = Browser;
-			sourceTree = "<group>";
-		};
-		DD72F0D4C4475AFC25A2CFC1 /* ios-ports */ = {
-			isa = PBXGroup;
-			children = (
-				7351E24A9F2D8D3C51A82E1B /* assets */,
-			);
-			name = "ios-ports";
-			path = ..;
 			sourceTree = "<group>";
 		};
 		E06C74F72C1781FD0D801E50 /* Resources */ = {
@@ -822,7 +825,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */,
-				D12172634DD4AF26B3B18390 /* Compass.icon in Resources */,
+				F94CBAFC04002F40ED0AF8DB /* Compass.icon in Resources */,
 				9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -922,6 +925,7 @@
 				859F8C08EFB2E77F4C28339E /* PageMenuTests.swift in Sources */,
 				32D1028950616C4F9FE0BB50 /* SettingsTests.swift in Sources */,
 				02D9974025C6C07737B94B93 /* SidebarPanelTests.swift in Sources */,
+				4FA408CE7C5ACAE6EAF6D738 /* StartScreenTests.swift in Sources */,
 				B1DF018F14113ACC2CC3B06C /* SwipeTabsTests.swift in Sources */,
 				E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */,
 				350919253EFC4030A5B837D3 /* SwipeUpZonesTests.swift in Sources */,
@@ -1065,7 +1069,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1081,7 +1085,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.uitests;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Compass;
 			};
 			name = Debug;
@@ -1159,7 +1163,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.widgets;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1176,7 +1180,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.safari;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1193,7 +1197,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.share;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1210,7 +1214,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.safari;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1227,7 +1231,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.widgets;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1246,7 +1250,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1263,7 +1267,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.autofill;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1280,7 +1284,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.push;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1297,7 +1301,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.share;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1314,7 +1318,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.autofill;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -1330,7 +1334,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.uitests;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Compass;
 			};
 			name = Release;
@@ -1348,7 +1352,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.push;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};

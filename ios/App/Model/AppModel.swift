@@ -31,6 +31,7 @@ final class AppModel {
       if let id = selectedSpaceID, id != oldValue {
         extensions.spaceFocused(id)
         system.spaceShown(id)
+        UserDefaults.standard.set(id, forKey: StartScreen.spaceKey)
       }
     }
   }
@@ -38,6 +39,11 @@ final class AppModel {
   var selectedNodeID: String? { didSet { shownTabChanged() } }
   /// The sidebar, a bottom sheet over the browser. Up at launch.
   var showingSidebar = true
+  /// A wide window (iPad, regular width): the sidebar is a column beside
+  /// the page instead (RootView), shown or hidden by `showingSidebarColumn`,
+  /// and splits show their panes side by side.
+  var isWide = false
+  var showingSidebarColumn = true
   /// The sidebar rests at half height (dragged there) instead of full.
   var sidebarHalf = false
   /// While a finger moves the sidebar (a swipe up on the browser's bar, a
@@ -100,7 +106,8 @@ final class AppModel {
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
-    selectedSpaceID = store.spaces.first?.id
+    // The space last shown, as the sidebar left it.
+    selectedSpaceID = (UserDefaults.standard.string(forKey: StartScreen.spaceKey).flatMap(store.space(id:)) ?? store.spaces.first)?.id
     tabs.downloads = downloads
     tabs.extensions = extensions
     extensions.app = self
@@ -221,16 +228,25 @@ final class AppModel {
       //   -CompassOpenURLs "<url> <url>…": open each as a tab, one after
       //   another (so each has been shown, and has a snapshot).
       //   -CompassPicker YES: then open the tab picker.
+      //   -CompassSplit YES: then split the last two into one entry.
       let urls = defaults.string(forKey: "CompassOpenURLs")?.split(separator: " ").map(String.init) ?? []
       let picker = defaults.bool(forKey: "CompassPicker")
+      let split = defaults.bool(forKey: "CompassSplit")
       if !urls.isEmpty || picker {
         Task { [weak self] in
+          var opened: [SidebarNode] = []
           for url in urls {
             self?.open(url)
+            if let tab = self?.shownTab { opened.append(tab) }
             try? await Task.sleep(for: .seconds(3))
           }
           try? await Task.sleep(for: .milliseconds(1500))
           if picker { self?.openPicker() }
+          if split, opened.count >= 2, let entry = self?.store.split(opened[opened.count - 2], with: opened[opened.count - 1]),
+            let first = entry.children.first
+          {
+            self?.show(first)
+          }
         }
       }
       //   -CompassCommandBar YES: open the command bar.
@@ -280,6 +296,13 @@ final class AppModel {
     // What the extensions asked for while the app wasn't running.
     system.writeSnapshot()
     system.sharedChanged()
+    // Settings → On Launch: the tab last shown, if it's still open (not
+    // closed or archived), instead of the sidebar.
+    if StartScreen.current == .lastTab, let id = UserDefaults.standard.string(forKey: StartScreen.tabKey),
+      let node = store.node(id: id), node.isTab
+    {
+      show(node)
+    }
     archiveTimer = Task { [weak self] in
       while !Task.isCancelled {
         self?.store.archiveIdleEntries()
@@ -363,6 +386,8 @@ final class AppModel {
     guard shown != lastShownTabID else { return }
     let left = lastShownTabID
     lastShownTabID = shown
+    if let shown { UserDefaults.standard.set(shown, forKey: StartScreen.tabKey) }
+    else { UserDefaults.standard.removeObject(forKey: StartScreen.tabKey) }
     if let shown { AutoPiP.exit(tabs.live[shown]) }
     // Kept in the window first (SwiftUI drops it on this update), or its
     // window would end at once.
@@ -489,6 +514,10 @@ final class AppModel {
   }
 
   func showSidebar() {
+    if isWide {
+      showingSidebarColumn = true
+      return
+    }
     sidebarHalf = false
     showingSidebar = true
   }
@@ -616,5 +645,26 @@ final class AppModel {
       extensions.tabClosed(tab.id)
     }
     store.remove(node)
+  }
+}
+
+/// What a launch shows (Settings → On Launch): the sidebar over an empty
+/// page, or the tab last shown with the sidebar down.
+enum StartScreen: String, CaseIterable, Identifiable {
+  case sidebar, lastTab
+
+  static let key = "StartScreen"
+  /// The tab and the space last shown, kept as they change.
+  static let tabKey = "LastShownTab"
+  static let spaceKey = "LastShownSpace"
+
+  static var current: StartScreen { UserDefaults.standard.string(forKey: key).flatMap(Self.init) ?? .sidebar }
+
+  var id: String { rawValue }
+  var name: String {
+    switch self {
+    case .sidebar: "Sidebar"
+    case .lastTab: "Last Tab"
+    }
   }
 }
