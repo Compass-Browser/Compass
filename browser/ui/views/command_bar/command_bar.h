@@ -73,8 +73,7 @@ class CommandBar {
 
 // Offers browser command |id| to Compass before upstream runs it. Called from
 // BrowserCommandController (see patches/). Returns true if Compass handled it:
-// IDC_NEW_TAB and IDC_FOCUS_LOCATION open the command bar, IDC_FIND and
-// IDC_FIND_NEXT/PREVIOUS the find bar (find_bar.h). Compass's own
+// IDC_NEW_TAB and IDC_FOCUS_LOCATION open the command bar. Compass's own
 // commands (compass_command_ids.h) come here before upstream checks whether
 // a command is enabled, which they never are.
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id);

@@ -25,7 +25,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
-#include "compass/browser/ui/views/find_bar/find_bar.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/views/peek/peek.h"
@@ -176,7 +175,7 @@ bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
     }
     return true;
   }
-  if (HandleFindBarCommand(browser, id) || HandlePeekCommand(browser, id) ||
+  if (HandlePeekCommand(browser, id) ||
       HandleLittleWindowCommand(browser, id) ||
       HandleAppMenuSyncCommand(browser, id)) {
     return true;

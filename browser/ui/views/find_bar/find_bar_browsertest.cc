@@ -149,7 +149,12 @@ IN_PROC_BROWSER_TEST_F(FindBarBrowserTest, StartsFromTheSelection) {
 
 IN_PROC_BROWSER_TEST_F(FindBarBrowserTest, CommandsGoToTheCompassBar) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kPage)));
-  ASSERT_TRUE(Open());
+  // As the menu's Find… and the browser action do: chrome::Find() itself,
+  // not the command.
+  chrome::Find(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return bar()->IsShowing() && bar()->IsPageConnectedForTesting();
+  }));
   // Upstream's bar stays closed.
   EXPECT_FALSE(
       FindBarController::From(browser())->find_bar()->IsFindBarVisible());

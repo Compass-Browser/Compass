@@ -10,7 +10,6 @@
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -492,19 +491,18 @@ void FindBar::Hide(bool restore_focus) {
 BEGIN_METADATA(FindBar)
 END_METADATA
 
-bool HandleFindBarCommand(BrowserWindowInterface* browser, int id) {
-  if (id != IDC_FIND && id != IDC_FIND_NEXT && id != IDC_FIND_PREVIOUS) {
-    return false;
-  }
+bool HandleFindInPage(BrowserWindowInterface* browser,
+                      bool find_next,
+                      bool forward_direction) {
   FindBar* bar = FindBar::From(browser);
   if (!bar) {
     // No Compass frame (a popup, an app window): upstream's bar.
     return false;
   }
-  if (id == IDC_FIND) {
-    bar->Show();
+  if (find_next) {
+    bar->FindNextFromCommand(/*reverse=*/!forward_direction);
   } else {
-    bar->FindNextFromCommand(id == IDC_FIND_PREVIOUS);
+    bar->Show();
   }
   return true;
 }

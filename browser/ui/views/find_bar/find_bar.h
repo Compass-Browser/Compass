@@ -162,9 +162,14 @@ class FindBar : public views::WebView,
   base::WeakPtrFactory<FindBar> weak_factory_{this};
 };
 
-// Offers browser command |id| to the find bar: IDC_FIND, IDC_FIND_NEXT and
-// IDC_FIND_PREVIOUS. Returns true if it handled it.
-bool HandleFindBarCommand(BrowserWindowInterface* browser, int id);
+// chrome::FindInPage(), which every way to find goes through (the menu, the
+// shortcuts, browser actions, IDC_FIND and IDC_FIND_NEXT/PREVIOUS), asks
+// Compass first (see patches/). Returns true if the window's FindBar took it:
+// |find_next| is Cmd+G (backwards unless |forward_direction|), otherwise
+// Cmd+F.
+bool HandleFindInPage(BrowserWindowInterface* browser,
+                      bool find_next,
+                      bool forward_direction);
 
 }  // namespace compass
 

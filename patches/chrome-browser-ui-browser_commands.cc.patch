@@ -1,16 +1,28 @@
 diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
-index 14f5a7598dd8bf5b9df578f56c3365a7dd6f96ce..928e06bb815076b2733b797302d2dab2b729bb37 100644
+index 14f5a7598dd8bf5b9df578f56c3365a7dd6f96ce..4ee74e4844b324b33affad42e0174f08b73acf01 100644
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
-@@ -142,6 +142,7 @@
+@@ -142,6 +142,8 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/common/url_constants.h"
  #include "chrome/common/webui_url_constants.h"
++#include "compass/browser/ui/views/find_bar/find_bar.h"
 +#include "compass/common/compass_url.h"
  #include "components/bookmarks/browser/bookmark_model.h"
  #include "components/bookmarks/browser/bookmark_node.h"
  #include "components/bookmarks/browser/bookmark_utils.h"
-@@ -2892,7 +2893,8 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
+@@ -2536,6 +2538,10 @@ void FindPrevious(BrowserWindowInterface* browser) {
+ void FindInPage(BrowserWindowInterface* browser,
+                 bool find_next,
+                 bool forward_direction) {
++  // Compass: its own find bar, in windows with the Compass frame.
++  if (compass::HandleFindInPage(browser, find_next, forward_direction)) {
++    return;
++  }
+   FindBarController::From(browser)->Show(find_next, forward_direction);
+ }
+ 
+@@ -2892,7 +2898,8 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
  void CopyURL(BrowserWindowInterface* browser,
               content::WebContents* web_contents) {
    ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
