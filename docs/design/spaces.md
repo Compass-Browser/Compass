@@ -303,6 +303,15 @@ space switch and on every change to the window's space, so the theme
 editor shows live. No blend during swipes. A grey space keeps the page's
 own background. Test: `CommandBarBrowserTest.EmptyPaneTakesTheSpaceTint`.
 
+### URL pill
+
+The sidebar header's URL pill is a faint wash over the tint, as Arc's, so
+the space's color shows through it (2026-11-02): 4.7% black when the
+frame is light, 7.8% white when it's dark (`GetPillWash()` in
+sidebar_header.cc). Measured in the user's Arc: about 4.5% black over the
+sidebar's tint. Icons in it blend against the wash over the frame color.
+The little window's pills keep the location bar's color.
+
 ### Theme editor
 
 The space menu's "Edit theme" row (with a chip of the space's colors)

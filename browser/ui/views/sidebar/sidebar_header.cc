@@ -61,6 +61,11 @@
 #include "ui/gfx/text_constants.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/background.h"
+#include "cc/paint/paint_flags.h"
+#include "ui/color/color_id.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/color_utils.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
@@ -96,6 +101,30 @@ constexpr int kSiteInfoInset = 4;
 constexpr int kSiteInfoIconSize = 16;
 // Below this the extensions and pinned actions leave the pill's row.
 constexpr int kPillMinWidth = 120;
+
+// Arc's URL pill: a faint wash over the sidebar's tint, so the space's
+// color shows through it, darker in light mode and lighter in dark
+// (measured 2026-11-02: about 4.5% black over the tint, #75aec4 to #70a6bc).
+SkColor GetPillWash(const ui::ColorProvider* provider) {
+  return color_utils::IsDark(provider->GetColor(ui::kColorFrameActive))
+             ? SkColorSetA(SK_ColorWHITE, 0x14)
+             : SkColorSetA(SK_ColorBLACK, 0x0c);
+}
+
+class PillBackground : public views::Background {
+ public:
+  void Paint(gfx::Canvas* canvas, views::View* view) const override {
+    const ui::ColorProvider* provider = view->GetColorProvider();
+    if (!provider) {
+      return;
+    }
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setColor(GetPillWash(provider));
+    canvas->DrawRoundRect(gfx::RectF(view->GetLocalBounds()), kPillHeight / 2.f,
+                          flags);
+  }
+};
 
 void ExecuteNavCommand(BrowserWindowInterface* browser,
                        int command,
@@ -241,8 +270,7 @@ SidebarHeader::SidebarHeader(
   auto pill = std::make_unique<views::LabelButton>(base::BindRepeating(
       &SidebarHeader::OnPillPressed, base::Unretained(this)));
   pill->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  pill->SetBackground(views::CreateRoundedRectBackground(
-      kColorLocationBarBackground, kPillHeight / 2));
+  pill->SetBackground(std::make_unique<PillBackground>());
   pill->SetEnabledTextColors(kColorOmniboxText);
   pill->SetTooltipText(u"Show URL and search");
   pill_ = AddChildView(std::move(pill));
@@ -720,9 +748,11 @@ SkColor SidebarHeader::GetIconLabelBubbleSurroundingForegroundColor() const {
 }
 
 SkColor SidebarHeader::GetIconLabelBubbleBackgroundColor() const {
-  return GetColorProvider()
-             ? GetColorProvider()->GetColor(kColorLocationBarBackground)
-             : gfx::kPlaceholderColor;
+  const ui::ColorProvider* provider = GetColorProvider();
+  return provider ? color_utils::GetResultingPaintColor(
+                        GetPillWash(provider),
+                        provider->GetColor(ui::kColorFrameActive))
+                  : gfx::kPlaceholderColor;
 }
 
 bool SidebarHeader::ShouldHideContentSettingImage() {
