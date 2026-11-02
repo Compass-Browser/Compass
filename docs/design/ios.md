@@ -560,3 +560,4 @@ Branch `ios/system-extensions`. Everything goes through the App Group `group.it.
 5. **iPad.** A desktop-style sidebar next to the page, and splits side by side.
 6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.
 7. **Web extensions, next.** Try 1Password signed in on the phone (Face ID unlock included), and a link's long-press menu with an extension's items. `commands` (keyboard shortcuts) wait for iPad with a keyboard.
+8. **Background download limits** (plan.md, "iOS background downloads: limits left"): POST, `blob:` and `data:` downloads still pause in the background, and the server sees each download's request twice.
