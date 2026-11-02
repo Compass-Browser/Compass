@@ -31,6 +31,7 @@ final class AppModel {
       if let id = selectedSpaceID, id != oldValue {
         extensions.spaceFocused(id)
         system.spaceShown(id)
+        UserDefaults.standard.set(id, forKey: StartScreen.spaceKey)
       }
     }
   }
@@ -100,7 +101,8 @@ final class AppModel {
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
-    selectedSpaceID = store.spaces.first?.id
+    // The space last shown, as the sidebar left it.
+    selectedSpaceID = (UserDefaults.standard.string(forKey: StartScreen.spaceKey).flatMap(store.space(id:)) ?? store.spaces.first)?.id
     tabs.downloads = downloads
     tabs.extensions = extensions
     extensions.app = self
@@ -280,6 +282,13 @@ final class AppModel {
     // What the extensions asked for while the app wasn't running.
     system.writeSnapshot()
     system.sharedChanged()
+    // Settings → On Launch: the tab last shown, if it's still open (not
+    // closed or archived), instead of the sidebar.
+    if StartScreen.current == .lastTab, let id = UserDefaults.standard.string(forKey: StartScreen.tabKey),
+      let node = store.node(id: id), node.isTab
+    {
+      show(node)
+    }
     archiveTimer = Task { [weak self] in
       while !Task.isCancelled {
         self?.store.archiveIdleEntries()
@@ -363,6 +372,8 @@ final class AppModel {
     guard shown != lastShownTabID else { return }
     let left = lastShownTabID
     lastShownTabID = shown
+    if let shown { UserDefaults.standard.set(shown, forKey: StartScreen.tabKey) }
+    else { UserDefaults.standard.removeObject(forKey: StartScreen.tabKey) }
     if let shown { AutoPiP.exit(tabs.live[shown]) }
     // Kept in the window first (SwiftUI drops it on this update), or its
     // window would end at once.
@@ -616,5 +627,26 @@ final class AppModel {
       extensions.tabClosed(tab.id)
     }
     store.remove(node)
+  }
+}
+
+/// What a launch shows (Settings → On Launch): the sidebar over an empty
+/// page, or the tab last shown with the sidebar down.
+enum StartScreen: String, CaseIterable, Identifiable {
+  case sidebar, lastTab
+
+  static let key = "StartScreen"
+  /// The tab and the space last shown, kept as they change.
+  static let tabKey = "LastShownTab"
+  static let spaceKey = "LastShownSpace"
+
+  static var current: StartScreen { UserDefaults.standard.string(forKey: key).flatMap(Self.init) ?? .sidebar }
+
+  var id: String { rawValue }
+  var name: String {
+    switch self {
+    case .sidebar: "Sidebar"
+    case .lastTab: "Last Tab"
+    }
   }
 }

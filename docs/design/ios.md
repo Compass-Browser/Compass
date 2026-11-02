@@ -564,6 +564,10 @@ As on the desktop (picture-in-picture.md): leaving a tab whose video plays with 
 - Checked on the phone (2026-11-02): a tab switch moves the video to the window and back. Scroll-out (a debug probe scrolling a playing video's page): in the window within a second of scrolling it away, back inline and still playing after scrolling back. The window's own buttons after a scroll-out need a hand on the phone.
 - Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
 
+### Start screen, 2026-11-02
+
+Settings → On Launch (`StartScreen`, AppModel.swift): **Sidebar** (default: the sidebar over an empty page, as before) or **Last Tab** (the tab last shown, sidebar down, if it's still open: not closed or archived; else the sidebar). The shown tab and space are kept in `UserDefaults` (`LastShownTab`, `LastShownSpace`) as they change; a launch always opens on the space last shown. Checked: `StartScreenTests` (simulator: a page shown, the app sent home and ended, relaunched with each setting).
+
 ### Tabs sent from the desktop, 2026-11-02
 
 Design and the desktop and server parts: [send-tab.md](send-tab.md).
@@ -578,8 +582,6 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
 - Checked: `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac); in the simulator, `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` (sends to every other device) showed the banner within a second with the app open. The tap isn't checked yet.
 
 ## Open items
-
-- **Start screen** (Matteo, 2026-11-02): a setting for what a launch shows, the sidebar or the last tab (main view).
 
 1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
    Countdown ("Expires in m:ss", `sync/pairing-countdown`): MacBook run passed (2026-11-01), `CompassSyncPageHandlerTest.*` 15/15, 4:57 then 4:47 nine seconds later, red under 0:30, then "The code expired. Try again with a new code." with no QR.
