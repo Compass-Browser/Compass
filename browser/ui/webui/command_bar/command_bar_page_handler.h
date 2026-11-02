@@ -31,6 +31,7 @@ namespace compass {
 
 class SidebarNode;
 class SpaceModel;
+class WindowFeatures;
 
 // What a command result does. See docs/design/command-bar.md, "Results".
 enum class CommandBarCommand {
@@ -144,6 +145,10 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   void RunCommand(CommandBarCommand command);
   bool IsCommandAvailable(CommandBarCommand command) const;
 
+  // The window's features, or null for a window without them, or one that
+  // swapped away to another profile's space (SwitchWindowToSpace()): that one
+  // has no bridge and closes in a moment, but its page can still call in.
+  WindowFeatures *GetFeatures() const;
   // The sidebar node of the window's active tab, or null.
   SidebarNode* GetActiveNode() const;
   // Whether |node| (or the split or folder holding it) is in Pinned.
