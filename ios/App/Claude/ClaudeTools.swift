@@ -116,7 +116,7 @@ final class ClaudeTools {
       let data = try? Data(contentsOf: url), let list = JSONValue.parse(data)?["tools"]?.array
     else { return [:] }
     var scopes: [String: String] = [:]
-    for entry in list {
+    for entry in list where ClaudeSettings.isForIOS(entry) {
       if let name = entry["definition"]?["name"]?.string { scopes[name] = entry["scope"]?.string ?? "page" }
     }
     return scopes
@@ -209,19 +209,32 @@ final class ClaudeTools {
     return .text(text)
   }
 
+  /// Closes a tab as Compass closes one: a tab Claude opened goes, a
+  /// Today tab goes to the archive, and a pinned tab or favorite unloads
+  /// (it stays in the sidebar). Any tab: the system prompt has Claude ask
+  /// the user first for theirs (the desktop's rule).
   private func closeTab(_ input: JSONValue) -> Result {
     let id = input["tab_id"]?.string ?? ""
-    guard let app, let tab = tab(id) ?? opened.lazy.filter({ $0.hasPrefix(id) }).first.flatMap(app.store.node(id:)),
-      opened.contains(tab.id)
-    else { return .error("Claude can only close tabs it opened in this chat (list_tabs marks them). The user's own tabs stay.") }
-    opened.remove(tab.id)
-    var text = "Closed tab \(Self.shortID(tab.id))."
+    guard let app, let tab = tab(id) else { return .error("No tab \(id). list_tabs gives the ids.") }
+    var text: String
+    for window in app.services.windows where window.shownTab?.id == tab.id || window.selectedNodeID == tab.id {
+      window.selectedNodeID = nil
+    }
+    if opened.remove(tab.id) != nil {
+      app.close(tab)
+      text = "Closed tab \(Self.shortID(tab.id))."
+    } else if tab.section == .today, tab.parent?.isSplit != true {
+      app.tabs.unload(tab.id)
+      app.store.archive(tab)
+      text = "Closed tab \(Self.shortID(tab.id)); it's in the space's archive."
+    } else {
+      app.tabs.unload(tab.id)
+      text = "Unloaded tab \(Self.shortID(tab.id)); it stays in the sidebar (pinned or a favorite)."
+    }
     if tab.id == targetTab {
-      targetTab = taskTab.flatMap { app.store.node(id: $0) != nil ? $0 : nil }
+      targetTab = taskTab.flatMap { $0 != tab.id && app.store.node(id: $0) != nil ? $0 : nil }
       text += targetTab != nil ? " The page tools act on the chat's tab again." : " The page tools have no tab: select_tab one."
     }
-    for window in app.services.windows where window.selectedNodeID == tab.id { window.selectedNodeID = nil }
-    app.close(tab)
     return .text(text)
   }
 
