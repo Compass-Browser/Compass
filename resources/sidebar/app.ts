@@ -84,6 +84,16 @@ const SWIPE_SETTLE = 0.25;
 // Past the first or the last space, the entries only give a little.
 const SWIPE_RESISTANCE = 0.2;
 const SWIPE_RESISTANCE_MAX_PX = 32;
+// A gesture is a swipe only if its first wheel event goes clearly sideways:
+// at least this many pixels, and this many times more than up or down.
+// Chromium lets a page cancel only that first event's scroll, so it decides
+// the gesture; a trackpad's first event is often a pixel or two, slightly
+// sideways, and a vertical scroll taken for a swipe can't scroll at all.
+const SWIPE_START_PX = 3;
+const SWIPE_START_RATIO = 2;
+// After a swipe, the rest of its gesture is swallowed; a wheel event this
+// much more vertical than sideways is a new scroll, not the swipe's momentum.
+const SCROLL_AFTER_SWIPE_RATIO = 2;
 // A switch the browser hasn't confirmed by then didn't happen.
 const SWITCH_TIMEOUT_MS = 2000;
 
@@ -1306,8 +1316,17 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.clearWheelQuietTimer_();
     this.wheelQuietTimer_ =
         setTimeout(() => this.onWheelQuiet_(), WHEEL_QUIET_MS);
+    const scale = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
+    const dx = Math.abs(e.deltaX) * scale;
+    const dy = Math.abs(e.deltaY) * scale;
+    if (this.wheelAxis_ === 'done' && dy > 0 &&
+        dy >= SCROLL_AFTER_SWIPE_RATIO * dx) {
+      // A scroll started while the swipe's momentum was still coming in,
+      // which kept the gesture from ending.
+      this.wheelAxis_ = 'y';
+    }
     if (!this.wheelAxis_) {
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) {
+      if (dx < SWIPE_START_PX || dx < SWIPE_START_RATIO * dy) {
         this.wheelAxis_ = 'y';
       } else if (
           this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
@@ -1323,7 +1342,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
     e.preventDefault();
     if (this.wheelAxis_ === 'x' && this.swipe_) {
-      const scale = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
       this.swipe_.offset -= e.deltaX * scale;
       this.updateSwipe_();
     }
