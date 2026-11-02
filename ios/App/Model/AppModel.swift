@@ -126,12 +126,7 @@ final class AppModel {
     }
     // Only the tab shown, with the app active: picture-in-picture can't
     // start on the way out.
-    tabs.onPictureInPictureScroll = { [weak self] id, out in
-      guard let self, self.shownTab?.id == id, let view = self.tabs.live[id] else { return }
-      guard out else { return AutoPiP.exit(view) }
-      guard AutoPiP.scrollIsOn, UIApplication.shared.applicationState == .active, view.window != nil else { return }
-      AutoPiP.enter(view, scroll: true)
-    }
+    tabs.onPictureInPictureScroll = { [weak self] id, _ in self?.settlePictureInPicture(id) }
     tabs.onNavigated = { [weak self] id in
       self?.passwords.pageChanged(id)
       self?.setBarCollapsed(false)
@@ -374,6 +369,36 @@ final class AppModel {
     if let left, tabs.playingVideo.contains(left), AutoPiP.isOn, let view = tabs.live[left] {
       AutoPiP.park(view)
       AutoPiP.enter(view)
+    }
+  }
+
+  /// Scroll-out picture-in-picture, once the page stands still (finger up,
+  /// momentum over): a window started mid-scroll grows from a frame the
+  /// page has already moved past, and jumps. Then the page says what it
+  /// wants now, which the scroll may have changed.
+  private var pictureInPictureSettle: Set<String> = []
+
+  private func settlePictureInPicture(_ id: String) {
+    guard pictureInPictureSettle.insert(id).inserted else { return }
+    Task { [weak self] in
+      while let scroll = self?.tabs.live[id]?.scrollView,
+        scroll.isTracking || scroll.isDragging || scroll.isDecelerating
+      {
+        try? await Task.sleep(for: .milliseconds(50))
+      }
+      guard let self else { return }
+      self.pictureInPictureSettle.remove(id)
+      guard self.shownTab?.id == id, let view = self.tabs.live[id] else { return }
+      let want = try? await view.evaluateJavaScript(
+        "window.__compassAutoPiPWant ? window.__compassAutoPiPWant() : ''", in: nil, contentWorld: AutoPiP.world)
+      guard self.shownTab?.id == id else { return }
+      switch want as? String {
+      case "in": AutoPiP.exit(view)
+      case "out":
+        guard AutoPiP.scrollIsOn, UIApplication.shared.applicationState == .active, view.window != nil else { return }
+        AutoPiP.enter(view, scroll: true)
+      default: break
+      }
     }
   }
 

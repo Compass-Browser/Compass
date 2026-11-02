@@ -99,14 +99,23 @@ enum AutoPiP {
               // from the video and not from a sliver at the edge; back only
               // once (nearly) all of it is, so it lands where it's seen. The
               // gap keeps it from flipping in between.
-              if (ratio >= 0.9) {
-                held.delete(video);
-                if (window.__compassAutoPiPScroll === video) post("scroll:in");
-              } else if (ratio < 0.5 && enabled && eligible(video) && !held.has(video) && !window.__compassAutoPiPScroll) {
-                post("scroll:out");
-              }
+              if (ratio >= 0.9) held.delete(video);
             }
+            const want = window.__compassAutoPiPWant();
+            if (want) post("scroll:" + want);
           }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) });
+          // What scrolling asks for now: "out", "in" or "". The app asks
+          // again once the page stands still, as a window started mid-scroll
+          // grows from (or lands in) a frame that has moved on.
+          window.__compassAutoPiPWant = () => {
+            const moved = window.__compassAutoPiPScroll;
+            if (moved) return (ratios.get(moved) ?? 0) >= 0.9 ? "in" : "";
+            if (!enabled) return "";
+            for (const v of document.querySelectorAll("video")) {
+              if (ratios.has(v) && ratios.get(v) < 0.5 && eligible(v) && !held.has(v)) return "out";
+            }
+            return "";
+          };
           // Watched from its first play; observing again reports where it
           // is now (a video started while off screen counts).
           const watched = new WeakSet();
