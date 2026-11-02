@@ -35,12 +35,14 @@ struct SpaceEntity: AppEntity, Identifiable {
   static let defaultQuery = SpaceQuery()
 
   let id: String
-  let name: String
+  @Property(title: "Name") var name: String
 
-  init(_ space: SpaceInfo) {
-    id = space.id
-    name = space.name
+  init(id: String, name: String) {
+    self.id = id
+    self.name = name
   }
+
+  init(_ space: SpaceInfo) { self.init(id: space.id, name: space.name) }
 
   var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
 }
@@ -90,39 +92,6 @@ struct OpenSpaceIntent: AppIntent {
   func perform() async throws -> some IntentResult {
     await open(.space(space.id))
     return .result()
-  }
-}
-
-// MARK: Links
-
-struct OpenURLInCompassIntent: AppIntent {
-  static let title: LocalizedStringResource = "Open in Compass"
-  static let description = IntentDescription("Opens a web page in a new tab, in a space.")
-  static let openAppWhenRun = true
-
-  @Parameter(title: "URL") var url: URL
-  @Parameter(title: "Space") var space: SpaceEntity?
-
-  func perform() async throws -> some IntentResult {
-    try SharedContainer.current.inbox.add(InboxItem(action: .open, url: url.absoluteString, spaceID: space?.id))
-    SharedContainer.postChanged()
-    await open(.inbox)
-    return .result()
-  }
-}
-
-struct PinURLIntent: AppIntent {
-  static let title: LocalizedStringResource = "Pin in Compass"
-  static let description = IntentDescription("Adds a web page to a space's Pinned.")
-
-  @Parameter(title: "URL") var url: URL
-  @Parameter(title: "Space") var space: SpaceEntity
-  @Parameter(title: "Title", default: "") var title: String
-
-  func perform() async throws -> some IntentResult & ProvidesDialog {
-    try SharedContainer.current.inbox.add(InboxItem(action: .pin, url: url.absoluteString, title: title, spaceID: space.id))
-    SharedContainer.postChanged()
-    return .result(dialog: "Pinned in \(space.name).")
   }
 }
 

@@ -51,6 +51,7 @@
 		72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */; };
 		77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD52168629F96C8A4ABCDBDF /* Favicons.swift */; };
 		77F55AE0293AF373981A228C /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 2CB99DFF6092C31970BA2AD3 /* popup.html */; };
+		7843D6FC2CA3DD057CA9A4F0 /* ShortcutsActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */; };
 		7C7E241C93A23DDAD181F765 /* SidebarPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D6DFD0447538D43874857BE /* SidebarPanel.swift */; };
 		859F8C08EFB2E77F4C28339E /* PageMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */; };
 		86BE32EE9DABB442ECFD8C3B /* SiteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E181E09464F119B3A59058 /* SiteSettingsView.swift */; };
@@ -175,6 +176,7 @@
 		40E0A58F6209D1FDB5E4BF4A /* AutoFill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutoFill.entitlements; sourceTree = "<group>"; };
 		44957DA68D5128D0EA074A29 /* DesktopViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopViewport.swift; sourceTree = "<group>"; };
 		47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
+		4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsActions.swift; sourceTree = "<group>"; };
 		4D6DFD0447538D43874857BE /* SidebarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPanel.swift; sourceTree = "<group>"; };
 		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
@@ -506,6 +508,7 @@
 				8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */,
 				73F62DB435539AB4B380866E /* FocusFilter.swift */,
 				219581ADF6A5C9ECE3159093 /* HomeQuickActions.swift */,
+				4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */,
 				766D4E5AC89C23377A1339A3 /* Spotlight.swift */,
 				3F9DB417853BAB3988CCC478 /* SystemBridge.swift */,
 			);
@@ -780,6 +783,7 @@
 				55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */,
 				20FC5390B0E23578AE53F568 /* SearchEngine.swift in Sources */,
 				6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */,
+				7843D6FC2CA3DD057CA9A4F0 /* ShortcutsActions.swift in Sources */,
 				7C7E241C93A23DDAD181F765 /* SidebarPanel.swift in Sources */,
 				FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */,
 				E9A339DE6AE74295D11878F5 /* SiteSettings.swift in Sources */,
