@@ -114,6 +114,8 @@ final class TabManager: NSObject {
     configuration.userContentController.add(
       MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
     configuration.userContentController.addUserScript(AutoPiP.script)
+    // Claude's read_console (ClaudeTools.swift).
+    configuration.userContentController.addUserScript(ConsoleCapture.script)
     configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
     let view = WKWebView(
       frame: .zero,

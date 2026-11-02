@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassClaude
 import CompassCrypto
 import CompassModel
 import CompassShared
@@ -208,6 +209,29 @@ final class AppModel {
         Task { [weak self] in
           try? await Task.sleep(for: .milliseconds(1500))
           self?.showingSettings = true
+        }
+      }
+      //   -CompassClaudeTools "name {json};;name {json}": 8 s in, run
+      //   Claude's tools on the shown tab, results in tmp/claude-tools.log.
+      if let calls = defaults.string(forKey: "CompassClaudeTools") {
+        Task { [weak self] in
+          try? await Task.sleep(for: .seconds(8))
+          guard let self else { return }
+          let tools = ClaudeTools(app: self)
+          tools.targetTab = self.shownTab?.id
+          var log = ""
+          for call in calls.components(separatedBy: ";;") {
+            let call = call.trimmingCharacters(in: .whitespaces)
+            let name = String(call.prefix { $0 != " " })
+            let json = call.dropFirst(name.count).trimmingCharacters(in: .whitespaces)
+            let result = await tools.run(name, input: JSONValue.parse(json.isEmpty ? "{}" : json) ?? .object([:]))
+            log += "== \(name) \(json)\(result.isError ? " (error)" : "")\n"
+            for block in result.content {
+              if let text = block["text"]?.string { log += text + "\n" }
+              if let data = block["source"]?["data"]?.string { log += "<image \(data.count) base64 chars>\n" }
+            }
+          }
+          try? log.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("claude-tools.log"), atomically: true, encoding: .utf8)
         }
       }
       //   -CompassClaude YES: open the Claude sheet.

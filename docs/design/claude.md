@@ -230,6 +230,19 @@ Status (2026-11-02):
   - Opening the chat: an "Ask Claude" tile in the page menu, or ⌘⇧E.
   - `common/claude/` is bundled through project.yml.
   - Debug: `-CompassClaude YES` opens the sheet.
+- **I3 is written** on the same branch.
+  - `ClaudeTools.swift` runs the page tools on the tab the chat is about:
+    - page_agent.js in content world "claude", with screenshot pixels turned into CSS pixels;
+    - `takeSnapshot` of the visible page (JPEG, at most 1280 px on a side);
+    - `ConsoleCapture`, a document-start page-world script added to every tab, for read_console;
+    - run_js in the page world;
+    - navigate waits for the load (15 s at most).
+  - Results are worded as the desktop's.
+  - Browser tools say "Not permitted" without the toggle, and "not on iOS yet" with it (I4).
+  - `ClaudeChat` runs the loop: tool calls one after the other, at most 40 rounds. The sheet shows a row per call (status, the result on a tap, the screenshot).
+  - Debug: `-CompassClaudeTools "name {json};;…"` runs tools on the shown tab 8 s in and writes `tmp/claude-tools.log`. Checked on en.wikipedia.org/wiki/Compass in the simulator: read_page, find, run_js, read_console (the page's log and a run_js warning), scroll, screenshot, a coordinate click (opened the image viewer), get_page_text, list_tabs refused, navigate.
+  - Not yet: the click indicator and the Claude-is-acting tint.
+  - Known: pageText includes inline `<style>` text (shared page_agent.js; reported to the desktop session).
 
 - **Find.** Set `isFindInteractionEnabled = true` on the `WKWebView` (`ios/App/Browser/WebView.swift`) and add "Find on page" to `PageMenu.swift`. Cmd+F works with a hardware keyboard.
 - **Settings.** Add a Claude section in `SettingsView.swift` with the same fields. The key is stored with the existing `ios/App/Model/Keychain.swift`, kept in the device's Keychain only and not shared with extensions. The other settings go in UserDefaults.

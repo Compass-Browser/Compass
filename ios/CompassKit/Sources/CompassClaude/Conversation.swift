@@ -180,6 +180,12 @@ public struct Conversation: Sendable {
     }
   }
 
+  /// Marks the last reply as failed after it ended (too many tool rounds).
+  public mutating func failLastReply(_ error: String) {
+    guard let last = turns.indices.last, turns[last].role == .assistant else { return }
+    turns[last].error = error
+  }
+
   /// The reply is over: with `error` when it failed (an `error` event, a
   /// network or HTTP failure, or no `message_stop`).
   public mutating func finishReply(error: String? = nil) {

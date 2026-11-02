@@ -49,6 +49,7 @@
 		55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E455C53F4AADF06D3632F37 /* QRScannerView.swift */; };
 		57E092971E889A00ECDBDDFF /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B660A02532A9FB9A9CD50958 /* SafariWebExtensionHandler.swift */; };
 		5AC1A706D95C031010B18D6F /* ExtensionTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */; };
+		5C1A2684F17613EDAE0D2C03 /* ClaudeTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422BACAC56A4986C56AD585E /* ClaudeTools.swift */; };
 		5C6419DC7D700689132E42F4 /* TabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F222E653F398E0E5BA8C9748 /* TabPicker.swift */; };
 		5EFC031DFE200B774B117E62 /* FocusFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F62DB435539AB4B380866E /* FocusFilter.swift */; };
 		6051656C54697F2B82E55D4F /* SpaceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */; };
@@ -209,6 +210,7 @@
 		3ECB8BB8BB7B8645F265BCE1 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		3F9DB417853BAB3988CCC478 /* SystemBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBridge.swift; sourceTree = "<group>"; };
 		40E0A58F6209D1FDB5E4BF4A /* AutoFill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutoFill.entitlements; sourceTree = "<group>"; };
+		422BACAC56A4986C56AD585E /* ClaudeTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeTools.swift; sourceTree = "<group>"; };
 		44957DA68D5128D0EA074A29 /* DesktopViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopViewport.swift; sourceTree = "<group>"; };
 		47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsTests.swift; sourceTree = "<group>"; };
@@ -597,6 +599,7 @@
 				977A8F8485D4C21A1859E91F /* ClaudeClient.swift */,
 				C58E338C0AAD40A46BE75135 /* ClaudeSettings.swift */,
 				BC434C43B181FD41FBA6CD32 /* ClaudeSettingsView.swift */,
+				422BACAC56A4986C56AD585E /* ClaudeTools.swift */,
 			);
 			path = Claude;
 			sourceTree = "<group>";
@@ -909,6 +912,7 @@
 				B580D148EA2C68D000F5C041 /* ClaudeClient.swift in Sources */,
 				0B0677B675C2C7D395C3700F /* ClaudeSettings.swift in Sources */,
 				C56A4F87EBD3E7FEA87D2AD0 /* ClaudeSettingsView.swift in Sources */,
+				5C1A2684F17613EDAE0D2C03 /* ClaudeTools.swift in Sources */,
 				4968D00362621422D48BCA8B /* CommandBar.swift in Sources */,
 				BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */,
 				2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */,

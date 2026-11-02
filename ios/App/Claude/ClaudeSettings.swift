@@ -77,7 +77,10 @@ final class ClaudeSettings {
 
   static let systemPrompt: String = bundled("system_prompt", "md") ?? ""
   static let pageAgent: String = bundled("page_agent", "js") ?? ""
-  static let tools: [JSONValue] = bundled("tools", "json").flatMap { JSONValue.parse($0)?.array } ?? []
+  /// The tool definitions sent to the API (each entry's `definition`;
+  /// its `scope` stays here, ClaudeTools.scopes).
+  static let tools: [JSONValue] = bundled("tools", "json").flatMap { JSONValue.parse($0)?["tools"]?.array }?
+    .compactMap { $0["definition"] } ?? []
 
   private static func bundled(_ name: String, _ ext: String) -> String? {
     Bundle.main.url(forResource: name, withExtension: ext).flatMap { try? String(contentsOf: $0, encoding: .utf8) }
