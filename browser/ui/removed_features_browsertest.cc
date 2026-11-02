@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Upstream features Compass removes: bookmarks (pinned tabs are the
-// bookmarks) and horizontal tabs (compass::IsRemovedCommand()).
+// Upstream features Compass removes: bookmarks and the reading list (pinned
+// tabs are the bookmarks) and horizontal tabs (compass::IsRemovedCommand()).
 
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
@@ -46,6 +46,15 @@ IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest, NoBookmarks) {
 
   EXPECT_FALSE(content::WebUIConfigMap::GetInstance().GetConfig(
       browser()->GetProfile(), GURL(chrome::kChromeUIBookmarksURL)));
+}
+
+IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest, NoReadingList) {
+  for (int command : {IDC_READING_LIST_MENU, IDC_READING_LIST_MENU_ADD_TAB,
+                      IDC_READING_LIST_MENU_SHOW_UI}) {
+    EXPECT_FALSE(chrome::SupportsCommand(browser(), command)) << command;
+    EXPECT_FALSE(chrome::IsCommandEnabled(browser(), command)) << command;
+    EXPECT_FALSE(chrome::ExecuteCommand(browser(), command)) << command;
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest,

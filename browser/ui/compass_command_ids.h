@@ -31,8 +31,9 @@ inline bool IsCompassCommand(int id) {
          id == kToggleTabMuteCommand;
 }
 
-// Upstream commands of features Compass removes: bookmarks (pinned tabs are
-// the bookmarks) and horizontal tabs (the sidebar is the tab strip).
+// Upstream commands of features Compass removes: bookmarks and the reading
+// list (pinned tabs are the bookmarks) and horizontal tabs (the sidebar is
+// the tab strip).
 // BrowserCommandController reports them unsupported, so no menu, shortcut
 // or caller can run them, and the menus leave them out.
 inline bool IsRemovedCommand(int id) {
@@ -48,6 +49,10 @@ inline bool IsRemovedCommand(int id) {
     case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE:
     case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW:
     case IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP:
+    case IDC_READING_LIST_MENU:
+    case IDC_READING_LIST_MENU_ADD_TAB:
+    case IDC_READING_LIST_MENU_SHOW_UI:
+    case IDC_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST:
     case IDC_TOGGLE_VERTICAL_TABS:
       return true;
     default:
