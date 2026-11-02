@@ -120,7 +120,22 @@ std::string Location(const std::string& url, std::optional<int> line) {
               : url;
 }
 
+constexpr char kNotPermitted[] =
+    "Not permitted: the user hasn't turned on \"Let Claude use the whole "
+    "browser\" (Compass settings, Claude). Without it, Claude can only use "
+    "the tab the chat is about. Tell the user if the task needs more.";
+
+bool IsBrowserTool(const std::string& name) {
+  return name == "list_tabs" || name == "open_tab" || name == "select_tab" ||
+         name == "close_tab";
+}
+
 }  // namespace
+
+TabInfo::TabInfo() = default;
+TabInfo::TabInfo(const TabInfo&) = default;
+TabInfo& TabInfo::operator=(const TabInfo&) = default;
+TabInfo::~TabInfo() = default;
 
 ToolResult::ToolResult() = default;
 ToolResult::ToolResult(ToolResult&&) = default;
@@ -148,7 +163,8 @@ base::DictValue ToolResult::ToDict() && {
       .Set("is_error", is_error);
 }
 
-ClaudeTools::ClaudeTools() = default;
+ClaudeTools::ClaudeTools(std::unique_ptr<TabsDelegate> tabs)
+    : tabs_(std::move(tabs)) {}
 
 ClaudeTools::~ClaudeTools() {
   // A pending callback goes back to its caller, which may be going away
@@ -165,11 +181,7 @@ base::ListValue ClaudeTools::Definitions() {
       base::JSONReader::ReadDict(assets::kTools, base::JSON_PARSE_RFC);
   CHECK(file);
   for (base::Value& tool : *file->FindList("tools")) {
-    base::DictValue& dict = tool.GetDict();
-    if (Describe(dict, "scope") != "page") {
-      continue;
-    }
-    definitions.Append(std::move(*dict.FindDict("definition")));
+    definitions.Append(std::move(*tool.GetDict().FindDict("definition")));
   }
   if (!definitions.empty()) {
     // The tools are the same for every request: cached with the prompt.
@@ -184,10 +196,40 @@ void ClaudeTools::SetTarget(content::WebContents* contents) {
     return;
   }
   Stop();
+  task_tab_ = contents ? contents->GetWeakPtr() : nullptr;
   Observe(contents);
   console_.clear();
   console_read_seq_ = 0;
   screenshot_scale_ = 1;
+}
+
+void ClaudeTools::Retarget(content::WebContents* contents) {
+  if (contents == web_contents()) {
+    return;
+  }
+  devtools_.reset();
+  capture_.RunAndReset();
+  Observe(contents);
+  console_.clear();
+  console_read_seq_ = 0;
+  screenshot_scale_ = 1;
+  if (contents) {
+    capture_ = contents->IncrementCapturerCount(
+        gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
+        /*is_activity=*/false);
+  }
+}
+
+bool ClaudeTools::CheckBrowserScope() {
+  if (!tabs_) {
+    Finish(ToolResult::Error("The browser tools aren't available here."));
+    return false;
+  }
+  if (!tabs_->BrowserScopeAllowed()) {
+    Finish(ToolResult::Error(kNotPermitted));
+    return false;
+  }
+  return true;
 }
 
 void ClaudeTools::Stop() {
@@ -215,33 +257,49 @@ void ClaudeTools::Run(const std::string& name,
   }
   callback_ = std::move(callback);
   content::WebContents* contents = web_contents();
-  if (!contents) {
-    Finish(ToolResult::Error("The tab Claude was using is closed."));
-    return;
-  }
-  if (name != "navigate" && !CanUsePage(contents->GetLastCommittedURL())) {
-    Finish(ToolResult::Error(
-        "Claude can't use this page: it's one of the browser's own pages "
-        "(settings, passwords, extensions) or the Web Store. Navigate to a "
-        "web page first."));
-    return;
-  }
-  // Keeps the tab rendering while Claude works on it in the background.
-  if (!capture_) {
-    capture_ = contents->IncrementCapturerCount(
-        gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
-        /*is_activity=*/false);
+  const bool browser_tool = IsBrowserTool(name);
+  if (browser_tool) {
+    if (!CheckBrowserScope()) {
+      return;
+    }
+  } else {
+    if (!contents) {
+      Finish(ToolResult::Error(
+          "The tab Claude was using is closed. With \"Let Claude use the "
+          "whole browser\" on, select_tab picks another."));
+      return;
+    }
+    // Another tab than the task's (select_tab, open_tab) needs the
+    // permission, now: it may have been turned off since.
+    if (contents != task_tab_.get() &&
+        !(tabs_ && tabs_->BrowserScopeAllowed())) {
+      Finish(ToolResult::Error(kNotPermitted));
+      return;
+    }
+    if (name != "navigate" && !CanUsePage(contents->GetLastCommittedURL())) {
+      Finish(ToolResult::Error(
+          "Claude can't use this page: it's one of the browser's own pages "
+          "(settings, passwords, extensions) or the Web Store. Navigate to a "
+          "web page first."));
+      return;
+    }
+    // Keeps the tab rendering while Claude works on it in the background.
+    if (!capture_) {
+      capture_ = contents->IncrementCapturerCount(
+          gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
+          /*is_activity=*/false);
+    }
   }
   idle_.Stop();
   timeout_.Start(FROM_HERE,
-                 name == "wait" || name == "navigate"
+                 name == "wait" || name == "navigate" || name == "open_tab"
                      ? kToolTimeout + kNavigateTimeout
                      : kToolTimeout,
                  base::BindOnce(&ClaudeTools::Finish,
                                 run_weak_factory_.GetWeakPtr(),
                                 ToolResult::Error(
                                     "The page didn't answer in time.")));
-  url_before_ = contents->GetLastCommittedURL().spec();
+  url_before_ = contents ? contents->GetLastCommittedURL().spec() : "";
 
   using Handler = void (ClaudeTools::*)(base::DictValue);
   static constexpr std::pair<const char*, Handler> kHandlers[] = {
@@ -259,11 +317,17 @@ void ClaudeTools::Run(const std::string& name,
       {"form_input", &ClaudeTools::FormInput},
       {"navigate", &ClaudeTools::Navigate},
       {"wait", &ClaudeTools::Wait},
+      {"list_tabs", &ClaudeTools::ListTabs},
+      {"open_tab", &ClaudeTools::OpenTab},
+      {"select_tab", &ClaudeTools::SelectTab},
+      {"close_tab", &ClaudeTools::CloseTab},
   };
   for (const auto& [tool, handler] : kHandlers) {
     if (name == tool) {
-      // The console is gathered from the first tool on: attach now.
-      devtools().Attach();
+      if (!browser_tool) {
+        // The console is gathered from the first tool on: attach now.
+        devtools().Attach();
+      }
       (this->*handler)(std::move(input));
       return;
     }
@@ -1054,6 +1118,122 @@ void ClaudeTools::Wait(base::DictValue input) {
                base::BindOnce(&ClaudeTools::Finish,
                               run_weak_factory_.GetWeakPtr(),
                               ToolResult::Text("Waited.")));
+}
+
+void ClaudeTools::ListTabs(base::DictValue input) {
+  std::vector<TabInfo> tabs = tabs_->ListTabs();
+  if (tabs.empty()) {
+    Finish(ToolResult::Text("No tabs are open."));
+    return;
+  }
+  std::string text;
+  std::string window;
+  for (const TabInfo& tab : tabs) {
+    if (tab.window != window) {
+      window = tab.window;
+      base::StrAppend(&text, {text.empty() ? "" : "\n", window, ":\n"});
+    }
+    base::StrAppend(&text, {"- ", tab.id, ": ", tab.title.empty() ? tab.url
+                                                                  : tab.title,
+                            " — ", tab.url, " (space: ", tab.space, ")"});
+    if (tab.active) {
+      text += " [front]";
+    }
+    if (tab.contents && tab.contents.get() == web_contents()) {
+      text += " [you act on this]";
+    }
+    if (opened_.contains(tab.id)) {
+      text += " [you opened it]";
+    }
+    text += "\n";
+  }
+  Finish(ToolResult::Text(std::move(text)));
+}
+
+void ClaudeTools::OpenTab(base::DictValue input) {
+  const std::string* spec = input.FindString("url");
+  const GURL url(spec ? *spec : std::string());
+  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || !CanUsePage(url)) {
+    Finish(ToolResult::Error("Claude can only open http and https web pages."));
+    return;
+  }
+  content::WebContents* contents =
+      tabs_->OpenTab(url, input.FindBool("active").value_or(false));
+  if (!contents) {
+    Finish(ToolResult::Error("The tab couldn't be opened."));
+    return;
+  }
+  const std::string id = tabs_->IdOf(contents);
+  opened_.insert(id);
+  Retarget(contents);
+  on_loaded_ = base::BindOnce(
+      [](base::WeakPtr<ClaudeTools> self, std::string id) {
+        if (!self) {
+          return;
+        }
+        content::WebContents* contents = self->web_contents();
+        if (!contents) {
+          self->Finish(ToolResult::Error("The new tab closed."));
+          return;
+        }
+        self->Finish(ToolResult::Text(base::StrCat(
+            {"Opened tab ", id, ": ", contents->GetLastCommittedURL().spec(),
+             " (\"", base::UTF16ToUTF8(contents->GetTitle()),
+             "\"). The page tools act on it now; select_tab goes back."})));
+      },
+      run_weak_factory_.GetWeakPtr(), id);
+  delay_.Start(FROM_HERE, kNavigateTimeout,
+               base::BindOnce(
+                   [](base::WeakPtr<ClaudeTools> self) {
+                     if (self && self->on_loaded_) {
+                       std::move(self->on_loaded_).Run();
+                     }
+                   },
+                   run_weak_factory_.GetWeakPtr()));
+}
+
+void ClaudeTools::SelectTab(base::DictValue input) {
+  const std::string* id = input.FindString("tab_id");
+  content::WebContents* contents = id ? tabs_->FindTab(*id) : nullptr;
+  if (!contents) {
+    Finish(ToolResult::Error(base::StrCat(
+        {"No tab ", id ? *id : std::string(), ". list_tabs gives the ids."})));
+    return;
+  }
+  Retarget(contents);
+  std::string text = base::StrCat(
+      {"The page tools act on tab ", *id, " now: ",
+       base::UTF16ToUTF8(contents->GetTitle()), " — ",
+       contents->GetLastCommittedURL().spec(), "."});
+  if (!CanUsePage(contents->GetLastCommittedURL())) {
+    text += " It's a browser page, which Claude can't use.";
+  }
+  Finish(ToolResult::Text(std::move(text)));
+}
+
+void ClaudeTools::CloseTab(base::DictValue input) {
+  const std::string* id = input.FindString("tab_id");
+  if (!id || !opened_.contains(*id)) {
+    Finish(ToolResult::Error(
+        "Claude can only close tabs it opened in this chat (list_tabs marks "
+        "them). The user's own tabs stay."));
+    return;
+  }
+  content::WebContents* contents = tabs_->FindTab(*id);
+  opened_.erase(*id);
+  if (!contents) {
+    Finish(ToolResult::Text("That tab was closed already."));
+    return;
+  }
+  std::string text = base::StrCat({"Closed tab ", *id, "."});
+  if (contents == web_contents()) {
+    // Back to the task's tab, before this one goes.
+    Retarget(task_tab_.get());
+    text += task_tab_ ? " The page tools act on the chat's tab again."
+                      : " The page tools have no tab: select_tab one.";
+  }
+  tabs_->CloseTab(contents);
+  Finish(ToolResult::Text(std::move(text)));
 }
 
 void ClaudeTools::ReportAfterAction(std::string done) {

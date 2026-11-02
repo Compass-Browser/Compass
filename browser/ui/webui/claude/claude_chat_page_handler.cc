@@ -9,17 +9,21 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_request.h"
+#include "compass/browser/ui/claude/claude_tabs.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "components/prefs/pref_service.h"
@@ -48,7 +52,8 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
     : receiver_(this, std::move(receiver)),
       page_(std::move(page)),
       browser_(browser),
-      controller_(controller) {
+      controller_(controller),
+      tools_(std::make_unique<ClaudeTabs>(browser->GetProfile(), browser)) {
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
@@ -152,6 +157,7 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
   options.browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
   options.now = base::Time::Now();
+  options.window_tabs = WindowTabs();
   ChatRequest request =
       BuildChatRequest(std::move(*messages).TakeList(), options);
 
@@ -247,6 +253,32 @@ void ClaudeChatPageHandler::PrimaryPageChanged(content::Page& page) {
 
 void ClaudeChatPageHandler::TitleWasSet(content::NavigationEntry* entry) {
   page_->OnActivePageChanged(MakeActivePage());
+}
+
+std::string ClaudeChatPageHandler::WindowTabs() {
+  // Titles and URLs only, as context: without "Let Claude use the whole
+  // browser", Claude can't read these tabs, but it can name them.
+  constexpr int kMaxTabs = 40;
+  std::string text;
+  TabStripModel* model = browser_->GetTabStripModel();
+  for (int i = 0; i < model->count() && i < kMaxTabs; ++i) {
+    content::WebContents* contents = model->GetWebContentsAt(i);
+    std::string title = base::UTF16ToUTF8(contents->GetTitle());
+    if (title.size() > 100) {
+      title.resize(100);
+      title += "…";
+    }
+    base::StrAppend(&text, {"- ", title, " — ",
+                            contents->GetVisibleURL().spec(),
+                            i == model->active_index() ? " (active)" : "",
+                            "\n"});
+  }
+  if (model->count() > kMaxTabs) {
+    base::StrAppend(&text, {"… and ",
+                            base::NumberToString(model->count() - kMaxTabs),
+                            " more\n"});
+  }
+  return text;
 }
 
 chat::mojom::SetupPtr ClaudeChatPageHandler::MakeSetup() {

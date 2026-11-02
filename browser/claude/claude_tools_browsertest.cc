@@ -4,6 +4,7 @@
 
 #include "compass/browser/claude/claude_tools.h"
 
+#include <cstring>
 #include <memory>
 #include <string>
 
@@ -11,14 +12,23 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/claude/claude_tabs.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -71,7 +81,8 @@ class ClaudeToolsBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(embedded_test_server()->Start());
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
         browser(), embedded_test_server()->GetURL("/tools.html")));
-    tools_ = std::make_unique<ClaudeTools>();
+    tools_ = std::make_unique<ClaudeTools>(
+        std::make_unique<ClaudeTabs>(browser()->GetProfile(), browser()));
     tools_->SetTarget(contents());
   }
 
@@ -127,6 +138,25 @@ class ClaudeToolsBrowserTest : public InProcessBrowserTest {
     }
     ADD_FAILURE() << "No ref for " << name << " in:\n" << tree;
     return std::string();
+  }
+
+  void SetBrowserScope(bool on) {
+    browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kBrowserScope, on);
+  }
+
+  std::string IdOf(content::WebContents* contents) {
+    return ClaudeTabs(browser()->GetProfile(), browser()).IdOf(contents);
+  }
+
+  // The tab id in |result|'s "Opened tab tN: …".
+  static std::string OpenedId(const ToolResult& result) {
+    const std::string text = Text(result);
+    const size_t at = text.find("Opened tab ");
+    if (at == std::string::npos) {
+      return std::string();
+    }
+    const size_t start = at + strlen("Opened tab ");
+    return text.substr(start, text.find(':', start) - start);
   }
 
   std::unique_ptr<ClaudeTools> tools_;
@@ -280,7 +310,6 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, NavigatesAndRefusesBrowserPages) 
   EXPECT_THAT(Text(refused), HasSubstr("can't use this page"));
   EXPECT_TRUE(Run("run_js", R"({"code": "1"})").is_error);
 
-  EXPECT_TRUE(Run("list_tabs").is_error);
 }
 
 IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, StopEndsWhatRuns) {
@@ -309,6 +338,107 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, TabClosed) {
   ToolResult closed = Run("read_page");
   EXPECT_TRUE(closed.is_error);
   EXPECT_THAT(Text(closed), HasSubstr("closed"));
+}
+
+// docs/design/claude.md, D5: the browser tools.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, BrowserToolsNeedThePermission) {
+  const std::string url = embedded_test_server()->GetURL("/other.html").spec();
+  ToolResult listed = Run("list_tabs");
+  EXPECT_TRUE(listed.is_error);
+  EXPECT_THAT(Text(listed), HasSubstr("Let Claude use the whole browser"));
+  EXPECT_TRUE(Run("open_tab", "{\"url\": \"" + url + "\"}").is_error);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+  // The page tools work on the chat's own tab.
+  EXPECT_FALSE(Run("get_page_text").is_error);
+}
+
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, ListsOpensSelectsAndCloses) {
+  SetBrowserScope(true);
+  content::WebContents* chat_tab = contents();
+  const std::string chat_id = IdOf(chat_tab);
+
+  ToolResult listed = Run("list_tabs");
+  ASSERT_FALSE(listed.is_error) << Text(listed);
+  EXPECT_THAT(Text(listed), HasSubstr("Window 1"));
+  EXPECT_THAT(Text(listed),
+              HasSubstr(chat_id + ": Tools page — " +
+                        chat_tab->GetVisibleURL().spec()));
+  EXPECT_THAT(Text(listed), HasSubstr("[front] [you act on this]"));
+
+  // In the background: the user's tab stays in front.
+  const std::string url = embedded_test_server()->GetURL("/other.html").spec();
+  ToolResult opened = Run("open_tab", "{\"url\": \"" + url + "\"}");
+  ASSERT_FALSE(opened.is_error) << Text(opened);
+  const std::string new_id = OpenedId(opened);
+  ASSERT_FALSE(new_id.empty()) << Text(opened);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
+  EXPECT_EQ(contents(), chat_tab);
+  // The page tools act on the new tab.
+  EXPECT_THAT(Text(Run("get_page_text")), HasSubstr("Other page"));
+  EXPECT_THAT(Text(Run("list_tabs")),
+              HasSubstr(new_id + ": Other — " + url +
+                        " (space: " +
+                        base::UTF16ToUTF8(WindowFeatures::From(browser())
+                                              ->space_model()
+                                              .name()) +
+                        ") [you act on this] [you opened it]"));
+
+  ToolResult selected =
+      Run("select_tab", "{\"tab_id\": \"" + chat_id + "\"}");
+  ASSERT_FALSE(selected.is_error) << Text(selected);
+  EXPECT_THAT(Text(Run("get_page_text")), HasSubstr("Title: Tools page"));
+  EXPECT_TRUE(Run("select_tab", R"({"tab_id": "t999999"})").is_error);
+
+  // Only tabs Claude opened close.
+  ToolResult refused =
+      Run("close_tab", "{\"tab_id\": \"" + chat_id + "\"}");
+  EXPECT_TRUE(refused.is_error);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
+  ToolResult closed = Run("close_tab", "{\"tab_id\": \"" + new_id + "\"}");
+  EXPECT_FALSE(closed.is_error) << Text(closed);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return browser()->tab_strip_model()->count() == 1; }));
+}
+
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, PermissionTurnedOffMidTask) {
+  SetBrowserScope(true);
+  const std::string url = embedded_test_server()->GetURL("/other.html").spec();
+  ASSERT_FALSE(Run("open_tab", "{\"url\": \"" + url + "\"}").is_error);
+  SetBrowserScope(false);
+  // The opened tab isn't the chat's: refused now.
+  ToolResult refused = Run("get_page_text");
+  EXPECT_TRUE(refused.is_error);
+  EXPECT_THAT(Text(refused), HasSubstr("Not permitted"));
+  // The next message starts on the chat's tab again.
+  tools_->SetTarget(contents());
+  EXPECT_FALSE(Run("get_page_text").is_error);
+}
+
+// Tabs of a space no window shows live in the hidden parking window: listed
+// as not shown, and usable.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, TabsOfHiddenSpaces) {
+  SetBrowserScope(true);
+  content::WebContents* tools_tab = contents();
+  const std::string tools_id = IdOf(tools_tab);
+  WindowFeatures* features = WindowFeatures::From(browser());
+  ASSERT_TRUE(features);
+  const std::string home_name =
+      base::UTF16ToUTF8(features->space_model().name());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  features->SwitchToSpace(*work);
+  ASSERT_NE(contents(), tools_tab);
+
+  ToolResult listed = Run("list_tabs");
+  ASSERT_FALSE(listed.is_error) << Text(listed);
+  EXPECT_THAT(Text(listed), HasSubstr("Window 1 (shows space Work)"));
+  EXPECT_THAT(Text(listed), HasSubstr("Not shown (spaces no window shows):\n- " +
+                                      tools_id + ": Tools page"));
+  EXPECT_THAT(Text(listed), HasSubstr("(space: " + home_name + ")"));
+
+  ASSERT_FALSE(
+      Run("select_tab", "{\"tab_id\": \"" + tools_id + "\"}").is_error);
+  EXPECT_THAT(Text(Run("get_page_text")), HasSubstr("Title: Tools page"));
+  EXPECT_FALSE(Run("run_js", R"({"code": "1 + 1"})").is_error);
 }
 
 }  // namespace

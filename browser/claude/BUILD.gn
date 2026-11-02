@@ -109,6 +109,11 @@ source_set("browser_tests") {
   sources = [ "claude_tools_browsertest.cc" ]
   deps = [
     ":claude",
+    ":prefs",
+    "//compass/browser/sidebar",
+    "//compass/browser/ui",
+    "//compass/browser/window_sync",
+    "//components/prefs",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/ui",

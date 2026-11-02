@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -17,6 +19,7 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "url/gurl.h"
 
 namespace content {
 class WebContents;
@@ -43,6 +46,44 @@ struct ToolResult {
   bool is_error = false;
 };
 
+// One open tab, as list_tabs shows it.
+struct TabInfo {
+  TabInfo();
+  TabInfo(const TabInfo&);
+  TabInfo& operator=(const TabInfo&);
+  ~TabInfo();
+
+  std::string id;
+  std::string title;
+  std::string url;
+  // "Window 1", or "Not shown" for tabs of spaces no window shows.
+  std::string window;
+  std::string space;
+  // The front tab of its window.
+  bool active = false;
+  base::WeakPtr<content::WebContents> contents;
+};
+
+// The browser around ClaudeTools, for the browser tools: the profile's tabs
+// in every window and space. Lives in the UI layer (ClaudeTabs), which knows
+// windows and spaces; ClaudeTools only asks.
+class TabsDelegate {
+ public:
+  virtual ~TabsDelegate() = default;
+
+  // "Let Claude use the whole browser", now.
+  virtual bool BrowserScopeAllowed() = 0;
+  // The profile's open tabs, front window first.
+  virtual std::vector<TabInfo> ListTabs() = 0;
+  // The tab with list_tabs id |id|, in this profile, or null.
+  virtual content::WebContents* FindTab(const std::string& id) = 0;
+  // Opens |url| in a new tab of the chat's window (its space), in the
+  // background unless |active|. Null if it can't.
+  virtual content::WebContents* OpenTab(const GURL& url, bool active) = 0;
+  virtual std::string IdOf(content::WebContents* contents) = 0;
+  virtual void CloseTab(content::WebContents* contents) = 0;
+};
+
 // Runs Claude's tools (common/claude/tools.json) on a target tab. It knows
 // nothing of the chat: the chat panel and, later, the MCP bridge are two
 // callers. The page agent (common/claude/page_agent.js) reads the page from
@@ -55,17 +96,20 @@ class ClaudeTools : public content::WebContentsObserver {
  public:
   using Callback = base::OnceCallback<void(ToolResult)>;
 
-  ClaudeTools();
+  // |tabs| may be null: the browser tools then refuse.
+  explicit ClaudeTools(std::unique_ptr<TabsDelegate> tabs = nullptr);
   ClaudeTools(const ClaudeTools&) = delete;
   ClaudeTools& operator=(const ClaudeTools&) = delete;
   ~ClaudeTools() override;
 
-  // The definitions to send to the API: the page tools (browser tools come
-  // with "Let Claude use the whole browser", docs/design/claude.md, D5).
+  // The definitions to send to the API: every tool. The browser tools are
+  // always sent and answer "not permitted" while "Let Claude use the whole
+  // browser" is off, so a conversation stays valid when it's switched.
   // The last one is marked for caching.
   static base::ListValue Definitions();
 
-  // The tab the page tools act on. Setting another one stops what runs.
+  // The task's tab: the page tools act on it until select_tab or open_tab
+  // picks another. Setting another one stops what runs.
   void SetTarget(content::WebContents* contents);
   content::WebContents* target() { return web_contents(); }
 
@@ -89,6 +133,11 @@ class ClaudeTools : public content::WebContentsObserver {
   using Result = base::expected<base::DictValue, std::string>;
 
   void Finish(ToolResult result);
+  // The page tools act on |contents| from now on, without stopping the
+  // running tool (open_tab, select_tab).
+  void Retarget(content::WebContents* contents);
+  // Whether the browser tools may run; an error result otherwise.
+  bool CheckBrowserScope();
   void Release();
   DevToolsSession& devtools();
   void OnAttach();
@@ -137,10 +186,19 @@ class ClaudeTools : public content::WebContentsObserver {
   void FormInput(base::DictValue input);
   void Navigate(base::DictValue input);
   void Wait(base::DictValue input);
+  void ListTabs(base::DictValue input);
+  void OpenTab(base::DictValue input);
+  void SelectTab(base::DictValue input);
+  void CloseTab(base::DictValue input);
   // A short pause after an action, then what changed (the URL).
   void ReportAfterAction(std::string done);
   void ShowIndicator(double x, double y);
 
+  std::unique_ptr<TabsDelegate> tabs_;
+  // The tab the user's message was about (SetTarget()).
+  base::WeakPtr<content::WebContents> task_tab_;
+  // Tabs Claude opened: the ones close_tab may close.
+  std::set<std::string> opened_;
   std::unique_ptr<DevToolsSession> devtools_;
   base::ScopedClosureRunner capture_;
   Callback callback_;

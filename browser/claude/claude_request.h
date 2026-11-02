@@ -21,6 +21,8 @@ struct ChatOptions {
   bool claude_api = true;
   // "Let Claude use the whole browser".
   bool browser_scope = false;
+  // The chat window's tabs, a line each ("- title — url"), for context.
+  std::string window_tabs;
   // Send the tools (ClaudeTools::Definitions()).
   bool tools = true;
   base::Time now;

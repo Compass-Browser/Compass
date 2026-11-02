@@ -82,6 +82,8 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
 
  private:
   chat::mojom::SetupPtr MakeSetup();
+  // The window's tabs, titles and URLs, for the request's context.
+  std::string WindowTabs();
   chat::mojom::ActivePagePtr MakeActivePage();
   void OnSettingsChanged();
   void OnActiveTabChanged(BrowserWindowInterface* browser);

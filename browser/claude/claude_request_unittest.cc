@@ -42,14 +42,16 @@ TEST(ClaudeRequestTest, Defaults) {
   EXPECT_EQ(*body.FindString("fallbacks"), "default");
   EXPECT_EQ(request.betas,
             std::vector<std::string>{"server-side-fallback-2026-07-01"});
-  // The page tools, the last one cached; no browser tools yet (D5).
+  // Every tool, the browser ones too (they refuse while the permission is
+  // off), the last one cached.
   const base::ListValue& tools = *body.FindList("tools");
   ASSERT_FALSE(tools.empty());
   EXPECT_EQ(*tools[0].GetDict().FindString("name"), "read_page");
+  EXPECT_EQ(*tools.back().GetDict().FindString("name"), "close_tab");
   EXPECT_TRUE(tools.back().GetDict().FindDict("cache_control"));
   for (const base::Value& tool : tools) {
-    EXPECT_NE(*tool.GetDict().FindString("name"), "list_tabs");
     EXPECT_TRUE(tool.GetDict().FindDict("input_schema"));
+    EXPECT_FALSE(tool.GetDict().contains("scope"));
   }
   // No sampling parameters, which the API version refuses.
   EXPECT_FALSE(body.contains("temperature"));
@@ -67,6 +69,18 @@ TEST(ClaudeRequestTest, NoFallbackOnGatewaysOrOtherModels) {
   ChatRequest request = BuildChatRequest(OneMessage(), options);
   EXPECT_FALSE(request.body.contains("fallbacks"));
   EXPECT_TRUE(request.betas.empty());
+}
+
+TEST(ClaudeRequestTest, WindowTabsAreInTheContext) {
+  ChatOptions options;
+  options.model = "claude-opus-5-5";
+  options.window_tabs = "- Docs — https://docs.test/\n";
+  const std::string context = *(*BuildChatRequest(OneMessage(), options)
+                                     .body.FindList("system"))[1]
+                                   .GetDict()
+                                   .FindString("text");
+  EXPECT_NE(context.find("- Docs — https://docs.test/"), std::string::npos);
+  EXPECT_NE(context.find("can't read them"), std::string::npos);
 }
 
 TEST(ClaudeRequestTest, BrowserScopeIsInTheContext) {

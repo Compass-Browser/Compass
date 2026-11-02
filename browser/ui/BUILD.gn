@@ -12,6 +12,8 @@ source_set("ui") {
     "app_menu_sync.cc",
     "webui/arc_import/compass_arc_import_ui.cc",
     "webui/arc_import/compass_arc_import_ui.h",
+    "claude/claude_tabs.cc",
+    "claude/claude_tabs.h",
     "views/claude/claude_panel.cc",
     "views/claude/claude_panel.h",
     "views/command_bar/command_bar.cc",
