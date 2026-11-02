@@ -259,7 +259,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintCoversTheWholeRegion) {
   space.SetColor(SpaceColor::kBlue);
   ASSERT_TRUE(tint->GetTintForTesting());
   EXPECT_EQ(SkColorSetA(*tint->GetTintForTesting(), SK_AlphaOPAQUE),
-            *GetSpaceTint(SpaceColor::kBlue));
+            ToTintColor(*GetSpaceTint(SpaceColor::kBlue)));
   EXPECT_LT(SkColorGetA(*tint->GetTintForTesting()), SK_AlphaOPAQUE);
 
   // It follows the region when it resizes.
@@ -305,7 +305,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintFollowsASwipe) {
   EXPECT_FALSE(features->preview_space());
   ASSERT_TRUE(tint->GetTintForTesting());
   EXPECT_EQ(SkColorSetA(*tint->GetTintForTesting(), SK_AlphaOPAQUE),
-            *GetSpaceTint(SpaceColor::kGreen));
+            ToTintColor(*GetSpaceTint(SpaceColor::kGreen)));
   EXPECT_FALSE(tint->IsAnimatingForTesting());
 }
 

@@ -15,6 +15,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/views/frame/frame_separator.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "content/public/browser/navigation_controller.h"
@@ -318,6 +319,15 @@ void InstallSidebar(views::View* sidebar, views::View* bottom_container) {
     region = region->parent();
   }
   CHECK(region);
+  // Arc has no line under the header: hide upstream's, between the top
+  // buttons and the strip.
+  for (views::View* area : region->children()) {
+    for (views::View* child : area->children()) {
+      if (views::IsViewClass<FrameSeparator>(child)) {
+        child->SetVisible(false);
+      }
+    }
+  }
   BrowserWindowInterface* browser =
       views::AsViewClass<CompassSidebarView>(sidebar)->browser();
   // The region adds the sidebar again when vertical tabs come back.
