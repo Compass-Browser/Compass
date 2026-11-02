@@ -238,6 +238,7 @@ enum ExtensionPackage {
           });
         }
       } catch (e) {}
+      \(framePorts)
       // When WebKit unloads an idle background page, its IndexedDB
       // connections close first, with a "close" event Chrome never sends
       // when it stops a service worker: 1Password takes it for a crash and
@@ -297,6 +298,185 @@ enum ExtensionPackage {
         }
       } catch (e) {}
     })();
+    """
+
+  /// The message key of an emulated port's traffic.
+  static let portKey = "__compassPort"
+
+  /// Ports from extension frames in web pages, over runtime.sendMessage.
+  ///
+  /// WebKit drops a `runtime.connect` port opened by an extension frame
+  /// inside a tab a few ms after the background's onConnect, unless the
+  /// frame connects as soon as it loads (1Password's "Save passkey?" sheet
+  /// connects about 120 ms in, and loses it every time). `sendMessage` from
+  /// the same frame always gets through. So in such a frame `connect()`
+  /// returns a Port of ours: its messages go out as sendMessage calls, one
+  /// after another, and the background's come back as replies to a long
+  /// poll. In the background, onConnect listeners get a matching Port. A
+  /// port whose frame goes away without a word (no poll for 25 s) is
+  /// disconnected. Every context's onMessage listeners skip this traffic.
+  static let framePorts = """
+    try {
+        const KEY = "\(portKey)";
+        const runtime = (globalThis.chrome || globalThis.browser || {}).runtime;
+        const isFrame = typeof window !== "undefined" && window.top !== window;
+        let backgroundPage = "/_generated_background_page.html";
+        try { const page = runtime.getManifest().background.page; if (page) backgroundPage = "/" + page.replace(/^\\//, ""); } catch (e) {}
+        const isBackground = typeof location !== "undefined" && location.pathname === backgroundPage;
+        const events = (set) => ({
+          addListener(f) { set.add(f); }, removeListener(f) { set.delete(f); },
+          hasListener(f) { return set.has(f); }, hasListeners() { return set.size > 0; },
+        });
+        const fire = (set, ...args) => {
+          for (const f of [...set]) { try { f(...args); } catch (e) { setTimeout(() => { throw e; }); } }
+        };
+        const disconnected = () => new Error("Attempting to use a disconnected port object");
+        if (runtime && runtime.onMessage && runtime.sendMessage) {
+          // The extension's onMessage listeners never see this traffic.
+          const onMessage = runtime.onMessage;
+          const add = onMessage.addListener, remove = onMessage.removeListener, has = onMessage.hasListener;
+          const wrapped = new Map();
+          const wrap = (f) => {
+            if (typeof f !== "function") return f;
+            if (!wrapped.has(f)) wrapped.set(f, function (message, ...rest) { return message && message[KEY] ? undefined : f.call(this, message, ...rest); });
+            return wrapped.get(f);
+          };
+          const define = (object, key, value) => { try { Object.defineProperty(object, key, { value, configurable: false, writable: false }); } catch (e) {} };
+          define(onMessage, "addListener", function (f) { return add.call(this, wrap(f)); });
+          define(onMessage, "removeListener", function (f) { const result = remove.call(this, wrap(f)); wrapped.delete(f); return result; });
+          if (has) define(onMessage, "hasListener", function (f) { return wrapped.has(f) && has.call(this, wrapped.get(f)); });
+
+          if (isBackground && runtime.onConnect) {
+            const onConnect = runtime.onConnect;
+            const connectAdd = onConnect.addListener, connectRemove = onConnect.removeListener, connectHas = onConnect.hasListener;
+            const listeners = new Set();
+            define(onConnect, "addListener", function (f) { listeners.add(f); return connectAdd.call(this, f); });
+            define(onConnect, "removeListener", function (f) { listeners.delete(f); return connectRemove.call(this, f); });
+            if (connectHas) define(onConnect, "hasListener", function (f) { return connectHas.call(this, f); });
+            const ports = new Map();
+            const flush = (record) => {
+              if (!record.waiter) return;
+              clearTimeout(record.timer);
+              const reply = record.waiter;
+              record.waiter = null;
+              const messages = record.queue.splice(0);
+              try { reply({ messages, closed: !record.open }); } catch (e) {}
+              if (!record.open) ports.delete(record.id);
+            };
+            const drop = (record) => {
+              if (!record.open) return;
+              record.open = false;
+              ports.delete(record.id);
+              fire(record.onDisconnect, record.port);
+            };
+            setInterval(() => {
+              const now = Date.now();
+              for (const record of [...ports.values()]) {
+                if (!record.waiter && now - record.seen > 25000) drop(record);
+              }
+            }, 5000);
+            add.call(onMessage, (message, sender, reply) => {
+              if (!message || !message[KEY]) return undefined;
+              const record = ports.get(message.id);
+              if (record) record.seen = Date.now();
+              switch (message.op) {
+                case "open": {
+                  const onPortMessage = new Set(), onDisconnect = new Set();
+                  const created = { id: message.id, open: true, queue: [], waiter: null, timer: null, seen: Date.now(), onDisconnect };
+                  created.port = {
+                    name: message.name || "", sender,
+                    onMessage: events(onPortMessage), onDisconnect: events(onDisconnect),
+                    postMessage(value) {
+                      if (!created.open) throw disconnected();
+                      created.queue.push(value === undefined ? null : JSON.parse(JSON.stringify(value)));
+                      flush(created);
+                    },
+                    disconnect() {
+                      if (!created.open) return;
+                      created.open = false;
+                      if (created.waiter) flush(created); else setTimeout(() => ports.delete(created.id), 30000);
+                    },
+                  };
+                  created.onPortMessage = onPortMessage;
+                  ports.set(message.id, created);
+                  reply({ ok: true });
+                  fire(listeners, created.port);
+                  return undefined;
+                }
+                case "msg":
+                  if (!record || !record.open) { reply({ gone: true }); return undefined; }
+                  reply({ ok: true });
+                  fire(record.onPortMessage, message.msg, record.port);
+                  return undefined;
+                case "poll":
+                  if (!record) { reply({ messages: [], closed: true }); return undefined; }
+                  if (record.waiter) flush(record);
+                  record.waiter = reply;
+                  if (record.queue.length || !record.open) { flush(record); return undefined; }
+                  record.timer = setTimeout(() => flush(record), 10000);
+                  return true;
+                case "close":
+                  reply({ ok: true });
+                  if (record) drop(record);
+                  return undefined;
+              }
+              return undefined;
+            });
+          }
+
+          if (isFrame && runtime.connect) {
+            const connect = runtime.connect;
+            const open = new Set();
+            const emulated = function (...args) {
+              const extension = typeof args[0] === "string" ? args[0] : null;
+              if (extension && extension !== runtime.id) return connect.apply(runtime, args);
+              const info = (extension ? args[1] : args[0]) || {};
+              const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+              const onPortMessage = new Set(), onDisconnect = new Set();
+              let live = true;
+              let chain = Promise.resolve();
+              const send = (message) => (chain = chain.then(() => runtime.sendMessage(Object.assign({ [KEY]: 1, id }, message))));
+              const end = () => {
+                if (!live) return;
+                live = false;
+                open.delete(port);
+                fire(onDisconnect, port);
+              };
+              const poll = () => {
+                if (!live) return;
+                runtime.sendMessage({ [KEY]: 1, id, op: "poll" }).then((answer) => {
+                  if (!live) return;
+                  if (!answer) { end(); return; }
+                  for (const value of answer.messages || []) {
+                    if (!live) return;
+                    fire(onPortMessage, value, port);
+                  }
+                  if (answer.closed) end(); else poll();
+                }, end);
+              };
+              const port = {
+                name: String(info.name || ""), sender: undefined,
+                onMessage: events(onPortMessage), onDisconnect: events(onDisconnect),
+                postMessage(value) {
+                  if (!live) throw disconnected();
+                  send({ op: "msg", msg: value === undefined ? null : value }).then((answer) => { if (!answer || answer.gone) end(); }, end);
+                },
+                disconnect() {
+                  if (!live) return;
+                  live = false;
+                  open.delete(port);
+                  send({ op: "close" }).catch(() => {});
+                },
+              };
+              open.add(port);
+              send({ op: "open", name: port.name }).then((answer) => { if (answer && answer.ok) poll(); else end(); }, end);
+              return port;
+            };
+            try { Object.defineProperty(runtime, "connect", { value: emulated, configurable: false, writable: false }); } catch (e) {}
+            addEventListener("pagehide", () => { for (const port of [...open]) port.disconnect(); });
+          }
+        }
+      } catch (e) {}
     """
 
   private static var membersJSON: String {
