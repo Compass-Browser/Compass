@@ -241,7 +241,18 @@ Status (2026-11-02):
   - Browser tools say "Not permitted" without the toggle, and "not on iOS yet" with it (I4).
   - `ClaudeChat` runs the loop: tool calls one after the other, at most 40 rounds. The sheet shows a row per call (status, the result on a tap, the screenshot).
   - Debug: `-CompassClaudeTools "name {json};;…"` runs tools on the shown tab 8 s in and writes `tmp/claude-tools.log`. Checked on en.wikipedia.org/wiki/Compass in the simulator: read_page, find, run_js, read_console (the page's log and a run_js warning), scroll, screenshot, a coordinate click (opened the image viewer), get_page_text, list_tabs refused, navigate.
-  - Not yet: the click indicator and the Claude-is-acting tint.
+- **I4 and the indicators are written** (on main), checked in the simulator.
+  - Browser tools work with the toggle on:
+    - list_tabs: the live tabs by space, with 8-character ids and [front] / [you act on this] / [you opened it];
+    - open_tab: a Today tab in the space of the tab Claude works on, in the background unless `active`, waited for until loaded;
+    - select_tab: loads the tab if it isn't loaded;
+    - close_tab: only tabs Claude opened in this chat; it goes back to the chat's tab.
+  - A tab no window shows is kept rendering while Claude uses it (`ClaudeTools.keepRendering`: a full-size, nearly transparent host at the back of the key window; WebKit throttles out-of-window views and can't snapshot them), and released when the reply ends.
+  - Indicators:
+    - an orange dot fades out where a click or hover landed;
+    - the acting tab's sidebar row gets an orange outline and pulsing sparkles;
+    - with the sheet closed, a "Claude is working…" pill with Stop sits above the bar.
+  - Checked: open_tab in the background, then get_page_text and a screenshot of it, list_tabs marks, close_tab of a user's tab refused.
   - Known: pageText includes inline `<style>` text (shared page_agent.js; reported to the desktop session).
 
 - **Find.** Set `isFindInteractionEnabled = true` on the `WKWebView` (`ios/App/Browser/WebView.swift`) and add "Find on page" to `PageMenu.swift`. Cmd+F works with a hardware keyboard.

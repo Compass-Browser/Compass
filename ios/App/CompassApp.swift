@@ -215,6 +215,23 @@ struct RootView: View {
         CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)
       }
       .sheet(isPresented: $app.showingSettings) { SettingsView() }
+      // Claude working with its sheet closed: a pill to open it or stop.
+      .overlay(alignment: .bottom) {
+        if app.claude.streaming && !app.showingClaude {
+          HStack(spacing: 10) {
+            Button { app.showingClaude = true } label: {
+              Label("Claude is working…", systemImage: "sparkles").font(.footnote.weight(.medium))
+            }
+            Button("Stop") { app.claude.stop() }.font(.footnote.weight(.semibold))
+          }
+          .padding(.horizontal, 14)
+          .padding(.vertical, 8)
+          .background(.regularMaterial, in: Capsule())
+          .padding(.bottom, 76)
+          .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+      }
+      .animation(.snappy, value: app.claude.streaming && !app.showingClaude)
       .sheet(isPresented: $app.showingClaude) { ClaudeChatSheet() }
       .sheet(isPresented: $app.showingMenu) { PageMenu() }
       .sheet(isPresented: $app.showingDownloads) {

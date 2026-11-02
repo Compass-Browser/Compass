@@ -28,6 +28,9 @@ final class ClaudeChat {
   private(set) var streaming = false
   /// Each tool call's state, by tool_use id.
   private(set) var toolViews: [String: ToolView] = [:]
+  /// The tab Claude is acting on while it runs tools (its sidebar row is
+  /// tinted).
+  private(set) var actingTab: String?
   /// The next message carries the shown page's text (on by default; the
   /// same page isn't sent twice in a row).
   var attachPage = true
@@ -53,6 +56,7 @@ final class ClaudeChat {
     self.tools = tools
     // Claude's tools act on this tab until the next message.
     tools.targetTab = app.shownTab?.id
+    tools.taskTab = app.shownTab?.id
     let view = app.shownTab.flatMap { app.tabs.live[$0.id] }
     let wantsPage = attachPage && view?.url?.absoluteString != attachedURL
     let windowTabs = Self.windowTabs(app)
@@ -80,13 +84,15 @@ final class ClaudeChat {
     conversation.finishReply()
     closeOpenTools("Stopped by the user.")
     streaming = false
+    actingTab = nil
+    ClaudeTools.releaseRendering()
   }
 
   func newChat() {
     stop()
     conversation.clear()
     toolViews = [:]
-    tools?.reset()
+    tools?.forget()
     attachedURL = ""
     attachPage = true
   }
@@ -108,6 +114,8 @@ final class ClaudeChat {
       await runTools(turn)
     }
     if !Task.isCancelled { streaming = false }
+    actingTab = nil
+    ClaudeTools.releaseRendering()
   }
 
   private func reply(windowTabs: String) async {
@@ -144,6 +152,7 @@ final class ClaudeChat {
         continue
       }
       toolViews[id] = ToolView()
+      actingTab = tools.targetTab
       let result = await tools.run(call["name"]?.string ?? "", input: call["input"] ?? .object([:]))
       var view = ToolView(running: false, isError: result.isError)
       for block in result.content {
@@ -156,6 +165,7 @@ final class ClaudeChat {
       results.append(Self.result(id, result))
     }
     conversation.addToolResults(results)
+    actingTab = tools.targetTab
   }
 
   private static func result(_ id: String, _ result: ClaudeTools.Result) -> JSONValue {

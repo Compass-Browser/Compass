@@ -34,8 +34,13 @@ final class ClaudeTools {
   static let screenshotMaxEdge: CGFloat = 1280
   static let maxJSChars = 20000
 
-  /// The tab the chat is about (set when a message is sent).
-  var targetTab: String?
+  /// The tab the page tools act on: the chat's tab when a message is
+  /// sent, or one Claude opened or selected since.
+  var targetTab: String? { didSet { if targetTab != oldValue { screenshotScale = 1 } } }
+  /// The chat's tab at the last message (close_tab goes back to it).
+  var taskTab: String?
+  /// Tabs Claude opened in this chat: the only ones it may close.
+  private var opened: Set<String> = []
   /// Screenshot pixels per CSS pixel, from the latest screenshot.
   private var screenshotScale: Double = 1
   /// read_console's "only new": the console entries already read.
@@ -50,13 +55,25 @@ final class ClaudeTools {
     consoleRead = 0
   }
 
+  /// A new chat: Claude's own tabs stay, but aren't its to close any more.
+  func forget() {
+    reset()
+    opened = []
+  }
+
   /// Runs one tool call.
   func run(_ name: String, input: JSONValue) async -> Result {
     let scopes = Self.scopes
     guard let scope = scopes[name] else { return .error("Unknown tool: \(name).") }
     if scope == "browser" {
       guard ClaudeSettings.shared.browserScope else { return .error(Self.notPermitted) }
-      return .error("Other tabs aren't available on iOS yet.")
+      switch name {
+      case "list_tabs": return listTabs()
+      case "open_tab": return await openTab(input)
+      case "select_tab": return selectTab(input)
+      case "close_tab": return closeTab(input)
+      default: return .error("\(name) isn't available on iOS.")
+      }
     }
     guard let app, let id = targetTab, let node = app.store.node(id: id) else {
       return .error("The tab the chat is about was closed.")
@@ -67,7 +84,12 @@ final class ClaudeTools {
       return .text("Waited \(seconds) s.")
     }
     if name == "navigate" { return await navigate(node, input: input) }
-    guard let view = app.tabs.live[id] else { return .error("The tab isn't loaded. Open it first.") }
+    // A tab out of every window is throttled by WebKit and can't be
+    // snapshotted: it's kept rendering while Claude works on it.
+    let wasLoaded = app.tabs.live[id] != nil
+    let view = app.tabs.webView(for: node)
+    Self.keepRendering(view)
+    if !wasLoaded { await Self.waitForLoad(view) }
     guard let url = view.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
       return .error("Claude can't use the browser's own pages, only web pages.")
     }
@@ -75,8 +97,8 @@ final class ClaudeTools {
     case "read_page": return await agent(view, "readPage", input)
     case "get_page_text": return await agent(view, "pageText", input)
     case "find": return await agent(view, "find", input)
-    case "click": return await agent(view, "click", cssInput(input))
-    case "hover": return await agent(view, "hover", cssInput(input))
+    case "click": return await acted(view, await agent(view, "click", cssInput(input)))
+    case "hover": return await acted(view, await agent(view, "hover", cssInput(input)))
     case "type": return await agent(view, "type", input)
     case "key": return await agent(view, "key", input)
     case "scroll": return await agent(view, "scroll", cssInput(input))
@@ -99,6 +121,154 @@ final class ClaudeTools {
     }
     return scopes
   }()
+
+  // MARK: Tabs (browser scope)
+
+  /// A tab's id for Claude: its entry's UUID, shortened.
+  private static func shortID(_ id: String) -> String { String(id.prefix(8)) }
+
+  /// The live tab an id (or its start) names.
+  private func tab(_ id: String?) -> SidebarNode? {
+    guard let app, let id = id?.lowercased(), !id.isEmpty else { return nil }
+    let matches = app.tabs.live.keys.filter { $0.lowercased().hasPrefix(id) }
+    return matches.count == 1 ? app.store.node(id: matches[0]) : nil
+  }
+
+  /// The open (live) tabs, by space, as the desktop lists its windows'.
+  private func listTabs() -> Result {
+    guard let app else { return .error("No window.") }
+    let shown = Set(app.services.windows.compactMap { $0.shownTab?.id })
+    var text = ""
+    for space in app.store.spaces {
+      let tabs = (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed().flatMap(\.subtree))
+        .filter { $0.isTab && app.tabs.live[$0.id] != nil }
+      guard !tabs.isEmpty else { continue }
+      text += "\(text.isEmpty ? "" : "\n")Space \(space.name):\n"
+      for tab in tabs {
+        let url = app.tabs.live[tab.id]?.url?.absoluteString ?? tab.url
+        let title = app.tabs.live[tab.id]?.title.flatMap { $0.isEmpty ? nil : $0 } ?? tab.displayTitle
+        text += "- \(Self.shortID(tab.id)): \(title.isEmpty ? url : title) — \(url)"
+        if shown.contains(tab.id) { text += " [front]" }
+        if tab.id == targetTab { text += " [you act on this]" }
+        if opened.contains(tab.id) { text += " [you opened it]" }
+        text += "\n"
+      }
+    }
+    return .text(text.isEmpty ? "No tabs are open." : text)
+  }
+
+  private func openTab(_ input: JSONValue) async -> Result {
+    guard let app, let spec = input["url"]?.string, let url = URL(string: spec),
+      ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+    else { return .error("Claude can only open http and https web pages.") }
+    // In the space of the tab Claude works on (else the shown one).
+    let space = targetTab.flatMap { app.store.node(id: $0) }.flatMap { app.store.space(of: $0) } ?? app.selectedSpace
+    guard let space, let tab = app.store.addTab(url: url.absoluteString, to: space.today) else {
+      return .error("The tab couldn't be opened.")
+    }
+    app.extensions.tabOpened(tab.id)
+    opened.insert(tab.id)
+    targetTab = tab.id
+    if input["active"] == true { app.show(tab) }
+    let view = app.tabs.webView(for: tab)
+    Self.keepRendering(view)
+    await Self.waitForLoad(view)
+    return .text("Opened tab \(Self.shortID(tab.id)): \(view.url?.absoluteString ?? url.absoluteString) (\"\(view.title ?? "")\"). The page tools act on it now; select_tab goes back.")
+  }
+
+  private func selectTab(_ input: JSONValue) -> Result {
+    let id = input["tab_id"]?.string ?? ""
+    guard let app, let tab = tab(id) else { return .error("No tab \(id). list_tabs gives the ids.") }
+    targetTab = tab.id
+    let view = app.tabs.webView(for: tab)
+    var text = "The page tools act on tab \(Self.shortID(tab.id)) now: \(view.title ?? tab.displayTitle) — \(view.url?.absoluteString ?? tab.url)."
+    if !["http", "https"].contains(view.url?.scheme?.lowercased() ?? "https") { text += " It's a browser page, which Claude can't use." }
+    return .text(text)
+  }
+
+  private func closeTab(_ input: JSONValue) -> Result {
+    let id = input["tab_id"]?.string ?? ""
+    guard let app, let tab = tab(id) ?? opened.lazy.filter({ $0.hasPrefix(id) }).first.flatMap(app.store.node(id:)),
+      opened.contains(tab.id)
+    else { return .error("Claude can only close tabs it opened in this chat (list_tabs marks them). The user's own tabs stay.") }
+    opened.remove(tab.id)
+    var text = "Closed tab \(Self.shortID(tab.id))."
+    if tab.id == targetTab {
+      targetTab = taskTab.flatMap { app.store.node(id: $0) != nil ? $0 : nil }
+      text += targetTab != nil ? " The page tools act on the chat's tab again." : " The page tools have no tab: select_tab one."
+    }
+    for window in app.services.windows where window.selectedNodeID == tab.id { window.selectedNodeID = nil }
+    app.close(tab)
+    return .text(text)
+  }
+
+  /// Until the page has loaded (15 s at most), and a moment to settle.
+  static func waitForLoad(_ view: WKWebView) async {
+    let deadline = Date().addingTimeInterval(15)
+    try? await Task.sleep(for: .milliseconds(300))
+    while view.isLoading, Date() < deadline { try? await Task.sleep(for: .milliseconds(200)) }
+    try? await Task.sleep(for: .milliseconds(300))
+  }
+
+  // MARK: Background tabs
+
+  /// Holds web views Claude works on that no window shows: full size (so
+  /// pages lay out as usual), behind everything, nearly transparent.
+  private static var host: UIView?
+
+  static func keepRendering(_ view: WKWebView) {
+    guard view.window == nil || view.superview === host,
+      let window = (UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        .flatMap(\.windows).first { $0.isKeyWindow })
+    else { return }
+    if host == nil || host?.window !== window {
+      host?.removeFromSuperview()
+      let view = UIView(frame: window.bounds)
+      view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      view.alpha = 0.01
+      view.isUserInteractionEnabled = false
+      window.insertSubview(view, at: 0)
+      host = view
+    }
+    guard let host, view.superview !== host else { return }
+    view.frame = host.bounds
+    view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    host.addSubview(view)
+  }
+
+  /// Claude is done: the views it kept rendering go back to being unloaded
+  /// from view (a window that shows one takes it).
+  static func releaseRendering() {
+    host?.subviews.forEach { $0.removeFromSuperview() }
+  }
+
+  // MARK: Click indicator
+
+  /// After a click or hover: a dot where it landed, on the page (when it's
+  /// on screen), fading out.
+  private func acted(_ view: WKWebView, _ result: Result) async -> Result {
+    guard !result.isError, view.window != nil, view.superview !== Self.host,
+      let text = result.content.first?["text"]?.string, let object = JSONValue.parse(text),
+      let x = object["x"]?.number, let y = object["y"]?.number
+    else { return result }
+    let cssWidth = (try? await view.evaluateJavaScript("window.visualViewport ? visualViewport.width : innerWidth", in: nil, contentWorld: ClaudeChat.world)) as? Double
+    var visible = view.bounds
+    if #available(iOS 26.0, *) { visible = visible.inset(by: view.obscuredContentInsets) }
+    let points = Double(visible.width) / (cssWidth ?? Double(visible.width))
+    let center = CGPoint(x: visible.minX + x * points, y: visible.minY + y * points)
+    let dot = UIView(frame: CGRect(x: 0, y: 0, width: 18, height: 18))
+    dot.center = center
+    dot.layer.cornerRadius = 9
+    dot.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.85)
+    dot.layer.borderColor = UIColor.white.cgColor
+    dot.layer.borderWidth = 2
+    dot.isUserInteractionEnabled = false
+    view.addSubview(dot)
+    UIView.animate(withDuration: 0.25, animations: { dot.transform = CGAffineTransform(scaleX: 1.6, y: 1.6) }) { _ in
+      UIView.animate(withDuration: 0.6, delay: 0.4, animations: { dot.alpha = 0 }) { _ in dot.removeFromSuperview() }
+    }
+    return result
+  }
 
   // MARK: Page agent
 
@@ -260,11 +430,8 @@ final class ClaudeTools {
       }
       view.load(URLRequest(url: url))
     }
-    // Until it has loaded (15 s at most), and a moment to settle.
-    let deadline = Date().addingTimeInterval(15)
-    try? await Task.sleep(for: .milliseconds(300))
-    while view.isLoading, Date() < deadline { try? await Task.sleep(for: .milliseconds(200)) }
-    try? await Task.sleep(for: .milliseconds(300))
+    Self.keepRendering(view)
+    await Self.waitForLoad(view)
     reset()
     return .text("Now at \(view.url?.absoluteString ?? where_)\(view.title.map { " (\($0))" } ?? "").")
   }
