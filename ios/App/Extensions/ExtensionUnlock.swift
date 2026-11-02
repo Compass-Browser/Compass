@@ -201,7 +201,8 @@ final class ExtensionUnlock: NSObject {
   /// Watches for a visible password field: reports it ("field"), keeps what
   /// the user submits, and reports it once the field is gone ("unlocked").
   /// `__compassUnlockFill` types a password the way a user would (React and
-  /// friends listen to input events) and submits; if the field is still
+  /// friends listen to input events) and submits it (Enter, else the
+  /// button beside the field, else the form); if the field is still
   /// there 10 s later (1Password's unlock takes seconds), "fillFailed".
   static func script(extensionID: String, name: String) -> String {
     let ids = String(data: try! JSONEncoder().encode(["id": extensionID, "name": name]), encoding: .utf8)!
@@ -232,6 +233,9 @@ final class ExtensionUnlock: NSObject {
         };
         new MutationObserver(check).observe(document.documentElement, { childList: true, subtree: true, attributes: true });
         check();
+        // Submitted and waiting (the field is disabled or read-only while
+        // the extension checks the password).
+        window.__compassUnlockWorking = () => { const f = find(); return !f || f.readOnly || f.disabled; };
         window.__compassUnlockFill = (password) => {
           const f = find();
           if (!f) return false;
@@ -241,14 +245,35 @@ final class ExtensionUnlock: NSObject {
           Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(f, password);
           f.dispatchEvent(new Event("input", { bubbles: true }));
           f.dispatchEvent(new Event("change", { bubbles: true }));
-          setTimeout(() => {
-            if (f.form && f.form.requestSubmit) { f.form.requestSubmit(); }
-            else {
-              for (const type of ["keydown", "keypress", "keyup"]) {
-                f.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
-              }
+          // As a user would: Enter in the field (1Password's unlock listens
+          // for it), then, if the field is still up, the enabled button
+          // beside it (its arrow), then the form.
+          const still = () => visible(f) && f === find();
+          const enter = () => {
+            for (const type of ["keydown", "keypress", "keyup"]) {
+              f.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
             }
-          }, 60);
+          };
+          const button = () => {
+            for (let node = f.parentElement, depth = 0; node && depth < 6; node = node.parentElement, depth++) {
+              const candidates = Array.from(node.querySelectorAll("button, [role=button], input[type=submit]"))
+                .filter((b) => visible(b) && !b.disabled && b.getAttribute("aria-disabled") !== "true"
+                  && (f.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
+              const submit = candidates.find((b) => b.type === "submit") || candidates[0];
+              if (submit) return submit;
+            }
+            return null;
+          };
+          setTimeout(() => {
+            if (!still()) return;
+            enter();
+            setTimeout(() => {
+              if (!still() || window.__compassUnlockWorking()) return;
+              const b = button();
+              if (b) { b.click(); return; }
+              if (f.form && f.form.requestSubmit) f.form.requestSubmit();
+            }, 500);
+          }, 150);
           setTimeout(() => { if (visible(f) && f === find()) post({ event: "fillFailed" }); }, 10000);
           return true;
         };

@@ -495,10 +495,6 @@ extension WebExtensions {
   /// it has one, so it can't turn into a click event.
   func openPopup(_ context: WKWebExtensionContext) {
     let tabID = app?.shownTab?.id
-    #if DEBUG
-      print("WebExtensions: openPopup asked, has popup:", context.action(for: tabID.map(tab))?.presentsPopup ?? false,
-            "default:", context.action(for: nil)?.presentsPopup ?? false)
-    #endif
     guard context.action(for: tabID.map(tab))?.presentsPopup == true else { return }
     context.performAction(for: tabID.map(tab))
   }
@@ -800,7 +796,7 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
         if let js = UserDefaults.standard.string(forKey: "CompassPopupJS") {
           Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1500))
-            _ = try? await view.evaluateJavaScript(js)
+            do { _ = try await view.evaluateJavaScript(js) } catch { print("WebExtensions: popup JS:", error) }
           }
         }
       #endif
