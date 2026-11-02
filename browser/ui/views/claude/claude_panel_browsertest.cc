@@ -224,6 +224,9 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, WithoutAKeyAsksForOne) {
   EXPECT_EQ(page_after.y(), page_before.y());
   EXPECT_EQ(page_after.height(), page_before.height());
   EXPECT_LT(page_after.width(), page_before.width());
+  // The chat is as tall as the page (GetContainerBounds() counts from
+  // another origin, so heights).
+  EXPECT_EQ(contents->GetContainerBounds().height(), page_after.height());
   // Again: it closes.
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleClaudeCommand));
   EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));

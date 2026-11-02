@@ -1,8 +1,22 @@
 diff --git a/chrome/browser/ui/views/side_panel/side_panel.cc b/chrome/browser/ui/views/side_panel/side_panel.cc
-index 48d9dd08489dddd43374ad71836f1a2773daa554..64515d54b9fe9274a6e17904ea5fbb554ecfa64b 100644
+index 48d9dd08489dddd43374ad71836f1a2773daa554..ad4c10915ec0b633b180c5c4d2de563dd1551dcd 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel.cc
 +++ b/chrome/browser/ui/views/side_panel/side_panel.cc
-@@ -154,6 +154,12 @@ class ContentParentView : public views::View, public views::ViewObserver {
+@@ -87,8 +87,11 @@ constexpr int kOverlapFromToolbar = 4;
+ // padding.
+ gfx::Insets GetBorderInsets() {
+   int border_thickness = GetBorderThickness();
+-  return gfx::Insets::TLBR(-kOverlapFromToolbar, border_thickness,
+-                           border_thickness, border_thickness);
++  // Compass: the window's frame already keeps panels 8 DIP from its edges,
++  // as it does the page card; only the side facing the page (Compass's
++  // panels are on the right) keeps the gap, so the chat is as tall as the
++  // page and as far from the window's edge.
++  return gfx::Insets::TLBR(-kOverlapFromToolbar, border_thickness, 0, 0);
+ }
+ 
+ SidePanel::HorizontalAlignment GetHorizontalAlignment(
+@@ -154,6 +157,12 @@ class ContentParentView : public views::View, public views::ViewObserver {
  
   private:
    void AddedToWidget() override {
