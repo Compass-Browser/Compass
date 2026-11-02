@@ -500,6 +500,18 @@ struct NodeRow: View {
         in: RoundedRectangle(cornerRadius: SidebarStyle.rowRadius)
       )
       .shadow(color: .black.opacity(shown ? 0.12 : 0), radius: 1.5, y: 1)
+      // Claude is acting on this tab (ClaudeTools).
+      .overlay {
+        if app.claude.actingTab == item.id {
+          RoundedRectangle(cornerRadius: SidebarStyle.rowRadius)
+            .strokeBorder(Color.orange.opacity(0.8), lineWidth: 1.5)
+            .overlay(alignment: .trailing) {
+              Image(systemName: "sparkles").font(.caption).foregroundStyle(.orange).padding(.trailing, 10)
+                .symbolEffect(.pulse)
+            }
+            .allowsHitTesting(false)
+        }
+      }
       .contentShape(Rectangle())
       .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: SidebarStyle.rowRadius))
     }

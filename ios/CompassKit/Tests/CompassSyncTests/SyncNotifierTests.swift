@@ -5,6 +5,7 @@
 import CompassCrypto
 @testable import CompassSync
 import Foundation
+import CompassShared
 import Testing
 
 struct EventStreamParserTests {

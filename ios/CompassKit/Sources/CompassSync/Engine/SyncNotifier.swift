@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassCrypto
+import CompassShared
 import Foundation
 
 /// Change notifications from the server (sync.md, "Slice 6 notes"): a
@@ -74,62 +75,5 @@ public final class SyncNotifier: Sendable {
       let numbers = json["types"] as? [Int]
     else { return nil }
     return numbers.compactMap { DataType(rawValue: Int32($0)) }
-  }
-}
-
-/// The HTML spec's event-stream parsing for `event` and `data` (LF, CR or
-/// CRLF line ends; comments skipped; lines capped at 64 KiB).
-struct EventStreamParser {
-  struct Event: Equatable {
-    var name: String
-    var data: String
-  }
-
-  private var line: [UInt8] = []
-  private var lastWasCR = false
-  private var name = ""
-  private var data: [String] = []
-
-  mutating func feed(_ byte: UInt8) -> [Event] {
-    if byte == 0x0a && lastWasCR {
-      lastWasCR = false
-      return []
-    }
-    lastWasCR = byte == 0x0d
-    if byte == 0x0a || byte == 0x0d {
-      defer { line.removeAll(keepingCapacity: true) }
-      return endOfLine()
-    }
-    if line.count < 64 * 1024 { line.append(byte) }
-    return []
-  }
-
-  private mutating func endOfLine() -> [Event] {
-    if line.isEmpty {
-      defer {
-        name = ""
-        data = []
-      }
-      guard !data.isEmpty else { return [] }
-      return [Event(name: name.isEmpty ? "message" : name, data: data.joined(separator: "\n"))]
-    }
-    let text = String(decoding: line, as: UTF8.self)
-    if text.hasPrefix(":") { return [] }
-    let field: Substring
-    var value: Substring
-    if let colon = text.firstIndex(of: ":") {
-      field = text[..<colon]
-      value = text[text.index(after: colon)...]
-      if value.hasPrefix(" ") { value = value.dropFirst() }
-    } else {
-      field = Substring(text)
-      value = ""
-    }
-    switch field {
-    case "event": name = String(value)
-    case "data": data.append(String(value))
-    default: break
-    }
-    return []
   }
 }

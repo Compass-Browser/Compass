@@ -218,6 +218,48 @@ Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBr
 
 ## iOS (`ios/App/Claude/`, new)
 
+Status (2026-11-02):
+
+- **I1 is done.** The WKWebView's find interaction is on (TabManager), the page menu has a Find tile, the command bar has "Find “…”" for typed text, and a hardware keyboard has ⌘F.
+- **I2 is done** (on main; Matteo, 2026-11-02: works on the iPhone with a real key).
+  - `CompassKit/Sources/CompassClaude` holds the pure parts, with unit tests (`CompassClaudeTests`, 11):
+    - `ClaudeEndpoint`: base URL rules, headers, error text, key hint, model list;
+    - `ChatRequest`: the desktop's body;
+    - `Conversation`: a port of conversation.ts (stream events to content blocks, the messages to send, the page block, screenshot pruning).
+  - The SSE parser moved to `CompassShared` (`EventStreamParser`), shared with sync's push stream.
+  - The app side, in `App/Claude/`:
+    - `ClaudeSettings`: the key in the device-only Keychain, the rest in UserDefaults;
+    - `ClaudeClient`: URLSession streaming and `GET /v1/models`;
+    - `ClaudeChat`: one per window; the page's text comes from `page_agent.js` `pageText` in content world "claude";
+    - `ClaudeChatSheet` and `ClaudeSettingsView`.
+  - Opening the chat: an "Ask Claude" tile in the page menu, or ⌘⇧E.
+  - `common/claude/` is bundled through project.yml.
+  - Debug: `-CompassClaude YES` opens the sheet.
+- **I3 is written** (on main), checked in the simulator; to try on the phone with a key.
+  - `ClaudeTools.swift` runs the page tools on the tab the chat is about:
+    - page_agent.js in content world "claude", with screenshot pixels turned into CSS pixels;
+    - `takeSnapshot` of the visible page (JPEG, at most 1280 px on a side);
+    - `ConsoleCapture`, a document-start page-world script added to every tab, for read_console;
+    - run_js in the page world;
+    - navigate waits for the load (15 s at most).
+  - Results are worded as the desktop's.
+  - Browser tools say "Not permitted" without the toggle, and "not on iOS yet" with it (I4).
+  - `ClaudeChat` runs the loop: tool calls one after the other, at most 40 rounds. The sheet shows a row per call (status, the result on a tap, the screenshot).
+  - Debug: `-CompassClaudeTools "name {json};;…"` runs tools on the shown tab 8 s in and writes `tmp/claude-tools.log`. Checked on en.wikipedia.org/wiki/Compass in the simulator: read_page, find, run_js, read_console (the page's log and a run_js warning), scroll, screenshot, a coordinate click (opened the image viewer), get_page_text, list_tabs refused, navigate.
+- **I4 and the indicators are written** (on main), checked in the simulator.
+  - Browser tools work with the toggle on:
+    - list_tabs: every tab in the sidebar by space (pinned, Today newest first), then favorites, loaded or not, with 8-character ids and [not loaded] / [front] / [you act on this] / [you opened it] (Matteo, 2026-11-02: Claude should see and load unloaded tabs). select_tab, and any page tool on the target, loads an unloaded tab in the background and waits for it;
+    - open_tab: a Today tab in the space of the tab Claude works on, in the background unless `active`, waited for until loaded;
+    - select_tab: loads the tab if it isn't loaded;
+    - close_tab: only tabs Claude opened in this chat; it goes back to the chat's tab.
+  - A tab no window shows is kept rendering while Claude uses it (`ClaudeTools.keepRendering`: a full-size, nearly transparent host at the back of the key window; WebKit throttles out-of-window views and can't snapshot them), and released when the reply ends.
+  - Indicators:
+    - an orange dot fades out where a click or hover landed;
+    - the acting tab's sidebar row gets an orange outline and pulsing sparkles;
+    - with the sheet closed, a "Claude is working…" pill with Stop sits above the bar.
+  - Checked: open_tab in the background, then get_page_text and a screenshot of it, list_tabs marks, close_tab of a user's tab refused.
+  - Known: pageText includes inline `<style>` text (shared page_agent.js; reported to the desktop session).
+
 - **Find.** Set `isFindInteractionEnabled = true` on the `WKWebView` (`ios/App/Browser/WebView.swift`) and add "Find on page" to `PageMenu.swift`. Cmd+F works with a hardware keyboard.
 - **Settings.** Add a Claude section in `SettingsView.swift` with the same fields. The key is stored with the existing `ios/App/Model/Keychain.swift`, kept in the device's Keychain only and not shared with extensions. The other settings go in UserDefaults.
 - **Client and loop.** `ClaudeClient.swift` streams SSE with `URLSession.bytes(for:)`. `ClaudeAgent.swift` is the same loop as the desktop's `agent.ts`, reading the shared `tools.json` and `system_prompt.md`. The pure parts (the SSE parser, request building, screenshot pruning) go in CompassKit (`CompassKit/Sources/CompassClaude`) so they can have unit tests.

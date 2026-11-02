@@ -34,6 +34,9 @@ struct BrowserCommands: Commands {
       .keyboardShortcut("c", modifiers: [.command, .shift])
       Button("Find…") { app?.findOnPage() }
         .keyboardShortcut("f")
+      // The desktop's default for the Claude panel.
+      Button("Ask Claude") { app?.showingClaude.toggle() }
+        .keyboardShortcut("e", modifiers: [.command, .shift])
     }
     CommandGroup(before: .sidebar) {
       Button(app.map { $0.isWide && $0.showingSidebarColumn } == true ? "Hide Sidebar" : "Show Sidebar") { toggleSidebar() }

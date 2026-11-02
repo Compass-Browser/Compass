@@ -28,6 +28,14 @@ struct PageMenu: View {
           dismiss()
           app.findOnPage()
         }
+        Tile(title: "Ask Claude", symbol: "sparkles") {
+          dismiss()
+          // After the menu has gone: a view shows one sheet at a time.
+          Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            app.showingClaude = true
+          }
+        }
         let desktop = app.siteSettings.value(.desktopSite, site: site)
         Tile(title: desktop ? "Mobile Site" : "Desktop Site", symbol: desktop ? "iphone" : "desktopcomputer",
              on: desktop) {
