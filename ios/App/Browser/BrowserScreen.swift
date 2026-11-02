@@ -41,6 +41,8 @@ struct BrowserScreen: View {
   @State private var menuBounce = false
   /// The page's width: the window's, less the sidebar column on an iPad.
   @State private var pageWidth: CGFloat = 0
+  /// The status bar's height over the page, which runs under it.
+  @State private var statusInset: CGFloat = 0
   /// The bar's height over the page: the 44 pt pill, its 5 pt padding and
   /// the 2 pt gap under it. A constant, not measured: feeding a measured
   /// height back into the web view's inset loops layout.
@@ -93,6 +95,7 @@ struct BrowserScreen: View {
         if let node, node.isSplit, app.isWide { panes(node) } else { page }
       }
       .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
+      .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusInset = $0 }
       .overlay(alignment: .top) {
         if let progress = loadProgress, !swiping {
           LoadBar(progress: progress, connecting: isConnecting, tint: tint)
@@ -183,7 +186,9 @@ struct BrowserScreen: View {
         let view = app.tabs.webView(for: tab)
         WebView(
           webView: view,
-          bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
+          bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
+          // Fixed headers (YouTube's) go under the status bar otherwise.
+          topInset: node?.isSplit == true ? 0 : statusInset)
           // A new web view for the same tab (an extension page that went to
           // a website) replaces the old one.
           .id("\(tab.id)/\(ObjectIdentifier(view).hashValue)")

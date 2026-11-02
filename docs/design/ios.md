@@ -568,6 +568,10 @@ As on the desktop (picture-in-picture.md): leaving a tab whose video plays with 
 
 Settings → On Launch (`StartScreen`, AppModel.swift): **Sidebar** (default: the sidebar over an empty page, as before) or **Last Tab** (the tab last shown, sidebar down, if it's still open: not closed or archived; else the sidebar). The shown tab and space are kept in `UserDefaults` (`LastShownTab`, `LastShownSpace`) as they change; a launch always opens on the space last shown. Checked: `StartScreenTests` (simulator: a page shown, the app sent home and ended, relaunched with each setting).
 
+### Status bar over pages, 2026-11-02
+
+Pages run under the status bar, but fixed and sticky elements (YouTube's header) went behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. Splits on the phone sit under the pane picker and get 0. Checked in the simulator on m.youtube.com.
+
 ### iPad, 2026-11-02
 
 - The app (and its extensions) run on iPad (`TARGETED_DEVICE_FAMILY` 1,2; every orientation, for Split View and Stage Manager).
