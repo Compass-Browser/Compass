@@ -43,6 +43,16 @@ enum HomeQuickActions {
 final class AppDelegate: NSObject, UIApplicationDelegate {
   @MainActor static weak var app: AppModel?
 
+  /// iOS woke the app for the background download session's events.
+  func application(
+    _ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) {
+    MainActor.assumeIsolated {
+      Self.app?.downloads.backgroundCompletion = completionHandler
+    }
+  }
+
   func application(
     _ application: UIApplication, configurationForConnecting session: UISceneSession,
     options: UIScene.ConnectionOptions

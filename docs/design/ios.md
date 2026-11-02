@@ -529,7 +529,12 @@ Branch `ios/system-extensions`. Everything goes through the App Group `group.it.
   - In the simulator: the snapshot is in the App Group; Inbox pin and open work at launch and live through the Darwin notification; icons are copied.
   - On the iPhone: a signed install with the group on every target.
   - On the device (user, 2026-11-02): all of it works: the share sheet (direct open included), the widgets, the Focus filter, Spotlight, the Live Activity, the Safari extension and the Shortcuts actions.
-- **Open:** downloads that go on in the background would need a background `URLSession`.
+- **Background downloads** (2026-11-02, `Downloads+Background.swift`).
+  - A page's GET download over http(s) leaves WebKit for the background `URLSession` `it.cipi1965.compass.downloads`, with the tab's cookies (filtered by domain, path and secure), its user agent and the referrer. POST, `blob:` and `data:` downloads stay with WebKit and still pause.
+  - iOS wakes the app when a download ends (`handleEventsForBackgroundURLSession`). Tasks survive a relaunch and come back to the list (`taskDescription` = item ID + name).
+  - The Live Activity says "Downloading in the background" while the app is away.
+  - Cost: the server sees the request twice (WebKit's, cancelled once it turns into a download, then the session's), so a one-time download link could fail.
+  - Simulator: a 100 MB file finished with Settings in front.
 
 ## Open items
 

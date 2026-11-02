@@ -23,7 +23,7 @@ struct DownloadActivityWidget: Widget {
           Image(systemName: Self.symbol(state.phase)).font(.system(size: 22)).foregroundStyle(Self.tint(state.phase))
         }
         DynamicIslandExpandedRegion(.trailing) {
-          if state.phase == .running {
+          if state.phase == .running || state.phase == .background {
             Button(intent: CancelDownloadIntent(downloadID: context.attributes.downloadID)) {
               Image(systemName: "xmark").font(.system(size: 13, weight: .bold))
             }
@@ -52,6 +52,7 @@ struct DownloadActivityWidget: Widget {
     switch phase {
     case .running: "arrow.down.circle.fill"
     case .paused: "pause.circle.fill"
+    case .background: "arrow.down.circle.fill"
     case .done: "checkmark.circle.fill"
     case .failed: "exclamationmark.circle.fill"
     }
@@ -61,6 +62,7 @@ struct DownloadActivityWidget: Widget {
     switch phase {
     case .running: .blue
     case .paused: .orange
+    case .background: .blue
     case .done: .green
     case .failed: .red
     }
@@ -79,7 +81,7 @@ struct LockScreenDownload: View {
         Text(state.name).font(.system(size: 15, weight: .semibold)).lineLimit(1)
         DownloadProgress(state: state)
       }
-      if state.phase == .running {
+      if state.phase == .running || state.phase == .background {
         Button(intent: CancelDownloadIntent(downloadID: context.attributes.downloadID)) {
           Image(systemName: "xmark").font(.system(size: 13, weight: .bold))
         }
@@ -95,7 +97,7 @@ struct DownloadProgress: View {
 
   var body: some View {
     switch state.phase {
-    case .running, .paused:
+    case .running, .paused, .background:
       VStack(alignment: .leading, spacing: 4) {
         if let fraction = state.fraction {
           ProgressView(value: fraction).tint(DownloadActivityWidget.tint(state.phase))
@@ -115,7 +117,11 @@ struct DownloadProgress: View {
 
   private var detail: String {
     let done = state.fraction.map { "\(Int(($0 * 100).rounded()))% · " } ?? ""
-    return state.phase == .paused ? "Paused · open Compass to finish" : done + size
+    switch state.phase {
+    case .paused: return "Paused · open Compass to finish"
+    case .background: return "Downloading in the background · " + done + size
+    default: return done + size
+    }
   }
 }
 
@@ -126,7 +132,7 @@ struct Ring: View {
     switch state.phase {
     case .done: Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(.green)
     case .failed: Image(systemName: "exclamationmark").font(.system(size: 11, weight: .bold)).foregroundStyle(.red)
-    case .running, .paused:
+    case .running, .paused, .background:
       ZStack {
         Circle().stroke(.white.opacity(0.25), lineWidth: 2.5)
         Circle().trim(from: 0, to: state.fraction ?? 0.05)

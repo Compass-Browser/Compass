@@ -13,6 +13,8 @@ final class DownloadActivities {
   private var activities: [UUID: Activity<DownloadActivityAttributes>] = [:]
   private var lastSent: [UUID: (Date, Double)] = [:]
   private var observer: NSObjectProtocol?
+  /// Downloads in the background session (they go on while suspended).
+  private var background: Set<String> = []
 
   init() {
     // WebKit's downloads stop with the app: say so on the Lock Screen.
@@ -24,6 +26,7 @@ final class DownloadActivities {
   }
 
   func update(_ item: Downloads.Item) {
+    if item.background { background.insert(item.id.uuidString) }
     guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
     let phase: DownloadActivityAttributes.ContentState.Phase =
       item.failed != nil ? .failed : item.file != nil ? .done : .running
@@ -66,7 +69,7 @@ final class DownloadActivities {
     for activity in activities.values {
       var state = activity.content.state
       guard state.phase == .running else { continue }
-      state.phase = .paused
+      state.phase = background.contains(activity.attributes.downloadID) ? .background : .paused
       let paused = state
       send(activity) { await $0.update(ActivityContent(state: paused, staleDate: nil)) }
     }

@@ -20,6 +20,9 @@ final class Downloads: NSObject {
     var bytes: Int64 = 0
     var date = Date()
     var failed: String?
+    /// In the system's background session: it goes on while the app is
+    /// suspended (Downloads+Background.swift).
+    var background = false
     var running: Bool { file == nil && failed == nil }
   }
 
@@ -35,13 +38,22 @@ final class Downloads: NSObject {
   @ObservationIgnored private var tasks: [UUID: WKDownload] = [:]
   /// The Lock Screen's download activities (App/System/DownloadActivity.swift).
   @ObservationIgnored var activities: DownloadActivities?
+  /// The background session and its tasks by item.
+  @ObservationIgnored var session: URLSession?
+  @ObservationIgnored var sessionTasks: [UUID: URLSessionDownloadTask] = [:]
+  /// iOS's completion handler after it woke the app for the session's
+  /// events (AppDelegate).
+  @ObservationIgnored var backgroundCompletion: (() -> Void)?
+
+  nonisolated static let folderURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("Downloads", isDirectory: true)
 
   override init() {
-    folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Downloads", isDirectory: true)
+    folder = Self.folderURL
     try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     super.init()
     reload()
+    startSession()
   }
 
   /// The fraction done over every running download, for the menu button's
@@ -54,6 +66,13 @@ final class Downloads: NSObject {
 
   /// A download a tab started.
   func track(_ download: WKDownload) {
+    // A plain GET goes to the background session, which iOS keeps running
+    // while the app is suspended; WebKit's stops with the app.
+    if let request = download.originalRequest, Self.canRunInBackground(request), let webView = download.webView {
+      download.cancel { _ in }
+      startInBackground(request, from: webView)
+      return
+    }
     let id = UUID()
     download.delegate = self
     running[ObjectIdentifier(download)] = id
@@ -70,6 +89,11 @@ final class Downloads: NSObject {
 
   /// Stops a running download (Cancel on its Lock Screen activity).
   func cancel(_ id: UUID) {
+    if let task = sessionTasks.removeValue(forKey: id) {
+      task.cancel()
+      update(id) { $0.failed = "Cancelled" }
+      return
+    }
     guard let download = tasks[id] else { return }
     download.cancel { _ in }
     let key = ObjectIdentifier(download)
@@ -98,14 +122,25 @@ final class Downloads: NSObject {
     items = items.filter { $0.file == nil } + finished.sorted { $0.date > $1.date }
   }
 
-  private func update(_ id: UUID, _ change: (inout Item) -> Void) {
+  /// A download the background session runs (or ran while the app was
+  /// gone): listed as running.
+  func insertRunning(_ item: Item) {
+    guard !items.contains(where: { $0.id == item.id }) else { return }
+    items.insert(item, at: 0)
+    started += 1
+    activities?.update(item)
+  }
+
+  func update(_ id: UUID, _ change: (inout Item) -> Void) {
     guard let i = items.firstIndex(where: { $0.id == id }) else { return }
     change(&items[i])
     activities?.update(items[i])
   }
 
   /// A name that isn't taken: "report.pdf", then "report 2.pdf".
-  private func destination(_ name: String) -> URL {
+  private func destination(_ name: String) -> URL { Self.destination(name, in: folder) }
+
+  nonisolated static func destination(_ name: String, in folder: URL) -> URL {
     let clean = name.replacingOccurrences(of: "/", with: "-")
     let base = (clean as NSString).deletingPathExtension
     let ext = (clean as NSString).pathExtension

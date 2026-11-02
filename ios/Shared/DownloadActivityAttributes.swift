@@ -16,6 +16,9 @@ struct DownloadActivityAttributes: ActivityAttributes {
       case running
       /// The app was suspended: WebKit's download waits for it.
       case paused
+      /// The app was suspended, the system downloads on: no progress until
+      /// the app is back or the download ends.
+      case background
       case done
       case failed
     }
