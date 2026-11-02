@@ -50,7 +50,9 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "compass/browser/ui/views/frame/load_bar.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
@@ -2184,6 +2186,52 @@ IN_PROC_BROWSER_TEST_F(CompassWindowSyncBrowserTest,
   }));
   // Now the second window keeps showing One, as a placeholder.
   EXPECT_EQ(second->GetTabStripModel()->count(), 2);
+}
+
+// The load bar sits in the frame's gap above the page: sweeping while the
+// server hasn't answered, then a line that fills, then gone.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LoadBarSweepsWhileConnecting) {
+  net::test_server::ControllableHttpResponse response(embedded_test_server(),
+                                                      "/slow");
+  ASSERT_TRUE(embedded_test_server()->Start());
+  LoadBar* bar = FindDescendant<LoadBar>(browser_view());
+  ASSERT_TRUE(bar);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  // The first page's load, done and faded.
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !bar->IsShownForTesting(); }));
+
+  contents->GetController().LoadURL(embedded_test_server()->GetURL("/slow"),
+                                    content::Referrer(),
+                                    ui::PAGE_TRANSITION_TYPED, std::string());
+  response.WaitForRequest();
+  ASSERT_TRUE(base::test::RunUntil([&] { return bar->IsSweepingForTesting(); }));
+  EXPECT_TRUE(bar->GetVisible());
+
+  // Over the card, in the gap above it.
+  views::View* card =
+      BrowserView::GetBrowserViewForBrowser(browser())->multi_contents_view();
+  const gfx::Rect card_bounds = views::View::ConvertRectToTarget(
+      card, browser_view(), card->GetLocalBounds());
+  const gfx::Rect bar_bounds = bar->bounds();
+  EXPECT_GT(bar_bounds.width(), 0);
+  EXPECT_LE(bar_bounds.bottom(), card_bounds.y());
+  EXPECT_GE(bar_bounds.x(), card_bounds.x());
+  EXPECT_LE(bar_bounds.right(), card_bounds.right());
+
+  // The server answers: no more sweep.
+  response.Send(
+      "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<p>half");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return bar->IsShownForTesting() && !bar->IsSweepingForTesting();
+  }));
+
+  response.Send("</p>");
+  response.Done();
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !bar->IsShownForTesting(); }));
+  EXPECT_FALSE(bar->GetVisible());
 }
 
 }  // namespace

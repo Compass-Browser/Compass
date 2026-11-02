@@ -114,6 +114,20 @@ it, so a full second tint would double it. Both tints fade and follow
 swipes together; the window theme seed still comes from the space color
 (spaces.md, "Window theme").
 
+## Load bar
+
+The active tab's load shows as a thin line (2 DIP, the sidebar's text
+color at 70%) centered in the frame's gap above the card, as wide as the
+card between its corners (`LoadBar`, a layered child of the browser view
+kept over its siblings). While the tab waits for the server's first answer
+(`WebContents::IsWaitingForResponse()`: connecting, or a slow server), a
+segment a third as wide sweeps back and forth, 1.2 s a pass. Once the
+server answers it becomes a line that eases toward the load's progress
+(`GetLoadProgress()`), never back. When the load ends it fills, then fades
+in 0.25 s. Switching tabs starts over with the new tab's state. There's
+none in fullscreen, where the card has no gap above it. On Windows the
+gap is under the caption buttons, and the line sits just above the card.
+
 ## Dragging
 
 The frame drags the window like a title bar: `BrowserView::NonClientHitTest()`
@@ -151,6 +165,8 @@ Browser tests: `WindowFrame` (card insets and corners; the frame tint
 matches the region's; the frame drags and the page doesn't; collapsed, the
 region is the frame's edge, the card has the frame all round, and the
 caption buttons hide until expanded),
+`LoadBarSweepsWhileConnecting` (sweeps until the server answers, sits
+above the card, gone after the load),
 `CompassSidebarMotionBrowserTest.SlidesOutWithoutMovingDown` (steps the
 close: the page keeps its y and size), `CollapsesAndResizes` (collapsed
 width, the sidebar hidden and shown again). Header tests:

@@ -12,6 +12,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
+#include "compass/browser/ui/views/frame/load_bar.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "ui/base/class_property.h"
 #include "ui/gfx/geometry/point.h"
@@ -49,6 +50,8 @@ WindowFrame::WindowFrame(views::View* region, BrowserWindowInterface* browser)
   // colors the frame as the region's colors the sidebar.
   CHECK(region->parent());
   SidebarTint::Install(region->parent(), browser);
+  // The page's load progress, in the frame above it.
+  LoadBar::Install(region->parent(), browser);
   region_observation_.Observe(region);
 }
 
