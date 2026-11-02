@@ -94,13 +94,29 @@ input {
 }
 
 .tile:hover {
-  background: rgba(128, 128, 128, 0.22);
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.tile[active] {
-  background: var(--color-tab-background-active-frame-active,
-                  rgba(255, 255, 255, 0.9));
+@media (prefers-color-scheme: dark) {
+  .tile:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* The selected entry is near-white over the tint, as Arc's, not the theme's
+ * tab color, which reads grey over a tinted sidebar (2026-11-02). In dark
+ * mode, a translucent white. */
+.tile[active],
+.tab[active] {
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tile[active],
+  .tab[active] {
+    background: rgba(255, 255, 255, 0.16);
+  }
 }
 
 .tile .favicon {
@@ -721,11 +737,20 @@ compass-sidebar-node {
   transform: scale(0.98);
 }
 
+/* A translucent white over the tint, as Arc's: the theme's hover color was
+ * hardly different from the tint (2026-11-02). */
 .tab:hover,
 .folder-row:hover,
 #newTab:hover {
-  background: var(--color-tab-background-inactive-hover-frame-active,
-                  rgba(128, 128, 128, 0.12));
+  background: rgba(255, 255, 255, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab:hover,
+  .folder-row:hover,
+  #newTab:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 #sections:focus {
@@ -737,12 +762,6 @@ compass-sidebar-node {
 .tile:focus-visible {
   outline: 2px solid var(--color-sys-primary, #8ab4f8);
   outline-offset: -2px;
-}
-
-.tab[active] {
-  background: var(--color-tab-background-active-frame-active,
-                  rgba(255, 255, 255, 0.9));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 /* Pinned entries without a tab. */
