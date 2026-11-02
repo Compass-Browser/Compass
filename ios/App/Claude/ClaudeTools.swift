@@ -70,7 +70,7 @@ final class ClaudeTools {
       switch name {
       case "list_tabs": return listTabs()
       case "open_tab": return await openTab(input)
-      case "select_tab": return selectTab(input)
+      case "select_tab": return await selectTab(input)
       case "close_tab": return closeTab(input)
       default: return .error("\(name) isn't available on iOS.")
       }
@@ -127,56 +127,50 @@ final class ClaudeTools {
   /// A tab's id for Claude: its entry's UUID, shortened.
   private static func shortID(_ id: String) -> String { String(id.prefix(8)) }
 
-  /// The live tab an id (or its start) names.
-  private func tab(_ id: String?) -> SidebarNode? {
-    guard let app, let id = id?.lowercased(), !id.isEmpty else { return nil }
-    let matches = app.tabs.live.keys.filter { $0.lowercased().hasPrefix(id) }
-    return matches.count == 1 ? app.store.node(id: matches[0]) : nil
+  /// Every tab in the sidebar, loaded or not, by group: each space's
+  /// Pinned (folders flattened) then Today, newest first; then favorites.
+  /// Desktop-only pages are left out, as the phone's sidebar does.
+  private func allTabs() -> [(name: String, tabs: [SidebarNode])] {
+    guard let app else { return [] }
+    func tabs(_ nodes: [SidebarNode]) -> [SidebarNode] { nodes.flatMap(\.subtree).filter { $0.isTab && $0.isPhoneVisible } }
+    var groups = app.store.spaces.map { space in
+      ("Space \(space.name)", tabs(space.pinned.children + space.today.children.reversed()))
+    }
+    groups.append(("Favorites", tabs(app.store.favoritesRoots.flatMap(\.children))))
+    return groups
   }
 
-  /// The open (live) tabs, by space, as the desktop lists its windows'.
-  /// Built from the live tabs themselves, so none is missed: favorites
-  /// (outside every space) get their own group.
+  /// The tab an id (or its start) names, loaded or not.
+  private func tab(_ id: String?) -> SidebarNode? {
+    guard let id = id?.lowercased(), !id.isEmpty else { return nil }
+    let matches = allTabs().flatMap(\.tabs).filter { $0.id.lowercased().hasPrefix(id) }
+    return matches.count == 1 ? matches[0] : nil
+  }
+
+  /// Every tab, by space, as the desktop lists its windows': loaded or
+  /// not ("[not loaded]": select_tab or a page tool loads it).
   private func listTabs() -> Result {
     guard let app else { return .error("No window.") }
     let shown = Set(app.services.windows.flatMap(\.displayedTabIDs))
-    let favorites = Set(app.store.favoritesRoots.flatMap { $0.children.flatMap(\.subtree) }.map(\.id))
-    // Sidebar order within each group: pinned, then Today newest first.
-    var order: [String: Int] = [:]
-    for space in app.store.spaces {
-      for node in space.pinned.children.flatMap(\.subtree) + space.today.children.reversed().flatMap(\.subtree) {
-        order[node.id] = order.count
-      }
-    }
-    var groups: [(name: String, tabs: [SidebarNode])] = app.store.spaces.map { ("Space \($0.name)", []) }
-    groups.append(("Favorites", []))
-    groups.append(("Other tabs", []))
-    for id in app.tabs.live.keys {
-      guard let node = app.store.node(id: id) else { continue }
-      let group: Int
-      if favorites.contains(id) {
-        group = groups.count - 2
-      } else if let space = app.store.space(of: node), let index = app.store.spaces.firstIndex(where: { $0 === space }) {
-        group = index
-      } else {
-        group = groups.count - 1
-      }
-      groups[group].tabs.append(node)
-    }
     var text = ""
-    for group in groups where !group.tabs.isEmpty {
+    var count = 0
+    for group in allTabs() where !group.tabs.isEmpty {
       text += "\(text.isEmpty ? "" : "\n")\(group.name):\n"
-      for tab in group.tabs.sorted(by: { (order[$0.id] ?? .max, $0.id) < (order[$1.id] ?? .max, $1.id) }) {
+      for tab in group.tabs {
+        count += 1
+        guard count <= 300 else { continue }
         let view = app.tabs.live[tab.id]
         let url = view?.url?.absoluteString ?? tab.url
         let title = view?.title.flatMap { $0.isEmpty ? nil : $0 } ?? tab.displayTitle
         text += "- \(Self.shortID(tab.id)): \(title.isEmpty ? url : title) — \(url)"
+        if view == nil { text += " [not loaded]" }
         if shown.contains(tab.id) { text += " [front]" }
         if tab.id == targetTab { text += " [you act on this]" }
         if opened.contains(tab.id) { text += " [you opened it]" }
         text += "\n"
       }
     }
+    if count > 300 { text += "\n(\(count - 300) more tabs not listed.)\n" }
     return .text(text.isEmpty ? "No tabs are open." : text)
   }
 
@@ -199,11 +193,17 @@ final class ClaudeTools {
     return .text("Opened tab \(Self.shortID(tab.id)): \(view.url?.absoluteString ?? url.absoluteString) (\"\(view.title ?? "")\"). The page tools act on it now; select_tab goes back.")
   }
 
-  private func selectTab(_ input: JSONValue) -> Result {
+  private func selectTab(_ input: JSONValue) async -> Result {
     let id = input["tab_id"]?.string ?? ""
     guard let app, let tab = tab(id) else { return .error("No tab \(id). list_tabs gives the ids.") }
     targetTab = tab.id
+    // Not loaded: it loads now, in the background.
+    let wasLoaded = app.tabs.live[tab.id] != nil
     let view = app.tabs.webView(for: tab)
+    if !wasLoaded {
+      Self.keepRendering(view)
+      await Self.waitForLoad(view)
+    }
     var text = "The page tools act on tab \(Self.shortID(tab.id)) now: \(view.title ?? tab.displayTitle) — \(view.url?.absoluteString ?? tab.url)."
     if !["http", "https"].contains(view.url?.scheme?.lowercased() ?? "https") { text += " It's a browser page, which Claude can't use." }
     return .text(text)

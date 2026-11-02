@@ -243,7 +243,7 @@ Status (2026-11-02):
   - Debug: `-CompassClaudeTools "name {json};;…"` runs tools on the shown tab 8 s in and writes `tmp/claude-tools.log`. Checked on en.wikipedia.org/wiki/Compass in the simulator: read_page, find, run_js, read_console (the page's log and a run_js warning), scroll, screenshot, a coordinate click (opened the image viewer), get_page_text, list_tabs refused, navigate.
 - **I4 and the indicators are written** (on main), checked in the simulator.
   - Browser tools work with the toggle on:
-    - list_tabs: the live tabs by space, with 8-character ids and [front] / [you act on this] / [you opened it];
+    - list_tabs: every tab in the sidebar by space (pinned, Today newest first), then favorites, loaded or not, with 8-character ids and [not loaded] / [front] / [you act on this] / [you opened it] (Matteo, 2026-11-02: Claude should see and load unloaded tabs). select_tab, and any page tool on the target, loads an unloaded tab in the background and waits for it;
     - open_tab: a Today tab in the space of the tab Claude works on, in the background unless `active`, waited for until loaded;
     - select_tab: loads the tab if it isn't loaded;
     - close_tab: only tabs Claude opened in this chat; it goes back to the chat's tab.
