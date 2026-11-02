@@ -78,6 +78,10 @@ const cc::PaintImage& GrainTile() {
 // the user's screen, 2026-11-02: #6cbad9 shows as #75aec4).
 constexpr float kTintSaturation = 0.72f;
 constexpr float kTintShade = 0.96f;
+// Its empty pane at about 66% and a touch lighter (#6cbad9 showed as
+// #82b6ca).
+constexpr float kPaneSaturation = 0.66f;
+constexpr float kPaneShade = 1.015f;
 
 // Roughly how light the frame is under the tint in light and dark mode, and
 // how light the background must be for dark text.
@@ -102,11 +106,14 @@ SkColor GetSpaceFrameTint(SpaceColor color) {
               : SK_ColorTRANSPARENT;
 }
 
-SkColor ToTintColor(SkColor color) {
+SkColor ToTintColor(SkColor color, TintSurface surface) {
+  const bool pane = surface == TintSurface::kPane;
+  const float saturation = pane ? kPaneSaturation : kTintSaturation;
+  const float shade = pane ? kPaneShade : kTintShade;
   const float luma = Luma(color) * 255;
   auto channel = [&](U8CPU value) {
-    return base::ClampRound<U8CPU>(kTintShade *
-                                   (luma + kTintSaturation * (value - luma)));
+    return base::ClampRound<U8CPU>(
+        std::clamp(shade * (luma + saturation * (value - luma)), 0.f, 255.f));
   };
   return SkColorSetARGB(SkColorGetA(color), channel(SkColorGetR(color)),
                         channel(SkColorGetG(color)),
@@ -138,6 +145,30 @@ std::optional<ui::ColorProviderKey::ColorMode> GetTintColorMode(
 
 std::optional<SkColor> GetSpaceTint(SpaceColor color) {
   return color.tint();
+}
+
+SpaceTintLook GetSpaceTintLook(const SpaceModel& space, TintSurface surface) {
+  SpaceTintLook look;
+  if (space.color().is_grey()) {
+    return look;
+  }
+  const SkAlpha alpha =
+      base::ClampRound<SkAlpha>(SpaceTintOpacity(space.intensity()) * 255);
+  std::vector<SkColor> colors = {
+      SkColorSetA(ToTintColor(*space.color().tint(), surface), alpha)};
+  for (SpaceColor color : space.gradient()) {
+    colors.push_back(SkColorSetA(ToTintColor(*color.tint(), surface), alpha));
+  }
+  for (size_t i = 0; i < look.stops.size(); ++i) {
+    const double at = static_cast<double>(i) / (look.stops.size() - 1) *
+                      (colors.size() - 1);
+    const size_t before = static_cast<size_t>(at);
+    const size_t after = std::min(before + 1, colors.size() - 1);
+    look.stops[i] = gfx::Tween::ColorValueBetween(at - before, colors[before],
+                                                  colors[after]);
+  }
+  look.grain_opacity = kMaxGrainOpacity * space.grain();
+  return look;
 }
 
 SidebarTint::SidebarTint(BrowserWindowInterface* browser)
@@ -173,26 +204,9 @@ SidebarTint* SidebarTint::Install(views::View* host,
 // positions, as opaque as its intensity says: the same three times for a
 // plain color, its halfway blend in the middle for two colors.
 SidebarTint::Look SidebarTint::ToLook(const SpaceModel& space) {
-  if (space.color().is_grey()) {
-    return Look();
-  }
-  const SkAlpha alpha =
-      base::ClampRound<SkAlpha>(SpaceTintOpacity(space.intensity()) * 255);
-  std::vector<SkColor> colors = {
-      SkColorSetA(ToTintColor(*space.color().tint()), alpha)};
-  for (SpaceColor color : space.gradient()) {
-    colors.push_back(SkColorSetA(ToTintColor(*color.tint()), alpha));
-  }
   Look look;
-  for (size_t i = 0; i < look.stops.size(); ++i) {
-    const double at = static_cast<double>(i) / (look.stops.size() - 1) *
-                      (colors.size() - 1);
-    const size_t before = static_cast<size_t>(at);
-    const size_t after = std::min(before + 1, colors.size() - 1);
-    look.stops[i] = gfx::Tween::ColorValueBetween(at - before, colors[before],
-                                                  colors[after]);
-  }
-  look.grain = space.grain();
+  look.stops = GetSpaceTintLook(space, TintSurface::kFrame).stops;
+  look.grain = space.color().is_grey() ? 0 : space.grain();
   return look;
 }
 

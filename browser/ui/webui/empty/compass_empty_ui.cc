@@ -20,6 +20,8 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
@@ -69,6 +71,72 @@ void CompassEmptyUI::ShowCommandBar() {
   contents->GetController().LoadURL(
       GURL(chrome::kChromeUINewTabPageURL), content::Referrer(),
       ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+}
+
+void CompassEmptyUI::SetPage(
+    mojo::PendingRemote<sidebar::mojom::EmptyPage> page) {
+  page_.reset();
+  page_.Bind(std::move(page));
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
+  if (tab) {
+    // Into another window, or the first one if the page came first.
+    did_insert_subscription_ = tab->RegisterDidInsert(base::BindRepeating(
+        &CompassEmptyUI::ObserveWindow, base::Unretained(this)));
+    will_detach_subscription_ = tab->RegisterWillDetach(base::BindRepeating(
+        &CompassEmptyUI::OnTabWillDetach, base::Unretained(this)));
+  }
+  ObserveWindow(tab);
+}
+
+void CompassEmptyUI::ObserveWindow(tabs::TabInterface* tab) {
+  features_observation_.Reset();
+  space_list_observation_.Reset();
+  BrowserWindowInterface* browser =
+      tab ? tab->GetBrowserWindowInterface() : nullptr;
+  features_ = browser ? WindowFeatures::From(browser) : nullptr;
+  if (features_) {
+    features_observation_.Observe(features_.get());
+    space_list_observation_.Observe(&features_->service().space_list());
+  }
+  SendTint();
+}
+
+// Before the window (and its features) can go.
+void CompassEmptyUI::OnTabWillDetach(tabs::TabInterface* tab,
+                                     tabs::TabInterface::DetachReason reason) {
+  features_observation_.Reset();
+  space_list_observation_.Reset();
+  features_ = nullptr;
+}
+
+void CompassEmptyUI::OnSpaceSwitched() {
+  SendTint();
+}
+
+// The window's space can go from now on; the window empties and closes.
+void CompassEmptyUI::OnSwappedAway() {
+  features_observation_.Reset();
+  space_list_observation_.Reset();
+  features_ = nullptr;
+}
+
+void CompassEmptyUI::OnSpaceUpdated(const SpaceModel& space) {
+  if (features_ && &space == &features_->space_model()) {
+    SendTint();
+  }
+}
+
+void CompassEmptyUI::SendTint() {
+  if (!page_) {
+    return;
+  }
+  SpaceTintLook look;
+  if (features_) {
+    look = GetSpaceTintLook(features_->space_model(), TintSurface::kPane);
+  }
+  page_->SetTint(std::vector<uint32_t>(look.stops.begin(), look.stops.end()),
+                 look.grain_opacity);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(CompassEmptyUI)

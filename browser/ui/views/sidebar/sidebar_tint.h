@@ -35,9 +35,23 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color);
 // transparent for none.
 SkColor GetSpaceFrameTint(SpaceColor color);
 
-// The color the tint paints for a space color: duller and a little darker,
-// as Arc paints its spaces (docs/design/spaces.md, "Intensity and grain").
-SkColor ToTintColor(SkColor color);
+// Where a tint paints: the sidebar and the frame, or the empty pane, which
+// Arc paints a little lighter.
+enum class TintSurface { kFrame, kPane };
+
+// The color the tint paints for a space color: duller (and on the frame a
+// little darker), as Arc paints its spaces (docs/design/spaces.md,
+// "Intensity and grain").
+SkColor ToTintColor(SkColor color, TintSurface surface = TintSurface::kFrame);
+
+// What a space's tint paints on |surface|: its gradient's stops, evenly
+// spaced, as opaque as its intensity says (transparent for grey), and its
+// grain's opacity.
+struct SpaceTintLook {
+  std::array<SkColor, kMaxSpaceGradientColors> stops{};
+  float grain_opacity = 0;
+};
+SpaceTintLook GetSpaceTintLook(const SpaceModel& space, TintSurface surface);
 
 // The mode a space in automatic mode gives its windows: light or dark where
 // its tint is strong enough to decide how light the frame is whatever the

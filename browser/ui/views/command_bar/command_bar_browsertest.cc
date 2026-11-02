@@ -201,6 +201,45 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, NewTabPageIsTheEmptyPage) {
   EXPECT_EQ(model->GetActiveWebContents()->GetVisibleURL(), url);
 }
 
+// The empty pane paints the space's tint, as Arc does, and follows its
+// changes (docs/design/spaces.md, "Empty pane").
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, EmptyPaneTakesTheSpaceTint) {
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
+  content::WebContents* empty =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(empty));
+  ASSERT_TRUE(IsEmptyTab(empty));
+  constexpr char kTinted[] =
+      "document.documentElement.hasAttribute('tinted')";
+  constexpr char kGrain[] =
+      "getComputedStyle(document.documentElement)"
+      ".getPropertyValue('--grain-opacity').trim()";
+  // A grey space: the page's own background.
+  EXPECT_EQ(false, content::EvalJs(empty, kTinted));
+
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  space.SetColor(SpaceColor::FromRGB(108, 186, 217));
+  space.SetIntensity(1);
+  space.SetGrain(1);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return content::EvalJs(empty, kTinted).ExtractBool(); }));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(empty, kGrain).ExtractString() != "0";
+  }));
+  // Arc's pane color for #6cbad9, opaque at full intensity.
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(empty,
+                           "getComputedStyle(document.documentElement)"
+                           ".getPropertyValue('--tint')")
+               .ExtractString()
+               .find("rgba(130, 182, 203, 1.000)") != std::string::npos;
+  }));
+
+  space.SetColor(SpaceColor::kGrey);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return !content::EvalJs(empty, kTinted).ExtractBool(); }));
+}
+
 // Closing the last tab leaves the window open on the empty page; what the
 // command bar opens then takes its place.
 IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, ClosingTheLastTabKeepsTheWindow) {

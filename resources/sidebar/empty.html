@@ -23,10 +23,28 @@
         user-select: none;
       }
 
+      /* A space's tint over the frame color, with its grain. */
+      :root[tinted] body {
+        background: var(--tint), var(--color-frame-active, #dee3eb);
+      }
+
+      body::before {
+        background-image: var(--grain-tile);
+        background-size: var(--grain-size);
+        content: '';
+        image-rendering: pixelated;
+        inset: 0;
+        mix-blend-mode: overlay;
+        opacity: var(--grain-opacity, 0);
+        pointer-events: none;
+        position: fixed;
+      }
+
       /* Behind the command bar; seen once it's dismissed. */
       p {
         margin: 0;
         opacity: 0.5;
+        position: relative;
       }
     </style>
   </head>

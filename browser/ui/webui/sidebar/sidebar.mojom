@@ -272,6 +272,17 @@ interface EmptyPageHandler {
   // Opens the window's command bar, unless it's open. A window without one
   // loads the new tab page instead.
   ShowCommandBar();
+
+  // Sends the page its window's space's tint now and whenever it changes.
+  SetPage(pending_remote<EmptyPage> page);
+};
+
+// chrome://compass-empty, as its handler sees it.
+interface EmptyPage {
+  // What the pane paints over the frame color, as Arc paints an empty pane:
+  // three evenly spaced stops from the top left corner to the bottom right
+  // one, ARGB (all transparent for a grey space), and the grain's opacity.
+  SetTint(array<uint32> stops, float grain_opacity);
 };
 
 // An Arc space chrome://compass-import offers.

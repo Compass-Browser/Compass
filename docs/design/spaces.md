@@ -289,6 +289,20 @@ hidden for grey, passing values on every 50 ms while dragged. Arc:
 `ArcSidebarTest.GradientsComeFromTheirBaseColors`,
 `PlainColorsKeepTheirIntensity`, browser test `TintPaintsAGradient`.
 
+### Empty pane
+
+As in Arc, the empty pane (chrome://compass-empty, what a window with
+nothing else to show shows) paints the space's tint rather than a plain
+page (2026-11-02): the gradient's stops corner to corner over the frame
+color (`--color-frame-active`), as opaque as the intensity says, and the
+same grain tile at the same opacity, one grain per physical pixel. Its color
+is Arc's pane shade, 66% saturation and 1.5% lighter (`TintSurface::kPane`;
+Arc showed #6cbad9 as #82b6ca there, against #75aec4 in the sidebar). The
+handler sends the page `EmptyPage.SetTint()` when the page binds, on a
+space switch and on every change to the window's space, so the theme
+editor shows live. No blend during swipes. A grey space keeps the page's
+own background. Test: `CommandBarBrowserTest.EmptyPaneTakesTheSpaceTint`.
+
 ### Theme editor
 
 The space menu's "Edit theme" row (with a chip of the space's colors)
