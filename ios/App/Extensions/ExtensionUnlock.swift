@@ -254,13 +254,22 @@ final class ExtensionUnlock: NSObject {
               f.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
             }
           };
+          // The submit button near the field: not a show/hide toggle (it's
+          // the first button after 1Password's field).
+          const label = (b) => [b.getAttribute("aria-label"), b.getAttribute("title"), b.textContent].join(" ").toLowerCase();
+          const toggle = (b) => b.hasAttribute("aria-pressed")
+            || /password|reveal|conceal|show|hide|mostra|nascondi|rivela|afficher|masquer|mostrar|ocultar|anzeigen|verbergen|einblenden|ausblenden/.test(label(b));
+          const submitLike = /unlock|sblocca|déverrouiller|desbloquear|entsperren|ontgrendel|sign in|log ?in|accedi|connexion|continue|continua|submit|invia|\\bgo\\b/;
           const button = () => {
             for (let node = f.parentElement, depth = 0; node && depth < 6; node = node.parentElement, depth++) {
               const candidates = Array.from(node.querySelectorAll("button, [role=button], input[type=submit]"))
                 .filter((b) => visible(b) && !b.disabled && b.getAttribute("aria-disabled") !== "true"
-                  && (f.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
-              const submit = candidates.find((b) => b.type === "submit") || candidates[0];
-              if (submit) return submit;
+                  && (f.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) && !toggle(b));
+              if (!candidates.length) continue;
+              return candidates.find((b) => b.querySelector("[id*=unlock-icon], [class*=unlock-icon]") || /unlock-icon/.test(b.id + " " + b.className))
+                || candidates.find((b) => b.type === "submit")
+                || candidates.find((b) => submitLike.test(label(b)))
+                || candidates[candidates.length - 1];
             }
             return null;
           };
