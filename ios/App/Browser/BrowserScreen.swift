@@ -201,7 +201,7 @@ struct BrowserScreen: View {
     }
     .foregroundStyle(.primary)
     .padding(5)
-    .floatingGlass(in: Capsule())
+    .floatingGlass(in: Capsule(), frosted: true)
     .padding(.horizontal, 12)
     .padding(.bottom, 2)
     .accessibilityHidden(true)
@@ -326,7 +326,7 @@ struct BrowserScreen: View {
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
     .padding(5)
-    .floatingGlass(in: Capsule())
+    .floatingGlass(in: Capsule(), frosted: true)
     .padding(.horizontal, 12)
     .padding(.bottom, 2)
     // Over the buttons' own gestures (the address pill covers most of the
@@ -398,7 +398,7 @@ struct BrowserScreen: View {
       }
       .padding(.horizontal, 14)
       .frame(height: 30)
-      .floatingGlass(in: Capsule())
+      .floatingGlass(in: Capsule(), frosted: true)
       .contentShape(Capsule())
     }
     .buttonStyle(.plain)
