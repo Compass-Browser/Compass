@@ -331,6 +331,28 @@ TEST_F(CommandBarPageHandlerTest, AddsAndRemovesTheActiveEntryFromFavorites) {
   EXPECT_EQ(tab_strip_model()->count(), 2);
 }
 
+// A window swapping to another profile's space (SwitchWindowToSpace()) keeps
+// showing its tabs, bridgeless, until it closes; its space can go first. The
+// page can still call in then, and nothing it asks for may crash.
+TEST_F(CommandBarPageHandlerTest, StaysQuietInAWindowThatSwappedAway) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceList& list = features->service().space_list();
+  list.AddSpace(list.spaces().size(), u"Other");
+  features->BeginSwap();
+  list.RemoveSpace(space_model());
+  ASSERT_FALSE(features->has_tab_strip_bridge());
+  ASSERT_TRUE(browser()->GetActiveTabInterface());
+
+  OpenAndQuery(Mode::kNewEntry, "");
+  EXPECT_THAT(page_.LocalResults(),
+              Not(Contains(testing::StartsWith("entry"))));
+  EXPECT_THAT(page_.LocalResults(), Not(Contains("command New space")));
+  EXPECT_THAT(page_.LocalResults(), Not(Contains("command Pin tab")));
+  EXPECT_THAT(page_.LocalResults(),
+              Not(Contains("command Add to Favorites")));
+  EXPECT_THAT(page_.LocalResults(), Contains("command Reload"));
+}
+
 TEST_F(CommandBarPageHandlerTest, KeepsIdsWithinAQuery) {
   OpenAndQuery(Mode::kNewEntry, "re");
   const uint32_t reload = page_.IdOf("Reload");
