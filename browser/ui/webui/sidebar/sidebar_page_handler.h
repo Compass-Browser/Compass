@@ -107,6 +107,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void TreeShown() override;
   void ActivateNode(const std::string& id) override;
   void CloseNode(const std::string& id) override;
+  void ClearToday() override;
   void NewTab() override;
   void SetNodeMuted(const std::string& id, bool muted) override;
   void MoveNode(const std::string& id,

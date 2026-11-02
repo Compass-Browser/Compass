@@ -91,6 +91,9 @@ export function getHtml(this: CompassSidebarAppElement) {
       <div class="divider" data-flip="divider"></div>
       <div class="section-header" data-flip="today-header">
         <span>Today</span>
+        ${this.getToday_().length ? html`
+          <button id="clearToday" title="Close all Today tabs"
+              @click="${this.onClearTodayClick_}">Clear</button>` : nothing}
         <button id="newTodayFolder" class="new-folder" data-section="today"
             aria-label="New folder in Today" title="New folder"
             @click="${this.onNewFolderClick_}">

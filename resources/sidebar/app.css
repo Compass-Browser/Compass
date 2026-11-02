@@ -577,6 +577,34 @@ compass-sidebar-preview[side='next'] {
   margin-inline-start: auto;
 }
 
+/* Arc's: shown while the pointer is on the header (or it has focus). */
+#clearToday {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  height: 20px;
+  margin-inline-start: auto;
+  opacity: 0;
+  padding: 0 6px;
+  text-transform: inherit;
+  transition: opacity 120ms;
+}
+
+#clearToday + #newTodayFolder {
+  margin-inline-start: 0;
+}
+
+.section-header:hover #clearToday,
+#clearToday:focus-visible {
+  opacity: 1;
+}
+
+#clearToday:hover {
+  background: rgba(128, 128, 128, 0.2);
+}
+
 .new-folder:hover,
 #archiveButton:hover,
 #archiveButton[open] {

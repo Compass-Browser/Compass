@@ -794,6 +794,10 @@ moves it with its tabs.
   split's panes do.
 - Auto-archive goes by entry, tab or split, inside folders too; folders
   aren't archived (`ArchiveIdleEntries()`).
+- "Clear" in Today's header (shown while the pointer is on it, as Arc's)
+  closes every Today tab, in folders and splits too, each as its close
+  button would (`ClearToday()`; beforeunload can keep one), and removes the
+  folders left without a tab. Pinned stays.
 - A Today folder closes when its last entry leaves: closed, archived,
   moved out or pinned, and so on up its emptied parents. A new folder,
   empty, stays until something has been in it. Sync's apply is exempt

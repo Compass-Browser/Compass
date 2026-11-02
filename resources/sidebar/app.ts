@@ -764,6 +764,10 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.getPinned_().length === 0;
   }
 
+  protected onClearTodayClick_() {
+    this.browserProxy_.handler.clearToday();
+  }
+
   protected onNewTabClick_() {
     this.browserProxy_.handler.newTab();
   }

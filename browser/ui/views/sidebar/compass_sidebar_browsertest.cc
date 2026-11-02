@@ -1809,6 +1809,34 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
                                                              .Append("Three"))));
 }
 
+// Clear in Today's header closes every Today tab; the window stays.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ClearClosesTodaysTabs) {
+  content::WebContents* contents = sidebar_contents();
+  OpenThreeTabs(browser(), contents);
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('compass-sidebar-app').shadowRoot
+        .querySelector('#clearToday').click();)"));
+
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    for (int i = 0; i < browser()->tab_strip_model()->count(); ++i) {
+      if (browser()->tab_strip_model()->GetWebContentsAt(i)->GetVisibleURL()
+              .SchemeIs("data")) {
+        return false;
+      }
+    }
+    return true;
+  }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return model.today_root()->children().empty() ||
+           browser()->tab_strip_model()->count() == 1;
+  }));
+  EXPECT_FALSE(browser()->tab_strip_model()->empty());
+  for (const auto& entry : model.today_root()->children()) {
+    EXPECT_FALSE(entry->url().SchemeIs("data"));
+  }
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, FoldersInToday) {
   content::WebContents* contents = sidebar_contents();
   OpenThreeTabs(browser(), contents);

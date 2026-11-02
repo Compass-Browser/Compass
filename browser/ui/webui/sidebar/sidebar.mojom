@@ -171,6 +171,10 @@ interface PageHandler {
   // node goes with it and a pinned node stays, unloaded. An unloaded node is
   // removed.
   CloseNode(string id);
+  // Closes every Today tab, in folders and splits too, as CloseNode() does
+  // each (beforeunload can keep one), and removes the folders left without
+  // a tab. The Today header's Clear button.
+  ClearToday();
   // Opens the command bar for a new entry (docs/design/command-bar.md).
   NewTab();
   // Mutes or unmutes a tab node's live tab: its speaker was clicked.

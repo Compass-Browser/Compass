@@ -274,6 +274,54 @@ void SidebarPageHandler::CloseNode(const std::string& id) {
   }
 }
 
+void SidebarPageHandler::ClearToday() {
+  SpaceModel& space = space_model();
+  // Closing a tab changes the tree (splits dissolve, folders close), so go
+  // by ID.
+  std::vector<base::Uuid> tabs;
+  std::vector<base::Uuid> folders;
+  std::vector<const SidebarNode*> pending = {space.today_root()};
+  while (!pending.empty()) {
+    const SidebarNode* node = pending.back();
+    pending.pop_back();
+    for (const auto& child : node->children()) {
+      if (child->type() == SidebarNode::Type::kTab) {
+        tabs.push_back(child->id());
+      } else {
+        if (child->type() == SidebarNode::Type::kFolder) {
+          folders.push_back(child->id());
+        }
+        pending.push_back(child.get());
+      }
+    }
+  }
+  for (const base::Uuid& tab_id : tabs) {
+    if (SidebarNode* tab = space.FindById(tab_id)) {
+      CloseTabNode(tab);
+    }
+  }
+  // Folders that never held a tab, or whose tabs all closed.
+  for (const base::Uuid& folder_id : folders) {
+    SidebarNode* folder = space.FindById(folder_id);
+    if (!folder || !space.today_root()->Contains(folder)) {
+      continue;
+    }
+    bool has_tab = false;
+    std::vector<const SidebarNode*> inside = {folder};
+    while (!inside.empty() && !has_tab) {
+      const SidebarNode* node = inside.back();
+      inside.pop_back();
+      for (const auto& child : node->children()) {
+        has_tab |= child->type() == SidebarNode::Type::kTab;
+        inside.push_back(child.get());
+      }
+    }
+    if (!has_tab) {
+      space.Remove(folder);
+    }
+  }
+}
+
 void SidebarPageHandler::NewTab() {
   if (CommandBar* bar = CommandBar::From(browser_)) {
     bar->Show(command_bar::mojom::Mode::kNewEntry);

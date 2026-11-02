@@ -322,6 +322,38 @@ TEST_F(SidebarPageHandlerTest, ClosesEveryPaneOfASplit) {
   EXPECT_THAT(space_model().today_root()->children(), IsEmpty());
 }
 
+TEST_F(SidebarPageHandlerTest, ClearTodayClosesEveryTodayTab) {
+  SpaceModel& space = space_model();
+  SidebarNode* today = space.today_root();
+  // b.test in a folder, an unloaded entry in a nested one, an empty folder,
+  // and a pinned tab, which stays.
+  SidebarNode* trip = space.AddFolder(today, 0, u"Trip");
+  space.Move(today->children()[2].get(), trip, 0);
+  SidebarNode* inner = space.AddFolder(trip, 1, u"Inner");
+  space.AddTab(inner, 0, GURL("https://unloaded.test/"), u"Unloaded");
+  space.AddFolder(today, 0, u"Empty");
+  space.AddTab(space.pinned_root(), 0, GURL("https://pinned.test/"),
+               u"Pinned");
+  Settle();
+  ASSERT_EQ(tab_strip_model()->count(), 2);
+
+  handler_remote_->ClearToday();
+  Settle();
+
+  EXPECT_THAT(today->children(), IsEmpty());
+  // Both live tabs closed; the window keeps itself an empty tab.
+  EXPECT_LE(tab_strip_model()->count(), 1);
+  for (int i = 0; i < tab_strip_model()->count(); ++i) {
+    EXPECT_NE(tab_strip_model()->GetWebContentsAt(i)->GetVisibleURL().host(),
+              "a.test");
+    EXPECT_NE(tab_strip_model()->GetWebContentsAt(i)->GetVisibleURL().host(),
+              "b.test");
+  }
+  ASSERT_EQ(space.pinned_root()->children().size(), 1u);
+  EXPECT_EQ(space.pinned_root()->children()[0]->url(),
+            GURL("https://pinned.test/"));
+}
+
 TEST_F(SidebarPageHandlerTest, IgnoresUnknownNodeIds) {
   handler_remote_->ActivateNode("not-a-uuid");
   handler_remote_->CloseNode("00000000-0000-4000-8000-000000000000");
