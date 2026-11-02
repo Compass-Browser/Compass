@@ -26,8 +26,6 @@ enum AutoPiP {
   static let world = WKContentWorld.world(name: "CompassPiP")
   static let handler = "compassPiP"
 
-  /// Watches the video Compass moved: back inline and still playing is the
-  /// window's "back to the page".
   /// Watches the page's videos:
   /// - the one playing with sound gets `autoPictureInPicture` (WebKit's
   ///   AVKit "start automatically from inline"), in case WebKit honors it
@@ -36,7 +34,13 @@ enum AutoPiP {
   /// - Compass is told whether there's one (`state:`), so a tab switch can
   ///   keep the page in the window before it starts it;
   /// - back inline from the window, still playing, is the window's "back to
-  ///   the page".
+  ///   the page";
+  /// - a playing video scrolled off screen (under 30% visible) is reported
+  ///   (`scroll:out`), and the one Compass moved for it again once half of
+  ///   it is back (`scroll:in`): only a script the app evaluates may start
+  ///   picture-in-picture, so the app answers with enterSource/exitSource.
+  ///   After its window closes or goes back to the page, a video isn't
+  ///   moved again until it has been on screen.
   static var script: WKUserScript {
     WKUserScript(
       source: """
@@ -69,7 +73,42 @@ enum AutoPiP {
             // window's "back to the page" (not a start that failed).
             if (mode !== "inline" || !video.__compassInWindow) return;
             video.__compassInWindow = false;
+            if (window.__compassAutoPiPScroll === video) {
+              // Its tab is the one shown: back to the page brings the video
+              // into view instead.
+              window.__compassAutoPiPScroll = null;
+              if ((ratios.get(video) ?? 0) >= 0.5) return;
+              held.add(video);
+              setTimeout(() => { if (!video.paused) video.scrollIntoView({ block: "center" }); }, 400);
+              return;
+            }
             setTimeout(() => { if (!video.paused) post("restore"); }, 400);
+          }, true);
+
+          const ratios = new WeakMap();
+          const held = new WeakSet();
+          const observer = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+              const video = entry.target;
+              const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
+              ratios.set(video, ratio);
+              if (ratio >= 0.5) {
+                held.delete(video);
+                if (window.__compassAutoPiPScroll === video) post("scroll:in");
+              } else if (ratio < 0.3 && enabled && eligible(video) && !held.has(video) && !window.__compassAutoPiPScroll) {
+                post("scroll:out");
+              }
+            }
+          }, { threshold: [0, 0.3, 0.5] });
+          // Watched from its first play; observing again reports where it
+          // is now (a video started while off screen counts).
+          const watched = new WeakSet();
+          document.addEventListener("play", (event) => {
+            const video = event.target;
+            if (!(video instanceof HTMLVideoElement)) return;
+            if (watched.has(video)) observer.unobserve(video);
+            watched.add(video);
+            observer.observe(video);
           }, true);
         })();
         """,
@@ -77,8 +116,10 @@ enum AutoPiP {
   }
 
   /// "entered" when it moved a video to picture-in-picture, else why not.
-  static let enterSource = """
-    (() => {
+  /// `scroll`: moved for leaving the screen (it comes back on scroll:in).
+  static func enterSource(scroll: Bool) -> String {
+    """
+    ((scroll) => {
       const videos = [...document.querySelectorAll("video")];
       if (!videos.length) return "no video";
       if (document.pictureInPictureElement) return "already in PiP";
@@ -90,6 +131,7 @@ enum AutoPiP {
       if (candidates.length !== 1) return `${candidates.length} candidates (${videos.map(why).join(", ")})`;
       const video = candidates[0];
       window.__compassAutoPiP = video;
+      if (scroll) window.__compassAutoPiPScroll = video;
       if (video.requestPictureInPicture) {
         video.requestPictureInPicture().catch((e) => {
           window.webkit.messageHandlers.\(handler).postMessage("log:request failed " + e.name + ": " + e.message);
@@ -97,23 +139,27 @@ enum AutoPiP {
             video.webkitSetPresentationMode("picture-in-picture");
           } else {
             window.__compassAutoPiP = null;
+            window.__compassAutoPiPScroll = null;
           }
         });
       } else if (video.webkitSupportsPresentationMode && video.webkitSupportsPresentationMode("picture-in-picture")) {
         video.webkitSetPresentationMode("picture-in-picture");
       } else {
         window.__compassAutoPiP = null;
+        window.__compassAutoPiPScroll = null;
         return "PiP not supported";
       }
       return "entered";
-    })()
+    })(\(scroll))
     """
+  }
 
   static let exitSource = """
     (() => {
       const video = window.__compassAutoPiP;
       if (!video) return false;
       window.__compassAutoPiP = null;
+      window.__compassAutoPiPScroll = null;
       video.__compassInWindow = false;
       if (document.pictureInPictureElement === video) document.exitPictureInPicture().catch(() => {});
       else if (video.webkitPresentationMode === "picture-in-picture") video.webkitSetPresentationMode("inline");
@@ -121,9 +167,14 @@ enum AutoPiP {
     })()
     """
 
-  static func enter(_ view: WKWebView?) {
+  /// Scrolling a playing video off screen counts too (Settings, under
+  /// Auto Picture in Picture).
+  static let scrollKey = "AutoPictureInPictureScroll"
+  static var scrollIsOn: Bool { isOn && (UserDefaults.standard.object(forKey: scrollKey) as? Bool ?? true) }
+
+  static func enter(_ view: WKWebView?, scroll: Bool = false) {
     guard isOn, let view else { return }
-    view.evaluateJavaScript(enterSource, in: nil, in: world) { result in
+    view.evaluateJavaScript(enterSource(scroll: scroll), in: nil, in: world) { result in
       if case .success(let outcome) = result, outcome as? String != "entered" { unpark(view) }
       #if DEBUG
         switch result {

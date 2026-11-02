@@ -124,6 +124,14 @@ final class AppModel {
       guard let self, self.shownTab?.id != id, let node = self.store.node(id: id) else { return }
       self.show(node)
     }
+    // Only the tab shown, with the app active: picture-in-picture can't
+    // start on the way out.
+    tabs.onPictureInPictureScroll = { [weak self] id, out in
+      guard let self, self.shownTab?.id == id, let view = self.tabs.live[id] else { return }
+      guard out else { return AutoPiP.exit(view) }
+      guard AutoPiP.scrollIsOn, UIApplication.shared.applicationState == .active, view.window != nil else { return }
+      AutoPiP.enter(view, scroll: true)
+    }
     tabs.onNavigated = { [weak self] id in
       self?.passwords.pageChanged(id)
       self?.setBarCollapsed(false)

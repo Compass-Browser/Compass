@@ -45,6 +45,9 @@ final class TabManager: NSObject {
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
   /// A picture-in-picture window's "back to the page" (AutoPiP): tab ID.
   var onPictureInPictureRestore: ((String) -> Void)?
+  /// A playing video scrolled off screen (true), or the one Compass moved
+  /// for that back on screen (false): tab ID.
+  var onPictureInPictureScroll: ((String, Bool) -> Void)?
   /// Tabs whose page plays a video with sound (AutoPiP's candidates).
   var playingVideo: Set<String> = []
   /// A tab's URL changed (its page's forms are gone).
@@ -379,6 +382,10 @@ final class MessageProxy: NSObject, WKScriptMessageHandler {
       if message.name == AutoPiP.handler {
         if let state = message.body as? String, state.hasPrefix("state:") {
           if state == "state:playing" { target.playingVideo.insert(id) } else { target.playingVideo.remove(id) }
+          return
+        }
+        if let scroll = message.body as? String, scroll.hasPrefix("scroll:") {
+          target.onPictureInPictureScroll?(id, scroll == "scroll:out")
           return
         }
         if let log = message.body as? String, log.hasPrefix("log:") {

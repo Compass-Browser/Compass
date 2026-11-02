@@ -15,6 +15,7 @@ struct SettingsView: View {
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
+  @AppStorage(AutoPiP.scrollKey) private var autoPiPScroll = true
 
   var body: some View {
     NavigationStack {
@@ -73,10 +74,18 @@ struct SettingsView: View {
           Toggle(isOn: $autoPiP) {
             VStack(alignment: .leading, spacing: 2) {
               SettingsLabel("Auto Picture in Picture", "pip.fill", .teal)
-              Text("A video playing with sound keeps playing in a window when you leave its tab or Compass")
+              Text("A video playing with sound keeps playing in a window when you leave its tab")
                 .font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
             }
           }
+          Toggle(isOn: $autoPiPScroll) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("When Scrolled Away", "arrow.up.and.down", .teal)
+              Text("Also when you scroll it off the screen; scrolling back puts it in the page")
+                .font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
+            }
+          }
+          .disabled(!autoPiP)
         }
         Section {
           Toggle(isOn: $spotlight) {
