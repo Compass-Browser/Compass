@@ -38,6 +38,7 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"copy-url", IDC_COPY_URL, "Compass", "Copy the page's link"},
     {"little-window", kNewLittleWindowCommand, "Compass",
      "New little window"},
+    {"claude", kToggleClaudeCommand, "Compass", "Chat with Claude"},
 
     {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
     {"next-tab", IDC_SELECT_NEXT_TAB, "Tabs", "Next tab"},
@@ -277,6 +278,11 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
   shortcuts.push_back({/*command_key=*/true, /*shift_key=*/false,
                        /*cntrl_key=*/false, /*opt_key=*/true, kVK_ANSI_N,
                        kNewLittleWindowCommand});
+  // Cmd+Shift+E: the chat with Claude (Cmd+E stays "Use Selection for
+  // Find").
+  shortcuts.push_back({/*command_key=*/true, /*shift_key=*/true,
+                       /*cntrl_key=*/false, /*opt_key=*/false, kVK_ANSI_E,
+                       kToggleClaudeCommand});
 }
 
 base::span<const CustomizableCommand> GetCustomizableCommands() {

@@ -61,7 +61,9 @@ class ClaudeClient : public network::SimpleURLLoaderStreamConsumer {
   // POST /v1/messages with |request|, a Messages API request body, streamed
   // ("stream" is set). |on_event| gets each event; |on_done| runs once at
   // the end, unless Cancel() came first.
+  // |betas| go in anthropic-beta.
   void StreamMessage(base::DictValue request,
+                     std::vector<std::string> betas,
                      EventCallback on_event,
                      DoneCallback on_done);
   // Stops the stream, without running its DoneCallback.
@@ -77,7 +79,8 @@ class ClaudeClient : public network::SimpleURLLoaderStreamConsumer {
  private:
   std::unique_ptr<network::SimpleURLLoader> MakeLoader(
       const GURL& url,
-      std::string_view method);
+      std::string_view method,
+      const std::vector<std::string>& betas = {});
   void OnModels(ModelsCallback callback, std::optional<std::string> body);
   void OnStreamStarted(const GURL& final_url,
                        const network::mojom::URLResponseHead& head);

@@ -18,6 +18,33 @@ source_set("prefs") {
   ]
 }
 
+# common/claude/ (shared with iOS) as string constants:
+# compass/browser/claude/claude_assets.h.
+action("assets") {
+  script = "//compass/build/embed_text.py"
+  _files = [
+    "kSystemPrompt=//compass/common/claude/system_prompt.md",
+    "kTools=//compass/common/claude/tools.json",
+    "kPageAgent=//compass/common/claude/page_agent.js",
+  ]
+  inputs = [
+    "//compass/common/claude/page_agent.js",
+    "//compass/common/claude/system_prompt.md",
+    "//compass/common/claude/tools.json",
+  ]
+  outputs = [ "$target_gen_dir/claude_assets.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::claude::assets",
+  ]
+  foreach(file, _files) {
+    _parts = string_split(file, "=")
+    args += [ _parts[0] + "=" + rebase_path(_parts[1], root_build_dir) ]
+  }
+}
+
 source_set("claude") {
   sources = [
     "claude_api.cc",
@@ -26,17 +53,25 @@ source_set("claude") {
     "claude_client.h",
     "claude_credentials.cc",
     "claude_credentials.h",
+    "claude_request.cc",
+    "claude_request.h",
+    "page_reader.cc",
+    "page_reader.h",
     "sse_parser.cc",
     "sse_parser.h",
   ]
   public_deps = [
+    ":assets",
     ":prefs",
     "//base",
     "//services/network/public/cpp",
     "//url",
   ]
   deps = [
+    "//base:i18n",
     "//chrome/browser:browser_process",
+    "//chrome/common",
+    "//content/public/browser",
     "//chrome/browser/profiles:profile",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
@@ -51,6 +86,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "claude_api_unittest.cc",
+    "claude_request_unittest.cc",
     "sse_parser_unittest.cc",
   ]
   deps = [

@@ -1,0 +1,26 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Claude</title>
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      body {
+        background-color: var(--color-sys-base,
+            var(--color-tab-search-background));
+      }
+    </style>
+  </head>
+  <body>
+    <compass-claude-chat-app></compass-claude-chat-app>
+    <script type="module" src="claude_chat/app.js"></script>
+  </body>
+</html>

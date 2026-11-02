@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "net/base/net_errors.h"
 #include "net/base/url_util.h"
@@ -84,12 +85,16 @@ ClaudeClient::~ClaudeClient() = default;
 
 std::unique_ptr<network::SimpleURLLoader> ClaudeClient::MakeLoader(
     const GURL& url,
-    std::string_view method) {
+    std::string_view method,
+    const std::vector<std::string>& betas) {
   auto request = std::make_unique<network::ResourceRequest>();
   request->url = url;
   request->method = std::string(method);
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   AddRequestHeaders(endpoint_, request->headers);
+  if (!betas.empty()) {
+    request->headers.SetHeader("anthropic-beta", base::JoinString(betas, ","));
+  }
   auto loader =
       network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
   // Error replies carry the API's message.
@@ -134,6 +139,7 @@ void ClaudeClient::OnModels(ModelsCallback callback,
 }
 
 void ClaudeClient::StreamMessage(base::DictValue request,
+                                 std::vector<std::string> betas,
                                  EventCallback on_event,
                                  DoneCallback on_done) {
   Cancel();
@@ -153,8 +159,8 @@ void ClaudeClient::StreamMessage(base::DictValue request,
   stream_status_ = 0;
   error_body_.clear();
   saw_message_stop_ = false;
-  stream_loader_ =
-      MakeLoader(EndpointUrl(endpoint_.base_url, "v1/messages"), "POST");
+  stream_loader_ = MakeLoader(EndpointUrl(endpoint_.base_url, "v1/messages"),
+                              "POST", betas);
   stream_loader_->AttachStringForUpload(*body, "application/json");
   stream_loader_->SetOnResponseStartedCallback(base::BindOnce(
       &ClaudeClient::OnStreamStarted, weak_factory_.GetWeakPtr()));

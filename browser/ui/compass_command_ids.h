@@ -26,9 +26,13 @@ inline constexpr int kOpenSyncPageCommand = 39951;
 // "Sound").
 inline constexpr int kToggleTabMuteCommand = 39952;
 
+// Cmd+Shift+E: shows or hides the chat with Claude (docs/design/claude.md,
+// "Chat panel").
+inline constexpr int kToggleClaudeCommand = 39953;
+
 inline bool IsCompassCommand(int id) {
   return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand ||
-         id == kToggleTabMuteCommand;
+         id == kToggleTabMuteCommand || id == kToggleClaudeCommand;
 }
 
 // Upstream commands of features Compass removes: bookmarks and the reading

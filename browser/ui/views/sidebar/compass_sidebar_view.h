@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
+#include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/peek/peek.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -125,6 +126,7 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
   SpaceShortcuts space_shortcuts_;
   CommandBar command_bar_;
   Peek peek_;
+  claude::ClaudePanel claude_panel_;
   // Between a swipe's scroll begin and end.
   bool swiping_ = false;
   // After a swipe, until a scroll that isn't its momentum begins.

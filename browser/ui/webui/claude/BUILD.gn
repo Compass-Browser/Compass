@@ -5,6 +5,9 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_bindings") {
-  sources = [ "claude.mojom" ]
+  sources = [
+    "chat.mojom",
+    "claude.mojom",
+  ]
   webui_module_path = "/"
 }

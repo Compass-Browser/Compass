@@ -81,16 +81,28 @@ Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes
 - **Tests:** `browser/ui/views/find_bar/find_bar_browsertest.cc`.
 
 ### Chat panel
-- **Surface.** An upstream right-hand **side panel** entry (the left side is the Compass sidebar), WebUI `chrome://compass-chat` in `SidePanelWebUIView`. Upstream already provides resizing, open/close animation and coexistence with the extensions `sidePanel`. The only patch is one line adding the entry id. The upstream checkout wasn't mounted during planning, so `SidePanelEntry::Id` and the coordinator names still need checking.
-- **Shortcut.** A new customizable command `IDC_COMPASS_TOGGLE_CHAT` in `compass_command_ids.h` and the `kCustomizableCommands` table. It defaults to ⌘⇧E; check for clashes first. It's also reachable from the command bar ("Ask Claude…"), which passes its typed text along.
-- **UI** (`resources/sidebar/chat/`):
-  - streamed markdown messages;
-  - collapsible tool-call rows, with screenshot thumbnails;
-  - a "using this tab" indicator and a **Stop** button (Esc in the panel also stops);
-  - "New chat";
-  - a model picker;
-  - an empty state linking to settings when no key is set.
-- **Conversation lifetime.** One conversation per window, kept in memory, and it survives closing the panel. Saved history comes later.
+
+Status: D3 (text, with the page attached) written on `claude/d3-chat-panel` (2026-11-02), not built yet. Tools come in D4.
+
+- **Surface.** `compass::claude::ClaudePanel` (`browser/ui/views/claude/`), owned by the window's sidebar view. It registers a window-wide upstream side panel entry on first use, `SidePanelEntry::Id::kCompassClaude` (one-line patch of `side_panel_entry_id.h`), on the right, since the sidebar is on the left. The entry holds `chrome://compass-claude` (`ClaudeChatUI`) in a `SidePanelWebUIViewT`.
+  - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model, New chat, close).
+  - Upstream provides resizing, the open and close animation, and the switch with extensions' `sidePanel` pages.
+  - The panel shows once the page calls `ShowUI()`.
+- **Shortcut.** `kToggleClaudeCommand` (`compass_command_ids.h`), default Cmd+Shift+E on macOS (`AdjustShortcutsNotInMenu()`; Cmd+E stays "Use Selection for Find"). It's customizable as "Chat with Claude". Not done yet: an "Ask Claude…" row in the command bar.
+- **The page** (`resources/sidebar/claude_chat/`):
+  - `conversation.ts` keeps the conversation. It puts each streamed reply together from its events into the same content blocks the API returns (text, thinking with its signature, fallback blocks, tool use), so they go back unchanged in the next request.
+  - `markdown.ts` renders replies with `createElement` and text nodes only, never `innerHTML`.
+  - Links in replies open in a new tab (`OpenLink`), not in the panel.
+  - Thinking summaries show in a collapsible "Thinking…" row.
+  - Refusals and cut-off replies get a note; failures get Retry.
+- **The page attachment.** A chip above the field names the active tab. When it's on (the default for each new page), the message carries the tab's text from `page_agent.js`'s `pageText()` in an isolated world (`ReadPageText()`, at most 30,000 characters), as `<page url=… title=…>…</page>` in the user's message. The system context says that's content, not instructions. The same page isn't attached twice in a conversation.
+  - Only web pages and files are read (`CanUsePage()`): not the browser's own pages or the Web Store.
+- **The request** is built in the browser (`BuildChatRequest()`, `claude_request.cc`). The page sends only the messages; the browser adds:
+  - the model, `max_tokens` 64000, and adaptive thinking with summaries;
+  - the system prompt from `common/claude/system_prompt.md` (built in by `build/embed_text.py`, cached), and a context block (date, scope);
+  - automatic caching of the conversation;
+  - on the Claude API with Fable 5.1, Opus 5.5, Opus 5 or Sonnet 5.5: `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`.
+- **Conversation lifetime.** In the page, for as long as the panel's page lives. Saved history comes later.
 
 ### Browser-side services (per profile, `browser/claude/`, new)
 - **Prefs** (`browser/claude/claude_prefs.{h,cc}`, target `:prefs`, registered from `compass::RegisterCompassProfilePrefs()`; none sync):

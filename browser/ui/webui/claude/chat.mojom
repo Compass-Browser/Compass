@@ -1,0 +1,66 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module compass.claude.chat.mojom;
+
+// What the panel needs to know of the settings.
+struct Setup {
+  bool has_key;
+  string model;
+  bool browser_scope;
+};
+
+// The tab the chat is about.
+struct ActivePage {
+  string url;
+  string title;
+  // Claude may read it (a web page, not one of the browser's own).
+  bool readable;
+};
+
+struct PageText {
+  string url;
+  string title;
+  string text;
+  bool truncated;
+};
+
+// Bootstraps the connection; called once by the page.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// Browser side of chrome://compass-claude, the chat panel
+// (compass::ClaudePanel). See docs/design/claude.md, "Chat panel".
+interface PageHandler {
+  // The page is ready to be shown.
+  ShowUI();
+  GetSetup() => (Setup setup);
+  GetActivePage() => (ActivePage page);
+  // The active tab's text, or why it can't be read.
+  ReadActivePage() => (PageText? page, string error);
+  // Streams the next reply to |messages_json|, the Messages API's
+  // "messages" array, as Page.OnStreamEvent() calls and one
+  // Page.OnStreamDone(). The browser sets the model, the system prompt and
+  // the rest of the request. A Send while a reply streams replaces it.
+  Send(string messages_json);
+  // Stops the reply; no OnStreamDone follows.
+  Stop();
+  OpenSettings();
+  // A link in a reply: opens in a new tab (http and https only).
+  OpenLink(string url);
+  ClosePanel();
+};
+
+// Implemented by the page.
+interface Page {
+  // An event of the streamed reply: |name| ("content_block_delta", ...)
+  // and its JSON |data|.
+  OnStreamEvent(string name, string data);
+  // The reply ended; |error| is empty when it completed.
+  OnStreamDone(string error);
+  OnSetupChanged(Setup setup);
+  OnActivePageChanged(ActivePage page);
+};
