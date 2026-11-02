@@ -1,8 +1,18 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index d98c86e5dace91937c62c5428084686c666ab0d4..e17ab92dedcd1c5d19a7548f1bbe9c3076b45012 100644
+index d98c86e5dace91937c62c5428084686c666ab0d4..f75e58a607a1cda944502b65cd832f361f1d42c1 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -670,12 +670,12 @@ if (is_win) {
+@@ -566,6 +566,9 @@ if (is_win) {
+       ":chrome_app_strings_bundle_data",
+       ":chrome_resources",
+       ":chrome_versioned_bundle_data",
++
++      # Compass: compass-mcp, next to the browser in Contents/MacOS.
++      "//compass/tools/mcp:compass_mcp_bundle_data",
+     ]
+ 
+     if (enable_updater) {
+@@ -670,12 +673,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {

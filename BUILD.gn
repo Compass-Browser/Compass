@@ -56,4 +56,8 @@ test("compass_browsertests") {
   } else {
     data_deps = [ "//chrome:packed_resources" ]
   }
+  if (is_posix) {
+    # McpBridgeBrowserTest runs it.
+    data_deps += [ "//compass/tools/mcp:compass-mcp" ]
+  }
 }

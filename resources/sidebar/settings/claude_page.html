@@ -113,6 +113,37 @@
     font-weight: 500;
   }
 
+  .compass-page .mcp-command {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin: 4px 0 8px;
+  }
+
+  .compass-page .mcp-command code {
+    background: var(--compass-field-bg, rgba(127, 127, 127, 0.12));
+    border-radius: 6px;
+    flex: 1;
+    font-size: 12px;
+    overflow-x: auto;
+    padding: 6px 8px;
+    user-select: all;
+    white-space: nowrap;
+  }
+
+  .compass-page .mcp-clients {
+    margin: 4px 0;
+    padding: 0;
+  }
+
+  .compass-page .mcp-clients li {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    list-style: none;
+    padding: 2px 0;
+  }
+
   .compass-page .claude-scope {
     align-items: flex-start;
     border-top: var(--cr-separator-line,
@@ -197,3 +228,31 @@
       on for tasks you watch.</span>
   </span>
 </label>
+
+<section id="mcp">
+  <label class="claude-scope">
+    <input type="checkbox" id="mcpEnabled">
+    <span>
+      <span class="name">Allow MCP clients</span>
+      <span class="hint block">Lets apps on this Mac that speak MCP, like
+        Claude Code and Claude Desktop, use Claude's tools in Compass: read and
+        act in your tabs, signed in as you. Compass asks before each new app.
+        They bring their own model, so no API key is needed.</span>
+    </span>
+  </label>
+  <div id="mcpSetup" hidden>
+    <p class="hint">To add Compass to Claude Code, run:</p>
+    <div class="mcp-command">
+      <code id="mcpCommand"></code>
+      <button id="copyMcpCommand" class="secondary">Copy</button>
+    </div>
+    <p class="hint">Other clients: run <code id="mcpBinary"></code> as a
+      stdio MCP server.</p>
+    <div id="mcpClients" hidden>
+      <p class="hint">Always allowed:</p>
+      <ul id="mcpClientList" class="mcp-clients"></ul>
+    </div>
+  </div>
+</section>
+<p class="hint" id="mcpUnsupported" hidden>MCP clients aren't supported on
+  this system yet.</p>

@@ -6,13 +6,21 @@
 
 #include <utility>
 
+#include "base/base_paths.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/chrome_paths.h"
+#include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -28,6 +36,45 @@ mojom::AuthStyle ToMojo(AuthStyle style) {
 AuthStyle FromMojo(mojom::AuthStyle style) {
   return style == mojom::AuthStyle::kBearer ? AuthStyle::kBearer
                                             : AuthStyle::kApiKey;
+}
+
+// |text| as one shell word: quoted when it holds anything but safe
+// characters ("Application Support" has a space).
+std::string QuoteForShell(const std::string& text) {
+  if (!text.empty() &&
+      base::ContainsOnlyChars(text,
+                              "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST"
+                              "UVWXYZ0123456789/._-=+:,@")) {
+    return text;
+  }
+  std::string quoted = "'";
+  for (char c : text) {
+    if (c == '\'') {
+      quoted += "'\\''";
+    } else {
+      quoted += c;
+    }
+  }
+  return quoted + "'";
+}
+
+// "claude mcp add compass -- <the app's compass-mcp>", with the user data
+// directory when it isn't the default one (development builds).
+std::string McpCommand() {
+  base::FilePath exe_dir;
+  base::PathService::Get(base::DIR_EXE, &exe_dir);
+  std::string command = base::StrCat(
+      {"claude mcp add compass -- ",
+       QuoteForShell(exe_dir.Append("compass-mcp").value())});
+  base::FilePath user_data;
+  base::FilePath default_user_data;
+  base::PathService::Get(chrome::DIR_USER_DATA, &user_data);
+  if (chrome::GetDefaultUserDataDirectory(&default_user_data) &&
+      user_data != default_user_data) {
+    base::StrAppend(&command,
+                    {" ", QuoteForShell("--user-data-dir=" + user_data.value())});
+  }
+  return command;
 }
 
 }  // namespace
@@ -53,6 +100,16 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->auth_style = ToMojo(EndpointFromPrefs(*prefs).auth_style);
   state->model = prefs->GetString(prefs::kModel);
   state->browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
+#if BUILDFLAG(IS_POSIX)
+  state->mcp_supported = true;
+#endif
+  state->mcp_enabled = prefs->GetBoolean(prefs::kMcpEnabled);
+  state->mcp_command = McpCommand();
+  for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
+    if (client.is_string()) {
+      state->mcp_allowed_clients.push_back(client.GetString());
+    }
+  }
   std::move(callback).Run(std::move(state));
 }
 
@@ -95,6 +152,15 @@ void ClaudeSettingsHandler::SetModel(const std::string& model) {
 
 void ClaudeSettingsHandler::SetBrowserScope(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kBrowserScope, enabled);
+}
+
+void ClaudeSettingsHandler::SetMcpEnabled(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kMcpEnabled, enabled);
+}
+
+void ClaudeSettingsHandler::ForgetMcpClient(const std::string& client) {
+  ScopedListPrefUpdate update(profile_->GetPrefs(), prefs::kMcpAllowedClients);
+  update->EraseValue(base::Value(client));
 }
 
 void ClaudeSettingsHandler::TestConnection(TestConnectionCallback callback) {

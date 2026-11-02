@@ -1,0 +1,20 @@
+diff --git a/chrome/installer/mac/signing/parts.py b/chrome/installer/mac/signing/parts.py
+index caf9b6f5447af2eb3200e9060e6c946ce658112f..32b67a075c184db05d3765f2fade680a9fd2160e 100644
+--- a/chrome/installer/mac/signing/parts.py
++++ b/chrome/installer/mac/signing/parts.py
+@@ -160,6 +160,15 @@ def get_parts(config):
+             sign_with_identifier=True,
+             verify_options=verify_options,
+         ),
++        # Compass: the MCP relay, next to the browser
++        # (docs/design/claude.md, D6).
++        'compass-mcp': CodeSignedProduct(
++            '{.app_product}.app/Contents/MacOS/compass-mcp'.format(config),
++            '{}.compass-mcp'.format(uncustomized_bundle_id),
++            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
++            sign_with_identifier=True,
++            verify_options=verify_options,
++        ),
+     }
+ 
+     if config.enable_updater:

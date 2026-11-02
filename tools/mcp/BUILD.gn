@@ -1,0 +1,23 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# compass-mcp: MCP clients (Claude Code, Claude Desktop, ...) run it; it
+# relays their stdio to the running browser's MCP bridge. Plain POSIX, no
+# Chromium libraries, so it runs from the app bundle in any build. See
+# docs/design/claude.md, D6.
+executable("compass-mcp") {
+  sources = [ "compass_mcp.cc" ]
+  if (is_mac) {
+    frameworks = [ "CoreFoundation.framework" ]
+  }
+}
+
+if (is_mac) {
+  # Contents/MacOS/compass-mcp, next to the browser (chrome/BUILD.gn patch).
+  bundle_data("compass_mcp_bundle_data") {
+    sources = [ "$root_out_dir/compass-mcp" ]
+    outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
+    public_deps = [ ":compass-mcp" ]
+  }
+}

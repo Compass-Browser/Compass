@@ -52,6 +52,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler {
                    SetEndpointCallback callback) override;
   void SetModel(const std::string& model) override;
   void SetBrowserScope(bool enabled) override;
+  void SetMcpEnabled(bool enabled) override;
+  void ForgetMcpClient(const std::string& client) override;
   void TestConnection(TestConnectionCallback callback) override;
 
  private:

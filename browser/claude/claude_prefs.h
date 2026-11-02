@@ -25,6 +25,12 @@ inline constexpr char kModel[] = "compass.claude.model";
 // "Let Claude use the whole browser": other tabs and windows, not only the
 // current tab.
 inline constexpr char kBrowserScope[] = "compass.claude.browser_scope";
+// "Allow MCP clients": Claude Code and other MCP clients may use Claude's
+// tools on this profile, through compass-mcp (docs/design/claude.md, D6).
+inline constexpr char kMcpEnabled[] = "compass.claude.mcp_enabled";
+// The MCP clients the user always allows, by the name they declare.
+inline constexpr char kMcpAllowedClients[] =
+    "compass.claude.mcp_allowed_clients";
 
 // Called by compass::RegisterCompassProfilePrefs().
 void RegisterProfilePrefs(PrefRegistrySimple* registry);

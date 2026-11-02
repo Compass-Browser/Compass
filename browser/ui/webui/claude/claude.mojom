@@ -23,6 +23,13 @@ struct SettingsState {
   string model;
   // "Let Claude use the whole browser".
   bool browser_scope;
+  // "Allow MCP clients"; false where Compass has no MCP bridge (Windows).
+  bool mcp_supported;
+  bool mcp_enabled;
+  // The command that adds Compass to Claude Code.
+  string mcp_command;
+  // The clients the user always allows, by name.
+  array<string> mcp_allowed_clients;
 };
 
 struct Model {
@@ -50,6 +57,9 @@ interface SettingsHandler {
   SetEndpoint(string base_url, AuthStyle auth_style) => (bool ok);
   SetModel(string model);
   SetBrowserScope(bool enabled);
+  SetMcpEnabled(bool enabled);
+  // Asks again next time |client| connects.
+  ForgetMcpClient(string client);
   // Lists the models with the saved key and endpoint.
   TestConnection() => (ConnectionResult result);
 };

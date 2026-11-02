@@ -60,6 +60,16 @@ export class CompassClaudePageElement extends CompassSettingsPage {
           this.handler_.setBrowserScope(
               this.$<HTMLInputElement>('browserScope').checked);
         });
+    this.$<HTMLInputElement>('mcpEnabled').addEventListener('change', async () => {
+      // Mojo keeps the order: the state read next has the change.
+      this.handler_.setMcpEnabled(
+          this.$<HTMLInputElement>('mcpEnabled').checked);
+      await this.refresh_();
+    });
+    this.$('copyMcpCommand').addEventListener('click', () => {
+      navigator.clipboard.writeText(this.$('mcpCommand').textContent || '');
+      this.$('copyMcpCommand').textContent = 'Copied';
+    });
     this.refresh_();
   }
 
@@ -75,7 +85,37 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLDetailsElement>('advanced').open =
         state.baseUrl !== '' || state.authStyle === AuthStyle.kBearer;
     this.$<HTMLInputElement>('browserScope').checked = state.browserScope;
+    this.renderMcp_(state);
     this.renderModels_();
+  }
+
+  // "Allow MCP clients", how to add Compass to a client, the clients
+  // always allowed.
+  private renderMcp_(state: SettingsState) {
+    this.show('mcp', state.mcpSupported);
+    this.show('mcpUnsupported', !state.mcpSupported);
+    this.$<HTMLInputElement>('mcpEnabled').checked = state.mcpEnabled;
+    this.show('mcpSetup', state.mcpEnabled);
+    this.$('mcpCommand').textContent = state.mcpCommand;
+    this.$('mcpBinary').textContent =
+        state.mcpCommand.replace(/^claude mcp add compass -- /, '');
+    this.$('copyMcpCommand').textContent = 'Copy';
+    this.show('mcpClients', state.mcpAllowedClients.length > 0);
+    this.$('mcpClientList').replaceChildren(
+        ...state.mcpAllowedClients.map(client => {
+          const item = document.createElement('li');
+          const name = document.createElement('span');
+          name.textContent = client;
+          const forget = document.createElement('button');
+          forget.className = 'secondary';
+          forget.textContent = 'Forget';
+          forget.addEventListener('click', async () => {
+            this.handler_.forgetMcpClient(client);
+            await this.refresh_();
+          });
+          item.append(name, forget);
+          return item;
+        }));
   }
 
   // The models a test listed, or the known ones; the chosen one is always

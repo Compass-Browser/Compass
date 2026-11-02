@@ -19,6 +19,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   // dependencies, as upstream's prefs registration reaches it.
   registry->RegisterStringPref(kModel, "claude-opus-5-5");
   registry->RegisterBooleanPref(kBrowserScope, false);
+  registry->RegisterBooleanPref(kMcpEnabled, false);
+  registry->RegisterListPref(kMcpAllowedClients);
 }
 
 }  // namespace compass::claude::prefs

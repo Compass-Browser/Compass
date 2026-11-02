@@ -179,6 +179,26 @@ source_set("ui") {
     "//ui/webui",
     "//url",
   ]
+  if (is_posix) {
+    # The MCP bridge (docs/design/claude.md, D6): a Unix socket. Windows
+    # would need a named pipe.
+    sources += [
+      "claude/mcp_bridge.cc",
+      "claude/mcp_bridge.h",
+      "claude/mcp_listener.cc",
+      "claude/mcp_listener.h",
+      "claude/mcp_service.cc",
+      "claude/mcp_service.h",
+      "claude/mcp_session.cc",
+      "claude/mcp_session.h",
+    ]
+    deps += [
+      "//components/constrained_window",
+      "//components/keyed_service/core",
+      "//net",
+      "//net/traffic_annotation",
+    ]
+  }
   if (is_mac || is_win) {
     # chrome://compass-sync asks for Touch ID before showing the recovery
     # code.
@@ -263,6 +283,9 @@ source_set("browser_tests") {
     "webui/sidebar/now_playing_browsertest.cc",
     "removed_features_browsertest.cc",
   ]
+  if (is_posix) {
+    sources += [ "claude/mcp_bridge_browsertest.cc" ]
+  }
   deps = [
     "//compass/browser/claude",
     "//net:test_support",

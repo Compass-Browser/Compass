@@ -2,8 +2,8 @@
 
 Status (2026-11-02): milestone 0 (this doc and the shared files in
 `common/claude/`), D1 (find bar), D2 (settings and client) and D3 (chat
-panel), D4 (page tools) and D5 (browser scope) are on main. Next: D6, the
-MCP server. Nothing on iOS yet.
+panel), D4 (page tools), D5 (browser scope) and D6 (MCP server) are on
+main. Next: the iOS milestones.
 
 `common/claude/test/page_agent_test.html` checks `page_agent.js` without a
 window: open it with `--headless=new --dump-dom` (the command is in the file)
@@ -186,21 +186,30 @@ Status: done on `claude/d2-claude-client` (2026-11-02): `SseParserTest.*`, `Clau
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages.
 
 ### MCP server (D6)
-- **Rule for D1–D5.** `ClaudeTools` must not depend on the chat. It takes a tool name and input JSON plus a *session* (scope, target tab, the tabs it opened) and returns content blocks. The chat panel and MCP are two callers of that one layer, so D6 adds no new tool code.
-- **Bridge binary.** `compass-mcp` is a small executable shipped in the app bundle (`Contents/MacOS/compass-mcp`; `compass-mcp.exe` next to `compass.exe` on Windows). It speaks MCP JSON-RPC over stdio (`initialize`, `tools/list`, `tools/call`) and relays to the running browser.
-  - The relay is a local socket in the user data directory: a Unix socket with mode 0600 on macOS and Linux, a per-user named pipe on Windows.
-  - It starts Compass if Compass isn't running.
-  - `tools/list` serves `tools.json`.
-- **Browser side.** A new `McpBridge` in `browser/claude/` listens on the socket, makes one tool session per connection, and runs calls through `ClaudeTools`.
-  - An MCP session has no "current window", so it targets the last-focused window's active tab until `select_tab` picks another.
+
+Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBridgeBrowserTest.*` (4/4, including the real `compass-mcp`) passes in out/Fast, headless. Not built on Windows: it would need a named pipe. Not yet tried from Claude Code by hand.
+
+- **Rule for D1–D5.** `ClaudeTools` doesn't depend on the chat: the chat panel and MCP are two callers of that one layer, so D6 added no tool code.
+- **`compass-mcp`** (`tools/mcp/compass_mcp.cc`): a relay, not an MCP implementation. MCP clients run it as a stdio server; it copies their stdin to `<user data dir>/compass-mcp.sock` and the socket to their stdout, as is (MCP's stdio framing is a JSON-RPC message per line).
+  - Plain POSIX and CoreFoundation, no Chromium libraries (`#pragma allow_unsafe_buffers`): it must run from the bundle in any build, and component builds keep `//base` in the framework.
+  - Shipped as `Contents/MacOS/compass-mcp` (`bundle_data` in `tools/mcp/BUILD.gn`, added to the app's `bundle_deps` by the `chrome/BUILD.gn` patch), and signed with the hardened runtime by `compass sign` (`chrome/installer/mac/signing/parts.py` patch, part `compass-mcp`).
+  - The user data directory: `--user-data-dir=DIR`, else `~/Library/Application Support/` and the app's `CrProductDirName`, as upstream's `chrome_paths_mac.mm`.
+  - Nothing listening: it starts Compass with `open -g` (in the background, without the focus), and waits up to 30 s. Still nothing (Compass closed, or MCP off): it answers each request with an error that says to turn on "Allow MCP clients", so the client shows why. `--no-launch` skips the start (tests).
+- **Browser side** (`browser/ui/claude/`, POSIX only; in the UI layer because it uses `ClaudeTabs` and dialogs):
+  - **`McpListener`**, on the IO thread (net's sockets need its message pump), owned through a `base::SequenceBound`: a `net::UnixDomainServerSocket` that refuses peers of other users, mode 0600. It splits each connection into lines for the UI thread and queues writes back; a line over 8 MB closes the connection.
+  - A socket's address holds 104 characters; a longer path (a long user name or user data directory) listens in a private `/tmp/compass-mcp-XXXXXX/s` and links to it from the usual place, as upstream's `ProcessSingleton` does. `compass-mcp` follows the link.
+  - **`McpBridge`** (global): listens while a profile allows MCP clients; a connection serves the profile of the last active window among those (none: an error, and the connection closes).
+  - **`McpSession`** (one per connection, UI thread): `initialize` (the client's protocol version if it's one of `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`, else the newest; the `tools` capability; short instructions on safety), `ping`, `tools/list` (`tools.json`'s definitions, `input_schema` as `inputSchema`), `tools/call`; anything else is "method not found". Calls run one at a time through its own `ClaudeTools` with `ClaudeTabs`; images come back as MCP's `{type: "image", data, mimeType}`.
+  - The target is the active tab of the profile's last active window, at each call, until `select_tab` or `open_tab` picks one.
+  - **`McpService`** (`McpServiceFactory`, built with the profile factories by the `chrome_browser_main_extra_parts_profiles.cc` patch, POSIX only): follows `compass.claude.mcp_enabled` and tells the bridge; a profile going away closes its connections.
 - **Permissions.**
-  - The setting "Allow MCP clients", off by default, starts the listener.
-  - On each new connection Compass asks: "<client name> wants to control Compass" (Allow once / Always / Deny). The client name is whatever the client declares in `initialize`; the real security boundary is the per-user socket.
-  - The browser-scope toggle applies to MCP the same way it applies to the chat.
-  - The same Claude-is-acting indicator shows, and the Stop button ends the MCP session.
-- **Settings.** The setting shows a command to copy: `claude mcp add compass -- /Applications/Compass.app/Contents/MacOS/compass-mcp`.
-- **Tests.** A browser test drives `McpBridge` over the socket with a scripted client: list, a call, refused while the setting is off, refused without approval. One manual pass from Claude Code.
-- **No API key.** MCP clients bring their own model, so D6 works without one.
+  - "Allow MCP clients" (`compass.claude.mcp_enabled`, off by default) starts the listener; off closes its connections and removes the socket.
+  - The first `tools/call` of a connection asks, in a dialog on the profile's last active window (brought to the front: the user is working in the client): "<client> wants to control Compass", with Allow, Deny and "Always allow <client>" (`compass.claude.mcp_allowed_clients`; settings list them, with Forget). Listing tools asks nothing. Closing the dialog denies. The client's name is what it declares in `initialize`; the security boundary is the per-user socket.
+  - "Let Claude use the whole browser" applies to MCP as to the chat.
+  - The click indicator shows. There's no Stop button for MCP: turning the setting off ends the sessions.
+- **Settings** (Claude section): the toggle; while on, the command to copy, `claude mcp add compass -- <the app>/Contents/MacOS/compass-mcp`, with `--user-data-dir=…` when it isn't the default one (development builds), and the always-allowed clients.
+- **No API key.** MCP clients bring their own model.
+- **Tests** (`browser/ui/claude/mcp_bridge_browsertest.cc`, a scripted client on the real socket): initialize, tools/list, calls (text, a screenshot as an MCP image), asked once per connection, browser tools refused without the setting, ping, unknown methods; Deny, and "Always allow" remembered for the next connection; turning it off closes the connection and removes the socket; and the real `compass-mcp` relaying, and answering errors while nothing listens. The test's temporary directory makes the socket path too long, so the link is tested too.
 
 ## iOS (`ios/App/Claude/`, new)
 

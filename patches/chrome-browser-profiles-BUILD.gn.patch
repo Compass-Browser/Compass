@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..db78306d41bb5a4aec82faa0d713015668ad4b0f 100644
+index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..0b1426bc916294a03c974f121b9dea32d6316bb4 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
 @@ -551,6 +551,7 @@ source_set("profile_io_data") {
@@ -10,12 +10,14 @@ index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..db78306d41bb5a4aec82faa0d7130156
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -708,6 +709,8 @@ source_set("profiles_extra_parts_impl") {
+@@ -708,6 +709,10 @@ source_set("profiles_extra_parts_impl") {
    sources = [ "chrome_browser_main_extra_parts_profiles.cc" ]
  
    deps = [
 +    # Compass sync's keyed service factory.
 +    "//compass/browser/sync",
++    # The MCP bridge's (docs/design/claude.md, D6).
++    "//compass/browser/ui",
      ":misc",
      ":profile_manager",
      ":profile_util",
