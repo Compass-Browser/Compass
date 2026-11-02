@@ -630,25 +630,28 @@ struct ElsewherePage: View {
   let tab: SidebarNode
 
   var body: some View {
-    ZStack {
-      Color(.systemBackground)
-      if let image = app.tabs.snapshots[tab.id] {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-          .clipped()
-          .opacity(0.5)
+    // The snapshot is an overlay, so it never sizes the page: filled to a
+    // window of another shape it would grow it and push the bar off.
+    Color(.systemBackground)
+      .overlay(alignment: .top) {
+        if let image = app.tabs.snapshots[tab.id] {
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .opacity(0.5)
+        }
       }
-      VStack(spacing: 12) {
-        SiteIcon(url: tab.url, size: 40)
-        Text("Open in another window").font(.headline)
-        Button("Bring Here") { app.bringHere(tab.id) }
-          .buttonStyle(.borderedProminent)
-          .accessibilityIdentifier("BringHere")
+      .clipped()
+      .overlay {
+        VStack(spacing: 12) {
+          SiteIcon(url: tab.url, size: 40)
+          Text("Open in another window").font(.headline)
+          Button("Bring Here") { app.bringHere(tab.id) }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("BringHere")
+        }
+        .padding(24)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
       }
-      .padding(24)
-      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-    }
   }
 }
