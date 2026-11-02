@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/ui/views/side_panel/side_panel.cc b/chrome/browser/ui/views/side_panel/side_panel.cc
+index 48d9dd08489dddd43374ad71836f1a2773daa554..64515d54b9fe9274a6e17904ea5fbb554ecfa64b 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel.cc
+@@ -154,6 +154,12 @@ class ContentParentView : public views::View, public views::ViewObserver {
+ 
+  private:
+   void AddedToWidget() override {
++    // Compass: no toolbar-colored box. The window has no toolbar for it to
++    // match; a panel sits on the window's tint, as the sidebar does, and a
++    // page with a background of its own still paints it.
++    if ((true)) {
++      return;
++    }
+     SetBackground(std::make_unique<ContentParentBackground>(
+         browser_view_,
+         base::BindRepeating(&ContentParentView::GetRoundedCorners,

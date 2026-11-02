@@ -16,9 +16,11 @@
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "chrome/grit/generated_resources.h"
 #include "compass/browser/ui/compass_command_ids.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "compass/browser/ui/webui/claude/claude_chat_page_handler.h"
 #include "compass/browser/ui/webui/claude/claude_chat_ui.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/view.h"
 #include "url/gurl.h"
@@ -141,13 +143,18 @@ void ClaudePanel::RegisterEntryIfNeeded() {
 
 std::unique_ptr<views::View> ClaudePanel::CreateView(
     SidePanelEntryScope& scope) {
+  auto wrapper = std::make_unique<WebUIContentsWrapperT<ClaudeChatUI>>(
+      GURL(kClaudeChatURL), browser_->GetProfile(),
+      IDS_TASK_MANAGER_TOOL_PREFIX,
+      // Esc stops a reply, in the page.
+      /*esc_closes_ui=*/false);
+  // The chat sits on the window's tint, as the sidebar does, not in a box
+  // (the side_panel.cc patch drops upstream's toolbar-colored one).
+  views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+      wrapper->web_contents(), SK_ColorTRANSPARENT);
   auto view = std::make_unique<SidePanelWebUIViewT<ClaudeChatUI>>(
       scope, base::RepeatingClosure(), base::RepeatingClosure(),
-      std::make_unique<WebUIContentsWrapperT<ClaudeChatUI>>(
-          GURL(kClaudeChatURL), browser_->GetProfile(),
-          IDS_TASK_MANAGER_TOOL_PREFIX,
-          // Esc stops a reply, in the page.
-          /*esc_closes_ui=*/false));
+      std::move(wrapper));
   view_.SetView(view.get());
   return view;
 }
