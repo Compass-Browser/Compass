@@ -101,23 +101,35 @@ public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
   /// Every profile's passwords (the AutoFill extension and QuickType list
   /// cover them all).
   public static func everyProfile(accessGroup: String?) -> [SavedPassword] {
+    // The group holds other items too, among them ones behind Face ID (an
+    // extension's unlock password, ExtensionUnlock). Reading their data
+    // prompts, and at launch the app waited on that sheet. So: attributes
+    // only (never prompts) to find the password services, then each
+    // service's data.
     var q: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword, kSecReturnData as String: true,
-      kSecReturnAttributes as String: true, kSecMatchLimit as String: kSecMatchLimitAll,
+      kSecClass as String: kSecClassGenericPassword, kSecReturnAttributes as String: true,
+      kSecMatchLimit as String: kSecMatchLimitAll,
     ]
     if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
     var result: CFTypeRef?
     guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]]
     else { return [] }
-    return items.compactMap { item in
-      guard let service = item[kSecAttrService as String] as? String,
-        service == baseService || service.hasPrefix(baseService + "."),
-        let data = item[kSecValueData as String] as? Data,
-        let d = try? SyncPb_PasswordSpecificsData(serializedBytes: data)
-      else { return nil }
-      var p = SavedPassword(data: d)
-      p.profile = service == baseService ? "" : String(service.dropFirst(baseService.count + 1))
-      return p
+    let services = Set(items.compactMap { $0[kSecAttrService as String] as? String })
+      .filter { $0 == baseService || $0.hasPrefix(baseService + ".") }
+    return services.sorted().flatMap { service -> [SavedPassword] in
+      var dq: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+        kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitAll,
+      ]
+      if let accessGroup { dq[kSecAttrAccessGroup as String] = accessGroup }
+      var found: CFTypeRef?
+      guard SecItemCopyMatching(dq as CFDictionary, &found) == errSecSuccess, let list = found as? [Data] else { return [] }
+      let profile = service == baseService ? "" : String(service.dropFirst(baseService.count + 1))
+      return list.compactMap { try? SyncPb_PasswordSpecificsData(serializedBytes: $0) }.map {
+        var p = SavedPassword(data: $0)
+        p.profile = profile
+        return p
+      }
     }
   }
 
