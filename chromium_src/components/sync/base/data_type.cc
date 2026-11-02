@@ -10,6 +10,10 @@
 // in local sync. The table entries stay as upstream has them, so this file
 // doesn't conflict with patches to the table (a new data type).
 //
+// SEND_TAB_TO_SELF ("Send to Your Devices", docs/design/send-tab.md) is
+// supported in local sync too: upstream leaves it out, and without it the
+// type never starts and no menu offers sending.
+//
 // Outside local sync nothing changes: LocalSyncSupportedTypes() is only read
 // with local sync on, and EncryptableUserTypes() only with a custom
 // passphrase, under which the history controllers stop history unless local
@@ -41,6 +45,7 @@ DataTypeSet LocalSyncSupportedTypes() {
   DataTypeSet types = LocalSyncSupportedTypes_ChromiumImpl();
   types.Put(HISTORY);
   types.Put(HISTORY_DELETE_DIRECTIVES);
+  types.Put(SEND_TAB_TO_SELF);
   return types;
 }
 

@@ -71,6 +71,14 @@ TEST(CompassHistorySyncTypesTest, HistoryEncryptableAndInLocalSync) {
   EXPECT_FALSE(syncer::LocalSyncSupportedTypes().Has(syncer::JOURNEY));
 }
 
+// "Send to Your Devices" needs SEND_TAB_TO_SELF, which upstream leaves out
+// of local sync (docs/design/send-tab.md): without it the type never starts
+// and no menu offers sending.
+TEST(CompassSyncTypesTest, SendTabToSelfSupportsLocalSync) {
+  EXPECT_TRUE(syncer::LocalSyncSupportedTypes().Has(syncer::SEND_TAB_TO_SELF));
+  EXPECT_TRUE(syncer::AlwaysPreferredUserTypes().Has(syncer::SEND_TAB_TO_SELF));
+}
+
 // The controllers' preconditions
 // (patches/components-history-core-browser-sync-*.patch).
 class CompassHistoryControllerTest : public testing::Test {
