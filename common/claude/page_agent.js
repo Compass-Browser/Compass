@@ -163,10 +163,53 @@
     return s.length > max ? s.slice(0, max - 1) + '…' : s;
   }
 
+  // Elements whose text is a line of its own, for plainText().
+  const BLOCK_TAGS = new Set([
+    'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DD', 'DETAILS', 'DIV', 'DL',
+    'DT', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2',
+    'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P',
+    'PRE', 'SECTION', 'SUMMARY', 'TABLE', 'TR', 'UL',
+  ]);
+
+  // The text under |node| without CSS: no scripts, styles or templates, a
+  // line for each block. For what isn't rendered, where innerText is
+  // textContent, styles and scripts included (a page that isn't laid out,
+  // as an iOS tab in the background; display: contents or none).
+  function plainText(node) {
+    const parts = [];
+    const visit = (n) => {
+      if (n.nodeType === Node.TEXT_NODE) {
+        parts.push(n.nodeValue.replace(/\s+/g, ' '));
+        return;
+      }
+      if (n.nodeType !== Node.ELEMENT_NODE && n.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+        return;
+      }
+      if (n.nodeType === Node.ELEMENT_NODE) {
+        if (SKIP_TAGS.has(n.tagName) && n.tagName !== 'BR') return;
+        if (n.tagName === 'BR') {
+          parts.push('\n');
+          return;
+        }
+      }
+      const block = n.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has(n.tagName);
+      if (block) parts.push('\n');
+      for (const child of n.childNodes) visit(child);
+      if (block) parts.push('\n');
+    };
+    visit(node);
+    return parts.join('').replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n{3,}/g, '\n\n')
+        .replace(/ {2,}/g, ' ');
+  }
+
   function textOf(node) {
-    // innerText respects CSS (hidden text, line breaks) but only exists on
-    // HTML elements.
-    return (node.innerText !== undefined ? node.innerText : node.textContent) || '';
+    // innerText respects CSS (hidden text, line breaks), but only for what's
+    // rendered, and only exists on HTML elements.
+    if (node.innerText !== undefined && node.getClientRects &&
+        node.getClientRects().length) {
+      return node.innerText || '';
+    }
+    return plainText(node);
   }
 
   function nameOf(el, role) {

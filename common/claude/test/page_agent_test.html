@@ -6,7 +6,7 @@
      It prints "RESULT PASS" or "RESULT FAIL" with the failed checks. -->
 <html><head><title>Agent test</title></head><body>
 <nav><a href="/home">Home</a> <a href="/docs">Docs</a></nav>
-<main><h1>Sign up</h1><p>Fill the form <b>below</b>.</p>
+<main><h1>Sign up</h1><style>.hatnote{font-style:italic}</style><p>Fill the form <b>below</b>.</p>
 <form id=f onsubmit="event.preventDefault(); document.title = 'submitted:' + email.value">
 <label for=email>Email</label> <input id=email type=email placeholder="you@example.com">
 <label>Name <input id=name></label>
@@ -67,6 +67,16 @@ check('bio', bio.value === 'hel', bio.value);
 check('plan', plan.value === 'pro', plan.value);
 check('tos', tos.checked === true);
 check('page text', A.pageText({}).text.includes('Fill the form below.'));
+check('page text without styles', !A.pageText({}).text.includes('hatnote'));
+// Not rendered (display: contents has no boxes; an iOS tab in the
+// background isn't laid out): innerText would be textContent, styles and
+// scripts included.
+document.querySelector('main').style.display = 'contents';
+const unrendered = A.pageText({}).text;
+document.querySelector('main').style.display = '';
+check('unrendered text without styles', !unrendered.includes('hatnote') &&
+      !unrendered.includes('customElements'), unrendered);
+check('unrendered text in lines', /Sign up\n+Fill the form below\./.test(unrendered), unrendered);
 
 const out = document.createElement('pre');
 out.textContent = 'RESULT ' + (failures.length ? 'FAIL\n' + failures.join('\n') : 'PASS');
