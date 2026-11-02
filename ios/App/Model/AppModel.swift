@@ -95,7 +95,13 @@ final class AppModel {
       .appendingPathComponent("Compass", isDirectory: true)
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     let store = self.store
-    try? store.load(from: directory.appendingPathComponent("Sidebar.json"))
+    // Debug: -CompassFreshStore YES starts from an empty sidebar (UI tests).
+    #if DEBUG
+      let fresh = UserDefaults.standard.bool(forKey: "CompassFreshStore")
+    #else
+      let fresh = false
+    #endif
+    if !fresh { try? store.load(from: directory.appendingPathComponent("Sidebar.json")) }
     if store.spaces.isEmpty {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
@@ -638,6 +644,49 @@ final class AppModel {
     }
   }
 
+  /// A space's entries in the bar's swipe order: pinned, then Today
+  /// (newest first); splits as one entry, desktop-only pages left out.
+  func swipeEntries(of space: Space) -> [SidebarNode] {
+    (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
+      .filter { !$0.isFolder && $0.parent?.isSplit != true && $0.isPhoneVisible }
+  }
+
+  /// The entry `delta` steps from `node` in its space (the bar's swipe, ⌃Tab).
+  func neighbor(of node: SidebarNode, _ delta: Int) -> SidebarNode? {
+    guard let space = store.space(of: node) else { return nil }
+    let entries = swipeEntries(of: space)
+    guard let index = entries.firstIndex(where: { $0 === node }) else { return nil }
+    let next = index + delta
+    return entries.indices.contains(next) ? entries[next] : nil
+  }
+
+  /// ⌃Tab / ⌃⇧Tab: the next or previous entry, wrapping around; the first
+  /// or last when nothing is shown.
+  func stepEntry(_ delta: Int) {
+    guard let space = selectedSpace else { return }
+    let entries = swipeEntries(of: space)
+    guard !entries.isEmpty else { return }
+    let index = selectedNode.flatMap { node in entries.firstIndex(where: { $0 === node }) }
+    let next = index.map { ($0 + delta + entries.count) % entries.count } ?? (delta > 0 ? 0 : entries.count - 1)
+    show(entries[next])
+  }
+
+  /// ⌘W: the shown entry closes as a flicked tab card does: Today goes to
+  /// the archive, anything else (pinned, a favorite) unloads.
+  func closeShown() {
+    guard let node = selectedNode else { return }
+    if node.section == .today { store.archive(node) }
+    selectedNodeID = nil
+    for tab in node.tabs { tabs.unload(tab.id) }
+  }
+
+  /// ⌃1–9: the nth space of the sidebar.
+  func selectSpace(at index: Int) {
+    let spaces = visibleSpaces
+    guard spaces.indices.contains(index) else { return }
+    selectedSpaceID = spaces[index].id
+  }
+
   func close(_ node: SidebarNode) {
     if selectedNodeID == node.id { selectedNodeID = nil }
     for tab in node.tabs {
@@ -668,3 +717,4 @@ enum StartScreen: String, CaseIterable, Identifiable {
     }
   }
 }
+
