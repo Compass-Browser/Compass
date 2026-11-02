@@ -523,7 +523,17 @@ func insertCommitEntity(
 		return true, nil
 	}
 	if err != nil {
-		log.Error().Err(err).Msg("Insert sync entity failed")
+		ev := log.Error().Err(err).Str("chainID", clientID).Bool("conflict", conflict)
+		if entity.DataType != nil {
+			ev = ev.Int("dataType", *entity.DataType)
+		}
+		if entity.OriginatorCacheGUID != nil {
+			ev = ev.Str("originator", *entity.OriginatorCacheGUID)
+		}
+		if entity.ClientDefinedUniqueTag != nil {
+			ev = ev.Str("clientTag", *entity.ClientDefinedUniqueTag)
+		}
+		ev.Msg("Insert sync entity failed")
 		rspType := sync_pb.CommitResponse_TRANSIENT_ERROR
 		if conflict {
 			rspType = sync_pb.CommitResponse_CONFLICT
