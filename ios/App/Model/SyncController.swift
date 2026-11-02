@@ -4,6 +4,7 @@
 
 import CompassCrypto
 import CompassModel
+import CompassShared
 import CompassSync
 import Foundation
 import Observation
@@ -42,6 +43,9 @@ final class SyncController {
     /// Tabs other devices send to this phone (docs/design/send-tab.md).
     let sentTabs: SendTabBridge
     let notifier: SyncNotifier
+    /// For the push registration (docs/design/send-tab.md).
+    var cacheGUID = ""
+    var authKey = Data()
     var listening: Task<Void, Never>?
     var foreignSessions: [ForeignSession] = []
 
@@ -140,6 +144,16 @@ final class SyncController {
   /// Stops syncing every profile's account; local data stays.
   func leave() {
     scheduled?.cancel()
+    // The server stops pushing to this phone (best effort).
+    if let server = serverURL {
+      for account in accounts.values {
+        let (guid, key) = (account.cacheGUID, account.authKey)
+        Task.detached { try? await Push.unregister(server: server, cacheGUID: guid, authKey: key) }
+      }
+    }
+    if let url = SharedContainer.group?.root.appendingPathComponent(Self.pushAccountsName) {
+      try? FileManager.default.removeItem(at: url)
+    }
     for account in accounts.values {
       account.listening?.cancel()
       spaceDirectory?.remove(account.spaces)
@@ -256,7 +270,11 @@ final class SyncController {
     // Site icons other devices got from pages (docs/design/sync.md, "Favicons").
     spaces.onFavicon = { host, png in Favicons.shared.setSynced(host: host, png: png) }
     for (host, png) in spaces.syncedFavicons { Favicons.shared.setSynced(host: host, png: png) }
+    account.cacheGUID = cacheGUID
+    account.authKey = authKey
     accounts[profile] = account
+    writePushAccounts()
+    if let token = pushToken { registerPush(token, account: account) }
     collectExtensions()
     if active { listen(account) }
     Task {
@@ -268,6 +286,47 @@ final class SyncController {
       }
       syncSoon(after: 0)
     }
+  }
+
+  // MARK: Push
+
+  /// The APNs device token, once iOS gave one.
+  @ObservationIgnored private var pushToken: Data?
+  static let pushAccountsName = "PushAccounts.json"
+
+  /// A new (or the same) device token: every account registers it.
+  func setPushToken(_ token: Data) {
+    pushToken = token
+    for account in accounts.values { registerPush(token, account: account) }
+  }
+
+  private func registerPush(_ token: Data, account: Account) {
+    guard let server = serverURL else { return }
+    #if DEBUG
+      let environment = Push.Environment.sandbox
+    #else
+      let environment = Push.Environment.production
+    #endif
+    let (guid, key) = (account.cacheGUID, account.authKey)
+    Task.detached {
+      do {
+        try await Push.register(token: token, environment: environment, server: server, cacheGUID: guid, authKey: key)
+      } catch {
+        #if DEBUG
+          print("Push: register failed: \(error)")
+        #endif
+      }
+    }
+  }
+
+  /// The accounts' cache GUIDs, for the notification service extension
+  /// (it reads the seed and server from the shared Keychain group).
+  private func writePushAccounts() {
+    guard let url = SharedContainer.group?.root.appendingPathComponent(Self.pushAccountsName) else { return }
+    let list = accounts.values.map { PushAccount(profile: $0.profile, cacheGUID: $0.cacheGUID) }
+      .sorted { $0.profile < $1.profile }
+    try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? JSONEncoder().encode(list).write(to: url, options: .atomic)
   }
 
   /// Tabs sent to this phone, with the account they came in.

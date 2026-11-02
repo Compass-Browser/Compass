@@ -24,12 +24,15 @@
 		19F771FD6105BB196DA68880 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1EF8B1ADDE7286C61000241 /* WidgetKit.framework */; };
 		1C967DE91A01640B9FCEDB3D /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E5F45F164FB346FCC2A5E35 /* manifest.json */; };
 		20FC5390B0E23578AE53F568 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6794D1252E649F6B927EAEF2 /* SearchEngine.swift */; };
+		23141F90C369B5DC02D45FD7 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = C1F5E18C01FE8E9B53C5726A /* CompassSync */; };
 		28AE9D978D1FCDFAE4CE06BC /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ECB8BB8BB7B8645F265BCE1 /* ShareViewController.swift */; };
 		2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */; };
 		2D7DD330D12048A9E3C15504 /* CompassWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F778B3B5C9943AAABC5724 /* CompassWidgets.swift */; };
 		32AE2DD435900084FFC93291 /* DownloadActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA6BBB62A731CFB983B3B3B /* DownloadActivityWidget.swift */; };
 		32D1028950616C4F9FE0BB50 /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */; };
 		32DB94151B1160360BF2FDCB /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71E0DA10C9C7101FC286EA17 /* SwiftUI.framework */; };
+		33BC9DEAF1161C7D6DAA3BE1 /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 6160281ABF5D5F553A0BB7E7 /* CompassShared */; };
+		34BBD555859A4EB6E96F26F6 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F188A7034D3418F6B730DD18 /* NotificationService.swift */; };
 		350919253EFC4030A5B837D3 /* SwipeUpZonesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F689366907A8A4E495F06FC /* SwipeUpZonesTests.swift */; };
 		3B957538A2B525C251B71495 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */; };
 		40EEFDB4D48DE86B9653FE26 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 28ED2A5ADAB247E317BB1F68 /* popup.js */; };
@@ -54,6 +57,7 @@
 		77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD52168629F96C8A4ABCDBDF /* Favicons.swift */; };
 		77F55AE0293AF373981A228C /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 2CB99DFF6092C31970BA2AD3 /* popup.html */; };
 		7843D6FC2CA3DD057CA9A4F0 /* ShortcutsActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */; };
+		7944D962C50E7358BEB39615 /* PushService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0DED477E2FD46B08248E91DD /* PushService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7C7E241C93A23DDAD181F765 /* SidebarPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D6DFD0447538D43874857BE /* SidebarPanel.swift */; };
 		859F8C08EFB2E77F4C28339E /* PageMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */; };
 		86BE32EE9DABB442ECFD8C3B /* SiteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E181E09464F119B3A59058 /* SiteSettingsView.swift */; };
@@ -122,6 +126,13 @@
 			remoteGlobalIDString = D939B627FF94B6437D3F7096;
 			remoteInfo = Widgets;
 		};
+		BA11F8F6149A11F976121274 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C1B9F3454E75584C81FDDD47 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6A6BC869EAC40276945C8897;
+			remoteInfo = PushService;
+		};
 		C6DC551B5354B18925BE0A07 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C1B9F3454E75584C81FDDD47 /* Project object */;
@@ -146,6 +157,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				EF878A901726400229527CA0 /* AutoFill.appex in Embed Foundation Extensions */,
+				7944D962C50E7358BEB39615 /* PushService.appex in Embed Foundation Extensions */,
 				0E1A6D52B5C02091299CC08D /* Share.appex in Embed Foundation Extensions */,
 				F5974AB5BCD8BAFC89325E7B /* Widgets.appex in Embed Foundation Extensions */,
 				4453852400B1601E7D1955D7 /* SafariOpen.appex in Embed Foundation Extensions */,
@@ -159,6 +171,7 @@
 		038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeTabsTests.swift; sourceTree = "<group>"; };
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceWidget.swift; sourceTree = "<group>"; };
+		0DED477E2FD46B08248E91DD /* PushService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PushService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentTabNotifications.swift; sourceTree = "<group>"; };
 		1BD1561E3D74DB1D613CF34A /* Compass.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Compass.entitlements; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -176,6 +189,7 @@
 		2D3EB960E888BD1E4A320952 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		32AD0FC2A4DD49EA6D182F11 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordScript.swift; sourceTree = "<group>"; };
+		3CDC5A1576DB55DB575C06F0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3ECB8BB8BB7B8645F265BCE1 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		3F9DB417853BAB3988CCC478 /* SystemBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBridge.swift; sourceTree = "<group>"; };
 		40E0A58F6209D1FDB5E4BF4A /* AutoFill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutoFill.entitlements; sourceTree = "<group>"; };
@@ -217,6 +231,7 @@
 		9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		A41B59BC81621FE63D557277 /* DataViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViews.swift; sourceTree = "<group>"; };
 		A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordManager.swift; sourceTree = "<group>"; };
+		A7B26BA178A765562EB20045 /* PushService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushService.entitlements; sourceTree = "<group>"; };
 		AD52168629F96C8A4ABCDBDF /* Favicons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Favicons.swift; sourceTree = "<group>"; };
 		B2BC6E0535E2713607366ECF /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
 		B5928005DDC40E352DA4F6D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -243,6 +258,7 @@
 		EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		EFF877C7E8E7C2C1C9767DEF /* SiteSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteSettings.swift; sourceTree = "<group>"; };
 		F00421F26DEF62FA9775146B /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		F188A7034D3418F6B730DD18 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		F222E653F398E0E5BA8C9748 /* TabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPicker.swift; sourceTree = "<group>"; };
 		F4A5EB9B8FCF536C41FE6951 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F4F82A3BEBB78D75AD38C677 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
@@ -267,6 +283,15 @@
 				A035DC301CF07BB150374FD4 /* CompassShared in Frameworks */,
 				19F771FD6105BB196DA68880 /* WidgetKit.framework in Frameworks */,
 				32DB94151B1160360BF2FDCB /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98554BC085DCE40DE1A9C350 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				23141F90C369B5DC02D45FD7 /* CompassSync in Frameworks */,
+				33BC9DEAF1161C7D6DAA3BE1 /* CompassShared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -389,6 +414,16 @@
 			path = Extensions;
 			sourceTree = "<group>";
 		};
+		B85E1C911C9D2E3EF9C9E1AA /* PushService */ = {
+			isa = PBXGroup;
+			children = (
+				3CDC5A1576DB55DB575C06F0 /* Info.plist */,
+				F188A7034D3418F6B730DD18 /* NotificationService.swift */,
+				A7B26BA178A765562EB20045 /* PushService.entitlements */,
+			);
+			path = PushService;
+			sourceTree = "<group>";
+		};
 		B991DC56A32061AF58E7EA14 /* Passwords */ = {
 			isa = PBXGroup;
 			children = (
@@ -423,6 +458,7 @@
 				96595F1E9E11998FE879E9F7 /* AutoFill */,
 				DD72F0D4C4475AFC25A2CFC1 /* ios-ports */,
 				F402BF037897FEB15FFE5C17 /* Packages */,
+				B85E1C911C9D2E3EF9C9E1AA /* PushService */,
 				C9FE15A37E43A58B0F254DFF /* SafariOpen */,
 				4A142CA980B5085415C4A0A3 /* Share */,
 				CCE0490B3685F73C8E825E75 /* Shared */,
@@ -544,6 +580,7 @@
 				7E7EB3C486245AA52EAADF2F /* AutoFill.appex */,
 				1BF57BA01F2477CA55BC7407 /* Compass.app */,
 				274CFEB2D09654A821D49C1C /* CompassUITests.xctest */,
+				0DED477E2FD46B08248E91DD /* PushService.appex */,
 				943E4453D17FD6C970BD7A46 /* SafariOpen.appex */,
 				717D590ED19EB51A8B622101 /* Share.appex */,
 				C93F45F6CF3D5B476056A454 /* Widgets.appex */,
@@ -605,6 +642,7 @@
 			);
 			dependencies = (
 				2BDA72ABD46144D46385BCCC /* PBXTargetDependency */,
+				C3139370710D18C3B5D5DDD6 /* PBXTargetDependency */,
 				F427FEED345D62B1A68EA61D /* PBXTargetDependency */,
 				B442757A5D75349285D838B6 /* PBXTargetDependency */,
 				B996D0974925B59170F8A92D /* PBXTargetDependency */,
@@ -619,6 +657,26 @@
 			productName = Compass;
 			productReference = 1BF57BA01F2477CA55BC7407 /* Compass.app */;
 			productType = "com.apple.product-type.application";
+		};
+		6A6BC869EAC40276945C8897 /* PushService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 506B4B013D6A452D73F114C3 /* Build configuration list for PBXNativeTarget "PushService" */;
+			buildPhases = (
+				E3078728CEB069DCC37B2CB4 /* Sources */,
+				98554BC085DCE40DE1A9C350 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PushService;
+			packageProductDependencies = (
+				C1F5E18C01FE8E9B53C5726A /* CompassSync */,
+				6160281ABF5D5F553A0BB7E7 /* CompassShared */,
+			);
+			productName = PushService;
+			productReference = 0DED477E2FD46B08248E91DD /* PushService.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		9AF8F37A4C22AFA99D45D4F8 /* Share */ = {
 			isa = PBXNativeTarget;
@@ -699,6 +757,10 @@
 						DevelopmentTeam = 4M33B5HNDS;
 						ProvisioningStyle = Automatic;
 					};
+					6A6BC869EAC40276945C8897 = {
+						DevelopmentTeam = 4M33B5HNDS;
+						ProvisioningStyle = Automatic;
+					};
 					9AF8F37A4C22AFA99D45D4F8 = {
 						DevelopmentTeam = 4M33B5HNDS;
 						ProvisioningStyle = Automatic;
@@ -732,6 +794,7 @@
 			targets = (
 				5C23284A2EB3EEBECE44ACBF /* Compass */,
 				A23BF008CEC807ECD67334CB /* AutoFill */,
+				6A6BC869EAC40276945C8897 /* PushService */,
 				9AF8F37A4C22AFA99D45D4F8 /* Share */,
 				D939B627FF94B6437D3F7096 /* Widgets */,
 				1A3EAFD8FE833F44961397CA /* SafariOpen */,
@@ -867,6 +930,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E3078728CEB069DCC37B2CB4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34BBD555859A4EB6E96F26F6 /* NotificationService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F9E15D3477F2A1DA46BEA7AB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -898,6 +969,11 @@
 			isa = PBXTargetDependency;
 			target = 1A3EAFD8FE833F44961397CA /* SafariOpen */;
 			targetProxy = F5ECD3310CF85BBF6064E5CB /* PBXContainerItemProxy */;
+		};
+		C3139370710D18C3B5D5DDD6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6A6BC869EAC40276945C8897 /* PushService */;
+			targetProxy = BA11F8F6149A11F976121274 /* PBXContainerItemProxy */;
 		};
 		F427FEED345D62B1A68EA61D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1191,6 +1267,23 @@
 			};
 			name = Release;
 		};
+		A06E820677437C7DE2BD5DFC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushService/PushService.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PushService/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.push;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		A1F2BF28E0646E50E9655087 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1242,6 +1335,23 @@
 			};
 			name = Release;
 		};
+		FB68B2FB51568B29D0B9AD19 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushService/PushService.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PushService/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = it.cipi1965.compass.push;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1268,6 +1378,15 @@
 			buildConfigurations = (
 				4153FB0322CCD84C81F78811 /* Debug */,
 				A1F2BF28E0646E50E9655087 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		506B4B013D6A452D73F114C3 /* Build configuration list for PBXNativeTarget "PushService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FB68B2FB51568B29D0B9AD19 /* Debug */,
+				A06E820677437C7DE2BD5DFC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -1326,6 +1445,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = CompassSync;
 		};
+		6160281ABF5D5F553A0BB7E7 /* CompassShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CompassShared;
+		};
 		6194B1C4C57689CEEBCBFB45 /* CompassShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CompassShared;
@@ -1349,6 +1472,10 @@
 		BFFC17CFD30EF7F150C14E69 /* CompassShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CompassShared;
+		};
+		C1F5E18C01FE8E9B53C5726A /* CompassSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CompassSync;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

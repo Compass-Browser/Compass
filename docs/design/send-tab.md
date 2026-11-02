@@ -66,8 +66,8 @@ unchanged, so the desktop needs no new format:
 | Part | Who | State |
 |---|---|---|
 | iOS: DEVICE_INFO flag, `SendTabBridge`, local notifications, tap opens and marks opened | compass-b2 (iOS session) | written, `ios/send-tab` |
-| iOS: APNs registration, token upload, notification service extension | compass-b2 | after the server part |
-| Desktop: enable SEND_TAB_TO_SELF and its entry points | handed off | to do |
+| iOS: APNs registration, token upload, notification service extension | compass-b2 | written (`ios/send-tab-push`); needs the phone and a real push |
+| Desktop: enable SEND_TAB_TO_SELF and its entry points | compass-0d | in progress (already synced; adding the sidebar tab menu entry) |
 | Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF | compass-0d | done (`server/push`); live on the sync server without a key |
 | Apple: an APNs auth key (Certificates, Identifiers & Profiles → Keys → Apple Push Notifications service), its key ID and the team ID, on the server | Matteo | to do |
 

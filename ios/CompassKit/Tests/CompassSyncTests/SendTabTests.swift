@@ -135,3 +135,36 @@ struct SendTabServerTests {
     #expect(received.all.count == 1)
   }
 }
+
+@Suite(.enabled(if: TestServer.available, "set COMPASS_SYNC_SERVER to the server binary"), .serialized)
+struct PushServerTests {
+  let chain = try! Chain(seed: Chain.generateSeed())
+
+  // The token registers (and unregisters) with the account's bearer token;
+  // a bad one is refused; the extension's one-off fetch finds the tab.
+  @Test func registersAndFetches() async throws {
+    let server = try await TestServer()
+    let token = Data((0..<32).map { UInt8($0) })
+    let mac = SyncEngine(
+      connection: HTTPSyncConnection(serverURL: server.url, cacheGUID: "mac-guid", authKey: chain.authKey),
+      passphrase: chain.passphrase, store: MemorySyncMetadataStore(SyncMetadata(cacheGUID: "mac-guid")),
+      createChainIfEmpty: true)
+    await mac.register(SendTabBridge(engine: mac, cacheGUID: "mac-guid", stateURL: nil))
+    try await mac.sync()
+
+    try await Push.register(
+      token: token, environment: .sandbox, server: server.url, cacheGUID: "phone-guid", authKey: chain.authKey)
+    await #expect(throws: SyncConnectionError.self) {
+      try await Push.register(
+        token: Data([1, 2]), environment: .sandbox, server: server.url, cacheGUID: "phone-guid", authKey: chain.authKey)
+    }
+
+    await mac.put(.sendTabToSelf, tag: "t1", specifics: sentTab("t1", to: "phone-guid", url: "https://example.org/x"))
+    await mac.put(.sendTabToSelf, tag: "t2", specifics: sentTab("t2", to: "ipad-guid"))
+    try await mac.sync()
+    let tabs = try await Push.sentTabs(server: server.url, chain: chain, profile: "", cacheGUID: "phone-guid")
+    #expect(tabs.map(\.url) == ["https://example.org/x"], "\(server.log)")
+
+    try await Push.unregister(server: server.url, cacheGUID: "phone-guid", authKey: chain.authKey)
+  }
+}

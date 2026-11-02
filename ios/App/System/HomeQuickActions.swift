@@ -43,6 +43,20 @@ enum HomeQuickActions {
 final class AppDelegate: NSObject, UIApplicationDelegate {
   @MainActor static weak var app: AppModel?
 
+  /// The APNs device token (SentTabNotifications asked for it).
+  func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    #if DEBUG
+      print("Push: device token", deviceToken.map { String(format: "%02x", $0) }.joined())
+    #endif
+    MainActor.assumeIsolated { Self.app?.sync.setPushToken(deviceToken) }
+  }
+
+  func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    #if DEBUG
+      print("Push: no device token: \(error)")
+    #endif
+  }
+
   /// iOS woke the app for the background download session's events.
   func application(
     _ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,

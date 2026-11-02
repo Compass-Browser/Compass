@@ -24,14 +24,33 @@ final class SentTabNotifications: NSObject, UNUserNotificationCenterDelegate {
     self.app = app
     center.delegate = self
     app.sync.onSentTabs = { [weak self] tabs, account in self?.post(tabs, account: account) }
+    // Already allowed (an earlier launch): the device token comes each launch.
+    center.getNotificationSettings { settings in
+      guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+      Task { @MainActor in UIApplication.shared.registerForRemoteNotifications() }
+    }
   }
 
   /// Asked once sync is on (iOS asks the user only the first time).
   func requestAuthorization() {
-    center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+      // The device token for the server's push (AppDelegate gets it).
+      guard granted else { return }
+      Task { @MainActor in UIApplication.shared.registerForRemoteNotifications() }
+    }
   }
 
   func post(_ tabs: [SentTab], account: String) {
+    // A push already showed it (the notification service extension).
+    center.getDeliveredNotifications { delivered in
+      let shown = Set(delivered.compactMap { $0.request.content.userInfo["guid"] as? String })
+      let fresh = tabs.filter { !shown.contains($0.guid) }
+      guard !fresh.isEmpty else { return }
+      Task { @MainActor in self.add(fresh, account: account) }
+    }
+  }
+
+  private func add(_ tabs: [SentTab], account: String) {
     for tab in tabs {
       let content = UNMutableNotificationContent()
       content.title = tab.deviceName.isEmpty ? "Tab from another device" : "Tab from \(tab.deviceName)"

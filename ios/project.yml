@@ -44,8 +44,13 @@ targets:
         # The App IDs need the App Groups capability with this group.
         com.apple.security.application-groups:
           - group.it.cipi1965.compass
+        # APNs for tabs sent from the desktop (docs/design/send-tab.md);
+        # exported as production for TestFlight and the App Store.
+        aps-environment: development
     dependencies:
       - target: AutoFill
+        embed: true
+      - target: PushService
         embed: true
       - target: Share
         embed: true
@@ -148,6 +153,43 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.autofill
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+  # Rewrites the server's "New tab" push into the sent tab's title and host
+  # (docs/design/send-tab.md).
+  PushService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PushService
+    entitlements:
+      path: PushService/PushService.entitlements
+      properties:
+        # The seed and server, as the app keeps them (Keychain.swift).
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)it.cipi1965.compass.shared
+        # PushAccounts.json. The App ID needs the App Groups capability.
+        com.apple.security.application-groups:
+          - group.it.cipi1965.compass
+    dependencies:
+      - package: CompassKit
+        product: CompassSync
+      - package: CompassKit
+        product: CompassShared
+    info:
+      path: PushService/Info.plist
+      properties:
+        CFBundleName: Compass Browser
+        CFBundleDisplayName: Compass Browser
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CompassKeychainGroup: $(AppIdentifierPrefix)it.cipi1965.compass.shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.push
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
   # The share sheet's "Compass Browser": open a link, or pin it to a space.
