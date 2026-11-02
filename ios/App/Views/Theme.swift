@@ -8,6 +8,17 @@ import SwiftUI
 extension RGB {
   var color: Color { Color(red: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255) }
 
+  /// How light it is, 0 to 1.
+  var luma: Double { (0.299 * Double(red) + 0.587 * Double(green) + 0.114 * Double(blue)) / 255 }
+
+  /// The color the tint paints: duller and a little darker, as Arc paints
+  /// its spaces (the desktop's ToTintColor(); spaces.md "Intensity and grain").
+  var tint: RGB {
+    let l = luma * 255
+    func channel(_ v: UInt8) -> UInt8 { UInt8(min(max((0.96 * (l + 0.72 * (Double(v) - l))).rounded(), 0), 255)) }
+    return RGB(channel(red), channel(green), channel(blue))
+  }
+
   init(_ color: Color) {
     let c = UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -39,13 +50,27 @@ extension SpaceTheme {
   /// For icons and controls: the space's color, or a neutral grey.
   var accent: Color { color?.color ?? Self.greyAccent }
 
-  /// The mode its chrome takes; nil follows the system.
+  /// The mode its chrome takes; nil follows the system. In automatic mode a
+  /// tint strong enough to decide how light the background is whatever the
+  /// system's mode picks it, so text stays readable (the desktop's
+  /// GetTintColorMode()).
   var colorScheme: ColorScheme? {
     switch appearance {
-    case .auto: nil
+    case .auto: tintColorScheme
     case .light: .light
     case .dark: .dark
     }
+  }
+
+  private var tintColorScheme: ColorScheme? {
+    guard !stops.isEmpty else { return nil }
+    let luma = stops.map(\.tint.luma).reduce(0, +) / Double(stops.count)
+    let alpha = min(intensity * SpaceTint.maxOpacity, 1)
+    let overLight = alpha * luma + (1 - alpha)
+    let overDark = alpha * luma
+    if overLight > 0.5, overDark > 0.5 { return .light }
+    if overLight <= 0.5, overDark <= 0.5 { return .dark }
+    return nil
   }
 }
 
@@ -140,8 +165,8 @@ struct SpaceTint: View {
   /// The tint's opacity at full intensity; the default intensity (0.31)
   /// gives about the 34% the phone had before themes.
   static let maxOpacity = 1.1
-  /// Grain at full strength (the desktop's is 4.4%, on a much larger tint).
-  static let maxGrain = 0.09
+  /// Grain at full strength, the desktop's: about the noise of Arc's full grain.
+  static let maxGrain = 0.115
 
   var body: some View {
     ZStack {
@@ -149,10 +174,9 @@ struct SpaceTint: View {
       let alpha = min(theme.intensity * Self.maxOpacity, 1)
       let stops = theme.stops
       LinearGradient(
-        colors: stops.isEmpty ? [.clear, .clear] : stops.map { $0.color.opacity(alpha) },
+        colors: stops.isEmpty ? [.clear, .clear] : stops.map { $0.tint.color.opacity(alpha) },
         startPoint: .topLeading, endPoint: .bottomTrailing
       )
-      .mask(LinearGradient(colors: [.white, .white.opacity(0.5)], startPoint: .top, endPoint: .bottom))
       if theme.grain > 0, !stops.isEmpty {
         Image(uiImage: Grain.tile)
           .resizable(resizingMode: .tile)

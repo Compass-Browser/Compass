@@ -247,14 +247,33 @@ only when not the defaults; mojo `Space.intensity`/`grain`,
 `SetSpaceIntensity()`, `SetSpaceGrain()`; kept when the space moves to
 another profile.
 
-- Intensity: the tint's opacity is `kMaxSpaceTintOpacity` (45%) times it.
-  The default, `kDefaultSpaceIntensity` 0.31, gives the 14% tints had
-  before. Arc's usual 0.8 is about 36%. The window's theme seed doesn't
-  change with it.
+- Intensity: the tint's opacity is `kMaxSpaceTintOpacity` (110%) times
+  it, capped at 100% (`SpaceTintOpacity()`), the phone's curve, so a synced
+  intensity looks the same on both (2026-11-02; the user preferred the
+  phone's stronger tint; it was 45%, so 14% by default). The default,
+  `kDefaultSpaceIntensity` 0.31, gives about 34%. Arc's usual 0.8 is about
+  88%; Arc's maximum is 1, as here. Flat over the window like Arc's (the
+  phone had a fade to half by the bottom; the user dropped it on both). The
+  window's theme seed doesn't change with it.
+- Color: like Arc, the tint doesn't paint the space's color as it is but
+  at 72% of its saturation and 4% darker (`ToTintColor()`, the phone's
+  `RGB.tint`). Measured on the user's screen at full intensity (2026-11-02):
+  Arc showed its stored #6cbad9 as #75aec4 in the sidebar, which this gives
+  within a level. Only one intensity was measured, so the curve below 1 is
+  ours. The theme seed stays the stored color.
+- Text: in automatic mode, a tint strong enough to decide how light the
+  frame is in both modes picks the window's mode (`GetTintColorMode()`, the
+  phone's `SpaceTheme.colorScheme`), as Arc's `contentOverBackgroundAppearance`:
+  the tint's average luma over a light (0.94) and a dark (0.13) frame, both
+  above 0.5 → light, both below → dark, else the system's. The default
+  intensity leaves the system's; a light color at full intensity is light
+  (the user saw light grey text over the light blue Claudio in dark mode).
 - Grain: a 128 px tile of grey noise (fixed sequence, built once) over the
   tint, in the tint's shape, blended as an overlay (grey 128 leaves the
-  color, so hue stays), at up to 4.4% (`kMaxGrainOpacity`; 22% at first,
-  which the user capped to its first fifth). One grain per
+  color, so hue stays), at up to 11.5% (`kMaxGrainOpacity`; 22% at first,
+  which the user capped to 4.4% over the old 14% tint; raised on
+  2026-11-02 to the noise measured in Arc at full grain and intensity,
+  about 5 levels of luma; the phone's `SpaceTint.maxGrain` is the same). One grain per
   physical pixel, tiled in widget coordinates so the region's tint and the
   frame's line up.
 

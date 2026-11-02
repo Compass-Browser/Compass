@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 #define COMPASS_BROWSER_SIDEBAR_SPACE_MODEL_H_
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -84,10 +85,16 @@ inline constexpr SpaceColor SpaceColor::kGreen = SpaceColor::FromRGB(34, 197, 94
 inline constexpr size_t kMaxSpaceGradientColors = 3;
 
 // How strongly a space's color tints the sidebar and frame, 0 to 1: the
-// tint's opacity is kMaxSpaceTintOpacity times this. The default gives the
-// 14% plain colors always had.
-inline constexpr double kMaxSpaceTintOpacity = 0.45;
+// tint's opacity is kMaxSpaceTintOpacity times this, capped at 100%, as on
+// the phone (SpaceTint in ios/App/Views/Theme.swift). The default gives
+// about 34%; 1 paints the color itself, as Arc's full intensity does.
+inline constexpr double kMaxSpaceTintOpacity = 1.1;
 inline constexpr double kDefaultSpaceIntensity = 0.31;
+
+// The tint's opacity, 0 to 1, for an intensity.
+inline double SpaceTintOpacity(double intensity) {
+  return std::clamp(kMaxSpaceTintOpacity * intensity, 0.0, 1.0);
+}
 
 // Whether a space's windows follow the system's light or dark mode or keep
 // one (docs/design/spaces.md, "Theme editor"). Saved by name.

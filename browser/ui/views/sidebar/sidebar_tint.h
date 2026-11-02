@@ -17,6 +17,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/view.h"
@@ -33,6 +34,17 @@ std::optional<SkColor> GetSpaceTint(SpaceColor color);
 // What a space paints over the frame color: its tint, partly transparent, or
 // transparent for none.
 SkColor GetSpaceFrameTint(SpaceColor color);
+
+// The color the tint paints for a space color: duller and a little darker,
+// as Arc paints its spaces (docs/design/spaces.md, "Intensity and grain").
+SkColor ToTintColor(SkColor color);
+
+// The mode a space in automatic mode gives its windows: light or dark where
+// its tint is strong enough to decide how light the frame is whatever the
+// system's mode, so text stays readable over it; nullopt (the system's)
+// otherwise.
+std::optional<ui::ColorProviderKey::ColorMode> GetTintColorMode(
+    const SpaceModel& space);
 
 // Tints the whole vertical tab strip region (the header, the sidebar page
 // and the margins around it) with the window's space color, over the

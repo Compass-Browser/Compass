@@ -41,13 +41,16 @@ namespace compass {
 namespace {
 
 // How much of the space color shows over the frame color, at the default
-// intensity: 14%.
-constexpr SkAlpha kTintAlpha = 0x24;
+// intensity: about 34%.
+constexpr SkAlpha kTintAlpha =
+    static_cast<SkAlpha>(kMaxSpaceTintOpacity * kDefaultSpaceIntensity * 255 +
+                         0.5);
 
 // Grain at full strength: a tile of grey noise blended as an overlay (grey
 // 128 leaves the color as is) at this opacity. The user found 22% far too
-// much: the slider's whole range is now its first fifth (2026-10-31).
-constexpr float kMaxGrainOpacity = 0.044f;
+// much over the old 14% tint (2026-10-31); 11.5% gives the noise Arc's full
+// grain has over its full tint, about 5 levels of luma (2026-11-02).
+constexpr float kMaxGrainOpacity = 0.115f;
 constexpr int kGrainTileSize = 128;
 
 // The noise tile, the same every time (a fixed linear congruential
@@ -70,6 +73,24 @@ const cc::PaintImage& GrainTile() {
   return *tile;
 }
 
+// Arc doesn't paint a space's color as it is: at full intensity its sidebar
+// shows the color at about 72% of its saturation and 4% darker (measured on
+// the user's screen, 2026-11-02: #6cbad9 shows as #75aec4).
+constexpr float kTintSaturation = 0.72f;
+constexpr float kTintShade = 0.96f;
+
+// Roughly how light the frame is under the tint in light and dark mode, and
+// how light the background must be for dark text.
+constexpr float kLightFrameLuma = 0.94f;
+constexpr float kDarkFrameLuma = 0.13f;
+constexpr float kDarkTextAbove = 0.5f;
+
+float Luma(SkColor color) {
+  return (0.299f * SkColorGetR(color) + 0.587f * SkColorGetG(color) +
+          0.114f * SkColorGetB(color)) /
+         255;
+}
+
 // The fade between two spaces' colors; the page's slide takes as long.
 constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
 
@@ -77,7 +98,42 @@ constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
 
 SkColor GetSpaceFrameTint(SpaceColor color) {
   const std::optional<SkColor> tint = GetSpaceTint(color);
-  return tint ? SkColorSetA(*tint, kTintAlpha) : SK_ColorTRANSPARENT;
+  return tint ? SkColorSetA(ToTintColor(*tint), kTintAlpha)
+              : SK_ColorTRANSPARENT;
+}
+
+SkColor ToTintColor(SkColor color) {
+  const float luma = Luma(color) * 255;
+  auto channel = [&](U8CPU value) {
+    return base::ClampRound<U8CPU>(kTintShade *
+                                   (luma + kTintSaturation * (value - luma)));
+  };
+  return SkColorSetARGB(SkColorGetA(color), channel(SkColorGetR(color)),
+                        channel(SkColorGetG(color)),
+                        channel(SkColorGetB(color)));
+}
+
+std::optional<ui::ColorProviderKey::ColorMode> GetTintColorMode(
+    const SpaceModel& space) {
+  if (space.color().is_grey()) {
+    return std::nullopt;
+  }
+  // How light the tint is, its colors averaged.
+  float luma = Luma(ToTintColor(*space.color().tint()));
+  for (SpaceColor color : space.gradient()) {
+    luma += Luma(ToTintColor(*color.tint()));
+  }
+  luma /= 1 + space.gradient().size();
+  const float alpha = SpaceTintOpacity(space.intensity());
+  const float over_light = alpha * luma + (1 - alpha) * kLightFrameLuma;
+  const float over_dark = alpha * luma + (1 - alpha) * kDarkFrameLuma;
+  if (over_light > kDarkTextAbove && over_dark > kDarkTextAbove) {
+    return ui::ColorProviderKey::ColorMode::kLight;
+  }
+  if (over_light <= kDarkTextAbove && over_dark <= kDarkTextAbove) {
+    return ui::ColorProviderKey::ColorMode::kDark;
+  }
+  return std::nullopt;
 }
 
 std::optional<SkColor> GetSpaceTint(SpaceColor color) {
@@ -121,10 +177,11 @@ SidebarTint::Look SidebarTint::ToLook(const SpaceModel& space) {
     return Look();
   }
   const SkAlpha alpha =
-      base::ClampRound<SkAlpha>(kMaxSpaceTintOpacity * space.intensity() * 255);
-  std::vector<SkColor> colors = {SkColorSetA(*space.color().tint(), alpha)};
+      base::ClampRound<SkAlpha>(SpaceTintOpacity(space.intensity()) * 255);
+  std::vector<SkColor> colors = {
+      SkColorSetA(ToTintColor(*space.color().tint()), alpha)};
   for (SpaceColor color : space.gradient()) {
-    colors.push_back(SkColorSetA(*color.tint(), alpha));
+    colors.push_back(SkColorSetA(ToTintColor(*color.tint()), alpha));
   }
   Look look;
   for (size_t i = 0; i < look.stops.size(); ++i) {
@@ -191,26 +248,26 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
     colors[i] = SkColor4f::FromColor(stops[i]);
     colors[i].fA *= opacity;
   }
+  // Across the whole window, from its top left corner to its bottom right
+  // one, whichever view paints it.
+  const gfx::Rect window = GetWidget()->GetRootView()->GetLocalBounds();
+  gfx::Point start = window.origin();
+  gfx::Point end = window.bottom_right();
+  views::View::ConvertPointFromWidget(this, &start);
+  views::View::ConvertPointFromWidget(this, &end);
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
   if (std::ranges::all_of(stops,
                           [&](SkColor stop) { return stop == stops[0]; })) {
     flags.setColor(colors[0]);
   } else {
-    // Across the whole window, from its top left corner to its bottom right
-    // one, whichever view paints it.
-    const gfx::Rect window = GetWidget()->GetRootView()->GetLocalBounds();
-    gfx::Point start = window.origin();
-    gfx::Point end = window.bottom_right();
-    views::View::ConvertPointFromWidget(this, &start);
-    views::View::ConvertPointFromWidget(this, &end);
     const std::array<SkPoint, 2> points = {gfx::PointToSkPoint(start),
                                            gfx::PointToSkPoint(end)};
     constexpr std::array<SkScalar, kMaxSpaceGradientColors> kPositions = {
         0.f, 0.5f, 1.f};
-    // At 14%, the gradient spans a few levels of each channel over the
-    // window, and each level would show as a band 50-100 DIP wide (Arc's
-    // grain hides them); dithering mixes neighboring levels instead.
+    // The gradient spans a few levels of each channel over the window, and
+    // each level would show as a band 50-100 DIP wide (Arc's grain hides
+    // them); dithering mixes neighboring levels instead.
     flags.setDither(true);
     flags.setShader(cc::PaintShader::MakeLinearGradient(
         points.data(), colors.data(), kPositions.data(), colors.size(),
@@ -364,6 +421,8 @@ void SidebarTint::UpdateWindowTheme() {
   if (!profile->IsOffTheRecord()) {
     switch (space.appearance()) {
       case SpaceAppearance::kAuto:
+        // A strong tint decides, so text stays readable over it.
+        mode = GetTintColorMode(space);
         break;
       case SpaceAppearance::kLight:
         mode = ui::ColorProviderKey::ColorMode::kLight;

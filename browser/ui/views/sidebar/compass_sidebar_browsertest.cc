@@ -326,8 +326,10 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
   home.SetGradient({SpaceColor::kPink});
 
   const SidebarTint::Stops& stops = tint->GetStopsForTesting();
-  EXPECT_EQ(SkColorSetA(stops[0], SK_AlphaOPAQUE), *SpaceColor::kBlue.tint());
-  EXPECT_EQ(SkColorSetA(stops[2], SK_AlphaOPAQUE), *SpaceColor::kPink.tint());
+  EXPECT_EQ(SkColorSetA(stops[0], SK_AlphaOPAQUE),
+            ToTintColor(*SpaceColor::kBlue.tint()));
+  EXPECT_EQ(SkColorSetA(stops[2], SK_AlphaOPAQUE),
+            ToTintColor(*SpaceColor::kPink.tint()));
   // Halfway between them.
   EXPECT_GT(SkColorGetR(stops[1]), SkColorGetR(stops[0]));
   EXPECT_LT(SkColorGetR(stops[1]), SkColorGetR(stops[2]));
@@ -339,21 +341,31 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
   // Three colors, then a swipe toward a plain green space.
   home.SetGradient({SpaceColor::kPink, SpaceColor::kYellow});
   EXPECT_EQ(SkColorSetA(tint->GetStopsForTesting()[1], SK_AlphaOPAQUE),
-            *SpaceColor::kPink.tint());
+            ToTintColor(*SpaceColor::kPink.tint()));
   SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
   work->SetColor(SpaceColor::kGreen);
   features->SetSpacePreview(work, 1);
   for (SkColor stop : tint->GetStopsForTesting()) {
-    EXPECT_EQ(SkColorSetA(stop, SK_AlphaOPAQUE), *SpaceColor::kGreen.tint());
+    EXPECT_EQ(SkColorSetA(stop, SK_AlphaOPAQUE),
+            ToTintColor(*SpaceColor::kGreen.tint()));
   }
   features->SetSpacePreview(nullptr, 0);
 
+  // The tint is Arc's: Claudio's #6cbad9 as Arc showed it, #75aec4.
+  const SkColor arc = ToTintColor(SkColorSetRGB(108, 186, 217));
+  EXPECT_NEAR(SkColorGetR(arc), 117, 3);
+  EXPECT_NEAR(SkColorGetG(arc), 174, 3);
+  EXPECT_NEAR(SkColorGetB(arc), 196, 3);
+
   // Intensity sets the tint's opacity; grain blends like the colors.
   home.SetIntensity(1);
+  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]), 0xffu);
+  home.SetIntensity(0.5);
   EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]),
-            base::ClampRound<SkColor>(kMaxSpaceTintOpacity * 255));
+            base::ClampRound<SkColor>(0.55 * 255));
+  // The phone's default: about 34%.
   home.SetIntensity(kDefaultSpaceIntensity);
-  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]), 0x24u);
+  EXPECT_EQ(SkColorGetA(tint->GetStopsForTesting()[0]), 0x57u);
   home.SetGrain(0.6);
   EXPECT_FLOAT_EQ(tint->GetGrainForTesting(), 0.6f);
   EXPECT_FLOAT_EQ(frame_tint->GetGrainForTesting(), 0.6f);
@@ -409,6 +421,22 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowThemeFollowsTheSpace) {
   features->SwitchToSpace(*work);
   EXPECT_EQ(widget->user_color_override(), GetSpaceTint(SpaceColor::kGreen));
   EXPECT_GT(SkColorGetG(frame_color()), SkColorGetB(frame_color()));
+
+  // A strong tint picks the mode, so text stays readable: light over a light
+  // blue, dark over a navy one; the default intensity leaves the system's.
+  using ColorMode = ui::ColorProviderKey::ColorMode;
+  EXPECT_FALSE(widget->color_mode_override());
+  work->SetColor(SpaceColor::FromRGB(108, 186, 217));
+  work->SetIntensity(1);
+  EXPECT_EQ(widget->color_mode_override(), ColorMode::kLight);
+  work->SetColor(SpaceColor::FromRGB(20, 30, 70));
+  EXPECT_EQ(widget->color_mode_override(), ColorMode::kDark);
+  // The space's own mode wins.
+  work->SetAppearance(SpaceAppearance::kLight);
+  EXPECT_EQ(widget->color_mode_override(), ColorMode::kLight);
+  work->SetAppearance(SpaceAppearance::kAuto);
+  work->SetIntensity(kDefaultSpaceIntensity);
+  EXPECT_FALSE(widget->color_mode_override());
 
   // Grey: the profile's theme again.
   work->SetColor(SpaceColor::kGrey);
@@ -1578,7 +1606,12 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
       }
       return !root.querySelector('compass-theme-editor');
     })())"));
+  // Automatic: at full intensity the tint picks the mode, at the default
+  // the system does.
   space.SetAppearance(SpaceAppearance::kAuto);
+  EXPECT_EQ(browser_view()->GetWidget()->color_mode_override(),
+            GetTintColorMode(space));
+  space.SetIntensity(kDefaultSpaceIntensity);
   EXPECT_FALSE(browser_view()->GetWidget()->color_mode_override());
 }
 
