@@ -48,17 +48,20 @@ to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
   `git config --global core.longpaths true`.
 - Git for Windows, and Python 3 (the `py` launcher or `python` on `PATH`;
   `python3` is usually the Microsoft Store stub, which `compass.bat` avoids).
-- **Use the in-tree layout.** `compass init` links `//compass` into the
-  checkout with a directory junction, but siso doesn't follow junctions
-  ("../../compass/BUILD.gn not exist"), so `compass gen`/`build` refuse the
-  linked layout on Windows. After `compass init`, move the repository into
-  the checkout and optionally leave a junction at the old path:
+- **Use the in-tree layout.** siso doesn't follow directory junctions
+  ("../../compass/BUILD.gn not exist"), so on Windows `compass init`, `gen`
+  and `build` refuse the linked layout. Clone the repository straight into
+  the checkout and run `init` from there:
   ```bat
-  rmdir C:\src\compass-chromium\src\compass
-  move C:\src\compass C:\src\compass-chromium\src\compass
-  mklink /J C:\src\compass C:\src\compass-chromium\src\compass
+  git clone <compass repo> C:\src\compass-chromium\src\compass
+  cd C:\src\compass-chromium\src\compass
+  tools\compass.bat init
   ```
-  Run `compass` from `C:\src\compass-chromium\src\compass` afterwards.
+  The parent directory must be named `compass-chromium`; that's how `init`
+  recognizes the layout before Chromium is checked out. An older linked
+  checkout can still be converted by hand: remove the
+  `src\compass` junction, move the repository there, and run `compass`
+  from the new path.
 
 **Linux**
 - After `compass init`, run
