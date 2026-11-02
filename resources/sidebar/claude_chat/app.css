@@ -24,9 +24,10 @@
   scrollbar-width: thin;
 }
 
+/* No lines under the header or above the field: in the panel's card they
+ * read as a frame (2026-11-03). Spacing separates them. */
 header {
   align-items: center;
-  border-bottom: 1px solid var(--line);
   display: flex;
   flex: none;
   gap: 8px;
@@ -155,7 +156,6 @@ main {
 }
 
 footer {
-  border-top: 1px solid var(--line);
   display: flex;
   flex: none;
   flex-direction: column;
