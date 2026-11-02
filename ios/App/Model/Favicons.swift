@@ -31,6 +31,8 @@ final class Favicons {
   @ObservationIgnored private var fromSync: Set<String> = []
   /// A page's icon, to sync: (host, 64 px PNG, source size, tab ID).
   @ObservationIgnored var onPageIcon: ((String, Data, Int, String) -> Void)?
+  /// A host's icon was saved (the widgets' copies follow).
+  @ObservationIgnored var onStored: ((String) -> Void)?
   @ObservationIgnored private let directory: URL
   @ObservationIgnored private let session: URLSession
 
@@ -62,6 +64,12 @@ final class Favicons {
   }
 
   private func file(_ host: String) -> URL { directory.appendingPathComponent(host + ".png") }
+
+  /// The saved icon of a host (lowercased), if there is one.
+  func cachedFile(host: String) -> URL? {
+    let url = file(host)
+    return FileManager.default.fileExists(atPath: url.path) ? url : nil
+  }
 
   private func load(_ host: String) {
     guard !loading.contains(host), !missing.contains(host) else { return }
@@ -128,6 +136,7 @@ final class Favicons {
   private func store(_ image: UIImage, for host: String) {
     images[host] = image
     if let data = image.pngData() { try? data.write(to: file(host), options: .atomic) }
+    onStored?(host)
   }
 
   /// The first candidate that is an image, scaled down to at most 128 px,

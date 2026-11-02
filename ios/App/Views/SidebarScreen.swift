@@ -15,7 +15,7 @@ struct SidebarScreen: View {
 
   var body: some View {
     @Bindable var app = app
-    let spaces = app.store.spaces
+    let spaces = app.visibleSpaces
     VStack(spacing: 0) {
       TabView(selection: $app.selectedSpaceID) {
         ForEach(spaces) { space in
@@ -40,7 +40,7 @@ struct SidebarScreen: View {
       Spacer(minLength: 4)
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 2) {
-          let spaces = app.store.spaces
+          let spaces = app.visibleSpaces
           ForEach(Array(spaces.enumerated()), id: \.element.id) { i, space in
             let shown = space.id == app.selectedSpace?.id
             Button { app.selectedSpaceID = space.id } label: {

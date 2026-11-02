@@ -13,6 +13,7 @@ struct SettingsView: View {
   @State private var showingRecovery = false
   @State private var confirmLeave = false
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
+  @AppStorage(Spotlight.enabledKey) private var spotlight = true
 
   var body: some View {
     NavigationStack {
@@ -66,6 +67,18 @@ struct SettingsView: View {
           }
           // Like the other rows, not the accent color.
           .tint(.primary)
+        }
+        Section {
+          Toggle(isOn: $spotlight) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("Show in Spotlight", "magnifyingglass.circle.fill", .gray)
+              Text("Favorites and pinned tabs in Home Screen search").font(.caption).foregroundStyle(.secondary)
+                .padding(.leading, 44)
+            }
+          }
+          .onChange(of: spotlight) { app.system.writeSnapshot(force: true) }
+        } footer: {
+          Text("To open pages from Safari in Compass, turn on \"Open in Compass\" in Safari → Extensions.")
         }
         if app.sync.isOn { syncOn } else { syncOff }
         Section {

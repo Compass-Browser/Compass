@@ -4,6 +4,7 @@
 
 import CompassCrypto
 import CompassModel
+import CompassShared
 import Foundation
 import SwiftUI
 import Observation
@@ -21,10 +22,17 @@ final class AppModel {
   let downloads = Downloads()
   let extensions: WebExtensions
   let directory: URL
+  /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
+  let system: SystemBridge
 
   /// The space the sidebar shows (to extensions, the focused window).
   var selectedSpaceID: String? {
-    didSet { if let id = selectedSpaceID, id != oldValue { extensions.spaceFocused(id) } }
+    didSet {
+      if let id = selectedSpaceID, id != oldValue {
+        extensions.spaceFocused(id)
+        system.spaceShown(id)
+      }
+    }
   }
   /// The entry the browser shows; nil = an empty page.
   var selectedNodeID: String?
@@ -64,6 +72,8 @@ final class AppModel {
   /// address (the address pill).
   var commandBarNewTab = true
   var showingSettings = false
+  /// The downloads list, from the Lock Screen's download activity.
+  var showingDownloads = false
   /// After joining a chain: what came over (profiles and spaces).
   var showingJoinSummary = false
   /// A pairing link opened from the camera, for the join screen.
@@ -84,6 +94,7 @@ final class AppModel {
     siteSettings = SiteSettings(directory: directory)
     extensions = WebExtensions(directory: directory)
     tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
+    system = SystemBridge()
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
@@ -91,6 +102,11 @@ final class AppModel {
     tabs.downloads = downloads
     tabs.extensions = extensions
     extensions.app = self
+    system.app = self
+    downloads.activities = DownloadActivities()
+    Favicons.shared.onStored = { [weak self] host in self?.system.iconStored(host: host) }
+    IntentRouter.handle = { [weak self] link in self?.system.handle(link) }
+    IntentRouter.cancelDownload = { [weak self] id in UUID(uuidString: id).map { self?.downloads.cancel($0) } }
     contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
     Task { [contentBlocking] in await contentBlocking.refresh() }
     tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
@@ -251,6 +267,10 @@ final class AppModel {
     #endif
     // Save after every change, local or synced (observation of the store).
     observeForSaving()
+    observeSessions()
+    // What the extensions asked for while the app wasn't running.
+    system.writeSnapshot()
+    system.sharedChanged()
     archiveTimer = Task { [weak self] in
       while !Task.isCancelled {
         self?.store.archiveIdleEntries()
@@ -287,7 +307,37 @@ final class AppModel {
       guard let self, !Task.isCancelled else { return }
       try? self.store.save(to: self.sidebarURL)
       self.tabs.prune()
+      self.system.scheduleSnapshot()
     }
+  }
+
+  /// Other devices' tabs changed: the widget that shows them follows.
+  private func observeSessions() {
+    withObservationTracking {
+      _ = sync.sessionsByAccount
+      _ = sync.isOn
+    } onChange: { [weak self] in
+      Task { @MainActor in
+        self?.system.scheduleSnapshot()
+        self?.observeSessions()
+      }
+    }
+  }
+
+  /// The spaces the sidebar pages through: all of them, or only the Focus
+  /// filter's while its Focus is on with "Show only this space".
+  var visibleSpaces: [Space] {
+    if let focus = system.focus, focus.onlyThisSpace, let space = store.space(id: focus.spaceID) { return [space] }
+    return store.spaces
+  }
+
+  /// Whatever is over the browser closes (before a link from outside).
+  func dismissOverlays() {
+    showingCommandBar = false
+    showingMenu = false
+    showingSettings = false
+    showingSiteSettings = false
+    showingDownloads = false
   }
 
   var selectedSpace: Space? {
@@ -382,12 +432,9 @@ final class AppModel {
   /// Opens text from the command bar: a URL, or a search.
   /// A link from another app: whatever was up closes, and the page opens
   /// as it is, in a new Today tab of the shown space.
-  func openLink(_ url: URL) {
-    showingCommandBar = false
-    showingMenu = false
-    showingSettings = false
-    showingSiteSettings = false
-    guard let space = selectedSpace ?? store.spaces.first,
+  func openLink(_ url: URL, in target: Space? = nil) {
+    dismissOverlays()
+    guard let space = target ?? selectedSpace ?? store.spaces.first,
       let tab = store.addTab(url: url.absoluteString, to: space.today)
     else { return }
     selectedSpaceID = space.id

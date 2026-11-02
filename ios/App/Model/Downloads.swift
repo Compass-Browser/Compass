@@ -31,6 +31,10 @@ final class Downloads: NSObject {
   @ObservationIgnored private var running: [ObjectIdentifier: UUID] = [:]
   @ObservationIgnored private var progress: [UUID: NSKeyValueObservation] = [:]
   @ObservationIgnored private var pending: [ObjectIdentifier: URL] = [:]
+  /// Running downloads by item, for Cancel.
+  @ObservationIgnored private var tasks: [UUID: WKDownload] = [:]
+  /// The Lock Screen's download activities (App/System/DownloadActivity.swift).
+  @ObservationIgnored var activities: DownloadActivities?
 
   override init() {
     folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -53,13 +57,27 @@ final class Downloads: NSObject {
     let id = UUID()
     download.delegate = self
     running[ObjectIdentifier(download)] = id
+    tasks[id] = download
     items.insert(Item(id: id, name: download.originalRequest?.url?.lastPathComponent ?? "Download", progress: 0), at: 0)
     started += 1
+    if let item = items.first { activities?.update(item) }
     progress[id] = download.progress.observe(\.fractionCompleted) { [weak self] p, _ in
       let fraction = p.totalUnitCount > 0 ? p.fractionCompleted : nil
       let bytes = p.completedUnitCount
       Task { @MainActor in self?.update(id) { $0.progress = fraction; $0.bytes = bytes } }
     }
+  }
+
+  /// Stops a running download (Cancel on its Lock Screen activity).
+  func cancel(_ id: UUID) {
+    guard let download = tasks[id] else { return }
+    download.cancel { _ in }
+    let key = ObjectIdentifier(download)
+    running[key] = nil
+    pending[key] = nil
+    progress[id] = nil
+    tasks[id] = nil
+    update(id) { $0.failed = "Cancelled" }
   }
 
   func delete(_ item: Item) {
@@ -83,6 +101,7 @@ final class Downloads: NSObject {
   private func update(_ id: UUID, _ change: (inout Item) -> Void) {
     guard let i = items.firstIndex(where: { $0.id == id }) else { return }
     change(&items[i])
+    activities?.update(items[i])
   }
 
   /// A name that isn't taken: "report.pdf", then "report 2.pdf".
@@ -121,6 +140,7 @@ extension Downloads: WKDownloadDelegate {
       guard let id = running.removeValue(forKey: key) else { return }
       let file = pending.removeValue(forKey: key)
       progress[id] = nil
+      tasks[id] = nil
       update(id) {
         $0.file = file
         $0.progress = 1
@@ -135,6 +155,7 @@ extension Downloads: WKDownloadDelegate {
       guard let id = running.removeValue(forKey: key) else { return }
       pending[key] = nil
       progress[id] = nil
+      tasks[id] = nil
       update(id) { $0.failed = error.localizedDescription }
     }
   }

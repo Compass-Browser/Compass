@@ -16,6 +16,8 @@ let package = Package(
     .library(name: "CompassCrypto", targets: ["CompassCrypto"]),
     .library(name: "CompassSync", targets: ["CompassSync"]),
     .library(name: "CompassModel", targets: ["CompassModel"]),
+    // What the app shares with its extensions (App Group files, links).
+    .library(name: "CompassShared", targets: ["CompassShared"]),
   ],
   dependencies: [
     // Must match the protoc-gen-swift that generated Sources/SyncProto
@@ -35,11 +37,13 @@ let package = Package(
       dependencies: [.product(name: "SwiftProtobuf", package: "swift-protobuf")],
       exclude: ["README.md"]
     ),
-    .target(name: "CompassModel"),
+    .target(name: "CompassShared"),
+    .target(name: "CompassModel", dependencies: ["CompassShared"]),
     .target(name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel"]),
     .testTarget(name: "CompassCryptoTests", dependencies: ["CompassCrypto"]),
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),
+    .testTarget(name: "CompassSharedTests", dependencies: ["CompassShared"]),
   ],
   // BoringSSL's C++ needs C++17 (swift-crypto sets the same).
   cxxLanguageStandard: .cxx17

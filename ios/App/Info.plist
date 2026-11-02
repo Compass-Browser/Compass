@@ -33,6 +33,14 @@
 			</array>
 		</dict>
 		<dict>
+			<key>CFBundleURLName</key>
+			<string>it.cipi1965.compass.link</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>compass</string>
+			</array>
+		</dict>
+		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
@@ -61,6 +69,12 @@
 	<string>Compass scans the pairing code shown on your Mac.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Compass asks for Face ID before showing your recovery code.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.apple.corespotlightitem</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

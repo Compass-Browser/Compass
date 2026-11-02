@@ -25,6 +25,9 @@ targets:
       testTargets: [CompassUITests]
     sources:
       - path: App
+      # Also in the Widgets extension: App Intents entities and intents, the
+      # download activity's attributes.
+      - path: Shared
       # The desktop's Icon Composer icon, shared.
       - path: ../assets/Compass.icon
         buildPhase: resources
@@ -37,9 +40,21 @@ targets:
           - $(AppIdentifierPrefix)it.cipi1965.compass.shared
         # App Store Connect wants it on the app as well as the extension.
         com.apple.developer.authentication-services.autofill-credential-provider: true
+        # Shared with the extensions (docs/design/ios.md, "System extensions").
+        # The App IDs need the App Groups capability with this group.
+        com.apple.security.application-groups:
+          - group.it.cipi1965.compass
     dependencies:
       - target: AutoFill
         embed: true
+      - target: Share
+        embed: true
+      - target: Widgets
+        embed: true
+      - target: SafariOpen
+        embed: true
+      - package: CompassKit
+        product: CompassShared
       - package: CompassKit
         product: CompassCrypto
       - package: CompassKit
@@ -68,6 +83,9 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: it.cipi1965.compass.pair
             CFBundleURLSchemes: [compass-pair]
+          # Widgets, the icon menu, Spotlight and the extensions (DeepLink).
+          - CFBundleURLName: it.cipi1965.compass.link
+            CFBundleURLSchemes: [compass]
           # Web links, for when Compass is the default browser (that needs
           # the com.apple.developer.web-browser entitlement; until Apple
           # grants it, iOS doesn't send these here).
@@ -75,6 +93,10 @@ targets:
             CFBundleTypeRole: Viewer
             CFBundleURLSchemes: [http, https]
         BGTaskSchedulerPermittedIdentifiers: [it.cipi1965.compass.refresh]
+        # Downloads on the Lock Screen and in the Dynamic Island.
+        NSSupportsLiveActivities: true
+        # Spotlight results open entries (CSSearchableItemActionType).
+        NSUserActivityTypes: [com.apple.corespotlightitem]
         # Downloads show in the Files app (Documents/Downloads).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
@@ -125,6 +147,111 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.autofill
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+  # The share sheet's "Compass Browser": open a link, or pin it to a space.
+  Share:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Share
+    entitlements:
+      path: Share/Share.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.cipi1965.compass
+    dependencies:
+      - package: CompassKit
+        product: CompassShared
+    info:
+      path: Share/Info.plist
+      properties:
+        CFBundleName: Compass Browser
+        CFBundleDisplayName: Compass Browser
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.share
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+  # Home and Lock Screen widgets, the Control Center control and the
+  # download Live Activity.
+  Widgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+      - path: Shared
+    entitlements:
+      path: Widgets/Widgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.cipi1965.compass
+    dependencies:
+      - package: CompassKit
+        product: CompassShared
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleName: Compass Browser
+        CFBundleDisplayName: Compass Browser
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+  # Safari's "Open in Compass" toolbar button.
+  SafariOpen:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: SafariOpen/SafariWebExtensionHandler.swift
+      # At the bundle's root, as Safari wants them; images/ and _locales/
+      # keep their folders.
+      - path: SafariOpen/Resources
+        buildPhase: resources
+        excludes: ["images/**", "_locales/**"]
+      - path: SafariOpen/Resources/images
+        type: folder
+        buildPhase: resources
+      - path: SafariOpen/Resources/_locales
+        type: folder
+        buildPhase: resources
+    entitlements:
+      path: SafariOpen/SafariOpen.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.cipi1965.compass
+    dependencies:
+      - package: CompassKit
+        product: CompassShared
+    info:
+      path: SafariOpen/Info.plist
+      properties:
+        CFBundleName: Open in Compass
+        CFBundleDisplayName: Open in Compass
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.cipi1965.compass.safari
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
   # Real touches (gestures), checked from screenshots taken meanwhile.
