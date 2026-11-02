@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
 #include <map>
@@ -131,6 +132,9 @@ class FakePage : public sidebar::mojom::Page {
         events_.push_back(hosts_[id] + " muted");
         break;
     }
+  }
+  void NodeClaudeChanged(const std::string& id, bool claude) override {
+    events_.push_back(hosts_[id] + (claude ? " claude" : " no claude"));
   }
   void ActiveNodeChanged(const std::optional<std::string>& id) override {
     events_.push_back("active " + (id ? hosts_[*id] : "none"));
@@ -1131,6 +1135,28 @@ TEST_F(SidebarPageHandlerTest, ShowsAndMutesPlayingTabs) {
   handler_remote_->SetNodeMuted("not-a-uuid", true);
   Settle();
   EXPECT_THAT(page_.TakeEvents(), IsEmpty());
+}
+
+// docs/design/claude.md, "Claude-is-acting indicator".
+TEST_F(SidebarPageHandlerTest, TintsTabsClaudeActsIn) {
+  content::WebContents* contents = tab_strip_model()->GetWebContentsAt(0);
+  page_.TakeEvents();
+
+  claude::ClaudeActivity::Begin(contents);
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test claude"));
+  EXPECT_TRUE(GetTree()->today->children[0]->claude);
+  EXPECT_FALSE(GetTree()->today->children[1]->claude);
+
+  // Two sessions: acting until both stop.
+  claude::ClaudeActivity::Begin(contents);
+  claude::ClaudeActivity::End(contents);
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), IsEmpty());
+  claude::ClaudeActivity::End(contents);
+  Settle();
+  EXPECT_THAT(page_.TakeEvents(), ElementsAre("a.test no claude"));
+  EXPECT_FALSE(GetTree()->today->children[0]->claude);
 }
 
 TEST_F(SidebarPageHandlerTest, FolderMenu) {

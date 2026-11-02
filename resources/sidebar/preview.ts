@@ -22,6 +22,7 @@ const NEW_TAB: Node = {
   url: 'chrome://newtab/',
   live: true,
   audio: AudioState.kNone,
+  claude: false,
   collapsed: false,
   children: [],
 };

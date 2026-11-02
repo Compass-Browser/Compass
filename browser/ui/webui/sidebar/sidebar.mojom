@@ -44,6 +44,9 @@ struct Node {
   bool live;
   // A live tab's sound; kNone for other nodes.
   AudioState audio;
+  // Claude is acting in the tab now (docs/design/claude.md): its row is
+  // tinted.
+  bool claude;
   // Whether a folder shows only its own row. The same in every window.
   bool collapsed;
   array<Node> children;
@@ -294,6 +297,7 @@ interface Page {
   NodeRemoved(string id);
   NodeLiveChanged(string id, bool live);
   NodeAudioChanged(string id, AudioState audio);
+  NodeClaudeChanged(string id, bool claude);
   ActiveNodeChanged(string? id);
   // The window's space's archived entries, most recent first. Sent after the
   // tree, and whenever they change.

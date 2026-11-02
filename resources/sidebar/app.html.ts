@@ -32,7 +32,7 @@ export function getHtml(this: CompassSidebarAppElement) {
     <div class="tile" role="listitem" draggable="true" tabindex="-1"
         data-node-id="${node.id}" title="${node.customTitle || node.title || node.url}"
         ?active="${this.isActive_(node)}" ?unloaded="${!node.live}"
-        @click="${this.onTileClick_}">
+        ?claude="${node.claude}" @click="${this.onTileClick_}">
       <img class="favicon" alt="" src="${this.getFaviconUrl_(node.url, 32)}">
       ${this.hasAudio_(node) ? html`
         <button class="audio" data-node-id="${node.id}"

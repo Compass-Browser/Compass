@@ -22,6 +22,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
@@ -60,6 +61,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public ProfileAttributesStorageObserver,
                            public WindowFeatures::Observer,
                            public LiveTabRegistry::Observer,
+                           public claude::ClaudeActivity::Observer,
                            public TabStripModelObserver {
  public:
   // What the entries' context menus offer (docs/design/sidebar.md, "Context
@@ -230,6 +232,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // LiveTabRegistry::Observer:
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
   void OnNodeAudioChanged(const SidebarNode& node) override;
+
+  // claude::ClaudeActivity::Observer:
+  void OnClaudeActingChanged(content::WebContents* contents) override;
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(

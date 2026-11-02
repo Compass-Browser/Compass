@@ -157,7 +157,12 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
     - `open_tab`: `Navigate()` in the chat's window (the last active one if it's gone), in the background unless `active`; Compass makes it a Today entry of the window's space. It waits for the load, as `navigate` does, and the page tools act on it.
     - `select_tab`: the page tools act on that tab, which stays where it is (hidden ones too: they're kept rendering).
     - `close_tab`: only tabs Claude opened in this chat (`opened_`). Closing the one it acts on goes back to the task's tab.
-- **Click indicator.** A dot in Claude's orange, drawn for 0.7 s where Claude clicks, through DevTools' `Overlay.highlightRect`: it's over the page but not in it, so the page's DOM and scripts never see it. Not done yet: a tint on the tab's row in the sidebar while Claude acts.
+- **Click indicator.** A dot in Claude's orange, drawn for 0.7 s where Claude clicks, through DevTools' `Overlay.highlightRect`: it's over the page but not in it, so the page's DOM and scripts never see it.
+- **Claude-is-acting indicator** (the sidebar's tint). While Claude acts in a tab, its row in the sidebar (tab row, split pane or favorite tile, in every window of its space) gets a wash of Claude's orange with a slow pulse (still with reduced motion), as does the chat's "Using <tab>" chip.
+  - `ClaudeActivity` (`browser/claude/claude_activity.{h,cc}`): a count per `WebContents` (`WebContentsUserData`), so two sessions in one tab keep it lit until both end, and observers.
+  - `ClaudeTools` marks its target from the start of each page tool until 2 s after it ends (so it doesn't flicker between steps); `open_tab` and `select_tab` move the mark; Stop, a closed tab or the end of the session clear it. The chat and MCP sessions both light it.
+  - The sidebar: `Node.claude` and `Page.NodeClaudeChanged()` (`sidebar.mojom`), from `SidebarPageHandler` observing `ClaudeActivity` and finding the tab's node through `LiveTabRegistry`; `[claude]` on `.tab` and `.tile` in `app.css`.
+  - Tests: `SidebarPageHandlerTest.TintsTabsClaudeActsIn`, `ClaudeToolsBrowserTest.MarksTheTabItActsIn`.
 - **Mojo: `chat.mojom`.**
   - `PageHandler.Send(messages_json)` streams back through `Page.OnStreamEvent`.
   - `PageHandler.StartTask()` pins the active tab as the target; `PageHandler.RunTool(name, input_json) → result_json` runs a tool.

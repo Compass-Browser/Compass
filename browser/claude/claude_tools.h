@@ -138,6 +138,10 @@ class ClaudeTools : public content::WebContentsObserver {
   void Retarget(content::WebContents* contents);
   // Whether the browser tools may run; an error result otherwise.
   bool CheckBrowserScope();
+  // The sidebar's tint (ClaudeActivity): on |contents| while tools run
+  // there, and a moment after, so it doesn't flicker between steps.
+  void SetActing(content::WebContents* contents);
+  void StopActing();
   void Release();
   DevToolsSession& devtools();
   void OnAttach();
@@ -212,6 +216,8 @@ class ClaudeTools : public content::WebContentsObserver {
   base::OneShotTimer timeout_;
   base::OneShotTimer idle_;
   base::OneShotTimer delay_;
+  base::WeakPtr<content::WebContents> acting_;
+  base::OneShotTimer acting_linger_;
   // For each tool's steps; invalidated by Stop().
   base::WeakPtrFactory<ClaudeTools> run_weak_factory_{this};
   base::WeakPtrFactory<ClaudeTools> weak_factory_{this};

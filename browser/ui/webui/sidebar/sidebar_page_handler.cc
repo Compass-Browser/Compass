@@ -216,6 +216,7 @@ SidebarPageHandler::SidebarPageHandler(
   }
   features_->AddObserver(this);
   registry().AddObserver(this);
+  claude::ClaudeActivity::AddObserver(this);
   tab_strip_model()->AddObserver(this);
   if (page_contents_) {
     now_playing_ = std::make_unique<NowPlayingTracker>(
@@ -237,6 +238,7 @@ void SidebarPageHandler::StopObserving() {
     return;
   }
   registry().RemoveObserver(this);
+  claude::ClaudeActivity::RemoveObserver(this);
   features_->RemoveObserver(this);
   if (SpaceDirectory* directory = this->directory()) {
     directory->RemoveObserver(this);
@@ -1145,6 +1147,18 @@ void SidebarPageHandler::OnNodeLiveChanged(const SidebarNode& node, bool live) {
   page_->NodeLiveChanged(node.id().AsLowercaseString(), live);
 }
 
+void SidebarPageHandler::OnClaudeActingChanged(
+    content::WebContents* contents) {
+  // Any window's tab: the node shows in every window of its space.
+  const tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(contents);
+  const SidebarNode* node = tab ? registry().GetNode(tab) : nullptr;
+  if (node) {
+    page_->NodeClaudeChanged(node->id().AsLowercaseString(),
+                             claude::ClaudeActivity::IsActing(contents));
+  }
+}
+
 void SidebarPageHandler::OnNodeAudioChanged(const SidebarNode& node) {
   page_->NodeAudioChanged(node.id().AsLowercaseString(),
                           ToMojoAudio(registry().GetAudioState(&node)));
@@ -1288,6 +1302,9 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   // Live in any window: activating it here moves it here.
   result->live = registry.GetTab(&node) != nullptr;
   result->audio = ToMojoAudio(registry.GetAudioState(&node));
+  const tabs::TabInterface* tab = registry.GetTab(&node);
+  result->claude =
+      tab && claude::ClaudeActivity::IsActing(tab->GetContents());
   result->collapsed = node.collapsed();
   for (const auto& child : node.children()) {
     result->children.push_back(ToMojo(*child, registry));

@@ -41,6 +41,8 @@ action("assets") {
 
 source_set("claude") {
   sources = [
+    "claude_activity.cc",
+    "claude_activity.h",
     "claude_api.cc",
     "claude_api.h",
     "claude_client.cc",

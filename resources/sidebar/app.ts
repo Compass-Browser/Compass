@@ -263,6 +263,8 @@ export class CompassSidebarAppElement extends CrLitElement {
       router.nodeRemoved.addListener(this.onNodeRemoved_.bind(this)),
       router.nodeLiveChanged.addListener(this.onNodeLiveChanged_.bind(this)),
       router.nodeAudioChanged.addListener(this.onNodeAudioChanged_.bind(this)),
+      router.nodeClaudeChanged.addListener(
+          this.onNodeClaudeChanged_.bind(this)),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
       router.setArchive.addListener(
@@ -2087,6 +2089,15 @@ export class CompassSidebarAppElement extends CrLitElement {
     const node = this.nodes_.get(id);
     if (node) {
       node.audio = audio;
+      this.requestUpdate();
+    }
+  }
+
+  // Claude is acting in the tab, or stopped (docs/design/claude.md).
+  private onNodeClaudeChanged_(id: string, claude: boolean) {
+    const node = this.nodes_.get(id);
+    if (node) {
+      node.claude = claude;
       this.requestUpdate();
     }
   }

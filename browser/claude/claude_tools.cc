@@ -19,6 +19,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/claude/claude_assets.h"
 #include "compass/browser/claude/devtools_session.h"
 #include "compass/browser/claude/key_events.h"
@@ -39,6 +40,8 @@ constexpr base::TimeDelta kToolTimeout = base::Seconds(30);
 constexpr base::TimeDelta kNavigateTimeout = base::Seconds(15);
 // The tab is let go after this long without tools.
 constexpr base::TimeDelta kIdle = base::Minutes(1);
+// The tint stays this long after a tool, for the next step.
+constexpr base::TimeDelta kActingLinger = base::Seconds(2);
 // After a click or key, before reporting: the page reacts.
 constexpr base::TimeDelta kSettle = base::Milliseconds(300);
 // Screenshots' longest side, in pixels: legible, and about 1,200 tokens.
@@ -172,6 +175,27 @@ ClaudeTools::~ClaudeTools() {
   if (callback_) {
     std::move(callback_).Run(ToolResult::Error("Stopped."));
   }
+  StopActing();
+}
+
+void ClaudeTools::SetActing(content::WebContents* contents) {
+  acting_linger_.Stop();
+  if (acting_.get() == contents) {
+    return;
+  }
+  StopActing();
+  if (contents) {
+    ClaudeActivity::Begin(contents);
+    acting_ = contents->GetWeakPtr();
+  }
+}
+
+void ClaudeTools::StopActing() {
+  acting_linger_.Stop();
+  if (acting_) {
+    ClaudeActivity::End(acting_.get());
+  }
+  acting_.reset();
 }
 
 // static
@@ -213,6 +237,10 @@ void ClaudeTools::Retarget(content::WebContents* contents) {
   console_.clear();
   console_read_seq_ = 0;
   screenshot_scale_ = 1;
+  if (acting_) {
+    // The tint follows Claude to the new tab.
+    SetActing(contents);
+  }
   if (contents) {
     capture_ = contents->IncrementCapturerCount(
         gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
@@ -240,6 +268,7 @@ void ClaudeTools::Stop() {
   if (callback_) {
     std::move(callback_).Run(ToolResult::Error("Stopped by the user."));
   }
+  StopActing();
   Release();
 }
 
@@ -283,6 +312,7 @@ void ClaudeTools::Run(const std::string& name,
           "web page first."));
       return;
     }
+    SetActing(contents);
     // Keeps the tab rendering while Claude works on it in the background.
     if (!capture_) {
       capture_ = contents->IncrementCapturerCount(
@@ -343,6 +373,11 @@ void ClaudeTools::Finish(ToolResult result) {
   run_weak_factory_.InvalidateWeakPtrs();
   idle_.Start(FROM_HERE, kIdle,
               base::BindOnce(&ClaudeTools::Release, base::Unretained(this)));
+  if (acting_) {
+    acting_linger_.Start(FROM_HERE, kActingLinger,
+                         base::BindOnce(&ClaudeTools::StopActing,
+                                        base::Unretained(this)));
+  }
   if (callback_) {
     std::move(callback_).Run(std::move(result));
   }
@@ -1297,6 +1332,7 @@ void ClaudeTools::DidStopLoading() {
 }
 
 void ClaudeTools::WebContentsDestroyed() {
+  StopActing();
   capture_.ReplaceClosure(base::OnceClosure());
   devtools_.reset();
   Observe(nullptr);

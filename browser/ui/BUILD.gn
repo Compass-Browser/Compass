@@ -239,6 +239,7 @@ source_set("unit_tests") {
   ]
   deps = [
     ":ui",
+    "//compass/browser/claude",
     "//compass/browser/sync",
     "//compass/browser/ui/webui/sync:mojo_bindings",
     "//base",

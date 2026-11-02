@@ -16,6 +16,7 @@ ${this.isTab_() ? html`
       data-node-id="${this.node!.id}"
       aria-selected="${this.isActive_(this.node!)}"
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
+      ?claude="${this.node!.claude}"
       title="${this.getTitle_(this.node!)}" @click="${this.onTabClick_}"
       @dblclick="${this.onTabDblclick_}">
     <img class="favicon" src="${this.getFaviconUrl_(this.node!)}" alt="">
@@ -46,6 +47,7 @@ ${this.isSplit_() ? html`
           data-node-id="${pane.id}"
           aria-selected="${this.isActive_(pane)}"
           ?active="${this.isActive_(pane)}" ?unloaded="${!pane.live}"
+          ?claude="${pane.claude}"
           title="${this.getTitle_(pane)}" @click="${this.onTabClick_}"
           @dblclick="${this.onTabDblclick_}">
         <img class="favicon" src="${this.getFaviconUrl_(pane)}" alt="">

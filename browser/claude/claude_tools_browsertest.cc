@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -310,6 +311,39 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, NavigatesAndRefusesBrowserPages) 
   EXPECT_THAT(Text(refused), HasSubstr("can't use this page"));
   EXPECT_TRUE(Run("run_js", R"({"code": "1"})").is_error);
 
+}
+
+// The sidebar's tint (ClaudeActivity): on while tools run, a moment after,
+// moved by select_tab, off with Stop.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, MarksTheTabItActsIn) {
+  content::WebContents* chat_tab = contents();
+  EXPECT_FALSE(ClaudeActivity::IsActing(chat_tab));
+  base::test::TestFuture<ToolResult> waiting;
+  tools_->Run("wait", base::DictValue().Set("seconds", 0.3),
+              waiting.GetCallback());
+  EXPECT_TRUE(ClaudeActivity::IsActing(chat_tab));
+  ASSERT_TRUE(waiting.Wait());
+  // Lingers, for the next step.
+  EXPECT_TRUE(ClaudeActivity::IsActing(chat_tab));
+
+  SetBrowserScope(true);
+  const std::string url = embedded_test_server()->GetURL("/other.html").spec();
+  ToolResult opened = Run("open_tab", "{\"url\": \"" + url + "\"}");
+  ASSERT_FALSE(opened.is_error) << Text(opened);
+  content::WebContents* opened_tab = tools_->target();
+  ASSERT_NE(opened_tab, chat_tab);
+  EXPECT_FALSE(ClaudeActivity::IsActing(chat_tab));
+  EXPECT_TRUE(ClaudeActivity::IsActing(opened_tab));
+
+  tools_->Stop();
+  EXPECT_FALSE(ClaudeActivity::IsActing(opened_tab));
+  EXPECT_FALSE(ClaudeActivity::IsActing(chat_tab));
+
+  // And it goes away by itself after the last step.
+  ASSERT_FALSE(Run("get_page_text").is_error);
+  EXPECT_TRUE(ClaudeActivity::IsActing(opened_tab));
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return !ClaudeActivity::IsActing(opened_tab); }));
 }
 
 IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, StopEndsWhatRuns) {
