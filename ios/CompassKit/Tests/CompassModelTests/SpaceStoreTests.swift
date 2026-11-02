@@ -73,6 +73,47 @@ struct SpaceStoreTests {
     #expect(log().contains { $0.deletedNodes.contains(split.id) })
   }
 
+  @Test func emptiedTodayFoldersClose() {
+    let (store, space, log) = make()
+    let trip = store.addFolder(name: "Trip", to: space.today)!
+    let hotels = store.addFolder(name: "Hotels", to: trip)!
+    let hotel = store.addTab(url: "https://hotel", to: hotels)!
+    let flight = store.addTab(url: "https://flight", to: trip)!
+    let later = store.addFolder(name: "Later", to: space.today)!
+    // Made empty, a folder stays.
+    #expect(space.today.children.map(\.id) == [trip.id, later.id])
+
+    // Its last child gone, it closes, and its emptied parents after it.
+    store.remove(flight)
+    #expect(trip.children.map(\.id) == [hotels.id])
+    store.move(hotel, to: space.today, at: 0)
+    #expect(space.today.children.map(\.id) == [hotel.id, later.id])
+    #expect(log().reduce(into: Set<String>()) { $0.formUnion($1.deletedNodes) }.isSuperset(of: [hotels.id, trip.id]))
+
+    // Pinned, the same.
+    let a = store.addTab(url: "https://a", to: later)!
+    store.move(a, to: space.pinned, at: 0)
+    #expect(space.today.children.map(\.id) == [hotel.id])
+
+    // A split's last pane leaving takes its folder too.
+    let inbox = store.addFolder(name: "Inbox", to: space.today)!
+    let left = store.addTab(url: "https://l", to: inbox)!
+    let split = store.split(left, with: store.addTab(url: "https://r", to: inbox)!)!
+    store.remove(split)
+    #expect(store.node(id: inbox.id) == nil)
+
+    // Pinned folders stay.
+    let work = store.addFolder(name: "Work", to: space.pinned)!
+    store.remove(store.addTab(url: "https://s", to: work)!)
+    #expect(work.parent === space.pinned)
+
+    // Not while applying remote changes.
+    let synced = store.addFolder(name: "Synced", to: space.today)!
+    let b = store.addTab(url: "https://b", to: synced)!
+    store.applyingRemote { store.remove(b) }
+    #expect(synced.parent === space.today)
+  }
+
   @Test func removeReportsTheSubtree() {
     let (store, space, log) = make()
     let folder = store.addFolder(name: "F", to: space.pinned)!

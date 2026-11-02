@@ -107,6 +107,51 @@ TEST_F(SpaceModelTest, FoldersNestInPinnedAndToday) {
   EXPECT_TRUE(model_.CanMove(docs, model_.pinned_root()));
 }
 
+TEST_F(SpaceModelTest, EmptiedTodayFoldersClose) {
+  SidebarNode* today = model_.today_root();
+  SidebarNode* trip = model_.AddFolder(today, 0, u"Trip");
+  SidebarNode* hotels = model_.AddFolder(trip, 0, u"Hotels");
+  SidebarNode* hotel = Tab(hotels, "hotel");
+  SidebarNode* flight = Tab(trip, "flight");
+  SidebarNode* later = model_.AddFolder(today, 1, u"Later");
+
+  // Made empty, a folder stays.
+  EXPECT_THAT(Titles(today), ElementsAre("Trip", "Later"));
+
+  // Its last child gone, it closes, and its emptied parents after it.
+  model_.Remove(flight);
+  EXPECT_THAT(Titles(trip), ElementsAre("Hotels"));
+  model_.Move(hotel, today, 0);
+  EXPECT_THAT(Titles(today), ElementsAre("hotel", "Later"));
+
+  // Moved into another folder, or pinned, the same.
+  SidebarNode* a = Tab(later, "a");
+  model_.Move(a, model_.pinned_root(), 0);
+  EXPECT_THAT(Titles(today), ElementsAre("hotel"));
+
+  // Pinned folders stay.
+  SidebarNode* work = model_.AddFolder(model_.pinned_root(), 1, u"Work");
+  model_.Remove(Tab(work, "spec"));
+  EXPECT_THAT(Titles(model_.pinned_root()), ElementsAre("a", "Work"));
+
+  // A split's last pane leaving takes its folder too.
+  SidebarNode* reading = model_.AddFolder(today, 0, u"Reading");
+  SidebarNode* left = Tab(reading, "left");
+  model_.Split(left, Tab(reading, "right"));
+  model_.Remove(left);
+  EXPECT_THAT(Titles(reading), ElementsAre("right"));
+  model_.Remove(reading->children()[0].get());
+  EXPECT_THAT(Titles(today), ElementsAre("hotel"));
+
+  // Not while sync applies another device's changes.
+  {
+    SpaceModel::KeepEmptyFolders keep;
+    SidebarNode* inbox = model_.AddFolder(today, 0, u"Inbox");
+    model_.Remove(Tab(inbox, "b"));
+    EXPECT_THAT(Titles(today), ElementsAre("Inbox", "hotel"));
+  }
+}
+
 TEST_F(SpaceModelTest, MoveIndexIsCountedAfterDetaching) {
   SidebarNode* a = Tab(model_.today_root(), "a");
   Tab(model_.today_root(), "b");
@@ -447,10 +492,9 @@ TEST(SpaceModelArchiveTest, ArchivesEntriesInFoldersOneByOne) {
   EXPECT_THAT(Titles(today), ElementsAre("Trip"));
   EXPECT_THAT(Titles(folder), ElementsAre("New"));
 
-  // The folder stays, emptied.
+  // Emptied, the folder closes.
   EXPECT_EQ(model.ArchiveIdleEntries(start + base::Days(1), keep_none), 1u);
-  EXPECT_THAT(Titles(today), ElementsAre("Trip"));
-  EXPECT_TRUE(folder->children().empty());
+  EXPECT_TRUE(today->children().empty());
   EXPECT_EQ(model.archive().size(), 2u);
 }
 

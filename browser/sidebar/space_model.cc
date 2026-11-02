@@ -58,6 +58,9 @@ std::optional<SpaceIcon> SpaceIcon::Symbol(std::string_view name) {
 
 namespace {
 
+// KeepEmptyFolders alive.
+int g_keep_empty_folders = 0;
+
 using Type = SidebarNode::Type;
 
 bool IsPane(const SidebarNode* node) {
@@ -107,6 +110,14 @@ ArchivedEntry::ArchivedEntry(ArchivedEntry&&) = default;
 ArchivedEntry& ArchivedEntry::operator=(const ArchivedEntry&) = default;
 ArchivedEntry& ArchivedEntry::operator=(ArchivedEntry&&) = default;
 ArchivedEntry::~ArchivedEntry() = default;
+
+SpaceModel::KeepEmptyFolders::KeepEmptyFolders() {
+  ++g_keep_empty_folders;
+}
+
+SpaceModel::KeepEmptyFolders::~KeepEmptyFolders() {
+  --g_keep_empty_folders;
+}
 
 SpaceModel::SpaceModel(Kind kind)
     : kind_(kind),
@@ -275,6 +286,8 @@ void SpaceModel::Move(SidebarNode* node, SidebarNode* new_parent,
   }
   if (old_parent != new_parent && old_parent->type() == Type::kSplit) {
     NormalizeSplit(old_parent);
+  } else if (old_parent != new_parent) {
+    CloseIfEmptyTodayFolder(old_parent);
   }
 }
 
@@ -298,6 +311,8 @@ void SpaceModel::MoveToSpace(SidebarNode* node,
   target.AddNode(new_parent, index, parent->Remove(node));
   if (parent->type() == Type::kSplit) {
     NormalizeSplit(parent);
+  } else {
+    CloseIfEmptyTodayFolder(parent);
   }
 }
 
@@ -361,6 +376,8 @@ void SpaceModel::Remove(SidebarNode* node) {
   parent->Remove(node);
   if (parent->type() == Type::kSplit) {
     NormalizeSplit(parent);
+  } else {
+    CloseIfEmptyTodayFolder(parent);
   }
 }
 
@@ -608,6 +625,14 @@ void SpaceModel::NormalizeSplit(SidebarNode* split) {
     // Moving the last pane out empties the split, and Move() removes it.
     SidebarNode* parent = split->parent();
     Move(split->children()[0].get(), parent, parent->GetIndexOf(split));
+  }
+}
+
+void SpaceModel::CloseIfEmptyTodayFolder(SidebarNode* parent) {
+  // Remove() goes on up the parents.
+  if (g_keep_empty_folders == 0 && parent->type() == Type::kFolder &&
+      parent->children().empty() && today_root_->Contains(parent)) {
+    Remove(parent);
   }
 }
 

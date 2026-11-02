@@ -28,7 +28,11 @@ public struct SpaceStoreChange: Sendable, Equatable {
 ///  - splits hold only tabs, at most `maxSplitPanes`; a split left with one
 ///    pane is replaced by that pane;
 ///  - favorites hold only tabs;
-///  - section roots can't move.
+///  - section roots can't move;
+///  - a Today folder whose last child leaves (moved, removed, archived) is
+///    removed too, and its emptied parents after it; one made empty stays.
+///    Not while applying remote changes, whose order can empty a folder for
+///    a moment.
 @MainActor
 @Observable
 public final class SpaceStore {
@@ -267,6 +271,7 @@ public final class SpaceStore {
       change.putNodes.formUnion(elsewhere ? node.subtree.map(\.id) : [node.id])
     }
     normalizeSplit(oldParent)
+    if oldParent !== parent { closeIfEmptyTodayFolder(oldParent) }
     return true
   }
 
@@ -283,6 +288,13 @@ public final class SpaceStore {
     parent.remove(node)
     record { $0.deletedNodes.formUnion(ids) }
     normalizeSplit(parent)
+    closeIfEmptyTodayFolder(parent)
+  }
+
+  /// Removes `parent` if it's a Today folder left empty (`remove` goes on up).
+  private func closeIfEmptyTodayFolder(_ parent: SidebarNode) {
+    guard remoteDepth == 0, parent.isFolder, parent.children.isEmpty, parent.section == .today else { return }
+    remove(parent)
   }
 
   public func rename(_ node: SidebarNode, customTitle: String) {
@@ -413,6 +425,7 @@ public final class SpaceStore {
     if split.children.isEmpty {
       parent.remove(split)
       record { $0.deletedNodes.insert(split.id) }
+      closeIfEmptyTodayFolder(parent)
     } else if split.children.count == 1 {
       let pane = split.children[0]
       split.remove(pane)

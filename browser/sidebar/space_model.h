@@ -200,6 +200,11 @@ struct ArchivedEntry {
 //  - Splits contain only tabs, at most kMaxSplitPanes of them.
 //  - A split left with one pane is replaced by that pane, in its position.
 //  - The two roots can't be moved or removed.
+//  - A Today folder whose last child leaves (moved, removed, archived) is
+//    removed too, and so on up its parents. One made empty stays until
+//    something has been in it and left. Not while a KeepEmptyFolders is
+//    alive: sync applies another device's changes in an order that can empty
+//    a folder for a moment.
 //
 // A profile's Favorites are a model of their own kind: its pinned root holds
 // only tabs, and its Today root nothing. See docs/design/command-bar.md,
@@ -230,6 +235,16 @@ class SpaceModel {
   enum class Kind {
     kSpace,
     kFavorites,
+  };
+
+  // While one is alive, no model removes an emptied Today folder (see the
+  // invariants). UI thread only.
+  class KeepEmptyFolders {
+   public:
+    KeepEmptyFolders();
+    KeepEmptyFolders(const KeepEmptyFolders&) = delete;
+    KeepEmptyFolders& operator=(const KeepEmptyFolders&) = delete;
+    ~KeepEmptyFolders();
   };
 
   explicit SpaceModel(Kind kind = Kind::kSpace);
@@ -358,7 +373,7 @@ class SpaceModel {
   // worth restoring is only removed.
   void Archive(SidebarNode* entry, base::Time now);
 
-  // Archives the Today entries (in folders too; folders stay, even emptied)
+  // Archives the Today entries (in folders too; a folder emptied closes)
   // none of whose tabs has been shown for
   // archive_after(), as of |now|, except those |keep| returns true for (one
   // shown in a window right now, say). Tabs with no last-active time get
@@ -401,6 +416,9 @@ class SpaceModel {
 
   // Restores the split invariants after |split| lost a pane.
   void NormalizeSplit(SidebarNode* split);
+
+  // Removes |parent| if it's a Today folder left empty.
+  void CloseIfEmptyTodayFolder(SidebarNode* parent);
 
   SidebarNode* AddNode(SidebarNode* parent,
                        size_t index,

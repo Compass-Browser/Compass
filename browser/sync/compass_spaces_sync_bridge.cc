@@ -1496,6 +1496,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
 
   {
     base::AutoReset<bool> applying(&applying_remote_, true);
+    // Another device's moves can empty a Today folder for a moment; it
+    // closes there, and its deletion comes too.
+    SpaceModel::KeepEmptyFolders keep_empty_folders;
     if (profiles_changed && delegate_) {
       // First: the home profile may take the chain's UUID, which the pass
       // below then uses.

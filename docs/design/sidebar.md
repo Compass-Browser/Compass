@@ -793,11 +793,18 @@ moves it with its tabs.
   a tab moved in the strip that sits in a folder keeps its place, as a
   split's panes do.
 - Auto-archive goes by entry, tab or split, inside folders too; folders
-  aren't archived and stay when emptied (`ArchiveIdleEntries()`).
+  aren't archived (`ArchiveIdleEntries()`).
+- A Today folder closes when its last entry leaves: closed, archived,
+  moved out or pinned, and so on up its emptied parents. A new folder,
+  empty, stays until something has been in it. Sync's apply is exempt
+  (`SpaceModel::KeepEmptyFolders`; iOS: `applyingRemote`): another
+  device's changes can empty a folder for a moment, and its own deletion
+  comes along. Pinned folders stay, emptied or not.
 - The store saves Today folders like Pinned's, empty ones too; older
   builds skip them.
 
-**Tests:** `FoldersNestInPinnedAndToday`, `ArchivesEntriesInFoldersOneByOne`,
+**Tests:** `FoldersNestInPinnedAndToday`, `EmptiedTodayFoldersClose`,
+`ArchivesEntriesInFoldersOneByOne`,
 `RoundTripsTodayFolders`, `SidebarPageHandlerTest.FoldersInToday` and the
 browser test `FoldersInToday`.
 
