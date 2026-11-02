@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00A6BE257AB3E0E63D12E8FB /* TabPickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */; };
 		017915037F4DAC4C17921D93 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00421F26DEF62FA9775146B /* Theme.swift */; };
 		02D9974025C6C07737B94B93 /* SidebarPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */; };
 		0D76BE83326730393C9D18BE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19E94079AACC148BDF33673 /* Keychain.swift */; };
@@ -104,6 +105,7 @@
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
 		5BEABA7BC320887A692FA4D5 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenuTests.swift; sourceTree = "<group>"; };
+		630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPickerTests.swift; sourceTree = "<group>"; };
 		63E181E09464F119B3A59058 /* SiteSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteSettingsView.swift; sourceTree = "<group>"; };
 		65277AB39215D86443B8364F /* ThemeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeEditor.swift; sourceTree = "<group>"; };
 		6794D1252E649F6B927EAEF2 /* SearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEngine.swift; sourceTree = "<group>"; };
@@ -183,6 +185,7 @@
 				47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */,
 				7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */,
 				2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */,
+				630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */,
 				FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */,
 			);
 			path = UITests;
@@ -485,6 +488,7 @@
 				32D1028950616C4F9FE0BB50 /* SettingsTests.swift in Sources */,
 				02D9974025C6C07737B94B93 /* SidebarPanelTests.swift in Sources */,
 				E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */,
+				00A6BE257AB3E0E63D12E8FB /* TabPickerTests.swift in Sources */,
 				8E292FD1B0506116F383F4DC /* ThemeEditorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

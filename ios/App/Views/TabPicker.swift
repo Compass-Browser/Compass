@@ -34,12 +34,20 @@ struct TabPicker: View {
 
   var body: some View {
     let progress = app.pickerProgress
+    // Not there at all while closed: not rendered, not in VoiceOver
+    // (accessibilityHidden doesn't take an overlay out of it).
+    if progress > 0 || app.pickerHolding { picker(progress) }
+  }
+
+  private func picker(_ progress: CGFloat) -> some View {
     GeometryReader { geo in
       let size = geo.size
       ZStack {
         SpaceTint(theme: app.selectedSpace?.theme ?? .blue)
           .overlay(Color.black.opacity(0.18))
-          .opacity(progress)
+          // Closing onto another tab, the old page mustn't show around the
+          // growing card.
+          .opacity(app.pickerHolding ? max(progress, switching ? 1 : 0) : progress)
           .contentShape(Rectangle())
           .gesture(drag(id: nil, size: size))
         if app.pickerTabs.isEmpty {
@@ -52,9 +60,14 @@ struct TabPicker: View {
     }
     .ignoresSafeArea()
     .spaceAppearance(app.selectedSpace?.theme)
-    .opacity(progress > 0 ? 1 : 0)
     .allowsHitTesting(app.showingPicker)
-    .accessibilityHidden(!app.showingPicker)
+  }
+
+  /// The centered card isn't the page shown: closing switches tabs.
+  private var switching: Bool {
+    let index = Int(app.pickerPosition.rounded())
+    guard app.pickerTabs.indices.contains(index) else { return false }
+    return app.pickerTabs[index] != app.shownTab?.id
   }
 
   /// The cards, laid out at rest, then scaled about the centered slot for
@@ -113,7 +126,8 @@ struct TabPicker: View {
       }
       .frame(width: width, height: height)
       .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-      .shadow(color: .black.opacity(0.3 * progress), radius: 16, y: 6)
+      // Only near the middle: a dozen live shadows cost frames.
+      .shadow(color: .black.opacity(abs(d) < 1.5 ? 0.3 * progress : 0), radius: 16, y: 6)
     }
     .scaleEffect(1 - 0.05 * stacked)
     // On the slot (the ZStack centers it): the title row sits above the

@@ -44,6 +44,9 @@ final class AppModel {
   /// it's open, and which one is centered (fractional mid-scroll).
   var pickerTabs: [String] = []
   var pickerPosition: CGFloat = 0
+  /// The picker is closing onto a card: it stays up (the card full screen,
+  /// over its page) until the switch underneath has drawn.
+  var pickerHolding = false
   /// For splits: which pane is in front.
   var selectedPane = 0
   var showingCommandBar = false
@@ -383,6 +386,7 @@ final class AppModel {
   /// The picker's cards are set up (the shown tab centered) as a finger
   /// starts opening it.
   func preparePicker() {
+    pickerHolding = false
     if let shown = shownTab { tabs.snapshot(shown.id) }
     pickerTabs = tabs.loadedOrder.filter { store.node(id: $0) != nil }
     let index = shownTab.flatMap { pickerTabs.firstIndex(of: $0.id) } ?? pickerTabs.count - 1
@@ -408,15 +412,28 @@ final class AppModel {
   }
 
   /// The picker closes onto card `index` (it grows back to the page), or
-  /// onto what's shown when nil.
+  /// onto what's shown when nil. The card grows first; the tab switches
+  /// under it once it fills the screen (attaching a web view and updating
+  /// the sidebar mid-animation made it stutter), and the picker goes a
+  /// moment later, when the page has drawn.
   func pickTab(at index: Int?) {
+    var target: SidebarNode?
+    if let index, pickerTabs.indices.contains(index) {
+      target = store.node(id: pickerTabs[index])
+    }
+    pickerHolding = true
     withAnimation(.snappy(duration: 0.35)) {
-      if let index, pickerTabs.indices.contains(index) {
-        pickerPosition = CGFloat(index)
-        if let node = store.node(id: pickerTabs[index]), node !== shownTab { show(node) }
-      }
+      if let index { pickerPosition = CGFloat(index) }
       pickerDrag = nil
       showingPicker = false
+    } completion: { [weak self] in
+      guard let self else { return }
+      if let target, target !== self.shownTab, self.store.node(id: target.id) != nil { self.show(target) }
+      Task { [weak self] in
+        try? await Task.sleep(for: .milliseconds(120))
+        guard let self, !self.showingPicker, self.pickerDrag == nil else { return }
+        self.pickerHolding = false
+      }
     }
   }
 
@@ -432,7 +449,9 @@ final class AppModel {
     tabs.unload(id)
     pickerTabs.remove(at: index)
     if pickerTabs.isEmpty {
+      // Nothing left to pick: back to the (empty) page.
       pickerPosition = 0
+      pickTab(at: nil)
     } else if CGFloat(index) < pickerPosition || Int(pickerPosition) >= pickerTabs.count {
       pickerPosition = max(pickerPosition - 1, 0)
     }
