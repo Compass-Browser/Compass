@@ -73,6 +73,7 @@
 		A8E98B9899DF4E681513407F /* ExtensionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB9E782B7E6520842234F5D /* ExtensionsView.swift */; };
 		AA8271B1D5E06BF32C8CA42C /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F82A3BEBB78D75AD38C677 /* Intents.swift */; };
 		AB4A065A118291BDC5BCE374 /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8869F83B348CDAA446122C7 /* DownloadsView.swift */; };
+		AD574FFAF2318C20C78F6DF5 /* SentTabNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */; };
 		AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC2CC0BF44F21272D32F82C /* TabManager.swift */; };
 		B1DF018F14113ACC2CC3B06C /* SwipeTabsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */; };
 		B36EBEC54E877CBB5562C9BB /* SystemBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9DB417853BAB3988CCC478 /* SystemBridge.swift */; };
@@ -158,6 +159,7 @@
 		038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeTabsTests.swift; sourceTree = "<group>"; };
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceWidget.swift; sourceTree = "<group>"; };
+		12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentTabNotifications.swift; sourceTree = "<group>"; };
 		1BD1561E3D74DB1D613CF34A /* Compass.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Compass.entitlements; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1EB9E782B7E6520842234F5D /* ExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsView.swift; sourceTree = "<group>"; };
@@ -520,6 +522,7 @@
 				8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */,
 				73F62DB435539AB4B380866E /* FocusFilter.swift */,
 				219581ADF6A5C9ECE3159093 /* HomeQuickActions.swift */,
+				12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */,
 				4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */,
 				766D4E5AC89C23377A1339A3 /* Spotlight.swift */,
 				3F9DB417853BAB3988CCC478 /* SystemBridge.swift */,
@@ -796,6 +799,7 @@
 				72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */,
 				55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */,
 				20FC5390B0E23578AE53F568 /* SearchEngine.swift in Sources */,
+				AD574FFAF2318C20C78F6DF5 /* SentTabNotifications.swift in Sources */,
 				6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */,
 				7843D6FC2CA3DD057CA9A4F0 /* ShortcutsActions.swift in Sources */,
 				7C7E241C93A23DDAD181F765 /* SidebarPanel.swift in Sources */,

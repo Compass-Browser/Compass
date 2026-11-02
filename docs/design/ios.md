@@ -561,6 +561,16 @@ As on the desktop (picture-in-picture.md): leaving a tab whose video plays with 
 - Not working on the phone yet (see Open items).
 - Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
 
+### Tabs sent from the desktop, 2026-11-02
+
+Design and the desktop and server parts: [send-tab.md](send-tab.md).
+
+- `DeviceInfoBridge` sets `feature_fields.send_tab_to_self_receiving_enabled` (and the push receiving type), and refreshes an entry from before that.
+- `SendTabBridge` (CompassSync) syncs SEND_TAB_TO_SELF: entries for this phone's cache GUID, unopened, at most 10 days old, http(s), each reported once (the GUIDs shown are kept in `sync-sent-tabs.json`, per account). `markOpened` sets `opened` and `notification_dismissed`.
+- `SentTabNotifications` (App/System) posts "Tab from <device>", the title and host, also with Compass open (a banner). A tap opens the tab in a space of the account it came in and marks it opened. Notification permission is asked when the app comes to the front with sync on.
+- Until the server pushes through APNs, a tab arrives at once while Compass is open (the SSE stream), else at the next background refresh or launch.
+- Checked: `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac); in the simulator, `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` (sends to every other device) showed the banner within a second with the app open. The tap isn't checked yet.
+
 ## Open items
 
 - **Auto picture-in-picture doesn't work on the phone** (Matteo, TestFlight 20261102.1103). Unchecked guesses: on a tab switch the left tab's web view leaves the window before WebKit starts picture-in-picture (keep it attached, e.g. parked behind the page, until it starts); on leaving the app the request lands after the app went inactive (WebKit/AVKit wants it to start while active, or automatic from inline). Debug on the device with the log attached (Nuticast bridge works off the LAN).

@@ -6,6 +6,7 @@ import CompassCrypto
 import CompassModel
 @testable import CompassSync
 import Foundation
+import SyncProto
 import Testing
 
 /// Not a test: plays "the Mac" for a simulator run. With
@@ -19,11 +20,46 @@ import Testing
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["COMPASS_SEED_SERVER"] != nil))
 @MainActor
 struct SeedForSimulator {
+  /// COMPASS_SEED_SEND_TAB=<url>: "the Mac" sends that page to the joined
+  /// phone (docs/design/send-tab.md), which should show a notification.
+  private func sendTab(_ url: String, server: URL, chain: Chain) async throws {
+    let metadata = SyncMetadata()
+    let engine = SyncEngine(
+      connection: HTTPSyncConnection(serverURL: server, cacheGUID: metadata.cacheGUID, authKey: chain.authKey),
+      passphrase: chain.passphrase, store: MemorySyncMetadataStore(metadata), createChainIfEmpty: false)
+    let devices = DeviceInfoBridge(local: .init(name: "MacBook", model: "Mac", appVersion: "1"))
+    await engine.register(devices)
+    // The engine commits only registered types.
+    await engine.register(SendTabBridge(engine: engine, cacheGUID: metadata.cacheGUID, stateURL: nil))
+    try await engine.sync()
+    // The test "Macs" use the phone's DeviceInfoBridge too: every other
+    // device gets one.
+    let targets = devices.allDevices.filter { !$0.isThisDevice }
+    try #require(!targets.isEmpty, "no other device in the chain")
+    for phone in targets {
+    var entry = SyncPb_SendTabToSelfSpecifics()
+    entry.guid = UUID().uuidString
+    entry.url = url
+    entry.title = "Sent from the Mac"
+    entry.deviceName = "MacBook"
+    entry.targetDeviceSyncCacheGuid = phone.cacheGUID
+    entry.sharedTimeUsec = Int64(Date().timeIntervalSince1970 * 1_000_000)
+    var specifics = SyncPb_EntitySpecifics()
+    specifics.sendTabToSelf = entry
+    await engine.put(.sendTabToSelf, tag: entry.guid, specifics: specifics)
+    }
+    try await engine.sync()
+  }
+
   @Test func seed() async throws {
     let server = URL(string: ProcessInfo.processInfo.environment["COMPASS_SEED_SERVER"]!)!
     let chain = try Chain(seed: Data(hex: "000102030405060708090a0b0c0d0e0f")!)
     if ProcessInfo.processInfo.environment["COMPASS_SEED_PROFILES"] != nil {
       try await seedProfiles(server: server, chain: chain)
+      return
+    }
+    if let url = ProcessInfo.processInfo.environment["COMPASS_SEED_SEND_TAB"] {
+      try await sendTab(url, server: server, chain: chain)
       return
     }
     let mac = await SidebarDevice(server: server, chain: chain, first: true)

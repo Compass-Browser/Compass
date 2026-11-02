@@ -61,6 +61,7 @@ extension DataType {
     case .historyDeleteDirective: self = .historyDeleteDirectives
     case .session: self = .sessions
     case .extension: self = .extensions
+    case .sendTabToSelf: self = .sendTabToSelf
     default: return nil
     }
   }

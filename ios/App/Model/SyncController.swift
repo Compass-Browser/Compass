@@ -39,6 +39,8 @@ final class SyncController {
     let passwords: PasswordsBridge
     /// The desktop's extensions, download only (docs/design/ios.md, "Web extensions").
     let extensions: ExtensionsBridge
+    /// Tabs other devices send to this phone (docs/design/send-tab.md).
+    let sentTabs: SendTabBridge
     let notifier: SyncNotifier
     var listening: Task<Void, Never>?
     var foreignSessions: [ForeignSession] = []
@@ -46,7 +48,7 @@ final class SyncController {
     init(
       profile: String, engine: SyncEngine, spaces: CompassSpacesBridge, deviceInfo: DeviceInfoBridge,
       visits: HistoryBridge, directives: HistoryDeleteDirectivesBridge, sessions: SessionsBridge,
-      passwords: PasswordsBridge, extensions: ExtensionsBridge, notifier: SyncNotifier
+      passwords: PasswordsBridge, extensions: ExtensionsBridge, sentTabs: SendTabBridge, notifier: SyncNotifier
     ) {
       self.profile = profile
       self.engine = engine
@@ -57,6 +59,7 @@ final class SyncController {
       self.sessions = sessions
       self.passwords = passwords
       self.extensions = extensions
+      self.sentTabs = sentTabs
       self.notifier = notifier
     }
   }
@@ -229,6 +232,8 @@ final class SyncController {
       directives: HistoryDeleteDirectivesBridge(history: history, engine: engine, profile: profile),
       sessions: sessions, passwords: PasswordsBridge(store: passwords.store(profile), engine: engine),
       extensions: ExtensionsBridge(stateURL: fileURL("sync-extensions.json", profile: profile)),
+      sentTabs: SendTabBridge(
+        engine: engine, cacheGUID: cacheGUID, stateURL: fileURL("sync-sent-tabs.json", profile: profile)),
       notifier: SyncNotifier(serverURL: server, cacheGUID: cacheGUID, authKey: authKey))
     if profile.isEmpty {
       deviceInfo.onChange = { [weak self] devices in
@@ -240,6 +245,9 @@ final class SyncController {
     }
     account.extensions.onChange = { [weak self] _ in
       Task { @MainActor in self?.collectExtensions() }
+    }
+    account.sentTabs.onReceived = { [weak self] tabs in
+      Task { @MainActor in self?.onSentTabs?(tabs, profile) }
     }
     passwords.setBridge(account.passwords, for: profile)
     spaces.onLocalCommit = { [weak self] in self?.syncSoon(after: 2) }
@@ -254,9 +262,22 @@ final class SyncController {
     Task {
       for bridge: any DataTypeBridge in [
         spaces, deviceInfo, account.visits, account.directives, sessions, account.passwords, account.extensions,
+        account.sentTabs,
       ] {
         await engine.register(bridge)
       }
+      syncSoon(after: 0)
+    }
+  }
+
+  /// Tabs sent to this phone, with the account they came in.
+  var onSentTabs: (([SentTab], String) -> Void)?
+
+  /// A sent tab was opened from its notification: its entry says so.
+  func markSentTabOpened(_ guid: String, account: String) {
+    guard let sentTabs = accounts[account]?.sentTabs else { return }
+    Task {
+      await sentTabs.markOpened(guid)
       syncSoon(after: 0)
     }
   }

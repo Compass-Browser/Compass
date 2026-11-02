@@ -19,6 +19,8 @@ struct CompassApp: App {
     let app = AppModel()
     _app = State(initialValue: app)
     AppDelegate.app = app
+    // Tabs sent from other devices; a tap that launched the app arrives here.
+    SentTabNotifications.shared.setUp(app: app)
     // A best-effort sync while in the background (push needs the app open).
     BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: nil) { task in
       let work = Task { @MainActor in
@@ -75,6 +77,7 @@ struct CompassApp: App {
       // Filter lists: checked at most daily.
       if phase == .active {
         Task { await app.contentBlocking.refresh() }
+        if app.sync.isOn { SentTabNotifications.shared.requestAuthorization() }
         // The share sheet's and Safari's requests; the Focus filter's space.
         app.system.sharedChanged()
       }

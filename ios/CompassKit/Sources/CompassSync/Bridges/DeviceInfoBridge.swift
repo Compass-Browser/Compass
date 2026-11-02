@@ -93,6 +93,9 @@ public final class DeviceInfoBridge: DataTypeBridge, @unchecked Sendable {
     info.osType = .ios
     info.deviceFormFactor = local.formFactor
     info.pulseIntervalInMinutes = Int32(Self.pulseInterval / 60)
+    // A target of the desktop's "Send to your devices" (SendTabBridge).
+    info.featureFields.sendTabToSelfReceivingEnabled = true
+    info.featureFields.sendTabToSelfReceivingType = .chromeAndPushNotification
     var specifics = SyncPb_EntitySpecifics()
     specifics.deviceInfo = info
     return specifics
@@ -108,6 +111,8 @@ public final class DeviceInfoBridge: DataTypeBridge, @unchecked Sendable {
     let stale = existing.map {
       now.timeIntervalSince1970 * 1000 - Double($0.lastUpdatedTimestamp) > Self.pulseInterval * 1000
         || $0.clientName != local.name
+        // Entries from before the phone received sent tabs.
+        || !$0.featureFields.sendTabToSelfReceivingEnabled
     } ?? true
     guard stale else { return }
     let specifics = localSpecifics(cacheGUID: guid, now: now)
