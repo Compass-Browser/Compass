@@ -1,8 +1,20 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index 0d30190f42bf2e259481422bd0445be5ebc1f6de..83ba86012fe13bc4b06945f23b633188ae6807bd 100644
+index 0d30190f42bf2e259481422bd0445be5ebc1f6de..2a8e349edc2460ec65ed9136d0a79eb734b8576a 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-@@ -98,6 +98,25 @@
+@@ -86,8 +86,10 @@
+       <cr-menu-selector id="menu" selectable="a:not(#extensionsLink)"
+           attr-for-selected="href" on-iron-activate="onSelectorActivate_"
+           on-click="onLinkClick_" selected-attribute="selected">
++        <!-- Compass: no "You and Google" (/people stays for links into it,
++             such as /importData). -->
+         <a role="menuitem"
+-            id="people" href="/people" hidden="[[!pageVisibility_.people]]"
++            id="people" href="/people" hidden
+             class="cr-nav-menu-item">
+ <if expr="not _google_chrome">
+           <cr-icon icon="settings:person"></cr-icon>
+@@ -98,6 +100,25 @@
            <span class="menu-label">$i18n{peoplePageTitle}</span>
            <cr-ripple></cr-ripple>
          </a>

@@ -27,7 +27,8 @@
   /* Rows with separators, as upstream's settings rows. */
   .compass-page li + li {
     border-top: var(--cr-separator-line,
-        1px solid var(--color-sys-divider, #dadce0));
+        1px solid var(--color-sys-divider,
+        var(--cr-fallback-color-neutral-outline, #dadce0)));
   }
 
   .compass-page label {
@@ -90,10 +91,12 @@
   }
 
   .compass-page button {
-    background: var(--color-sys-primary, #0b57d0);
+    background: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
     border: none;
     border-radius: 18px;
-    color: var(--color-sys-on-primary, #fff);
+    color: var(--color-sys-on-primary,
+        var(--cr-fallback-color-on-primary, #fff));
     cursor: pointer;
     font: inherit;
     font-weight: 500;
@@ -102,7 +105,8 @@
 
   .compass-page button.secondary {
     background: none;
-    border: 1px solid var(--color-sys-outline, #747775);
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
     color: inherit;
   }
 

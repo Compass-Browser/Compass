@@ -32,7 +32,8 @@
 
   .compass-page li + li {
     border-top: var(--cr-separator-line,
-        1px solid var(--color-sys-divider, #dadce0));
+        1px solid var(--color-sys-divider,
+        var(--cr-fallback-color-neutral-outline, #dadce0)));
   }
 
   .compass-page .row {
@@ -65,7 +66,8 @@
   }
 
   .compass-page .keys:hover {
-    border-color: var(--color-sys-outline, #747775);
+    border-color: var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
   }
 
   .compass-page .keys.none {
@@ -73,14 +75,17 @@
   }
 
   .compass-page .keys.recording {
-    border-color: var(--color-sys-primary, #0b57d0);
-    color: var(--color-sys-primary, #0b57d0);
+    border-color: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
+    color: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
   }
 
   .compass-page button.link {
     background: none;
     border: none;
-    color: var(--color-sys-primary, #0b57d0);
+    color: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
     cursor: pointer;
     font: inherit;
     padding: 4px;
@@ -102,7 +107,8 @@
   }
 
   .compass-page .message.error {
-    color: var(--color-sys-error, #b3261e);
+    color: var(--color-sys-error,
+        var(--cr-fallback-color-error, #b3261e));
   }
 
   .compass-page .message button.link {

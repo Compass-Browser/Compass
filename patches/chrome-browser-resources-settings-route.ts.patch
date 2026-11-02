@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index d733ae8b320e3e6c609189056b9832bb136446ed..6804931e22e281e20eeba2c99de3a94b7f33356b 100644
+index d733ae8b320e3e6c609189056b9832bb136446ed..778d125d58fa6ebfe314cfd78642f372599b3400 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
 @@ -258,6 +258,16 @@ function createRoutes(): SettingsRoutes {
@@ -19,3 +19,13 @@ index d733ae8b320e3e6c609189056b9832bb136446ed..6804931e22e281e20eeba2c99de3a94b
    // Advanced Routes
    r.ADVANCED = new Route('/advanced');
  
+@@ -342,7 +352,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
+ // Returns the "effective" route when at chrome://settings/.
+ export function getTopLevelRoute(): Route {
+   if (!loadTimeData.getBoolean('isGuest')) {
+-    return routes.PEOPLE;
++    // Compass: Sync in place of "You and Google", which has no menu item.
++    return routes.COMPASS_SYNC || routes.PEOPLE;
+   }
+ 
+   let guestTopLevelRoute = routes.SEARCH;

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/chrome/browser/resources/settings/settings_main/settings_main.ts
-index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..8af944645d455f7277abd440446e5a8b2e97ef96 100644
+index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..672482026879512fd9dfd222687036cd04d8a667 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.ts
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.ts
 @@ -20,6 +20,10 @@ import '../performance_page/performance_page_index.js';
@@ -13,3 +13,16 @@ index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..8af944645d455f7277abd440446e5a8b
  // <if expr="not is_chromeos">
  import '../default_browser_page/default_browser_page.js';
  
+@@ -316,6 +320,12 @@ export class SettingsMainElement extends SettingsMainElementBase {
+         (!!this.lastRoute_ && route.contains(this.lastRoute_));
+   }
+ 
++  // Compass: "You and Google" only when navigated to (/people, /importData),
++  // never in search results; it has no menu item.
++  private renderPeople_(route: Route): boolean {
++    return !!this.lastRoute_ && route.contains(this.lastRoute_);
++  }
++
+   private showPage_(visibility?: boolean): boolean {
+     return visibility !== false;
+   }
