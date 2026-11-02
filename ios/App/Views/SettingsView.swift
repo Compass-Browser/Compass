@@ -14,6 +14,7 @@ struct SettingsView: View {
   @State private var confirmLeave = false
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
+  @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
 
   var body: some View {
     NavigationStack {
@@ -67,6 +68,15 @@ struct SettingsView: View {
           }
           // Like the other rows, not the accent color.
           .tint(.primary)
+        }
+        Section {
+          Toggle(isOn: $autoPiP) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("Auto Picture in Picture", "pip.fill", .teal)
+              Text("A video playing with sound keeps playing in a window when you leave its tab or Compass")
+                .font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
+            }
+          }
         }
         Section {
           Toggle(isOn: $spotlight) {

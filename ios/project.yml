@@ -76,7 +76,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: Compass scans the pairing code shown on your Mac.
         NSFaceIDUsageDescription: Compass asks for Face ID before showing your recovery code.
-        UIBackgroundModes: [fetch]
+        # audio: a picture-in-picture video keeps playing outside the app.
+        UIBackgroundModes: [fetch, audio]
         # Self-hosted servers on the LAN or Tailscale may be plain HTTP.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

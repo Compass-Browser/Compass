@@ -550,6 +550,16 @@ Branch `ios/system-extensions`. Everything goes through the App Group `group.it.
   - Cost: the server sees the request twice (WebKit's, cancelled once it turns into a download, then the session's), so a one-time download link could fail.
   - Simulator: a 100 MB file finished with Settings in front.
 
+### Auto picture-in-picture, 2026-11-02
+
+As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound shows the video in picture-in-picture, and coming back to the tab puts it back in the page. On the phone, leaving the app (Home, another app) counts too. Settings → Auto Picture in Picture turns it off.
+
+- `AutoPiP` (App/Browser). When the shown tab changes (`AppModel.shownTabChanged()`, from `selectedNodeID` and `selectedPane`), a script in the tab left looks for the desktop's conditions: playing, not muted, volume above 0, at least 100×100, the only such video in the main frame, and no video already in picture-in-picture (the user's own stays). It calls `webkitSetPresentationMode("picture-in-picture")` (or `requestPictureInPicture()`), as an app-evaluated script counts as a user gesture. The tab shown takes its own video back. The script runs in its own content world, so the page doesn't see which video Compass moved.
+- Leaving the app: on the scene's active → inactive (picture-in-picture must start while the app is still on screen), and back on active. Pulling down Control Center does the same.
+- The window's "back to the page" button puts the video back inline, still playing: a user script reports that (`compassPiP`), and Compass shows the tab. Its close button pauses the video, so nothing happens.
+- `UIBackgroundModes` has `audio`, so the video keeps playing outside the app.
+- Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
+
 ## Open items
 
 - **Start screen** (Matteo, 2026-11-02): a setting for what a launch shows, the sidebar or the last tab (main view).

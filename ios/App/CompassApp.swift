@@ -66,8 +66,12 @@ struct CompassApp: App {
           }
         }
     }
-    .onChange(of: phase) { _, phase in
+    .onChange(of: phase) { old, phase in
       app.sync.setActive(phase == .active)
+      // Auto picture-in-picture: it has to start while the app is still on
+      // screen, so on the way out (inactive), not in the background.
+      if old == .active, phase == .inactive { app.appActiveChanged(false) }
+      if phase == .active, old != .active { app.appActiveChanged(true) }
       // Filter lists: checked at most daily.
       if phase == .active {
         Task { await app.contentBlocking.refresh() }

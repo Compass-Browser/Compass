@@ -43,6 +43,8 @@ final class TabManager: NSObject {
   var openInNewTab: ((URL) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
+  /// A picture-in-picture window's "back to the page" (AutoPiP): tab ID.
+  var onPictureInPictureRestore: ((String) -> Void)?
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
   /// The page scrolled: (tab ID, how far down since the last call, whether
@@ -106,6 +108,8 @@ final class TabManager: NSObject {
     configuration.userContentController.addUserScript(DesktopViewport.script)
     configuration.userContentController.add(
       MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
+    configuration.userContentController.addUserScript(AutoPiP.script)
+    configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
     let view = WKWebView(
       frame: .zero,
       configuration: extensions?.configure(configuration, for: URL(string: node.url)) ?? configuration)
@@ -370,6 +374,10 @@ final class MessageProxy: NSObject, WKScriptMessageHandler {
       guard let target, let view = message.webView,
         let id = target.live.first(where: { $0.value === view })?.key
       else { return }
+      if message.name == AutoPiP.handler {
+        target.onPictureInPictureRestore?(id)
+        return
+      }
       target.onPasswordMessage?(message.body, id, view.url)
     }
   }

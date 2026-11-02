@@ -35,7 +35,7 @@ final class AppModel {
     }
   }
   /// The entry the browser shows; nil = an empty page.
-  var selectedNodeID: String?
+  var selectedNodeID: String? { didSet { shownTabChanged() } }
   /// The sidebar, a bottom sheet over the browser. Up at launch.
   var showingSidebar = true
   /// The sidebar rests at half height (dragged there) instead of full.
@@ -59,7 +59,9 @@ final class AppModel {
   /// over its page) until the switch underneath has drawn.
   var pickerHolding = false
   /// For splits: which pane is in front.
-  var selectedPane = 0
+  var selectedPane = 0 { didSet { shownTabChanged() } }
+  /// The tab shown last: leaving it starts auto picture-in-picture.
+  @ObservationIgnored private var lastShownTabID: String?
   var showingCommandBar = false
   /// The bottom bar's menu (PageMenu), and Site Settings from it.
   var showingMenu = false
@@ -117,6 +119,10 @@ final class AppModel {
     tabs.onPasswordMessage = { [weak self] body, id, url in
       guard let self else { return }
       self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
+    }
+    tabs.onPictureInPictureRestore = { [weak self] id in
+      guard let self, self.shownTab?.id != id, let node = self.store.node(id: id) else { return }
+      self.show(node)
     }
     tabs.onNavigated = { [weak self] id in
       self?.passwords.pageChanged(id)
@@ -347,6 +353,24 @@ final class AppModel {
   var selectedNode: SidebarNode? { selectedNodeID.flatMap(store.node(id:)) }
 
   /// The tab shown for the selected entry (a split's front pane).
+  /// Auto picture-in-picture (AutoPiP): the tab left shows its playing
+  /// video in a window, the tab shown takes its own back.
+  private func shownTabChanged() {
+    let shown = shownTab?.id
+    guard shown != lastShownTabID else { return }
+    let left = lastShownTabID
+    lastShownTabID = shown
+    if let shown { AutoPiP.exit(tabs.live[shown]) }
+    if let left { AutoPiP.enter(tabs.live[left]) }
+  }
+
+  /// Leaving the app (Home, another app): the shown tab's playing video
+  /// goes to picture-in-picture; back in the app, it comes back.
+  func appActiveChanged(_ active: Bool) {
+    guard let id = shownTab?.id else { return }
+    if active { AutoPiP.exit(tabs.live[id]) } else { AutoPiP.enter(tabs.live[id]) }
+  }
+
   var shownTab: SidebarNode? {
     guard let node = selectedNode else { return nil }
     if node.isSplit {
