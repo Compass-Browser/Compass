@@ -409,6 +409,7 @@ struct NodeTree: View {
 
 struct NodeRow: View {
   @Environment(AppModel.self) private var app
+  @Environment(\.openWindow) private var openWindow
   let node: SidebarNode
   let depth: Int
   @State private var renaming = false
@@ -539,6 +540,12 @@ struct NodeRow: View {
 
   @ViewBuilder private var menu: some View {
     let space = app.store.space(of: node)
+    // iPad: the entry in a window of its own (its page moves there).
+    if !node.isFolder, UIApplication.shared.supportsMultipleScenes {
+      Button("Open in New Window", systemImage: "macwindow.badge.plus") {
+        openWindow(value: WindowTarget(entry: node.id))
+      }
+    }
     Button("Rename", systemImage: "pencil") {
       newTitle = node.isFolder ? node.title : node.displayTitle
       renaming = true

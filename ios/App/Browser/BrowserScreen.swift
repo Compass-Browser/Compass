@@ -167,12 +167,18 @@ struct BrowserScreen: View {
           .buttonStyle(.plain)
           .foregroundStyle(front ? .primary : .secondary)
           .accessibilityAddTraits(front ? .isSelected : [])
-          let view = app.tabs.webView(for: pane)
-          WebView(
-            webView: view, bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
-            obscuredBottom: barInset)
-            .id("\(pane.id)/\(ObjectIdentifier(view).hashValue)")
-            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
+          Group {
+            if app.hasPage(pane.id) {
+              let view = app.tabs.webView(for: pane)
+              WebView(
+                webView: view, bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
+                obscuredBottom: barInset)
+                .id("\(pane.id)/\(ObjectIdentifier(view).hashValue)")
+            } else {
+              ElsewherePage(tab: pane)
+            }
+          }
+          .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
         }
         .overlay {
           UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10)
@@ -188,7 +194,10 @@ struct BrowserScreen: View {
   /// The shown entry's page, or its space's color when there's none.
   @ViewBuilder private var page: some View {
     Group {
-      if let tab = app.shownTab {
+      if let tab = app.shownTab, !app.hasPage(tab.id) {
+        // Another window has the page (iPad).
+        ElsewherePage(tab: tab).ignoresSafeArea(edges: .top)
+      } else if let tab = app.shownTab {
         let view = app.tabs.webView(for: tab)
         WebView(
           webView: view,
@@ -610,5 +619,39 @@ private struct LoadBar: View {
     .frame(height: 2.5)
     .allowsHitTesting(false)
     .accessibilityHidden(true)
+  }
+}
+
+/// An entry whose page is in another window (iPad): the page as it was
+/// left there, and "Bring Here", as the desktop's placeholder. The window
+/// also takes the page back when it becomes the key window.
+struct ElsewherePage: View {
+  @Environment(AppModel.self) private var app
+  let tab: SidebarNode
+
+  var body: some View {
+    // The snapshot is an overlay, so it never sizes the page: filled to a
+    // window of another shape it would grow it and push the bar off.
+    Color(.systemBackground)
+      .overlay(alignment: .top) {
+        if let image = app.tabs.snapshots[tab.id] {
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .opacity(0.5)
+        }
+      }
+      .clipped()
+      .overlay {
+        VStack(spacing: 12) {
+          SiteIcon(url: tab.url, size: 40)
+          Text("Open in another window").font(.headline)
+          Button("Bring Here") { app.bringHere(tab.id) }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("BringHere")
+        }
+        .padding(24)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+      }
   }
 }

@@ -24,7 +24,12 @@ final class SystemBridge {
   @ObservationIgnored let container: SharedContainer
   /// The Focus filter's setting while its Focus is on.
   private(set) var focus: FocusSetting?
-  @ObservationIgnored weak var app: AppModel?
+  /// The window the user is in (AppServices.activate).
+  @ObservationIgnored weak var app: AppModel? {
+    didSet { if app != nil, let link = pendingLink { pendingLink = nil; handle(link) } }
+  }
+  /// A link (widget, quick action) that came before the first window.
+  @ObservationIgnored private var pendingLink: DeepLink?
   @ObservationIgnored private var snapshotTask: Task<Void, Never>?
   @ObservationIgnored private var iconTask: Task<Void, Never>?
   @ObservationIgnored private var hosts: Set<String> = []
@@ -207,7 +212,10 @@ final class SystemBridge {
   // MARK: Links
 
   func handle(_ link: DeepLink) {
-    guard let app else { return }
+    guard let app else {
+      pendingLink = link
+      return
+    }
     switch link {
     case .open(let text, let space):
       guard let url = URL(string: text), PhoneVisible.url(text) else { return }

@@ -8,6 +8,11 @@ import WebKit
 /// Hosts an existing WKWebView. Web views are owned by the live-tab registry,
 /// not by SwiftUI, so switching entries never reloads a page.
 ///
+/// The web view sits in a container of ours, never as SwiftUI's own view:
+/// with several windows (iPad) a page can move to another window, and
+/// SwiftUI taking this view down afterwards must not pull it out of there.
+/// The container takes the page back whenever it updates.
+///
 /// `bottomInset` is the floating chrome over the page's bottom edge: the page
 /// scrolls under it, and its end still scrolls clear of it.
 ///
@@ -23,12 +28,24 @@ struct WebView: UIViewRepresentable {
   var topInset: CGFloat = 0
   var obscuredBottom: CGFloat = 0
 
-  func makeUIView(context: Context) -> WKWebView {
-    apply(to: webView)
-    return webView
+  func makeUIView(context: Context) -> UIView {
+    let container = UIView()
+    container.backgroundColor = .clear
+    adopt(into: container)
+    return container
   }
 
-  func updateUIView(_ uiView: WKWebView, context: Context) { apply(to: uiView) }
+  func updateUIView(_ container: UIView, context: Context) { adopt(into: container) }
+
+  private func adopt(into container: UIView) {
+    if webView.superview !== container {
+      webView.removeFromSuperview()
+      webView.frame = container.bounds
+      webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      container.addSubview(webView)
+    }
+    apply(to: webView)
+  }
 
   private func apply(to view: WKWebView) {
     if #available(iOS 26.0, *) {

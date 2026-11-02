@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     #if DEBUG
       print("Push: device token", deviceToken.map { String(format: "%02x", $0) }.joined())
     #endif
-    MainActor.assumeIsolated { Self.app?.sync.setPushToken(deviceToken) }
+    MainActor.assumeIsolated { AppServices.shared?.sync.setPushToken(deviceToken) }
   }
 
   func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     completionHandler: @escaping () -> Void
   ) {
     MainActor.assumeIsolated {
-      Self.app?.downloads.backgroundCompletion = completionHandler
+      AppServices.shared?.downloads.backgroundCompletion = completionHandler
     }
   }
 
@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     if let item = options.shortcutItem, let link = HomeQuickActions.link(item) {
       Task { @MainActor in
         try? await Task.sleep(for: .milliseconds(300))
-        Self.app?.system.handle(link)
+        AppServices.shared?.system.handle(link)
       }
     }
     let configuration = UISceneConfiguration(name: nil, sessionRole: session.role)
@@ -89,7 +89,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     _ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem
   ) async -> Bool {
     guard let link = HomeQuickActions.link(shortcutItem) else { return false }
-    await MainActor.run { AppDelegate.app?.system.handle(link) }
+    await MainActor.run { AppServices.shared?.system.handle(link) }
     return true
   }
 }
