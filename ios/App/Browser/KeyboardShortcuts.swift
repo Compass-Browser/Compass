@@ -10,15 +10,21 @@ import WebKit
 /// command bar, ⌘S the sidebar, ⌃1–9 the spaces, ⌘⇧C copy the link.
 /// iPadOS lists them in the menu bar and in the overlay ⌘ held down shows.
 struct BrowserCommands: Commands {
-  let app: AppModel
+  let services: AppServices
+  @Environment(\.openWindow) private var openWindow
 
-  private var webView: WKWebView? { app.shownTab.flatMap { app.tabs.live[$0.id] } }
+  /// The window the user is in.
+  private var app: AppModel? { services.active }
+  private var webView: WKWebView? { app?.shownTab.flatMap { services.tabs.live[$0.id] } }
 
   var body: some Commands {
     CommandGroup(replacing: .newItem) {
-      Button("New Tab") { app.openCommandBar(newTab: true) }
+      Button("New Tab") { app?.openCommandBar(newTab: true) }
         .keyboardShortcut("t")
-      Button("Open Location…") { app.openCommandBar(newTab: false) }
+      // iPad: another window, on the space this one shows.
+      Button("New Window") { openWindow(value: WindowTarget()) }
+        .keyboardShortcut("n")
+      Button("Open Location…") { app?.openCommandBar(newTab: false) }
         .keyboardShortcut("l")
     }
     CommandGroup(after: .pasteboard) {
@@ -26,11 +32,11 @@ struct BrowserCommands: Commands {
         if let url = webView?.url { UIPasteboard.general.url = url }
       }
       .keyboardShortcut("c", modifiers: [.command, .shift])
-      Button("Find…") { app.findOnPage() }
+      Button("Find…") { app?.findOnPage() }
         .keyboardShortcut("f")
     }
     CommandGroup(before: .sidebar) {
-      Button(app.isWide && app.showingSidebarColumn ? "Hide Sidebar" : "Show Sidebar") { toggleSidebar() }
+      Button(app.map { $0.isWide && $0.showingSidebarColumn } == true ? "Hide Sidebar" : "Show Sidebar") { toggleSidebar() }
         .keyboardShortcut("s")
       Button("Reload Page") { webView?.reload() }
         .keyboardShortcut("r")
@@ -44,11 +50,11 @@ struct BrowserCommands: Commands {
         .keyboardShortcut("]")
     }
     CommandMenu("Tabs") {
-      Button("Next Tab") { app.stepEntry(1) }
+      Button("Next Tab") { app?.stepEntry(1) }
         .keyboardShortcut(.tab, modifiers: .control)
       Divider()
-      ForEach(Array(app.visibleSpaces.prefix(9).enumerated()), id: \.element.id) { index, space in
-        Button(space.name.isEmpty ? "Space \(index + 1)" : space.name) { app.selectSpace(at: index) }
+      ForEach(Array((app?.visibleSpaces ?? []).prefix(9).enumerated()), id: \.element.id) { index, space in
+        Button(space.name.isEmpty ? "Space \(index + 1)" : space.name) { app?.selectSpace(at: index) }
           .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .control)
       }
     }
@@ -57,6 +63,7 @@ struct BrowserCommands: Commands {
   /// ⌘S: the column on an iPad; on a phone (or a narrow window) the bottom
   /// panel.
   private func toggleSidebar() {
+    guard let app else { return }
     if app.isWide {
       app.showingSidebarColumn.toggle()
     } else if app.showingSidebar {
@@ -71,10 +78,9 @@ struct BrowserCommands: Commands {
 /// commands that ask for priority over system behavior, on the window's root
 /// view controller (in every responder chain, the page's included).
 enum PriorityKeyCommands {
-  @MainActor static func install(in window: UIWindow, app: AppModel) {
+  @MainActor static func install(in window: UIWindow) {
     guard let root = window.rootViewController, root.keyCommands?.contains(where: { $0.action == #selector(UIViewController.compassCloseTab) }) != true
     else { return }
-    AppDelegate.app = AppDelegate.app ?? app
     let close = UIKeyCommand(title: "Close Tab", action: #selector(UIViewController.compassCloseTab), input: "w", modifierFlags: .command)
     let previous = UIKeyCommand(
       title: "Previous Tab", action: #selector(UIViewController.compassPreviousTab), input: "\t", modifierFlags: [.control, .shift])

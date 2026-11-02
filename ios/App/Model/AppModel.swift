@@ -9,26 +9,31 @@ import Foundation
 import SwiftUI
 import Observation
 
-/// The app's state: the sidebar, what's selected, live tabs and sync.
+/// One window's state: the space and entry it shows, its sidebar, sheets
+/// and tab picker. What windows share (the store, live tabs, sync…) is
+/// `AppServices`; the properties below forward to it, so views use one
+/// model. An iPhone has one window; an iPad can have several.
 @MainActor
 @Observable
 final class AppModel {
-  let store = SpaceStore()
-  let tabs: TabManager
-  let sync: SyncController
-  let passwords = PasswordManager()
-  let siteSettings: SiteSettings
-  let contentBlocking = ContentBlocking()
-  let downloads = Downloads()
-  let extensions: WebExtensions
-  let directory: URL
+  let services: AppServices
+  let id = UUID()
+  var store: SpaceStore { services.store }
+  var tabs: TabManager { services.tabs }
+  var sync: SyncController { services.sync }
+  var passwords: PasswordManager { services.passwords }
+  var siteSettings: SiteSettings { services.siteSettings }
+  var contentBlocking: ContentBlocking { services.contentBlocking }
+  var downloads: Downloads { services.downloads }
+  var extensions: WebExtensions { services.extensions }
+  var directory: URL { services.directory }
   /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
-  let system: SystemBridge
+  var system: SystemBridge { services.system }
 
   /// The space the sidebar shows (to extensions, the focused window).
   var selectedSpaceID: String? {
     didSet {
-      if let id = selectedSpaceID, id != oldValue {
+      if let id = selectedSpaceID, id != oldValue, services.active === self {
         extensions.spaceFocused(id)
         system.spaceShown(id)
         UserDefaults.standard.set(id, forKey: StartScreen.spaceKey)
@@ -87,79 +92,57 @@ final class AppModel {
   /// A pairing link opened from the camera, for the join screen.
   var pendingInvite: PairingInvite?
 
-  private var saveTask: Task<Void, Never>?
-  private var archiveTimer: Task<Void, Never>?
+  /// Side-effect free: SwiftUI may make a window's model more than once.
+  /// `attach` starts it.
+  init(services: AppServices) {
+    self.services = services
+  }
 
-  init() {
-    directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Compass", isDirectory: true)
-    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    let store = self.store
-    // Debug: -CompassFreshStore YES starts from an empty sidebar (UI tests).
-    #if DEBUG
-      let fresh = UserDefaults.standard.bool(forKey: "CompassFreshStore")
-    #else
-      let fresh = false
-    #endif
-    if !fresh { try? store.load(from: directory.appendingPathComponent("Sidebar.json")) }
-    if store.spaces.isEmpty {
-      store.applyingRemote { _ = store.addSpace(name: "Home") }
+  /// The window is up: it joins the app's windows and shows `entry` (a
+  /// window opened for an entry, or restored), else the space last shown.
+  /// The first window also runs the launch-time things: Settings → On
+  /// Launch and the debug arguments.
+  func attach(showing entry: String?) {
+    let first = services.windows.isEmpty
+    services.attach(self)
+    selectedSpaceID = (services.active?.selectedSpaceID).flatMap(store.space(id:))?.id
+      ?? (UserDefaults.standard.string(forKey: StartScreen.spaceKey).flatMap(store.space(id:)) ?? store.spaces.first)?.id
+    if let entry, let node = store.node(id: entry), !node.isFolder {
+      show(node)
+      return
     }
-    siteSettings = SiteSettings(directory: directory)
-    extensions = WebExtensions(directory: directory)
-    tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
-    system = SystemBridge()
-    let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
-    history.expire()
-    sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
-    // The space last shown, as the sidebar left it.
-    selectedSpaceID = (UserDefaults.standard.string(forKey: StartScreen.spaceKey).flatMap(store.space(id:)) ?? store.spaces.first)?.id
-    tabs.downloads = downloads
-    tabs.extensions = extensions
-    extensions.app = self
-    system.app = self
-    downloads.activities = DownloadActivities()
-    Favicons.shared.onStored = { [weak self] host in self?.system.iconStored(host: host) }
-    IntentRouter.handle = { [weak self] link in self?.system.handle(link) }
-    IntentRouter.cancelDownload = { [weak self] id in UUID(uuidString: id).map { self?.downloads.cancel($0) } }
-    contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
-    Task { [contentBlocking] in await contentBlocking.refresh() }
-    tabs.openInNewTab = { [weak self] url in self?.open(url.absoluteString) }
-    tabs.onPageLoaded = { [weak self] url, title, id in
-      guard let self else { return }
-      self.sync.recordVisit(url: url, title: title, profile: self.accountProfile(ofTab: id))
+    guard first else { return }
+    // Settings → On Launch: the tab last shown, if it's still open (not
+    // closed or archived), instead of the sidebar.
+    if StartScreen.current == .lastTab, let id = UserDefaults.standard.string(forKey: StartScreen.tabKey),
+      let node = store.node(id: id), node.isTab
+    {
+      show(node)
     }
-    tabs.onPasswordMessage = { [weak self] body, id, url in
-      guard let self else { return }
-      self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
-    }
-    tabs.onPictureInPictureRestore = { [weak self] id in
-      guard let self, self.shownTab?.id != id, let node = self.store.node(id: id) else { return }
-      self.show(node)
-    }
-    // Only the tab shown, with the app active: picture-in-picture can't
-    // start on the way out.
-    tabs.onPictureInPictureScroll = { [weak self] id, _ in self?.settlePictureInPicture(id) }
-    tabs.onNavigated = { [weak self] id in
-      self?.passwords.pageChanged(id)
-      self?.setBarCollapsed(false)
-    }
-    tabs.onScroll = { [weak self] id, dy, user, atTop in self?.pageScrolled(id, dy, user: user, atTop: atTop) }
-    siteSettings.onChange = { [weak self] option, site in
-      guard let self else { return }
-      tabs.apply(option, site: site)
-      if option == .collapseBar { setBarCollapsed(false) }
-    }
-    Favicons.shared.onPageIcon = { [weak self] host, png, size, tab in
-      guard let self else { return }
-      self.sync.offerFavicon(host: host, png: png, sourceSize: size, account: self.accountProfile(ofTab: tab))
-    }
-    sync.isShown = { [weak self] id in self?.selectedNodeID == id }
-    sync.onReplaced = { [weak self] old, new in
-      guard let self else { return }
-      self.tabs.rekey(old, to: new)
-      if self.selectedNodeID == old { self.selectedNodeID = new }
-    }
+    launchArguments()
+  }
+
+  func detach() { services.detach(self) }
+
+  /// The tabs this window shows: the shown one, or every pane of a split
+  /// side by side (a wide window).
+  var displayedTabIDs: [String] {
+    if isWide, let node = selectedNode, node.isSplit { return node.children.filter(\.isPhoneVisible).map(\.id) }
+    return shownTab.map { [$0.id] } ?? []
+  }
+
+  /// Whether the tab's page is in this window, or another window has it
+  /// (this one shows its snapshot and "Bring here").
+  func hasPage(_ tabID: String) -> Bool { services.owner(of: tabID).map { $0 === self } ?? true }
+
+  /// "Bring here": the page leaves the other window for this one.
+  func bringHere(_ tabID: String) { services.claim(tabID, for: self) }
+
+  var sidebarURL: URL { services.sidebarURL }
+  func accountProfile(ofTab id: String) -> String { services.accountProfile(ofTab: id) }
+  func scheduleSave() { services.scheduleSave() }
+
+  private func launchArguments() {
     #if DEBUG
       // Simulator checks (docs/design/ios.md, "Verification"):
       //   -CompassServer <url> -CompassJoinRecovery "<12 words>"
@@ -296,70 +279,6 @@ final class AppModel {
         }
       }
     #endif
-    // Save after every change, local or synced (observation of the store).
-    observeForSaving()
-    observeSessions()
-    // What the extensions asked for while the app wasn't running.
-    system.writeSnapshot()
-    system.sharedChanged()
-    // Settings → On Launch: the tab last shown, if it's still open (not
-    // closed or archived), instead of the sidebar.
-    if StartScreen.current == .lastTab, let id = UserDefaults.standard.string(forKey: StartScreen.tabKey),
-      let node = store.node(id: id), node.isTab
-    {
-      show(node)
-    }
-    archiveTimer = Task { [weak self] in
-      while !Task.isCancelled {
-        self?.store.archiveIdleEntries()
-        self?.store.pruneArchive()
-        try? await Task.sleep(for: .seconds(60))
-      }
-    }
-  }
-
-  var sidebarURL: URL { directory.appendingPathComponent("Sidebar.json") }
-
-  /// The profile account a tab's history and passwords go to (its space's).
-  func accountProfile(ofTab id: String) -> String {
-    store.node(id: id).map(sync.accountProfile(of:)) ?? ""
-  }
-
-  private func observeForSaving() {
-    withObservationTracking {
-      _ = store.spaces.map { ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
-      _ = store.favoritesRoots.map(\.children.count)
-      _ = store.spaces.map(\.profileUUID)
-    } onChange: { [weak self] in
-      Task { @MainActor in
-        self?.scheduleSave()
-        self?.observeForSaving()
-      }
-    }
-  }
-
-  func scheduleSave() {
-    saveTask?.cancel()
-    saveTask = Task { [weak self] in
-      try? await Task.sleep(for: .seconds(1))
-      guard let self, !Task.isCancelled else { return }
-      try? self.store.save(to: self.sidebarURL)
-      self.tabs.prune()
-      self.system.scheduleSnapshot()
-    }
-  }
-
-  /// Other devices' tabs changed: the widget that shows them follows.
-  private func observeSessions() {
-    withObservationTracking {
-      _ = sync.sessionsByAccount
-      _ = sync.isOn
-    } onChange: { [weak self] in
-      Task { @MainActor in
-        self?.system.scheduleSnapshot()
-        self?.observeSessions()
-      }
-    }
   }
 
   /// The spaces the sidebar pages through: all of them, or only the Focus
@@ -392,12 +311,17 @@ final class AppModel {
     guard shown != lastShownTabID else { return }
     let left = lastShownTabID
     lastShownTabID = shown
+    // Picked here, or the window the user is in: the page comes here.
+    for id in displayedTabIDs
+    where services.active === self || !services.windows.contains(where: { $0 !== self && $0.displayedTabIDs.contains(id) }) {
+      services.claim(id, for: self)
+    }
     if let shown { UserDefaults.standard.set(shown, forKey: StartScreen.tabKey) }
     else { UserDefaults.standard.removeObject(forKey: StartScreen.tabKey) }
     if let shown { AutoPiP.exit(tabs.live[shown]) }
     // Kept in the window first (SwiftUI drops it on this update), or its
     // window would end at once.
-    if let left, tabs.playingVideo.contains(left), AutoPiP.isOn, let view = tabs.live[left] {
+    if let left, tabs.playingVideo.contains(left), AutoPiP.isOn, hasPage(left), let view = tabs.live[left] {
       AutoPiP.park(view)
       AutoPiP.enter(view)
     }
@@ -407,9 +331,9 @@ final class AppModel {
   /// momentum over): a window started mid-scroll grows from a frame the
   /// page has already moved past, and jumps. Then the page says what it
   /// wants now, which the scroll may have changed.
-  private var pictureInPictureSettle: Set<String> = []
+  @ObservationIgnored private var pictureInPictureSettle: Set<String> = []
 
-  private func settlePictureInPicture(_ id: String) {
+  func settlePictureInPicture(_ id: String) {
     guard pictureInPictureSettle.insert(id).inserted else { return }
     Task { [weak self] in
       while let scroll = self?.tabs.live[id]?.scrollView,
@@ -477,7 +401,7 @@ final class AppModel {
 
   /// The shown page scrolled: down by the user collapses the bar, up (or
   /// back at the top) brings it back. A scroll has to go 24 pt one way.
-  private func pageScrolled(_ id: String, _ dy: CGFloat, user: Bool, atTop: Bool) {
+  func pageScrolled(_ id: String, _ dy: CGFloat, user: Bool, atTop: Bool) {
     guard id == shownTab?.id else { return }
     if atTop {
       setBarCollapsed(false)

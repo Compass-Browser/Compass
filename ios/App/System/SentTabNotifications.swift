@@ -14,16 +14,18 @@ import UserNotifications
 @MainActor
 final class SentTabNotifications: NSObject, UNUserNotificationCenterDelegate {
   static let shared = SentTabNotifications()
-  weak var app: AppModel?
+  /// The window the user is in (AppServices.activate).
+  weak var app: AppModel? { didSet { if app != nil, let open = pending { pending = nil; open() } } }
+  /// A tap that launched the app, before its first window is up.
+  private var pending: (() -> Void)?
   private let center = UNUserNotificationCenter.current()
   nonisolated static let category = "sent-tab"
 
   /// At launch, before the app finishes: a tap that launched it arrives
   /// through the delegate.
-  func setUp(app: AppModel) {
-    self.app = app
+  func setUp(services: AppServices) {
     center.delegate = self
-    app.sync.onSentTabs = { [weak self] tabs, account in self?.post(tabs, account: account) }
+    services.sync.onSentTabs = { [weak self] tabs, account in self?.post(tabs, account: account) }
     // Already allowed (an earlier launch): the device token comes each launch.
     center.getNotificationSettings { settings in
       guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
@@ -65,7 +67,11 @@ final class SentTabNotifications: NSObject, UNUserNotificationCenterDelegate {
   }
 
   private func open(url string: String, guid: String?, account: String) {
-    guard let app, let url = URL(string: string) else { return }
+    guard let app else {
+      pending = { [weak self] in self?.open(url: string, guid: guid, account: account) }
+      return
+    }
+    guard let url = URL(string: string) else { return }
     // A space of the account it came in (the current one when it fits).
     let space = app.selectedSpace.flatMap { app.sync.accountProfile(of: $0) == account ? $0 : nil }
       ?? app.store.spaces.first { app.sync.accountProfile(of: $0) == account }

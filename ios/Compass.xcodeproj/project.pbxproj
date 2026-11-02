@@ -81,6 +81,7 @@
 		AB4A065A118291BDC5BCE374 /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8869F83B348CDAA446122C7 /* DownloadsView.swift */; };
 		AD574FFAF2318C20C78F6DF5 /* SentTabNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */; };
 		AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC2CC0BF44F21272D32F82C /* TabManager.swift */; };
+		B159BC77B926F2ED10CD78EC /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25BEDAA2FEFFDD0A4EBD314B /* AppServices.swift */; };
 		B1DF018F14113ACC2CC3B06C /* SwipeTabsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */; };
 		B36EBEC54E877CBB5562C9BB /* SystemBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9DB417853BAB3988CCC478 /* SystemBridge.swift */; };
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
@@ -181,6 +182,7 @@
 		1EB9E782B7E6520842234F5D /* ExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsView.swift; sourceTree = "<group>"; };
 		217A2B9DD3B37AE3A8F454AC /* DownloadActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadActivityAttributes.swift; sourceTree = "<group>"; };
 		219581ADF6A5C9ECE3159093 /* HomeQuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeQuickActions.swift; sourceTree = "<group>"; };
+		25BEDAA2FEFFDD0A4EBD314B /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
 		267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
 		274CFEB2D09654A821D49C1C /* CompassUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CompassUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28ED2A5ADAB247E317BB1F68 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
@@ -508,6 +510,7 @@
 			isa = PBXGroup;
 			children = (
 				9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */,
+				25BEDAA2FEFFDD0A4EBD314B /* AppServices.swift */,
 				D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */,
 				2C104F34AF154CFDADE0CE18 /* Downloads.swift */,
 				66F0EE58F8587923AB5AD207 /* Downloads+Background.swift */,
@@ -844,6 +847,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3B957538A2B525C251B71495 /* AppModel.swift in Sources */,
+				B159BC77B926F2ED10CD78EC /* AppServices.swift in Sources */,
 				48C7984F94A06309C7BF16C5 /* AutoPiP.swift in Sources */,
 				F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */,
 				4968D00362621422D48BCA8B /* CommandBar.swift in Sources */,

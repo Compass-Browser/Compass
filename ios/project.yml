@@ -79,6 +79,9 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # iPad: several windows (docs/design/ios.md, "Multiple windows").
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
         # iPad: every orientation, as Split View and Stage Manager need.
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait

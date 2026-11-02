@@ -62,7 +62,7 @@ struct TabEntity: AppEntity, Identifiable {
 
 struct TabQuery: EntityQuery {
   @MainActor func entities(for identifiers: [TabEntity.ID]) async throws -> [TabEntity] {
-    guard let store = AppDelegate.app?.store else { return [] }
+    guard let store = AppServices.shared?.store else { return [] }
     return identifiers.compactMap { id in
       guard let node = store.node(id: id), let space = store.space(of: node) else { return nil }
       return TabEntity(node, in: space)
