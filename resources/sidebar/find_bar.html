@@ -1,0 +1,24 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Find</title>
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <style>
+      /* Transparent: the page under the bar shows around it, under its
+         shadow (compass::FindBar sizes the view). */
+      html,
+      body {
+        background: transparent;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <compass-find-bar-app></compass-find-bar-app>
+    <script type="module" src="find_bar/app.js"></script>
+  </body>
+</html>

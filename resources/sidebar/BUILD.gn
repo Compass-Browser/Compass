@@ -17,6 +17,7 @@ build_webui("build") {
     "command_bar.html",
     "compass_sync.html",
     "empty.html",
+    "find_bar.html",
     "placeholder.html",
     "compass_sidebar.html",
     "settings.html",
@@ -31,6 +32,9 @@ build_webui("build") {
     "command_bar/browser_proxy.ts",
     "empty.ts",
     "favicon.ts",
+    "find_bar/app.html.ts",
+    "find_bar/app.ts",
+    "find_bar/browser_proxy.ts",
     "node.html.ts",
     "node.ts",
     "now_playing.html.ts",
@@ -57,6 +61,7 @@ build_webui("build") {
   css_files = [
     "app.css",
     "command_bar/app.css",
+    "find_bar/app.css",
     "now_playing.css",
     "preview.css",
     "theme_editor.css",
@@ -76,11 +81,13 @@ build_webui("build") {
 
   mojo_files_deps = [
     "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
   ]
   mojo_files = [
     "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
+    "$root_gen_dir/compass/browser/ui/webui/find_bar/find_bar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sync/compass_sync.mojom-webui.ts",
   ]

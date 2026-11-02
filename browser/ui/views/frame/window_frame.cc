@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "compass/browser/ui/views/find_bar/find_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/load_bar.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
@@ -52,6 +53,8 @@ WindowFrame::WindowFrame(views::View* region, BrowserWindowInterface* browser)
   SidebarTint::Install(region->parent(), browser);
   // The page's load progress, in the frame above it.
   LoadBar::Install(region->parent(), browser);
+  // Cmd+F, over the page's top trailing corner.
+  FindBar::Install(region->parent(), browser);
   region_observation_.Observe(region);
 }
 

@@ -56,15 +56,29 @@ in WebKit yet; I3 runs it in a WKWebView test.
 ## Desktop
 
 ### Find bar (Cmd+F)
-- **Command.** Intercept `IDC_FIND`, `IDC_FIND_NEXT` and `IDC_FIND_PREVIOUS` in `compass::HandleBrowserCommand()` (`browser/ui/views/command_bar/command_bar.cc`), the same way `IDC_NEW_TAB` already goes to the command bar. The user's custom key binding (`shortcuts_mac.mm` entry `find`) keeps working.
-- **UI.** A new top-chrome WebUI `chrome://compass-find`, hosted the way `CommandBar` is, in a `WebUIBubbleDialogView`. It's anchored at the top-trailing corner of the content card (`browser/ui/views/frame/content_frame.h` insets) with no arrow.
-  - Files: `browser/ui/views/find_bar/find_bar.{h,cc}`, `browser/ui/webui/find_bar/{find_bar_ui,find_bar_page_handler}.{h,cc}` and `find_bar.mojom`, `resources/sidebar/find_bar/`.
-- **Matching.** Upstream's `find_in_page::FindTabHelper` (`StartFinding`, `StopFinding`, `FindResultObserver`) drives the search. The match count and current index go to the page.
-- **Behaviour.** Prefill with the selection. Enter and Shift+Enter move between matches. Esc closes. Each tab keeps its last query. The bar moves with the tab on space or profile swaps (see the find bar note in `docs/design/profiles-in-place.md`).
-- **Registration** follows the CommandBar pattern:
-  - `compass_web_ui_registry.cc`;
-  - the binders patch;
-  - a `WebUIName` histogram variant in `patches/tools-metrics-histograms-metadata-page-histograms.xml.patch`.
+
+Status: written on `claude/d1-find-bar` (2026-11-02), not yet built or run.
+
+- **Command.** `HandleFindBarCommand()` (`browser/ui/views/find_bar/find_bar.cc`) takes `IDC_FIND`, `IDC_FIND_NEXT` and `IDC_FIND_PREVIOUS` from `compass::HandleBrowserCommand()`, as `IDC_NEW_TAB` goes to the command bar, so the user's key bindings (`shortcuts_mac.mm` entry `find`) keep working. Windows without the Compass frame (popups, apps) have no `FindBar` and keep upstream's.
+- **Host.** `compass::FindBar` is a `views::WebView` on `chrome://compass-find`, a child of the browser view that layout ignores, installed by `WindowFrame` next to the load bar. It sits over the active pane's top trailing corner, 8 DIP in (`kContentFrameInset`).
+  - **Why not a bubble or upstream's child widget:** upstream's `FindBarHost` widget isn't activatable, so on macOS a web page in it can't become the key window's first responder and wouldn't get the typing. A view in the browser window does get it, as the sidebar does.
+  - The page is transparent around the bar it draws, so its shadow shows over the page (`--shadow-room`, `kShadowRoom`). The 12 DIP margin takes clicks that would otherwise reach the page under it.
+  - It loads on the first Cmd+F and stays loaded. What's typed before the page connects is lost (only on a window's first Cmd+F).
+- **Matching.** It drives upstream's `find_in_page::FindTabHelper` (`StartFinding`, `StopFinding(kKeep)`, `FindResultObserver`). The helper keeps each tab's text.
+  - Whether a tab's bar is open lives in Compass's own `FindBarTabState`, not in `FindTabHelper::find_ui_active()`. Upstream's `FindBarController` exists in every window and reads that flag on tab switches to show its own bar.
+- **Behaviour.**
+  - Opening starts from the page's selection (one line, at most 200 characters), else the tab's last text, else the helper's initial text, and moves to the first match.
+  - Enter and Shift+Enter, the arrow buttons, and Cmd+G / Cmd+Shift+G from anywhere move between matches. Cmd+G with the bar closed opens it.
+  - Up, Down, Page Up, Page Down and Ctrl+Home/End scroll the page.
+  - Esc closes and keeps the match selected.
+  - Keys the page doesn't handle go to the window (`BrowserView::HandleKeyboardEvent()`).
+  - A tab switch hides the bar, or shows it with that tab's text and count.
+  - Another page in the tab clears the count.
+- **Files:**
+  - `browser/ui/views/find_bar/find_bar.{h,cc}`;
+  - `browser/ui/webui/find_bar/` (`find_bar.mojom`, `FindBarUI`, a plain `DefaultWebUIConfig` like the sidebar's, so no histogram variant);
+  - `resources/sidebar/find_bar.html` and `resources/sidebar/find_bar/`.
+- **Tests:** `browser/ui/views/find_bar/find_bar_browsertest.cc`.
 
 ### Chat panel
 - **Surface.** An upstream right-hand **side panel** entry (the left side is the Compass sidebar), WebUI `chrome://compass-chat` in `SidePanelWebUIView`. Upstream already provides resizing, open/close animation and coexistence with the extensions `sidePanel`. The only patch is one line adding the entry id. The upstream checkout wasn't mounted during planning, so `SidePanelEntry::Id` and the coordinator names still need checking.
@@ -175,7 +189,7 @@ Desktop browser tests run headless through `compass test --browser`, and never t
 - **Fake Claude server.** `ClaudeClient` and tool tests point `compass.claude.base_url` at an `EmbeddedTestServer` that serves canned SSE scripts, including `tool_use` turns. That's what the custom endpoint makes possible. No real key is needed in CI.
 - **Unit tests** (`browser/claude/*_unittest.cc`): the SSE parser (split chunks, errors, `ping`), request building (caching, auth style), screenshot pruning, scope checks.
 - **Browser tests:**
-  - `CompassFindBarBrowserTest`: count, next/previous, Esc, a query kept per tab.
+  - `FindBarBrowserTest`: count, next/previous (keys and Cmd+G), no results, Esc, each tab's bar, the selection as the start, upstream's bar staying closed.
   - `CompassClaudeToolsBrowserTest`, against a test page:
     - `read_page` returns refs;
     - `click` on a ref fires the page's handler, while the real cursor position is unchanged;

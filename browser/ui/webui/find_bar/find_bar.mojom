@@ -1,0 +1,50 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module compass.find_bar.mojom;
+
+// Keys the field passes to the page, so it scrolls while the bar has focus.
+enum ScrollKey {
+  kUp,
+  kDown,
+  kPageUp,
+  kPageDown,
+  kHome,
+  kEnd,
+};
+
+// Bootstraps the connection; called once by the page.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// Browser-side handler for chrome://compass-find, the find bar
+// (compass::FindBar). See docs/design/claude.md, "Find bar".
+interface PageHandler {
+  // The field's text changed (an IME composition only once committed):
+  // finds it from the top of the page, or stops finding when it's empty.
+  Find(string text);
+  // The next match (Enter, the down button) or the previous one
+  // (Shift+Enter, the up button).
+  FindNext(bool reverse);
+  // Up, Down, Page Up, Page Down, and Ctrl+Home/End scroll the page.
+  ForwardScrollKey(ScrollKey key);
+  // Esc, or the close button.
+  Close();
+};
+
+// Implemented by the page.
+interface Page {
+  // Sets the field, with this selection, without finding.
+  SetText(string text, uint32 selection_start, uint32 selection_end);
+  // The result of the latest find: match |active| of |count| (1-based;
+  // count 0 for none). |final_update| is false while the page is still
+  // counting.
+  SetResult(int32 active, int32 count, bool final_update);
+  // No result for the field's text (it's empty, or was just set).
+  ClearResult();
+  // Focuses the field and selects its text.
+  FocusAndSelectAll();
+};

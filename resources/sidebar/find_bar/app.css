@@ -1,0 +1,116 @@
+/* Copyright 2026 The Compass Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host {
+  /* The view is larger than the bar by this on every side, for its shadow
+     (kShadowRoom in find_bar.cc). */
+  --shadow-room: 12px;
+  box-sizing: border-box;
+  color: var(--color-tab-search-primary-foreground);
+  display: block;
+  font-size: 13px;
+  height: 100%;
+  padding: var(--shadow-room);
+}
+
+/* A pill in the command bar's colors, which follow the space. */
+#bar {
+  align-items: center;
+  background: var(--color-tab-search-background);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 14%), 0 4px 10px rgb(0 0 0 / 12%);
+  box-sizing: border-box;
+  display: flex;
+  gap: 4px;
+  height: 100%;
+  padding: 0 6px 0 12px;
+}
+
+.search {
+  fill: none;
+  flex: none;
+  height: 14px;
+  margin-inline-end: 4px;
+  stroke: var(--color-tab-search-secondary-foreground);
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  width: 14px;
+}
+
+#input {
+  background: none;
+  border: none;
+  color: inherit;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+  outline: none;
+  padding: 0;
+}
+
+#input::placeholder {
+  color: var(--color-tab-search-secondary-foreground);
+}
+
+#count {
+  color: var(--color-tab-search-secondary-foreground);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+#count[no-match] {
+  color: var(--color-sys-error);
+}
+
+.divider {
+  align-self: stretch;
+  background: var(--color-tab-search-divider);
+  flex: none;
+  margin: 10px 2px;
+  width: 1px;
+}
+
+button.icon {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  display: flex;
+  flex: none;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+}
+
+button.icon:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+button.icon:focus-visible {
+  outline: 2px solid var(--color-sys-primary);
+}
+
+button.icon:disabled {
+  opacity: 0.35;
+}
+
+button.icon svg {
+  fill: none;
+  height: 16px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  width: 16px;
+}

@@ -12,6 +12,8 @@
 #include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 #include "compass/browser/ui/webui/empty/compass_empty_ui.h"
+#include "compass/browser/ui/webui/find_bar/find_bar.mojom.h"
+#include "compass/browser/ui/webui/find_bar/find_bar_ui.h"
 #include "compass/browser/ui/webui/placeholder/compass_placeholder_ui.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
@@ -26,6 +28,7 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   map.AddWebUIConfig(std::make_unique<CompassPlaceholderUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassEmptyUIConfig>());
   map.AddWebUIConfig(std::make_unique<CommandBarUIConfig>());
+  map.AddWebUIConfig(std::make_unique<FindBarUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassArcImportUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSyncUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSettingsUIConfig>());
@@ -41,6 +44,8 @@ void PopulateWebUIInterfaceBrokers(
       .Add<sidebar::mojom::EmptyPageHandler>();
   registry.ForWebUI<CommandBarUI>()
       .Add<command_bar::mojom::PageHandlerFactory>();
+  registry.ForWebUI<FindBarUI>()
+      .Add<find_bar::mojom::PageHandlerFactory>();
   registry.ForWebUI<CompassArcImportUI>()
       .Add<sidebar::mojom::ArcImportHandler>();
   registry.ForWebUI<CompassSyncUI>()
