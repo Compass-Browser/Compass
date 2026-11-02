@@ -30,6 +30,10 @@ struct BrowserScreen: View {
   /// The neighbors are drawn: from the swipe's start until it settles.
   @State private var swiping = false
   enum Zone { case left, center, right }
+  /// The address pill's frame on screen: a swipe up starting on it opens
+  /// the sidebar; left of it (back, forward) the tab picker, right of it
+  /// (key, new tab, menu) a new tab.
+  @State private var pillFrame: CGRect?
   /// The menu button's center on screen: where a download's arrow lands.
   @State private var menuCenter: CGPoint?
   /// A download's arrow on its way to the menu button (DownloadFlight).
@@ -292,6 +296,7 @@ struct BrowserScreen: View {
         .opacity(canForward ? 1 : 0.3)
         .accessibilityLabel("Forward")
       addressPill
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pillFrame = $0 }
       keyButton
       Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
         .accessibilityLabel("New tab")
@@ -332,9 +337,13 @@ struct BrowserScreen: View {
           let (dx, dy) = (value.translation.width, value.translation.height)
           if dragAxis == nil {
             dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
-            let third = SidebarPanel.screenWidth / 3
             let x = value.startLocation.x
-            dragZone = x < third ? .left : x > 2 * third ? .right : .center
+            if let pill = pillFrame, pill.width > 0 {
+              dragZone = x < pill.minX ? .left : x > pill.maxX ? .right : .center
+            } else {
+              let third = SidebarPanel.screenWidth / 3
+              dragZone = x < third ? .left : x > 2 * third ? .right : .center
+            }
             if dragAxis == .vertical, dragZone == .left { app.preparePicker() }
           }
           if dragAxis == .horizontal {
