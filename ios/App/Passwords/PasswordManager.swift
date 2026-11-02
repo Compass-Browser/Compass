@@ -79,7 +79,7 @@ final class PasswordManager {
       kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "it.cipi1965.compass.probe",
       kSecAttrAccessGroup as String: group, kSecMatchLimit as String: kSecMatchLimitOne,
     ]
-    return SecItemCopyMatching(probe as CFDictionary, nil) != errSecMissingEntitlement ? group : nil
+    return quietKeychainRead(probe, nil, "group probe") != errSecMissingEntitlement ? group : nil
   }
 
   func reload() {

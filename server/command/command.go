@@ -553,6 +553,10 @@ func insertCommitEntity(
 	} else {
 		counts.passed |= datastore.QuotaEntities | datastore.QuotaBytes
 	}
+	if entity.ReplacedLive {
+		// Compass: it took a live entity's place; the chain has as many.
+		return false, nil
+	}
 
 	return false, adjustInterimCount(ctx, cache, clientID, isHistoryRelatedItem, false, counts)
 }

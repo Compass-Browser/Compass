@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassSync
 import Foundation
 import Security
 
@@ -15,7 +16,7 @@ enum Keychain {
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     var result: CFTypeRef?
-    guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
+    guard quietKeychainRead(query, &result, "sync \(account)") == errSecSuccess else { return nil }
     return result as? Data
   }
 

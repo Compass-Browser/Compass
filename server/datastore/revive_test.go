@@ -134,27 +134,42 @@ func TestSQLiteCreateOverTombstoneRevives(t *testing.T) {
 			assert.Equal(t, "server-id-1", updates[0].ID)
 			assert.False(t, *updates[0].Deleted)
 
-			// The revived entity's tag is taken again.
+			// The revived entity's tag is taken again: another create
+			// replaces it, under its ID.
 			live := tagged("server-id-3", "tag", tc.dataType, []byte{1})
 			conflict, err = db.InsertSyncEntity(ctx, live)
-			require.Error(t, err)
-			assert.True(t, conflict)
+			require.NoError(t, err)
+			assert.False(t, conflict)
+			assert.Equal(t, "server-id-1", live.ID)
 		})
 	}
 }
 
-func TestSQLiteCreateOverLiveTagConflicts(t *testing.T) {
+func TestSQLiteCreateOverLiveTagReplaces(t *testing.T) {
+	// Two devices created the entity of one tag (the icon of one host), or
+	// one lost track of it: the create replaces it, the last writer wins.
 	ctx := context.Background()
 	db := openSQLite(t, filepath.Join(t.TempDir(), "r.db"), 0)
 	_, err := db.InsertSyncEntity(ctx, tagged("a", "tag", passwordType, []byte{1, 2}))
 	require.NoError(t, err)
 
-	conflict, err := db.InsertSyncEntity(ctx, tagged("b", "tag", passwordType, []byte{1, 2, 3}))
-	require.Error(t, err)
-	assert.True(t, conflict)
+	create := tagged("b", "tag", passwordType, []byte{1, 2, 3})
+	conflict, err := db.InsertSyncEntity(ctx, create)
+	require.NoError(t, err)
+	assert.False(t, conflict)
+	assert.Equal(t, "a", create.ID)
+	assert.Empty(t, entityByID(t, db, "b"))
 	bytes, err := db.ChainBytes(ctx, "c1")
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), bytes, "nothing written")
+	assert.Equal(t, int64(3), bytes, "the new size replaces the old")
+
+	// A delete committed as a create (a tombstone of an entity this device
+	// never had) doesn't delete the live one.
+	tomb := tagged("d", "tag", passwordType, nil)
+	tomb.Deleted = ptr.Bool(true)
+	conflict, err = db.InsertSyncEntity(ctx, tomb)
+	require.Error(t, err)
+	assert.True(t, conflict)
 
 	// The same tag in another data type is another entity.
 	conflict, err = db.InsertSyncEntity(ctx, tagged("c", "other-tag", compassSpacesType, []byte{1}))
@@ -181,9 +196,12 @@ func TestSQLiteCreateOverTombstoneKeepsTheLatest(t *testing.T) {
 		datastore.NextMtime(), compassSpacesType)
 	require.NoError(t, err)
 
-	conflict, err := db.InsertSyncEntity(ctx, tagged("x", "tag", compassSpacesType, []byte{1}))
-	require.Error(t, err)
-	assert.True(t, conflict)
+	// A create then replaces the live one, the latest.
+	create := tagged("x", "tag", compassSpacesType, []byte{2})
+	conflict, err := db.InsertSyncEntity(ctx, create)
+	require.NoError(t, err)
+	assert.False(t, conflict)
+	assert.Equal(t, "new", create.ID)
 }
 
 func TestSQLiteCreateOverTombstoneQuota(t *testing.T) {
@@ -227,7 +245,16 @@ func TestSQLiteUndeleteByUpdateTakesTheTag(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, tags, 1)
 
-	conflict, err = db.InsertSyncEntity(ctx, tagged("b", "tag", passwordType, []byte{1}))
-	require.Error(t, err)
-	assert.True(t, conflict)
+	// The tag is live again: a create replaces the entity under its ID.
+	create := tagged("b", "tag", passwordType, []byte{3})
+	conflict, err = db.InsertSyncEntity(ctx, create)
+	require.NoError(t, err)
+	assert.False(t, conflict)
+	assert.Equal(t, "a", create.ID)
+	got := entityByID(t, db, "a")
+	require.Len(t, got, 1)
+	assert.Equal(t, []byte{3}, got[0].Specifics)
+	tags, err = db.AllTagItems(ctx)
+	require.NoError(t, err)
+	assert.Len(t, tags, 1)
 }

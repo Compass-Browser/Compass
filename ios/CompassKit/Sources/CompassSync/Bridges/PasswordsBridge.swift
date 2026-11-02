@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import Foundation
+import LocalAuthentication
 import Security
 import SwiftProtobuf
 import SyncProto
@@ -94,7 +95,7 @@ public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
     ]
     if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
     var result: CFTypeRef?
-    guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return [:] }
+    guard quietKeychainRead(q, &result, "profile names") == errSecSuccess, let data = result as? Data else { return [:] }
     return (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
   }
 
@@ -102,17 +103,19 @@ public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
   /// cover them all).
   public static func everyProfile(accessGroup: String?) -> [SavedPassword] {
     // The group holds other items too, among them ones behind Face ID (an
-    // extension's unlock password, ExtensionUnlock). Reading their data
-    // prompts, and at launch the app waited on that sheet. So: attributes
-    // only (never prompts) to find the password services, then each
-    // service's data.
+    // extension's unlock password, ExtensionUnlock). Touching one prompts,
+    // even for its attributes, and at launch the app waited on that sheet.
+    // So: list the services' attributes skipping such items
+    // (kSecUseAuthenticationUISkip, deprecated but the only way to list past
+    // one; a no-interaction context fails the whole list), then read each
+    // password service's data.
     var q: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword, kSecReturnAttributes as String: true,
-      kSecMatchLimit as String: kSecMatchLimitAll,
+      kSecMatchLimit as String: kSecMatchLimitAll, kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
     ]
     if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
     var result: CFTypeRef?
-    guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let items = result as? [[String: Any]]
+    guard quietKeychainRead(q, &result, "password services", skip: true) == errSecSuccess, let items = result as? [[String: Any]]
     else { return [] }
     let services = Set(items.compactMap { $0[kSecAttrService as String] as? String })
       .filter { $0 == baseService || $0.hasPrefix(baseService + ".") }
@@ -123,7 +126,7 @@ public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
       ]
       if let accessGroup { dq[kSecAttrAccessGroup as String] = accessGroup }
       var found: CFTypeRef?
-      guard SecItemCopyMatching(dq as CFDictionary, &found) == errSecSuccess, let list = found as? [Data] else { return [] }
+      guard quietKeychainRead(dq, &found, "passwords of \(service)") == errSecSuccess, let list = found as? [Data] else { return [] }
       let profile = service == baseService ? "" : String(service.dropFirst(baseService.count + 1))
       return list.compactMap { try? SyncPb_PasswordSpecificsData(serializedBytes: $0) }.map {
         var p = SavedPassword(data: $0)
@@ -144,7 +147,7 @@ public final class KeychainPasswordStore: PasswordStore, @unchecked Sendable {
     q[kSecReturnData as String] = true
     q[kSecMatchLimit as String] = kSecMatchLimitAll
     var result: CFTypeRef?
-    guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let items = result as? [Data] else {
+    guard quietKeychainRead(q, &result, "passwords of \(service)") == errSecSuccess, let items = result as? [Data] else {
       return []
     }
     return items.compactMap { try? SyncPb_PasswordSpecificsData(serializedBytes: $0) }.map {
@@ -333,4 +336,25 @@ public final class PasswordsBridge: DataTypeBridge, @unchecked Sendable {
     guard let host = pageURL.host()?.lowercased(), let scheme = pageURL.scheme?.lowercased() else { return false }
     return all.contains { $0.isBlocked && $0.signonRealm == "\(scheme)://\(host)/" }
   }
+}
+
+/// Reads Compass does on its own never ask for Face ID: the shared group
+/// also holds items behind it (an extension's unlock password,
+/// ExtensionUnlock), and a read that touches one would put the sheet up,
+/// at launch over a black app. Such items fail instead (and, in debug
+/// builds, say which read it was).
+public func quietKeychainRead(
+  _ query: [String: Any], _ result: UnsafeMutablePointer<CFTypeRef?>?, _ what: String, skip: Bool = false
+) -> OSStatus {
+  var q = query
+  if !skip {
+    let context = LAContext()
+    context.interactionNotAllowed = true
+    q[kSecUseAuthenticationContext as String] = context
+  }
+  let status = SecItemCopyMatching(q as CFDictionary, result)
+  #if DEBUG
+    if status == errSecInteractionNotAllowed { print("Keychain: \(what) would have asked for Face ID") }
+  #endif
+  return status
 }

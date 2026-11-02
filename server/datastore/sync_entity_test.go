@@ -115,12 +115,14 @@ func (suite *SyncEntityTestSuite) TestInsertSyncEntity() {
 	_, err = suite.db.InsertSyncEntity(context.Background(), &entity4)
 	suite.Require().NoError(err, "InsertSyncEntity with different server tag should succeed")
 
-	// Insert entity with the same client tag and ClientID should fail with conflict.
+	// A create with the same client tag and ClientID replaces the entity,
+	// keeping its ID (Compass: Chromium's semantics, the last writer wins).
 	entity4Copy := entity4
 	entity4Copy.ID = "id4_copy"
 	conflict, err := suite.db.InsertSyncEntity(context.Background(), &entity4Copy)
-	suite.Require().Error(err, "InsertSyncEntity with the same client tag and ClientID should fail")
-	suite.True(conflict, "Return conflict for duplicate client tag")
+	suite.Require().NoError(err, "InsertSyncEntity with a live client tag replaces it")
+	suite.False(conflict)
+	suite.Equal("id4", entity4Copy.ID, "The create takes the existing entity's ID")
 
 	// Insert entity with the same client tag for other client should not fail.
 	entity5 := entity3
