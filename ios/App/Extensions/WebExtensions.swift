@@ -150,12 +150,29 @@ final class WebExtensions: NSObject {
     controller.didChangeTabProperties(changed, for: tab(id))
   }
 
+  /// Tabs WebKit was told about (didOpenTab), once each.
+  @ObservationIgnored private var announcedTabs: Set<String> = []
+
   func tabOpened(_ id: String) {
-    guard #available(iOS 18.4, *), let controller, !controller.extensionContexts.isEmpty else { return }
+    guard #available(iOS 18.4, *), let controller, !controller.extensionContexts.isEmpty,
+      !announcedTabs.contains(id)
+    else { return }
+    announcedTabs.insert(id)
     controller.didOpenTab(tab(id))
   }
 
+  /// Tabs that opened before any extension was loaded (at launch, the
+  /// restored ones) are announced once one is, and the shown one activated.
+  private func announceLiveTabs() {
+    guard #available(iOS 18.4, *), let controller, let app else { return }
+    for id in app.tabs.live.keys.sorted() { tabOpened(id) }
+    if let shown = app.shownTab, app.tabs.live[shown.id] != nil {
+      controller.didActivateTab(tab(shown.id), previousActiveTab: nil)
+    }
+  }
+
   func tabClosed(_ id: String) {
+    announcedTabs.remove(id)
     guard #available(iOS 18.4, *), let controller else { return }
     if let adapter = tabAdapters.removeValue(forKey: id) as? ExtensionTab, !controller.extensionContexts.isEmpty {
       controller.didCloseTab(adapter, windowIsClosing: false)
@@ -436,6 +453,7 @@ final class WebExtensions: NSObject {
     do {
       try controller.load(context)
       contextsByID[record.id] = context
+      announceLiveTabs()
       keepAlive(context, id: record.id)
       // Started now rather than on its first event: extensions set their
       // badges and state up as they start.

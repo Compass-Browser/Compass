@@ -119,6 +119,10 @@ final class TabManager: NSObject {
     observe(view, as: id)
     live[id] = view
     bump(id)
+    // Before it loads, so extensions know the tab its pages talk from (a
+    // tab restored from the sidebar was never announced: 1Password's
+    // background then found no tab for its messages).
+    extensions?.tabOpened(id)
     if let url = URL(string: node.url), !node.url.isEmpty { view.load(URLRequest(url: url)) }
     return view
   }

@@ -342,17 +342,17 @@ enum ExtensionPackage {
             return wrapped.get(f);
           };
           const define = (object, key, value) => { try { Object.defineProperty(object, key, { value, configurable: false, writable: false }); } catch (e) {} };
-          define(onMessage, "addListener", function (f) { return add.call(this, wrap(f)); });
-          define(onMessage, "removeListener", function (f) { const result = remove.call(this, wrap(f)); wrapped.delete(f); return result; });
-          if (has) define(onMessage, "hasListener", function (f) { return wrapped.has(f) && has.call(this, wrapped.get(f)); });
+          define(onMessage, "addListener", function (f) { return add.call(onMessage, wrap(f)); });
+          define(onMessage, "removeListener", function (f) { const result = remove.call(onMessage, wrap(f)); wrapped.delete(f); return result; });
+          if (has) define(onMessage, "hasListener", function (f) { return wrapped.has(f) && has.call(onMessage, wrapped.get(f)); });
 
           if (isBackground && runtime.onConnect) {
             const onConnect = runtime.onConnect;
             const connectAdd = onConnect.addListener, connectRemove = onConnect.removeListener, connectHas = onConnect.hasListener;
             const listeners = new Set();
-            define(onConnect, "addListener", function (f) { listeners.add(f); return connectAdd.call(this, f); });
-            define(onConnect, "removeListener", function (f) { listeners.delete(f); return connectRemove.call(this, f); });
-            if (connectHas) define(onConnect, "hasListener", function (f) { return connectHas.call(this, f); });
+            define(onConnect, "addListener", function (f) { listeners.add(f); return connectAdd.call(onConnect, f); });
+            define(onConnect, "removeListener", function (f) { listeners.delete(f); return connectRemove.call(onConnect, f); });
+            if (connectHas) define(onConnect, "hasListener", function (f) { return connectHas.call(onConnect, f); });
             const ports = new Map();
             const flush = (record) => {
               if (!record.waiter) return;
