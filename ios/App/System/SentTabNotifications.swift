@@ -73,22 +73,29 @@ final class SentTabNotifications: NSObject, UNUserNotificationCenterDelegate {
     if let guid { app.sync.markSentTabOpened(guid, account: account) }
   }
 
+  // The completion-handler form, on the main actor (iOS calls the delegate
+  // on the main thread): the async form completes off it, and UIKit asserts
+  // (a crash on every tap).
   nonisolated func userNotificationCenter(
-    _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
-  ) async {
+    _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
     let content = response.notification.request.content
-    guard content.categoryIdentifier == Self.category,
+    if content.categoryIdentifier == Self.category,
       response.actionIdentifier == UNNotificationDefaultActionIdentifier,
       let url = content.userInfo["url"] as? String
-    else { return }
-    let guid = content.userInfo["guid"] as? String
-    let account = content.userInfo["account"] as? String ?? ""
-    await MainActor.run { open(url: url, guid: guid, account: account) }
+    {
+      let guid = content.userInfo["guid"] as? String
+      let account = content.userInfo["account"] as? String ?? ""
+      MainActor.assumeIsolated { open(url: url, guid: guid, account: account) }
+    }
+    completionHandler()
   }
 
   nonisolated func userNotificationCenter(
-    _ center: UNUserNotificationCenter, willPresent notification: UNNotification
-  ) async -> UNNotificationPresentationOptions {
-    [.banner, .list, .sound]
+    _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .list, .sound])
   }
 }
