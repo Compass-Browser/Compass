@@ -9,7 +9,10 @@ import WebKit
 /// One entry, full screen, under a floating glass bar: back, the address
 /// pill (opens the command bar; shows the load progress along its bottom),
 /// forward when there's somewhere to go, and the sidebar. Swiping the bar
-/// left or right moves between the space's entries. Swiping it up opens,
+/// left or right moves between the space's entries, as in Safari: the page
+/// and the bar follow the finger and the next entry's (its last snapshot
+/// and its bar) slides in beside them; let go past a third of the screen,
+/// or flick, and it takes over, else both spring back. Swiping it up opens,
 /// by where the finger starts: on its left third the tab picker, in the
 /// middle the sidebar (both follow the finger), on its right third the
 /// command bar for a new tab. With no entry selected it's an empty page in
@@ -21,6 +24,10 @@ struct BrowserScreen: View {
   @State private var dragAxis: Axis?
   /// Where a swipe up on the bar started: what it opens.
   @State private var dragZone: Zone = .center
+  /// A sideways swipe on the bar: how far the page and bar have moved.
+  @State private var swipeX: CGFloat = 0
+  /// The neighbors are drawn: from the swipe's start until it settles.
+  @State private var swiping = false
   enum Zone { case left, center, right }
   /// The menu button's center on screen: where a download's arrow lands.
   @State private var menuCenter: CGPoint?
@@ -75,19 +82,17 @@ struct BrowserScreen: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
       }
-      Group {
-        if let tab = app.shownTab {
-          WebView(
-            webView: app.tabs.webView(for: tab),
-            bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
-            .id(tab.id)
-            // The page runs under the bar; WKWebView insets its content by
-            // the safe area, so the page's end still scrolls clear of it.
-            .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
-        } else {
-          emptyPage
+      page
+      .overlay {
+        if swiping {
+          ZStack {
+            if let next = neighbor(1) { preview(next).offset(x: Self.width) }
+            if let previous = neighbor(-1) { preview(previous).offset(x: -Self.width) }
+          }
+          .allowsHitTesting(false)
         }
       }
+      .offset(x: swipeX)
       .safeAreaInset(edge: .bottom, spacing: 0) {
         VStack(spacing: 8) {
           if let pending = app.passwords.pendingSave { saveBanner(pending) }
@@ -96,12 +101,95 @@ struct BrowserScreen: View {
               .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
           } else {
             bar
+              .overlay {
+                if swiping {
+                  ZStack {
+                    if let next = neighbor(1) { ghostBar(next).offset(x: Self.width) }
+                    if let previous = neighbor(-1) { ghostBar(previous).offset(x: -Self.width) }
+                  }
+                  .allowsHitTesting(false)
+                }
+              }
+              .offset(x: swipeX)
               .transition(.scale(scale: 0.9, anchor: .bottom).combined(with: .opacity))
           }
         }
         .animation(.snappy(duration: 0.25), value: app.passwords.pendingSave == nil)
       }
     }
+  }
+
+  private static var width: CGFloat { SidebarPanel.screenWidth }
+
+  /// The shown entry's page, or its space's color when there's none.
+  @ViewBuilder private var page: some View {
+    Group {
+      if let tab = app.shownTab {
+        WebView(
+          webView: app.tabs.webView(for: tab),
+          bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight)
+          .id(tab.id)
+          // The page runs under the bar; WKWebView insets its content by
+          // the safe area, so the page's end still scrolls clear of it.
+          .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
+      } else {
+        emptyPage
+      }
+    }
+  }
+
+  /// The tab an entry shows (a split's first pane).
+  private func tab(of node: SidebarNode) -> SidebarNode? {
+    node.isSplit ? node.children.first(where: \.isPhoneVisible) ?? node.children.first : node
+  }
+
+  /// A neighbor entry's page while the bar is swiped: how it looked when it
+  /// was left, or its icon and title when it has no snapshot (not loaded).
+  private func preview(_ node: SidebarNode) -> some View {
+    let tab = tab(of: node)
+    return ZStack {
+      Color(.systemBackground)
+      if let tab, let image = app.tabs.snapshots[tab.id] {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .clipped()
+      } else if let tab {
+        VStack(spacing: 12) {
+          SiteIcon(url: tab.url, size: 48)
+          Text(tab.displayTitle).font(.headline).foregroundStyle(.secondary).lineLimit(2)
+        }
+        .padding(32)
+      }
+    }
+    .ignoresSafeArea()
+  }
+
+  /// A neighbor entry's bar while the bar is swiped: the same capsule, its
+  /// site in the pill.
+  private func ghostBar(_ node: SidebarNode) -> some View {
+    let tab = tab(of: node)
+    return HStack(spacing: 2) {
+      BarIcon(symbol: "chevron.backward").opacity(0.3)
+      BarIcon(symbol: "chevron.forward").opacity(0.3)
+      HStack(spacing: 7) {
+        if let tab { SiteIcon(url: tab.url, size: 16) }
+        Text(tab.map { host(of: $0.url) } ?? "").font(.system(size: 16, weight: .medium)).lineLimit(1)
+      }
+      .padding(.horizontal, 14)
+      .frame(maxWidth: .infinity)
+      .frame(height: 44)
+      .background(Color.primary.opacity(0.07), in: Capsule())
+      BarIcon(symbol: "plus")
+      BarIcon(symbol: "ellipsis")
+    }
+    .foregroundStyle(.primary)
+    .padding(5)
+    .floatingGlass(in: Capsule())
+    .padding(.horizontal, 12)
+    .padding(.bottom, 2)
+    .accessibilityHidden(true)
   }
 
   private var emptyPage: some View {
@@ -230,6 +318,12 @@ struct BrowserScreen: View {
             dragZone = x < third ? .left : x > 2 * third ? .right : .center
             if dragAxis == .vertical, dragZone == .left { app.preparePicker() }
           }
+          if dragAxis == .horizontal {
+            swiping = true
+            // Past the space's ends it only gives a little.
+            swipeX = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
+            return
+          }
           guard dragAxis == .vertical else { return }
           switch dragZone {
           case .left: app.pickerDrag = min(max(-dy / TabPicker.travel, 0), 1)
@@ -240,7 +334,7 @@ struct BrowserScreen: View {
         .onEnded { value in
           defer { dragAxis = nil }
           if dragAxis == .horizontal {
-            if abs(value.translation.width) > 30 { step(value.translation.width < 0 ? 1 : -1) }
+            settleSwipe(value.translation.width, predicted: value.predictedEndTranslation.width)
             return
           }
           switch dragZone {
@@ -326,19 +420,46 @@ struct BrowserScreen: View {
   }
 
   private var host: String {
-    guard let tab = app.shownTab, let url = URL(string: tab.url) else { return "Search or enter address" }
-    return url.host()?.replacingOccurrences(of: "www.", with: "") ?? tab.url
+    guard let tab = app.shownTab else { return "Search or enter address" }
+    return host(of: tab.url)
   }
 
-  /// The next or previous entry of the space: pinned, then Today (newest first).
-  private func step(_ delta: Int) {
-    guard let node, let space = app.store.space(of: node) else { return }
+  private func host(of url: String) -> String {
+    URL(string: url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? url
+  }
+
+  /// The next (1) or previous (-1) entry of the space: pinned, then Today
+  /// (newest first).
+  private func neighbor(_ delta: Int) -> SidebarNode? {
+    guard let node, let space = app.store.space(of: node) else { return nil }
     let entries = (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
       .filter { !$0.isFolder && $0.parent?.isSplit != true && $0.isPhoneVisible }
-    guard let index = entries.firstIndex(where: { $0 === node }) else { return }
+    guard let index = entries.firstIndex(where: { $0 === node }) else { return nil }
     let next = index + delta
-    guard entries.indices.contains(next) else { return }
-    withAnimation(.easeInOut(duration: 0.2)) { app.show(entries[next]) }
+    return entries.indices.contains(next) ? entries[next] : nil
+  }
+
+  /// The swipe let go `dx` from where it started: past a third of the
+  /// screen (or flicked past half) the neighbor slides in and is shown;
+  /// otherwise the page springs back.
+  private func settleSwipe(_ dx: CGFloat, predicted: CGFloat) {
+    let delta = dx < 0 ? 1 : -1
+    let flicked = abs(predicted) > Self.width / 2 && (predicted < 0) == (dx < 0)
+    let spring = Animation.spring(duration: 0.32, bounce: 0)
+    guard let next = neighbor(delta), abs(dx) > Self.width / 3 || flicked else {
+      withAnimation(spring) { swipeX = 0 } completion: { swiping = false }
+      return
+    }
+    withAnimation(spring) { swipeX = -CGFloat(delta) * Self.width } completion: {
+      // The neighbor is where the page was: swap them in one frame.
+      var instant = Transaction()
+      instant.disablesAnimations = true
+      withTransaction(instant) {
+        app.show(next)
+        swipeX = 0
+        swiping = false
+      }
+    }
   }
 }
 

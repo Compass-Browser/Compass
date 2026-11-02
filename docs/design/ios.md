@@ -123,7 +123,7 @@ Live state is separate. A `LiveTabRegistry` maps node → WKWebView, keeps at mo
 - **Browser screen.**
   - The web view runs full-bleed, with a slim bottom bar: an address pill, back/forward and a "sidebar" button.
   - The bottom bar hides on scroll down and shows on scroll up.
-  - Swiping horizontally on the bar moves between the space's Today/Pinned entries.
+  - Swiping horizontally on the bar moves between the space's Today/Pinned entries, as in Safari: the page and the bar follow the finger and the neighbor (its last snapshot, or its icon and title when it isn't loaded, and its bar) slides in beside them. Let go past a third of the screen, or flick past half, and it takes over; otherwise both spring back. Past the space's ends the swipe only gives a little.
   - Swiping up on the bar opens, by where the finger starts: on its left third the tab picker, in the middle the sidebar (both follow the finger), on its right third the command bar for a new tab.
 - **Tab picker** (`TabPicker`): the loaded tabs only, as cards with their snapshot (taken as a tab is left and as the picker opens, in memory), least recently shown at the left. Cards left of the centered one stack behind it; cards to its right lie on top. A tap shows a tab, a flick up closes it (a Today entry goes to the archive, anything else unloads), a drag down closes the picker. One button: + (new tab).
 - **Sidebar screen** (the home of the app):

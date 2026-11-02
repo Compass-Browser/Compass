@@ -38,6 +38,7 @@
 		A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */; };
 		AB4A065A118291BDC5BCE374 /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8869F83B348CDAA446122C7 /* DownloadsView.swift */; };
 		AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC2CC0BF44F21272D32F82C /* TabManager.swift */; };
+		B1DF018F14113ACC2CC3B06C /* SwipeTabsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */; };
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		BC4149FED3CDEE2BAD4F8D46 /* DesktopViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44957DA68D5128D0EA074A29 /* DesktopViewport.swift */; };
 		C0BD671E658A7208DC60961E /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5BEABA7BC320887A692FA4D5 /* Compass.icon */; };
@@ -86,6 +87,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeTabsTests.swift; sourceTree = "<group>"; };
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1BD1561E3D74DB1D613CF34A /* Compass.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Compass.entitlements; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -184,6 +186,7 @@
 				624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */,
 				47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */,
 				7B66E7F289F786C4A3390EDE /* SidebarPanelTests.swift */,
+				038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */,
 				2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */,
 				630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */,
 				FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */,
@@ -487,6 +490,7 @@
 				859F8C08EFB2E77F4C28339E /* PageMenuTests.swift in Sources */,
 				32D1028950616C4F9FE0BB50 /* SettingsTests.swift in Sources */,
 				02D9974025C6C07737B94B93 /* SidebarPanelTests.swift in Sources */,
+				B1DF018F14113ACC2CC3B06C /* SwipeTabsTests.swift in Sources */,
 				E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */,
 				00A6BE257AB3E0E63D12E8FB /* TabPickerTests.swift in Sources */,
 				8E292FD1B0506116F383F4DC /* ThemeEditorTests.swift in Sources */,
