@@ -1,0 +1,74 @@
+<!doctype html>
+<!-- Self-checking test for page_agent.js. Run headless (no window, no focus):
+     out/<build>/Compass --headless=new --use-mock-keychain --no-first-run \
+       --user-data-dir=$(mktemp -d) --allow-file-access-from-files \
+       --dump-dom file://$PWD/common/claude/test/page_agent_test.html | grep RESULT
+     It prints "RESULT PASS" or "RESULT FAIL" with the failed checks. -->
+<html><head><title>Agent test</title></head><body>
+<nav><a href="/home">Home</a> <a href="/docs">Docs</a></nav>
+<main><h1>Sign up</h1><p>Fill the form <b>below</b>.</p>
+<form id=f onsubmit="event.preventDefault(); document.title = 'submitted:' + email.value">
+<label for=email>Email</label> <input id=email type=email placeholder="you@example.com">
+<label>Name <input id=name></label>
+<select id=plan><option value=free>Free</option><option value=pro>Pro plan</option></select>
+<label><input type=checkbox id=tos> I agree</label>
+<textarea id=bio placeholder=Bio></textarea>
+<div class=fake style="cursor:pointer" onclick="this.textContent = 'clicked'">Fake button</div>
+<button type=submit>Create account</button>
+</form>
+<div style="display:none"><button>Hidden button</button></div>
+<my-el></my-el></main>
+<script>
+customElements.define('my-el', class extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({mode: 'open'}).innerHTML =
+        '<button aria-label="Shadow action" onclick="this.dataset.hit=1">x</button>';
+  }
+});
+</script>
+<script src="../page_agent.js"></script>
+<script>
+const A = __compassAgent, failures = [];
+const check = (name, cond, detail) => { if (!cond) failures.push(name + ': ' + JSON.stringify(detail)); };
+const ref = (q) => A.find({query: q}).matches[0]?.ref;
+
+const tree = A.readPage({}).tree;
+check('paragraph is one line', tree.includes('paragraph "Fill the form below."'), tree);
+check('label text not repeated', !tree.includes('text: Email'), tree);
+check('select lists options', tree.includes('options=[Free | Pro plan]'), tree);
+check('hidden skipped', !tree.includes('Hidden button'), tree);
+check('shadow DOM read', tree.includes('button "Shadow action"'), tree);
+check('pointer div clickable', tree.includes('clickable "Fake button"'), tree);
+const tree2 = A.readPage({}).tree;
+check('refs stable', tree === tree2, tree2);
+const inter = A.readPage({filter: 'interactive'}).tree;
+check('interactive only', !inter.includes('heading') && inter.includes('button "Create account"'), inter);
+
+check('find select by option', A.find({query: 'pro plan'}).matches[0]?.role === 'combobox');
+check('fill email', A.formInput({ref: ref('you@example'), value: 'a@b.it'}).ok);
+check('fill select', A.formInput({ref: ref('Pro plan'), value: 'Pro plan'}).value === 'Pro plan');
+check('fill checkbox', A.formInput({ref: ref('I agree'), value: true}).value === true);
+check('click', A.click({ref: ref('Fake button')}).ok);
+check('click in shadow', A.click({ref: ref('Shadow action')}).ok);
+check('type', A.type({ref: ref('Bio'), text: 'hello'}).ok);
+check('backspace', A.key({keys: 'Backspace Backspace'}).ok);
+const r = A.rect({ref: ref('Create account')});
+check('rect', r.ok && r.inViewport && r.element.name === 'Create account', r);
+check('elementAt', A.elementAt({x: r.x, y: r.y}).element?.name === 'Create account');
+check('stale ref', A.click({ref: 'e999'}).ok === false);
+A.focus({ref: ref('you@example')});
+A.key({keys: 'Enter'});
+
+check('title after submit', document.title === 'submitted:a@b.it', document.title);
+check('fake clicked', document.querySelector('.fake').textContent === 'clicked');
+check('shadow clicked', document.querySelector('my-el').shadowRoot.querySelector('button').dataset.hit === '1');
+check('bio', bio.value === 'hel', bio.value);
+check('plan', plan.value === 'pro', plan.value);
+check('tos', tos.checked === true);
+check('page text', A.pageText({}).text.includes('Fill the form below.'));
+
+const out = document.createElement('pre');
+out.textContent = 'RESULT ' + (failures.length ? 'FAIL\n' + failures.join('\n') : 'PASS');
+document.body.append(out);
+</script></body></html>

@@ -1,0 +1,350 @@
+{
+  "version": 1,
+  "notes": "Shared by desktop (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it. Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md.",
+  "tools": [
+    {
+      "scope": "page",
+      "definition": {
+        "name": "read_page",
+        "description": "Read the current tab as a tree of visible elements: role, accessible name, state, and a ref id (like \"e12\") for every element you can act on. Refs stay the same across reads of the same document. Use filter \"interactive\" for a short list of controls only. Prefer this over screenshots to find things to click or fill.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "filter": {
+              "type": "string",
+              "enum": ["all", "interactive"],
+              "description": "\"all\" (default) includes headings, text and structure; \"interactive\" lists only links, buttons, fields and other controls."
+            },
+            "ref": {
+              "type": "string",
+              "description": "Read only the subtree under this ref."
+            },
+            "max_chars": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 100000,
+              "description": "Cut the output after this many characters (default 20000)."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "get_page_text",
+        "description": "Get the main text of the current tab as plain text (article body when one is found, otherwise the whole page), with its title and URL.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "max_chars": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 200000,
+              "description": "Cut the output after this many characters (default 50000)."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "find",
+        "description": "Find elements in the current tab whose accessible name, text, label, placeholder or value contains the query (case-insensitive). Returns matching elements with their ref, role and name.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "max_results": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Default 20."
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "screenshot",
+        "description": "Take a screenshot of the visible part of the current tab. Coordinates for click, hover and scroll are in this image's pixels.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string",
+              "description": "Scroll this element into view first."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "read_console",
+        "description": "Read the current tab's JavaScript console: console.* messages, uncaught errors and unhandled promise rejections, oldest first, with level, text, source location and time.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "only_new": {
+              "type": "boolean",
+              "description": "Only messages since the last read_console in this chat (default true)."
+            },
+            "levels": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["debug", "log", "info", "warning", "error"] },
+              "description": "Only these levels (default all)."
+            },
+            "pattern": {
+              "type": "string",
+              "description": "Only messages whose text matches this regular expression."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "At most this many messages, the most recent ones (default 100)."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "run_js",
+        "description": "Run JavaScript in the current tab's page, as if typed in its console. The value of the last expression is returned as JSON; a returned promise is awaited. Use it to inspect state, not to bypass the page's own UI when the user asked you to use it.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "code": { "type": "string" }
+          },
+          "required": ["code"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "click",
+        "description": "Click an element by ref, or a point in the latest screenshot. The click goes to the page only; the user's own mouse is not moved.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "ref": { "type": "string" },
+            "coordinate": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2,
+              "description": "[x, y] in screenshot pixels. Use ref when you have one."
+            },
+            "button": {
+              "type": "string",
+              "enum": ["left", "right", "middle"],
+              "description": "Default left."
+            },
+            "click_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3,
+              "description": "2 for a double click (default 1)."
+            },
+            "modifiers": {
+              "type": "string",
+              "description": "Keys held during the click, joined with +: shift, ctrl, alt, cmd (e.g. \"cmd+shift\")."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "hover",
+        "description": "Move the page's pointer over an element by ref, or a point in the latest screenshot, to show menus or tooltips. The user's own mouse is not moved.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "ref": { "type": "string" },
+            "coordinate": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "type",
+        "description": "Type text into the focused element, or into the element given by ref (it is focused first). Text is inserted where the caret is; use form_input to replace a field's whole value.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "ref": { "type": "string" }
+          },
+          "required": ["text"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "key",
+        "description": "Press keys in the page: one key or combo, or several separated by spaces, e.g. \"Enter\", \"Tab Tab\", \"cmd+a Backspace\", \"Escape\", \"ArrowDown\". Use cmd on macOS and ctrl elsewhere for shortcuts.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "keys": { "type": "string" },
+            "repeat": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Press the whole sequence this many times (default 1)."
+            }
+          },
+          "required": ["keys"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "scroll",
+        "description": "Scroll the page, or the scrollable area under a ref or a point.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "direction": { "type": "string", "enum": ["up", "down", "left", "right"] },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "description": "In steps of about a third of the viewport (default 3)."
+            },
+            "ref": { "type": "string" },
+            "coordinate": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["direction"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "form_input",
+        "description": "Set a form field's value by ref: text fields and text areas (replaces the value), selects (by option value or visible text), checkboxes and radios (true or false). Fires the page's input and change events.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "ref": { "type": "string" },
+            "value": {
+              "type": ["string", "number", "boolean"]
+            }
+          },
+          "required": ["ref", "value"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "navigate",
+        "description": "Load a URL in the current tab, or go \"back\", \"forward\" or \"reload\". Waits for the page to load (up to 15 seconds).",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "An http(s) URL, or one of \"back\", \"forward\", \"reload\"."
+            }
+          },
+          "required": ["url"]
+        }
+      }
+    },
+    {
+      "scope": "page",
+      "definition": {
+        "name": "wait",
+        "description": "Wait before the next step, for a page to finish loading or animating.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "seconds": { "type": "number", "minimum": 0.1, "maximum": 10 }
+          },
+          "required": ["seconds"]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "definition": {
+        "name": "list_tabs",
+        "description": "List the open tabs in every window and space: tab_id, title, URL, window, space, and which tab is active and which one you are acting on.",
+        "input_schema": { "type": "object", "properties": {} }
+      }
+    },
+    {
+      "scope": "browser",
+      "definition": {
+        "name": "open_tab",
+        "description": "Open a URL in a new tab in the current window's space. It opens in the background unless active is true, and becomes the tab you act on.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string" },
+            "active": {
+              "type": "boolean",
+              "description": "Bring it to the front (default false)."
+            }
+          },
+          "required": ["url"]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "definition": {
+        "name": "select_tab",
+        "description": "Make the page tools act on another tab, by tab_id from list_tabs. It doesn't bring the tab to the front.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": { "type": "string" }
+          },
+          "required": ["tab_id"]
+        }
+      }
+    },
+    {
+      "scope": "browser",
+      "definition": {
+        "name": "close_tab",
+        "description": "Close a tab you opened in this chat, by tab_id. Tabs the user opened can't be closed.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "tab_id": { "type": "string" }
+          },
+          "required": ["tab_id"]
+        }
+      }
+    }
+  ]
+}
