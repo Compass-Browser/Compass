@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index 0d30190f42bf2e259481422bd0445be5ebc1f6de..2a8e349edc2460ec65ed9136d0a79eb734b8576a 100644
+index 0d30190f42bf2e259481422bd0445be5ebc1f6de..3679e57f67d54ded59bde706f88bc4f3927d6ba7 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
 @@ -86,8 +86,10 @@
@@ -14,7 +14,7 @@ index 0d30190f42bf2e259481422bd0445be5ebc1f6de..2a8e349edc2460ec65ed9136d0a79eb7
              class="cr-nav-menu-item">
  <if expr="not _google_chrome">
            <cr-icon icon="settings:person"></cr-icon>
-@@ -98,6 +100,25 @@
+@@ -98,6 +100,31 @@
            <span class="menu-label">$i18n{peoplePageTitle}</span>
            <cr-ripple></cr-ripple>
          </a>
@@ -35,6 +35,12 @@ index 0d30190f42bf2e259481422bd0445be5ebc1f6de..2a8e349edc2460ec65ed9136d0a79eb7
 +            class="cr-nav-menu-item">
 +          <cr-icon icon="settings20:archive"></cr-icon>
 +          <span class="menu-label">Import from Arc</span>
++          <cr-ripple></cr-ripple>
++        </a>
++        <a role="menuitem" id="compassClaude" href="/claude"
++            class="cr-nav-menu-item">
++          <cr-icon icon="settings20:button-magic"></cr-icon>
++          <span class="menu-label">Claude</span>
 +          <cr-ripple></cr-ripple>
 +        </a>
          <a role="menuitem" id="autofill" href="/autofill"

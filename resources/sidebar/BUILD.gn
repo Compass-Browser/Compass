@@ -53,6 +53,7 @@ build_webui("build") {
   # markup is in their .html file.
   web_component_files = [
     "settings/arc_import_page.ts",
+    "settings/claude_page.ts",
     "settings/shortcuts_page.ts",
     "settings/sync_page.ts",
   ]
@@ -80,12 +81,14 @@ build_webui("build") {
   ]
 
   mojo_files_deps = [
+    "//compass/browser/ui/webui/claude:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
   ]
   mojo_files = [
+    "$root_gen_dir/compass/browser/ui/webui/claude/claude.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/find_bar/find_bar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",

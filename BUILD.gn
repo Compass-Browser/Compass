@@ -12,6 +12,7 @@ test("compass_unittests") {
   deps = [
     "//chrome/test:test_support_unit",
     "//compass/browser/arc_import:unit_tests",
+    "//compass/browser/claude:unit_tests",
     "//compass/browser/native_messaging:unit_tests",
     "//compass/browser/prefs:unit_tests",
     "//compass/browser/shortcuts:unit_tests",

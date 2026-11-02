@@ -8,6 +8,7 @@
 source_set("sections") {
   sources = [ "settings_sections.h" ]
   public_deps = [
+    "//compass/browser/ui/webui/claude:mojo_bindings",
     "//compass/browser/ui/webui/sidebar:mojo_bindings",
     "//compass/browser/ui/webui/sync:mojo_bindings",
     "//mojo/public/cpp/bindings",

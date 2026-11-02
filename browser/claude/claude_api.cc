@@ -1,0 +1,153 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "compass/browser/claude/claude_api.h"
+
+#include "base/json/json_reader.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/values.h"
+#include "compass/browser/claude/claude_prefs.h"
+#include "components/prefs/pref_service.h"
+#include "net/base/url_util.h"
+#include "net/http/http_request_headers.h"
+#include "net/http/http_status_code.h"
+
+namespace compass::claude {
+
+Endpoint::Endpoint() = default;
+Endpoint::Endpoint(const Endpoint&) = default;
+Endpoint& Endpoint::operator=(const Endpoint&) = default;
+Endpoint::~Endpoint() = default;
+
+std::optional<GURL> ParseBaseUrl(std::string_view text) {
+  const std::string_view trimmed =
+      base::TrimWhitespaceASCII(text, base::TRIM_ALL);
+  if (trimmed.empty()) {
+    return GURL(kDefaultBaseUrl);
+  }
+  GURL url(trimmed);
+  if (!url.is_valid() || url.has_query() || url.has_ref() ||
+      url.has_username() || url.has_password()) {
+    return std::nullopt;
+  }
+  // The key goes along with every request: only over TLS, or to this
+  // computer.
+  if (!url.SchemeIs("https") &&
+      !(url.SchemeIs("http") && net::IsLocalhost(url))) {
+    return std::nullopt;
+  }
+  std::string path(url.path());
+  while (path.size() > 1 && path.back() == '/') {
+    path.pop_back();
+  }
+  if (path == "/") {
+    path.clear();
+  }
+  // Replacements keep a view of |path|, which outlives them.
+  GURL::Replacements replacements;
+  replacements.SetPathStr(path);
+  return url.ReplaceComponents(replacements);
+}
+
+GURL EndpointUrl(const GURL& base_url, std::string_view path) {
+  std::string base_path(base_url.path());
+  if (base_path.empty() || base_path.back() != '/') {
+    base_path.push_back('/');
+  }
+  GURL::Replacements replacements;
+  const std::string full = base::StrCat({base_path, path});
+  replacements.SetPathStr(full);
+  return base_url.ReplaceComponents(replacements);
+}
+
+void AddRequestHeaders(const Endpoint& endpoint,
+                       net::HttpRequestHeaders& headers) {
+  headers.SetHeader("anthropic-version", kApiVersion);
+  if (endpoint.auth_style == AuthStyle::kBearer) {
+    headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
+                      base::StrCat({"Bearer ", endpoint.api_key}));
+  } else {
+    headers.SetHeader("x-api-key", endpoint.api_key);
+  }
+}
+
+Endpoint EndpointFromPrefs(const PrefService& prefs) {
+  Endpoint endpoint;
+  endpoint.base_url =
+      ParseBaseUrl(prefs.GetString(prefs::kBaseUrl)).value_or(
+          GURL(kDefaultBaseUrl));
+  endpoint.auth_style = prefs.GetInteger(prefs::kAuthStyle) ==
+                                static_cast<int>(AuthStyle::kBearer)
+                            ? AuthStyle::kBearer
+                            : AuthStyle::kApiKey;
+  return endpoint;
+}
+
+std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json) {
+  std::optional<base::DictValue> dict =
+      base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
+  if (!dict) {
+    return std::nullopt;
+  }
+  const base::ListValue* data = dict->FindList("data");
+  if (!data) {
+    return std::nullopt;
+  }
+  std::vector<ModelInfo> models;
+  for (const base::Value& item : *data) {
+    const base::DictValue* model = item.GetIfDict();
+    const std::string* id = model ? model->FindString("id") : nullptr;
+    if (!id || id->empty()) {
+      continue;
+    }
+    const std::string* name = model->FindString("display_name");
+    models.push_back({*id, name && !name->empty() ? *name : *id});
+  }
+  return models;
+}
+
+std::string DescribeError(int http_status, std::string_view body) {
+  if (http_status == 0) {
+    return "Couldn't reach the server. Check the connection and the "
+           "endpoint URL.";
+  }
+  if (std::optional<base::DictValue> dict =
+          base::JSONReader::ReadDict(body, base::JSON_PARSE_RFC)) {
+    if (const base::DictValue* error = dict->FindDict("error")) {
+      const std::string* message = error->FindString("message");
+      if (message && !message->empty()) {
+        return *message;
+      }
+    }
+  }
+  switch (http_status) {
+    case net::HTTP_UNAUTHORIZED:
+      return "The key was refused (401). Check it, and the auth style.";
+    case net::HTTP_FORBIDDEN:
+      return "The key isn't allowed to do this (403).";
+    case net::HTTP_NOT_FOUND:
+      return "Nothing answers at that URL (404). Check the endpoint URL.";
+    case net::HTTP_TOO_MANY_REQUESTS:
+      return "Too many requests (429). Wait a moment and try again.";
+    case 529:
+      return "Claude is overloaded (529). Try again in a moment.";
+    default:
+      return base::StrCat(
+          {"The server answered with HTTP ", base::NumberToString(http_status),
+           "."});
+  }
+}
+
+std::string KeyHint(std::string_view key) {
+  key = base::TrimWhitespaceASCII(key, base::TRIM_ALL);
+  if (key.size() < 12) {
+    return "…";
+  }
+  // "sk-ant-" for Claude API keys; whatever the first seven are otherwise.
+  return base::StrCat({key.substr(0, 7), "…", key.substr(key.size() - 4)});
+}
+
+}  // namespace compass::claude

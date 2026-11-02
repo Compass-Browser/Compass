@@ -93,13 +93,19 @@ Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes
 - **Conversation lifetime.** One conversation per window, kept in memory, and it survives closing the panel. Saved history comes later.
 
 ### Browser-side services (per profile, `browser/claude/`, new)
-- **`ClaudeSettings`**: the prefs (registered in `browser/prefs/compass_prefs.cc`, never synced):
-  - `compass.claude.base_url` (default `https://api.anthropic.com`);
-  - `compass.claude.auth_style` (`x-api-key` | `bearer`);
-  - `compass.claude.model` (default `claude-sonnet-5-5`);
-  - `compass.claude.browser_scope` (bool, default false);
-  - `compass.claude.api_key_encrypted`, encrypted with `os_crypt_async` (the "Compass Safe Storage" keychain item already exists). The key never reaches a renderer.
-- **`ClaudeClient`**: sends one streaming request to `POST {base}/v1/messages` with `SimpleURLLoader` plus a stream consumer, parses SSE (`message_start`, `content_block_delta`, `message_stop`, errors) and passes events up. It also implements `GET /v1/models` for the picker and the "Test connection" button.
+- **Prefs** (`browser/claude/claude_prefs.{h,cc}`, target `:prefs`, registered from `compass::RegisterCompassProfilePrefs()`; none sync):
+  - `compass.claude.api_key`: the key, encrypted with `os_crypt_async` (the "Compass Safe Storage" Keychain item on macOS), base64. Only `ClaudeCredentials` reads or writes it, and the key never reaches a renderer;
+  - `compass.claude.api_key_hint`: `sk-ant-…a1b2`, all settings show;
+  - `compass.claude.base_url`: empty for the Claude API;
+  - `compass.claude.auth_style`: `x-api-key` or `Authorization: Bearer`;
+  - `compass.claude.model` (default `claude-opus-5-5`);
+  - `compass.claude.browser_scope` (bool, default false).
+- **Base URL rules** (`ParseBaseUrl()`): https, or http only to this computer (local gateways, tests). No query, fragment or credentials. A path is kept for gateways that serve the API under one. The key goes with every request, so it never travels in the clear.
+- **`ClaudeCredentials`** (`claude_credentials.{h,cc}`): `SetApiKey()` / `GetApiKey()` (async, through `os_crypt_async`), `HasApiKey()`, `GetApiKeyHint()`.
+- **`ClaudeClient`** (`claude_client.{h,cc}`, `claude_api.{h,cc}`, `sse_parser.{h,cc}`): sends one streaming request to `POST {base}/v1/messages` with `SimpleURLLoader` plus a stream consumer, parses SSE with `SseParser`, and passes each event up (`message_start`, `content_block_delta`, `message_stop`, ...).
+  - An `error` event, an HTTP error (the API's own message, `DescribeError()`), a network failure, or a stream that ends without `message_stop` ends the stream with an error the user can read.
+  - It also implements `GET /v1/models?limit=100`, for the model picker and the "Test connection" button.
+  - Every request sends `anthropic-version: 2026-10-21` (`kApiVersion`).
   - Requests send `anthropic-version`.
   - They put prompt caching (`cache_control`) on the system prompt and tools.
   - A key or URL change cancels requests in flight.
@@ -121,15 +127,24 @@ Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes
   - `PageHandler.RunTool(name, input_json) → result_json` (text or image blocks).
   - Also `Stop()`, `GetSettingsState()` and `OpenSettings()`.
 - **Where the agent loop runs.** The loop itself (append the assistant turn, run each `tool_use`, append `tool_result`, repeat until `end_turn`, or stop after a maximum number of steps) lives in TypeScript (`resources/sidebar/chat/agent.ts`). Prompting and loop changes then don't need a C++ rebuild, while the key, the network and the permissions stay in the browser process.
+- **Request defaults for D3**, from the Claude API reference:
+  - adaptive thinking with `display: "summarized"`, so the panel can show what Claude is doing;
+  - `cache_control` on the system prompt and tools;
+  - `stop_reason: "refusal"` handled before reading `content`;
+  - on the Claude API only (not custom endpoints), the server-side fallback (`fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`);
+  - no forced `tool_choice`, which Opus 5.5 refuses.
 - **Context control.** Only the two most recent screenshots stay in the request. Long page reads are cut at `maxChars`.
 
 ### Settings
+
+Status: done on `claude/d2-claude-client` (2026-11-02): `SseParserTest.*`, `ClaudeApiTest.*` (12/12), `ClaudeSettingsHandlerBrowserTest.*` and `SettingsSectionsBrowserTest.*` (10/10) pass in out/Fast. Not yet tried with a real key.
+
 - **New section "Claude"**, following the pattern in `docs/design/settings.md`: `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`, and the `route.ts`, `router.ts`, `settings_menu`, `settings_main` and BUILD patches.
   - The handler is bound in `browser/ui/webui/settings/settings_sections.cc` and the settings broker list.
 - **Fields:**
   - an API key (password field showing only `sk-ant-…last4` once saved, plus a Remove button);
   - the endpoint URL and auth style under "Advanced";
-  - a model picker filled from `/v1/models`;
+  - a model picker: the current models until "Test connection" lists the ones the key can use, plus any id already saved (a gateway's);
   - "Test connection";
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages.
 

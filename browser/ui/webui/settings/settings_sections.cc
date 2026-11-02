@@ -8,7 +8,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
+#include "compass/browser/ui/webui/claude/claude_settings_handler.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sync/compass_sync_ui.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
@@ -43,11 +45,19 @@ class SettingsSectionsImpl : public SettingsSections {
         std::make_unique<SyncPageHandlerFactory>(web_ui_, std::move(receiver));
   }
 
+  void Bind(mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver)
+      override {
+    claude_.reset();
+    claude_ = std::make_unique<claude::ClaudeSettingsHandler>(
+        Profile::FromWebUI(web_ui_), std::move(receiver));
+  }
+
  private:
   const raw_ptr<content::WebUI> web_ui_;
   std::unique_ptr<ShortcutsPageHandler> shortcuts_;
   std::unique_ptr<ArcImportPageHandler> arc_import_;
   std::unique_ptr<SyncPageHandlerFactory> sync_;
+  std::unique_ptr<claude::ClaudeSettingsHandler> claude_;
 };
 
 }  // namespace

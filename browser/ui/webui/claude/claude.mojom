@@ -1,0 +1,55 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module compass.claude.mojom;
+
+// How the key is sent (compass::claude::AuthStyle).
+enum AuthStyle {
+  // x-api-key: the Claude API.
+  kApiKey,
+  // Authorization: Bearer, for gateways that take a token.
+  kBearer,
+};
+
+// The profile's Claude settings. The key itself never leaves the browser.
+struct SettingsState {
+  bool has_key;
+  // "sk-ant-…a1b2" while a key is saved.
+  string key_hint;
+  // Empty for the Claude API.
+  string base_url;
+  AuthStyle auth_style;
+  string model;
+  // "Let Claude use the whole browser".
+  bool browser_scope;
+};
+
+struct Model {
+  string id;
+  string display_name;
+};
+
+struct ConnectionResult {
+  bool ok;
+  // What went wrong, for the user, when not ok.
+  string error;
+  // The models the key can use, newest first, when ok.
+  array<Model> models;
+};
+
+// compass://settings/claude (claude_page.ts). See docs/design/claude.md,
+// "Settings".
+interface SettingsHandler {
+  GetState() => (SettingsState state);
+  // Saves |key|, encrypted; an empty one removes the saved key. |saved| is
+  // false when the OS's storage refused it.
+  SetApiKey(string key) => (bool saved);
+  // |ok| is false, and nothing changes, if |base_url| isn't https (or http to
+  // this computer).
+  SetEndpoint(string base_url, AuthStyle auth_style) => (bool ok);
+  SetModel(string model);
+  SetBrowserScope(bool enabled);
+  // Lists the models with the saved key and endpoint.
+  TestConnection() => (ConnectionResult result);
+};

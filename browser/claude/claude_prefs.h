@@ -1,0 +1,34 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPASS_BROWSER_CLAUDE_CLAUDE_PREFS_H_
+#define COMPASS_BROWSER_CLAUDE_CLAUDE_PREFS_H_
+
+class PrefRegistrySimple;
+
+// The Claude settings of a profile (docs/design/claude.md, "Settings"). None
+// of them sync: a key belongs to the device it was typed on.
+namespace compass::claude::prefs {
+
+// The API key, encrypted with the OS's safe storage (os_crypt_async), in
+// base64. Empty when none is set. Read and written by ClaudeCredentials only.
+inline constexpr char kApiKey[] = "compass.claude.api_key";
+// What settings show of the key (KeyHint()).
+inline constexpr char kApiKeyHint[] = "compass.claude.api_key_hint";
+// The base URL, as ParseBaseUrl() normalized it; empty for the Claude API.
+inline constexpr char kBaseUrl[] = "compass.claude.base_url";
+// How the key is sent (AuthStyle).
+inline constexpr char kAuthStyle[] = "compass.claude.auth_style";
+// The model the chat uses.
+inline constexpr char kModel[] = "compass.claude.model";
+// "Let Claude use the whole browser": other tabs and windows, not only the
+// current tab.
+inline constexpr char kBrowserScope[] = "compass.claude.browser_scope";
+
+// Called by compass::RegisterCompassProfilePrefs().
+void RegisterProfilePrefs(PrefRegistrySimple* registry);
+
+}  // namespace compass::claude::prefs
+
+#endif  // COMPASS_BROWSER_CLAUDE_CLAUDE_PREFS_H_

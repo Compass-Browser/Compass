@@ -1,19 +1,20 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/chrome/browser/resources/settings/settings_main/settings_main.ts
-index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..672482026879512fd9dfd222687036cd04d8a667 100644
+index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..2782a79e3b3b55bdd8d5f300239c414eec71056a 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.ts
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.ts
-@@ -20,6 +20,10 @@ import '../performance_page/performance_page_index.js';
+@@ -20,6 +20,11 @@ import '../performance_page/performance_page_index.js';
  import '../privacy_page/privacy_page_index.js';
  import '../reset_page/reset_profile_banner.js';
  import '../search_page/search_page_index.js';
 +// Compass's sections (compass/resources/sidebar/settings).
 +import '/compass/settings/arc_import_page.js';
++import '/compass/settings/claude_page.js';
 +import '/compass/settings/shortcuts_page.js';
 +import '/compass/settings/sync_page.js';
  // <if expr="not is_chromeos">
  import '../default_browser_page/default_browser_page.js';
  
-@@ -316,6 +320,12 @@ export class SettingsMainElement extends SettingsMainElementBase {
+@@ -316,6 +321,12 @@ export class SettingsMainElement extends SettingsMainElementBase {
          (!!this.lastRoute_ && route.contains(this.lastRoute_));
    }
  

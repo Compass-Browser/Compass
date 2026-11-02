@@ -44,6 +44,8 @@ source_set("ui") {
     "webui/command_bar/command_bar_ui.h",
     "webui/command_bar/other_device_tabs.cc",
     "webui/command_bar/other_device_tabs.h",
+    "webui/claude/claude_settings_handler.cc",
+    "webui/claude/claude_settings_handler.h",
     "webui/find_bar/find_bar_ui.cc",
     "webui/find_bar/find_bar_ui.h",
     "webui/empty/compass_empty_ui.cc",
@@ -73,6 +75,7 @@ source_set("ui") {
     "//chrome/browser:browser_public_dependencies",
     "//compass/browser/sync",
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
+    "//compass/browser/ui/webui/claude:mojo_bindings",
     "//compass/browser/ui/webui/find_bar:mojo_bindings",
     "//compass/browser/ui/webui/settings:sections",
     "//compass/browser/ui/webui/sidebar:mojo_bindings",
@@ -87,6 +90,7 @@ source_set("ui") {
   deps = [
     "//chrome/browser/first_run",
     "//compass/browser/arc_import",
+    "//compass/browser/claude",
     "//compass/browser/prefs",
     "//compass/browser/shortcuts",
     "//components/os_crypt/async/browser",
@@ -238,6 +242,7 @@ source_set("browser_tests") {
     "arc_import/arc_importer_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/find_bar/find_bar_browsertest.cc",
+    "webui/claude/claude_settings_handler_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
     "views/peek/peek_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
@@ -247,6 +252,8 @@ source_set("browser_tests") {
     "removed_features_browsertest.cc",
   ]
   deps = [
+    "//compass/browser/claude",
+    "//net:test_support",
     ":ui",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/common",

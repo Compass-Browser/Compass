@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html b/chrome/browser/resources/settings/settings_main/settings_main.html
-index 2ef4dcad53f0e98803ec4cba596a0e01e64e49fc..7ab59c12a52883f45e8b31a6c74fe9b965aae5ab 100644
+index 2ef4dcad53f0e98803ec4cba596a0e01e64e49fc..c9a45623c95b24d131964fddb7a36bf4f5cb47e3 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
-@@ -52,14 +52,37 @@
+@@ -52,14 +52,43 @@
      show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
    <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
      <div slot="view" id="people">
@@ -36,6 +36,12 @@ index 2ef4dcad53f0e98803ec4cba596a0e01e64e49fc..7ab59c12a52883f45e8b31a6c74fe9b9
 +    <template is="dom-if" if="[[renderPlugin_(
 +        routes_.COMPASS_ARC_IMPORT, lastRoute_, inSearchMode_)]]">
 +      <compass-arc-import-page></compass-arc-import-page>
++    </template>
++  </div>
++  <div slot="view" id="compassClaude">
++    <template is="dom-if" if="[[renderPlugin_(
++        routes_.COMPASS_CLAUDE, lastRoute_, inSearchMode_)]]">
++      <compass-claude-page></compass-claude-page>
 +    </template>
 +  </div>
 +

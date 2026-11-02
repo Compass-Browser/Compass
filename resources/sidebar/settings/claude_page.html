@@ -1,0 +1,199 @@
+<style>
+  .compass-page .lead {
+    margin: 0 0 4px;
+    opacity: 0.75;
+  }
+
+  .compass-page label.field {
+    display: block;
+    font-weight: 500;
+    margin: 18px 0 6px;
+  }
+
+  .compass-page .claude-key-row,
+  .compass-page .claude-inline {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+  }
+
+  .compass-page .claude-key-row input,
+  .compass-page .claude-inline input {
+    flex: 1;
+  }
+
+  .compass-page input[type=password],
+  .compass-page input[type=url],
+  .compass-page input[type=text],
+  .compass-page select {
+    background: var(--color-sys-base,
+        var(--cr-fallback-color-surface, #fff));
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: inherit;
+    font: inherit;
+    padding: 8px 10px;
+  }
+
+  .compass-page select {
+    max-width: 100%;
+    min-width: 260px;
+  }
+
+  .compass-page input::placeholder {
+    color: inherit;
+    opacity: 0.45;
+  }
+
+  .compass-page .saved-key {
+    font-family: ui-monospace, Menlo, monospace;
+    opacity: 0.8;
+  }
+
+  .compass-page .hint {
+    font-size: 12px;
+    margin: 6px 0 0;
+    opacity: 0.7;
+  }
+
+  .compass-page .note {
+    font-size: 12px;
+    margin: 6px 0 0;
+  }
+
+  .compass-page .note.error {
+    color: var(--color-sys-error, var(--cr-fallback-color-error, #b3261e));
+  }
+
+  .compass-page .note.ok {
+    color: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
+  }
+
+  .compass-page .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0 0;
+  }
+
+  .compass-page button {
+    background: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
+    border: none;
+    border-radius: 18px;
+    color: var(--color-sys-on-primary,
+        var(--cr-fallback-color-on-primary, #fff));
+    cursor: pointer;
+    font: inherit;
+    font-weight: 500;
+    padding: 8px 20px;
+  }
+
+  .compass-page button.secondary {
+    background: none;
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    color: inherit;
+  }
+
+  .compass-page button:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  .compass-page details {
+    margin: 18px 0 0;
+  }
+
+  .compass-page summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .compass-page .claude-scope {
+    align-items: flex-start;
+    border-top: var(--cr-separator-line,
+        1px solid var(--color-sys-divider,
+        var(--cr-fallback-color-neutral-outline, #dadce0)));
+    display: flex;
+    gap: 12px;
+    margin: 20px 0 0;
+    padding: 16px 0 0;
+  }
+
+  .compass-page .claude-scope input {
+    margin: 3px 0 0;
+  }
+
+  .compass-page input.wide {
+    width: 100%;
+  }
+
+  .compass-page .hint.block {
+    display: block;
+  }
+
+  .compass-page .claude-scope .name {
+    font-weight: 500;
+  }
+</style>
+
+<p class="lead">Chat with Claude about the page you're on. Claude can read it,
+  its JavaScript console, and click and type in it. Compass ships no key: use
+  your own API key from console.anthropic.com, or a gateway's.</p>
+
+<label class="field" for="apiKey">API key</label>
+<div class="claude-key-row" id="keyEntry">
+  <input id="apiKey" type="password" autocomplete="off" spellcheck="false"
+      placeholder="sk-ant-…">
+  <button id="saveKey">Save</button>
+</div>
+<div class="claude-key-row" id="keySaved" hidden>
+  <span class="saved-key" id="keyHint"></span>
+  <button id="replaceKey" class="secondary">Replace</button>
+  <button id="removeKey" class="secondary">Remove</button>
+</div>
+<p class="hint">Stored encrypted on this device only; it never syncs, and
+  pages never see it. Claude Pro and Max subscriptions can't be used here.</p>
+<p class="note" id="keyNote" hidden></p>
+
+<label class="field" for="model">Model</label>
+<div class="claude-inline">
+  <select id="model"></select>
+  <button id="test" class="secondary">Test connection</button>
+</div>
+<p class="note" id="testNote" hidden></p>
+
+<details id="advanced">
+  <summary>Endpoint</summary>
+  <label class="field" for="baseUrl">Base URL</label>
+  <input id="baseUrl" type="url" spellcheck="false"
+      placeholder="https://api.anthropic.com" class="wide">
+  <p class="hint">Leave empty for the Claude API. A gateway or proxy that
+    serves the Anthropic Messages API (Amazon Bedrock, Google Cloud Vertex AI,
+    your own) goes here.</p>
+  <label class="field" for="authStyle">Send the key as</label>
+  <select id="authStyle">
+    <option value="apiKey">x-api-key (Claude API)</option>
+    <option value="bearer">Authorization: Bearer (gateways)</option>
+  </select>
+  <div class="buttons">
+    <button id="saveEndpoint" class="secondary">Save endpoint</button>
+  </div>
+  <p class="note" id="endpointNote" hidden></p>
+</details>
+
+<label class="claude-scope">
+  <input type="checkbox" id="browserScope">
+  <span>
+    <span class="name">Let Claude use the whole browser</span>
+    <span class="hint block">Off, Claude only reads and acts
+      on the tab you chat about. On, it can also list, open and use your other
+      tabs and windows, signed in as you. Web pages can try to give Claude
+      instructions of their own; it's told to ignore them, but only turn this
+      on for tasks you watch.</span>
+  </span>
+</label>

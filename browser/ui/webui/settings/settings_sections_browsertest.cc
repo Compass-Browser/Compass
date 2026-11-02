@@ -80,6 +80,8 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
             "/shortcuts");
   EXPECT_EQ(WaitFor("deepQuery('a#compassArcImport')?.getAttribute('href')"),
             "/importArc");
+  EXPECT_EQ(WaitFor("deepQuery('a#compassClaude')?.getAttribute('href')"),
+            "/claude");
 
   ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) +
                                               "deepQuery('a#compassShortcuts')"
@@ -128,6 +130,18 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ArcImportSection) {
   Open("chrome://settings/importArc");
   EXPECT_EQ(WaitFor("deepQuery('compass-arc-import-page #loading')?.hidden"),
             true);
+}
+
+// compass://settings/claude asks for a key in a new profile.
+IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ClaudeSection) {
+  Open("chrome://settings/claude");
+  EXPECT_EQ(WaitFor("deepQuery('compass-claude-page .compass-title')"
+                    "?.textContent"),
+            "Claude");
+  EXPECT_EQ(WaitFor("deepQuery('compass-claude-page #keySaved')?.hidden"),
+            true);
+  EXPECT_EQ(WaitFor("deepQuery('compass-claude-page #model')?.value"),
+            "claude-opus-5-5");
 }
 
 // Settings' search keeps a Compass section that has the words.

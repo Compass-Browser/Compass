@@ -1,0 +1,64 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Claude in Compass: the settings' prefs, the key's storage, and the client
+# for the Claude API. See docs/design/claude.md.
+
+# Few deps: upstream's prefs registration reaches it (through
+# //compass/browser/prefs).
+source_set("prefs") {
+  sources = [
+    "claude_prefs.cc",
+    "claude_prefs.h",
+  ]
+  deps = [
+    "//base",
+    "//components/prefs",
+  ]
+}
+
+source_set("claude") {
+  sources = [
+    "claude_api.cc",
+    "claude_api.h",
+    "claude_client.cc",
+    "claude_client.h",
+    "claude_credentials.cc",
+    "claude_credentials.h",
+    "sse_parser.cc",
+    "sse_parser.h",
+  ]
+  public_deps = [
+    ":prefs",
+    "//base",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+  deps = [
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
+    "//components/prefs",
+    "//net",
+    "//net/traffic_annotation",
+    "//services/network/public/mojom",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "claude_api_unittest.cc",
+    "sse_parser_unittest.cc",
+  ]
+  deps = [
+    ":claude",
+    ":prefs",
+    "//components/prefs:test_support",
+    "//net",
+    "//testing/gtest",
+    "//url",
+  ]
+}

@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "compass/browser/ui/webui/claude/claude.mojom.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/ui/webui/sync/compass_sync.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -23,9 +24,10 @@ namespace compass {
 inline constexpr char kSyncSettingsSubPage[] = "sync";
 inline constexpr char kShortcutsSettingsSubPage[] = "shortcuts";
 inline constexpr char kArcImportSettingsSubPage[] = "importArc";
+inline constexpr char kClaudeSettingsSubPage[] = "claude";
 
 // Compass's sections of chrome://settings: Sync (/sync), Keyboard shortcuts
-// (/shortcuts) and Import from Arc (/importArc). settings::SettingsUI owns
+// (/shortcuts), Import from Arc (/importArc) and Claude (/claude). settings::SettingsUI owns
 // one (patches/chrome-browser-ui-webui-settings-settings_ui.{h,cc}.patch)
 // and hands it the sections' interfaces. See docs/design/settings.md.
 //
@@ -48,6 +50,8 @@ class SettingsSections {
       mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver) = 0;
   virtual void Bind(
       mojo::PendingReceiver<sync::mojom::PageHandlerFactory> receiver) = 0;
+  virtual void Bind(
+      mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver) = 0;
 };
 
 }  // namespace compass
