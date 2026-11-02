@@ -552,13 +552,15 @@ Branch `ios/system-extensions`. Everything goes through the App Group `group.it.
 
 ### Auto picture-in-picture, 2026-11-02
 
-As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound shows the video in picture-in-picture, and coming back to the tab puts it back in the page. On the phone, leaving the app (Home, another app) counts too. Settings → Auto Picture in Picture turns it off.
+As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound shows the video in picture-in-picture, and coming back to the tab puts it back in the page. Leaving the app doesn't (below): the video's own picture-in-picture button does that. Settings → Auto Picture in Picture turns it off.
 
 - `AutoPiP` (App/Browser). When the shown tab changes (`AppModel.shownTabChanged()`, from `selectedNodeID` and `selectedPane`), a script in the tab left looks for the desktop's conditions: playing, not muted, volume above 0, at least 100×100, the only such video in the main frame, and no video already in picture-in-picture (the user's own stays). It calls `webkitSetPresentationMode("picture-in-picture")` (or `requestPictureInPicture()`), as an app-evaluated script counts as a user gesture. The tab shown takes its own video back. The script runs in its own content world, so the page doesn't see which video Compass moved.
-- Leaving the app: on the scene's active → inactive (picture-in-picture must start while the app is still on screen), and back on active. Pulling down Control Center does the same.
+- The page reports (`state:playing` / `state:idle`) whether it has such a video, so on a tab switch Compass first **parks** the left tab's web view (a 1×1, nearly transparent view at the back of the window) and then starts picture-in-picture: a web view out of the window ends its window at once, and SwiftUI drops it on the same update. The view leaves the lot when the window closes or the tab is shown again (SwiftUI takes it back).
+- The app needs the `.playback` audio session category (set at launch; WebKit leaves it alone) for picture-in-picture. As in Safari, page sound then ignores the silent switch.
+- **Leaving the app doesn't start it** (checked on an iPhone, iOS 27, 2026-11-02): a window started on active → inactive, even with a background task, opens and is ended by iOS within a second, the video paused. WebKit has `HTMLVideoElement.autoPictureInPicture` (AVKit's "start automatically from inline"); the script sets it on the playing video, but WebKit doesn't act on it in an app (it seems tied to Safari's fullscreen standby). Coming back to the app still puts back a video Compass moved.
 - The window's "back to the page" button puts the video back inline, still playing: a user script reports that (`compassPiP`), and Compass shows the tab. Its close button pauses the video, so nothing happens.
 - `UIBackgroundModes` has `audio`, so the video keeps playing outside the app.
-- Not working on the phone yet (see Open items).
+- Checked on the phone (2026-11-02): a tab switch moves the video to the window and back.
 - Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
 
 ### Tabs sent from the desktop, 2026-11-02
@@ -575,8 +577,6 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
 - Checked: `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac); in the simulator, `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` (sends to every other device) showed the banner within a second with the app open. The tap isn't checked yet.
 
 ## Open items
-
-- **Auto picture-in-picture doesn't work on the phone** (Matteo, TestFlight 20261102.1103). Unchecked guesses: on a tab switch the left tab's web view leaves the window before WebKit starts picture-in-picture (keep it attached, e.g. parked behind the page, until it starts); on leaving the app the request lands after the app went inactive (WebKit/AVKit wants it to start while active, or automatic from inline). Debug on the device with the log attached (Nuticast bridge works off the LAN).
 
 - **Start screen** (Matteo, 2026-11-02): a setting for what a launch shows, the sidebar or the last tab (main view).
 
