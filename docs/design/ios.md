@@ -592,6 +592,34 @@ The user asked for it. `UIApplicationSupportsMultipleScenes`; one `WindowGroup(f
 - Debug: `-CompassSecondWindow YES` opens the first window's entry in a second window 8 s in.
 - Checked in the simulator (iPad Air 11-inch): the second window opens on the entry, becomes active and takes the page (log). The simulator can't show two windows side by side headless, so placeholders, Bring Here and move on focus are for the iPad Air (Stage Manager or Split View). On the iPad Air (Matteo, 2026-11-02): several windows, rotation and Bring Here work; the placeholder first pushed the bar off the window (its snapshot sized the page), fixed.
 
+### Incognito, 2026-11-02
+
+The user's decisions: an incognito space at the end of the space switcher; its tabs kept in memory while the app runs, locked behind Face ID (or the passcode) once the app has been in the background, gone when it quits; saved logins still fill; extensions only with a per-extension "Allow in Incognito" (off by default, as in Chrome); no Claude (as the desktop).
+
+- **Model.** `SpaceStore.incognito`, a `Space` with `isIncognito`, kept out of `spaces`, so nothing that goes through them sees it: saving, sync's bridges, sessions, widgets, Spotlight, Claude's tab list. Lookups (`node(id:)`, `space(id:)`, `space(of:)`) include it. Its local changes are dropped before `onLocalChange` (every ID ever seen under it, so deletions too). `canMove` refuses moves across the boundary. Archiving an incognito entry removes it. Tests: `IncognitoTests`.
+- **Pages.** One `WKWebsiteDataStore.nonPersistent()` for every incognito tab, made new by "Close All Incognito Tabs" (`TabManager.resetIncognito`).
+- **No traces:**
+  - no history visits;
+  - favicons in memory only: hosts an incognito tab navigates to, or any incognito entry is on, are never written to Caches/Favicons, offered to sync or copied for the widgets;
+  - no password save offers (fill still works);
+  - the last shown tab and space aren't remembered;
+  - iPadOS state restoration doesn't get the entry.
+- **Lock.**
+  - Inactive covers incognito (`incognitoCovered`), so the app switcher's snapshot shows nothing.
+  - The background locks it (`incognitoLocked`) if it has tabs and the device can authenticate.
+  - `IncognitoLockView` covers an incognito page (bar included) and the incognito sidebar page. It asks for Face ID when the app comes back, and has Unlock and "Show Other Tabs".
+  - The tab picker leaves locked incognito tabs out.
+- **UI.**
+  - The incognito page: dark (`IncognitoLook`), Today only, a note on what incognito does, and a menu with "Close All Incognito Tabs".
+  - The switcher shows glasses for it.
+  - The bar is dark on incognito pages; pages keep their own look.
+  - An incognito entry's menu has no Pin, Archive, Add to Favorites or Move to Space; Pin is disabled in the page menu.
+  - ⌘⇧N: New Incognito Tab.
+- **Extensions.** The incognito space is a private window (`ExtensionWindow.isPrivate`); a context gets `hasAccessToPrivateData` from the extension's "Allow in Incognito" switch.
+- **Claude.** No Ask Claude tile or ⌘⇧E on incognito tabs; the sheet says "Not in Incognito"; tools refuse incognito tabs.
+- Debug: `-CompassIncognitoURL <url>`.
+- Checked in the simulator: an incognito tab next to a normal one, then nothing in Sidebar.json, History or Caches/Favicons for it (the favicon race was found and fixed this way), with the dark bar. The sidebar's look and the lock need the phone: the Mac was busy with a Release build and the simulator drew stale frames.
+
 ### Tabs sent from the desktop, 2026-11-02
 
 Design and the desktop and server parts: [send-tab.md](send-tab.md).

@@ -156,7 +156,8 @@ final class ExtensionWindow: NSObject, WKWebExtensionWindow {
 
   func windowState(for context: WKWebExtensionContext) -> WKWebExtension.WindowState { .fullscreen }
 
-  func isPrivate(for context: WKWebExtensionContext) -> Bool { false }
+  /// The incognito space is a private window.
+  func isPrivate(for context: WKWebExtensionContext) -> Bool { owner?.app?.store.space(id: spaceID)?.isIncognito == true }
 
   func screenFrame(for context: WKWebExtensionContext) -> CGRect { UIScreen.main.bounds }
 

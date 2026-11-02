@@ -106,7 +106,10 @@ final class TabManager: NSObject {
     let configuration = WKWebViewConfiguration()
     // The home profile's spaces (and favorites) use the default store.
     let profile = store.profile(of: node)
-    configuration.websiteDataStore = dataStore(for: store.isHome(profile) ? "" : profile)
+    // Incognito: one in-memory store for the app's run (cookies, storage
+    // and cache never touch the disk).
+    configuration.websiteDataStore = store.isIncognito(node)
+      ? incognitoDataStore : dataStore(for: store.isHome(profile) ? "" : profile)
     configuration.allowsInlineMediaPlayback = true
     configuration.allowsPictureInPictureMediaPlayback = true
     configuration.userContentController.addUserScript(PasswordScript.userScript)
@@ -237,6 +240,18 @@ final class TabManager: NSObject {
   }
 
   private var stores: [String: WKWebsiteDataStore] = [:]
+  /// Incognito's website data, in memory; a new one after "Close All
+  /// Incognito Tabs".
+  private(set) var incognitoDataStore = WKWebsiteDataStore.nonPersistent()
+
+  /// Incognito ends: its tabs unload and its website data goes.
+  func resetIncognito() {
+    for id in live.keys where store.node(id: id).map(store.isIncognito) ?? false { unload(id) }
+    incognitoDataStore = .nonPersistent()
+  }
+
+  /// Whether a live tab is incognito.
+  func isIncognito(_ id: String) -> Bool { store.node(id: id).map(store.isIncognito) ?? false }
 
   /// Every profile's website data store: the home profile's (the default)
   /// and each other profile's in the sidebar.
@@ -263,6 +278,12 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     preferences: WKWebpagePreferences
   ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
     await MainActor.run {
+      // Incognito's sites keep their icons in memory only (Favicons).
+      if navigationAction.targetFrame?.isMainFrame != false, let host = navigationAction.request.url?.host(),
+        let id = live.first(where: { $0.value === webView })?.key, isIncognito(id)
+      {
+        Favicons.shared.markPrivate(host)
+      }
       // An extension's page in a tab going to a website (1Password's "Sign
       // in"): its web view is the extension's and won't load web pages, so
       // the tab starts over as a web page there.
@@ -340,7 +361,7 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         let id = live.first(where: { $0.value === webView })?.key
       else { return }
       onPageLoaded?(url, webView.title ?? "", id)
-      Favicons.shared.pageLoaded(webView, tab: id)
+      Favicons.shared.pageLoaded(webView, tab: id, private: isIncognito(id))
     }
   }
 

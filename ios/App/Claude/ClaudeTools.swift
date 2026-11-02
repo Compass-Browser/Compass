@@ -78,6 +78,7 @@ final class ClaudeTools {
     guard let app, let id = targetTab, let node = app.store.node(id: id) else {
       return .error("The tab the chat is about was closed.")
     }
+    guard !app.store.isIncognito(node) else { return .error("Claude can't use Incognito tabs.") }
     if name == "wait" {
       let seconds = min(max(input["seconds"]?.number ?? 1, 0.1), 10)
       try? await Task.sleep(for: .seconds(seconds))
@@ -142,7 +143,9 @@ final class ClaudeTools {
 
   /// The tab an id (or its start) names, loaded or not.
   private func tab(_ id: String?) -> SidebarNode? {
-    guard let id = id?.lowercased(), !id.isEmpty else { return nil }
+    guard var id = id?.lowercased(), !id.isEmpty else { return nil }
+    // The desktop's ids start with "n" (a sidebar entry); accept them.
+    if id.hasPrefix("n"), id.count == 9 { id.removeFirst() }
     let matches = allTabs().flatMap(\.tabs).filter { $0.id.lowercased().hasPrefix(id) }
     return matches.count == 1 ? matches[0] : nil
   }

@@ -24,6 +24,8 @@ struct BrowserCommands: Commands {
       // iPad: another window, on the space this one shows.
       Button("New Window") { openWindow(value: WindowTarget()) }
         .keyboardShortcut("n")
+      Button("New Incognito Tab") { app?.openIncognitoTab() }
+        .keyboardShortcut("n", modifiers: [.command, .shift])
       Button("Open Location…") { app?.openCommandBar(newTab: false) }
         .keyboardShortcut("l")
     }
@@ -35,7 +37,7 @@ struct BrowserCommands: Commands {
       Button("Find…") { app?.findOnPage() }
         .keyboardShortcut("f")
       // The desktop's default for the Claude panel.
-      Button("Ask Claude") { app?.showingClaude.toggle() }
+      Button("Ask Claude") { if app?.isIncognito != true { app?.showingClaude.toggle() } }
         .keyboardShortcut("e", modifiers: [.command, .shift])
     }
     CommandGroup(before: .sidebar) {

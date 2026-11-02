@@ -115,6 +115,7 @@
 		F4617C5B4269A2A19EB32B09 /* CollapseBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726541D9BE66CA543B0C251A /* CollapseBarTests.swift */; };
 		F5974AB5BCD8BAFC89325E7B /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C93F45F6CF3D5B476056A454 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F94CBAFC04002F40ED0AF8DB /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = D3466B0BF34DC82C259C58A0 /* Compass.icon */; };
+		FB2330F39EA3A9117C43CC3F /* IncognitoLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E5E05E467281432E7022D1F /* IncognitoLockView.swift */; };
 		FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */; };
 /* End PBXBuildFile section */
 
@@ -204,6 +205,7 @@
 		2C104F34AF154CFDADE0CE18 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		2CB99DFF6092C31970BA2AD3 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
 		2D3EB960E888BD1E4A320952 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		2E5E05E467281432E7022D1F /* IncognitoLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncognitoLockView.swift; sourceTree = "<group>"; };
 		32AD0FC2A4DD49EA6D182F11 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordScript.swift; sourceTree = "<group>"; };
 		3CDC5A1576DB55DB575C06F0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -422,6 +424,14 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		66C0746D8965C5F7E03012E2 /* Incognito */ = {
+			isa = PBXGroup;
+			children = (
+				2E5E05E467281432E7022D1F /* IncognitoLockView.swift */,
+			);
+			path = Incognito;
+			sourceTree = "<group>";
+		};
 		831B1EA71D6B6AB269089B99 /* claude */ = {
 			isa = PBXGroup;
 			children = (
@@ -502,6 +512,7 @@
 				D3B3BFB50B54351850942339 /* Browser */,
 				D77E968C3602EBDAEB448C6D /* Claude */,
 				B469E0DBFCE48FC1538DAAE7 /* Extensions */,
+				66C0746D8965C5F7E03012E2 /* Incognito */,
 				D03B8DA0821794B8BA9FD4BF /* Model */,
 				B991DC56A32061AF58E7EA14 /* Passwords */,
 				ED545D28385CE83413F73736 /* System */,
@@ -931,6 +942,7 @@
 				77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */,
 				5EFC031DFE200B774B117E62 /* FocusFilter.swift in Sources */,
 				ED3133643D8AD5BE28B0DE8A /* HomeQuickActions.swift in Sources */,
+				FB2330F39EA3A9117C43CC3F /* IncognitoLockView.swift in Sources */,
 				AA8271B1D5E06BF32C8CA42C /* Intents.swift in Sources */,
 				75239D1EE578D0DDEB16FE09 /* KeyboardShortcuts.swift in Sources */,
 				0D76BE83326730393C9D18BE /* Keychain.swift in Sources */,

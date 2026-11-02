@@ -25,12 +25,16 @@ public final class Space: Identifiable {
   public let today: SidebarNode
   public let archive: SidebarNode
   @ObservationIgnored public var unknownFields: Data?
+  /// The incognito space (`SpaceStore.incognito`): in memory only, never
+  /// saved or synced.
+  public let isIncognito: Bool
 
   init(
     id: String = UUID().uuidString.lowercased(), name: String, theme: SpaceTheme = .blue, icon: String = "",
     profileUUID: String = "", archiveAfter: TimeInterval? = 12 * 60 * 60,
-    position: UniquePosition = UniquePosition(compressed: [])
+    position: UniquePosition = UniquePosition(compressed: []), isIncognito: Bool = false
   ) {
+    self.isIncognito = isIncognito
     self.id = id
     self.name = name
     self.theme = theme

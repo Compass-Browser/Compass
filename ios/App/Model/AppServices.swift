@@ -5,6 +5,7 @@
 import CompassModel
 import CompassShared
 import Foundation
+import LocalAuthentication
 import Observation
 import SwiftUI
 import UIKit
@@ -42,6 +43,13 @@ final class AppServices {
   /// Which window each tab's web view belongs to (`AppModel.id`).
   private var holder: [String: UUID] = [:]
 
+  /// Incognito is behind Face ID: since the app last went to the
+  /// background with incognito tabs open.
+  private(set) var incognitoLocked = false
+  /// Incognito is covered (the app is inactive: the app switcher's
+  /// snapshot mustn't show it).
+  private(set) var incognitoCovered = false
+
   @ObservationIgnored private var saveTask: Task<Void, Never>?
   @ObservationIgnored private var archiveTimer: Task<Void, Never>?
 
@@ -78,6 +86,9 @@ final class AppServices {
     tabs.extensions = extensions
     downloads.activities = DownloadActivities()
     Favicons.shared.onStored = { [weak self] host in self?.system.iconStored(host: host) }
+    Favicons.shared.isIncognitoHost = { [weak self] host in
+      self?.store.incognito.allNodes.contains { Favicons.host(of: $0.url) == host } ?? false
+    }
     IntentRouter.handle = { [weak self] link in self?.system.handle(link) }
     IntentRouter.cancelDownload = { [weak self] id in UUID(uuidString: id).map { self?.downloads.cancel($0) } }
     contentBlocking.onChange = { [weak self] in self?.tabs.applyContentBlockingToAll() }
@@ -85,12 +96,13 @@ final class AppServices {
     // A page's window.open: a new tab in the window the user is in.
     tabs.openInNewTab = { [weak self] url in self?.active?.open(url.absoluteString) }
     tabs.onPageLoaded = { [weak self] url, title, id in
-      guard let self else { return }
+      guard let self, !self.tabs.isIncognito(id) else { return }  // no history in incognito
       self.sync.recordVisit(url: url, title: title, profile: self.accountProfile(ofTab: id))
     }
     tabs.onPasswordMessage = { [weak self] body, id, url in
       guard let self else { return }
-      self.passwords.handle(body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id))
+      self.passwords.handle(
+        body, tabID: id, pageURL: url, profile: self.accountProfile(ofTab: id), incognito: self.tabs.isIncognito(id))
     }
     tabs.onPictureInPictureRestore = { [weak self] id in
       guard let self, let node = self.store.node(id: id) else { return }
@@ -114,7 +126,7 @@ final class AppServices {
       if option == .collapseBar { for window in windows { window.setBarCollapsed(false) } }
     }
     Favicons.shared.onPageIcon = { [weak self] host, png, size, tab in
-      guard let self else { return }
+      guard let self, !self.tabs.isIncognito(tab) else { return }
       self.sync.offerFavicon(host: host, png: png, sourceSize: size, account: self.accountProfile(ofTab: tab))
     }
     sync.isShown = { [weak self] id in self?.windows.contains { $0.selectedNodeID == id } ?? false }
@@ -195,6 +207,43 @@ final class AppServices {
     if let id = holder[tabID], let window = showing.first(where: { $0.id == id }) { return window }
     if let active, showing.contains(where: { $0 === active }) { return active }
     return showing.first
+  }
+
+  // MARK: Incognito
+
+  var hasIncognitoTabs: Bool { !store.incognito.today.children.isEmpty || !store.incognito.pinned.children.isEmpty }
+
+  /// The app's state changed: inactive covers incognito, the background
+  /// locks it (if it has tabs), active uncovers it.
+  func incognitoPhase(_ phase: ScenePhase) {
+    switch phase {
+    case .inactive: incognitoCovered = true
+    case .background:
+      incognitoCovered = true
+      // Only where Face ID or a passcode can open it again.
+      if hasIncognitoTabs, LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) { incognitoLocked = true }
+    default: incognitoCovered = false
+    }
+  }
+
+  /// Face ID (or the passcode) unlocks incognito.
+  func unlockIncognito() async {
+    let context = LAContext()
+    context.localizedFallbackTitle = "Use Passcode"
+    let ok = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock your Incognito tabs")) ?? false
+    if ok { incognitoLocked = false }
+  }
+
+  /// "Close All Incognito Tabs": every incognito entry goes, with its
+  /// website data.
+  func closeAllIncognito() {
+    let incognito = store.incognito
+    for window in windows where window.selectedSpace?.isIncognito == true || window.selectedNode.map(store.isIncognito) == true {
+      window.selectedNodeID = nil
+    }
+    tabs.resetIncognito()
+    for node in incognito.pinned.children + incognito.today.children { store.remove(node) }
+    incognitoLocked = false
   }
 
   // MARK: Saving

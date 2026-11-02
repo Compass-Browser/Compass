@@ -96,13 +96,15 @@ final class PasswordManager {
   func hasForm(_ tabID: String) -> Bool { formTabs.contains(tabID) }
 
   /// A message from the page script.
-  func handle(_ body: Any, tabID: String, pageURL: URL?, profile: String) {
+  /// `incognito`: saved logins still fill, but nothing is offered for
+  /// saving.
+  func handle(_ body: Any, tabID: String, pageURL: URL?, profile: String, incognito: Bool = false) {
     guard let message = body as? [String: Any], let type = message["type"] as? String else { return }
     switch type {
     case "form":
       formTabs.insert(tabID)
     case "submit":
-      guard let url = pageURL, let scheme = url.scheme, let host = url.host(),
+      guard !incognito, let url = pageURL, let scheme = url.scheme, let host = url.host(),
         let password = message["password"] as? String, !password.isEmpty
       else { return }
       let realm = "\(scheme.lowercased())://\(host.lowercased())/"

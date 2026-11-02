@@ -28,6 +28,8 @@ struct PageMenu: View {
           dismiss()
           app.findOnPage()
         }
+        // Not in incognito (as the desktop).
+        if !(tab.map { app.tabs.isIncognito($0.id) } ?? false) {
         Tile(title: "Ask Claude", symbol: "sparkles") {
           dismiss()
           // After the menu has gone: a view shows one sheet at a time.
@@ -35,6 +37,7 @@ struct PageMenu: View {
             try? await Task.sleep(for: .milliseconds(450))
             app.showingClaude = true
           }
+        }
         }
         let desktop = app.siteSettings.value(.desktopSite, site: site)
         Tile(title: desktop ? "Mobile Site" : "Desktop Site", symbol: desktop ? "iphone" : "desktopcomputer",
@@ -143,7 +146,7 @@ struct PageMenu: View {
     let space = tab.flatMap { app.store.space(of: $0) }
     let pinned = tab?.section == .pinned
     Tile(title: pinned ? "Unpin" : "Pin", symbol: pinned ? "pin.slash" : "pin", on: pinned) {
-      guard let tab, let space else { return }
+      guard let tab, let space, !space.isIncognito else { return }
       withAnimation(SidebarStyle.motion) {
         if pinned {
           _ = app.store.move(tab, to: space.today, at: space.today.children.count)
@@ -153,7 +156,7 @@ struct PageMenu: View {
       }
     }
     .disabled(tab == nil || space == nil || !(tab?.section == .today || tab?.section == .pinned)
-      || tab?.parent?.isSplit == true)
+      || tab?.parent?.isSplit == true || space?.isIncognito == true)
   }
 
   private var host: String {

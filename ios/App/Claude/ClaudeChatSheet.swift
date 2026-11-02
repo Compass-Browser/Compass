@@ -21,7 +21,11 @@ struct ClaudeChatSheet: View {
   var body: some View {
     NavigationStack {
       Group {
-        if !settings.hasKey {
+        if app.shownTab.map({ app.tabs.isIncognito($0.id) }) == true {
+          ContentUnavailableView(
+            "Not in Incognito", systemImage: "eyeglasses",
+            description: Text("Claude doesn't read or act on Incognito tabs. Open a normal tab to ask about it."))
+        } else if !settings.hasKey {
           noKey
         } else if chat.isEmpty {
           emptyState
@@ -29,7 +33,9 @@ struct ClaudeChatSheet: View {
           messages
         }
       }
-      .safeAreaInset(edge: .bottom) { if settings.hasKey { composer } }
+      .safeAreaInset(edge: .bottom) {
+        if settings.hasKey, app.shownTab.map({ app.tabs.isIncognito($0.id) }) != true { composer }
+      }
       .navigationTitle("Claude")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {

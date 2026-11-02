@@ -165,6 +165,13 @@ struct ExtensionDetailView: View {
           get: { record?.enabled ?? false },
           set: { extensions.setEnabled(id, $0) }))
       }
+      Section {
+        Toggle("Allow in Incognito", isOn: Binding(
+          get: { record?.allowIncognito == true },
+          set: { extensions.setAllowIncognito(id, $0) }))
+      } footer: {
+        Text("Compass can't stop extensions from recording what you do in Incognito.")
+      }
       if unlockSaved {
         Section {
           Toggle("Unlock with \(ExtensionUnlock.biometryName)", isOn: Binding(

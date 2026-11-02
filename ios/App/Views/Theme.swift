@@ -239,6 +239,14 @@ struct SpaceIcon: View {
   var size: CGFloat = 18
 
   var body: some View {
+    if space.isIncognito {
+      Image(systemName: "eyeglasses").font(.system(size: size * 0.9, weight: .semibold))
+    } else {
+      icon
+    }
+  }
+
+  @ViewBuilder private var icon: some View {
     switch Self.parse(space.icon) {
     case .symbol(let name):
       Image(systemName: name).font(.system(size: size * 0.9, weight: .semibold))

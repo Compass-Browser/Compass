@@ -49,7 +49,7 @@ final class ClaudeChat {
 
   func send(_ text: String, app: AppModel) {
     let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !text.isEmpty, !streaming else { return }
+    guard !text.isEmpty, !streaming, app.shownTab.map({ app.tabs.isIncognito($0.id) }) != true else { return }
     streaming = true
     conversation.closeOpenTools("Not run: the reply ended first.")
     let tools = self.tools ?? ClaudeTools(app: app)

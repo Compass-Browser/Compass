@@ -39,6 +39,14 @@ public final class SpaceStore {
   public static let maxSplitPanes = 2
 
   public private(set) var spaces: [Space] = []
+  /// Incognito (docs/design/ios.md, "Incognito"): one space kept apart from
+  /// `spaces`, so nothing that goes through them (saving, sync, sessions,
+  /// widgets, Spotlight) sees it, and lookups (`node(id:)`, `space(id:)`,
+  /// `space(of:)`) do. Its local changes are never reported; its entries
+  /// can't move to or from other spaces; archiving one of them closes it.
+  public let incognito = Space(id: "incognito", name: "Incognito", theme: SpaceTheme(color: nil, appearance: .dark), archiveAfter: nil, isIncognito: true)
+  /// Every node ID ever seen under incognito, so deletions are dropped too.
+  @ObservationIgnored private var incognitoIDs: Set<String> = []
   /// The home profile's favorites. Every profile has its own, as on the
   /// desktop (each profile's SpaceList has them); see `favorites(forProfile:)`.
   public let favorites = SidebarNode(id: "favorites", kind: .root(.favorites))
@@ -63,13 +71,13 @@ public final class SpaceStore {
 
   // MARK: Lookup
 
-  public func space(id: String) -> Space? { spaces.first { $0.id == id } }
+  public func space(id: String) -> Space? { id == incognito.id ? incognito : spaces.first { $0.id == id } }
 
   public func node(id: String) -> SidebarNode? {
     for root in favoritesRoots {
       if let n = root.children.first(where: { $0.id == id }) { return n }
     }
-    for space in spaces {
+    for space in spaces + [incognito] {
       if let n = space.allNodes.first(where: { $0.id == id }) { return n }
     }
     return nil
@@ -78,7 +86,13 @@ public final class SpaceStore {
   /// The space a node belongs to (nil for favorites).
   public func space(of node: SidebarNode) -> Space? {
     let root = node.root
-    return spaces.first { $0.pinned === root || $0.today === root || $0.archive === root }
+    return (spaces + [incognito]).first { $0.pinned === root || $0.today === root || $0.archive === root }
+  }
+
+  /// Whether a node is in the incognito space.
+  public func isIncognito(_ node: SidebarNode) -> Bool {
+    let root = node.root
+    return root === incognito.pinned || root === incognito.today || root === incognito.archive
   }
 
   public var allNodes: [SidebarNode] {
@@ -163,6 +177,9 @@ public final class SpaceStore {
 
   public func canMove(_ node: SidebarNode, to parent: SidebarNode) -> Bool {
     if node.isRoot || node.contains(parent) { return false }
+    // Incognito entries stay incognito, and nothing else goes in.
+    if isIncognito(node) != (parent.root === incognito.pinned || parent.root === incognito.today
+      || parent.root === incognito.archive) { return false }
     if node.parent === parent { return true }
     // No folder in the archive or the favorites.
     if node.isFolder, parent.section != .pinned && parent.section != .today { return false }
@@ -285,6 +302,7 @@ public final class SpaceStore {
   public func remove(_ node: SidebarNode) {
     guard !node.isRoot, let parent = node.parent else { return }
     let ids = node.subtree.map(\.id)
+    if isIncognito(node) { incognitoIDs.formUnion(ids) }
     parent.remove(node)
     record { $0.deletedNodes.formUnion(ids) }
     normalizeSplit(parent)
@@ -367,6 +385,11 @@ public final class SpaceStore {
   /// Archives a Today entry (or several), as the desktop: a move to ARCHIVE.
   public func archive(_ node: SidebarNode, now: Date = Date()) {
     guard let space = space(of: node), node.parent === space.today else { return }
+    // Incognito keeps nothing: a closed entry is gone.
+    if space.isIncognito {
+      remove(node)
+      return
+    }
     move(node, to: space.archive, at: 0, now: now)
   }
 
@@ -477,8 +500,18 @@ public final class SpaceStore {
 
   private func flush() {
     guard batchDepth == 0, !pending.isEmpty else { return }
-    let change = pending
+    var change = pending
     pending = SpaceStoreChange()
+    // Incognito never reaches sync.
+    incognitoIDs.formUnion(incognito.allNodes.map(\.id))
+    if !incognitoIDs.isEmpty || change.putSpaces.contains(incognito.id) || change.deletedSpaces.contains(incognito.id) {
+      change.putNodes.subtract(incognitoIDs)
+      change.deletedNodes.subtract(incognitoIDs)
+      change.todayChurn.subtract(incognitoIDs)
+      change.putSpaces.remove(incognito.id)
+      change.deletedSpaces.remove(incognito.id)
+      guard !change.isEmpty else { return }
+    }
     onLocalChange?(change)
   }
 

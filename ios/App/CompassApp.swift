@@ -49,6 +49,7 @@ struct CompassApp: App {
     .commands { BrowserCommands(services: services) }
     .onChange(of: phase) { old, phase in
       let app = services.active
+      services.incognitoPhase(phase)
       services.sync.setActive(phase == .active)
       // Auto picture-in-picture: it has to start while the app is still on
       // screen, so on the way out (inactive), not in the background.
@@ -93,7 +94,9 @@ struct WindowRoot: View {
           .background { KeyWindowReader { AppServices.shared.activate(app) } }
           // Saved with the window: iPadOS restores it on this entry.
           .onChange(of: app.selectedNodeID) { _, id in
-            target = WindowTarget(entry: id, token: target?.token ?? UUID())
+            // Not an incognito entry: iPadOS saves it to disk.
+            let entry = id.flatMap { app.store.node(id: $0) }.map(app.store.isIncognito) == true ? nil : id
+            target = WindowTarget(entry: entry, token: target?.token ?? UUID())
           }
           .onDisappear { app.detach() }
           .onOpenURL { url in open(url, in: app) }
@@ -201,6 +204,8 @@ struct RootView: View {
           .transition(.move(edge: .leading))
       }
       BrowserScreen(node: app.selectedNode)
+        // Incognito, locked or covered: its page and bar don't show.
+        .overlay { if app.incognitoPageHidden { IncognitoLockView() } }
     }
     .animation(.snappy(duration: 0.3), value: app.showingSidebarColumn)
     // iPad only: a Max iPhone in landscape is regular width too, and keeps

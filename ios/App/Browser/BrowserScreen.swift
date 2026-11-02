@@ -19,6 +19,7 @@ import WebKit
 /// command bar for a new tab. With no entry selected it's an empty page in
 /// the space's color.
 struct BrowserScreen: View {
+  @Environment(\.colorScheme) private var colorScheme
   @Environment(AppModel.self) private var app
   let node: SidebarNode?
   /// The bar's drag: nil until it picks an axis.
@@ -139,6 +140,8 @@ struct BrowserScreen: View {
           }
         }
         .animation(.snappy(duration: 0.25), value: app.passwords.pendingSave == nil)
+        // Incognito's bar is dark (the page keeps its own look).
+        .environment(\.colorScheme, app.shownTab.map { app.tabs.isIncognito($0.id) } == true ? .dark : colorScheme)
       }
     }
   }

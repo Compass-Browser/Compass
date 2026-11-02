@@ -36,8 +36,11 @@ final class AppModel {
     didSet {
       if let id = selectedSpaceID, id != oldValue, services.active === self {
         extensions.spaceFocused(id)
-        system.spaceShown(id)
-        UserDefaults.standard.set(id, forKey: StartScreen.spaceKey)
+        // Incognito isn't remembered (recent spaces, the next launch).
+        if id != store.incognito.id {
+          system.spaceShown(id)
+          UserDefaults.standard.set(id, forKey: StartScreen.spaceKey)
+        }
       }
     }
   }
@@ -234,6 +237,11 @@ final class AppModel {
           try? log.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("claude-tools.log"), atomically: true, encoding: .utf8)
         }
       }
+      //   -CompassIncognitoURL <url>: open it in an incognito tab.
+      if let url = defaults.string(forKey: "CompassIncognitoURL") {
+        selectedSpaceID = store.incognito.id
+        open(url)
+      }
       //   -CompassClaude YES: open the Claude sheet.
       if defaults.bool(forKey: "CompassClaude") {
         Task { [weak self] in
@@ -292,7 +300,7 @@ final class AppModel {
       if let name = defaults.string(forKey: "CompassSpace") {
         Task { [weak self] in
           for _ in 0..<50 {
-            if let self, let space = self.store.spaces.first(where: { $0.name == name }) {
+            if let self, let space = self.visibleSpaces.first(where: { $0.name == name }) {
               self.selectedSpaceID = space.id
               return
             }
@@ -319,7 +327,24 @@ final class AppModel {
   /// filter's while its Focus is on with "Show only this space".
   var visibleSpaces: [Space] {
     if let focus = system.focus, focus.onlyThisSpace, let space = store.space(id: focus.spaceID) { return [space] }
-    return store.spaces
+    // Incognito last (docs/design/ios.md, "Incognito").
+    return store.spaces + [store.incognito]
+  }
+
+  /// The window shows incognito (its space, or one of its tabs).
+  var isIncognito: Bool { selectedSpace?.isIncognito == true || selectedNode.map(store.isIncognito) == true }
+
+  /// Incognito is locked, or covered while the app is inactive.
+  var incognitoHidden: Bool { services.incognitoLocked || services.incognitoCovered }
+
+  /// The shown page is incognito and hidden: the browser shows the lock.
+  var incognitoPageHidden: Bool { incognitoHidden && shownTab.map { tabs.isIncognito($0.id) } == true }
+
+  /// ⌘⇧N, "New Incognito Tab": the incognito space, and the command bar.
+  func openIncognitoTab() {
+    selectedSpaceID = store.incognito.id
+    showSidebar()
+    openCommandBar(newTab: true)
   }
 
   /// Whatever is over the browser closes (before a link from outside).
@@ -350,7 +375,7 @@ final class AppModel {
     where services.active === self || !services.windows.contains(where: { $0 !== self && $0.displayedTabIDs.contains(id) }) {
       services.claim(id, for: self)
     }
-    if let shown { UserDefaults.standard.set(shown, forKey: StartScreen.tabKey) }
+    if let shown, !tabs.isIncognito(shown) { UserDefaults.standard.set(shown, forKey: StartScreen.tabKey) }
     else { UserDefaults.standard.removeObject(forKey: StartScreen.tabKey) }
     if let shown { AutoPiP.exit(tabs.live[shown]) }
     // Kept in the window first (SwiftUI drops it on this update), or its
@@ -533,7 +558,10 @@ final class AppModel {
   func preparePicker() {
     pickerHolding = false
     if let shown = shownTab { tabs.snapshot(shown.id) }
-    pickerTabs = tabs.loadedOrder.filter { store.node(id: $0) != nil }
+    // Locked incognito tabs aren't shown.
+    pickerTabs = tabs.loadedOrder.filter {
+      store.node(id: $0) != nil && !(services.incognitoLocked && tabs.isIncognito($0))
+    }
     let index = shownTab.flatMap { pickerTabs.firstIndex(of: $0.id) } ?? pickerTabs.count - 1
     pickerPosition = CGFloat(max(index, 0))
   }
@@ -675,4 +703,5 @@ enum StartScreen: String, CaseIterable, Identifiable {
     }
   }
 }
+
 

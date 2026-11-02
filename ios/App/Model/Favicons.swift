@@ -29,6 +29,15 @@ final class Favicons {
   @ObservationIgnored private var fromPage: Set<String> = []
   /// Hosts whose icon came from sync, which beats a guess.
   @ObservationIgnored private var fromSync: Set<String> = []
+  /// Hosts incognito tabs went to: their icons stay in memory (never on
+  /// disk, synced or copied for the widgets) unless one was saved already.
+  @ObservationIgnored private var privateHosts: Set<String> = []
+
+  func markPrivate(_ host: String) { privateHosts.insert(host.lowercased()) }
+  /// Whether an incognito entry is on a host (AppServices): checked when an
+  /// icon is stored, so a sidebar row's own fetch can't beat the tab's
+  /// first navigation to it.
+  @ObservationIgnored var isIncognitoHost: ((String) -> Bool)?
   /// A page's icon, to sync: (host, 64 px PNG, source size, tab ID).
   @ObservationIgnored var onPageIcon: ((String, Data, Int, String) -> Void)?
   /// A host's icon was saved (the widgets' copies follow).
@@ -91,8 +100,9 @@ final class Favicons {
 
   /// A loaded page's own icons (`<link rel=icon>`, apple-touch-icon), the
   /// largest first.
-  func pageLoaded(_ view: WKWebView, tab: String) {
+  func pageLoaded(_ view: WKWebView, tab: String, private isPrivate: Bool = false) {
     guard let host = view.url?.host()?.lowercased(), view.url?.scheme?.hasPrefix("http") == true else { return }
+    if isPrivate { privateHosts.insert(host) }
     let script = """
       [...document.querySelectorAll('link[rel~="icon"], link[rel~="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]')]
         .filter(l => l.href && !/\\.svg(\\?|$)/i.test(l.href) && !/svg/.test(l.type))
@@ -110,7 +120,7 @@ final class Favicons {
         self.fromPage.insert(host)
         self.missing.remove(host)
         self.store(image, for: host)
-        if let png = Self.syncPNG(image) { self.onPageIcon?(host, png, sourceSize, tab) }
+        if !isPrivate, let png = Self.syncPNG(image) { self.onPageIcon?(host, png, sourceSize, tab) }
       }
     }
   }
@@ -135,6 +145,7 @@ final class Favicons {
 
   private func store(_ image: UIImage, for host: String) {
     images[host] = image
+    if privateHosts.contains(host) || isIncognitoHost?(host) == true, cachedFile(host: host) == nil { return }
     if let data = image.pngData() { try? data.write(to: file(host), options: .atomic) }
     onStored?(host)
   }

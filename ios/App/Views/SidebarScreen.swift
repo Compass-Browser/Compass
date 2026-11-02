@@ -27,6 +27,8 @@ struct SidebarScreen: View {
       bottomBar
     }
     .animation(.easeInOut(duration: 0.25), value: app.selectedSpaceID)
+    // Incognito: dark, whatever the panel's tint underneath.
+    .modifier(IncognitoLook(on: app.selectedSpace?.isIncognito == true))
   }
 
   /// Settings, the space switcher (`#spaces`: each space's icon, the shown
@@ -134,11 +136,19 @@ struct SpacePage: View {
     ScrollView {
       LazyVStack(spacing: 2) {
         let favorites = app.store.favorites(for: space)
-        if !favorites.children.phoneVisible.isEmpty {
+        if !space.isIncognito, !favorites.children.phoneVisible.isEmpty {
           FavoritesGrid(root: favorites)
         }
         header
+        if space.isIncognito && space.today.children.isEmpty {
+          Text("Incognito tabs aren't saved or synced, leave no history, and keep their cookies only until you close them or quit Compass. Sites can still see your visits.")
+            .font(.footnote)
+            .opacity(0.6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+        }
 
+        if !space.isIncognito {
         SectionHeader(title: "Pinned") { EmptyView() }
           .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.pinned) }
         if space.pinned.children.phoneVisible.isEmpty {
@@ -156,6 +166,7 @@ struct SpacePage: View {
         }
         ForEach(space.pinned.children.phoneVisible) { node in
           NodeTree(node: node, depth: 0)
+        }
         }
 
         SectionHeader(title: "Today") {
@@ -209,6 +220,8 @@ struct SpacePage: View {
     .scrollDisabled(app.sidebarHalf)
     .scrollIndicators(.hidden)
     .foregroundStyle(.primary)
+    // Incognito, locked or covered.
+    .overlay { if space.isIncognito && app.incognitoHidden { IncognitoLockView() } }
     .alert("Rename Space", isPresented: $renaming) {
       TextField("Name", text: $newName)
       Button("Rename") { app.store.renameSpace(space, to: newName) }
@@ -241,7 +254,7 @@ struct SpacePage: View {
       Text(space.name)
         .font(.system(size: 17, weight: .semibold))
         .lineLimit(1)
-      if let profile = app.sync.profileName(of: space) {
+      if !space.isIncognito, let profile = app.sync.profileName(of: space) {
         Text(profile)
           .font(.system(size: 11, weight: .medium))
           .opacity(0.6)
@@ -267,6 +280,16 @@ struct SpacePage: View {
   }
 
   @ViewBuilder private var spaceMenu: some View {
+    if space.isIncognito {
+      Button("Close All Incognito Tabs", systemImage: "xmark.circle", role: .destructive) {
+        withAnimation(SidebarStyle.motion) { app.services.closeAllIncognito() }
+      }
+    } else {
+      normalSpaceMenu
+    }
+  }
+
+  @ViewBuilder private var normalSpaceMenu: some View {
     Button("Rename", systemImage: "pencil") {
       newName = space.name
       renaming = true
@@ -562,7 +585,20 @@ struct NodeRow: View {
       newTitle = node.isFolder ? node.title : node.displayTitle
       renaming = true
     }
-    if let space {
+    // Incognito: nothing that would copy it into synced lists (pinned,
+    // favorites, other spaces); Close removes it.
+    if let space, space.isIncognito {
+      if node.isTab, let parent = node.parent, !parent.isSplit {
+        let candidates = parent.children.filter { $0.isTab && $0 !== node }
+        if !candidates.isEmpty {
+          Menu("Split With", systemImage: "rectangle.split.2x1") {
+            ForEach(candidates) { other in
+              Button(other.displayTitle) { app.store.split(node, with: other) }
+            }
+          }
+        }
+      }
+    } else if let space {
       if node.section == .today {
         Button("Pin", systemImage: "pin") { app.store.move(node, to: space.pinned, at: space.pinned.children.count) }
         Button("Archive", systemImage: "archivebox") { app.store.archive(node) }
@@ -651,6 +687,21 @@ struct ArchiveView: View {
           }
         }
       }
+    }
+  }
+}
+
+/// Incognito's sidebar look: near black, in the dark color scheme.
+struct IncognitoLook: ViewModifier {
+  let on: Bool
+
+  func body(content: Content) -> some View {
+    if on {
+      content
+        .background(Color(white: 0.09).ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
+    } else {
+      content
     }
   }
 }

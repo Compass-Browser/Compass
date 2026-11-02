@@ -40,6 +40,8 @@ final class WebExtensions: NSObject {
     /// Only these hosts (and their subdomains) instead of every site it
     /// asks for; nil = every site it asks for.
     var onlySites: [String]?
+    /// Runs in incognito tabs too (off by default, as in Chrome).
+    var allowIncognito: Bool? = nil
   }
 
   /// An extension downloaded and read, waiting for the user to add it.
@@ -306,6 +308,17 @@ final class WebExtensions: NSObject {
     await load(record)
   }
 
+  /// "Allow in Incognito": WebKit's private data access, at once.
+  func setAllowIncognito(_ id: String, _ allowed: Bool) {
+    guard let index = records.firstIndex(where: { $0.id == id }) else { return }
+    records[index].allowIncognito = allowed
+    save()
+    if #available(iOS 18.4, *), let context = contextsByID[id] as? WKWebExtensionContext {
+      context.hasAccessToPrivateData = allowed
+    }
+    revision += 1
+  }
+
   func setEnabled(_ id: String, _ enabled: Bool) {
     guard let index = records.firstIndex(where: { $0.id == id }) else { return }
     records[index].enabled = enabled
@@ -423,6 +436,8 @@ final class WebExtensions: NSObject {
     // accounts) belong to the origin, so they'd be gone after a restart.
     if let base = URL(string: "webkit-extension://\(record.id.lowercased())/") { context.baseURL = base }
     context.isInspectable = true
+    // Incognito tabs (a private window to WebKit) only when allowed.
+    context.hasAccessToPrivateData = record.allowIncognito == true
     // What it asked for was shown, and accepted, when it was added.
     let optionalPatterns = webExtension.optionalPermissionMatchPatterns
     for permission in webExtension.requestedPermissions {
@@ -668,7 +683,8 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
     guard let app else { return [] }
     // The focused one first.
     let selected = app.selectedSpace?.id
-    let ids = app.store.spaces.map(\.id)
+    // Incognito last: WebKit shows it only to extensions allowed there.
+    let ids = app.store.spaces.map(\.id) + [app.store.incognito.id]
     let ordered = ids.filter { $0 == selected } + ids.filter { $0 != selected }
     return ordered.map(window)
   }
