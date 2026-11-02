@@ -70,10 +70,8 @@ def checkout_version(layout: Layout, version: str) -> None:
 
 def link_compass(layout: Layout) -> None:
   """Makes the repository visible to GN as //compass."""
-  if layout.in_tree:
-    return
   link = layout.src / 'compass'
-  if not link.exists():
+  if not layout.in_tree and not link.exists():
     if sys.platform == 'win32':
       import _winapi  # Junctions don't need admin rights, unlike symlinks.
       _winapi.CreateJunction(str(layout.root), str(link))

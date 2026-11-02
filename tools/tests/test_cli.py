@@ -8,8 +8,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from compass_tool.cli import (browser_test_args,  # noqa: E402
-                              parser, require_buildable_layout)
-from compass_tool.layout import Layout  # noqa: E402
+                              parser, require_buildable_layout,
+                              require_in_tree_init)
+from compass_tool.layout import Layout, detect  # noqa: E402
 from compass_tool.process import CommandError  # noqa: E402
 
 KEEP_GPU = '--disable-features=MacDisclaimGpuTccResponsibility'
@@ -31,6 +32,31 @@ class BuildableLayoutTest(unittest.TestCase):
   def test_other_platforms_accept_linked_layout(self):
     require_buildable_layout(self.layout(False), 'darwin')
     require_buildable_layout(self.layout(False), 'linux')
+
+  def test_windows_init_rejects_linked_layout(self):
+    with self.assertRaises(CommandError) as raised:
+      require_in_tree_init(self.layout(False), 'win32')
+    self.assertIn('git clone', str(raised.exception))
+
+  def test_windows_init_accepts_in_tree_layout(self):
+    require_in_tree_init(self.layout(True), 'win32')
+
+  def test_other_platforms_init_linked_layout(self):
+    require_in_tree_init(self.layout(False), 'darwin')
+
+
+class DetectTest(unittest.TestCase):
+
+  def test_in_tree_clone_before_init(self):
+    layout = detect(Path('/w/compass-chromium/src/compass'), {})
+    self.assertTrue(layout.in_tree)
+    self.assertEqual(layout.chromium_dir, Path('/w/compass-chromium'))
+
+  def test_plain_src_directory_is_linked(self):
+    # ~/src/compass next to ~/src/compass-chromium is the linked layout.
+    layout = detect(Path('/home/me/src/compass'), {})
+    self.assertFalse(layout.in_tree)
+    self.assertEqual(layout.chromium_dir, Path('/home/me/src/compass-chromium'))
 
 
 class BrowserTestArgsTest(unittest.TestCase):

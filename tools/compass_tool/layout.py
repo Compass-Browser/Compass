@@ -63,9 +63,15 @@ class Layout:
     return env
 
 
+CHROMIUM_DIR_NAMES = ('compass-chromium', 'strata-chromium')
+
+
 def detect(root: Path = REPO_ROOT, environ=None) -> Layout:
   environ = os.environ if environ is None else environ
-  if root.name == 'compass' and (root.parent / '.gn').is_file():
+  if root.name == 'compass' and root.parent.name == 'src' and (
+      (root.parent / '.gn').is_file() or
+      root.parent.parent.name in CHROMIUM_DIR_NAMES):
+    # In-tree, either checked out already or cloned there before `init`.
     return Layout(root, root.parent.parent, in_tree=True)
   chromium_dir = environ.get('COMPASS_CHROMIUM_DIR')
   if chromium_dir:

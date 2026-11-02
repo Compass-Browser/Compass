@@ -104,8 +104,23 @@ def cmd_info(layout: Layout, _args) -> None:
   print('checkout present: %s' % (layout.src / '.gn').is_file())
 
 
+def require_in_tree_init(layout: Layout, platform: str = sys.platform) -> None:
+  """Stops a Windows `init` that would end in a layout siso can't build."""
+  if platform != 'win32' or layout.in_tree:
+    return
+  target = layout.src / 'compass'
+  raise CommandError(
+      'on Windows the build needs the in-tree layout (siso does not follow '
+      'directory junctions). Clone the repository into the checkout and run '
+      'init from there:\n'
+      '  git clone <compass repo> "%s"\n'
+      '  cd "%s"\n'
+      '  tools\\compass.bat init' % (target, target))
+
+
 def cmd_init(layout: Layout, args) -> None:
   require_lowercase_name(layout)
+  require_in_tree_init(layout)
   checkout.init(layout, args.target_os or [checkout.host_os()])
   print('\nDone. Next: compass gen debug && compass build')
 
