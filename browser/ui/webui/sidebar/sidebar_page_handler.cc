@@ -938,6 +938,11 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
   }
 }
 
+void SidebarPageHandler::SendSwipe(sidebar::mojom::SwipePhase phase,
+                                   float delta_x) {
+  page_->Swipe(phase, delta_x);
+}
+
 // static
 void SidebarPageHandler::SetSendTabModelForTesting(
     send_tab_to_self::SendTabToSelfModel* model) {

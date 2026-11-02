@@ -17,6 +17,13 @@ enum NodeType {
 // What a tab node's tab sounds like (compass::LiveTabRegistry::AudioState):
 // the sidebar shows a speaker on a tab that plays sound, crossed out on a
 // muted one.
+// Of Page.Swipe().
+enum SwipePhase {
+  kBegin,
+  kUpdate,
+  kEnd,
+};
+
 enum AudioState {
   kNone,
   kAudible,
@@ -297,6 +304,11 @@ interface Page {
   // The window's now playing widgets, top to bottom. Sent after the tree, and
   // whenever they change.
   SetNowPlaying(array<NowPlaying> items);
+  // A two-finger swipe across the sidebar (docs/design/spaces.md,
+  // "Swiping"), told by the browser so vertical scrolls never wait on the
+  // page: kBegin, then kUpdate with how far the fingers moved right since
+  // the last one (CSS pixels, momentum included), then kEnd.
+  Swipe(SwipePhase phase, float delta_x);
 };
 
 // Browser-side handler for chrome://compass-placeholder, the tab a window shows

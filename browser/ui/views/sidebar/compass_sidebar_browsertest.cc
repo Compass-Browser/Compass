@@ -1262,6 +1262,58 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, BehavesLikeBrowserUI) {
             "none");
 }
 
+// A trackpad scroll that starts sideways is a swipe: the browser takes it
+// from the page (so vertical scrolls never wait on the page's script) and
+// tells the page, which pulls in the next space. Vertical ones scroll.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SwipesAreTheBrowsers) {
+  content::WebContents* contents = sidebar_contents();
+  content::WebContentsDelegate* delegate = contents->GetDelegate();
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  using Type = blink::WebInputEvent::Type;
+  using Phase = blink::WebGestureEvent::InertialPhaseState;
+  auto gesture = [&](Type type, float dx, float dy,
+                     Phase phase = Phase::kNonMomentum) {
+    blink::WebGestureEvent event(type, blink::WebInputEvent::kNoModifiers,
+                                 base::TimeTicks::Now(),
+                                 blink::WebGestureDevice::kTouchpad);
+    if (type == Type::kGestureScrollBegin) {
+      event.data.scroll_begin.delta_x_hint = dx;
+      event.data.scroll_begin.delta_y_hint = dy;
+      event.data.scroll_begin.inertial_phase = phase;
+    } else if (type == Type::kGestureScrollUpdate) {
+      event.data.scroll_update.delta_x = dx;
+      event.data.scroll_update.delta_y = dy;
+      event.data.scroll_update.inertial_phase = phase;
+    } else if (type == Type::kGestureScrollEnd) {
+      event.data.scroll_end.inertial_phase = phase;
+    }
+    return delegate->PreHandleGestureEvent(contents, event);
+  };
+
+  // Vertical: the page scrolls it.
+  EXPECT_FALSE(gesture(Type::kGestureScrollBegin, 0, -4));
+  EXPECT_FALSE(gesture(Type::kGestureScrollUpdate, 1, -20));
+  EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0));
+  EXPECT_EQ(&features->space_model(), home);
+
+  // Fingers to the left, past half the sidebar: the next space.
+  EXPECT_TRUE(gesture(Type::kGestureScrollBegin, -6, 1));
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, -80, 0));
+  }
+  EXPECT_TRUE(gesture(Type::kGestureScrollEnd, 0, 0));
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return &features->space_model() == work; }));
+
+  // Its momentum is swallowed; the next scroll isn't.
+  EXPECT_TRUE(gesture(Type::kGestureScrollBegin, -30, 0, Phase::kMomentum));
+  EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, -30, 0, Phase::kMomentum));
+  EXPECT_TRUE(gesture(Type::kGestureScrollEnd, 0, 0, Phase::kMomentum));
+  EXPECT_FALSE(gesture(Type::kGestureScrollBegin, 0, -4));
+}
+
 // With spaces of two profiles there's no profile picker at startup, and the
 // window shows the switcher's first space in its profile, though the profile
 // used last is the other one (docs/design/spaces.md, "Startup with several

@@ -103,7 +103,11 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
   void AddedToWidget() override;
   void RemovedFromWidget() override;
   // The sidebar is the browser's UI, not a page: no pinch zoom and no smart
-  // zoom (a two-finger double tap on a trackpad).
+  // zoom (a two-finger double tap on a trackpad). A trackpad scroll that
+  // starts sideways is a swipe between spaces: the page gets it as
+  // Page.Swipe() and doesn't scroll. Deciding here, not in the page, leaves
+  // vertical scrolls to the compositor: a page wheel listener that can
+  // cancel makes every scroll wait for the page's main thread.
   bool PreHandleGestureEvent(content::WebContents* source,
                              const blink::WebGestureEvent& event) override;
 
@@ -121,6 +125,10 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
   SpaceShortcuts space_shortcuts_;
   CommandBar command_bar_;
   Peek peek_;
+  // Between a swipe's scroll begin and end.
+  bool swiping_ = false;
+  // After a swipe, until a scroll that isn't its momentum begins.
+  bool swallowing_momentum_ = false;
 };
 
 // The sidebar the vertical tab strip region shows in place of the native tab

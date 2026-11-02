@@ -181,6 +181,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ActOnNowPlaying(const std::string& id,
                        sidebar::mojom::NowPlayingAction action) override;
 
+  // Tells the page about a swipe across the sidebar (CompassSidebarView).
+  void SendSwipe(sidebar::mojom::SwipePhase phase, float delta_x);
+
   // Node |id|'s context menu, or null if it has none. Its commands act on the
   // node, if it's still there, while this handler lives.
   std::unique_ptr<ui::SimpleMenuModel> CreateContextMenu(const std::string& id);

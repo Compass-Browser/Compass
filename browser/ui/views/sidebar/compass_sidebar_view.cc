@@ -5,6 +5,7 @@
 #include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -24,6 +25,9 @@
 #include "ui/compositor/layer.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_ui.h"
+#include "content/public/browser/web_ui_controller.h"
+#include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
 #include "ui/base/page_transition_types.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/ui/arc_import/arc_importer.h"
@@ -242,8 +246,67 @@ void CompassSidebarView::RemovedFromWidget() {
 bool CompassSidebarView::PreHandleGestureEvent(
     content::WebContents* source,
     const blink::WebGestureEvent& event) {
-  return blink::WebInputEvent::IsPinchGestureEventType(event.GetType()) ||
-         event.GetType() == blink::WebInputEvent::Type::kGestureDoubleTap;
+  using Type = blink::WebInputEvent::Type;
+  using Phase = blink::WebGestureEvent::InertialPhaseState;
+  if (blink::WebInputEvent::IsPinchGestureEventType(event.GetType()) ||
+      event.GetType() == Type::kGestureDoubleTap) {
+    return true;
+  }
+  if (event.SourceDevice() != blink::WebGestureDevice::kTouchpad) {
+    return false;
+  }
+  auto send = [&](sidebar::mojom::SwipePhase phase, float delta_x) {
+    content::WebUI* web_ui = source->GetWebUI();
+    CompassSidebarUI* ui =
+        web_ui ? web_ui->GetController()->GetAs<CompassSidebarUI>() : nullptr;
+    if (ui && ui->page_handler()) {
+      ui->page_handler()->SendSwipe(phase, delta_x);
+    }
+  };
+  switch (event.GetType()) {
+    case Type::kGestureScrollBegin: {
+      const auto& begin = event.data.scroll_begin;
+      if (swallowing_momentum_ && begin.inertial_phase == Phase::kMomentum) {
+        return true;
+      }
+      swallowing_momentum_ = false;
+      // After the trackpad's axis lock, which zeroes the other axis.
+      swiping_ = std::abs(begin.delta_x_hint) > std::abs(begin.delta_y_hint);
+      if (swiping_) {
+        send(sidebar::mojom::SwipePhase::kBegin, 0);
+        if (begin.delta_x_hint) {
+          send(sidebar::mojom::SwipePhase::kUpdate, begin.delta_x_hint);
+        }
+      }
+      return swiping_;
+    }
+    case Type::kGestureScrollUpdate:
+      if (swiping_) {
+        send(sidebar::mojom::SwipePhase::kUpdate,
+             event.data.scroll_update.delta_x);
+        return true;
+      }
+      return swallowing_momentum_ &&
+             event.data.scroll_update.inertial_phase == Phase::kMomentum;
+    case Type::kGestureScrollEnd:
+    case Type::kGestureFlingStart:
+    case Type::kGestureFlingCancel:
+      if (swiping_) {
+        swiping_ = false;
+        swallowing_momentum_ = true;
+        send(sidebar::mojom::SwipePhase::kEnd, 0);
+        return true;
+      }
+      if (swallowing_momentum_ && event.GetType() == Type::kGestureScrollEnd &&
+          event.data.scroll_end.inertial_phase == Phase::kMomentum) {
+        // The swipe's momentum is over.
+        swallowing_momentum_ = false;
+        return true;
+      }
+      return false;
+    default:
+      return false;
+  }
 }
 
 BEGIN_METADATA(CompassSidebarView)

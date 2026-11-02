@@ -18,7 +18,7 @@ import type {SpaceSymbol} from './space_icons.js';
 import './theme_editor.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
 import type {ArchivedEntry, ArchivedTab, Node, NowPlaying, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
-import {AudioState, NodeType} from './sidebar.mojom-webui.js';
+import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
 // current children. |target| shows the drop indicator, as its `drop`
@@ -74,9 +74,6 @@ const EASE_OUT = 'cubic-bezier(0.2, 0, 0, 1)';
 // while the tint fades (SidebarTint's kFadeDuration). A two-finger swipe
 // moves them with the fingers (docs/design/spaces.md, "Swiping").
 const SLIDE_MS = 280;
-// Wheel events this far apart end a gesture. Momentum after the fingers lift
-// keeps it going.
-const WHEEL_QUIET_MS = 150;
 // Of the sidebar's width: a swipe this far switches at once; one that stops
 // short of the other switches if it's past the second, and goes back if not.
 const SWIPE_SWITCH = 0.5;
@@ -121,9 +118,9 @@ export interface Preview {
   side: 'previous'|'next';
 }
 
-// Which way the wheel events of a gesture go. `done`: the swipe is over, and
-// the rest of the gesture (its momentum) is swallowed.
-type WheelAxis = 'x'|'y'|'done';
+// A swipe's state: `x` while it moves the entries, `done` once it switched
+// or couldn't start (the rest of the gesture is the browser's to swallow).
+type WheelAxis = 'x'|'done';
 
 // Where an animated element was before a change, and the element.
 interface FlipFirst {
@@ -230,7 +227,6 @@ export class CompassSidebarAppElement extends CrLitElement {
   private flipAnimations_: Animation[] = [];
 
   private wheelAxis_: WheelAxis|null = null;
-  private wheelQuietTimer_: number|null = null;
   private swipe_: Swipe|null = null;
   private swipeFrame_: number|null = null;
   // Other spaces' trees, for the previews, by space ID. Refetched whenever
@@ -265,6 +261,7 @@ export class CompassSidebarAppElement extends CrLitElement {
           (entries: ArchivedEntry[]) => this.archive_ = entries),
       router.setNowPlaying.addListener(
           (items: NowPlaying[]) => this.nowPlaying_ = items),
+      router.swipe.addListener(this.onSwipe_.bind(this)),
       router.startRename.addListener((id: string) => {
         this.getRow_(id)?.closest('compass-sidebar-node')?.startRename(id);
       }),
@@ -276,7 +273,9 @@ export class CompassSidebarAppElement extends CrLitElement {
     document.addEventListener('drop', this.onDocumentDrop_);
     document.addEventListener('pointerdown', this.onDocumentPointerdown_);
     document.addEventListener('contextmenu', this.onDocumentContextmenu_);
-    this.addEventListener('wheel', this.onWheel_, {passive: false});
+    // Passive: scrolling never waits for it (swipes come from the browser,
+    // Page.Swipe()).
+    this.addEventListener('wheel', this.onWheel_, {passive: true});
   }
 
   override disconnectedCallback() {
@@ -287,7 +286,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
     document.removeEventListener('contextmenu', this.onDocumentContextmenu_);
     this.removeEventListener('wheel', this.onWheel_);
-    this.clearWheelQuietTimer_();
+    this.wheelAxis_ = null;
     if (this.swipeFrame_ !== null) {
       cancelAnimationFrame(this.swipeFrame_);
       this.swipeFrame_ = null;
@@ -1294,53 +1293,58 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   // Two fingers across the sidebar pull in the next or the previous space.
-  // Vertical scrolling and pinch zoom (ctrlKey) go on as usual.
-  private onWheel_ = (e: WheelEvent) => {
-    // Ctrl+wheel, and a trackpad pinch (which pages get as Ctrl+wheel), would
-    // zoom the sidebar. CompassSidebarView drops pinches before they get
-    // here; this covers the rest.
-    if (e.ctrlKey) {
-      e.preventDefault();
-      return;
-    }
-    this.clearWheelQuietTimer_();
-    this.wheelQuietTimer_ =
-        setTimeout(() => this.onWheelQuiet_(), WHEEL_QUIET_MS);
-    if (!this.wheelAxis_) {
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) {
-        this.wheelAxis_ = 'y';
-      } else if (
-          this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
-          this.draggingId_) {
-        this.wheelAxis_ = 'done';
-      } else {
-        this.wheelAxis_ = 'x';
-        this.startSwipe_();
-      }
-    }
-    if (this.wheelAxis_ === 'y') {
-      return;
-    }
-    e.preventDefault();
-    if (this.wheelAxis_ === 'x' && this.swipe_) {
-      const scale = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
-      this.swipe_.offset -= e.deltaX * scale;
-      this.updateSwipe_();
-    }
-  };
-
-  private clearWheelQuietTimer_() {
-    if (this.wheelQuietTimer_ !== null) {
-      clearTimeout(this.wheelQuietTimer_);
-      this.wheelQuietTimer_ = null;
+  // The browser decides a gesture is a swipe (CompassSidebarView), so
+  // vertical scrolls stay on the compositor.
+  private onSwipe_(phase: SwipePhase, deltaX: number) {
+    switch (phase) {
+      case SwipePhase.kBegin:
+        if (this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
+            this.draggingId_) {
+          this.wheelAxis_ = 'done';
+        } else {
+          this.wheelAxis_ = 'x';
+          this.startSwipe_();
+        }
+        return;
+      case SwipePhase.kUpdate:
+        if (this.wheelAxis_ === 'x' && this.swipe_) {
+          this.swipe_.offset += deltaX;
+          this.updateSwipe_();
+        }
+        return;
+      case SwipePhase.kEnd:
+        this.wheelAxis_ = null;
+        this.onSwipeEnd_();
+        return;
     }
   }
 
+  // Over the parts of the sidebar that don't scroll (favorites, the space's
+  // name, now playing), the wheel scrolls the entries.
+  private onWheel_ = (e: WheelEvent) => {
+    if (e.ctrlKey || this.swipe_ || !e.deltaY ||
+        Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      return;
+    }
+    const sections = this.getSections_();
+    for (let el = e.target instanceof Element ? e.target : null;
+         el && el !== this; el = el.parentElement) {
+      if (el === sections) {
+        return;
+      }
+      const overflow = getComputedStyle(el).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') &&
+          el.scrollHeight > el.clientHeight) {
+        return;
+      }
+    }
+    const scale = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
+    sections.scrollBy({top: e.deltaY * scale, behavior: 'instant'});
+  };
+
   // The gesture ended: a swipe past SWIPE_SETTLE switches, one short of it
   // goes back.
-  private onWheelQuiet_() {
-    this.wheelQuietTimer_ = null;
-    this.wheelAxis_ = null;
+  private onSwipeEnd_() {
     const swipe = this.swipe_;
     if (swipe) {
       this.endSwipe_(

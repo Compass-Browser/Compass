@@ -52,6 +52,9 @@ class CompassSidebarUI : public TopChromeWebUIController,
   // Runs |callback| once the page has taken its first tree: now if it has.
   void RunWhenTreeShown(base::OnceClosure callback);
 
+  // The page's handler, or null until the page has a window.
+  SidebarPageHandler* page_handler() { return page_handler_.get(); }
+
  private:
   void OnTreeShown();
   // Binds the page handler once the page has asked for it and has a window,
