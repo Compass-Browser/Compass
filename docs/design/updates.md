@@ -123,7 +123,27 @@ and `bin/` the tools.
   (`about_page.*` patches; `compass.update_channel` is allowlisted in
   `prefs_util.cc`). Changing the channel checks at once.
 - **Testing:** `--compass-check-for-updates` checks at launch. Add
-  `--enable-logging=stderr --v=1` for the `Compass updates:` log lines.
+  `--enable-logging=stderr --vmodule=sparkle_updater_mac=1` for the
+  `Compass updates:` log lines. Test with a copy on the internal disk
+  (e.g. `~/CompassUpdateTest/Compass.app`, its own `--user-data-dir` with
+  `{"compass":{"update_channel":"beta"}}` in Local State), started with
+  `open -n -g -a … --args …`, and quit it with an Apple Event to its PID
+  (`NSRunningApplication … terminate`). Two traps found on 2026-11-03: a
+  copy started from a shell makes the shell its responsible process, so
+  macOS's App Management check stops Sparkle's swap of the bundle
+  (`renamex_np` waits on a prompt); and a copy on the external disk started
+  by LaunchServices waits on the removable-volume prompt at launch.
+  Installed copies started from the Dock or Finder meet neither.
+- **Checked on 2026-11-03:** 20261103.0116 → 20261103.0132 on the beta
+  channel, through a 3.7 MB delta, installed on quit; then 20261103.0132 →
+  20261103.0156 through a 0.27 MB delta, from the About page's "Nearly up
+  to date! Relaunch" (Sparkle installed it and opened the app again). Both
+  results pass `codesign --verify --deep --strict` and Gatekeeper. The
+  channel row switches the pref. 20261103.0156 was promoted to stable and
+  installed in /Applications.
+- **Relaunch caveat:** Sparkle reopens the app without its command line, so
+  a test copy with its own `--user-data-dir` comes back on the default
+  profile.
 
 ## Windows
 
