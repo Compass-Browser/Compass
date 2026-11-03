@@ -333,10 +333,14 @@ def upload(paths: List[Path], site: Path = SITE_DIR) -> None:
   """rsyncs |paths| (inside |site|) to the update server, in order."""
   ssh = 'ssh -i %s -o IdentityAgent=none -o IdentitiesOnly=yes -p %d' % (
       UPLOAD_KEY, UPLOAD_PORT)
-  relative = [str(p.relative_to(site)) for p in paths]
-  subprocess.run(['rsync', '-t', '--relative', '--partial', '-e', ssh] +
-                 relative + [UPLOAD_HOST + ':'],
-                 cwd=site, check=True)
+  # One rsync per folder, in order: macOS's openrsync can't send --relative
+  # through rrsync.
+  for path in paths:
+    folder = path.parent.relative_to(site).as_posix()
+    dest = '' if folder == '.' else folder + '/'
+    subprocess.run(['rsync', '-t', '--partial', '-e', ssh,
+                    str(path.relative_to(site)), UPLOAD_HOST + ':' + dest],
+                   cwd=site, check=True)
 
 
 def release_files(release: Dict) -> List[Path]:
