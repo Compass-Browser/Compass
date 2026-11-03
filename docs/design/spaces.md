@@ -75,14 +75,15 @@ their entries.
 3. Move the target space's parked tabs into the strip, in the background.
 4. Create the bridge to the target space. Every tab already has a node, so
    it adds none.
-5. Activate the target space's last active entry if it's live here, else
-   its first live tab. If it has none, show the empty tab
-   (command-bar.md, "No new tab page"), whose command bar asks what to
-   open: a switch never loads one of the space's entries by itself. (It
-   used to open the last active entry or the first pinned one.) The one
-   exception is a space assigned to another profile: its tabs had to close,
-   so the new profile's window loads the entry it showed
-   (`MoveSpaceToProfile()`).
+5. Activate the target space's last active entry, loading it if no window
+   has it open: after a restart, the tabs of spaces no window showed come
+   back unloaded, and the space should come back where it was left. The
+   last active entry is the one a window of this session showed last
+   (`SpaceService::GetLastActiveNode()`), else the tab entry with the latest
+   saved last-used time. Without one, its first live tab. If it has neither,
+   show the empty tab (command-bar.md, "No new tab page"), whose command bar
+   asks what to open. A space assigned to another profile also loads the
+   entry it showed (`MoveSpaceToProfile()`): its tabs had to close.
 6. Move the old space's tabs out, as above. The bridge doesn't put up a
    placeholder for them. Blank pages and placeholders close.
 

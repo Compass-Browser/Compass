@@ -478,11 +478,17 @@ void WindowFeatures::EnterCurrentSpace(bool reopen_last_entry) {
       browser_, space_, &service_->space_list().favorites(), &registry(),
       &service_->restored_tab_matcher(target), !outside_sidebar_);
 
-  // 5. Show what the space showed last, if it's still open, else another of
-  // its open tabs. A space with none shows the empty tab, whose command bar
-  // asks what to open: switching doesn't load one of its entries.
+  // 5. Show what the space showed last, loading it if it isn't open (after a
+  // restart, the tabs of spaces no window showed come back unloaded), else
+  // another of its open tabs. A space with none, and no entry it showed,
+  // shows the empty tab, whose command bar asks what to open.
   SidebarNode* last = service_->GetLastActiveNode(target);
   tabs::TabInterface* shown = last ? bridge_->GetTab(last) : nullptr;
+  // Open in no window: a tab of it still in a window swapping away comes
+  // over when that window leaves (OnSpaceTabsArrived()).
+  if (!shown && last && !registry().GetTab(last)) {
+    shown = bridge_->OpenNode(last);
+  }
   if (!shown && !arrived.empty()) {
     shown = arrived.front();
   }
@@ -507,6 +513,12 @@ void WindowFeatures::EnterCurrentSpace(bool reopen_last_entry) {
   }
   if (shown && strip->GetIndexOfTab(shown) != TabStripModel::kNoTab) {
     strip->ActivateTabAt(strip->GetIndexOfTab(shown));
+    // Already active if it came into an empty strip, which activated it
+    // before the bridge was there to note it (OnActiveTabChanged()).
+    if (SidebarNode* node = bridge_->GetShownNode(shown);
+        node && target.Contains(node)) {
+      service_->SetLastActiveNode(target, *node);
+    }
   }
 }
 
@@ -651,8 +663,8 @@ BrowserWindowInterface* WindowFeatures::FindOtherWindowShowing(
 
 SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space) {
   LiveTabRegistry& registry = service.registry();
-  SidebarNode* last = service.GetLastActiveNode(space);
-  if (last && registry.GetTab(last)) {
+  // Shown even if it isn't open: the switch loads it.
+  if (SidebarNode* last = service.GetLastActiveNode(space)) {
     return last;
   }
   for (SidebarNode* root : {space.pinned_root(), space.today_root()}) {
@@ -660,7 +672,7 @@ SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space) {
       return tab;
     }
   }
-  // Nothing open: the empty tab, which has no entry.
+  // Nothing open, and nothing it showed: the empty tab, which has no entry.
   return nullptr;
 }
 

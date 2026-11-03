@@ -62,6 +62,22 @@ std::optional<base::TimeDelta> GetShortArchiveHour() {
   return base::Seconds(seconds);
 }
 
+// The tab entry under |node| (itself included) used most recently, by its
+// saved time, or null if none has been used.
+SidebarNode* FindMostRecentTab(SidebarNode* node) {
+  if (node->type() == SidebarNode::Type::kTab) {
+    return node->last_active().is_null() ? nullptr : node;
+  }
+  SidebarNode* latest = nullptr;
+  for (const auto& child : node->children()) {
+    SidebarNode* tab = FindMostRecentTab(child.get());
+    if (tab && (!latest || tab->last_active() > latest->last_active())) {
+      latest = tab;
+    }
+  }
+  return latest;
+}
+
 }  // namespace
 
 base::TimeDelta GetArchiveHour() {
@@ -134,8 +150,17 @@ RestoredTabMatcher& SpaceService::restored_tab_matcher(
 
 SidebarNode* SpaceService::GetLastActiveNode(SpaceModel& space) {
   auto it = last_active_nodes_.find(&space);
-  return it == last_active_nodes_.end() ? nullptr
-                                        : space.FindById(it->second);
+  if (it != last_active_nodes_.end()) {
+    if (SidebarNode* node = space.FindById(it->second)) {
+      return node;
+    }
+  }
+  SidebarNode* pinned = FindMostRecentTab(space.pinned_root());
+  SidebarNode* today = FindMostRecentTab(space.today_root());
+  if (!pinned || !today) {
+    return pinned ? pinned : today;
+  }
+  return today->last_active() > pinned->last_active() ? today : pinned;
 }
 
 void SpaceService::SetLastActiveNode(const SpaceModel& space,

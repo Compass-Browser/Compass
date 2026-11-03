@@ -177,10 +177,10 @@ class WindowFeatures : public SpaceList::Observer {
 };
 
 // The entry a window switching to |space| would show, as far as can be told
-// beforehand (SwitchToSpace(), step 5): its last active entry if that has a
-// tab, else its first entry with one. Null when nothing of it is open: the
-// window then shows the empty tab, which has no entry. For the sidebar's
-// previews.
+// beforehand (SwitchToSpace(), step 5): its last active entry, open or not
+// (the switch loads it), else its first entry with a tab. Null when it has
+// neither: the window then shows the empty tab, which has no entry. For the
+// sidebar's previews.
 SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space);
 
 // Moves |node|, an entry of one of |profile|'s spaces, to |target|: a pinned

@@ -142,11 +142,48 @@ TEST_F(SpaceSwitchTest, ParksTheTabsAndBringsThemBack) {
 // A space with entries but none open doesn't load one: the window shows the
 // empty tab, whose command bar asks what to open. Its last active entry
 // stays unloaded too.
+// A space comes back where it was left: its last entry loads if no window
+// has it open (after a restart, other spaces' tabs come back unloaded).
+TEST_F(SpaceSwitchTest, LoadsTheLastEntryIfItIsNotOpen) {
+  OpenTabs(browser(), {"a.test"});
+  work_->AddTab(work_->pinned_root(), 0, GURL("https://first.test/"), u"F");
+  SidebarNode* last =
+      work_->AddTab(work_->pinned_root(), 1, GURL("https://p.test/"), u"P");
+  service().SetLastActiveNode(*work_, *last);
+  EXPECT_EQ(PredictShownEntry(service(), *work_), last);
+
+  SwitchTo(browser(), *work_);
+
+  EXPECT_EQ(features().tab_strip_bridge().GetNode(strip()->GetActiveTab()),
+            last);
+  EXPECT_FALSE(IsEmptyTab(strip()->GetActiveTab()));
+}
+
+// Without a last entry this session, the one used most recently by its saved
+// time: the window's own memory of it doesn't survive a restart.
+TEST_F(SpaceSwitchTest, FallsBackToTheMostRecentlyUsedEntry) {
+  OpenTabs(browser(), {"a.test"});
+  SidebarNode* older =
+      work_->AddTab(work_->pinned_root(), 0, GURL("https://old.test/"), u"O");
+  SidebarNode* newer =
+      work_->AddTab(work_->today_root(), 0, GURL("https://new.test/"), u"N");
+  const base::Time now = base::Time::Now();
+  work_->SetLastActive(older, now - base::Hours(2));
+  work_->SetLastActive(newer, now - base::Hours(1));
+
+  EXPECT_EQ(service().GetLastActiveNode(*work_), newer);
+  SwitchTo(browser(), *work_);
+
+  EXPECT_EQ(features().tab_strip_bridge().GetNode(strip()->GetActiveTab()),
+            newer);
+}
+
+// A space that has never shown anything shows the empty tab, whose command
+// bar asks what to open, and loads none of its entries.
 TEST_F(SpaceSwitchTest, ShowsTheEmptyTabForASpaceWithNothingOpen) {
   OpenTabs(browser(), {"a.test"});
   SidebarNode* pinned =
       work_->AddTab(work_->pinned_root(), 0, GURL("https://p.test/"), u"P");
-  service().SetLastActiveNode(*work_, *pinned);
 
   SwitchTo(browser(), *work_);
 

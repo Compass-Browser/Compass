@@ -78,7 +78,9 @@ class SpaceService : public base::SupportsUserData::Data,
   // Runs |callback| once the file has loaded: now, if it has.
   void RunWhenLoaded(base::OnceClosure callback);
 
-  // The entry |space| showed last, if it still exists.
+  // The entry |space| showed last, if it still exists. Before any window of
+  // this session has shown one (after a restart, or a space only swapped
+  // through), the tab entry used most recently, by its saved time, if any.
   SidebarNode* GetLastActiveNode(SpaceModel& space);
   void SetLastActiveNode(const SpaceModel& space, const SidebarNode& node);
 
