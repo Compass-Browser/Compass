@@ -330,6 +330,76 @@ TEST_F(SpaceSwapTest, SwappingBackBringsTheTabsBack) {
   EXPECT_THAT(other_home_->today_root()->children(), IsEmpty());
 }
 
+// Swapping back before the first swap's old window has left (its transition
+// waits for the new window to paint): the space's tabs are still in that
+// window, so the window swapped back to opens on the empty tab. When the old
+// window hands them over, the space's last tab shows instead, as if they had
+// been parked.
+TEST_F(SpaceSwapTest, SwappingBackQuicklyStillShowsTheLastTab) {
+  ListOther();
+  OpenTabs(browser(), {"a.test", "b.test"});
+  browser()->GetTabStripModel()->ActivateTabAt(1);
+  content::WebContents* b = browser()->GetTabStripModel()->GetWebContentsAt(1);
+  SpaceModel& home = list().active_space();
+  std::vector<base::OnceClosure> leaves;
+  SetSwapPresenter(base::BindLambdaForTesting(
+      [&](BrowserWindowInterface* old, BrowserWindowInterface* window,
+          base::OnceClosure leave) { leaves.push_back(std::move(leave)); }));
+
+  BrowserWindowInterface* other =
+      SwitchWindowToSpace(browser(), other_profile_, *other_home_);
+  ASSERT_TRUE(other);
+  BrowserWindowInterface* back = SwitchWindowToSpace(other, profile(), home);
+  ASSERT_TRUE(back);
+  Settle();
+  // Home's tabs haven't left the first window yet.
+  EXPECT_TRUE(IsEmptyTab(back->GetTabStripModel()->GetActiveTab()));
+
+  ASSERT_EQ(leaves.size(), 2u);
+  for (base::OnceClosure& leave : leaves) {
+    std::move(leave).Run();
+  }
+  Settle();
+  SetSwapPresenter({});
+
+  EXPECT_THAT(Hosts(back->GetTabStripModel()), ElementsAre("a.test", "b.test"));
+  EXPECT_EQ(back->GetTabStripModel()->GetActiveWebContents(), b);
+}
+
+// The same, but the person has already typed a page into the empty tab's
+// command bar: what they opened stays in front.
+TEST_F(SpaceSwapTest, SwappingBackQuicklyKeepsWhatWasOpenedMeanwhile) {
+  ListOther();
+  OpenTabs(browser(), {"a.test"});
+  SpaceModel& home = list().active_space();
+  std::vector<base::OnceClosure> leaves;
+  SetSwapPresenter(base::BindLambdaForTesting(
+      [&](BrowserWindowInterface* old, BrowserWindowInterface* window,
+          base::OnceClosure leave) { leaves.push_back(std::move(leave)); }));
+
+  BrowserWindowInterface* other =
+      SwitchWindowToSpace(browser(), other_profile_, *other_home_);
+  ASSERT_TRUE(other);
+  BrowserWindowInterface* back = SwitchWindowToSpace(other, profile(), home);
+  ASSERT_TRUE(back);
+  Settle();
+  NavigateAndCommit(back->GetTabStripModel()->GetActiveWebContents(),
+                    GURL("https://typed.test/"));
+  Settle();
+
+  for (base::OnceClosure& leave : leaves) {
+    std::move(leave).Run();
+  }
+  Settle();
+  SetSwapPresenter({});
+
+  EXPECT_EQ(back->GetTabStripModel()
+                ->GetActiveWebContents()
+                ->GetLastCommittedURL()
+                .host(),
+            "typed.test");
+}
+
 TEST_F(SpaceSwapTest, ParkedTabsStayWhileAnotherProfilesWindowIsOpen) {
   ListOther();
   OpenTabs(browser(), {"a.test"});

@@ -496,8 +496,14 @@ void WindowFeatures::EnterCurrentSpace(bool reopen_last_entry) {
       shown = bridge_->OpenNode(entry);
     }
   }
+  entered_empty_tab_ = tabs::TabHandle();
   if (!shown) {
+    // Its tabs may still be in a window swapping away from it, which hands
+    // them over when it leaves (OnSpaceTabsArrived()).
     OpenEmptyTab(browser_);
+    if (tabs::TabInterface* empty = browser_->GetActiveTabInterface()) {
+      entered_empty_tab_ = empty->GetHandle();
+    }
   }
   if (shown && strip->GetIndexOfTab(shown) != TabStripModel::kNoTab) {
     strip->ActivateTabAt(strip->GetIndexOfTab(shown));
@@ -509,6 +515,7 @@ void WindowFeatures::MoveTabsOut(const std::vector<tabs::TabHandle>& leaving,
                                  bool keep_one) {
   TabStripModel* strip = browser_->GetTabStripModel();
   BrowserWindowInterface* destination = FindOtherWindowShowing(leaving_space);
+  std::vector<tabs::TabInterface*> handed_over;
   for (const tabs::TabHandle& handle : leaving) {
     tabs::TabInterface* tab = handle.Get();
     const int index = tab ? strip->GetIndexOfTab(tab) : TabStripModel::kNoTab;
@@ -537,9 +544,42 @@ void WindowFeatures::MoveTabsOut(const std::vector<tabs::TabHandle>& leaving,
       to = service_->GetOrCreateParkingWindow();
     }
     TabStripModel* destination_strip = to->GetTabStripModel();
+    std::unique_ptr<tabs::TabModel> detached =
+        strip->DetachTabAtForInsertion(index);
+    if (to == destination) {
+      handed_over.push_back(detached.get());
+    }
     destination_strip->InsertDetachedTabAt(destination_strip->count(),
-                                           strip->DetachTabAtForInsertion(index),
+                                           std::move(detached),
                                            AddTabTypes::ADD_NONE);
+  }
+  if (!handed_over.empty()) {
+    if (WindowFeatures* features = WindowFeatures::From(destination)) {
+      features->OnSpaceTabsArrived(handed_over);
+    }
+  }
+}
+
+void WindowFeatures::OnSpaceTabsArrived(
+    const std::vector<tabs::TabInterface*>& arrived) {
+  tabs::TabInterface* empty = entered_empty_tab_.Get();
+  entered_empty_tab_ = tabs::TabHandle();
+  // The person may have moved on since: another tab, or a page typed into
+  // the empty tab's command bar.
+  if (!bridge_ || !empty || empty != browser_->GetActiveTabInterface() ||
+      !IsEmptyTab(empty)) {
+    return;
+  }
+  SidebarNode* last = service_->GetLastActiveNode(*space_);
+  tabs::TabInterface* shown = last ? bridge_->GetTab(last) : nullptr;
+  if (!shown || !std::ranges::contains(arrived, shown)) {
+    shown = arrived.front();
+  }
+  // The empty tab closes once another tab shows (empty_tab.h).
+  TabStripModel* strip = browser_->GetTabStripModel();
+  const int index = strip->GetIndexOfTab(shown);
+  if (index != TabStripModel::kNoTab) {
+    strip->ActivateTabAt(index);
   }
 }
 

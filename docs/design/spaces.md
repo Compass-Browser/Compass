@@ -559,7 +559,12 @@ when `space` is the window's profile's. Otherwise:
    window's sidebar width and collapsed state. Its `WindowFeatures` binds to
    `space`.
 3. `WindowFeatures::EnterSpace()`, steps 3 to 5 of a switch: `space`'s
-   parked tabs come in, and the entry it showed last is shown.
+   parked tabs come in, and the entry it showed last is shown. A quick swap
+   back, before the previous swap's old window has left (step 5), finds
+   `space`'s tabs still in that window, not parked, so the new window opens
+   on the empty tab. When the old window hands them over, the new one shows
+   the space's last tab in its place (`OnSpaceTabsArrived()`), unless the
+   person has already opened something from the command bar.
 4. The swap presenter (`sidebar_swap.cc`, set by the views layer) never
    shows the new window. Once its sidebar page has the tree, the two
    windows' `BrowserView`s exchange native windows

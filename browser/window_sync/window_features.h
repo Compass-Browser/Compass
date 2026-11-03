@@ -138,6 +138,12 @@ class WindowFeatures : public SpaceList::Observer {
   void MoveTabsOut(const std::vector<tabs::TabHandle>& leaving,
                    SpaceModel& leaving_space,
                    bool keep_one);
+  // |arrived|, tabs of the window's space, came from a window that swapped
+  // away from it after this one entered it (a quick swap back, before the
+  // old window had parked them). If the window still shows the empty tab it
+  // opened on entering, the space's last active tab shows instead, else the
+  // first of them, as if they had been there to enter.
+  void OnSpaceTabsArrived(const std::vector<tabs::TabInterface*>& arrived);
 
   // Another normal window of the profile that shows |space|, or null.
   BrowserWindowInterface* FindOtherWindowShowing(const SpaceModel& space);
@@ -157,6 +163,9 @@ class WindowFeatures : public SpaceList::Observer {
   double preview_progress_ = 0;
   // Null for the parking window.
   std::unique_ptr<TabStripBridge> bridge_;
+  // The empty tab the window opened on entering its space, having nothing of
+  // it to show (EnterCurrentSpace()). See OnSpaceTabsArrived().
+  tabs::TabHandle entered_empty_tab_;
 
   base::ObserverList<Observer> observers_;
   base::CallbackListSubscription active_tab_subscription_;
