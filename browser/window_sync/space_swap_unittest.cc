@@ -19,6 +19,7 @@
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/startup_space.h"
@@ -290,11 +291,12 @@ TEST_F(SpaceSwapTest, SwapsTheWindowAndParksItsTabs) {
   EXPECT_EQ(window->GetProfile(), other_profile_.get());
   EXPECT_EQ(&WindowFeatures::From(window)->space_model(), work);
   EXPECT_EQ(&other_list().active_space(), work);
-  // The new window opened the space's first entry.
+  // Nothing of the space was open: the new window shows the empty tab, as a
+  // switch does, and doesn't load its entry.
   ASSERT_EQ(window->GetTabStripModel()->count(), 1);
-  EXPECT_EQ(WindowFeatures::From(window)->tab_strip_bridge().GetNode(
-                window->GetTabStripModel()->GetActiveTab()),
-            work->pinned_root()->children()[0].get());
+  EXPECT_TRUE(IsEmptyTab(window->GetTabStripModel()->GetActiveTab()));
+  EXPECT_FALSE(WindowFeatures::From(window)->registry().GetTab(
+      work->pinned_root()->children()[0].get()));
   // The old window emptied; its tabs are parked in their profile.
   EXPECT_TRUE(browser()->GetTabStripModel()->empty());
   EXPECT_TRUE(WindowFeatures::From(browser())->swapped_away());

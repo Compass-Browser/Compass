@@ -545,8 +545,9 @@ TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {
   sidebar::mojom::TreePtr tree = page_.TakeTree();
   ASSERT_TRUE(tree);
   EXPECT_TRUE(tree->pinned->children.empty());
-  // A new tab, as the space had nothing to show.
-  EXPECT_EQ(tree->today->children.size(), 1u);
+  // The space had nothing to show: the window shows the empty tab, which has
+  // no entry.
+  EXPECT_TRUE(tree->today->children.empty());
 
   const std::string first_id = WindowFeatures::From(browser())
                                    ->service()

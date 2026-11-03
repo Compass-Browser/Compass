@@ -22,8 +22,10 @@
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/empty_tab.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -199,6 +201,27 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, NewTabPageIsTheEmptyPage) {
   model->ActivateTabAt(0);
   EXPECT_TRUE(base::test::RunUntil([&] { return model->count() == 1; }));
   EXPECT_EQ(model->GetActiveWebContents()->GetVisibleURL(), url);
+}
+
+// Switching to a space with nothing open doesn't load one of its entries:
+// the window shows the empty page, with the command bar up.
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest,
+                       SwitchingToASpaceWithNothingOpenAsks) {
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  SidebarNode* pinned =
+      work->AddTab(work->pinned_root(), 0,
+                   embedded_test_server()->GetURL("/title2.html"), u"Pinned");
+
+  features->SwitchToSpace(*work);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  ASSERT_EQ(model->count(), 1);
+  EXPECT_TRUE(IsEmptyTab(model->GetActiveWebContents()));
+  EXPECT_FALSE(features->registry().GetTab(pinned));
+  EXPECT_TRUE(base::test::RunUntil([&] { return bar()->IsShowing(); }));
 }
 
 // The empty pane paints the space's tint, as Arc does, and follows its

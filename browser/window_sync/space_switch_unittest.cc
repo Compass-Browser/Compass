@@ -17,6 +17,7 @@
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -115,9 +116,11 @@ TEST_F(SpaceSwitchTest, ParksTheTabsAndBringsThemBack) {
 
   EXPECT_EQ(&features().space_model(), work_);
   EXPECT_EQ(&list().active_space(), work_);
-  // The new space had nothing to show, so it got a new tab.
+  // The new space had nothing to show, so it shows the empty tab, which has
+  // no entry.
   EXPECT_EQ(strip()->count(), 1);
-  EXPECT_EQ(work_->today_root()->children().size(), 1u);
+  EXPECT_TRUE(IsEmptyTab(strip()->GetActiveTab()));
+  EXPECT_TRUE(work_->today_root()->children().empty());
   // Home's tabs are alive in the parking window, with their entries.
   ASSERT_TRUE(parking_);
   EXPECT_THAT(Hosts(parking_->GetTabStripModel()),
@@ -128,24 +131,31 @@ TEST_F(SpaceSwitchTest, ParksTheTabsAndBringsThemBack) {
 
   SwitchTo(browser(), *home_);
 
-  // The same tabs, on the one the space showed last. The blank tab of Work
-  // closed with its entry.
+  // The same tabs, on the one the space showed last. Work's empty tab
+  // closed.
   EXPECT_THAT(Hosts(strip()), ElementsAre("a.test", "b.test"));
   EXPECT_EQ(strip()->GetActiveWebContents(), b);
   EXPECT_TRUE(work_->today_root()->children().empty());
   EXPECT_TRUE(parking_->GetTabStripModel()->empty());
 }
 
-TEST_F(SpaceSwitchTest, OpensTheFirstEntryOfASpaceWithNothingLive) {
+// A space with entries but none open doesn't load one: the window shows the
+// empty tab, whose command bar asks what to open. Its last active entry
+// stays unloaded too.
+TEST_F(SpaceSwitchTest, ShowsTheEmptyTabForASpaceWithNothingOpen) {
   OpenTabs(browser(), {"a.test"});
-  work_->AddTab(work_->pinned_root(), 0, GURL("https://p.test/"), u"P");
+  SidebarNode* pinned =
+      work_->AddTab(work_->pinned_root(), 0, GURL("https://p.test/"), u"P");
+  service().SetLastActiveNode(*work_, *pinned);
 
   SwitchTo(browser(), *work_);
 
   ASSERT_EQ(strip()->count(), 1);
-  EXPECT_EQ(features().tab_strip_bridge().GetNode(strip()->GetActiveTab()),
-            work_->pinned_root()->children()[0].get());
-  EXPECT_EQ(work_->today_root()->children().size(), 0u);
+  EXPECT_TRUE(IsEmptyTab(strip()->GetActiveTab()));
+  EXPECT_FALSE(features().tab_strip_bridge().GetNode(strip()->GetActiveTab()));
+  EXPECT_FALSE(features().registry().GetTab(pinned));
+  EXPECT_TRUE(work_->today_root()->children().empty());
+  EXPECT_EQ(PredictShownEntry(service(), *work_), nullptr);
 }
 
 TEST_F(SpaceSwitchTest, AnotherWindowOnTheSpaceTakesTheTabs) {

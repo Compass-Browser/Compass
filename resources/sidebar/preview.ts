@@ -10,23 +10,6 @@ import './node.js';
 import {getCss as getPreviewCss} from './preview.css.js';
 import {getHtml} from './preview.html.js';
 import type {Node, Space, Tree} from './sidebar.mojom-webui.js';
-import {AudioState, NodeType} from './sidebar.mojom-webui.js';
-
-// What a space with no entries shows once the window switches to it: the new
-// tab the browser opens there (docs/design/spaces.md, "Switching, step by
-// step"), active.
-const NEW_TAB: Node = {
-  id: 'preview-new-tab',
-  type: NodeType.kTab,
-  title: 'New tab',
-  customTitle: '',
-  url: 'chrome://newtab/',
-  live: true,
-  audio: AudioState.kNone,
-  claude: false,
-  collapsed: false,
-  children: [],
-};
 
 // Another space's entries, as the sidebar would show them: what a swipe pulls
 // in before the window switches (docs/design/spaces.md, "Swiping"). Only to
@@ -82,17 +65,13 @@ export class CompassSidebarPreviewElement extends CrLitElement {
   }
 
   protected getToday_(): Node[] {
-    if (this.tree && this.tree.pinned.children.length === 0 &&
-        this.tree.today.children.length === 0) {
-      return [NEW_TAB];
-    }
     return this.tree?.today.children ?? [];
   }
 
-  // The entry the switch would show: the browser's guess, or the new tab.
+  // The entry the switch would show (the browser's guess), if any: a space
+  // with nothing open shows the empty tab, which has no entry.
   protected getActiveId_(): string|null {
-    return this.getToday_()[0] === NEW_TAB ? NEW_TAB.id :
-                                             this.tree?.activeId ?? null;
+    return this.tree?.activeId ?? null;
   }
 
   protected isPinnedEmpty_(): boolean {

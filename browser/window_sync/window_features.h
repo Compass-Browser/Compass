@@ -98,8 +98,10 @@ class WindowFeatures : public SpaceList::Observer {
 
   // For a window just opened on its space, with no tabs, by a swap (see
   // SwitchWindowToSpace()): steps 3 to 5 of a switch. The space's parked tabs
-  // come in, and the entry it showed last is shown.
-  void EnterSpace();
+  // come in, and the entry it showed last is shown. With nothing open, the
+  // empty tab shows, unless |reopen_last_entry|: the space moved here from
+  // another profile, whose tabs closed, and its last entry loads again.
+  void EnterSpace(bool reopen_last_entry = false);
   // The other half of a swap, in two steps. BeginSwap(): the window is
   // swapping away; its page stops taking requests (OnSwappedAway()), and it
   // can't swap again. It shows its tabs until the new window has taken its
@@ -126,8 +128,9 @@ class WindowFeatures : public SpaceList::Observer {
   void OnActiveTabChanged(BrowserWindowInterface* browser);
   void OnWindowBecameActive(BrowserWindowInterface* browser);
 
-  // Steps 3 to 5 of a switch, for the space the window now shows.
-  void EnterCurrentSpace();
+  // Steps 3 to 5 of a switch, for the space the window now shows. See
+  // EnterSpace() for |reopen_last_entry|.
+  void EnterCurrentSpace(bool reopen_last_entry = false);
   // Step 6 of a switch: |leaving| go to another window showing their space
   // (favorites' to the parking window), else to the parking window; blank
   // Today tabs and placeholders close. |keep_one| keeps the strip from
@@ -166,8 +169,9 @@ class WindowFeatures : public SpaceList::Observer {
 
 // The entry a window switching to |space| would show, as far as can be told
 // beforehand (SwitchToSpace(), step 5): its last active entry if that has a
-// tab, else its first entry with one, else the one it would open. Null when
-// it would open a new tab. For the sidebar's previews.
+// tab, else its first entry with one. Null when nothing of it is open: the
+// window then shows the empty tab, which has no entry. For the sidebar's
+// previews.
 SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space);
 
 // Moves |node|, an entry of one of |profile|'s spaces, to |target|: a pinned
@@ -215,10 +219,12 @@ void AssignSpaceToProfile(const base::Uuid& space_id,
 // the window's profile rebinds the window (SwitchToSpace()). One of another
 // profile swaps it: a window of that profile opens on |space| at the same
 // bounds, and |browser| empties and closes. Returns the window now showing
-// |space|, or null if it couldn't. See docs/design/spaces.md, slice 3.
+// |space|, or null if it couldn't. See docs/design/spaces.md, slice 3. See
+// EnterSpace() for |reopen_last_entry|, which only a swap uses.
 BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
                                             Profile* profile,
-                                            SpaceModel& space);
+                                            SpaceModel& space,
+                                            bool reopen_last_entry = false);
 
 // The spaces |browser|'s window can switch to, in the switcher's order: every
 // listed profile's (SpaceDirectory), or only its profile's in an

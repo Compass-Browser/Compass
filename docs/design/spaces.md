@@ -76,8 +76,13 @@ their entries.
 4. Create the bridge to the target space. Every tab already has a node, so
    it adds none.
 5. Activate the target space's last active entry if it's live here, else
-   its first live tab. If it has none, open its last active entry, its first
-   entry, or a new tab, in that order.
+   its first live tab. If it has none, show the empty tab
+   (command-bar.md, "No new tab page"), whose command bar asks what to
+   open: a switch never loads one of the space's entries by itself. (It
+   used to open the last active entry or the first pinned one.) The one
+   exception is a space assigned to another profile: its tabs had to close,
+   so the new profile's window loads the entry it showed
+   (`MoveSpaceToProfile()`).
 6. Move the old space's tabs out, as above. The bridge doesn't put up a
    placeholder for them. Blank pages and placeholders close.
 
@@ -455,9 +460,8 @@ scrolls never wait for the page's script:
   swipe starts; the space just left keeps the tree it showed. The previews
   change only between slides. They show what the switch will: the entry it
   will show is highlighted (`PredictShownEntry()`, step 5 above, sent as
-  the tree's `active_id`), and a space with no entries shows the new tab
-  the browser will open there, since blank tabs close when the window
-  leaves a space. Past the first or the last space the entries
+  the tree's `active_id`); a space with nothing open highlights nothing,
+  as the empty tab has no entry. Past the first or the last space the entries
   only give a little (rubber band, at most 32 px).
 - Each frame, `PageHandler.PreviewSpace(id, progress)` tells
   `WindowFeatures::SetSpacePreview()`, and `SidebarTint` paints the blend.

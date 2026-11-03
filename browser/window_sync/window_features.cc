@@ -49,7 +49,7 @@ namespace compass {
 
 namespace {
 
-// The first tab entry of |space|, pinned first, depth first.
+// The first tab entry under |node| (itself included), depth first.
 SidebarNode* FindFirstTab(SidebarNode* node) {
   if (node->type() == SidebarNode::Type::kTab) {
     return node;
@@ -250,10 +250,12 @@ void RemoveSpaceFromProfile(Profile* profile, SpaceModel& space) {
 // Moves every window of |profile| showing |space|, closing or not, so no
 // bridge outlives it, to |to|: rebinding, or swapping to another profile's
 // space. A closing window can't swap: it rebinds to another space of its
-// profile if there is one, else just empties.
+// profile if there is one, else just empties. See EnterSpace() for
+// |reopen_last_entry|.
 void MoveWindowsOff(Profile* profile,
                     SpaceModel& space,
-                    SpaceDirectory::Entry to) {
+                    SpaceDirectory::Entry to,
+                    bool reopen_last_entry = false) {
   std::vector<BrowserWindowInterface*> showing;
   ProfileBrowserCollection::GetForProfile(profile)->ForEach(
       [&](BrowserWindowInterface* browser) {
@@ -270,7 +272,7 @@ void MoveWindowsOff(Profile* profile,
     if (to.profile == profile) {
       features->SwitchToSpace(*to.space);
     } else if (!browser->capabilities()->IsAttemptingToCloseBrowser()) {
-      SwitchWindowToSpace(browser, to.profile, *to.space);
+      SwitchWindowToSpace(browser, to.profile, *to.space, reopen_last_entry);
     } else {
       SpaceModel* other = nullptr;
       for (const auto& own : SpaceService::Get(profile)->space_list().spaces()) {
@@ -420,11 +422,11 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
   }
 }
 
-void WindowFeatures::EnterSpace() {
+void WindowFeatures::EnterSpace(bool reopen_last_entry) {
   CHECK(!is_parking_window_);
   base::AutoReset<bool> switching(&switching_, true);
   bridge_.reset();
-  EnterCurrentSpace();
+  EnterCurrentSpace(reopen_last_entry);
   switching_ = false;
   for (Observer& observer : observers_) {
     observer.OnSpaceSwitched();
@@ -450,7 +452,7 @@ void WindowFeatures::LeaveForSwap() {
   MoveTabsOut(leaving, *space_, /*keep_one=*/false);
 }
 
-void WindowFeatures::EnterCurrentSpace() {
+void WindowFeatures::EnterCurrentSpace(bool reopen_last_entry) {
   SpaceModel& target = *space_;
   TabStripModel* strip = browser_->GetTabStripModel();
 
@@ -476,22 +478,26 @@ void WindowFeatures::EnterCurrentSpace() {
       browser_, space_, &service_->space_list().favorites(), &registry(),
       &service_->restored_tab_matcher(target), !outside_sidebar_);
 
-  // 5. Show what the space showed last.
+  // 5. Show what the space showed last, if it's still open, else another of
+  // its open tabs. A space with none shows the empty tab, whose command bar
+  // asks what to open: switching doesn't load one of its entries.
   SidebarNode* last = service_->GetLastActiveNode(target);
   tabs::TabInterface* shown = last ? bridge_->GetTab(last) : nullptr;
   if (!shown && !arrived.empty()) {
     shown = arrived.front();
   }
-  if (!shown) {
+  if (!shown && reopen_last_entry) {
+    // The entry it showed, as far as is known.
     SidebarNode* entry = last ? last : FindFirstTab(target.pinned_root());
     if (!entry) {
       entry = FindFirstTab(target.today_root());
     }
     if (entry) {
       shown = bridge_->OpenNode(entry);
-    } else {
-      OpenEmptyTab(browser_);
     }
+  }
+  if (!shown) {
+    OpenEmptyTab(browser_);
   }
   if (shown && strip->GetIndexOfTab(shown) != TabStripModel::kNoTab) {
     strip->ActivateTabAt(strip->GetIndexOfTab(shown));
@@ -614,11 +620,8 @@ SidebarNode* PredictShownEntry(SpaceService& service, SpaceModel& space) {
       return tab;
     }
   }
-  if (last) {
-    return last;
-  }
-  SidebarNode* first = FindFirstTab(space.pinned_root());
-  return first ? first : FindFirstTab(space.today_root());
+  // Nothing open: the empty tab, which has no entry.
+  return nullptr;
 }
 
 void MoveEntryToSpace(Profile* profile, SidebarNode* node, SpaceModel& target) {
@@ -829,7 +832,7 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
 
   // 4. Windows showing it swap to it: the new window loads the entry it
   // showed. The old one's tabs, now without entries, close.
-  MoveWindowsOff(from, space, {to, &moved});
+  MoveWindowsOff(from, space, {to, &moved}, /*reopen_last_entry=*/true);
 
   // 5. The rest of its tabs, parked or elsewhere. Those of a window swapping
   // away stay until the new window shows, then close with it.
@@ -884,7 +887,8 @@ void AssignSpaceToProfile(const base::Uuid& space_id,
 
 BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
                                             Profile* profile,
-                                            SpaceModel& space) {
+                                            SpaceModel& space,
+                                            bool reopen_last_entry) {
   WindowFeatures* features = WindowFeatures::From(browser);
   if (!features || features->is_parking_window() ||
       features->swapped_away() ||
@@ -917,7 +921,7 @@ BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,
   CHECK(&new_features->space_model() == &space);
   CopySidebarState(browser, window);
   // 3.
-  new_features->EnterSpace();
+  new_features->EnterSpace(reopen_last_entry);
   // 4. and 5. It takes the old window's place once it has painted; then the
   // old window empties, and closes on its own.
   base::OnceClosure leave = base::BindOnce(
