@@ -785,7 +785,16 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   CollectLiveTabs(registry, space.pinned_root(), tabs);
   CollectLiveTabs(registry, space.today_root(), tabs);
   for (const tabs::TabHandle& handle : tabs) {
-    registry.Unregister(handle.Get());
+    tabs::TabInterface* tab = handle.Get();
+    // Their entries keep the page they show, which the new window loads: a
+    // navigation reaches the entry up to 200 ms late (Browser's coalesced UI
+    // update), and the tab won't be there to bring it.
+    BrowserWindowInterface* window = tab->GetBrowserWindowInterface();
+    WindowFeatures* features = window ? WindowFeatures::From(window) : nullptr;
+    if (features && features->has_tab_strip_bridge()) {
+      features->tab_strip_bridge().UpdateNode(tab);
+    }
+    registry.Unregister(tab);
   }
 
   // 3. The entries move: the same nodes, as between spaces of a profile.

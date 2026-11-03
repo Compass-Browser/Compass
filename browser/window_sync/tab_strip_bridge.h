@@ -69,6 +69,15 @@ class TabStripBridge : public TabStripModelObserver,
   // The node of |tab|, or null if it has none.
   SidebarNode* GetNode(const tabs::TabInterface* tab) const;
 
+  // Copies |tab|'s title and committed URL to its node, when they changed
+  // in the tab. A node whose URL or title sync changed (another device
+  // navigated it) keeps them until its tab here navigates or retitles, so the
+  // two devices don't take the entry back and forth (docs/design/sync.md,
+  // "Slice 3b notes"). Runs on every navigation and title change, which reach
+  // the bridge through Browser's coalesced UI update (up to 200 ms late);
+  // call it to bring the node up to date at once.
+  void UpdateNode(tabs::TabInterface* tab);
+
   // Pinned or a favorite: the node outlives its tab.
   bool IsPinned(const SidebarNode* node) const;
 
@@ -186,13 +195,6 @@ class TabStripBridge : public TabStripModelObserver,
   std::array<const SidebarNode*, 3> GetRoots() const;
   // The node |id| in the space or the favorites, or null.
   SidebarNode* FindNode(const base::Uuid& id) const;
-
-  // Copies |tab|'s title and committed URL to its node, when they changed
-  // in the tab. A node whose URL or title sync changed (another device
-  // navigated it) keeps them until its tab here navigates or retitles, so the
-  // two devices don't take the entry back and forth (docs/design/sync.md,
-  // "Slice 3b notes").
-  void UpdateNode(tabs::TabInterface* tab);
 
   // The Today entry (a direct child of Today) that holds the live tab at
   // strip |index|, or null if there is none.
