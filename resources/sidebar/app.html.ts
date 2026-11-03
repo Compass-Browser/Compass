@@ -111,7 +111,9 @@ export function getHtml(this: CompassSidebarAppElement) {
           </svg>
         </button>
       </div>
-      <div id="today" class="section" role="tablist">
+      <div id="today" class="section" role="tablist"
+          ?empty="${this.isTodayEmpty_()}"
+          ?dragging="${this.dragActive_ || this.linkDragging_}">
         ${repeat(this.getToday_(), (node: Node) => node.id,
                  (node: Node) => html`
           <compass-sidebar-node .node="${node}" .activeId="${this.activeId_}"

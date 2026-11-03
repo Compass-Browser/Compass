@@ -170,6 +170,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     return {
       favorites_: {type: Object},
       dragActive_: {type: Boolean},
+      linkDragging_: {type: Boolean},
       pinned_: {type: Object},
       today_: {type: Object},
       activeId_: {type: String},
@@ -190,6 +191,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor favorites_: Node|null = null;
   // An entry is being dragged: the empty favorites show a drop zone.
   protected accessor dragActive_: boolean = false;
+  // A link from elsewhere is dragged over the page: an empty Today shows its
+  // drop zone too.
+  protected accessor linkDragging_: boolean = false;
   protected accessor pinned_: Node|null = null;
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
@@ -298,6 +302,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.browserProxy_.handler.requestTree();
     document.addEventListener('dragover', this.onDocumentDragover_);
     document.addEventListener('drop', this.onDocumentDrop_);
+    document.addEventListener('dragleave', this.onDocumentDragleave_);
     document.addEventListener('pointerdown', this.onDocumentPointerdown_);
     document.addEventListener('contextmenu', this.onDocumentContextmenu_);
     // Passive: scrolling never waits for it (swipes come from the browser,
@@ -310,6 +315,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.hideHoverCard_();
     document.removeEventListener('dragover', this.onDocumentDragover_);
     document.removeEventListener('drop', this.onDocumentDrop_);
+    document.removeEventListener('dragleave', this.onDocumentDragleave_);
     document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
     document.removeEventListener('contextmenu', this.onDocumentContextmenu_);
     this.removeEventListener('wheel', this.onWheel_);
@@ -809,6 +815,10 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected isPinnedEmpty_(): boolean {
     return this.getPinned_().length === 0;
+  }
+
+  protected isTodayEmpty_(): boolean {
+    return this.getToday_().length === 0;
   }
 
   protected onClearTodayClick_() {
@@ -1845,6 +1855,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   // A drop the page doesn't take would navigate the sidebar to it, so the
   // document takes every drag; only drop targets accept one.
   private onDocumentDragover_ = (e: DragEvent) => {
+    if (!this.draggingId_ && e.dataTransfer?.types.includes('text/uri-list')) {
+      this.linkDragging_ = true;
+    }
     if (!e.defaultPrevented) {
       e.preventDefault();
       e.dataTransfer!.dropEffect = 'none';
@@ -1853,6 +1866,14 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   private onDocumentDrop_ = (e: DragEvent) => {
     e.preventDefault();
+    this.linkDragging_ = false;
+  };
+
+  // A link dragged out of the page again.
+  private onDocumentDragleave_ = (e: DragEvent) => {
+    if (!e.relatedTarget) {
+      this.linkDragging_ = false;
+    }
   };
 
   protected onDragleave_(e: DragEvent) {

@@ -45,7 +45,7 @@ ${this.tree ? html`
         </svg>
       </span>
     </div>
-    <div class="section">
+    <div id="today" class="section" ?empty="${this.getToday_().length === 0}">
       ${repeat(this.getToday_(), (node: Node) => node.id, (node: Node) => html`
         <compass-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
             .profileId="${this.space?.profileId ?? null}">

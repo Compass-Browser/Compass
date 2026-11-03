@@ -245,6 +245,51 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpacesKeepTheirScroll) {
             base::ListValue().Append("Home").Append(300).Append(0));
 }
 
+// An empty Today takes no room: New Tab sits right under its header. It left
+// a blank gap there, a drop zone that only matters while something is
+// dragged, when it comes back.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, AnEmptyTodayTakesNoRoom) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  features->SwitchToSpace(*work);
+  ASSERT_TRUE(work->today_root()->children().empty());
+  content::WebContents* contents = sidebar_contents();
+  // The room between Today's header and New Tab, and Today's own height.
+  constexpr char kRoom[] = R"(
+    (async () => {
+      const app = document.querySelector('compass-sidebar-app');
+      const r = app.shadowRoot;
+      while (app.spaces_?.find(s => s.id === app.activeSpaceId_)?.name !==
+                 'Work' ||
+             !r.querySelector('#today[empty]')) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      await app.updateComplete;
+      const today = r.querySelector('#today').getBoundingClientRect();
+      const header = r.querySelectorAll('#sections > .section-header')[1]
+          .getBoundingClientRect();
+      const newTab = r.querySelector('#newTab').getBoundingClientRect();
+      return [Math.round(newTab.top - header.bottom), Math.round(today.height)];
+    })())";
+  base::ListValue room = content::EvalJs(contents, kRoom).ExtractList().Clone();
+  ASSERT_EQ(room.size(), 2u);
+  EXPECT_LT(room[0].GetInt(), 12);
+  EXPECT_EQ(room[1].GetInt(), 0);
+
+  // While something is dragged, it's a drop zone again.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    (async () => {
+      const app = document.querySelector('compass-sidebar-app');
+      app.linkDragging_ = true;
+      await app.updateComplete;
+    })())"));
+  EXPECT_GE(content::EvalJs(contents, R"(
+    Math.round(document.querySelector('compass-sidebar-app').shadowRoot
+        .querySelector('#today').getBoundingClientRect().height))")
+                .ExtractInt(),
+            32);
+}
+
 // The previews a switch slides in line up with the live sidebar, so nothing
 // jumps when the live one takes over: their section headers (plain copies of
 // the live buttons) were shorter, moving every entry up.

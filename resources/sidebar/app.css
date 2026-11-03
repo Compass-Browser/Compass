@@ -566,6 +566,13 @@ compass-sidebar-preview[side='next'] {
   padding-bottom: 8px;
 }
 
+/* An empty Today takes no room, so New Tab sits right under its header, as
+ * in Arc; while a tab or a link is dragged it's a drop zone again. */
+#today[empty]:not([dragging]) {
+  min-height: 0;
+  padding-bottom: 0;
+}
+
 .section-header {
   align-items: center;
   /* One height whatever the header holds: the live sidebar's buttons and the
