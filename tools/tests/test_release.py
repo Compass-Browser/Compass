@@ -114,6 +114,35 @@ class ReleaseTest(unittest.TestCase):
       self.assertEqual(written[-1], site / 'mac' / 'appcast.xml')
       self.assertEqual(manifest, release.load(site))
 
+  def test_channel_manifest_has_windows_signature(self):
+    manifest = {'releases': [_release('20261104.0900', 'stable', win=True)]}
+    stable = release.channel_manifest(manifest, 'stable', 'https://u')
+    self.assertEqual('https://u/win/CompassSetup-20261104.0900.exe',
+                     stable['win']['url'])
+    self.assertEqual('w', stable['win']['ed_signature'])
+
+  def test_add_win_release(self):
+    signer = ROOT / 'third_party' / 'sparkle' / 'bin'
+    key = release.KEY_FILE
+    if not (signer / 'sign_update').is_file() or not key.is_file():
+      self.skipTest('needs Sparkle and the release key')
+    with tempfile.TemporaryDirectory() as tmp:
+      site, installer = Path(tmp) / 'site', Path(tmp) / 'mini_installer.exe'
+      installer.write_bytes(b'MZ installer')
+      manifest = json.loads(json.dumps(MANIFEST))
+      added = release.add_win_release(manifest, installer, '20261103.0215',
+                                      '', 'beta', 'abc', signer, site)
+      self.assertIs(added, release.find(manifest, '20261103.0215'))
+      self.assertEqual('win/CompassSetup-20261103.0215.exe',
+                       added['win']['file'])
+      self.assertEqual(12, added['win']['size'])
+      with self.assertRaises(release.ReleaseError):
+        release.add_win_release(manifest, installer, '20261103.0215', '',
+                                'beta', 'abc', signer, site)
+      with self.assertRaises(release.ReleaseError):
+        release.add_win_release(manifest, installer, '20261105.0100', '',
+                                'beta', 'abc', signer, site)
+
   def test_parse_signature(self):
     sig, length = release.parse_signature(
         'sparkle:edSignature="abc+/=" length="1234"\n')

@@ -56,8 +56,8 @@ void SetUpdater(Updater* updater);
 std::optional<base::Version> PendingVersion();
 void SetPendingVersion(const base::Version& version);
 
-// Compass's own version (CFBundleVersion on macOS, e.g. "20261103.0215"),
-// or empty in builds that don't have one.
+// Compass's own version (compass_version in GN, e.g. "20261103.0215"), or
+// empty in dev builds.
 std::string CompassVersion();
 
 }  // namespace compass::updates

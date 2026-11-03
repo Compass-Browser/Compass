@@ -6,7 +6,7 @@
 
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
-#include "build/build_config.h"
+#include "compass/browser/updates/buildflags.h"
 
 namespace compass::updates {
 namespace {
@@ -45,10 +45,10 @@ void SetPendingVersion(const base::Version& version) {
   pending.version = version;
 }
 
-#if !BUILDFLAG(IS_MAC)
 std::string CompassVersion() {
-  return std::string();
+  // compass_version in GN: `compass release` sets it. On macOS the app's
+  // Info.plist carries it too (CFBundleVersion, for Sparkle).
+  return BUILDFLAG(COMPASS_VERSION);
 }
-#endif
 
 }  // namespace compass::updates

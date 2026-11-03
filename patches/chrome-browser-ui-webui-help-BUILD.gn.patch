@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/webui/help/BUILD.gn b/chrome/browser/ui/webui/help/BUILD.gn
-index 17d8d3e2832c4d572054a7c866690703e9fe87a2..1c182f647b535eba35f791bb5d84f2e128320c19 100644
+index 17d8d3e2832c4d572054a7c866690703e9fe87a2..af56f1fc8dd6c1f749de11c36715400e2f276a66 100644
 --- a/chrome/browser/ui/webui/help/BUILD.gn
 +++ b/chrome/browser/ui/webui/help/BUILD.gn
 @@ -43,6 +43,7 @@ source_set("help") {
@@ -10,3 +10,17 @@ index 17d8d3e2832c4d572054a7c866690703e9fe87a2..1c182f647b535eba35f791bb5d84f2e1
        "//ui/base",
      ]
      frameworks = [ "Foundation.framework" ]
+@@ -63,11 +64,13 @@ source_set("help") {
+       ]
+     } else {
+       sources = [ "version_updater_basic.cc" ]
++      deps += [ "//compass/browser/updates:hooks" ]
+     }
+   }
+ 
+   if (is_linux) {
+     sources = [ "version_updater_basic.cc" ]
++    deps += [ "//compass/browser/updates:hooks" ]
+   }
+ }
+ 

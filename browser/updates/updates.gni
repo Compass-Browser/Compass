@@ -14,8 +14,13 @@ declare_args() {
   compass_update_feed_url = ""
 
   # Sparkle's EdDSA public key (base64), which the feed's archives are
-  # signed with.
+  # signed with. The Windows updater checks installers with it too.
   compass_sparkle_public_key = ""
+
+  # The Windows updater (browser/updates/win_updater.cc): reads the channel
+  # manifests and runs the newer mini_installer. Off until a Windows build
+  # has tried it (docs/design/updates.md, "Windows").
+  compass_enable_win_updater = false
 }
 
 # `compass` fetches Sparkle (tools/compass_tool/sparkle.py): the whole

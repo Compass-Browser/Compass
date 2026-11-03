@@ -396,6 +396,23 @@ def _release(layout: Layout, args) -> None:
     if not args.no_upload:
       release.upload(feeds)
     return
+  if args.action == 'publish-win':
+    if not args.version or not args.installer:
+      raise CommandError('publish-win: give the version and --installer '
+                         '(the mini_installer.exe a Windows build made with '
+                         'that compass_version)')
+    tools = sparkle.ensure(layout.root) / 'bin'
+    added = release.add_win_release(manifest, Path(args.installer),
+                                    args.version, args.chromium or '',
+                                    args.channel, git_commit(layout.root),
+                                    tools)
+    feeds = release.write_feeds(manifest)
+    if not args.no_upload:
+      release.upload([release.SITE_DIR / added['win']['file']])
+      release.upload(feeds)
+    print('released %s for Windows: %s/%s' % (
+        added['version'], release.BASE_URL, added['win']['file']))
+    return
   # publish (macOS): a new version, built, signed, notarized, fed.
   tools = sparkle.ensure(layout.root) / 'bin'
   if not args.skip_build:
@@ -632,13 +649,19 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('release', help='publish a macOS release to the update '
                      'feeds, promote one to stable, or list them')
-  s.add_argument('action', choices=['publish', 'promote', 'list', 'feeds'],
+  s.add_argument('action', choices=['publish', 'publish-win', 'promote',
+                                    'list', 'feeds'],
                  nargs='?', default='publish')
   s.add_argument('version', nargs='?',
                  help='promote: the version; publish: instead of the time')
   s.add_argument('--channel', choices=release.CHANNELS, default='beta',
                  help='publish: the channel (default: %(default)s)')
   s.add_argument('--notes', help='publish: release notes')
+  s.add_argument('--installer',
+                 help='publish-win: the mini_installer.exe to publish')
+  s.add_argument('--chromium',
+                 help='publish-win: its Chromium version, for a release '
+                 'that has no macOS build')
   s.add_argument('--no-upload', action='store_true',
                  help='write the feeds locally only')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')
