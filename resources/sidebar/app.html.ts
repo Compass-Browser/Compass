@@ -126,7 +126,8 @@ export function getHtml(this: CompassSidebarAppElement) {
   ${repeat(this.previews_, (preview: Preview) => preview.space.id,
            (preview: Preview) => html`
     <compass-sidebar-preview side="${preview.side}" aria-hidden="true"
-        .space="${preview.space}" .tree="${preview.tree}">
+        .space="${preview.space}" .tree="${preview.tree}"
+        .entriesScrollTop="${preview.scrollTop}">
     </compass-sidebar-preview>`)}
 </div>
 ${this.getMenuSpace_() && this.themeOpen_ ? html`

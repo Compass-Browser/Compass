@@ -264,11 +264,16 @@ bool CompassSidebarView::PreHandleGestureEvent(
       ui->page_handler()->SendSwipe(phase, delta_x);
     }
   };
+  // A scroll's begin and end always go on to the page, even a swipe's: the
+  // input router counts a scroll as started only once its begin reaches the
+  // page. Without it, the wheel queue sent another begin before every update
+  // and never an end, so a swipe restarted at each event and never ended.
+  // The page gets no update in between, so nothing scrolls.
   switch (event.GetType()) {
     case Type::kGestureScrollBegin: {
       const auto& begin = event.data.scroll_begin;
       if (swallowing_momentum_ && begin.inertial_phase == Phase::kMomentum) {
-        return true;
+        return false;
       }
       swallowing_momentum_ = false;
       // After the trackpad's axis lock, which zeroes the other axis.
@@ -279,7 +284,7 @@ bool CompassSidebarView::PreHandleGestureEvent(
           send(sidebar::mojom::SwipePhase::kUpdate, begin.delta_x_hint);
         }
       }
-      return swiping_;
+      return false;
     }
     case Type::kGestureScrollUpdate:
       if (swiping_) {
@@ -296,13 +301,12 @@ bool CompassSidebarView::PreHandleGestureEvent(
         swiping_ = false;
         swallowing_momentum_ = true;
         send(sidebar::mojom::SwipePhase::kEnd, 0);
-        return true;
+        return event.GetType() != Type::kGestureScrollEnd;
       }
       if (swallowing_momentum_ && event.GetType() == Type::kGestureScrollEnd &&
           event.data.scroll_end.inertial_phase == Phase::kMomentum) {
         // The swipe's momentum is over.
         swallowing_momentum_ = false;
-        return true;
       }
       return false;
     default:

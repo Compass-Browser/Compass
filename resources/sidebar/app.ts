@@ -79,8 +79,9 @@ const EASE_OUT = 'cubic-bezier(0.2, 0, 0, 1)';
 // while the tint fades (SidebarTint's kFadeDuration). A two-finger swipe
 // moves them with the fingers (docs/design/spaces.md, "Swiping").
 const SLIDE_MS = 280;
-// Of the sidebar's width: a swipe this far switches at once; one that stops
-// short of the other switches if it's past the second, and goes back if not.
+// Of the sidebar's width: the entries follow the fingers all the way, and
+// letting go this far switches; letting go past the second switches too,
+// unless the fingers were coming back. Short of it, they go back.
 const SWIPE_SWITCH = 0.5;
 const SWIPE_SETTLE = 0.25;
 // Past the first or the last space, the entries only give a little.
@@ -88,6 +89,10 @@ const SWIPE_RESISTANCE = 0.2;
 const SWIPE_RESISTANCE_MAX_PX = 32;
 // A switch the browser hasn't confirmed by then didn't happen.
 const SWITCH_TIMEOUT_MS = 2000;
+// A swipe the browser sends nothing more about for this long has ended,
+// though its end never came: the entries go back rather than stay stuck
+// mid-swipe, unable to scroll. Long enough for fingers resting mid-swipe.
+const SWIPE_IDLE_MS = 3000;
 
 // A two-finger swipe across the sidebar.
 interface Swipe {
@@ -98,10 +103,14 @@ interface Swipe {
   direction: number;
   // Null past the first or the last space.
   target: Space|null;
+  // The last move took the entries back toward where they started.
+  back: boolean;
 }
 
 // A switch to another space, as it slides.
 interface Slide {
+  // The space switched to.
+  targetId: string;
   // Where the new space comes from: the right (1) or the left (-1).
   direction: number;
   // The page slid the new space's preview in before the browser switched (a
@@ -121,6 +130,8 @@ export interface Preview {
   // Null until it arrives: only the name shows.
   tree: Tree|null;
   side: 'previous'|'next';
+  // How far its entries were scrolled when the window left it.
+  scrollTop: number;
 }
 
 // A swipe's state: `x` while it moves the entries, `done` once it switched
@@ -237,6 +248,12 @@ export class CompassSidebarAppElement extends CrLitElement {
   private lastWheelAt_ = -Infinity;
   private swipe_: Swipe|null = null;
   private swipeFrame_: number|null = null;
+  private swipeIdleTimer_: number|null = null;
+  // How far each space's entries were scrolled when the window left it, by
+  // space ID: coming back finds them there, and its preview shows them so.
+  private scrollTops_: Map<string, number> = new Map();
+  // The switch whose space's scroll position waits for its entries.
+  private pendingScroll_: Slide|null = null;
   // Other spaces' trees, for the previews, by space ID. Refetched whenever
   // the window's space or the spaces change.
   private spaceTrees_: Map<string, Tree> = new Map();
@@ -297,6 +314,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     document.removeEventListener('contextmenu', this.onDocumentContextmenu_);
     this.removeEventListener('wheel', this.onWheel_);
     this.wheelAxis_ = null;
+    this.clearSwipeIdleTimer_();
     if (this.swipeFrame_ !== null) {
       cancelAnimationFrame(this.swipeFrame_);
       this.swipeFrame_ = null;
@@ -612,7 +630,12 @@ export class CompassSidebarAppElement extends CrLitElement {
       const side = direction > 0 ? 'next' : 'previous';
       this.previews_ = [
         ...this.previews_.filter(preview => preview.side !== side),
-        {space: target, side, tree: this.spaceTrees_.get(id) ?? null},
+        {
+          space: target,
+          side,
+          tree: this.spaceTrees_.get(id) ?? null,
+          scrollTop: this.scrollTops_.get(id) ?? 0,
+        },
       ];
       await this.updateComplete;
       await (this.getPreview_(direction) as CrLitElement | null)
@@ -1147,8 +1170,12 @@ export class CompassSidebarAppElement extends CrLitElement {
     for (const [direction, side] of [[-1, 'previous'], [1, 'next']] as const) {
       const space = this.getNeighborSpace_(direction);
       if (space) {
-        previews.push(
-            {space, side, tree: this.spaceTrees_.get(space.id) ?? null});
+        previews.push({
+          space,
+          side,
+          tree: this.spaceTrees_.get(space.id) ?? null,
+          scrollTop: this.scrollTops_.get(space.id) ?? 0,
+        });
       }
     }
     this.previews_ = previews;
@@ -1321,6 +1348,14 @@ export class CompassSidebarAppElement extends CrLitElement {
   // The browser decides a gesture is a swipe (CompassSidebarView), so
   // vertical scrolls stay on the compositor.
   private onSwipe_(phase: SwipePhase, deltaX: number) {
+    this.clearSwipeIdleTimer_();
+    if (phase !== SwipePhase.kEnd) {
+      this.swipeIdleTimer_ = setTimeout(() => {
+        this.swipeIdleTimer_ = null;
+        this.wheelAxis_ = null;
+        this.endSwipe_(/*commit=*/ false);
+      }, SWIPE_IDLE_MS);
+    }
     switch (phase) {
       case SwipePhase.kBegin:
         if (this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
@@ -1333,6 +1368,9 @@ export class CompassSidebarAppElement extends CrLitElement {
         return;
       case SwipePhase.kUpdate:
         if (this.wheelAxis_ === 'x' && this.swipe_) {
+          if (deltaX) {
+            this.swipe_.back = deltaX * this.swipe_.offset < 0;
+          }
           this.swipe_.offset += deltaX;
           this.updateSwipe_();
         }
@@ -1341,6 +1379,20 @@ export class CompassSidebarAppElement extends CrLitElement {
         this.wheelAxis_ = null;
         this.onSwipeEnd_();
         return;
+    }
+  }
+
+  private clearSwipeIdleTimer_() {
+    if (this.swipeIdleTimer_ !== null) {
+      clearTimeout(this.swipeIdleTimer_);
+      this.swipeIdleTimer_ = null;
+    }
+  }
+
+  // Keeps how far the window's entries are scrolled, for when it comes back.
+  private rememberScroll_() {
+    if (this.activeSpaceId_) {
+      this.scrollTops_.set(this.activeSpaceId_, this.getSections_().scrollTop);
     }
   }
 
@@ -1368,15 +1420,17 @@ export class CompassSidebarAppElement extends CrLitElement {
     sections.scrollBy({top: e.deltaY * scale, behavior: 'instant'});
   };
 
-  // The gesture ended: a swipe past SWIPE_SETTLE switches, one short of it
-  // goes back.
+  // The fingers lifted: a swipe past SWIPE_SWITCH switches, and one past
+  // SWIPE_SETTLE unless the fingers were bringing it back. Others go back.
   private onSwipeEnd_() {
     const swipe = this.swipe_;
     if (swipe) {
+      const shift = Math.abs(this.getSwipeShift_(swipe));
+      const width = this.getStage_().clientWidth;
       this.endSwipe_(
           !!swipe.target &&
-          Math.abs(this.getSwipeShift_(swipe)) >=
-              SWIPE_SETTLE * this.getStage_().clientWidth);
+          (shift >= SWIPE_SWITCH * width ||
+           (shift >= SWIPE_SETTLE * width && !swipe.back)));
     }
   }
 
@@ -1393,7 +1447,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       animation.cancel();
     }
     this.settleAnimations_ = [];
-    this.swipe_ = {offset: 0, direction: 0, target: null};
+    this.swipe_ = {offset: 0, direction: 0, target: null, back: false};
     // Usually there already; this catches up on what changed there.
     this.refreshPreviews_();
   }
@@ -1425,14 +1479,6 @@ export class CompassSidebarAppElement extends CrLitElement {
       swipe.direction = direction;
       swipe.target = this.getNeighborSpace_(direction);
       this.clearSwipeStyles_();
-    }
-    if (swipe.target &&
-        Math.abs(swipe.offset) >=
-            SWIPE_SWITCH * this.getStage_().clientWidth) {
-      // The rest of the gesture is the switch's.
-      this.wheelAxis_ = 'done';
-      this.endSwipe_(/*commit=*/ true);
-      return;
     }
     if (this.swipeFrame_ === null) {
       this.swipeFrame_ = requestAnimationFrame(() => {
@@ -1535,6 +1581,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   private slideTo_(
       target: Space, direction: number, preview: HTMLElement|null,
       shift: number) {
+    this.rememberScroll_();
     const width = this.getStage_().clientWidth;
     const progress = Math.abs(shift) / width;
     const options: KeyframeAnimationOptions = {
@@ -1587,6 +1634,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.slideGhost_ = host;
     this.setSliding_(true);
     const slide: Slide = {
+      targetId: target.id,
       direction,
       fromPreview: true,
       switched: false,
@@ -1658,9 +1706,11 @@ export class CompassSidebarAppElement extends CrLitElement {
       });
     }
     if (this.slide_?.fromPreview && !this.slide_.hasTree) {
+      // slideTo_() kept its scroll position.
       this.slide_.switched = true;
       return;
     }
+    this.rememberScroll_();
     if (this.swipe_) {
       // Ctrl+1–9 mid-swipe.
       this.swipe_ = null;
@@ -1672,6 +1722,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     const oldIndex = this.spaces_.findIndex(space => space.id === previousId);
     const newIndex = spaces.findIndex(space => space.id === activeId);
     this.slide_ = {
+      targetId: activeId,
       direction: newIndex >= oldIndex ? 1 : -1,
       fromPreview: false,
       switched: true,
@@ -1993,6 +2044,19 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   private onSetTree_(tree: Tree) {
     if (this.slide_ && !this.slide_.hasTree) {
+      // The entries replacing the old space's go where that space's were
+      // left, or to the top: they kept the old space's scroll position, and
+      // jumped there once its preview made way. Before the frame, with the
+      // entries' own rows rendered; out of sight or about to slide in.
+      const slide = this.slide_;
+      this.pendingScroll_ = slide;
+      this.updateComplete.then(() => requestAnimationFrame(() => {
+        if (this.pendingScroll_ === slide) {
+          this.pendingScroll_ = null;
+          this.getSections_().scrollTop =
+              this.scrollTops_.get(slide.targetId) ?? 0;
+        }
+      }));
       this.playSlide_(this.slide_);
     }
     this.refreshPreviews_();

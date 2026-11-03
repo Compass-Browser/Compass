@@ -12,6 +12,7 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "base/strings/strcat.h"
 #include "base/numerics/safe_conversions.h"
@@ -45,6 +46,8 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar_delegate.h"
+#include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
@@ -81,7 +84,9 @@
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_container.h"
 #include "ui/gfx/animation/animation_test_api.h"
+#include "ui/events/types/scroll_types.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/focus/focus_manager.h"
@@ -187,6 +192,57 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LongPinnedScrollsWithToday) {
   EXPECT_EQ(content::EvalJs(contents, kLayout),
             base::ListValue().Append(true).Append(true).Append(true).Append(
                 true));
+}
+
+// Each space's entries keep their scroll position: the new space's showed
+// the old one's, and jumped to it as its preview made way.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpacesKeepTheirScroll) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  for (SpaceModel* space : {home, work}) {
+    for (int i = 0; i < 60; ++i) {
+      space->AddTab(space->pinned_root(),
+                    space->pinned_root()->children().size(),
+                    GURL("https://pinned" + base::NumberToString(i) + ".test/"),
+                    u"Pinned " + base::NumberToString16(i));
+    }
+  }
+  content::WebContents* contents = sidebar_contents();
+  // The window's space once its switch has ended and its 60 rows are there,
+  // how far its entries are scrolled, and how far the preview of the space
+  // on |side| shows its own.
+  constexpr char kShown[] = R"(
+    (async (side) => {
+      const app = document.querySelector('compass-sidebar-app');
+      const r = app.shadowRoot;
+      const preview = () => r.querySelector(
+          'compass-sidebar-preview[side=' + side + ']')?.shadowRoot;
+      while (app.slide_ || r.querySelectorAll('#pinned .tab').length !== 60 ||
+             preview()?.querySelectorAll('.tab').length !== 60) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      return [app.spaces_.find(s => s.id === app.activeSpaceId_).name,
+              r.querySelector('#sections').scrollTop,
+              preview().querySelector('#sections').scrollTop];
+    })($1))";
+  ASSERT_EQ(content::EvalJs(contents, content::JsReplace(kShown, "next")),
+            base::ListValue().Append("Home").Append(0).Append(0));
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.querySelector('compass-sidebar-app').shadowRoot
+        .querySelector('#sections').scrollTop = 300;)"));
+
+  // Work's entries start at the top; Home's preview shows Home's where they
+  // were left.
+  features->SwitchToSpace(*work);
+  EXPECT_EQ(content::EvalJs(contents, content::JsReplace(kShown, "previous")),
+            base::ListValue().Append("Work").Append(0).Append(300));
+  // And Home's come back there.
+  features->SwitchToSpace(*home);
+  EXPECT_EQ(content::EvalJs(contents, content::JsReplace(kShown, "next")),
+            base::ListValue().Append("Home").Append(300).Append(0));
 }
 
 // The previews a switch slides in line up with the live sidebar, so nothing
@@ -1333,20 +1389,119 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SwipesAreTheBrowsers) {
   EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0));
   EXPECT_EQ(&features->space_model(), home);
 
-  // Fingers to the left, past half the sidebar: the next space.
-  EXPECT_TRUE(gesture(Type::kGestureScrollBegin, -6, 1));
+  // Fingers to the left, past half the sidebar: the next space. The page
+  // gets the scroll's begin and end, so the input router knows it started
+  // and ends it (SwipesEndThroughTheWheelQueue); only its updates are taken.
+  EXPECT_FALSE(gesture(Type::kGestureScrollBegin, -6, 1));
   for (int i = 0; i < 4; ++i) {
     EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, -80, 0));
   }
-  EXPECT_TRUE(gesture(Type::kGestureScrollEnd, 0, 0));
+  EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0));
   EXPECT_TRUE(
       base::test::RunUntil([&] { return &features->space_model() == work; }));
 
-  // Its momentum is swallowed; the next scroll isn't.
-  EXPECT_TRUE(gesture(Type::kGestureScrollBegin, -30, 0, Phase::kMomentum));
+  // Its momentum's updates are swallowed; the next scroll isn't.
+  EXPECT_FALSE(gesture(Type::kGestureScrollBegin, -30, 0, Phase::kMomentum));
   EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, -30, 0, Phase::kMomentum));
-  EXPECT_TRUE(gesture(Type::kGestureScrollEnd, 0, 0, Phase::kMomentum));
+  EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0, Phase::kMomentum));
   EXPECT_FALSE(gesture(Type::kGestureScrollBegin, 0, -4));
+  EXPECT_FALSE(gesture(Type::kGestureScrollUpdate, 0, -20));
+}
+
+// A swipe as the trackpad sends it: wheel events with phases, which the
+// input router turns into a scroll's begin, updates and end. Taking the
+// begin from the page left the router thinking no scroll had started: it
+// sent a begin before every update, which restarted the swipe, and never an
+// end, so the page stayed mid-swipe and its entries wouldn't scroll.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
+                       SwipesEndThroughTheWheelQueue) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* home = &features->space_model();
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    (async () => {
+      const app = () => document.querySelector('compass-sidebar-app');
+      while ((app()?.spaces_?.length ?? 0) < 2) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    })())"));
+  content::RenderWidgetHost* host =
+      contents->GetRenderWidgetHostView()->GetRenderWidgetHost();
+  const gfx::PointF point(sidebar()->width() / 2, sidebar()->height() / 2);
+  using Wheel = blink::WebMouseWheelEvent;
+  // One at a time: queued ones would coalesce into a single big update.
+  auto wheel = [&](float dx, Wheel::Phase phase,
+                   Wheel::Phase momentum = Wheel::kPhaseNone) {
+    Wheel event(blink::WebInputEvent::Type::kMouseWheel,
+                blink::WebInputEvent::kNoModifiers, base::TimeTicks::Now());
+    event.SetPositionInWidget(point);
+    event.SetPositionInScreen(point);
+    event.delta_x = dx;
+    event.phase = phase;
+    event.momentum_phase = momentum;
+    event.delta_units = ui::ScrollGranularity::kScrollByPrecisePixel;
+    event.event_action = Wheel::EventAction::kScroll;
+    content::InputEventAckWaiter waiter(
+        host, blink::WebInputEvent::Type::kMouseWheel);
+    host->ForwardWheelEvent(event);
+    waiter.Wait();
+  };
+  // Whether the page is mid-swipe or its entries can't scroll.
+  constexpr char kStuck[] = R"(
+    (async () => {
+      const app = document.querySelector('compass-sidebar-app');
+      // A swipe that let go settles first.
+      await new Promise(resolve => setTimeout(resolve, 600));
+      return !!app.swipe_ ||
+          app.shadowRoot.querySelector('#stage').hasAttribute('sliding');
+    })())";
+
+  // The entries follow the fingers past half the sidebar and back: letting
+  // go short of a quarter stays.
+  const int width = content::EvalJs(contents, R"(
+    document.querySelector('compass-sidebar-app').shadowRoot
+        .querySelector('#stage').clientWidth)")
+                        .ExtractInt();
+  ASSERT_GT(width, 80);
+  wheel(-4, Wheel::kPhaseBegan);
+  for (int pulled = 4; pulled < width * 0.6; pulled += 8) {
+    wheel(-8, Wheel::kPhaseChanged);
+  }
+  EXPECT_EQ(&features->space_model(), home);
+  for (int i = 0; i < width * 0.5 / 8; ++i) {
+    wheel(8, Wheel::kPhaseChanged);
+  }
+  wheel(0, Wheel::kPhaseEnded);
+  EXPECT_EQ(false, content::EvalJs(contents, kStuck));
+  EXPECT_EQ(&features->space_model(), home);
+
+  // Small steps, as a slow swipe sends, add up past half the sidebar; the
+  // switch comes as the fingers lift.
+  wheel(-4, Wheel::kPhaseBegan);
+  for (int pulled = 4; pulled < width * 0.6; pulled += 8) {
+    wheel(-8, Wheel::kPhaseChanged);
+  }
+  EXPECT_EQ(&features->space_model(), home);
+  wheel(0, Wheel::kPhaseEnded);
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return &features->space_model() == work; }));
+  // Its momentum doesn't start another swipe.
+  wheel(-8, Wheel::kPhaseNone, Wheel::kPhaseBegan);
+  for (int i = 0; i < 10; ++i) {
+    wheel(-6, Wheel::kPhaseNone, Wheel::kPhaseChanged);
+  }
+  wheel(0, Wheel::kPhaseNone, Wheel::kPhaseEnded);
+  EXPECT_EQ(false, content::EvalJs(contents, kStuck));
+
+  // A short pull back toward the first space lets go and settles.
+  wheel(4, Wheel::kPhaseBegan);
+  for (int i = 0; i < 3; ++i) {
+    wheel(8, Wheel::kPhaseChanged);
+  }
+  wheel(0, Wheel::kPhaseEnded);
+  EXPECT_EQ(false, content::EvalJs(contents, kStuck));
+  EXPECT_EQ(&features->space_model(), work);
 }
 
 // With spaces of two profiles there's no profile picker at startup, and the

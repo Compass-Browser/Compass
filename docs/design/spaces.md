@@ -425,12 +425,25 @@ off-the-record window isn't themed.
 ### Swiping
 
 A two-finger horizontal swipe on the sidebar pulls in the next space
-(fingers to the left) or the previous one, as in Arc. The page sees the
-trackpad as wheel events (`onWheel_()`, non-passive on the app):
+(fingers to the left) or the previous one, as in Arc. The browser decides,
+not the page (`CompassSidebarView::PreHandleGestureEvent()`), so vertical
+scrolls never wait for the page's script:
 
-- The first event of a gesture picks its axis. Vertical gestures scroll as
-  usual; a horizontal one swallows its events. A gesture ends after 150 ms
-  without events; macOS momentum after the fingers lift is part of it.
+- A trackpad scroll whose begin goes sideways is a swipe: the page gets it
+  as `Page.Swipe()` (begin, updates, end) and its updates never scroll.
+  The scroll's begin and end still go on to the page: the input router
+  counts a scroll as started only once its begin reaches the page, and
+  sends an end only for one it counts. Taking them too made it send a
+  begin before every update, which restarted the swipe, and never an end,
+  which left the page mid-swipe and its entries unable to scroll
+  (`SwipesEndThroughTheWheelQueue`). The momentum after the fingers lift
+  is swallowed the same way. A swipe the page hears nothing more about for
+  3 s goes back (`SWIPE_IDLE_MS`).
+- Each space's entries keep their scroll position: the page remembers it
+  when the window leaves a space, the space's preview shows its entries
+  scrolled there, and the switch puts them there (the top, the first time).
+  Before, the new space's entries kept the old space's position and jumped
+  to it as the preview made way.
 - The window's name and entries (`#spacePane`, inside `#stage`, which clips
   them at the sidebar's edges) move with the fingers. The space being
   pulled in comes in next to them: a `<compass-sidebar-preview>`, which
@@ -448,10 +461,13 @@ trackpad as wheel events (`onWheel_()`, non-passive on the app):
   only give a little (rubber band, at most 32 px).
 - Each frame, `PageHandler.PreviewSpace(id, progress)` tells
   `WindowFeatures::SetSpacePreview()`, and `SidebarTint` paints the blend.
-- Half the width switches at once; a gesture that stops past a quarter
-  switches too, and one short of it goes back (and the tint fades back).
-  Switching animates the rest of the way, calls `SwitchSpace()`, and
-  swallows the rest of the gesture. Once the new tree has arrived and the
+- The entries follow the fingers all the way, up to the sidebar's width,
+  and the switch is decided as they lift: past half the width it switches;
+  past a quarter it switches unless the fingers were bringing it back;
+  short of that it goes back (and the tint fades back). Switching at half
+  the width while the fingers still moved took the swipe out of their
+  control. Switching animates the rest of the way and calls
+  `SwitchSpace()`. Once the new tree has arrived and the
   preview is in place, the live pane, now showing it, takes the preview's
   place. A switch the browser hasn't confirmed in 2 s is undone.
 
