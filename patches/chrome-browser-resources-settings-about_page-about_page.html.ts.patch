@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page.html.ts b/chrome/browser/resources/settings/about_page/about_page.html.ts
-index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..5920a4741fd04b76bf21760780b00c57b0eea07d 100644
+index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..3dbce204cd4be6b596ffe8daed46d4a9bacfb34e 100644
 --- a/chrome/browser/resources/settings/about_page/about_page.html.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
 @@ -67,6 +67,22 @@ export function getHtml(this: SettingsAboutPageElement) {
      </span>
  </if>
    </div>
-+<if expr="is_macosx">
++<if expr="is_macosx or is_win">
 +  <!-- Compass: the update channel (docs/design/updates.md). -->
 +  <div class="cr-row" id="compassUpdateChannel"
 +      ?hidden="${!this.compassUpdateChannelPref_}">

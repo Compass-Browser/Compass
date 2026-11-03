@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page.ts b/chrome/browser/resources/settings/about_page/about_page.ts
-index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..4bd1a206acf4d160cc7b736f6d5ae3e5a38b4403 100644
+index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..7f485a4841a0e17ea3ca4494def70d1093c1bea0 100644
 --- a/chrome/browser/resources/settings/about_page/about_page.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.ts
 @@ -18,6 +18,7 @@ import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
@@ -14,7 +14,7 @@ index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..4bd1a206acf4d160cc7b736f6d5ae3e5
        // </if>
  
        feedbackAllowedPref_: {type: Object},
-+      // <if expr="is_macosx">
++      // <if expr="is_macosx or is_win">
 +      compassUpdateChannelPref_: {type: Object},
 +      // </if>
      };
@@ -24,7 +24,7 @@ index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..4bd1a206acf4d160cc7b736f6d5ae3e5
    protected accessor feedbackAllowedPref_:
        chrome.settingsPrivate.PrefObject<boolean>|undefined;
  
-+  // <if expr="is_macosx">
++  // <if expr="is_macosx or is_win">
 +  // Compass: the update channel (docs/design/updates.md).
 +  protected accessor compassUpdateChannelPref_:
 +      chrome.settingsPrivate.PrefObject<string>|undefined;
@@ -53,7 +53,7 @@ index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..4bd1a206acf4d160cc7b736f6d5ae3e5
      // <if expr="_google_chrome">
      this.mirrorPref('feedback_allowed', 'feedbackAllowedPref_');
      // </if>
-+    // <if expr="is_macosx">
++    // <if expr="is_macosx or is_win">
 +    this.mirrorPref('compass.update_channel', 'compassUpdateChannelPref_');
 +    // </if>
    }
