@@ -29,7 +29,7 @@ std::optional<ManifestEntry> ParseChannelManifest(std::string_view json,
   if (!root || !root->is_dict()) {
     return std::nullopt;
   }
-  const base::Value::Dict* entry = root->GetDict().FindDict(platform);
+  const base::DictValue* entry = root->GetDict().FindDict(platform);
   if (!entry) {
     return std::nullopt;
   }
