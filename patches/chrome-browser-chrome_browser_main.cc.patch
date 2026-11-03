@@ -1,17 +1,25 @@
 diff --git a/chrome/browser/chrome_browser_main.cc b/chrome/browser/chrome_browser_main.cc
-index b2619baa8f61dfc4699a27f17e44fc4a94dd94f7..27aa49ea6dd77d6c902f93ca81c346be84ea983b 100644
+index b2619baa8f61dfc4699a27f17e44fc4a94dd94f7..62411f13a3b95a1a4b63cdd930195e403333b0d1 100644
 --- a/chrome/browser/chrome_browser_main.cc
 +++ b/chrome/browser/chrome_browser_main.cc
-@@ -225,6 +225,8 @@
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/chrome_browser_main.h"
+ 
++#include "compass/browser/updates/start_updater.h"
++
+ #include <memory>
+ #include <string>
+ #include <tuple>
+@@ -225,6 +227,7 @@
  #include "chrome/browser/infobars/infobar_features.h"
  #include "chrome/browser/mac/chrome_browser_main_extra_parts_mac.h"
  #include "chrome/browser/shutdown_watchdog_mac.h"
 +#include "compass/browser/native_messaging/chrome_hosts_mac.h"
-+#include "compass/browser/updates/sparkle_updater_mac.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
  #include "chrome/browser/ui/cocoa/keystone_infobar_delegate.h"
-@@ -1348,6 +1350,9 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
+@@ -1348,6 +1351,9 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
    if (!base::PathExists(user_native_messaging_dir)) {
      base::CreateDirectory(user_native_messaging_dir);
    }
@@ -21,14 +29,12 @@ index b2619baa8f61dfc4699a27f17e44fc4a94dd94f7..27aa49ea6dd77d6c902f93ca81c346be
  #endif
  
  #if BUILDFLAG(IS_MAC)
-@@ -1730,6 +1735,11 @@ void ChromeBrowserMainParts::PostBrowserStart() {
+@@ -1730,6 +1736,9 @@ void ChromeBrowserMainParts::PostBrowserStart() {
  
    browser_process_->browser_policy_connector()->OnBrowserStarted();
  
-+#if BUILDFLAG(IS_MAC)
 +  // Compass: automatic updates (docs/design/updates.md).
-+  compass::updates::StartSparkleUpdater();
-+#endif
++  compass::updates::StartUpdater();
 +
  #if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
    // Allow ProcessSingleton to process messages.

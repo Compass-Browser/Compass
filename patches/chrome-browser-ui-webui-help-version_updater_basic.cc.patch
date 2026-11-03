@@ -1,0 +1,58 @@
+diff --git a/chrome/browser/ui/webui/help/version_updater_basic.cc b/chrome/browser/ui/webui/help/version_updater_basic.cc
+index ebcef5637b150bae26ed47e46fafd6b8fa39f128..05f2f33ff249792c1bd196da2c16860df5125601 100644
+--- a/chrome/browser/ui/webui/help/version_updater_basic.cc
++++ b/chrome/browser/ui/webui/help/version_updater_basic.cc
+@@ -5,11 +5,42 @@
+ #include <memory>
+ #include <string>
+ 
++#include "base/functional/bind.h"
++
+ #include "chrome/browser/ui/webui/help/version_updater.h"
+ #include "chrome/browser/upgrade_detector/upgrade_detector.h"
++#include "compass/browser/updates/update_hooks.h"
+ 
+ namespace {
+ 
++// Compass: the Windows updater's progress (docs/design/updates.md).
++void CompassUpdateStatus(VersionUpdater::StatusCallback status_callback,
++                         compass::updates::CheckStatus status,
++                         int progress,
++                         const std::u16string& message) {
++  using compass::updates::CheckStatus;
++  VersionUpdater::Status mapped = VersionUpdater::CHECKING;
++  switch (status) {
++    case CheckStatus::kChecking:
++      mapped = VersionUpdater::CHECKING;
++      break;
++    case CheckStatus::kUpdating:
++      mapped = VersionUpdater::UPDATING;
++      break;
++    case CheckStatus::kNearlyUpdated:
++      mapped = VersionUpdater::NEARLY_UPDATED;
++      break;
++    case CheckStatus::kUpToDate:
++      mapped = VersionUpdater::UPDATED;
++      break;
++    case CheckStatus::kFailed:
++      mapped = VersionUpdater::FAILED;
++      break;
++  }
++  status_callback.Run(mapped, progress < 0 ? 0 : progress, false, false,
++                      std::string(), 0, message);
++}
++
+ // Bare bones implementation just checks if a new version is ready.
+ class VersionUpdaterBasic : public VersionUpdater {
+  public:
+@@ -20,6 +51,10 @@ class VersionUpdaterBasic : public VersionUpdater {
+ 
+   // VersionUpdater implementation.
+   void CheckForUpdate(StatusCallback callback, PromoteCallback) override {
++    if (compass::updates::Updater* updater = compass::updates::GetUpdater()) {
++      updater->CheckNow(base::BindRepeating(&CompassUpdateStatus, callback));
++      return;
++    }
+     const Status status = UpgradeDetector::GetInstance()->is_upgrade_available()
+                               ? NEARLY_UPDATED
+                               : DISABLED;

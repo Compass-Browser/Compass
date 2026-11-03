@@ -116,6 +116,7 @@ def channel_manifest(manifest: Dict, channel: str,
         'url': '%s/%s' % (base_url, archive['file']),
         'size': archive['size'],
         'sha256': archive['sha256'],
+        'ed_signature': archive['ed_signature'],
     }
   return out
 
@@ -298,6 +299,50 @@ def add_mac_release(manifest: Dict, dmg: Path, channel: str, commit: str,
       'mac': mac,
   }
   manifest['releases'].append(release)
+  return release
+
+
+def add_win_release(manifest: Dict, installer: Path, version: str,
+                    chromium: str, channel: str, commit: str, tools: Path,
+                    site: Path = SITE_DIR) -> Dict:
+  """Adds a Windows installer (Chromium's mini_installer.exe, built on a
+  Windows machine) to release |version|, or makes that release. The Windows
+  updater checks its size, SHA-256 and Ed25519 signature
+  (browser/updates/update_manifest.cc) before running it."""
+  if not re.fullmatch(r'\d+(\.\d+)*', version):
+    raise ReleaseError('bad version %r' % version)
+  win_dir = site / 'win'
+  win_dir.mkdir(parents=True, exist_ok=True)
+  archive = win_dir / ('CompassSetup-%s.exe' % version)
+  shutil.copyfile(installer, archive)
+  win = {
+      'file': 'win/' + archive.name,
+      'size': archive.stat().st_size,
+      'sha256': sha256(archive),
+      'ed_signature': ed_sign(tools / 'sign_update', archive),
+  }
+  existing = [r for r in manifest['releases'] if r['version'] == version]
+  if existing:
+    release = existing[0]
+    if release.get('win'):
+      raise ReleaseError('release %s has a Windows installer already' %
+                         version)
+    if chromium and chromium != release['chromium']:
+      raise ReleaseError('release %s is Chromium %s, not %s' %
+                         (version, release['chromium'], chromium))
+  else:
+    if not chromium:
+      raise ReleaseError('a new release needs its Chromium version')
+    release = {
+        'version': version,
+        'channel': channel,
+        'commit': commit,
+        'chromium': chromium,
+        'date': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'notes': '',
+    }
+    manifest['releases'].append(release)
+  release['win'] = win
   return release
 
 

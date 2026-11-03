@@ -2,9 +2,19 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/buildflag_header.gni")
 import("//compass/browser/updates/updates.gni")
 
 # Automatic updates (docs/design/updates.md).
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [
+    "COMPASS_VERSION=\"$compass_version\"",
+    "COMPASS_UPDATE_PUBLIC_KEY=\"$compass_sparkle_public_key\"",
+    "ENABLE_WIN_UPDATER=$compass_enable_win_updater",
+  ]
+}
 
 # The seams upstream code calls (lifetime, the About page, the installed
 # version poller). Only //base, so those targets can depend on it.
@@ -14,13 +24,24 @@ source_set("hooks") {
     "update_hooks.h",
   ]
   deps = [
+    ":buildflags",
     "//base",
-    "//build:buildflag_header_h",
   ]
-  if (is_mac) {
-    sources += [ "update_hooks_mac.mm" ]
-    frameworks = [ "Foundation.framework" ]
-  }
+}
+
+# Channel manifests (stable.json, beta.json) and the checks an installer
+# passes before the Windows updater runs it.
+source_set("manifest") {
+  sources = [
+    "update_manifest.cc",
+    "update_manifest.h",
+  ]
+  deps = [
+    "//base",
+    "//crypto",
+    "//third_party/boringssl",
+    "//url",
+  ]
 }
 
 # The update channel pref, registered in Local State
@@ -36,20 +57,20 @@ source_set("prefs") {
   ]
 }
 
-if (is_mac) {
-  config("sparkle_headers") {
-    # Sparkle's headers only: the framework is loaded at run time.
-    framework_dirs = [ compass_sparkle_sdk_dir ]
-  }
-
-  # Started by patches/chrome-browser-chrome_browser_main.cc.patch.
-  source_set("updates") {
-    sources = [
+# Started by patches/chrome-browser-chrome_browser_main.cc.patch.
+source_set("updates") {
+  sources = [
+    "start_updater.cc",
+    "start_updater.h",
+  ]
+  deps = [ ":buildflags" ]
+  if (is_mac) {
+    sources += [
       "sparkle_updater_mac.h",
       "sparkle_updater_mac.mm",
     ]
     configs += [ ":sparkle_headers" ]
-    deps = [
+    deps += [
       ":hooks",
       ":prefs",
       "//base",
@@ -59,6 +80,30 @@ if (is_mac) {
       "//components/version_info",
     ]
     frameworks = [ "Foundation.framework" ]
+  }
+  if (is_win && compass_enable_win_updater) {
+    sources += [
+      "win_updater.cc",
+      "win_updater.h",
+    ]
+    deps += [
+      ":hooks",
+      ":manifest",
+      ":prefs",
+      "//base",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/upgrade_detector",
+      "//components/prefs",
+      "//net",
+      "//services/network/public/cpp",
+    ]
+  }
+}
+
+if (is_mac) {
+  config("sparkle_headers") {
+    # Sparkle's headers only: the framework is loaded at run time.
+    framework_dirs = [ compass_sparkle_sdk_dir ]
   }
 
   # Sparkle.framework in Compass.app/Contents/Frameworks, for builds with a
@@ -71,9 +116,13 @@ if (is_mac) {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "update_prefs_unittest.cc" ]
+  sources = [
+    "update_manifest_unittest.cc",
+    "update_prefs_unittest.cc",
+  ]
   deps = [
     ":hooks",
+    ":manifest",
     ":prefs",
     "//base",
     "//components/prefs:test_support",
