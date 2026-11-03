@@ -33,6 +33,28 @@ Support/1Password/Data/logs/BrowserSupport/`).
 
 ## Windows
 
-Not done yet. There the hosts are registry keys
-(`HKCU\Software\Google\Chrome\NativeMessagingHosts\<host>`, whose default
-value is the manifest's path), not files.
+Nothing to copy. There the hosts are registry keys whose default value is the
+manifest's path, and Compass is a Chromium-branded build, so upstream's
+`launch_context_win.cc` already looks in
+`Software\Chromium\NativeMessagingHosts` and then in
+`Software\Google\Chrome\NativeMessagingHosts`, under HKCU and HKLM (32-bit
+view first, then 64-bit). `kProductPathName` ("Compass") plays no part in it.
+If 1Password writes Chrome's key, as it writes Chrome's folder on macOS,
+Compass finds the manifest as it is.
+
+What can still stop it is 1Password's own check of the browser. On Windows its
+browser support helper checks the Authenticode publisher of
+the process that launched it and refuses ones it doesn't trust. An unsigned
+Compass shows up in its log (`%LOCALAPPDATA%\1Password\logs\BrowserSupport`)
+as "Unknown Publisher" or "no signature was present in the subject". Community
+posts say newer 1Password builds let the user add a browser as trusted; that
+isn't confirmed. If neither works, Compass needs an Authenticode certificate,
+which is the user's call.
+
+Not yet checked on a Windows machine. To check, with 1Password and Compass
+installed:
+
+1. `reg query "HKCU\Software\Google\Chrome\NativeMessagingHosts\com.1password.1password" /ve`
+   (and HKLM) shows the manifest's path.
+2. Unlock 1Password from the extension in Compass; if it doesn't reach the
+   app, read the newest BrowserSupport log.
