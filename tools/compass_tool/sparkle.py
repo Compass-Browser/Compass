@@ -38,13 +38,40 @@ def tool(root: Path, name: str) -> Path:
   return sparkle_dir(root) / 'bin' / name
 
 
+# Bumped when what ensure() makes changes, so old copies are fetched again.
+_LAYOUT = 2
+
+
 def _stamp(root: Path) -> Path:
   return sparkle_dir(root) / 'VERSION'
 
 
+def _stamp_text() -> str:
+  return '%s layout %d' % (VERSION, _LAYOUT)
+
+
 def is_current(root: Path) -> bool:
   stamp = _stamp(root)
-  return stamp.is_file() and stamp.read_text().strip() == VERSION
+  return stamp.is_file() and stamp.read_text().strip() == _stamp_text()
+
+
+# The shipped copy's code, inside a version folder. Sparkle signs it ad hoc;
+# Chromium's signing driver signs without --force, so it must be unsigned.
+_CODE = ('Sparkle', 'Autoupdate', 'Updater.app/Contents/MacOS/Updater')
+
+
+def unsign(framework: Path) -> None:
+  """Removes Sparkle's own signatures, so Compass's identity signs it."""
+  versions = framework / 'Versions'
+  for version in versions.iterdir() if versions.is_dir() else []:
+    if version.is_symlink():
+      continue
+    for code in _CODE:
+      if (version / code).is_file():
+        subprocess.run(['codesign', '--remove-signature', str(version / code)],
+                       check=True)
+    for signature in version.rglob('_CodeSignature'):
+      shutil.rmtree(signature)
 
 
 def prune(framework: Path) -> None:
@@ -92,8 +119,9 @@ def ensure(root: Path) -> Path:
     subprocess.run(['cp', '-R', str(framework), str(target / 'bundle')],
                    check=True)
     prune(target / 'bundle' / 'Sparkle.framework')
+    unsign(target / 'bundle' / 'Sparkle.framework')
     subprocess.run(['cp', '-R', str(extracted / 'bin'), str(target)],
                    check=True)
     shutil.copy(extracted / 'LICENSE', target / 'LICENSE')
-    _stamp(root).write_text(VERSION + '\n')
+    _stamp(root).write_text(_stamp_text() + '\n')
   return target
