@@ -208,7 +208,8 @@ def sha256(path: Path) -> str:
   return digest.hexdigest()
 
 
-_SIGNATURE = re.compile(r'sparkle:edSignature="([^"]+)"\s+length="(\d+)"')
+_SIGNATURE = re.compile(
+    r'sparkle:edSignature="([^"]+)"\s+(?:sparkle:)?length="(\d+)"')
 
 
 def parse_signature(sign_update_output: str) -> tuple:
