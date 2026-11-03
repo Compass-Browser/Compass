@@ -1,0 +1,59 @@
+diff --git a/chrome/browser/ui/webui/help/version_updater_mac.mm b/chrome/browser/ui/webui/help/version_updater_mac.mm
+index 57648956faf5058fada6b02abd3301deebb5a295..834013f88cb4692cdf610027efe7d17ccad4d5c9 100644
+--- a/chrome/browser/ui/webui/help/version_updater_mac.mm
++++ b/chrome/browser/ui/webui/help/version_updater_mac.mm
+@@ -30,6 +30,7 @@
+ #include "chrome/updater/constants.h"
+ #include "chrome/updater/update_service.h"
+ #include "chrome/updater/updater_scope.h"
++#include "compass/browser/updates/update_hooks.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/l10n/l10n_util_mac.h"
+ 
+@@ -108,6 +109,34 @@ void UpdateStatus(VersionUpdater::StatusCallback status_callback,
+   status_callback.Run(status, progress, false, false, version, 0, err_message);
+ }
+ 
++// Compass: Sparkle's progress (docs/design/updates.md).
++void CompassUpdateStatus(VersionUpdater::StatusCallback status_callback,
++                         compass::updates::CheckStatus status,
++                         int progress,
++                         const std::u16string& message) {
++  using compass::updates::CheckStatus;
++  VersionUpdater::Status mapped = VersionUpdater::Status::CHECKING;
++  switch (status) {
++    case CheckStatus::kChecking:
++      mapped = VersionUpdater::Status::CHECKING;
++      break;
++    case CheckStatus::kUpdating:
++      mapped = VersionUpdater::Status::UPDATING;
++      break;
++    case CheckStatus::kNearlyUpdated:
++      mapped = VersionUpdater::Status::NEARLY_UPDATED;
++      break;
++    case CheckStatus::kUpToDate:
++      mapped = VersionUpdater::Status::UPDATED;
++      break;
++    case CheckStatus::kFailed:
++      mapped = VersionUpdater::Status::FAILED;
++      break;
++  }
++  status_callback.Run(mapped, std::max(progress, 0), false, false,
++                      std::string(), 0, message);
++}
++
+ // macOS implementation of version update functionality, used by the WebUI
+ // About/Help page.
+ class VersionUpdaterMac : public VersionUpdater {
+@@ -120,6 +149,11 @@ void UpdateStatus(VersionUpdater::StatusCallback status_callback,
+   // VersionUpdater implementation.
+   void CheckForUpdate(StatusCallback status_callback,
+                       PromoteCallback promote_callback) override {
++    if (compass::updates::Updater* updater = compass::updates::GetUpdater()) {
++      updater->CheckNow(base::BindRepeating(&CompassUpdateStatus,
++                                            status_callback));
++      return;
++    }
+     updater::EnsureUpdater(
+         base::TaskPriority::USER_VISIBLE,
+         base::BindOnce(promote_callback, PromotionState::PROMOTE_ENABLED),

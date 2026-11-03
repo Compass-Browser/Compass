@@ -1,12 +1,13 @@
 diff --git a/chrome/browser/ui/webui/settings/BUILD.gn b/chrome/browser/ui/webui/settings/BUILD.gn
-index 321973594dd22cb4ded84552c7e16167c2c36056..9bbb9a88c06c9143fb359f6747a21d1c21d39825 100644
+index 321973594dd22cb4ded84552c7e16167c2c36056..8621a4190ae1d9d4128e6efbb7c516ee89e2055c 100644
 --- a/chrome/browser/ui/webui/settings/BUILD.gn
 +++ b/chrome/browser/ui/webui/settings/BUILD.gn
-@@ -55,6 +55,7 @@ source_set("settings") {
+@@ -55,6 +55,8 @@ source_set("settings") {
    public_deps = [
      "//base",
      "//chrome/browser/engagement",
 +    "//compass/browser/ui/webui/settings:sections",
++    "//compass/browser/updates:hooks",
      "//chrome/browser/importer",
      "//chrome/browser/net",
      "//chrome/browser/obsolete_system",

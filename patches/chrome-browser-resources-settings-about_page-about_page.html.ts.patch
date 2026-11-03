@@ -1,0 +1,27 @@
+diff --git a/chrome/browser/resources/settings/about_page/about_page.html.ts b/chrome/browser/resources/settings/about_page/about_page.html.ts
+index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..5920a4741fd04b76bf21760780b00c57b0eea07d 100644
+--- a/chrome/browser/resources/settings/about_page/about_page.html.ts
++++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
+@@ -67,6 +67,22 @@ export function getHtml(this: SettingsAboutPageElement) {
+     </span>
+ </if>
+   </div>
++<if expr="is_macosx">
++  <!-- Compass: the update channel (docs/design/updates.md). -->
++  <div class="cr-row" id="compassUpdateChannel"
++      ?hidden="${!this.compassUpdateChannelPref_}">
++    <div class="flex cr-padded-text">
++      <div>Update channel</div>
++      <div class="secondary">${this.compassChannelDescription_()}</div>
++    </div>
++    <select class="md-select" aria-label="Update channel"
++        .value="${this.compassUpdateChannelPref_?.value || 'stable'}"
++        @change="${this.onCompassUpdateChannelChange_}">
++      <option value="stable">Stable</option>
++      <option value="beta">Beta</option>
++    </select>
++  </div>
++</if>
+ <if expr="_google_chrome and is_macosx">
+   ${!this.promoteUpdaterStatus_.hidden ? html`
+     <div id="promoteUpdater"

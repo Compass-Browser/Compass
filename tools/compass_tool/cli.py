@@ -11,7 +11,8 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import checkout, mac_sign, overrides, patches, sync_server
+from . import (checkout, mac_sign, overrides, patches, release, sparkle,
+               sync_server)
 from .layout import CONFIGS, Layout, detect
 from .process import CommandError, depot_tool, run
 
@@ -205,6 +206,10 @@ def build(layout: Layout, config: str, targets, jobs: int | None = None,
                        (out_dir, config))
   if not skip_patches:
     sync_patches(layout)
+  if sys.platform == 'darwin':
+    # Release builds bundle Sparkle; every build compiles against its
+    # headers (docs/design/updates.md).
+    sparkle.ensure(layout.root)
   for path in overrides.orphans(layout.overrides_dir, layout.src):
     print('warning: override has no upstream file: chromium_src/' + path)
   for path in overrides.sync(layout.overrides_dir, layout.src, out_dir):
@@ -299,6 +304,12 @@ def cmd_test(layout: Layout, args) -> None:
 
 
 def cmd_sign(layout: Layout, args) -> None:
+  sign_build(layout, args)
+
+
+def sign_build(layout: Layout, args) -> Path:
+  """Builds (unless --skip-build), signs, packages and notarizes; returns
+  the folder with the .dmg."""
   if sys.platform != 'darwin':
     raise CommandError('compass sign is for macOS builds')
   out_dir = layout.out_dir(args.config)
@@ -333,6 +344,79 @@ def cmd_sign(layout: Layout, args) -> None:
       run(['spctl', '--assess', '--type', 'open', '--context',
            'context:primary-signature', '--verbose', dmg], out_dir)
     print('signed: %s' % dmg)
+  return output
+
+
+COMPASS_VERSION_ARG = 'compass_version'
+
+
+def set_gn_arg(args_file: Path, name: str, value: str) -> None:
+  """Sets |name| = "|value|" among args.gn's local tweaks."""
+  lines = [l for l in args_file.read_text().splitlines()
+           if not l.startswith(name + ' ') and not l.startswith(name + '=')]
+  lines.append('%s = "%s"' % (name, value))
+  args_file.write_text('\n'.join(lines) + '\n')
+
+
+def git_commit(root: Path) -> str:
+  return run(['git', 'rev-parse', '--short', 'HEAD'], root, capture=True,
+             quiet=True).stdout.strip()
+
+
+def cmd_release(layout: Layout, args) -> None:
+  """Update feeds on https://updates.compassbrowser.org (docs/design/updates.md)."""
+  try:
+    _release(layout, args)
+  except release.ReleaseError as e:
+    raise CommandError(str(e))
+
+
+def _release(layout: Layout, args) -> None:
+  manifest = release.load()
+  if args.action == 'list':
+    for r in manifest['releases']:
+      print('%-15s %-7s %s  chromium %s  %s' % (
+          r['version'], r['channel'], r['commit'], r['chromium'],
+          ' '.join(p for p in ('mac', 'win') if r.get(p))))
+    return
+  if args.action == 'promote':
+    if not args.version:
+      raise CommandError('promote: which version?')
+    found = release.find(manifest, args.version)
+    if found['channel'] == 'stable':
+      raise CommandError('%s is on stable already' % args.version)
+    found['channel'] = 'stable'
+    feeds = release.write_feeds(manifest)
+    if not args.no_upload:
+      release.upload(feeds)
+    print('%s is on stable' % args.version)
+    return
+  if args.action == 'feeds':
+    feeds = release.write_feeds(manifest)
+    if not args.no_upload:
+      release.upload(feeds)
+    return
+  # publish (macOS): a new version, built, signed, notarized, fed.
+  tools = sparkle.ensure(layout.root) / 'bin'
+  if not args.skip_build:
+    version = args.version or release.new_version()
+    set_gn_arg(layout.out_dir(args.config) / 'args.gn', COMPASS_VERSION_ARG,
+               version)
+    print('Compass %s (%s channel)' % (version, args.channel))
+  output = sign_build(layout, args)
+  dmgs = sorted(output.glob('*.dmg'))
+  if len(dmgs) != 1:
+    raise CommandError('expected one .dmg in %s, found %d' % (output,
+                                                              len(dmgs)))
+  added = release.add_mac_release(manifest, dmgs[0], args.channel,
+                                  git_commit(layout.root), tools,
+                                  notes=args.notes or '')
+  feeds = release.write_feeds(manifest)
+  if not args.no_upload:
+    release.upload(release.release_files(added))
+    release.upload(feeds)
+  print('released %s on %s: %s/%s' % (added['version'], args.channel,
+                                     release.BASE_URL, added['mac']['file']))
 
 
 def cmd_sync_server(layout: Layout, args) -> None:
@@ -545,6 +629,28 @@ def parser() -> argparse.ArgumentParser:
   add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_sign)
+
+  s = sub.add_parser('release', help='publish a macOS release to the update '
+                     'feeds, promote one to stable, or list them')
+  s.add_argument('action', choices=['publish', 'promote', 'list', 'feeds'],
+                 nargs='?', default='publish')
+  s.add_argument('version', nargs='?',
+                 help='promote: the version; publish: instead of the time')
+  s.add_argument('--channel', choices=release.CHANNELS, default='beta',
+                 help='publish: the channel (default: %(default)s)')
+  s.add_argument('--notes', help='publish: release notes')
+  s.add_argument('--no-upload', action='store_true',
+                 help='write the feeds locally only')
+  s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')
+  s.add_argument('--identity', help='as for sign')
+  s.add_argument('--keychain-profile', default=mac_sign.DEFAULT_NOTARY_PROFILE,
+                 help='as for sign')
+  s.add_argument('--skip-build', action='store_true',
+                 help="publish what's signed in <out>/signed")
+  s.set_defaults(no_notarize=False)
+  add_skip_patches(s)
+  add_jobs_argument(s)
+  s.set_defaults(func=cmd_release)
 
   s = sub.add_parser('sync-server', help='run the sync server (server/) '
                      'locally for development')

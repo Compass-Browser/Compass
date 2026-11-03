@@ -1,0 +1,82 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//compass/browser/updates/updates.gni")
+
+# Automatic updates (docs/design/updates.md).
+
+# The seams upstream code calls (lifetime, the About page, the installed
+# version poller). Only //base, so those targets can depend on it.
+source_set("hooks") {
+  sources = [
+    "update_hooks.cc",
+    "update_hooks.h",
+  ]
+  deps = [
+    "//base",
+    "//build:buildflag_header_h",
+  ]
+  if (is_mac) {
+    sources += [ "update_hooks_mac.mm" ]
+    frameworks = [ "Foundation.framework" ]
+  }
+}
+
+# The update channel pref, registered in Local State
+# (patches/chrome-browser-prefs-browser_prefs.cc.patch).
+source_set("prefs") {
+  sources = [
+    "update_prefs.cc",
+    "update_prefs.h",
+  ]
+  deps = [
+    ":hooks",
+    "//components/prefs",
+  ]
+}
+
+if (is_mac) {
+  config("sparkle_headers") {
+    # Sparkle's headers only: the framework is loaded at run time.
+    framework_dirs = [ compass_sparkle_sdk_dir ]
+  }
+
+  # Started by patches/chrome-browser-chrome_browser_main.cc.patch.
+  source_set("updates") {
+    sources = [
+      "sparkle_updater_mac.h",
+      "sparkle_updater_mac.mm",
+    ]
+    configs += [ ":sparkle_headers" ]
+    deps = [
+      ":hooks",
+      ":prefs",
+      "//base",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/upgrade_detector",
+      "//components/prefs",
+      "//components/version_info",
+    ]
+    frameworks = [ "Foundation.framework" ]
+  }
+
+  # Sparkle.framework in Compass.app/Contents/Frameworks, for builds with a
+  # feed (patches/chrome-BUILD.gn.patch).
+  bundle_data("sparkle_framework") {
+    sources = [ "$compass_sparkle_bundle_dir/Sparkle.framework" ]
+    outputs = [ "{{bundle_contents_dir}}/Frameworks/{{source_file_part}}" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "update_prefs_unittest.cc" ]
+  deps = [
+    ":hooks",
+    ":prefs",
+    "//base",
+    "//components/prefs:test_support",
+    "//testing/gtest",
+  ]
+}

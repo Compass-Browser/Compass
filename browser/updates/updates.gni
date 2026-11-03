@@ -1,0 +1,49 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Automatic updates (docs/design/updates.md).
+
+declare_args() {
+  # Compass's version, e.g. "20261103.0215": the release tool (`compass
+  # release`) sets it in out/<Config>/args.gn. Empty in dev builds.
+  compass_version = ""
+
+  # The Sparkle feed (macOS), e.g.
+  # "https://updates.compassbrowser.org/mac/appcast.xml". Empty: no updater.
+  compass_update_feed_url = ""
+
+  # Sparkle's EdDSA public key (base64), which the feed's archives are
+  # signed with.
+  compass_sparkle_public_key = ""
+}
+
+# `compass` fetches Sparkle (tools/compass_tool/sparkle.py): the whole
+# framework for its headers, and a copy without what Compass doesn't ship.
+compass_sparkle_sdk_dir = "//compass/third_party/sparkle/sdk"
+compass_sparkle_bundle_dir = "//compass/third_party/sparkle/bundle"
+
+# Builds with a feed bundle Sparkle and start it.
+compass_enable_sparkle = is_mac && compass_update_feed_url != ""
+
+# The app's Info.plist with Compass's keys added (chrome/BUILD.gn, where
+# |source_target| is upstream's tweak_info_plist target).
+template("compass_app_plist") {
+  action(target_name) {
+    script = "//compass/browser/updates/stamp_app_plist.py"
+    _source = get_target_outputs(invoker.source_target)
+    sources = _source
+    deps = [ invoker.source_target ]
+    _output = "$target_gen_dir/${target_name}.plist"
+    outputs = [ _output ]
+    args = [
+      "--input",
+      rebase_path(_source[0], root_build_dir),
+      "--output",
+      rebase_path(_output, root_build_dir),
+      "--version=$compass_version",
+      "--feed-url=$compass_update_feed_url",
+      "--public-key=$compass_sparkle_public_key",
+    ]
+  }
+}

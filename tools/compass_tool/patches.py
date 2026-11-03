@@ -34,10 +34,13 @@ def patches_by_repo(patches_dir: Path, src: Path) -> Dict[Path, List[Path]]:
 
 
 def state(repo: Path, patch: Path) -> str:
-  if git(['apply', '--check', patch], repo, check=False).returncode == 0:
-    return NOT_APPLIED
+  # Reverse first: a patch that only adds lines can still apply forward once
+  # applied, when its context repeats (it did for signing/parts.py, which
+  # gained a copy of its hunk on every build).
   if git(['apply', '--check', '-R', patch], repo, check=False).returncode == 0:
     return APPLIED
+  if git(['apply', '--check', patch], repo, check=False).returncode == 0:
+    return NOT_APPLIED
   return CONFLICT
 
 

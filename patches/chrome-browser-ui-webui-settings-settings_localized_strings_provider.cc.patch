@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+index 01763a850c07badae922065057065a2591c0e2e6..28d32900682963ff92e5c3caed1864778828ab97 100644
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -72,6 +72,7 @@
+ #include "chrome/common/url_constants.h"
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
++#include "compass/browser/updates/update_hooks.h"
+ #include "components/autofill/content/browser/content_autofill_client.h"
+ #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
+ #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+@@ -354,6 +355,10 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+   std::u16string browser_version = VersionUI::GetAnnotatedVersionStringForUi();
+ 
+   html_source->AddString("aboutBrowserVersion", browser_version);
++  // Compass: its own version, next to the update channel (empty in dev
++  // builds; docs/design/updates.md).
++  html_source->AddString("compassVersion",
++                         compass::updates::CompassVersion());
+   html_source->AddString(
+       "aboutProductCopyright",
+       base::i18n::MessageFormatter::FormatWithNumberedArgs(

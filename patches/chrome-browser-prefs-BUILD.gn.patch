@@ -1,13 +1,14 @@
 diff --git a/chrome/browser/prefs/BUILD.gn b/chrome/browser/prefs/BUILD.gn
-index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..5854d1026cdcc5f11a1e494c3c03cd55af15be92 100644
+index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..2d277aa45488996669932de4a11c5913261eb207 100644
 --- a/chrome/browser/prefs/BUILD.gn
 +++ b/chrome/browser/prefs/BUILD.gn
-@@ -61,6 +61,8 @@ source_set("impl") {
+@@ -61,6 +61,9 @@ source_set("impl") {
      ":prefs",
      ":util",
      "//chrome/browser:browser_process",
 +    "//compass/browser/prefs",
 +    "//compass/browser/shortcuts",
++    "//compass/browser/updates:prefs",
      "//chrome/browser:browser_process_impl",
      "//chrome/browser:chrome_content_browser_client",
      "//chrome/browser:defaults",

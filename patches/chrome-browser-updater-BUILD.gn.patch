@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/updater/BUILD.gn b/chrome/browser/updater/BUILD.gn
+index b9c442efe4805721eeb732eed905d4e4a668a7aa..3802da2f73509ebed0a978ffac3c3e87386c199b 100644
+--- a/chrome/browser/updater/BUILD.gn
++++ b/chrome/browser/updater/BUILD.gn
+@@ -94,7 +94,10 @@ source_set("updater") {
+     ]
+   } else {
+     sources = [ "updater_no_updater.cc" ]
+-    deps = [ "//components/version_info" ]
++    deps = [
++      "//compass/browser/updates:hooks",
++      "//components/version_info",
++    ]
+   }
+ }
+ 

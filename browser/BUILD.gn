@@ -9,6 +9,9 @@ group("browser") {
     "//compass/browser/shortcuts",
     "//compass/browser/sidebar",
   ]
+  if (is_mac) {
+    public_deps += [ "//compass/browser/updates" ]
+  }
 }
 
 # Compass's feature defaults. //chrome/browser:core, which sets up the

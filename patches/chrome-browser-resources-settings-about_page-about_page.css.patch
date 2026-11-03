@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/resources/settings/about_page/about_page.css b/chrome/browser/resources/settings/about_page/about_page.css
+index 2987e61a89e98daf3271f9b5af84b3aa7424ea2a..d26defeacea4f63b6c693b2601fe95a38d66f2fa 100644
+--- a/chrome/browser/resources/settings/about_page/about_page.css
++++ b/chrome/browser/resources/settings/about_page/about_page.css
+@@ -6,7 +6,8 @@
+  * #type=style-lit
+  * #import=../settings_shared_lit.css.js
+  * #import=chrome://resources/cr_elements/cr_shared_style_lit.css.js
+- * #include=cr-shared-style-lit settings-shared-lit
++ * #import=chrome://resources/cr_elements/md_select_lit.css.js
++ * #include=cr-shared-style-lit settings-shared-lit md-select-lit
+  * #css_wrapper_metadata_end */
+ 
+ :host {

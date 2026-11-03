@@ -11,3 +11,9 @@ symbol_level = 1
 # PGO profiles need checkout_pgo_profiles in .gclient; enable once release
 # CI fetches them.
 chrome_pgo_phase = 0
+
+# Automatic updates (docs/design/updates.md): Sparkle's feed and the public
+# half of the key that signs its archives. `compass release` adds
+# compass_version to out/Release/args.gn.
+compass_update_feed_url = "https://updates.compassbrowser.org/mac/appcast.xml"
+compass_sparkle_public_key = "FS3QT5Iu8sEmUjdndH5xmg4neztioz9CxvRmARgzbb0="

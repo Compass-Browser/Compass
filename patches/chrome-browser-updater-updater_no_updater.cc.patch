@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/updater/updater_no_updater.cc b/chrome/browser/updater/updater_no_updater.cc
+index d449bc074a6ceb46bd232462613c70233b61e97b..743b85e32efd53934a8b40139838b9651ce150cd 100644
+--- a/chrome/browser/updater/updater_no_updater.cc
++++ b/chrome/browser/updater/updater_no_updater.cc
+@@ -14,10 +14,17 @@
+ #include "base/version.h"
+ #include "base/version_info/version_info.h"
+ #include "chrome/updater/mojom/updater_service.mojom.h"
++#include "compass/browser/updates/update_hooks.h"
+ 
+ namespace updater {
+ 
+ base::Version CurrentlyInstalledVersion() {
++  // Compass: once an update is downloaded, the version a relaunch runs
++  // (docs/design/updates.md).
++  if (std::optional<base::Version> pending =
++          compass::updates::PendingVersion()) {
++    return *pending;
++  }
+   return version_info::GetVersion();
+ }
+ 

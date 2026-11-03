@@ -1,8 +1,8 @@
 diff --git a/chrome/installer/mac/signing/parts.py b/chrome/installer/mac/signing/parts.py
-index caf9b6f5447af2eb3200e9060e6c946ce658112f..32b67a075c184db05d3765f2fade680a9fd2160e 100644
+index caf9b6f5447af2eb3200e9060e6c946ce658112f..f1df3a00db11a17e8d29be413fd00f8a596c5b1c 100644
 --- a/chrome/installer/mac/signing/parts.py
 +++ b/chrome/installer/mac/signing/parts.py
-@@ -160,6 +160,15 @@ def get_parts(config):
+@@ -160,6 +160,40 @@ def get_parts(config):
              sign_with_identifier=True,
              verify_options=verify_options,
          ),
@@ -13,6 +13,31 @@ index caf9b6f5447af2eb3200e9060e6c946ce658112f..32b67a075c184db05d3765f2fade680a
 +            '{}.compass-mcp'.format(uncustomized_bundle_id),
 +            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
 +            sign_with_identifier=True,
++            verify_options=verify_options,
++        ),
++        # Compass: Sparkle, the macOS updater (docs/design/updates.md).
++        # Inner code first: the installer tool, the updater app, then the
++        # framework that holds them.
++        'sparkle-autoupdate': CodeSignedProduct(
++            '{.app_product}.app/Contents/Frameworks/Sparkle.framework/'
++            'Versions/B/Autoupdate'.format(config),
++            'org.sparkle-project.Sparkle.Autoupdate',
++            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
++            sign_with_identifier=True,
++            verify_options=verify_options,
++        ),
++        'sparkle-updater-app': CodeSignedProduct(
++            '{.app_product}.app/Contents/Frameworks/Sparkle.framework/'
++            'Versions/B/Updater.app'.format(config),
++            'org.sparkle-project.Sparkle.Updater',
++            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
++            verify_options=verify_options,
++        ),
++        'sparkle-framework': CodeSignedProduct(
++            '{.app_product}.app/Contents/Frameworks/Sparkle.framework'.format(
++                config
++            ),
++            'org.sparkle-project.Sparkle',
 +            verify_options=verify_options,
 +        ),
      }

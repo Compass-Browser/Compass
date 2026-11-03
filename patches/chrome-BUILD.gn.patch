@@ -1,8 +1,33 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index d98c86e5dace91937c62c5428084686c666ab0d4..f75e58a607a1cda944502b65cd832f361f1d42c1 100644
+index d98c86e5dace91937c62c5428084686c666ab0d4..fa589a2ea5c158da2a1deab75ea84c34168e66f3 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -566,6 +566,9 @@ if (is_win) {
+@@ -32,6 +32,7 @@ import("//tools/resources/generate_resource_allowlist.gni")
+ import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
+ import("//ui/gl/features.gni")
+ import("//v8/gni/v8.gni")
++import("//compass/browser/updates/updates.gni")
+ 
+ assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
+ 
+@@ -535,10 +536,15 @@ if (is_win) {
+     }
+   }
+ 
++  # Compass: its version and Sparkle's keys (docs/design/updates.md).
++  compass_app_plist("compass_app_plist") {
++    source_target = ":chrome_app_plist"
++  }
++
+   mac_app_bundle("chrome_app") {
+     output_name = chrome_product_full_name
+ 
+-    info_plist_target = ":chrome_app_plist"
++    info_plist_target = ":compass_app_plist"
+     extra_substitutions = [
+       "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
+       "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
+@@ -566,8 +572,16 @@ if (is_win) {
        ":chrome_app_strings_bundle_data",
        ":chrome_resources",
        ":chrome_versioned_bundle_data",
@@ -11,8 +36,15 @@ index d98c86e5dace91937c62c5428084686c666ab0d4..f75e58a607a1cda944502b65cd832f36
 +      "//compass/tools/mcp:compass_mcp_bundle_data",
      ]
  
++    # Compass: Sparkle.framework, in builds with an update feed.
++    if (compass_enable_sparkle) {
++      bundle_deps += [ "//compass/browser/updates:sparkle_framework" ]
++    }
++
      if (enable_updater) {
-@@ -670,12 +673,12 @@ if (is_win) {
+       bundle_deps += [ ":chromium_updater_privileged_helper" ]
+     }
+@@ -670,12 +684,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {

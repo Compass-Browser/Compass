@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/lifetime/BUILD.gn b/chrome/browser/lifetime/BUILD.gn
+index bc5cec233fa79697d5284822684fffa564e28c67..f82b8f48c4922e3de015673fc08b28a49bbb0310 100644
+--- a/chrome/browser/lifetime/BUILD.gn
++++ b/chrome/browser/lifetime/BUILD.gn
+@@ -162,6 +162,7 @@ source_set("impl") {
+     deps += [
+       "//chrome/browser:global_features",
+       "//chrome/browser/background/glic",
++      "//compass/browser/updates:hooks",
+       "//chrome/browser/download",
+       "//chrome/browser/first_run",
+       "//chrome/browser/glic",

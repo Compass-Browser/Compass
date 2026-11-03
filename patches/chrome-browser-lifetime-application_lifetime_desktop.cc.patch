@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/lifetime/application_lifetime_desktop.cc b/chrome/browser/lifetime/application_lifetime_desktop.cc
+index b1dca3d525dcbbc77bd38c31530ef6c8230b3f26..cfbf880c16a20eaf876247193ffb9d0d7ab0195e 100644
+--- a/chrome/browser/lifetime/application_lifetime_desktop.cc
++++ b/chrome/browser/lifetime/application_lifetime_desktop.cc
+@@ -47,6 +47,7 @@
+ #include "chrome/common/buildflags.h"
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/pref_names.h"
++#include "compass/browser/updates/update_hooks.h"
+ #include "components/keep_alive_registry/keep_alive_registry.h"
+ #include "components/keep_alive_registry/keep_alive_types.h"
+ #include "components/prefs/pref_service.h"
+@@ -286,6 +287,13 @@ void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers,
+   content::GetUIThreadTaskRunner({})->PostTask(
+       FROM_HERE, base::BindOnce(&ExitIgnoreUnloadHandlers));
+ #else   // !BUILDFLAG(IS_CHROMEOS).
++  // Compass: a downloaded update installs, and its installer opens the
++  // browser again (kWasRestarted restores the session); Chromium mustn't
++  // relaunch it too. docs/design/updates.md.
++  if (compass::updates::Updater* updater = compass::updates::GetUpdater();
++      updater && updater->InstallAndRelaunch()) {
++    return;
++  }
+   // Set the flag to restore state after the restart.
+   pref_service->SetBoolean(prefs::kRestartLastSessionOnShutdown, true);
+   if (ignore_unload_handlers) {

@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/extensions/api/settings_private/prefs_util.cc b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+index 618a67dabc0fdd7cab4aa745b3309fadfea1d4c9..c55fac27bed8894937eaea5c92962c4d847eed5e 100644
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -1225,6 +1225,9 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHardwareAccelerationModeEnabled] =
+       settings_api::PrefType::kBoolean;
++  // Compass: the update channel, on the About page (Local State;
++  // compass::updates::kUpdateChannelPref, docs/design/updates.md).
++  (*s_allowlist)["compass.update_channel"] = settings_api::PrefType::kString;
+ #if BUILDFLAG(IS_WIN)
+   (*s_allowlist)[::prefs::kForegroundLaunchOnLogin] =
+       settings_api::PrefType::kBoolean;
