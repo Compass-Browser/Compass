@@ -38,6 +38,10 @@ AuthStyle FromMojo(mojom::AuthStyle style) {
                                             : AuthStyle::kApiKey;
 }
 
+#if BUILDFLAG(IS_POSIX)
+// compass-mcp talks to the browser over a Unix socket, so it is built and
+// offered on POSIX only (the page says MCP isn't supported elsewhere).
+
 // |text| as one shell word: quoted when it holds anything but safe
 // characters ("Application Support" has a space).
 std::string QuoteForShell(const std::string& text) {
@@ -76,6 +80,7 @@ std::string McpCommand() {
   }
   return command;
 }
+#endif  // BUILDFLAG(IS_POSIX)
 
 }  // namespace
 
@@ -102,9 +107,9 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
 #if BUILDFLAG(IS_POSIX)
   state->mcp_supported = true;
+  state->mcp_command = McpCommand();
 #endif
   state->mcp_enabled = prefs->GetBoolean(prefs::kMcpEnabled);
-  state->mcp_command = McpCommand();
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
