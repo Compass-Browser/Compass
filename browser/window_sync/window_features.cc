@@ -783,14 +783,17 @@ void DeleteSpace(Profile* profile, SpaceModel& space) {
     return;
   }
   // Windows showing it go to its neighbor in the switcher, which can be
-  // another profile's. Not the last space of all.
-  std::vector<SpaceDirectory::Entry> spaces = GetSpacesOf(profile);
-  auto it = std::ranges::find(spaces, &space, &SpaceDirectory::Entry::space);
-  if (it == spaces.end() || spaces.size() < 2) {
-    return;
+  // another profile's. Not the last space of all. The list of entries goes
+  // before |space| does: one of them points at it, and would dangle.
+  SpaceDirectory::Entry fallback;
+  {
+    std::vector<SpaceDirectory::Entry> spaces = GetSpacesOf(profile);
+    auto it = std::ranges::find(spaces, &space, &SpaceDirectory::Entry::space);
+    if (it == spaces.end() || spaces.size() < 2) {
+      return;
+    }
+    fallback = it + 1 != spaces.end() ? *(it + 1) : *(it - 1);
   }
-  const SpaceDirectory::Entry fallback = it + 1 != spaces.end() ? *(it + 1)
-                                                                : *(it - 1);
   MoveWindowsOff(profile, space, fallback);
 
   // Its live tabs are all parked now.
