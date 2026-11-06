@@ -1,0 +1,18 @@
+diff --git a/third_party/libusb/src/libusb/os/darwin_usb.c b/third_party/libusb/src/libusb/os/darwin_usb.c
+index a6c840f332548aba8b99b2fbf67476bb5ba5d010..7120de34714ad47857d36c95246ac85041c79f46 100644
+--- a/third_party/libusb/src/libusb/os/darwin_usb.c
++++ b/third_party/libusb/src/libusb/os/darwin_usb.c
+@@ -491,7 +491,12 @@ static int get_configuration_index (struct libusb_device *dev, int config_value)
+     return darwin_to_libusb (kresult);
+ 
+   for (i = 0 ; i < numConfig ; i++) {
+-    (*(priv->device))->GetConfigurationDescriptorPtr (priv->device, i, &desc);
++    /* A device that is going away (or a misbehaving one) can fail this and
++       leave |desc| unset: skip it rather than dereference it. */
++    desc = NULL;
++    kresult = (*(priv->device))->GetConfigurationDescriptorPtr (priv->device, i, &desc);
++    if (kresult != kIOReturnSuccess || !desc)
++      continue;
+ 
+     if (desc->bConfigurationValue == config_value)
+       return i;
