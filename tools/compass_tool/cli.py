@@ -154,7 +154,7 @@ def cmd_gen(layout: Layout, args) -> None:
   require_lowercase_name(layout)
   require_checkout(layout)
   require_buildable_layout(layout)
-  out_dir = layout.out_dir(args.config)
+  out_dir = layout.out_dir(args.config, args.cpu)
   args_file = out_dir / 'args.gn'
   if args.force or not args_file.exists():
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -181,13 +181,13 @@ def sync_patches(layout: Layout) -> None:
 
 
 def build(layout: Layout, config: str, targets, jobs: int | None = None,
-          skip_patches: bool = False) -> Path:
+          skip_patches: bool = False, cpu: str | None = None) -> Path:
   require_checkout(layout)
   require_buildable_layout(layout)
-  out_dir = layout.out_dir(config)
+  out_dir = layout.out_dir(config, cpu)
   if not (out_dir / 'args.gn').exists():
-    raise CommandError('%s is not set up; run `compass gen %s`' %
-                       (out_dir, config))
+    raise CommandError('%s is not set up; run `compass gen %s%s`' %
+                       (out_dir, config, ' --cpu ' + cpu if cpu else ''))
   if not skip_patches:
     sync_patches(layout)
   for path in overrides.orphans(layout.overrides_dir, layout.src):
@@ -228,7 +228,7 @@ def sign_for_tcc(binary: Path) -> None:
 
 def cmd_build(layout: Layout, args) -> None:
   build(layout, args.config, args.targets or [DEFAULT_TARGET], args.jobs,
-        args.skip_patches)
+        args.skip_patches, args.cpu)
 
 
 def passthrough(extra_args):
@@ -237,7 +237,7 @@ def passthrough(extra_args):
 
 
 def cmd_run(layout: Layout, args) -> None:
-  out_dir = layout.out_dir(args.config)
+  out_dir = layout.out_dir(args.config, args.cpu)
   binary = browser_binary(layout, out_dir)
   if not binary.exists():
     raise CommandError('%s not found; run `compass build`' % binary)
@@ -274,7 +274,7 @@ def browser_test_args(test_args, headed: bool, platform: str = sys.platform):
 def cmd_test(layout: Layout, args) -> None:
   target = BROWSER_TEST_TARGET if args.browser else TEST_TARGET
   out_dir = build(layout, args.config, [target], args.jobs,
-                  args.skip_patches)
+                  args.skip_patches, args.cpu)
   exe = target + ('.exe' if sys.platform == 'win32' else '')
   test_args = passthrough(args.test_args)
   if args.browser:
@@ -286,10 +286,10 @@ def cmd_test(layout: Layout, args) -> None:
 def cmd_sign(layout: Layout, args) -> None:
   if sys.platform != 'darwin':
     raise CommandError('compass sign is for macOS builds')
-  out_dir = layout.out_dir(args.config)
+  out_dir = layout.out_dir(args.config, args.cpu)
   if not args.skip_build:
     build(layout, args.config, [DEFAULT_TARGET, mac_sign.PACKAGING_TARGET],
-          args.jobs, args.skip_patches)
+          args.jobs, args.skip_patches, args.cpu)
   product = product_name(layout)
   if not (mac_sign.packaging_dir(out_dir, product) / 'sign_chrome.py').exists():
     raise CommandError('no signing scripts in %s; build %s first' %
@@ -364,6 +364,9 @@ def cmd_ios(layout: Layout, args) -> None:
   if args.action == 'archive':
     ios_archive(ios, args)
     return
+  if args.action == 'device':
+    ios_device(ios, args)
+    return
   if args.action == 'test':
     cmd = ['swift', 'test']
     if args.filter:
@@ -405,6 +408,34 @@ def cmd_ios(layout: Layout, args) -> None:
 IOS_TEAM = '4M33B5HNDS'
 
 
+def ios_auth_args(args) -> list:
+  """Automatic signing that may create or update profiles. With an App Store
+  Connect API key it works without an Xcode account (build machines)."""
+  auth = ['-allowProvisioningUpdates']
+  if args.api_key:
+    if not (args.api_key_id and args.api_issuer):
+      raise CommandError('--api-key needs --api-key-id and --api-issuer')
+    auth += ['-authenticationKeyPath', str(Path(args.api_key).resolve()),
+             '-authenticationKeyID', args.api_key_id,
+             '-authenticationKeyIssuerID', args.api_issuer]
+  return auth
+
+
+def ios_device(ios: Path, args) -> Path:
+  """A Debug build for real devices, signed for development with the team in
+  project.yml. The profile covers the team's registered devices, so the .app
+  can be built on one Mac and installed from another with
+  `xcrun devicectl device install app`."""
+  derived = ios / 'build' / 'DerivedData-device'
+  run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
+       'Compass', '-configuration', 'Debug', '-destination',
+       'generic/platform=iOS', '-derivedDataPath', derived, 'build'] +
+      ios_auth_args(args), ios)
+  app = derived / 'Build/Products/Debug-iphoneos/Compass.app'
+  print('device build: %s' % app)
+  return app
+
+
 def ios_archive(ios: Path, args) -> None:
   """A Release archive exported for App Store Connect (TestFlight), signed
   automatically with the team in project.yml. The build number is the time,
@@ -416,12 +447,7 @@ def ios_archive(ios: Path, args) -> None:
     shutil.rmtree(out)
   out.mkdir(parents=True)
   archive = out / 'Compass.xcarchive'
-  auth = ['-allowProvisioningUpdates']
-  if args.api_key:
-    # App Store Connect API key, for signing without an Xcode account.
-    auth += ['-authenticationKeyPath', str(Path(args.api_key).resolve()),
-             '-authenticationKeyID', args.api_key_id,
-             '-authenticationKeyIssuerID', args.api_issuer]
+  auth = ios_auth_args(args)
   # Date.time, e.g. 20261101.1114: always higher than the last upload.
   build_number = time.strftime('%Y%m%d.%H%M')
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
@@ -442,6 +468,11 @@ def ios_archive(ios: Path, args) -> None:
       ios)
   print('build %s: %s' % (build_number, 'uploaded to App Store Connect'
                           if args.upload else out / 'export' / 'Compass.ipa'))
+
+
+def add_cpu_argument(p: argparse.ArgumentParser) -> None:
+  p.add_argument('--cpu', help='target_cpu, e.g. arm64 or x64. Other than '
+                 'the host\'s, the build goes to out/<Config>-<cpu>')
 
 
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
@@ -484,7 +515,7 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('gen', help='write args.gn and run gn gen')
   s.add_argument('config', choices=sorted(CONFIGS), nargs='?', default='debug')
-  s.add_argument('--cpu', help='target_cpu, e.g. arm64 or x64')
+  add_cpu_argument(s)
   s.add_argument('--force', action='store_true',
                  help='overwrite an existing args.gn')
   s.set_defaults(func=cmd_gen)
@@ -492,12 +523,14 @@ def parser() -> argparse.ArgumentParser:
   s = sub.add_parser('build', help='build with autoninja')
   s.add_argument('targets', nargs='*', help='default: ' + DEFAULT_TARGET)
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
+  add_cpu_argument(s)
   add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_build)
 
   s = sub.add_parser('run', help='launch the built browser')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
+  add_cpu_argument(s)
   s.add_argument('--fresh', action='store_true',
                  help='start from an empty dev profile')
   s.add_argument('browser_args', nargs=argparse.REMAINDER)
@@ -505,6 +538,7 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('test', help='build and run compass_unittests')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')
+  add_cpu_argument(s)
   add_skip_patches(s)
   s.add_argument('--browser', action='store_true',
                  help='run compass_browsertests (real browser windows) instead')
@@ -518,6 +552,7 @@ def parser() -> argparse.ArgumentParser:
   s = sub.add_parser('sign', help='sign a macOS build with Developer ID, '
                      'package it as a .dmg and notarize it')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')
+  add_cpu_argument(s)
   s.add_argument('--identity', help='certificate hash or part of its name '
                  '(default: the only "Developer ID Application" one)')
   s.add_argument('--keychain-profile', default=mac_sign.DEFAULT_NOTARY_PROFILE,
@@ -542,8 +577,10 @@ def parser() -> argparse.ArgumentParser:
   s.set_defaults(func=cmd_sync_server)
 
   s = sub.add_parser('ios', help='Compass for iOS: gen the Xcode project, '
-                     'test CompassKit, build, or run in a headless simulator')
-  s.add_argument('action', choices=['gen', 'test', 'build', 'sim', 'archive'])
+                     'test CompassKit, build, run in a headless simulator, '
+                     'build for devices, or archive for TestFlight')
+  s.add_argument('action',
+                 choices=['gen', 'test', 'build', 'sim', 'device', 'archive'])
   s.add_argument('--filter', help='test: only tests matching this')
   s.add_argument('--sync-server', metavar='PATH|build',
                  help='test: also run the engine tests against this sync '
@@ -559,10 +596,10 @@ def parser() -> argparse.ArgumentParser:
                  help='archive: upload to App Store Connect (TestFlight) '
                  'instead of exporting the .ipa')
   s.add_argument('--api-key', metavar='P8',
-                 help='archive: App Store Connect API key (.p8), when Xcode '
-                 'has no account signed in')
-  s.add_argument('--api-key-id', help='archive: with --api-key, its key ID')
-  s.add_argument('--api-issuer', help='archive: with --api-key, the issuer ID')
+                 help='archive, device: App Store Connect API key (.p8), '
+                 'when Xcode has no account signed in')
+  s.add_argument('--api-key-id', help='archive, device: with --api-key, its key ID')
+  s.add_argument('--api-issuer', help='archive, device: with --api-key, the issuer ID')
   s.set_defaults(func=cmd_ios)
   return p
 

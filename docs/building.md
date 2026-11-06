@@ -68,7 +68,7 @@ to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
 
 ```sh
 tools/compass init          # depot_tools, Chromium at config/chromium_version, patches
-tools/compass gen debug     # out/Debug (add --cpu arm64|x64 to cross-compile)
+tools/compass gen debug     # out/Debug (--cpu arm64|x64 cross-compiles, into out/Debug-<cpu>)
 tools/compass build         # target `chrome`
 tools/compass run           # dev profile in out/Debug/compass-dev-profile (--fresh to reset)
 ```
@@ -96,6 +96,43 @@ tools/compass gen fast
 tools/compass build -c fast
 tools/compass run -c fast
 ```
+
+### A build for another Mac
+
+A component build loads its libraries from the out directory, so its .app
+only runs where it was built. The `portable` config is `fast` linked
+statically: copy the .app anywhere. To try Compass on an Intel Mac from an
+Apple silicon build machine:
+
+```sh
+tools/compass gen portable --cpu x64        # out/Portable-x64
+tools/compass build -c portable --cpu x64 chrome
+```
+
+`--cpu` takes the same value on `build`, `run`, `test` and `sign`. A CPU other
+than the host's gets its own out directory, so it doesn't overwrite the host
+build.
+
+## iOS on devices
+
+```sh
+tools/compass ios device       # Debug, signed for development, for real devices
+tools/compass ios archive --upload   # Release, uploaded to TestFlight
+```
+
+`ios device` signs automatically with the team in `ios/project.yml`. The
+profile covers every device registered to the team, so the .app
+(`ios/build/DerivedData-device/Build/Products/Debug-iphoneos/Compass.app`)
+can be copied to another Mac and installed from there:
+
+```sh
+xcrun devicectl list devices
+xcrun devicectl device install app --device <name|udid> Compass.app
+```
+
+On a build machine without an Apple ID in Xcode, both actions take an App
+Store Connect API key: `--api-key AuthKey_XXXX.p8 --api-key-id XXXX
+--api-issuer <issuer>`.
 
 ## Release builds
 

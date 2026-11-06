@@ -6,12 +6,27 @@
 from __future__ import annotations
 
 import os
+import platform
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-CONFIGS = {'debug': 'Debug', 'fast': 'Fast', 'release': 'Release'}
+# portable: like fast, but not a component build, so the .app runs on another
+# Mac (e.g. an x64 build copied off an arm64 build machine).
+CONFIGS = {
+    'debug': 'Debug',
+    'fast': 'Fast',
+    'portable': 'Portable',
+    'release': 'Release',
+}
+
+
+def host_cpu(machine: str | None = None) -> str:
+  """The host as a GN target_cpu: arm64 or x64."""
+  machine = (machine or platform.machine()).lower()
+  return {'x86_64': 'x64', 'amd64': 'x64', 'aarch64': 'arm64'}.get(
+      machine, machine)
 
 
 class Layout:
@@ -50,8 +65,13 @@ class Layout:
   def chromium_version(self) -> str:
     return self.version_file.read_text().strip()
 
-  def out_dir(self, config: str) -> Path:
-    return self.src / 'out' / CONFIGS[config]
+  def out_dir(self, config: str, cpu: str | None = None) -> Path:
+    """out/<Config>, or out/<Config>-<cpu> when cross-building, so an x64
+    build doesn't overwrite the host's."""
+    name = CONFIGS[config]
+    if cpu and cpu != host_cpu():
+      name += '-' + cpu
+    return self.src / 'out' / name
 
   def env(self) -> dict:
     """Environment for running depot_tools and the build."""
