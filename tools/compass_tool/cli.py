@@ -17,6 +17,7 @@ from .layout import CONFIGS, Layout, detect
 from .process import CommandError, depot_tool, run
 
 DEFAULT_TARGET = 'chrome'
+CPUS = ('arm64', 'x64')
 TEST_TARGET = 'compass_unittests'
 BROWSER_TEST_TARGET = 'compass_browsertests'
 # Created by tools/setup_dev_signing.sh, in order of preference. Keychains
@@ -301,6 +302,36 @@ def cmd_test(layout: Layout, args) -> None:
     test_args = browser_test_args(test_args, args.headed)
   result = run([out_dir / exe] + test_args, layout.src, check=False)
   sys.exit(result.returncode)
+
+
+def universal_paths(layout: Layout, config: str):
+  """The per-CPU apps `compass universal` merges, and the app it makes."""
+  app = product_name(layout) + '.app'
+  inputs = [layout.out_dir(config, cpu) / app for cpu in CPUS]
+  return inputs, layout.out_dir(config, 'universal') / app
+
+
+def cmd_universal(layout: Layout, args) -> None:
+  if sys.platform != 'darwin':
+    raise CommandError('universal builds are macOS only')
+  require_checkout(layout)
+  if args.build:
+    for cpu in CPUS:
+      build(layout, args.config, [DEFAULT_TARGET], args.jobs, cpu=cpu)
+  inputs, output = universal_paths(layout, args.config)
+  for app in inputs:
+    if not browser_binary(layout, app.parent).is_file():
+      raise CommandError('%s not found; build it with `compass build -c %s '
+                         '--cpu %s` (or pass --build)' %
+                         (app, args.config, app.parent.name.rsplit('-', 1)[1]))
+  if output.exists():
+    shutil.rmtree(output)
+  output.parent.mkdir(parents=True, exist_ok=True)
+  run([sys.executable,
+       layout.src / 'chrome/installer/mac/universalizer.py'] + inputs +
+      [output], layout.src)
+  run(['lipo', '-info', browser_binary(layout, output.parent)], layout.src)
+  print('\nUniversal app: %s' % output)
 
 
 def cmd_sign(layout: Layout, args) -> None:
@@ -588,8 +619,9 @@ def ios_archive(ios: Path, args) -> None:
 
 
 def add_cpu_argument(p: argparse.ArgumentParser) -> None:
-  p.add_argument('--cpu', help='target_cpu, e.g. arm64 or x64. Other than '
-                 'the host\'s, the build goes to out/<Config>-<cpu>')
+  p.add_argument('--cpu', choices=CPUS,
+                 help='build for this CPU in out/<Config>-<cpu> (default: '
+                 'the host\'s, in out/<Config>)')
 
 
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
@@ -665,6 +697,14 @@ def parser() -> argparse.ArgumentParser:
   add_jobs_argument(s)
   s.add_argument('test_args', nargs=argparse.REMAINDER)
   s.set_defaults(func=cmd_test)
+
+  s = sub.add_parser('universal', help='merge the arm64 and x64 builds into '
+                     'a universal macOS app in out/<Config>-universal')
+  s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')
+  s.add_argument('--build', action='store_true',
+                 help='build `chrome` for both CPUs first')
+  add_jobs_argument(s)
+  s.set_defaults(func=cmd_universal)
 
   s = sub.add_parser('sign', help='sign a macOS build with Developer ID, '
                      'package it as a .dmg and notarize it')

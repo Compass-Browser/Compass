@@ -71,7 +71,7 @@ to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
 
 ```sh
 tools/compass init          # depot_tools, Chromium at config/chromium_version, patches
-tools/compass gen debug     # out/Debug (--cpu arm64|x64 cross-compiles, into out/Debug-<cpu>)
+tools/compass gen debug     # out/Debug (--cpu arm64|x64: out/Debug-<cpu>)
 tools/compass build         # target `chrome`
 tools/compass run           # dev profile in out/Debug/compass-dev-profile (--fresh to reset)
 ```
@@ -112,9 +112,9 @@ tools/compass gen portable --cpu x64        # out/Portable-x64
 tools/compass build -c portable --cpu x64 chrome
 ```
 
-`--cpu` takes the same value on `build`, `run`, `test` and `sign`. A CPU other
-than the host's gets its own out directory, so it doesn't overwrite the host
-build.
+`--cpu` takes the same value on `build`, `run`, `test` and `sign`. With
+`--cpu`, the build gets its own out directory, `out/<Config>-<cpu>` (even for
+the host's CPU), so it doesn't overwrite the plain `out/<Config>` build.
 
 ## iOS on devices
 
@@ -143,6 +143,21 @@ Store Connect API key: `--api-key AuthKey_XXXX.p8 --api-key-id XXXX
 tools/compass gen release
 tools/compass build -c release chrome
 ```
+
+### Universal builds (macOS)
+
+`--cpu` on `gen`, `build`, `run` and `test` picks a build for one CPU in its
+own directory, `out/<Config>-<cpu>`. Build both and merge them with Chromium's
+`chrome/installer/mac/universalizer.py`:
+
+```sh
+tools/compass gen release --cpu arm64
+tools/compass gen release --cpu x64
+tools/compass universal --build -j 6   # out/Release-universal/Compass.app
+```
+
+Without `--build`, `universal` only merges the two existing apps. Each CPU is a
+full build (on a 10-core, 16 GB M4 at `-j 6`, several hours each).
 
 ### Signing and notarization (macOS)
 

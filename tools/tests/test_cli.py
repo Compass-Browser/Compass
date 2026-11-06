@@ -112,21 +112,34 @@ class OutDirTest(unittest.TestCase):
     self.assertEqual(host_cpu('arm64'), 'arm64')
     self.assertEqual(host_cpu('AMD64'), 'x64')
 
-  def test_host_build_has_no_suffix(self):
-    out = Path('/w/compass-chromium/src/out')
-    self.assertEqual(self.layout().out_dir('fast'), out / 'Fast')
-    self.assertEqual(self.layout().out_dir('fast', host_cpu()), out / 'Fast')
-
-  def test_cross_build_gets_its_own_dir(self):
-    other = 'x64' if host_cpu() == 'arm64' else 'arm64'
-    self.assertEqual(self.layout().out_dir('portable', other),
-                     Path('/w/compass-chromium/src/out/Portable-' + other))
-
   def test_cpu_arguments(self):
     for argv in (['gen', 'portable'], ['build', '-c', 'portable'],
                  ['run', '-c', 'portable'], ['sign'], ['release', 'publish']):
       args = parser().parse_args(argv + ['--cpu', 'x64'])
       self.assertEqual(args.cpu, 'x64')
+
+  def test_out_dir_without_cpu_is_unchanged(self):
+    self.assertEqual(self.layout().out_dir('release'),
+                     Path('/w/compass-chromium/src/out/Release'))
+
+  def test_out_dir_per_cpu(self):
+    self.assertEqual(self.layout().out_dir('release', 'x64'),
+                     Path('/w/compass-chromium/src/out/Release-x64'))
+
+  def test_build_commands_take_cpu(self):
+    for argv in (['gen', 'release', '--cpu', 'x64'],
+                 ['build', '-c', 'release', '--cpu', 'x64'],
+                 ['run', '-c', 'release', '--cpu', 'x64'],
+                 ['test', '--cpu', 'x64']):
+      self.assertEqual(parser().parse_args(argv).cpu, 'x64', argv)
+
+  def test_rejects_unknown_cpu(self):
+    with self.assertRaises(SystemExit):
+      parser().parse_args(['gen', '--cpu', 'riscv'])
+
+  def test_universal_defaults_to_release(self):
+    args = parser().parse_args(['universal', '--build', '-j', '6'])
+    self.assertEqual((args.config, args.build, args.jobs), ('release', True, 6))
 
 
 class IosDeviceTest(unittest.TestCase):

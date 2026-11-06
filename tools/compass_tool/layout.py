@@ -66,12 +66,10 @@ class Layout:
     return self.version_file.read_text().strip()
 
   def out_dir(self, config: str, cpu: str | None = None) -> Path:
-    """out/<Config>, or out/<Config>-<cpu> when cross-building, so an x64
-    build doesn't overwrite the host's."""
+    """out/<Config>, or out/<Config>-<cpu> for a build for one CPU (two of
+    them make a macOS universal build, `compass universal`)."""
     name = CONFIGS[config]
-    if cpu and cpu != host_cpu():
-      name += '-' + cpu
-    return self.src / 'out' / name
+    return self.src / 'out' / (name + '-' + cpu if cpu else name)
 
   def env(self) -> dict:
     """Environment for running depot_tools and the build."""
