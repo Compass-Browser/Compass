@@ -37,8 +37,11 @@ ${this.isTab_() ? html`
         ${speakerIcon(this.isMuted_(this.node!))}
       </button>` : nothing}
     <button class="close" data-node-id="${this.node!.id}"
+        ?armed="${this.isCloseArmed_(this.node!)}"
         aria-label="${this.getCloseLabel_(this.node!)}"
-        @click="${this.onCloseClick_}">&times;</button>
+        title="${this.getCloseTitle_(this.node!)}"
+        @click="${this.onCloseClick_}" @dblclick="${this.onCloseDblclick_}"
+        @pointerleave="${this.onClosePointerleave_}">&times;</button>
   </div>` : nothing}
 ${this.isSplit_() ? html`
   <div class="split row" draggable="true" data-node-id="${this.node!.id}">
@@ -69,8 +72,11 @@ ${this.isSplit_() ? html`
             ${speakerIcon(this.isMuted_(pane))}
           </button>` : nothing}
         <button class="close" data-node-id="${pane.id}"
+            ?armed="${this.isCloseArmed_(pane)}"
             aria-label="${this.getCloseLabel_(pane)}"
-            @click="${this.onCloseClick_}">&times;</button>
+            title="${this.getCloseTitle_(pane)}"
+            @click="${this.onCloseClick_}" @dblclick="${this.onCloseDblclick_}"
+            @pointerleave="${this.onClosePointerleave_}">&times;</button>
       </div>`)}
   </div>` : nothing}
 ${this.isFolder_() ? html`
@@ -100,7 +106,7 @@ ${this.isFolder_() ? html`
       ${repeat(this.getChildren_(), (child: Node) => child.id,
                (child: Node) => html`
         <compass-sidebar-node .node="${child}" .activeId="${this.activeId}"
-            .profileId="${this.profileId}">
+            .profileId="${this.profileId}" .pinned="${this.pinned}">
         </compass-sidebar-node>`)}
     </div>` : nothing}` : nothing}
 <!--_html_template_end_-->`;

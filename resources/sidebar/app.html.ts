@@ -42,10 +42,6 @@ export function getHtml(this: CompassSidebarAppElement) {
             @click="${this.onTileAudioClick_}">
           ${speakerIcon(this.isMuted_(node))}
         </button>` : nothing}
-      <button class="close" data-node-id="${node.id}"
-          aria-label="${this.getTileCloseLabel_(node)}"
-          title="${this.getTileCloseLabel_(node)}"
-          @click="${this.onTileCloseClick_}">&times;</button>
     </div>`)}
 </div>
 <div id="stage">
@@ -85,7 +81,7 @@ export function getHtml(this: CompassSidebarAppElement) {
         ${repeat(this.getPinned_(), (node: Node) => node.id,
                  (node: Node) => html`
           <compass-sidebar-node .node="${node}" .activeId="${this.activeId_}"
-              .profileId="${this.getProfileId_()}">
+              .profileId="${this.getProfileId_()}" pinned>
           </compass-sidebar-node>`)}
       </div>
       <div class="divider" data-flip="divider"></div>

@@ -152,16 +152,6 @@ input {
   opacity: 0.5;
 }
 
-.tile .close {
-  inset-inline-end: 0;
-  position: absolute;
-  top: 0;
-}
-
-.tile:hover .close {
-  opacity: 0.7;
-}
-
 .tile[drop='before'] {
   box-shadow: inset 2px 0 0 var(--color-sys-primary, #8ab4f8);
 }
@@ -922,6 +912,15 @@ input.title-input {
 
 .close:hover {
   background: rgba(128, 128, 128, 0.2);
+  opacity: 1;
+}
+
+/* A pinned entry's × asks for a second click (sidebar.md, "Closing pinned
+ * entries"). */
+.close[armed],
+.close[armed]:hover {
+  background: var(--color-sys-error, #d93025);
+  color: var(--color-sys-on-error, #fff);
   opacity: 1;
 }
 

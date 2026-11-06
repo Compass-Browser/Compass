@@ -210,6 +210,14 @@ has a tab in the strip) or *unloaded*.
 | × on an unloaded entry | (none) | Node removed |
 | Drag Today → Pinned / Pinned → Today | Pin / unpin; the tab stays live | |
 
+**Closing pinned entries.** A pinned entry's × takes two clicks (a double
+click does it). The first click arms it: it turns red, and its tooltip says
+"Click again to close" (or "remove"). The arm lasts 3 s, or until the pointer
+leaves the button. The page does this alone (`CompassSidebarNodeElement`'s
+`pinned` property, which nodes pass down to their children); the handler's
+`CloseNode()` is unchanged. Delete and Backspace on a focused row, and the
+context menu, still close at once.
+
 `TabStripBridge::OpenNode()` opens a tab for an unloaded node. It navigates
 to the node's URL at the node's depth-first position in the strip. The
 bridge *adopts* the inserted tab for that node instead of creating a Today
@@ -684,10 +692,11 @@ time from its context menu.
   tab shows the crossed-out speaker whether or not it plays, so a tab muted
   from the menu shows it can be unmuted.
 - The speaker sits after the title on tab rows and panes, and in a
-  favorite tile's top-left corner (the × is top-right). Clicking it sends
+  favorite tile's top-left corner. Clicking it sends
   `PageHandler.SetNodeMuted(id, muted)`, which mutes through upstream's
   `SetTabAudioMuted()` with `TabMutedReason::kAudioIndicator`, as the tab
-  strip's icon does.
+  strip's icon does. Tiles have no × (removed 2026-11-06): a favorite closes
+  or goes through its context menu (Close Tab, Remove from Favorites).
 - **Mute Tab** / **Unmute Tab** in a live tab's context menu do the same.
 - **Cmd+Shift+M** (`kToggleTabMuteCommand`, shortcuts.md) mutes or unmutes
   the window's active tab; it can be changed on the shortcuts settings page.

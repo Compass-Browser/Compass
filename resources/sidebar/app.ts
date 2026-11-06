@@ -767,11 +767,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     return node.id === this.activeId_;
   }
 
-  // As for a pinned entry: closing unloads, and an unloaded one goes.
-  protected getTileCloseLabel_(node: Node): string {
-    return node.live ? 'Close' : 'Remove from Favorites';
-  }
-
   protected onTileClick_(e: Event) {
     this.browserProxy_.handler.activateNode(
         (e.currentTarget as HTMLElement).dataset['nodeId']!);
@@ -797,12 +792,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (node) {
       this.browserProxy_.handler.setNodeMuted(id, !this.isMuted_(node));
     }
-  }
-
-  protected onTileCloseClick_(e: Event) {
-    e.stopPropagation();
-    this.browserProxy_.handler.closeNode(
-        (e.currentTarget as HTMLElement).dataset['nodeId']!);
   }
 
   protected getPinned_(): Node[] {

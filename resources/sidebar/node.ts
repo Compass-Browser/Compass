@@ -39,15 +39,27 @@ export class CompassSidebarNodeElement extends CrLitElement {
       activeId: {type: String},
       // Whose icons the entries show: the tree's profile.
       profileId: {type: String},
+      // In the Pinned section, where × asks for a second click.
+      pinned: {type: Boolean},
       editingId_: {type: String, state: true},
+      armedCloseId_: {type: String, state: true},
     };
   }
 
   accessor node: Node|null = null;
   accessor activeId: string|null = null;
   accessor profileId: string|null = null;
+  accessor pinned: boolean = false;
   // The node whose name shows as an input: this folder or tab, or a pane.
   protected accessor editingId_: string|null = null;
+  // The pinned entry whose × was clicked once: a second click closes it.
+  protected accessor armedCloseId_: string|null = null;
+  private disarmTimer_: number|null = null;
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.disarmClose_();
+  }
 
   protected isTab_(): boolean {
     return this.node?.type === NodeType.kTab;
@@ -83,6 +95,16 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   protected getCloseLabel_(node: Node): string {
     return node.live ? 'Close tab' : 'Remove';
+  }
+
+  protected isCloseArmed_(node: Node): boolean {
+    return node.id === this.armedCloseId_;
+  }
+
+  protected getCloseTitle_(node: Node): string {
+    return this.isCloseArmed_(node) ?
+        `Click again to ${node.live ? 'close' : 'remove'}` :
+        this.getCloseLabel_(node);
   }
 
   // A speaker shows on a tab that plays sound, crossed out on a muted one
@@ -129,9 +151,41 @@ export class CompassSidebarNodeElement extends CrLitElement {
     e.stopPropagation();
   }
 
+  // A pinned entry closes on the second click of its × (a double click
+  // does it), so a stray click doesn't lose it. The first click arms the
+  // button for a few seconds, or until the pointer leaves it.
   protected onCloseClick_(e: Event) {
     e.stopPropagation();
-    SidebarBrowserProxy.getInstance().handler.closeNode(this.getNodeId_(e));
+    const id = this.getNodeId_(e);
+    if (this.pinned && this.armedCloseId_ !== id) {
+      this.armClose_(id);
+      return;
+    }
+    this.disarmClose_();
+    SidebarBrowserProxy.getInstance().handler.closeNode(id);
+  }
+
+  protected onCloseDblclick_(e: Event) {
+    // Two quick clicks on × don't rename the tab.
+    e.stopPropagation();
+  }
+
+  protected onClosePointerleave_() {
+    this.disarmClose_();
+  }
+
+  private armClose_(id: string) {
+    this.disarmClose_();
+    this.armedCloseId_ = id;
+    this.disarmTimer_ = setTimeout(() => this.disarmClose_(), 3000);
+  }
+
+  private disarmClose_() {
+    if (this.disarmTimer_ !== null) {
+      clearTimeout(this.disarmTimer_);
+      this.disarmTimer_ = null;
+    }
+    this.armedCloseId_ = null;
   }
 
   protected onFolderClick_() {
