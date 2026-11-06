@@ -137,6 +137,11 @@ class OutDirTest(unittest.TestCase):
     with self.assertRaises(SystemExit):
       parser().parse_args(['gen', '--cpu', 'riscv'])
 
+  def test_sign_and_release_take_universal(self):
+    self.assertTrue(parser().parse_args(['sign', '--universal']).universal)
+    self.assertTrue(parser().parse_args(['release', '--universal']).universal)
+    self.assertFalse(parser().parse_args(['sign']).universal)
+
   def test_universal_defaults_to_release(self):
     args = parser().parse_args(['universal', '--build', '-j', '6'])
     self.assertEqual((args.config, args.build, args.jobs), ('release', True, 6))

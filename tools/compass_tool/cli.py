@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import (checkout, mac_sign, overrides, patches, release, sparkle,
                sync_server)
-from .layout import CONFIGS, Layout, detect
+from .layout import CONFIGS, Layout, detect, host_cpu
 from .process import CommandError, depot_tool, run
 
 DEFAULT_TARGET = 'chrome'
@@ -26,7 +26,8 @@ DEV_SIGNING_IDENTITIES = ('Compass Dev Signing', 'Strata Dev Signing')
 
 
 def wrapper_python(layout: Layout) -> str:
-  """The Python used for cc_wrapper: depot_tools' own if available."""
+  """depot_tools' own Python if available: cc_wrapper and Chromium's
+  scripts use it (the signing driver needs 3.11+; macOS ships 3.9)."""
   reldir = layout.depot_tools / 'python3_bin_reldir.txt'
   if reldir.is_file():
     exe = 'python3.exe' if sys.platform == 'win32' else 'python3'
@@ -318,7 +319,14 @@ def cmd_universal(layout: Layout, args) -> None:
   if args.build:
     for cpu in CPUS:
       build(layout, args.config, [DEFAULT_TARGET], args.jobs, cpu=cpu)
-  inputs, output = universal_paths(layout, args.config)
+  make_universal(layout, args.config)
+
+
+def make_universal(layout: Layout, config: str) -> Path:
+  """Merges the per-CPU apps into out/<Config>-universal, with the host
+  CPU's "<Product> Packaging" (signing scripts and host tools) next to it
+  when there is one. Returns that directory."""
+  inputs, output = universal_paths(layout, config)
   for app in inputs:
     if not browser_binary(layout, app.parent).is_file():
       raise CommandError('%s not found; build it with `compass build -c %s '
@@ -327,11 +335,20 @@ def cmd_universal(layout: Layout, args) -> None:
   if output.exists():
     shutil.rmtree(output)
   output.parent.mkdir(parents=True, exist_ok=True)
-  run([sys.executable,
+  run([wrapper_python(layout),
        layout.src / 'chrome/installer/mac/universalizer.py'] + inputs +
       [output], layout.src)
   run(['lipo', '-info', browser_binary(layout, output.parent)], layout.src)
+  product = product_name(layout)
+  packaging = mac_sign.packaging_dir(layout.out_dir(config, host_cpu()),
+                                     product)
+  if packaging.is_dir():
+    target = mac_sign.packaging_dir(output.parent, product)
+    if target.exists():
+      shutil.rmtree(target)
+    shutil.copytree(packaging, target, symlinks=True)
   print('\nUniversal app: %s' % output)
+  return output.parent
 
 
 def cmd_sign(layout: Layout, args) -> None:
@@ -343,10 +360,17 @@ def sign_build(layout: Layout, args) -> Path:
   the folder with the .dmg."""
   if sys.platform != 'darwin':
     raise CommandError('compass sign is for macOS builds')
-  out_dir = layout.out_dir(args.config, args.cpu)
-  if not args.skip_build:
-    build(layout, args.config, [DEFAULT_TARGET, mac_sign.PACKAGING_TARGET],
-          args.jobs, args.skip_patches, args.cpu)
+  targets = [DEFAULT_TARGET, mac_sign.PACKAGING_TARGET]
+  if args.universal:
+    if not args.skip_build:
+      for cpu in CPUS:
+        build(layout, args.config, targets, args.jobs, args.skip_patches, cpu)
+    out_dir = make_universal(layout, args.config)
+  else:
+    out_dir = layout.out_dir(args.config, args.cpu)
+    if not args.skip_build:
+      build(layout, args.config, targets, args.jobs, args.skip_patches,
+            args.cpu)
   product = product_name(layout)
   if not (mac_sign.packaging_dir(out_dir, product) / 'sign_chrome.py').exists():
     raise CommandError('no signing scripts in %s; build %s first' %
@@ -368,7 +392,7 @@ def sign_build(layout: Layout, args) -> Path:
   if output.exists():
     shutil.rmtree(output)
   print('signing as "%s"%s' % (name, ', then notarizing' if profile else ''))
-  run(mac_sign.sign_command(sys.executable, out_dir, product, output,
+  run(mac_sign.sign_command(wrapper_python(layout), out_dir, product, output,
                             identity, profile), out_dir)
   for dmg in sorted(output.glob('*.dmg')):
     if profile:
@@ -448,9 +472,9 @@ def _release(layout: Layout, args) -> None:
   tools = sparkle.ensure(layout.root) / 'bin'
   if not args.skip_build:
     version = args.version or release.new_version()
-    set_gn_arg(layout.out_dir(args.config, args.cpu) / 'args.gn',
-               COMPASS_VERSION_ARG,
-               version)
+    for cpu in (CPUS if args.universal else (args.cpu,)):
+      set_gn_arg(layout.out_dir(args.config, cpu) / 'args.gn',
+                 COMPASS_VERSION_ARG, version)
     print('Compass %s (%s channel)' % (version, args.channel))
   output = sign_build(layout, args)
   dmgs = sorted(output.glob('*.dmg'))
@@ -624,6 +648,12 @@ def add_cpu_argument(p: argparse.ArgumentParser) -> None:
                  'the host\'s, in out/<Config>)')
 
 
+def add_universal_argument(p: argparse.ArgumentParser) -> None:
+  p.add_argument('--universal', action='store_true',
+                 help='build arm64 and x64 (out/<Config>-<cpu>) and sign their '
+                 'merge, out/<Config>-universal')
+
+
 def add_jobs_argument(p: argparse.ArgumentParser) -> None:
   default = os.environ.get('COMPASS_JOBS')
   p.add_argument('-j', '--jobs', type=int,
@@ -719,6 +749,7 @@ def parser() -> argparse.ArgumentParser:
                  help='sign and package only')
   s.add_argument('--skip-build', action='store_true',
                  help="sign what's built, without building first")
+  add_universal_argument(s)
   add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_sign)
@@ -747,6 +778,7 @@ def parser() -> argparse.ArgumentParser:
                  help='as for sign')
   s.add_argument('--skip-build', action='store_true',
                  help="publish what's signed in <out>/signed")
+  add_universal_argument(s)
   s.set_defaults(no_notarize=False)
   add_skip_patches(s)
   add_jobs_argument(s)
