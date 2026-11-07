@@ -1,0 +1,36 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_win)
+
+# The installer people download from the website: a window with Compass's
+# icon and a progress bar around Chromium's mini_installer.exe, which it
+# carries as a resource. mini_installer has no window of its own, and the
+# Windows updater keeps running it directly (docs/design/updates.md,
+# "Windows"). Built by `compass release build-win`.
+executable("compass_installer") {
+  sources = [
+    "compass_installer.cc",
+    "compass_installer.rc",
+    "compass_installer_resource.h",
+  ]
+  configs -= [ "//build/config/win:console" ]
+  configs += [ "//build/config/win:windowed" ]
+
+  # Where compass_installer.rc's files are: Compass's icon (patched over
+  # Chromium's) and mini_installer.exe in the out dir.
+  include_dirs = [
+    "//chrome/app/theme/chromium/win",
+    root_out_dir,
+  ]
+  inputs = [
+    "//chrome/app/theme/chromium/win/chromium.ico",
+    "$root_out_dir/mini_installer.exe",
+  ]
+  libs = [ "comctl32.lib" ]
+  deps = [
+    "//build/win:default_exe_manifest",
+    "//chrome/installer/mini_installer",
+  ]
+}

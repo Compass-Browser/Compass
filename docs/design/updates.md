@@ -61,11 +61,12 @@ homepage, `https://compassbrowser.org` (`website/`), reads `stable.json` and
 | Path | What |
 |---|---|
 | `releases.json` | Every release: version, channel, commit, Chromium version, date, and per platform the file, URL, size, SHA-256 and Ed25519 signature (plus macOS deltas). The source of truth. |
-| `stable.json`, `beta.json` | The newest release each channel gets, per platform (`mac`, `win`): version, URL, size, SHA-256, signature. The Windows updater reads these. |
+| `stable.json`, `beta.json` | The newest release each channel gets, per platform (`mac`, `win`): version, URL, size, SHA-256, signature, and for Windows the windowed installer's URL, size and SHA-256 (`win.installer`). The Windows updater reads these. |
 | `mac/appcast.xml` | Sparkle's feed, both channels (beta items carry `<sparkle:channel>beta</sparkle:channel>`). |
 | `mac/Compass-<version>.dmg` | Notarized, stapled disk images (older releases; newer ones are on GitHub). |
 | `mac/Compass-<from>-<to>.delta` | Sparkle binary deltas from the three previous releases (likewise). |
-| `win/CompassSetup-<version>.exe` | Chromium's mini_installer (likewise). |
+| `win/CompassSetup-<version>.exe` | Chromium's mini_installer, which the Windows updater runs (likewise). |
+| `win/CompassInstaller-<version>.exe` | The installer with a window that the website offers (below; likewise). |
 
 Uploads go over rsync and SSH. The target isn't in the repository: the
 uploader reads it from `~/Library/Application Support/Compass Release/upload.json`,
@@ -211,13 +212,27 @@ browser decides when to run it.
   build-win [<version>]` (the Mac release's version, or a new one) reads
   `releases.json` from the server for the next N, sets `compass_version`,
   `compass_win_build` and `compass_enable_win_updater` in
-  `out/Release/args.gn`, builds `chrome mini_installer`, and leaves
-  `CompassSetup-<version>.exe` and a `.json` (version, Chromium, N, commit)
-  in the out dir. Copy both to the release machine and run `compass release
-  publish-win --installer CompassSetup-<version>.exe [--channel beta]`. A
+  `out/Release/args.gn`, builds `chrome mini_installer compass_installer`,
+  and leaves `CompassSetup-<version>.exe`, `CompassInstaller-<version>.exe`
+  and a `.json` (version, Chromium, N, commit, installer) in the out dir.
+  Copy them to the release machine and run `compass release publish-win
+  --installer CompassSetup-<version>.exe [--channel beta]`. A
   Mac can build it too (`--cpu win-x64`, docs/building.md "Windows from a
   Mac"), in a Chromium checkout of its own so the build number doesn't make
   its Mac builds rebuild.
+- **First install:** mini_installer has no window: run by hand, it
+  installs and opens Compass with nothing in between. The website offers
+  `CompassInstaller-<version>.exe` instead (`installer/win`): a small window
+  with Compass's icon, "Installing Compass…" and a marquee bar, around the
+  mini_installer it carries as a resource. It runs that with
+  `--do-not-launch-chrome`, then opens Compass from
+  `%LOCALAPPDATA%\Compass\Application` (so a repair of the same version
+  also ends with Compass open), or says what failed (the installer's exit
+  code; the log is `chromium_installer.log` in Temp). There's no Cancel:
+  mini_installer can't be stopped safely halfway. `build-win` builds it with
+  the rest and names it in its `.json`; `publish-win` uploads it next to
+  CompassSetup and lists it as `win.installer` in the feeds, which the
+  website's Windows links use. The updater keeps running mini_installer.
 - **After an update:** the installer stages `new_chrome.exe` and sets the
   registry's `pv`; the About page offers Relaunch at once. The app menu's
   "Relaunch to update" comes at upstream's first notification stage, an
@@ -225,7 +240,7 @@ browser decides when to run it.
   (`kDefaultVeryLowThreshold`, checked every 20 minutes). setup.exe leaves
   the old version folder until its next run.
 - **Not done:** no Authenticode signature (no certificate), so SmartScreen
-  warns about the first install's download. Updates are fine: the updater
+  warns about the first install's download (either installer). Updates are fine: the updater
   runs the file itself, with no mark of the web. No differential updates
   (mini_installer is about 130 MB).
 

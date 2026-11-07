@@ -62,3 +62,11 @@ test("compass_browsertests") {
     data_deps += [ "//compass/tools/mcp:compass-mcp" ]
   }
 }
+
+if (is_win) {
+  # The installer people download (installer/win), built by `compass release
+  # build-win` as `compass_installer`. Listed here so GN loads it.
+  group("installer") {
+    deps = [ "//compass/installer/win:compass_installer" ]
+  }
+}
