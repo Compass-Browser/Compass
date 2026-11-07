@@ -187,7 +187,7 @@ Desktop QR pairing (desktop item 1) runs in parallel with M2.
 - **Unit tests:** `compass ios test` (= `swift test` in `ios/CompassKit`). It covers the crypto vectors, the UniquePosition port, the model invariants (ported from the SpaceModel unit tests) and the apply rules: unknown parent, cycle, invalid placement, delete subtree. Following the targeted-tests rule, each milestone runs only its own suites.
 - **Engine against the server:** an XCTest target starts the repo's Go server on a random port and checks a two-client round trip: a Swift client ↔ another Swift client for each type.
 - **Interop with the desktop:**
-  1. Pair the simulator, then a device, with a desktop Compass on `sync-main`, on the sync server or the local server.
+  1. Pair the simulator, then a device, with a desktop Compass on `sync-main`, on the public server or the local server.
   2. On the desktop, create a pinned folder and tab, then check them on the phone.
   3. On the phone, open a Today tab, then check it on the desktop as an unloaded entry.
   4. Save a password on the phone, then check it on the desktop.

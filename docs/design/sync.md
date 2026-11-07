@@ -19,8 +19,8 @@ Read this first when resuming the sync work.
 | `sync-main` | slices 0, 1, 2, 2b, 3, 3b, 4, 6 and the server revive fix merged; Gioele's Fast runs 02efe11 until the next `update-and-run.sh` |
 | `sync/slice-4-ui` (`41ae636`) | merged (resume, 31 Oct night): MacBook run passed, see "Slice 4 notes" |
 | `sync/slice-5-profiles` | profiles; sync-main (`348dd50`, slices 4 and 6) merged in on 1 Nov ("Slice 5 notes", "Merged with slices 4 and 6"); never built; MacBook run in [sync-slice-5-steps.md](sync-slice-5-steps.md) |
-| `sync/slice-6-push` (`02cfe61`) | merged: MacBook run passed, see "Slice 6 notes"; the sync server runs its server (5bfecb7) |
-| `sync/slice-7-hardening` | hardening ("Slice 7 notes"); on slice 6; never built; three history patches; Go tests pass; merges after 5 (small overlaps listed in the notes); server not deployed (the sync server runs slice 6's) |
+| `sync/slice-6-push` (`02cfe61`) | merged: MacBook run passed, see "Slice 6 notes"; the public server runs its server (5bfecb7) |
+| `sync/slice-7-hardening` | hardening ("Slice 7 notes"); on slice 6; never built; three history patches; Go tests pass; merges after 5 (small overlaps listed in the notes); server not deployed (the public server runs slice 6's) |
 
 **Order:** ~~slice 4's MacBook run → merge 4 into sync-main~~ (done) → ~~merge sync-main
 into 6, deploy the combined server, run 6 → merge 6~~ (done) → ~~merge sync-main into 5~~ (done 1 Nov) → run 5 → merge 5 → slice 7.
@@ -33,15 +33,12 @@ server, keep going on slice 4, on any problem stop, write
 `~/Developer/compass-build/slice4-report.md` and wait for a message.
 
 **Network (resume):** the MacBook is no longer on the Mac mini's LAN, so
-its runs use the public server only; deploy server changes to the sync server first.
+its runs use the public server only; deploy server changes to the public server first.
 
 **Servers:** public `https://sync.example.org/v2`
 (`/opt/compass-sync` on the server, `ssh -p 22 user@server`, behind
 Cloudflare and the host's Caddy, `website/compassbrowser.caddy`; update:
-rsync `server/` to `./src`, `docker compose up -d --build`). Until
-2026-11-07 it ran on the sync server as `https://sync.example.org/v2` (only
-our own devices used it); the sync server's Caddy forwards that name to the server
-until they're switched to the new URL by hand. The Mac
+rsync `server/` to `./src`, `docker compose up -d --build`). The Mac
 mini test server (Podman `compass-sync`, volume `compass-sync-data`, port
 8295) is down with the Mac mini; it ran slice 4's server; restart with
 `podman start compass-sync`.
@@ -49,7 +46,7 @@ mini test server (Podman `compass-sync`, volume `compass-sync-data`, port
 **Open items for slice 7:** quota errors shown; deleted history can come
 back within 14 days and history retention/30k cap configurable; server
 tombstone cleanup; "kept" log line (3b); Arc-derived UUIDs; check
-chrome://history by eye; server backups on the sync server; a scripted the sync server
+chrome://history by eye; server backups on the public server; a scripted server
 update; merging sync-main into main (sidebar node IDs now saved: watch the
 Arc import session's sidebar changes); the real two-Mac test.
 
@@ -1441,9 +1438,9 @@ default, `COMPASS_SYNC_POLL_SECONDS` (30 to 86400). Devices without push
 
 **Proxies.** Caddy's `reverse_proxy` flushes `text/event-stream` responses
 at once by itself; the bundled `Caddyfile` also sets `flush_interval -1`
-(explicit for every response). For the public instance on the sync server: add the
+(explicit for every response). For the public instance: add the
 same `flush_interval -1` inside the `reverse_proxy` block of
-`/etc/caddy/sites/sync.example.org.caddy` (optional, Caddy already
+the host Caddy's site file (optional, Caddy already
 streams SSE), and check that the container has
 `COMPASS_SYNC_TRUSTED_PROXIES` set to the address Caddy connects from (it
 reaches `127.0.0.1:8295` through Docker's port mapping, so the server sees
@@ -1538,7 +1535,7 @@ load-time snapshot, and never saw a synced bookmark (02cfe61: listens to
 from A's change to B having it, no manual refresh: bookmarks 1.15-1.18 s
 (B logs "changed" 0.1-0.3 s after A's add, "refresh" ~250 ms later),
 pinned 1.21-1.29 s, Today 1.20-1.28 s. A logs no "changed" for its own
-commits. Outage (the sync server container stopped 30 s, Caddy up): both streams
+commits. Outage (server container stopped 30 s, Caddy up): both streams
 closed at the stop, then "HTTP 502" with backoff 1, 1.8, 3.5, 8, 15, 31 s
 (jittered), "connected" 24-31 s after the server came back, then one
 refresh of all types; changes after it took 1.15 s (bookmark) and 1.25 s
@@ -1549,7 +1546,7 @@ refresh of all types; changes after it took 1.15 s (bookmark) and 1.25 s
 Branch `sync/slice-7-hardening` (on `sync/slice-6-push`; slice 5 isn't in
 it). The browser side is written without a compiler; the MacBook build and
 run are in [sync-slice-7-steps.md](sync-slice-7-steps.md). The server side
-is tested (`go vet ./... && go test ./...`). Nothing was deployed: the sync server
+is tested (`go vet ./... && go test ./...`). Nothing was deployed: the public server
 runs slice 6's server.
 
 **Quota errors shown.** How the server says no, case by case:
@@ -1679,7 +1676,7 @@ isn't running), rsyncs `server/` to `D/src`, `docker compose build` with
 `COMMIT`/`VERSION` = the short SHA and `BUILD_TIME`, `up -d`, then waits up
 to 60 s for `/health-check` to name the commit and `/healthz` to say `ok`
 on the machine, and checks the public URL. ssh uses the caller's keys; no
-secrets in the script. Written and dry-run here; not run against the sync server.
+secrets in the script. Written and dry-run here; not run against the public server.
 
 **Arc-derived IDs.** "Slice 3 notes" proposed it: the Arc importer gave
 fresh random IDs, so importing the same Arc data on two Macs doubled every
@@ -2069,11 +2066,11 @@ after slice 0.
 Decided with the user (2026-10-31):
 
 1. **Server**: self-hostable, and since 2026-10-31 also a public instance
-   at `https://sync.example.org/v2` (user's request), on the the sync server
+   at `https://sync.example.org/v2` (user's request), on the the server
    server: `/opt/compass-sync` (docker compose, image built from
    `server/` copied to `./src`, SQLite in `./data`, bound to
    `127.0.0.1:8295`), behind the host's Caddy
-   (`/etc/caddy/sites/sync.example.org.caddy`). Update: rsync
+   (the host Caddy's site file). Update: rsync
    `server/` to `/opt/compass-sync/src`, then `docker compose up -d
    --build`. Everything on it is encrypted on the devices; the test server
    on the Mac mini (`192.168.1.20:8295`) stays for development.
