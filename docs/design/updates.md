@@ -240,7 +240,10 @@ browser decides when to run it.
   (`kDefaultVeryLowThreshold`, checked every 20 minutes). setup.exe leaves
   the old version folder until its next run.
 - **Not done:** no Authenticode signature (no certificate), so SmartScreen
-  warns about the first install's download (either installer). Updates are fine: the updater
+  warns about the first install's download (either installer), and Windows
+  11's Smart App Control, where it's on, blocks the installers outright
+  (Code Integrity events 3033/3077). CompassInstaller then says so, from
+  CreateProcess's ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION. Updates are fine: the updater
   runs the file itself, with no mark of the web. No differential updates
   (mini_installer is about 130 MB).
 
