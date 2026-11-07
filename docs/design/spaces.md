@@ -263,6 +263,15 @@ another profile.
   the tint's average luma over a light (0.94) and a dark (0.13) frame, both
   above 0.5 → light, both below → dark, else the system's. The default
   intensity leaves the system's; a light color at full intensity is light.
+  That mode (or the space's Mode, or the system's) only sets the frame
+  under the tint. The text checks contrast instead (`GetTintTextMode()`,
+  the iOS app's `SpaceTheme.textScheme(over:)`): the tint's colors
+  averaged and laid over that frame color, dark text where the blend
+  contrasts more with black than with white (WCAG ratios), light text
+  otherwise. The window takes the text's mode, so menus and the page's
+  colors follow it; where it isn't the frame's, the tint paints the frame
+  color of the frame's mode under itself. A dark tint in light mode gets
+  light text. Not off the record or under an extension theme.
 - Grain: a 128 px tile of grey noise (fixed sequence, built once) over the
   tint, in the tint's shape, blended as an overlay (grey 128 leaves the
   color, so hue stays), at up to 11.5% (`kMaxGrainOpacity`: about 5 levels

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -27,6 +28,9 @@
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -143,6 +147,43 @@ std::optional<ui::ColorProviderKey::ColorMode> GetTintColorMode(
   return std::nullopt;
 }
 
+ui::ColorProviderKey::ColorMode GetTintTextMode(const SpaceModel& space,
+                                                SkColor backdrop) {
+  // The tint's colors averaged, as opaque as its intensity says.
+  float alpha = 0;
+  std::array<float, 3> tint = {0, 0, 0};
+  if (!space.color().is_grey()) {
+    std::vector<SkColor> colors = {ToTintColor(*space.color().tint())};
+    for (SpaceColor color : space.gradient()) {
+      colors.push_back(ToTintColor(*color.tint()));
+    }
+    for (SkColor color : colors) {
+      tint[0] += SkColorGetR(color);
+      tint[1] += SkColorGetG(color);
+      tint[2] += SkColorGetB(color);
+    }
+    for (float& channel : tint) {
+      channel /= colors.size();
+    }
+    alpha = SpaceTintOpacity(space.intensity());
+  }
+  // The blend's relative luminance, from its linear channels.
+  auto linear = [&](float tint_channel, U8CPU backdrop_channel) {
+    const float value =
+        (alpha * tint_channel + (1 - alpha) * backdrop_channel) / 255;
+    return value <= 0.04045f ? value / 12.92f
+                             : std::pow((value + 0.055f) / 1.055f, 2.4f);
+  };
+  const float luminance = 0.2126f * linear(tint[0], SkColorGetR(backdrop)) +
+                          0.7152f * linear(tint[1], SkColorGetG(backdrop)) +
+                          0.0722f * linear(tint[2], SkColorGetB(backdrop));
+  const float against_black = (luminance + 0.05f) / 0.05f;
+  const float against_white = 1.05f / (luminance + 0.05f);
+  return against_black >= against_white
+             ? ui::ColorProviderKey::ColorMode::kLight
+             : ui::ColorProviderKey::ColorMode::kDark;
+}
+
 std::optional<SkColor> GetSpaceTint(SpaceColor color) {
   return color.tint();
 }
@@ -248,15 +289,21 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
                                         ThemedBackground::kFrameTheme);
     }
   }
+  // As opaque as the region's background: where it lets the frame show
+  // through (the glass frame), the frame's tint shows too, and a second one
+  // would double it.
+  const float opacity = corners ? corners->primary_color().opacity : 1.f;
+  if (corners) {
+    const SkPath path = corners->GetBackgroundPath();
+    PaintBackdrop(canvas, &path, opacity);
+  } else {
+    PaintBackdrop(canvas, nullptr, opacity);
+  }
   const Stops& stops = look_.stops;
   if (std::ranges::all_of(stops,
                           [](SkColor stop) { return !SkColorGetA(stop); })) {
     return;
   }
-  // As opaque as the region's background: where it lets the frame show
-  // through (the glass frame), the frame's tint shows too, and a second one
-  // would double it.
-  const float opacity = corners ? corners->primary_color().opacity : 1.f;
   std::array<SkColor4f, kMaxSpaceGradientColors> colors;
   for (size_t i = 0; i < colors.size(); ++i) {
     colors[i] = SkColor4f::FromColor(stops[i]);
@@ -297,6 +344,28 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
   }
 }
 
+void SidebarTint::PaintBackdrop(gfx::Canvas* canvas,
+                                const SkPath* clip,
+                                float opacity) {
+  if (!backdrop_key_) {
+    return;
+  }
+  const ui::ColorProvider* provider =
+      ui::ColorProviderManager::Get().GetColorProviderFor(*backdrop_key_);
+  SkColor4f color = SkColor4f::FromColor(provider->GetColor(
+      GetWidget()->ShouldPaintAsActive() ? ui::kColorFrameActive
+                                         : ui::kColorFrameInactive));
+  color.fA *= opacity;
+  cc::PaintFlags flags;
+  flags.setAntiAlias(true);
+  flags.setColor(color);
+  if (clip) {
+    canvas->DrawPath(*clip, flags);
+  } else {
+    canvas->DrawRect(gfx::RectF(GetLocalBounds()), flags);
+  }
+}
+
 void SidebarTint::PaintGrain(gfx::Canvas* canvas, const SkPath* clip) {
   if (look_.grain <= 0) {
     return;
@@ -320,6 +389,8 @@ void SidebarTint::PaintGrain(gfx::Canvas* canvas, const SkPath* clip) {
 }
 
 void SidebarTint::AddedToWidget() {
+  native_theme_observation_.Reset();
+  native_theme_observation_.Observe(GetWidget()->GetNativeTheme());
   UpdateWindowTheme();
   // A gradient spans the window.
   widget_observation_.Reset();
@@ -332,6 +403,7 @@ void SidebarTint::AddedToWidget() {
 
 void SidebarTint::RemovedFromWidget() {
   widget_observation_.Reset();
+  native_theme_observation_.Reset();
 }
 
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
@@ -427,26 +499,61 @@ void SidebarTint::UpdateWindowTheme() {
       profile->IsOffTheRecord() ||
       (theme_service && theme_service->UsingExtensionTheme());
   const SpaceModel& space = features_->space_model();
+  const std::optional<SkColor> user_color =
+      keep_theme ? std::nullopt : GetSpaceTint(space.color());
   // Rebuilds the window's colors if the seed or the mode changed.
-  widget->SetUserColorOverride(keep_theme ? std::nullopt
-                                          : GetSpaceTint(space.color()));
+  widget->SetUserColorOverride(user_color);
+  const std::optional<ui::ColorProviderKey> old_backdrop = backdrop_key_;
+  backdrop_key_.reset();
   // Off the record stays dark.
-  std::optional<ui::ColorProviderKey::ColorMode> mode;
+  using ColorMode = ui::ColorProviderKey::ColorMode;
+  std::optional<ColorMode> mode;
   if (!profile->IsOffTheRecord()) {
     switch (space.appearance()) {
       case SpaceAppearance::kAuto:
-        // A strong tint decides, so text stays readable over it.
+        // A strong tint decides how light the frame is.
         mode = GetTintColorMode(space);
         break;
       case SpaceAppearance::kLight:
-        mode = ui::ColorProviderKey::ColorMode::kLight;
+        mode = ColorMode::kLight;
         break;
       case SpaceAppearance::kDark:
-        mode = ui::ColorProviderKey::ColorMode::kDark;
+        mode = ColorMode::kDark;
         break;
     }
   }
-  widget->SetColorModeOverride(mode);
+  // The text takes whichever mode reads best over the tint on the frame
+  // color of that mode (the system's where it follows the system), not
+  // the mode itself, so a dark tint in light mode gets light text. Not off
+  // the record, or under an extension theme, whose frame can be an image.
+  std::optional<ColorMode> text_mode = mode;
+  if (!keep_theme) {
+    // The window's key, as Widget::GetColorProviderKey() makes it (it's
+    // protected), in the space's mode.
+    ui::ColorProviderKey key =
+        widget->GetNativeTheme()->GetColorProviderKey(widget->GetCustomTheme());
+    key.user_color = user_color;
+    if (mode) {
+      key.color_mode = *mode;
+    }
+    const ui::ColorProvider* provider =
+        ui::ColorProviderManager::Get().GetColorProviderFor(key);
+    const ColorMode text =
+        GetTintTextMode(space, provider->GetColor(ui::kColorFrameActive));
+    if (text != key.color_mode) {
+      backdrop_key_ = key;
+      text_mode = text;
+    }
+  }
+  widget->SetColorModeOverride(text_mode);
+  if (backdrop_key_ != old_backdrop) {
+    SchedulePaint();
+  }
+}
+
+// A space in automatic mode lies on the system's frame color.
+void SidebarTint::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
+  UpdateWindowTheme();
 }
 
 BEGIN_METADATA(SidebarTint)
