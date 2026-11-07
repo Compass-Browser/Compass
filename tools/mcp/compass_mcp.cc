@@ -83,10 +83,11 @@ std::string AppPath() {
   return path.size() > 4 && path.ends_with(".app") ? path : std::string();
 }
 
-// As upstream's chrome_paths_mac.mm: ~/Library/Application Support/ and
-// the app's CrProductDirName.
+// As chrome_paths_mac.mm: ~/Library/Application Support/ and the app's
+// CrProductDirName, else "Compass" as compass::GetMacProductDirName()
+// (common/user_data_dir_mac.mm), not upstream's "Chromium".
 std::string DefaultUserDataDir() {
-  std::string product = "Chromium";
+  std::string product = "Compass";
   if (CFBundleRef bundle = CFBundleGetMainBundle()) {
     CFTypeRef value =
         CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("CrProductDirName"));
