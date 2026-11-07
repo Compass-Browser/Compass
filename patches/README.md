@@ -124,3 +124,4 @@ nothing else.
 | `chrome-browser-ui-views-profiles-profile_menu_view.cc.patch` | The profile menu has no "Google services settings" button: there's no browser sign-in |
 | `components-unified_consent-unified_consent_service.cc.patch` | URL-keyed anonymized data collection is never turned on automatically, for instance when Compass sync turns History on; the user can still turn it on in Settings |
 | `chrome-browser-signin-account_consistency_mode_manager.cc.patch` | No browser sign-in to a Google account: `CanEnableDiceForBuild()` is false even with an OAuth client configured, so `signin.allowed` is false at every start and there's no account consistency (docs/design/privacy.md) |
+| `chrome-browser-shell_integration_win.cc.patch` | Windows: every profile's windows share one AppUserModelID (`GetAppUserModelIdForBrowser()` leaves the profile out), so Compass is one app in the taskbar, as on macOS, instead of one group per profile |
