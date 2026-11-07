@@ -1,0 +1,6 @@
+Closed a tab by mistake? You can now bring it back.
+
+- Close a tab (flick its card away, tap × on a Today row, ⌘W, or Clear Today). A bar at the bottom says what closed: tap Undo and it comes back where it was, with its back and forward history.
+- Or shake the iPhone: "Undo Close Tab" brings back the last tab you closed, and you can keep shaking to go further back. Redo closes it again.
+- With a hardware keyboard, ⌘⇧T reopens the last closed tab.
+- While you're typing, a shake still undoes the typing, as usual.

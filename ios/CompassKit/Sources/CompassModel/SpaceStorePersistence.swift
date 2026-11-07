@@ -14,6 +14,10 @@ struct SidebarSnapshot: Codable {
     var title: String
     var customTitle: String
     var url: String
+    /// Pinned tabs and favorites (absent in files from before: each takes
+    /// the page it had).
+    var savedURL: String?
+    var savedTitle: String?
     var lastActive: Date?
     var archivedAt: Date?
     var collapsed: Bool
@@ -71,6 +75,7 @@ extension SpaceStore {
         }
       return SidebarSnapshot.Node(
         id: n.id, kind: kind, title: n.title, customTitle: n.customTitle, url: n.url,
+        savedURL: n.savedURL.isEmpty ? nil : n.savedURL, savedTitle: n.savedURL.isEmpty ? nil : n.savedTitle,
         lastActive: n.lastActive, archivedAt: n.archivedAt, collapsed: n.collapsed,
         position: Data(n.position.compressed), children: n.children.map(node), unknownFields: n.unknownFields)
     }
@@ -108,7 +113,8 @@ extension SpaceStore {
         }
       let node = makeNode(
         id: n.id, kind: kind, title: n.title, customTitle: n.customTitle, url: n.url, lastActive: n.lastActive,
-        archivedAt: n.archivedAt, collapsed: n.collapsed, position: UniquePosition(compressed: [UInt8](n.position)))
+        archivedAt: n.archivedAt, collapsed: n.collapsed, position: UniquePosition(compressed: [UInt8](n.position)),
+        savedURL: n.savedURL ?? "", savedTitle: n.savedTitle ?? "")
       node.unknownFields = n.unknownFields
       rawInsert(node, into: parent)
       n.children.forEach { build($0, into: node) }

@@ -31,6 +31,10 @@ final class TabManager: NSObject {
   /// tab is left and as the picker opens. In memory only; an unloaded tab
   /// loses it (the picker shows only live tabs).
   private(set) var snapshots: [String: UIImage] = [:]
+  /// Session history (`WKWebView.interactionState`) for tabs that open
+  /// again on an undo close: the next web view made for the tab gets it,
+  /// back and forward included, instead of loading its URL.
+  @ObservationIgnored var restoring: [String: Any] = [:]
   private let store: SpaceStore
   private let siteSettings: SiteSettings
   private let contentBlocking: ContentBlocking
@@ -137,7 +141,11 @@ final class TabManager: NSObject {
     // tab restored from the sidebar was never announced: 1Password's
     // background then found no tab for its messages).
     extensions?.tabOpened(id)
-    if let url = URL(string: node.url), !node.url.isEmpty { view.load(URLRequest(url: url)) }
+    if let state = restoring.removeValue(forKey: id) {
+      view.interactionState = state
+    } else if let url = URL(string: node.url), !node.url.isEmpty {
+      view.load(URLRequest(url: url))
+    }
     return view
   }
 

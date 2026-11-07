@@ -231,8 +231,8 @@ final class ClaudeTools {
       app.store.archive(tab)
       text = "Closed tab \(Self.shortID(tab.id)); it's in the space's archive."
     } else {
-      app.tabs.unload(tab.id)
-      text = "Unloaded tab \(Self.shortID(tab.id)); it stays in the sidebar (pinned or a favorite)."
+      app.unloadClosed(tab)
+      text = "Unloaded tab \(Self.shortID(tab.id)); it stays in the sidebar (pinned or a favorite), back on its pinned URL."
     }
     if tab.id == targetTab {
       targetTab = taskTab.flatMap { $0 != tab.id && app.store.node(id: $0) != nil ? $0 : nil }

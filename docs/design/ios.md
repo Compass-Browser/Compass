@@ -297,7 +297,7 @@ The tests pass on the desktop's vectors and Chromium's own, byte for byte. Every
   - `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID. Links that open a new window become Today tabs.
   - `SyncController`: Keychain seed and server; joining by pairing code (typed, or from the Mac's QR, `compass-pair:` URL scheme) or by recovery code; cycles on launch, on foreground, 2 s after local edits, and on the server's poll interval.
   - **Screens.**
-    - **Sidebar:** the spaces paged by swipe and tinted with their color; favorites grid, pinned tree and Today; context menus for pin, unpin, archive, move to a space, split with, favorite, rename and delete; the archive sheet.
+    - **Sidebar:** the spaces paged by swipe and tinted with their color; favorites grid, pinned tree and Today; context menus for pin, unpin, archive, move to a space, split with, favorite, rename and delete; a pinned tab's or favorite's pinned URL ("Use This Page as Pinned URL", "Back to Pinned URL"; closing goes back to it, see sidebar.md); the archive sheet.
     - **Browser:** a full-bleed web view; a bottom bar with back, address pill, forward and sidebar; a swipe on the bar steps between entries; a pane picker for splits.
     - **Command bar:** search or URL (DuckDuckGo), and switching to open, pinned or favorite entries.
     - **Settings:** sync status, devices, recovery code (behind Face ID or passcode), leave, and joining.
@@ -632,6 +632,20 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
 - **PushService** (notification service extension, `it.cipi1965.compass.push`): reads the seed and server from the shared Keychain group and the accounts from `PushAccounts.json`, runs `Push.sentTabs` (a throwaway engine with only SEND_TAB_TO_SELF, so the app's sync state isn't touched) per account, and rewrites the server's "New tab" into the newest tab not delivered yet; none for this phone → "A tab was sent to another of your devices". The app skips its own notification for a GUID already delivered.
 - Simulator limits: ad-hoc signed builds get no APNs token (apsd: token null), and `simctl push` doesn't run service extensions. Checked instead: `PushServerTests` (register, a bad token refused, unregister, and the extension's fetch finds only this phone's tab against the real server), `PushAccounts.json` written, and a signed device build with `aps-environment` and the extension. The real push needs the phone, the APNs key and the server deployed.
 - Checked: `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac); in the simulator, `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` (sends to every other device) showed the banner within a second with the app open. The tap isn't checked yet.
+
+### Undo closing, 2026-11-07
+
+The desktop's Cmd+Z / Cmd+Shift+Z for closed entries (sidebar.md, "Undo closing"), on the phone.
+
+- **The stack.** `ClosedEntries` (CompassModel), one on `AppServices` for every window, in memory, the last 25 steps. A step is what one user action closed. Each entry keeps its `SidebarNode` itself and its place: the parent, the sibling before it and its index, and for a pane whose split of two ended, the other pane. A removed node stays detached with its subtree, so it comes back under its IDs, custom title and pinned URL included; sync creates it again over its tombstone (sync.md, "Create over a tombstone"). The step also keeps the `WKWebView.interactionState` of each tab that was open: the tab that opens again on undo gets its back and forward history back (`TabManager.restoring`), as TabRestoreService gives the desktop.
+- **Recording** (`AppModel.userClose`), user closes only: ⌘W, a flicked card in the tab picker (both: Today to the archive, anything else unloads, `.archive` / `.unload`), a Today row's ×, Delete and Remove from Favorites (`.remove`), and Today's Clear (every entry, one step). Not the menu's Archive, auto-archive, sync, Claude's or an extension's closes, or Close All Incognito (which drops every incognito step: `dropIncognito()`).
+- **Undo** (`undoClose()`): the entries come back, last closed first, after the sibling they followed (a parent that's gone sends them to the top of Today, the end of Pinned, or the favorites); an archived entry moves back out of the archive, a pinned tab or favorite goes back to the page it showed. The tab shown as it closed (else the first that was open) opens and is shown; the others come back unloaded. With none open, the window goes to the step's space. Nothing crosses in or out of incognito (`SpaceStore.reinsert`).
+- **Redo** (`redoClose()`) closes the step's entries again, the same way, keeping the other redos. Any other close drops them.
+- **UI.**
+  - A toast over the bar after each close, "Closed “<title>”" (or "Closed 3 tabs") with **Undo**; after an undo, "Reopened …" with **Redo**. Four seconds, replaced by the next one; a flick down puts it away.
+  - **Shake to undo**: a shake shows iOS's alert for it, "Undo Close Tab" with the entry, Undo, Redo when there is one, and Cancel ("Redo Close Tab" once only redo is left). While the keyboard is up the shake is the text's own Undo Typing (`UIWindow.motionEnded`, `KeyboardWatch`).
+  - **⌘⇧T** (Tabs menu, "Reopen Closed Tab") undoes with a hardware keyboard. ⌘Z and ⌘⇧Z stay the text's: iOS gives a page no way to pass them on, as the desktop's undo waits for.
+- Checked: `ClosedEntriesTests` (places, Clear Today's order, a folder's tree, a pane back in its split, a gone parent, a pinned tab's page, incognito, steps and redo, the cap).
 
 ## Open items
 

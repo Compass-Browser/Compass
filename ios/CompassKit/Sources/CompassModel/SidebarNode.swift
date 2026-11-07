@@ -33,7 +33,14 @@ public final class SidebarNode: Identifiable {
   public internal(set) var title: String
   /// The name the user gave a tab, or empty.
   public internal(set) var customTitle: String
+  /// The page a tab shows: follows its live tab's navigations.
   public internal(set) var url: String
+  /// A pinned tab's or favorite's own page, which it goes back to when the
+  /// user closes it (Arc's "pinned URL"), and that page's title. Set when the
+  /// tab lands in Pinned or Favorites, empty elsewhere (the desktop's
+  /// SidebarNode::saved_url(); docs/design/sidebar.md, "Pinned URL").
+  public internal(set) var savedURL: String = ""
+  public internal(set) var savedTitle: String = ""
   /// When a tab was last shown on any device (drives auto-archive).
   public internal(set) var lastActive: Date?
   /// ARCHIVE entries: when they were archived.
@@ -67,6 +74,17 @@ public final class SidebarNode: Identifiable {
     if !customTitle.isEmpty { return customTitle }
     if !title.isEmpty { return title }
     return URL(string: url)?.host() ?? url
+  }
+
+  /// Whether the tab shows another page than its pinned URL (the menu then
+  /// offers "Use This Page as Pinned URL" and "Back to Pinned URL").
+  public var isAwayFromSavedURL: Bool { isTab && !savedURL.isEmpty && !url.isEmpty && url != savedURL }
+
+  /// Whether this node is in Pinned or Favorites, where tabs keep a pinned
+  /// URL; nil while it's detached.
+  var keepsSavedURL: Bool? {
+    guard let section else { return nil }
+    return section == .pinned || section == .favorites
   }
 
   public var isRoot: Bool { if case .root = kind { true } else { false } }

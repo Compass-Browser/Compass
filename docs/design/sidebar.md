@@ -243,8 +243,16 @@ clears it when the tab leaves; moves within Pinned keep it.
 - Saved in the sidebar file (`saved_url`, `saved_title`; a file from before
   gives each pinned tab the page it had) and synced
   (`CompassNode.saved_url`/`saved_title`; a node without them, from an older
-  client, keeps its own). iOS keeps them as unknown fields: it has no pinned
-  URL yet.
+  client, keeps its own).
+- iOS does the same (`SidebarNode.savedURL`/`savedTitle`, kept by
+  `SpaceStore` on add and move, saved in its sidebar file and synced): a
+  flicked card, ⌘W, an extension's or Claude's `close_tab` point a pinned
+  tab or favorite back at its pinned URL, and its long-press menu (a
+  favorite tile's too) offers the two items. A split's panes don't get them
+  yet: the split's row has one menu. iOS doesn't send a pinned URL that is
+  just the tab's page for a node the server has without one (every client
+  takes the page anyway), so applying an older client's node commits
+  nothing back.
 
 **Strip order.** Live pinned tabs come first, then Today, depth first, as
 before. Upstream's own pinned-tab flag isn't used. After every strip-driven

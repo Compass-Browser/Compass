@@ -32,10 +32,15 @@ class SpaceModel;
 // `Browser` with a back button and "Open in <space>" (Cmd+O), which moves
 // the page into the last active window's space as a Today entry.
 
+// Whether |tabs| (links from another app) would open in little windows: they
+// are all web pages or files, and there is at least one.
+bool CanOpenInLittleWindows(const std::vector<StartupTab>& tabs);
+
 // Opens each of |tabs| in a little window of |profile|, if they are all web
-// pages or files; otherwise opens none and returns false. Called from
-// OpenStartupTabsInBrowserWithProfile() (app_controller_mac.mm, see
-// patches/), where macOS hands over URLs from other apps.
+// pages or files; otherwise opens none and returns false. Called where links
+// from other apps arrive: OpenStartupTabsInBrowserWithProfile() on macOS
+// (app_controller_mac.mm), StartupBrowserCreatorImpl on Windows, whose
+// links come on the command line (see patches/).
 bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
                          Profile* profile);
 
@@ -43,8 +48,8 @@ bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
 // that app's window, and returns it.
 BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url);
 
-// Cmd+Option+N (kNewLittleWindowCommand, docs/design/shortcuts.md): a new
-// little window on the new tab page, centered on |from|'s display.
+// Cmd+Option+N, Shift+Alt+N on Windows (kNewLittleWindowCommand,
+// docs/design/shortcuts.md): a new little window on the new tab page, centered on |from|'s display.
 BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from);
 
 // Whether |browser| is a little window.

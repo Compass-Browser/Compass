@@ -115,8 +115,19 @@ mix) opens as upstream does.
   Arc's command bar.
 - Settings: off, and per-domain routing to spaces (Arc's Air Traffic
   Control).
-- Other platforms: links from other apps come through the process
-  singleton and `StartupBrowserCreator` there, not this hook.
+- Windows: written, not yet built or tried (2026-11-07). Links from other
+  apps arrive on the command line, through the process singleton when
+  Compass is running. `StartupBrowserCreatorImpl::DetermineURLsAndLaunch()`
+  (patch) opens them in little windows when `CanOpenInLittleWindows()`
+  (not off the record, not with `--new-window` or `--same-tab`): with
+  Compass running, nothing else opens; at startup, the usual windows open
+  first without the links (`StartupTabProviderWithoutLinks`), then the
+  little windows. **Shift+Alt+N** opens an empty one (`accelerator_table.cc`
+  patch), taking upstream's New Split Tab shortcut as on macOS; Ctrl+Alt+N
+  can't be used, Windows reserves Ctrl+Alt (AltGr). Still macOS-only: the
+  frame (no native title bar; the window buttons in the bar), placing it
+  over the opener's window, and keeping Compass's other windows behind it.
+- Linux: the same hook would do, but it's Windows-only for now.
 
 Checked by screenshot (2026-10-31): a link opened from iTerm with Compass
 behind it.

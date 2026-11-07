@@ -207,6 +207,72 @@ struct SpaceStoreTests {
     #expect(copy.favorites.children.map(\.url) == ["https://fav"])
   }
 
+  @Test func pinnedTabsAndFavoritesKeepAPinnedURL() {
+    let (store, space, log) = make()
+    let tab = store.addTab(url: "https://a/", title: "A", to: space.today)!
+    #expect(tab.savedURL.isEmpty)
+    store.move(tab, to: space.pinned, at: 0)
+    #expect(tab.savedURL == "https://a/" && tab.savedTitle == "A")
+    // Navigating keeps it; the menu items show.
+    store.update(tab, url: "https://a/2", title: "A2")
+    #expect(tab.url == "https://a/2" && tab.savedURL == "https://a/")
+    #expect(tab.isAwayFromSavedURL)
+    // Closed: back to it.
+    store.goBackToSavedURL(tab)
+    #expect(tab.url == "https://a/" && tab.title == "A" && !tab.isAwayFromSavedURL)
+    // "Use This Page as Pinned URL".
+    store.update(tab, url: "https://a/3", title: "A3")
+    let before = log().count
+    store.setSavedURL(tab, url: tab.url, title: tab.title)
+    #expect(tab.savedURL == "https://a/3" && log().count == before + 1)
+    #expect(log().last!.putNodes == [tab.id])
+    // Moves within Pinned keep it; leaving clears it.
+    let folder = store.addFolder(name: "F", to: space.pinned)!
+    store.move(tab, to: folder, at: 0)
+    #expect(tab.savedURL == "https://a/3")
+    store.move(tab, to: space.today, at: 0)
+    #expect(tab.savedURL.isEmpty)
+    store.goBackToSavedURL(tab)  // nothing to go back to
+    #expect(tab.url == "https://a/3")
+    // A favorite takes its page; a Today tab can't get one.
+    let fav = store.addTab(url: "https://f/", title: "F", to: store.favorites)!
+    #expect(fav.savedURL == "https://f/")
+    store.setSavedURL(tab, url: "https://x/", title: "X")
+    #expect(tab.savedURL.isEmpty)
+  }
+
+  @Test func aPinnedTabWithoutAPageTakesItsFirst() {
+    let (store, space, _) = make()
+    let tab = store.addTab(url: "", to: space.pinned)!
+    #expect(tab.savedURL.isEmpty)
+    store.update(tab, url: "https://a/", title: "A")
+    #expect(tab.savedURL == "https://a/" && tab.savedTitle == "A")
+    store.update(tab, url: "https://b/")
+    #expect(tab.savedURL == "https://a/")
+  }
+
+  @Test func pinnedURLIsSavedAndOldFilesTakeThePage() throws {
+    let (store, space, _) = make()
+    let tab = store.addTab(url: "https://a/", title: "A", to: space.pinned)!
+    store.update(tab, url: "https://a/2", title: "A2")
+    let copy = SpaceStore()
+    try copy.load(snapshot: try store.encodedSnapshot())
+    let loaded = copy.node(id: tab.id)!
+    #expect(loaded.savedURL == "https://a/" && loaded.savedTitle == "A" && loaded.url == "https://a/2")
+
+    // A file from before: no savedURL, so the tab keeps the page it had.
+    var json = try JSONSerialization.jsonObject(with: try store.encodedSnapshot()) as! [String: Any]
+    var spaces = json["spaces"] as! [[String: Any]]
+    var pinned = spaces[0]["pinned"] as! [[String: Any]]
+    pinned[0]["savedURL"] = nil
+    pinned[0]["savedTitle"] = nil
+    spaces[0]["pinned"] = pinned
+    json["spaces"] = spaces
+    let old = SpaceStore()
+    try old.load(snapshot: try JSONSerialization.data(withJSONObject: json))
+    #expect(old.node(id: tab.id)!.savedURL == "https://a/2")
+  }
+
   @Test func batchGroupsChanges() {
     let (store, space, log) = make()
     store.batch {

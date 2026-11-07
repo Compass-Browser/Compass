@@ -186,7 +186,8 @@ struct SpacePage: View {
             Button("Clear") {
               withAnimation(SidebarStyle.motion) {
                 // What the phone shows; the desktop's own pages stay.
-                for entry in space.today.children.phoneVisible { app.store.archive(entry) }
+                // One step: undo brings them all back.
+                app.userClose(space.today.children.phoneVisible.map { ($0, .archive) })
               }
             }
             .font(.system(size: 13, weight: .medium))
@@ -406,7 +407,8 @@ struct FavoritesGrid: View {
     .buttonStyle(SidebarPressStyle(scale: 0.95))
     .accessibilityLabel(fav.displayTitle)
     .contextMenu {
-      Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { app.close(fav) }
+      SavedURLItems(tab: fav)
+      Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { app.userClose([(fav, .remove)]) }
     }
   }
 }
@@ -468,7 +470,7 @@ struct NodeRow: View {
       // Today's entries close from the row, as on the desktop (`.close`).
       if node.section == .today && !node.isFolder {
         Button {
-          withAnimation(SidebarStyle.motion) { app.close(node) }
+          withAnimation(SidebarStyle.motion) { app.userClose([(node, .remove)]) }
         } label: {
           Image(systemName: "xmark")
             .font(.system(size: 12, weight: .bold))
@@ -597,6 +599,7 @@ struct NodeRow: View {
       newTitle = node.isFolder ? node.title : node.displayTitle
       renaming = true
     }
+    SavedURLItems(tab: node)
     // Incognito: nothing that would copy it into synced lists (pinned,
     // favorites, other spaces); Close removes it.
     if let space, space.isIncognito {
@@ -649,7 +652,25 @@ struct NodeRow: View {
     }
     Divider()
     Button(node.section == .today ? "Close" : "Delete", systemImage: "trash", role: .destructive) {
-      app.close(node)
+      app.userClose([(node, .remove)])
+    }
+  }
+}
+
+/// A pinned tab's or favorite's "Use This Page as Pinned URL" and "Back to
+/// Pinned URL" ("Favorite URL" for favorites), while it's on another page
+/// than its pinned URL (docs/design/sidebar.md, "Pinned URL").
+struct SavedURLItems: View {
+  @Environment(AppModel.self) private var app
+  let tab: SidebarNode
+
+  var body: some View {
+    if tab.isAwayFromSavedURL {
+      let kind = tab.section == .favorites ? "Favorite" : "Pinned"
+      Button("Use This Page as \(kind) URL", systemImage: "pin.circle") {
+        app.store.setSavedURL(tab, url: tab.url, title: tab.title)
+      }
+      Button("Back to \(kind) URL", systemImage: "arrow.uturn.backward") { app.backToSavedURL(tab) }
     }
   }
 }

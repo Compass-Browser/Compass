@@ -28,6 +28,8 @@ final class AppServices {
   let tabs: TabManager
   let sync: SyncController
   let passwords = PasswordManager()
+  /// What the user closed, for undo and redo (every window's).
+  let closed = ClosedEntries()
   let siteSettings: SiteSettings
   let contentBlocking = ContentBlocking()
   let downloads = Downloads()
@@ -243,6 +245,7 @@ final class AppServices {
     }
     tabs.resetIncognito()
     for node in incognito.pinned.children + incognito.today.children { store.remove(node) }
+    closed.dropIncognito()
     incognitoLocked = false
   }
 

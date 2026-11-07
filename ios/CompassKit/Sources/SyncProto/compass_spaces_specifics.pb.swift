@@ -403,6 +403,28 @@ public nonisolated struct SyncPb_CompassNode: Sendable {
   /// Clears the value of `archivedTime`. Subsequent reads from it will return its default value.
   public mutating func clearArchivedTime() {self._archivedTime = nil}
 
+  /// PINNED and FAVORITES tabs: the page the tab goes back to when it closes
+  /// (its "pinned URL"), and that page's title. `url` follows the page it
+  /// shows. A client without them (an older one) leaves them alone; a node
+  /// without them keeps its own.
+  public var savedURL: String {
+    get {_savedURL ?? String()}
+    set {_savedURL = newValue}
+  }
+  /// Returns true if `savedURL` has been explicitly set.
+  public var hasSavedURL: Bool {self._savedURL != nil}
+  /// Clears the value of `savedURL`. Subsequent reads from it will return its default value.
+  public mutating func clearSavedURL() {self._savedURL = nil}
+
+  public var savedTitle: String {
+    get {_savedTitle ?? String()}
+    set {_savedTitle = newValue}
+  }
+  /// Returns true if `savedTitle` has been explicitly set.
+  public var hasSavedTitle: Bool {self._savedTitle != nil}
+  /// Clears the value of `savedTitle`. Subsequent reads from it will return its default value.
+  public mutating func clearSavedTitle() {self._savedTitle = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -419,6 +441,8 @@ public nonisolated struct SyncPb_CompassNode: Sendable {
   fileprivate var _collapsed: Bool? = nil
   fileprivate var _lastActiveTime: Int64? = nil
   fileprivate var _archivedTime: Int64? = nil
+  fileprivate var _savedURL: String? = nil
+  fileprivate var _savedTitle: String? = nil
 }
 
 /// A profile of the chain (slice 5); only in the home profile's account. Each
@@ -791,7 +815,7 @@ nonisolated extension SyncPb_CompassColor: SwiftProtobuf.Message, SwiftProtobuf.
 
 nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassNode"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}section\0\u{1}position\0\u{1}type\0\u{1}url\0\u{1}title\0\u{3}custom_title\0\u{1}collapsed\0\u{3}last_active_time\0\u{3}archived_time\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}section\0\u{1}position\0\u{1}type\0\u{1}url\0\u{1}title\0\u{3}custom_title\0\u{1}collapsed\0\u{3}last_active_time\0\u{3}archived_time\0\u{3}saved_url\0\u{3}saved_title\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -811,6 +835,8 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
       case 10: try { try decoder.decodeSingularBoolField(value: &self._collapsed) }()
       case 11: try { try decoder.decodeSingularInt64Field(value: &self._lastActiveTime) }()
       case 12: try { try decoder.decodeSingularInt64Field(value: &self._archivedTime) }()
+      case 13: try { try decoder.decodeSingularStringField(value: &self._savedURL) }()
+      case 14: try { try decoder.decodeSingularStringField(value: &self._savedTitle) }()
       default: break
       }
     }
@@ -857,6 +883,12 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
     try { if let v = self._archivedTime {
       try visitor.visitSingularInt64Field(value: v, fieldNumber: 12)
     } }()
+    try { if let v = self._savedURL {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 13)
+    } }()
+    try { if let v = self._savedTitle {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 14)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -873,6 +905,8 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs._collapsed != rhs._collapsed {return false}
     if lhs._lastActiveTime != rhs._lastActiveTime {return false}
     if lhs._archivedTime != rhs._archivedTime {return false}
+    if lhs._savedURL != rhs._savedURL {return false}
+    if lhs._savedTitle != rhs._savedTitle {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

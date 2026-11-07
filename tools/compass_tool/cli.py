@@ -532,9 +532,19 @@ def cmd_ios(layout: Layout, args) -> None:
   if args.action == 'gen':
     run(['xcodegen'], ios)
     return
+  if args.action == 'external':
+    ios_external(args, args.build)
+    return
   run([ios / 'scripts' / 'fetch_boringssl.sh'], ios)
   if args.action == 'archive':
-    ios_archive(ios, args)
+    if args.external and not args.upload:
+      raise CommandError('--external needs --upload')
+    if args.external and not (args.what_to_test or args.what_to_test_file):
+      raise CommandError('--external needs --what-to-test or '
+                         '--what-to-test-file')
+    build_number = ios_archive(ios, args)
+    if args.external:
+      ios_external(args, build_number)
     return
   if args.action == 'device':
     ios_device(ios, args)
@@ -608,7 +618,28 @@ def ios_device(ios: Path, args) -> Path:
   return app
 
 
-def ios_archive(ios: Path, args) -> None:
+def ios_external(args, build_number) -> None:
+  """Sends an uploaded build (the newest when `build_number` is None) to
+  external testers: What to Test, the external group, Beta App Review."""
+  from . import testflight
+  if not (args.api_key and args.api_key_id and args.api_issuer):
+    raise CommandError('external testing needs --api-key, --api-key-id and '
+                       '--api-issuer')
+  if args.what_to_test_file:
+    what = Path(args.what_to_test_file).read_text().strip()
+  else:
+    what = (args.what_to_test or '').strip()
+  if not what:
+    raise CommandError('external testing needs --what-to-test or '
+                       '--what-to-test-file')
+  key = Path(args.api_key).resolve()
+  client = testflight.Client(lambda: testflight.make_token(
+      key, args.api_key_id, args.api_issuer))
+  testflight.submit_external(client, IOS_BUNDLE_ID, build_number, args.group,
+                             what)
+
+
+def ios_archive(ios: Path, args) -> str:
   """A Release archive exported for App Store Connect (TestFlight), signed
   automatically with the team in project.yml. The build number is the time,
   so every upload is higher than the last."""
@@ -640,6 +671,7 @@ def ios_archive(ios: Path, args) -> None:
       ios)
   print('build %s: %s' % (build_number, 'uploaded to App Store Connect'
                           if args.upload else out / 'export' / 'Compass.ipa'))
+  return build_number
 
 
 def add_cpu_argument(p: argparse.ArgumentParser) -> None:
@@ -798,7 +830,8 @@ def parser() -> argparse.ArgumentParser:
                      'test CompassKit, build, run in a headless simulator, '
                      'build for devices, or archive for TestFlight')
   s.add_argument('action',
-                 choices=['gen', 'test', 'build', 'sim', 'device', 'archive'])
+                 choices=['gen', 'test', 'build', 'sim', 'device', 'archive',
+                          'external'])
   s.add_argument('--filter', help='test: only tests matching this')
   s.add_argument('--sync-server', metavar='PATH|build',
                  help='test: also run the engine tests against this sync '
@@ -816,6 +849,17 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--api-key', metavar='P8',
                  help='archive, device: App Store Connect API key (.p8), '
                  'when Xcode has no account signed in')
+  s.add_argument('--external', action='store_true',
+                 help='archive: with --upload, then send the build to '
+                 'external testers (as the external action)')
+  s.add_argument('--build', metavar='NUMBER',
+                 help='external: the build number (default: the newest)')
+  s.add_argument('--group', help='external: the external beta group '
+                 '(default: the only one)')
+  s.add_argument('--what-to-test', metavar='TEXT',
+                 help='archive --external, external: the What to Test text')
+  s.add_argument('--what-to-test-file', metavar='FILE',
+                 help='archive --external, external: What to Test, from a file')
   s.add_argument('--api-key-id', help='archive, device: with --api-key, its key ID')
   s.add_argument('--api-issuer', help='archive, device: with --api-key, the issuer ID')
   s.set_defaults(func=cmd_ios)

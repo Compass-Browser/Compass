@@ -98,6 +98,10 @@ final class AppModel {
   /// This window's Claude chat (docs/design/claude.md), and its sheet.
   let claude = ClaudeChat()
   var showingClaude = false
+  /// After a close: what closed, with Undo (userClose).
+  var closedToast: ClosedToast?
+  /// A shake: "Undo Close Tab" (shaken()).
+  var showingUndoAlert = false
 
   /// Side-effect free: SwiftUI may make a window's model more than once.
   /// `attach` starts it.
@@ -611,15 +615,12 @@ final class AppModel {
   }
 
   /// A card flicked away: a Today entry goes to the archive, as on the
-  /// desktop; anything else (pinned, a favorite, a split's pane) unloads.
+  /// desktop; anything else (pinned, a favorite, a split's pane) unloads,
+  /// a pinned tab or favorite back on its pinned URL.
   func closeFromPicker(_ id: String) {
     guard let index = pickerTabs.firstIndex(of: id) else { return }
-    if let node = store.node(id: id) {
-      if node.section == .today, node.parent?.isSplit != true { store.archive(node) }
-      // Not reloaded behind the picker: the page goes empty.
-      if shownTab === node { selectedNodeID = nil }
-    }
-    tabs.unload(id)
+    // Not reloaded behind the picker: the page goes empty (userClose).
+    if let node = store.node(id: id), node.isTab { userClose([(node, closeKind(node))]) } else { tabs.unload(id) }
     pickerTabs.remove(at: index)
     if pickerTabs.isEmpty {
       // Nothing left to pick: back to the (empty) page.
@@ -658,12 +659,36 @@ final class AppModel {
   }
 
   /// ⌘W: the shown entry closes as a flicked tab card does: Today goes to
-  /// the archive, anything else (pinned, a favorite) unloads.
+  /// the archive, anything else (pinned, a favorite) unloads, back on its
+  /// pinned URL.
   func closeShown() {
     guard let node = selectedNode else { return }
-    if node.section == .today { store.archive(node) }
-    selectedNodeID = nil
-    for tab in node.tabs { tabs.unload(tab.id) }
+    userClose([(node, closeKind(node))])
+  }
+
+  /// How a tab closes from the picker or ⌘W: a Today entry to the archive,
+  /// anything else (pinned, a favorite, a split's pane) unloads.
+  func closeKind(_ node: SidebarNode) -> ClosedEntries.Close {
+    node.section == .today && node.parent?.isSplit != true ? .archive : .unload
+  }
+
+  /// A tab the user closed unloads; a pinned tab or favorite goes back to
+  /// its pinned URL, as on the desktop (docs/design/sidebar.md, "Pinned
+  /// URL").
+  func unloadClosed(_ tab: SidebarNode) {
+    tabs.unload(tab.id)
+    store.goBackToSavedURL(tab)
+  }
+
+  /// "Back to Pinned URL": a live tab navigates there (its node follows),
+  /// an unloaded one points back at it.
+  func backToSavedURL(_ tab: SidebarNode) {
+    guard tab.isAwayFromSavedURL else { return }
+    if tabs.isLive(tab), let url = URL(string: tab.savedURL) {
+      tabs.webView(for: tab).load(URLRequest(url: url))
+    } else {
+      store.goBackToSavedURL(tab)
+    }
   }
 
   /// ⌃1–9: the nth space of the sidebar.
@@ -673,6 +698,8 @@ final class AppModel {
     selectedSpaceID = spaces[index].id
   }
 
+  /// Removes an entry from the sidebar, its tabs closing; not recorded for
+  /// undo (`userClose` is the user's).
   func close(_ node: SidebarNode) {
     if selectedNodeID == node.id { selectedNodeID = nil }
     for tab in node.tabs {
@@ -681,6 +708,94 @@ final class AppModel {
     }
     store.remove(node)
   }
+
+  // MARK: Undo closing (docs/design/ios.md, "Undo closing")
+
+  /// The user closed `entries`, each as given, as one step a shake, the
+  /// toast and ⌘⇧T undo (AppServices.closed, every window's). The tabs
+  /// that were open keep their back and forward history for it.
+  func userClose(_ entries: [(SidebarNode, ClosedEntries.Close)], keepRedo: Bool = false) {
+    var step = ClosedEntries.Step()
+    var open: [String] = []
+    let shown = shownTab
+    for (node, close) in entries where store.contains(node) {
+      if step.spaceID == nil { step.spaceID = store.space(of: node)?.id }
+      for tab in node.tabs {
+        guard let view = tabs.live[tab.id] else { continue }
+        open.append(tab.id)
+        if let state = view.interactionState { step.states[tab.id] = state }
+      }
+      step.entries.append(ClosedEntries.Entry(node, close: close, in: store))
+      // The page goes empty: the next one isn't loaded behind the user's back.
+      if let selected = selectedNode, node.contains(selected) || shown.map(node.contains) == true {
+        selectedNodeID = nil
+      }
+      switch close {
+      case .remove:
+        self.close(node)
+      case .archive:
+        store.archive(node)
+        for tab in node.tabs { unloadClosed(tab) }
+      case .unload:
+        for tab in node.tabs { unloadClosed(tab) }
+      }
+    }
+    guard !step.entries.isEmpty else { return }
+    step.spaceID = step.spaceID ?? selectedSpaceID
+    step.reopenID = shown.map(\.id).flatMap { open.contains($0) ? $0 : nil } ?? open.first
+    services.closed.push(step, keepRedo: keepRedo)
+    showClosedToast("Closed \(step.title)", redo: false)
+  }
+
+  /// Puts back what the user closed last: its entries return to their
+  /// places, and the tab shown as they closed (else the first that was
+  /// open) opens again with its history.
+  func undoClose() {
+    guard let step = services.closed.takeUndo() else { return }
+    let reopen = ClosedEntries.restore(step, in: store, isOpen: tabs.isLive)
+    if let reopen {
+      if !tabs.isLive(reopen), let state = step.states[reopen.id] { tabs.restoring[reopen.id] = state }
+      show(reopen)
+    } else if let id = step.spaceID, store.space(id: id) != nil {
+      selectedSpaceID = id
+    }
+    services.closed.pushRedo(step)
+    showClosedToast("Reopened \(step.title)", redo: true)
+  }
+
+  /// Closes again what the last undo put back.
+  func redoClose() {
+    guard let step = services.closed.takeRedo() else { return }
+    userClose(step.entries.compactMap { entry in store.node(id: entry.node.id).map { ($0, entry.close) } }, keepRedo: true)
+  }
+
+  /// After a close or an undo: a toast over the bar, with Undo (or Redo),
+  /// for a few seconds. The next one replaces it.
+  private func showClosedToast(_ text: String, redo: Bool) {
+    let toast = ClosedToast(text: text, redo: redo)
+    withAnimation(.snappy) { closedToast = toast }
+    Task { [weak self] in
+      try? await Task.sleep(for: .seconds(4))
+      guard let self, self.closedToast == toast else { return }
+      withAnimation(.snappy) { self.closedToast = nil }
+    }
+  }
+
+  /// The device was shaken (ShakeToUndo): the alert iOS shows for typing,
+  /// for closed tabs.
+  func shaken() {
+    guard services.closed.canUndo || services.closed.canRedo, !showingUndoAlert else { return }
+    closedToast = nil
+    showingUndoAlert = true
+  }
+}
+
+/// The toast after a close (RootView).
+struct ClosedToast: Equatable {
+  let id = UUID()
+  let text: String
+  /// Its button redoes (after an undo) instead of undoing.
+  let redo: Bool
 }
 
 /// What a launch shows (Settings → On Launch): the sidebar over an empty
