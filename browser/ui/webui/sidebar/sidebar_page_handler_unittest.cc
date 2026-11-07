@@ -329,7 +329,9 @@ TEST_F(SidebarPageHandlerTest, ClosesEveryPaneOfASplit) {
   handler_remote_->CloseNode(TodayId(0));
   Settle();
 
-  EXPECT_EQ(tab_strip_model()->count(), 0);
+  // Only the empty tab, which takes the place of a window's last tab
+  // (command-bar.md, "No new tab page"), is left; it has no entry.
+  EXPECT_EQ(tab_strip_model()->count(), 1);
   EXPECT_THAT(space_model().today_root()->children(), IsEmpty());
 }
 
