@@ -81,14 +81,10 @@ bool ExtractInstaller(const std::wstring& path) {
   if (file == INVALID_HANDLE_VALUE) {
     return false;
   }
-  DWORD done = 0;
-  bool ok = true;
-  while (ok && done < size) {
-    DWORD written = 0;
-    ok = WriteFile(file, bytes + done, size - done, &written, nullptr) &&
-         written > 0;
-    done += written;
-  }
+  // One write: files take writes of any size (unlike pipes), and it keeps
+  // the pointer arithmetic out.
+  DWORD written = 0;
+  bool ok = WriteFile(file, bytes, size, &written, nullptr) && written == size;
   ok = CloseHandle(file) && ok;
   if (!ok) {
     DeleteFileW(path.c_str());
