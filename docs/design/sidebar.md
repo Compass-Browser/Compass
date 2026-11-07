@@ -215,7 +215,7 @@ tab") and closes the tab at the first click: the entry stays, unloaded (as
 Cmd+W does, and Cmd+Z reopens it). On an unloaded entry, where × removes it, it takes two clicks (a double
 click does it). The first click arms it: it turns red, and its tooltip says
 "Click again to remove". The arm lasts 3 s, or until the pointer leaves the
-button. (Until 2026-11-07, a loaded tab's × asked for two clicks too.) The page does this alone (`CompassSidebarNodeElement`'s
+button. The page does this alone (`CompassSidebarNodeElement`'s
 `pinned` property, which nodes pass down to their children); the handler's
 `CloseNode()` is unchanged. Delete and Backspace on a focused row, and the
 context menu, still close at once.
@@ -557,7 +557,7 @@ and a page handler test.
 
 ## Undo closing
 
-Goal (issue #9): Cmd+Z brings back what the user just closed, and
+Goal: Cmd+Z brings back what the user just closed, and
 Cmd+Shift+Z closes it again, for unloaded entries too. Upstream's
 reopen-closed-tab knows only tabs that had a `WebContents`, and the sidebar
 closes entries that never had one: an unloaded Today entry, a pinned
@@ -804,7 +804,7 @@ time from its context menu.
   favorite tile's top-left corner. Clicking it sends
   `PageHandler.SetNodeMuted(id, muted)`, which mutes through upstream's
   `SetTabAudioMuted()` with `TabMutedReason::kAudioIndicator`, as the tab
-  strip's icon does. Tiles have no × (removed 2026-11-06): a favorite closes
+  strip's icon does. Tiles have no ×: a favorite closes
   or goes through its context menu (Close Tab, Remove from Favorites).
 - **Mute Tab** / **Unmute Tab** in a live tab's context menu do the same.
 - **Cmd+Shift+M** (`kToggleTabMuteCommand`, shortcuts.md) mutes or unmutes
@@ -1080,14 +1080,6 @@ animates while spaces slide (spaces.md, "Swiping") or with
 `prefers-reduced-motion`, which also turns off the CSS transitions (row
 hover and active backgrounds, a slight press scale, the space menu and the
 archive popping in).
-
-
-
-- **b:** `SpaceModel` becomes the data source, using the
-  `TabStripModel` ↔ `SpaceModel` bridge.
-- **c:** pinned section, nested folders, drag and drop.
-- **d:** persistence (Today followed separately).
-- **e:** remove the hidden native strip (done; drag-out remains).
 
 ## Risks
 

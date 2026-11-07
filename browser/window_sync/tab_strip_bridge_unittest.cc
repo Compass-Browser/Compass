@@ -451,7 +451,8 @@ TEST_F(TabStripBridgeTest, FollowsNavigation) {
 
 // Sync changed the entry of a live tab (another device navigated it): the tab
 // keeps its page, and only its own next navigation takes the entry back, so
-// two devices don't hand the entry back and forth (sync.md, slice 3b).
+// two devices don't hand the entry back and forth (sync.md, "Today across
+// devices").
 TEST_F(TabStripBridgeTest, AnEntryChangedElsewhereFollowsOnlyRealChanges) {
   OpenTabs({"a.test"});
   SidebarNode* node = TodayAt(0);

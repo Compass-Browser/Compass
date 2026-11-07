@@ -1,6 +1,6 @@
 package server_test
 
-// History as Compass sends it since slice 2b (sync.md, "Slice 2b notes"):
+// History as Compass sends it (sync.md, "History"):
 // HISTORY and HISTORY_DELETE_DIRECTIVES encrypted with the chain's custom
 // passphrase, so the server only sees EncryptedData plus an empty field
 // naming the type. It must store, update and serve them like any other

@@ -1,14 +1,10 @@
 # Send a tab to the phone
 
-Status: done (2026-11-02). Checked end to end on Matteo's iPhone: the
-desktop's "Send to Your Devices" → APNs push → the extension's "Tab from
-<Mac>" notification → a tap opens the tab.
-
 ## Goal
 
 On the desktop, "Send to your devices" on a tab (Chromium's send tab to
 self) lists the iPhone; picking it shows a notification on the phone,
-"Tab from MacBook", with the page's title and address. A tap opens the tab
+"Tab from <Mac>", with the page's title and address. A tap opens the tab
 in Compass and the desktop stops offering it.
 
 ## Data
@@ -31,11 +27,11 @@ unchanged, so the desktop needs no new format:
 
 ## Delivery
 
-1. **Without push (done on iOS).** The phone gets the entry in its next
+1. **Without push.** The phone gets the entry in its next
    sync cycle: at once while Compass is open (the SSE stream,
    `/v2/compass/events`), else at the next background refresh (iOS decides,
    about every 15 minutes at best) or launch. It posts a local notification.
-2. **With push (to do).** The server wakes the phone through APNs as soon as
+2. **With push.** The server wakes the phone through APNs as soon as
    the entry is committed:
    - **Phone → server**: after `registerForRemoteNotifications`, the phone
      sends its token, per account, with the account's sync bearer token:
@@ -56,7 +52,7 @@ unchanged, so the desktop needs no new format:
    - **Phone**: a notification service extension rewrites it before it
      shows: it runs one GetUpdates for SEND_TAB_TO_SELF with the account's
      keys (shared with the extension through the App Group keychain),
-     decrypts the entry and sets the title ("Tab from MacBook"), body (title,
+     decrypts the entry and sets the title ("Tab from <Mac>"), body (title,
      host) and `userInfo` the app's own notifications use. If the entry isn't
      for this phone, it says "A tab was sent to another device" (dropping a
      notification needs Apple's filtering entitlement). The app's local
@@ -64,40 +60,29 @@ unchanged, so the desktop needs no new format:
 
 ## Parts
 
-| Part | Who | State |
-|---|---|---|
-| iOS: DEVICE_INFO flag, `SendTabBridge`, local notifications, tap opens and marks opened | compass-b2 (iOS session) | done, on main |
-| iOS: APNs registration, token upload, notification service extension | compass-b2 | done, checked on the phone with a real push |
-| Desktop: enable SEND_TAB_TO_SELF and its entry points | compass-0d | the type already ran; sidebar menu "Send to Your Devices" added; checked end to end (after the server's 99bbd11) |
-| Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF | compass-0d | done (`server/push`); live on the public server since 2026-11-02 (7de2a49) |
-| Apple: an APNs auth key (Certificates, Identifiers & Profiles → Keys → Apple Push Notifications service), its key ID and the team ID, on the server | Matteo | done: key <key id>, team 4M33B5HNDS, on the public server (the server since 2026-11-07) |
+| Part | Where |
+|---|---|
+| iOS: DEVICE_INFO flag, `SendTabBridge`, local notifications, tap opens and marks opened | iOS app |
+| iOS: APNs registration, token upload, notification service extension | iOS app |
+| Desktop: SEND_TAB_TO_SELF and its entry points | browser |
+| Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF | `server/push` |
+
+A server that sends pushes needs an APNs auth key (Certificates,
+Identifiers & Profiles → Keys → Apple Push Notifications service): the
+`.p8` file, its key ID and the team ID, in the server's config. Sandbox and
+production APNs hosts are picked per registration.
 
 ### Desktop
 
-Done (2026-11-02): nothing excluded the type in code (only
-`WEBAUTHN_CREDENTIAL` is disabled), so its controller already ran; sync.md
-was only out of date. Chromium's page context menu offers it as soon as a
-target device exists (local sync mode never offers sign-in). Compass's tabs
-live in its sidebar, so the sidebar's tab menu got "Send to Your Devices"
-(`SidebarPageHandler`, up to five devices, the toast after sending). Still
-to check by hand: an entry with the phone's cache GUID in
-`chrome://sync-internals`, and the phone marking it opened. Original notes:
-
-- Sync it (remove it from the excluded types).
-- The entry points Chromium has: the tab's context menu "Send to your
-  devices", the page's context menu, and the share menu. Check they show
-  with the custom server (they require an active SEND_TAB_TO_SELF type and
-  a target device that isn't this one; the phone is one once its
-  DEVICE_INFO has the flag).
-- Receiving on the desktop (a tab sent to a Mac) is Chromium's own UI; not
-  needed for this feature.
-- Check: sending from the desktop to the phone puts an entry with the
-  phone's cache GUID (`chrome://sync-internals`), and the phone marks it
-  opened.
+Nothing excludes the type in code (only `WEBAUTHN_CREDENTIAL` is disabled),
+so its controller runs as upstream. Chromium's page context menu offers it
+as soon as a target device exists (one that isn't this one, with the
+DEVICE_INFO flag; local sync mode never offers sign-in). Compass's tabs live
+in its sidebar, so the sidebar's tab menu has "Send to Your Devices"
+(`SidebarPageHandler`, up to five devices, a toast after sending).
+Receiving on the desktop (a tab sent to a Mac) is Chromium's own UI.
 
 ### Server
 
-As in "With push" above, plus: a config for the APNs key (path, key ID,
-team ID), sandbox and production hosts by registration, and an e2e test
-with a fake APNs endpoint (the push is sent once per commit that adds an
-entry, not for the phone's own "opened" update).
+The push is sent once per commit that adds an entry, not for the phone's
+own "opened" update. The e2e test uses a fake APNs endpoint.

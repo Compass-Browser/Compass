@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// History sync under local sync (docs/design/sync.md, "Slice 2b notes"): the
+// History sync under local sync (docs/design/sync.md, "History"): the
 // chromium_src override of data_type.cc and the patches to the history
 // controllers, HistoryService and BrowsingHistoryService. Each test checks
 // the local-sync case and that upstream behaviour without local sync stays.
@@ -303,7 +303,7 @@ TEST_F(CompassHistoryDeleteDirectivesTest, RemoveVisitsWithoutLocalSync) {
 
 // Processed directives at startup
 // (patches/components-history-core-browser-sync-delete_directive_handler.*,
-// docs/design/sync.md, "Slice 7 notes"): under local sync the young ones
+// docs/design/sync.md, "History"): under local sync the young ones
 // stay on the server, so a device that joins later still applies them.
 class CompassKeptDirectivesTest : public CompassHistoryDeleteDirectivesTest {
  protected:

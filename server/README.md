@@ -8,9 +8,9 @@ the chain's key; the server stores blobs it can't read and never sees a
 password or an email address. There are no accounts: a chain is an Ed25519
 public key, and each request is signed with its private key.
 
-There is no Compass-run instance: you run your own. It needs about 20 MB of
-memory and as much disk as your chains store (at most 200 MB each by
-default).
+A public instance runs at https://sync.example.org, or you can run
+your own. It needs about 20 MB of memory and as much disk as your chains
+store (at most 200 MB each by default).
 
 In Compass, the server URL is the server's address followed by `/v2`, e.g.
 `https://sync.example.com/v2`.
@@ -195,17 +195,18 @@ docker compose up -d
 ```
 
 For a server on another machine that builds from a copy of `server/` (as
-sync.example.org does), `deploy/update-remote.sh` does all of it from
+the public instance does), `deploy/update-remote.sh` does all of it from
 your checkout: backs up the database, rsyncs `server/` to `<dir>/src`,
 builds with `COMMIT` set to the checkout's short SHA, restarts, and checks
 `/health-check` names that commit and `/healthz` answers:
 
 ```sh
-server/deploy/update-remote.sh --host example.org --port 22 \
-  --dir /opt/compass-sync --service sync --public-url https://sync.example.org
+server/deploy/update-remote.sh --host <your server> --port <ssh port> \
+  --public-url <url>
 ```
 
-`--dry-run` prints the commands without running them. It uses your own ssh
+`--user`, `--dir` and `--service` default to `root`, `/opt/compass-sync`
+and `sync`. `--dry-run` prints the commands without running them. It uses your own ssh
 keys and config; nothing secret is in the script.
 
 The server migrates the database on start. A server never opens a database

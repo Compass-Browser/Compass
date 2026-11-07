@@ -23,7 +23,7 @@ class SyncUserSettings;
 
 // What chrome://compass-sync's switches mean for Chromium's sync, and the
 // small pieces of the page and the app menu that don't need a profile
-// (docs/design/sync.md, "Slice 4 notes"). Kept apart from
+// (docs/design/sync.md, "UI"). Kept apart from
 // CompassSyncService so they're unit-testable.
 namespace compass::sync {
 

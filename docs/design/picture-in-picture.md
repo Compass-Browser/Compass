@@ -97,7 +97,7 @@ then. The window gets no mouse events while it ignores them, so a 50 ms
 timer checks `NSEvent.mouseLocation` against its frame and animates its
 alpha. Document picture-in-picture windows aren't covered.
 
-The shortcut is fixed until shortcuts can be set (plan.md, item 14).
+The keys can be changed in Keyboard shortcuts (shortcuts.md).
 
 Test: `CompassAutoPipBrowserTest.ClickThroughShortcut` (not the hover fade,
 which needs the real pointer).
@@ -117,7 +117,7 @@ On the window, with a trackpad:
   32 pt of an edge of the work area, the window snaps to 12 pt from that
   edge (animated). A corner snaps on both sides.
 
-`PipWindows` (was `PipClickThrough`) installs a local `NSEvent` monitor
+`PipWindows` installs a local `NSEvent` monitor
 for magnify, scroll and mouse-up events while a window is open, and takes
 those aimed at a picture-in-picture window. The geometry is
 `PipWindows::Zoom()`, `Move()` and `Snap()`. Not during click-through (the

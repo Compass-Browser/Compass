@@ -29,7 +29,7 @@ const (
 	DefaultHistoryDays = 14
 	// MaxHistoryDays caps COMPASS_SYNC_HISTORY_DAYS: Compass devices keep
 	// the delete directives they processed for 30 days and then remove
-	// them from the server (sync.md, "Slice 7 notes"), so history kept
+	// them from the server (sync.md, "History"), so history kept
 	// longer could come back on a device that joins later.
 	MaxHistoryDays = 30
 )

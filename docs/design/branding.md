@@ -26,8 +26,8 @@ Six files have any, and grit builds each from a renamed copy:
 | `components/privacy_sandbox_strings.grd` | 2 |
 
 The list is `compass_rebranded_grds` in `strings/strings.gni`. To find new
-ones after a Chromium update, run `rename_messages()` over every `.grd` (see
-the commit that added this file for the scan).
+ones after a Chromium update, run `rename_messages()`
+(`strings/rebrand_strings.py`) over every `.grd` and see which change.
 
 ### Renaming
 
@@ -79,8 +79,7 @@ computed start from upstream's `default_resource_ids` into
 `gen/compass/strings/resource_ids` under the copy's path, and the template
 passes that file to grit for these six. Same IDs, so `branded_strings.h`,
 `generated_resources.h` and the others stay byte-identical (grit writes
-headers only when they change) and nothing recompiles: the first build after
-this change was 520 steps, about a minute, in out/Debug.
+headers only when they change) and nothing recompiles.
 
 The action lists its outputs with `exec_script` at `gn gen` time, which
 needs `//compass/strings/BUILD.gn` in `.gn`'s `exec_script_allowlist`
@@ -93,10 +92,10 @@ Tests: `tools/tests/test_rebrand_strings.py`.
 
 ## Windows
 
-Windows keeps the product's identity apart from `BRANDING`, and before
-2026-11-01 it still said Chromium: desktop and Start menu shortcuts
-("Chromium", "<profile> - Chromium"), the user data folder
-(`%LOCALAPPDATA%\Chromium`), the default-browser registrations.
+Windows keeps the product's identity apart from `BRANDING`: desktop and
+Start menu shortcuts ("Chromium", "<profile> - Chromium"), the user data
+folder (`%LOCALAPPDATA%\Chromium`), the default-browser registrations.
+Two patches cover them:
 
 - `chrome/install_static/chromium_install_modes.h` (patch): product path
   "Compass" (so `%LOCALAPPDATA%\Compass\User Data`), app name and app ID
@@ -110,23 +109,22 @@ Windows keeps the product's identity apart from `BRANDING`, and before
 - `chrome/installer/util/BUILD.gn` (patch): the installer strings
   (`IDS_PRODUCT_NAME` is the shortcut name, the app shortcuts folder,
   firewall rule text) are generated from the renamed `chromium_strings.grd`
-  copy instead of upstream's. Checked on the Mac by running
-  `create_string_rc.py` on the copy: "Compass" in every language, with
-  the inflected forms noted under "Renaming".
-- Written without a Windows build (the PC wasn't available). Upstream's
-  `install_static_unittests` check the old names and GUIDs and would need
-  updating if built.
+  copy instead of upstream's: "Compass" in every language, with the
+  inflected forms noted under "Renaming".
+
+Upstream's `install_static_unittests` check the old names and GUIDs and
+need updating before they pass.
 
 ## User data folder (macOS)
 
-Until 2026-11-01 Compass kept its data where an unbranded Chromium does,
-`~/Library/Application Support/Chromium` (and `~/Library/Caches/Chromium`),
-next to any real Chromium's. Now it's `.../Compass`: `chrome_paths_mac.mm`
-(patch) asks `compass::GetMacProductDirName()` (`common/user_data_dir_mac.mm`)
+An unbranded Chromium keeps its data in
+`~/Library/Application Support/Chromium` (and `~/Library/Caches/Chromium`).
+Compass uses `.../Compass` instead: `chrome_paths_mac.mm` (patch) asks `compass::GetMacProductDirName()` (`common/user_data_dir_mac.mm`)
 when the app's Info.plist sets no `CrProductDirName`.
 
-The first launch that finds no `Compass` folder moves the old one, if it's
-Compass's (it has `Compass Spaces.json`, or the older `Strata Spaces.json`):
+Earlier builds used the Chromium folder. The first launch that finds no
+`Compass` folder moves the old one, if it's Compass's (it has
+`Compass Spaces.json`):
 a rename on the same disk, so profiles, cookies, logins and extensions come
 along as they are. It then rewrites the absolute paths into the folder saved
 in `Local State` and each profile's `Preferences` (the sync engine's folder,
@@ -204,7 +202,7 @@ both load.
 ### Rebuild cost
 
 Six one-line hooks in `.cc` files plus `deps` in their targets; no header
-anyone else includes changes. 18 steps in out/Debug, 21 in out/Fast.
+anyone else includes changes, so the rebuild is small.
 
 Tests: `compass/common/compass_url_unittest.cc`,
 `SidebarHeaderTest.PillText`,
@@ -253,7 +251,7 @@ notifications and the DMG use it.
 Not replaced: Windows' document, PDF, incognito and app list `.ico`s, the
 Linux `.xpm`, ChromeOS art, the Web Store icon (not the product's).
 Upstream asks for `kCurrentProfileIconVersion` to go up when
-`chromium.ico` changes; there are no Windows installs to migrate yet.
+`chromium.ico` changes; it hasn't been bumped.
 
 ## Web Store
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Compass syncs History end-to-end encrypted through local sync
-// (docs/design/sync.md, "Slice 2b notes"). Upstream never encrypts HISTORY
+// (docs/design/sync.md, "History"). Upstream never encrypts HISTORY
 // and HISTORY_DELETE_DIRECTIVES (kNeverEncrypted: Google's server reads
 // history) and leaves them out of local sync. Here both become encryptable,
 // so a custom passphrase ("encrypt everything") covers them, and supported

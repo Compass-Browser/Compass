@@ -102,7 +102,7 @@ struct SeedForSimulator {
     mac.store.homeProfileUUID = home
     try await mac.sync()
     await mac.publishProfiles([
-      ChainProfile(uuid: home, name: "Matteo", home: true), ChainProfile(uuid: work, name: "Work"),
+      ChainProfile(uuid: home, name: "Personal", home: true), ChainProfile(uuid: work, name: "Work"),
     ])
     let store = mac.store
     let personal = store.addSpace(name: "Personal", theme: SpaceTheme(.green), profile: home)

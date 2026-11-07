@@ -154,8 +154,9 @@ tree and when the list changes; `PageHandler.SwitchSpace(id)` and
 model and sends a fresh tree.
 
 Right-clicking a space button, or double-clicking the space name, opens the
-space's menu: its name, eight colors, a color well for any other color
-(below) and "Delete space" (click twice). The color (`SpaceColor`, saved as
+space's menu: its name, "Edit theme" (the theme editor, below), its icon,
+the Today archive delay, its profile (slice 3) and "Delete space" (click
+twice). The color (`SpaceColor`, saved as
 `"color"` in the file, see below) tints the sidebar's background and the
 space's button. Grey, the default, doesn't
 tint. `SpaceList` relays name and color changes of any space
@@ -175,8 +176,7 @@ header above it and the region's margin below it stayed frame-colored.
 (`WindowFeatures::Observer`) or its space's color changes
 (`SpaceList::Observer`).
 
-A space can have any color, not only the palette's (2026-10-31, for Arc's
-themes). `SpaceColor` is a value: grey (no tint) or an opaque `SkColor`.
+A space can have any color, not only the palette's (for Arc's themes). `SpaceColor` is a value: grey (no tint) or an opaque `SkColor`.
 The palette is its constants (`SpaceColor::kBlue`, ...) and
 `kSpaceColorPalette`, mirrored by the page's `SPACE_COLORS`
 (resources/sidebar/colors.ts) for the theme editor's palette. Mojo carries `SpaceColor? color` as
@@ -196,8 +196,8 @@ of the two colors at the swipe's progress (next section), with no fade.
 
 ### Gradients
 
-A space with a color can go on to one or two more (2026-10-31, as Arc's
-gradient themes): `SpaceModel::gradient()`, the colors after `color()`, at
+A space with a color can go on to one or two more (as Arc's gradient
+themes): `SpaceModel::gradient()`, the colors after `color()`, at
 most `kMaxSpaceGradientColors` (3) in all. Grey has none, and turning a
 space grey drops it. The color stays the window's theme seed. Saved as
 `"gradient": ["pink", "#010203"]` after `"color"`, left out when empty;
@@ -212,12 +212,11 @@ gradient, and both repaint when the window resizes. Fades and swipes blend
 stop by stop, so a gradient fades into a plain color or another gradient. The
 gradient is dithered: at 14% it spans only a few levels of each channel
 across the window, and without dithering each level showed as a band 50-100
-DIP wide (measured in a screenshot of the fast build: 34 changes along the
-1600 px bottom edge, 895 with dithering).
+DIP wide.
 The little window's frame keeps the space's color only. The space menu's
 theme chip shows the same three stops, diagonally (`--space-color`,
 `--space-color-2`, `--space-color-3`). The switcher's buttons show no color
-(the user asked for no circle or background, 2026-10-31): just the icon,
+(no circle or background): just the icon,
 emoji or letter, the window's space at full opacity, the others dimmed.
 Symbols are 18px, letters 14px and emoji 11px (nudged up half a pixel),
 which look about as big; even sizes sit on whole pixels in the 24px
@@ -227,12 +226,6 @@ and letters are (the glyph's fill transparent over a text shadow in
 `currentColor`; `color: transparent` would make `currentColor` transparent
 too), and fade into their colors in 240 ms when their space becomes the
 window's.
-
-In the space menu, a Gradient row under the swatches (hidden for grey):
-each gradient color as a color well with ×, then + (while there's room),
-which adds the last color turned 40° round the hue wheel. Wells pass colors
-on every 50 ms while dragged, as the custom color well does. Picking a
-swatch keeps the gradient.
 
 Arc: a `blendedGradient` theme with two or more `baseColors` gives the
 space its first base color as color and the next ones as gradient; other
@@ -246,7 +239,7 @@ themes the mid tone (arc-import.md). Intensity and grain: next section.
 
 ### Intensity and grain
 
-Two per-space settings from Arc's theme modifiers (2026-10-31), 0 to 1,
+Two per-space settings from Arc's theme modifiers, 0 to 1,
 for plain colors and gradients alike (not grey): `SpaceModel::intensity()`
 and `grain()`, clamped, NaN ignored. Saved as `"intensity"` and `"grain"`
 only when not the defaults; mojo `Space.intensity`/`grain`,
@@ -254,38 +247,32 @@ only when not the defaults; mojo `Space.intensity`/`grain`,
 another profile.
 
 - Intensity: the tint's opacity is `kMaxSpaceTintOpacity` (110%) times
-  it, capped at 100% (`SpaceTintOpacity()`), the phone's curve, so a synced
-  intensity looks the same on both (2026-11-02; the user preferred the
-  phone's stronger tint; it was 45%, so 14% by default). The default,
+  it, capped at 100% (`SpaceTintOpacity()`), the iOS app's curve, so a
+  synced intensity looks the same on both. The default,
   `kDefaultSpaceIntensity` 0.31, gives about 34%. Arc's usual 0.8 is about
-  88%; Arc's maximum is 1, as here. Flat over the window like Arc's (the
-  phone had a fade to half by the bottom; the user dropped it on both). The
+  88%; Arc's maximum is 1, as here. Flat over the window like Arc's. The
   window's theme seed doesn't change with it.
 - Color: like Arc, the tint doesn't paint the space's color as it is but
-  at 72% of its saturation and 4% darker (`ToTintColor()`, the phone's
-  `RGB.tint`). Measured on the user's screen at full intensity (2026-11-02):
-  Arc showed its stored #6cbad9 as #75aec4 in the sidebar, which this gives
-  within a level. Only one intensity was measured, so the curve below 1 is
+  at 72% of its saturation and 4% darker (`ToTintColor()`, the iOS app's
+  `RGB.tint`). Measured at full intensity, Arc shows a stored #6cbad9 as
+  #75aec4 in the sidebar, which this gives within a level. Only one intensity was measured, so the curve below 1 is
   ours. The theme seed stays the stored color.
 - Text: in automatic mode, a tint strong enough to decide how light the
   frame is in both modes picks the window's mode (`GetTintColorMode()`, the
-  phone's `SpaceTheme.colorScheme`), as Arc's `contentOverBackgroundAppearance`:
+  iOS app's `SpaceTheme.colorScheme`), as Arc's `contentOverBackgroundAppearance`:
   the tint's average luma over a light (0.94) and a dark (0.13) frame, both
   above 0.5 → light, both below → dark, else the system's. The default
-  intensity leaves the system's; a light color at full intensity is light
-  (the user saw light grey text over the light blue Claudio in dark mode).
+  intensity leaves the system's; a light color at full intensity is light.
 - Grain: a 128 px tile of grey noise (fixed sequence, built once) over the
   tint, in the tint's shape, blended as an overlay (grey 128 leaves the
-  color, so hue stays), at up to 11.5% (`kMaxGrainOpacity`; 22% at first,
-  which the user capped to 4.4% over the old 14% tint; raised on
-  2026-11-02 to the noise measured in Arc at full grain and intensity,
-  about 5 levels of luma; the phone's `SpaceTint.maxGrain` is the same). One grain per
+  color, so hue stays), at up to 11.5% (`kMaxGrainOpacity`: about 5 levels
+  of luma, as measured in Arc at full grain and intensity; the iOS app's
+  `SpaceTint.maxGrain` is the same). One grain per
   physical pixel, tiled in widget coordinates so the region's tint and the
   frame's line up.
 
 Both blend in fades and swipes with the colors (`SidebarTint::Look`). The
-menu has an Intensity and a Grain slider (0-100) under the gradient row,
-hidden for grey, passing values on every 50 ms while dragged. Arc:
+theme editor sets them (below). Arc:
 `modifiers.intensityFactor` as is, `noiseFactor` as grain when
 `overlay` is `"grain"`, from `blendedGradient` or `blendedSingleColor`.
 
@@ -299,7 +286,7 @@ hidden for grey, passing values on every 50 ms while dragged. Arc:
 
 As in Arc, the empty pane (chrome://compass-empty, what a window with
 nothing else to show shows) paints the space's tint rather than a plain
-page (2026-11-02): the gradient's stops corner to corner over the frame
+page: the gradient's stops corner to corner over the frame
 color (`--color-frame-active`), as opaque as the intensity says, and the
 same grain tile at the same opacity, one grain per physical pixel. Its color
 is Arc's pane shade, 66% saturation and 1.5% lighter (`TintSurface::kPane`;
@@ -312,20 +299,17 @@ own background. Test: `CommandBarBrowserTest.EmptyPaneTakesTheSpaceTint`.
 ### URL pill
 
 The sidebar header's URL pill is a faint wash over the tint, as Arc's, so
-the space's color shows through it (2026-11-02): 4.7% black when the
+the space's color shows through it: 4.7% black when the
 frame is light, 7.8% white when it's dark (`GetPillWash()` in
-sidebar_header.cc). Measured in the user's Arc: about 4.5% black over the
-sidebar's tint. Icons in it blend against the wash over the frame color.
+sidebar_header.cc). Arc's is about 4.5% black over the sidebar's tint. Icons in it blend against the wash over the frame color.
 The little window's pills keep the location bar's color.
 
 ### Theme editor
 
 The space menu's "Edit theme" row (with a chip of the space's colors)
-opens the theme editor in the menu's place (2026-10-31, laid out after
-Arc's, which the user shared a screenshot of): `<compass-theme-editor>`
-(`resources/sidebar/theme_editor.{ts,html.ts,css}`). "‹ <name>" or Esc
-goes back to the menu. It replaced the menu's swatches, color well,
-Gradient row and sliders. From the top:
+opens the theme editor in the menu's place (laid out after Arc's):
+`<compass-theme-editor>` (`resources/sidebar/theme_editor.{ts,html.ts,css}`).
+"‹ <name>" or Esc goes back to the menu. From the top:
 
 - Mode: automatic (sparkles), light (sun), dark (moon), hand-drawn
   glyphs. `SpaceModel::appearance()` (`SpaceAppearance`), saved as
@@ -353,7 +337,7 @@ Gradient row and sliders. From the top:
 
 What's dragged shows at once (the editor's own copy until the browser's
 space matches, or 600 ms after letting go) and goes to the browser every
-50 ms. Color helpers moved to `resources/sidebar/colors.ts`.
+50 ms. Color helpers are in `resources/sidebar/colors.ts`.
 
 **Tests:** `ThemeEditorEditsTheSpace` (palette, + and −, a dot's keys and
 the big dot taking the gradient along, the gradients' page and any color,
@@ -363,9 +347,9 @@ the wave, the dial and dark mode, Esc),
 
 ### Space icons
 
-A space can have an icon (2026-10-31, as in Arc), which its switcher button
+A space can have an icon (as in Arc), which its switcher button
 shows instead of the name's first letter: an emoji or a symbol. The menu
-lists them under the colors: "no icon" (the letter), 28 symbols and an
+lists them under "Edit theme": "no icon" (the letter), 28 symbols and an
 "Emoji" field that keeps the first character typed or picked (a whole
 grapheme, so ZWJ sequences and flags stay one; macOS's Fn E / Ctrl Cmd
 Space picker types into it).
@@ -448,8 +432,6 @@ scrolls never wait for the page's script:
 - Each space's entries keep their scroll position: the page remembers it
   when the window leaves a space, the space's preview shows its entries
   scrolled there, and the switch puts them there (the top, the first time).
-  Before, the new space's entries kept the old space's position and jumped
-  to it as the preview made way.
 - The window's name and entries (`#spacePane`, inside `#stage`, which clips
   them at the sidebar's edges) move with the fingers. The space being
   pulled in comes in next to them: a `<compass-sidebar-preview>`, which
@@ -573,7 +555,7 @@ when `space` is the window's profile's. Otherwise:
    profile's view, and the old view goes to the hidden one. The shown window
    keeps its last frame (a compositor lock) until the sidebar and the active
    page have painted, at most 750 ms. Same NSWindow, macOS Space and
-   fullscreen. See docs/design/profiles-in-place.md.
+   fullscreen. See [profiles-in-place.md](profiles-in-place.md).
 5. `LeaveForSwap()`: the old window's tabs leave as in step 6 of a switch,
    all of them, favorites' tabs included: to another window showing its
    space, else to its profile's parking window. Blank pages close. The
@@ -654,7 +636,6 @@ profile (`compass::MaybeShowFirstSpaceAtStartup()`, `startup_space.cc`):
 - Assigning a profile reloads only the page the space showed; its other tabs
   come back unloaded, and their page state is lost.
 - Entries can't move between spaces of different profiles.
-- With several profiles, upstream may show its profile picker at startup.
 
 ## Known gaps (slice 1)
 

@@ -1,7 +1,7 @@
 package datastore_test
 
-// Slice 7 (sync.md, "Slice 7 notes"): tombstone purge, idle chains, quota
-// state, schema 2, updates of purged entities, history retention.
+// Tombstone purge, idle chains, quota state, schema 2, updates of purged
+// entities, history retention (sync.md, "Server" and "History").
 
 import (
 	"context"

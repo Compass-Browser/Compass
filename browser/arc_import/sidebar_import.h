@@ -39,8 +39,9 @@ enum class ArcImportInto {
 //
 // Entries and spaces get IDs derived from Arc's (ArcDerivedId()), so the same
 // Arc data imported on two Macs gives the same entries, which merge when the
-// Macs sync instead of showing twice (docs/design/sync.md, "Slice 7 notes").
-// An ID already in use here (a second import) gets a fresh one instead.
+// Macs sync instead of showing twice (docs/design/sync.md, "First sync on a
+// device that already has spaces"). An ID already in use here (a second
+// import) gets a fresh one instead.
 std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
                                        const Profile& profile,
                                        const std::vector<Space>& spaces,

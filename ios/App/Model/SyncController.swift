@@ -28,7 +28,7 @@ final class SyncController {
   static let defaultServer = URL(string: "https://sync.example.org/v2")!
 
   /// One profile's server account: the home profile's is the chain's own
-  /// ("" here); every other profile has its own (sync.md, "Slice 5 notes").
+  /// ("" here); every other profile has its own (sync.md, "Profiles").
   final class Account {
     let profile: String
     let engine: SyncEngine

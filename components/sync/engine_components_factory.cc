@@ -63,7 +63,7 @@ class CompassConnectionManager : public syncer::SyncServerConnectionManager {
             buffer_in, buffer_out,
             signin::AccessTokenInfo(*token, now + base::Hours(1),
                                     /*id_token=*/std::string()));
-    // For the end-to-end steps (docs/design/sync-slice-2-steps.md).
+    // For the end-to-end helpers (tools/sync_e2e/README.md).
     VLOG(1) << "[compass-sync] POST " << sync_request_url_.GetPath() << " ("
             << buffer_in.size() << " bytes) -> " << response;
     return response;

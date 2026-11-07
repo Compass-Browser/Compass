@@ -1,6 +1,8 @@
 # Compass for iOS
 
-Status: M0–M8 written and tested on the Mac and in the simulator (2026-11-01); M8 syncs every profile of the chain, each in its own account. The desktop pairing QR code is on main and the first TestFlight build is uploaded. Still open: an interop run against a real desktop Compass, profiles included ("Open items" at the end).
+A native iPhone and iPad browser (SwiftUI + WKWebView) that joins the same
+sync chain as the desktop and shows the same spaces and sidebar. It has its
+own Swift sync client and no Chromium for iOS.
 
 **Working on it:**
 
@@ -8,36 +10,35 @@ Status: M0–M8 written and tested on the Mac and in the simulator (2026-11-01);
 - `tools/compass ios build` builds the app for the simulator.
 - `tools/compass ios sim [--screenshot f.png]` boots a simulator headless (no Simulator.app window), installs and launches the app.
 - `tools/compass ios gen` regenerates `Compass.xcodeproj` from `ios/project.yml`.
+- `tools/compass ios archive` makes a Release archive (below, "TestFlight").
 - The first run fetches BoringSSL (`ios/scripts/fetch_boringssl.sh`).
 - `ios/scripts/gen_protos.sh <chromium src>` regenerates the protos after a Chromium bump.
-- Tools: Xcode 27+, plus `brew install xcodegen swift-protobuf` for gen and protos only.
+- Tools: Xcode 27+ with the iOS 27 SDK, plus `brew install xcodegen swift-protobuf` for gen and protos only.
 
 ## Context
 
-Compass is an Arc-style Chromium fork for desktop. Its sync stack (on `origin/sync-main`, design in `docs/design/sync.md`) has these parts:
+The desktop's sync stack (design in `docs/design/sync.md`) has these parts:
 
 - a go-sync fork in `server/`, with the public instance at https://sync.example.org/v2;
 - Chromium's sync protocol, every type encrypted with a Nigori custom passphrase;
 - an account-less "sync chain": a 16-byte seed, HKDF → Ed25519 auth key plus a passphrase, a 12-word BIP39 recovery code, and SPAKE2 pairing codes;
-- a new `COMPASS_SPACES` type for spaces, pinned trees, favorites, Today and the archive.
+- a `COMPASS_SPACES` type for spaces, pinned trees, favorites, Today and the archive.
 
-ARCHITECTURE.md lists mobile as "later". The goal now is an iPhone browser that:
+The phone app:
 
 - uses WebKit (WKWebView, the only engine Apple allows);
 - joins the same chain as the desktop;
 - shows the same spaces and sidebar in an Arc-style phone UI.
 
-**Decisions (user, 2026-11-01):**
+**Decisions:**
 
-- **Foundation:** a native Swift app (SwiftUI + WKWebView). It has its own Swift sync client and no Chromium for iOS.
-- **v1 sync:** spaces and sidebar, passwords with an AutoFill extension, history, open tabs and the device list.
-- **Target:** iPhone first, shipped through TestFlight on a paid Apple Developer account. iPad comes later.
-
-Toolchain on the Mac mini: Xcode 27.1 with the iOS 27.1 SDK and simulators. The app builds in minutes, so it doesn't compete with the Chromium builds (`-j 7` rule).
+- **Foundation:** a native Swift app (SwiftUI + WKWebView), with its own Swift sync client.
+- **Sync:** spaces and sidebar, passwords with an AutoFill extension, history, open tabs, the device list, sent tabs and the desktop's extensions list.
+- **Target:** iPhone first, shipped through TestFlight. iPad has its own layout (below).
 
 ## Repo layout
 
-Everything lives under `ios/` in this repo. The protocol, test vectors and server stay shared with the desktop.
+Everything lives under `ios/`. The protocol, test vectors and server are shared with the desktop.
 
 ```
 ios/
@@ -46,232 +47,106 @@ ios/
     Sources/CompassCrypto/    chain, BIP39, HKDF, Ed25519 token, Nigori, SPAKE2 pairing
     Sources/SyncProto/        swift-protobuf output of Chromium's sync protos + compass_spaces_specifics.proto
     Sources/CompassSync/      engine: connection, GetUpdates/Commit, Nigori, per-type bridges, SSE notifier
-    Sources/CompassModel/     Space/SidebarNode tree (Swift port of SpaceModel invariants), GRDB store
+    Sources/CompassModel/     Space/SidebarNode tree (Swift port of SpaceModel invariants), stores
+    Sources/CompassClaude/    Claude's pure parts (claude.md)
+    Sources/CompassShared/    what the app and its extensions share
     Tests/…                   vectors from sync.md, chain_unittest.cc, bip39_unittest.cc, pairing_unittest.cc
   App/                        SwiftUI app target "Compass"
-  AutoFill/                   Credential Provider extension target
+  AutoFill/                   Credential Provider extension
+  PushService/                notification service extension (sent tabs)
+  Share/, Widgets/, SafariOpen/, Shared/   system extensions
+  UITests/
   Compass.xcodeproj
   project.yml                 XcodeGen spec (Compass.xcodeproj is generated from it, and committed)
   scripts/fetch_boringssl.sh  copies Sources/CCryptoBoringSSL from swift-crypto at a pinned tag
   scripts/gen_protos.sh       copies components/sync/protocol/*.proto from the checkout at config/chromium_version, runs protoc-gen-swift
-docs/design/ios.md            design doc (this plan, kept current like sync.md)
 ```
-
-The `tools/compass` CLI gets `compass ios build|test|sim` subcommands next to the existing ones in `tools/compass_tool/`.
 
 **Dependencies (SwiftPM):**
 
-- swift-protobuf;
-- GRDB (SQLite with FTS5, for history search and sync metadata);
-- BoringSSL, as swift-crypto vendors it: every symbol is prefixed `CCryptoBoringSSL_` and it's laid out for SwiftPM. swift-crypto doesn't export it as a product, so `fetch_boringssl.sh` copies it at a pinned tag (5.0.3) instead of us committing 13 MB of C. It gives the same SPAKE2 (`spake25519.cc`), scrypt (`EVP_PBE_scrypt`) and deterministic Ed25519 as the desktop, so the desktop test vectors pass byte for byte. CryptoKit's Ed25519 is randomized, and CryptoKit has no scrypt or SPAKE2. (Building from Chromium's `third_party/boringssl` would need CMake and an xcframework; this needs neither.)
+- swift-protobuf, pinned to exactly the generator's version (1.39.0);
+- BoringSSL, as swift-crypto vendors it: every symbol is prefixed `CCryptoBoringSSL_` and it's laid out for SwiftPM. swift-crypto doesn't export it as a product, so `fetch_boringssl.sh` copies it at a pinned tag (5.0.3) instead of us committing 13 MB of C. It gives the same SPAKE2 (`spake25519.cc`), scrypt (`EVP_PBE_scrypt`) and deterministic Ed25519 as the desktop, so the desktop test vectors pass byte for byte. CryptoKit's Ed25519 is randomized, and CryptoKit has no scrypt or SPAKE2. (Building from Chromium's `third_party/boringssl` would need CMake and an xcframework; this needs neither.) The package needs `cxxLanguageStandard: .cxx17`, because BoringSSL's C++ doesn't build with the default.
 - CryptoKit and CommonCrypto for HKDF, AES-GCM, AES-CBC and HMAC.
+- The system's `SQLite3` (with FTS5) for history.
 
-## Sync client (CompassSync)
+## Sync client
 
-It speaks the same wire protocol as desktop Chromium against `server/`, and needs no server change for v1.
+It speaks the same wire protocol as desktop Chromium against `server/`.
 
-- **Identity.** The phone joins an existing chain in v1. Creating a chain from the phone (writing the Nigori node) is deferred to after v1.
+- **Identity.** The phone joins an existing chain; creating a chain from the phone isn't offered.
   - Joining by pairing: the phone is side B of the pairing protocol in sync.md "Pairing API". The framing, SPAKE2 names, HKDF infos and the `ad` strings are reused exactly.
   - Joining by recovery code: the 12 words, with BIP39 autocomplete.
-  - The seed is stored in the Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`), in a shared access group so the AutoFill extension can read the passwords.
+  - The seed is stored in the Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`), in a shared access group so the extensions can read it.
 - **Auth.** Each request carries `Authorization: Bearer base64url(HEX(ts)|HEX(sig)|HEX(pubkey))`, as desktop's `chain.cc` builds it.
-- **Engine.** It follows `components/sync/engine` without the parts we don't need:
-  - a cache GUID per install, and the store birthday;
-  - per-type progress markers, plus a GetUpdates loop (`GU_TRIGGER`/`PERIODIC`);
-  - commits in batches;
-  - client tag hashes computed as Chromium does (`ClientTagHash::FromUnhashed`: base64(SHA1(serialized-empty-specifics-prefix + tag))), so entities match the desktop's;
-  - `ClientCommand` poll intervals honored;
-  - on CONFLICT, a re-download and a reapply, with the server winning (the same "last commit wins" as desktop).
-  - Sync metadata goes in the GRDB store, kept separate from the model tables.
-- **Nigori.**
-  - Download `NIGORI`.
-  - Derive the key with scrypt (N=8192, the salt from `custom_passphrase_key_derivation_salt`; see `components/sync/model/crypto/nigori.cc`). The passphrase comes from HKDF(seed, "compass-sync-passphrase").
-  - Decrypt the keybag. Then decrypt `EncryptedData` (AES-128-CBC + HMAC-SHA256, key name = `Nigori::GetKeyName`) and encrypt with the default key.
-  - Passwords also carry their nested `password_specifics.encrypted`.
-  - Test vectors: a fixture exported by a small Chromium unit test on the desktop branch. A real chain on the local `compass sync-server` covers the end-to-end case.
 - **Types and bridges:**
 
   | Type | Direction | Notes |
   |---|---|---|
-  | NIGORI | read | write later (chain creation from the phone) |
+  | NIGORI | read | the phone never writes it |
   | DEVICE_INFO | both | own entry, form factor phone, so the desktop's device list shows it |
-  | COMPASS_SPACES | both | apply rules from sync.md: unknown parent parked at the section root, cycles to the root, invalid placement to the root, folder delete = subtree tombstones, UniquePosition ordering (Swift port of `components/sync/base/unique_position.cc`), Today commit throttle of 10 s, archive cap of 30 days |
+  | COMPASS_SPACES | both | the apply rules from sync.md |
   | PASSWORDS | both | Keychain-backed store shared with the AutoFill extension |
   | HISTORY + HISTORY_DELETE_DIRECTIVES | both | the phone's visits go up; FTS search in the command bar |
-  | SESSIONS | both | "Tabs on <Mac>" in the command bar; the phone's Today shows on the desktop through its existing "Tabs on other devices" |
+  | SESSIONS | both | "Tabs on <Mac>" in the command bar; the phone's Today shows on the desktop through its "Tabs on other devices" |
+  | SEND_TAB_TO_SELF | both | tabs sent to the phone (send-tab.md) |
+  | EXTENSIONS | read | the desktop's extensions, offered for install |
 
-- **Freshness.**
-  - In the foreground: SSE from `GET /v2/compass/events?client_id=<cache guid>` (slice 6, `event: changed`, data `{"types":[…]}`) triggers a GetUpdates for those types.
-  - On launch and on returning to the foreground: a refresh of every type.
-  - In the background: a `BGAppRefreshTask` for a best-effort poll.
-  - APNs push (it needs a server-side sender) comes after v1.
+The parts were built as milestones M0–M8, which the code still refers to:
+M0 scaffold, M1 crypto and chain, M2 engine core, M3 browser shell and
+spaces, M4 Today and archive, M5 history and sessions, M6 passwords and
+AutoFill, M7 freshness, M8 per-profile accounts.
 
-## Data model (CompassModel)
+### Crypto and chain (M1)
 
-This is a Swift port of the desktop model in `browser/sidebar/` (`SidebarNode`, `SpaceModel`, `SpaceModel::CanMove`):
-
-- spaces (name, theme: color, gradient, intensity, grain, mode; icon, profile UUID, archive delay) and nodes (TAB, FOLDER, SPLIT; PINNED, TODAY, FAVORITES, ARCHIVE);
-- the same invariants: folders only in Pinned, splits hold only tabs, and a split of one becomes a tab;
-- the same node UUIDs as desktop, which are also the sync client tags.
-
-Live state is separate. A `LiveTabRegistry` maps node → WKWebView, keeps at most 6–8 web views live with LRU unloading, and keeps a snapshot thumbnail for each.
-
-**Profiles.** Each `profile_uuid` gets its own `WKWebsiteDataStore(forIdentifier:)`, so cookies are separated as on desktop. Space ↔ profile follows the account the space syncs in. Since M8 every profile of the chain syncs in its own account (desktop slice 5).
-
-## UI (SwiftUI, Arc-inspired, original implementation)
-
-- **Browser screen.**
-  - The web view runs full-bleed, with a slim bottom bar: an address pill, back/forward and a "sidebar" button.
-  - The bottom bar hides on scroll down and shows on scroll up.
-  - Swiping horizontally on the bar moves between the space's Today/Pinned entries, as in Safari: the page and the bar follow the finger and the neighbor (its last snapshot, or its icon and title when it isn't loaded, and its bar) slides in beside them. Let go past a third of the screen, or flick past half, and it takes over; otherwise both spring back. Past the space's ends the swipe only gives a little.
-  - Swiping up on the bar opens, by where the finger starts: left of the address pill (back, forward) the tab picker, on the pill the sidebar (both follow the finger), right of it (key, new tab, menu) the command bar for a new tab. The pill's frame on screen is measured; thirds of the screen until it is.
-- **Tab picker** (`TabPicker`): the loaded tabs only, as cards with their snapshot (taken as a tab is left and as the picker opens, in memory), least recently shown at the left. Cards left of the centered one stack behind it; cards to its right lie on top. A tap shows a tab, a flick up closes it (a Today entry goes to the archive, anything else unloads), a drag down closes the picker. One button: + (new tab).
-- **Sidebar screen** (the home of the app):
-  - Spaces sit side by side and are paged by swipe, each tinted with its space color.
-  - From top to bottom: a favorites grid (icons), the pinned tree (nested folders that collapse), Today (newest first), and a "+ New tab" button.
-  - Long press gives pin/unpin, move to folder or space, rename, archive and delete. Drag reorders entries.
-  - The archive opens from the space menu.
-- **Command bar** (a sheet from the address pill or "+"):
-  - It searches URLs, open entries in every space, pinned entries, history (FTS) and tabs on other devices.
-  - The search engine is configurable.
-- **Splits** on the phone open as one entry with a pane switcher (segmented control). The desktop-style side-by-side view waits for iPad.
-- Auto-archive runs on the synced `last_active_time`, with the same timers as desktop.
-- **Onboarding and settings:**
-  - "Join with a Mac": scan the QR or type `<slot>-<6 digits>` plus the server URL, defaulting to the public instance. Then "Use a recovery code".
-  - Settings: devices, a toggle per type, the server URL, "Leave sync", and the recovery code (behind Face ID).
-
-## Passwords and AutoFill
-
-- **In the app:** a WKUserScript finds login forms and fills from the synced store, and offers to save or update after a submit, which commits to PASSWORDS. Matching follows Chromium's `signon_realm` and PSL rules (simplified: exact realm plus affiliated subdomains).
-- **System-wide:** the AutoFill target is an `ASCredentialProviderViewController`.
-  - It shares the app group and the Keychain access group, and reads from the same store.
-  - The app keeps `ASCredentialIdentityStore` up to date after each sync, so QuickType suggestions work in Safari and other apps.
-
-## Desktop and server changes needed
-
-They are small and go on `sync-main`:
-
-1. The desktop's "Add a device" shows a QR code of `compass-pair://<server host>/<slot>-<digits>` (sync.md already calls for this "for phones later").
-2. The desktop's device list and "Tabs on other devices" handle a phone `DEVICE_INFO`/`SESSIONS` entry. Check this; it probably works already.
-3. No server change for v1. Server logs during the first phone runs confirm it.
-
-## Milestones (each one a branch `ios/m<n>-…`, merged to main when it passes)
-
-0. **Scaffold.**
-   - The `ios/` tree, the Xcode project, the CompassKit package, `build_boringssl.sh`, `gen_protos.sh` and `compass ios` CLI subcommands.
-   - An empty WKWebView app that runs in the simulator.
-1. **Crypto and chain.**
-   - Seed and BIP39, HKDF, deterministic Ed25519 token, all checked against the vectors in sync.md.
-   - SPAKE2 pairing as side B, checked against the `PairingKeysTest` vectors.
-   - Nigori scrypt and decrypt, checked against a desktop fixture.
-2. **Sync engine core.**
-   - Connection, GetUpdates and Commit, Nigori, and DEVICE_INFO against the local `compass sync-server` (Podman `compass-sync`).
-   - Done when the phone appears in the desktop's device list.
-3. **Browser shell and spaces.**
-   - The model port, GRDB store and COMPASS_SPACES bridge (read, then write).
-   - The sidebar screen, the browser screen and the live-tab registry.
-4. **Today, archive, command bar.**
-   - Throttled Today commits, auto-archive, profile data stores and splits.
-5. **History and sessions.**
-   - FTS search and "Tabs on <Mac>".
-6. **Passwords and AutoFill.**
-   - The in-app autofill script, the save prompt and the extension.
-7. **Freshness and polish.**
-   - SSE, BGAppRefresh, Face ID for the recovery code, the app icon and branding from `tools/branding`.
-   - Then a TestFlight build.
-
-Desktop QR pairing (desktop item 1) runs in parallel with M2.
-
-## Verification
-
-- **Unit tests:** `compass ios test` (= `swift test` in `ios/CompassKit`). It covers the crypto vectors, the UniquePosition port, the model invariants (ported from the SpaceModel unit tests) and the apply rules: unknown parent, cycle, invalid placement, delete subtree. Following the targeted-tests rule, each milestone runs only its own suites.
-- **Engine against the server:** an XCTest target starts the repo's Go server on a random port and checks a two-client round trip: a Swift client ↔ another Swift client for each type.
-- **Interop with the desktop:**
-  1. Pair the simulator, then a device, with a desktop Compass on `sync-main`, on the public server or the local server.
-  2. On the desktop, create a pinned folder and tab, then check them on the phone.
-  3. On the phone, open a Today tab, then check it on the desktop as an unloaded entry.
-  4. Save a password on the phone, then check it on the desktop.
-  5. Check history both ways.
-  6. Check that the phone appears in the device list and that "Tabs on iPhone" works.
-- **UI:** run in the simulator headless (`xcrun simctl`, with screenshots through `simctl io screenshot`), never in front of the user (the focus rule). Device runs and TestFlight are done by hand by the user.
-- **Server:** its Go tests don't change. Watch the logs on the first runs for unknown fields or quota errors.
-
-## Risks
-
-- **Protocol drift and hidden engine behavior:** the Swift engine re-implements parts of `components/sync`. To keep it small: only the types listed, server wins on conflicts, and the desktop's apply code as the reference.
-- **Nigori details:** the keybag format and key rotation. The fixture tests catch format mismatches, and "Reset sync" on the desktop must send the phone back to the join screen.
-- **iOS background limits:** freshness while the app is in the background is best-effort until APNs.
-- **Apple review:** an alternative browser is fine with WKWebView. The default-browser entitlement is an optional request after v1.
-
-## Milestone notes
-
-### M0 (scaffold), 2026-11-01
-
-- **`ios/CompassKit`.** It holds the targets CCryptoBoringSSL, CompassCrypto, SyncProto, CompassModel and CompassSync. `swift test` passes: the chain vectors from sync.md, and checks of each data type's EntitySpecifics field number.
-  - The package needs `cxxLanguageStandard: .cxx17`, because BoringSSL's C++ doesn't build with the default.
-- **SyncProto.** It holds 96 generated files (2.4 MB) from 156.0.8078.48 with protoc-gen-swift 1.39.0. SwiftProtobuf is pinned to exactly 1.39.0 to match the generator.
-  - The Compass files are `components/sync/protocol/compass_spaces_specifics.proto` and the EntitySpecifics patch. `gen_protos.sh` reads them from the tree, or from `origin/sync-main` until that branch is merged.
-  - The real proto is the reference, not this doc's sketch. It uses int32 values, not proto enums (section 1 PINNED … 4 ARCHIVE; type 1 TAB, 2 FOLDER, 3 SPLIT; 0 = unset), and `UniquePosition` messages, not bytes.
-- **App.** The bundle ID is `it.cipi1965.compass`. Team `4M33B5HNDS` since 2026-11-01 (see "Open items", TestFlight).
-  - The icon is the desktop's Icon Composer file (`assets/Compass.icon`), used as is.
-  - M0 is one WKWebView with an address bar, run in the simulator (iPhone 18 Pro, iOS 27.1).
-
-### M1 (crypto and chain), 2026-11-01
-
-The tests pass on the desktop's vectors and Chromium's own, byte for byte. Everything is in `CompassCrypto`, apart from the pairing state machine and the cryptographer, which are in `CompassSync`.
+Everything is in `CompassCrypto`, apart from the pairing state machine and the cryptographer, which are in `CompassSync`. The tests pass on the desktop's vectors and Chromium's own, byte for byte.
 
 - **`Chain`.**
-  - Seed → auth key, chain ID and passphrase; per-profile auth keys; recovery code ↔ seed.
+  - Seed → auth key, chain ID and passphrase; per-profile auth keys and passphrases; recovery code ↔ seed.
   - The access token is deterministic Ed25519 through BoringSSL, and the sync.md token vector matches.
 - **`Bip39`.** A port of bip39.cc with the same wordlist; its SHA-256 is checked when it's generated.
 - **Pairing (side B).**
   - `Spake2` wraps BoringSSL's SPAKE2. `PairingKeys` checks against the PairingKeysTest vectors.
-  - `PairingCode` and `PairingInvite` are new. The invite is the QR payload `compass-pair:?server=<url>&code=<slot>-<digits>`, which the desktop has yet to show (desktop item 1).
+  - `PairingCode` and `PairingInvite`. The invite is the QR payload `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` that the desktop's "Add a device" shows (sync.md, "Pairing QR code").
   - `PairingJoiner` is one async function in place of the desktop's callbacks. `NetworkPairingTransport` uses URLSession.
   - The tests run against an in-memory relay with a scripted Mac (side A): right code, wrong code (the Mac closes with `mismatch`), deny, bad code, unknown slot and used code.
 - **`Nigori`.**
-  - PBKDF2 and scrypt derivations, the key name, and encrypt/decrypt.
+  - PBKDF2 and scrypt derivations (scrypt N=8192, the salt from `custom_passphrase_key_derivation_salt`; see `components/sync/model/crypto/nigori.cc`), the key name, and encrypt/decrypt (AES-128-CBC + HMAC-SHA256).
   - Chromium's nigori_unittest goldens pass: the key name, both MAC forms, and the PBKDF2 and scrypt keys.
-  - It writes with the MAC over the ciphertext only, as Chromium 156 does by default.
+  - It writes with the MAC over the ciphertext only, as Chromium does by default.
 - **`Cryptographer`.**
   - It opens a custom-passphrase NIGORI's keybag (a serialized `EncryptionKeys`) and keeps every key, so older data stays readable. The default key is the keybag's `key_name`.
   - It encrypts and decrypts `EntitySpecifics` with the type's empty field set.
-  - It can also make a new chain's NIGORI. The engine tests need that, and so will "Start sync" on the phone.
-- **Still open:** no desktop-made NIGORI fixture yet. The M2 interop run (the phone joining a desktop chain) covers it.
+  - It can also make a new chain's NIGORI, which the engine tests need.
 
-### M2 (sync engine core), 2026-11-01
+### Engine (M2)
 
-`CompassSync/Engine` holds the engine.
+`CompassSync/Engine` follows `components/sync/engine` without the parts the phone doesn't need.
 
 - **`SyncEngine` (an actor).**
   - Downloads every registered type through GetUpdates with progress markers. The first time it uses origin `NEW_CLIENT`, as the server's setup needs.
   - Commits pending changes in batches of 90, or of the server's `max_commit_batch_size`.
-  - Honors `ClientCommand`'s poll interval and keeps the store birthday.
-- **Entities.** They are keyed by client tag hash (`ClientTagHash`, checked against Chromium's ClientTagHashTest vectors).
-- **Encryption.** Everything is encrypted except NIGORI and DEVICE_INFO, as on the desktop. HISTORY is encrypted too (sync.md, "Slice 2b").
-- **Nigori.**
-  - It reads the chain's NIGORI first and opens it with the passphrase.
-  - A chain with an empty NIGORI is `chainNotStarted` for a joining device. A first device (`createChainIfEmpty`) commits a new custom-passphrase NIGORI over the server's root entity.
+  - Honors `ClientCommand`'s poll interval and keeps the store birthday and a cache GUID per install.
+- **Entities.** They are keyed by client tag hash, computed as Chromium does (`ClientTagHash::FromUnhashed`), checked against Chromium's ClientTagHashTest vectors.
+- **Encryption.** Everything is encrypted except NIGORI and DEVICE_INFO, as on the desktop. HISTORY is encrypted too (sync.md, "History"). Passwords also carry their nested `password_specifics.encrypted`.
+- **Nigori.** It reads the chain's NIGORI first and opens it with the passphrase. A chain with an empty NIGORI is `chainNotStarted` for a joining device. A first device (`createChainIfEmpty`, tests only) commits a new custom-passphrase NIGORI over the server's root entity.
 - **Conflicts.** The remote wins, except that a local edit beats a remote deletion and re-creates the entity (Chromium's default `ResolveConflict`). A commit `CONFLICT` triggers a fresh download, then another commit round (at most 3).
-- **Metadata.** `SyncMetadata` (cache GUID, birthday, NIGORI, progress tokens, entity metadata with pending changes) is saved as one binary plist per profile by `FileSyncMetadataStore`. It's small, and GRDB comes with history in M5.
+- **Metadata.** `SyncMetadata` (cache GUID, birthday, NIGORI, progress tokens, entity metadata with pending changes) is saved as one binary plist per account by `FileSyncMetadataStore`, separate from the model.
 - **Bridges.** A `DataTypeBridge` gives the client tag from specifics, applies remote changes, supplies local data for the initial merge, and gets the cryptographer.
-  - `DeviceInfoBridge` writes the phone's entry: tag `DeviceInfo_<cache guid>`, OS iOS, form factor phone, a 24 h pulse.
-- **Server tests.** `EngineServerTests` run two Swift clients on one chain against the real Go server (`server/` on sync-main, on a random port with its own SQLite file).
-  - They cover: a round trip both ways with updates and a deletion; both devices in DEVICE_INFO; a joiner on an unstarted chain; a wrong passphrase; remote wins; a local edit beating a remote deletion; the initial merge; and no plaintext in the server's database.
-  - Run them with `tools/compass ios test --sync-server <binary|build>`. Without it they're skipped.
-- **Still open:** the desktop interop run (the phone or simulator joining a desktop chain on sync-main) needs the MacBook. The desktop's QR code is still to do.
+  - `DeviceInfoBridge` writes the phone's entry: tag `DeviceInfo_<cache guid>`, OS iOS, form factor phone, a 24 h pulse, and the send-tab-to-self receiving fields.
+- **Server tests.** `EngineServerTests` run two Swift clients on one chain against the real Go server (`server/`, on a random port with its own SQLite file): a round trip both ways with updates and a deletion; both devices in DEVICE_INFO; a joiner on an unstarted chain; a wrong passphrase; remote wins; a local edit beating a remote deletion; the initial merge; and no plaintext in the server's database. Run them with `tools/compass ios test --sync-server <binary|build>`. Without it they're skipped.
 
-### M3 (browser shell and spaces), 2026-11-01
+### Spaces (M3, M4)
 
-- **CompassModel.** It ports the desktop's sidebar:
+- **CompassModel** ports the desktop's sidebar (`browser/sidebar/`: `SidebarNode`, `SpaceModel`, `SpaceModel::CanMove`):
   - `SpaceStore` holds the spaces in `UniquePosition` order and the favorites root.
-  - `Space` has pinned, Today and archive roots. `SidebarNode` is a root, folder, tab or split.
-  - The invariants are the desktop's: folders nest in Pinned **and Today** (the desktop's roots accept both), splits hold at most two tabs and a split of one is dissolved, favorites hold only tabs, and roots don't move.
+  - `Space` has pinned, Today and archive roots, and a theme (below). `SidebarNode` is a root, folder, tab or split. Node UUIDs are the desktop's, and are also the sync client tags.
+  - The invariants are the desktop's: folders nest in Pinned and Today (the desktop's roots accept both), splits hold at most two tabs and a split of one is dissolved, favorites hold only tabs, and roots don't move.
   - Local edits are reported as a `SpaceStoreChange` (puts, deletes, and Today churn). `applyingRemote` keeps synced changes from echoing.
   - Restoring from the archive makes fresh IDs, as the desktop's `Unarchive` does.
   - The store is saved as one JSON snapshot.
 - **UniquePosition.** A byte-for-byte port of Chromium's, including the order-preserving compression. Chromium's insert scenarios and compressed-ordering tests are ported.
-- **CompassSpacesBridge.** It follows the desktop bridge's wire rules, summarized from `compass_spaces_sync_bridge.cc` on sync-main:
+- **The proto.** `compass_spaces_specifics.proto` is the reference. It uses int32 values, not proto enums (section 1 PINNED … 4 ARCHIVE; type 1 TAB, 2 FOLDER, 3 SPLIT; 0 = unset), and `UniquePosition` messages, not bytes.
+- **CompassSpacesBridge.** It follows the desktop bridge's wire rules (`compass_spaces_sync_bridge.cc`):
   - **Tags and positions.**
     - The client tag is the lowercase UUID; `ClientTagHash` gives `C8HbbahHD/9jkO3SUxgcFwf7lVU=` for `0f6d3f4e-1111-4222-8333-444444444444`, as on the desktop.
     - Position suffixes are base64(SHA1(client tag hash)).
@@ -286,37 +161,18 @@ The tests pass on the desktop's vectors and Chromium's own, byte for byte. Every
     - Cycles and invalid placements go to the section root, and the fix-up is committed.
     - A remote delete re-roots surviving children. Splits are normalized.
     - Archive entries are section 4, with a split's panes as children.
+    - A remote close of the entry on screen keeps it: it's re-created under fresh UUIDs, so no device re-creates a deleted UUID (`recreateKeptEntries`), and `onReplaced` moves the live WKWebView and the selection to the new ID, so the page isn't reloaded (`theShownEntrySurvivesARemoteClose`).
   - **Initial merge.**
     - Favorites are deduped by URL.
     - An untouched local "Home" (empty Pinned) folds its Today into the chain's first space.
     - Today is deduped by URL.
     - Local spaces go after the chain's.
-  - **Not yet:** the desktop's "keep the entry shown in the focused window" rule on a remote close. Here the entry just closes.
-- **App.**
-  - `AppModel`: store, selection, persistence, and the auto-archive timer.
-  - `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID. Links that open a new window become Today tabs.
-  - `SyncController`: Keychain seed and server; joining by pairing code (typed, or from the Mac's QR, `compass-pair:` URL scheme) or by recovery code; cycles on launch, on foreground, 2 s after local edits, and on the server's poll interval.
-  - **Screens.**
-    - **Sidebar:** the spaces paged by swipe and tinted with their color; favorites grid, pinned tree and Today; context menus for pin, unpin, archive, move to a space, split with, favorite, rename and delete; a pinned tab's or favorite's pinned URL ("Use This Page as Pinned URL", "Back to Pinned URL"; closing goes back to it, see sidebar.md); the archive sheet.
-    - **Browser:** a full-bleed web view; a bottom bar with back, address pill, forward and sidebar; a swipe on the bar steps between entries; a pane picker for splits.
-    - **Command bar:** search or URL (DuckDuckGo), and switching to open, pinned or favorite entries.
-    - **Settings:** sync status, devices, recovery code (behind Face ID or passcode), leave, and joining.
-- **Verified.**
-  - Two-device sidebar tests on the real server: a full tree (folders, nested folder, split, favorites, two spaces) arrives identical; a reorder, rename, move and delete come back; no echo commits afterwards; archive moves and a restore go across.
-  - In the simulator, a debug build launched with `-CompassServer <url> -CompassJoinRecovery "<words>"` joined a chain seeded by `SeedForSimulator` (a test that plays "the Mac") and showed its sidebar and favorites. `-CompassShow <title>` opened an entry in the browser.
+- **Auto-archive** runs on the synced `last_active_time` (a 60 s timer in `AppModel`), with the desktop's timers and a 30-day archive cap.
+- **Tests:** two-device sidebar tests on the real server: a full tree (folders, nested folder, split, favorites, two spaces) arrives identical; a reorder, rename, move and delete come back; no echo commits afterwards; archive moves and a restore go across.
 
-### M4 (Today, archive, command bar), 2026-11-01
+### History and sessions (M5)
 
-Most of M4 shipped with M3: the Today throttle, auto-archive on the synced `last_active_time` (a 60 s timer in `AppModel`), the 30-day archive cap, splits with a pane picker, per-profile data stores, and the command bar. This milestone adds the desktop's rule for a remote close of the entry on screen:
-- The entry stays and is re-created under fresh UUIDs, so no device re-creates a deleted UUID (`recreateKeptEntries`).
-- `onReplaced` moves the live WKWebView and the selection to the new ID, so the page isn't reloaded.
-- It's covered by `theShownEntrySurvivesARemoteClose`.
-
-The command bar's history and "Tabs on <Mac>" come with M5.
-
-### M5 (history and sessions), 2026-11-01
-
-- **`HistoryStore`** (CompassModel). SQLite (the system's `SQLite3`) with an FTS5 index over URL and title.
+- **`HistoryStore`** (CompassModel). SQLite with an FTS5 index over URL and title.
   - A visit is keyed by (device, visit time in Windows-epoch µs).
   - History is kept 90 days.
 - **`HistoryBridge`.** It follows Chromium's HistorySyncBridge.
@@ -331,20 +187,13 @@ The command bar's history and "Tabs on <Mac>" come with M5.
   - "Clear History" sends a time-range directive with a random 8-character tag, as Chromium does. Directives aren't deleted after use.
 - **`SessionsBridge`.**
   - Each device has a header (tag = its cache GUID) and one tab entity per tab (tag `"<guid> <tab node id>"`).
-  - The phone publishes its Today tabs as one window. Only changed tabs and the header are committed; tabs that went away are deleted.
+  - The phone publishes its Today tabs as one window, on every cycle. Only changed tabs and the header are committed; tabs that went away are deleted.
   - Tab node IDs per sidebar UUID are saved, so they stay stable across launches.
   - Other devices' sessions untouched for 14 days are hidden.
-- **App.**
-  - Visits are recorded when a page finishes loading.
-  - The command bar shows history matches ("Recently visited" when empty) and "Tabs on <device>".
-  - Settings has "Clear History".
-  - SESSIONS is published on every cycle.
-- **Server tests.**
-  - History both ways, a title update, and engine metadata staying empty.
-  - A delete directive from the phone clearing the Mac's history.
-  - Sessions both ways, a closed tab disappearing, and no re-commit of unchanged tabs.
+- **App.** Visits are recorded when a page finishes loading. The command bar shows history matches ("Recently visited" when empty) and "Tabs on <device>". Settings has "Clear History".
+- **Server tests:** history both ways, a title update, and engine metadata staying empty; a delete directive from the phone clearing the Mac's history; sessions both ways, a closed tab disappearing, and no re-commit of unchanged tabs.
 
-### M6 (passwords and AutoFill), 2026-11-01
+### Passwords and AutoFill (M6)
 
 - **Wire format.** It follows Chromium's PasswordSyncBridge and data_type_worker.cc:
   - `password.encrypted` holds the serialized `PasswordSpecificsData`, and `encrypted_notes_backup` its notes.
@@ -356,89 +205,95 @@ The command bar's history and "Tabs on <Mac>" come with M5.
 - **Storage.** `KeychainPasswordStore` keeps one item per credential, holding the serialized data. The access group `$(AppIdentifierPrefix)it.cipi1965.compass.shared` is shared with the extension, with a fallback to the app's own Keychain when the build isn't signed with the group (simulator).
 - **In pages.**
   - The `PasswordScript` user script runs in its own content world. It reports login forms and submitted credentials (on submit, a button click, Enter, or pagehide) and fills on request.
-  - The browser bar shows a key menu when the page has a login form and saved logins match (same realm, or a parent or child host).
+  - The browser bar shows a key menu when the page has a login form and saved logins match (same realm, or a parent or child host: a simplified form of Chromium's `signon_realm` and PSL rules).
   - A banner offers Save, Update, Never for This Site, or Not Now.
 - **Settings → Passwords**, behind Face ID or the passcode.
-- **AutoFill extension** (`ios/AutoFill`, a credential-provider UI).
+- **AutoFill extension** (`ios/AutoFill`, an `ASCredentialProviderViewController`).
   - It shows a suggested list for the requesting site and fills from QuickType without UI.
-  - The app keeps `ASCredentialIdentityStore` current after every change. The user turns it on in iOS Settings → Passwords → AutoFill.
+  - The app keeps `ASCredentialIdentityStore` current after every change, so QuickType suggestions work in Safari and other apps. The user turns it on in iOS Settings → Passwords → AutoFill.
   - Device builds need a team with the AutoFill credential provider capability and the shared Keychain group (`App/Compass.entitlements`, `AutoFill/AutoFill.entitlements`).
-- **Verified.**
-  - Server test: a save on the Mac arrives on the phone; an update and a deletion come back; neither the password nor the domain is readable on the server.
-  - Simulator: a debug run filling and submitting a local test login page shows the save banner.
+- **Tests:** a save on the Mac arrives on the phone; an update and a deletion come back; neither the password nor the domain is readable on the server.
 
-### M7 (freshness and polish), 2026-11-01
+### Freshness (M7)
 
-- **`SyncNotifier`.** The slice 6 push stream: `GET <server>/compass/events?client_id=<cache guid>`, signed like `/command/`.
+- **`SyncNotifier`.** The server's push stream (sync.md, "Change notifications"): `GET <server>/compass/events?client_id=<cache guid>`, signed like `/command/`.
   - It parses event streams per the HTML spec (LF, CR or CRLF; comments; a 64 KiB line cap).
   - It does a full refresh on every connect, and reconnects with backoff from 1 s up to 60 s.
-  - The app holds it only while active; a `changed` event triggers a cycle 0.3 s later.
-  - The server poll (15 min by default since slice 6) and `BGAppRefreshTask` (`it.cipi1965.compass.refresh`, at least 15 min apart, best effort) cover the rest.
+  - The app holds it only while active; a `changed` event (data `{"types":[…]}`) triggers a cycle 0.3 s later.
+  - The server poll (15 min by default) and `BGAppRefreshTask` (`it.cipi1965.compass.refresh`, at least 15 min apart, best effort) cover the rest.
+- Cycles also run on launch, on returning to the foreground, and 2 s after local edits.
 - **Pairing links.** `compass-pair:` links (the system camera scanning the Mac's QR) open Settings → Join with the server and code filled in, and start joining.
-- **Signing in the simulator.** `compass ios build/sim` now sign simulator builds ad hoc. Unsigned builds get no application identifier, so the chain's Keychain items didn't survive a reinstall: sync came back off.
-- **Verified in the simulator.**
-  - After a relaunch the app keeps its chain and syncs.
-  - With the app open, a space added by the "Mac" (`SeedForSimulator` with `COMPASS_SEED_PUSH=1`) appeared within about 3 s, with no relaunch.
+- **Signing in the simulator.** `compass ios build/sim` sign simulator builds ad hoc. Unsigned builds get no application identifier, so the chain's Keychain items don't survive a reinstall.
 
-### M8 (per-profile accounts), 2026-11-01
+### M8: per-profile accounts
 
-The phone syncs every profile of the chain, each in its own account, as the desktop's slice 5 does, and shows all their spaces in one sidebar.
+The phone syncs every profile of the chain, each in its own account, as the desktop does (sync.md, "Profiles"), and shows all their spaces in one sidebar.
 
-- **Keys.** `Chain.passphrase(profileUUID:)` = base64 HKDF(seed, "compass-sync-passphrase:" + uuid), next to `authKey(profileUUID:)`. sync.md's slice 5 vectors (account ID and passphrase) pass in `ChainTests.profileAccountVectors`.
+- **Keys.** `Chain.passphrase(profileUUID:)` = base64 HKDF(seed, "compass-sync-passphrase:" + uuid), next to `authKey(profileUUID:)`. sync.md's profile account vectors ("Identity": account ID and passphrase) pass in `ChainTests.profileAccountVectors`.
 - **Profile list.** `ChainProfile` (CompassSync) mirrors `profile_list.h`. It comes from the home account's `CompassProfile` entities (the home bridge's mirror), or from pairing message 4's `"profiles"` (`PairingJoiner.Result.joined(seed:profiles:)`, parsed like `ChainProfilesFromValue()`).
   - A pairing join starts every account at once. A recovery-code join starts the home account; the others start when its first sync brings the list (`SpaceDirectory.onProfilesChanged`).
   - Home UUID: the entity marked home, the smallest of several (the desktop's rule for two homes). It goes into `SpaceStore.homeProfileUUID`, and the home's spaces carry it in `profile_uuid`, as the desktop's do.
   - The phone never writes, creates or deletes chain profiles.
-- **Accounts.** `SyncController.Account` per profile: its own engine, metadata file, cache GUID, NIGORI (its own passphrase), bridges (spaces, DEVICE_INFO, history, delete directives, sessions, passwords) and `SyncNotifier` stream, as each desktop profile runs its own. The home's files keep their pre-M8 names; the others live in `Profiles/<uuid>/`. A cycle runs the home first, then the others. DEVICE_INFO goes in every account, so each profile's device list on the Mac shows the phone; Settings shows the home's list.
-- **`SpaceDirectory`** (CompassSync), the phone's SpaceDirectory: one `SpaceStore`, one `CompassSpacesBridge` per account, and who owns what.
+- **Accounts.** `SyncController.Account` per profile: its own engine, metadata file, cache GUID, NIGORI (its own passphrase), bridges and `SyncNotifier` stream, as each desktop profile runs its own. The home's files keep their original names; the others live in `Profiles/<uuid>/`. A cycle runs the home first, then the others. DEVICE_INFO goes in every account, so each profile's device list on the Mac shows the phone; Settings shows the home's list. The SSE stream is one per account, not multiplexed, which matches the desktop.
+- **`SpaceDirectory`** (CompassSync): one `SpaceStore`, one `CompassSpacesBridge` per account, and who owns what.
   - A space belongs to the bridge of its profile UUID; home spaces (empty UUID or the home's) and profiles without an account here go to the home's. Nodes follow their space.
-  - **Favorites are per profile**, as on the desktop (each profile's `SpaceList` has its own): `SpaceStore.favorites` is the home's, `favorites(forProfile:)` the others' (root ID `favorites:<uuid>`). A space page shows its profile's favorites.
+  - **Favorites are per profile**, as on the desktop: `SpaceStore.favorites` is the home's, `favorites(forProfile:)` the others' (root ID `favorites:<uuid>`). A space page shows its profile's favorites.
   - Local changes go to every bridge; each commits only what it owns. After any change, local or remote, `reconcile()` has each bridge give up (delete from its account) what another owns now. A node still waiting for its space isn't given up.
   - **Cross-account order.** The store keeps every profile's spaces in one `UniquePosition` order, so a move puts a space between its neighbours' positions whatever their accounts are. That is what the desktop's `GetDirectoryOrder()` + `SortDirectoryByPositions()` do with a registry; the phone needs neither.
   - **Space moved between profiles** (the desktop's `MoveSpaceToProfile()`). `SpaceStore.setProfile(_:to:)` keeps the IDs: the new account creates the space and its entries, and the old one deletes them through `reconcile()`. Arriving from another device in either order:
     - create first: the new account's bridge adopts the space with its entries (`AdoptSpace()`);
     - delete first: the space goes, then comes back.
   - A remote delete only removes what that bridge owns, so a late delete from the old account doesn't remove an adopted space.
-  - Fixed on the way: moving a folder to another space now re-commits its subtree (the children's `space_uuid` changes).
+  - Moving a folder to another space re-commits its subtree (the children's `space_uuid` changes).
 - **Passwords.** `KeychainPasswordStore(profile:)`: the home keeps the service `it.cipi1965.compass.passwords`, the others use `….<uuid>`. `SavedPassword.profile` and `recordID` (unique across profiles) exist for this.
   - In-page fill and saves use the account of the tab's space.
   - `everyProfile(accessGroup:)` feeds Settings, the `ASCredentialIdentityStore` list and the AutoFill extension.
-- **History.** `visits.profile` column (migrated in place, old rows the home's). Visits go to the tab's account, and a delete directive deletes only its account's visits. "Clear History" sends one per account.
+- **History.** `visits.profile` column (old rows are the home's). Visits go to the tab's account, and a delete directive deletes only its account's visits. "Clear History" sends one per account.
 - **Sessions.** Each account publishes the Today tabs of its own spaces. Foreign sessions are kept per account.
-- **UX (user decisions, 2026-11-01).**
+- **UX.**
   1. One row of spaces, ordered across profiles as on the desktop. A profile is only an attribute of a space: a small profile label on the space header, only when the chain has more than one profile, and a wider gap in the page dots where the profile changes. No profile switcher.
   2. Only spaces are selected. A new tab goes in the current space, a new space in the current space's profile. The phone never asks for a profile.
   3. "Move to Profile ▸ <names>" in the space's menu (the ⋯ button and a long press on the header). It asks first: "Move "<space>" to <profile>? Its tabs will be signed out of sites, because each profile keeps its own cookies." The space's live tabs are unloaded, so they reload in the new profile's data store. The wire behaviour is the desktop's (above).
   4. The command bar is scoped to the current space's profile: open and pinned entries of that profile's spaces, its favorites (`SpaceStore.tabs(inProfileOf:)`), its account's history (`HistoryStore.search(_:profile:)`) and its account's "Tabs on <device>". Profiles never mix.
   5. The save banner says "Save to <profile>?" when there's more than one profile. The AutoFill extension groups credentials under one header per profile. Names come from a shared Keychain item (`KeychainPasswordStore.saveProfileNames`).
   6. After joining (pairing or recovery code): one summary screen, "Synced N profiles: Personal, Work · M spaces", with Continue (`JoinSummaryView`). Settings → Profiles lists each profile with its number of spaces.
-- **Differences from the plan.** The SSE stream is one per account, not multiplexed, which matches the desktop and keeps `SyncNotifier` unchanged. Moving a space to another profile is on the phone (user decision 3), not left out.
-- **Verified.**
-  - Unit tests: `SpaceDirectoryTests` (the pairing list, the smallest home, routing by profile, a tab and a space moved across profiles, command bar scoping) and `PairingJoinerTests` (the profile list from message 4).
-  - `ProfilesServerTests`, two Swift clients on one chain with two profiles; "the Mac" writes the `CompassProfile` list and spaces in both accounts:
-    - the phone gets every profile's spaces in cross-account order, with per-profile favorites;
-    - phone edits go to the right account, and a new space and a reordering land between the other account's spaces;
-    - a space moved Work → Home arrives in both orders and goes back from the phone;
-    - passwords and history stay in their profile, and a Work delete directive clears only Work;
-    - no names, URLs, passwords or profile UUIDs are readable in the server's database.
-  - The existing spaces, passwords, history/sessions and engine server suites pass.
-  - Simulator: `SeedForSimulator` with `COMPASS_SEED_PROFILES=1` seeds Home ("Matteo": Personal, Side) and Work (Work). A recovery-code join showed Personal, Work and Side in that order, each with its profile label and its profile's favorites (`-CompassSpace <name>` picks the page). `-CompassJoinSummary YES` showed "Synced 2 profiles: Matteo, Work · 3 spaces".
-- **Not done.**
+- **Tests:** `SpaceDirectoryTests` (the pairing list, the smallest home, routing by profile, a tab and a space moved across profiles, command bar scoping), `PairingJoinerTests` (the profile list from message 4), and `ProfilesServerTests`, two Swift clients on one chain with two profiles, where "the Mac" writes the `CompassProfile` list and spaces in both accounts: every profile's spaces arrive in cross-account order with per-profile favorites; phone edits go to the right account; a space moved between profiles arrives in both orders and goes back; passwords and history stay in their profile; no names, URLs, passwords or profile UUIDs are readable in the server's database.
+- **Limits.**
   - A remote adoption doesn't reload the adopted space's live tabs in the new data store. They change store the next time they load.
   - Devices in Settings come from the home account only.
   - A chain profile the desktop deletes stays listed (sync never deletes profiles, as on the desktop).
 
-### Sidebar as a bottom sheet, 2026-11-01
+## App
 
-The user asked for this. On the iPhone the sidebar is no longer a screen that the browser replaces. It's a system sheet over the browser, using `.sheet` with `presentationDetents([.medium, .large])` and a drag indicator.
+- `AppServices` (one per app; below, "Multiple windows") holds the store, live tabs, sync, passwords, extensions, downloads and system bridges. `AppModel` (one per window) holds what the window shows.
+- `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID, so cookies are separated as on desktop. Links that open a new window become Today tabs.
+- `SyncController`: Keychain seed and server; joining by pairing code (typed, or from the Mac's QR, `compass-pair:` URL scheme) or by recovery code.
+- The app icon is the desktop's Icon Composer file (`assets/Compass.icon`), used as is.
+
+### Screens
+
+- **Browser screen.**
+  - The web view runs full-bleed, with a slim bottom bar: back, an address pill, forward and a sidebar button. The bar is neutral: primary-colored icons and a grey address pill, not the system tint.
+  - The bottom bar hides on scroll down and shows on scroll up.
+  - Swiping horizontally on the bar moves between the space's Today/Pinned entries, as in Safari: the page and the bar follow the finger and the neighbor (its last snapshot, or its icon and title when it isn't loaded, and its bar) slides in beside them. Let go past a third of the screen, or flick past half, and it takes over; otherwise both spring back. Past the space's ends the swipe only gives a little.
+  - Swiping up on the bar opens, by where the finger starts: left of the address pill (back, forward) the tab picker, on the pill the sidebar (both follow the finger), right of it (key, new tab, menu) the command bar for a new tab. The pill's frame on screen is measured; thirds of the screen until it is.
+  - Splits on the phone open as one entry with a pane picker (segmented control).
+- **Tab picker** (`TabPicker`): the loaded tabs only, as cards with their snapshot (taken as a tab is left and as the picker opens, in memory), least recently shown at the left. Cards left of the centered one stack behind it; cards to its right lie on top. A tap shows a tab, a flick up closes it (a Today entry goes to the archive, anything else unloads), a drag down closes the picker. One button: + (new tab).
+- **Command bar** (a sheet from the address pill or "+"): search or URL (DuckDuckGo by default; configurable), open, pinned and favorite entries, history (FTS) and tabs on other devices.
+- **Settings:** sync status, devices, profiles, the recovery code (behind Face ID or passcode), "Leave sync", and joining: "Join with a Mac" (scan the QR or type `<slot>-<6 digits>` plus the server URL, defaulting to the public instance), then "Use a recovery code".
+- **Start screen.** Settings → On Launch (`StartScreen`, AppModel.swift): **Sidebar** (default: the sidebar over an empty page) or **Last Tab** (the tab last shown, sidebar down, if it's still open: not closed or archived; else the sidebar). The shown tab and space are kept in `UserDefaults` (`LastShownTab`, `LastShownSpace`) as they change; a launch always opens on the space last shown. Tests: `StartScreenTests`.
+
+### Sidebar
+
+On the iPhone the sidebar is a system sheet over the browser (`.sheet` with `presentationDetents([.medium, .large])` and a drag indicator), not a screen the browser replaces.
 
 - It opens at full height, at launch and from the sidebar button. Swiping it down to half height shows the page; swiping it all the way down closes it. Swiping up on the browser's bottom bar opens it again.
 - Picking an entry closes the sheet. With nothing selected, the browser shows an empty page in the space's color.
 - The command bar and Settings are presented by whichever view is in front: the sidebar while it's up, the browser otherwise (`AppModel.presented(_:fromSidebar:)`). One view can't present a second sheet over its own.
+- Spaces sit side by side and are paged by swipe. From top to bottom: a favorites grid, the pinned tree (nested folders that collapse), Today (newest first). The archive opens from the space menu.
+- The long-press menu has pin, unpin, archive, move to a space, split with, favorite, rename and delete, and for a pinned tab or favorite its pinned URL ("Use This Page as Pinned URL", "Back to Pinned URL"; closing goes back to it, see sidebar.md).
 
-### Sidebar styled as the desktop's, 2026-11-01
-
-The user asked for this. The sidebar's native look is replaced with the desktop sidebar's (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
+**Styled as the desktop's.** The look follows the desktop sidebar (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
 
 - **Background.** The space's tint (`SpaceTint`) is the sheet's `presentationBackground`, like the desktop's SidebarTint.
 - **Favorites.** Tiles are 52 pt, four to a row, and a shorter last row's tiles grow to fill it. The shown favorite gets the light pill.
@@ -452,26 +307,24 @@ The user asked for this. The sidebar's native look is replaced with the desktop 
 - **A stack, not a List.** List rows only fade, and a row's height changes in one jump. So the sidebar is a `LazyVStack` in a ScrollView, and List's built-ins are replaced the desktop's way: Today rows have an × button, and a long press and drag reorders (`.draggable`/`.dropDestination`; dropped on an entry it goes before it, on a folder into it, on a section's header to that section). The long-press menu still works.
 - **Motion.** A folder's children slide down from under its row as they fade in, and slide back up on close, in 0.22 s (`SidebarStyle.folder`). The rows below move with them, the chevron turns and the folder icon swaps. Every other change animates too (`SidebarStyle.motion`, keyed on the entries, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
 - **Desktop-only pages hidden.** Entries that aren't web pages (`compass://`, `chrome://`, `about:`, `file:`…) still sync and stay in the store, but the phone doesn't show them: not in the sidebar, favorites, split panes, the bar's swipe between entries, or the command bar (open entries and "Tabs on <device>"). Folders always show. "Clear" archives only what's shown. The rule is `PhoneVisible` / `SidebarNode.isPhoneVisible` in `Theme.swift`.
-- **Browser bar.** It's neutral too: primary-colored icons and a grey address pill, not the system tint.
 
-### Favicons, 2026-11-01
+### Favicons
 
-- **Loading.** `Favicons` (App/Model) replaces `AsyncImage`, which kept no cache and left a letter when a redraw cancelled its load. Icons are kept by host in memory and in `Caches/Favicons`. Best first:
+- **Loading.** `Favicons` (App/Model) keeps icons by host in memory and in `Caches/Favicons` (`AsyncImage` kept no cache and left a letter when a redraw cancelled its load). Best first:
   1. a loaded page's declared icons (the largest), or its `/favicon.ico` when it declares none;
   2. an icon synced from another device;
   3. a guess: `apple-touch-icon.png`, then `/favicon.ico`.
 
   Requests use Safari's user agent.
-- **Sync.** `CompassFavicon` in COMPASS_SPACES (sync.md, "Favicons"; the user asked for it). `CompassSpacesBridge+Favicons`: `offerFavicon` writes a page's icon (64 px PNG, at most 8 KiB) into the account of the tab's space, when an entry there is on the host and the icon beats the account's. `onFavicon` and `syncedFavicons` feed the cache, and `collectFavicons` deletes unused icons after a day. Tests: `FaviconKeyTests` (the UUID vectors) and `FaviconServerTests`.
-- **Desktop half.** Handed to compass-a8 (2026-11-01): writing the tab's favicon, `SetOnDemandFavicons` for synced ones, the key, and accepting the entity in `IsEntityDataValid()`.
+- **Sync.** `CompassFavicon` in COMPASS_SPACES (sync.md, "Favicons"). `CompassSpacesBridge+Favicons`: `offerFavicon` writes a page's icon (64 px PNG, at most 8 KiB) into the account of the tab's space, when an entry there is on the host and the icon beats the account's. `onFavicon` and `syncedFavicons` feed the cache, and `collectFavicons` deletes unused icons after a day. Tests: `FaviconKeyTests` (the UUID vectors) and `FaviconServerTests`.
 
-### Space themes, 2026-11-01
+### Space themes
 
-The user asked for the desktop's custom colors and gradients (spaces.md, "Space colors" through "Theme editor").
+The desktop's custom colors and gradients (spaces.md, "Space colors" through "Theme editor").
 
-- **Model.** `SpaceTheme` (CompassModel/SpaceTheme.swift) replaces the palette-only `Space.color`. It holds any `RGB` color or nil for grey, up to two gradient colors (grey has none), intensity (default 0.31), grain and `SpaceAppearance` (auto, light, dark), clamped like the desktop's setters. `SpaceColor` stays as the palette, with the desktop's exact RGB values. `stops` gives the three evenly spaced stops `SidebarTint::ToLook()` paints. `SpaceStore.setTheme()`. The snapshot file adds `colorRGB`, `gradient`, `intensity`, `grain` and `appearance` next to `color`. Older files read as their palette color.
+- **Model.** `SpaceTheme` (CompassModel/SpaceTheme.swift) holds any `RGB` color or nil for grey, up to two gradient colors (grey has none), intensity (default 0.31), grain and `SpaceAppearance` (auto, light, dark), clamped like the desktop's setters. `SpaceColor` is the palette, with the desktop's exact RGB values. `stops` gives the three evenly spaced stops `SidebarTint::ToLook()` paints. `SpaceStore.setTheme()`. The snapshot file has `colorRGB`, `gradient`, `intensity`, `grain` and `appearance` next to `color`. Older files read as their palette color.
 - **Sync.** `SyncPb_CompassSpace.theme(over:)` and `setTheme()` (SpaceThemeProto.swift) follow compass_spaces_sync_bridge.cc. `color_rgb` counts only while `color` is still its nearest palette index. Every value is compared decoded, so an equivalent encoding isn't rewritten and a remote theme isn't committed back. Defaults are left out, and an unreadable color keeps the space's own.
-- **Look.** `SpaceTint(theme:)` paints the stops as one gradient from the top left to the bottom right, at `intensity × 1.1` opacity (about the 34% the phone had before), fading to half toward the bottom, with the desktop's noise tile as grain (overlay, up to 9%). Changes ease over 280 ms. The mode applies to the sidebar panel, the command bar, the page menu and the editor (`spaceAppearance`). Pages keep the system's. `theme.accent` (the color, or grey) tints the switcher icon and controls.
+- **Look.** `SpaceTint(theme:)` paints the stops as one gradient from the top left to the bottom right, at `intensity × 1.1` opacity, fading to half toward the bottom, with the desktop's noise tile as grain (overlay, up to 9%). Changes ease over 280 ms. The mode applies to the sidebar panel, the command bar, the page menu and the editor (`spaceAppearance`). Pages keep the system's. `theme.accent` (the color, or grey) tints the switcher icon and controls.
 - **Editor.** The space menu's "Edit Theme" opens `ThemeEditor`, a sheet laid out after the desktop's:
   - mode buttons;
   - `ThemePad`: a hue wheel with the colors as dots. Hue is the angle (red at the top, clockwise) and saturation the distance. A drag keeps the dot's lightness, the big dot takes the others along, and a touch away from the dots moves the big one there;
@@ -483,118 +336,40 @@ The user asked for the desktop's custom colors and gradients (spaces.md, "Space 
   The draft shows at once and reaches the store (and sync) at most every 50 ms.
 - **Tests.** `SpaceThemeSyncTests` (encoding, stale rgb, round trips, equivalent encodings, saved files, remote apply without a commit back); UI test `ThemeEditorTests` (preset, − and +, dragging the big dot, mode, sliders, grey).
 
-### Web extensions, 2026-11-02
+### Status bar over pages
 
-The user asked for web extensions on the phone. WebKit's `WKWebExtension` API (iOS 18.4+) runs Chrome and Firefox (WebExtension) extensions in a WKWebView app; Compass still targets iOS 17, so it's all behind `#available(iOS 18.4, *)` and hidden on older systems.
+Pages run under the status bar, but fixed and sticky elements (YouTube's header) would go behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. The same at the bottom: `obscuredContentInsets.bottom` is the bar's measured inset (`BrowserScreen.barInset`: the bar or its collapsed pill, the save banner when it shows, and the home indicator), so fixed footers (YouTube's tab bar) sit above the bar; it follows the bar as it collapses. Splits on the phone sit under the pane picker and get 0 at the top.
 
-- **Install.** From a Chrome Web Store or Firefox Add-ons link or ID (Settings → Extensions), from "Add to Compass" in the page menu on a store's extension page, or from a .crx/.xpi/.zip in Files. `ExtensionSource` downloads the package: a CRX from Chrome's update service (`clients2.google.com/service/update2/crx`, `prodversion` 142), or the XPI the AMO API names. The CRX2/3 header is stripped. An install sheet (`ExtensionInstallSheet`) shows the icon, the version and what the extension can do (`ExtensionPermissions.summary`) before anything runs. Adding a store extension that's already there updates it in place, keeping its data.
-- **Storage.** `Application Support/Compass/Extensions/<id>/`, unpacked (`ExtensionPackage`: a central-directory ZIP reader on Compression's raw deflate, refusing paths outside the folder), plus `Extensions.json` (source, on/off, optional grants). A Chrome extension keeps its Chrome ID as the context's unique identifier (its pages are `webkit-extension://<id>/`, and its storage is keyed by it). Other sources get a UUID.
-- **Service workers.** WKWebView runs service workers only in apps with the default-browser entitlement or App-Bound Domains, so a background `service_worker` never starts in Compass (context error 6 after 30 s; checked in the simulator 2026-11-02). At install, `ExtensionPackage.adaptManifest` rewrites it as `background.scripts` (non-persistent background page; `type: module` kept). For classic workers, scripts named literally in `importScripts()` are listed first and `importScripts` becomes a no-op. Firefox extensions already use `background.scripts`. Revisit if Apple grants the browser entitlement.
-- **Running.** `WebExtensions` (Extensions/WebExtensions.swift) owns one `WKWebExtensionController` (`.default()`, persistent). Every tab's configuration gets `webExtensionController` (`TabManager.webView(for:)`), whatever its profile's data store, so extensions reach every profile. Their background pages use the default store. Requested permissions and match patterns (not the optional ones) are granted at load: the user agreed in the install sheet. Optional ones are asked for with an alert, and the answer is kept in `Extensions.json`. The background starts at load (`loadBackgroundContent`), and live tabs the extension injects into are reloaded, since pages that loaded before it started have no content scripts.
-- **Tabs and windows.** Each space is a window (`ExtensionWindow`), and its pinned and Today tabs, plus favorites in the shown space, are its tabs (`ExtensionTab`, keyed by entry ID; an entry without a web view is an unloaded tab). The shown space is the focused window. AppModel and TabManager report opens, closes, activation, focus and URL/title/loading changes. Extensions can open tabs (Today in their window's space, or pinned), load, reload, go back/forward, pin, close (Today goes to the archive), duplicate and snapshot. `windows.create` opens its tabs in the shown space.
-- **UI.** The page menu shows a row of action buttons (icon and badge). A tap closes the menu and runs the action: a popup comes up as a sheet (`popupViewController`, medium/large). Settings → Extensions lists them (on/off, swipe to remove), and the detail screen has what it can do, problems WebKit reported, Options (in a sheet, the extension's own web view configuration), Update, Show in store and Remove (data included).
-- **Missing APIs (polyfill).** WebKit on iOS lacks namespaces desktop extensions use (`notifications`, `idle`, `management`, `privacy`, `downloads`, …) and some members (`webNavigation.onCreatedNavigationTarget`, `storage.managed`, `tabs.onReplaced`, …). Touching one throws, and the background never starts (1Password: `chrome.notifications.onClicked` on its first line). `compass-polyfill.js` runs first in the background (an entry module for module backgrounds), popup and options pages, and adds stubs: events that never fire, and calls that resolve to `[]` for queries, `{}` for getters and `"active"` for `idle.queryState`. It also adds the service-worker globals a background page lacks (`clients`, `registration`, `skipWaiting`, `importScripts`). Additions are non-configurable, because WebKit redefines its namespaces' properties after startup and drops configurable ones. The globals stay WebKit's own: replacing `chrome`/`browser` with a proxy stops events reaching listeners (`action.onClicked` never fired). Checked by probing in the simulator, 2026-11-02.
-- **`tabs.query` and URL access.** WebKit ends every `tabs.query` by asking the delegate for permission to the matched tabs' URLs. Compass answers right away with what's already granted, without a prompt (Chrome never asks there), so tabs the extension can't reach have no URL or title. A prompt that never completed made every `tabs.query` hang. The remaining prompts (`permissions.request`) always answer, and say no if their alert can't be shown.
-- **Native messaging.** There's no native app to talk to, so `sendNativeMessage` and `connectNative` fail at once, and 1Password falls back to working alone. Debug builds add `compass-debug.js` (and the `nativeMessaging` permission), which forwards console errors and warnings, uncaught errors and rejections to the app log (`WebExtensions: [name] …`). `-CompassNoPolyfill YES` installs without the polyfill.
-- **1Password (simulator, 2026-11-02).** It installs from the Chrome Web Store (17 MB, module service worker), its WebAssembly core starts ("Finished initializing 1Password"), its desktop-app connection fails gracefully, and the button opens its "Welcome to 1Password" onboarding in a tab. Signing in needs a real account: to try on the phone.
-- **On the iPhone (not the simulator), 2026-11-02.** 1Password started over every few seconds and kept opening its `db-terminated` error page. Three causes, found from the device log (`devicectl device process launch --console`):
-  - **WebKit unloads an idle background page after about 5 s.** Its IndexedDB connections close first, with a `close` event Chrome never sends when it stops a service worker. 1Password takes that for a crash. The polyfill drops IDBDatabase `close` events, and a keep-alive page holds the background loaded: `compass-keep-alive.html` in a 1 pt, nearly transparent web view in the app's window (`WebExtensions.keepAlive`), with a `runtime.connect` port to the background, pinged every 4 s and held by the polyfill. With it, the background stays up past 60 s.
-  - **WebKit swaps some namespace objects after startup** (`storage`, losing `managed`). After patching, the polyfill pins each namespace on `chrome` (non-configurable).
-  - **The polyfill is written at install**, so an extension installed by an older build kept the old one. `ExtensionPackage.refresh` rewrites the polyfill, debug and keep-alive files before every load (and adapts folders from before the polyfill).
-- **Same origin every launch.** WebKit gives a context a random base URL unless the app sets one, and an extension's IndexedDB and localStorage belong to that origin, so 1Password "signed out" after every restart (its accounts are in IndexedDB; `chrome.storage` is keyed by the unique identifier, which did persist). `context.baseURL` is now `webkit-extension://<record id>/`. Checked in the simulator: a probe's localStorage and IndexedDB values survive a relaunch. Extensions installed before this lose that data once, at the switch.
-- **1Password's "Sign in"** (setup page, `app/app.html`) sets `location.href` to `https://start.1password.com/signin/?auth-only=1`. A tab showing an extension page has the extension's web view configuration, which won't load websites, so `TabManager` cancels that navigation and starts the tab over as a web page at the address. The polyfill (and debug script) now go into every HTML page of an extension, not only its background, popup and options. `action.openPopup()`, which iOS WebKit lacks, opens the popup through native messaging (`compass-open-popup`), when the action has one.
-- **1Password's button** opens its welcome page in a tab until an account is set up (`action.setPopup("")` plus `onClicked`); the popup comes after sign-in.
-- **Passkeys through 1Password (simulator, 2026-11-02).** They need no change in Compass and no Apple entitlement. 1Password doesn't use the browser's WebAuthn: a content script in the page's own world (`inline/injected/webauthn-listeners.js`, `"world": "MAIN"`, document_start) replaces `navigator.credentials.create`/`get` and `PublicKeyCredential`'s capability checks with locked getters, and its background makes the passkey. Checked with a probe extension on webauthn.io: WKWebExtension runs MAIN-world content scripts, Compass's web views have `navigator.credentials` and `PublicKeyCredential` (secure context), 1Password's hooks are installed, `getClientCapabilities()` answers with 1Password's values, and a `create()` brings up 1Password's own "Save passkey?" sheet in the page ("unlock 1Password first" with no account). Still to see on the phone, signed in: saving and signing in with a passkey.
-- **Ports from extension frames (2026-11-02).** Matteo: 1Password's "Save passkey?" sheet flashed and closed, or asked to unlock 1Password while it was unlocked. The sheet (`inline/notification/notification.html`, an extension frame in the web page) opens a `runtime.connect` port to the background (`passkey-save-prompt/<id>?reqId=…&reconnect=true`), and WebKit disconnected it a few ms after the background's onConnect, with no `lastError` and no `disconnect()` on either side. The background then gave up (`[Webauthn] Could not complete _handleCreateCredential while locked: disconnected`, then the system WebAuthn, which fails with "The document is not focused").
-  - Not 1Password's doing: a probe extension (a content script adds iframes of a `web_accessible_resources` page that connect after a delay; the background echoes) shows it in the simulator. Frames that connect as soon as they load keep the port; every one that connects 300 ms or 1 s in loses it (0 of 3 echoes). 1Password's sheet connects about 120 ms in, after its React app starts. `runtime.sendMessage` from the same frame always gets through, and so do content scripts' ports.
-  - Fix: the polyfill emulates ports for extension frames inside tabs (`ExtensionPackage.framePorts`). There, `runtime.connect()` returns a Port of ours: its messages go out as `sendMessage` calls, in order, and the background's come back as replies to a long poll (held 10 s, then polled again). In the background (`/_generated_background_page.html` or the manifest's page), onConnect listeners get a matching Port with the real `sender` (tab, frame, URL). Both sides' `disconnect()` reach the other; a frame that goes away sends a close on pagehide, and one that goes silent (no poll for 25 s) is disconnected. Every context's onMessage listeners skip this traffic (key `__compassPort`).
-  - Checked in the simulator with the probe: 10 of 10 frames keep their port at 0, 300 and 1000 ms, with `sender.tab`; background pushes arrive; the background's disconnect reaches the frame and later posts throw; the frame's disconnect and the frame's removal reach the background; the extension's onMessage never sees the traffic. 1Password starts and handles WebAuthn on webauthn.io as before. The signed-in sheet needs the phone. The probe was in a session scratchpad; rebuild it from this description.
-- **Restored tabs, to extensions (2026-11-02).** Compass told WebKit about a tab (`didOpenTab`) only when it made a new one, so a tab restored from the sidebar after a relaunch was unknown to extensions: 1Password's background found no tab for the page's messages (`webNavigation.getAllFrames(): Tab not found`), and webauthn.io's Register failed with "undefined is not an object (evaluating '(await M(r))[e]')" from 1Password's page hook. Now every web view is announced as it's created (`TabManager.webView(for:)`), once per tab, and when an extension loads, the tabs already live are announced and the shown one activated. Checked in the simulator: a restored webauthn.io tab gets 1Password's sheet.
-- **Extension frames at phone width.** 1Password's sheet is a full-screen iframe of its `notification.html` with the card at `width: 400px`, 16 px from the right, so on a 402 pt iPhone it ran 14 pt past the left edge. The polyfill, in an extension page shown in a frame narrower than 480 px, gives any box at least half the frame wide that runs past an edge `max-width: calc(100vw - 32px)` (once per box; measuring its margin mid-animation squeezed it to half). Checked on webauthn.io: the card is at x 16, 370 wide. The system passkey sheet (iCloud Keychain, the 1Password app) would need `com.apple.developer.web-browser.public-key-credential`, which Apple grants only to default browsers.
-- **Face ID unlock** (`ExtensionUnlock`). Desktop 1Password unlocks with the desktop app's biometrics over native messaging; on iPhone nothing can offer that. A script in the extension's own pages (popup, options, its pages in tabs) watches for a visible password field. After the user types the password and the field goes away, Compass offers "Unlock <name> with Face ID?" and keeps the password in the Keychain, on this device only (`WhenPasscodeSetThisDeviceOnly` + `biometryCurrentSet`). After that, a password field shows up → Face ID → the password is typed in (native value setter + input events, for React) and submitted as a user would: Enter in the field (1Password's unlock listens for it), then, if the field is still there after 0.5 s and isn't busy, a click on its submit button, then the form. The button is the one holding an `unlock-icon` (1Password's arrow, labelled "Unlock"), else a submit button, else one labelled like unlock, sign in or continue (several languages), else the last one after the field. Show/hide toggles (labels with password/reveal/show/hide/mostra/nascondi…, or `aria-pressed`) are never clicked: 1Password's "Reveal password" is the first button after its field. (`form.requestSubmit()` first, as before, did nothing in 1Password.) If the field is still there 10 s later, the password is forgotten and an alert says so. "Not Now" stops the offers for that extension. The detail screen's "Unlock with Face ID" switch forgets it, and so does removing the extension. Checked in the simulator with a probe popup: save, then Face ID → filled → accepted. Debug: `-CompassPopupJS <js>` runs in the popup, and `-CompassUnlockAutoSave YES` skips the offer. Simulator builds need `CODE_SIGN_IDENTITY=-` for the Keychain (unsigned: error -34018).
-- **The desktop's extensions.** `ExtensionsBridge` (CompassSync) downloads EXTENSIONS (field 48119) in every profile's account. It's download only and mirrored to `sync-extensions.json`. Settings → Extensions → "On Your Other Devices" lists the enabled Chrome Web Store ones the phone doesn't have, each with Add (which goes through the install sheet). Tests: `ExtensionsBridgeTests`, plus `ExtensionsServerTests` (a Mac-side engine puts one, and the phone's bridge gets it from the real server).
-- **Updates.** At launch, at most once a day (or with "Check for Updates"), each store extension's current version comes from Chrome's update service (`v=0.0.0.0`, the `<updatecheck version>`) or the AMO API. A newer version that asks for nothing more (`ExtensionPermissions.asksForMore`) is installed quietly, keeping its state, data and grants. One that asks for more shows "Update available" and "Review Update to x", which goes through the install sheet.
-- **Website access.** "All Sites It Asks For" (the default) or "Only These Sites", a list of hosts (each with its subdomains): only those match patterns are granted, so content scripts run only there. A long press on an extension's button in the page menu shows its own menu items, "Allow on <site>" (when limited), Options and Turn Off (`MenuButton`, a UIKit button, since extension menu items are `UIMenuElement`s).
-- **Context menus.** A long press on a page adds each extension's `menuItems(for: tab)` after the system's items, under the extension's name when it has several (`TabManager`'s `contextMenuConfigurationFor`).
-- **Popup title.** WebKit draws the popup's title over the page in the system's style, which is unreadable on a dark popup, and changing that controller's interface style hangs it. So the title is empty, and the popup names itself.
-- **App Review.** Guideline 2.5.2 bars downloading code that changes the app. Extensions only run in web content, as in Orion, which ships Chrome and Firefox extensions on the App Store, but TestFlight external review may ask.
-- **Checked (simulator, iPhone 18 Pro, iOS 27.1):** a test MV3 extension with a service worker (content script, `runtime.sendMessage` reply with `sender.tab`, `tabs.create`, `storage`, `action.setBadgeText` showing on the menu button), Dark Reader from the Chrome Web Store (pages go dark; its popup works and shows the current site), uBlock Origin Lite (module worker starts). Debug launch args: `-CompassAddExtension <link, ID or /path.zip>` adds without the sheet (`-CompassExtensionSheet YES` stops at it), `-CompassExtensionAction <n>` taps the menu's nth extension after 8 s.
-
-### System extensions, 2026-11-02
-
-Branch `ios/system-extensions`. Everything goes through the App Group `group.it.cipi1965.compass`, which the app, Share, Widgets and SafariOpen are entitled to:
-
-- **CompassShared** (CompassKit). `Snapshot.json` is the spaces as the extensions see them: style, glyph, favorites, Pinned tabs and folders, Today newest first, at most 16 entries a list, plus other devices' tabs. `Inbox/` holds one JSON file per request (open, or pin to a space or folder). `Focus.json` is the Focus filter's space. `Icons/<host>.png` are copies of the favicons. `DeepLink` covers `compass://open|node|space|search|new|inbox|downloads`.
-- **App** (`App/System/`).
-  - SystemBridge writes the snapshot a second after a change, then reloads the widgets, Spotlight and the icon menu.
-  - It drains the Inbox at launch, when the app comes to the front, and on the Darwin notification `it.cipi1965.compass.shared-changed`.
-- **Share** asks Open or Add to Pinned, then the space and the folder. Open then calls the host app's `openURL:` by selector to bring Compass up; if that doesn't work, the request waits for the next launch.
-- **Widgets** (with `Shared/`):
-  - Space (S/M/L), Today (M/L), Quick Actions (S plus Lock Screen circular, rectangular and inline), Other Devices (M/L);
-  - the New Tab control (iOS 18);
-  - the download Live Activity. It shows "paused" when the app goes to the background, because WebKit downloads stop there.
-  - Small widgets use `OpenLinkIntent` buttons, since they don't support links.
-- **Focus filter** (`CompassFocusFilter`): the space shown while that Focus is on, optionally the only one in the sidebar.
-- **Spotlight**: favorites and Pinned entries, with the node ID as the item ID. Off with Settings → Show in Spotlight.
-- **Icon menu**: New Tab, Search and the 3 most recent spaces.
-- **SafariOpen**: a Safari web extension (popup) with Open, or Pin to a space. It writes to the Inbox, then sends the tab to `compass://inbox`.
-- **Shortcuts** (app only, run in the app's process): Add to Space (Pinned or Today), Open URL in Space, Get Pinned Tabs, Get Today Tabs (tabs and folders, each with its folder path) and Get Spaces. There are no Siri phrases yet (`AppShortcutsProvider`).
-- **Checked:**
-  - In the simulator: the snapshot is in the App Group; Inbox pin and open work at launch and live through the Darwin notification; icons are copied.
-  - On the iPhone: a signed install with the group on every target.
-  - On the device (user, 2026-11-02): all of it works: the share sheet (direct open included), the widgets, the Focus filter, Spotlight, the Live Activity, the Safari extension and the Shortcuts actions.
-- **Background downloads** (2026-11-02, `Downloads+Background.swift`).
-  - A page's GET download over http(s) leaves WebKit for the background `URLSession` `it.cipi1965.compass.downloads`, with the tab's cookies (filtered by domain, path and secure), its user agent and the referrer. POST, `blob:` and `data:` downloads stay with WebKit and still pause.
-  - iOS wakes the app when a download ends (`handleEventsForBackgroundURLSession`). Tasks survive a relaunch and come back to the list (`taskDescription` = item ID + name).
-  - The Live Activity says "Downloading in the background" while the app is away.
-  - Cost: the server sees the request twice (WebKit's, cancelled once it turns into a download, then the session's), so a one-time download link could fail.
-  - Simulator: a 100 MB file finished with Settings in front.
-
-### Auto picture-in-picture, 2026-11-02
+### Auto picture-in-picture
 
 As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound shows the video in picture-in-picture, and coming back to the tab puts it back in the page. Scrolling a playing video off the screen does too (below). Leaving the app doesn't (below): the video's own picture-in-picture button does that. Settings → Auto Picture in Picture turns it off.
 
 - `AutoPiP` (App/Browser). When the shown tab changes (`AppModel.shownTabChanged()`, from `selectedNodeID` and `selectedPane`), a script in the tab left looks for the desktop's conditions: playing, not muted, volume above 0, at least 100×100, the only such video in the main frame, and no video already in picture-in-picture (the user's own stays). It calls `webkitSetPresentationMode("picture-in-picture")` (or `requestPictureInPicture()`), as an app-evaluated script counts as a user gesture. The tab shown takes its own video back. The script runs in its own content world, so the page doesn't see which video Compass moved.
 - The page reports (`state:playing` / `state:idle`) whether it has such a video, so on a tab switch Compass first **parks** the left tab's web view (a 1×1, nearly transparent view at the back of the window) and then starts picture-in-picture: a web view out of the window ends its window at once, and SwiftUI drops it on the same update. The view leaves the lot when the window closes or the tab is shown again (SwiftUI takes it back).
 - The app needs the `.playback` audio session category (set at launch; WebKit leaves it alone) for picture-in-picture. As in Safari, page sound then ignores the silent switch.
-- **Leaving the app doesn't start it** (checked on an iPhone, iOS 27, 2026-11-02): a window started on active → inactive, even with a background task, opens and is ended by iOS within a second, the video paused. WebKit has `HTMLVideoElement.autoPictureInPicture` (AVKit's "start automatically from inline"); the script sets it on the playing video, but WebKit doesn't act on it in an app (it seems tied to Safari's fullscreen standby). Coming back to the app still puts back a video Compass moved.
+- **Leaving the app doesn't start it**: a window started on active → inactive, even with a background task, opens and is ended by iOS within a second, the video paused. WebKit has `HTMLVideoElement.autoPictureInPicture` (AVKit's "start automatically from inline"); the script sets it on the playing video, but WebKit doesn't act on it in an app (it seems tied to Safari's fullscreen standby). Coming back to the app still puts back a video Compass moved.
 - The window's "back to the page" button puts the video back inline, still playing: a user script reports that (`compassPiP`), and Compass shows the tab. Its close button pauses the video, so nothing happens.
 - `UIBackgroundModes` has `audio`, so the video keeps playing outside the app.
-- **Scrolled away** (2026-11-02; Settings → When Scrolled Away, on by default, under the main switch): the script watches each video from its first play with an `IntersectionObserver`. A video meeting the conditions above that is less than half visible posts `scroll:out` (early, so the window grows from the video rather than a sliver at the screen's edge; visible share = visible height over the most that fits, for videos taller than the screen); Compass, if that tab is shown and the app is active, runs the enter script marked as a scroll (`__compassAutoPiPScroll`). Once 90% of that video is back on screen the page posts `scroll:in` (so it lands where it's seen; the gap keeps it from flipping). Either waits for the page to stand still (finger up, momentum over; `AppModel.settlePictureInPicture`), then Compass asks the page again (`__compassAutoPiPWant()`): a window started mid-scroll grew from a frame the page had moved past, and jumped (Matteo, 2026-11-02) and Compass puts it back inline. Closing the window, or its "back to the page" button, while the video is off screen leaves it alone until it has been on screen again; "back to the page" also scrolls it into view (no tab to show: it's the shown one).
-- Checked on the phone (2026-11-02): a tab switch moves the video to the window and back. Scroll-out (a debug probe scrolling a playing video's page): in the window within a second of scrolling it away, back inline and still playing after scrolling back. The window's own buttons after a scroll-out need a hand on the phone.
-- Checked in the simulator (`AutoPiPTests`, with a local page and a real tap on play): the video is found and is back inline and playing after the switch. The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs the phone.
+- **Scrolled away** (Settings → When Scrolled Away, on by default, under the main switch): the script watches each video from its first play with an `IntersectionObserver`. A video meeting the conditions above that is less than half visible posts `scroll:out` (early, so the window grows from the video rather than a sliver at the screen's edge; visible share = visible height over the most that fits, for videos taller than the screen); Compass, if that tab is shown and the app is active, runs the enter script marked as a scroll (`__compassAutoPiPScroll`). Once 90% of that video is back on screen the page posts `scroll:in` (so it lands where it's seen; the gap keeps it from flipping). Either waits for the page to stand still (finger up, momentum over; `AppModel.settlePictureInPicture`), then Compass asks the page again (`__compassAutoPiPWant()`), because a window started mid-scroll grew from a frame the page had moved past, and jumped. Closing the window, or its "back to the page" button, while the video is off screen leaves it alone until it has been on screen again; "back to the page" also scrolls it into view (no tab to show: it's the shown one).
+- Tests: `AutoPiPTests` (a local page and a real tap on play: the video is found and is back inline and playing after the switch). The simulator has no picture-in-picture at all (even Safari reports `pictureInPictureEnabled` false), so the window itself needs a device.
 
-### Start screen, 2026-11-02
+### Undo closing
 
-Settings → On Launch (`StartScreen`, AppModel.swift): **Sidebar** (default: the sidebar over an empty page, as before) or **Last Tab** (the tab last shown, sidebar down, if it's still open: not closed or archived; else the sidebar). The shown tab and space are kept in `UserDefaults` (`LastShownTab`, `LastShownSpace`) as they change; a launch always opens on the space last shown. Checked: `StartScreenTests` (simulator: a page shown, the app sent home and ended, relaunched with each setting).
+The desktop's Cmd+Z / Cmd+Shift+Z for closed entries (sidebar.md, "Undo closing"), on the phone.
 
-### Status bar over pages, 2026-11-02
+- **The stack.** `ClosedEntries` (CompassModel), one on `AppServices` for every window, in memory, the last 25 steps. A step is what one user action closed. Each entry keeps its `SidebarNode` itself and its place: the parent, the sibling before it and its index, and for a pane whose split of two ended, the other pane. A removed node stays detached with its subtree, so it comes back under its IDs, custom title and pinned URL included; sync creates it again over its tombstone (sync.md, "Create over a tombstone"). The step also keeps the `WKWebView.interactionState` of each tab that was open: the tab that opens again on undo gets its back and forward history back (`TabManager.restoring`), as TabRestoreService gives the desktop.
+- **Recording** (`AppModel.userClose`), user closes only: ⌘W, a flicked card in the tab picker (both: Today to the archive, anything else unloads, `.archive` / `.unload`), a Today row's ×, Delete and Remove from Favorites (`.remove`), and Today's Clear (every entry, one step). Not the menu's Archive, auto-archive, sync, Claude's or an extension's closes, or Close All Incognito (which drops every incognito step: `dropIncognito()`).
+- **Undo** (`undoClose()`): the entries come back, last closed first, after the sibling they followed (a parent that's gone sends them to the top of Today, the end of Pinned, or the favorites); an archived entry moves back out of the archive, a pinned tab or favorite goes back to the page it showed. The tab shown as it closed (else the first that was open) opens and is shown; the others come back unloaded. With none open, the window goes to the step's space. Nothing crosses in or out of incognito (`SpaceStore.reinsert`).
+- **Redo** (`redoClose()`) closes the step's entries again, the same way, keeping the other redos. Any other close drops them.
+- **UI.**
+  - A toast over the bar after each close, "Closed “<title>”" (or "Closed 3 tabs") with **Undo**; after an undo, "Reopened …" with **Redo**. Four seconds, replaced by the next one; a flick down puts it away.
+  - **Shake to undo**: a shake shows iOS's alert for it, "Undo Close Tab" with the entry, Undo, Redo when there is one, and Cancel ("Redo Close Tab" once only redo is left). While the keyboard is up the shake is the text's own Undo Typing (`UIWindow.motionEnded`, `KeyboardWatch`).
+  - **⌘⇧T** (Tabs menu, "Reopen Closed Tab") undoes with a hardware keyboard. ⌘Z and ⌘⇧Z stay the text's: iOS gives a page no way to pass them on, as the desktop's undo waits for.
+- Tests: `ClosedEntriesTests` (places, Clear Today's order, a folder's tree, a pane back in its split, a gone parent, a pinned tab's page, incognito, steps and redo, the cap).
 
-Pages run under the status bar, but fixed and sticky elements (YouTube's header) went behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. The same at the bottom: `obscuredContentInsets.bottom` is the bar's measured inset (`BrowserScreen.barInset`: the bar or its collapsed pill, the save banner when it shows, and the home indicator), so fixed footers (YouTube's tab bar) sit above the bar; it follows the bar as it collapses. Splits on the phone sit under the pane picker and get 0 at the top. Checked in the simulator: m.youtube.com, and example.com with a fixed header and footer added (each ends at the status bar or the bar, and WebKit extends its color behind them).
+### Incognito
 
-### iPad, 2026-11-02
-
-- The app (and its extensions) run on iPad (`TARGETED_DEVICE_FAMILY` 1,2; every orientation, for Split View and Stage Manager).
-- A wide window (iPad, regular width; `AppModel.isWide`, set by `RootView`; not a Max iPhone in landscape) has the desktop's layout: the sidebar (`SidebarScreen`) is a 320 pt column on the left, in the space's tint, beside the browser, instead of the bottom panel. The bar gets a sidebar button on its left that hides or shows the column (`showingSidebarColumn`); a swipe up on the bar's middle shows it. Narrow (Slide Over, a narrow Split View) is the phone's layout.
-- A split shows its panes side by side, each under a title strip; the front pane (`selectedPane`: the bar, address, back and forward act on it) is outlined in the space's accent, and a tap on a pane's strip brings it to the front.
-- Bar swipes between entries move by the page's width (measured), not the window's. `SidebarPanel`'s sizes are the window's, not the screen's.
-- Debug: `-CompassOpenURLs "<a> <b>" -CompassSplit YES` splits the last two tabs.
-- **Keyboard shortcuts** (`BrowserCommands`, KeyboardShortcuts.swift; a hardware keyboard on iPad or iPhone; listed in the iPadOS menu bar and the ⌘-hold overlay): ⌘T new tab and ⌘L the address (command bar), ⌘S the sidebar, ⌘R and ⌘⇧R reload, ⌘[ and ⌘] back and forward, ⌘⇧C copy link, ⌘F find, ⌃Tab the next entry (wrapping), ⌃1–9 the spaces. **⌃Tab works once and then not again** under XCUITest (likely the page, once focused, takes Tab). **⌘W (close tab: Today to the archive, others unload) and ⌃⇧Tab (previous entry) don't reach the app yet**: SwiftUI commands never fired for them (the system's Close Window kept ⌘W even with Close Tab in `.saveItem`, and an AppDelegate `buildMenu` override isn't called under SwiftUI's lifecycle). They're now also UIKit key commands with `wantsPriorityOverSystemBehavior` on the window's root view controller (`PriorityKeyCommands`), not checked. Tests: `KeyboardShortcutsTests` (⌘T, ⌘S; iPad simulator). Debug: `-CompassFreshStore YES` starts from an empty sidebar.
-- Checked on the iPad Air (2026-11-02, screenshots): the column with a page beside it, and a split of two pages side by side.
-
-### Multiple windows (iPad), 2026-11-02
-
-The user asked for it. `UIApplicationSupportsMultipleScenes`; one `WindowGroup(for: WindowTarget.self)`, whose value is the entry the window shows (so iPadOS restores each window on it) plus a token (SwiftUI would bring up an open window with an equal value instead of opening one).
-
-- **Split of the model.** `AppServices` (one per app): the store, live tabs, sync, passwords, extensions, downloads, system bridges, saving, the archive timer, and every service callback. `AppModel` (one per window, made by `WindowRoot`): the space and entry shown, sidebar, sheets, tab picker, bar; it forwards `store`, `tabs`, `sync`… so views are unchanged. Tab callbacks (scroll, navigation, picture-in-picture) go to the window showing the tab; window-less ones (a page's `window.open`, extensions, widgets' links, shortcuts, sent tabs, quick actions) to the **active window**, the key one (`KeyWindowReader`, `UIWindow.didBecomeKeyNotification`; scene phase can't tell: side-by-side windows are both active). Links and notification taps that come before the first window wait for it.
-- **One page, one window** (the desktop's move on focus, sidebar.md): a WKWebView is in one window at a time. `AppServices.owner(of:)`: the window that last took the tab (`claim`) while it still shows it, else the active window showing it. A window takes the tabs it shows when it becomes key, and a tab picked in it. Another window showing the same entry shows `ElsewherePage`: the page's snapshot, "Open in another window" and **Bring Here**. `WebView` puts the page in a container of its own, so SwiftUI removing one window's view never pulls the page out of the other.
-- **Opening one:** ⌘N (New Window, on the space the active window shows), "Open in New Window" in an entry's long-press menu (the page moves there), and the system's own (the app icon's menu, the dock, dragging to the side).
-- Debug: `-CompassSecondWindow YES` opens the first window's entry in a second window 8 s in.
-- Checked in the simulator (iPad Air 11-inch): the second window opens on the entry, becomes active and takes the page (log). The simulator can't show two windows side by side headless, so placeholders, Bring Here and move on focus are for the iPad Air (Stage Manager or Split View). On the iPad Air (Matteo, 2026-11-02): several windows, rotation and Bring Here work; the placeholder first pushed the bar off the window (its snapshot sized the page), fixed.
-
-### Incognito, 2026-11-02
-
-The user's decisions: an incognito space at the end of the space switcher; its tabs kept in memory while the app runs, locked behind Face ID (or the passcode) once the app has been in the background, gone when it quits; saved logins still fill; extensions only with a per-extension "Allow in Incognito" (off by default, as in Chrome); no Claude (as the desktop).
+An incognito space at the end of the space switcher; its tabs kept in memory while the app runs, locked behind Face ID (or the passcode) once the app has been in the background, gone when it quits; saved logins still fill; extensions only with a per-extension "Allow in Incognito" (off by default, as in Chrome); no Claude (as the desktop).
 
 - **Model.** `SpaceStore.incognito`, a `Space` with `isIncognito`, kept out of `spaces`, so nothing that goes through them sees it: saving, sync's bridges, sessions, widgets, Spotlight, Claude's tab list. Lookups (`node(id:)`, `space(id:)`, `space(of:)`) include it. Its local changes are dropped before `onLocalChange` (every ID ever seen under it, so deletions too). `canMove` refuses moves across the boundary. Archiving an incognito entry removes it. Tests: `IncognitoTests`.
 - **Pages.** One `WKWebsiteDataStore.nonPersistent()` for every incognito tab, made new by "Close All Incognito Tabs" (`TabManager.resetIncognito`).
@@ -618,52 +393,129 @@ The user's decisions: an incognito space at the end of the space switcher; its t
 - **Extensions.** The incognito space is a private window (`ExtensionWindow.isPrivate`); a context gets `hasAccessToPrivateData` from the extension's "Allow in Incognito" switch.
 - **Claude.** No Ask Claude tile or ⌘⇧E on incognito tabs; the sheet says "Not in Incognito"; tools refuse incognito tabs.
 - Debug: `-CompassIncognitoURL <url>`.
-- Checked in the simulator: an incognito tab next to a normal one, then nothing in Sidebar.json, History or Caches/Favicons for it (the favicon race was found and fixed this way), with the dark bar. The sidebar's look and the lock need the phone: the Mac was busy with a Release build and the simulator drew stale frames.
 
-### Tabs sent from the desktop, 2026-11-02
+### iPad
+
+- The app (and its extensions) run on iPad (`TARGETED_DEVICE_FAMILY` 1,2; every orientation, for Split View and Stage Manager).
+- A wide window (iPad, regular width; `AppModel.isWide`, set by `RootView`; not a Max iPhone in landscape) has the desktop's layout: the sidebar (`SidebarScreen`) is a 320 pt column on the left, in the space's tint, beside the browser, instead of the bottom panel. The bar gets a sidebar button on its left that hides or shows the column (`showingSidebarColumn`); a swipe up on the bar's middle shows it. Narrow (Slide Over, a narrow Split View) is the phone's layout.
+- A split shows its panes side by side, each under a title strip; the front pane (`selectedPane`: the bar, address, back and forward act on it) is outlined in the space's accent, and a tap on a pane's strip brings it to the front.
+- Bar swipes between entries move by the page's width (measured), not the window's. `SidebarPanel`'s sizes are the window's, not the screen's.
+- Debug: `-CompassOpenURLs "<a> <b>" -CompassSplit YES` splits the last two tabs.
+- **Keyboard shortcuts** (`BrowserCommands`, KeyboardShortcuts.swift; a hardware keyboard on iPad or iPhone; listed in the iPadOS menu bar and the ⌘-hold overlay): ⌘T new tab and ⌘L the address (command bar), ⌘S the sidebar, ⌘R and ⌘⇧R reload, ⌘[ and ⌘] back and forward, ⌘⇧C copy link, ⌘F find, ⌃Tab the next entry (wrapping), ⌃1–9 the spaces, ⌘N a new window, ⌘⇧N a new incognito tab, ⌘⇧T reopen a closed tab. Tests: `KeyboardShortcutsTests` (⌘T, ⌘S; iPad simulator). Debug: `-CompassFreshStore YES` starts from an empty sidebar.
+- **Known issues.** ⌃Tab works once and then not again under XCUITest (likely the page, once focused, takes Tab). ⌘W (close tab: Today to the archive, others unload) and ⌃⇧Tab (previous entry) didn't reach the app as SwiftUI commands: the system's Close Window kept ⌘W even with Close Tab in `.saveItem`, and an AppDelegate `buildMenu` override isn't called under SwiftUI's lifecycle. They're also UIKit key commands with `wantsPriorityOverSystemBehavior` on the window's root view controller (`PriorityKeyCommands`), which isn't confirmed to work.
+
+### Multiple windows
+
+`UIApplicationSupportsMultipleScenes`; one `WindowGroup(for: WindowTarget.self)`, whose value is the entry the window shows (so iPadOS restores each window on it) plus a token (SwiftUI would bring up an open window with an equal value instead of opening one).
+
+- **Split of the model.** `AppServices` (one per app): the store, live tabs, sync, passwords, extensions, downloads, system bridges, saving, the archive timer, and every service callback. `AppModel` (one per window, made by `WindowRoot`): the space and entry shown, sidebar, sheets, tab picker, bar; it forwards `store`, `tabs`, `sync`… so views are unchanged. Tab callbacks (scroll, navigation, picture-in-picture) go to the window showing the tab; window-less ones (a page's `window.open`, extensions, widgets' links, shortcuts, sent tabs, quick actions) to the **active window**, the key one (`KeyWindowReader`, `UIWindow.didBecomeKeyNotification`; scene phase can't tell: side-by-side windows are both active). Links and notification taps that come before the first window wait for it.
+- **One page, one window** (the desktop's move on focus, sidebar.md): a WKWebView is in one window at a time. `AppServices.owner(of:)`: the window that last took the tab (`claim`) while it still shows it, else the active window showing it. A window takes the tabs it shows when it becomes key, and a tab picked in it. Another window showing the same entry shows `ElsewherePage`: the page's snapshot, "Open in another window" and **Bring Here**. `WebView` puts the page in a container of its own, so SwiftUI removing one window's view never pulls the page out of the other.
+- **Opening one:** ⌘N (New Window, on the space the active window shows), "Open in New Window" in an entry's long-press menu (the page moves there), and the system's own (the app icon's menu, the dock, dragging to the side).
+- Debug: `-CompassSecondWindow YES` opens the first window's entry in a second window 8 s in. The simulator can't show two windows side by side headless, so placeholders, Bring Here and move on focus need an iPad (Stage Manager or Split View).
+
+## Web extensions
+
+WebKit's `WKWebExtension` API (iOS 18.4+) runs Chrome and Firefox (WebExtension) extensions in a WKWebView app. Compass still targets iOS 17, so it's all behind `#available(iOS 18.4, *)` and hidden on older systems.
+
+- **Install.** From a Chrome Web Store or Firefox Add-ons link or ID (Settings → Extensions), from "Add to Compass" in the page menu on a store's extension page, or from a .crx/.xpi/.zip in Files. `ExtensionSource` downloads the package: a CRX from Chrome's update service (`clients2.google.com/service/update2/crx`, `prodversion` 142), or the XPI the AMO API names. The CRX2/3 header is stripped. An install sheet (`ExtensionInstallSheet`) shows the icon, the version and what the extension can do (`ExtensionPermissions.summary`) before anything runs. Adding a store extension that's already there updates it in place, keeping its data.
+- **Storage.** `Application Support/Compass/Extensions/<id>/`, unpacked (`ExtensionPackage`: a central-directory ZIP reader on Compression's raw deflate, refusing paths outside the folder), plus `Extensions.json` (source, on/off, optional grants). A Chrome extension keeps its Chrome ID as the context's unique identifier (its storage is keyed by it). Other sources get a UUID.
+- **Same origin every launch.** WebKit gives a context a random base URL unless the app sets one, and an extension's IndexedDB and localStorage belong to that origin, so they'd be lost at every restart (1Password keeps its accounts in IndexedDB). `context.baseURL` is `webkit-extension://<record id>/`.
+- **Service workers.** WKWebView runs service workers only in apps with the default-browser entitlement or App-Bound Domains, so a background `service_worker` never starts in Compass (context error 6 after 30 s). At install, `ExtensionPackage.adaptManifest` rewrites it as `background.scripts` (non-persistent background page; `type: module` kept). For classic workers, scripts named literally in `importScripts()` are listed first and `importScripts` becomes a no-op. Firefox extensions already use `background.scripts`. Revisit if Apple grants the browser entitlement.
+- **Running.** `WebExtensions` (Extensions/WebExtensions.swift) owns one `WKWebExtensionController` (`.default()`, persistent). Every tab's configuration gets `webExtensionController` (`TabManager.webView(for:)`), whatever its profile's data store, so extensions reach every profile. Their background pages use the default store. Requested permissions and match patterns (not the optional ones) are granted at load: the user agreed in the install sheet. Optional ones are asked for with an alert, and the answer is kept in `Extensions.json`. The background starts at load (`loadBackgroundContent`), and live tabs the extension injects into are reloaded, since pages that loaded before it started have no content scripts.
+- **Tabs and windows.** Each space is a window (`ExtensionWindow`), and its pinned and Today tabs, plus favorites in the shown space, are its tabs (`ExtensionTab`, keyed by entry ID; an entry without a web view is an unloaded tab). The shown space is the focused window. AppModel and TabManager report opens, closes, activation, focus and URL/title/loading changes. Every web view is announced as it's created (`TabManager.webView(for:)`), once per tab, and when an extension loads, the tabs already live are announced and the shown one activated; otherwise a tab restored after a relaunch is unknown to extensions (1Password then finds no tab for the page's messages). Extensions can open tabs (Today in their window's space, or pinned), load, reload, go back/forward, pin, close (Today goes to the archive), duplicate and snapshot. `windows.create` opens its tabs in the shown space.
+- **Extension pages in tabs.** A tab showing an extension page has the extension's web view configuration, which won't load websites, so when such a page navigates to a website (1Password's "Sign in" sets `location.href`), `TabManager` cancels that navigation and starts the tab over as a web page at the address.
+- **UI.** The page menu shows a row of action buttons (icon and badge). A tap closes the menu and runs the action: a popup comes up as a sheet (`popupViewController`, medium/large). Settings → Extensions lists them (on/off, swipe to remove), and the detail screen has what it can do, problems WebKit reported, Options (in a sheet, the extension's own web view configuration), Update, Show in store and Remove (data included).
+- **Popup title.** WebKit draws the popup's title over the page in the system's style, which is unreadable on a dark popup, and changing that controller's interface style hangs it. So the title is empty, and the popup names itself.
+- **Missing APIs (polyfill).** WebKit on iOS lacks namespaces desktop extensions use (`notifications`, `idle`, `management`, `privacy`, `downloads`, …) and some members (`webNavigation.onCreatedNavigationTarget`, `storage.managed`, `tabs.onReplaced`, …). Touching one throws, and the background never starts (1Password: `chrome.notifications.onClicked` on its first line). `compass-polyfill.js` runs first in every HTML page of an extension (an entry module for module backgrounds), and adds stubs: events that never fire, and calls that resolve to `[]` for queries, `{}` for getters and `"active"` for `idle.queryState`. It also adds the service-worker globals a background page lacks (`clients`, `registration`, `skipWaiting`, `importScripts`). Additions are non-configurable, because WebKit redefines its namespaces' properties after startup and drops configurable ones. WebKit also swaps some namespace objects after startup (`storage`, losing `managed`), so after patching the polyfill pins each namespace on `chrome` (non-configurable). The globals stay WebKit's own: replacing `chrome`/`browser` with a proxy stops events reaching listeners (`action.onClicked` never fired). `action.openPopup()`, which iOS WebKit lacks, opens the popup through native messaging (`compass-open-popup`), when the action has one.
+- **Background lifetime.** WebKit unloads an idle background page after about 5 s. Its IndexedDB connections close first, with a `close` event Chrome never sends when it stops a service worker, and 1Password takes that for a crash. The polyfill drops IDBDatabase `close` events, and a keep-alive page holds the background loaded: `compass-keep-alive.html` in a 1 pt, nearly transparent web view in the app's window (`WebExtensions.keepAlive`), with a `runtime.connect` port to the background, pinged every 4 s and held by the polyfill.
+- **Generated files.** `ExtensionPackage.refresh` rewrites the polyfill, debug and keep-alive files before every load (and adapts folders from before the polyfill), so an extension installed by an older build gets the current ones.
+- **`tabs.query` and URL access.** WebKit ends every `tabs.query` by asking the delegate for permission to the matched tabs' URLs. Compass answers right away with what's already granted, without a prompt (Chrome never asks there), so tabs the extension can't reach have no URL or title. A prompt that never completed would make every `tabs.query` hang. The remaining prompts (`permissions.request`) always answer, and say no if their alert can't be shown.
+- **Ports from extension frames.** WebKit disconnects a `runtime.connect` port opened from an extension frame inside a web page a few ms after the background's onConnect, when the frame connects some time after loading (300 ms or 1 s in: lost; at once: kept), with no `lastError` and no `disconnect()` on either side. `runtime.sendMessage` from the same frame always gets through, and so do content scripts' ports. 1Password's "Save passkey?" sheet (`inline/notification/notification.html`) connects about 120 ms in and lost its port. So the polyfill emulates ports for extension frames inside tabs (`ExtensionPackage.framePorts`). There, `runtime.connect()` returns a Port of ours: its messages go out as `sendMessage` calls, in order, and the background's come back as replies to a long poll (held 10 s, then polled again). In the background (`/_generated_background_page.html` or the manifest's page), onConnect listeners get a matching Port with the real `sender` (tab, frame, URL). Both sides' `disconnect()` reach the other; a frame that goes away sends a close on pagehide, and one that goes silent (no poll for 25 s) is disconnected. Every context's onMessage listeners skip this traffic (key `__compassPort`).
+- **Extension frames at phone width.** 1Password's sheet is a full-screen iframe with the card at `width: 400px`, 16 px from the right, so on a 402 pt iPhone it ran past the left edge. The polyfill, in an extension page shown in a frame narrower than 480 px, gives any box at least half the frame wide that runs past an edge `max-width: calc(100vw - 32px)` (once per box; measuring its margin mid-animation squeezed it to half).
+- **Native messaging.** There's no native app to talk to, so `sendNativeMessage` and `connectNative` fail at once, and 1Password falls back to working alone. Debug builds add `compass-debug.js` (and the `nativeMessaging` permission), which forwards console errors and warnings, uncaught errors and rejections to the app log (`WebExtensions: [name] …`). `-CompassNoPolyfill YES` installs without the polyfill.
+- **Passkeys through 1Password.** They need no change in Compass and no Apple entitlement. 1Password doesn't use the browser's WebAuthn: a content script in the page's own world (`inline/injected/webauthn-listeners.js`, `"world": "MAIN"`, document_start) replaces `navigator.credentials.create`/`get` and `PublicKeyCredential`'s capability checks with locked getters, and its background makes the passkey. WKWebExtension runs MAIN-world content scripts, and Compass's web views have `navigator.credentials` and `PublicKeyCredential` (secure context). The system passkey sheet (iCloud Keychain, the 1Password app) would need `com.apple.developer.web-browser.public-key-credential`, which Apple grants only to default browsers.
+- **Face ID unlock** (`ExtensionUnlock`). Desktop 1Password unlocks with the desktop app's biometrics over native messaging; on iPhone nothing can offer that. A script in the extension's own pages (popup, options, its pages in tabs) watches for a visible password field. After the user types the password and the field goes away, Compass offers "Unlock <name> with Face ID?" and keeps the password in the Keychain, on this device only (`WhenPasscodeSetThisDeviceOnly` + `biometryCurrentSet`). After that, a password field shows up → Face ID → the password is typed in (native value setter + input events, for React) and submitted as a user would: Enter in the field (1Password's unlock listens for it), then, if the field is still there after 0.5 s and isn't busy, a click on its submit button, then the form. The button is the one holding an `unlock-icon` (1Password's arrow, labelled "Unlock"), else a submit button, else one labelled like unlock, sign in or continue (several languages), else the last one after the field. Show/hide toggles (labels with password/reveal/show/hide/mostra/nascondi…, or `aria-pressed`) are never clicked: 1Password's "Reveal password" is the first button after its field. (`form.requestSubmit()` did nothing in 1Password.) If the field is still there 10 s later, the password is forgotten and an alert says so. "Not Now" stops the offers for that extension. The detail screen's "Unlock with Face ID" switch forgets it, and so does removing the extension. Debug: `-CompassPopupJS <js>` runs in the popup, and `-CompassUnlockAutoSave YES` skips the offer. Simulator builds need `CODE_SIGN_IDENTITY=-` for the Keychain (unsigned: error -34018).
+- **The desktop's extensions.** `ExtensionsBridge` (CompassSync) downloads EXTENSIONS (field 48119) in every profile's account. It's download only and mirrored to `sync-extensions.json`. Settings → Extensions → "On Your Other Devices" lists the enabled Chrome Web Store ones the phone doesn't have, each with Add (which goes through the install sheet). Tests: `ExtensionsBridgeTests`, plus `ExtensionsServerTests` (a Mac-side engine puts one, and the phone's bridge gets it from the real server).
+- **Updates.** At launch, at most once a day (or with "Check for Updates"), each store extension's current version comes from Chrome's update service (`v=0.0.0.0`, the `<updatecheck version>`) or the AMO API. A newer version that asks for nothing more (`ExtensionPermissions.asksForMore`) is installed quietly, keeping its state, data and grants. One that asks for more shows "Update available" and "Review Update to x", which goes through the install sheet.
+- **Website access.** "All Sites It Asks For" (the default) or "Only These Sites", a list of hosts (each with its subdomains): only those match patterns are granted, so content scripts run only there. A long press on an extension's button in the page menu shows its own menu items, "Allow on <site>" (when limited), Options and Turn Off (`MenuButton`, a UIKit button, since extension menu items are `UIMenuElement`s).
+- **Context menus.** A long press on a page adds each extension's `menuItems(for: tab)` after the system's items, under the extension's name when it has several (`TabManager`'s `contextMenuConfigurationFor`).
+- **App Review.** Guideline 2.5.2 bars downloading code that changes the app. Extensions only run in web content, as in Orion, which ships Chrome and Firefox extensions on the App Store, but review may ask.
+- **Known to work:** a test MV3 extension with a service worker (content script, `runtime.sendMessage` reply with `sender.tab`, `tabs.create`, `storage`, `action.setBadgeText` showing on the menu button), Dark Reader, uBlock Origin Lite, and 1Password (installs from the Chrome Web Store, its WebAssembly core starts, its passkey hooks run). Debug launch args: `-CompassAddExtension <link, ID or /path.zip>` adds without the sheet (`-CompassExtensionSheet YES` stops at it), `-CompassExtensionAction <n>` taps the menu's nth extension after 8 s.
+
+## System extensions
+
+Everything goes through the App Group `group.it.cipi1965.compass`, which the app, Share, Widgets and SafariOpen are entitled to:
+
+- **CompassShared** (CompassKit). `Snapshot.json` is the spaces as the extensions see them: style, glyph, favorites, Pinned tabs and folders, Today newest first, at most 16 entries a list, plus other devices' tabs. `Inbox/` holds one JSON file per request (open, or pin to a space or folder). `Focus.json` is the Focus filter's space. `Icons/<host>.png` are copies of the favicons. `DeepLink` covers `compass://open|node|space|search|new|inbox|downloads`.
+- **App** (`App/System/`).
+  - SystemBridge writes the snapshot a second after a change, then reloads the widgets, Spotlight and the icon menu.
+  - It drains the Inbox at launch, when the app comes to the front, and on the Darwin notification `it.cipi1965.compass.shared-changed`.
+- **Share** asks Open or Add to Pinned, then the space and the folder. Open then calls the host app's `openURL:` by selector to bring Compass up; if that doesn't work, the request waits for the next launch.
+- **Widgets** (with `Shared/`):
+  - Space (S/M/L), Today (M/L), Quick Actions (S plus Lock Screen circular, rectangular and inline), Other Devices (M/L);
+  - the New Tab control (iOS 18);
+  - the download Live Activity.
+  - Small widgets use `OpenLinkIntent` buttons, since they don't support links.
+- **Focus filter** (`CompassFocusFilter`): the space shown while that Focus is on, optionally the only one in the sidebar.
+- **Spotlight**: favorites and Pinned entries, with the node ID as the item ID. Off with Settings → Show in Spotlight.
+- **Icon menu**: New Tab, Search and the 3 most recent spaces.
+- **SafariOpen**: a Safari web extension (popup) with Open, or Pin to a space. It writes to the Inbox, then sends the tab to `compass://inbox`.
+- **Shortcuts** (app only, run in the app's process): Add to Space (Pinned or Today), Open URL in Space, Get Pinned Tabs, Get Today Tabs (tabs and folders, each with its folder path) and Get Spaces. There are no Siri phrases yet (`AppShortcutsProvider`).
+- **Background downloads** (`Downloads+Background.swift`).
+  - A page's GET download over http(s) leaves WebKit for the background `URLSession` `it.cipi1965.compass.downloads`, with the tab's cookies (filtered by domain, path and secure), its user agent and the referrer. POST, `blob:` and `data:` downloads stay with WebKit and pause when the app goes to the background (the Live Activity then says "paused").
+  - iOS wakes the app when a download ends (`handleEventsForBackgroundURLSession`). Tasks survive a relaunch and come back to the list (`taskDescription` = item ID + name).
+  - The Live Activity says "Downloading in the background" while the app is away.
+  - Cost: the server sees the request twice (WebKit's, cancelled once it turns into a download, then the session's), so a one-time download link could fail.
+
+## Tabs sent from the desktop
 
 Design and the desktop and server parts: [send-tab.md](send-tab.md).
 
 - `DeviceInfoBridge` sets `feature_fields.send_tab_to_self_receiving_enabled` (and the push receiving type), and refreshes an entry from before that.
 - `SendTabBridge` (CompassSync) syncs SEND_TAB_TO_SELF: entries for this phone's cache GUID, unopened, at most 10 days old, http(s), each reported once (the GUIDs shown are kept in `sync-sent-tabs.json`, per account). `markOpened` sets `opened` and `notification_dismissed`.
 - `SentTabNotifications` (App/System) posts "Tab from <device>", the title and host, also with Compass open (a banner). A tap opens the tab in a space of the account it came in and marks it opened. Notification permission is asked when the app comes to the front with sync on.
-- Until the server pushes through APNs, a tab arrives at once while Compass is open (the SSE stream), else at the next background refresh or launch.
+- Without a push, a tab arrives at once while Compass is open (the SSE stream), else at the next background refresh or launch.
 - **Push** (`Push`, CompassSync): once notifications are allowed the app registers for remote notifications (every launch) and POSTs the device token to `/v2/compass/push` for each account (sandbox in Debug, production otherwise); leaving the chain DELETEs it. The app writes `PushAccounts.json` (profile, cache GUID per account) to the App Group.
 - **PushService** (notification service extension, `it.cipi1965.compass.push`): reads the seed and server from the shared Keychain group and the accounts from `PushAccounts.json`, runs `Push.sentTabs` (a throwaway engine with only SEND_TAB_TO_SELF, so the app's sync state isn't touched) per account, and rewrites the server's "New tab" into the newest tab not delivered yet; none for this phone → "A tab was sent to another of your devices". The app skips its own notification for a GUID already delivered.
-- Simulator limits: ad-hoc signed builds get no APNs token (apsd: token null), and `simctl push` doesn't run service extensions. Checked instead: `PushServerTests` (register, a bad token refused, unregister, and the extension's fetch finds only this phone's tab against the real server), `PushAccounts.json` written, and a signed device build with `aps-environment` and the extension. The real push needs the phone, the APNs key and the server deployed.
-- Checked: `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac); in the simulator, `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` (sends to every other device) showed the banner within a second with the app open. The tap isn't checked yet.
+- Simulator limits: ad-hoc signed builds get no APNs token, and `simctl push` doesn't run service extensions.
+- Tests: `PushServerTests` (register, a bad token refused, unregister, and the extension's fetch finds only this phone's tab against the real server), `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac). `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` sends to every other device.
 
-### Undo closing, 2026-11-07
+## TestFlight
 
-The desktop's Cmd+Z / Cmd+Shift+Z for closed entries (sidebar.md, "Undo closing"), on the phone.
+- Team `4M33B5HNDS`, automatic signing. The entitlements are in `project.yml`: the Keychain group `<team>.it.cipi1965.compass.shared` in every target that needs it (no capability needed on the developer site), and the AutoFill Credential Provider in both the app and the extension (a capability of the App IDs; App Store Connect refuses the upload if the app lacks it).
+- The bundle ID is `it.cipi1965.compass`. "Compass" is taken as a bundle name on the App Store (ITMS-90129), so the app's name is "Compass Browser".
+- `ITSAppUsesNonExemptEncryption = false` (standard algorithms protecting the user's own data) and `App/PrivacyInfo.xcprivacy` (no tracking, no collected data, `UserDefaults` CA92.1).
+- `compass ios archive` makes a Release archive with the build number set to the time (`YYYYMMDD.HHMM`) and exports `ios/build/archive/export/Compass.ipa`. `--upload` sends it to App Store Connect instead; `--api-key/--api-key-id/--api-issuer` sign with an API key when Xcode has no account.
 
-- **The stack.** `ClosedEntries` (CompassModel), one on `AppServices` for every window, in memory, the last 25 steps. A step is what one user action closed. Each entry keeps its `SidebarNode` itself and its place: the parent, the sibling before it and its index, and for a pane whose split of two ended, the other pane. A removed node stays detached with its subtree, so it comes back under its IDs, custom title and pinned URL included; sync creates it again over its tombstone (sync.md, "Create over a tombstone"). The step also keeps the `WKWebView.interactionState` of each tab that was open: the tab that opens again on undo gets its back and forward history back (`TabManager.restoring`), as TabRestoreService gives the desktop.
-- **Recording** (`AppModel.userClose`), user closes only: ⌘W, a flicked card in the tab picker (both: Today to the archive, anything else unloads, `.archive` / `.unload`), a Today row's ×, Delete and Remove from Favorites (`.remove`), and Today's Clear (every entry, one step). Not the menu's Archive, auto-archive, sync, Claude's or an extension's closes, or Close All Incognito (which drops every incognito step: `dropIncognito()`).
-- **Undo** (`undoClose()`): the entries come back, last closed first, after the sibling they followed (a parent that's gone sends them to the top of Today, the end of Pinned, or the favorites); an archived entry moves back out of the archive, a pinned tab or favorite goes back to the page it showed. The tab shown as it closed (else the first that was open) opens and is shown; the others come back unloaded. With none open, the window goes to the step's space. Nothing crosses in or out of incognito (`SpaceStore.reinsert`).
-- **Redo** (`redoClose()`) closes the step's entries again, the same way, keeping the other redos. Any other close drops them.
-- **UI.**
-  - A toast over the bar after each close, "Closed “<title>”" (or "Closed 3 tabs") with **Undo**; after an undo, "Reopened …" with **Redo**. Four seconds, replaced by the next one; a flick down puts it away.
-  - **Shake to undo**: a shake shows iOS's alert for it, "Undo Close Tab" with the entry, Undo, Redo when there is one, and Cancel ("Redo Close Tab" once only redo is left). While the keyboard is up the shake is the text's own Undo Typing (`UIWindow.motionEnded`, `KeyboardWatch`).
-  - **⌘⇧T** (Tabs menu, "Reopen Closed Tab") undoes with a hardware keyboard. ⌘Z and ⌘⇧Z stay the text's: iOS gives a page no way to pass them on, as the desktop's undo waits for.
-- Checked: `ClosedEntriesTests` (places, Clear Today's order, a folder's tree, a pane back in its split, a gone parent, a pinned tab's page, incognito, steps and redo, the cap).
+## Verification
+
+- **Unit tests:** `compass ios test` (= `swift test` in `ios/CompassKit`). It covers the crypto vectors, the UniquePosition port, the model invariants (ported from the SpaceModel unit tests) and the apply rules: unknown parent, cycle, invalid placement, delete subtree. Run only the suites a change touches.
+- **Engine against the server:** server test suites start the repo's Go server on a random port and check two Swift clients on one chain, for each type (above).
+- **Simulator:** run headless (`xcrun simctl`, with screenshots through `simctl io screenshot`), never in front of the user. A debug build launched with `-CompassServer <url> -CompassJoinRecovery "<words>"` joins a chain seeded by `SeedForSimulator` (a test that plays "the Mac"; `COMPASS_SEED_PUSH=1` keeps writing, `COMPASS_SEED_PROFILES=1` makes two profiles). `-CompassShow <title>` opens an entry, `-CompassSpace <name>` picks a space page and `-CompassJoinSummary YES` shows the join summary.
+- **Interop with the desktop:**
+  1. Pair the simulator, then a device, with a desktop Compass, on the public server or the local server.
+  2. On the desktop, create a pinned folder and tab, then check them on the phone.
+  3. On the phone, open a Today tab, then check it on the desktop as an unloaded entry.
+  4. Save a password on the phone, then check it on the desktop.
+  5. Check history both ways.
+  6. Check that the phone appears in the device list and that "Tabs on iPhone" works.
+- **Server:** watch the logs for unknown fields or quota errors.
+
+## Risks
+
+- **Protocol drift and hidden engine behavior:** the Swift engine re-implements parts of `components/sync`. To keep it small: only the types listed, server wins on conflicts, and the desktop's apply code as the reference.
+- **Nigori details:** the keybag format and key rotation. The fixture tests catch format mismatches, and "Reset sync" on the desktop must send the phone back to the join screen.
+- **iOS background limits:** freshness while the app is in the background is best-effort apart from sent tabs, which have a push.
+- **Apple review:** an alternative browser is fine with WKWebView. The default-browser entitlement is an optional request.
 
 ## Open items
 
-1. **Desktop QR code** (desktop item 1). Written on `sync/pairing-qr` (2026-11-01): while "Add a device" shows the code, the desktop's sync page shows a QR of `compass-pair:?server=<escaped server URL>&code=<slot>-<digits>` (sync.md, "Pairing QR code"); `PairingInvite(url:)` reads the escaped form. MacBook run passed (2026-11-01): `CompassSyncPageHandlerTest.*` 10/10, and CoreImage decoded the invite from a screenshot of the page, matching the code ([pairing-qr-steps.md](pairing-qr-steps.md)).
-   Countdown ("Expires in m:ss", `sync/pairing-countdown`): MacBook run passed (2026-11-01), `CompassSyncPageHandlerTest.*` 15/15, 4:57 then 4:47 nine seconds later, red under 0:30, then "The code expired. Try again with a new code." with no QR.
-2. **Interop run against the desktop.** Pair the simulator, then a device, with a desktop Compass on sync-main. Check what the Swift tests can't:
+1. **Interop run against the desktop.** Everything is built to the desktop's code and test vectors, and the Swift tests play the desktop's part. A run against a real desktop Compass should check what they can't:
    - a NIGORI made by Chromium opens;
    - the desktop shows the phone's spaces, Today entries, visits and passwords;
-   - the phone appears in the desktop's device list and its "Tabs on other devices".
-
-   Everything is built to the desktop's code and test vectors, but nothing has met a real Chromium yet.
-3. **First TestFlight upload.** Set up on 2026-11-01:
-   - Team `4M33B5HNDS`, automatic signing. The entitlements are in `project.yml`: the Keychain group `<team>.it.cipi1965.compass.shared` in both targets (no capability needed on the developer site) and the AutoFill Credential Provider in the extension (that one is a capability of the App ID `it.cipi1965.compass.autofill`).
-   - `ITSAppUsesNonExemptEncryption = false` (standard algorithms protecting the user's own data) and `App/PrivacyInfo.xcprivacy` (no tracking, no collected data, `UserDefaults` CA92.1).
-   - `compass ios archive` makes a Release archive with the build number set to the time (`YYYYMMDD.HHMM`) and exports `ios/build/archive/export/Compass.ipa`. `--upload` sends it to App Store Connect instead; `--api-key/--api-key-id/--api-issuer` sign with an API key when Xcode has no account. The first export worked with the Xcode account on the Mac mini.
-   - Build 20261101.1125 is the first in TestFlight (2026-11-01). The two before it failed processing with ITMS-90129: "Compass" is taken as a bundle name, so the app is "Compass Browser". The app needs the AutoFill Credential Provider entitlement too, not only the extension, or App Store Connect refuses the upload. iOS lists Compass under Settings → Passwords → AutoFill.
-4. **Per-profile accounts against a real desktop.** Done in M8 against Swift clients that write what the desktop writes; the interop run (item 2) should include a two-profile Mac, a space moved between profiles on each side, and the phone in each profile's device list.
-5. **iPad, next.** Done (below, "iPad"); left: ⌘W, ⌃Tab and ⌃⇧Tab (above), dragging a tab out to a new window, web extensions' `commands`, a resizable column, dragging tabs between panes, and checking Stage Manager window sizes.
-6. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.
-7. **Web extensions, next.** Try 1Password signed in on the phone (Face ID unlock included), a passkey saved and used on webauthn.io, and a link's long-press menu with an extension's items. `commands` (keyboard shortcuts) wait for iPad with a keyboard.
-8. **Background download limits** (plan.md, "iOS background downloads: limits left"): POST, `blob:` and `data:` downloads still pause in the background, and the server sees each download's request twice.
+   - the phone appears in the desktop's device list and its "Tabs on other devices";
+   - with a two-profile Mac: a space moved between profiles on each side, and the phone in each profile's device list.
+2. **iPad:** ⌘W, ⌃Tab and ⌃⇧Tab (above), dragging a tab out to a new window, web extensions' `commands`, a resizable column, dragging tabs between panes, and checking Stage Manager window sizes.
+3. **Not ported from the desktop bridge:** the in-use check when an archive arrives (the desktop keeps an entry in Today if it's shown or playing audio; the phone archives it) and the 100-entry archive cap per space.
+4. **Web extensions:** 1Password signed in on a device (Face ID unlock included), a passkey saved and used, and a link's long-press menu with an extension's items. `commands` (keyboard shortcuts) need a hardware keyboard.
+5. **Background downloads:** POST, `blob:` and `data:` downloads still pause in the background, and the server sees each download's request twice.

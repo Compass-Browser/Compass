@@ -1019,7 +1019,7 @@ TEST_F(CompassSpacesSyncBridgeTest, DisablingSyncKeepsTheSpaces) {
   EXPECT_EQ(Describe(a->list()), "Main/1(Work{Mail},News) fav(Fav)");
 }
 
-// Slice 3b: Today and the archive ----------------------------------------------
+// Today and the archive -------------------------------------------------------
 
 TEST_F(CompassSpacesSyncBridgeTest, TodayShowsOnTheOtherDeviceUnloaded) {
   std::unique_ptr<Device> a = MakeDevice();

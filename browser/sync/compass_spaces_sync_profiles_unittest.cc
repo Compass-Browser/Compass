@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Slice 5 at the bridge level (docs/design/sync.md, "Slice 5 notes"): the
+// Profiles at the bridge level (docs/design/sync.md, "Profiles"): the
 // chain's profile list in the home profile's account, spaces moving between
 // two profiles' accounts, and directory positions comparable across
 // accounts. Each device has two profiles, each with its own list and

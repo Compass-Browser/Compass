@@ -107,7 +107,7 @@ std::optional<syncer::DataTypeSet> ParseChangedTypes(std::string_view data);
 }  // namespace internal
 
 // Keeps a stream of change notifications open to the chain's server
-// (docs/design/sync.md, "Slice 6 notes") and asks the sync engine for
+// (docs/design/sync.md, "Change notifications") and asks the sync engine for
 // updates as soon as another device commits, instead of waiting for the
 // poll. Owned by CompassSyncService while its chain runs.
 //

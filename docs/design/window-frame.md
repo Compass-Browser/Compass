@@ -140,15 +140,15 @@ area, for hovering.
 
 On Windows the caption buttons (minimize, maximize, close) belong to the
 frame view (`BrowserCaptionButtonContainer`), under the browser view, at the
-window's top trailing corner. Two things hid them behind the frame and the
-page (seen on the first Windows builds, 2026-11-01):
+window's top trailing corner. Two things keep them in front of the frame
+and the page:
 
-- The frame's `SidebarTint` fills the whole browser view. The container now
+- The frame's `SidebarTint` fills the whole browser view, so the container
   always paints to a transparent layer (patch), as upstream does only for
-  web apps with Window Controls Overlay, so it draws on top of the browser
+  web apps with Window Controls Overlay, and draws on top of the browser
   view.
-- With no toolbar, the card started 8 DIP from the top, under the buttons.
-  Upstream passes the buttons' area to the layout as the trailing
+- With no toolbar, the card would start 8 DIP from the top, under the
+  buttons. Upstream passes the buttons' area to the layout as the trailing
   exclusion; `GetContentFrameInsets()` takes its height, so the card starts
   below the buttons and the frame runs across the top there like a title
   bar. On macOS the traffic lights are a leading exclusion (in the

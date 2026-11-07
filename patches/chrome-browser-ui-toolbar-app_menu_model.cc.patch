@@ -54,7 +54,7 @@ index faaded8ad5427c95787fde91961ae6d543902336..72a94973d9bb607748446a14b68a26fa
  #endif
  
 +  // Compass: sync's status, opening chrome://compass-sync
-+  // (docs/design/sync.md, "Slice 4 notes").
++  // (docs/design/sync.md, "UI").
 +  if (std::optional<std::u16string> sync_label =
 +          compass::GetAppMenuSyncLabel(browser_)) {
 +    AddItemWithIcon(compass::kOpenSyncPageCommand, *sync_label,

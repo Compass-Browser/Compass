@@ -819,7 +819,7 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   SpaceList& target_list = target->space_list();
   // It keeps its ID, and so its place in the switcher: sync sees the same
   // space leave one profile's account and come into the other's
-  // (docs/design/sync.md, "Slice 5 notes").
+  // (docs/design/sync.md, "Profiles").
   const bool same_id = !target_list.FindSpace(space.id());
   SpaceModel& moved = *target_list.AddSpace(
       target_list.spaces().size(), space.name(),
@@ -1186,7 +1186,7 @@ bool IsEntryShownInFocusedWindow(Profile* profile, const SidebarNode& entry) {
 void ArchiveIdleTodayEntries(Profile* profile, base::Time now) {
   // What a window shows is seen now: its time keeps up, so other devices,
   // whose archivers go by the synced time, don't archive it either
-  // (docs/design/sync.md, "Slice 3b notes").
+  // (docs/design/sync.md, "Today across devices").
   ProfileBrowserCollection::GetForProfile(profile)->ForEach(
       [&](BrowserWindowInterface* browser) {
         WindowFeatures* features = WindowFeatures::From(browser);

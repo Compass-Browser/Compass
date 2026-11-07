@@ -13,7 +13,7 @@
 //	DELETE /{slot}?reason=mismatch|cancel|deny
 //	                     A's token or B's b_token           204
 //
-// A closed slot says why (sync.md, "Slice 4 notes"): for ClosedTTL after it
+// A closed slot says why (sync.md, "Pairing API"): for ClosedTTL after it
 // closes, every request on its number answers 410 {"reason": "mismatch" |
 // "cancel" | "deny" | "expired"}, and the number isn't given out again
 // meanwhile. "server" is the canonical name both devices bind into SPAKE2

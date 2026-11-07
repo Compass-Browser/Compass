@@ -88,8 +88,8 @@ struct Details {
   array<DataTypeState> types;
 };
 
-// Slice 5: joining on a device that has other profiles maps them to the
-// chain's (docs/design/sync.md, "Slice 5 notes"). See
+// Joining on a device that has other profiles maps them to the chain's
+// (docs/design/sync.md, "Profiles"). See
 // compass::sync::ProfileMappingStatus.
 struct ChainProfile {
   string uuid;
@@ -125,8 +125,7 @@ interface PageHandlerFactory {
                     pending_receiver<PageHandler> handler);
 };
 
-// Browser-side handler for chrome://compass-sync (docs/design/sync.md, "UI"
-// and "Slice 4 notes").
+// Browser-side handler for chrome://compass-sync (docs/design/sync.md, "UI").
 interface PageHandler {
   GetState() => (Status status, Pairing pairing, Details details);
 

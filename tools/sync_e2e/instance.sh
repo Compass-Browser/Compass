@@ -4,8 +4,8 @@
 # found in the LICENSE file.
 #
 # Starts or stops one headless Compass instance for the sync end-to-end run
-# (docs/design/sync-slice-2-steps.md). Headless: no window, never takes
-# focus. Sync is set up through chrome://compass-sync (see the steps), not
+# (tools/sync_e2e/README.md). Headless: no window, never takes
+# focus. Sync is set up through chrome://compass-sync (see the README), not
 # switches; a restart is a stop and a start with the same NAME.
 #
 #   instance.sh start NAME PORT [extra browser switches...]

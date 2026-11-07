@@ -21,9 +21,6 @@ namespace compass::updates {
 
 // The update server's root.
 inline constexpr char kUpdateServer[] = "https://updates.compassbrowser.org";
-// Its name until 2026-11-07, still served (same files): manifests written
-// before the move name installers there.
-inline constexpr char kOldUpdateServer[] = "https://updates.compassbrowser.org";
 
 // The manifest |channel| ("stable" or "beta") reads.
 GURL ChannelManifestUrl(std::string_view channel);

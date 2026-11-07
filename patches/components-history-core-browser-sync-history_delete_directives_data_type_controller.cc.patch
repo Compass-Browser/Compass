@@ -17,7 +17,7 @@ index 154bd84a1c6a3dab8fe3172b3bab0ba46020d001..cc76a36ba3be6e4ac00cc3d725716e4e
 -                  kAllowAll) {}
 +                  kAllowAll) {
 +  // Compass: under local sync, processed directives stay on the server for
-+  // a while (docs/design/sync.md, "Slice 7 notes"). Local sync only changes
++  // a while (docs/design/sync.md, "History"). Local sync only changes
 +  // with a restart.
 +  if (history_service && sync_service->IsLocalSyncEnabled()) {
 +    static_cast<DeleteDirectiveHandler*>(

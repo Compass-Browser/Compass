@@ -84,10 +84,10 @@ struct DirectorySlot {
 
 // Syncs a profile's spaces, their pinned trees and Today, their archives, its
 // favorites and folder collapse as COMPASS_SPACES (docs/design/sync.md, "The
-// COMPASS_SPACES data type", "Today across devices", "Slice 3 notes" and
-// "Slice 3b notes"). One per profile, owned (through SpaceService::Attachment)
-// by its SpaceService. New tab and blank pages in Today stay local. The home
-// profile's also carries the chain's profile list ("Slice 5 notes").
+// COMPASS_SPACES data type", "The bridge", "Today across devices" and "The
+// archive"). One per profile, owned (through SpaceService::Attachment) by its
+// SpaceService. New tab and blank pages in Today stay local. The home
+// profile's also carries the chain's profile list ("Profiles").
 //
 // It keeps a mirror: the specifics of every entity as the server last had
 // them (from a remote change or our own commit), saved in its DataTypeStore
@@ -131,8 +131,8 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     // Hands |from|'s live tab, if it has one, to |to|, if it has none.
     virtual void TransferLiveTab(const SidebarNode& from, SidebarNode& to) {}
 
-    // Profiles (slice 5; docs/design/sync.md, "Slice 5 notes"). The defaults
-    // are one profile that carries no profile list.
+    // Profiles (docs/design/sync.md, "Profiles"). The defaults are one
+    // profile that carries no profile list.
     //
     // The chain's profiles this device has, as entities, if this bridge
     // carries the chain's profile list (the home profile's, once its

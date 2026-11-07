@@ -1,6 +1,6 @@
 // Package quota tells a chain's devices how close the chain is to its
 // limits, and which limit refused its latest commits (docs/design/sync.md,
-// "Slice 7 notes"). Chromium's sync engine treats an OVER_QUOTA entry as a
+// "Server"). Chromium's sync engine treats an OVER_QUOTA entry as a
 // transient error and retries quietly, and a dropped visit (history quota)
 // answers SUCCESS, so Compass asks here to show it.
 //

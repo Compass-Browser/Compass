@@ -77,9 +77,9 @@ class TabStripBridge : public TabStripModelObserver,
   // in the tab. A node whose URL or title sync changed (another device
   // navigated it) keeps them until its tab here navigates or retitles, so the
   // two devices don't take the entry back and forth (docs/design/sync.md,
-  // "Slice 3b notes"). Runs on every navigation and title change, which reach
-  // the bridge through Browser's coalesced UI update (up to 200 ms late);
-  // call it to bring the node up to date at once.
+  // "Today across devices"). Runs on every navigation and title change,
+  // which reach the bridge through Browser's coalesced UI update (up to
+  // 200 ms late); call it to bring the node up to date at once.
   void UpdateNode(tabs::TabInterface* tab);
 
   // Pinned or a favorite: the node outlives its tab.

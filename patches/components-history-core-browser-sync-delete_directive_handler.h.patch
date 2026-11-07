@@ -8,7 +8,7 @@ index a9ad56c7d1073dc39354e9f8c54dfa64249c5585..2e2a4e59304e59348e3fd2c5f488a3bd
  
 +  // Compass: under local sync, directives processed at startup stay on the
 +  // server for as long as the history they delete can (docs/design/sync.md,
-+  // "Slice 7 notes"), so a device that joins later still applies them.
++  // "History"), so a device that joins later still applies them.
 +  void set_compass_keep_processed_directives(bool keep) {
 +    compass_keep_processed_directives_ = keep;
 +  }

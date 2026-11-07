@@ -1,9 +1,9 @@
 # Automatic updates
 
-Status: macOS done (Sparkle, both channels, `compass release`); Windows
-written and unit-tested here, but not yet built or run on Windows
-(`compass_enable_win_updater` is off). Linux: not planned (distro packages
-or Flatpak).
+macOS updates through Sparkle, on both channels, published with
+`compass release`. The Windows updater is written and unit-tested but not
+yet built or run on Windows (`compass_enable_win_updater` is off). Linux:
+not planned (distro packages or Flatpak).
 
 ## Channels
 
@@ -36,18 +36,12 @@ is and is still shown.
 
 ## Server
 
-`https://updates.compassbrowser.org` runs on the server (<server>, Debian 13),
-behind the host's Caddy container (`/opt/docker/caddy`, site file
-`config/sites/compassbrowser.caddy`, a copy of `website/compassbrowser.caddy`).
-compassbrowser.org is proxied by Cloudflare, and its certificates come
-through HTTP-01 (the host's Cloudflare token doesn't cover it). Until
-2026-11-07 the server was `https://updates.compassbrowser.org`; that name is
-baked into installed copies (Sparkle's `SUFeedURL`), so it still serves the
-same files, and the Windows updater accepts installers from either name.
-The homepage, `https://compassbrowser.org` (`website/`, rsynced to
-`/var/www/compassbrowser.org`), reads `stable.json` and `beta.json` for its
-download links (the feeds send `Access-Control-Allow-Origin: *`). It's a
-static file server for `/var/www/compass-updates`:
+`https://updates.compassbrowser.org` is a static file server behind
+Cloudflare. Feeds are served with `Cache-Control: no-cache`; archives and
+deltas never change once published, so they're cached for a year. The
+homepage, `https://compassbrowser.org` (`website/`), reads `stable.json` and
+`beta.json` for its download links (the feeds send
+`Access-Control-Allow-Origin: *`).
 
 | Path | What |
 |---|---|
@@ -58,10 +52,18 @@ static file server for `/var/www/compass-updates`:
 | `mac/Compass-<from>-<to>.delta` | Sparkle binary deltas from the three previous releases. |
 | `win/CompassSetup-<version>.exe` | Chromium's mini_installer. |
 
-Feeds are served `no-cache`, and archives `immutable`. Uploads go through a
-system user, `compass-updates`, whose only key (`~/.ssh/compass_updates_deploy`
-on the Mac mini) is restricted to `rrsync /var/www/compass-updates`. That
-key isn't in 1Password and needs no agent, so unattended releases work.
+Feeds are served `no-cache`, and archives `immutable`.
+
+Uploads go over rsync and SSH. The target isn't in the repository: the
+uploader reads it from `~/Library/Application Support/Compass Release/upload.json`,
+
+```json
+{"host": "user@host", "port": 22, "key": "/path/to/ssh_key"}
+```
+
+The key should be a dedicated one, restricted on the server to the site's
+directory (e.g. with `rrsync`), and need no agent, so unattended releases
+work.
 
 ## Signing key
 
@@ -69,9 +71,8 @@ Sparkle's Ed25519 key signs every archive and delta. The Windows updater
 checks the same signatures.
 
 - Private key: `~/Library/Application Support/Compass Release/sparkle_ed25519.key`
-  on the Mac mini (also in its login keychain, account `compass-updates`).
-  **It must be backed up** (1Password): without it, installed copies can't
-  verify any later update.
+  on the release machine (also in its login keychain). **It must be backed
+  up**: without it, installed copies can't verify any later update.
 - Public key: `compass_sparkle_public_key` in `config/args/release.gn`,
   which ends up in Info.plist (`SUPublicEDKey`) and the `COMPASS_UPDATE_PUBLIC_KEY`
   buildflag.
@@ -136,19 +137,12 @@ and `bin/` the tools.
   (e.g. `~/CompassUpdateTest/Compass.app`, its own `--user-data-dir` with
   `{"compass":{"update_channel":"beta"}}` in Local State), started with
   `open -n -g -a … --args …`, and quit it with an Apple Event to its PID
-  (`NSRunningApplication … terminate`). Two traps found on 2026-11-03: a
+  (`NSRunningApplication … terminate`). Two traps: a
   copy started from a shell makes the shell its responsible process, so
   macOS's App Management check stops Sparkle's swap of the bundle
   (`renamex_np` waits on a prompt); and a copy on the external disk started
   by LaunchServices waits on the removable-volume prompt at launch.
   Installed copies started from the Dock or Finder meet neither.
-- **Checked on 2026-11-03:** 20261103.0116 → 20261103.0132 on the beta
-  channel, through a 3.7 MB delta, installed on quit; then 20261103.0132 →
-  20261103.0156 through a 0.27 MB delta, from the About page's "Nearly up
-  to date! Relaunch" (Sparkle installed it and opened the app again). Both
-  results pass `codesign --verify --deep --strict` and Gatekeeper. The
-  channel row switches the pref. 20261103.0156 was promoted to stable and
-  installed in /Applications.
 - **Relaunch caveat:** Sparkle reopens the app without its command line, so
   a test copy with its own `--user-data-dir` comes back on the default
   profile.
@@ -176,7 +170,7 @@ browser decides when to run it.
 - **To ship it:** on the Windows machine, set `compass_version` (the same
   version as the Mac release, or a new one) and
   `compass_enable_win_updater = true` in `out/Release/args.gn`, then build
-  `mini_installer`. On the Mac mini, run `compass release publish-win
+  `mini_installer`. On the release machine, run `compass release publish-win
   <version> --installer mini_installer.exe [--chromium <version>]`.
 - **Not done:** no Authenticode signature (no certificate), so SmartScreen
   warns about the first install's download. Updates are fine: the updater

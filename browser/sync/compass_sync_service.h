@@ -66,7 +66,7 @@ class SyncCredentials;
 // sync, which is how Compass runs it (route 2), so turning sync on or off
 // takes effect at the next launch.
 //
-// Profiles (slice 5; docs/design/sync.md, "Slice 5 notes"): every profile
+// Profiles (docs/design/sync.md, "Profiles"): every profile
 // the switcher lists is in the chain, each with its own account. The one
 // that started or joined the chain is the home profile: its account is the
 // chain's own, and its service also keeps the chain's profile list (through

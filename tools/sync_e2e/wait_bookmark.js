@@ -1,7 +1,7 @@
 // Run on chrome://bookmarks with --arg tag=NAME [--arg timeout=SECONDS].
 // Waits (default 100 s) until the bookmark add_bookmark.js makes for NAME
 // is here, and returns when it showed up (`at`, Date.now()), for timing
-// sync without a manual refresh (docs/design/sync-slice-6-steps.md).
+// sync without a manual refresh (tools/sync_e2e/README.md).
 //
 // getTree() is the snapshot taken when the page loaded (a promise resolved
 // once), so new bookmarks come from the page's onCreated events instead.

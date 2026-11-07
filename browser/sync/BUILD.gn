@@ -93,7 +93,7 @@ source_set("settings") {
 }
 
 # COMPASS_SPACES's bridge: the sidebar's model and sync, nothing of windows,
-# so it's unit-testable on its own (docs/design/sync.md, "Slice 3 notes").
+# so it's unit-testable on its own (docs/design/sync.md, "The bridge").
 source_set("spaces_bridge") {
   sources = [
     "compass_spaces_sync_bridge.cc",

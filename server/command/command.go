@@ -74,7 +74,7 @@ func positiveEnv(name string) (int, bool) {
 
 // LoadQuotaFromEnv sets the entity quota from COMPASS_SYNC_MAX_ENTITIES, the
 // history quota from COMPASS_SYNC_MAX_HISTORY and the history retention
-// from COMPASS_SYNC_HISTORY_DAYS (sync.md, "Slice 7 notes"). Invalid values
+// from COMPASS_SYNC_HISTORY_DAYS (sync.md, "History"). Invalid values
 // are logged and ignored.
 func LoadQuotaFromEnv() {
 	maxClientObjectQuota = DefaultMaxEntities
@@ -510,7 +510,7 @@ func insertCommitEntity(
 	// and lie to the client about the objects being synced instead of returning OVER_QUOTA
 	// so the client can continue to sync other entities.
 	// Compass: the chain remembers it (RecordQuota), so its devices can
-	// show that history is full (sync.md, "Slice 7 notes").
+	// show that history is full (sync.md, "Server").
 	if isHistoryRelatedItem && counts.currentHistory+counts.newHistory >= maxClientHistoryObjectQuota {
 		counts.refused |= datastore.QuotaHistory
 		return false, nil

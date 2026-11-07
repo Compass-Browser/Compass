@@ -32,7 +32,7 @@ struct ChainTests {
     #expect(chain.authKey(profileUUID: "") == chain.authKey)
   }
 
-  // sync.md, "Slice 5 notes" (ChainTest.ProfileAccountVectors).
+  // sync.md, "Identity" (ChainTest.ProfileAccountVectors).
   @Test func profileAccountVectors() {
     let uuid = "2b5c3e1a-0000-4000-8000-000000000001"
     #expect(Ed25519.publicKey(fromSeed: chain.authKey(profileUUID: uuid)).hexString(uppercase: false)

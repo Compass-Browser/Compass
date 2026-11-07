@@ -29,7 +29,7 @@ namespace compass {
 
 class SidebarStore;
 
-// For end-to-end runs (docs/design/sync-slice-3b-steps.md): with
+// For end-to-end runs (tools/sync_e2e/README.md): with
 // --compass-archive-hour-seconds=N, an "hour" of a space's archive delay, as
 // the sidebar's menu sets it, is N seconds, and the archiver runs every N
 // seconds. Debug aid; without the switch, an hour is an hour.

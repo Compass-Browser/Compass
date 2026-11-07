@@ -1,6 +1,6 @@
 // Run in a window's sidebar: cdp.py PORT in compass-sidebar profiles.js
 // --arg op=OP [--arg ...]. Profiles and the spaces of each, as the switcher
-// shows them (docs/design/sync-slice-5-steps.md).
+// shows them (tools/sync_e2e/README.md).
 //
 //   op=dump                         {order, profiles: {NAME: {dir, spaces:
 //                                   [{name, pinned}], favorites}}}

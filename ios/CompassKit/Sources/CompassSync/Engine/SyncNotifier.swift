@@ -6,7 +6,7 @@ import CompassCrypto
 import CompassShared
 import Foundation
 
-/// Change notifications from the server (sync.md, "Slice 6 notes"): a
+/// Change notifications from the server (sync.md, "Change notifications"): a
 /// Server-Sent Events stream at `<server>/compass/events?client_id=<cache
 /// GUID>`, signed like /command/. After another device commits, it sends
 ///

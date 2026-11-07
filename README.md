@@ -1,54 +1,104 @@
-# Compass
+<p align="center">
+  <img src="assets/compass.svg" alt="" width="96" height="96">
+</p>
 
-An open-source, cross-platform browser built on Chromium, with an Arc-style
-sidebar: spaces, profiles, pinned tabs, nested folders, split view, window
-sync and automatic picture-in-picture.
+<h1 align="center">Compass</h1>
 
-> Early scaffold. Nothing here has been built against Chromium yet. See
-> [Status](#status).
+<p align="center">
+  An open-source Arc alternative built on Chromium: a sidebar of spaces,
+  pinned tabs and folders, and sync that never needs an account.
+</p>
 
-- **Design:** [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Building:** [docs/building.md](docs/building.md)
-- **Updating Chromium:** [docs/rebasing.md](docs/rebasing.md)
-- **Changing upstream code:** [chromium_src/README.md](chromium_src/README.md), [patches/README.md](patches/README.md)
+<p align="center">
+  <a href="https://compassbrowser.org">compassbrowser.org</a> ·
+  <a href="https://compassbrowser.org/#download">Download</a> ·
+  <a href="https://github.com/Compass-Browser/Compass/issues">Issues</a> ·
+  <a href="ARCHITECTURE.md">Architecture</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-## Quick start
+## What it is
+
+Compass keeps Chromium's engine, extensions and security model, and replaces
+the tab strip with a sidebar:
+
+- **Spaces:** separate sets of tabs for work, home and everything else, each
+  with its own colors and, if you like, its own profile.
+- **Pinned tabs and folders:** the sites you live in, nested in folders, kept
+  as you left them.
+- **Split view:** two tabs side by side in one window.
+- **Command bar, Peek and little windows:** open things quickly, preview a
+  link without opening a tab, and read links from other apps in a small
+  window of their own.
+- **Automatic picture-in-picture** when you leave a tab that's playing video.
+- **Sync without an account:** devices pair with a short code; everything is
+  end-to-end encrypted, so the server ([`server/`](server)) can't read it.
+  You can run your own.
+- **Compass for iPhone** ([`ios/`](ios)): your spaces, tabs, history and
+  passwords from the desktop.
+
+## Download
+
+| Platform | Status | Get it |
+|---|---|---|
+| macOS 13 or later | Stable and beta | [compassbrowser.org](https://compassbrowser.org/#download) |
+| Windows 10/11, 64-bit | Beta | [compassbrowser.org](https://compassbrowser.org/#download) |
+| iPhone | Beta | [TestFlight](https://testflight.apple.com/join/SE4bmbk1) |
+
+The desktop builds update themselves: Sparkle on macOS, Compass's own
+updater on Windows ([docs/design/updates.md](docs/design/updates.md)).
+
+## Building
+
+Compass is a full Chromium fork, so building it needs a machine that can
+build Chromium: about 100 GB of disk, and a few hours for the first build.
+Prerequisites for macOS and Windows are in [docs/building.md](docs/building.md).
 
 ```sh
-# Prerequisites: see docs/building.md (Xcode / Visual Studio / build deps).
-tools/compass init            # depot_tools + Chromium at config/chromium_version (~1 h, ~60 GB)
+tools/compass init            # depot_tools + Chromium at config/chromium_version
 tools/compass gen debug       # out/Debug with Compass's GN args
-tools/compass build           # build Compass (first build: hours)
-tools/compass run             # launch with a dev profile (--fresh to reset it)
+tools/compass build           # build Compass
+tools/compass run             # launch it with a development profile
 tools/compass test            # build and run compass_unittests
 ```
 
-The Chromium checkout goes in `../compass-chromium` next to this repository.
-Set `COMPASS_CHROMIUM_DIR` to put it somewhere else.
+The Chromium checkout goes in `../compass-chromium`, next to this repository;
+set `COMPASS_CHROMIUM_DIR` to put it somewhere else. The iOS app
+(`tools/compass ios`) and the sync server ([server/README.md](server/README.md))
+build on their own and don't need Chromium.
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| `browser/` | Compass's C++ browser code (`//compass/browser`) |
-| `chromium_src/` | Compile-time overrides of upstream files |
-| `patches/` | Minimal patches to upstream files, one per file |
-| `config/` | Pinned Chromium version and GN args |
-| `build/` | Build integration (`redirect_cc.py`) |
-| `tools/` | The `compass` CLI and its tests |
-| `docs/` | Contributor docs |
+| `browser/`, `common/`, `components/` | Compass's C++ code (`//compass/...`) |
+| `resources/`, `strings/` | WebUI (sidebar, settings, command bar) and strings |
+| `chromium_src/` | Compile-time overrides of upstream files ([README](chromium_src/README.md)) |
+| `patches/` | Small patches to upstream files, one per file ([README](patches/README.md)) |
+| `config/`, `build/` | Pinned Chromium version, GN args, build integration |
+| `ios/` | Compass for iPhone |
+| `server/` | The sync server, a fork of brave/go-sync |
+| `tools/` | The `compass` CLI, release tooling and end-to-end helpers |
+| `website/` | compassbrowser.org |
+| `docs/` | Building, rebasing and the design documents |
 
-## Status
+Start with [ARCHITECTURE.md](ARCHITECTURE.md); each feature has a design
+document in [docs/design/](docs/design).
 
-Done in the scaffold:
+## Contributing
 
-- [x] `compass` CLI: init, sync, patches, gen, build, run, test, update-chromium
-- [x] `chromium_src` override mechanism (compiler wrapper), with tests
-- [x] Patches: branding, wiring `//compass/browser` into Chrome, `compass_unittests` in `gn_all`
-- [x] `SpaceModel`: sidebar tree with folders, tabs and splits, with unit tests
-- [ ] First successful Chromium build with Compass (needs a contributor machine)
-- [ ] WebUI sidebar, window sync, spaces, PiP, …: see the roadmap in ARCHITECTURE.md §13
+Bug reports, ideas and pull requests are welcome: see
+[CONTRIBUTING.md](CONTRIBUTING.md). Please report security issues privately,
+as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-BSD 3-Clause, the same as Chromium. See [LICENSE](LICENSE).
+Compass is under the BSD 3-Clause license, the same as Chromium
+([LICENSE](LICENSE)). The sync server in `server/` is a fork of
+[brave/go-sync](https://github.com/brave/go-sync) and stays under the Mozilla
+Public License 2.0 ([server/LICENSE](server/LICENSE),
+[server/NOTICE.md](server/NOTICE.md)). Chromium and the third-party code it
+includes keep their own licenses.
+
+Compass is an independent project, not affiliated with The Browser Company
+(the makers of Arc) or with Google.

@@ -1,6 +1,6 @@
 // Run on chrome://compass-command-bar opened in a tab (cdp.py run) with
 // --arg query=TEXT. Queries the command bar through the page's own browser
-// proxy and returns the "Tabs on other devices" rows (slice 4): title,
+// proxy and returns the "Tabs on other devices" rows: title,
 // subtitle ("On <device> · <url>") and URL. With --arg want=REGEX, retries
 // for up to 120 s until a row's title or subtitle matches (the other
 // device's tabs arrive with the next sync).

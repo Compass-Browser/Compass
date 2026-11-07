@@ -72,7 +72,7 @@ std::optional<syncer::UserSelectableType> GetSelectableType(SyncDataType type) {
 }
 
 syncer::UserSelectableTypeSet GetUnwantedSelectableTypes() {
-  // docs/design/sync.md, "What syncs" and "Slice 2 notes". WebAuthn
+  // docs/design/sync.md, "What syncs" and "Types". WebAuthn
   // credentials ride with Passwords; their controller is left out instead
   // (patches/chrome-browser-sync-sync_service_factory.cc.patch).
   return {

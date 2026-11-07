@@ -16,7 +16,7 @@ class OpenTabsUIDelegate;
 }  // namespace sync_sessions
 
 // "Tabs on other devices" in the command bar (docs/design/command-bar.md,
-// "Results"; docs/design/sync.md, "Slice 4 notes"): the open tabs the
+// "Results"; docs/design/sync.md, "UI"): the open tabs the
 // SESSIONS type brings from the chain's other devices.
 namespace compass {
 

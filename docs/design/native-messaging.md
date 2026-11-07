@@ -26,7 +26,7 @@ installed.
 
 1Password's helper also checks the browser's code signature before it talks
 to the desktop app. Compass, signed with its own Developer ID, passes (checked
-with 1Password 8.12.42 on 2026-11-01); if it ever doesn't, the reason is in
+with 1Password 8.12.42); if it ever doesn't, the reason is in
 1Password's `BrowserSupport` log
 (`~/Library/Group Containers/2BUA8C4S2C.com.1password/Library/Application
 Support/1Password/Data/logs/BrowserSupport/`).
@@ -48,8 +48,7 @@ the process that launched it and refuses ones it doesn't trust. An unsigned
 Compass shows up in its log (`%LOCALAPPDATA%\1Password\logs\BrowserSupport`)
 as "Unknown Publisher" or "no signature was present in the subject". Community
 posts say newer 1Password builds let the user add a browser as trusted; that
-isn't confirmed. If neither works, Compass needs an Authenticode certificate,
-which is the user's call.
+isn't confirmed. If neither works, Compass needs an Authenticode certificate.
 
 Not yet checked on a Windows machine. To check, with 1Password and Compass
 installed:

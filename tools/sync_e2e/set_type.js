@@ -1,4 +1,4 @@
-// Run on chrome://compass-sync (slice 4) with --arg type=Bookmarks (a
+// Run on chrome://compass-sync with --arg type=Bookmarks (a
 // switch's name as the page shows it) --arg on=true|false. Flips the switch
 // if needed, waits for the browser to confirm, and returns every switch.
 const $ = id => document.getElementById(id);

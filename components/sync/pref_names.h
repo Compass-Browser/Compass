@@ -27,7 +27,7 @@ inline constexpr char kDisabledTypes[] = "compass.sync.disabled_types";
 // cached) doesn't release the data types.
 inline constexpr char kResetPending[] = "compass.sync.reset_pending";
 
-// Slice 5 (docs/design/sync.md, "Slice 5 notes").
+// Profiles (docs/design/sync.md, "Profiles").
 //
 // The profile's sync UUID, lowercase: made once, kept for the profile's life
 // unless joining maps the profile to another device's (it then takes that

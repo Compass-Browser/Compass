@@ -4,8 +4,8 @@
 # found in the LICENSE file.
 """Reads or edits the profiles in an instance's Local State, while it's stopped.
 
-Sync end-to-end helper (docs/design/sync-slice-5-steps.md). Compass has no
-headless way to name a profile, so the steps name them here.
+Sync end-to-end helper (tools/sync_e2e/README.md). Compass has no
+headless way to name a profile, so the runs name them here.
 
   local_state.py USER_DATA_DIR list
       prints {directory: name} for every profile

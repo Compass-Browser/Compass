@@ -1,8 +1,8 @@
 package command_test
 
-// Slice 7 (sync.md, "Slice 7 notes"): commits refused for a quota are
-// remembered per chain (datastore.RecordQuota), and the history settings
-// come from the environment.
+// Commits refused for a quota are remembered per chain
+// (datastore.RecordQuota), and the history settings come from the
+// environment (sync.md, "Server" and "History").
 
 import (
 	"context"

@@ -64,7 +64,7 @@ type Config struct {
 	Push             push.Config // Topics and APNs; Store and Authorize are set by setupRouter.
 }
 
-// Defaults for the slice 7 settings (sync.md, "Slice 7 notes").
+// Defaults for tombstone purge, idle chains and backups (sync.md, "Server").
 const (
 	DefaultTombstoneDays = 30
 	DefaultIdleChainDays = 180
@@ -179,7 +179,7 @@ func LoadConfig() (Config, error) {
 			}
 		}
 	}
-	// The name devices bind into pairing (sync.md, "Slice 4 notes"); empty:
+	// The name devices bind into pairing (sync.md, "Pairing API"); empty:
 	// the Host each pairing request came to.
 	cfg.Pairing.PublicHost = os.Getenv("COMPASS_SYNC_PUBLIC_HOST")
 	return cfg, nil
@@ -277,7 +277,7 @@ func setupRouter(
 		pusher.OnCommit(chain, cacheGUID, created)
 	}
 	r.Route("/v2", func(r chi.Router) {
-		// Compass: change notifications (sync.md, "Slice 6 notes"), a
+		// Compass: change notifications (sync.md, "Change notifications"), a
 		// long-lived stream, so outside the request timeout below.
 		r.Method(http.MethodGet, "/compass/events", hub)
 		r.Group(func(r chi.Router) {
@@ -285,7 +285,7 @@ func setupRouter(
 			// Compass: pairing relay (sync.md, "Pairing API"), next to the
 			// protocol endpoint and outside its auth middleware.
 			r.Mount("/compass/pair", pairing.New(pairCfg).Routes())
-			// Compass: how full the chain is (sync.md, "Slice 7 notes").
+			// Compass: how full the chain is (sync.md, "Server").
 			r.Method(http.MethodGet, "/compass/quota", quotaHandler)
 			// Compass: APNs tokens, for sent tabs (send-tab.md).
 			r.Handle("/compass/push", pusher)

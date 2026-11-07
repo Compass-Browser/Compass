@@ -1,5 +1,5 @@
 // Run on chrome://compass-sync of a device joining a chain that has other
-// profiles (slice 5). Waits (up to 120 s) for the mapping step, then
+// profiles. Waits (up to 120 s) for the mapping step, then
 // confirms it: the proposed mapping, or with --arg map="NAME=CHAIN NAME;..."
 // the given choices ("new" for a new profile of the chain). Returns what was
 // proposed and chosen, and the outcome.

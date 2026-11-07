@@ -5,11 +5,6 @@ fork. It keeps Chromium's engine, extension system and security model, and
 replaces the tab strip with an Arc-style sidebar: spaces, profiles, pinned
 tabs, nested folders, split view, window sync and automatic picture-in-picture.
 
-> Compass was called Strata until 2026-10-30. Renaming touches
-> `patches/chrome-app-theme-chromium-BRANDING.patch`, the `compass` CLI, the
-> `//compass` source root, and the saved files' names (which read the old
-> ones, see `ReadJsonFile()`).
-
 ## 1. Goals and non-goals
 
 **Goals**
@@ -20,12 +15,17 @@ tabs, nested folders, split view, window sync and automatic picture-in-picture.
 - A clean, fast, opinionated UI: a vertical sidebar instead of a tab strip.
 - Follow Chrome stable within days, not weeks, including security fixes.
 
-**Not yet** (planned, see [Roadmap](#13-roadmap))
+**Also in this repository**
 
-- Cross-device sync (Chrome Sync is unavailable to third-party builds, so we
-  will run our own end-to-end encrypted, self-hostable service).
+- Cross-device sync. Chrome Sync is unavailable to third-party builds, so
+  Compass has its own end-to-end encrypted, self-hostable service
+  (`server/`, [docs/design/sync.md](docs/design/sync.md)).
+- Compass for iOS, a native SwiftUI + WebKit app that syncs with the desktop
+  (`ios/`, [docs/design/ios.md](docs/design/ios.md)).
+
+**Not yet**
+
 - Widevine VMP signing (Widevine itself works, unverified: [docs/design/widevine.md](docs/design/widevine.md)).
-- Mobile apps.
 
 ## 2. Base: a pinned Chromium stable
 
@@ -53,8 +53,8 @@ Three mechanisms, in order of preference. Use the first one that works.
 ~/src/compass-chromium/   ← created by `compass init` (~100 GB with builds)
   ├─ .gclient
   ├─ depot_tools/
-  └─ src/                       ← Chromium checkout at the pinned tag
-      └─ compass → ~/src/compass   (symlink; a junction on Windows)
+  └─ src/                 ← Chromium checkout at the pinned tag
+      └─ compass → ~/src/compass   (symlink)
 ```
 
 The repository directory must be named `compass` in lowercase. Includes are
@@ -69,7 +69,8 @@ forever. Override the location with `COMPASS_CHROMIUM_DIR`.
 The CLI also supports the Brave-style in-tree layout: if this repository is
 cloned directly to `<checkout>/src/compass`, it detects that and uses it as is.
 Use that layout if a Chromium build script rejects a source path that
-resolves outside `src/`.
+resolves outside `src/`. On Windows it's required (see
+[docs/building.md](docs/building.md)).
 
 ### chromium_src overrides
 
@@ -158,7 +159,8 @@ extension tab indices stay meaningful.
 Persistence: one JSON file per profile (`Compass Sidebar.json` in the profile
 directory), written atomically and in batches by `ImportantFileWriter` on a
 background sequence, the way upstream stores bookmarks (D12). It stores the
-pinned tree and Today; spaces and per-window UI state follow.
+pinned tree and Today. The browser-wide list of spaces is in
+`Compass Spaces.json` in the user data folder (D17).
 
 ## 6. Spaces and profiles
 
@@ -209,7 +211,7 @@ the shared space model, not owners of tabs.
   sidebar and load when clicked. Tabs that Chrome's session restore brings
   back take over their saved entries (D14).
 
-Code (planned): `browser/window_sync/`. This includes `LiveTabRegistry`
+Code: `browser/window_sync/`. This includes `LiveTabRegistry`
 (node → `WebContents`, host `Browser`) and the move-on-focus controller.
 
 ## 8. Extensions
@@ -271,19 +273,23 @@ video: playing, audible, largest visible area, most recently interacted with.
 | Linux X11 | `_NET_WM_STATE_ABOVE` | None |
 | Linux Wayland | No standard always-on-top protocol | Compositor-dependent. GNOME won't allow it. Documented as a limitation. |
 
-Code (planned): `browser/pip/`, plus a macOS override for the PiP widget.
+Code: `browser/ui/views/picture_in_picture/`, plus patches to upstream's
+auto-PiP helpers and overlay window. See
+[docs/design/picture-in-picture.md](docs/design/picture-in-picture.md).
 
-## 11. Other Arc-style features (later milestones)
+## 11. Other Arc-style features
 
 - **Command bar:** WebUI overlay over omnibox suggestions, tabs, spaces,
-  history and commands.
-- **Peek / Little window:** short-lived popup windows that can be promoted to
-  a full tab.
-- **Boosts:** per-site CSS/JS injection, implemented as a built-in component
-  extension so it reuses Chromium's content-script machinery.
-- **Auto-archive:** configurable per space. Archived entries go to a
-  searchable archive. The archive itself is done (sidebar.md, "Today
-  auto-archive"); search comes with the command bar.
+  history and commands ([docs/design/command-bar.md](docs/design/command-bar.md)).
+- **Peek and little windows:** short-lived popup windows that can be
+  promoted to a full tab ([docs/design/peek.md](docs/design/peek.md),
+  [docs/design/little-window.md](docs/design/little-window.md)).
+- **Auto-archive:** per space, into a per-space archive
+  ([docs/design/sidebar.md](docs/design/sidebar.md), "Today auto-archive").
+- **Import from Arc:** profiles, spaces and sidebar
+  ([docs/design/arc-import.md](docs/design/arc-import.md)).
+- **Boosts** (not started): per-site CSS/JS injection, planned as a built-in
+  component extension so it reuses Chromium's content-script machinery.
 
 ## 12. Build configurations
 
@@ -294,30 +300,19 @@ Code (planned): `browser/pip/`, plus a macOS override for the PiP widget.
 | Config | Use | Notes |
 |---|---|---|
 | `debug` | Daily development | Component build, full symbols for our code |
+| `fast` | Trying it by hand | Optimized, no DCHECKs, still a component build |
+| `portable` | A build to copy to another machine | `fast`, linked statically |
 | `release` | Shipping | `is_official_build`, no PGO yet (`chrome_pgo_phase = 0`) |
 
 Proprietary codecs (H.264/AAC) are on. Distributors are responsible for any
 codec licensing in their region; this is the same position as other Chromium
 forks.
 
-## 13. Roadmap
+## 13. Design docs
 
-1. **Scaffold.** CLI, overrides, patches, branding, CI for tooling. *(this commit)*
-2. **Sidebar.** `SpaceModel` (done, with tests), persistence, WebUI sidebar in
-   the vertical tab strip slot, nested folders, drag and drop, pinned/today
-   sections.
-3. **Window sync.** `LiveTabRegistry`, move-on-focus, placeholder, parking
-   browser.
-4. **Spaces and profiles.** One `Browser` per (window, space), space switcher,
-   per-space theme.
-5. **Extensions UI.** Action menu, popups, `sidePanel`, parking browser filter,
-   compatibility pass.
-6. **Split view.** Mapped onto upstream split tabs.
-7. **PiP.** Triggers and floating windows on each platform.
-8. **Arc extras.** Command bar, Peek, Boosts, auto-archive.
-9. **Later.** Sync service, Widevine. Mobile: Compass for iOS is a native SwiftUI + WebKit app in `ios/` that syncs with the desktop ([docs/design/ios.md](docs/design/ios.md)).
-
-Milestones 2–4 make up the MVP.
+Each feature has a design doc in [docs/design/](docs/design/) with its
+status, the code it touches and its known gaps. Start there before changing
+a feature.
 
 ## 14. Decision log
 
@@ -332,7 +327,7 @@ Milestones 2–4 make up the MVP.
 | D7 | Tabs belong to spaces; windows are views; move on focus | Window sync without duplicating page state |
 | D8 | Hidden parking `Browser` per profile | Extensions always see a `windowId` |
 | D9 | A split is one entry | Moves, pins and archives as a unit; simple sync semantics |
-| D10 | Sync and Widevine VMP deferred | MVP first |
+| D10 | Sync and Widevine VMP deferred until the sidebar, window sync and spaces worked | MVP first |
 | D11 | Pin one Chromium stable tag for all platforms | Reproducible builds; one rebase per cycle |
 | D12 | Sidebar persisted as JSON via `ImportantFileWriter`, not SQLite | The pinned tree is small and cheapest to write whole; atomic and proven by bookmarks. SQLite comes in when archive and history need queries |
 | D13 | A closing window hands its tabs to another window of the profile; no parking `Browser` yet (refines D8) | A hidden window would come back visible through session restore and keep the process alive without UI on Windows and Linux. A real window gives extensions a `windowId` too |

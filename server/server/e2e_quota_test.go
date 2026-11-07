@@ -1,7 +1,7 @@
 package server_test
 
-// Slice 7 (sync.md, "Slice 7 notes"): the quota status endpoint end to end,
-// the new settings, backups and the hourly purge.
+// The quota status endpoint end to end, the tombstone, idle-chain and backup
+// settings, backups and the hourly purge (sync.md, "Server").
 
 import (
 	"context"

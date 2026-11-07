@@ -1,6 +1,6 @@
 # Little windows
 
-Status: first slice done (2026-10-31). Based on Chromium 156.0.8078.48.
+Status: first slice done. Based on Chromium 156.0.8078.48.
 
 ## Goal
 
@@ -115,7 +115,7 @@ mix) opens as upstream does.
   Arc's command bar.
 - Settings: off, and per-domain routing to spaces (Arc's Air Traffic
   Control).
-- Windows: written, not yet built or tried (2026-11-07). Links from other
+- Windows: written, not yet built or tried. Links from other
   apps arrive on the command line, through the process singleton when
   Compass is running. `StartupBrowserCreatorImpl::DetermineURLsAndLaunch()`
   (patch) opens them in little windows when `CanOpenInLittleWindows()`
@@ -129,9 +129,6 @@ mix) opens as upstream does.
   over the opener's window, and keeping Compass's other windows behind it.
 - Linux: the same hook would do, but it's Windows-only for now.
 
-Checked by screenshot (2026-10-31): a link opened from iTerm with Compass
-behind it.
-
-Tests: `LittleWindowBrowserTest.*` (8)
+Tests: `LittleWindowBrowserTest.*`
 (`browser/ui/views/little_window/little_window_browsertest.mm`), including
 the real `application:openURLs:` path.

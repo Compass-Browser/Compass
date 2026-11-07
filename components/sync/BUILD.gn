@@ -133,8 +133,9 @@ source_set("unit_tests") {
   ]
 }
 
-# History sync under local sync (slice 2b): tests the chromium_src override of
-# components/sync/base/data_type.cc and the patches to //components/history.
+# History sync under local sync (docs/design/sync.md, "History"): tests the
+# chromium_src override of components/sync/base/data_type.cc and the patches
+# to //components/history.
 source_set("history_unit_tests") {
   testonly = true
   sources = [ "history_sync_unittest.cc" ]

@@ -38,9 +38,6 @@ Other platforms' shortcuts (`accelerator_table.cc`) are unchanged.
 
 ## Customizing
 
-Status: written 2026-11-01 in a worktree, without a build (the Mac was busy
-with other sessions' builds): not yet compiled or run.
-
 compass://settings/shortcuts ("Keyboard shortcuts" in the settings menu or
 the command bar; also alone on chrome://compass-settings, see settings.md)
 lists the shortcuts the user can change, by

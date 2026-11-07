@@ -82,7 +82,7 @@ constexpr base::TimeDelta kQuotaRecheckInterval = base::Minutes(1);
 // The types Compass never syncs are GetUnwantedSelectableTypes()
 // (sync_settings.h). History (kHistory: HISTORY and
 // HISTORY_DELETE_DIRECTIVES) is wanted and selected like the rest; it runs
-// under local sync, encrypted, since slice 2b (sync.md, "Slice 2b notes").
+// under local sync, encrypted (sync.md, "History").
 // Its USER_EVENTS and JOURNEY stay off: local sync leaves them out.
 
 std::string HostResultMessage(PairingHost::Result result) {
@@ -449,7 +449,7 @@ PairingStatus CompassSyncService::GetPairingStatus() const {
 
 void CompassSyncService::NotifyObservers() {
   if (VLOG_IS_ON(1)) {
-    // For the end-to-end steps (docs/design/sync-slice-2-steps.md), which
+    // For the end-to-end helpers (tools/sync_e2e/README.md), which
     // run with --vmodule=compass_sync_service=1.
     const SyncStatus status = GetStatus();
     std::string line = base::StrCat(

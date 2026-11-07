@@ -249,5 +249,31 @@ class StampAppPlistTest(unittest.TestCase):
                        ['CFBundleVersion'])
 
 
+class UploadTargetTest(unittest.TestCase):
+
+  def _target(self, text):
+    with tempfile.TemporaryDirectory() as d:
+      config = Path(d) / 'upload.json'
+      if text is not None:
+        config.write_text(text)
+      return release.upload_target(config)
+
+  def test_host_port_and_key(self):
+    host, ssh = self._target(
+        '{"host": "u@example.org", "port": 2222, "key": "/k/deploy"}')
+    self.assertEqual('u@example.org', host)
+    self.assertEqual('ssh -p 2222 -i /k/deploy -o IdentityAgent=none '
+                     '-o IdentitiesOnly=yes', ssh)
+
+  def test_defaults(self):
+    self.assertEqual(('u@example.org', 'ssh -p 22'),
+                     self._target('{"host": "u@example.org"}'))
+
+  def test_missing_or_bad_config(self):
+    for text in (None, 'not json', '{}', '{"host": ""}'):
+      with self.assertRaises(release.ReleaseError):
+        self._target(text)
+
+
 if __name__ == '__main__':
   unittest.main()

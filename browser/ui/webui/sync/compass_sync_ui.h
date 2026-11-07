@@ -38,7 +38,7 @@ class CompassSyncUIConfig : public content::DefaultWebUIConfig<CompassSyncUI> {
 
 // The page side of sync: makes the page's handler. Owned by
 // chrome://compass-sync and by chrome://settings (SettingsSections). See
-// docs/design/sync.md, "UI" and "Slice 4 notes".
+// docs/design/sync.md, "UI".
 class SyncPageHandlerFactory : public sync::mojom::PageHandlerFactory {
  public:
   SyncPageHandlerFactory(

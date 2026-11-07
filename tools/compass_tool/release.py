@@ -6,6 +6,9 @@
 The release folder (~/Library/Application Support/Compass Release) keeps:
 
 - sparkle_ed25519.key: Sparkle's private key (never in the repository);
+- upload.json: where `upload()` rsyncs to, e.g.
+  {"host": "user@server", "port": 22, "key": "~/.ssh/compass_updates_deploy"}
+  ("port" and "key" are optional; never in the repository);
 - site/: a mirror of https://updates.compassbrowser.org, the update server:
   - releases.json: every release, the source of truth for the rest;
   - stable.json, beta.json: the newest release on each channel;
@@ -43,11 +46,8 @@ RELEASE_DIR = Path.home() / 'Library' / 'Application Support' / \
 KEY_FILE = RELEASE_DIR / 'sparkle_ed25519.key'
 SITE_DIR = RELEASE_DIR / 'site'
 
-# The rsync-only account on the update server (rrsync, rooted at
-# /var/www/compass-updates), with its own key: no 1Password needed.
-UPLOAD_HOST = 'user@update-server'
-UPLOAD_PORT = 22
-UPLOAD_KEY = Path.home() / '.ssh' / 'compass_updates_deploy'
+# The update server's rsync target (docs/design/updates.md).
+UPLOAD_CONFIG = RELEASE_DIR / 'upload.json'
 
 
 class ReleaseError(Exception):
@@ -374,17 +374,36 @@ def make_deltas(manifest: Dict, archive: Path, version: str, tools: Path,
 # Upload --------------------------------------------------------------------
 
 
+def upload_target(config: Path = UPLOAD_CONFIG) -> tuple:
+  """(host, ssh command) from |config|."""
+  try:
+    data = json.loads(config.read_text())
+  except FileNotFoundError:
+    raise ReleaseError('no upload target: write %s, e.g. {"host": '
+                       '"user@server", "port": 22, "key": "~/.ssh/key"}' %
+                       config)
+  except ValueError as e:
+    raise ReleaseError('%s: %s' % (config, e))
+  host = data.get('host')
+  if not isinstance(host, str) or not host:
+    raise ReleaseError('%s: no "host"' % config)
+  ssh = ['ssh', '-p', str(int(data.get('port', 22)))]
+  if data.get('key'):
+    ssh += ['-i', str(Path(data['key']).expanduser()), '-o',
+            'IdentityAgent=none', '-o', 'IdentitiesOnly=yes']
+  return host, ' '.join(ssh)
+
+
 def upload(paths: List[Path], site: Path = SITE_DIR) -> None:
   """rsyncs |paths| (inside |site|) to the update server, in order."""
-  ssh = 'ssh -i %s -o IdentityAgent=none -o IdentitiesOnly=yes -p %d' % (
-      UPLOAD_KEY, UPLOAD_PORT)
+  host, ssh = upload_target()
   # One rsync per folder, in order: macOS's openrsync can't send --relative
   # through rrsync.
   for path in paths:
     folder = path.parent.relative_to(site).as_posix()
     dest = '' if folder == '.' else folder + '/'
     subprocess.run(['rsync', '-t', '--partial', '-e', ssh,
-                    str(path.relative_to(site)), UPLOAD_HOST + ':' + dest],
+                    str(path.relative_to(site)), host + ':' + dest],
                    cwd=site, check=True)
 
 

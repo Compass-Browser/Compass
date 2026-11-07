@@ -74,7 +74,7 @@ struct PairingStatus {
 };
 
 // The switches on chrome://compass-sync, one per kind of data the user
-// sees (docs/design/sync.md, "Slice 4 notes"). All but kSpaces are upstream
+// sees (docs/design/sync.md, "UI"). All but kSpaces are upstream
 // UserSelectableTypes; kSpaces is COMPASS_SPACES.
 enum class SyncDataType {
   kPasswords,
@@ -103,8 +103,8 @@ struct SyncDevice {
   bool this_device = false;
 };
 
-// Joining a chain on a device with other profiles (slice 5): how each of them
-// syncs. See docs/design/sync.md, "Slice 5 notes".
+// Joining a chain on a device with other profiles: how each of them syncs.
+// See docs/design/sync.md, "Profiles".
 struct ProfileMappingStatus {
   ProfileMappingStatus();
   ProfileMappingStatus(const ProfileMappingStatus&);

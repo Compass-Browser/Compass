@@ -1,8 +1,8 @@
 package server_test
 
-// Change notifications end to end (sync.md, "Slice 6 notes"): devices of a
-// chain hold /v2/compass/events open with their sync token; another
-// device's commit sends them the changed types.
+// Change notifications end to end (sync.md, "Change notifications"):
+// devices of a chain hold /v2/compass/events open with their sync token;
+// another device's commit sends them the changed types.
 
 import (
 	"bufio"

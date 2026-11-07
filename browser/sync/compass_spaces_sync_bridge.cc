@@ -239,7 +239,7 @@ void CollectSplits(const SidebarNode& node, std::vector<base::Uuid>& splits) {
 }
 
 
-// Space themes (docs/design/sync.md, "Merged with main (space themes)").
+// Space themes (docs/design/sync.md, "Space themes").
 // Each value is compared with what the entity already says, decoded, so an
 // equivalent encoding (an older client's, or a stale `color_rgb`) isn't
 // rewritten, and an applied remote value isn't committed back.

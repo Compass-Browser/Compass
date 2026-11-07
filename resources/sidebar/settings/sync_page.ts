@@ -9,7 +9,7 @@ import {CompassSettingsPage} from './page_base.js';
 import {getTemplate} from './sync_page.html.js';
 
 // Sync: compass://settings/sync, and alone on chrome://compass-sync
-// (docs/design/sync.md, "UI" and "Slice 4 notes"). Off: start a chain on a
+// (docs/design/sync.md, "UI"). Off: start a chain on a
 // server, or join one by pairing code or recovery code. On: the status, the
 // devices, adding one, what syncs, the recovery code (behind Touch ID), the
 // server, leaving and resetting. Joining on a Mac with other profiles: which

@@ -445,9 +445,9 @@ public nonisolated struct SyncPb_CompassNode: Sendable {
   fileprivate var _savedTitle: String? = nil
 }
 
-/// A profile of the chain (slice 5); only in the home profile's account. Each
+/// A profile of the chain; only in the home profile's account. Each
 /// profile syncs with its own account, derived from the chain's seed and
-/// `uuid` (docs/design/sync.md, "Slice 5 notes"); a device that doesn't have
+/// `uuid` (docs/design/sync.md, "Profiles"); a device that doesn't have
 /// one creates it.
 public nonisolated struct SyncPb_CompassProfile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the

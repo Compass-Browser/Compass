@@ -475,7 +475,7 @@ TEST_F(CommandBarPageHandlerTest, ReportsTheOmniboxLog) {
   EXPECT_EQ(logs.size(), 1u);
 }
 
-// docs/design/sync.md, "Slice 4 notes".
+// docs/design/sync.md, "UI".
 TEST_F(CommandBarPageHandlerTest, TabsOnOtherDevices) {
   other_devices_ = {
       {u"MacBook Air",

@@ -185,7 +185,7 @@ struct ArchivedEntry {
   // The archived node's ID: the tab's (also when it's the one pane of a
   // split worth keeping), or the split's. Saved, and the same on every synced
   // device, which sees archiving as a move of that entry (docs/design/sync.md,
-  // "Slice 3b notes").
+  // "The archive").
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<Tab> tabs;
   base::Time archived_at;

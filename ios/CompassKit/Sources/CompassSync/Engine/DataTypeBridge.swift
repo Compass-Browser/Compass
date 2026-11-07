@@ -67,7 +67,7 @@ extension DataType {
   }
 
   /// Compass encrypts every type with the chain's passphrase except these
-  /// two, as the desktop does (sync.md; history is encrypted too, "Slice 2b").
+  /// two, as the desktop does (sync.md; history is encrypted too, "History").
   var isEncrypted: Bool { self != .nigori && self != .deviceInfo }
 
   /// Whether the engine keeps entity metadata after a commit. Chromium's

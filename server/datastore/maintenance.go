@@ -1,6 +1,6 @@
 package datastore
 
-// Compass (slice 7, sync.md "Slice 7 notes"): housekeeping on the SQLite
+// Compass (sync.md, "Server"): housekeeping on the SQLite
 // store. Tombstones go after a while, chains no device has used for a long
 // time are cleared and disabled, and each chain remembers which quota last
 // refused one of its commits, so its devices can say so.

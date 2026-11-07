@@ -123,7 +123,10 @@ tools/compass ios device       # Debug, signed for development, for real devices
 tools/compass ios archive --upload   # Release, uploaded to TestFlight
 ```
 
-`ios device` signs automatically with the team in `ios/project.yml`. The
+`ios device` signs automatically with the team in `ios/project.yml`. To
+use your own Apple Developer team, change `DEVELOPMENT_TEAM` there and
+`IOS_TEAM` in `tools/compass_tool/cli.py`; bundle IDs belong to one team, so
+you'll need your own for those too. The
 profile covers every device registered to the team, so the .app
 (`ios/build/DerivedData-device/Build/Products/Debug-iphoneos/Compass.app`)
 can be copied to another Mac and installed from there:

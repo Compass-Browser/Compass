@@ -18,7 +18,7 @@ const read = () => ({
   qr: $('pairingQr') && !$('pairingQrPanel').hidden ?
       ($('pairingQr').dataset.invite || '') :
       null,
-  // The app menu's sync row (slice 4), e.g. "Sync: server full" (slice 7).
+  // The app menu's sync row, e.g. "Synced" or "Sync: server full".
   menu: document.documentElement.dataset.menuLabel,
 });
 if (ARGS.wait) {

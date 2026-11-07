@@ -1,14 +1,9 @@
 # Find on page and Claude
 
-Status (2026-11-02): milestone 0 (this doc and the shared files in
-`common/claude/`), D1 (find bar), D2 (settings and client) and D3 (chat
-panel), D4 (page tools), D5 (browser scope) and D6 (MCP server) are on
-main. Next: the iOS milestones.
-
 `common/claude/test/page_agent_test.html` checks `page_agent.js` without a
 window: open it with `--headless=new --dump-dom` (the command is in the file)
-and look for `RESULT PASS`. It passes in Compass (Chromium 156). It hasn't run
-in WebKit yet; I3 runs it in a WKWebView test.
+and look for `RESULT PASS`. It hasn't run in WebKit
+yet.
 
 ## Goal
 
@@ -28,7 +23,7 @@ in WebKit yet; I3 runs it in a WKWebView test.
   or a compatible gateway. Claude Pro/Max subscription tokens aren't
   supported: Anthropic's terms don't allow third-party apps to use them.
 
-## Shared core: `common/claude/` (new)
+## Shared core: `common/claude/`
 
 - **`tools.json`**: the tool definitions (name, description, input_schema) sent to the Messages API. Both platforms load the same file:
   - desktop: a grit resource;
@@ -59,8 +54,6 @@ in WebKit yet; I3 runs it in a WKWebView test.
 
 ### Find bar (Cmd+F)
 
-Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes (4/4, out/Fast, headless). Not yet tried by hand.
-
 - **Entry point.** `HandleFindInPage()` (`browser/ui/views/find_bar/find_bar.cc`) is called first from upstream's `chrome::FindInPage()` (patch). Every way to find goes through that function: the commands `IDC_FIND` and `IDC_FIND_NEXT`/`PREVIOUS`, and also the browser action behind the menu's Find…, which calls `chrome::Find()` directly. A first version hooked only the commands, so the real Cmd+F still showed upstream's bar. The user's key bindings (`shortcuts_mac.mm` entry `find`) keep working. Windows without the Compass frame (popups, apps) have no `FindBar` and keep upstream's.
 - **Host.** `compass::FindBar` is a `views::WebView` on `chrome://compass-find`, a child of the browser view that layout ignores, installed by `WindowFrame` next to the load bar. It sits over the active pane's top trailing corner, 8 DIP in (`kContentFrameInset`).
   - **Why not a bubble or upstream's child widget:** upstream's `FindBarHost` widget isn't activatable, so on macOS a web page in it can't become the key window's first responder and wouldn't get the typing. A view in the browser window does get it, as the sidebar does.
@@ -83,8 +76,6 @@ Status: done on `claude/d1-find-bar` (2026-11-02): `FindBarBrowserTest.*` passes
 - **Tests:** `browser/ui/views/find_bar/find_bar_browsertest.cc`.
 
 ### Chat panel
-
-Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand with a real key. D4 (page tools) done on `claude/d4-page-tools` (2026-11-02): `ClaudeToolsBrowserTest.*` (8/8), `ClaudePanelBrowserTest.*` (4/4, with the agent loop), `KeyEventsTest.*` and `ClaudeRequestTest.*` pass in out/Fast, headless. Not yet tried with a real key. D5 (browser scope) done on `claude/d5-browser-scope` (2026-11-02): `ClaudeToolsBrowserTest.*` (12/12, 4 for D5) passes.
 
 - **Surface.** `compass::claude::ClaudePanel` (`browser/ui/views/claude/`), owned by the window's sidebar view. It registers a window-wide upstream side panel entry on first use, `SidePanelEntry::Id::kCompassClaude` (one-line patch of `side_panel_entry_id.h`), on the right, since the sidebar is on the left. The entry holds `chrome://compass-claude` (`ClaudeChatUI`) in a `SidePanelWebUIViewT`.
   - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model, New chat, close).
@@ -110,7 +101,7 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
   - on the Claude API, `thinking.block_binding.prefix_mismatch_behavior: "drop_block"` with `anthropic-beta: thinking-binding-controls-2026-08-01`, so a block that still doesn't match (another model picked mid-chat) is dropped instead of refused;
   - automatic caching of the conversation;
   - on the Claude API with Fable 5.1, Opus 5.5, Opus 5 or Sonnet 5.5: `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`.
-- **The agent loop** (D4, `app.ts` `runTools_()`). A reply that ends with `stop_reason: "tool_use"` has its tool calls run one after the other (`RunTool`), their results go back as one user message of `tool_result` blocks, and the next reply is asked for. That repeats until a reply ends otherwise, the user stops, or 40 rounds (Claude then stops and says to send "go on").
+- **The agent loop** (`app.ts` `runTools_()`). A reply that ends with `stop_reason: "tool_use"` has its tool calls run one after the other (`RunTool`), their results go back as one user message of `tool_result` blocks, and the next reply is asked for. That repeats until a reply ends otherwise, the user stops, or 40 rounds (Claude then stops and says to send "go on").
   - `StartTask()` with each message pins the tab Claude acts on: the active one. Switching tabs doesn't move Claude. The footer shows "Using <tab>" with a pulse while Claude works.
   - Each tool call is a collapsible row in the reply: a few words ("Click e12", "Type “Ada”"), its input and its result; screenshots show under it. Tool-result turns aren't shown as messages.
   - Stop (or Esc) ends the reply and the running tool. Tool calls left without a result get one ("Stopped by the user."), or the API would refuse the next request. Consecutive user turns (tool results, then a new message) go as one message.
@@ -118,7 +109,7 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
 - **Conversation lifetime.** In the page, for as long as the panel's page lives. Saved history comes later.
   - A reply stopped while Claude was thinking leaves a thinking block without its signature, which the API would refuse; it isn't sent back.
 
-### Browser-side services (per profile, `browser/claude/`, new)
+### Browser-side services (per profile, `browser/claude/`)
 - **Prefs** (`browser/claude/claude_prefs.{h,cc}`, target `:prefs`, registered from `compass::RegisterCompassProfilePrefs()`; none sync):
   - `compass.claude.api_key`: the key, encrypted with `os_crypt_async` (the "Compass Safe Storage" Keychain item on macOS), base64. Only `ClaudeCredentials` reads or writes it, and the key never reaches a renderer;
   - `compass.claude.api_key_hint`: `sk-ant-…a1b2`, all settings show;
@@ -134,7 +125,7 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
   - Every request sends `anthropic-version: 2026-10-21` (`kApiVersion`).
   - They put prompt caching (`cache_control`) on the system prompt and tools.
   - A key or URL change cancels requests in flight.
-- **`ClaudeTools`** (`claude_tools.{h,cc}`, D4): runs tools on a target tab, one at a time: `Run(name, input, callback)` gives a `ToolResult`, the `tool_result`'s content blocks (text, image) and `is_error`. It knows nothing of the chat, as the MCP rule below wants. The chat's handler owns one and sets its target with each message.
+- **`ClaudeTools`** (`claude_tools.{h,cc}`): runs tools on a target tab, one at a time: `Run(name, input, callback)` gives a `ToolResult`, the `tool_result`'s content blocks (text, image) and `is_error`. It knows nothing of the chat, as the MCP rule below wants. The chat's handler owns one and sets its target with each message.
   - **Scope is checked here**, in C++, never in TypeScript, on every call, so turning the setting off stops Claude at its next step:
     - every tool but `navigate` refuses when the target shows a page `CanUsePage()` refuses (the browser's own pages, the Web Store); `navigate` and `open_tab` load only http and https;
     - the browser tools refuse without "Let Claude use the whole browser" ("Not permitted: …", which says to ask the user);
@@ -152,7 +143,7 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
   - A tool that takes over 30 seconds ends with an error (a hung page, a reply that never came).
   - While Claude works on a tab, `IncrementCapturerCount(stay_hidden)` keeps it rendering, so clicks and screenshots work in a background tab, and the page still sees itself as hidden. A minute without tools lets the tab go (the capture and the DevTools client).
   - Stop ends the running tool with "Stopped by the user."; a closed tab gives "The tab Claude was using closed."
-  - **Browser tools** (D5). `ClaudeTools` can't depend on `//chrome/browser/ui` (the UI targets depend on it), so it asks a `TabsDelegate`; `ClaudeTabs` (`browser/ui/claude/claude_tabs.{h,cc}`) is the one for a profile and a home window. The MCP bridge (D6) can use it too.
+  - **Browser tools.** `ClaudeTools` can't depend on `//chrome/browser/ui` (the UI targets depend on it), so it asks a `TabsDelegate`; `ClaudeTabs` (`browser/ui/claude/claude_tabs.{h,cc}`) is the one for a profile and a home window. The MCP bridge uses it too.
     - `list_tabs`: the profile's tabs, front window first, grouped by window ("Window 1 (shows space Work)"), each with its id (`t` and the `TabHandle`'s value), title, URL, space (from `LiveTabRegistry` and `SpaceList::FindSpaceOf()`; "Favorites" for favorites), and marks: `[front]`, `[you act on this]`, `[you opened it]`. Tabs of spaces no window shows, which live in the hidden parking window (and windows swapped away for another profile's space), come last as "Not shown".
     - `open_tab`: `Navigate()` in the chat's window (the last active one if it's gone), in the background unless `active`; Compass makes it a Today entry of the window's space. It waits for the load, as `navigate` does, and the page tools act on it.
     - `select_tab`: the page tools act on that tab, which stays where it is (hidden ones too: they're kept rendering).
@@ -168,7 +159,7 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
   - `PageHandler.StartTask()` pins the active tab as the target; `PageHandler.RunTool(name, input_json) → result_json` runs a tool.
   - Also `Stop()` (the reply and the tool), `GetSetup()`, `OpenSettings()` and the rest.
 - **Where the agent loop runs.** In the page (`resources/sidebar/claude_chat/app.ts`), as above. Prompting and loop changes then don't need a C++ rebuild, while the key, the network and the permissions stay in the browser process.
-- **Request defaults for D3**, from the Claude API reference:
+- **Request defaults**, from the Claude API reference:
   - adaptive thinking with `display: "summarized"`, so the panel can show what Claude is doing;
   - `cache_control` on the system prompt and tools;
   - `stop_reason: "refusal"` handled before reading `content`;
@@ -179,8 +170,6 @@ Status: D3 (text, with the page attached) on main (2026-11-02), tried by hand wi
 
 ### Settings
 
-Status: done on `claude/d2-claude-client` (2026-11-02): `SseParserTest.*`, `ClaudeApiTest.*` (12/12), `ClaudeSettingsHandlerBrowserTest.*` and `SettingsSectionsBrowserTest.*` (10/10) pass in out/Fast. Not yet tried with a real key.
-
 - **New section "Claude"**, following the pattern in `docs/design/settings.md`: `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`, and the `route.ts`, `router.ts`, `settings_menu`, `settings_main` and BUILD patches.
   - The handler is bound in `browser/ui/webui/settings/settings_sections.cc` and the settings broker list.
 - **Fields:**
@@ -190,9 +179,11 @@ Status: done on `claude/d2-claude-client` (2026-11-02): `SseParserTest.*`, `Clau
   - "Test connection";
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages.
 
-### Browser tools (D7)
+### Browser tools
 
-Status: done on `claude/d7-browser-tools` (2026-11-02): `ClaudeToolsBrowserTest.*` (16/16, 3 for D7) passes in out/Fast, headless. Matteo asked for Claude to have every feature of the browser; he chose that Claude may close, move and rename any of the user's tabs, and use the history, downloads and send-to-device.
+Claude may use every feature of the browser: it may close, move and rename
+any of the user's tabs, and use the history, downloads and send-to-device.
+The prompt has it ask first (below).
 
 - **Ids.** Sidebar entries (tabs, splits, folders), loaded or not, are `n` and the first 8 hex digits of their node's UUID; spaces `s` and 8 digits; tabs outside the sidebar (popups, apps) `t` and their `TabHandle`. Every tool takes any of them.
 - **`list_tabs`** is the sidebar: Favorites (every space), then each space (the one the user's window shows, or another window, marked) with Pinned (folders, splits) and Today, then other windows' tabs. Marks: `[front]`, `[you act on this]`, `[you opened it]`, `[unloaded]`, `[muted]`, `[playing]`. A loaded tab shows its page's live title and URL (the entry's are saved lazily); the user's name for it wins.
@@ -202,11 +193,13 @@ Status: done on `claude/d7-browser-tools` (2026-11-02): `ClaudeToolsBrowserTest.
 - **The prompt** (`system_prompt.md`, shared with iOS, so platform-neutral): the tabs and their order are the user's; before closing or removing tabs they didn't mention, or moving many, Claude says what it will do and asks.
 - **Tests** (`ClaudeToolsBrowserTest`): `OrganizesTheSidebar` (pin, unpin, reorder, favorite and back, a folder, a tab in it renamed, a folder refused in Today, mute, activate), `SpacesAndUnloadedEntries` (a closed pinned entry stays unloaded and `select_tab` loads it in the background; create, switch, move a tab to another space; `activate_tab` brings its space back), `HistoryDownloadsDevices`.
 
-### MCP server (D6)
+### MCP server
 
-Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBridgeBrowserTest.*` (4/4, including the real `compass-mcp`) passes in out/Fast, headless. Not built on Windows: it would need a named pipe. Tried from Claude Code 2.1.316 (2026-11-02, `claude -p` with an MCP config running the bundled `compass-mcp` on the Fast dev profile): `list_tabs`, `select_tab` of a background tab, `get_page_text`, `read_console`, `find` and `screenshot` worked; the page tools refused the front tab, a settings page. Claude Code declares itself as `claude-code` ("Claude Code"), the name "Always allow" stores.
+macOS (and Linux, untried). Not built on Windows: it would need a named
+pipe. Claude Code declares itself as `claude-code` ("Claude Code"), the
+name "Always allow" stores.
 
-- **Rule for D1–D5.** `ClaudeTools` doesn't depend on the chat: the chat panel and MCP are two callers of that one layer, so D6 added no tool code.
+- **One tool layer.** `ClaudeTools` doesn't depend on the chat: the chat panel and MCP are two callers of that one layer, so MCP has no tool code of its own.
 - **`compass-mcp`** (`tools/mcp/compass_mcp.cc`): a relay, not an MCP implementation. MCP clients run it as a stdio server; it copies their stdin to `<user data dir>/compass-mcp.sock` and the socket to their stdout, as is (MCP's stdio framing is a JSON-RPC message per line).
   - Plain POSIX and CoreFoundation, no Chromium libraries (`#pragma allow_unsafe_buffers`): it must run from the bundle in any build, and component builds keep `//base` in the framework.
   - Shipped as `Contents/MacOS/compass-mcp` (`bundle_data` in `tools/mcp/BUILD.gn`, added to the app's `bundle_deps` by the `chrome/BUILD.gn` patch), and signed with the hardened runtime by `compass sign` (`chrome/installer/mac/signing/parts.py` patch, part `compass-mcp`).
@@ -228,81 +221,60 @@ Status: done on `claude/d6-mcp` (2026-11-02), macOS (and Linux, untried): `McpBr
 - **No API key.** MCP clients bring their own model.
 - **Tests** (`browser/ui/claude/mcp_bridge_browsertest.cc`, a scripted client on the real socket): initialize, tools/list, calls (text, a screenshot as an MCP image), asked once per connection, browser tools refused without the setting, ping, unknown methods; Deny, and "Always allow" remembered for the next connection; turning it off closes the connection and removes the socket; and the real `compass-mcp` relaying, and answering errors while nothing listens. The test's temporary directory makes the socket path too long, so the link is tested too.
 
-## iOS (`ios/App/Claude/`, new)
+## iOS (`ios/App/Claude/`)
 
-Status (2026-11-02):
-
-- **I1 is done.** The WKWebView's find interaction is on (TabManager), the page menu has a Find tile, the command bar has "Find “…”" for typed text, and a hardware keyboard has ⌘F.
-- **I2 is done** (on main; Matteo, 2026-11-02: works on the iPhone with a real key).
-  - `CompassKit/Sources/CompassClaude` holds the pure parts, with unit tests (`CompassClaudeTests`, 11):
-    - `ClaudeEndpoint`: base URL rules, headers, error text, key hint, model list;
-    - `ChatRequest`: the desktop's body;
-    - `Conversation`: a port of conversation.ts (stream events to content blocks, the messages to send, the page block, screenshot pruning).
-  - The SSE parser moved to `CompassShared` (`EventStreamParser`), shared with sync's push stream.
-  - The app side, in `App/Claude/`:
-    - `ClaudeSettings`: the key in the device-only Keychain, the rest in UserDefaults;
-    - `ClaudeClient`: URLSession streaming and `GET /v1/models`;
-    - `ClaudeChat`: one per window; the page's text comes from `page_agent.js` `pageText` in content world "claude";
-    - `ClaudeChatSheet` and `ClaudeSettingsView`.
-  - Opening the chat: an "Ask Claude" tile in the page menu, or ⌘⇧E.
+- **Find.** The WKWebView's find interaction is on (TabManager), the page menu has a Find tile, the command bar has "Find “…”" for typed text, and a hardware keyboard has ⌘F.
+- **Pure parts** in `CompassKit/Sources/CompassClaude`, with unit tests (`CompassClaudeTests`):
+  - `ClaudeEndpoint`: base URL rules, headers, error text, key hint, model list;
+  - `ChatRequest`: the desktop's body;
+  - `Conversation`: a port of conversation.ts (stream events to content blocks, the messages to send, the page block, screenshot pruning).
+  - The SSE parser is in `CompassShared` (`EventStreamParser`), shared with sync's push stream.
+- **The app side**, in `App/Claude/`:
+  - `ClaudeSettings`: the key in the device-only Keychain (not shared with extensions), the rest in UserDefaults;
+  - `ClaudeClient`: URLSession streaming and `GET /v1/models`;
+  - `ClaudeChat`: one per window; the page's text comes from `page_agent.js` `pageText` in content world "claude";
+  - `ClaudeChatSheet` and `ClaudeSettingsView`.
   - `common/claude/` is bundled through project.yml.
-  - Debug: `-CompassClaude YES` opens the sheet.
-- **I3 is written** (on main), checked in the simulator; to try on the phone with a key.
-  - `ClaudeTools.swift` runs the page tools on the tab the chat is about:
-    - page_agent.js in content world "claude", with screenshot pixels turned into CSS pixels;
-    - `takeSnapshot` of the visible page (JPEG, at most 1280 px on a side);
-    - `ConsoleCapture`, a document-start page-world script added to every tab, for read_console;
-    - run_js in the page world;
-    - navigate waits for the load (15 s at most).
+- **Chat UI.** A SwiftUI sheet with detents, so the page stays visible above it at the medium detent. Opened from an "Ask Claude" tile in the page menu, or ⌘⇧E. It shows a row per tool call (status, the result on a tap, the screenshot) and a Stop button.
+- **Page tools** (`ClaudeTools.swift`), on the tab the chat is about:
+  - page_agent.js in content world "claude", with screenshot pixels turned into CSS pixels;
+  - `takeSnapshot` of the visible page (JPEG, at most 1280 px on a side);
+  - `ConsoleCapture`, a document-start page-world script added to every tab, wraps `console.*`, `onerror` and `unhandledrejection` for read_console;
+  - run_js in the page world;
+  - clicks and typing are synthetic DOM events through `page_agent.js` (pointer, mouse and click events, then input and change events). The real touch input is untouched;
+  - navigate waits for the load (15 s at most).
   - Results are worded as the desktop's.
-  - Browser tools say "Not permitted" without the toggle, and "not on iOS yet" with it (I4).
-  - `ClaudeChat` runs the loop: tool calls one after the other, at most 40 rounds. The sheet shows a row per call (status, the result on a tap, the screenshot).
-  - Debug: `-CompassClaudeTools "name {json};;…"` runs tools on the shown tab 8 s in and writes `tmp/claude-tools.log`. Checked on en.wikipedia.org/wiki/Compass in the simulator: read_page, find, run_js, read_console (the page's log and a run_js warning), scroll, screenshot, a coordinate click (opened the image viewer), get_page_text, list_tabs refused, navigate.
-- **I4 and the indicators are written** (on main), checked in the simulator.
-  - Browser tools work with the toggle on:
-    - list_tabs: every tab in the sidebar by space (pinned, Today newest first), then favorites, loaded or not, with 8-character ids and [not loaded] / [front] / [you act on this] / [you opened it] (Matteo, 2026-11-02: Claude should see and load unloaded tabs). select_tab, and any page tool on the target, loads an unloaded tab in the background and waits for it;
-    - open_tab: a Today tab in the space of the tab Claude works on, in the background unless `active`, waited for until loaded;
-    - select_tab: loads the tab if it isn't loaded;
-    - close_tab: any tab, as on the desktop since D7 (the system prompt has Claude ask first): a tab Claude opened goes, a Today tab goes to the archive, a pinned tab or favorite unloads; it goes back to the chat's tab.
-  - The tool list skips tools.json entries whose `platforms` leave out "ios" (D7's desktop-only tools); entries without `platforms` are for every platform.
+- **The loop.** `ClaudeChat` runs tool calls one after the other, at most 40 rounds.
+- **Browser tools**, with the toggle on (without it they say "Not permitted"):
+  - list_tabs: every tab in the sidebar by space (pinned, Today newest first), then favorites, loaded or not, with 8-character ids and [not loaded] / [front] / [you act on this] / [you opened it]. select_tab, and any page tool on the target, loads an unloaded tab in the background and waits for it;
+  - open_tab: a Today tab in the space of the tab Claude works on, in the background unless `active`, waited for until loaded;
+  - select_tab: loads the tab if it isn't loaded;
+  - close_tab: any tab, as on the desktop (the system prompt has Claude ask first): a tab Claude opened goes, a Today tab goes to the archive, a pinned tab or favorite unloads; it goes back to the chat's tab.
+  - The tool list skips tools.json entries whose `platforms` leave out "ios" (the desktop-only browser tools); entries without `platforms` are for every platform.
   - A tab no window shows is kept rendering while Claude uses it (`ClaudeTools.keepRendering`: a full-size, nearly transparent host at the back of the key window; WebKit throttles out-of-window views and can't snapshot them), and released when the reply ends.
-  - Indicators:
-    - an orange dot fades out where a click or hover landed;
-    - the acting tab's sidebar row gets an orange outline and pulsing sparkles;
-    - with the sheet closed, a "Claude is working…" pill with Stop sits above the bar.
-  - Checked: open_tab in the background, then get_page_text and a screenshot of it, list_tabs marks, close_tab of a user's tab refused.
-  - Known: pageText includes inline `<style>` text (shared page_agent.js; reported to the desktop session).
+- **Indicators:**
+  - an orange dot fades out where a click or hover landed;
+  - the acting tab's sidebar row gets an orange outline and pulsing sparkles;
+  - with the sheet closed, a "Claude is working…" pill with Stop sits above the bar.
+- **Debug:** `-CompassClaude YES` opens the sheet. `-CompassClaudeTools "name {json};;…"` runs tools on the shown tab 8 s in and writes `tmp/claude-tools.log`.
+- **Known limits.**
+  - The events are untrusted (`isTrusted == false`), so a few sites ignore them. The tool result says when nothing changed.
+  - pageText includes inline `<style>` text (shared page_agent.js).
 
-- **Find.** Set `isFindInteractionEnabled = true` on the `WKWebView` (`ios/App/Browser/WebView.swift`) and add "Find on page" to `PageMenu.swift`. Cmd+F works with a hardware keyboard.
-- **Settings.** Add a Claude section in `SettingsView.swift` with the same fields. The key is stored with the existing `ios/App/Model/Keychain.swift`, kept in the device's Keychain only and not shared with extensions. The other settings go in UserDefaults.
-- **Client and loop.** `ClaudeClient.swift` streams SSE with `URLSession.bytes(for:)`. `ClaudeAgent.swift` is the same loop as the desktop's `agent.ts`, reading the shared `tools.json` and `system_prompt.md`. The pure parts (the SSE parser, request building, screenshot pruning) go in CompassKit (`CompassKit/Sources/CompassClaude`) so they can have unit tests.
-- **Chat UI.** A SwiftUI sheet with detents, opened from the bottom bar or the page menu, so the page stays visible above it at the medium detent. It has the same message and tool rows and a Stop button.
-- **Tools:**
-  - `page_agent.js` runs through `callAsyncJavaScript` in `WKContentWorld.world(name: "claude")`;
-  - a document-start `WKUserScript` in the page world wraps `console.*`, `onerror` and `unhandledrejection` and buffers them for `read_console`;
-  - `WKWebView.takeSnapshot` takes screenshots;
-  - clicks and typing are synthetic DOM events through `page_agent.js` (pointer, mouse and click events, then input and change events). The real touch input is untouched.
-  - Browser scope goes through `TabManager` and `AppModel`.
-- **Known limit.** On iOS the events are untrusted (`isTrusted == false`), so a few sites ignore them. The tool result says when nothing changed.
+## Milestones
 
-## Milestones (one branch each, `claude/<milestone>-…`)
+The work was split into milestones, which the code and tests still refer to:
 
-0. **Design doc.** `docs/design/claude.md` describes the above. Add `common/claude/` with `tools.json`, `system_prompt.md` and `page_agent.js`.
-1. **D1: desktop find bar**, which doesn't depend on the rest.
-2. **D2: desktop settings, key storage and `ClaudeClient`**, with a working "Test connection".
-3. **D3: chat panel and agent loop.** Text only, with the current page's text attached.
-4. **D4: page tools through the DevTools protocol.** Read, screenshot, console, JS, click, type, scroll, plus the indicator and Stop.
-5. **D5: browser scope.** The toggle and the tab tools.
-6. **D6: MCP server.** Lets Claude Code, Claude Desktop and other MCP clients drive the logged-in browser. See "MCP server (D6)" above.
-6b. **D7: browser tools.** The sidebar, spaces, history, downloads and devices (see "Browser tools (D7)").
-7. **I1: iOS find.**
-8. **I2: iOS settings, Keychain, client and chat sheet.**
-9. **I3: iOS page tools and console capture.**
-10. **I4: iOS browser scope.**
+- **D1:** desktop find bar.
+- **D2:** desktop settings, key storage and `ClaudeClient`, with "Test connection".
+- **D3:** chat panel and agent loop, with the current page's text attached.
+- **D4:** page tools through the DevTools protocol, the indicator and Stop.
+- **D5:** browser scope: the toggle and the tab tools.
+- **D6:** MCP server.
+- **D7:** browser tools: the sidebar, spaces, history, downloads and devices.
+- **I1–I4:** iOS find; settings, client and chat sheet; page tools and console capture; browser scope.
 
 iOS gets no MCP server; iOS apps can't keep a local listener running in the background.
-
-Desktop (D1–D5) and iOS (I1–I4) work can run in separate sessions.
 
 ## Verification
 
@@ -321,15 +293,11 @@ Desktop browser tests run headless through `compass test --browser`, and never t
     - `navigate`, back, and `chrome://` and `javascript:` refused; every tool refused on `chrome://version`; browser tools refused;
     - Stop ends a running `wait`; a closed tab.
     - Not checked: that the real cursor doesn't move (DevTools input never touches it).
-  - D5, in the same suite with the real `ClaudeTabs`: browser tools refused without the setting; `list_tabs` (marks), `open_tab` in the background, `select_tab`, `close_tab` only for Claude's tabs; the setting turned off mid-task refuses the opened tab; a tab of a hidden space (parked) listed as "Not shown" and usable.
+  - Browser scope, in the same suite with the real `ClaudeTabs`: browser tools refused without the setting; `list_tabs` (marks), `open_tab` in the background, `select_tab`, `close_tab` only for Claude's tabs; the setting turned off mid-task refuses the opened tab; a tab of a hidden space (parked) listed as "Not shown" and usable.
   - `ClaudePanelBrowserTest.RunsToolsAndSendsResults`: the fake API asks for `get_page_text`, and the next request carries the `tool_use` and its `tool_result` with the page's text.
-- **iOS:** CompassKit tests for the SSE parser and the agent loop, run with the fake script. After each iOS milestone, build, install and launch on Matteo's iPhone. Check by hand against a real key on a form-heavy site and a console-error page.
+- **iOS:** CompassKit tests for the SSE parser and the agent loop, run with the fake script. Check by hand on a device against a real key on a form-heavy site and a console-error page.
 - **Manual desktop pass** with a real key in a Fast build:
   - "summarize this page";
   - "why is this page throwing errors" (console);
   - "fill this form with test data" (clicks and typing while the user moves the mouse elsewhere);
   - with the toggle on: "open the docs in a new tab and compare".
-- **Mac Release** at the end; the .dmg goes to Gioele.
-
-## Open check at implementation time
-- The upstream checkout is `~/src/strata-chromium/src`. `FindTabHelper` (D1), the side panel names (D3) and the `DevToolsAgentHost` client API (D4) are checked.

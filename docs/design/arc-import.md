@@ -1,8 +1,8 @@
 # Import from Arc
 
-Status: slices 1-5 done (2026-11-01), not yet run on real Arc data.
-Based on Chromium 156.0.8078.48; Arc on the
-user's Mac is Chromium 156.0.8078.74.
+Status: done (reader, profile copy, sidebar, archive, the import page);
+not yet run end to end on a real Arc install. macOS only. Based on Chromium
+156.0.8078.48.
 
 ## Goal
 
@@ -11,7 +11,7 @@ cookies (still signed in), history, cache, passwords, autofill, extensions
 and settings, and Arc's sidebar: spaces (name, color, profile), pinned
 entries and folders, Today tabs, and Favorites.
 
-Decided with the user (2026-10-31):
+Decisions:
 
 - **In the app**: an "Import from Arc" page, offered on first run and from
   the command bar / settings. Not a command-line tool.
@@ -43,7 +43,7 @@ lists alternating an ID and an object:
   - `list`: a folder (`title`)
   - `itemContainer`: a space's pinned or unpinned section, or a profile's
     Favorites
-  - possibly `splitView` (not on the user's Mac; handled if present)
+  - possibly `splitView` (handled if present)
 - `topAppsContainerIDs`: profile → the container of its Favorites.
 
 ## Mapping to Compass
@@ -67,37 +67,92 @@ Notes, Library media), Arc's account and sync state, open windows.
 
 ## How
 
-### Slices
+### Reader
 
-1. **Reader** (`browser/arc_import/arc_sidebar.{h,cc}`, unit tests): parse
-   `StorableSidebar.json` and `Local State` into a plain structure (profiles,
-   spaces, trees, favorites, colors). No browser dependencies.
-2. **Profile copy**: on a blocking thread, copy an Arc profile folder into a
-   new Compass profile folder (not loaded yet, so nothing is in use), and its
-   disk cache; leave out lock files, `Sessions`/`Current Session` (Compass
-   restores from its sidebar, not Arc's windows), and Arc-only folders.
-   Re-encrypt the encrypted columns (below). Then register the profile
-   (`ProfileAttributesStorage`) and load it.
-3. **Sidebar**: once an imported profile's `SpaceService` has loaded, add its
-   spaces, entries and favorites through `SpaceList`/`SpaceModel`, and place
-   the spaces in `SpaceDirectory`. Entries come in unloaded.
-4. **Page**: `compass://import` (first run, command bar "Import from Arc"):
-   lists Arc's profiles and spaces with checkboxes, asks to quit Arc if it's
-   running (its databases are open), explains the Keychain prompt, shows
-   progress, then switches the window to the first imported space.
+`compass::arc::ParseSidebar()` (`browser/arc_import/arc_sidebar.{h,cc}`)
+parses `StorableSidebar.json` and `Local State` into a plain structure
+(profiles, spaces, trees, favorites, colors), with no browser dependencies.
+`ParseArchive()` reads `StorableArchiveItems.json` (a list alternating IDs
+and entries: `sidebarItem` with `data.tab`, `archivedAt`, `source.space._0`
+or `source.littleArc`, and `reason`, which isn't kept).
+`ArcSidebarTest.DISABLED_RealSidebar` is an opt-in test that reads the
+Arc data on the machine.
+
+### Profile copy
+
+`compass::arc::CopyProfile()` (`browser/arc_import/profile_copy.cc`) copies
+an Arc profile folder and its disk cache into a new folder (never over an
+existing one; removed again on failure), on a blocking thread, before the
+profile is loaded. It leaves out lock files, logs and Arc's open windows
+(`Sessions`, `Current/Last Session/Tabs`): Compass restores from its sidebar,
+not Arc's windows. It then re-encrypts (below). The databases are opened
+with upstream's "FirefoxImporter" metrics tag.
+
+`compass::arc::ImportArcProfile()` (`browser/ui/arc_import/`) gets Compass's
+encryptor (`os_crypt_async`), then on a sequenced background runner reads
+Arc's Keychain password (`ReadArcKeychainPassword()`, `SecItemCopyMatching`
+on "Arc Safe Storage"), copies the profile into
+`GenerateNextProfileDirectoryPath()` and its cache into that profile's cache
+folder, re-encrypts with Compass's key, and signs the preferences
+(`SignImportedPreferences()`). Then it loads the profile
+(`CreateProfileAsync`) and names it as in Arc.
+
+**Preferences:** Arc signs its protected preferences (home page, startup
+pages, search engine, extensions...) with its own key. macOS builds enforce
+the signatures (`GROUP_ENFORCE_DEFAULT`), so Compass would reset them.
+Preferences and Secure Preferences are merged without Arc's `protection`
+sections and written with `chrome_prefs::InitializePrefsFromMasterPrefs()`,
+the way first run writes initial preferences: signed for Compass, split into
+the two files on load, where the encrypted signatures are added.
+
+### Sidebar
+
+`compass::arc::AddArcSidebar()` (`browser/arc_import/sidebar_import.cc`,
+model only) adds a profile's Arc spaces with their names and colors, Pinned
+(folders kept) and Today (folders and splits kept; a split takes two panes,
+more tabs follow it). Tabs get Arc's saved title (else the host), the user's
+own title as the custom title, and Arc's mute status (sidebar.md "Muted
+entries"). Favorites are tabs only; folders are flattened. A new profile's
+untouched "Home" space becomes the first Arc space. Pinned entries keep
+Arc's last active time. Today's count as used at the import, or Today's
+12 h auto-archive would take them at once. Entries come in unloaded.
+
+Each space gets its newest 100 archived entries (`AddArchive()`), with IDs
+derived from Arc's, so importing again or syncing doesn't double them. Pages
+Compass doesn't restore (new tab) are left out. Arc's own pages
+(`arc://downloads`, `arc://extensions`, `arc://settings`), in the archive or
+the sidebar, become chrome:// ones.
+
+`compass::arc::ImportFromArc()` reads the sidebar and Local State, imports
+Arc's profiles one after another, adds each one's sidebar once its
+`SpaceService` has loaded, and lists the profile in `SpaceDirectory` so its
+spaces show in the switcher.
+
+### Page
+
+compass://settings/importArc, a section of the settings page (settings.md),
+opened by the command bar's "Import from Arc". chrome://compass-import
+(`CompassArcImportUI`, `resources/sidebar/arc_import.{html,ts}`,
+`sidebar.mojom` `ArcImportHandler`) shows the same section alone. It lists
+Arc's profiles with their spaces, tab counts and "N archived". While Arc
+runs it says so, with a "Quit Arc" button (`NSRunningApplication terminate`,
+then waits up to 10 s), and won't import, since Arc's databases are open. It
+explains the "Arc Safe Storage" prompt, imports the checked profiles, and
+"Open my spaces" switches the window to the first imported space.
 
 ### Encryption
 
 Chromium on macOS encrypts with AES-128-CBC (`v10` prefix), key =
 PBKDF2-HMAC-SHA1(Keychain password, "saltysalt", 1003 rounds, 16 bytes),
 IV = 16 spaces. Arc's password is "Arc Safe Storage"; Compass's is its own.
-Re-encrypted columns: `Cookies.cookies.encrypted_value` (the plaintext keeps
-its 32-byte domain hash prefix), `Login Data` / `Login Data For Account`
-`logins.password_value`, `Web Data` `credit_cards.card_number_encrypted`,
-`local_ibans.value_encrypted`, `token_service.encrypted_token` (and any other
-`*_encrypted` column found). Values that fail to decrypt are dropped (a
-cookie lost rather than garbage). Reading Arc's key makes macOS ask once
-whether Compass may use "Arc Safe Storage"; the page says so first.
+Every "v10" value of `Cookies`, `Login Data`, `Login Data For Account`,
+`Web Data` and `Account Web Data` is re-encrypted, in any table and column,
+so new encrypted columns come along (`Cookies.cookies.encrypted_value` keeps
+its 32-byte domain hash prefix in the plaintext). Cookies that don't decrypt
+are deleted (a cookie lost rather than garbage); other values are left as
+they were. `ChromiumMacCipher` implements Chromium's macOS scheme for Arc's
+side; a one-line `crypto/subtle_passkey.h` patch lets Compass derive the
+key. Reading Arc's key makes macOS ask once whether Compass may use "Arc Safe Storage"; the page says so first.
 
 ### Choosing
 
@@ -135,10 +190,9 @@ profile was imported from Arc (`MaybeOfferImportOnFirstRun()`, posted by
 considers it; a later run never offers it again (the command bar's "Import
 from Arc" and Settings still do).
 
-## Arc features to add to Compass first
+## Arc features in Compass
 
-The user (2026-10-31): features Arc has that the import would otherwise
-drop get added to Compass before the import is finished. From Arc's files:
+Features Arc has that the import would otherwise drop:
 
 | Arc | In Compass | Needed for |
 |---|---|---|
@@ -147,100 +201,16 @@ drop get added to Compass before the import is finished. From Arc's files:
 | Tab mute status (`savedMuteStatus`) | Done (sidebar.md "Muted entries"); imported | Muted entries staying muted |
 | Archive (`StorableArchiveItems.json`) | Yes (per space); imported (newest 100 per space) | Importing it |
 | Link routing (`StorableLinkRouting.json`, Air Traffic Control) | No (little-window.md "Not done") | Links from other apps going to the right space |
-| Key bindings (`StorableKeyBindings.json`) | No (plan item 14) | Custom shortcuts |
+| Key bindings (`StorableKeyBindings.json`) | Compass has custom shortcuts (shortcuts.md "Customizing"); Arc's aren't imported | Custom shortcuts |
 
-## Progress
+## Tests
 
-- Slice 1 (reader) done: `compass::arc::ParseSidebar()`, `ArcSidebarTest.*`
-  (7). On the user's Arc it finds 4 spaces in 3 profiles, 61 tabs in spaces
-  and 2 favorites: all 63 tabs of the file (checked with the opt-in
-  `ArcSidebarTest.DISABLED_RealSidebar`).
-- Slice 2 (profile copy) done: `compass::arc::CopyProfile()` copies an Arc
-  profile folder and its disk cache into a new folder (never over an
-  existing one; removed again on failure), without locks, logs and Arc's
-  open windows (`Sessions`, `Current/Last Session/Tabs`), then re-encrypts
-  every "v10" value of `Cookies`, `Login Data`, `Login Data For Account`,
-  `Web Data` and `Account Web Data` (any table, any column, so new
-  encrypted columns come along). Cookies that don't decrypt are deleted;
-  other values are left as they were. `ChromiumMacCipher` is Chromium's
-  macOS scheme for Arc's side (a one-line `crypto/subtle_passkey.h` patch
-  lets Compass derive the key). The databases are opened with upstream's
-  "FirefoxImporter" metrics tag. `ChromiumMacCipherTest.*`,
-  `ProfileCopyTest.*` (4).
-- Slice 2b (a profile, end to end) done: `compass::arc::ImportArcProfile()`
-  (`browser/ui/arc_import/`) gets Compass's encryptor (`os_crypt_async`),
-  then on a sequenced background runner reads Arc's Keychain password
-  (`ReadArcKeychainPassword()`, `SecItemCopyMatching` on "Arc Safe
-  Storage"), copies the profile into `GenerateNextProfileDirectoryPath()`
-  and its cache into that profile's cache folder, re-encrypts with Compass's
-  key, and signs the preferences (`SignImportedPreferences()`); then loads
-  the profile (`CreateProfileAsync`) and names it as in Arc.
-  - **Preferences:** Arc signs its protected preferences (home page,
-    startup pages, search engine, extensions...) with its own key; macOS
-    builds enforce the signatures (`GROUP_ENFORCE_DEFAULT`), so Compass would
-    reset them. Preferences and Secure Preferences are merged without Arc's
-    `protection` sections and written with
-    `chrome_prefs::InitializePrefsFromMasterPrefs()`, as first run writes
-    initial preferences: signed for Compass, split into the two files on
-    load, where the encrypted signatures are added. The profile records
-    `compass.arc_import.profile_dir`.
-  - Tests: `ArcImporterBrowserTest.*` (2). The first builds an "Arc
-    profile" from real Chromium data (this browser's cookie database,
-    re-encrypted with an Arc test key) plus Arc-signed preferences, imports
-    it, and checks the cookie through the network service, the home page,
-    and that nothing was reset.
-- Slice 3 (sidebar) done: `compass::arc::AddArcSidebar()`
-  (`browser/arc_import/sidebar_import.cc`, model only) adds a profile's Arc
-  spaces with their names and colors, Pinned (folders kept) and Today
-  (folders and splits kept; a split takes two panes, more tabs follow it),
-  tabs with Arc's saved title (else the host) and the user's own title as
-  the custom title, Arc's mute status (`savedMuteStatus` "muted": the entry
-  opens muted, sidebar.md "Muted entries"), and the favorites (tabs only;
-  folders flattened). A new
-  profile's untouched "Home" space becomes the first Arc space. Pinned
-  entries keep Arc's last active time; Today's count as used at the import,
-  or Today's 12 h auto-archive would take them at once. Entries come in
-  unloaded. `compass::arc::ImportFromArc()` reads the sidebar and Local
-  State, imports Arc's profiles one after another, adds each one's sidebar
-  once its `SpaceService` has loaded, and lists the profile in
-  `SpaceDirectory` so its spaces show in the switcher.
-  `SidebarImportTest.*` (5), `ArcImporterBrowserTest.ImportsProfilesAndSpaces`,
-  `NoSidebarNoImport`.
-- Slice 4 (page) done: `chrome://compass-import` (`compass://compass-import`;
-  `CompassArcImportUI`, `resources/sidebar/arc_import.{html,ts}`,
-  `sidebar.mojom` `ArcImportHandler`), opened by the command bar's "Import
-  from Arc". Since 2026-11-01 it's compass://settings/importArc, a section
-  of the settings page (settings.md); the command bar opens that, and
-  chrome://compass-import shows the same section alone. It lists Arc's profiles with their spaces and tab counts,
-  checked unless imported already (a Compass profile whose preferences
-  record that Arc profile); while Arc runs it says so with a "Quit Arc"
-  button (`NSRunningApplication terminate`, then waits up to 10 s) and won't
-  import; it explains the "Arc Safe Storage" prompt; imports the checked
-  profiles (`ImportFromArc(dirs)`), names them, and "Open my spaces"
-  switches the window to the first imported space. Tests:
-  `ArcImporterBrowserTest.ImportPage`.
-- Slice 5 (choosing, importing again, first run) done (2026-11-01): see
-  "Choosing", "Importing again" and "First run" above.
-  `SidebarImportTest.AnImportedProfileGetsNewSpacesOnly`,
-  `ArcImporterBrowserTest.ImportsChosenSpacesOnly`,
-  `ImportingAgainAddsNewSpaces`, `OffersImportOnFirstRun`, `ImportPage`.
-- Slice 6 (archive) done (2026-11-01): `ParseArchive()` reads
-  `StorableArchiveItems.json` (a list alternating IDs and entries:
-  `sidebarItem` with `data.tab`, `archivedAt`, `source.space._0` or
-  `source.littleArc`, `reason` manual/auto, not kept). `AddArchive()` gives
-  each space its newest 100 (the user decided: the newest 100 now, an SQLite
-  archive with no cap maybe later; the user's Arc has 785 in one space), and
-  `AddArcSidebar()` puts them in the space's archive with IDs derived from
-  Arc's, so importing again or syncing doesn't double them. Pages Compass
-  doesn't restore (new tab) are left out; a tab with no title shows its
-  host. Arc's own pages (`arc://downloads`, `arc://extensions`,
-  `arc://settings`), in the archive or the sidebar, become chrome:// ones. The page shows "N archived" per space. Little Arc's 84 entries
-  aren't imported. `ArcSidebarTest.ArchiveGoesToItsSpacesNewestFirst`,
-  `ArchiveKeepsTheNewestHundred`, `SidebarImportTest.ArchiveComesAlong`,
-  `ArcImporterBrowserTest.ImportsProfilesAndSpaces`, `ImportPage`.
-- Not done: link routing and key bindings (above; the user's Arc has one
-  routing rule and no custom key bindings); a run on the user's real Arc
-  data.
+`ArcSidebarTest.*`, `ChromiumMacCipherTest.*`, `ProfileCopyTest.*`,
+`SidebarImportTest.*` (unit) and `ArcImporterBrowserTest.*` (browser). One
+browser test builds an "Arc profile" from real Chromium data (this browser's
+cookie database, re-encrypted with an Arc test key) plus Arc-signed
+preferences, imports it, and checks the cookie through the network service,
+the home page, and that nothing was reset.
 
 ## Open questions
 

@@ -1,6 +1,6 @@
 # Peek
 
-Status: first slice done (2026-10-31). Based on Chromium 156.0.8078.48.
+Status: first slice done. Based on Chromium 156.0.8078.48.
 
 ## Goal
 

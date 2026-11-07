@@ -1,6 +1,6 @@
 // Run in a window's sidebar: cdp.py PORT in compass-sidebar sidebar.js
 // --arg op=OP [--arg ...]. Drives the sidebar's page handler, as the user
-// would (docs/design/sync-slice-3-steps.md, sync-slice-3b-steps.md). Nodes
+// would (tools/sync_e2e/README.md). Nodes
 // are named by title, custom title or URL; "pinned" is the space's Pinned
 // root, "today" its Today root, "favorites" the favorites root. Spaces are
 // named by name.

@@ -112,8 +112,7 @@ per change:
   favorite opens or activates it in this window, as a click on its tile
   does.
 - **Spaces**: whose name contains the query. Choosing one switches to it.
-- **Tabs on other devices** (sync slice 4, docs/design/sync.md "Slice 4
-  notes"): open tabs of the sync chain's other devices (the SESSIONS type,
+- **Tabs on other devices** ([sync.md](sync.md)): open tabs of the sync chain's other devices (the SESSIONS type,
   `OpenTabsUIDelegate`), whose title, URL or device name contains every
   word, at most six, grouped by device (most recently active device
   first). Subtitle "On <device> · <URL>". Choosing one opens the URL as a

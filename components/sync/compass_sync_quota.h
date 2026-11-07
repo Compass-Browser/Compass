@@ -21,7 +21,7 @@
 namespace compass::sync {
 
 // How full the chain is on its server: GET <server>/compass/quota
-// (server/quota, docs/design/sync.md, "Slice 7 notes"). Chromium's engine
+// (server/quota, docs/design/sync.md, "Server"). Chromium's engine
 // retries a commit the server refuses for quota quietly, and the server
 // drops visits past the history quota with SUCCESS, so this is how the
 // device learns of either.

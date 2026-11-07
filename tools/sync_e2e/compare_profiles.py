@@ -6,7 +6,7 @@
 
   compare_profiles.py A.json B.json [C.json...]
 
-Slice 5: the switcher's order across profiles, and per profile name its
+Checks the switcher's order across profiles, and per profile name its
 spaces (name, pinned tree) and favorites. Not the profiles' directories
 (they differ between devices) or titles of tabs never loaded (tabs compare
 by URL). Prints the differences; exit status 1 if there are any.

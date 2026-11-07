@@ -1,4 +1,4 @@
-// Run on chrome://compass-sync (slice 4). Returns what the full page shows
+// Run on chrome://compass-sync. Returns what the full page shows
 // beside the status: the server field (value and placeholder), the app
 // menu's sync row for this state (<html data-menu-label>), the devices, the
 // switches and the server line. With --arg wait=REGEX, first waits up to

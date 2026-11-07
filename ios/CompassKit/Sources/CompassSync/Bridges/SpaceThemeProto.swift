@@ -6,11 +6,10 @@ import CompassModel
 import SyncProto
 
 // A space's theme on the wire, as the desktop's compass_spaces_sync_bridge.cc
-// reads and writes it (docs/design/sync.md, "Merged with main (space
-// themes)"). Each value is compared with what the entity already says,
-// decoded, so an equivalent encoding (an older client's, or a stale
-// `color_rgb`) isn't rewritten, and an applied remote value isn't committed
-// back.
+// reads and writes it (docs/design/sync.md, "Space themes"). Each value is
+// compared with what the entity already says, decoded, so an equivalent
+// encoding (an older client's, or a stale `color_rgb`) isn't rewritten, and
+// an applied remote value isn't committed back.
 
 extension SyncPb_CompassSpace {
   /// The color, nil for grey; outer nil if this version can't read it.

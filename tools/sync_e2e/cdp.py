@@ -4,8 +4,7 @@
 # found in the LICENSE file.
 """Runs JavaScript in a page of a browser started with --remote-debugging-port.
 
-Sync end-to-end helper (docs/design/sync-slice-2-steps.md; started for the
-slice 0 spike). Standard library only, so it runs on a bare macOS Python 3.
+Sync end-to-end helper (tools/sync_e2e/README.md). Standard library only, so it runs on a bare macOS Python 3.
 
   cdp.py PORT wait                    wait until the browser answers (90 s)
   cdp.py PORT run URL FILE.js [--settle S] [--arg NAME=VALUE]...

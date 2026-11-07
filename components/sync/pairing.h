@@ -42,10 +42,10 @@
 // info="compass-pair-enc" / "compass-pair-confirm-a" /
 // "compass-pair-confirm-b", 32 bytes).
 //
-// Since slice 4 (docs/design/sync.md, "Slice 4 notes") the server names
-// itself: both sides bind the "server" of the open/join replies into SPAKE2
-// instead of the host each typed (older servers don't send it; then each
-// side's own host), and a closed slot answers 410 with why it closed.
+// The server names itself (docs/design/sync.md, "Pairing API"): both sides
+// bind the "server" of the open/join replies into SPAKE2 instead of the host
+// each typed (older servers don't send it; then each side's own host), and a
+// closed slot answers 410 with why it closed.
 namespace compass::sync {
 
 enum class PairingRole { kA, kB };

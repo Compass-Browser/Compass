@@ -194,7 +194,8 @@ TEST(SidebarImportIdsTest, DerivedIdsAreStableVersion8Uuids) {
 }
 
 // The same Arc data imported on two Macs gives the same IDs, so the
-// entries merge when the Macs sync (docs/design/sync.md, "Slice 7 notes").
+// entries merge when the Macs sync (docs/design/sync.md, "First sync on a
+// device that already has spaces").
 TEST(SidebarImportIdsTest, TwoImportsOfTheSameArcDataShareIds) {
   Space home;
   home.id = "space-home";
