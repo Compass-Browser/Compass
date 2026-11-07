@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from typing import Optional
 
 from . import (checkout, mac_sign, overrides, patches, release, sparkle,
                sync_server)
@@ -362,6 +363,34 @@ def make_universal(layout: Layout, config: str) -> Path:
   return output.parent
 
 
+def provisioning_profile(args) -> Optional[Path]:
+  """The Developer ID provisioning profile to embed, or None (with a
+  warning when there's none to find)."""
+  if args.no_provisioning_profile:
+    return None
+  if args.provisioning_profile:
+    path = Path(args.provisioning_profile).expanduser()
+    if not path.is_file():
+      raise CommandError('%s not found' % path)
+    return path
+  if mac_sign.PROVISIONING_PROFILE.is_file():
+    return mac_sign.PROVISIONING_PROFILE
+  print('warning: no %s, so no application identifier: other apps\' '
+        'browser logins (ASWebAuthenticationSession) won\'t open in this '
+        'build. Pass --no-provisioning-profile to silence this.' %
+        mac_sign.PROVISIONING_PROFILE, file=sys.stderr)
+  return None
+
+
+def add_provisioning_profile_arguments(s) -> None:
+  s.add_argument('--provisioning-profile',
+                 help='Developer ID provisioning profile to embed (default: '
+                 '%s, when there)' % mac_sign.PROVISIONING_PROFILE)
+  s.add_argument('--no-provisioning-profile', action='store_true',
+                 help='sign without one, and without the application '
+                 'identifier it allows')
+
+
 def cmd_sign(layout: Layout, args) -> None:
   sign_build(layout, args)
 
@@ -399,6 +428,14 @@ def sign_build(layout: Layout, args) -> Path:
                      quiet=True).returncode != 0:
     raise CommandError(mac_sign.store_credentials_hint(
         profile, mac_sign.team_id(name)))
+  try:
+    app_id = mac_sign.prepare_app_identifier(
+        out_dir / (product + '.app'), mac_sign.packaging_dir(out_dir, product),
+        mac_sign.team_id(name), provisioning_profile(args))
+  except mac_sign.ProfileError as e:
+    raise CommandError(str(e))
+  if app_id:
+    print('application identifier: %s' % app_id)
   output = out_dir / 'signed'
   if output.exists():
     shutil.rmtree(output)
@@ -974,6 +1011,7 @@ def parser() -> argparse.ArgumentParser:
                  help='sign and package only')
   s.add_argument('--skip-build', action='store_true',
                  help="sign what's built, without building first")
+  add_provisioning_profile_arguments(s)
   add_universal_argument(s)
   add_skip_patches(s)
   add_jobs_argument(s)
@@ -1008,6 +1046,7 @@ def parser() -> argparse.ArgumentParser:
                  help='as for sign')
   s.add_argument('--skip-build', action='store_true',
                  help="publish what's signed in <out>/signed")
+  add_provisioning_profile_arguments(s)
   add_universal_argument(s)
   s.set_defaults(no_notarize=False)
   add_skip_patches(s)

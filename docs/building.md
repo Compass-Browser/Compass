@@ -185,6 +185,21 @@ xcrun notarytool store-credentials compass --apple-id <APPLE_ID> --team-id <TEAM
 The driver submits the app and then the .dmg, waits for Apple, staples both
 tickets, and `compass sign` checks the .dmg with `spctl`.
 
+The app is signed with `com.apple.application-identifier`
+(`<TEAM_ID>.it.cipi1965.compass`). Without it macOS doesn't hand Compass
+the browser logins other apps start with `ASWebAuthenticationSession`
+(Spark's "Sign in with Google", for example): SafariLaunchAgent logs "Failed
+to get application identifier" and the login never opens. The entitlement
+needs a Developer ID provisioning profile for the App ID inside the app, so
+`compass sign` embeds
+`~/Library/Application Support/Compass Release/Compass.provisionprofile`
+(`--provisioning-profile` for another file). It refuses a profile for
+another App ID, an expired one, or a development profile. Without one it
+signs without the entitlement and warns (`--no-provisioning-profile`
+silences the warning). The profile is never in the repository. Development
+and test builds never get the entitlement, since macOS won't launch an app
+that has it without a matching profile.
+
 ### Windows from a Mac
 
 A Mac can build Windows Compass (Chromium's `docs/win_cross.md`): `--cpu
