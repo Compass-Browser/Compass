@@ -10,6 +10,6 @@ updates.compassbrowser.org and sync.example.org). To publish:
 
 ```sh
 rsync -a --chmod=D755,F644 -e 'ssh -p 22' \
-  website/index.html website/privacy.html website/compass.svg website/compass-256.png \
+  website/index.html website/privacy.html website/favicon.ico website/compass.svg website/compass-256.png \
   user@server:/var/www/compassbrowser.org/
 ```

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass Browser</title>
 <meta name="description" content="Compass is an open-source browser built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows and iPhone.">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="compass.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="compass-256.png">
 <meta property="og:title" content="Compass Browser">
@@ -64,7 +65,7 @@ h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.1; margin: 24px 0 12px; l
 .hint { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.4em; }
 
 h2 { font-size: 26px; margin: 56px 0 20px; letter-spacing: -0.01em; }
-.platforms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.platforms { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; }
 .card {
   background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
   padding: 22px; display: flex; flex-direction: column; gap: 10px;
@@ -72,13 +73,16 @@ h2 { font-size: 26px; margin: 56px 0 20px; letter-spacing: -0.01em; }
 .card h3 { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px; }
 .card h3 svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
 .card .req { color: var(--muted); font-size: 14px; margin: 0; }
-.card .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
+/* Pinned to the card's bottom, so the download buttons line up across cards;
+   from the bottom: the download, the beta, the checksums. */
+.card .actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 12px; }
+.card .actions .button { width: 100%; }
 .meta { font-size: 13px; color: var(--muted); margin: 0; }
 .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); vertical-align: middle; }
 details { font-size: 13px; color: var(--muted); }
 details code { font-size: 11.5px; word-break: break-all; }
 
-.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px; }
 .feature { padding: 4px 0; }
 .feature h3 { margin: 0 0 4px; font-size: 17px; }
 .feature p { margin: 0; color: var(--muted); font-size: 15px; }
@@ -107,11 +111,10 @@ footer a { color: inherit; }
         <p class="req">macOS 13 Ventura or later.</p>
         <p class="meta" data-meta="stable">Loading the latest version…</p>
         <div class="actions">
+          <details data-sums><summary>SHA-256</summary></details>
+          <a class="button secondary" data-link="beta" aria-disabled="true" href="#">Download beta</a>
           <a class="button" data-link="stable" aria-disabled="true" href="#">Download for Mac</a>
-          <a class="button secondary" data-link="beta" aria-disabled="true" href="#">Beta</a>
         </div>
-        <p class="meta" data-meta="beta"></p>
-        <details data-sums><summary>SHA-256</summary></details>
       </article>
 
       <article class="card" data-platform="win">
@@ -119,9 +122,9 @@ footer a { color: inherit; }
         <p class="req">Windows 10 or 11, 64-bit.</p>
         <p class="meta" data-meta="stable">Loading the latest version…</p>
         <div class="actions">
+          <details data-sums><summary>SHA-256</summary></details>
           <a class="button" data-link="stable" aria-disabled="true" href="#">Download for Windows</a>
         </div>
-        <details data-sums><summary>SHA-256</summary></details>
       </article>
 
       <article class="card" data-platform="ios">
@@ -218,7 +221,6 @@ footer a { color: inherit; }
       const main = s || bestBeta;
       const mainMeta = card.querySelector('[data-meta="stable"]');
       const mainLink = card.querySelector('[data-link="stable"]');
-      const betaMeta = card.querySelector('[data-meta="beta"]');
       const betaLink = card.querySelector('[data-link="beta"]');
       if (!main) {
         mainMeta.textContent = 'Not available right now. Try again in a little while.';
@@ -230,12 +232,11 @@ footer a { color: inherit; }
       const rows = [[s ? 'Stable' : 'Beta', main]];
       if (betaLink) {
         if (s && bestBeta && bestBeta.version !== s.version) {
-          enable(betaLink, bestBeta, 'Beta ' + bestBeta.version);
-          betaMeta.textContent = 'The beta gets new versions first. ' + describe(bestBeta) + '.';
+          enable(betaLink, bestBeta);
+          betaLink.title = 'Version ' + bestBeta.version + ': the beta gets new versions first';
           rows.push(['Beta', bestBeta]);
         } else {
           betaLink.remove();
-          betaMeta.remove();
         }
       }
       sums(card, rows);
