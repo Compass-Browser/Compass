@@ -1,5 +1,6 @@
-Pinned tabs and favorites now keep a pinned URL, as on the Mac.
+Closed a tab by mistake? You can now bring it back.
 
-- Pin a tab (or add a favorite), then browse elsewhere in it. Close it (flick its card away or ⌘W): it goes back to the page it was pinned with.
-- While a pinned tab or favorite is on another page, long-press it in the sidebar: "Use This Page as Pinned URL" makes the current page its new home, "Back to Pinned URL" returns to it.
-- The pinned URL syncs with Compass on the Mac.
+- Close a tab (flick its card away, tap × on a Today row, ⌘W, or Clear Today). A bar at the bottom says what closed: tap Undo and it comes back where it was, with its back and forward history.
+- Or shake the iPhone: "Undo Close Tab" brings back the last tab you closed, and you can keep shaking to go further back. Redo closes it again.
+- With a hardware keyboard, ⌘⇧T reopens the last closed tab.
+- While you're typing, a shake still undoes the typing, as usual.
