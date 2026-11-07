@@ -8,7 +8,8 @@ import WebKit
 
 /// The bottom bar's menu: what to do with the shown page. On top, back,
 /// forward, the address (tap to edit), copy link and reload; then Find on
-/// Page, Desktop Site, Pin and Share; then Site Settings and Settings.
+/// Page, Ask Claude, Pin and Share; then Site Settings (where Desktop Site
+/// is) and Settings.
 struct PageMenu: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
@@ -39,14 +40,6 @@ struct PageMenu: View {
           }
         }
         }
-        let desktop = app.siteSettings.value(.desktopSite, site: site)
-        Tile(title: desktop ? "Mobile Site" : "Desktop Site", symbol: desktop ? "iphone" : "desktopcomputer",
-             on: desktop) {
-          guard let site else { return }
-          // Reloads the site's tabs (TabManager.apply).
-          app.siteSettings.set(.desktopSite, !desktop, site: site)
-        }
-        .disabled(site == nil)
         pinTile(tab)
         if let url = view?.url ?? tab.flatMap({ URL(string: $0.url) }) {
           ShareLink(item: url, subject: Text(tab?.displayTitle ?? "")) {
