@@ -126,10 +126,10 @@ footer a { color: inherit; }
 
       <article class="card" data-platform="ios">
         <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V4a3 3 0 0 0-3-3zm1 19a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h1.2l.4 1h4.8l.4-1H16a1 1 0 0 1 1 1v16z"/></svg>iPhone <span class="badge">Beta</span></h3>
-        <p class="req">iOS, through TestFlight.</p>
+        <p class="req">iPhone, through Apple's TestFlight app.</p>
         <p class="meta">Your spaces, tabs, history and passwords from Compass on your Mac, end-to-end encrypted.</p>
         <div class="actions">
-          <a class="button secondary" aria-disabled="true" href="#">Invitation only for now</a>
+          <a class="button" href="https://testflight.apple.com/join/SE4bmbk1">Join the beta on TestFlight</a>
         </div>
       </article>
     </div>
@@ -248,6 +248,7 @@ footer a { color: inherit; }
       enable(hero, latest[here], 'Download for ' + NAMES[here]);
       hint.textContent = 'Version ' + latest[here].version + (here === 'win' ? ' (beta)' : '') + ' · other platforms below';
     } else if (here === 'ios') {
+      enable(hero, { url: 'https://testflight.apple.com/join/SE4bmbk1' }, 'Join the iPhone beta');
       hint.textContent = 'Compass for iPhone is in beta on TestFlight.';
     }
   });
