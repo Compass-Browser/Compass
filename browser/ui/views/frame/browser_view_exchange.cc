@@ -184,7 +184,7 @@ void BrowserViewExchange::Rebind(BrowserView& view) {
   }
 }
 
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
 // static
 void BrowserViewExchange::SetNativeWidgetView(BrowserWidget& widget,
                                               BrowserView* view) {}

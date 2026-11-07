@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/views/frame/browser_native_widget_aura.h b/chrome/browser/ui/views/frame/browser_native_widget_aura.h
+index 746909359a6d5d283719bc180b0cc9c3710c2a25..e541b05b5caac669f6f5f3ceb4f3bc5db1c1373e 100644
+--- a/chrome/browser/ui/views/frame/browser_native_widget_aura.h
++++ b/chrome/browser/ui/views/frame/browser_native_widget_aura.h
+@@ -22,6 +22,10 @@ namespace wm {
+ class VisibilityController;
+ }
+ 
++namespace compass {
++class BrowserViewExchange;
++}  // namespace compass
++
+ ////////////////////////////////////////////////////////////////////////////////
+ // BrowserNativeWidgetAura
+ //
+@@ -67,6 +71,10 @@ class BrowserNativeWidgetAura : public views::DesktopNativeWidgetAura,
+   void ClientDestroyedWidget() override;
+ 
+  private:
++  // Compass: re-points |browser_view_| and the tree host's after a
++  // BrowserView exchange (profiles in place).
++  friend class compass::BrowserViewExchange;
++
+   // The BrowserView is our ClientView. This is a pointer to it.
+   raw_ptr<BrowserView> browser_view_;
+   raw_ptr<BrowserWidget> browser_widget_;
