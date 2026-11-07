@@ -1,0 +1,5 @@
+Pinned tabs and favorites now keep a pinned URL, as on the Mac.
+
+- Pin a tab (or add a favorite), then browse elsewhere in it. Close it (flick its card away or ⌘W): it goes back to the page it was pinned with.
+- While a pinned tab or favorite is on another page, long-press it in the sidebar: "Use This Page as Pinned URL" makes the current page its new home, "Back to Pinned URL" returns to it.
+- The pinned URL syncs with Compass on the Mac.
