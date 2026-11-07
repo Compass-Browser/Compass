@@ -20,6 +20,8 @@
 #include "ui/color/color_provider_key.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
 #include "ui/views/widget/widget_observer.h"
@@ -60,6 +62,13 @@ SpaceTintLook GetSpaceTintLook(const SpaceModel& space, TintSurface surface);
 std::optional<ui::ColorProviderKey::ColorMode> GetTintColorMode(
     const SpaceModel& space);
 
+// The mode whose text reads best over |space|'s tint laid on |backdrop| (the
+// frame color of the space's mode): kLight (dark text) where the blend
+// contrasts more with black than with white, as WCAG measures contrast,
+// kDark (light text) otherwise. The tint's colors are averaged.
+ui::ColorProviderKey::ColorMode GetTintTextMode(const SpaceModel& space,
+                                                SkColor backdrop);
+
 // Tints the whole vertical tab strip region (the header, the sidebar page
 // and the margins around it) with the window's space color, over the
 // region's background and under its children. Ignored by the region's
@@ -78,14 +87,17 @@ std::optional<ui::ColorProviderKey::ColorMode> GetTintColorMode(
 // (Widget::SetUserColorOverride()), so the frame, the page's margins, menus,
 // bubbles and WebUI take colors from it, as from a profile's theme color.
 // Not while a swipe is under way, and not for off-the-record windows or
-// extension themes. See docs/design/spaces.md, "Space colors", "Window
+// extension themes. The window's mode is the one its text reads best in over
+// the tint (GetTintTextMode()); where that isn't the space's own mode, the
+// tint first paints the frame color of the space's mode under itself. See docs/design/spaces.md, "Space colors", "Window
 // theme" and "Swiping".
 class SidebarTint : public views::View,
                     public gfx::AnimationDelegate,
                     public views::ViewObserver,
                     public views::WidgetObserver,
                     public WindowFeatures::Observer,
-                    public SpaceList::Observer {
+                    public SpaceList::Observer,
+                    public ui::NativeThemeObserver {
   METADATA_HEADER(SidebarTint, views::View)
 
  public:
@@ -139,6 +151,9 @@ class SidebarTint : public views::View,
   // SpaceList::Observer:
   void OnSpaceUpdated(const SpaceModel& space) override;
 
+  // ui::NativeThemeObserver:
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+
  private:
   // What a space paints: its stops (opacity from its intensity) and grain.
   struct Look {
@@ -155,11 +170,18 @@ class SidebarTint : public views::View,
   void PaintGrain(gfx::Canvas* canvas, const SkPath* clip);
   // Fades from the color painted now to the target, or jumps there.
   void UpdateColor(bool animate);
-  // Seeds the window's theme with its space's color.
+  // Seeds the window's theme with its space's color, and gives the window
+  // the mode its text reads best in over the tint (GetTintTextMode()).
   void UpdateWindowTheme();
+  // Paints the frame color of the space's mode where the window's mode,
+  // picked for its text, differs (UpdateWindowTheme()).
+  void PaintBackdrop(gfx::Canvas* canvas, const SkPath* clip, float opacity);
 
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<WindowFeatures> features_;
+  // The window's colors in the space's mode, whose frame color lies under
+  // the tint, when the window's mode differs.
+  std::optional<ui::ColorProviderKey> backdrop_key_;
   // Painted now.
   Look look_;
   // Where the fade started.
@@ -177,6 +199,9 @@ class SidebarTint : public views::View,
       features_observation_{this};
   base::ScopedObservation<SpaceList, SpaceList::Observer>
       space_list_observation_{this};
+  // The system's mode, which a space in automatic mode follows.
+  base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
+      native_theme_observation_{this};
 };
 
 }  // namespace compass

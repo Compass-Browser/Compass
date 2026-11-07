@@ -534,9 +534,19 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowThemeFollowsTheSpace) {
   EXPECT_EQ(widget->color_mode_override(), ColorMode::kLight);
   work->SetColor(SpaceColor::FromRGB(20, 30, 70));
   EXPECT_EQ(widget->color_mode_override(), ColorMode::kDark);
-  // The space's own mode wins.
+  // The space's own mode sets the frame under the tint; the text still
+  // takes whichever mode reads best over it: light over navy in light mode,
+  // dark over the light blue in dark mode.
   work->SetAppearance(SpaceAppearance::kLight);
+  EXPECT_EQ(widget->color_mode_override(), ColorMode::kDark);
+  work->SetColor(SpaceColor::FromRGB(108, 186, 217));
   EXPECT_EQ(widget->color_mode_override(), ColorMode::kLight);
+  work->SetAppearance(SpaceAppearance::kDark);
+  EXPECT_EQ(widget->color_mode_override(), ColorMode::kLight);
+  // A weak tint leaves the mode's own frame and text.
+  work->SetIntensity(0.05);
+  EXPECT_EQ(widget->color_mode_override(), ColorMode::kDark);
+  work->SetIntensity(1);
   work->SetAppearance(SpaceAppearance::kAuto);
   work->SetIntensity(kDefaultSpaceIntensity);
   EXPECT_FALSE(widget->color_mode_override());
@@ -1946,8 +1956,10 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
     return space.intensity() == 1 && space.grain() > 0.09 &&
            space.appearance() == SpaceAppearance::kDark;
   }));
+  // Its text reads best over the tint, which at full intensity hides the
+  // frame (GetTintTextMode()).
   EXPECT_EQ(browser_view()->GetWidget()->color_mode_override(),
-            ui::ColorProviderKey::ColorMode::kDark);
+            GetTintTextMode(space, SK_ColorBLACK));
 
   // Esc goes back to the menu.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
@@ -1960,11 +1972,11 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
       }
       return !root.querySelector('compass-theme-editor');
     })())"));
-  // Automatic: at full intensity the tint picks the mode, at the default
-  // the system does.
+  // Automatic: at full intensity the tint picks the text's mode, at the
+  // default the system does.
   space.SetAppearance(SpaceAppearance::kAuto);
   EXPECT_EQ(browser_view()->GetWidget()->color_mode_override(),
-            GetTintColorMode(space));
+            GetTintTextMode(space, SK_ColorBLACK));
   space.SetIntensity(kDefaultSpaceIntensity);
   EXPECT_FALSE(browser_view()->GetWidget()->color_mode_override());
 }

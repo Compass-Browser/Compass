@@ -74,24 +74,59 @@ extension SpaceTheme {
   }
 }
 
+extension SpaceTheme {
+  /// The scheme whose text reads best over the tint laid on `base`'s
+  /// background: dark text when the blend contrasts more with black than
+  /// with white (WCAG contrast ratios), light text otherwise.
+  func textScheme(over base: ColorScheme) -> ColorScheme {
+    guard !stops.isEmpty else { return base }
+    let alpha = min(intensity * SpaceTint.maxOpacity, 1)
+    // systemBackground: white in light mode, black in dark.
+    let backdrop: Double = base == .dark ? 0 : 1
+    func blend(_ v: KeyPath<RGB, UInt8>) -> Double {
+      let tint = stops.map { Double($0.tint[keyPath: v]) / 255 }.reduce(0, +) / Double(stops.count)
+      return alpha * tint + (1 - alpha) * backdrop
+    }
+    func linear(_ c: Double) -> Double { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+    let l = 0.2126 * linear(blend(\.red)) + 0.7152 * linear(blend(\.green)) + 0.0722 * linear(blend(\.blue))
+    let againstBlack = (l + 0.05) / 0.05
+    let againstWhite = 1.05 / (l + 0.05)
+    return againstBlack >= againstWhite ? .light : .dark
+  }
+}
+
+extension EnvironmentValues {
+  /// The scheme outside every spaceAppearance(), so the tint's backdrop
+  /// follows the system even under chrome whose text flipped.
+  @Entry var outerColorScheme: ColorScheme? = nil
+}
+
 extension View {
-  /// The space's chrome in its light or dark mode (the theme editor's Mode);
-  /// web pages keep the system's. Always the same modifier, whatever the
-  /// mode: switching between "set" and "follow" in an if/else gave the view
-  /// a new identity, so editing a theme past the point where automatic mode
-  /// picks light or dark rebuilt everything under it (the editor's slider
-  /// and pad dropped the drag, the color picker closed, scrolling reset).
+  /// The space's chrome: its tint sits on the light or dark background of
+  /// its mode (the theme editor's Mode; automatic follows the system unless
+  /// the tint decides), and its text takes whichever scheme contrasts best
+  /// with the result, so a dark tint in light mode gets light text. Web
+  /// pages keep the system's. Always the same modifier, whatever the mode:
+  /// switching between "set" and "follow" in an if/else gave the view a new
+  /// identity, so editing a theme rebuilt everything under it (the editor's
+  /// slider and pad dropped the drag, the color picker closed, scrolling
+  /// reset).
   func spaceAppearance(_ theme: SpaceTheme?) -> some View {
-    modifier(SpaceAppearanceModifier(scheme: theme?.colorScheme))
+    modifier(SpaceAppearanceModifier(theme: theme))
   }
 }
 
 private struct SpaceAppearanceModifier: ViewModifier {
-  let scheme: ColorScheme?
+  let theme: SpaceTheme?
   @Environment(\.colorScheme) private var inherited
+  @Environment(\.outerColorScheme) private var outer
 
   func body(content: Content) -> some View {
-    content.environment(\.colorScheme, scheme ?? inherited)
+    let system = outer ?? inherited
+    let base = theme?.colorScheme ?? system
+    content
+      .environment(\.colorScheme, theme?.textScheme(over: base) ?? base)
+      .environment(\.outerColorScheme, system)
   }
 }
 
@@ -170,6 +205,8 @@ enum SidebarStyle {
 /// grain over it. Grey tints nothing.
 struct SpaceTint: View {
   let theme: SpaceTheme
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.outerColorScheme) private var outer
 
   /// The tint's opacity at full intensity; the default intensity (0.31)
   /// gives about the 34% the phone had before themes.
@@ -195,6 +232,8 @@ struct SpaceTint: View {
       }
     }
     .animation(.easeOut(duration: 0.28), value: theme)
+    // The backdrop is the mode's, not the text's (spaceAppearance()).
+    .environment(\.colorScheme, theme.colorScheme ?? outer ?? colorScheme)
     .ignoresSafeArea()
   }
 }
