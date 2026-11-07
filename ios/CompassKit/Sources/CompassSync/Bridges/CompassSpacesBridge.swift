@@ -256,6 +256,19 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     if node.isTab, !node.url.isEmpty { n.url = node.url } else { n.clearURL() }
     if node.isSplit || node.title.isEmpty { n.clearTitle() } else { n.title = node.title }
     if node.isTab, !node.customTitle.isEmpty { n.customTitle = node.customTitle } else { n.clearCustomTitle() }
+    // Pinned tabs and favorites: the page they go back to. One that is just
+    // the tab's page, on a node the server has without one, isn't sent:
+    // every client takes the page anyway, and applying a node from an older
+    // client then commits nothing back.
+    let defaultSaved =
+      existing.map { !$0.node.hasSavedURL } ?? false && node.savedURL == node.url && node.savedTitle == node.title
+    if node.isTab, !node.savedURL.isEmpty, !defaultSaved {
+      n.savedURL = node.savedURL
+      n.savedTitle = node.savedTitle
+    } else {
+      n.clearSavedURL()
+      n.clearSavedTitle()
+    }
     if node.isFolder, node.collapsed { n.collapsed = true } else { n.clearCollapsed() }
 
     // A position from the mirror stays only under the same parent, section
@@ -534,6 +547,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
           lastActive: max(node.lastActive ?? .distantPast, lastActive ?? .distantPast) == .distantPast
             ? nil : max(node.lastActive ?? .distantPast, lastActive ?? .distantPast),
           archivedAt: archivedAt, collapsed: n.collapsed, position: node.position)
+        // Only pinned tabs and favorites keep one; a node without one (from
+        // a client that predates it) keeps its own.
+        if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
       } else {
         let node = store.makeNode(
           id: id, kind: kind, title: n.title, customTitle: n.customTitle, url: n.url, lastActive: lastActive,
@@ -541,6 +557,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
           position: Self.position(n.position))
         guard let root = root(for: n) else { continue }
         store.rawInsert(node, into: root)
+        if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
       }
     }
   }
@@ -658,6 +675,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
             ? position
             : UniquePosition.forInsert(after: target.children.last?.position, before: nil, suffix: Self.suffix(for: node.id)))
         store.rawInsert(node, into: target)
+        // Moved into Pinned or Favorites, it takes the remote's pinned URL.
+        if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
         if let old, old.isSplit { touchedSplits.append(old) }
       }
       if target.isSplit, target.children.count > SpaceStore.maxSplitPanes {

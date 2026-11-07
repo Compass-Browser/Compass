@@ -265,6 +265,7 @@ public final class SpaceStore {
     guard canContain(parent, node.kind) else { return nil }
     node.position = position(in: parent, at: index ?? parent.children.count, for: node.id)
     parent.insert(node)
+    updateSavedURLs(node)
     record { $0.putNodes.insert(node.id) }
     return node
   }
@@ -281,6 +282,7 @@ public final class SpaceStore {
     if leavingArchive { node.archivedAt = nil }
     if parent.section == .archive && oldParent.section != .archive { node.archivedAt = now }
     parent.insert(node)
+    updateSavedURLs(node)
     let elsewhere = oldParent.root !== parent.root
     record { change in
       // A move to another section or space moves the whole subtree (its
@@ -343,9 +345,51 @@ public final class SpaceStore {
       node.title = title
       changed = true
     }
+    // A pinned tab added before it had a page takes its first one.
+    if node.isTab, node.savedURL.isEmpty, !node.url.isEmpty, node.keepsSavedURL == true {
+      node.savedURL = node.url
+      node.savedTitle = node.title
+      changed = true
+    }
     guard changed else { return }
     record {
       if node.section == .today { $0.todayChurn.insert(node.id) } else { $0.putNodes.insert(node.id) }
+    }
+  }
+
+  /// Sets the page a pinned tab or favorite goes back to ("Use This Page as
+  /// Pinned URL"). Tabs outside Pinned and Favorites keep none.
+  public func setSavedURL(_ node: SidebarNode, url: String, title: String) {
+    guard node.isTab, node.keepsSavedURL == true, !url.isEmpty,
+      node.savedURL != url || node.savedTitle != title
+    else { return }
+    node.savedURL = url
+    node.savedTitle = title
+    record { $0.putNodes.insert(node.id) }
+  }
+
+  /// Points an unloaded pinned tab or favorite back at its pinned URL and
+  /// title: the user closed it, or chose "Back to Pinned URL" while it
+  /// wasn't loaded. A live tab navigates instead (the app's job).
+  public func goBackToSavedURL(_ node: SidebarNode) {
+    guard node.isAwayFromSavedURL else { return }
+    update(node, url: node.savedURL, title: node.savedTitle)
+  }
+
+  /// Gives the tabs of `node`'s subtree a pinned URL if it's in Pinned or
+  /// Favorites and they have none, or clears theirs if it's elsewhere (the
+  /// desktop's SpaceModel::UpdateSavedUrls). Not reported: it happens as the
+  /// subtree is added or moved, which is. A detached node is left alone.
+  func updateSavedURLs(_ node: SidebarNode) {
+    guard let keeps = node.keepsSavedURL else { return }
+    for tab in node.subtree where tab.isTab {
+      if !keeps {
+        tab.savedURL = ""
+        tab.savedTitle = ""
+      } else if tab.savedURL.isEmpty {
+        tab.savedURL = tab.url
+        tab.savedTitle = tab.title
+      }
     }
   }
 
@@ -527,7 +571,19 @@ public final class SpaceStore {
 
   public func rawSortSpaces() { spaces.sort { $0.position < $1.position } }
 
-  public func rawInsert(_ node: SidebarNode, into parent: SidebarNode) { parent.insert(node) }
+  /// Also gives the node's tabs a pinned URL or clears it, as a move would.
+  public func rawInsert(_ node: SidebarNode, into parent: SidebarNode) {
+    parent.insert(node)
+    updateSavedURLs(node)
+  }
+
+  /// Sets a pinned tab's or favorite's pinned URL as received (sync); a tab
+  /// that keeps none (not in Pinned or Favorites) ignores it.
+  public func rawSetSavedURL(_ node: SidebarNode, url: String, title: String) {
+    guard node.isTab, !node.savedURL.isEmpty, !url.isEmpty else { return }
+    node.savedURL = url
+    node.savedTitle = title
+  }
 
   public func rawDetach(_ node: SidebarNode) { node.parent?.remove(node) }
 
@@ -540,11 +596,15 @@ public final class SpaceStore {
 
   public func makeNode(
     id: String, kind: SidebarNode.Kind, title: String = "", customTitle: String = "", url: String = "",
-    lastActive: Date? = nil, archivedAt: Date? = nil, collapsed: Bool = false, position: UniquePosition
+    lastActive: Date? = nil, archivedAt: Date? = nil, collapsed: Bool = false, position: UniquePosition,
+    savedURL: String = "", savedTitle: String = ""
   ) -> SidebarNode {
-    SidebarNode(
+    let node = SidebarNode(
       id: id, kind: kind, title: title, customTitle: customTitle, url: url, lastActive: lastActive,
       archivedAt: archivedAt, collapsed: collapsed, position: position)
+    node.savedURL = savedURL
+    node.savedTitle = savedTitle
+    return node
   }
 
   public func makeSpace(

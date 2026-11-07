@@ -156,6 +156,31 @@ struct CompassSpacesBridgeTests {
     #expect(bridge.mirror[t]!.node.customTitle == "Mine")
   }
 
+  @Test func syncsThePinnedURL() {
+    let (store, bridge, _) = make()
+    let s = Self.uuid(), t = Self.uuid(), old = Self.uuid()
+    var withSaved = node(t, space: s, url: "https://a/2", title: "A2")
+    withSaved.specifics!.compassSpaces.node.savedURL = "https://a/"
+    withSaved.specifics!.compassSpaces.node.savedTitle = "A"
+    // From a client that predates it: no saved_url.
+    bridge.applyRemote([space(s, "W"), withSaved, node(old, space: s, url: "https://o/", title: "O")])
+    let tab = store.node(id: t)!
+    #expect(tab.savedURL == "https://a/" && tab.savedTitle == "A" && tab.url == "https://a/2")
+    let oldTab = store.node(id: old)!
+    #expect(oldTab.savedURL == "https://o/")
+
+    // Ours goes out.
+    store.setSavedURL(tab, url: tab.url, title: tab.title)
+    #expect(bridge.mirror[t]!.node.savedURL == "https://a/2")
+    #expect(bridge.mirror[t]!.node.savedTitle == "A2")
+    // A node without one keeps its own.
+    bridge.applyRemote([node(t, space: s, url: "https://a/3")])
+    #expect(tab.savedURL == "https://a/2" && tab.url == "https://a/3")
+    // Unpinned: none sent.
+    store.move(tab, to: store.space(id: s)!.today, at: 0)
+    #expect(!bridge.mirror[t]!.node.hasSavedURL)
+  }
+
   @Test func throttlesTabChurn() {
     let (store, bridge, _) = make()
     var clock = Date(timeIntervalSince1970: 1_000_000)

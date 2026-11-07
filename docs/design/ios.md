@@ -297,7 +297,7 @@ The tests pass on the desktop's vectors and Chromium's own, byte for byte. Every
   - `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID. Links that open a new window become Today tabs.
   - `SyncController`: Keychain seed and server; joining by pairing code (typed, or from the Mac's QR, `compass-pair:` URL scheme) or by recovery code; cycles on launch, on foreground, 2 s after local edits, and on the server's poll interval.
   - **Screens.**
-    - **Sidebar:** the spaces paged by swipe and tinted with their color; favorites grid, pinned tree and Today; context menus for pin, unpin, archive, move to a space, split with, favorite, rename and delete; the archive sheet.
+    - **Sidebar:** the spaces paged by swipe and tinted with their color; favorites grid, pinned tree and Today; context menus for pin, unpin, archive, move to a space, split with, favorite, rename and delete; a pinned tab's or favorite's pinned URL ("Use This Page as Pinned URL", "Back to Pinned URL"; closing goes back to it, see sidebar.md); the archive sheet.
     - **Browser:** a full-bleed web view; a bottom bar with back, address pill, forward and sidebar; a swipe on the bar steps between entries; a pane picker for splits.
     - **Command bar:** search or URL (DuckDuckGo), and switching to open, pinned or favorite entries.
     - **Settings:** sync status, devices, recovery code (behind Face ID or passcode), leave, and joining.

@@ -611,7 +611,8 @@ final class AppModel {
   }
 
   /// A card flicked away: a Today entry goes to the archive, as on the
-  /// desktop; anything else (pinned, a favorite, a split's pane) unloads.
+  /// desktop; anything else (pinned, a favorite, a split's pane) unloads,
+  /// a pinned tab or favorite back on its pinned URL.
   func closeFromPicker(_ id: String) {
     guard let index = pickerTabs.firstIndex(of: id) else { return }
     if let node = store.node(id: id) {
@@ -619,7 +620,7 @@ final class AppModel {
       // Not reloaded behind the picker: the page goes empty.
       if shownTab === node { selectedNodeID = nil }
     }
-    tabs.unload(id)
+    if let node = store.node(id: id), node.isTab { unloadClosed(node) } else { tabs.unload(id) }
     pickerTabs.remove(at: index)
     if pickerTabs.isEmpty {
       // Nothing left to pick: back to the (empty) page.
@@ -658,12 +659,32 @@ final class AppModel {
   }
 
   /// ⌘W: the shown entry closes as a flicked tab card does: Today goes to
-  /// the archive, anything else (pinned, a favorite) unloads.
+  /// the archive, anything else (pinned, a favorite) unloads, back on its
+  /// pinned URL.
   func closeShown() {
     guard let node = selectedNode else { return }
     if node.section == .today { store.archive(node) }
     selectedNodeID = nil
-    for tab in node.tabs { tabs.unload(tab.id) }
+    for tab in node.tabs { unloadClosed(tab) }
+  }
+
+  /// A tab the user closed unloads; a pinned tab or favorite goes back to
+  /// its pinned URL, as on the desktop (docs/design/sidebar.md, "Pinned
+  /// URL").
+  func unloadClosed(_ tab: SidebarNode) {
+    tabs.unload(tab.id)
+    store.goBackToSavedURL(tab)
+  }
+
+  /// "Back to Pinned URL": a live tab navigates there (its node follows),
+  /// an unloaded one points back at it.
+  func backToSavedURL(_ tab: SidebarNode) {
+    guard tab.isAwayFromSavedURL else { return }
+    if tabs.isLive(tab), let url = URL(string: tab.savedURL) {
+      tabs.webView(for: tab).load(URLRequest(url: url))
+    } else {
+      store.goBackToSavedURL(tab)
+    }
   }
 
   /// ⌃1–9: the nth space of the sidebar.

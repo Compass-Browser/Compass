@@ -406,6 +406,7 @@ struct FavoritesGrid: View {
     .buttonStyle(SidebarPressStyle(scale: 0.95))
     .accessibilityLabel(fav.displayTitle)
     .contextMenu {
+      SavedURLItems(tab: fav)
       Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { app.close(fav) }
     }
   }
@@ -597,6 +598,7 @@ struct NodeRow: View {
       newTitle = node.isFolder ? node.title : node.displayTitle
       renaming = true
     }
+    SavedURLItems(tab: node)
     // Incognito: nothing that would copy it into synced lists (pinned,
     // favorites, other spaces); Close removes it.
     if let space, space.isIncognito {
@@ -650,6 +652,24 @@ struct NodeRow: View {
     Divider()
     Button(node.section == .today ? "Close" : "Delete", systemImage: "trash", role: .destructive) {
       app.close(node)
+    }
+  }
+}
+
+/// A pinned tab's or favorite's "Use This Page as Pinned URL" and "Back to
+/// Pinned URL" ("Favorite URL" for favorites), while it's on another page
+/// than its pinned URL (docs/design/sidebar.md, "Pinned URL").
+struct SavedURLItems: View {
+  @Environment(AppModel.self) private var app
+  let tab: SidebarNode
+
+  var body: some View {
+    if tab.isAwayFromSavedURL {
+      let kind = tab.section == .favorites ? "Favorite" : "Pinned"
+      Button("Use This Page as \(kind) URL", systemImage: "pin.circle") {
+        app.store.setSavedURL(tab, url: tab.url, title: tab.title)
+      }
+      Button("Back to \(kind) URL", systemImage: "arrow.uturn.backward") { app.backToSavedURL(tab) }
     }
   }
 }

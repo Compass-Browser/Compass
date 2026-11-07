@@ -98,12 +98,12 @@ final class ExtensionTab: NSObject, WKWebExtensionTab {
   }
 
   /// As the menu's close: a Today entry goes to the archive, anything else
-  /// (pinned, a favorite) only unloads.
+  /// (pinned, a favorite) unloads, back on its pinned URL.
   func close(for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
     guard let app, let node else { return completionHandler(nil) }
     if app.selectedNodeID == node.id { app.selectedNodeID = nil }
     if node.section == .today, node.parent?.isSplit != true { app.store.archive(node) }
-    app.tabs.unload(id)
+    app.unloadClosed(node)
     owner?.tabClosed(id)
     completionHandler(nil)
   }
