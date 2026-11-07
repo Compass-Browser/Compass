@@ -22,7 +22,11 @@ struct CompassApp: App {
     SentTabNotifications.shared.setUp(services: services)
     AutoPiP.configureAudioSession()
     // A best-effort sync while in the background (push needs the app open).
-    BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: nil) { task in
+    // On the main queue: the handler is written in the App's init, so Swift
+    // takes it as main-actor code and traps if it runs anywhere else (with
+    // `using: nil` the scheduler called it on a background queue, and the
+    // app crashed in the background).
+    BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: .main) { task in
       let work = Task { @MainActor in
         await services.sync.syncNow()
         await services.contentBlocking.refresh()
