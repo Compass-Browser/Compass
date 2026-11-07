@@ -1,0 +1,93 @@
+diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+index c19d4ba646850e49d845046f01dc46b661d71acb..9eadcdd57b9dc0e7825ff7dfc2b034ed5d671847 100644
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -97,6 +97,10 @@
+ #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+ #endif
+ 
++#if BUILDFLAG(IS_WIN)
++#include "compass/browser/ui/views/little_window/little_window.h"
++#endif
++
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+ #include "chrome/browser/search_integrity/search_integrity.h"
+ #include "chrome/browser/search_integrity/search_integrity_factory.h"
+@@ -105,6 +109,19 @@
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_WIN)
++// Compass: the startup tabs without the command line's links, which open in
++// little windows instead (docs/design/little-window.md).
++class StartupTabProviderWithoutLinks : public StartupTabProviderImpl {
++ public:
++  StartupTabs GetCommandLineTabs(const base::CommandLine& command_line,
++                                 const base::FilePath& cur_dir,
++                                 Profile* profile) const override {
++    return StartupTabs();
++  }
++};
++#endif  // BUILDFLAG(IS_WIN)
++
+ // Utility functions ----------------------------------------------------------
+ 
+ // On ChromeOS Ash check the previous apps launching history info to decide
+@@ -526,14 +543,47 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+   const bool whats_new_enabled =
+       whats_new::ShouldShowForState(local_state, promotions_enabled);
+ 
++#if BUILDFLAG(IS_WIN)
++  // Compass: links from other apps (Windows passes them on the command line)
++  // open in little windows, as on macOS (docs/design/little-window.md). With
++  // Compass running, that's all; at startup, the usual windows open first,
++  // without the links, and the little windows over them.
++  StartupTabs little_window_links;
++  if (!is_incognito_or_guest &&
++      !command_line_->HasSwitch(switches::kOpenInNewWindow) &&
++      !command_line_->HasSwitch(switches::kSameTab)) {
++    StartupTabs links = StartupTabProviderImpl().GetCommandLineTabs(
++        *command_line_, cur_dir_, profile_);
++    if (compass::CanOpenInLittleWindows(links)) {
++      if (process_startup == chrome::startup::IsProcessStartup::kNo) {
++        compass::OpenInLittleWindows(links, profile_);
++        return;
++      }
++      little_window_links = std::move(links);
++    }
++  }
++  const StartupTabProviderImpl upstream_tab_provider{};
++  const StartupTabProviderWithoutLinks tab_provider_without_links{};
++  const StartupTabProvider& tab_provider =
++      little_window_links.empty()
++          ? static_cast<const StartupTabProvider&>(upstream_tab_provider)
++          : tab_provider_without_links;
++  auto result = DetermineStartupTabs(
++      tab_provider, process_startup, is_incognito_or_guest,
++      is_post_crash_launch, promotions_enabled, whats_new_enabled);
++#else
+   auto result = DetermineStartupTabs(
+       StartupTabProviderImpl(), process_startup, is_incognito_or_guest,
+       is_post_crash_launch, promotions_enabled, whats_new_enabled);
++#endif  // BUILDFLAG(IS_WIN)
+   StartupTabs tabs = std::move(result.tabs);
+ 
+   // Return immediately if we start an async restore, since the remainder of
+   // that process is self-contained.
+   if (MaybeAsyncRestore(tabs, process_startup, is_post_crash_launch)) {
++#if BUILDFLAG(IS_WIN)
++    compass::OpenInLittleWindows(little_window_links, profile_);
++#endif
+     return;
+   }
+   BrowserOpenBehaviorOptions behavior_options = 0;
+@@ -580,6 +630,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+ 
+   BrowserWindowInterface* browser = RestoreOrCreateBrowser(
+       tabs, behavior, restore_options, process_startup, is_post_crash_launch);
++#if BUILDFLAG(IS_WIN)
++  compass::OpenInLittleWindows(little_window_links, profile_);
++#endif
+ 
+   tab_groups::MaybeShowSharedTabGroupVersionOutOfDateModal(browser);
+   tab_groups::MaybeShowSharedTabGroupVersionUpToDateToast(browser);

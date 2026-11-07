@@ -1,0 +1,29 @@
+diff --git a/chrome/browser/ui/accelerator_table.cc b/chrome/browser/ui/accelerator_table.cc
+index 1a68ca92321945aa8e3f61755351f455f27cca73..b0569f045983b831038e5df855e54cddccd5683c 100644
+--- a/chrome/browser/ui/accelerator_table.cc
++++ b/chrome/browser/ui/accelerator_table.cc
+@@ -15,6 +15,7 @@
+ #include "build/branding_buildflags.h"
+ #include "build/build_config.h"
+ #include "chrome/app/chrome_command_ids.h"
++#include "compass/browser/ui/compass_command_ids.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "components/lens/buildflags.h"
+@@ -325,7 +326,15 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
+                          std::begin(kDevToolsAcceleratorMap),
+                          std::end(kDevToolsAcceleratorMap));
+ 
+-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
++#if BUILDFLAG(IS_WIN)
++    // Compass: Shift+Alt+N opens a little window (as Cmd+Option+N does on
++    // macOS, where it was New Split Tab's too). Not Ctrl+Alt+N: Windows
++    // reserves Ctrl+Alt (AltGr), see below. Compass splits by dragging a tab
++    // onto another or from the menu.
++    accelerators->emplace_back(AcceleratorMapping(
++        {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
++         compass::kNewLittleWindowCommand}));
++#elif BUILDFLAG(IS_LINUX)
+     accelerators->emplace_back(AcceleratorMapping(
+         {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN, IDC_NEW_SPLIT_TAB}));
+ #elif BUILDFLAG(IS_CHROMEOS)

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 238f8625e42d8703c72c266c36e32bbfb2113095..167beb8251f625f0cc43c83c2abde873dcf3c5e7 100644
+index 238f8625e42d8703c72c266c36e32bbfb2113095..65922ef95c9fc7bc1c59069100502401f6c2590a 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -591,6 +591,8 @@ if (!is_android) {
@@ -30,7 +30,16 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..167beb8251f625f0cc43c83c2abde873
        ":accelerator_utils_headers",
        ":browser_command_controller",
        ":browser_init_state",
-@@ -1309,6 +1316,7 @@ source_set("tab_helpers_impl") {
+@@ -1086,6 +1093,8 @@ if (!is_android) {
+     public = [ "accelerator_table.h" ]
+     sources = [ "accelerator_table.cc" ]
+     deps = [
++      # Compass's Shift+Alt+N (a little window) on Windows.
++      "//compass/browser/ui:app_menu_hooks",
+       "//chrome/app:command_ids",
+       "//chrome/browser/ui:ui_features",
+       "//chrome/browser/ui/tabs",
+@@ -1309,6 +1318,7 @@ source_set("tab_helpers_impl") {
    public_deps = [ ":tab_helpers" ]
  
    deps = [
@@ -38,7 +47,7 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..167beb8251f625f0cc43c83c2abde873
      ":recently_audible_helper",
      ":tab_dialogs",
      ":ui_features",
-@@ -1560,6 +1568,7 @@ static_library("ui") {
+@@ -1560,6 +1570,7 @@ static_library("ui") {
      # New dependencies inside of //chrome/browser that generate header files
      # should be added to //chrome/browser:browser_generated_files.
      ":accelerator_utils_headers",
@@ -46,7 +55,7 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..167beb8251f625f0cc43c83c2abde873
      ":browser_live_tab_context",
      ":crypto_module_password_dialog",
      ":download_close_type",
-@@ -2771,6 +2780,9 @@ static_library("ui") {
+@@ -2771,6 +2782,9 @@ static_library("ui") {
        # tab_search includes browser.h, browser_window.h,
        # plural_string_handler.h from //chrome/browser/ui.
        "//chrome/browser/ui/webui/tab_search",

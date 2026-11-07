@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/views/little_window/little_window.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -499,15 +500,17 @@ gfx::Insets GetPopupContentFrameInsets(const views::View* view) {
                            kContentFrameInset);
 }
 
+bool CanOpenInLittleWindows(const std::vector<StartupTab>& tabs) {
+  return !tabs.empty() &&
+         std::ranges::all_of(tabs, [](const StartupTab& tab) {
+           return IsLittleWindowURL(tab.url);
+         });
+}
+
 bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
                          Profile* profile) {
-  if (tabs.empty() || !profile) {
+  if (!profile || !CanOpenInLittleWindows(tabs)) {
     return false;
-  }
-  for (const StartupTab& tab : tabs) {
-    if (!IsLittleWindowURL(tab.url)) {
-      return false;
-    }
   }
   for (const StartupTab& tab : tabs) {
     OpenLittleWindow(profile, tab.url);
