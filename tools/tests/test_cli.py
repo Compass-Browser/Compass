@@ -3,14 +3,16 @@
 # found in the LICENSE file.
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from compass_tool.cli import (browser_test_args,  # noqa: E402
+from compass_tool.cli import (args_gn, browser_test_args,  # noqa: E402
                               parser, require_buildable_layout,
                               require_in_tree_init)
-from compass_tool.layout import Layout, detect, host_cpu  # noqa: E402
+from compass_tool.layout import (Layout, detect, host_cpu,  # noqa: E402
+                                 vs_toolchain_hash)
 from compass_tool.process import CommandError  # noqa: E402
 
 KEEP_GPU = '--disable-features=MacDisclaimGpuTccResponsibility'
@@ -126,6 +128,12 @@ class OutDirTest(unittest.TestCase):
     self.assertEqual(self.layout().out_dir('release', 'x64'),
                      Path('/w/compass-chromium/src/out/Release-x64'))
 
+  def test_out_dir_for_windows_from_a_mac(self):
+    self.assertEqual(self.layout().out_dir('release', 'win-x64'),
+                     Path('/w/compass-chromium/src/out/Release-win-x64'))
+    self.assertEqual('win-x64', parser().parse_args(
+        ['release', 'build-win', '--cpu', 'win-x64']).cpu)
+
   def test_build_commands_take_cpu(self):
     for argv in (['gen', 'release', '--cpu', 'x64'],
                  ['build', '-c', 'release', '--cpu', 'x64'],
@@ -172,3 +180,37 @@ class IosXcconfigTest(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
+
+
+class WinCrossTest(unittest.TestCase):
+
+  def make(self, tmp):
+    chromium = Path(tmp) / 'compass-chromium'
+    (chromium / 'src' / 'build').mkdir(parents=True)
+    (chromium / 'src' / 'build' / 'vs_toolchain.py').write_text(
+        "SDK = 1\nTOOLCHAIN_HASH = '3bfcb536c8'\nSDK_VERSION = '10.0.28000.0'\n")
+    return Layout(Path(tmp) / 'compass', chromium, False)
+
+  def test_toolchain_env(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      layout = self.make(tmp)
+      self.assertEqual('3bfcb536c8', vs_toolchain_hash(layout.src))
+      self.assertEqual({}, layout.win_toolchain_env())
+      layout.win_toolchain_dir.mkdir()
+      (layout.win_toolchain_dir / '6f8bd28bfd.zip').write_bytes(b'')
+      self.assertEqual({
+          'DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL': str(layout.win_toolchain_dir),
+          'GYP_MSVS_HASH_3bfcb536c8': '6f8bd28bfd',
+      }, layout.win_toolchain_env())
+      if sys.platform != 'win32':
+        self.assertEqual('6f8bd28bfd',
+                         layout.env()['GYP_MSVS_HASH_3bfcb536c8'])
+
+  def test_args_gn(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      text = args_gn(self.make(tmp), 'release', 'win-x64')
+      self.assertIn('target_os = "win"\n', text)
+      self.assertIn('target_cpu = "x64"\n', text)
+      self.assertIn('import("//compass/config/args/release.gn")', text)
+      self.assertNotIn('target_os', args_gn(self.make(tmp + '/b'), 'release',
+                                             'x64'))

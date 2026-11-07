@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import (checkout, mac_sign, overrides, patches, release, sparkle,
                sync_server)
-from .layout import CONFIGS, Layout, detect, host_cpu
+from .layout import CONFIGS, CROSS_TARGETS, Layout, detect, host_cpu
 from .process import CommandError, depot_tool, run
 
 DEFAULT_TARGET = 'chrome'
@@ -46,7 +46,15 @@ def args_gn(layout: Layout, config: str, cpu: str | None) -> str:
       'cc_wrapper = "%s ../../compass/build/redirect_cc.py"' %
       wrapper_python(layout),
   ]
-  if cpu:
+  if cpu == 'win-x64':
+    # Windows from a Mac (docs/building.md, "Windows from a Mac").
+    lines += [
+        'target_os = "win"',
+        'target_cpu = "x64"',
+        # As in the first cross build that ran on Windows (plan.md).
+        'v8_use_external_startup_data = false',
+    ]
+  elif cpu:
     lines.append('target_cpu = "%s"' % cpu)
   return '\n'.join(lines) + '\n'
 
@@ -212,6 +220,9 @@ def build(layout: Layout, config: str, targets, jobs: int | None = None,
     # Release builds bundle Sparkle; every build compiles against its
     # headers (docs/design/updates.md).
     sparkle.ensure(layout.root)
+  minor = win_build(out_dir / 'args.gn')
+  sync_chrome_version(layout.src, minor)
+  sync_mojom_salt(layout.src, out_dir, minor)
   for path in overrides.orphans(layout.overrides_dir, layout.src):
     print('warning: override has no upstream file: chromium_src/' + path)
   for path in overrides.sync(layout.overrides_dir, layout.src, out_dir):
@@ -402,20 +413,105 @@ def sign_build(layout: Layout, args) -> Path:
   return output
 
 
+
+
 COMPASS_VERSION_ARG = 'compass_version'
+WIN_BUILD_ARG = 'compass_win_build'
+WIN_UPDATER_ARG = 'compass_enable_win_updater'
 
 
-def set_gn_arg(args_file: Path, name: str, value: str) -> None:
-  """Sets |name| = "|value|" among args.gn's local tweaks."""
+def set_gn_arg(args_file: Path, name: str, value, raw: bool = False) -> None:
+  """Sets |name| = "|value|" among args.gn's local tweaks (|raw|: unquoted,
+  for numbers and booleans)."""
   lines = [l for l in args_file.read_text().splitlines()
            if not l.startswith(name + ' ') and not l.startswith(name + '=')]
-  lines.append('%s = "%s"' % (name, value))
+  lines.append('%s = %s' % (name, value if raw else '"%s"' % value))
   args_file.write_text('\n'.join(lines) + '\n')
 
 
-def git_commit(root: Path, short: bool = True) -> str:
-  return run(['git', 'rev-parse'] + (['--short'] if short else []) + ['HEAD'],
-             root, capture=True, quiet=True).stdout.strip()
+def gn_arg(args_file: Path, name: str) -> str | None:
+  """|name|'s value among args.gn's own lines (not its imports), unquoted."""
+  if not args_file.is_file():
+    return None
+  value = None
+  for line in args_file.read_text().splitlines():
+    key, sep, rest = line.partition('=')
+    if sep and key.strip() == name:
+      value = rest.split('#', 1)[0].strip().strip('"')
+  return value
+
+
+def win_build(args_file: Path) -> int:
+  value = gn_arg(args_file, WIN_BUILD_ARG)
+  try:
+    return int(value) if value else 0
+  except ValueError:
+    raise CommandError('%s: %s = %r is not a number' %
+                       (args_file, WIN_BUILD_ARG, value))
+
+
+def chrome_version(src: Path) -> dict:
+  values = {}
+  for line in (src / 'chrome' / 'VERSION').read_text().splitlines():
+    key, sep, value = line.partition('=')
+    if sep:
+      values[key.strip()] = value.strip()
+  return values
+
+
+def upstream_chromium_version(src: Path) -> str:
+  """chrome/VERSION with upstream's MINOR (0), e.g. "156.0.8078.48"."""
+  v = chrome_version(src)
+  return '%s.0.%s.%s' % (v['MAJOR'], v['BUILD'], v['PATCH'])
+
+
+def sync_chrome_version(src: Path, minor: int) -> bool:
+  """Writes |minor| (compass_win_build) into chrome/VERSION. Returns whether
+  it changed. Every build sets it, so a dev build puts upstream's 0 back."""
+  path = src / 'chrome' / 'VERSION'
+  if int(chrome_version(src).get('MINOR', '0')) == minor:
+    return False
+  lines = ['MINOR=%d' % minor if l.startswith('MINOR=') else l
+           for l in path.read_text().splitlines()]
+  path.write_text('\n'.join(lines) + '\n')
+  print('chrome/VERSION: MINOR=%d (%s)' % (minor, WIN_BUILD_ARG))
+  return True
+
+
+MOJOM_SALT_ARG = 'mojom_message_id_salt_path'
+MOJOM_SALT = 'build/mojom_message_id_salt'
+
+
+def sync_mojom_salt(src: Path, out_dir: Path, minor: int) -> None:
+  """Official builds scramble Mojo's message IDs with chrome/VERSION as the
+  salt (mojo/public/tools/bindings/mojom.gni), so a Windows release's MINOR
+  would regenerate every binding and recompile most of Chromium. With a
+  MINOR, the salt is upstream's version instead: it still changes with
+  every Chromium update, not with every Windows release. It's a source file
+  (GN rejects inputs in the out dir that no target generates), ignored by
+  git."""
+  if minor == 0:
+    return
+  salt = src / 'compass' / MOJOM_SALT
+  text = 'chromium %s\n' % upstream_chromium_version(src)
+  if not salt.is_file() or salt.read_text() != text:
+    salt.write_text(text)
+  args_file = out_dir / 'args.gn'
+  value = '//compass/' + MOJOM_SALT
+  if gn_arg(args_file, MOJOM_SALT_ARG) != value:
+    set_gn_arg(args_file, MOJOM_SALT_ARG, value)
+
+
+def git_commit(root: Path, short: bool = True,
+               mark_dirty: bool = False) -> str:
+  """HEAD's hash; with |mark_dirty|, plus "-dirty" when tracked files have
+  changes, so a release built from them says so."""
+  commit = run(['git', 'rev-parse'] + (['--short'] if short else []) +
+               ['HEAD'], root, capture=True, quiet=True).stdout.strip()
+  if mark_dirty and run(['git', 'status', '--porcelain', '--untracked-files=no'],
+                        root, capture=True, quiet=True).stdout.strip():
+    commit += '-dirty'
+  return commit
 
 
 def cmd_release(layout: Layout, args) -> None:
@@ -453,16 +549,28 @@ def _release(layout: Layout, args) -> None:
     if not args.no_upload:
       release.upload(feeds)
     return
+  if args.action == 'build-win':
+    build_win(layout, args)
+    return
   if args.action == 'publish-win':
-    if not args.version or not args.installer:
-      raise CommandError('publish-win: give the version and --installer '
-                         '(the mini_installer.exe a Windows build made with '
-                         'that compass_version)')
+    if not args.installer:
+      raise CommandError('publish-win: give --installer (the '
+                         'CompassSetup-<version>.exe from `compass release '
+                         'build-win`, with its .json next to it)')
+    installer = Path(args.installer)
+    info = win_build_info(installer)
+    version = args.version or info.get('version')
+    chromium = args.chromium or info.get('chromium', '')
+    build_number = args.win_build or info.get('win_build', 0)
+    if not version:
+      raise CommandError('publish-win: which version? (no %s)' %
+                         installer.with_suffix('.json').name)
     tools = sparkle.ensure(layout.root) / 'bin'
-    added = release.add_win_release(manifest, Path(args.installer),
-                                    args.version, args.chromium or '',
-                                    args.channel, git_commit(layout.root),
-                                    tools)
+    added = release.add_win_release(manifest, installer, version, chromium,
+                                    args.channel,
+                                    info.get('commit') or
+                                    git_commit(layout.root),
+                                    tools, win_build=build_number)
     feeds = release.write_feeds(manifest)
     if not args.no_upload:
       release.publish_assets(added, [release.SITE_DIR / added['win']['file']],
@@ -494,6 +602,64 @@ def _release(layout: Layout, args) -> None:
     release.upload(feeds)
   print('released %s on %s: %s' % (added['version'], args.channel,
                                    release.archive_url(added['mac'])))
+
+
+def win_build_info(installer: Path) -> dict:
+  """What build-win wrote next to the installer, or {}."""
+  sidecar = installer.with_suffix('.json')
+  if not sidecar.is_file():
+    return {}
+  import json
+  return json.loads(sidecar.read_text())
+
+
+def build_win(layout: Layout, args) -> Path:
+  """Windows: builds the installer for a release, numbered so Chromium's
+  installer updates to it. Prints the file for `release publish-win`, which
+  runs where the release key is (docs/design/updates.md, "Windows")."""
+  if sys.platform != 'win32' and args.cpu != 'win-x64':
+    raise CommandError('build-win runs on Windows, or on a Mac with --cpu '
+                       'win-x64 (docs/building.md, "Windows from a Mac")')
+  version = args.version or release.new_version()
+  manifest = release.fetch_manifest()
+  if any(r['version'] == version and r.get('win')
+         for r in manifest['releases']):
+    raise CommandError('release %s has a Windows installer already' % version)
+  number = args.win_build or release.next_win_build(manifest)
+  out_dir = layout.out_dir(args.config, args.cpu)
+  args_file = out_dir / 'args.gn'
+  if not args_file.exists():
+    cmd_gen(layout, argparse.Namespace(config=args.config, cpu=args.cpu,
+                                       force=False))
+  set_gn_arg(args_file, COMPASS_VERSION_ARG, version)
+  set_gn_arg(args_file, WIN_BUILD_ARG, number, raw=True)
+  set_gn_arg(args_file, WIN_UPDATER_ARG, 'true', raw=True)
+  chromium = upstream_chromium_version(layout.src)
+  installer_version = chromium.replace('.0.', '.%d.' % number, 1)
+  print('Compass %s for Windows: installer version %s' % (version,
+                                                       installer_version))
+  # mini_installer packs every <version>.manifest in the out dir, so earlier
+  # builds' would ride along in the version folder.
+  for manifest in out_dir.glob('*.*.*.*.manifest'):
+    if manifest.name != installer_version + '.manifest':
+      manifest.unlink()
+  build(layout, args.config, ['chrome', 'mini_installer'], args.jobs,
+        args.skip_patches, args.cpu)
+  setup = out_dir / ('CompassSetup-%s.exe' % version)
+  shutil.copyfile(out_dir / 'mini_installer.exe', setup)
+  import json
+  setup.with_suffix('.json').write_text(json.dumps({
+      'version': version,
+      'chromium': chromium,
+      'win_build': number,
+      'commit': git_commit(layout.root, mark_dirty=True),
+  }, indent=2) + '\n')
+  print('built %s\npublish it from the release Mac: compass release '
+        'publish-win --installer CompassSetup-%s.exe (with its .json)' %
+        (setup, version))
+  return setup
+
+
 
 
 def cmd_sync_server(layout: Layout, args) -> None:
@@ -690,9 +856,9 @@ def ios_archive(ios: Path, args) -> str:
 
 
 def add_cpu_argument(p: argparse.ArgumentParser) -> None:
-  p.add_argument('--cpu', choices=CPUS,
+  p.add_argument('--cpu', choices=CPUS + CROSS_TARGETS,
                  help='build for this CPU in out/<Config>-<cpu> (default: '
-                 'the host\'s, in out/<Config>)')
+                 'the host\'s, in out/<Config>); win-x64: Windows, from a Mac')
 
 
 def add_universal_argument(p: argparse.ArgumentParser) -> None:
@@ -802,12 +968,14 @@ def parser() -> argparse.ArgumentParser:
   s.set_defaults(func=cmd_sign)
 
   s = sub.add_parser('release', help='publish a macOS release to the update '
-                     'feeds, promote one to stable, or list them')
-  s.add_argument('action', choices=['publish', 'publish-win', 'promote',
-                                    'list', 'feeds'],
+                     'feeds, build or publish a Windows one, promote one to '
+                     'stable, or list them')
+  s.add_argument('action', choices=['publish', 'build-win', 'publish-win',
+                                    'promote', 'list', 'feeds'],
                  nargs='?', default='publish')
   s.add_argument('version', nargs='?',
-                 help='promote: the version; publish: instead of the time')
+                 help='promote: the version; publish, build-win: instead of the '
+                 'time; publish-win: instead of the .json\'s')
   s.add_argument('--channel', choices=release.CHANNELS, default='beta',
                  help='publish: the channel (default: %(default)s)')
   add_cpu_argument(s)
@@ -817,6 +985,9 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--chromium',
                  help='publish-win: its Chromium version, for a release '
                  'that has no macOS build')
+  s.add_argument('--win-build', type=int, default=0,
+                 help='build-win, publish-win: the Windows build number '
+                 '(default: the next one, or the .json\'s)')
   s.add_argument('--no-upload', action='store_true',
                  help='write the feeds locally only')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')

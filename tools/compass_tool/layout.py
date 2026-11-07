@@ -22,6 +22,22 @@ CONFIGS = {
 }
 
 
+# Builds for another OS than the host's, as --cpu values: out/<Config>-<target>.
+# win-x64: Windows from a Mac (docs/building.md, "Windows from a Mac").
+CROSS_TARGETS = ('win-x64',)
+
+
+def vs_toolchain_hash(src: Path) -> str:
+  """TOOLCHAIN_HASH in Chromium's build/vs_toolchain.py: the Windows toolchain
+  package it wants (GYP_MSVS_HASH_<it> maps it to ours)."""
+  import re
+  match = re.search(r"^TOOLCHAIN_HASH = '([0-9a-f]+)'",
+                    (src / 'build' / 'vs_toolchain.py').read_text(), re.M)
+  if not match:
+    raise ValueError('no TOOLCHAIN_HASH in build/vs_toolchain.py')
+  return match.group(1)
+
+
 def host_cpu(machine: str | None = None) -> str:
   """The host as a GN target_cpu: arm64 or x64."""
   machine = (machine or platform.machine()).lower()
@@ -71,6 +87,26 @@ class Layout:
     name = CONFIGS[config]
     return self.src / 'out' / (name + '-' + cpu if cpu else name)
 
+  @property
+  def win_toolchain_dir(self) -> Path:
+    """Where a Mac keeps the packaged Windows toolchain for cross builds
+    (docs/building.md, "Windows from a Mac"): <hash>.zip, made on Windows
+    by depot_tools' win_toolchain/package_from_installed.py."""
+    return self.chromium_dir / 'win_toolchain'
+
+  def win_toolchain_env(self) -> dict:
+    """The variables that point Chromium's vs_toolchain.py at the packaged
+    toolchain, if there is one: it otherwise wants Google's."""
+    zips = sorted(self.win_toolchain_dir.glob('*.zip'))
+    if not zips:
+      return {}
+    if len(zips) > 1:
+      raise ValueError('more than one toolchain in %s' % self.win_toolchain_dir)
+    return {
+        'DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL': str(self.win_toolchain_dir),
+        'GYP_MSVS_HASH_%s' % vs_toolchain_hash(self.src): zips[0].stem,
+    }
+
   def env(self) -> dict:
     """Environment for running depot_tools and the build."""
     env = dict(os.environ)
@@ -78,6 +114,8 @@ class Layout:
     if sys.platform == 'win32':
       # Use the locally installed Visual Studio, not Google's internal one.
       env['DEPOT_TOOLS_WIN_TOOLCHAIN'] = '0'
+    elif 'DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL' not in env:
+      env.update(self.win_toolchain_env())
     return env
 
 

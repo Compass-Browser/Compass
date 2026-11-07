@@ -18,9 +18,17 @@ declare_args() {
   compass_sparkle_public_key = ""
 
   # The Windows updater (browser/updates/win_updater.cc): reads the channel
-  # manifests and runs the newer mini_installer. Off until a Windows build
-  # has tried it (docs/design/updates.md, "Windows").
+  # manifests and runs the newer mini_installer. On in release builds
+  # (config/args/release.gn); dev builds don't update anyway.
   compass_enable_win_updater = false
+
+  # Windows: Chromium's MINOR version for this build, e.g. 3 for
+  # 156.3.8078.48. Chromium's installer only updates in place when its
+  # version goes up, so every Windows release gets the next number
+  # (`compass release build-win` picks it). The compass tool writes it into
+  # chrome/VERSION before building, since many targets read that file
+  # directly. 0 (upstream's) in dev builds.
+  compass_win_build = 0
 }
 
 # `compass` fetches Sparkle (tools/compass_tool/sparkle.py): the whole

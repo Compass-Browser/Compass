@@ -15,12 +15,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 from compass_tool import release, sparkle  # noqa: E402
-from compass_tool.cli import parser, set_gn_arg  # noqa: E402
+from compass_tool.cli import (gn_arg, parser, set_gn_arg,  # noqa: E402
+                              sync_chrome_version, sync_mojom_salt,
+                              upstream_chromium_version,
+                              win_build, win_build_info)
 
 SPARKLE = '{http://www.andymatuschak.org/xml-namespaces/sparkle}'
 
 
-def _release(version, channel, deltas=(), win=False):
+def _release(version, channel, deltas=(), win=False, build=0):
   r = {
       'version': version,
       'channel': channel,
@@ -44,7 +47,7 @@ def _release(version, channel, deltas=(), win=False):
   }
   if win:
     r['win'] = {'file': 'win/CompassSetup-%s.exe' % version, 'size': 5,
-                'sha256': 'ee', 'ed_signature': 'w'}
+                'sha256': 'ee', 'ed_signature': 'w', 'build': build}
   return r
 
 
@@ -131,18 +134,39 @@ class ReleaseTest(unittest.TestCase):
       site, installer = Path(tmp) / 'site', Path(tmp) / 'mini_installer.exe'
       installer.write_bytes(b'MZ installer')
       manifest = json.loads(json.dumps(MANIFEST))
+      with self.assertRaises(release.ReleaseError):  # No build number.
+        release.add_win_release(manifest, installer, '20261103.0215', '',
+                                'beta', 'abc', signer, site)
       added = release.add_win_release(manifest, installer, '20261103.0215',
-                                      '', 'beta', 'abc', signer, site)
+                                      '', 'beta', 'abc', signer, site,
+                                      win_build=1)
+      self.assertEqual(1, added['win']['build'])
       self.assertIs(added, release.find(manifest, '20261103.0215'))
       self.assertEqual('win/CompassSetup-20261103.0215.exe',
                        added['win']['file'])
       self.assertEqual(12, added['win']['size'])
       with self.assertRaises(release.ReleaseError):
         release.add_win_release(manifest, installer, '20261103.0215', '',
-                                'beta', 'abc', signer, site)
+                                'beta', 'abc', signer, site, win_build=2)
       with self.assertRaises(release.ReleaseError):
         release.add_win_release(manifest, installer, '20261105.0100', '',
-                                'beta', 'abc', signer, site)
+                                'beta', 'abc', signer, site, win_build=2)
+      with self.assertRaises(release.ReleaseError):  # Not newer.
+        release.add_win_release(manifest, installer, '20261102.1000', '',
+                                'beta', 'abc', signer, site, win_build=1)
+
+  def test_next_win_build(self):
+    self.assertEqual(1, release.next_win_build(MANIFEST))
+    manifest = {'releases': [
+        _release('20261104.0900', 'stable', win=True, build=4),
+        _release('20261105.0900', 'beta', win=True, build=7),
+        _release('20261106.0900', 'beta'),
+    ]}
+    self.assertEqual(8, release.next_win_build(manifest))
+    # Installers published before the numbering count as 0.
+    old = _release('20261103.0900', 'beta', win=True)
+    del old['win']['build']
+    self.assertEqual(1, release.next_win_build({'releases': [old]}))
 
   def test_parse_signature(self):
     sig, length = release.parse_signature(
@@ -181,6 +205,79 @@ class ReleaseTest(unittest.TestCase):
       set_gn_arg(args, 'compass_version', '20261103.0215')
       self.assertEqual('import("//x.gn")\ncompass_version = "20261103.0215"\n',
                        args.read_text())
+
+
+class WinBuildTest(unittest.TestCase):
+
+  VERSION = 'MAJOR=156\nMINOR=0\nBUILD=8078\nPATCH=48\n'
+
+  def test_gn_arg_and_win_build(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      args = Path(tmp) / 'args.gn'
+      self.assertEqual(0, win_build(args))
+      args.write_text('import("//x.gn")\n')
+      self.assertEqual(0, win_build(args))
+      set_gn_arg(args, 'compass_win_build', 5, raw=True)
+      set_gn_arg(args, 'compass_enable_win_updater', 'true', raw=True)
+      set_gn_arg(args, 'compass_version', '20261107.1200')
+      self.assertEqual('import("//x.gn")\ncompass_win_build = 5\n'
+                       'compass_enable_win_updater = true\n'
+                       'compass_version = "20261107.1200"\n',
+                       args.read_text())
+      self.assertEqual(5, win_build(args))
+      self.assertEqual('20261107.1200', gn_arg(args, 'compass_version'))
+      self.assertIsNone(gn_arg(args, 'compass_win'))
+
+  def test_sync_chrome_version(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      src = Path(tmp)
+      (src / 'chrome').mkdir()
+      version = src / 'chrome' / 'VERSION'
+      version.write_text(self.VERSION)
+      self.assertFalse(sync_chrome_version(src, 0))
+      self.assertTrue(sync_chrome_version(src, 3))
+      self.assertEqual(self.VERSION.replace('MINOR=0', 'MINOR=3'),
+                       version.read_text())
+      self.assertEqual('156.0.8078.48', upstream_chromium_version(src))
+      self.assertFalse(sync_chrome_version(src, 3))
+      self.assertTrue(sync_chrome_version(src, 0))  # A dev build again.
+      self.assertEqual(self.VERSION, version.read_text())
+
+  def test_sync_mojom_salt(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      src = Path(tmp)
+      (src / 'chrome').mkdir()
+      (src / 'chrome' / 'VERSION').write_text(self.VERSION)
+      (src / 'compass' / 'build').mkdir(parents=True)
+      out = src / 'out' / 'Release-win-x64'
+      out.mkdir(parents=True)
+      args = out / 'args.gn'
+      args.write_text('import("//compass/config/args/release.gn")\n')
+      sync_mojom_salt(src, out, 0)  # Dev builds keep upstream's salt.
+      self.assertIsNone(gn_arg(args, 'mojom_message_id_salt_path'))
+      sync_chrome_version(src, 3)
+      sync_mojom_salt(src, out, 3)
+      self.assertEqual('//compass/build/mojom_message_id_salt',
+                       gn_arg(args, 'mojom_message_id_salt_path'))
+      salt = src / 'compass' / 'build' / 'mojom_message_id_salt'
+      self.assertEqual('chromium 156.0.8078.48\n', salt.read_text())
+      # The next release changes neither, so nothing regenerates.
+      before = (args.stat().st_mtime_ns, salt.stat().st_mtime_ns)
+      sync_chrome_version(src, 4)
+      sync_mojom_salt(src, out, 4)
+      self.assertEqual(before,
+                       (args.stat().st_mtime_ns, salt.stat().st_mtime_ns))
+
+  def test_win_build_info(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      setup = Path(tmp) / 'CompassSetup-20261107.1200.exe'
+      self.assertEqual({}, win_build_info(setup))
+      setup.with_suffix('.json').write_text(json.dumps({'win_build': 2}))
+      self.assertEqual({'win_build': 2}, win_build_info(setup))
+
+  def test_parser(self):
+    args = parser().parse_args(['release', 'build-win', '--win-build', '3'])
+    self.assertEqual(('build-win', 3), (args.action, args.win_build))
 
 
 class SparkleTest(unittest.TestCase):
