@@ -236,6 +236,9 @@ final class SystemBridge {
       app.dismissOverlays()
       if let space, app.store.space(id: space) != nil { app.selectedSpaceID = space }
       app.openCommandBar(newTab: true)
+    case .incognito:
+      app.dismissOverlays()
+      app.openIncognitoTab()
     case .inbox:
       drainInbox()
     case .downloads:

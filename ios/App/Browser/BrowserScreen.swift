@@ -374,6 +374,7 @@ struct BrowserScreen: View {
       Button { app.openCommandBar(newTab: true) } label: { BarIcon(symbol: "plus") }
         .accessibilityLabel("New tab")
         .accessibilityIdentifier("BarNewTab")
+        .contextMenu { NewTabMenu() }
       Button { app.showingMenu = true } label: {
         BarIcon(symbol: "ellipsis")
           .scaleEffect(menuBounce ? 1.35 : 1)

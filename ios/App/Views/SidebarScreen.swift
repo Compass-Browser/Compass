@@ -82,6 +82,7 @@ struct SidebarScreen: View {
         Image(systemName: "plus").font(.system(size: 18, weight: .semibold)).frame(width: 44, height: 44)
       }
       .accessibilityLabel("New tab")
+      .contextMenu { NewTabMenu() }
     }
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
@@ -96,6 +97,17 @@ struct SidebarScreen: View {
     case .on: "checkmark.icloud"
     case .failed: "exclamationmark.icloud"
     }
+  }
+}
+
+/// A long press on a "+" (the sidebar's, the bar's): a new tab, or a new
+/// incognito tab (as ⌘⇧N).
+struct NewTabMenu: View {
+  @Environment(AppModel.self) private var app
+
+  var body: some View {
+    Button("New Tab", systemImage: "plus") { app.openCommandBar(newTab: true) }
+    Button("New Incognito Tab", systemImage: "eyeglasses") { app.openIncognitoTab() }
   }
 }
 

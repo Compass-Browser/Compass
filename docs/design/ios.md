@@ -614,7 +614,7 @@ The user's decisions: an incognito space at the end of the space switcher; its t
   - The switcher shows glasses for it.
   - The bar is dark on incognito pages; pages keep their own look.
   - An incognito entry's menu has no Pin, Archive, Add to Favorites or Move to Space; Pin is disabled in the page menu.
-  - ⌘⇧N: New Incognito Tab.
+  - New Incognito Tab: ⌘⇧N, a long press on either "+" (the sidebar's, the bar's), and the Home Screen icon's menu (`compass://incognito`).
 - **Extensions.** The incognito space is a private window (`ExtensionWindow.isPrivate`); a context gets `hasAccessToPrivateData` from the extension's "Allow in Incognito" switch.
 - **Claude.** No Ask Claude tile or ⌘⇧E on incognito tabs; the sheet says "Not in Incognito"; tools refuse incognito tabs.
 - Debug: `-CompassIncognitoURL <url>`.

@@ -17,6 +17,8 @@ public enum DeepLink: Equatable, Sendable {
   case search
   /// The command bar for a new tab, in the space (nil = the shown one).
   case newTab(space: String?)
+  /// The command bar for a new incognito tab.
+  case incognito
   /// Take the Inbox's requests.
   case inbox
   /// The downloads list.
@@ -44,6 +46,7 @@ public enum DeepLink: Equatable, Sendable {
       self = .space(arg)
     case "search": self = .search
     case "new": self = .newTab(space: query("space"))
+    case "incognito": self = .incognito
     case "inbox": self = .inbox
     case "downloads": self = .downloads
     default: return nil
@@ -69,6 +72,7 @@ public enum DeepLink: Equatable, Sendable {
     case .newTab(let space):
       parts.host = "new"
       if let space { items.append(URLQueryItem(name: "space", value: space)) }
+    case .incognito: parts.host = "incognito"
     case .inbox: parts.host = "inbox"
     case .downloads: parts.host = "downloads"
     }

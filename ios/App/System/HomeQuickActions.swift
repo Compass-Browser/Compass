@@ -5,8 +5,8 @@
 import CompassShared
 import UIKit
 
-/// The menu on the app's Home Screen icon (a long press): New Tab, Search,
-/// and the three most recently shown spaces. Each item carries a `compass:`
+/// The menu on the app's Home Screen icon (a long press): New Tab, New
+/// Incognito Tab, Search, and the three most recently shown spaces. Each item carries a `compass:`
 /// link, handled like a widget's.
 enum HomeQuickActions {
   private static let linkKey = "link"
@@ -14,6 +14,7 @@ enum HomeQuickActions {
   @MainActor static func update(_ snapshot: Snapshot) {
     var items = [
       item("New Tab", symbol: "plus", link: .newTab(space: nil)),
+      item("New Incognito Tab", symbol: "eyeglasses", link: .incognito),
       item("Search", symbol: "magnifyingglass", link: .search),
     ]
     for space in snapshot.recentSpaces(3) {

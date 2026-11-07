@@ -13,6 +13,7 @@ struct DeepLinkTests {
     .open(url: "https://example.com/", space: nil),
     .node("0b7e-1"),
     .space("abc"),
+    .incognito,
     .search,
     .newTab(space: nil),
     .newTab(space: "s2"),
