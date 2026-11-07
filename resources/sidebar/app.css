@@ -915,8 +915,8 @@ input.title-input {
   opacity: 1;
 }
 
-/* A pinned entry's × asks for a second click (sidebar.md, "Closing pinned
- * entries"). */
+/* An unloaded pinned entry's × asks for a second click (sidebar.md,
+ * "Closing pinned entries"). */
 .close[armed],
 .close[armed]:hover {
   background: var(--color-sys-error, #d93025);

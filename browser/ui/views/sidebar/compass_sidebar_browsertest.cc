@@ -866,6 +866,60 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, NoDragMidScroll) {
             content::EvalJs(contents, content::JsReplace(kDragstart, false)));
 }
 
+// A loaded pinned tab's × closes the tab at the first click; the entry
+// stays. An unloaded entry's × removes it, at the second click
+// (docs/design/sidebar.md, "Closing pinned entries").
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PinnedCloseUnloadsAtOnce) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>One</title>")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true,
+            content::EvalJs(
+                contents, content::JsReplace(
+                              kWaitForTitles,
+                              base::ListValue().Append("One").Append("Two"))));
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& model = features->space_model();
+  SidebarNode* two = model.today_root()->children()[1].get();
+  model.Move(two, model.pinned_root(), 0);
+  ASSERT_TRUE(features->registry().GetTab(two));
+  constexpr char kClickPinnedClose[] = R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const close = () => root.querySelector('#pinned .close');
+      while (!close()) await new Promise(r => setTimeout(r, 20));
+      close().click();
+      return true;
+    })())";
+
+  ASSERT_EQ(true, content::EvalJs(contents, kClickPinnedClose));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !features->registry().GetTab(two); }));
+  ASSERT_EQ(model.pinned_root()->children().size(), 1u);
+
+  // Unloaded, the first click only arms it.
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      while (root.querySelector('#pinned .tab:not([unloaded])')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+  ASSERT_EQ(true, content::EvalJs(contents, kClickPinnedClose));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    document.querySelector('compass-sidebar-app').shadowRoot
+        .querySelector('#pinned .close').hasAttribute('armed'))"));
+  EXPECT_EQ(model.pinned_root()->children().size(), 1u);
+  ASSERT_EQ(true, content::EvalJs(contents, kClickPinnedClose));
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return model.pinned_root()->children().empty(); }));
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragToPinnedPinsATab) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));

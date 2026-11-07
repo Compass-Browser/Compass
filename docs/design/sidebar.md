@@ -210,10 +210,12 @@ has a tab in the strip) or *unloaded*.
 | × on an unloaded entry | (none) | Node removed |
 | Drag Today → Pinned / Pinned → Today | Pin / unpin; the tab stays live | |
 
-**Closing pinned entries.** A pinned entry's × takes two clicks (a double
+**Closing pinned entries.** On a loaded pinned tab, × closes the tab at the
+first click: the entry stays, unloaded (as Cmd+W does, and Cmd+Z reopens
+it). On an unloaded entry, where × removes it, it takes two clicks (a double
 click does it). The first click arms it: it turns red, and its tooltip says
-"Click again to close" (or "remove"). The arm lasts 3 s, or until the pointer
-leaves the button. The page does this alone (`CompassSidebarNodeElement`'s
+"Click again to remove". The arm lasts 3 s, or until the pointer leaves the
+button. (Until 2026-11-07, a loaded tab's × asked for two clicks too.) The page does this alone (`CompassSidebarNodeElement`'s
 `pinned` property, which nodes pass down to their children); the handler's
 `CloseNode()` is unchanged. Delete and Backspace on a focused row, and the
 context menu, still close at once.

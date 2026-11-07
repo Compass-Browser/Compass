@@ -39,7 +39,8 @@ export class CompassSidebarNodeElement extends CrLitElement {
       activeId: {type: String},
       // Whose icons the entries show: the tree's profile.
       profileId: {type: String},
-      // In the Pinned section, where × asks for a second click.
+      // In the Pinned section, where × on an unloaded entry asks for a
+      // second click.
       pinned: {type: Boolean},
       editingId_: {type: String, state: true},
       armedCloseId_: {type: String, state: true},
@@ -52,7 +53,8 @@ export class CompassSidebarNodeElement extends CrLitElement {
   accessor pinned: boolean = false;
   // The node whose name shows as an input: this folder or tab, or a pane.
   protected accessor editingId_: string|null = null;
-  // The pinned entry whose × was clicked once: a second click closes it.
+  // The unloaded pinned entry whose × was clicked once: a second click
+  // removes it.
   protected accessor armedCloseId_: string|null = null;
   private disarmTimer_: number|null = null;
 
@@ -133,13 +135,18 @@ export class CompassSidebarNodeElement extends CrLitElement {
     SidebarBrowserProxy.getInstance().handler.activateNode(this.getNodeId_(e));
   }
 
+  // This node, or one of its panes.
+  private findNode_(id: string): Node|undefined {
+    return this.node?.id === id ?
+        this.node :
+        this.getChildren_().find(pane => pane.id === id);
+  }
+
   // Clicking the speaker mutes the tab, or unmutes it.
   protected onAudioClick_(e: Event) {
     e.stopPropagation();
     const id = this.getNodeId_(e);
-    const node = this.node?.id === id ?
-        this.node :
-        this.getChildren_().find(pane => pane.id === id);
+    const node = this.findNode_(id);
     if (node) {
       SidebarBrowserProxy.getInstance().handler.setNodeMuted(
           id, !this.isMuted_(node));
@@ -151,13 +158,16 @@ export class CompassSidebarNodeElement extends CrLitElement {
     e.stopPropagation();
   }
 
-  // A pinned entry closes on the second click of its × (a double click
-  // does it), so a stray click doesn't lose it. The first click arms the
-  // button for a few seconds, or until the pointer leaves it.
+  // A loaded pinned tab unloads on the first click of its ×: the entry
+  // stays (and Cmd+Z reopens the tab). An unloaded one is removed on the
+  // second click (a double click does it), so a stray click doesn't lose
+  // it: the first arms the button for a few seconds, or until the pointer
+  // leaves it.
   protected onCloseClick_(e: Event) {
     e.stopPropagation();
     const id = this.getNodeId_(e);
-    if (this.pinned && this.armedCloseId_ !== id) {
+    if (this.pinned && !this.findNode_(id)?.live &&
+        this.armedCloseId_ !== id) {
       this.armClose_(id);
       return;
     }
