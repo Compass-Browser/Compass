@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/shell_integration_win.cc b/chrome/browser/shell_integration_win.cc
+index 4482eecc5e282bcb420e97cabb25e592a76b3e4a..e2ccd4ed0c1bc2720428660b3470886715e51081 100644
+--- a/chrome/browser/shell_integration_win.cc
++++ b/chrome/browser/shell_integration_win.cc
+@@ -747,10 +747,12 @@ std::wstring GetAppUserModelIdForApp(const std::wstring& app_name,
+ }
+ 
+ std::wstring GetAppUserModelIdForBrowser(const base::FilePath& profile_path) {
++  // Compass: one app in the taskbar for every profile, as on macOS (the
++  // sidebar switches profiles), so no profile in the ID.
+   return GetAppUserModelIdImpl(
+       std::wstring(),
+       ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+-      profile_path);
++      base::FilePath());
+ }
+ 
+ void UnpinShortcuts(const std::vector<base::FilePath>& shortcuts,

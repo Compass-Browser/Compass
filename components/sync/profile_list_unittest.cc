@@ -4,6 +4,7 @@
 
 #include "compass/components/sync/profile_list.h"
 
+#include <map>
 #include <set>
 #include <string>
 #include <utility>
@@ -151,6 +152,60 @@ TEST(MissingProfilesTest, AFailedCreationIsntRetriedInTheSameRun) {
   creator.Answer(1, true);
   missing.Update(Chain(), {kPlay});
   EXPECT_EQ(creator.requests().size(), 2u);
+}
+
+// The Windows device of 2026-11-07: Work and Play were created three times
+// (the first pair still on the old server and seed), and the home's
+// compass.sync.profile_dirs has the last pair, which the switcher lists.
+TEST(PlanProfileDirsTest, KeepsTheListedCopyAndRetiresTheOthers) {
+  const std::vector<ProfileDir> dirs = {
+      {"Default", kHome, "B", "new", false, true, true},
+      {"Profile 1", kWork, "A", "old", true, false, false},
+      {"Profile 2", kPlay, "A", "old", true, false, false},
+      {"Profile 3", kWork, "B", "new", true, false, false},
+      {"Profile 4", kPlay, "B", "new", true, false, false},
+      {"Profile 5", kWork, "B", "new", true, true, true},
+      {"Profile 6", kPlay, "B", "new", true, true, true},
+  };
+  const ProfileDirPlan plan = PlanProfileDirs(
+      dirs, kHome, "B", "new",
+      {{kWork, "Profile 5"}, {kPlay, "Profile 6"}});
+  EXPECT_EQ(plan.keep, (std::map<std::string, std::string>{
+                           {kWork, "Profile 5"}, {kPlay, "Profile 6"}}));
+  EXPECT_EQ(plan.retire, (std::vector<std::string>{"Profile 1", "Profile 2",
+                                                   "Profile 3", "Profile 4"}));
+}
+
+// compass.sync.profile_dirs was cleared (the chain was left and joined
+// again): the existing directory is found again, nothing is retired on a
+// guess, and no profile needs creating.
+TEST(PlanProfileDirsTest, FindsAnUnrecordedProfileWithoutRetiring) {
+  const std::vector<ProfileDir> dirs = {
+      {"Profile 1", kWork, "A", "old", true, false, false},
+      {"Profile 3", kWork, "B", "new", true, false, false},
+  };
+  const ProfileDirPlan plan = PlanProfileDirs(dirs, kHome, "B", "new", {});
+  EXPECT_EQ(plan.keep,
+            (std::map<std::string, std::string>{{kWork, "Profile 3"}}));
+  EXPECT_TRUE(plan.retire.empty());
+}
+
+// A profile the user had before joining (listed, not sync's own account)
+// is never retired, and a listed one is kept over the recorded one.
+TEST(PlanProfileDirsTest, NeverRetiresTheUsersOwnProfiles) {
+  const std::vector<ProfileDir> dirs = {
+      {"Default", kHome, "B", "new", false, true, true},
+      {"Profile 1", kWork, "B", "new", false, true, true},
+      {"Profile 2", kWork, "B", "new", true, false, false},
+      {"Profile 3", kWork, "B", "new", false, false, false},
+      {"Profile 4", kHome, "B", "new", true, false, false},
+  };
+  const ProfileDirPlan plan =
+      PlanProfileDirs(dirs, kHome, "B", "new", {{kWork, "Profile 2"}});
+  EXPECT_EQ(plan.keep,
+            (std::map<std::string, std::string>{{kWork, "Profile 1"}}));
+  // Profile 3 isn't sync's own account; the home's UUID is left alone.
+  EXPECT_EQ(plan.retire, (std::vector<std::string>{"Profile 2"}));
 }
 
 }  // namespace

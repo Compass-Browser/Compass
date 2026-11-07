@@ -9,6 +9,7 @@ group("browser") {
     "//compass/browser/shortcuts",
     "//compass/browser/sidebar",
     "//compass/browser/updates",
+    "//compass/browser/win",
   ]
 }
 

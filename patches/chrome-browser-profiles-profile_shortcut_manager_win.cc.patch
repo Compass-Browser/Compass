@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/profiles/profile_shortcut_manager_win.cc b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+index 9d7baf50010af4ac92e032730963f7665a674a68..c850a58c9428cf4f228481eb4ba480ea8f37ba0d 100644
+--- a/chrome/browser/profiles/profile_shortcut_manager_win.cc
++++ b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+@@ -876,18 +876,11 @@ bool ProfileShortcutManager::IsFeatureEnabled() {
+   if (disabled_for_unit_tests)
+     return false;
+ 
+-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+-  if (command_line->HasSwitch(switches::kEnableProfileShortcutManager))
+-    return true;
+-
+-  base::FilePath policy_user_data_dir;
+-  policy::path_parser::CheckUserDataDirPolicy(&policy_user_data_dir);
+-
+-  base::FilePath user_data_dir;
+-  bool success = base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+-  DCHECK(success);
+-  return user_data_dir == policy_user_data_dir ||
+-         chrome::IsUsingDefaultDataDirectory().value_or(false);
++  // Compass: no desktop shortcut per profile, and the one shortcut isn't
++  // renamed after a profile ("Your Chromium - Compass") once there are two
++  // (compass/browser/win/profile_shortcuts_win.h).
++  return base::CommandLine::ForCurrentProcess()->HasSwitch(
++      switches::kEnableProfileShortcutManager);
+ }
+ 
+ // static

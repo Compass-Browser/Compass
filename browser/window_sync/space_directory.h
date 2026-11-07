@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -88,6 +89,12 @@ class SpaceDirectory : public ProfileManagerObserver,
   bool IsLoaded() const;
 
   bool IsListed(const Profile* profile) const;
+  // Whether "Compass Spaces.json" is in, and the profile at |path| listed
+  // there, loaded or not.
+  bool IsFileLoaded() const { return file_loaded_; }
+  bool IsListedPath(const base::FilePath& path) const {
+    return listed_.contains(path);
+  }
   // Lists |profile|'s spaces, at the end, if it can be listed.
   void List(Profile* profile);
   // Stops listing |profile|'s spaces. For a profile whose last space went.
@@ -169,12 +176,18 @@ class SpaceDirectory : public ProfileManagerObserver,
   base::WeakPtrFactory<SpaceDirectory> weak_factory_{this};
 };
 
-// Profiles still named with upstream's placeholder ("Your Chromium", or
-// "Your Compass" from the rebranded strings) by default get a new default
-// name: "Default" (strings/rebrand_strings.py), or "Person N" when that's
-// taken. Upstream renames default-named profiles only once per install, so
-// profiles made before the placeholder changed keep the old one otherwise.
-// Names the user chose are left alone. Run when the directory is created.
+// Whether |name| is upstream's placeholder profile name: "Your Chromium", or
+// "Your Compass" from the rebranded strings. Nobody picks it; it shows in
+// Windows' per-profile shortcut names and comes back through sync, so it's
+// never kept, and never taken from the chain (ApplyChainNames()).
+bool IsPlaceholderProfileName(std::u16string_view name);
+
+// Profiles still named with the placeholder get a new default name:
+// "Default" (strings/rebrand_strings.py), or "Person N" when that's taken.
+// Upstream renames default-named profiles only once per install, so profiles
+// made before the placeholder changed keep the old one otherwise; and a name
+// taken from the chain counts as chosen, though it's the placeholder of the
+// device that published it. Run when the directory is created.
 void RenamePlaceholderProfiles(ProfileAttributesStorage& storage);
 
 }  // namespace compass

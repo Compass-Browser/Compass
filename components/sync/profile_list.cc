@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <tuple>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -139,6 +140,48 @@ std::vector<ChainProfile> ProfilesToCreate(
     }
   }
   return missing;
+}
+
+ProfileDirPlan PlanProfileDirs(
+    const std::vector<ProfileDir>& dirs,
+    const std::string& home_uuid,
+    const std::string& seed,
+    const std::string& server_url,
+    const std::map<std::string, std::string>& recorded) {
+  std::map<std::string, std::vector<const ProfileDir*>> by_uuid;
+  for (const ProfileDir& dir : dirs) {
+    if (!dir.uuid.empty() && dir.uuid != home_uuid) {
+      by_uuid[dir.uuid].push_back(&dir);
+    }
+  }
+  ProfileDirPlan plan;
+  for (auto& [uuid, group] : by_uuid) {
+    auto recorded_it = recorded.find(uuid);
+    auto is_recorded = [&](const ProfileDir* dir) {
+      return recorded_it != recorded.end() && recorded_it->second == dir->id;
+    };
+    // Lower ranks first: listed, loaded, recorded, the chain's, by name.
+    auto rank = [&](const ProfileDir* dir) {
+      return std::make_tuple(
+          !dir->listed, !dir->loaded, !is_recorded(dir),
+          !(dir->seed == seed && dir->server_url == server_url), dir->id);
+    };
+    std::ranges::sort(group, [&](const ProfileDir* a, const ProfileDir* b) {
+      return rank(a) < rank(b);
+    });
+    const ProfileDir* kept = group.front();
+    plan.keep[uuid] = kept->id;
+    if (!kept->listed && !kept->loaded && !is_recorded(kept)) {
+      continue;
+    }
+    for (const ProfileDir* dir : group) {
+      if (dir != kept && dir->account && !dir->listed && !dir->loaded) {
+        plan.retire.push_back(dir->id);
+      }
+    }
+  }
+  std::ranges::sort(plan.retire);
+  return plan;
 }
 
 MissingProfiles::MissingProfiles(Creator* creator) : creator_(creator) {}

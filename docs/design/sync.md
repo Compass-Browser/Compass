@@ -1167,7 +1167,15 @@ remote change (`OnChainProfiles()`). Rules:
   own new profiles join the chain as new profiles (they sync after a
   restart, below). `compass.sync.profile_dirs` on the home remembers which
   directories are the chain's profiles, so one that isn't loaded (no space
-  in the switcher) isn't created again.
+  in the switcher) isn't created again. That map alone wasn't enough: it is
+  cleared on leaving, and a creation that crashed was never recorded, so a
+  Windows device ended up with three copies of each profile (2026-11-07).
+  Before creating anything, the home now reads every profile directory's
+  sync prefs once per run (`ScanProfileDirs()`, `PlanProfileDirs()`): each
+  chain UUID maps to one directory (listed, else loaded, else recorded,
+  else the current chain's), and sync-made copies that are neither listed
+  nor loaded are marked ephemeral and omitted, so Chromium deletes them,
+  unloaded, as the next launch starts.
 
 **Restart behaviour.** `SyncServiceImpl` reads `kEnableLocalSyncBackend`
 once, when the profile loads (route 2's mode), so a profile already loaded
