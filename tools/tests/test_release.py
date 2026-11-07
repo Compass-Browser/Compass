@@ -330,8 +330,8 @@ class GitHubReleaseTest(unittest.TestCase):
                      [c[1] if c[1] != 'release' else c[2] for c in calls])
     self.assertIn('c' * 40, calls[2])
     self.assertEqual(['gh', 'release', 'upload', 'v20261103.0215', '--clobber',
-                      '/s/a.dmg', '--repo', 'Compass-Browser/Compass'],
-                     calls[3])
+                      str(Path('/s/a.dmg')), '--repo',
+                      'Compass-Browser/Compass'], calls[3])
 
   def test_publish_to_an_existing_release_only_uploads(self):
     r = self.MIXED['releases'][1]
@@ -372,8 +372,8 @@ class UploadTargetTest(unittest.TestCase):
     host, ssh = self._target(
         '{"host": "u@example.org", "port": 2222, "key": "/k/deploy"}')
     self.assertEqual('u@example.org', host)
-    self.assertEqual('ssh -p 2222 -i /k/deploy -o IdentityAgent=none '
-                     '-o IdentitiesOnly=yes', ssh)
+    self.assertEqual('ssh -p 2222 -i %s -o IdentityAgent=none '
+                     '-o IdentitiesOnly=yes' % Path('/k/deploy'), ssh)
 
   def test_defaults(self):
     self.assertEqual(('u@example.org', 'ssh -p 22'),

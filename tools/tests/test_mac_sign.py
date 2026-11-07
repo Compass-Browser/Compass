@@ -60,9 +60,8 @@ class MacSignTest(unittest.TestCase):
     cmd = mac_sign.sign_command('py', out, 'Compass', out / 'signed', 'ABC',
                                 None)
     self.assertEqual(cmd, [
-        'py', '/src/out/Release/Compass Packaging/sign_chrome.py', '--input',
-        '/src/out/Release', '--output', '/src/out/Release/signed',
-        '--identity', 'ABC'
+        'py', str(out / 'Compass Packaging' / 'sign_chrome.py'), '--input',
+        str(out), '--output', str(out / 'signed'), '--identity', 'ABC'
     ])
     notarized = mac_sign.sign_command('py', out, 'Compass', out / 'signed',
                                       'ABC', 'compass')
