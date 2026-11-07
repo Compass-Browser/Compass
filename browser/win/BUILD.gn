@@ -1,0 +1,18 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Windows shell integration. Started by
+# patches/chrome-browser-chrome_browser_main.cc.patch (the header is there on
+# every platform, for gn check; the code only on Windows).
+source_set("win") {
+  sources = [ "profile_shortcuts_win.h" ]
+  if (is_win) {
+    sources += [ "profile_shortcuts_win.cc" ]
+    deps = [
+      "//base",
+      "//chrome/common",
+      "//chrome/installer/util:with_no_strings",
+    ]
+  }
+}
