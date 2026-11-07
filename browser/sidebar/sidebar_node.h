@@ -51,7 +51,14 @@ class SidebarNode {
   const std::u16string& display_title() const {
     return custom_title_.empty() ? title_ : custom_title_;
   }
+  // The page a tab shows: follows its live tab's navigations.
   const GURL& url() const { return url_; }
+  // A pinned tab's or favorite's own page, which its tab goes back to when
+  // it closes (Arc's "pinned URL"), and its title. Set when the tab is
+  // pinned or made a favorite, and saved; empty elsewhere
+  // (docs/design/sidebar.md, "Pinned URL").
+  const GURL& saved_url() const { return saved_url_; }
+  const std::u16string& saved_title() const { return saved_title_; }
   // When a tab node was last shown in a window, or null if that's unknown
   // (see SpaceModel::ArchiveIdleEntries()). Unset for other nodes.
   base::Time last_active() const { return last_active_; }
@@ -84,6 +91,8 @@ class SidebarNode {
   std::u16string title_;
   std::u16string custom_title_;
   GURL url_;
+  GURL saved_url_;
+  std::u16string saved_title_;
   base::Time last_active_;
   bool collapsed_ = false;
   bool muted_ = false;

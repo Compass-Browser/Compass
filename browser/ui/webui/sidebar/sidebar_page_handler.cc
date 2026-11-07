@@ -27,6 +27,7 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/referrer.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
@@ -50,6 +51,7 @@
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace compass {
@@ -817,6 +819,17 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
       menu->AddItem(kDuplicate, u"Duplicate");
     }
     menu->AddSendToDevices(GetSendTargets(node->url()));
+    // The node hears of its tab's navigations up to 200 ms late.
+    if (tabs::TabInterface* tab = registry().GetTab(node)) {
+      bridge().UpdateNode(tab);
+    }
+    if (!node->saved_url().is_empty() && node->url().is_valid() &&
+        node->url() != node->saved_url()) {
+      menu->AddItem(kSetSavedUrl, favorite ? u"Use This Page as Favorite URL"
+                                           : u"Use This Page as Pinned URL");
+      menu->AddItem(kBackToSavedUrl, favorite ? u"Back to Favorite URL"
+                                              : u"Back to Pinned URL");
+    }
     if (live) {
       menu->AddItem(kReload, u"Reload");
       // Its speaker mutes it while it plays; this mutes it before it does.
@@ -930,6 +943,28 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
     case kMute:
     case kUnmute:
       SetNodeMuted(id, command == kMute);
+      break;
+    case kSetSavedUrl:
+      if (node->type() == SidebarNode::Type::kTab &&
+          !node->saved_url().is_empty() && node->url().is_valid()) {
+        GetModelOf(node).SetSavedUrl(node, node->url(), node->title());
+      }
+      break;
+    case kBackToSavedUrl:
+      if (node->type() != SidebarNode::Type::kTab ||
+          node->saved_url().is_empty()) {
+        break;
+      }
+      if (tabs::TabInterface* tab = registry().GetTab(node)) {
+        // The bridge follows the navigation to the node.
+        tab->GetContents()->GetController().LoadURL(
+            node->saved_url(), content::Referrer(),
+            ui::PAGE_TRANSITION_AUTO_BOOKMARK, std::string());
+      } else {
+        SpaceModel& model = GetModelOf(node);
+        model.SetUrl(node, node->saved_url());
+        model.SetTitle(node, node->saved_title());
+      }
       break;
     case kCloseTab:
       CloseNode(id);

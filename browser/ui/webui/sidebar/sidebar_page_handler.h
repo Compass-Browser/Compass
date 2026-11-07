@@ -83,6 +83,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     kMute,
     kUnmute,
     kSendToDevices,
+    // A pinned tab or favorite that left its saved URL: make its page the
+    // saved URL, or go back to it (docs/design/sidebar.md, "Pinned URL").
+    kSetSavedUrl,
+    kBackToSavedUrl,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
     // Then one per device in "Send to Your Devices", in their order.

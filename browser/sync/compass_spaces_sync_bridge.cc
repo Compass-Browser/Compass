@@ -148,6 +148,13 @@ void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
   COMPASS_SET_STRING(proto, custom_title,
                      tab ? base::UTF16ToUTF8(node.custom_title())
                          : std::string());
+  COMPASS_SET_STRING(proto, saved_url,
+                     tab ? node.saved_url().possibly_invalid_spec()
+                         : std::string());
+  COMPASS_SET_STRING(proto, saved_title,
+                     tab && node.saved_url().is_valid()
+                         ? base::UTF16ToUTF8(node.saved_title())
+                         : std::string());
   const bool collapsed = node.type() == Type::kFolder && node.collapsed();
   if (proto.collapsed() != collapsed) {
     if (collapsed) {
@@ -1775,6 +1782,15 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
         }
       }
       model->SetCustomTitle(node, base::UTF8ToUTF16(remote.custom_title()));
+      // Only pinned tabs and favorites keep one; a node without one (from a
+      // client that predates it) keeps its own.
+      if (remote.has_saved_url() && !node->saved_url().is_empty()) {
+        const GURL saved_url(remote.saved_url());
+        if (saved_url.is_valid()) {
+          model->SetSavedUrl(node, saved_url,
+                             base::UTF8ToUTF16(remote.saved_title()));
+        }
+      }
       // Every device commits its own use: the latest wins.
       if (remote.has_last_active_time()) {
         const base::Time last_active = FromProtoTime(remote.last_active_time());
@@ -2129,6 +2145,9 @@ SidebarNode* CompassSpacesSyncBridge::CopyNode(SpaceModel& model,
     case Type::kTab:
       copy = model.AddTab(parent, index, node.url(), node.title());
       model.SetCustomTitle(copy, node.custom_title());
+      if (!copy->saved_url().is_empty() && node.saved_url().is_valid()) {
+        model.SetSavedUrl(copy, node.saved_url(), node.saved_title());
+      }
       model.SetMuted(copy, node.muted());
       if (!node.last_active().is_null()) {
         model.SetLastActive(copy, node.last_active());

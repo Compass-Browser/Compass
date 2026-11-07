@@ -357,6 +357,10 @@ class SpaceModel {
   // Names a tab; empty goes back to its page's title.
   void SetCustomTitle(SidebarNode* tab, std::u16string title);
   void SetUrl(SidebarNode* tab, const GURL& url);
+  // Sets the page a pinned tab or favorite goes back to. Observers see
+  // OnNodeChanged(). Nodes outside Pinned (and Favorites) keep none: moving
+  // a tab there sets it to the tab's page, moving it out clears it.
+  void SetSavedUrl(SidebarNode* tab, const GURL& url, std::u16string title);
   void SetLastActive(SidebarNode* tab, base::Time time);
   // Observers see OnNodeChanged().
   void SetCollapsed(SidebarNode* folder, bool collapsed);
@@ -419,6 +423,11 @@ class SpaceModel {
 
   // Removes |parent| if it's a Today folder left empty.
   void CloseIfEmptyTodayFolder(SidebarNode* parent);
+
+  // Gives the tabs of |node|'s subtree a saved URL if it's in Pinned and
+  // they have none, or clears theirs if it isn't. Observers aren't told: it
+  // happens as the subtree is added or moved, which they hear of.
+  void UpdateSavedUrls(SidebarNode* node);
 
   SidebarNode* AddNode(SidebarNode* parent,
                        size_t index,

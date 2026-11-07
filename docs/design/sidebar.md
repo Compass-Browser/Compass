@@ -221,8 +221,28 @@ context menu, still close at once.
 `TabStripBridge::OpenNode()` opens a tab for an unloaded node. It navigates
 to the node's URL at the node's depth-first position in the strip. The
 bridge *adopts* the inserted tab for that node instead of creating a Today
-entry. A pinned tab that navigates updates its node, as in Arc. "Back to
-pinned URL" comes later.
+entry. A pinned tab that navigates updates its node's URL; its pinned URL
+stays (below).
+
+**Pinned URL.** As in Arc, a pinned tab or favorite keeps its own page, the
+*pinned URL* (`SidebarNode::saved_url()` and `saved_title()`), apart from
+`url()`, which follows its live tab. `SpaceModel` sets it to the tab's page
+when the tab lands in Pinned (or Favorites, all of which is pinned), and
+clears it when the tab leaves; moves within Pinned keep it.
+- The user closing the tab (×, ⌘W, Close Tab, Claude's `close_tab`) points
+  the unloaded entry back at its pinned URL and title
+  (`TabStripBridge::GoBackToSavedUrl()`). Closed with its window (last
+  window, quit), it keeps the page it showed, so that a restored tab finds
+  it (`RestoredTabMatcher` matches by URL).
+- While the entry shows another page, its context menu offers **Use This
+  Page as Pinned URL** (`kSetSavedUrl`) and **Back to Pinned URL**
+  (`kBackToSavedUrl`, which navigates the live tab, or points the unloaded
+  entry back); favorites say "Favorite URL".
+- Saved in the sidebar file (`saved_url`, `saved_title`; a file from before
+  gives each pinned tab the page it had) and synced
+  (`CompassNode.saved_url`/`saved_title`; a node without them, from an older
+  client, keeps its own). iOS keeps them as unknown fields: it has no pinned
+  URL yet.
 
 **Strip order.** Live pinned tabs come first, then Today, depth first, as
 before. Upstream's own pinned-tab flag isn't used. After every strip-driven
@@ -638,11 +658,14 @@ an entry's menu under its row.
 | Entry | Menu |
 |---|---|
 | Today tab | Copy Link, Duplicate, Reload, Mute Tab · Pin, Add to Favorites, Move to Space ▸ · Close Tab |
-| Pinned tab | Copy Link, Duplicate, Reload, Mute Tab · Unpin, Add to Favorites, Move to Space ▸ · Close Tab, Remove from Pinned |
-| Favorite | Copy Link, Duplicate, Reload, Mute Tab · Close Tab, Remove from Favorites |
+| Pinned tab | Copy Link, Duplicate, Use This Page as Pinned URL, Back to Pinned URL, Reload, Mute Tab · Unpin, Add to Favorites, Move to Space ▸ · Close Tab, Remove from Pinned |
+| Favorite | Copy Link, Duplicate, Use This Page as Favorite URL, Back to Favorite URL, Reload, Mute Tab · Close Tab, Remove from Favorites |
 | Folder | New Folder, Rename, Move to Space ▸ · Delete Folder |
 | Split | Pin or Unpin, Move to Space ▸ · Close Split |
 | Pane | Copy Link, Reload, Mute Tab · Close Tab |
+
+The two pinned URL items show only while the entry is on another page than
+its pinned URL (see "Pinned URL"); a pinned pane gets them too.
 
 - **Reload**, **Mute Tab** and **Close Tab** only for live tabs; a muted
   tab gets **Unmute Tab** instead (see "Sound"). An unloaded Today entry

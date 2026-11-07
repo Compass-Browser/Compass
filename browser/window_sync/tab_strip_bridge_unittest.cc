@@ -488,6 +488,42 @@ TEST_F(TabStripBridgeTest, PinnedNodeStaysWhenItsTabCloses) {
   EXPECT_THAT(StripHosts(), ElementsAre("a.test"));
 }
 
+// A pinned tab closed by the user goes back to its pinned URL
+// (docs/design/sidebar.md, "Pinned URL").
+TEST_F(TabStripBridgeTest, ClosingAPinnedTabGoesBackToItsSavedUrl) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+  ASSERT_EQ(pinned->saved_url(), GURL("https://b.test/"));
+  content::WebContents* contents =
+      bridge().GetTab(pinned)->GetContents();
+  NavigateAndCommit(contents, GURL("https://z.test/"));
+  Settle();
+  EXPECT_EQ(pinned->url(), GURL("https://z.test/"));
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
+  Settle();
+
+  EXPECT_EQ(bridge().GetTab(pinned), nullptr);
+  EXPECT_EQ(pinned->url(), GURL("https://b.test/"));
+  EXPECT_EQ(pinned->saved_url(), GURL("https://b.test/"));
+}
+
+// Closed with its window, it keeps its page for session restore.
+TEST_F(TabStripBridgeTest, ClosingTheWindowKeepsAPinnedTabsPage) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+  content::WebContents* contents =
+      bridge().GetTab(pinned)->GetContents();
+  NavigateAndCommit(contents, GURL("https://z.test/"));
+  Settle();
+
+  tab_strip_model()->CloseAllTabs();
+  Settle();
+
+  EXPECT_EQ(pinned->url(), GURL("https://z.test/"));
+  EXPECT_EQ(pinned->saved_url(), GURL("https://b.test/"));
+}
+
 TEST_F(TabStripBridgeTest, OpenNodeReopensAnUnloadedPinnedNode) {
   OpenTabs({"a.test", "b.test"});
   SidebarNode* pinned = Pin(1);

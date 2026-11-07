@@ -146,6 +146,10 @@ class TabStripBridge : public TabStripModelObserver,
   void OnNodeLiveChanged(const SidebarNode& node, bool live) override;
 
  private:
+  // Points the unloaded |node| of |model| back at its saved URL and title,
+  // if it has one.
+  void GoBackToSavedUrl(SpaceModel& model, SidebarNode* node);
+
   // Adds a Today node for |tab|, which the strip just inserted at |index|.
   void AddNodeForTab(tabs::TabInterface* tab, int index);
 

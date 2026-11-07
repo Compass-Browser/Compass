@@ -662,5 +662,48 @@ TEST(SpaceModelFavoritesTest, HoldOnlyTabs) {
   EXPECT_THAT(Titles(folder), ElementsAre("D"));
 }
 
+// docs/design/sidebar.md, "Pinned URL".
+TEST_F(SpaceModelTest, PinnedTabsKeepASavedUrl) {
+  SidebarNode* a = Tab(model_.today_root(), "a");
+  EXPECT_TRUE(a->saved_url().is_empty());
+
+  // Pinning saves the page it shows; navigating doesn't move it.
+  model_.Move(a, model_.pinned_root(), 0);
+  EXPECT_EQ(a->saved_url(), GURL("https://a.test/"));
+  EXPECT_EQ(a->saved_title(), u"a");
+  model_.SetUrl(a, GURL("https://a.test/elsewhere"));
+  EXPECT_EQ(a->saved_url(), GURL("https://a.test/"));
+
+  // Moving it within Pinned keeps it; setting it tells observers.
+  SidebarNode* folder = model_.AddFolder(model_.pinned_root(), 1, u"F");
+  model_.Move(a, folder, 0);
+  EXPECT_EQ(a->saved_url(), GURL("https://a.test/"));
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  model_.SetSavedUrl(a, a->url(), u"Elsewhere");
+  model_.RemoveObserver(&observer);
+  EXPECT_EQ(a->saved_url(), GURL("https://a.test/elsewhere"));
+  EXPECT_EQ(a->saved_title(), u"Elsewhere");
+  EXPECT_FALSE(observer.events.empty());
+
+  // Unpinning drops it, with the folder too.
+  model_.Move(folder, model_.today_root(), 0);
+  EXPECT_TRUE(a->saved_url().is_empty());
+  EXPECT_TRUE(a->saved_title().empty());
+
+  // Tabs added to Pinned get one, panes of a pinned split too.
+  SidebarNode* b = Tab(model_.pinned_root(), "b");
+  SidebarNode* c = Tab(model_.pinned_root(), "c");
+  model_.Split(b, c);
+  EXPECT_EQ(b->saved_url(), GURL("https://b.test/"));
+  EXPECT_EQ(c->saved_url(), GURL("https://c.test/"));
+
+  // Favorites are all pinned.
+  SpaceModel favorites(SpaceModel::Kind::kFavorites);
+  SidebarNode* d = favorites.AddTab(favorites.pinned_root(), 0,
+                                    GURL("https://d.test/"), u"D");
+  EXPECT_EQ(d->saved_url(), GURL("https://d.test/"));
+}
+
 }  // namespace
 }  // namespace compass

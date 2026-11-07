@@ -28,6 +28,7 @@
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -906,6 +907,38 @@ TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
   EXPECT_THAT(MenuCommands(b), Contains(Command::kCloseTab));
   Choose(b, Command::kCloseTab);
   EXPECT_EQ(space_model().today_root()->children().size(), 1u);
+}
+
+// docs/design/sidebar.md, "Pinned URL".
+TEST_F(SidebarPageHandlerTest, ChangesThePinnedUrlFromTheMenu) {
+  const std::string b = TodayId(1);
+  Choose(b, Command::kPin);
+  SidebarNode* node = space_model().pinned_root()->children()[0].get();
+  const GURL pinned_url = node->url();
+  // At its pinned URL: nothing to change.
+  EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kSetSavedUrl)));
+  EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kBackToSavedUrl)));
+
+  // b's tab was second in the strip; pinned, it leads it.
+  content::WebContents* contents =
+      tab_strip_model()->GetTabAtIndex(0)->GetContents();
+  NavigateAndCommit(contents, GURL("https://z.test/"));
+  Settle();
+  EXPECT_THAT(MenuCommands(b), Contains(Command::kSetSavedUrl));
+  EXPECT_THAT(MenuCommands(b), Contains(Command::kBackToSavedUrl));
+
+  Choose(b, Command::kSetSavedUrl);
+  EXPECT_EQ(node->saved_url(), GURL("https://z.test/"));
+  EXPECT_THAT(MenuCommands(b), Not(Contains(Command::kSetSavedUrl)));
+
+  // Back to it: the live tab navigates there.
+  NavigateAndCommit(contents, GURL("https://y.test/"));
+  Settle();
+  Choose(b, Command::kBackToSavedUrl);
+  CommitPendingLoad(&contents->GetController());
+  Settle();
+  EXPECT_EQ(node->url(), GURL("https://z.test/"));
+  EXPECT_NE(pinned_url, node->saved_url());
 }
 
 TEST_F(SidebarPageHandlerTest, RemovesPinnedEntriesFromTheMenu) {

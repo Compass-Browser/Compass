@@ -906,22 +906,46 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
     return;
   }
   registry_->Unregister(tab);
-  if (!space_model_->Contains(node)) {
-    // A favorite, which stays unloaded, or another space's tab, passing
-    // through while the window switches.
-    return;
-  }
   // Tabs close with their window when it's the last one, or when quitting
   // (other windows hand theirs off first). Today keeps them, unloaded, like
   // Pinned does.
   const bool window_closing =
       tab_strip_model_ && tab_strip_model_->closing_all() &&
       browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL;
-  if (IsPinned(node) || (window_closing && IsRestorableURL(node->url()))) {
+  if (favorites_->Contains(node)) {
+    // A favorite stays, unloaded.
+    if (!window_closing) {
+      GoBackToSavedUrl(*favorites_, node);
+    }
+    return;
+  }
+  if (!space_model_->Contains(node)) {
+    // Another space's tab, passing through while the window switches.
+    return;
+  }
+  if (IsPinned(node)) {
+    // Closed by the user, it goes back to its pinned URL. Closed with its
+    // window, it keeps its page, so that a restored tab finds it
+    // (RestoredTabMatcher matches by URL).
+    if (!window_closing) {
+      GoBackToSavedUrl(*space_model_, node);
+    }
+    return;
+  }
+  if (window_closing && IsRestorableURL(node->url())) {
     return;
   }
   base::AutoReset<bool> updating(&updating_, true);
   space_model_->Remove(node);
+}
+
+void TabStripBridge::GoBackToSavedUrl(SpaceModel& model, SidebarNode* node) {
+  if (node->saved_url().is_empty() || node->url() == node->saved_url()) {
+    return;
+  }
+  base::AutoReset<bool> updating(&updating_, true);
+  model.SetUrl(node, node->saved_url());
+  model.SetTitle(node, node->saved_title());
 }
 
 bool TabStripBridge::IsPinned(const SidebarNode* node) const {

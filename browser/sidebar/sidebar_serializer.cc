@@ -55,6 +55,8 @@ constexpr char kLastActiveKey[] = "last_active";
 constexpr char kCollapsedKey[] = "collapsed";
 constexpr char kCustomTitleKey[] = "custom_title";
 constexpr char kMutedKey[] = "muted";
+constexpr char kSavedUrlKey[] = "saved_url";
+constexpr char kSavedTitleKey[] = "saved_title";
 constexpr char kArchiveAfterKey[] = "archive_after_hours";
 constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
@@ -132,6 +134,10 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       if (node.muted()) {
         dict.Set(kMutedKey, true);
       }
+      if (node.saved_url().is_valid()) {
+        dict.Set(kSavedUrlKey, node.saved_url().spec());
+        dict.Set(kSavedTitleKey, base::UTF16ToUTF8(node.saved_title()));
+      }
       break;
     case SidebarNode::Type::kFolder:
       dict.Set(kTypeKey, kFolder);
@@ -185,6 +191,15 @@ void SetTabState(const base::DictValue& dict,
     model.SetCustomTitle(tab, base::UTF8ToUTF16(*custom_title));
   }
   model.SetMuted(tab, dict.FindBool(kMutedKey).value_or(false));
+  // A file from before saved URLs gave the tab its page as it closed (set
+  // by AddTab()).
+  const std::string* saved_url = dict.FindString(kSavedUrlKey);
+  if (saved_url && GURL(*saved_url).is_valid() && !tab->saved_url().is_empty()) {
+    const std::string* saved_title = dict.FindString(kSavedTitleKey);
+    model.SetSavedUrl(tab, GURL(*saved_url),
+                      saved_title ? base::UTF8ToUTF16(*saved_title)
+                                  : std::u16string());
+  }
 }
 
 // The saved ID of |dict|, unless it's missing, invalid or already taken in

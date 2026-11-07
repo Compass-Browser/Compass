@@ -563,5 +563,25 @@ TEST(SidebarSerializerTest, UnreadableColorsStayGrey) {
   EXPECT_EQ(list.spaces()[3]->color(), SpaceColor::FromRGB(0xff, 0xaa, 0x00));
 }
 
+TEST(SidebarSerializerTest, RoundTripsSavedUrls) {
+  SpaceModel model;
+  SidebarNode* a =
+      model.AddTab(model.pinned_root(), 0, GURL("https://a.test/"), u"A");
+  model.SetUrl(a, GURL("https://a.test/elsewhere"));
+  model.SetTitle(a, u"Elsewhere");
+  model.AddTab(model.today_root(), 0, GURL("https://b.test/"), u"B");
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  ASSERT_EQ(restored.pinned_root()->children().size(), 1u);
+  const SidebarNode& pinned = *restored.pinned_root()->children()[0];
+  EXPECT_EQ(pinned.url(), GURL("https://a.test/elsewhere"));
+  EXPECT_EQ(pinned.saved_url(), GURL("https://a.test/"));
+  EXPECT_EQ(pinned.saved_title(), u"A");
+  ASSERT_EQ(restored.today_root()->children().size(), 1u);
+  EXPECT_TRUE(restored.today_root()->children()[0]->saved_url().is_empty());
+}
+
 }  // namespace
 }  // namespace compass

@@ -281,6 +281,7 @@ void SpaceModel::Move(SidebarNode* node, SidebarNode* new_parent,
   SidebarNode* old_parent = node->parent();
   const size_t old_index = old_parent->GetIndexOf(node);
   new_parent->Add(old_parent->Remove(node), index);
+  UpdateSavedUrls(node);
   for (auto& observer : observers_) {
     observer.OnNodeMoved(*node, *old_parent, old_index);
   }
@@ -403,8 +404,42 @@ void SpaceModel::SetCustomTitle(SidebarNode* tab, std::u16string title) {
 void SpaceModel::SetUrl(SidebarNode* tab, const GURL& url) {
   CHECK_EQ(tab->type(), Type::kTab);
   tab->url_ = url;
+  // A pinned tab added before it had a page takes its first one.
+  if (tab->saved_url_.is_empty() && pinned_root_->Contains(tab)) {
+    tab->saved_url_ = url;
+    tab->saved_title_ = tab->title_;
+  }
   for (auto& observer : observers_) {
     observer.OnNodeChanged(*tab);
+  }
+}
+
+void SpaceModel::SetSavedUrl(SidebarNode* tab,
+                             const GURL& url,
+                             std::u16string title) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  if (tab->saved_url_ == url && tab->saved_title_ == title) {
+    return;
+  }
+  tab->saved_url_ = url;
+  tab->saved_title_ = std::move(title);
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*tab);
+  }
+}
+
+void SpaceModel::UpdateSavedUrls(SidebarNode* node) {
+  if (node->type() == Type::kTab) {
+    if (!pinned_root_->Contains(node)) {
+      node->saved_url_ = GURL();
+      node->saved_title_.clear();
+    } else if (node->saved_url_.is_empty()) {
+      node->saved_url_ = node->url_;
+      node->saved_title_ = node->title_;
+    }
+  }
+  for (const auto& child : node->children()) {
+    UpdateSavedUrls(child.get());
   }
 }
 
@@ -642,6 +677,7 @@ SidebarNode* SpaceModel::AddNode(SidebarNode* parent,
   CHECK(parent);
   CHECK(CanContain(parent, node->type()));
   SidebarNode* added = parent->Add(std::move(node), index);
+  UpdateSavedUrls(added);
   for (auto& observer : observers_) {
     observer.OnNodeAdded(*added);
   }

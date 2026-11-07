@@ -115,6 +115,12 @@ message CompassNode {
   // ARCHIVE: when the entry was archived, same unit. Entries archived more
   // than 30 days ago leave the server.
   optional int64 archived_time = 12;
+  // PINNED and FAVORITES tabs: the page the tab goes back to when it closes
+  // (its "pinned URL"), and that page's title. `url` follows the page it
+  // shows. A client without them (an older one) leaves them alone; a node
+  // without them keeps its own.
+  optional string saved_url = 13;
+  optional string saved_title = 14;
 }
 
 // A profile of the chain (slice 5); only in the home profile's account. Each
