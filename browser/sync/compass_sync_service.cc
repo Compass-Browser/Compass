@@ -1382,7 +1382,10 @@ void CompassSyncService::ApplyChainNames() {
       continue;
     }
     const std::u16string name = base::UTF8ToUTF16(chain_profile.name);
-    if (!name.empty() && entry->GetLocalProfileName() != name) {
+    // Another device's placeholder isn't a name: this one keeps its own,
+    // and publishes it.
+    if (!name.empty() && !IsPlaceholderProfileName(name) &&
+        entry->GetLocalProfileName() != name) {
       entry->SetLocalProfileName(name, /*is_default_name=*/false);
     }
     if (chain_profile.avatar_index >= 0 &&

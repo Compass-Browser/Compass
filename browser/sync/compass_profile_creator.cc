@@ -87,9 +87,10 @@ void CompassProfileCreator::CreateProfile(
   } while (storage.GetProfileAttributesWithPath(path));
   ProfileAttributesInitParams params;
   params.profile_path = path;
-  params.profile_name = profile.name.empty()
+  const std::u16string name = base::UTF8ToUTF16(profile.name);
+  params.profile_name = name.empty() || IsPlaceholderProfileName(name)
                             ? storage.ChooseNameForNewProfile()
-                            : base::UTF8ToUTF16(profile.name);
+                            : name;
   params.icon_index =
       profile.avatar_index >= 0 &&
               profiles::IsDefaultAvatarIconIndex(profile.avatar_index)

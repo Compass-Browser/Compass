@@ -443,11 +443,13 @@ void SpaceDirectory::Changed() {
   }
 }
 
+bool IsPlaceholderProfileName(std::u16string_view name) {
+  return name == u"Your Chromium" || name == u"Your Compass";
+}
+
 void RenamePlaceholderProfiles(ProfileAttributesStorage& storage) {
   for (ProfileAttributesEntry* entry : storage.GetAllProfilesAttributes()) {
-    const std::u16string name = entry->GetLocalProfileName();
-    if (entry->IsUsingDefaultName() &&
-        (name == u"Your Chromium" || name == u"Your Compass")) {
+    if (IsPlaceholderProfileName(entry->GetLocalProfileName())) {
       entry->SetLocalProfileName(storage.ChooseNameForNewProfile(),
                                  /*is_default_name=*/true);
     }

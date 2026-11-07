@@ -43,8 +43,9 @@ TEST_F(RenamePlaceholderProfilesTest, DefaultPlaceholderNamesBecomeDefault) {
       AddProfile("a", u"Your Chromium", /*is_default_name=*/true);
   ProfileAttributesEntry* compass =
       AddProfile("b", u"Your Compass", /*is_default_name=*/true);
-  // Names the user chose stay, even the placeholder's.
-  ProfileAttributesEntry* chosen =
+  // Taken from the chain (not a default name), still the placeholder: a
+  // Windows device's "Your Chromium - Compass" desktop shortcut.
+  ProfileAttributesEntry* synced =
       AddProfile("c", u"Your Chromium", /*is_default_name=*/false);
   ProfileAttributesEntry* work = AddProfile("d", u"Work", false);
 
@@ -56,7 +57,8 @@ TEST_F(RenamePlaceholderProfilesTest, DefaultPlaceholderNamesBecomeDefault) {
   EXPECT_NE(compass->GetLocalProfileName(), u"Your Compass");
   EXPECT_NE(compass->GetLocalProfileName(), u"Default");
   EXPECT_TRUE(compass->IsUsingDefaultName());
-  EXPECT_EQ(chosen->GetLocalProfileName(), u"Your Chromium");
+  EXPECT_FALSE(IsPlaceholderProfileName(synced->GetLocalProfileName()));
+  EXPECT_TRUE(synced->IsUsingDefaultName());
   EXPECT_EQ(work->GetLocalProfileName(), u"Work");
 }
 
