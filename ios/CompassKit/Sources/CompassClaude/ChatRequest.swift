@@ -30,11 +30,13 @@ public struct ChatRequest: Sendable {
     /// Titles and URLs of the window's tabs, one per line; may be empty.
     public var windowTabs: String
     public var claudeAPI: Bool
+    /// The key is an OAuth token (`ClaudeEndpoint.isOAuthToken`): the API wants Claude Code's line first.
+    public var oauthToken: Bool
     public var now: Date
 
     public init(
       model: String, systemPrompt: String, tools: [JSONValue] = [], browserScope: Bool = false, windowTabs: String = "",
-      claudeAPI: Bool, now: Date = Date()
+      claudeAPI: Bool, oauthToken: Bool = false, now: Date = Date()
     ) {
       self.model = model
       self.systemPrompt = systemPrompt
@@ -42,19 +44,27 @@ public struct ChatRequest: Sendable {
       self.browserScope = browserScope
       self.windowTabs = windowTabs
       self.claudeAPI = claudeAPI
+      self.oauthToken = oauthToken
       self.now = now
     }
   }
 
+  /// What the API checks for before it accepts a token from `claude setup-token`.
+  static let oauthSystemLine = "You are Claude Code, Anthropic's official CLI for Claude."
+
   public init(messages: [JSONValue], options: Options) {
     let ephemeral: JSONValue = ["type": "ephemeral"]
+    var system: [JSONValue] = [
+      ["type": "text", "text": .string(options.systemPrompt), "cache_control": ephemeral],
+      ["type": "text", "text": .string(Self.context(options))],
+    ]
+    if options.oauthToken {
+      system.insert(["type": "text", "text": .string(Self.oauthSystemLine)], at: 0)
+    }
     var body: [String: JSONValue] = [
       "model": .string(options.model),
       "max_tokens": .number(Double(Self.maxTokens)),
-      "system": [
-        ["type": "text", "text": .string(options.systemPrompt), "cache_control": ephemeral],
-        ["type": "text", "text": .string(Self.context(options))],
-      ],
+      "system": .array(system),
       "messages": .array(messages),
       // The conversation so far is cached too: each turn resends it.
       "cache_control": ephemeral,

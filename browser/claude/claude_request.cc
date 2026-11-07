@@ -34,6 +34,10 @@ base::DictValue TextBlock(std::string text) {
 
 // After the shared prompt, and as fixed: how Compass's own additions to the
 // user's messages read.
+// What the API checks for before it accepts a token from `claude setup-token`.
+constexpr char kOAuthSystemLine[] =
+    "You are Claude Code, Anthropic's official CLI for Claude.";
+
 constexpr char kAdditions[] =
     "Each of the user's messages may start with a <context> element from "
     "Compass: the date, the permission you have, and the tabs of the user's "
@@ -93,6 +97,9 @@ ChatRequest BuildChatRequest(base::ListValue messages,
   // What changes (the date, the permission, the window's tabs) goes in the
   // user's messages instead (BuildMessageContext()). Cached.
   base::ListValue system;
+  if (options.oauth_token) {
+    system.Append(TextBlock(kOAuthSystemLine));
+  }
   system.Append(TextBlock(std::string(assets::kSystemPrompt)));
   system.Append(TextBlock(kAdditions).Set("cache_control", Ephemeral()));
 

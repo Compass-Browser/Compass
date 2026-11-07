@@ -19,6 +19,9 @@ struct ChatOptions {
   // The requests go to the Claude API itself, not a gateway: the
   // server-side refusal fallback is only there.
   bool claude_api = true;
+  // The key is an OAuth token (IsOAuthToken()): the API takes those for
+  // Claude Code only, and wants its line first in the system prompt.
+  bool oauth_token = false;
   // "Let Claude use the whole browser".
   bool browser_scope = false;
   // The chat window's tabs, a line each ("- title — url"), for context.

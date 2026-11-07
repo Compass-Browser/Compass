@@ -23,6 +23,29 @@ struct ClaudeEndpointTests {
     #expect(ClaudeEndpoint.parseBaseURL("not a url") == nil)
   }
 
+  @Test func oauthTokenGetsClaudeCodeLineFirst() {
+    func system(_ oauth: Bool) -> [JSONValue] {
+      let options = ChatRequest.Options(model: "m", systemPrompt: "p", claudeAPI: true, oauthToken: oauth)
+      return ChatRequest(messages: [["role": "user", "content": "x"]], options: options).body["system"]?.array ?? []
+    }
+    #expect(system(true).count == system(false).count + 1)
+    #expect(system(true).first?["text"]?.string == "You are Claude Code, Anthropic's official CLI for Claude.")
+    #expect(system(false).first?["text"]?.string == "p")
+  }
+
+  @Test func oauthTokenFromSetupToken() {
+    let token = ClaudeEndpoint(apiKey: "sk-ant-oat01-abc")
+    #expect(token.isOAuthToken)
+    let request = token.request("v1/messages", body: Data("{}".utf8), betas: ["a"])
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-ant-oat01-abc")
+    #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
+    #expect(request.value(forHTTPHeaderField: "anthropic-beta") == "a,oauth-2025-04-20")
+    #expect(token.request("v1/models").value(forHTTPHeaderField: "anthropic-beta") == "oauth-2025-04-20")
+    let key = ClaudeEndpoint(apiKey: "sk-ant-api03-abc")
+    #expect(!key.isOAuthToken)
+    #expect(key.request("v1/models").value(forHTTPHeaderField: "anthropic-beta") == nil)
+  }
+
   @Test func requestHeaders() {
     let key = ClaudeEndpoint(apiKey: "sk-ant-test")
     let request = key.request("v1/messages", body: Data("{}".utf8), betas: ["a", "b"])

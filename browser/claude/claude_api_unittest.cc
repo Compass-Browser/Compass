@@ -59,6 +59,36 @@ TEST(ClaudeApiTest, Headers) {
   EXPECT_FALSE(bearer.HasHeader("x-api-key"));
 }
 
+TEST(ClaudeApiTest, OAuthTokenFromSetupToken) {
+  EXPECT_TRUE(IsOAuthToken("sk-ant-oat01-abcdef"));
+  EXPECT_TRUE(IsOAuthToken("  sk-ant-oat01-abcdef\n"));
+  EXPECT_FALSE(IsOAuthToken("sk-ant-api03-abcdef"));
+  EXPECT_FALSE(IsOAuthToken(""));
+
+  // Bearer even with the x-api-key style, and its beta.
+  Endpoint endpoint;
+  endpoint.api_key = "sk-ant-oat01-abcdef";
+  net::HttpRequestHeaders headers;
+  AddRequestHeaders(endpoint, headers);
+  EXPECT_EQ(headers.GetHeader("Authorization"), "Bearer sk-ant-oat01-abcdef");
+  EXPECT_FALSE(headers.HasHeader("x-api-key"));
+  AddBetas(endpoint, {"a"}, headers);
+  EXPECT_EQ(headers.GetHeader("anthropic-beta"),
+            std::string("a,") + kOAuthBeta);
+
+  net::HttpRequestHeaders only_oauth;
+  AddBetas(endpoint, {}, only_oauth);
+  EXPECT_EQ(only_oauth.GetHeader("anthropic-beta"), kOAuthBeta);
+
+  // An API key brings no beta of its own.
+  endpoint.api_key = "sk-ant-api03-abcdef";
+  net::HttpRequestHeaders api_key;
+  AddBetas(endpoint, {}, api_key);
+  EXPECT_FALSE(api_key.HasHeader("anthropic-beta"));
+  AddBetas(endpoint, {"a"}, api_key);
+  EXPECT_EQ(api_key.GetHeader("anthropic-beta"), "a");
+}
+
 TEST(ClaudeApiTest, EndpointFromPrefs) {
   TestingPrefServiceSimple prefs;
   prefs::RegisterProfilePrefs(prefs.registry());

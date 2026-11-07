@@ -177,6 +177,7 @@ yet.
 - **Fields:**
   - an API key (password field showing only `sk-ant-…last4` once saved, plus a Remove button);
   - the endpoint URL and auth style under "Advanced";
+  - a token from `claude setup-token` (`sk-ant-oat01-…`) goes in the same field: `IsOAuthToken()` sends it as `Authorization: Bearer` with the `oauth-2025-04-20` beta, whatever the auth style says (desktop `AddRequestHeaders()`/`AddBetas()`, iOS `ClaudeEndpoint.request()`). It uses the user's Claude subscription. The API wants Claude Code's line for these tokens, which `BuildChatRequest()` / `ChatRequest` put first in the system prompt when the key is such a token (`oauth_token`). Not tried against the real API yet;
   - a model picker: the current models until "Test connection" lists the ones the key can use, plus any id already saved (a gateway's);
   - "Test connection";
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages.

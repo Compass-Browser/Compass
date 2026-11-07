@@ -35,6 +35,14 @@ enum class AuthStyle {
   kBearer = 1,
 };
 
+// The beta that lets the API take an OAuth token, which is what
+// `claude setup-token` prints (sk-ant-oat01-…).
+inline constexpr char kOAuthBeta[] = "oauth-2025-04-20";
+
+// Whether |key| is such a token, not an API key: it goes as
+// "Authorization: Bearer" with kOAuthBeta whatever the auth style says.
+bool IsOAuthToken(std::string_view key);
+
 // Where requests go and how they authenticate.
 struct Endpoint {
   Endpoint();
@@ -56,9 +64,16 @@ std::optional<GURL> ParseBaseUrl(std::string_view text);
 // |path| ("v1/messages") under |base_url|, after its own path.
 GURL EndpointUrl(const GURL& base_url, std::string_view path);
 
-// The headers every request carries: the version and the key.
+// The headers every request carries: the version and the key (and, for an
+// OAuth token, kOAuthBeta; add the request's own betas with AddBetas()).
 void AddRequestHeaders(const Endpoint& endpoint,
                        net::HttpRequestHeaders& headers);
+
+// Sets "anthropic-beta" to |betas|, and kOAuthBeta too if |endpoint|'s key is
+// an OAuth token. Sets nothing if that comes to no beta.
+void AddBetas(const Endpoint& endpoint,
+              const std::vector<std::string>& betas,
+              net::HttpRequestHeaders& headers);
 
 // The endpoint the profile's settings describe (the key not included; it's
 // stored encrypted, see ClaudeCredentials).

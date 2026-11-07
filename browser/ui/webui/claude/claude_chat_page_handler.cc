@@ -206,6 +206,7 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   ChatOptions options;
   options.model = prefs->GetString(prefs::kModel);
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
+  options.oauth_token = IsOAuthToken(endpoint.api_key);
   options.browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
   options.now = base::Time::Now();
   ChatRequest request =

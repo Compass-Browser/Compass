@@ -92,9 +92,7 @@ std::unique_ptr<network::SimpleURLLoader> ClaudeClient::MakeLoader(
   request->method = std::string(method);
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   AddRequestHeaders(endpoint_, request->headers);
-  if (!betas.empty()) {
-    request->headers.SetHeader("anthropic-beta", base::JoinString(betas, ","));
-  }
+  AddBetas(endpoint_, betas, request->headers);
   auto loader =
       network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
   // Error replies carry the API's message.

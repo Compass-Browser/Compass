@@ -128,7 +128,8 @@ final class ClaudeChat {
     let started = settings.revision
     let options = ChatRequest.Options(
       model: settings.model, systemPrompt: ClaudeSettings.systemPrompt, tools: ClaudeSettings.tools,
-      browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI)
+      browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
+      oauthToken: endpoint.isOAuthToken)
     let request = ChatRequest(messages: conversation.messages(), options: options)
     conversation.startReply()
     let error = await ClaudeClient.stream(request, endpoint: endpoint) { [weak self] name, data in
