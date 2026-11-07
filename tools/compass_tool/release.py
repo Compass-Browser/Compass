@@ -344,7 +344,10 @@ def fetch_manifest(base_url: str = BASE_URL) -> Dict:
   """releases.json from the update server, for a machine without the site
   mirror (the Windows build machine)."""
   import urllib.request
-  with urllib.request.urlopen(base_url + '/releases.json', timeout=30) as r:
+  # The server's CDN turns away Python's default User-Agent (403).
+  request = urllib.request.Request(base_url + '/releases.json',
+                                   headers={'User-Agent': 'compass-release'})
+  with urllib.request.urlopen(request, timeout=30) as r:
     return json.loads(r.read().decode('utf-8'))
 
 
