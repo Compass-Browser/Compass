@@ -49,9 +49,14 @@ std::optional<ManifestEntry> ParseChannelManifest(std::string_view json,
   out.size = static_cast<int64_t>(*size);
   out.sha256 = base::ToLowerASCII(*sha256);
   out.ed_signature = *signature;
-  // Installers come from the update server only.
-  if (!out.url.SchemeIs("https") ||
-      out.url.DeprecatedGetOriginAsURL() != GURL(kUpdateServer)) {
+  // Installers come from the update server or Compass's GitHub releases only.
+  // (Either way they must match the signature, checked before running.)
+  const bool from_server =
+      out.url.DeprecatedGetOriginAsURL() == GURL(kUpdateServer);
+  // GURL has resolved any "..", so the prefix holds for the whole path.
+  const bool from_github =
+      out.url.spec().starts_with(kGitHubReleaseDownloads);
+  if (!out.url.SchemeIs("https") || !(from_server || from_github)) {
     return std::nullopt;
   }
   if (!base::Version(out.version).IsValid() || out.sha256.size() != 64) {

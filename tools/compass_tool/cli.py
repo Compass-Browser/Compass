@@ -413,13 +413,14 @@ def set_gn_arg(args_file: Path, name: str, value: str) -> None:
   args_file.write_text('\n'.join(lines) + '\n')
 
 
-def git_commit(root: Path) -> str:
-  return run(['git', 'rev-parse', '--short', 'HEAD'], root, capture=True,
-             quiet=True).stdout.strip()
+def git_commit(root: Path, short: bool = True) -> str:
+  return run(['git', 'rev-parse'] + (['--short'] if short else []) + ['HEAD'],
+             root, capture=True, quiet=True).stdout.strip()
 
 
 def cmd_release(layout: Layout, args) -> None:
-  """Update feeds on https://updates.compassbrowser.org (docs/design/updates.md)."""
+  """Releases: archives on GitHub, feeds on https://updates.compassbrowser.org
+  (docs/design/updates.md)."""
   try:
     _release(layout, args)
   except release.ReleaseError as e:
@@ -443,6 +444,7 @@ def _release(layout: Layout, args) -> None:
     found['channel'] = 'stable'
     feeds = release.write_feeds(manifest)
     if not args.no_upload:
+      release.promote_on_github(found)
       release.upload(feeds)
     print('%s is on stable' % args.version)
     return
@@ -463,10 +465,11 @@ def _release(layout: Layout, args) -> None:
                                     tools)
     feeds = release.write_feeds(manifest)
     if not args.no_upload:
-      release.upload([release.SITE_DIR / added['win']['file']])
+      release.publish_assets(added, [release.SITE_DIR / added['win']['file']],
+                             git_commit(layout.root, short=False))
       release.upload(feeds)
-    print('released %s for Windows: %s/%s' % (
-        added['version'], release.BASE_URL, added['win']['file']))
+    print('released %s for Windows: %s' % (
+        added['version'], release.archive_url(added['win'])))
     return
   # publish (macOS): a new version, built, signed, notarized, fed.
   tools = sparkle.ensure(layout.root) / 'bin'
@@ -486,10 +489,11 @@ def _release(layout: Layout, args) -> None:
                                   notes=args.notes or '')
   feeds = release.write_feeds(manifest)
   if not args.no_upload:
-    release.upload(release.release_files(added))
+    release.publish_assets(added, release.release_files(added),
+                           git_commit(layout.root, short=False))
     release.upload(feeds)
-  print('released %s on %s: %s/%s' % (added['version'], args.channel,
-                                     release.BASE_URL, added['mac']['file']))
+  print('released %s on %s: %s' % (added['version'], args.channel,
+                                   release.archive_url(added['mac'])))
 
 
 def cmd_sync_server(layout: Layout, args) -> None:

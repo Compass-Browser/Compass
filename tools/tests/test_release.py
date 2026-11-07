@@ -8,6 +8,7 @@ import plistlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -247,6 +248,115 @@ class StampAppPlistTest(unittest.TestCase):
                                       str(out), '--version=3.4']))
       self.assertEqual('3.4', plistlib.loads(out.read_bytes())
                        ['CFBundleVersion'])
+
+
+def _on_github(r):
+  """|r| as published since archives moved to GitHub releases."""
+  r = json.loads(json.dumps(r))
+  for archive in [r['mac'], *r['mac']['deltas'], r.get('win')]:
+    if archive:
+      archive['url'] = release.github_url(r['version'], archive['file'])
+  return r
+
+
+class GitHubReleaseTest(unittest.TestCase):
+
+  MIXED = {'releases': [
+      _release('20261102.1000', 'stable', win=True),
+      _on_github(_release('20261103.0215', 'beta', deltas=['20261102.1000'],
+                          win=True)),
+  ]}
+  DOWNLOADS = 'https://github.com/Compass-Browser/Compass/releases/download/'
+
+  def test_github_url(self):
+    self.assertEqual(self.DOWNLOADS + 'v20261103.0215/Compass-20261103.0215.dmg',
+                     release.github_url('20261103.0215',
+                                        'mac/Compass-20261103.0215.dmg'))
+
+  def test_feeds_mix_server_and_github_archives(self):
+    stable = release.channel_manifest(self.MIXED, 'stable', 'https://u')
+    beta = release.channel_manifest(self.MIXED, 'beta', 'https://u')
+    # Released before the move: still on the update server.
+    self.assertEqual('https://u/win/CompassSetup-20261102.1000.exe',
+                     stable['win']['url'])
+    self.assertEqual(
+        self.DOWNLOADS + 'v20261103.0215/CompassSetup-20261103.0215.exe',
+        beta['win']['url'])
+    feed = ET.fromstring(release.appcast(self.MIXED, 'https://u'))
+    new, old = feed.findall('./channel/item')
+    self.assertEqual(self.DOWNLOADS + 'v20261103.0215/Compass-20261103.0215.dmg',
+                     new.find('enclosure').get('url'))
+    self.assertEqual(
+        self.DOWNLOADS + 'v20261103.0215/Compass-20261102.1000-20261103.0215.delta',
+        new.find(SPARKLE + 'deltas').find('enclosure').get('url'))
+    self.assertEqual('https://u/mac/Compass-20261102.1000.dmg',
+                     old.find('enclosure').get('url'))
+
+  def test_release_args(self):
+    beta = dict(_release('20261103.0215', 'beta'), notes='Faster tabs.')
+    args = release.github_release_args(beta, 'f' * 40)
+    self.assertEqual(['release', 'create', 'v20261103.0215', '--title',
+                      'Compass 20261103.0215'], args[:5])
+    self.assertIn('Faster tabs.', args[args.index('--notes') + 1])
+    self.assertIn('--prerelease', args)
+    self.assertEqual('f' * 40, args[args.index('--target') + 1])
+    stable = release.github_release_args(_release('20261102.1000', 'stable'),
+                                         None)
+    self.assertIn('--latest', stable)
+    self.assertNotIn('--prerelease', stable)
+    self.assertNotIn('--target', stable)
+
+  def _gh_calls(self, fn, existing_release=False, has_commit=True):
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+      calls.append(cmd)
+      code = 0
+      if cmd[:3] == ['gh', 'release', 'view']:
+        code = 0 if existing_release else 1
+      if cmd[:2] == ['gh', 'api']:
+        code = 0 if has_commit else 1
+      return mock.Mock(returncode=code)
+
+    with mock.patch.object(release.subprocess, 'run', side_effect=fake_run):
+      fn()
+    return calls
+
+  def test_publish_creates_the_release_then_uploads(self):
+    r = self.MIXED['releases'][1]
+    calls = self._gh_calls(
+        lambda: release.publish_assets(r, [Path('/s/a.dmg')], 'c' * 40))
+    self.assertEqual(['view', 'api', 'create', 'upload'],
+                     [c[1] if c[1] != 'release' else c[2] for c in calls])
+    self.assertIn('c' * 40, calls[2])
+    self.assertEqual(['gh', 'release', 'upload', 'v20261103.0215', '--clobber',
+                      '/s/a.dmg', '--repo', 'Compass-Browser/Compass'],
+                     calls[3])
+
+  def test_publish_to_an_existing_release_only_uploads(self):
+    r = self.MIXED['releases'][1]
+    calls = self._gh_calls(
+        lambda: release.publish_assets(r, [Path('/s/x.exe')], 'c' * 40),
+        existing_release=True)
+    self.assertEqual(['view', 'upload'], [c[2] for c in calls])
+
+  def test_commit_not_on_github_tags_the_default_branch(self):
+    r = self.MIXED['releases'][1]
+    calls = self._gh_calls(
+        lambda: release.publish_assets(r, [Path('/s/a.dmg')], 'c' * 40),
+        has_commit=False)
+    create = [c for c in calls if c[1:3] == ['release', 'create']][0]
+    self.assertNotIn('--target', create)
+
+  def test_promote(self):
+    calls = self._gh_calls(
+        lambda: release.promote_on_github(self.MIXED['releases'][1]))
+    self.assertEqual(['gh', 'release', 'edit', 'v20261103.0215',
+                      '--prerelease=false', '--latest', '--repo',
+                      'Compass-Browser/Compass'], calls[0])
+    # Released before the move: nothing on GitHub to promote.
+    self.assertEqual([], self._gh_calls(
+        lambda: release.promote_on_github(self.MIXED['releases'][0])))
 
 
 class UploadTargetTest(unittest.TestCase):

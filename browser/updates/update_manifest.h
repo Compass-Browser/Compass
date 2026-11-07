@@ -19,8 +19,12 @@
 // has Sparkle (docs/design/updates.md).
 namespace compass::updates {
 
-// The update server's root.
+// The update server's root: the feeds, and installers released before GitHub.
 inline constexpr char kUpdateServer[] = "https://updates.compassbrowser.org";
+// Where newer installers are: assets of Compass's GitHub releases. GitHub
+// redirects the download to its storage host.
+inline constexpr char kGitHubReleaseDownloads[] =
+    "https://github.com/Compass-Browser/Compass/releases/download/";
 
 // The manifest |channel| ("stable" or "beta") reads.
 GURL ChannelManifestUrl(std::string_view channel);

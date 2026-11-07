@@ -1,6 +1,8 @@
 # Full Chromium builds. GitHub-hosted runners don't have enough disk or CPU,
 # so this runs on self-hosted runners labelled per OS (see docs/building.md
-# for hardware). Manual until runners exist.
+# for hardware). Manual only (workflow_dispatch needs write access): this is a
+# public repository, and self-hosted runners must never run code from pull
+# requests.
 name: build
 
 on:
@@ -10,6 +12,9 @@ on:
         type: choice
         options: [debug, release]
         default: debug
+
+permissions:
+  contents: read
 
 jobs:
   build:
