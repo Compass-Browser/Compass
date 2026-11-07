@@ -184,6 +184,35 @@ struct KeyWindowReader: UIViewRepresentable {
   }
 }
 
+/// The toast after a close: what closed, and Undo; after an undo, Redo.
+struct ClosedToastView: View {
+  @Environment(AppModel.self) private var app
+  let toast: ClosedToast
+
+  var body: some View {
+    HStack(spacing: 14) {
+      Text(toast.text)
+        .font(.footnote.weight(.medium))
+        .lineLimit(1)
+        .truncationMode(.middle)
+      Button(toast.redo ? "Redo" : "Undo") {
+        withAnimation(.snappy) { app.closedToast = nil }
+        if toast.redo { app.redoClose() } else { app.undoClose() }
+      }
+      .font(.footnote.weight(.semibold))
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 10)
+    .background(.regularMaterial, in: Capsule())
+    .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+    .padding(.horizontal, 24)
+    // A flick down puts it away.
+    .gesture(DragGesture(minimumDistance: 8).onEnded { value in
+      if value.translation.height > 0 { withAnimation(.snappy) { app.closedToast = nil } }
+    })
+  }
+}
+
 struct RootView: View {
   @Environment(AppModel.self) private var app
   @Environment(\.horizontalSizeClass) private var sizeClass
@@ -237,6 +266,33 @@ struct RootView: View {
         }
       }
       .animation(.snappy, value: app.claude.streaming && !app.showingClaude)
+      // A close's toast: Undo (or, after one, Redo), over everything but
+      // the sheets.
+      .overlay(alignment: .bottom) {
+        if let toast = app.closedToast {
+          ClosedToastView(toast: toast)
+            .padding(.bottom, app.claude.streaming && !app.showingClaude ? 124 : 76)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .id(toast.id)
+        }
+      }
+      // A shake, as iOS asks for typing: undo (or redo) closing.
+      .alert(
+        app.services.closed.canUndo ? "Undo Close Tab" : "Redo Close Tab",
+        isPresented: $app.showingUndoAlert
+      ) {
+        Button("Cancel", role: .cancel) {}
+        if app.services.closed.canRedo, app.services.closed.canUndo {
+          Button("Redo") { app.redoClose() }
+        }
+        Button(app.services.closed.canUndo ? "Undo" : "Redo") {
+          if app.services.closed.canUndo { app.undoClose() } else { app.redoClose() }
+        }
+      } message: {
+        if let step = app.services.closed.canUndo ? app.services.closed.undoSteps.last : app.services.closed.redoSteps.last {
+          Text(step.title)
+        }
+      }
       .sheet(isPresented: $app.showingClaude) { ClaudeChatSheet() }
       .sheet(isPresented: $app.showingMenu) { PageMenu() }
       .sheet(isPresented: $app.showingDownloads) {

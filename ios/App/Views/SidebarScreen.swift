@@ -186,7 +186,8 @@ struct SpacePage: View {
             Button("Clear") {
               withAnimation(SidebarStyle.motion) {
                 // What the phone shows; the desktop's own pages stay.
-                for entry in space.today.children.phoneVisible { app.store.archive(entry) }
+                // One step: undo brings them all back.
+                app.userClose(space.today.children.phoneVisible.map { ($0, .archive) })
               }
             }
             .font(.system(size: 13, weight: .medium))
@@ -407,7 +408,7 @@ struct FavoritesGrid: View {
     .accessibilityLabel(fav.displayTitle)
     .contextMenu {
       SavedURLItems(tab: fav)
-      Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { app.close(fav) }
+      Button("Remove from Favorites", systemImage: "star.slash", role: .destructive) { app.userClose([(fav, .remove)]) }
     }
   }
 }
@@ -469,7 +470,7 @@ struct NodeRow: View {
       // Today's entries close from the row, as on the desktop (`.close`).
       if node.section == .today && !node.isFolder {
         Button {
-          withAnimation(SidebarStyle.motion) { app.close(node) }
+          withAnimation(SidebarStyle.motion) { app.userClose([(node, .remove)]) }
         } label: {
           Image(systemName: "xmark")
             .font(.system(size: 12, weight: .bold))
@@ -651,7 +652,7 @@ struct NodeRow: View {
     }
     Divider()
     Button(node.section == .today ? "Close" : "Delete", systemImage: "trash", role: .destructive) {
-      app.close(node)
+      app.userClose([(node, .remove)])
     }
   }
 }

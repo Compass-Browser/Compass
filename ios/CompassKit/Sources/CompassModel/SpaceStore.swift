@@ -311,6 +311,33 @@ public final class SpaceStore {
     closeIfEmptyTodayFolder(parent)
   }
 
+  /// Puts back a node `remove` took out, with its subtree and IDs (undoing
+  /// a close, ClosedEntries): sync creates it again over its tombstone.
+  @discardableResult
+  public func reinsert(_ node: SidebarNode, into parent: SidebarNode, at index: Int, now: Date = Date()) -> Bool {
+    guard node.parent == nil, !node.isRoot, contains(parent), canContain(parent, node.kind) else { return false }
+    // Nothing goes in or out of incognito.
+    guard incognitoIDs.contains(node.id) == isIncognito(parent) else { return false }
+    node.position = position(in: parent, at: index, for: node.id)
+    if parent.section == .today {
+      node.lastActive = now
+      node.archivedAt = nil
+    }
+    parent.insert(node)
+    updateSavedURLs(node)
+    record { $0.putNodes.formUnion(node.subtree.map(\.id)) }
+    return true
+  }
+
+  /// Whether `node` is in the sidebar: under a space's or favorites' root.
+  public func contains(_ node: SidebarNode) -> Bool {
+    let root = node.root
+    guard root.isRoot else { return false }
+    return favoritesRoots.contains { $0 === root } || (spaces + [incognito]).contains { space in
+      space.pinned === root || space.today === root || space.archive === root
+    }
+  }
+
   /// Removes `parent` if it's a Today folder left empty (`remove` goes on up).
   private func closeIfEmptyTodayFolder(_ parent: SidebarNode) {
     guard remoteDepth == 0, parent.isFolder, parent.children.isEmpty, parent.section == .today else { return }
