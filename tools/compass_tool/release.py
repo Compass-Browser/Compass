@@ -142,6 +142,15 @@ def channel_manifest(manifest: Dict, channel: str,
         'sha256': archive['sha256'],
         'ed_signature': archive['ed_signature'],
     }
+    # Windows: what the website offers, a download with a window; the
+    # updater keeps reading url (mini_installer).
+    if archive.get('installer'):
+      windowed = archive['installer']
+      out[platform]['installer'] = {
+          'url': archive_url(windowed, base_url),
+          'size': windowed['size'],
+          'sha256': windowed['sha256'],
+      }
   return out
 
 
@@ -351,9 +360,17 @@ def fetch_manifest(base_url: str = BASE_URL) -> Dict:
     return json.loads(r.read().decode('utf-8'))
 
 
+def win_installer_name(version: str) -> str:
+  """The installer with a window (installer/win) that the website offers;
+  CompassSetup-<version>.exe is Chromium's mini_installer, which the Windows
+  updater runs."""
+  return 'CompassInstaller-%s.exe' % version
+
+
 def add_win_release(manifest: Dict, installer: Path, version: str,
                     chromium: str, channel: str, commit: str, tools: Path,
-                    site: Path = SITE_DIR, win_build: int = 0) -> Dict:
+                    site: Path = SITE_DIR, win_build: int = 0,
+                    windowed: Optional[Path] = None) -> Dict:
   """Adds a Windows installer (Chromium's mini_installer.exe, built on a
   Windows machine with compass_win_build = |win_build|) to release
   |version|, or makes that release. The Windows updater checks its size,
@@ -381,6 +398,15 @@ def add_win_release(manifest: Dict, installer: Path, version: str,
       'ed_signature': ed_sign(tools / 'sign_update', archive),
       'build': win_build,
   }
+  if windowed:
+    copy = win_dir / win_installer_name(version)
+    shutil.copyfile(windowed, copy)
+    win['installer'] = {
+        'file': 'win/' + copy.name,
+        'url': github_url(version, copy.name),
+        'size': copy.stat().st_size,
+        'sha256': sha256(copy),
+    }
   existing = [r for r in manifest['releases'] if r['version'] == version]
   if existing:
     release = existing[0]
@@ -472,9 +498,16 @@ def release_files(release: Dict) -> List[Path]:
   mac = release.get('mac') or {}
   files = [mac['file']] if mac else []
   files += [d['file'] for d in mac.get('deltas', [])]
+  return [SITE_DIR / f for f in files] + win_release_files(release)
+
+
+def win_release_files(release: Dict) -> List[Path]:
+  """|release|'s Windows files in the site mirror: mini_installer, and the
+  installer with a window when there is one."""
   win = release.get('win') or {}
-  if win:
-    files.append(win['file'])
+  files = [win['file']] if win else []
+  if win.get('installer'):
+    files.append(win['installer']['file'])
   return [SITE_DIR / f for f in files]
 
 

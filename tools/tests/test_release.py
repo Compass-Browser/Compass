@@ -155,6 +155,36 @@ class ReleaseTest(unittest.TestCase):
         release.add_win_release(manifest, installer, '20261102.1000', '',
                                 'beta', 'abc', signer, site, win_build=1)
 
+  def test_channel_manifest_offers_the_windowed_installer(self):
+    r = _release('20261108.0900', 'beta', win=True, build=3)
+    r['win']['installer'] = {
+        'file': 'win/CompassInstaller-20261108.0900.exe',
+        'url': release.github_url('20261108.0900',
+                                  'CompassInstaller-20261108.0900.exe'),
+        'size': 7, 'sha256': 'dd'}
+    beta = release.channel_manifest({'releases': [r]}, 'beta', 'https://u')
+    # The updater's file stays mini_installer.
+    self.assertEqual('https://u/win/CompassSetup-20261108.0900.exe',
+                     beta['win']['url'])
+    self.assertEqual({
+        'url': 'https://github.com/Compass-Browser/Compass/releases/download/'
+               'v20261108.0900/CompassInstaller-20261108.0900.exe',
+        'size': 7, 'sha256': 'dd'}, beta['win']['installer'])
+    self.assertEqual(
+        [release.SITE_DIR / 'win/CompassSetup-20261108.0900.exe',
+         release.SITE_DIR / 'win/CompassInstaller-20261108.0900.exe'],
+        release.win_release_files(r))
+    # Releases without one are as before.
+    old = _release('20261104.0900', 'stable', win=True)
+    self.assertNotIn('installer', release.channel_manifest(
+        {'releases': [old]}, 'stable', 'https://u')['win'])
+    self.assertEqual([release.SITE_DIR / 'win/CompassSetup-20261104.0900.exe'],
+                     release.win_release_files(old))
+
+  def test_win_installer_name(self):
+    self.assertEqual('CompassInstaller-20261108.0900.exe',
+                     release.win_installer_name('20261108.0900'))
+
   def test_next_win_build(self):
     self.assertEqual(1, release.next_win_build(MANIFEST))
     manifest = {'releases': [

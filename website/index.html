@@ -178,6 +178,9 @@ footer a { color: inherit; }
     return parts.join(' · ');
   };
   const newer = (a, b) => (!b || (a && a.version > b.version)) ? a : b;
+  // Windows: the installer with a window, when the release has one (the
+  // feed's url is the updater's silent installer).
+  const download = (e) => e && e.installer ? Object.assign({}, e, e.installer) : e;
 
   const load = (channel) =>
     fetch(FEEDS + channel + '.json', { cache: 'no-cache' })
@@ -215,8 +218,8 @@ footer a { color: inherit; }
     const latest = {};
     for (const p of ['mac', 'win']) {
       const card = document.querySelector('[data-platform="' + p + '"]');
-      const s = stable && stable[p];
-      const b = beta && beta[p];
+      const s = download(stable && stable[p]);
+      const b = download(beta && beta[p]);
       // Beta users also get stable when it's newer (docs/design/updates.md).
       const bestBeta = newer(b, s);
       const main = s || bestBeta;

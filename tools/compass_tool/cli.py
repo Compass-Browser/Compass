@@ -417,6 +417,8 @@ def sign_build(layout: Layout, args) -> Path:
 
 COMPASS_VERSION_ARG = 'compass_version'
 WIN_BUILD_ARG = 'compass_win_build'
+# installer/win: Compass's installer with a window.
+WIN_INSTALLER_TARGET = 'compass_installer'
 WIN_UPDATER_ARG = 'compass_enable_win_updater'
 
 
@@ -565,15 +567,20 @@ def _release(layout: Layout, args) -> None:
     if not version:
       raise CommandError('publish-win: which version? (no %s)' %
                          installer.with_suffix('.json').name)
+    # The installer with a window, next to it (build-win's .json names it).
+    windowed = installer.parent / (info.get('installer') or
+                                   release.win_installer_name(version))
     tools = sparkle.ensure(layout.root) / 'bin'
     added = release.add_win_release(manifest, installer, version, chromium,
                                     args.channel,
                                     info.get('commit') or
                                     git_commit(layout.root),
-                                    tools, win_build=build_number)
+                                    tools, win_build=build_number,
+                                    windowed=windowed
+                                    if windowed.is_file() else None)
     feeds = release.write_feeds(manifest)
     if not args.no_upload:
-      release.publish_assets(added, [release.SITE_DIR / added['win']['file']],
+      release.publish_assets(added, release.win_release_files(added),
                              git_commit(layout.root, short=False))
       release.upload(feeds)
     print('released %s for Windows: %s' % (
@@ -643,20 +650,25 @@ def build_win(layout: Layout, args) -> Path:
   for manifest in out_dir.glob('*.*.*.*.manifest'):
     if manifest.name != installer_version + '.manifest':
       manifest.unlink()
-  build(layout, args.config, ['chrome', 'mini_installer'], args.jobs,
+  build(layout, args.config,
+        ['chrome', 'mini_installer', WIN_INSTALLER_TARGET], args.jobs,
         args.skip_patches, args.cpu)
   setup = out_dir / ('CompassSetup-%s.exe' % version)
   shutil.copyfile(out_dir / 'mini_installer.exe', setup)
+  # The one with a window, for the website (installer/win).
+  installer = out_dir / release.win_installer_name(version)
+  shutil.copyfile(out_dir / (WIN_INSTALLER_TARGET + '.exe'), installer)
   import json
   setup.with_suffix('.json').write_text(json.dumps({
       'version': version,
       'chromium': chromium,
       'win_build': number,
       'commit': git_commit(layout.root, mark_dirty=True),
+      'installer': installer.name,
   }, indent=2) + '\n')
-  print('built %s\npublish it from the release Mac: compass release '
-        'publish-win --installer CompassSetup-%s.exe (with its .json)' %
-        (setup, version))
+  print('built %s and %s\npublish them from the release Mac: compass '
+        'release publish-win --installer CompassSetup-%s.exe (with its .json '
+        'and %s)' % (setup, installer, version, installer.name))
   return setup
 
 

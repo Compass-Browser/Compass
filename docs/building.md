@@ -221,7 +221,7 @@ Then:
 ```sh
 tools/compass gen release --cpu win-x64
 tools/compass build -c release --cpu win-x64 chrome mini_installer
-tools/compass release build-win --cpu win-x64   # a release installer
+tools/compass release build-win --cpu win-x64   # the release installers
 ```
 
 Limits: Crashpad can't report crashes from a cross build (Chromium stubs
