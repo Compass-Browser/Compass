@@ -210,9 +210,9 @@ has a tab in the strip) or *unloaded*.
 | × on an unloaded entry | (none) | Node removed |
 | Drag Today → Pinned / Pinned → Today | Pin / unpin; the tab stays live | |
 
-**Closing pinned entries.** On a loaded pinned tab, × closes the tab at the
-first click: the entry stays, unloaded (as Cmd+W does, and Cmd+Z reopens
-it). On an unloaded entry, where × removes it, it takes two clicks (a double
+**Closing pinned entries.** On a loaded pinned tab, the button is − ("Unload
+tab") and closes the tab at the first click: the entry stays, unloaded (as
+Cmd+W does, and Cmd+Z reopens it). On an unloaded entry, where × removes it, it takes two clicks (a double
 click does it). The first click arms it: it turns red, and its tooltip says
 "Click again to remove". The arm lasts 3 s, or until the pointer leaves the
 button. (Until 2026-11-07, a loaded tab's × asked for two clicks too.) The page does this alone (`CompassSidebarNodeElement`'s

@@ -866,7 +866,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, NoDragMidScroll) {
             content::EvalJs(contents, content::JsReplace(kDragstart, false)));
 }
 
-// A loaded pinned tab's × closes the tab at the first click; the entry
+// A loaded pinned tab's − closes the tab at the first click; the entry
 // stays. An unloaded entry's × removes it, at the second click
 // (docs/design/sidebar.md, "Closing pinned entries").
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PinnedCloseUnloadsAtOnce) {
@@ -887,6 +887,14 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PinnedCloseUnloadsAtOnce) {
   SidebarNode* two = model.today_root()->children()[1].get();
   model.Move(two, model.pinned_root(), 0);
   ASSERT_TRUE(features->registry().GetTab(two));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const close = () => root.querySelector('#pinned .close');
+      while (!close()) await new Promise(r => setTimeout(r, 20));
+      return close().textContent === '\u2212' &&
+          root.querySelector('#today .close').textContent === '\u00d7';
+    })())"));
   constexpr char kClickPinnedClose[] = R"(
     (async () => {
       const root = document.querySelector('compass-sidebar-app').shadowRoot;
@@ -912,8 +920,11 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PinnedCloseUnloadsAtOnce) {
     })())"));
   ASSERT_EQ(true, content::EvalJs(contents, kClickPinnedClose));
   EXPECT_EQ(true, content::EvalJs(contents, R"(
-    document.querySelector('compass-sidebar-app').shadowRoot
-        .querySelector('#pinned .close').hasAttribute('armed'))"));
+    (() => {
+      const close = document.querySelector('compass-sidebar-app').shadowRoot
+          .querySelector('#pinned .close');
+      return close.hasAttribute('armed') && close.textContent === '\u00d7';
+    })())"));
   EXPECT_EQ(model.pinned_root()->children().size(), 1u);
   ASSERT_EQ(true, content::EvalJs(contents, kClickPinnedClose));
   EXPECT_TRUE(base::test::RunUntil(

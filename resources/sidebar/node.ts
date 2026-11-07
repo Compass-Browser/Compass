@@ -95,8 +95,21 @@ export class CompassSidebarNodeElement extends CrLitElement {
     return node.id === this.editingId_;
   }
 
+  // A loaded pinned tab's button only unloads it: the entry stays.
+  private unloads_(node: Node): boolean {
+    return this.pinned && node.live;
+  }
+
   protected getCloseLabel_(node: Node): string {
+    if (this.unloads_(node)) {
+      return 'Unload tab';
+    }
     return node.live ? 'Close tab' : 'Remove';
+  }
+
+  // − where the button unloads, × where it closes or removes.
+  protected getCloseGlyph_(node: Node): string {
+    return this.unloads_(node) ? '\u2212' : '\u00d7';
   }
 
   protected isCloseArmed_(node: Node): boolean {

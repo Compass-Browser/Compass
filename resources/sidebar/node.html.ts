@@ -41,7 +41,7 @@ ${this.isTab_() ? html`
         aria-label="${this.getCloseLabel_(this.node!)}"
         title="${this.getCloseTitle_(this.node!)}"
         @click="${this.onCloseClick_}" @dblclick="${this.onCloseDblclick_}"
-        @pointerleave="${this.onClosePointerleave_}">&times;</button>
+        @pointerleave="${this.onClosePointerleave_}">${this.getCloseGlyph_(this.node!)}</button>
   </div>` : nothing}
 ${this.isSplit_() ? html`
   <div class="split row" draggable="true" data-node-id="${this.node!.id}">
@@ -76,7 +76,7 @@ ${this.isSplit_() ? html`
             aria-label="${this.getCloseLabel_(pane)}"
             title="${this.getCloseTitle_(pane)}"
             @click="${this.onCloseClick_}" @dblclick="${this.onCloseDblclick_}"
-            @pointerleave="${this.onClosePointerleave_}">&times;</button>
+            @pointerleave="${this.onClosePointerleave_}">${this.getCloseGlyph_(pane)}</button>
       </div>`)}
   </div>` : nothing}
 ${this.isFolder_() ? html`
