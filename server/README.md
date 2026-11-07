@@ -8,8 +8,7 @@ the chain's key; the server stores blobs it can't read and never sees a
 password or an email address. There are no accounts: a chain is an Ed25519
 public key, and each request is signed with its private key.
 
-A public instance runs at https://sync.example.org, or you can run
-your own. It needs about 20 MB of memory and as much disk as your chains
+The project runs a public instance, or you can run your own. It needs about 20 MB of memory and as much disk as your chains
 store (at most 200 MB each by default).
 
 In Compass, the server URL is the server's address followed by `/v2`, e.g.

@@ -243,7 +243,7 @@ struct RecoveryCodeView: View {
 struct JoinView: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
-  @State private var server = SyncController.defaultServer.absoluteString
+  @State private var server = SyncController.defaultServer?.absoluteString ?? ""
   @State private var code = ""
   @State private var words = ""
   @State private var useRecovery = false

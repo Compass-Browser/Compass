@@ -25,7 +25,14 @@ final class SyncController {
     case failed(String)
   }
 
-  static let defaultServer = URL(string: "https://sync.example.org/v2")!
+  /// The server the join form starts with: the COMPASS_SYNC_SERVER build
+  /// setting (ios/Local.xcconfig, not in the repository), through Info.plist.
+  /// Builds without it start with an empty field.
+  static let defaultServer: URL? = {
+    guard let value = Bundle.main.object(forInfoDictionaryKey: "CompassSyncServer") as? String,
+          !value.isEmpty else { return nil }
+    return URL(string: value)
+  }()
 
   /// One profile's server account: the home profile's is the chain's own
   /// ("" here); every other profile has its own (sync.md, "Profiles").

@@ -1122,9 +1122,10 @@ every profile's bridge.
 - Ships a `docker-compose.yml` with the server and a Caddy front for HTTPS,
   and `server/README.md` (VPS, home server behind Tailscale, backups,
   proxies). `compass sync-server` runs it locally for development.
-- Anyone can run their own; the app's server field has no default. There
-  is also a public instance at `https://sync.example.org/v2`.
-  Everything on it is encrypted on the devices.
+- Anyone can run their own. The project also runs a public instance;
+  everything on it is encrypted on the devices. The desktop's server field
+  has no default; the iOS app's join form starts with the
+  `COMPASS_SYNC_SERVER` build setting, empty unless the build sets it.
 
 **Create over a tombstone.** A commit of a new entity (version 0) whose
 client tag belongs to a deleted entity of the same type revives that
@@ -1353,9 +1354,8 @@ either mode. Nothing when Open tabs doesn't sync. A `ResultKind`,
 
 ## Decisions
 
-1. **Server**: self-hostable; a public instance at
-   `https://sync.example.org/v2` exists too, but the app has no
-   default server.
+1. **Server**: self-hostable; the project runs a public instance too, but
+   the desktop app has no default server.
 2. **What syncs**: everything that can, Today and the archive included.
 3. **First sync on a device with its own spaces**: merge.
 4. **No accounts**: a sync chain. Devices join with a short pairing code

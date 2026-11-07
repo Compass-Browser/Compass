@@ -19,7 +19,7 @@ own Swift sync client and no Chromium for iOS.
 
 The desktop's sync stack (design in `docs/design/sync.md`) has these parts:
 
-- a go-sync fork in `server/`, with the public instance at https://sync.example.org/v2;
+- a go-sync fork in `server/`, which anyone can run (the project also runs a public instance);
 - Chromium's sync protocol, every type encrypted with a Nigori custom passphrase;
 - an account-less "sync chain": a 16-byte seed, HKDF → Ed25519 auth key plus a passphrase, a 12-word BIP39 recovery code, and SPAKE2 pairing codes;
 - a `COMPASS_SPACES` type for spaces, pinned trees, favorites, Today and the archive.

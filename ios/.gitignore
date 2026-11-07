@@ -5,3 +5,5 @@
 /build/
 xcuserdata/
 *.xcuserstate
+# Local build settings (the default sync server): `compass ios` passes it.
+/Local.xcconfig

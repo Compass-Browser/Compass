@@ -126,6 +126,10 @@ targets:
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cipi1965.compass.shared
+        # The join form's default server: COMPASS_SYNC_SERVER, set in
+        # ios/Local.xcconfig (gitignored; `compass ios` passes it). Empty
+        # without one.
+        CompassSyncServer: $(COMPASS_SYNC_SERVER)
         # Export compliance: standard algorithms (AES, HMAC, Ed25519,
         # SPAKE2, scrypt) protecting the user's own data, which is exempt.
         # Saves answering the question for every TestFlight build.

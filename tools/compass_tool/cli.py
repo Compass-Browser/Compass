@@ -570,7 +570,8 @@ def cmd_ios(layout: Layout, args) -> None:
       env['COMPASS_SYNC_SERVER'] = str(Path(args.sync_server).resolve())
     sys.exit(run(cmd, ios / 'CompassKit', env=env, check=False).returncode)
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
-       'Compass', '-destination', 'generic/platform=iOS Simulator',
+       'Compass'] + ios_xcconfig_args(ios) + [
+       '-destination', 'generic/platform=iOS Simulator',
        # Ad-hoc signed: unsigned simulator apps get no application
        # identifier, and their Keychain items don't survive a reinstall.
        '-derivedDataPath', derived, 'CODE_SIGN_IDENTITY=-',
@@ -592,6 +593,15 @@ def cmd_ios(layout: Layout, args) -> None:
 
 
 IOS_TEAM = '4M33B5HNDS'
+
+
+def ios_xcconfig_args(ios: Path) -> list:
+  """ios/Local.xcconfig, when there is one: build settings that stay out of
+  the repository, such as COMPASS_SYNC_SERVER (the join form's default
+  server). Note that xcconfig reads // as a comment: write
+  COMPASS_SYNC_SERVER = https:/$()/sync.example.org/v2."""
+  local = ios / 'Local.xcconfig'
+  return ['-xcconfig', str(local)] if local.is_file() else []
 
 
 def ios_auth_args(args) -> list:
@@ -616,7 +626,7 @@ def ios_device(ios: Path, args) -> Path:
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
        'Compass', '-configuration', 'Debug', '-destination',
        'generic/platform=iOS', '-derivedDataPath', derived, 'build'] +
-      ios_auth_args(args), ios)
+      ios_xcconfig_args(ios) + ios_auth_args(args), ios)
   app = derived / 'Build/Products/Debug-iphoneos/Compass.app'
   print('device build: %s' % app)
   return app
@@ -661,7 +671,8 @@ def ios_archive(ios: Path, args) -> str:
        'Compass', '-configuration', 'Release', '-destination',
        'generic/platform=iOS', '-archivePath', archive,
        '-derivedDataPath', ios / 'build' / 'DerivedData-archive',
-       'CURRENT_PROJECT_VERSION=' + build_number, 'archive'] + auth, ios)
+       'CURRENT_PROJECT_VERSION=' + build_number, 'archive'] +
+      ios_xcconfig_args(ios) + auth, ios)
   options = out / 'ExportOptions.plist'
   options.write_bytes(plistlib.dumps({
       'method': 'app-store-connect',

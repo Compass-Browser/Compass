@@ -18,8 +18,8 @@ In scope:
   code, `chromium_src` overrides and patches; the iOS app; the sync server
   (`server/`), including the pairing protocol and end-to-end encryption; the
   update feeds and the Windows updater's verification of installers.
-- The public services: `updates.compassbrowser.org` and
-  `sync.example.org`.
+- The public services: `updates.compassbrowser.org` and the project's public
+  sync server.
 
 Vulnerabilities in Chromium itself are best reported to the
 [Chromium project](https://www.chromium.org/Home/chromium-security/reporting-security-bugs/).

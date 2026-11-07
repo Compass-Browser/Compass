@@ -157,5 +157,18 @@ class IosDeviceTest(unittest.TestCase):
     self.assertEqual(args.api_key_id, 'ID')
 
 
+class IosXcconfigTest(unittest.TestCase):
+
+  def test_local_xcconfig_only_when_present(self):
+    import tempfile
+    from compass_tool.cli import ios_xcconfig_args
+    with tempfile.TemporaryDirectory() as d:
+      ios = Path(d)
+      self.assertEqual([], ios_xcconfig_args(ios))
+      (ios / 'Local.xcconfig').write_text('COMPASS_SYNC_SERVER =\n')
+      self.assertEqual(['-xcconfig', str(ios / 'Local.xcconfig')],
+                       ios_xcconfig_args(ios))
+
+
 if __name__ == '__main__':
   unittest.main()
