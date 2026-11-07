@@ -13,7 +13,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/files/file_path.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 #include "compass/browser/claude/page_reader.h"
 #include "compass/browser/claude/sse_parser.h"
 #include "compass/browser/ui/webui/claude/chat.mojom.h"
@@ -35,6 +37,7 @@ class SharedURLLoaderFactory;
 namespace compass::claude {
 
 class ClaudeClient;
+class ClaudeCodeProcess;
 
 // The browser side of the chat panel: tells the page about the settings and
 // the active tab, reads the tab's text, and streams Claude's replies with the
@@ -96,6 +99,24 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void OnStreamEvent(const SseParser::Event& event);
   void OnStreamDone(int request_id, std::optional<std::string> error);
 
+  // Claude Code mode (docs/design/claude.md, D8).
+  bool UsesClaudeCode() const;
+  void SendToClaudeCode(base::ListValue messages);
+  // Where `claude` is (FindClaudeCode(), off this thread), and the folder it
+  // runs in; then the message goes.
+  void OnClaudeCodeFound(int request_id,
+                         std::string line,
+                         std::optional<base::FilePath> program);
+  void OnClaudeCodeLine(std::string line);
+  void OnClaudeCodeExit(int exit_code);
+  // Ends the process; the conversation goes on with --resume, unless
+  // |forget| (a new chat).
+  void EndClaudeCode(bool forget);
+  // Claude Code's calls of Compass's tools, through compass-mcp --chat.
+  void RunChatTool(const std::string& name,
+                   base::DictValue arguments,
+                   base::OnceCallback<void(ToolResult)> done);
+
   mojo::Receiver<chat::mojom::PageHandler> receiver_;
   mojo::Remote<chat::mojom::Page> page_;
   const raw_ptr<BrowserWindowInterface> browser_;
@@ -103,6 +124,17 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
   std::unique_ptr<ClaudeClient> client_;
   ClaudeTools tools_;
+  std::unique_ptr<ClaudeCodeProcess> claude_code_;
+  // Claude Code's session, for --resume after Stop or another model.
+  std::string claude_code_session_;
+  // The model the process runs.
+  std::string claude_code_model_;
+  // A reply is under way: the process ending is an error.
+  bool claude_code_replying_ = false;
+  // The last of its output that wasn't JSON (stderr), to say why it ended.
+  std::string claude_code_output_;
+  // McpBridge::RegisterChat()'s token, while registered.
+  std::string chat_token_;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;
   PrefChangeRegistrar pref_registrar_;

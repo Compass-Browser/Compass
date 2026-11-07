@@ -4,10 +4,14 @@
 
 #include "compass/browser/ui/claude/mcp_bridge.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
 #include "base/no_destructor.h"
+#include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/path_service.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/raw_ptr.h"
@@ -72,6 +76,17 @@ McpBridge* McpBridge::GetIfExists() {
 McpBridge::McpBridge() = default;
 McpBridge::~McpBridge() = default;
 
+McpBridge::Chat::Chat() = default;
+McpBridge::Chat::Chat(Chat&&) = default;
+McpBridge::Chat& McpBridge::Chat::operator=(Chat&&) = default;
+McpBridge::Chat::~Chat() = default;
+
+McpBridge::Connection::Connection() = default;
+McpBridge::Connection::Connection(Connection&&) = default;
+McpBridge::Connection& McpBridge::Connection::operator=(Connection&&) =
+    default;
+McpBridge::Connection::~Connection() = default;
+
 base::FilePath McpBridge::socket_path() const {
   if (!socket_path_for_testing_.empty()) {
     return socket_path_for_testing_;
@@ -100,8 +115,10 @@ void McpBridge::SetProfileEnabled(Profile* profile, bool enabled) {
   } else {
     profiles_.erase(profile);
     // Its connections end: the user turned it off, or the profile goes.
+    // A chat's connections are the chat's to end.
     for (auto it = sessions_.begin(); it != sessions_.end();) {
-      if (it->second && it->second->profile() == profile) {
+      if (it->second.session && it->second.chat.empty() &&
+          it->second.session->profile() == profile) {
         listener_.AsyncCall(&McpListener::Close).WithArgs(it->first);
         it = sessions_.erase(it);
       } else {
@@ -112,10 +129,36 @@ void McpBridge::SetProfileEnabled(Profile* profile, bool enabled) {
   UpdateListener();
 }
 
+std::string McpBridge::RegisterChat(Profile* profile,
+                                    McpSession::ChatToolRunner runner) {
+  std::string token = base::HexEncodeLower(base::RandBytesAsVector(16));
+  Chat chat;
+  chat.profile = profile;
+  chat.runner = std::move(runner);
+  chats_.emplace(token, std::move(chat));
+  UpdateListener();
+  return token;
+}
+
+void McpBridge::UnregisterChat(const std::string& token) {
+  chats_.erase(token);
+  for (auto it = sessions_.begin(); it != sessions_.end();) {
+    if (it->second.chat == token) {
+      listener_.AsyncCall(&McpListener::Close).WithArgs(it->first);
+      it = sessions_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  UpdateListener();
+}
+
 void McpBridge::UpdateListener() {
-  if (profiles_.empty()) {
+  if (profiles_.empty() && chats_.empty()) {
     listener_.Reset();
     listening_ = false;
+    // Connections that hadn't said whose they are close with it.
+    sessions_.clear();
     return;
   }
   if (!listener_.is_null()) {
@@ -143,6 +186,42 @@ void McpBridge::OnListening(bool listening) {
 }
 
 void McpBridge::OnConnected(int id) {
+  // Whose it is comes with its first line.
+  sessions_.emplace(id, Connection());
+}
+
+void McpBridge::OnLine(int id, std::string line) {
+  auto it = sessions_.find(id);
+  if (it == sessions_.end()) {
+    return;
+  }
+  if (!it->second.session) {
+    StartSession(id, line);
+    return;
+  }
+  it->second.session->OnMessage(line);
+}
+
+void McpBridge::StartSession(int id, const std::string& first_line) {
+  Connection& connection = sessions_[id];
+  std::optional<base::DictValue> hello =
+      base::JSONReader::ReadDict(first_line, base::JSON_PARSE_RFC);
+  if (const std::string* token =
+          hello ? hello->FindString("compass_chat") : nullptr) {
+    auto chat = chats_.find(*token);
+    if (chat == chats_.end()) {
+      // A chat that ended, or a guess.
+      listener_.AsyncCall(&McpListener::Close).WithArgs(id);
+      sessions_.erase(id);
+      return;
+    }
+    connection.chat = *token;
+    connection.session = std::make_unique<McpSession>(
+        chat->second.profile,
+        base::BindRepeating(&McpBridge::Send, weak_factory_.GetWeakPtr(), id),
+        chat->second.runner);
+    return;
+  }
   Profile* profile = PickProfile();
   if (!profile) {
     // No window of a profile that allows MCP: nothing to serve. The error
@@ -151,22 +230,14 @@ void McpBridge::OnConnected(int id) {
          R"({"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":)"
          R"("Open a Compass window of a profile that allows MCP clients."}})");
     listener_.AsyncCall(&McpListener::Close).WithArgs(id);
+    sessions_.erase(id);
     return;
   }
-  sessions_.emplace(
-      id, std::make_unique<McpSession>(
-              profile,
-              base::BindRepeating(&McpBridge::Send, weak_factory_.GetWeakPtr(),
-                                  id),
-              base::BindRepeating(&McpBridge::Ask,
-                                  weak_factory_.GetWeakPtr())));
-}
-
-void McpBridge::OnLine(int id, std::string line) {
-  auto it = sessions_.find(id);
-  if (it != sessions_.end() && it->second) {
-    it->second->OnMessage(line);
-  }
+  connection.session = std::make_unique<McpSession>(
+      profile,
+      base::BindRepeating(&McpBridge::Send, weak_factory_.GetWeakPtr(), id),
+      base::BindRepeating(&McpBridge::Ask, weak_factory_.GetWeakPtr()));
+  connection.session->OnMessage(first_line);
 }
 
 void McpBridge::OnClosed(int id) {

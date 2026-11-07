@@ -47,6 +47,10 @@ source_set("claude") {
     "claude_api.h",
     "claude_client.cc",
     "claude_client.h",
+    "claude_code.cc",
+    "claude_code.h",
+    "claude_code_process.cc",
+    "claude_code_process.h",
     "claude_credentials.cc",
     "claude_credentials.h",
     "claude_request.cc",
@@ -91,6 +95,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "claude_api_unittest.cc",
+    "claude_code_unittest.cc",
     "claude_request_unittest.cc",
     "key_events_unittest.cc",
     "sse_parser_unittest.cc",
@@ -98,6 +103,7 @@ source_set("unit_tests") {
   deps = [
     ":claude",
     ":prefs",
+    "//base",
     "//components/prefs:test_support",
     "//net",
     "//testing/gtest",

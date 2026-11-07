@@ -6,7 +6,11 @@ module compass.claude.chat.mojom;
 
 // What the panel needs to know of the settings.
 struct Setup {
+  // The chat can send: a key is saved, or the chat runs on Claude Code.
   bool has_key;
+  // Claude Code mode (docs/design/claude.md, D8): Claude Code runs the
+  // tools and the loop, and the page only shows them (OnToolResult()).
+  bool claude_code;
   string model;
   bool browser_scope;
 };
@@ -45,6 +49,10 @@ interface PageHandler {
   // "messages" array, as Page.OnStreamEvent() calls and one
   // Page.OnStreamDone(). The browser sets the model, the system prompt and
   // the rest of the request. A Send while a reply streams replaces it.
+  // In Claude Code mode only the last (user) message goes, to Claude Code,
+  // which keeps the conversation; a single message starts a new one. The
+  // reply's events then span all its steps: each step's message_start, its
+  // tools' results (Page.OnToolResult()), up to one OnStreamDone.
   Send(string messages_json);
   // What the browser says about itself at the start of a user message
   // (date, permission, the window's tabs), as a <context> element. The page
@@ -75,6 +83,9 @@ interface Page {
   OnStreamEvent(string name, string data);
   // The reply ended; |error| is empty when it completed.
   OnStreamDone(string error);
+  // Claude Code mode: Claude Code ran a tool of the reply. |result_json| is
+  // as RunTool()'s.
+  OnToolResult(string tool_use_id, string result_json);
   OnSetupChanged(Setup setup);
   OnActivePageChanged(ActivePage page);
   // The command bar's "Ask Claude": send |text|, with the page attached.

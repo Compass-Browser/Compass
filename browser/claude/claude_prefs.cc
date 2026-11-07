@@ -15,6 +15,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kApiKeyHint, std::string());
   registry->RegisterStringPref(kBaseUrl, std::string());
   registry->RegisterIntegerPref(kAuthStyle, 0);
+  registry->RegisterIntegerPref(kBackend, 0);
+  registry->RegisterStringPref(kClaudeCodePath, std::string());
   // claude_api.h's kDefaultModel; this target stays free of the client's
   // dependencies, as upstream's prefs registration reaches it.
   registry->RegisterStringPref(kModel, "claude-opus-5-5");

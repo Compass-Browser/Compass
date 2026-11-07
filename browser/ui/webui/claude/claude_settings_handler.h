@@ -15,6 +15,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
 #include "compass/browser/claude/claude_api.h"
+#include "compass/browser/claude/claude_code.h"
 #include "compass/browser/ui/webui/claude/claude.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -51,6 +52,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler {
                    mojom::AuthStyle auth_style,
                    SetEndpointCallback callback) override;
   void SetModel(const std::string& model) override;
+  void SetBackend(mojom::Backend backend) override;
+  void SetClaudeCodePath(const std::string& path) override;
   void SetBrowserScope(bool enabled) override;
   void SetMcpEnabled(bool enabled) override;
   void ForgetMcpClient(const std::string& client) override;
@@ -61,6 +64,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler {
                     std::optional<std::string> key);
   void OnModels(TestConnectionCallback callback,
                 base::expected<std::vector<ModelInfo>, std::string> models);
+  void OnClaudeCodeChecked(TestConnectionCallback callback,
+                           std::optional<ClaudeCodeStatus> status);
 
   const raw_ptr<Profile> profile_;
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;

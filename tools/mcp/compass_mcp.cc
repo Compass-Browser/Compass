@@ -18,7 +18,9 @@
 //   claude mcp add compass -- /Applications/Compass.app/Contents/MacOS/compass-mcp
 //
 // Options: --user-data-dir=DIR (Compass's, if not the default one),
-// --no-launch (don't start Compass).
+// --no-launch (don't start Compass), --chat=TOKEN (Compass started this
+// relay's client for a chat in its Claude panel, in Claude Code mode: the
+// relay says so first, and the browser runs the calls as that chat's).
 
 #include <errno.h>
 #include <poll.h>
@@ -48,6 +50,9 @@ constexpr char kSocketName[] = "compass-mcp.sock";
 // How long Compass may take to start and listen.
 constexpr int kWaitMs = 30000;
 constexpr int kPollMs = 250;
+// A chat's relay doesn't start Compass, which is running; it waits a little
+// for the listener, which the chat starts with its Claude Code process.
+constexpr int kChatWaitMs = 10000;
 
 constexpr char kNotListening[] =
     "Compass isn't accepting MCP clients. Open Compass, then turn on "
@@ -279,9 +284,20 @@ int main(int argc, char** argv) {
   signal(SIGPIPE, SIG_IGN);
   std::string user_data_dir;
   bool launch = true;
+  std::string chat;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
-    if (arg.starts_with("--user-data-dir=")) {
+    if (arg.starts_with("--chat=")) {
+      chat = arg.substr(strlen("--chat="));
+      // The browser's tokens are hex; nothing else goes in the hello line.
+      if (chat.empty() ||
+          chat.find_first_not_of("0123456789abcdefABCDEF") !=
+              std::string::npos) {
+        fprintf(stderr, "compass-mcp: bad --chat token\n");
+        return 2;
+      }
+      launch = false;
+    } else if (arg.starts_with("--user-data-dir=")) {
       user_data_dir = arg.substr(strlen("--user-data-dir="));
     } else if (arg == "--no-launch") {
       launch = false;
@@ -289,7 +305,8 @@ int main(int argc, char** argv) {
       printf(
           "compass-mcp: Compass's MCP server, for MCP clients over stdio.\n"
           "  --user-data-dir=DIR  Compass's user data directory\n"
-          "  --no-launch          don't start Compass if it isn't running\n");
+          "  --no-launch          don't start Compass if it isn't running\n"
+          "  --chat=TOKEN         serve the Claude panel's chat TOKEN\n");
       return 0;
     } else {
       fprintf(stderr, "compass-mcp: unknown option %s\n", arg.c_str());
@@ -310,8 +327,20 @@ int main(int argc, char** argv) {
       fd = Connect(path);
     }
   }
+  for (int waited = 0; fd < 0 && !chat.empty() && waited < kChatWaitMs;
+       waited += kPollMs) {
+    usleep(kPollMs * 1000);
+    fd = Connect(path);
+  }
   if (fd < 0) {
     return ServeErrors();
+  }
+  if (!chat.empty()) {
+    // McpBridge reads the first line: this connection is the chat's.
+    const std::string hello = "{\"compass_chat\":\"" + chat + "\"}\n";
+    if (!WriteAll(fd, hello.data(), hello.size())) {
+      return 1;
+    }
   }
   return Relay(fd);
 }

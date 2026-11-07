@@ -36,7 +36,18 @@ class McpSession {
                                    const std::string& client,
                                    base::OnceCallback<void(McpApproval)>)>;
 
+  // Runs a tool for a chat of the Claude panel (Claude Code mode), on that
+  // chat's own ClaudeTools.
+  using ChatToolRunner = base::RepeatingCallback<
+      void(const std::string& name,
+           base::DictValue arguments,
+           base::OnceCallback<void(ToolResult)> done)>;
+
   McpSession(Profile* profile, SendCallback send, AskCallback ask);
+  // A session for the Claude Code process a chat started (McpBridge::
+  // RegisterChat()): its calls run as the chat's, with no question asked,
+  // since the user started it from the panel.
+  McpSession(Profile* profile, SendCallback send, ChatToolRunner chat);
   McpSession(const McpSession&) = delete;
   McpSession& operator=(const McpSession&) = delete;
   ~McpSession();
@@ -63,6 +74,7 @@ class McpSession {
   const raw_ptr<Profile> profile_;
   SendCallback send_;
   AskCallback ask_;
+  ChatToolRunner chat_;
   std::string client_name_ = "An MCP client";
   Approval approval_ = Approval::kUnknown;
   // tools/call requests waiting their turn: id, name, arguments.

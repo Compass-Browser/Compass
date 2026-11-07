@@ -41,6 +41,11 @@ function toolView(result: {content: ContentBlock[], is_error: boolean}):
 // the model and the system prompt); each message can carry the active page's
 // text. Enter sends, Shift+Enter is a new line, Esc stops a reply. See
 // docs/design/claude.md, "Chat panel".
+//
+// In Claude Code mode (D8) Claude Code keeps the conversation and runs the
+// tools: one Send gets every step of the reply, each starting with its
+// message_start, with the tools' results in between (onToolResult_), and
+// the page only shows them.
 export class CompassClaudeChatAppElement extends CrLitElement {
   static get is() {
     return 'compass-claude-chat-app';
@@ -57,6 +62,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   static override get properties() {
     return {
       attachPage_: {type: Boolean},
+      claudeCode_: {type: Boolean},
       hasKey_: {type: Boolean},
       model_: {type: String},
       pageReadable_: {type: Boolean},
@@ -70,6 +76,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   protected accessor attachPage_: boolean = true;
+  protected accessor claudeCode_: boolean = false;
   protected accessor hasKey_: boolean = true;
   protected accessor model_: string = '';
   protected accessor pageReadable_: boolean = false;
@@ -110,6 +117,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.listenerIds_ = [
       router.onStreamEvent.addListener(this.onStreamEvent_.bind(this)),
       router.onStreamDone.addListener(this.onStreamDone_.bind(this)),
+      router.onToolResult.addListener(this.onToolResult_.bind(this)),
       router.onSetupChanged.addListener(this.applySetup_.bind(this)),
       router.onActivePageChanged.addListener(this.applyPage_.bind(this)),
       router.onAsk.addListener(this.ask_.bind(this)),
@@ -176,6 +184,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
   private applySetup_(setup: Setup) {
     this.hasKey_ = setup.hasKey;
+    this.claudeCode_ = setup.claudeCode;
     this.model_ = setup.model;
   }
 
@@ -282,11 +291,74 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   private onStreamEvent_(name: string, data: string) {
+    if (this.claudeCode_ && !this.streaming_) {
+      // A reply that was stopped.
+      return;
+    }
+    if (this.claudeCode_ && name === 'message_start' &&
+        !this.conversation.streamingTurn) {
+      // Claude Code's next step, after its tools ran.
+      this.conversation.startReply();
+    }
     this.conversation.applyEvent(name, data);
+    const turn = this.conversation.streamingTurn;
+    if (this.claudeCode_ && name === 'message_stop' &&
+        turn?.stopReason === 'tool_use') {
+      // Claude Code runs them now; their results come next.
+      this.conversation.finishReply('');
+      for (const use of turn.content) {
+        if (use.type === 'tool_use' && use.id) {
+          this.conversation.setTool(use.id, {running: true});
+        }
+      }
+    }
+    this.changed_();
+  }
+
+  // Claude Code mode: a tool of the reply ran.
+  private onToolResult_(toolUseId: string, resultJson: string) {
+    if (!this.streaming_) {
+      return;
+    }
+    let result: {content: ContentBlock[], is_error: boolean};
+    try {
+      result = JSON.parse(resultJson);
+    } catch {
+      result = {
+        content: [{type: 'text', text: 'The tool failed.'}],
+        is_error: true,
+      };
+    }
+    this.conversation.setTool(toolUseId, toolView(result));
+    const block: ContentBlock = {
+      type: 'tool_result',
+      tool_use_id: toolUseId,
+      content: result.content,
+      is_error: result.is_error,
+    };
+    const last = this.conversation.turns[this.conversation.turns.length - 1];
+    if (last?.role === 'user' && last.tools) {
+      last.content.push(block);
+    } else {
+      this.conversation.addToolResults([block]);
+    }
     this.changed_();
   }
 
   private onStreamDone_(error: string) {
+    if (this.claudeCode_) {
+      if (!this.streaming_) {
+        return;
+      }
+      if (error && !this.conversation.streamingTurn) {
+        // It failed between steps: the error needs a reply to show in.
+        this.conversation.startReply();
+      }
+      this.conversation.finishReply(error);
+      this.conversation.closeOpenTools('Not run: the reply ended first.');
+      this.endTask_();
+      return;
+    }
     const turn = this.conversation.streamingTurn;
     this.conversation.finishReply(error);
     if (!error && turn?.stopReason === 'tool_use' && this.streaming_) {

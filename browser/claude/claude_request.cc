@@ -49,6 +49,10 @@ ChatRequest::ChatRequest(ChatRequest&&) = default;
 ChatRequest& ChatRequest::operator=(ChatRequest&&) = default;
 ChatRequest::~ChatRequest() = default;
 
+std::string SystemPromptText() {
+  return base::StrCat({assets::kSystemPrompt, "\n\n", kAdditions});
+}
+
 std::string BuildMessageContext(const ChatOptions& options) {
   std::string context = base::StrCat(
       {"<context>\nToday is ",

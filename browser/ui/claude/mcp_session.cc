@@ -99,6 +99,16 @@ McpSession::McpSession(Profile* profile, SendCallback send, AskCallback ask)
       ask_(std::move(ask)),
       tools_(std::make_unique<ClaudeTabs>(profile, nullptr)) {}
 
+McpSession::McpSession(Profile* profile,
+                       SendCallback send,
+                       ChatToolRunner chat)
+    : profile_(profile),
+      send_(std::move(send)),
+      chat_(std::move(chat)),
+      client_name_("Claude Code"),
+      approval_(Approval::kAllowed),
+      tools_(std::make_unique<ClaudeTabs>(profile, nullptr)) {}
+
 McpSession::~McpSession() = default;
 
 void McpSession::OnMessage(const std::string& line) {
@@ -228,6 +238,15 @@ void McpSession::RunNext() {
     return;
   }
   running_ = true;
+  if (chat_) {
+    // The chat's tools keep its target, permission and Stop.
+    std::string name = call.name;
+    chat_.Run(call.name, std::move(call.arguments),
+              base::BindOnce(&McpSession::OnToolDone,
+                             weak_factory_.GetWeakPtr(), std::move(call.id),
+                             std::move(name)));
+    return;
+  }
   const bool picks_tab = call.name == "select_tab" || call.name == "open_tab";
   if (!picked_tab_ && call.name != "list_tabs" && !picks_tab &&
       call.name != "close_tab") {
