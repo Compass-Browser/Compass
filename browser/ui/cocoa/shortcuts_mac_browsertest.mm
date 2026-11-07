@@ -42,9 +42,7 @@
 namespace compass {
 namespace {
 
-// The command the key with |key_code| and |modifiers| runs, as when typed:
-// the main menu's key equivalents first, then the shortcuts outside it.
-int CommandForKeys(int key_code, NSEventModifierFlags modifiers) {
+NSEvent* KeyEvent(int key_code, NSEventModifierFlags modifiers) {
   unichar shifted_character;
   unichar character;
   ui::MacKeyCodeForWindowsKeyCode(ui::KeyboardCodeFromKeyCode(key_code),
@@ -62,7 +60,18 @@ int CommandForKeys(int key_code, NSEventModifierFlags modifiers) {
                                                                   shifted_character]
                              isARepeat:NO
                                keyCode:key_code];
-  return CommandForKeyEvent(event).chrome_command;
+  return event;
+}
+
+// The command the key with |key_code| and |modifiers| runs, as when typed:
+// the main menu's key equivalents first, then the shortcuts outside it.
+int CommandForKeys(int key_code, NSEventModifierFlags modifiers) {
+  return CommandForKeyEvent(KeyEvent(key_code, modifiers)).chrome_command;
+}
+
+// The command those keys run once the page passed on them.
+int DelayedCommandForKeys(int key_code, NSEventModifierFlags modifiers) {
+  return DelayedWebContentsCommandForKeyEvent(KeyEvent(key_code, modifiers));
 }
 
 constexpr NSEventModifierFlags kCommand = NSEventModifierFlagCommand;
@@ -298,6 +307,52 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, SettingsPage) {
                             /*command=*/false);
   ASSERT_TRUE(base::test::RunUntil(
       [] { return !ShortcutSettings::Get().recording(); }));
+}
+
+// Cmd+Z and Cmd+Shift+Z undo and redo closing tabs, once the page passed on
+// them (docs/design/sidebar.md, "Undo closing"); in text, they're the Edit
+// menu's Undo and Redo.
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, UndoCloseTab) {
+  // The page has them first.
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_Z, kCommand), NO_COMMAND);
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_Z, kCommandShift), NO_COMMAND);
+  EXPECT_EQ(DelayedCommandForKeys(kVK_ANSI_Z, kCommand), kUndoCloseTabCommand);
+  EXPECT_EQ(DelayedCommandForKeys(kVK_ANSI_Z, kCommandShift),
+            kRedoCloseTabCommand);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<input id=field value=typed>")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,second"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  TabStripModel* strip = browser()->tab_strip_model();
+  const int count = strip->count();
+  chrome::CloseTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] { return strip->count() == count - 1; }));
+
+  // In a field, the keys are the field's.
+  content::WebContents* contents = strip->GetActiveWebContents();
+  contents->Focus();
+  ASSERT_TRUE(content::ExecJs(contents, "document.getElementById('field').focus()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return contents->IsFocusedElementEditable(); }));
+  chrome::ExecuteCommand(browser(), kUndoCloseTabCommand);
+  EXPECT_EQ(strip->count(), count - 1);
+
+  // Outside text, the tab comes back.
+  ASSERT_TRUE(content::ExecJs(contents, "document.activeElement.blur()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !contents->IsFocusedElementEditable(); }));
+  chrome::ExecuteCommand(browser(), kUndoCloseTabCommand);
+  ASSERT_TRUE(base::test::RunUntil([&] { return strip->count() == count; }));
+  EXPECT_EQ(strip->GetActiveWebContents()->GetVisibleURL(),
+            GURL("data:text/html,second"));
+
+  // And Cmd+Shift+Z closes it again.
+  chrome::ExecuteCommand(browser(), kRedoCloseTabCommand);
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return strip->count() == count - 1; }));
 }
 
 }  // namespace

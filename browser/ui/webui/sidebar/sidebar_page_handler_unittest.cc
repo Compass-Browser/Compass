@@ -13,6 +13,8 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "base/test/task_environment.h"
@@ -34,8 +36,10 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -505,6 +509,121 @@ TEST_F(SidebarPageHandlerTest, DeleteNodeRemovesPinnedEntriesOnly) {
 
   EXPECT_THAT(space_model().pinned_root()->children(), IsEmpty());
   EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+// Undo closing (docs/design/sidebar.md, "Undo closing").
+
+// |parent|'s children as "host" for tabs and "Name{...}" for folders.
+std::vector<std::string> Describe(const SidebarNode* parent) {
+  std::vector<std::string> out;
+  for (const auto& child : parent->children()) {
+    if (child->type() == SidebarNode::Type::kFolder) {
+      std::string inner;
+      for (const std::string& part : Describe(child.get())) {
+        inner += (inner.empty() ? "" : ",") + part;
+      }
+      out.push_back(base::UTF16ToUTF8(child->title()) + "{" + inner + "}");
+    } else {
+      out.push_back(std::string(child->url().host()));
+    }
+  }
+  return out;
+}
+
+TEST_F(SidebarPageHandlerTest, UndoBringsBackAnUnloadedEntry) {
+  space_model().AddTab(space_model().today_root(), 1,
+                       GURL("https://unloaded.test/"), u"Unloaded");
+  Settle();
+  const std::string id = TodayId(1);
+  ASSERT_EQ(tab_strip_model()->count(), 2);
+
+  handler_remote_->CloseNode(id);
+  Settle();
+  ASSERT_THAT(Describe(space_model().today_root()),
+              ElementsAre("a.test", "b.test"));
+
+  ASSERT_TRUE(UndoClose(browser()));
+  Settle();
+
+  EXPECT_THAT(Describe(space_model().today_root()),
+              ElementsAre("a.test", "unloaded.test", "b.test"));
+  EXPECT_EQ(TodayId(1), id);
+  // It wasn't open, so it stays unloaded.
+  EXPECT_EQ(tab_strip_model()->count(), 2);
+  EXPECT_FALSE(WindowFeatures::From(browser())->registry().GetTab(
+      space_model().today_root()->children()[1].get()));
+}
+
+TEST_F(SidebarPageHandlerTest, UndoBringsBackTodayAfterClear) {
+  SpaceModel& space = space_model();
+  SidebarNode* today = space.today_root();
+  SidebarNode* trip = space.AddFolder(today, 0, u"Trip");
+  space.Move(today->children()[2].get(), trip, 0);
+  SidebarNode* inner = space.AddFolder(trip, 1, u"Inner");
+  space.AddTab(inner, 0, GURL("https://unloaded.test/"), u"Unloaded");
+  Settle();
+  ASSERT_THAT(Describe(today),
+              ElementsAre("Trip{b.test,Inner{unloaded.test}}", "a.test"));
+  ASSERT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
+            GURL("https://a.test/"));
+
+  handler_remote_->ClearToday();
+  Settle();
+  ASSERT_THAT(today->children(), IsEmpty());
+
+  // One step brings it all back; only the tab the window showed opens.
+  ASSERT_TRUE(UndoClose(browser()));
+  CommitPendingLoad(
+      &tab_strip_model()->GetActiveWebContents()->GetController());
+  Settle();
+
+  EXPECT_THAT(Describe(today),
+              ElementsAre("Trip{b.test,Inner{unloaded.test}}", "a.test"));
+  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetLastCommittedURL(),
+            GURL("https://a.test/"));
+  LiveTabRegistry& registry = WindowFeatures::From(browser())->registry();
+  EXPECT_TRUE(registry.GetTab(today->children()[1].get()));
+  EXPECT_FALSE(registry.GetTab(today->children()[0]->children()[0].get()));
+  EXPECT_FALSE(CanUndoClose(browser()));
+}
+
+TEST_F(SidebarPageHandlerTest, UndoBringsBackADeletedPinnedFolder) {
+  SpaceModel& space = space_model();
+  SidebarNode* folder = space.AddFolder(space.pinned_root(), 0, u"Work");
+  space.AddTab(folder, 0, GURL("https://docs.test/"), u"Docs");
+  space.AddTab(folder, 1, GURL("https://mail.test/"), u"Mail");
+  const std::string id = folder->id().AsLowercaseString();
+  Settle();
+
+  handler_remote_->DeleteNode(id);
+  Settle();
+  ASSERT_THAT(space.pinned_root()->children(), IsEmpty());
+
+  ASSERT_TRUE(UndoClose(browser()));
+  Settle();
+  EXPECT_THAT(Describe(space.pinned_root()),
+              ElementsAre("Work{docs.test,mail.test}"));
+
+  // And redo removes it again.
+  ASSERT_TRUE(RedoClose(browser()));
+  Settle();
+  EXPECT_THAT(space.pinned_root()->children(), IsEmpty());
+}
+
+TEST_F(SidebarPageHandlerTest, ReopenClosedTabCommandUndoes) {
+  space_model().AddTab(space_model().today_root(), 2,
+                       GURL("https://unloaded.test/"), u"Unloaded");
+  Settle();
+  handler_remote_->CloseNode(TodayId(2));
+  Settle();
+
+  // Upstream's TabRestoreService never knew the unloaded entry; the
+  // command controller asks Compass too.
+  EXPECT_TRUE(IsBrowserCommandEnabled(browser(), IDC_RESTORE_TAB));
+  EXPECT_TRUE(HandleBrowserCommand(browser(), IDC_RESTORE_TAB));
+  Settle();
+  EXPECT_EQ(space_model().today_root()->children().size(), 3u);
+  EXPECT_FALSE(IsBrowserCommandEnabled(browser(), IDC_RESTORE_TAB));
 }
 
 TEST_F(SidebarPageHandlerTest, FoldersInToday) {

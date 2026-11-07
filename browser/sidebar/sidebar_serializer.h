@@ -13,6 +13,7 @@ class GURL;
 
 namespace compass {
 
+class SidebarNode;
 class SpaceList;
 class SpaceModel;
 
@@ -56,6 +57,20 @@ base::DictValue SerializeSpace(const SpaceModel& model);
 // to the model's archive. The ID, name, color and archive delay are left to
 // the caller.
 size_t DeserializeSpace(const base::DictValue& data, SpaceModel& model);
+
+// One entry (a tab, split or folder) and its subtree, as <node> above, with
+// every tab kept, restorable or not. For closed entries that come back
+// (closed_entries.h).
+base::DictValue SerializeEntry(const SidebarNode& entry);
+
+// Adds the entry |data| (from SerializeEntry()) to |parent| at |index| and
+// returns it, or null if |parent| can't hold it. Nodes keep their saved IDs
+// unless |model| already has them. A split saved with one pane comes back as
+// that pane.
+SidebarNode* DeserializeEntry(const base::DictValue& data,
+                              SpaceModel& model,
+                              SidebarNode* parent,
+                              size_t index);
 
 // Whether a Today tab at |url| is worth keeping once its tab is gone. New tab
 // and blank pages aren't.

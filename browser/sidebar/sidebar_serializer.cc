@@ -564,6 +564,22 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
   return saved.size();
 }
 
+base::DictValue SerializeEntry(const SidebarNode& entry) {
+  std::optional<base::DictValue> dict = SerializeNode(entry, /*today=*/false);
+  return dict ? std::move(*dict) : base::DictValue();
+}
+
+SidebarNode* DeserializeEntry(const base::DictValue& data,
+                              SpaceModel& model,
+                              SidebarNode* parent,
+                              size_t index) {
+  index = std::min(index, parent->children().size());
+  if (!DeserializeNode(data, model, parent, index)) {
+    return nullptr;
+  }
+  return parent->children()[index].get();
+}
+
 bool IsRestorableURL(const GURL& url) {
   if (!url.is_valid() || url.IsAboutBlank()) {
     return false;

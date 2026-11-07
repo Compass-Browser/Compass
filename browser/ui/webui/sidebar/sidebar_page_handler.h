@@ -46,6 +46,7 @@ class WebContents;
 
 namespace compass {
 
+class ClosedEntries;
 class NowPlayingTracker;
 class SidebarContextMenu;
 class SidebarHoverCard;
@@ -255,6 +256,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   SpaceModel& GetModelOf(const SidebarNode* node);
   TabStripBridge& bridge();
   LiveTabRegistry& registry();
+  // The profile's, for Cmd+Z.
+  ClosedEntries& closed_entries();
 
   // Stops following the models and the window, for good: on destruction, or
   // once the window swapped away.
@@ -286,9 +289,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // The node of the window's active tab, as an ID for the page.
   std::optional<std::string> GetActiveNodeId();
 
-  // Closes |tab_node|'s live tab through the strip, or removes the node if it
-  // has none.
-  void CloseTabNode(SidebarNode* tab_node);
+  // Closes |tab_node|'s live tab through the strip of the window that has it,
+  // or removes the node if it has none. Recorded for Cmd+Z, unless
+  // |recorded|: the caller recorded the step it belongs to.
+  void CloseTabNode(SidebarNode* tab_node, bool recorded = false);
 
   // Opens a copy of tab node |node| in the foreground, as a Today entry.
   void DuplicateNode(SidebarNode* node);

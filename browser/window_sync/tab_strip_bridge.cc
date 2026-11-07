@@ -18,7 +18,9 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/tab_list/tab_removed_reason.h"
+#include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -29,6 +31,7 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/sessions/core/tab_restore_service.h"
 #include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/split_tab_data.h"
@@ -38,6 +41,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
@@ -156,6 +160,7 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
                                SpaceModel* favorites,
                                LiveTabRegistry* registry,
                                RestoredTabMatcher* restored_tab_matcher,
+                               ClosedEntries* closed_entries,
                                bool mirrors_tabs)
     : browser_(browser),
       tab_strip_model_(mirrors_tabs ? browser->GetTabStripModel() : nullptr),
@@ -163,6 +168,7 @@ TabStripBridge::TabStripBridge(BrowserWindowInterface* browser,
       favorites_(favorites),
       registry_(registry),
       restored_tab_matcher_(restored_tab_matcher),
+      closed_entries_(closed_entries),
       mirrors_tabs_(mirrors_tabs) {
   CHECK(space_model_);
   CHECK(favorites_);
@@ -209,6 +215,27 @@ tabs::TabInterface* TabStripBridge::OpenNodeInBackground(
     SidebarNode* tab_node) {
   CHECK_EQ(tab_node->type(), SidebarNode::Type::kTab);
   return OpenTabNode(tab_node, /*foreground=*/false);
+}
+
+tabs::TabInterface* TabStripBridge::ReopenNode(
+    SidebarNode* tab_node,
+    std::optional<SessionID> history) {
+  CHECK_EQ(tab_node->type(), SidebarNode::Type::kTab);
+  if (history && tab_strip_model_ && !registry_->GetTab(tab_node)) {
+    sessions::TabRestoreService* service =
+        TabRestoreServiceFactory::GetForProfile(browser_->GetProfile());
+    sessions::LiveTabContext* context = BrowserLiveTabContext::From(browser_);
+    if (service && context) {
+      // Restored here, whatever window it closed in, and given to the node
+      // (AddNodeForTab()), not to the first entry with its URL.
+      base::AutoReset<raw_ptr<SidebarNode>> adopting(&adopting_node_,
+                                                     tab_node);
+      service->RestoreEntryById(context, *history,
+                                WindowOpenDisposition::NEW_FOREGROUND_TAB);
+    }
+  }
+  // Restored, it's there; a pane brings the rest of its split.
+  return OpenNode(tab_node);
 }
 
 tabs::TabInterface* TabStripBridge::OpenNode(SidebarNode* tab_node) {
@@ -385,6 +412,15 @@ void TabStripBridge::OnTabStripModelChanged(
   }
   if (change.type() == TabStripModelChange::kRemoved) {
     for (const auto& removed : change.GetRemove()->contents) {
+      // A tab closing for a step ClosedEntries recorded: its history goes
+      // with the step.
+      if (auto it = closing_for_step_.find(removed.tab->GetHandle());
+          it != closing_for_step_.end()) {
+        if (removed.session_id && closed_entries_) {
+          closed_entries_->SetHistory(it->second, removed.session_id->id());
+        }
+        closing_for_step_.erase(it);
+      }
       last_removal_closed_tab_ =
           TabRemoveReasonUtils::WillDeleteTab(removed.remove_reason) &&
           !handing_off_ &&
@@ -417,7 +453,9 @@ void TabStripBridge::OnTabStripModelChanged(
                              weak_factory_.GetWeakPtr(), node->id(),
                              removed.index));
         }
-        RemoveNodeForTab(removed.tab, will_delete);
+        RemoveNodeForTab(removed.tab, will_delete,
+                         /*shown=*/removed.tab == selection.old_tab,
+                         removed.session_id);
       }
       break;
     case TabStripModelChange::kMoved:
@@ -700,6 +738,16 @@ void TabStripBridge::OnNodeWillBeRemoved(const SidebarNode& node) {
   CollectLiveTabs(*this, &node, live_tabs);
   std::vector<tabs::TabHandle> to_close;
   for (tabs::TabInterface* tab : live_tabs) {
+    // Removed for a step ClosedEntries recorded (the sidebar's Delete, Clear
+    // Today, Cmd+Shift+Z): the tab's history goes with the step.
+    SidebarNode* tab_node = registry_->GetNode(tab);
+    if (closed_entries_ && tab_node &&
+        closed_entries_->TakeExpectedClose(tab_node->id())) {
+      closed_entries_->SetOpen(
+          tab_node->id(),
+          tab_strip_model_ && tab_strip_model_->GetActiveTab() == tab);
+      closing_for_step_[tab->GetHandle()] = tab_node->id();
+    }
     registry_->Unregister(tab);
     to_close.push_back(tab->GetHandle());
   }
@@ -892,7 +940,9 @@ void TabStripBridge::MoveNodeForTab(tabs::TabInterface* tab, int to_index) {
 }
 
 void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
-                                      bool will_delete) {
+                                      bool will_delete,
+                                      bool shown,
+                                      std::optional<SessionID> history) {
   seen_.erase(tab->GetHandle());
   auto placeholder = placeholders_.find(tab->GetHandle());
   if (placeholder != placeholders_.end()) {
@@ -915,6 +965,7 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
   if (favorites_->Contains(node)) {
     // A favorite stays, unloaded.
     if (!window_closing) {
+      RecordClose(*favorites_, *node, shown, history);
       GoBackToSavedUrl(*favorites_, node);
     }
     return;
@@ -928,15 +979,40 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
     // window, it keeps its page, so that a restored tab finds it
     // (RestoredTabMatcher matches by URL).
     if (!window_closing) {
+      RecordClose(*space_model_, *node, shown, history);
       GoBackToSavedUrl(*space_model_, node);
     }
     return;
   }
-  if (window_closing && IsRestorableURL(node->url())) {
-    return;
+  if (window_closing) {
+    if (IsRestorableURL(node->url())) {
+      return;
+    }
+  } else {
+    RecordClose(*space_model_, *node, shown, history);
   }
   base::AutoReset<bool> updating(&updating_, true);
   space_model_->Remove(node);
+}
+
+void TabStripBridge::RecordClose(SpaceModel& model,
+                                 const SidebarNode& node,
+                                 bool shown,
+                                 std::optional<SessionID> history) {
+  if (!closed_entries_) {
+    return;
+  }
+  if (!closed_entries_->TakeExpectedClose(node.id())) {
+    if (IsPinned(&node)) {
+      closed_entries_->RecordUnload(model, node);
+    } else {
+      closed_entries_->RecordRemoval(model, node);
+    }
+  }
+  closed_entries_->SetOpen(node.id(), shown);
+  if (history) {
+    closed_entries_->SetHistory(node.id(), history->id());
+  }
 }
 
 void TabStripBridge::GoBackToSavedUrl(SpaceModel& model, SidebarNode* node) {

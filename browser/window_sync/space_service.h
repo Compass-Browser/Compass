@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
+#include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
@@ -72,6 +73,8 @@ class SpaceService : public base::SupportsUserData::Data,
   SpaceList& space_list() { return space_list_; }
   LiveTabRegistry& registry() { return registry_; }
   RestoredTabMatcher& restored_tab_matcher(const SpaceModel& space);
+  // The entries the user closed, for Cmd+Z (undo_close.h).
+  ClosedEntries& closed_entries() { return closed_entries_; }
   SidebarStore* store() { return store_.get(); }
   // Whether its file has loaded (always, off the record).
   bool loaded() const { return loaded_; }
@@ -131,6 +134,7 @@ class SpaceService : public base::SupportsUserData::Data,
   const raw_ptr<Profile> profile_;
   SpaceList space_list_;
   LiveTabRegistry registry_;
+  ClosedEntries closed_entries_;
   // By space. Spaces stay put in memory, but the active space's ID can change
   // while the file loads.
   base::flat_map<const SpaceModel*, std::unique_ptr<RestoredTabMatcher>>

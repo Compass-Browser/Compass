@@ -44,8 +44,10 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "compass/common/compass_url.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
@@ -288,11 +290,19 @@ void SidebarPageHandler::CloseNode(const std::string& id) {
   if (!node) {
     return;
   }
+  // Whatever closes is one step for Cmd+Z.
+  ClosedEntries::ScopedStep step(closed_entries());
   switch (node->type()) {
     case SidebarNode::Type::kTab:
       CloseTabNode(node);
       break;
     case SidebarNode::Type::kSplit: {
+      // A Today split comes back whole. A pinned one stays, and each pane
+      // records what happens to it.
+      const bool recorded = !space_model().pinned_root()->Contains(node);
+      if (recorded) {
+        closed_entries().RecordRemoval(space_model(), *node);
+      }
       // Closing a pane can dissolve the split, so go by ID.
       std::vector<base::Uuid> panes;
       for (const auto& pane : node->children()) {
@@ -300,7 +310,7 @@ void SidebarPageHandler::CloseNode(const std::string& id) {
       }
       for (const base::Uuid& pane_id : panes) {
         if (SidebarNode* pane = space_model().FindById(pane_id)) {
-          CloseTabNode(pane);
+          CloseTabNode(pane, recorded);
         }
       }
       break;
@@ -314,6 +324,11 @@ void SidebarPageHandler::CloseNode(const std::string& id) {
 
 void SidebarPageHandler::ClearToday() {
   SpaceModel& space = space_model();
+  // One step for Cmd+Z, which brings Today back as it was, folders too.
+  ClosedEntries::ScopedStep step(closed_entries());
+  for (const auto& entry : space.today_root()->children()) {
+    closed_entries().RecordRemoval(space, *entry);
+  }
   // Closing a tab changes the tree (splits dissolve, folders close), so go
   // by ID.
   std::vector<base::Uuid> tabs;
@@ -335,7 +350,7 @@ void SidebarPageHandler::ClearToday() {
   }
   for (const base::Uuid& tab_id : tabs) {
     if (SidebarNode* tab = space.FindById(tab_id)) {
-      CloseTabNode(tab);
+      CloseTabNode(tab, /*recorded=*/true);
     }
   }
   // Folders that never held a tab, or whose tabs all closed.
@@ -490,7 +505,12 @@ void SidebarPageHandler::DeleteNode(const std::string& id) {
   if (space_model().pinned_root()->Contains(node) ||
       favorites().Contains(node) ||
       node->type() == SidebarNode::Type::kFolder) {
-    GetModelOf(node).Remove(node);
+    SpaceModel& model = GetModelOf(node);
+    ClosedEntries::ScopedStep step(closed_entries());
+    closed_entries().RecordRemoval(model, *node);
+    // Its live tabs close with it, and their history goes with the step.
+    ExpectLiveTabsToClose(registry(), *node, closed_entries());
+    model.Remove(node);
   }
 }
 
@@ -1234,6 +1254,10 @@ LiveTabRegistry& SidebarPageHandler::registry() {
   return features_->registry();
 }
 
+ClosedEntries& SidebarPageHandler::closed_entries() {
+  return features_->service().closed_entries();
+}
+
 void SidebarPageHandler::SendSpaces() {
   Profile* own_profile = browser_->GetProfile();
   std::vector<SpaceDirectory::Entry> entries;
@@ -1419,15 +1443,26 @@ void SidebarPageHandler::DuplicateNode(SidebarNode* node) {
   }
 }
 
-void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node) {
-  tabs::TabInterface* tab = bridge().GetTab(tab_node);
-  if (!tab) {
-    GetModelOf(tab_node).Remove(tab_node);
-    return;
+void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node, bool recorded) {
+  ClosedEntries& closed = closed_entries();
+  // Open in a window, this one or another: it closes there, as Cmd+W would,
+  // and that window's bridge records it (a pinned tab stays, unloaded).
+  if (registry().GetTab(tab_node)) {
+    if (recorded) {
+      closed.ExpectClose(tab_node->id());
+    }
+    if (CloseLiveTab(registry(), *tab_node)) {
+      return;
+    }
+    if (recorded) {
+      closed.TakeExpectedClose(tab_node->id());
+    }
   }
-  tab_strip_model()->CloseWebContentsAt(
-      tab_strip_model()->GetIndexOfTab(tab),
-      CLOSE_USER_GESTURE | CLOSE_CREATE_HISTORICAL_TAB);
+  SpaceModel& model = GetModelOf(tab_node);
+  if (!recorded) {
+    closed.RecordRemoval(model, *tab_node);
+  }
+  model.Remove(tab_node);
 }
 
 }  // namespace compass

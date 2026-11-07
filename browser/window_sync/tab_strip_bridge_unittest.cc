@@ -34,7 +34,9 @@
 #include "content/public/browser/restore_type.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/referrer.h"
+#include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -573,6 +575,113 @@ TEST_F(TabStripBridgeTest, ReportsLiveChanges) {
 }
 
 // Two windows of one profile share its model.
+// Undo closing (docs/design/sidebar.md, "Undo closing"). Unit tests have no
+// TabRestoreService, so tabs come back at their URL, without history.
+
+ClosedEntries& Closed(BrowserWindowInterface* browser) {
+  return WindowFeatures::From(browser)->service().closed_entries();
+}
+
+TEST_F(TabStripBridgeTest, UndoBringsBackAClosedTabAndShowsIt) {
+  OpenTabs({"a.test", "b.test", "c.test"});
+  const base::Uuid b = TodayAt(1)->id();
+
+  tab_strip_model()->CloseWebContentsAt(1, CLOSE_USER_GESTURE);
+  Settle();
+  ASSERT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("a.test", "c.test"));
+  ASSERT_TRUE(CanUndoClose(browser()));
+
+  ASSERT_TRUE(UndoClose(browser()));
+  SidebarNode* node = space_model().FindById(b);
+  ASSERT_TRUE(node);
+  tabs::TabInterface* tab = bridge().GetTab(node);
+  ASSERT_TRUE(tab);
+  CommitPendingLoad(&tab->GetContents()->GetController());
+  Settle();
+
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("a.test", "b.test", "c.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test", "b.test", "c.test"));
+  EXPECT_EQ(tab_strip_model()->GetActiveTab(), tab);
+  EXPECT_FALSE(CanUndoClose(browser()));
+  EXPECT_TRUE(CanRedoClose(browser()));
+}
+
+TEST_F(TabStripBridgeTest, RedoClosesItAgain) {
+  OpenTabs({"a.test", "b.test"});
+  tab_strip_model()->CloseWebContentsAt(1, CLOSE_USER_GESTURE);
+  Settle();
+  ASSERT_TRUE(UndoClose(browser()));
+  CommitPendingLoad(&tab_strip_model()->GetActiveWebContents()->GetController());
+  Settle();
+  ASSERT_THAT(StripHosts(), ElementsAre("a.test", "b.test"));
+
+  ASSERT_TRUE(RedoClose(browser()));
+  Settle();
+
+  EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("a.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test"));
+  EXPECT_FALSE(CanRedoClose(browser()));
+  // And undo again.
+  ASSERT_TRUE(UndoClose(browser()));
+  Settle();
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("a.test", "b.test"));
+}
+
+TEST_F(TabStripBridgeTest, UndoReopensAPinnedTabOnThePageItShowed) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+  NavigateAndCommit(bridge().GetTab(pinned)->GetContents(),
+                    GURL("https://z.test/"));
+  Settle();
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_USER_GESTURE);
+  Settle();
+  ASSERT_EQ(pinned->url(), GURL("https://b.test/"));
+
+  ASSERT_TRUE(UndoClose(browser()));
+  tabs::TabInterface* tab = bridge().GetTab(pinned);
+  ASSERT_TRUE(tab);
+  CommitPendingLoad(&tab->GetContents()->GetController());
+  Settle();
+
+  EXPECT_EQ(pinned->url(), GURL("https://z.test/"));
+  EXPECT_EQ(pinned->saved_url(), GURL("https://b.test/"));
+  EXPECT_EQ(tab_strip_model()->GetActiveTab(), tab);
+}
+
+TEST_F(TabStripBridgeTest, UndoPutsAClosedPaneBackInItsSplit) {
+  OpenTabs({"a.test", "b.test", "c.test"});
+  space_model().Split(TodayAt(0), TodayAt(2));
+  Settle();
+  ASSERT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "b.test"));
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_USER_GESTURE);
+  Settle();
+  ASSERT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("c.test", "b.test"));
+
+  ASSERT_TRUE(UndoClose(browser()));
+  CommitPendingLoad(&tab_strip_model()->GetActiveWebContents()->GetController());
+  Settle();
+
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("[a.test|c.test]", "b.test"));
+}
+
+TEST_F(TabStripBridgeTest, TabsClosingWithTheirWindowArentRecorded) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+  ASSERT_TRUE(pinned);
+
+  tab_strip_model()->CloseAllTabs();
+  Settle();
+
+  EXPECT_FALSE(Closed(browser()).CanUndo());
+}
+
 class TabStripBridgeTwoWindowTest : public TabStripBridgeTest {
  protected:
   void SetUp() override {

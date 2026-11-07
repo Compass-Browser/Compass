@@ -321,7 +321,8 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
   }
   bridge_ = std::make_unique<TabStripBridge>(
       browser_, space_, &service_->space_list().favorites(), &registry(),
-      &service_->restored_tab_matcher(*space_), !outside_sidebar_);
+      &service_->restored_tab_matcher(*space_), &service_->closed_entries(),
+      !outside_sidebar_);
   active_tab_subscription_ =
       browser_->RegisterActiveTabDidChange(base::BindRepeating(
           &WindowFeatures::OnActiveTabChanged, base::Unretained(this)));
@@ -476,7 +477,8 @@ void WindowFeatures::EnterCurrentSpace(bool reopen_last_entry) {
   // 4. Every tab already has a node, so the bridge adds none.
   bridge_ = std::make_unique<TabStripBridge>(
       browser_, space_, &service_->space_list().favorites(), &registry(),
-      &service_->restored_tab_matcher(target), !outside_sidebar_);
+      &service_->restored_tab_matcher(target), &service_->closed_entries(),
+      !outside_sidebar_);
 
   // 5. Show what the space showed last, loading it if it isn't open (after a
   // restart, the tabs of spaces no window showed come back unloaded), else

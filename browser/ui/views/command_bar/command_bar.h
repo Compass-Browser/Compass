@@ -78,6 +78,12 @@ class CommandBar {
 // a command is enabled, which they never are.
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id);
 
+// Whether Compass enables browser command |id| where upstream may not:
+// IDC_RESTORE_TAB while a closed sidebar entry can come back, which
+// upstream's TabRestoreService may not know (an unloaded entry). Called from
+// BrowserCommandController::IsCommandEnabled() (see patches/).
+bool IsBrowserCommandEnabled(BrowserWindowInterface* browser, int id);
+
 }  // namespace compass
 
 #endif  // COMPASS_BROWSER_UI_VIEWS_COMMAND_BAR_COMMAND_BAR_H_

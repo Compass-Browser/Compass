@@ -244,6 +244,7 @@ source_set("unit_tests") {
     "//compass/browser/ui/webui/sync:mojo_bindings",
     "//base",
     "//base/test:test_support",
+    "//chrome/app:command_ids",
     "//chrome/browser/autocomplete",
     "//chrome/browser/search_engines",
     "//chrome/browser/ui:recently_audible_helper",

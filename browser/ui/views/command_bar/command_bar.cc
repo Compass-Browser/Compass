@@ -31,11 +31,15 @@
 #include "compass/browser/ui/views/peek/peek.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 #include "compass/browser/window_sync/empty_tab.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/common/compass_url.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/controls/webview/webview.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
@@ -165,7 +169,55 @@ CommandBarPageHandler* CommandBar::GetPageHandler() {
   return ui ? ui->page_handler() : nullptr;
 }
 
+namespace {
+
+// The page of |browser|'s window that has the focus (the active tab's if
+// the window has no focused view), if what's focused in it is editable: a
+// field, or a document being edited.
+content::WebContents* GetEditingContents(BrowserWindowInterface* browser) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  views::FocusManager* focus_manager =
+      browser_view ? browser_view->GetFocusManager() : nullptr;
+  views::View* focused =
+      focus_manager ? focus_manager->GetFocusedView() : nullptr;
+  content::WebContents* contents = nullptr;
+  if (views::WebView* web_view = views::AsViewClass<views::WebView>(focused)) {
+    contents = web_view->web_contents();
+  } else if (!focused) {
+    contents = browser->GetTabStripModel()->GetActiveWebContents();
+  }
+  return contents && contents->IsFocusedElementEditable() ? contents : nullptr;
+}
+
+}  // namespace
+
+bool IsBrowserCommandEnabled(BrowserWindowInterface* browser, int id) {
+  return id == IDC_RESTORE_TAB && CanUndoClose(browser);
+}
+
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
+  if (id == kUndoCloseTabCommand || id == kRedoCloseTabCommand) {
+    // They come only after the page passed on the keys (shortcuts_mac.h).
+    // In text being edited, they're the Edit menu's Undo and Redo.
+    if (content::WebContents* editing = GetEditingContents(browser)) {
+      if (id == kUndoCloseTabCommand) {
+        editing->Undo();
+      } else {
+        editing->Redo();
+      }
+    } else if (id == kUndoCloseTabCommand) {
+      UndoClose(browser);
+    } else {
+      RedoClose(browser);
+    }
+    return true;
+  }
+  // Cmd+Shift+T and Reopen Closed Tab bring back the last closed entry,
+  // loaded or not. Upstream's restore takes what Compass doesn't have (a
+  // closed window).
+  if (id == IDC_RESTORE_TAB && UndoClose(browser)) {
+    return true;
+  }
   if (id == kToggleTabMuteCommand) {
     // The active tab (the focused pane of a split), as its speaker in the
     // sidebar would.

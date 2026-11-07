@@ -30,9 +30,16 @@ inline constexpr int kToggleTabMuteCommand = 39952;
 // "Chat panel").
 inline constexpr int kToggleClaudeCommand = 39953;
 
+// Cmd+Z and Cmd+Shift+Z outside text: undo and redo closing sidebar entries
+// (docs/design/sidebar.md, "Undo closing"). In text, they undo and redo the
+// typing, as the Edit menu does.
+inline constexpr int kUndoCloseTabCommand = 39954;
+inline constexpr int kRedoCloseTabCommand = 39955;
+
 inline bool IsCompassCommand(int id) {
   return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand ||
-         id == kToggleTabMuteCommand || id == kToggleClaudeCommand;
+         id == kToggleTabMuteCommand || id == kToggleClaudeCommand ||
+         id == kUndoCloseTabCommand || id == kRedoCloseTabCommand;
 }
 
 // Upstream commands of features Compass removes: bookmarks and the reading

@@ -41,6 +41,10 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"claude", kToggleClaudeCommand, "Compass", "Chat with Claude"},
 
     {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
+    {"undo-close-tab", kUndoCloseTabCommand, "Tabs",
+     "Undo closing a tab (outside text)"},
+    {"redo-close-tab", kRedoCloseTabCommand, "Tabs",
+     "Redo closing a tab (outside text)"},
     {"next-tab", IDC_SELECT_NEXT_TAB, "Tabs", "Next tab"},
     {"previous-tab", IDC_SELECT_PREVIOUS_TAB, "Tabs", "Previous tab"},
     {"mute-tab", kToggleTabMuteCommand, "Tabs", "Mute or unmute the tab"},
@@ -73,6 +77,28 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"inspect", IDC_DEV_TOOLS_INSPECT, "Developer", "Inspect elements"},
     {"view-source", IDC_VIEW_SOURCE, "Developer", "View source"},
 };
+
+// Compass's commands that run only on keys the page passed on
+// (DelayedCommandForKeyEvent()), with their default keys.
+struct DelayedCommand {
+  int command;
+  ui::Accelerator accelerator;
+};
+const std::vector<DelayedCommand>& DelayedCommands() {
+  static base::NoDestructor<std::vector<DelayedCommand>> commands({
+      {kUndoCloseTabCommand, ui::Accelerator(ui::VKEY_Z, ui::EF_COMMAND_DOWN)},
+      {kRedoCloseTabCommand,
+       ui::Accelerator(ui::VKEY_Z, ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN)},
+  });
+  return *commands;
+}
+
+bool IsDelayed(int command) {
+  return std::ranges::any_of(DelayedCommands(),
+                             [command](const DelayedCommand& delayed) {
+                               return delayed.command == command;
+                             });
+}
 
 // AcceleratorsCocoa's map, which the main menu's items and upstream's menus
 // read, and its entries as Compass ships them (taken before the user's
@@ -196,6 +222,10 @@ class ShortcutApplier : public ShortcutSettings::Observer {
     for (const CustomizableCommand& entry : kCustomizableCommands) {
       const std::optional<ui::Accelerator> custom =
           ShortcutSettings::Get().GetCustom(entry.id);
+      if (IsDelayed(entry.command)) {
+        // DelayedCommandForKeyEvent() reads the user's keys.
+        continue;
+      }
       std::vector<NSMenuItem*> menu_items = MenuItemsFor(entry.command);
       if (menu_items.empty()) {
         // Outside the menu: CustomCommandForKeyEvent() matches it.
@@ -314,6 +344,11 @@ std::vector<ui::Accelerator> GetDefaultAccelerators(int command) {
       accelerators.push_back(accelerator);
     }
   }
+  for (const DelayedCommand& delayed : DelayedCommands()) {
+    if (delayed.command == command) {
+      accelerators.push_back(delayed.accelerator);
+    }
+  }
   return accelerators;
 }
 
@@ -334,6 +369,11 @@ std::optional<std::u16string> FindBuiltInShortcut(
       ui::GetKeyEquivalentAndModifierMaskFromAccelerator(accelerator);
   std::optional<std::u16string> name;
   ForEachMenuItem(NSApp.mainMenu, [&](NSMenuItem* item) {
+    // The Edit menu's Undo and Redo share their keys with the undo and redo
+    // of closing tabs, which give text the keys first.
+    if (item.action == @selector(undo:) || item.action == @selector(redo:)) {
+      return;
+    }
     if (!name && !IsCustomizable(static_cast<int>(item.tag)) &&
         item.title.length &&
         [item.keyEquivalent isEqualToString:equivalent.keyEquivalent] &&
@@ -369,6 +409,22 @@ std::optional<int> CustomCommandForKeyEvent(NSEvent* event) {
     if (CustomAcceleratorFor(static_cast<int>(item.tag)) &&
         [item cr_firesForKeyEquivalentEvent:event]) {
       return NO_COMMAND;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<int> DelayedCommandForKeyEvent(NSEvent* event) {
+  if (IsRecordingShortcut()) {
+    return std::nullopt;
+  }
+  for (const DelayedCommand& delayed : DelayedCommands()) {
+    for (const ui::Accelerator& accelerator :
+         GetAccelerators(delayed.command)) {
+      if ([MakeKeyItem(accelerator, delayed.command)
+              cr_firesForKeyEquivalentEvent:event]) {
+        return delayed.command;
+      }
     }
   }
   return std::nullopt;

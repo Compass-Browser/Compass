@@ -16,6 +16,7 @@ wins and upstream's command loses it. The user can change them (see
 | Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
 | Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md) | New Split Tab, which keeps its Tab menu item without a shortcut |
 | Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
+| Cmd+Z, Cmd+Shift+Z | Outside text, and only when the page passes on the keys: undo and redo closing sidebar entries (`kUndoCloseTabCommand`, `kRedoCloseTabCommand`, sidebar.md "Undo closing"). Cmd+Shift+T undoes the same | The Edit menu's Undo and Redo, which text keeps |
 
 Cmd+T and Cmd+L open the command bar (command-bar.md "Keyboard").
 
@@ -91,6 +92,12 @@ get the focus. The pref is registered by a hook in `RegisterLocalState()`
   (`CustomCommandForKeyEvent()`); upstream's keys for a command the user
   changed then run nothing. `GetDefaultMacAcceleratorForCommandId()`, which
   upstream's views menus show, asks `CustomAcceleratorForCommand()` first.
+- **Undo and redo closing** (Cmd+Z, Cmd+Shift+Z): not in the main menu's
+  map or `CustomCommandForKeyEvent()`, which run before the page. A hook in
+  `DelayedWebContentsCommandForKeyEvent()` (`DelayedCommandForKeyEvent()`)
+  matches their keys, the user's or the defaults, once the page passed on
+  them. `FindBuiltInShortcut()` skips the Edit menu's Undo and Redo, whose
+  keys they share.
 - **Spaces** (Ctrl+1–9): `SpaceShortcuts` registers each space's keys with the
   window's focus manager and registers again when they change.
 - **Click-through** (Ctrl+Option+Cmd+P): `PipWindows` listens for the user's

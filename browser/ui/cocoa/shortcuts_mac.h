@@ -69,6 +69,14 @@ bool IsRecordingShortcut();
 // changed; nullopt to go on with upstream's shortcuts outside the menu.
 std::optional<int> CustomCommandForKeyEvent(NSEvent* event);
 
+// Hook in DelayedWebContentsCommandForKeyEvent(), for keys the page passed
+// on: the undo and redo of closing sidebar entries (kUndoCloseTabCommand,
+// kRedoCloseTabCommand, Cmd+Z and Cmd+Shift+Z unless the user changed
+// them). They come after the page so that a page that handles them itself
+// (an editor, a drawing app) keeps them; in a text field the command does
+// the Edit menu's Undo and Redo. nullopt for other keys.
+std::optional<int> DelayedCommandForKeyEvent(NSEvent* event);
+
 // Hook in GetDefaultMacAcceleratorForCommandId(), which upstream's menus
 // show: nullopt when the user didn't change |command|'s shortcut, else
 // whether it has one (|accelerator|).

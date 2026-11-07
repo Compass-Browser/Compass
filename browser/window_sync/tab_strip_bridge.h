@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "components/sessions/core/session_id.h"
 #include "components/tabs/public/tab_interface.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
@@ -27,6 +28,7 @@ class TabStripModel;
 
 namespace compass {
 
+class ClosedEntries;
 class RestoredTabMatcher;
 
 // The placeholder a window shows for a tab that moved to another window.
@@ -47,8 +49,9 @@ inline constexpr char kPlaceholderURL[] = "chrome://compass-placeholder/";
 // unloaded. So does a Today node whose tab closes with its window. A tab moving
 // to another window keeps its node. A tab Chrome restores takes over its saved
 // entry. When the tab a window shows leaves for another window, the window
-// keeps showing it: a placeholder with a frozen screenshot takes its place. See
-// docs/design/sidebar.md, slices b to d and "Window sync".
+// keeps showing it: a placeholder with a frozen screenshot takes its place.
+// Tabs the user closes are recorded in |closed_entries|, for Cmd+Z. See
+// docs/design/sidebar.md, slices b to d, "Window sync" and "Undo closing".
 class TabStripBridge : public TabStripModelObserver,
                        public SpaceModel::Observer,
                        public LiveTabRegistry::Observer {
@@ -58,6 +61,7 @@ class TabStripBridge : public TabStripModelObserver,
                  SpaceModel* favorites,
                  LiveTabRegistry* registry,
                  RestoredTabMatcher* restored_tab_matcher,
+                 ClosedEntries* closed_entries,
                  bool mirrors_tabs = true);
   TabStripBridge(const TabStripBridge&) = delete;
   TabStripBridge& operator=(const TabStripBridge&) = delete;
@@ -89,6 +93,11 @@ class TabStripBridge : public TabStripModelObserver,
   // OpenNode() in the background, for Claude's tools (docs/design/claude.md,
   // D7): the active tab stays, and a pane doesn't bring its split.
   tabs::TabInterface* OpenNodeInBackground(SidebarNode* tab_node);
+  // Opens |tab_node|, whose close was just undone, in the foreground: with
+  // the history TabRestoreService kept for it as entry |history|, or, if
+  // that's gone (or there's none), as OpenNode() does.
+  tabs::TabInterface* ReopenNode(SidebarNode* tab_node,
+                                 std::optional<SessionID> history);
 
   // The node a placeholder tab stands for, or null if |tab| isn't one (or its
   // node is gone).
@@ -192,8 +201,20 @@ class TabStripBridge : public TabStripModelObserver,
 
   // Removes |tab|'s node, or only unloads it if it's pinned or its window is
   // closing. A tab that isn't deleted (it moves to another window) keeps its
-  // node.
-  void RemoveNodeForTab(tabs::TabInterface* tab, bool will_delete);
+  // node. A close that isn't its window's is recorded for Cmd+Z, with
+  // whether the window showed the tab (|shown|) and the TabRestoreService
+  // entry with its history (|history|).
+  void RemoveNodeForTab(tabs::TabInterface* tab,
+                        bool will_delete,
+                        bool shown,
+                        std::optional<SessionID> history);
+
+  // Records |node| of |model|, whose tab the user closed, for Cmd+Z, unless
+  // the sidebar recorded it before closing it.
+  void RecordClose(SpaceModel& model,
+                   const SidebarNode& node,
+                   bool shown,
+                   std::optional<SessionID> history);
 
   // The roots whose live tabs make up the strip, in strip order.
   std::array<const SidebarNode*, 3> GetRoots() const;
@@ -257,6 +278,7 @@ class TabStripBridge : public TabStripModelObserver,
   const raw_ptr<SpaceModel> favorites_;
   const raw_ptr<LiveTabRegistry> registry_;
   const raw_ptr<RestoredTabMatcher> restored_tab_matcher_;
+  const raw_ptr<ClosedEntries> closed_entries_;
 
   // False for a window outside the sidebar (a little window): the bridge
   // then neither mirrors its strip nor follows the model.
@@ -283,6 +305,10 @@ class TabStripBridge : public TabStripModelObserver,
 
   // Set while a ConvertGroups() task is pending.
   bool convert_groups_scheduled_ = false;
+
+  // Tabs closing because their node was removed for a step ClosedEntries
+  // recorded, and their nodes: their history goes to that step.
+  base::flat_map<tabs::TabHandle, base::Uuid> closing_for_step_;
 
   // This window's placeholder tabs, and the nodes they stand for.
   base::flat_map<tabs::TabHandle, base::Uuid> placeholders_;

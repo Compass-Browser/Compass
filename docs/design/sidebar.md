@@ -545,6 +545,78 @@ serializer (last active, delay and archive round trip; older files get the
 default), a bridge test (unseen tabs close and archive, the shown one stays)
 and a page handler test.
 
+## Undo closing
+
+Goal (issue #9): Cmd+Z brings back what the user just closed, and
+Cmd+Shift+Z closes it again, for unloaded entries too. Upstream's
+reopen-closed-tab knows only tabs that had a `WebContents`, and the sidebar
+closes entries that never had one: an unloaded Today entry, a pinned
+entry's ×, a deleted folder.
+
+**The stack.** `ClosedEntries` (`browser/sidebar/closed_entries.h`), one per
+profile on `SpaceService`, in memory, the last 25 steps. A step is what one
+user action closed: a tab, a split, a folder, Clear Today. Each entry keeps
+either its subtree as data (`SerializeEntry()`, so custom titles, the pinned
+URL, mute and collapse come back) with its node IDs, parent, previous
+sibling and index, or, for a pinned tab or favorite that stayed unloaded,
+the page it showed before it went back to its pinned URL. IDs are kept:
+putting a node back under its old ID revives it on the sync server (sync.md,
+"Create over a tombstone"). A step also keeps, for the tabs that were open,
+the ID of the TabRestoreService entry upstream made as each closed
+(`TabStripModelChange::RemovedTab::session_id`), which has its history.
+
+**Recording.** Only closes the user makes:
+- `TabStripBridge::RemoveNodeForTab()`: a tab closing on its own (Cmd+W, its
+  ×, the page, an extension, Claude). It knows whether the window showed it
+  and its TabRestoreService entry. Not when its window closes, or when it
+  moves to another window.
+- `SidebarPageHandler`: `CloseNode()` (a tab, unloaded or open in any window,
+  which then closes there and is recorded there; a Today split as a whole),
+  `DeleteNode()` (a pinned entry, a folder) and `ClearToday()` (every Today
+  entry, folders too, as one step). It records before anything closes and
+  marks the open tabs it closes as expected (`ExpectClose()`), so their
+  bridge adds only their history to the step.
+- Not archiving, sync, moves between spaces, or `RestoredTabMatcher`.
+- A Today folder that closes as it empties is recorded in the entry's
+  place, with it; a pane whose split ends as it leaves keeps the other
+  pane, and comes back split with it.
+
+**Undo** (`UndoClose()`, `browser/window_sync/undo_close.h`): the window
+switches to the step's space if it shows another, the entries come back,
+unloaded, after the sibling they followed (a parent that's gone sends them
+to the top of Today, or the end of Pinned), and the tab its window showed
+(else the first that was open) opens and is shown. That tab comes back with
+its history: `TabStripBridge::ReopenNode()` asks TabRestoreService for its
+entry in this window, adopting the restored tab for the node, and falls
+back to its URL if the entry is gone. The others come back unloaded.
+
+**Redo** (`RedoClose()`) closes the step's entries again, recording a new
+step without dropping the other redos. Any other close drops them.
+
+**Keys.**
+- `kUndoCloseTabCommand` and `kRedoCloseTabCommand`, Cmd+Z and Cmd+Shift+Z
+  on macOS, customizable ("Undo closing a tab").
+- They run only on keys the page passed on: `DelayedCommandForKeyEvent()`,
+  a hook in upstream's `DelayedWebContentsCommandForKeyEvent()`, as Cmd+Left
+  for Back. A page that handles them (an editor, a drawing app) keeps them.
+- In a page whose focused element is editable, they're the Edit menu's Undo
+  and Redo (`WebContents::Undo()`), so typing undoes as before. In native
+  text fields (the omnibox) the keys never reach them: the Edit menu has
+  them first.
+- **Reopen Closed Tab** (Cmd+Shift+T, the File menu) undoes the same stack
+  and is enabled while it has a step (`IsBrowserCommandEnabled()`), since
+  upstream's state doesn't know unloaded entries. With nothing to undo,
+  upstream restores what it has (a closed window, an archived tab).
+- Other platforms have the commands but no default keys yet.
+
+**Tests:** `ClosedEntriesTest` (places, folders, splits, a pinned tab's page,
+which tab opens, steps and redo, the cap), bridge tests (Cmd+W undone and
+shown, redo, a pinned tab's page, a pane back in its split, window closes
+not recorded), page handler tests (an unloaded entry, Clear Today in one
+step, a deleted pinned folder and its redo, Reopen Closed Tab enabled) and
+`CompassShortcutsBrowserTest.UndoCloseTab` (keys after the page; in a
+field, the field's).
+
 ## Browser UI, not a page
 
 The sidebar's page drops what a web page would do but the browser's own UI
