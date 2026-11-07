@@ -17,3 +17,5 @@ chrome_pgo_phase = 0
 # compass_version to out/Release/args.gn.
 compass_update_feed_url = "https://updates.compassbrowser.org/mac/appcast.xml"
 compass_sparkle_public_key = "FS3QT5Iu8sEmUjdndH5xmg4neztioz9CxvRmARgzbb0="
+# Windows: the updater (browser/updates/win_updater.cc).
+compass_enable_win_updater = true

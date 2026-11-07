@@ -1,9 +1,9 @@
 # Automatic updates
 
 macOS updates through Sparkle, on both channels, published with
-`compass release`. The Windows updater is written and unit-tested but not
-yet built or run on Windows (`compass_enable_win_updater` is off). Linux:
-not planned (distro packages or Flatpak).
+`compass release`. Windows updates through Compass's own updater over
+Chromium's installer, with installers built on Windows or cross-built on a
+Mac. Linux: not planned (distro packages or Flatpak).
 
 ## Channels
 
@@ -179,8 +179,8 @@ browser decides when to run it.
   Upstream's installed-version monitor sees the new version in the registry
   (`pv`), the app menu offers to relaunch, and the relaunch swaps the
   executable. That's all upstream behaviour; nothing is patched for it.
-- **Updater** (`browser/updates/win_updater.cc`, only with
-  `compass_enable_win_updater = true`): two minutes after launch, then every
+- **Updater** (`browser/updates/win_updater.cc`, with
+  `compass_enable_win_updater = true`, which release.gn sets): two minutes after launch, then every
   4 hours, when the channel changes, and from the About page, it reads
   `<channel>.json`. When `win.version` is newer than `CompassVersion()`, it
   downloads the installer (only over https, from the update server or
@@ -189,16 +189,45 @@ browser decides when to run it.
   against a signature from Sparkle's own `sign_update`), and runs it with
   `--do-not-launch-chrome`. The About page goes through
   `version_updater_basic.cc` (patch).
-- **To ship it:** on the Windows machine, set `compass_version` (the same
-  version as the Mac release, or a new one) and
-  `compass_enable_win_updater = true` in `out/Release/args.gn`, then build
-  `mini_installer`. On the release machine, run `compass release publish-win
-  <version> --installer mini_installer.exe [--chromium <version>]`.
+- **Installer versions:** setup.exe only updates in place when Chromium's
+  version goes up; with the same version it "repairs" the install, which
+  stages nothing. Two Compass releases often share a Chromium version, so
+  each Windows release gets the next **Windows build number** N, and its
+  installer is Chromium `MAJOR.N.BUILD.PATCH` (e.g. 156.3.8078.48). N is the
+  GN arg `compass_win_build`; `compass build` writes it into
+  `chrome/VERSION`'s `MINOR` (many targets read that file directly) and puts
+  0 back for builds without it. `releases.json` records it as `win.build`,
+  and `publish-win` refuses a number that isn't newer than every earlier
+  one. chrome://version and the full-version client hints show N; the
+  reduced user agent (`156.0.0.0`) doesn't.
+- **Rebuilds:** official builds salt Mojo's message IDs with
+  `chrome/VERSION`, so a new N would regenerate every binding and recompile
+  most of Chromium. Builds with an N salt with upstream's version instead
+  (`compass/build/mojom_message_id_salt`, written by `compass build`, ignored
+  by git), which still changes with every Chromium update. What still reads
+  `chrome/VERSION` is the version headers and resources, a few dozen build
+  rules instead of thousands.
+- **To ship it:** on the Windows machine, `tools\compass.bat release
+  build-win [<version>]` (the Mac release's version, or a new one) reads
+  `releases.json` from the server for the next N, sets `compass_version`,
+  `compass_win_build` and `compass_enable_win_updater` in
+  `out/Release/args.gn`, builds `chrome mini_installer`, and leaves
+  `CompassSetup-<version>.exe` and a `.json` (version, Chromium, N, commit)
+  in the out dir. Copy both to the release machine and run `compass release
+  publish-win --installer CompassSetup-<version>.exe [--channel beta]`. A
+  Mac can build it too (`--cpu win-x64`, docs/building.md "Windows from a
+  Mac"), in a Chromium checkout of its own so the build number doesn't make
+  its Mac builds rebuild.
+- **After an update:** the installer stages `new_chrome.exe` and sets the
+  registry's `pv`; the About page offers Relaunch at once. The app menu's
+  "Relaunch to update" comes at upstream's first notification stage, an
+  hour after the upgrade detector sees the update
+  (`kDefaultVeryLowThreshold`, checked every 20 minutes). setup.exe leaves
+  the old version folder until its next run.
 - **Not done:** no Authenticode signature (no certificate), so SmartScreen
   warns about the first install's download. Updates are fine: the updater
   runs the file itself, with no mark of the web. No differential updates
-  (mini_installer is about 120 MB). The updater hasn't been built or run on
-  Windows yet.
+  (mini_installer is about 130 MB).
 
 ## Not done
 

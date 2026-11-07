@@ -185,6 +185,53 @@ xcrun notarytool store-credentials compass --apple-id <APPLE_ID> --team-id <TEAM
 The driver submits the app and then the .dmg, waits for Apple, staples both
 tickets, and `compass sign` checks the .dmg with `spctl`.
 
+### Windows from a Mac
+
+A Mac can build Windows Compass (Chromium's `docs/win_cross.md`): `--cpu
+win-x64` builds it in `out/<Config>-win-x64`. Setting it up, once per Mac:
+
+1. Add `"win"` to `target_os` in the Chromium checkout's `.gclient` (e.g.
+   `target_os = ["mac", "win"]`) and run `gclient sync --nohooks
+   --no-history` there, for the Windows-only dependencies.
+2. Package the Windows toolchain on a Windows machine, with the Visual
+   Studio and SDK that `build/vs_toolchain.py` names (`MSVS_VERSIONS`,
+   `SDK_VERSION`: for Chromium 156, Visual Studio 2026 with its C++ workload,
+   MSVC v145 and ATL, and SDK 10.0.28000.0; the script refuses older Visual
+   Studios, so a machine that builds with VS 2022 Build Tools can't make it):
+
+   ```bat
+   cd C:\src\compass-chromium\depot_tools\win_toolchain
+   py -3 package_from_installed.py 2026 -w 10.0.28000.0
+   ```
+
+   Keep the ARM64 libraries (no `--noarm`): on an Apple silicon Mac the
+   host toolchain's data is ARM64's, and GN checks it even for x64 builds.
+   The x86 ones are checked too.
+
+   Put the resulting `<hash>.zip` (and nothing else) in `win_toolchain/` next
+   to the checkout's `depot_tools/`. The compass tool then sets
+   `DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL` and `GYP_MSVS_HASH_<TOOLCHAIN_HASH>`
+   for gclient and the build.
+3. `gclient runhooks` in the checkout with those two variables set (as
+   `tools/compass sync` does), which unpacks the toolchain into
+   `depot_tools/win_toolchain/vs_files`.
+
+Then:
+
+```sh
+tools/compass gen release --cpu win-x64
+tools/compass build -c release --cpu win-x64 chrome mini_installer
+tools/compass release build-win --cpu win-x64   # a release installer
+```
+
+Limits: Crashpad can't report crashes from a cross build (Chromium stubs
+out its `.asm`), and there's no Authenticode signature either way. A
+Windows release build's `compass_win_build` lives in `chrome/VERSION`,
+which the checkout's Mac builds share, so switching between a Windows
+release and a Mac build rebuilds what reads the version on both sides
+(docs/design/updates.md, "Installer versions"). Keep a separate checkout
+for Windows builds.
+
 ## Troubleshooting
 
 - **A change to an override isn't picked up:** run `compass build` rather than

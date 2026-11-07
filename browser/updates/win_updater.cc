@@ -4,9 +4,11 @@
 
 #include "compass/browser/updates/win_updater.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -178,7 +180,7 @@ class WinUpdater : public Updater {
     ScheduleNext();
   }
 
-  void OnManifest(std::unique_ptr<std::string> body) {
+  void OnManifest(std::optional<std::string> body) {
     if (!body) {
       Finish(CheckStatus::kFailed, u"Couldn't reach the update server.");
       return;

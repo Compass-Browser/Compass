@@ -327,15 +327,45 @@ def add_mac_release(manifest: Dict, dmg: Path, channel: str, commit: str,
   return release
 
 
+def win_builds(manifest: Dict) -> List[int]:
+  return [r['win'].get('build', 0) for r in manifest['releases']
+          if r.get('win')]
+
+
+def next_win_build(manifest: Dict) -> int:
+  """The next Windows build number, Chromium's MINOR version in the
+  installer (compass_win_build). Chromium's installer only updates in place
+  when its version goes up, and two releases can share a Chromium version,
+  so each one gets a new number."""
+  return max(win_builds(manifest), default=0) + 1
+
+
+def fetch_manifest(base_url: str = BASE_URL) -> Dict:
+  """releases.json from the update server, for a machine without the site
+  mirror (the Windows build machine)."""
+  import urllib.request
+  with urllib.request.urlopen(base_url + '/releases.json', timeout=30) as r:
+    return json.loads(r.read().decode('utf-8'))
+
+
 def add_win_release(manifest: Dict, installer: Path, version: str,
                     chromium: str, channel: str, commit: str, tools: Path,
-                    site: Path = SITE_DIR) -> Dict:
+                    site: Path = SITE_DIR, win_build: int = 0) -> Dict:
   """Adds a Windows installer (Chromium's mini_installer.exe, built on a
-  Windows machine) to release |version|, or makes that release. The Windows
-  updater checks its size, SHA-256 and Ed25519 signature
-  (browser/updates/update_manifest.cc) before running it."""
+  Windows machine with compass_win_build = |win_build|) to release
+  |version|, or makes that release. The Windows updater checks its size,
+  SHA-256 and Ed25519 signature (browser/updates/update_manifest.cc) before
+  running it."""
   if not re.fullmatch(r'\d+(\.\d+)*', version):
     raise ReleaseError('bad version %r' % version)
+  if win_build < 1:
+    raise ReleaseError('a Windows release needs its build number '
+                       '(compass_win_build), from `compass release build-win`')
+  if win_build <= max(win_builds(manifest), default=0):
+    raise ReleaseError(
+        'Windows build %d isn\'t newer than the last one (%d): Chromium\'s '
+        'installer wouldn\'t update to it. Build again with '
+        '`compass release build-win`.' % (win_build, max(win_builds(manifest))))
   win_dir = site / 'win'
   win_dir.mkdir(parents=True, exist_ok=True)
   archive = win_dir / ('CompassSetup-%s.exe' % version)
@@ -346,6 +376,7 @@ def add_win_release(manifest: Dict, installer: Path, version: str,
       'size': archive.stat().st_size,
       'sha256': sha256(archive),
       'ed_signature': ed_sign(tools / 'sign_update', archive),
+      'build': win_build,
   }
   existing = [r for r in manifest['releases'] if r['version'] == version]
   if existing:

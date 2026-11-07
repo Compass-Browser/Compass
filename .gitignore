@@ -7,3 +7,5 @@ __pycache__/
 # Local dev data (compass sync-server)
 /.dev/
 /third_party/sparkle/
+# Written by `compass build` for Windows releases (tools/compass_tool/cli.py).
+/build/mojom_message_id_salt
