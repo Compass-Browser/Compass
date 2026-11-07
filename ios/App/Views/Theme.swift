@@ -76,13 +76,22 @@ extension SpaceTheme {
 
 extension View {
   /// The space's chrome in its light or dark mode (the theme editor's Mode);
-  /// web pages keep the system's.
-  @ViewBuilder func spaceAppearance(_ theme: SpaceTheme?) -> some View {
-    if let scheme = theme?.colorScheme {
-      environment(\.colorScheme, scheme)
-    } else {
-      self
-    }
+  /// web pages keep the system's. Always the same modifier, whatever the
+  /// mode: switching between "set" and "follow" in an if/else gave the view
+  /// a new identity, so editing a theme past the point where automatic mode
+  /// picks light or dark rebuilt everything under it (the editor's slider
+  /// and pad dropped the drag, the color picker closed, scrolling reset).
+  func spaceAppearance(_ theme: SpaceTheme?) -> some View {
+    modifier(SpaceAppearanceModifier(scheme: theme?.colorScheme))
+  }
+}
+
+private struct SpaceAppearanceModifier: ViewModifier {
+  let scheme: ColorScheme?
+  @Environment(\.colorScheme) private var inherited
+
+  func body(content: Content) -> some View {
+    content.environment(\.colorScheme, scheme ?? inherited)
   }
 }
 
