@@ -19,6 +19,7 @@
 #include "base/path_service.h"
 #include "base/strings/strcat_win.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/shortcut.h"
