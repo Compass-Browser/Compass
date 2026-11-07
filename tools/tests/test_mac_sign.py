@@ -2,7 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import datetime
+import plistlib
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -69,6 +72,104 @@ class MacSignTest(unittest.TestCase):
         '--notarize', 'staple', '--notary-arg=--keychain-profile',
         '--notary-arg=compass'
     ])
+
+  def test_provisioning_profile_arguments(self):
+    for command in (['sign'], ['release', 'publish']):
+      args = parser().parse_args(command)
+      self.assertIsNone(args.provisioning_profile)
+      self.assertFalse(args.no_provisioning_profile)
+    args = parser().parse_args(['sign', '--provisioning-profile', 'x'])
+    self.assertEqual(args.provisioning_profile, 'x')
+
+
+APP_ID = '4M33B5HNDS.it.cipi1965.compass'
+NOW = datetime.datetime(2026, 11, 8, tzinfo=datetime.timezone.utc)
+
+
+def profile(**changes):
+  data = {
+      'Name': 'Compass',
+      'Entitlements': {mac_sign.ENT_APP_ID: APP_ID},
+      'ProvisionsAllDevices': True,
+      'ExpirationDate': datetime.datetime(2044, 11, 2, 22, 59, 37),
+  }
+  data.update(changes)
+  return data
+
+
+class ProfileTest(unittest.TestCase):
+
+  def test_good(self):
+    mac_sign.check_profile(profile(), APP_ID, NOW)
+
+  def test_other_app(self):
+    with self.assertRaisesRegex(mac_sign.ProfileError, 'is for ' + APP_ID):
+      mac_sign.check_profile(profile(), 'ABCDE12345.it.cipi1965.compass', NOW)
+    with self.assertRaises(mac_sign.ProfileError):
+      mac_sign.check_profile(profile(Entitlements={}), APP_ID, NOW)
+
+  def test_development_profile(self):
+    with self.assertRaisesRegex(mac_sign.ProfileError, 'Developer ID'):
+      mac_sign.check_profile(profile(ProvisionsAllDevices=None), APP_ID, NOW)
+
+  def test_expired(self):
+    with self.assertRaisesRegex(mac_sign.ProfileError, 'expired'):
+      mac_sign.check_profile(
+          profile(ExpirationDate=datetime.datetime(2026, 1, 1)), APP_ID, NOW)
+
+
+class PrepareAppIdentifierTest(unittest.TestCase):
+
+  def setUp(self):
+    self.dir = tempfile.TemporaryDirectory()
+    root = Path(self.dir.name)
+    self.app = root / 'Compass.app'
+    (self.app / 'Contents').mkdir(parents=True)
+    with open(self.app / 'Contents' / 'Info.plist', 'wb') as f:
+      plistlib.dump({'CFBundleIdentifier': 'it.cipi1965.compass'}, f)
+    self.packaging = root / 'Compass Packaging'
+    self.packaging.mkdir()
+    self.entitlements = self.packaging / mac_sign.APP_ENTITLEMENTS
+    with open(self.entitlements, 'wb') as f:
+      plistlib.dump({'com.apple.security.device.camera': True}, f)
+    self.profile = root / 'Compass.provisionprofile'
+    self.profile.write_bytes(b'signed profile')
+    self.embedded = self.app / 'Contents' / mac_sign.EMBEDDED_PROFILE
+
+  def tearDown(self):
+    self.dir.cleanup()
+
+  def read_entitlements(self):
+    with open(self.entitlements, 'rb') as f:
+      return plistlib.load(f)
+
+  def prepare(self, profile_path, team='4M33B5HNDS', decoded=None):
+    return mac_sign.prepare_app_identifier(
+        self.app, self.packaging, team, profile_path,
+        decode=lambda path: decoded or profile())
+
+  def test_embeds_and_entitles(self):
+    self.assertEqual(self.prepare(self.profile), APP_ID)
+    self.assertEqual(self.embedded.read_bytes(), b'signed profile')
+    self.assertEqual(self.read_entitlements(), {
+        'com.apple.security.device.camera': True,
+        mac_sign.ENT_APP_ID: APP_ID,
+    })
+
+  def test_without_takes_both_out(self):
+    self.prepare(self.profile)
+    self.assertIsNone(self.prepare(None))
+    self.assertFalse(self.embedded.exists())
+    self.assertEqual(self.read_entitlements(),
+                     {'com.apple.security.device.camera': True})
+
+  def test_wrong_profile_changes_nothing(self):
+    with self.assertRaises(mac_sign.ProfileError):
+      self.prepare(self.profile, team='ABCDE12345')
+    with self.assertRaises(mac_sign.ProfileError):
+      self.prepare(self.profile, team=None)
+    self.assertFalse(self.embedded.exists())
+    self.assertNotIn(mac_sign.ENT_APP_ID, self.read_entitlements())
 
 
 if __name__ == '__main__':
