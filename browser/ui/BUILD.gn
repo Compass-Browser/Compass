@@ -204,6 +204,9 @@ source_set("ui") {
     # code.
     deps += [ "//chrome/browser/device_reauth" ]
   }
+  if (is_win) {
+    sources += [ "views/frame/browser_view_exchange_win.cc" ]
+  }
   if (is_mac) {
     sources += [
       "views/frame/browser_view_exchange_mac.mm",
