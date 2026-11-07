@@ -48,6 +48,11 @@ struct ChatRequest {
 ChatRequest BuildChatRequest(base::ListValue messages,
                              const ChatOptions& options);
 
+// The whole system prompt, as one text: common/claude/system_prompt.md and
+// the note on Compass's <context> and <page> elements. Claude Code mode
+// passes it as --system-prompt.
+std::string SystemPromptText();
+
 // What the browser says about itself in each user message: the date, the
 // permission, the window's tabs, as a <context> element. The page puts it
 // in the message it sends and keeps it there, so the conversation's earlier

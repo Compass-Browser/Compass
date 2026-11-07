@@ -3,14 +3,15 @@
 // found in the LICENSE file.
 
 import type {Model, SettingsState} from '../claude.mojom-webui.js';
-import {AuthStyle, SettingsHandler} from '../claude.mojom-webui.js';
+import {AuthStyle, Backend, SettingsHandler} from '../claude.mojom-webui.js';
 
 import {getTemplate} from './claude_page.html.js';
 import {CompassSettingsPage} from './page_base.js';
 
 // Claude: compass://settings/claude. The key is typed here once and goes to
 // the browser, which stores it encrypted; the page only ever gets its hint
-// back. See docs/design/claude.md, "Settings".
+// back. Or the chat runs on the user's Claude Code (D8). See
+// docs/design/claude.md, "Settings".
 
 // Offered before a connection test lists what the key can use.
 const KNOWN_MODELS: Model[] = [
@@ -51,6 +52,34 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       await this.refresh_();
     });
     this.$('test').addEventListener('click', () => this.test_());
+    for (const id of ['backendApiKey', 'backendClaudeCode']) {
+      this.$<HTMLInputElement>(id).addEventListener('change', async () => {
+        const claudeCode =
+            this.$<HTMLInputElement>('backendClaudeCode').checked;
+        this.handler_.setBackend(
+            claudeCode ? Backend.kClaudeCode : Backend.kApiKey);
+        this.show('testNote', false);
+        await this.refresh_();
+        if (claudeCode) {
+          // Say right away whether it's there and signed in.
+          await this.test_();
+        }
+      });
+    }
+    const savePath = async () => {
+      this.handler_.setClaudeCodePath(
+          this.$<HTMLInputElement>('claudeCodePath').value);
+      this.note_('claudeCodePathNote', 'Saved.', false);
+      await this.refresh_();
+      await this.test_();
+    };
+    this.$('saveClaudeCodePath').addEventListener('click', savePath);
+    this.$<HTMLInputElement>('claudeCodePath')
+        .addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            savePath();
+          }
+        });
     this.$<HTMLSelectElement>('model').addEventListener('change', () => {
       this.handler_.setModel(this.$<HTMLSelectElement>('model').value);
     });
@@ -76,6 +105,14 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   private async refresh_() {
     const {state} = await this.handler_.getState();
     this.state_ = state;
+    const claudeCode = state.backend === Backend.kClaudeCode;
+    this.$<HTMLInputElement>('backendApiKey').checked = !claudeCode;
+    this.$<HTMLInputElement>('backendClaudeCode').checked = claudeCode;
+    this.show('apiKeySection', !claudeCode);
+    this.show('advanced', !claudeCode);
+    this.show('claudeCodeSection', claudeCode);
+    this.show('claudeCodeNoTools', !state.claudeCodeTools);
+    this.$<HTMLInputElement>('claudeCodePath').value = state.claudeCodePath;
     this.show('keySaved', state.hasKey);
     this.show('keyEntry', !state.hasKey);
     this.$('keyHint').textContent = state.keyHint;
@@ -190,6 +227,11 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     button.disabled = false;
     if (!result.ok) {
       this.note_('testNote', result.error, true);
+      return;
+    }
+    if (result.detail) {
+      // Claude Code: the models it takes are Claude's own.
+      this.note_('testNote', result.detail, false);
       return;
     }
     if (result.models.length) {

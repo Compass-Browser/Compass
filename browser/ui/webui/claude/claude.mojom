@@ -12,8 +12,23 @@ enum AuthStyle {
   kBearer,
 };
 
+// What the chat runs on (compass::claude::Backend).
+enum Backend {
+  // The Claude API, or the gateway, with the saved key.
+  kApiKey,
+  // The user's Claude Code, signed in with their Claude subscription
+  // (docs/design/claude.md, D8).
+  kClaudeCode,
+};
+
 // The profile's Claude settings. The key itself never leaves the browser.
 struct SettingsState {
+  Backend backend;
+  // Claude Code's path as set; empty to look in the usual places.
+  string claude_code_path;
+  // Claude Code gets Compass's tools here (the MCP bridge); elsewhere it
+  // only chats (Windows).
+  bool claude_code_tools;
   bool has_key;
   // "sk-ant-…a1b2" while a key is saved.
   string key_hint;
@@ -41,6 +56,8 @@ struct ConnectionResult {
   bool ok;
   // What went wrong, for the user, when not ok.
   string error;
+  // What it connected to, when ok: Claude Code's version and account.
+  string detail;
   // The models the key can use, newest first, when ok.
   array<Model> models;
 };
@@ -56,10 +73,14 @@ interface SettingsHandler {
   // this computer).
   SetEndpoint(string base_url, AuthStyle auth_style) => (bool ok);
   SetModel(string model);
+  SetBackend(Backend backend);
+  // Empty looks in the usual places.
+  SetClaudeCodePath(string path);
   SetBrowserScope(bool enabled);
   SetMcpEnabled(bool enabled);
   // Asks again next time |client| connects.
   ForgetMcpClient(string client);
-  // Lists the models with the saved key and endpoint.
+  // Lists the models with the saved key and endpoint; in Claude Code mode,
+  // finds Claude Code and says whether it's signed in.
   TestConnection() => (ConnectionResult result);
 };

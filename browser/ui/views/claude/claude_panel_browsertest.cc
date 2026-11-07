@@ -8,13 +8,18 @@
 #include <string>
 #include <vector>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -25,8 +30,10 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_assets.h"
+#include "compass/browser/claude/claude_code.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/claude/claude_request.h"
 #include "compass/browser/ui/compass_command_ids.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
@@ -83,6 +90,78 @@ constexpr char kToolReply[] =
     "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":"
     "\"tool_use\"}}\n\n"
     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
+
+#if BUILDFLAG(IS_POSIX)
+// A fake `claude` for Claude Code mode: it saves its arguments and the
+// messages it gets, calls get_page_text through the MCP server its
+// --mcp-config names (the real compass-mcp --chat), and answers each
+// message in stream-json as Claude Code does: a tool step, its result, then
+// the page's first words.
+constexpr char kFakeClaudeCode[] = R"PY(#!/usr/bin/env python3
+import json, os, subprocess, sys
+
+here = os.path.dirname(os.path.abspath(__file__))
+args = sys.argv[1:]
+with open(os.path.join(here, 'args.json'), 'w') as f:
+    json.dump(args, f)
+config = json.loads(args[args.index('--mcp-config') + 1])
+server = config['mcpServers']['compass']
+mcp = subprocess.Popen([server['command']] + server['args'],
+                       stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+def rpc(id, method, params):
+    mcp.stdin.write((json.dumps({'jsonrpc': '2.0', 'id': id,
+                                 'method': method,
+                                 'params': params}) + '\n').encode())
+    mcp.stdin.flush()
+    return json.loads(mcp.stdout.readline())
+
+rpc(1, 'initialize', {'protocolVersion': '2025-06-18',
+                      'clientInfo': {'name': 'claude-code'}})
+
+def out(obj):
+    sys.stdout.write(json.dumps(obj) + '\n')
+    sys.stdout.flush()
+
+def event(e):
+    out({'type': 'stream_event', 'event': e, 'parent_tool_use_id': None})
+
+out({'type': 'system', 'subtype': 'init', 'session_id': 'fake-session'})
+step = 0
+for line in sys.stdin:
+    with open(os.path.join(here, 'messages.jsonl'), 'a') as f:
+        f.write(line)
+    step += 1
+    tool_id = 'toolu_%d' % step
+    event({'type': 'message_start', 'message': {
+        'id': 'msg_a', 'role': 'assistant', 'content': []}})
+    event({'type': 'content_block_start', 'index': 0, 'content_block': {
+        'type': 'tool_use', 'id': tool_id,
+        'name': 'mcp__compass__get_page_text', 'input': {}}})
+    event({'type': 'content_block_stop', 'index': 0})
+    event({'type': 'message_delta', 'delta': {'stop_reason': 'tool_use'}})
+    event({'type': 'message_stop'})
+    result = rpc(10 + step, 'tools/call',
+                 {'name': 'get_page_text', 'arguments': {}})['result']
+    out({'type': 'user', 'message': {'role': 'user', 'content': [{
+        'type': 'tool_result', 'tool_use_id': tool_id,
+        'content': result['content'],
+        'is_error': result.get('isError', False)}]},
+        'parent_tool_use_id': None})
+    text = result['content'][0]['text']
+    words = text[text.index('The quick'):][:19]
+    event({'type': 'message_start', 'message': {
+        'id': 'msg_b', 'role': 'assistant', 'content': []}})
+    event({'type': 'content_block_start', 'index': 0,
+           'content_block': {'type': 'text', 'text': ''}})
+    event({'type': 'content_block_delta', 'index': 0, 'delta': {
+        'type': 'text_delta', 'text': 'It says: ' + words}})
+    event({'type': 'content_block_stop', 'index': 0})
+    event({'type': 'message_delta', 'delta': {'stop_reason': 'end_turn'}})
+    event({'type': 'message_stop'})
+    out({'type': 'result', 'subtype': 'success', 'is_error': False})
+)PY";
+#endif  // BUILDFLAG(IS_POSIX)
 
 constexpr char kRoot[] =
     "document.querySelector('compass-claude-chat-app').shadowRoot";
@@ -392,6 +471,88 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsToolsAndSendsResults) {
                                           ".filter(Boolean).join()"),
             "Read the page's text");
 }
+
+#if BUILDFLAG(IS_POSIX)
+// Claude Code mode: the message goes to `claude` (a fake one), which runs
+// Compass's tool through compass-mcp --chat on the chat's tab, with no
+// question asked; the panel shows the tool's row and the reply.
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsOnClaudeCode) {
+  base::ScopedTempDir dir;
+  base::FilePath fake;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(dir.CreateUniqueTempDir());
+    fake = dir.GetPath().Append("claude");
+    ASSERT_TRUE(base::WriteFile(fake, kFakeClaudeCode));
+    ASSERT_TRUE(base::SetPosixFilePermissions(fake, 0755));
+  }
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  prefs->SetInteger(prefs::kBackend, static_cast<int>(Backend::kClaudeCode));
+  prefs->SetString(prefs::kClaudeCodePath, fake.value());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/page.html")));
+  content::WebContents* contents = Open();
+  ASSERT_TRUE(contents);
+  ASSERT_TRUE(content::ExecJs(contents, std::string("const root = ") + kRoot +
+                                            R"(;
+      root.querySelector('#attach').click();  // Not attached: use the tool.
+      const input = root.querySelector('#input');
+      input.value = 'What does the page say?';
+      input.dispatchEvent(new InputEvent('input'));
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}));)"));
+
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return TurnText(contents, "assistant", ".markdown") ==
+           "It says: The quick brown fox";
+  }));
+  // The tool's row, with Compass's name for it.
+  EXPECT_EQ(content::EvalJs(contents, std::string("[...") + kRoot +
+                                          ".querySelectorAll("
+                                          "'compass-claude-turn')].map(t => "
+                                          "t.shadowRoot.querySelector("
+                                          "'.tool-label')?.textContent)"
+                                          ".filter(Boolean).join()"),
+            "Read the page's text");
+  // No request went to the API.
+  EXPECT_TRUE(Bodies().empty());
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  std::string args_json;
+  ASSERT_TRUE(
+      base::ReadFileToString(dir.GetPath().Append("args.json"), &args_json));
+  std::optional<base::Value> args =
+      base::JSONReader::Read(args_json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(args && args->is_list());
+  auto has = [&](const std::string& flag, const std::string& value) {
+    const base::ListValue& list = args->GetList();
+    for (size_t i = 0; i + 1 < list.size(); ++i) {
+      if (list[i].GetString() == flag) {
+        return list[i + 1].GetString() == value;
+      }
+    }
+    return false;
+  };
+  EXPECT_TRUE(has("--tools", ""));
+  EXPECT_TRUE(has("--model", prefs->GetString(prefs::kModel)));
+  EXPECT_TRUE(has("--allowedTools", "mcp__compass"));
+  EXPECT_TRUE(has("--system-prompt", SystemPromptText()));
+
+  // Claude Code got the user's message alone, with Compass's context.
+  std::string messages;
+  ASSERT_TRUE(base::ReadFileToString(dir.GetPath().Append("messages.jsonl"),
+                                     &messages));
+  std::optional<base::DictValue> message = base::JSONReader::ReadDict(
+      messages.substr(0, messages.find('\n')), base::JSON_PARSE_RFC);
+  ASSERT_TRUE(message);
+  EXPECT_EQ(*message->FindString("type"), "user");
+  const base::ListValue& content =
+      *message->FindListByDottedPath("message.content");
+  EXPECT_NE(content.front().GetDict().FindString("text")->find("<context>"),
+            std::string::npos);
+  EXPECT_EQ(*content.back().GetDict().FindString("text"),
+            "What does the page say?");
+}
+#endif  // BUILDFLAG(IS_POSIX)
 
 }  // namespace
 }  // namespace compass::claude

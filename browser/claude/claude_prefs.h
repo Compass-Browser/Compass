@@ -20,6 +20,12 @@ inline constexpr char kApiKeyHint[] = "compass.claude.api_key_hint";
 inline constexpr char kBaseUrl[] = "compass.claude.base_url";
 // How the key is sent (AuthStyle).
 inline constexpr char kAuthStyle[] = "compass.claude.auth_style";
+// What the chat runs on (claude_code.h Backend): 0, the Claude API (or the
+// gateway) with the key; 1, the user's Claude Code, signed in with their
+// Claude subscription (docs/design/claude.md, D8).
+inline constexpr char kBackend[] = "compass.claude.backend";
+// Claude Code's path; empty to look in the usual places (FindClaudeCode()).
+inline constexpr char kClaudeCodePath[] = "compass.claude.claude_code_path";
 // The model the chat uses.
 inline constexpr char kModel[] = "compass.claude.model";
 // "Let Claude use the whole browser": other tabs and windows, not only the

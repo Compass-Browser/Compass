@@ -20,8 +20,10 @@ yet.
   clients drive the same tools.
 - **No key ships with Compass.** Settings take an Anthropic API key, plus
   an optional endpoint (base URL and auth header style) for Bedrock, Vertex
-  or a compatible gateway. Claude Pro/Max subscription tokens aren't
-  supported: Anthropic's terms don't allow third-party apps to use them.
+  or a compatible gateway. Compass never sends Claude subscription tokens
+  (`claude setup-token`'s, OAuth): Anthropic's terms keep them to
+  Anthropic's own apps. A subscription is used through the user's own
+  Claude Code instead ("Claude Code mode").
 
 ## Shared core: `common/claude/`
 
@@ -221,6 +223,30 @@ name "Always allow" stores.
 - **No API key.** MCP clients bring their own model.
 - **Tests** (`browser/ui/claude/mcp_bridge_browsertest.cc`, a scripted client on the real socket): initialize, tools/list, calls (text, a screenshot as an MCP image), asked once per connection, browser tools refused without the setting, ping, unknown methods; Deny, and "Always allow" remembered for the next connection; turning it off closes the connection and removes the socket; and the real `compass-mcp` relaying, and answering errors while nothing listens. The test's temporary directory makes the socket path too long, so the link is tested too.
 
+### Claude Code mode
+
+The chat can run on the user's own Claude Code (`claude`), signed in with
+their Claude subscription, instead of the Claude API with a key. Claude
+Code runs the conversation and its tool loop; Compass's tools reach it as
+an MCP server. The API key stays the other choice.
+
+- **The choice.** Settings, Claude, "Connect with": API key or Claude Code (`compass.claude.backend`, 0 or 1). Claude Code's path (`compass.claude.claude_code_path`) is empty to look where its installers put it (`FindClaudeCode()`: `~/.local/bin/claude`, `~/.claude/local/claude`, then Homebrew's and `/usr/local/bin`; a GUI app doesn't get the shell's PATH). Test connection runs `claude --version` and `claude auth status` and says the version and the account, or that it isn't signed in (`DescribeClaudeCodeStatus()`). The model picker is the same; its id goes as `--model`.
+- **The process** (`ClaudeCodeProcess`, `browser/claude/claude_code_process.{h,cc}`): one `claude` per chat, started at its first message and kept for the next ones, in `<profile>/Claude Code/` (an empty folder, so it finds none of the user's projects). stdin takes stream-json user messages; stdout and stderr share a pipe, read a line at a time on a blocking thread.
+  - The arguments (`ClaudeCodeArgs()`): `-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --max-turns 40 --system-prompt <SystemPromptText()> --tools "" --setting-sources "" --strict-mcp-config --model <pref> --mcp-config <compass only> --allowedTools mcp__compass`, and `--resume <session>` when it goes on.
+  - So Claude Code has none of its own tools (no files, shell or web), none of the user's MCP servers, hooks or settings, and Compass's tools without asking (Compass checks each call itself).
+- **The conversation** lives in Claude Code. The page still keeps its own, to show it, and sends `Send(messages)` as before; the browser sends only the last (user) message's blocks, without `tool_result`s (`ClaudeCodeUserLine()`; with only results left, "Go on."). A single message is a new conversation (New chat, or Retry of the first message): the process ends and its session is forgotten. Stop ends the process and keeps the session; the next message starts one with `--resume`. Another model does the same. Switching back to the API key ends it.
+- **The reply.** Claude Code's `stream_event` lines are the Messages API's own events, so `conversation.ts` builds them unchanged (`ParseClaudeCodeLine()` takes `mcp__compass__` off tool names and drops subagents' events). A reply is many steps:
+  - each step's `message_start` starts a new assistant turn in the page;
+  - at a step's `message_stop` with `tool_use`, its tool rows show running;
+  - the `user` lines' `tool_result`s come as `Page.OnToolResult()`, fill the rows, and go in the page's tool-results turn;
+  - the `result` line ends the reply (`OnStreamDone`, with its error if `is_error`, and "go on" after 40 turns).
+  - The page runs no tools in this mode (`Setup.claude_code`). A process that exits mid-reply ends it with what it wrote on stderr.
+- **Tools** go through the MCP bridge, as the chat's own:
+  - `McpBridge::RegisterChat()` gives the chat a 32-hex-digit token and keeps the listener on while it's registered, whatever "Allow MCP clients" says.
+  - The MCP config runs `compass-mcp --user-data-dir=<the socket's directory> --chat=<token>`. With `--chat` the relay doesn't start Compass, waits up to 10 s for the socket, and writes `{"compass_chat": "<token>"}` first.
+  - The bridge reads each connection's first line. A known token makes an `McpSession` whose calls run on the chat's own `ClaudeTools` (`RunChatTool()`): its target (the tab `StartTask()` pinned), its Stop, the "whole browser" permission and the indicator, with no "wants to control Compass" question (the user started it from the panel). An unknown token closes the connection; any other first line is an MCP client's, as before.
+- **Windows** has no MCP bridge yet: Claude Code runs without `--mcp-config` and only chats (with the attached page's text); settings say so. The process code has the Windows pipes, untried.
+
 ## iOS (`ios/App/Claude/`)
 
 - **Find.** The WKWebView's find interaction is on (TabManager), the page menu has a Find tile, the command bar has "Find “…”" for typed text, and a hardware keyboard has ⌘F.
@@ -272,6 +298,7 @@ The work was split into milestones, which the code and tests still refer to:
 - **D5:** browser scope: the toggle and the tab tools.
 - **D6:** MCP server.
 - **D7:** browser tools: the sidebar, spaces, history, downloads and devices.
+- **D8:** Claude Code mode: the chat on the user's own Claude Code and subscription.
 - **I1–I4:** iOS find; settings, client and chat sheet; page tools and console capture; browser scope.
 
 iOS gets no MCP server; iOS apps can't keep a local listener running in the background.
@@ -281,7 +308,7 @@ iOS gets no MCP server; iOS apps can't keep a local listener running in the back
 Desktop browser tests run headless through `compass test --browser`, and never take focus.
 
 - **Fake Claude server.** `ClaudeClient` and tool tests point `compass.claude.base_url` at an `EmbeddedTestServer` that serves canned SSE scripts, including `tool_use` turns. That's what the custom endpoint makes possible. No real key is needed in CI.
-- **Unit tests** (`browser/claude/*_unittest.cc`): the SSE parser (split chunks, errors, `ping`), request building (caching, auth style), screenshot pruning, scope checks.
+- **Unit tests** (`browser/claude/*_unittest.cc`): the SSE parser (split chunks, errors, `ping`), request building (caching, auth style), screenshot pruning, scope checks; Claude Code's lines, arguments, user line and status (`ClaudeCodeTest`, from lines Claude Code 2.1.319 wrote).
 - **Browser tests:**
   - `FindBarBrowserTest`: count, next/previous (keys and Cmd+G), no results, Esc, each tab's bar, the selection as the start, upstream's bar staying closed.
   - `ClaudeToolsBrowserTest` (`browser/claude/claude_tools_browsertest.cc`), against a test page:
@@ -295,6 +322,7 @@ Desktop browser tests run headless through `compass test --browser`, and never t
     - Not checked: that the real cursor doesn't move (DevTools input never touches it).
   - Browser scope, in the same suite with the real `ClaudeTabs`: browser tools refused without the setting; `list_tabs` (marks), `open_tab` in the background, `select_tab`, `close_tab` only for Claude's tabs; the setting turned off mid-task refuses the opened tab; a tab of a hidden space (parked) listed as "Not shown" and usable.
   - `ClaudePanelBrowserTest.RunsToolsAndSendsResults`: the fake API asks for `get_page_text`, and the next request carries the `tool_use` and its `tool_result` with the page's text.
+  - `ClaudePanelBrowserTest.RunsOnClaudeCode` (POSIX): a fake `claude` (Python) saves its arguments and messages, calls `get_page_text` through the real `compass-mcp --chat`, and answers in stream-json; the panel shows the tool's row and the reply, and nothing goes to the API.
 - **iOS:** CompassKit tests for the SSE parser and the agent loop, run with the fake script. Check by hand on a device against a real key on a form-heavy site and a console-error page.
 - **Manual desktop pass** with a real key in a Fast build:
   - "summarize this page";

@@ -104,6 +104,24 @@
     opacity: 0.4;
   }
 
+  .compass-page .claude-backend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 6px 0 0;
+  }
+
+  .compass-page .claude-backend label {
+    align-items: flex-start;
+    display: flex;
+    gap: 8px;
+  }
+
+  .compass-page .claude-backend .name {
+    display: block;
+    font-weight: 500;
+  }
+
   .compass-page details {
     margin: 18px 0 0;
   }
@@ -174,8 +192,47 @@
 
 <p class="lead">Chat with Claude about the page you're on. Claude can read it,
   its JavaScript console, and click and type in it. Compass ships no key: use
-  your own API key from console.anthropic.com, or a gateway's.</p>
+  your own API key from console.anthropic.com, or a gateway's, or your own
+  Claude Code.</p>
 
+<div class="field">Connect with</div>
+<div class="claude-backend" role="radiogroup">
+  <label>
+    <input type="radio" name="backend" id="backendApiKey" value="apiKey">
+    <span>
+      <span class="name">API key</span>
+      <span class="hint block">The Claude API, or a gateway, billed to the
+        key's Console account.</span>
+    </span>
+  </label>
+  <label>
+    <input type="radio" name="backend" id="backendClaudeCode"
+        value="claudeCode">
+    <span>
+      <span class="name">Claude Code</span>
+      <span class="hint block">Your Claude Code on this computer, signed in
+        with your Claude subscription. Compass runs it for each chat, with
+        only Compass's tools.</span>
+    </span>
+  </label>
+</div>
+
+<section id="claudeCodeSection" hidden>
+  <label class="field" for="claudeCodePath">Claude Code</label>
+  <div class="claude-inline">
+    <input id="claudeCodePath" type="text" spellcheck="false"
+        placeholder="Found automatically">
+    <button id="saveClaudeCodePath" class="secondary">Save</button>
+  </div>
+  <p class="hint">Leave empty to use the claude that Claude Code's installer
+    put in ~/.local/bin (or Homebrew's). Sign in once by running claude in
+    Terminal.</p>
+  <p class="hint" id="claudeCodeNoTools" hidden>On this system Claude Code
+    chats about the page you attach, but can't use the page tools yet.</p>
+  <p class="note" id="claudeCodePathNote" hidden></p>
+</section>
+
+<section id="apiKeySection">
 <label class="field" for="apiKey">API key</label>
 <div class="claude-key-row" id="keyEntry">
   <input id="apiKey" type="password" autocomplete="off" spellcheck="false"
@@ -188,8 +245,10 @@
   <button id="removeKey" class="secondary">Remove</button>
 </div>
 <p class="hint">Stored encrypted on this device only; it never syncs, and
-  pages never see it. Claude Pro and Max subscriptions can't be used here.</p>
+  pages never see it. To use your Claude subscription, connect with Claude
+  Code instead.</p>
 <p class="note" id="keyNote" hidden></p>
+</section>
 
 <label class="field" for="model">Model</label>
 <div class="claude-inline">
@@ -198,7 +257,7 @@
 </div>
 <p class="note" id="testNote" hidden></p>
 
-<details id="advanced">
+<details id="advanced" class="api-only">
   <summary>Endpoint</summary>
   <label class="field" for="baseUrl">Base URL</label>
   <input id="baseUrl" type="url" spellcheck="false"

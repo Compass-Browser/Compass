@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
+#include "base/task/thread_pool.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
@@ -99,6 +100,14 @@ void ClaudeSettingsHandler::SetLoaderFactoryForTesting(
 void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   const PrefService* prefs = profile_->GetPrefs();
   auto state = mojom::SettingsState::New();
+  state->backend = prefs->GetInteger(prefs::kBackend) ==
+                           static_cast<int>(Backend::kClaudeCode)
+                       ? mojom::Backend::kClaudeCode
+                       : mojom::Backend::kApiKey;
+  state->claude_code_path = prefs->GetString(prefs::kClaudeCodePath);
+#if BUILDFLAG(IS_POSIX)
+  state->claude_code_tools = true;
+#endif
   state->has_key = ClaudeCredentials::HasApiKey(profile_);
   state->key_hint = ClaudeCredentials::GetApiKeyHint(profile_);
   state->base_url = prefs->GetString(prefs::kBaseUrl);
@@ -155,6 +164,24 @@ void ClaudeSettingsHandler::SetModel(const std::string& model) {
   }
 }
 
+void ClaudeSettingsHandler::SetBackend(mojom::Backend backend) {
+  profile_->GetPrefs()->SetInteger(
+      prefs::kBackend, static_cast<int>(backend == mojom::Backend::kClaudeCode
+                                            ? Backend::kClaudeCode
+                                            : Backend::kApiKey));
+}
+
+void ClaudeSettingsHandler::SetClaudeCodePath(const std::string& path) {
+  const std::string_view trimmed =
+      base::TrimWhitespaceASCII(path, base::TRIM_ALL);
+  if (trimmed.empty()) {
+    profile_->GetPrefs()->ClearPref(prefs::kClaudeCodePath);
+  } else {
+    profile_->GetPrefs()->SetString(prefs::kClaudeCodePath,
+                                    std::string(trimmed));
+  }
+}
+
 void ClaudeSettingsHandler::SetBrowserScope(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kBrowserScope, enabled);
 }
@@ -169,6 +196,26 @@ void ClaudeSettingsHandler::ForgetMcpClient(const std::string& client) {
 }
 
 void ClaudeSettingsHandler::TestConnection(TestConnectionCallback callback) {
+  const PrefService* prefs = profile_->GetPrefs();
+  if (prefs->GetInteger(prefs::kBackend) ==
+      static_cast<int>(Backend::kClaudeCode)) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(
+            [](base::FilePath configured) -> std::optional<ClaudeCodeStatus> {
+              std::optional<base::FilePath> program =
+                  FindClaudeCode(configured);
+              if (!program) {
+                return std::nullopt;
+              }
+              return CheckClaudeCode(*program);
+            },
+            base::FilePath::FromUTF8Unsafe(
+                prefs->GetString(prefs::kClaudeCodePath))),
+        base::BindOnce(&ClaudeSettingsHandler::OnClaudeCodeChecked,
+                       weak_factory_.GetWeakPtr(), std::move(callback)));
+    return;
+  }
   ClaudeCredentials::GetApiKey(
       profile_, base::BindOnce(&ClaudeSettingsHandler::OnKeyForTest,
                                weak_factory_.GetWeakPtr(), std::move(callback)));
@@ -210,6 +257,25 @@ void ClaudeSettingsHandler::OnModels(
       result->models.push_back(
           mojom::Model::New(model.id, model.display_name));
     }
+  }
+  std::move(callback).Run(std::move(result));
+}
+
+void ClaudeSettingsHandler::OnClaudeCodeChecked(
+    TestConnectionCallback callback,
+    std::optional<ClaudeCodeStatus> status) {
+  auto result = mojom::ConnectionResult::New();
+  if (!status) {
+    result->error =
+        profile_->GetPrefs()->GetString(prefs::kClaudeCodePath).empty()
+            ? "Claude Code isn't installed where Compass looks. Install it "
+              "(claude.com/claude-code), or set its path."
+            : "There's no Claude Code at that path.";
+  } else if (!status->ok) {
+    result->error = std::move(status->text);
+  } else {
+    result->ok = true;
+    result->detail = std::move(status->text);
   }
   std::move(callback).Run(std::move(result));
 }
