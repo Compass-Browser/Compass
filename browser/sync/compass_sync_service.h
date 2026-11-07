@@ -239,6 +239,12 @@ class CompassSyncService : public KeyedService,
   // Home profile: this device's listed profiles join the chain; the chain's
   // profiles this device doesn't have are created.
   void ReconcileProfiles();
+  // Home profile, once per run before ReconcileProfiles() creates any
+  // profile: reads every profile directory's sync prefs (those not loaded
+  // from disk), records which directory is each profile of the chain, and
+  // retires the copies earlier runs made (PlanProfileDirs()).
+  void ScanProfileDirs();
+  void OnProfileDirsScanned(std::vector<ProfileDir> dirs);
   // Leaves the chain with this profile only.
   void LeaveProfile();
   // The switcher changed: a profile may have been listed.
@@ -328,6 +334,8 @@ class CompassSyncService : public KeyedService,
   bool chain_profiles_known_ = false;
   std::unique_ptr<CompassProfileCreator> profile_creator_;
   std::unique_ptr<MissingProfiles> missing_profiles_;
+  bool scanning_dirs_ = false;
+  bool dirs_scanned_ = false;
   DirectoryObserver directory_observer_{this};
   bool observing_directory_ = false;
   base::ScopedObservation<ProfileAttributesStorage,

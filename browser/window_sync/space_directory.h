@@ -88,6 +88,12 @@ class SpaceDirectory : public ProfileManagerObserver,
   bool IsLoaded() const;
 
   bool IsListed(const Profile* profile) const;
+  // Whether "Compass Spaces.json" is in, and the profile at |path| listed
+  // there, loaded or not.
+  bool IsFileLoaded() const { return file_loaded_; }
+  bool IsListedPath(const base::FilePath& path) const {
+    return listed_.contains(path);
+  }
   // Lists |profile|'s spaces, at the end, if it can be listed.
   void List(Profile* profile);
   // Stops listing |profile|'s spaces. For a profile whose last space went.

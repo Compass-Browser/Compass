@@ -5,12 +5,16 @@
 #include "compass/browser/sync/compass_sync_service.h"
 
 #include <algorithm>
+#include <map>
+#include <optional>
 #include <utility>
 
 #include "base/base64.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/i18n/time_formatting.h"
+#include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/strings/strcat.h"
@@ -28,6 +32,7 @@
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
+#include "chrome/common/chrome_constants.h"
 #include "compass/browser/sync/compass_profile_creator.h"
 #include "compass/browser/sync/compass_spaces_sync.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
@@ -168,6 +173,39 @@ Profile* FindLoadedProfile(const std::string& id) {
     }
   }
   return nullptr;
+}
+
+// Fills in the sync prefs of |dirs| that aren't loaded, from their
+// Preferences files under |user_data_dir|. Blocking.
+std::vector<ProfileDir> ReadProfileDirs(const base::FilePath& user_data_dir,
+                                        std::vector<ProfileDir> dirs) {
+  for (ProfileDir& dir : dirs) {
+    if (dir.loaded) {
+      continue;
+    }
+    std::string json;
+    if (!base::ReadFileToStringWithMaxSize(
+            user_data_dir.Append(base::FilePath::FromUTF8Unsafe(dir.id))
+                .Append(chrome::kPreferencesFilename),
+            &json, 64 * 1024 * 1024)) {
+      continue;
+    }
+    std::optional<base::DictValue> preferences = base::JSONReader::ReadDict(
+        json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+    if (!preferences) {
+      continue;
+    }
+    auto get = [&preferences](const char* path) {
+      const std::string* value = preferences->FindStringByDottedPath(path);
+      return value ? *value : std::string();
+    };
+    dir.uuid = get(prefs::kProfileUuid);
+    dir.seed = get(prefs::kSeed);
+    dir.server_url = get(prefs::kServerUrl);
+    dir.account = preferences->FindBoolByDottedPath(prefs::kProfileAccount)
+                      .value_or(false);
+  }
+  return dirs;
 }
 
 ChainProfile ToChainProfile(const sync_pb::CompassProfile& entity) {
@@ -1473,6 +1511,14 @@ void CompassSyncService::ReconcileProfiles() {
   if (!chain_profiles_known_) {
     return;
   }
+  // Not before every profile directory here has been looked at: a profile
+  // that isn't loaded, and that compass.sync.profile_dirs doesn't have (it
+  // was cleared, or a crash came before the creation was recorded), would
+  // be created again, each launch.
+  if (!dirs_scanned_) {
+    ScanProfileDirs();
+    return;
+  }
   std::set<std::string> local_uuids = {GetProfileUuid()};
   for (Profile* profile : GetListableProfiles()) {
     local_uuids.insert(profile->GetPrefs()->GetString(prefs::kProfileUuid));
@@ -1522,6 +1568,91 @@ void CompassSyncService::ReconcileProfiles() {
         std::make_unique<MissingProfiles>(profile_creator_.get());
   }
   missing_profiles_->Update(chain_profiles_, local_uuids);
+}
+
+void CompassSyncService::ScanProfileDirs() {
+  ProfileManager* profile_manager = GetProfileManager();
+  SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+  // The switcher's file says which directories are listed; it notifies
+  // (and so reconciles again) once it's in.
+  if (scanning_dirs_ || !profile_manager || !directory ||
+      !directory->IsFileLoaded()) {
+    return;
+  }
+  scanning_dirs_ = true;
+  std::vector<ProfileDir> dirs;
+  for (ProfileAttributesEntry* entry :
+       profile_manager->GetProfileAttributesStorage()
+           .GetAllProfilesAttributes()) {
+    const base::FilePath& path = entry->GetPath();
+    ProfileDir dir;
+    dir.id = path.BaseName().AsUTF8Unsafe();
+    dir.listed = directory->IsListedPath(path);
+    // A loaded profile's prefs may not be on disk yet.
+    if (Profile* profile = profile_manager->GetProfileByPath(path)) {
+      const PrefService* profile_prefs = profile->GetPrefs();
+      dir.loaded = true;
+      dir.uuid = profile_prefs->GetString(prefs::kProfileUuid);
+      dir.seed = profile_prefs->GetString(prefs::kSeed);
+      dir.server_url = profile_prefs->GetString(prefs::kServerUrl);
+      dir.account = profile_prefs->GetBoolean(prefs::kProfileAccount);
+    }
+    dirs.push_back(std::move(dir));
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+      base::BindOnce(&ReadProfileDirs, profile_manager->user_data_dir(),
+                     std::move(dirs)),
+      base::BindOnce(&CompassSyncService::OnProfileDirsScanned,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void CompassSyncService::OnProfileDirsScanned(std::vector<ProfileDir> dirs) {
+  scanning_dirs_ = false;
+  ProfileManager* profile_manager = GetProfileManager();
+  if (!IsHome() || left_ || !profile_manager) {
+    return;
+  }
+  std::map<std::string, std::string> recorded;
+  for (const auto [uuid, dir] : prefs_->GetDict(prefs::kProfileDirs)) {
+    if (dir.is_string()) {
+      recorded[uuid] = dir.GetString();
+    }
+  }
+  const ProfileDirPlan plan = PlanProfileDirs(
+      dirs, GetProfileUuid(), prefs_->GetString(prefs::kSeed),
+      prefs_->GetString(prefs::kServerUrl), recorded);
+  {
+    ScopedDictPrefUpdate update(prefs_, prefs::kProfileDirs);
+    for (const auto& [uuid, dir] : plan.keep) {
+      if (recorded[uuid] != dir) {
+        VLOG(1) << "[compass-sync] profile " << uuid << " is " << dir;
+        update->Set(uuid, dir);
+      }
+    }
+  }
+  // The copies go without being loaded (loading one starts its sync engine
+  // on a chain it may no longer be in): hidden now, and deleted from disk as
+  // the next launch starts (DeleteProfileHelper::CleanUpEphemeralProfiles()).
+  ProfileAttributesStorage& storage =
+      profile_manager->GetProfileAttributesStorage();
+  for (const std::string& id : plan.retire) {
+    const base::FilePath path = profile_manager->user_data_dir().Append(
+        base::FilePath::FromUTF8Unsafe(id));
+    ProfileAttributesEntry* entry = storage.GetProfileAttributesWithPath(path);
+    if (!entry || profile_manager->GetProfileByPath(path)) {
+      continue;
+    }
+    LOG(WARNING) << "Compass sync: " << id
+                 << " is a copy of a synced profile; deleting it";
+    entry->SetIsEphemeral(true);
+    entry->SetIsOmitted(true);
+  }
+  prefs_->CommitPendingWrite();
+  dirs_scanned_ = true;
+  ReconcileProfiles();
 }
 
 ProfileMappingStatus CompassSyncService::GetProfileMapping() const {

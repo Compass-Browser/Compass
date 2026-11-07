@@ -5,6 +5,7 @@
 #ifndef COMPASS_COMPONENTS_SYNC_PROFILE_LIST_H_
 #define COMPASS_COMPONENTS_SYNC_PROFILE_LIST_H_
 
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -83,6 +84,46 @@ bool IsValidProfileMapping(const ProfileMapping& mapping,
 std::vector<ChainProfile> ProfilesToCreate(
     const std::vector<ChainProfile>& chain,
     const ProfileMapping& mapping);
+
+// A profile directory of this device, as its Preferences (or, loaded, its
+// prefs) have it.
+struct ProfileDir {
+  // The directory's name ("Profile 5").
+  std::string id;
+  // compass.sync.profile_uuid, .seed (as stored, encrypted), .server_url and
+  // .profile_account.
+  std::string uuid;
+  std::string seed;
+  std::string server_url;
+  bool account = false;
+  // In the switcher ("Compass Spaces.json"); loaded in this run.
+  bool listed = false;
+  bool loaded = false;
+};
+
+// What the home profile does with this device's profile directories.
+struct ProfileDirPlan {
+  // For each sync UUID but the home's, the directory that is that profile
+  // here (compass.sync.profile_dirs).
+  std::map<std::string, std::string> keep;
+  // Copies of a kept profile that sync made (a creation that started over
+  // after a crash, or after compass.sync.profile_dirs was cleared): their own
+  // account, not listed, not loaded. They're deleted.
+  std::vector<std::string> retire;
+};
+
+// Picks one directory per sync UUID among |dirs|: the listed one, else a
+// loaded one, else |recorded|'s (the current compass.sync.profile_dirs),
+// else one with the chain's |seed| and |server_url|, else the first by name.
+// Copies are retired only when the kept one is listed, loaded or recorded,
+// so the one kept is known to be the one in use. |home_uuid|'s directories
+// are neither kept nor retired.
+ProfileDirPlan PlanProfileDirs(
+    const std::vector<ProfileDir>& dirs,
+    const std::string& home_uuid,
+    const std::string& seed,
+    const std::string& server_url,
+    const std::map<std::string, std::string>& recorded);
 
 // Creates the chain's profiles this device doesn't have yet, each once.
 class MissingProfiles {
