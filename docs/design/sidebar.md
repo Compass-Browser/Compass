@@ -599,6 +599,10 @@ step without dropping the other redos. Any other close drops them.
 - They run only on keys the page passed on: `DelayedCommandForKeyEvent()`,
   a hook in upstream's `DelayedWebContentsCommandForKeyEvent()`, as Cmd+Left
   for Back. A page that handles them (an editor, a drawing app) keeps them.
+- From the sidebar too: `CompassSidebarView::HandleKeyboardEvent()` hands
+  the keys its page passes on to the window, as a tab's are
+  (`views::WebView` drops them). Without it, Cmd+Z after a click on a
+  row's × did nothing until the page had the focus again.
 - In a page whose focused element is editable, they're the Edit menu's Undo
   and Redo (`WebContents::Undo()`), so typing undoes as before. In native
   text fields (the omnibox) the keys never reach them: the Edit menu has

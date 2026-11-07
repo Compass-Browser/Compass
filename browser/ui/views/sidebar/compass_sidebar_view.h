@@ -29,6 +29,10 @@ namespace blink {
 class WebGestureEvent;
 }  // namespace blink
 
+namespace input {
+struct NativeWebKeyboardEvent;
+}  // namespace input
+
 namespace content {
 class WebContents;
 }  // namespace content
@@ -111,6 +115,12 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
   // cancel makes every scroll wait for the page's main thread.
   bool PreHandleGestureEvent(content::WebContents* source,
                              const blink::WebGestureEvent& event) override;
+  // Keys the page doesn't handle go to the window, as from a tab:
+  // views::WebView drops them. The shortcuts that wait for the page (Cmd+Z
+  // and Cmd+Shift+Z, docs/design/sidebar.md "Undo closing"; Cmd+Left) run
+  // only from there.
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
 
  private:
   // Shows |contents| and binds its page to this window.

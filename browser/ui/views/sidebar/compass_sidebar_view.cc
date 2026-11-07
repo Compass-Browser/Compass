@@ -16,9 +16,11 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/frame_separator.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/navigation_controller.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "ui/base/class_property.h"
@@ -195,8 +197,7 @@ void CompassSidebarView::OnProfileWillBeDestroyed(Profile* profile) {
 void CompassSidebarView::Attach(std::unique_ptr<content::WebContents> contents) {
   contents_ = std::move(contents);
   content::WebContents* web_contents = contents_.get();
-  // As the WebView does with its own: keys the page doesn't handle go to the
-  // window.
+  // Keys the page doesn't handle go to the window (HandleKeyboardEvent()).
   web_contents->SetDelegate(this);
   // Let the region's frame-colored background, and the tint over it, show
   // through, so the sidebar follows the theme, the window's active state and
@@ -242,6 +243,13 @@ void CompassSidebarView::AddedToWidget() {
 void CompassSidebarView::RemovedFromWidget() {
   space_shortcuts_.Unregister();
   views::WebView::RemovedFromWidget();
+}
+
+bool CompassSidebarView::HandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  return browser_view && browser_view->HandleKeyboardEvent(event);
 }
 
 bool CompassSidebarView::PreHandleGestureEvent(
