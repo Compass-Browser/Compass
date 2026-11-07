@@ -4,9 +4,6 @@
 
 #include "compass/browser/ui/views/frame/browser_view_exchange.h"
 
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/profiles/profile_attributes_storage.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h"
 #include "chrome/browser/ui/views/frame/browser_native_widget_aura.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -37,13 +34,6 @@ void BrowserViewExchange::SetNativeWidgetView(BrowserWidget& widget,
   host->browser_window_property_manager_ =
       BrowserWindowPropertyManager::CreateBrowserWindowPropertyManager(
           view, host->GetHWND());
-  // With more than one profile, the window icon carries the profile's
-  // avatar.
-  if (g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetNumberOfProfiles() > 1) {
-    host->SetWindowIcon(/*badged=*/true);
-  }
 }
 
 }  // namespace compass
