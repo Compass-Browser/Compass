@@ -235,6 +235,16 @@ void ShowFailure(HWND hwnd, DWORD code) {
     text = L"Compass couldn't be installed: this installer couldn't unpack "
            L"itself. Check that there's free space on the disk, or download "
            L"the installer again.";
+  } else if (code == kLaunchFailed &&
+             (g_last_error == ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION ||
+              g_last_error == ERROR_INVALID_IMAGE_HASH)) {
+    // Smart App Control, or another application control policy: Compass's
+    // installers aren't signed yet (docs/design/updates.md).
+    text = L"Windows blocked Compass's installer: Smart App Control (or "
+           L"another application control policy on this PC) only lets signed "
+           L"apps run, and Compass isn't signed yet.\n\nTo install Compass, "
+           L"turn off Smart App Control in Windows Security, under App & "
+           L"browser control.";
   } else if (code == kLaunchFailed) {
     text = L"Compass couldn't be installed: Windows didn't let the installer "
            L"start (Windows error " + std::to_wstring(g_last_error) +
