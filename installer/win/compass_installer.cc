@@ -50,6 +50,45 @@ struct Window {
 
 Window* g_window = nullptr;
 
+// The Windows error behind the last failure, for the message.
+DWORD g_last_error = 0;
+
+// Appends |line| (and GetLastError() when |error| is set) to
+// %TEMP%\compass_installer.log, which the failure message points at.
+void Log(const std::wstring& line, bool error = false) {
+  const DWORD last_error = GetLastError();
+  std::wstring text = line;
+  if (error) {
+    g_last_error = last_error;
+    text += L" (Windows error " + std::to_wstring(last_error) + L")";
+  }
+  text += L"\r\n";
+  wchar_t temp[MAX_PATH + 1] = {};
+  const DWORD length = GetTempPathW(MAX_PATH + 1, temp);
+  if (length == 0 || length > MAX_PATH) {
+    return;
+  }
+  const std::wstring path = std::wstring(temp) + L"compass_installer.log";
+  HANDLE file = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ,
+                            nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                            nullptr);
+  if (file == INVALID_HANDLE_VALUE) {
+    return;
+  }
+  const int size = WideCharToMultiByte(CP_UTF8, 0, text.c_str(),
+                                       static_cast<int>(text.size()), nullptr,
+                                       0, nullptr, nullptr);
+  if (size > 0) {
+    std::string utf8(static_cast<size_t>(size), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, text.c_str(),
+                        static_cast<int>(text.size()), utf8.data(), size,
+                        nullptr, nullptr);
+    DWORD written = 0;
+    WriteFile(file, utf8.data(), static_cast<DWORD>(size), &written, nullptr);
+  }
+  CloseHandle(file);
+}
+
 int Scale(int value, UINT dpi) {
   return MulDiv(value, static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
 }
@@ -74,20 +113,32 @@ bool ExtractInstaller(const std::wstring& path) {
       loaded ? static_cast<const char*>(LockResource(loaded)) : nullptr;
   const DWORD size = resource ? SizeofResource(nullptr, resource) : 0;
   if (!bytes || size == 0) {
+    Log(L"No installer inside this program", true);
     return false;
   }
   HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr,
                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
+    Log(L"Couldn't create " + path, true);
     return false;
   }
   // One write: files take writes of any size (unlike pipes), and it keeps
   // the pointer arithmetic out.
   DWORD written = 0;
   bool ok = WriteFile(file, bytes, size, &written, nullptr) && written == size;
-  ok = CloseHandle(file) && ok;
+  if (!ok) {
+    Log(L"Couldn't write " + path + L": " + std::to_wstring(written) +
+            L" of " + std::to_wstring(size) + L" bytes",
+        true);
+  }
+  if (!CloseHandle(file) && ok) {
+    Log(L"Couldn't close " + path, true);
+    ok = false;
+  }
   if (!ok) {
     DeleteFileW(path.c_str());
+  } else {
+    Log(L"Wrote " + path + L" (" + std::to_wstring(size) + L" bytes)");
   }
   return ok;
 }
@@ -104,13 +155,19 @@ DWORD RunInstaller(const std::wstring& installer) {
   if (!CreateProcessW(installer.c_str(), command_line.data(), nullptr,
                       nullptr, FALSE, 0, nullptr, nullptr, &startup,
                       &process)) {
+    Log(L"Couldn't start " + installer, true);
     return kLaunchFailed;
   }
+  Log(L"Started " + installer + L" (process " +
+      std::to_wstring(process.dwProcessId) + L")");
   CloseHandle(process.hThread);
   WaitForSingleObject(process.hProcess, INFINITE);
   DWORD exit_code = kLaunchFailed;
-  GetExitCodeProcess(process.hProcess, &exit_code);
+  if (!GetExitCodeProcess(process.hProcess, &exit_code)) {
+    Log(L"No exit code from the installer", true);
+  }
   CloseHandle(process.hProcess);
+  Log(L"The installer exited with " + std::to_wstring(exit_code));
   return exit_code;
 }
 
@@ -118,8 +175,13 @@ DWORD WINAPI InstallThread(void* param) {
   HWND hwnd = static_cast<HWND>(param);
   const std::wstring dir = WorkDir();
   DWORD result = kExtractFailed;
-  if (!dir.empty()) {
-    CreateDirectoryW(dir.c_str(), nullptr);
+  if (dir.empty()) {
+    Log(L"No Temp folder", true);
+  } else {
+    if (!CreateDirectoryW(dir.c_str(), nullptr) &&
+        GetLastError() != ERROR_ALREADY_EXISTS) {
+      Log(L"Couldn't create " + dir, true);
+    }
     const std::wstring installer = dir + L"\\mini_installer.exe";
     if (ExtractInstaller(installer)) {
       result = RunInstaller(installer);
@@ -147,6 +209,7 @@ bool OpenCompass() {
   const std::wstring compass = InstalledCompass();
   if (compass.empty() ||
       GetFileAttributesW(compass.c_str()) == INVALID_FILE_ATTRIBUTES) {
+    Log(L"No Compass at " + compass, true);
     return false;
   }
   std::wstring command_line = L"\"" + compass + L"\"";
@@ -155,6 +218,7 @@ bool OpenCompass() {
   PROCESS_INFORMATION process = {};
   if (!CreateProcessW(compass.c_str(), command_line.data(), nullptr, nullptr,
                       FALSE, 0, nullptr, nullptr, &startup, &process)) {
+    Log(L"Couldn't open " + compass, true);
     return false;
   }
   CloseHandle(process.hThread);
@@ -171,13 +235,18 @@ void ShowFailure(HWND hwnd, DWORD code) {
     text = L"Compass couldn't be installed: this installer couldn't unpack "
            L"itself. Check that there's free space on the disk, or download "
            L"the installer again.";
+  } else if (code == kLaunchFailed) {
+    text = L"Compass couldn't be installed: Windows didn't let the installer "
+           L"start (Windows error " + std::to_wstring(g_last_error) +
+           L").\n\nDetails are in compass_installer.log in your Temp folder.";
   } else {
     wchar_t hex[16] = {};
     wsprintfW(hex, L"0x%lX", code);
     text = std::wstring(L"Compass couldn't be installed (error ") +
            std::to_wstring(code) + L", " + hex +
-           L").\n\nDetails are in the installer log, "
-           L"chromium_installer.log in your Temp folder.";
+           L").\n\nDetails are in the installer logs, "
+           L"compass_installer.log and chromium_installer.log in your Temp "
+           L"folder.";
   }
   MessageBoxW(hwnd, text.c_str(), kTitle, MB_OK | MB_ICONERROR);
 }
@@ -256,6 +325,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam,
       HANDLE thread =
           CreateThread(nullptr, 0, &InstallThread, hwnd, 0, nullptr);
       if (!thread) {
+        Log(L"Couldn't start the install thread", true);
         PostMessageW(hwnd, kInstallDone, kLaunchFailed, 0);
       } else {
         CloseHandle(thread);
@@ -322,6 +392,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int show) {
     return 0;
   }
 
+  Log(L"Compass Installer started");
   Window window;
   g_window = &window;
 
