@@ -62,7 +62,9 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
             "changes, and when the About page opens."
           data: "None: a plain GET of the channel's manifest or installer."
           destination: OTHER
-          destination_other: "updates.compassbrowser.org, Compass's update server."
+          destination_other: "updates.compassbrowser.org, Compass's update "
+                             "server (manifests, older installers), and "
+                             "github.com (Compass's releases: installers)."
         }
         policy {
           cookies_allowed: NO

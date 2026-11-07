@@ -34,7 +34,22 @@ is and is still shown.
 - Everywhere: `compass::updates::CompassVersion()` (the `COMPASS_VERSION`
   buildflag). It's empty in dev builds, which never update.
 
-## Server
+## Where releases live
+
+The **feeds** are on `https://updates.compassbrowser.org`, the URL installed
+copies poll. The **archives** (disk images, deltas, Windows installers) are
+assets of Compass's GitHub releases, one per version, tagged `v<version>`:
+
+```
+https://github.com/Compass-Browser/Compass/releases/download/v<version>/<file>
+```
+
+Beta releases are GitHub prereleases; promoting one to stable makes it the
+latest release. Each archive entry in `releases.json` carries its `url`.
+Releases made before the archives moved to GitHub have no `url`; theirs stay
+on the update server, at `https://updates.compassbrowser.org/<file>`.
+
+## Update server
 
 `https://updates.compassbrowser.org` is a static file server behind
 Cloudflare. Feeds are served with `Cache-Control: no-cache`; archives and
@@ -45,14 +60,12 @@ homepage, `https://compassbrowser.org` (`website/`), reads `stable.json` and
 
 | Path | What |
 |---|---|
-| `releases.json` | Every release: version, channel, commit, Chromium version, date, and per platform the file, size, SHA-256 and Ed25519 signature (plus macOS deltas). The source of truth. |
+| `releases.json` | Every release: version, channel, commit, Chromium version, date, and per platform the file, URL, size, SHA-256 and Ed25519 signature (plus macOS deltas). The source of truth. |
 | `stable.json`, `beta.json` | The newest release each channel gets, per platform (`mac`, `win`): version, URL, size, SHA-256, signature. The Windows updater reads these. |
 | `mac/appcast.xml` | Sparkle's feed, both channels (beta items carry `<sparkle:channel>beta</sparkle:channel>`). |
-| `mac/Compass-<version>.dmg` | Notarized, stapled disk images. |
-| `mac/Compass-<from>-<to>.delta` | Sparkle binary deltas from the three previous releases. |
-| `win/CompassSetup-<version>.exe` | Chromium's mini_installer. |
-
-Feeds are served `no-cache`, and archives `immutable`.
+| `mac/Compass-<version>.dmg` | Notarized, stapled disk images (older releases; newer ones are on GitHub). |
+| `mac/Compass-<from>-<to>.delta` | Sparkle binary deltas from the three previous releases (likewise). |
+| `win/CompassSetup-<version>.exe` | Chromium's mini_installer (likewise). |
 
 Uploads go over rsync and SSH. The target isn't in the repository: the
 uploader reads it from `~/Library/Application Support/Compass Release/upload.json`,
@@ -64,6 +77,10 @@ uploader reads it from `~/Library/Application Support/Compass Release/upload.jso
 The key should be a dedicated one, restricted on the server to the site's
 directory (e.g. with `rrsync`), and need no agent, so unattended releases
 work.
+
+GitHub uploads go through the GitHub CLI: the release machine needs `gh`,
+signed in (`gh auth login`) as an account that can write releases to
+`Compass-Browser/Compass`.
 
 ## Signing key
 
@@ -88,8 +105,12 @@ tools/compass release feeds            # rewrite and upload the feeds
 tools/compass release publish-win 20261103.0215 --installer mini_installer.exe
 ```
 
-`publish` uploads the archive and deltas first and the feeds last, so a
-feed never names a missing file. The local mirror of the site lives in
+`publish` creates the version's GitHub release, uploads the archive and
+deltas to it, and only then uploads the feeds, so a feed never names a
+missing file. The release tags the commit it was built from when GitHub has
+that commit, and the default branch otherwise. `publish-win` adds the
+installer to the same release (or creates it), and `promote` also makes the
+GitHub release the latest, non-prerelease one. The local mirror of the site lives in
 `~/Library/Application Support/Compass Release/site` (it keeps old .dmg
 files, for deltas).
 
@@ -162,7 +183,8 @@ browser decides when to run it.
   `compass_enable_win_updater = true`): two minutes after launch, then every
   4 hours, when the channel changes, and from the About page, it reads
   `<channel>.json`. When `win.version` is newer than `CompassVersion()`, it
-  downloads the installer (only https from the update server), checks its
+  downloads the installer (only over https, from the update server or
+  `github.com/Compass-Browser/Compass/releases/download/`), checks its
   size, SHA-256 and Ed25519 signature (`update_manifest.cc`, unit-tested
   against a signature from Sparkle's own `sign_update`), and runs it with
   `--do-not-launch-chrome`. The About page goes through

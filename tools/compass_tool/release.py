@@ -15,6 +15,11 @@ The release folder (~/Library/Application Support/Compass Release) keeps:
   - mac/appcast.xml: Sparkle's feed, both channels;
   - mac/Compass-<version>.dmg and mac/Compass-<from>-<to>.delta.
 
+Archives (.dmg, deltas, Windows installers) are assets of a GitHub release
+of Compass, tagged v<version>; the feeds stay on the update server. Releases
+made before the move have their archives on the update server: an archive
+entry with a "url" is on GitHub, one without is at BASE_URL/<file>.
+
 Publishing uploads archives first and feeds last, so a feed never names a
 file that isn't there yet.
 """
@@ -31,11 +36,13 @@ import subprocess
 import tempfile
 import time
 from email.utils import formatdate
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional
 from xml.sax.saxutils import escape, quoteattr
 
 BASE_URL = 'https://updates.compassbrowser.org'
+# Where release archives are published (`gh release`).
+GITHUB_REPO = 'Compass-Browser/Compass'
 CHANNELS = ('stable', 'beta')
 SCHEMA = 1
 # Deltas are made from this many earlier releases.
@@ -64,6 +71,23 @@ def new_version(now: Optional[float] = None) -> str:
 
 def version_key(version: str) -> tuple:
   return tuple(int(part) for part in version.split('.'))
+
+
+def github_tag(version: str) -> str:
+  return 'v' + version
+
+
+def github_url(version: str, file: str) -> str:
+  """Where |file| (e.g. mac/Compass-<version>.dmg) of release |version| is
+  downloaded from once it's an asset of that GitHub release."""
+  return 'https://github.com/%s/releases/download/%s/%s' % (
+      GITHUB_REPO, github_tag(version), PurePosixPath(file).name)
+
+
+def archive_url(archive: Dict, base_url: str = BASE_URL) -> str:
+  """An archive entry's download URL: GitHub's, or the update server's for
+  releases made before archives moved there."""
+  return archive.get('url') or '%s/%s' % (base_url, archive['file'])
 
 
 # Manifest ------------------------------------------------------------------
@@ -113,7 +137,7 @@ def channel_manifest(manifest: Dict, channel: str,
         'chromium': release['chromium'],
         'commit': release['commit'],
         'date': release['date'],
-        'url': '%s/%s' % (base_url, archive['file']),
+        'url': archive_url(archive, base_url),
         'size': archive['size'],
         'sha256': archive['sha256'],
         'ed_signature': archive['ed_signature'],
@@ -152,7 +176,7 @@ def appcast(manifest: Dict, base_url: str = BASE_URL) -> str:
       lines.append('      <sparkle:criticalUpdate></sparkle:criticalUpdate>')
     lines.append('      <enclosure url=%s length="%d" '
                  'type="application/octet-stream" sparkle:edSignature=%s/>' %
-                 (quoteattr('%s/%s' % (base_url, mac['file'])), mac['size'],
+                 (quoteattr(archive_url(mac, base_url)), mac['size'],
                   quoteattr(mac['ed_signature'])))
     if mac.get('deltas'):
       lines.append('      <sparkle:deltas>')
@@ -160,7 +184,7 @@ def appcast(manifest: Dict, base_url: str = BASE_URL) -> str:
         lines.append(
             '        <enclosure url=%s sparkle:deltaFrom=%s length="%d" '
             'type="application/octet-stream" sparkle:edSignature=%s/>' %
-            (quoteattr('%s/%s' % (base_url, delta['file'])),
+            (quoteattr(archive_url(delta, base_url)),
              quoteattr(delta['from']), delta['size'],
              quoteattr(delta['ed_signature'])))
       lines.append('      </sparkle:deltas>')
@@ -283,6 +307,7 @@ def add_mac_release(manifest: Dict, dmg: Path, channel: str, commit: str,
   sign_update = tools / 'sign_update'
   mac = {
       'file': 'mac/' + archive.name,
+      'url': github_url(version, archive.name),
       'size': archive.stat().st_size,
       'sha256': sha256(archive),
       'ed_signature': ed_sign(sign_update, archive),
@@ -317,6 +342,7 @@ def add_win_release(manifest: Dict, installer: Path, version: str,
   shutil.copyfile(installer, archive)
   win = {
       'file': 'win/' + archive.name,
+      'url': github_url(version, archive.name),
       'size': archive.stat().st_size,
       'sha256': sha256(archive),
       'ed_signature': ed_sign(tools / 'sign_update', archive),
@@ -365,6 +391,7 @@ def make_deltas(manifest: Dict, archive: Path, version: str, tools: Path,
       deltas.append({
           'from': release['version'],
           'file': 'mac/' + delta.name,
+          'url': github_url(version, delta.name),
           'size': delta.stat().st_size,
           'ed_signature': ed_sign(tools / 'sign_update', delta),
       })
@@ -415,3 +442,59 @@ def release_files(release: Dict) -> List[Path]:
   if win:
     files.append(win['file'])
   return [SITE_DIR / f for f in files]
+
+
+# GitHub releases -----------------------------------------------------------
+
+
+def _gh(args: List[str], check: bool = True) -> subprocess.CompletedProcess:
+  try:
+    return subprocess.run(['gh'] + args + ['--repo', GITHUB_REPO],
+                          check=check, capture_output=not check, text=True)
+  except FileNotFoundError:
+    raise ReleaseError('needs the GitHub CLI (gh), signed in with write '
+                       'access to %s' % GITHUB_REPO)
+  except subprocess.CalledProcessError as e:
+    raise ReleaseError('gh %s failed (%d)' % (' '.join(args[:2]),
+                                               e.returncode))
+
+
+def github_has_commit(commit: str) -> bool:
+  return subprocess.run(
+      ['gh', 'api', 'repos/%s/commits/%s' % (GITHUB_REPO, commit), '--silent'],
+      capture_output=True).returncode == 0
+
+
+def github_release_args(release: Dict, target: Optional[str]) -> List[str]:
+  """`gh release create` arguments for a release that isn't on GitHub yet."""
+  notes = 'Compass %s, based on Chromium %s.' % (release['version'],
+                                                 release['chromium'])
+  if release.get('notes'):
+    notes += '\n\n' + release['notes']
+  args = ['release', 'create', github_tag(release['version']), '--title',
+          'Compass %s' % release['version'], '--notes', notes]
+  args.append('--prerelease' if release['channel'] == 'beta' else '--latest')
+  if target:
+    args += ['--target', target]
+  return args
+
+
+def publish_assets(release: Dict, paths: List[Path], commit: str = '') -> None:
+  """Uploads |paths| as assets of |release|'s GitHub release, creating it
+  first (tagging |commit| when GitHub has it; the default branch
+  otherwise)."""
+  tag = github_tag(release['version'])
+  if _gh(['release', 'view', tag], check=False).returncode != 0:
+    target = commit if commit and github_has_commit(commit) else None
+    _gh(github_release_args(release, target))
+  _gh(['release', 'upload', tag, '--clobber'] + [str(p) for p in paths])
+
+
+def promote_on_github(release: Dict) -> None:
+  """A beta that's promoted to stable stops being a prerelease and becomes
+  the latest release (if its archives are on GitHub)."""
+  archives = [release.get('mac') or {}, release.get('win') or {}]
+  if not any(a.get('url') for a in archives):
+    return
+  _gh(['release', 'edit', github_tag(release['version']),
+       '--prerelease=false', '--latest'])

@@ -79,6 +79,33 @@ TEST(UpdateManifestTest, InstallersComeOnlyFromTheUpdateServer) {
   EXPECT_FALSE(ParseChannelManifest(http, "win"));
 }
 
+TEST(UpdateManifestTest, InstallersFromCompassGitHubReleases) {
+  const std::string server = "https://updates.compassbrowser.org/win/";
+  auto with_url_prefix = [&](const std::string& prefix) {
+    std::string json(kManifest);
+    json.replace(json.find(server), server.size(), prefix);
+    return ParseChannelManifest(json, "win");
+  };
+  std::optional<ManifestEntry> entry = with_url_prefix(
+      "https://github.com/Compass-Browser/Compass/releases/download/"
+      "v20261103.0215/");
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(
+      "https://github.com/Compass-Browser/Compass/releases/download/"
+      "v20261103.0215/CompassSetup-20261103.0215.exe",
+      entry->url.spec());
+  // Another repository's releases, or anything else on github.com, isn't.
+  EXPECT_FALSE(with_url_prefix(
+      "https://github.com/someone/Compass/releases/download/v1/"));
+  EXPECT_FALSE(with_url_prefix(
+      "https://github.com/Compass-Browser/Compass/archive/"));
+  EXPECT_FALSE(with_url_prefix(
+      "https://github.com/Compass-Browser/Compass/releases/download/../../"
+      "../someone/x/releases/download/v1/"));
+  EXPECT_FALSE(with_url_prefix(
+      "http://github.com/Compass-Browser/Compass/releases/download/v1/"));
+}
+
 TEST(UpdateManifestTest, NewerVersions) {
   EXPECT_TRUE(IsNewerVersion("20261103.0215", "20261102.2359"));
   EXPECT_TRUE(IsNewerVersion("20261103.1000", "20261103.0215"));

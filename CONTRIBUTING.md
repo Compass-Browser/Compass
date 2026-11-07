@@ -81,6 +81,10 @@ tools/compass ios test                              # iOS (CompassKit)
 Sync changes that cross devices can also be checked end to end with the
 helpers in [tools/sync_e2e](tools/sync_e2e/README.md).
 
+GitHub Actions runs the tooling tests (macOS, Windows, Linux) and the sync
+server's tests on every pull request. Full Chromium builds run on
+maintainers' machines, so mention what you built and tested.
+
 ## Pull requests
 
 - One topic per pull request; keep unrelated refactors out.
