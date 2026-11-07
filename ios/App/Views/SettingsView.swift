@@ -114,7 +114,7 @@ struct SettingsView: View {
         }
         if app.sync.isOn { syncOn } else { syncOff }
         Section {
-          Link(destination: URL(string: "https://sync.example.org/privacy")!) {
+          Link(destination: URL(string: "https://compassbrowser.org/privacy")!) {
             SettingsLabel("Privacy Policy", "hand.raised.fill", .indigo)
           }
         }

@@ -49,9 +49,10 @@ std::optional<ManifestEntry> ParseChannelManifest(std::string_view json,
   out.size = static_cast<int64_t>(*size);
   out.sha256 = base::ToLowerASCII(*sha256);
   out.ed_signature = *signature;
-  // Installers come from the update server only.
+  // Installers come from the update server only (either of its names).
+  const GURL origin = out.url.DeprecatedGetOriginAsURL();
   if (!out.url.SchemeIs("https") ||
-      out.url.DeprecatedGetOriginAsURL() != GURL(kUpdateServer)) {
+      (origin != GURL(kUpdateServer) && origin != GURL(kOldUpdateServer))) {
     return std::nullopt;
   }
   if (!base::Version(out.version).IsValid() || out.sha256.size() != 64) {

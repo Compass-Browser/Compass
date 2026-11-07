@@ -35,9 +35,13 @@ server, keep going on slice 4, on any problem stop, write
 **Network (resume):** the MacBook is no longer on the Mac mini's LAN, so
 its runs use the public server only; deploy server changes to the sync server first.
 
-**Servers:** public `https://sync.example.org/v2` runs slice 4's
-server (`/opt/compass-sync` on the sync server, `ssh -p 22 user@server`;
-update: rsync `server/` to `./src`, `docker compose up -d --build`). The Mac
+**Servers:** public `https://sync.example.org/v2`
+(`/opt/compass-sync` on the server, `ssh -p 22 user@server`, behind
+Cloudflare and the host's Caddy, `website/compassbrowser.caddy`; update:
+rsync `server/` to `./src`, `docker compose up -d --build`). Until
+2026-11-07 it ran on the sync server as `https://sync.example.org/v2` (only
+our own devices used it); the sync server's Caddy forwards that name to the server
+until they're switched to the new URL by hand. The Mac
 mini test server (Podman `compass-sync`, volume `compass-sync-data`, port
 8295) is down with the Mac mini; it ran slice 4's server; restart with
 `podman start compass-sync`.

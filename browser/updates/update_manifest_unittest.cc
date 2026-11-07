@@ -74,6 +74,12 @@ TEST(UpdateManifestTest, InstallersComeOnlyFromTheUpdateServer) {
                 strlen("https://updates.compassbrowser.org"),
                 "https://example.com");
   EXPECT_FALSE(ParseChannelManifest(other, "win"));
+  // The server's old name is still the update server.
+  std::string old_name = json;
+  old_name.replace(old_name.find("https://updates.compassbrowser.org"),
+                   strlen("https://updates.compassbrowser.org"),
+                   "https://updates.compassbrowser.org");
+  EXPECT_TRUE(ParseChannelManifest(old_name, "win"));
   std::string http = json;
   http.replace(http.find("https://"), strlen("https://"), "http://");
   EXPECT_FALSE(ParseChannelManifest(http, "win"));

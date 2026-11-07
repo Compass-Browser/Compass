@@ -137,7 +137,7 @@ Live state is separate. A `LiveTabRegistry` maps node → WKWebView, keeps at mo
 - **Splits** on the phone open as one entry with a pane switcher (segmented control). The desktop-style side-by-side view waits for iPad.
 - Auto-archive runs on the synced `last_active_time`, with the same timers as desktop.
 - **Onboarding and settings:**
-  - "Join with a Mac": scan the QR or type `<slot>-<6 digits>` plus the server URL, defaulting to the the sync server instance. Then "Use a recovery code".
+  - "Join with a Mac": scan the QR or type `<slot>-<6 digits>` plus the server URL, defaulting to the public instance. Then "Use a recovery code".
   - Settings: devices, a toggle per type, the server URL, "Leave sync", and the recovery code (behind Face ID).
 
 ## Passwords and AutoFill

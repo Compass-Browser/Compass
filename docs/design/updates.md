@@ -38,7 +38,15 @@ is and is still shown.
 
 `https://updates.compassbrowser.org` runs on the server (<server>, Debian 13),
 behind the host's Caddy container (`/opt/docker/caddy`, site file
-`config/sites/compass-updates.caddy`, TLS via Cloudflare DNS-01). It's a
+`config/sites/compassbrowser.caddy`, a copy of `website/compassbrowser.caddy`).
+compassbrowser.org is proxied by Cloudflare, and its certificates come
+through HTTP-01 (the host's Cloudflare token doesn't cover it). Until
+2026-11-07 the server was `https://updates.compassbrowser.org`; that name is
+baked into installed copies (Sparkle's `SUFeedURL`), so it still serves the
+same files, and the Windows updater accepts installers from either name.
+The homepage, `https://compassbrowser.org` (`website/`, rsynced to
+`/var/www/compassbrowser.org`), reads `stable.json` and `beta.json` for its
+download links (the feeds send `Access-Control-Allow-Origin: *`). It's a
 static file server for `/var/www/compass-updates`:
 
 | Path | What |
