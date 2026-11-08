@@ -182,6 +182,28 @@ class PatchSyncTest(unittest.TestCase):
         state == patches.APPLIED
         for state in patches.status(self.patches_dir, self.src).values()))
 
+  def test_updates_a_patch_whose_new_version_fits_around_the_old(self):
+    # v1 adds :b at the top; v2 adds :c at the bottom instead. v2 applies
+    # (and reverses) cleanly on a file that still has v1, so v1 must not
+    # stay underneath it.
+    self.build_gn.write_text('deps = [\n  ":a",\n  ":x",\n  ":y",\n'
+                             '  ":z",\n  ":w",\n]\n')
+    git(self.src, 'commit', '-qam', 'longer')
+    pristine = self.build_gn.read_text()
+    v1 = pristine.replace('deps = [\n', 'deps = [\n  ":b",\n')
+    v2 = pristine.replace('  ":w",\n', '  ":w",\n  ":c",\n')
+    self.commit_patches(v1, keep_applied=True)
+    self.commit_patches(v2)
+    stacked = v1.replace('  ":w",\n', '  ":w",\n  ":c",\n')
+    for _ in range(2):  # Both as left by a stacking sync, and with v1 only.
+      problems = self.quietly(patches.sync, self.patches_dir, self.src)
+      self.assertEqual(problems, [])
+      self.assertEqual(self.build_gn.read_text(), v2)
+      self.build_gn.write_text(stacked)
+    self.build_gn.write_text(v1)
+    self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(self.build_gn.read_text(), v2)
+
   def test_updates_patches_exported_with_another_diff_driver(self):
     # The old version was exported on a machine whose diff driver puts a
     # function name after the hunk header; this one prints none.

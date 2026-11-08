@@ -192,6 +192,16 @@ def same_change(a: bytes, b: bytes) -> bool:
   return normalized(a) == normalized(b)
 
 
+def same_edits(a: bytes, b: bytes) -> bool:
+  """Whether diffs |a| and |b| add and remove the same lines, ignoring
+  headers, hunk positions and context."""
+  def edits(text: bytes) -> List[bytes]:
+    return [line for line in text.replace(b'\r\n', b'\n').split(b'\n')
+            if line[:1] in (b'+', b'-')
+            and not line.startswith((b'+++ ', b'--- '))]
+  return edits(a) == edits(b)
+
+
 def matches_a_version(change: bytes, versions: List[bytes]) -> bool:
   return any(same_change(change, version) for version in versions)
 
@@ -222,13 +232,33 @@ def sync(patches_dir: Path, src: Path) -> List[str]:
   for repo, repo_patches in patches_by_repo(patches_dir, src).items():
     for patch in repo_patches:
       current = state(repo, patch)
+      path = target_path(patch)
       if current == APPLIED:
+        if same_edits(diff(repo, path), patch.read_bytes()):
+          continue
+        # The patch reverses, but the file has more: when a new version's
+        # hunks still fit around the old version's, the old one stays
+        # underneath (it kept an ungated dep in chrome/browser/ui/startup).
+        git(['apply', '-R', patch], repo)
+        if matches_a_version(diff(repo, path),
+                             past_versions(patches_dir, patch)):
+          restore(repo, path)
+          git(['apply', patch], repo)
+          print('updated   ' + _display(patch, patches_dir))
+        else:
+          git(['apply', patch], repo)
         continue
       if current == NOT_APPLIED:
-        git(['apply', patch], repo)
-        print('applied   ' + _display(patch, patches_dir))
+        if diff(repo, path) and matches_a_version(
+            diff(repo, path), past_versions(patches_dir, patch)):
+          # An older version would stay under the new one.
+          restore(repo, path)
+          git(['apply', patch], repo)
+          print('updated   ' + _display(patch, patches_dir))
+        else:
+          git(['apply', patch], repo)
+          print('applied   ' + _display(patch, patches_dir))
         continue
-      path = target_path(patch)
       if matches_a_version(diff(repo, path),
                             past_versions(patches_dir, patch)):
         restore(repo, path)
