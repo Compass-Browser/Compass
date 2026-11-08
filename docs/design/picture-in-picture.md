@@ -222,13 +222,17 @@ whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
 - **Pills.** Each group sits on a frosted pill: the top left and top right
   buttons, the playback buttons (or a call's camera, hang up and
   microphone) in the middle, and the timeline row at the bottom. A pill is
-  dark and translucent (70%; the middle one, over the picture itself,
-  40%), with the video behind it blurred, a faint light edge, and round
-  ends (the two-row bottom one: 14 DIP corners). The middle one has 16 DIP
-  at its sides, clear of its round ends. The
+  dark and translucent (60%; the middle one, over the picture itself,
+  30%), with the video behind it blurred, a faint light edge, and round
+  ends. The middle one has 16 DIP at its sides, clear of its round ends. The
   pills are children of upstream's scrim, so they fade with the controls,
-  and take no events. The bottom row moves up so its pill stays `kMargin`
-  from the window's edges and clear of its rounded corners.
+  and take no events.
+- **Bottom row:** upstream's two rows (the timeline between previous and
+  next track, the time under it on the left, mute and captions on the
+  right) are one: previous, the time, the timeline, next, mute, captions
+  (`LayOutBottomRow()`), `kMargin` from the window's edges. The time is as
+  wide as its longest text (the current time as long as the duration), so
+  the timeline doesn't move as it counts.
 - **Timeline handle:** a 12 DIP circle, the played line running up to it
   (upstream: a 4x16 bar after a gap; `media_progress_view.cc` patch, so
   Chrome's other media controls have it too).

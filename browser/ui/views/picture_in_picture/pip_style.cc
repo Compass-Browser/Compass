@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <string>
 
 #include "base/containers/span.h"
 #include "cc/paint/paint_flags.h"
@@ -37,6 +38,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/gfx/text_utils.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/image_button.h"
@@ -56,14 +58,14 @@ constexpr SkColor kDimColor = SkColorSetA(SK_ColorBLACK, 0x33);
 // A pill's fill: dark and translucent, with kTintShare of the space color
 // mixed in; a faint light edge; the video behind it blurred.
 constexpr SkColor kPillBaseColor = SkColorSetRGB(0x1C, 0x1C, 0x1E);
-constexpr SkAlpha kPillAlpha = 0xB3;
+constexpr SkAlpha kPillAlpha = 0x99;
 // The middle pill sits over the picture itself: lighter.
-constexpr SkAlpha kCenterPillAlpha = 0x66;
+constexpr SkAlpha kCenterPillAlpha = 0x4D;
 constexpr float kTintShare = 0.2f;
 constexpr SkColor kPillEdgeColor = SkColorSetA(SK_ColorWHITE, 0x1F);
 constexpr float kPillBlurSigma = 24;
-// The bottom pill holds two rows: its corners stay this round.
-constexpr int kBottomPillRadius = 14;
+// Space between the controls on the bottom row.
+constexpr int kBottomGap = 4;
 // Back to tab's icon (back_to_tab_button.cc patch), and the space between
 // it and its title, and after the title.
 constexpr int kBackToTabIconSize = 20;
@@ -88,10 +90,7 @@ class PipPill : public views::View {
 
   Group group() const { return group_; }
 
-  int GetRadius() const {
-    return group_ == Group::kBottom ? std::min(kBottomPillRadius, height() / 2)
-                                    : height() / 2;
-  }
+  int GetRadius() const { return height() / 2; }
 
   // views::View:
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override {
@@ -228,6 +227,77 @@ void PipStyle::SetUp(VideoOverlayWindowViews* window) {
 }
 
 // static
+void PipStyle::LayOutBottomRow(VideoOverlayWindowViews* window,
+                               const gfx::Size& size) {
+  views::View* const container = window->controls_container_view_;
+  // Upstream's two rows (the timeline between previous and next, the time
+  // under it on the left, mute and captions on the right) as one:
+  // [previous][time][timeline][next][mute][captions], centered on a line
+  // kMargin plus the pill's padding above the bottom edge.
+  const int padding = GetPillOutsets(Group::kBottom).left();
+  const int row_height = window->next_track_controls_view_->height();
+  const int center_y = size.height() - kMargin - padding - row_height / 2;
+  auto place = [&](views::View* view, int x, int width, int height) {
+    view->SetBounds(x, center_y - height / 2, width, height);
+  };
+
+  int left = kMargin + padding;
+  views::View* previous = window->previous_track_controls_view_.get();
+  if (IsShown(previous, container)) {
+    place(previous, left, previous->width(), previous->height());
+    left += previous->width() + kBottomGap;
+  }
+  // The time, as wide as its longest text (the current time as long as the
+  // duration), so it doesn't move the timeline as it counts.
+  for (views::Label* label : {window->timestamp_.get(),
+                              window->live_status_.get()}) {
+    if (!IsShown(label, container)) {
+      continue;
+    }
+    std::u16string widest = std::u16string(label->GetText());
+    if (label == window->timestamp_) {
+      const size_t slash = widest.find(u" / ");
+      if (slash != std::u16string::npos) {
+        const std::u16string duration = widest.substr(slash + 3);
+        widest = duration + u" / " + duration;
+      }
+      for (char16_t& c : widest) {
+        if (c >= u'0' && c <= u'9') {
+          c = u'8';
+        }
+      }
+    }
+    const int width =
+        gfx::GetStringWidth(widest, label->font_list()) +
+        label->GetInsets().width();
+    place(label, left, width, label->GetPreferredSize().height());
+    left += width + kBottomGap;
+  }
+
+  int right = size.width() - kMargin - padding;
+  views::View* live_caption = window->live_caption_button_.get();
+  for (views::View* view :
+       {live_caption,
+        static_cast<views::View*>(window->toggle_mute_button_.get()),
+        static_cast<views::View*>(window->next_track_controls_view_.get())}) {
+    if (!IsShown(view, container)) {
+      continue;
+    }
+    right -= view->width();
+    place(view, right, view->width(), view->height());
+    right -= kBottomGap;
+  }
+  if (IsShown(live_caption, container)) {
+    views::View* dialog = window->live_caption_dialog_;
+    dialog->SetPosition({live_caption->bounds().right() - dialog->width(),
+                         live_caption->y() - dialog->height()});
+  }
+
+  views::View* progress = window->progress_view_;
+  place(progress, left, std::max(0, right - left), progress->height());
+}
+
+// static
 void PipStyle::Layout(VideoOverlayWindowViews* window) {
   // The space color, as the tab's space has now.
   window->SetUserColorOverride(GetPipTint(
@@ -270,23 +340,7 @@ void PipStyle::Layout(VideoOverlayWindowViews* window) {
   static_cast<views::View*>(window->back_to_tab_button_.get())
       ->SetPosition({kMargin + kPillPadding, top});
 
-  // Bottom: upstream's row, moved up (and in) so its pill stays kMargin
-  // from the window's edges and clear of its rounded corners.
-  const gfx::Rect bottom_row = UnionOfShown(bottom, container);
-  if (!bottom_row.IsEmpty()) {
-    gfx::Rect pill = bottom_row;
-    pill.Outset(GetPillOutsets(Group::kBottom));
-    const int dy = std::min(0, size.height() - kMargin - pill.bottom());
-    if (dy) {
-      for (views::View* view : bottom) {
-        if (view) {
-          view->SetY(view->y() + dy);
-        }
-      }
-      window->live_caption_dialog_->SetY(window->live_caption_dialog_->y() +
-                                         dy);
-    }
-  }
+  LayOutBottomRow(window, size);
 
   // The pills, under their groups, in the scrim's coordinates (it's a pixel
   // larger than the window all around).

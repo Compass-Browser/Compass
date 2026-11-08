@@ -7,6 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 class VideoOverlayWindowViews;
 
@@ -66,6 +67,12 @@ class PipStyle {
     gfx::Rect bottom;
   };
   static PillBounds GetPillBoundsForTesting(VideoOverlayWindowViews* window);
+
+ private:
+  // The bottom row, after upstream's layout: [previous][time][timeline]
+  // [next][mute][captions] on one line.
+  static void LayOutBottomRow(VideoOverlayWindowViews* window,
+                              const gfx::Size& size);
 };
 
 }  // namespace compass

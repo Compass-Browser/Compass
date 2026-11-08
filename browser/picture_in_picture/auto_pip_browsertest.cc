@@ -374,6 +374,12 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipStyle) {
   EXPECT_LE(pills.bottom.bottom(), size.height() - PipStyle::kMargin);
   EXPECT_GE(pills.bottom.x(), PipStyle::kMargin);
   EXPECT_LE(pills.bottom.right(), size.width() - PipStyle::kMargin);
+  // One bottom row: the time left of the timeline, on its line.
+  const gfx::Rect time = window->timestamp_for_testing()->bounds();
+  const gfx::Rect timeline = window->progress_view_for_testing()->bounds();
+  EXPECT_LT(time.right(), timeline.x());
+  EXPECT_EQ(time.CenterPoint().y(), timeline.CenterPoint().y());
+  EXPECT_LE(pills.bottom.height(), 40);
 
   // A color change follows at the next layout (a resize here).
   WindowFeatures::From(browser())->space_model().SetColor(SpaceColor::kGreen);
