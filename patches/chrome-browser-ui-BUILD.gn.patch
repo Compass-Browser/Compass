@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 238f8625e42d8703c72c266c36e32bbfb2113095..ba69436f762905968306ac3dd7c55d15bcbd922e 100644
+index 238f8625e42d8703c72c266c36e32bbfb2113095..86906337375fa4ca18216d5a6089b7cf55e7fd3f 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -591,6 +591,8 @@ if (!is_android) {
@@ -30,16 +30,18 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..ba69436f762905968306ac3dd7c55d15
        ":accelerator_utils_headers",
        ":browser_command_controller",
        ":browser_init_state",
-@@ -1086,6 +1093,8 @@ if (!is_android) {
+@@ -1086,6 +1093,10 @@ if (!is_android) {
      public = [ "accelerator_table.h" ]
      sources = [ "accelerator_table.cc" ]
      deps = [
-+      # Compass's Shift+Alt+N (a little window) on Windows.
++      # Compass's Shift+Alt+N (a little window) on Windows, and its
++      # shortcuts and the user's there.
++      "//compass/browser/shortcuts",
 +      "//compass/browser/ui:app_menu_hooks",
        "//chrome/app:command_ids",
        "//chrome/browser/ui:ui_features",
        "//chrome/browser/ui/tabs",
-@@ -1424,6 +1433,9 @@ source_set("tab_helpers_impl") {
+@@ -1424,6 +1435,9 @@ source_set("tab_helpers_impl") {
      "//printing/buildflags",
      "//ui/accessibility:ax_base",
    ]
@@ -49,7 +51,7 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..ba69436f762905968306ac3dd7c55d15
  
    if (is_android) {
      deps += [
-@@ -1587,6 +1599,9 @@ static_library("ui") {
+@@ -1587,6 +1601,9 @@ static_library("ui") {
      "//chrome/browser/ui/webui/flags",
      "//chrome/browser/ui/webui/subresource_filter",
    ]
@@ -59,7 +61,7 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..ba69436f762905968306ac3dd7c55d15
  
    deps = [
      ":browser_element_identifiers",
-@@ -2771,6 +2786,9 @@ static_library("ui") {
+@@ -2771,6 +2788,9 @@ static_library("ui") {
        # tab_search includes browser.h, browser_window.h,
        # plural_string_handler.h from //chrome/browser/ui.
        "//chrome/browser/ui/webui/tab_search",

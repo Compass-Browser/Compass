@@ -1,16 +1,19 @@
 diff --git a/chrome/browser/ui/accelerator_table.cc b/chrome/browser/ui/accelerator_table.cc
-index 1a68ca92321945aa8e3f61755351f455f27cca73..b0569f045983b831038e5df855e54cddccd5683c 100644
+index 1a68ca92321945aa8e3f61755351f455f27cca73..be2687007054ebddefc892f5c5f1143493281c84 100644
 --- a/chrome/browser/ui/accelerator_table.cc
 +++ b/chrome/browser/ui/accelerator_table.cc
-@@ -15,6 +15,7 @@
+@@ -15,6 +15,10 @@
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
  #include "chrome/app/chrome_command_ids.h"
 +#include "compass/browser/ui/compass_command_ids.h"
++#if BUILDFLAG(IS_WIN)
++#include "compass/browser/shortcuts/shortcuts_win.h"
++#endif
  #include "chrome/browser/ui/tabs/features.h"
  #include "chrome/browser/ui/ui_features.h"
  #include "components/lens/buildflags.h"
-@@ -325,7 +326,15 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
+@@ -325,7 +329,15 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
                           std::begin(kDevToolsAcceleratorMap),
                           std::end(kDevToolsAcceleratorMap));
  
@@ -27,3 +30,28 @@ index 1a68ca92321945aa8e3f61755351f455f27cca73..b0569f045983b831038e5df855e54cdd
      accelerators->emplace_back(AcceleratorMapping(
          {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN, IDC_NEW_SPLIT_TAB}));
  #elif BUILDFLAG(IS_CHROMEOS)
+@@ -361,7 +373,24 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
+ #endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS)
+   }
+ 
++#if BUILDFLAG(IS_WIN)
++  // Compass: its shortcuts over upstream's, then the user's
++  // (compass/browser/shortcuts/shortcuts_win.h).
++  std::vector<compass::CommandAccelerator> list;
++  for (const AcceleratorMapping& mapping : *accelerators) {
++    list.push_back({ui::Accelerator(mapping.keycode, mapping.modifiers),
++                    mapping.command_id});
++  }
++  compass::AdjustAcceleratorList(list);
++  std::vector<AcceleratorMapping> adjusted;
++  for (const compass::CommandAccelerator& entry : list) {
++    adjusted.push_back({entry.accelerator.key_code(),
++                        entry.accelerator.modifiers(), entry.command});
++  }
++  return adjusted;
++#else
+   return *accelerators;
++#endif
+ }
+ 
+ void ClearAcceleratorListForTesting() {
