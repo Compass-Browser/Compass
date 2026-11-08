@@ -1,5 +1,5 @@
 diff --git a/ui/views/widget/widget.h b/ui/views/widget/widget.h
-index b0896143e16f0fed556672d7c5645800d2c26a4e..d573892ff5ff55ad656df8aca3393742161edffe 100644
+index b0896143e16f0fed556672d7c5645800d2c26a4e..8cf11017b6b681f8a20e6c0b498a4203c0fefd4e 100644
 --- a/ui/views/widget/widget.h
 +++ b/ui/views/widget/widget.h
 @@ -1234,6 +1234,12 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
@@ -15,3 +15,14 @@ index b0896143e16f0fed556672d7c5645800d2c26a4e..d573892ff5ff55ad656df8aca3393742
    NonClientView* non_client_view() {
      return const_cast<NonClientView*>(
          const_cast<const Widget*>(this)->non_client_view());
+@@ -1859,6 +1865,10 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
+   // disabled.
+   bool movement_disabled_ = false;
+ 
++  // Compass: true during ExchangeContentsWith(), while the non-client views
++  // are out of the widget.
++  bool exchanging_contents_ = false;
++
+   // Block the widget from closing.
+   bool block_close_ = false;
+ 

@@ -1,14 +1,19 @@
 diff --git a/ui/views/widget/widget.cc b/ui/views/widget/widget.cc
-index 35d5b656d91fad27a065d3d33e8fb76e4fdf281b..eb11c1bcb7becdef17d44d314bc3c77c3e3444a8 100644
+index 35d5b656d91fad27a065d3d33e8fb76e4fdf281b..7f86db3fd2b679554dc23a7bc823bef5874a4007 100644
 --- a/ui/views/widget/widget.cc
 +++ b/ui/views/widget/widget.cc
-@@ -1564,6 +1564,33 @@ void* Widget::GetNativeWindowProperty(const char* name) const {
+@@ -1564,6 +1564,38 @@ void* Widget::GetNativeWindowProperty(const char* name) const {
                          : nullptr;
  }
  
 +void Widget::ExchangeContentsWith(Widget& other) {
 +  CHECK(non_client_view_);
 +  CHECK(other.non_client_view_);
++  // Taking the views out hides their native views, which on Windows hit-tests
++  // the window at once (a synthesized mouse move sends WM_NCHITTEST) through
++  // the frame view of a view no longer in a widget.
++  base::AutoReset<bool> exchanging(&exchanging_contents_, true);
++  base::AutoReset<bool> other_exchanging(&other.exchanging_contents_, true);
 +  root_view_->RemoveChildView(non_client_view_);
 +  other.root_view_->RemoveChildView(other.non_client_view_);
 +  // The client views live in the frame views, which are replaced below: take
@@ -36,3 +41,14 @@ index 35d5b656d91fad27a065d3d33e8fb76e4fdf281b..eb11c1bcb7becdef17d44d314bc3c77c
  void Widget::UpdateWindowTitle() {
    if (!native_widget_ || !non_client_view_) {
      return;
+@@ -2292,6 +2324,10 @@ void Widget::OnNativeWidgetPaint(const ui::PaintContext& context) {
+ }
+ 
+ int Widget::GetNonClientComponent(const gfx::Point& point) {
++  // Compass: the views are moving to another widget (ExchangeContentsWith()).
++  if (exchanging_contents_) {
++    return HTCLIENT;
++  }
+   int component =
+       non_client_view_ ? non_client_view_->NonClientHitTest(point) : HTNOWHERE;
+ 
