@@ -9,3 +9,10 @@
 
 # Android lint and Error Prone slow the build down and check upstream code.
 android_static_analysis = "off"
+
+# mksnapshot runs natively on an Apple silicon host, and by default V8 lets
+# it use the features its compiler targets (the Mac's: JSCVT, LSE, ...) in
+# the builtins it writes. Many Android CPUs don't have them, and the
+# renderer dies of SIGILL on the first JavaScript. Linux hosts run
+# mksnapshot through a simulator, where this doesn't come up.
+v8_use_host_cpu_arm_features = false
