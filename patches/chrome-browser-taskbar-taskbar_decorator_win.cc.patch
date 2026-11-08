@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/taskbar/taskbar_decorator_win.cc b/chrome/browser/taskbar/taskbar_decorator_win.cc
+index 90969f7bb07a642d37a348d33d7220ec035d7a3f..1490b177347cfd4e6679dc46abdd9f9b8130e14b 100644
+--- a/chrome/browser/taskbar/taskbar_decorator_win.cc
++++ b/chrome/browser/taskbar/taskbar_decorator_win.cc
+@@ -193,7 +193,11 @@ void DrawTaskbarDecoration(gfx::NativeWindow window, const gfx::Image* image) {
+ }
+ 
+ void UpdateTaskbarDecoration(Profile* profile, gfx::NativeWindow window) {
+-  if (profile->IsGuestSession() ||
++  // Compass: no profile avatar over the taskbar button. Compass is one app
++  // whose windows switch profiles in place; this only clears the overlay
++  // (a web app's badge, DrawTaskbarDecorationString(), when it goes).
++  const bool badged = false;
++  if (!badged || profile->IsGuestSession() ||
+       // Browser process and profile manager may be null in tests.
+       (g_browser_process && g_browser_process->profile_manager() &&
+        g_browser_process->profile_manager()

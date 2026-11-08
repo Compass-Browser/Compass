@@ -62,7 +62,7 @@ What ties a native window to its view, and how the exchange redoes it:
 |---|---|
 | `Widget::widget_delegate_`, `non_client_view_` (client view = the `BrowserView`) | `Widget::ExchangeContentsWith()` (views patch) |
 | `BrowserWidget::browser_view_`, `BrowserRootView::browser_view_`, `BrowserNativeWidgetMac::browser_view_`; on Windows `BrowserNativeWidgetAura::browser_view_` and `BrowserDesktopWindowTreeHostWin::browser_view_` | set by the exchange (`friend`) |
-| Windows: the tree host's `BrowserWindowPropertyManager` (taskbar relaunch command and icon) | made again for the view that comes in (the window icon is the plain app icon for every profile, so it stays) |
+| Windows: the tree host's `BrowserWindowPropertyManager` (taskbar relaunch command and icon) | made again for the view that comes in (the window icon is the plain app icon for every profile, so it stays, and the taskbar button carries no profile overlay) |
 | `BrowserView::browser_widget_` (owns the widget) | swapped |
 | Frame view (`BrowserFrameViewMac`, made for one view) | `CreateFrameView()` again |
 | `kBrowserViewKey`, `Profile::kProfileKey` window properties | set again |
