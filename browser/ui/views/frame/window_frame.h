@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
 
@@ -65,6 +66,11 @@ class WindowFrame : public views::ViewObserver {
   const raw_ptr<BrowserWindowInterface> browser_;
   bool caption_buttons_hidden_ = false;
   float caption_buttons_opacity_ = 1.f;
+  // Windows: the widget whose caption buttons were made to ask for their
+  // size again (a profile switch brings the view to another widget). Only
+  // compared, never followed: that widget may be gone.
+  raw_ptr<views::Widget, DisableDanglingPtrDetection>
+      sized_caption_buttons_for_ = nullptr;
   base::ScopedObservation<views::View, views::ViewObserver> region_observation_{
       this};
 };
@@ -80,6 +86,15 @@ inline constexpr int kCaptionButtonsCenterY = 13 + 7;
 // patches/), if the window has the frame and isn't fullscreen. Upstream's
 // height comes from the toolbar, which isn't shown.
 std::optional<int> GetWindowTitlebarHeight(views::View* browser_view);
+
+// Windows: the caption buttons' size (minimize, maximize, close), each, in
+// |browser_view|'s window if it has the frame: smaller than upstream's 45x29
+// DIP, which is a title bar's height, so the strip they leave above the page
+// is thin (WindowsCaptionButton::CalculatePreferredSize(), patch). Null
+// without the frame.
+inline constexpr gfx::Size kCompactCaptionButtonSize(36, 24);
+std::optional<gfx::Size> GetCompactCaptionButtonSize(
+    views::View* browser_view);
 
 // Whether |point| (in |browser_view|'s coordinates) is on the frame around
 // the page, where nothing else is: it drags the window, as a title bar does.

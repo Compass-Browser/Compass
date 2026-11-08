@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/view_ids.h"
 #include "compass/browser/ui/views/find_bar/find_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/load_bar.h"
@@ -18,6 +19,7 @@
 #include "ui/base/class_property.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/window/non_client_view.h"
 
 DEFINE_UI_CLASS_PROPERTY_TYPE(compass::WindowFrame*)
 
@@ -26,6 +28,24 @@ namespace compass {
 namespace {
 
 DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(WindowFrame, kWindowFrameKey)
+
+#if BUILDFLAG(IS_WIN)
+void InvalidateCaptionButtons(views::View* view) {
+  switch (view->GetID()) {
+    case VIEW_ID_MINIMIZE_BUTTON:
+    case VIEW_ID_MAXIMIZE_BUTTON:
+    case VIEW_ID_RESTORE_BUTTON:
+    case VIEW_ID_CLOSE_BUTTON:
+      view->InvalidateLayout();
+      return;
+    default:
+      break;
+  }
+  for (views::View* child : view->children()) {
+    InvalidateCaptionButtons(child);
+  }
+}
+#endif
 
 }  // namespace
 
@@ -80,6 +100,16 @@ void WindowFrame::UpdateCaptionButtons() {
   if (!widget) {
     return;
   }
+#if BUILDFLAG(IS_WIN)
+  // The frame view may have sized its buttons before this frame was
+  // installed: they ask again (GetCompactCaptionButtonSize()).
+  if (sized_caption_buttons_for_ != widget) {
+    sized_caption_buttons_for_ = widget;
+    if (widget->non_client_view() && widget->non_client_view()->frame_view()) {
+      InvalidateCaptionButtons(widget->non_client_view()->frame_view());
+    }
+  }
+#endif
   // The region is laid out this narrow only collapsed and not shown on hover
   // (empty, it's yet to be laid out). In between, it's opening or closing.
   float opacity = 1.f;
@@ -105,17 +135,31 @@ void WindowFrame::UpdateCaptionButtons() {
   SetCaptionButtonsOpacity(widget, opacity);
 }
 
+namespace {
+
+bool HasWindowFrame(views::View* browser_view) {
+  return std::ranges::any_of(browser_view->children(), [](views::View* child) {
+    return WindowFrame::FromRegion(child) != nullptr;
+  });
+}
+
+}  // namespace
+
 std::optional<int> GetWindowTitlebarHeight(views::View* browser_view) {
   if (!browser_view || !browser_view->GetWidget() ||
-      browser_view->GetWidget()->IsFullscreen()) {
+      browser_view->GetWidget()->IsFullscreen() ||
+      !HasWindowFrame(browser_view)) {
     return std::nullopt;
   }
-  for (views::View* child : browser_view->children()) {
-    if (WindowFrame::FromRegion(child)) {
-      return 2 * kCaptionButtonsCenterY;
-    }
+  return 2 * kCaptionButtonsCenterY;
+}
+
+std::optional<gfx::Size> GetCompactCaptionButtonSize(
+    views::View* browser_view) {
+  if (!browser_view || !HasWindowFrame(browser_view)) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return kCompactCaptionButtonSize;
 }
 
 bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point) {
