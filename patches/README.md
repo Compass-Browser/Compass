@@ -97,7 +97,7 @@ nothing else.
 | `chrome-browser-profiles-keep_alive-profile_keep_alive_types.h.patch` | Adds the `kCompassSpaces` keep-alive origin: `compass::SpaceDirectory` keeps profiles whose spaces show in the switcher loaded (D17) |
 | `chrome-browser-profiles-keep_alive-profile_keep_alive_types.cc.patch` | Prints `kCompassSpaces` |
 | `tools-metrics-histograms-metadata-profile-enums.xml.patch` | Adds `kCompassSpaces` to the `ProfileKeepAliveOrigin` histogram enum |
-| `ui-views-widget-widget.h.patch`, `ui-views-widget-widget.cc.patch` | `Widget::ExchangeContentsWith()`: two widgets swap non-client views and delegates, with new frame views (profiles in place, D18) |
+| `ui-views-widget-widget.h.patch`, `ui-views-widget-widget.cc.patch` | `Widget::ExchangeContentsWith()`: two widgets swap non-client views and delegates, with new frame views (profiles in place, D18); meanwhile `GetNonClientComponent()` answers `HTCLIENT` without asking the views, which are out of the widget (on Windows, hiding them hit-tests the window at once) |
 | `chrome-browser-ui-views-frame-browser_view.h.patch`, `-browser_widget.h.patch`, `-browser_root_view.h.patch` | `friend class compass::BrowserViewExchange`, which re-points their `BrowserView` members |
 | `chrome-browser-ui-views-frame-browser_native_widget_aura.h.patch`, `chrome-browser-ui-views-frame-browser_desktop_window_tree_host_win.h.patch` | Windows: the same friend. The exchange re-points their `BrowserView` and redoes the tree host's window properties (`browser_view_exchange_win.cc`) |
 | `chrome-browser-ui-views-frame-browser_desktop_window_tree_host_win.cc.patch` | Windows: the window icon (taskbar, Alt+Tab) is always the plain app icon, never badged with the profile's avatar |
