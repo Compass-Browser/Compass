@@ -1,5 +1,5 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index 29478cec8041b9cb494ae14fe6e4e2115714c023..2f9983401fa41d083c2f6baf5c72253c57346d74 100644
+index 29478cec8041b9cb494ae14fe6e4e2115714c023..809142b47f346270dc3ad1b52bb4f063fcd5df67 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
 @@ -98,6 +98,8 @@ group("gn_all") {
@@ -11,3 +11,14 @@ index 29478cec8041b9cb494ae14fe6e4e2115714c023..2f9983401fa41d083c2f6baf5c72253c
        "//build/modules",
        "//codelabs",
        "//components:components_unittests",
+@@ -1621,7 +1623,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
+   }
+ }
+ 
+-if (is_android && !is_cronet_build) {
++# Compass: Android builds on a Mac host (docs/building.md, "Android from a
++# Mac") have no Linux host toolchains.
++if (is_android && !is_cronet_build && host_os == "linux") {
+   group("optimize_gn_gen") {
+     deps = [
+       # These run expensive scripts in non-default toolchains. Generally, host

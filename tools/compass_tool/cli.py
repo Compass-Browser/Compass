@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from . import (checkout, mac_sign, overrides, patches, release, sparkle,
-               sync_server)
+from . import (android, checkout, mac_sign, overrides, patches, release,
+               sparkle, sync_server)
 from .layout import CONFIGS, CROSS_TARGETS, Layout, detect, host_cpu
 from .process import CommandError, depot_tool, run
 
@@ -54,6 +54,12 @@ def args_gn(layout: Layout, config: str, cpu: str | None) -> str:
         'target_cpu = "x64"',
         # As in the first cross build that ran on Windows (plan.md).
         'v8_use_external_startup_data = false',
+    ]
+  elif android.is_android(cpu):
+    lines += [
+        'target_os = "android"',
+        'target_cpu = "%s"' % android.TARGETS[cpu],
+        'import("//compass/config/args/android.gn")',
     ]
   elif cpu:
     lines.append('target_cpu = "%s"' % cpu)
@@ -186,6 +192,8 @@ def cmd_gen(layout: Layout, args) -> None:
   if args.force or not args_file.exists():
     out_dir.mkdir(parents=True, exist_ok=True)
     args_file.write_text(args_gn(layout, args.config, args.cpu))
+  if android.is_android(args.cpu):
+    android.prepare_mac_host(layout.src)
   run([depot_tool('gn'), 'gen', out_dir.relative_to(layout.src).as_posix()],
       layout.src, env=layout.env())
 
@@ -217,6 +225,8 @@ def build(layout: Layout, config: str, targets, jobs: int | None = None,
                        (out_dir, config, ' --cpu ' + cpu if cpu else ''))
   if not skip_patches:
     sync_patches(layout)
+  if android.is_android(cpu):
+    android.prepare_mac_host(layout.src)
   if sys.platform == 'darwin':
     # Release builds bundle Sparkle; every build compiles against its
     # headers (docs/design/updates.md).
@@ -913,7 +923,8 @@ def ios_archive(ios: Path, args) -> str:
 def add_cpu_argument(p: argparse.ArgumentParser) -> None:
   p.add_argument('--cpu', choices=CPUS + CROSS_TARGETS,
                  help='build for this CPU in out/<Config>-<cpu> (default: '
-                 'the host\'s, in out/<Config>); win-x64: Windows, from a Mac')
+                 'the host\'s, in out/<Config>); win-x64: Windows, from a Mac; '
+                 'android-arm64: Android')
 
 
 def add_universal_argument(p: argparse.ArgumentParser) -> None:
