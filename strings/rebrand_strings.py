@@ -213,8 +213,32 @@ def generate(grd, out_dir, grit_dir):
     return m.group(1) + new_id[m.group(2)] + m.group(3) + text + m.group(5)
 
   for rel in xtbs:
-    write_if_changed(os.path.join(out_dir, rel),
-                     _TRANSLATION.sub(translate, read(os.path.join(base, rel))))
+    write_if_changed(
+        os.path.join(out_dir, rel),
+        drop_repeated_translations(
+            _TRANSLATION.sub(translate, read(os.path.join(base, rel)))))
+
+
+def drop_repeated_translations(xtb):
+  """Keeps the first translation of each ID.
+
+  Messages that differed only in the product's name ("Chrome" in one,
+  "Chromium" or "Google Chrome" in the other) have the same text once
+  renamed, so the same ID, and grit refuses an .xtb with two translations
+  for one ID.
+  """
+  seen = set()
+
+  def first(m):
+    translation = _TRANSLATION.match(m.group(1))
+    if translation.group(2) in seen:
+      return ''
+    seen.add(translation.group(2))
+    return m.group(0)
+
+  # The translation and the rest of its line, so no blank line is left.
+  return re.sub(r'[ \t]*(' + _TRANSLATION.pattern + r')[ \t]*\n?', first,
+                xtb, flags=re.S)
 
 
 def write_resource_ids(grds, resource_ids, out, src_root, copies_root):

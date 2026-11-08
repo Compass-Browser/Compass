@@ -108,6 +108,23 @@ class RenameTest(unittest.TestCase):
         '<message name="IDS_A" desc="Says Chromium">Open Compass</message>')
 
 
+class DropRepeatedTranslationsTest(unittest.TestCase):
+
+  def test_keeps_the_first_translation_of_each_id(self):
+    xtb = ('<translationbundle lang="it">\n'
+           '<translation id="1">Riavvia Compass</translation>\n'
+           '<translation id="2">Altro</translation>\n'
+           '<translation id="1">Riavvia Compass</translation>\n'
+           '  <translation id="1">Di nuovo\nsu due righe</translation>\n'
+           '</translationbundle>\n')
+    self.assertEqual(
+        rebrand_strings.drop_repeated_translations(xtb),
+        '<translationbundle lang="it">\n'
+        '<translation id="1">Riavvia Compass</translation>\n'
+        '<translation id="2">Altro</translation>\n'
+        '</translationbundle>\n')
+
+
 class SourceFilesTest(unittest.TestCase):
 
   def test_lists_parts_recursively_and_translations(self):
