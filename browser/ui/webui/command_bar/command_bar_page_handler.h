@@ -21,6 +21,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 #include "compass/browser/ui/webui/command_bar/other_device_tabs.h"
 
@@ -112,6 +113,8 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
     // Entries and spaces. A favorite has no space.
     base::Uuid node_id;
     base::Uuid space_id;
+    // Spaces: the space's icon.
+    SpaceIcon space_icon;
     bool favorite = false;
     CommandBarCommand command = CommandBarCommand::kNewSpace;
     // Other devices' tabs: the page to open.

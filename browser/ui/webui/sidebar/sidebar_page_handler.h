@@ -150,6 +150,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void SplitNode(const std::string& id,
                  const std::string& target_id,
                  bool first) override;
+  void DropNodeOutside(const std::string& id) override;
   void SetFolderCollapsed(const std::string& id, bool collapsed) override;
   void DeleteNode(const std::string& id) override;
   void SwitchSpace(const std::string& id) override;

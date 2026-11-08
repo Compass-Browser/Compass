@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -17,10 +18,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/uuid.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tabs/public/tab_interface.h"
@@ -29,6 +32,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/referrer.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
@@ -54,6 +58,7 @@
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace compass {
@@ -486,6 +491,45 @@ void SidebarPageHandler::SplitNode(const std::string& id,
   }
   // Shows the split, its other pane too.
   ActivateNode(id);
+}
+
+void SidebarPageHandler::DropNodeOutside(const std::string& id) {
+  SidebarNode* node = FindNode(id);
+  // A pane isn't dragged alone, and a split's tabs would have to leave their
+  // upstream split first.
+  if (!node || node->type() != SidebarNode::Type::kTab ||
+      node->parent()->type() == SidebarNode::Type::kSplit) {
+    return;
+  }
+  // The drag has ended: the pointer is where it was dropped.
+  const gfx::Point point = display::Screen::Get()->GetCursorScreenPoint();
+  if (!IsOutsideCompassWindows(point)) {
+    return;
+  }
+  // Live, perhaps in another window showing this space: the tab moves, as
+  // it is, and its window's bridge lets the node go.
+  if (tabs::TabInterface* tab = registry().GetTab(node)) {
+    BrowserWindowInterface* source = tab->GetBrowserWindowInterface();
+    WindowFeatures* features = source ? WindowFeatures::From(source) : nullptr;
+    if (!features) {
+      return;
+    }
+    Profile* profile = source->GetProfile();
+    std::unique_ptr<tabs::TabModel> detached =
+        features->tab_strip_bridge().ReleaseTab(tab);
+    OpenTabInLittleWindowAt(profile, std::move(detached), point);
+    return;
+  }
+  // Unloaded: its page opens there. A Today entry goes; a pinned one or a
+  // favorite stays.
+  const GURL url = node->url();
+  if (!url.is_valid()) {
+    return;
+  }
+  if (space_model().today_root()->Contains(node)) {
+    space_model().Remove(node);
+  }
+  OpenLittleWindowAt(browser_->GetProfile(), url, point);
 }
 
 void SidebarPageHandler::SetFolderCollapsed(const std::string& id,

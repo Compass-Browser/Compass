@@ -380,6 +380,42 @@ void TabStripBridge::HandOffTabsTo(TabStripBridge& target) {
   }
 }
 
+std::unique_ptr<tabs::TabModel> TabStripBridge::ReleaseTab(
+    tabs::TabInterface* tab) {
+  if (!tab_strip_model_) {
+    return nullptr;
+  }
+  const int index = tab_strip_model_->GetIndexOfTab(tab);
+  if (index == TabStripModel::kNoTab) {
+    return nullptr;
+  }
+  SidebarNode* node = GetNode(tab);
+  std::unique_ptr<tabs::TabModel> detached;
+  {
+    // The strip's removal isn't mirrored (no placeholder, the node stays
+    // for now): the node is handled below.
+    base::AutoReset<bool> releasing(&releasing_, true);
+    base::AutoReset<bool> updating(&updating_, true);
+    detached = tab_strip_model_->DetachTabAtForInsertion(index);
+  }
+  seen_.erase(tab->GetHandle());
+  if (!node) {
+    return detached;
+  }
+  registry_->Unregister(tab);
+  if (favorites_->Contains(node)) {
+    GoBackToSavedUrl(*favorites_, node);
+  } else if (!space_model_->Contains(node)) {
+    // Another space's tab, passing through while the window switches.
+  } else if (IsPinned(node)) {
+    GoBackToSavedUrl(*space_model_, node);
+  } else {
+    base::AutoReset<bool> updating(&updating_, true);
+    space_model_->Remove(node);
+  }
+  return detached;
+}
+
 void TabStripBridge::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
@@ -421,8 +457,11 @@ void TabStripBridge::OnTabStripModelChanged(
         }
         closing_for_step_.erase(it);
       }
+      // A released tab leaves its window as a closed one would: the window
+      // stays.
       last_removal_closed_tab_ =
-          TabRemoveReasonUtils::WillDeleteTab(removed.remove_reason) &&
+          (TabRemoveReasonUtils::WillDeleteTab(removed.remove_reason) ||
+           releasing_) &&
           !handing_off_ &&
           !(IsEmptyTab(removed.tab) && !GetNode(removed.tab));
     }

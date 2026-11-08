@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_WINDOW_SYNC_TAB_STRIP_BRIDGE_H_
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -25,6 +26,10 @@
 
 class BrowserWindowInterface;
 class TabStripModel;
+
+namespace tabs {
+class TabModel;
+}  // namespace tabs
 
 namespace compass {
 
@@ -120,6 +125,14 @@ class TabStripBridge : public TabStripModelObserver,
   // Moves this window's tabs to |target|, in the background, and closes its
   // placeholders. The strip ends up empty.
   void HandOffTabsTo(TabStripBridge& target);
+
+  // Takes |tab| out of this window for a window outside the sidebar (a tab
+  // dragged out of the windows becomes a little window,
+  // docs/design/sidebar.md): no placeholder stays, and its node goes, as if
+  // it had closed, without a Cmd+Z step: a Today node is removed, a pinned
+  // node or a favorite goes back to its saved page, unloaded. A window left
+  // without tabs stays, on an empty tab. Returns null if |tab| isn't here.
+  std::unique_ptr<tabs::TabModel> ReleaseTab(tabs::TabInterface* tab);
 
   // The strip just emptied (see compass::KeepWindowWithNoTabs()). Returns
   // true if the window stays: its last tab was closed, not moved away, and
@@ -288,6 +301,8 @@ class TabStripBridge : public TabStripModelObserver,
   bool updating_ = false;
   // Set while HandOffTabsTo() empties this closing window.
   bool handing_off_ = false;
+  // Set while ReleaseTab() takes a tab out of the strip.
+  bool releasing_ = false;
   // Whether the strip's last removal closed a tab the user had open, rather
   // than moving it away or closing an empty tab.
   bool last_removal_closed_tab_ = false;

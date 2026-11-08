@@ -25,6 +25,7 @@
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -44,10 +45,13 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "compass/browser/ui/views/sidebar/space_icon_image.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "ui/base/base_window.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -109,6 +113,15 @@ bool IsLittleWindowURL(const GURL& url) {
   return url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile();
 }
 
+// The size of a new little window on |display|: at most 90% of its work area.
+gfx::Size GetNewWindowSize(const display::Display& display) {
+  const gfx::Rect work_area = display.work_area();
+  gfx::Size size = kWindowSize;
+  size.SetToMin(gfx::Size(work_area.width() * 9 / 10,
+                          work_area.height() * 9 / 10));
+  return size;
+}
+
 // Centered on the display of |near| (the window the link came from, or the
 // one Cmd+Option+N was typed in), else the pointer's.
 gfx::Rect GetNewWindowBounds(const std::optional<gfx::Rect>& near) {
@@ -117,12 +130,23 @@ gfx::Rect GetNewWindowBounds(const std::optional<gfx::Rect>& near) {
       near ? screen->GetDisplayMatching(*near)
            : screen->GetDisplayNearestPoint(screen->GetCursorScreenPoint());
   const gfx::Rect work_area = display.work_area();
-  gfx::Size size = kWindowSize;
-  size.SetToMin(gfx::Size(work_area.width() * 9 / 10,
-                          work_area.height() * 9 / 10));
+  const gfx::Size size = GetNewWindowSize(display);
   gfx::Rect bounds(size);
   bounds.set_origin(work_area.CenterPoint() -
                     gfx::Vector2d(size.width() / 2, size.height() / 2));
+  return bounds;
+}
+
+// With the middle of its bar at |point|, as if the bar had been dragged
+// there, and within |point|'s display.
+gfx::Rect GetNewWindowBoundsAt(const gfx::Point& point) {
+  const display::Display display =
+      display::Screen::Get()->GetDisplayNearestPoint(point);
+  const gfx::Size size = GetNewWindowSize(display);
+  gfx::Rect bounds(size);
+  bounds.set_origin(point -
+                    gfx::Vector2d(size.width() / 2, kBarHeight / 2));
+  bounds.AdjustToFit(display.work_area());
   return bounds;
 }
 
@@ -407,6 +431,7 @@ class LittleSpaceMenuButton : public views::ImageButton,
 
  private:
   static constexpr int kMenuIconSize = 16;
+  static constexpr int kSpaceIconSize = 16;
 
   void ShowMenu() {
     SpaceService* service = SpaceService::Get(browser_->GetProfile());
@@ -420,6 +445,12 @@ class LittleSpaceMenuButton : public views::ImageButton,
       space_ids_.push_back(spaces[i]->id());
       model_->AddCheckItem(static_cast<int>(i),
                            GetSpaceName(*spaces[i], i));
+      // Its icon, as the switcher shows it (docs/design/spaces.md).
+      ui::ImageModel icon =
+          GetSpaceIconImage(spaces[i]->icon(), kSpaceIconSize);
+      if (!icon.IsEmpty()) {
+        model_->SetIcon(i, icon);
+      }
     }
     runner_ = std::make_unique<views::MenuRunner>(
         model_.get(), views::MenuRunner::HAS_MNEMONICS);
@@ -520,16 +551,12 @@ bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
 
 namespace {
 
-// A little window on |url|, centered on |near|'s display (else the
-// pointer's). Over |opener|, another app's window, if there's one.
-BrowserWindowInterface* CreateLittleWindow(
-    Profile* profile,
-    const GURL& url,
-    const std::optional<gfx::Rect>& near,
-    const std::optional<OpenerWindow>& opener) {
+// An empty little window at |bounds|, not shown yet.
+BrowserWindowInterface* CreateEmptyLittleWindow(Profile* profile,
+                                                const gfx::Rect& bounds) {
   BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_POPUP, profile,
                                    /*from_user_gesture=*/true);
-  params.initial_bounds = GetNewWindowBounds(near);
+  params.initial_bounds = bounds;
   // A little window is for now: it isn't restored, and opening one isn't the
   // start of a session.
   params.omit_from_session_restore = true;
@@ -540,10 +567,24 @@ BrowserWindowInterface* CreateLittleWindow(
     base::AutoReset<bool> outside_sidebar = CreatingWindowOutsideSidebar();
     browser = CreateBrowserWindow(std::move(params));
   }
+  if (browser) {
+    Decorate(browser);
+  }
+  return browser;
+}
+
+// A little window on |url|, centered on |near|'s display (else the
+// pointer's). Over |opener|, another app's window, if there's one.
+BrowserWindowInterface* CreateLittleWindow(
+    Profile* profile,
+    const GURL& url,
+    const std::optional<gfx::Rect>& near,
+    const std::optional<OpenerWindow>& opener) {
+  BrowserWindowInterface* browser =
+      CreateEmptyLittleWindow(profile, GetNewWindowBounds(near));
   if (!browser) {
     return nullptr;
   }
-  Decorate(browser);
 
   NavigateParams navigate(browser, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
   navigate.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -582,7 +623,59 @@ BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from) {
                          /*opener=*/std::nullopt);
   if (browser) {
     browser->GetWindow()->Activate();
+    // Ready to type an address.
+    if (BrowserView* view = BrowserView::GetBrowserViewForBrowser(browser)) {
+      view->SetFocusToLocationBar(/*is_user_initiated=*/true);
+    }
   }
+  return browser;
+}
+
+bool IsOutsideCompassWindows(const gfx::Point& point) {
+  bool outside = true;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        ui::BaseWindow* window = browser->GetWindow();
+        if (window && window->IsVisible() && !window->IsMinimized() &&
+            window->GetBounds().Contains(point)) {
+          outside = false;
+        }
+        return outside;
+      });
+  return outside;
+}
+
+BrowserWindowInterface* OpenTabInLittleWindowAt(
+    Profile* profile,
+    std::unique_ptr<tabs::TabModel> tab,
+    const gfx::Point& point) {
+  if (!tab) {
+    return nullptr;
+  }
+  BrowserWindowInterface* browser =
+      CreateEmptyLittleWindow(profile, GetNewWindowBoundsAt(point));
+  if (!browser) {
+    // Nowhere to go: the tab closes with its model.
+    return nullptr;
+  }
+  browser->GetTabStripModel()->AppendTab(std::move(tab), /*foreground=*/true);
+  browser->GetWindow()->Show();
+  browser->GetWindow()->Activate();
+  return browser;
+}
+
+BrowserWindowInterface* OpenLittleWindowAt(Profile* profile,
+                                           const GURL& url,
+                                           const gfx::Point& point) {
+  BrowserWindowInterface* browser =
+      CreateEmptyLittleWindow(profile, GetNewWindowBoundsAt(point));
+  if (!browser) {
+    return nullptr;
+  }
+  NavigateParams navigate(browser, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  navigate.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  navigate.window_action = NavigateParams::WindowAction::kShowWindow;
+  Navigate(&navigate);
   return browser;
 }
 

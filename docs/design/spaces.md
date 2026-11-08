@@ -384,12 +384,16 @@ planet → globe, github → code, colorPallete → palette, ...), or none.
 Saved names must not change; a name the page doesn't know (a later
 version's) shows the letter.
 
-Not done: the icon elsewhere (command bar's space results, the little
-window's space picker, the space name at the top).
+The command bar's space results show it (`Result.space_emoji` and
+`space_symbol`, drawn as the switcher does), and so does the little
+window's "Open in space" picker ([little-window.md](little-window.md)).
+
+Not done: the space name at the top.
 
 **Tests:** `SpaceIconTest.*`, `SpaceModelTest.NotifiesIconChanges`,
 `SidebarSerializerTest.RoundTripsIcons`, `UnreadableIconsAreLeftOut`,
-`SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`;
+`SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`,
+`CommandBarPageHandlerTest.SpacesCarryTheirIcons`;
 `SpaceMenuRenamesSetsIconsDeletes` picks a symbol and an emoji.
 
 ### Window theme

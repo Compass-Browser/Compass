@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_LITTLE_WINDOW_LITTLE_WINDOW_H_
 #define COMPASS_BROWSER_UI_VIEWS_LITTLE_WINDOW_LITTLE_WINDOW_H_
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -18,6 +19,10 @@ struct StartupTab;
 namespace gfx {
 class Point;
 }  // namespace gfx
+
+namespace tabs {
+class TabModel;
+}  // namespace tabs
 
 namespace views {
 class View;
@@ -51,6 +56,23 @@ BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url);
 // Cmd+Option+N, Shift+Alt+N on Windows (kNewLittleWindowCommand,
 // docs/design/shortcuts.md): a new little window on the new tab page, centered on |from|'s display.
 BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from);
+
+// A sidebar entry dragged out of the windows (docs/design/sidebar.md, "Drag
+// and drop"): whether |point|, in screen coordinates, is outside every
+// Compass window on screen.
+bool IsOutsideCompassWindows(const gfx::Point& point);
+
+// Opens |tab|, taken out of a window, in a new little window of |profile|
+// with its bar under |point| (screen coordinates), and returns it.
+BrowserWindowInterface* OpenTabInLittleWindowAt(
+    Profile* profile,
+    std::unique_ptr<tabs::TabModel> tab,
+    const gfx::Point& point);
+
+// The same for |url|, which opens in the new little window.
+BrowserWindowInterface* OpenLittleWindowAt(Profile* profile,
+                                           const GURL& url,
+                                           const gfx::Point& point);
 
 // Whether |browser| is a little window.
 bool IsLittleWindow(BrowserWindowInterface* browser);

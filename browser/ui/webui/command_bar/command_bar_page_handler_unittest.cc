@@ -401,6 +401,24 @@ TEST_F(CommandBarPageHandlerTest, AcceptingASpaceSwitchesToIt) {
   EXPECT_EQ(&space_model(), work);
 }
 
+// A space's row shows its icon (docs/design/spaces.md, "Space icons").
+TEST_F(CommandBarPageHandlerTest, SpacesCarryTheirIcons) {
+  SpaceList& list = WindowFeatures::From(browser())->service().space_list();
+  list.AddSpace(1, u"Work")->SetIcon(*SpaceIcon::Symbol("work"));
+  list.AddSpace(2, u"Wonder")->SetIcon(*SpaceIcon::Emoji("🚀"));
+  list.AddSpace(3, u"Wool");
+  OpenAndQuery(Mode::kNewEntry, "wo");
+
+  std::vector<std::string> icons;
+  for (const auto& result : page_.results()) {
+    if (result->kind == ResultKind::kSpace) {
+      icons.push_back(result->title + " " + result->space_symbol + "|" +
+                      result->space_emoji);
+    }
+  }
+  EXPECT_THAT(icons, ElementsAre("Work work|", "Wonder |🚀", "Wool |"));
+}
+
 TEST_F(CommandBarPageHandlerTest, PinCommandPinsTheActiveEntry) {
   OpenAndQuery(Mode::kNewEntry, "pin");
 

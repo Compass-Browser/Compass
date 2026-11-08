@@ -82,7 +82,8 @@
 
 .result[selected] .subtitle,
 .result[selected] .action,
-.result[selected] .glyph {
+.result[selected] .glyph,
+.result[selected] .space-symbol {
   color: color-mix(in srgb, var(--color-sys-on-primary) 75%, transparent);
 }
 
@@ -103,6 +104,17 @@
 .glyph {
   color: var(--color-tab-search-secondary-foreground);
   font-size: 16px;
+  line-height: 16px;
+}
+
+/* A space's icon, as its switcher button shows it. */
+.space-symbol {
+  color: var(--color-tab-search-secondary-foreground);
+  fill: currentColor;
+}
+
+.space-emoji {
+  font-size: 14px;
   line-height: 16px;
 }
 

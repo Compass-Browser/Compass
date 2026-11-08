@@ -1893,7 +1893,13 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.endDrag_();
   }
 
-  protected onDragend_() {
+  // An entry that nothing took (a drop in the sidebar ends the drag first)
+  // may have been dropped outside every window: the browser checks where the
+  // pointer is and opens it in a little window there.
+  protected onDragend_(e: DragEvent) {
+    if (this.draggingId_ && e.dataTransfer?.dropEffect === 'none') {
+      this.browserProxy_.handler.dropNodeOutside(this.draggingId_);
+    }
     this.endDrag_();
   }
 

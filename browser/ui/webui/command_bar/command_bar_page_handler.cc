@@ -322,6 +322,16 @@ void CommandBarPageHandler::Rebuild() {
     result->subtitle = base::UTF16ToUTF8(item.subtitle);
     result->action = item.action;
     result->icon_url = item.icon_url;
+    switch (item.space_icon.kind()) {
+      case SpaceIcon::Kind::kNone:
+        break;
+      case SpaceIcon::Kind::kEmoji:
+        result->space_emoji = item.space_icon.value();
+        break;
+      case SpaceIcon::Kind::kSymbol:
+        result->space_symbol = item.space_icon.value();
+        break;
+    }
     results.push_back(std::move(result));
   }
   page_->SetResults(base::UTF16ToUTF8(text_), std::move(results),
@@ -446,6 +456,7 @@ void CommandBarPageHandler::AddSpaceItems(std::vector<Item>& items) {
                             base::UTF16ToUTF8(
                                 SpaceDirectory::GetProfileName(entry.profile));
     item.space_id = space->id();
+    item.space_icon = space->icon();
     AssignId(item, "s:" + space->id().AsLowercaseString());
     items.push_back(std::move(item));
   }

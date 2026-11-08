@@ -111,7 +111,8 @@ per change:
   one in another space switches the window there first; choosing a
   favorite opens or activates it in this window, as a click on its tile
   does.
-- **Spaces**: whose name contains the query. Choosing one switches to it.
+- **Spaces**: whose name contains the query, with their icon
+  ([spaces.md](spaces.md), "Space icons"). Choosing one switches to it.
 - **Tabs on other devices** ([sync.md](sync.md)): open tabs of the sync chain's other devices (the SESSIONS type,
   `OpenTabsUIDelegate`), whose title, URL or device name contains every
   word, at most six, grouped by device (most recently active device

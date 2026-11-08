@@ -527,6 +527,47 @@ TEST_F(TabStripBridgeTest, ClosingTheWindowKeepsAPinnedTabsPage) {
   EXPECT_EQ(pinned->saved_url(), GURL("https://b.test/"));
 }
 
+// A tab dragged out of the windows goes to a little window
+// (docs/design/sidebar.md, "Drag and drop"): no placeholder stays, and its
+// Today entry goes, without a step for Cmd+Z.
+TEST_F(TabStripBridgeTest, ReleasingATabRemovesItsTodayNode) {
+  OpenTabs({"a.test", "b.test"});
+  tab_strip_model()->ActivateTabAt(0);
+  tabs::TabInterface* a = tab_strip_model()->GetTabAtIndex(0);
+
+  std::unique_ptr<tabs::TabModel> released = bridge().ReleaseTab(a);
+  Settle();
+
+  ASSERT_TRUE(released);
+  EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("b.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test"));
+  EXPECT_FALSE(bridge().GetPlaceholderNode(tab_strip_model()->GetActiveTab()));
+  EXPECT_FALSE(CanUndoClose(browser()));
+  released.reset();
+  Settle();
+}
+
+// A pinned entry stays, unloaded, on its pinned page.
+TEST_F(TabStripBridgeTest, ReleasingAPinnedTabUnloadsItsEntry) {
+  OpenTabs({"a.test", "b.test"});
+  SidebarNode* pinned = Pin(1);
+  NavigateAndCommit(bridge().GetTab(pinned)->GetContents(),
+                    GURL("https://z.test/"));
+  Settle();
+
+  std::unique_ptr<tabs::TabModel> released =
+      bridge().ReleaseTab(bridge().GetTab(pinned));
+  Settle();
+
+  ASSERT_TRUE(released);
+  EXPECT_EQ(bridge().GetTab(pinned), nullptr);
+  EXPECT_EQ(pinned->url(), GURL("https://b.test/"));
+  EXPECT_THAT(Hosts(space_model().pinned_root()), ElementsAre("b.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test"));
+  released.reset();
+  Settle();
+}
+
 TEST_F(TabStripBridgeTest, OpenNodeReopensAnUnloadedPinnedNode) {
   OpenTabs({"a.test", "b.test"});
   SidebarNode* pinned = Pin(1);

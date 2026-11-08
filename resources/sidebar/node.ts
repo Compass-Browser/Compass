@@ -178,7 +178,40 @@ export class CompassSidebarNodeElement extends CrLitElement {
   // leaves it.
   protected onCloseClick_(e: Event) {
     e.stopPropagation();
-    const id = this.getNodeId_(e);
+    this.close_(this.getNodeId_(e));
+  }
+
+  // A middle click on a tab or a pane does what its button does, by the same
+  // rules: an unloaded pinned entry goes on the second one.
+  protected onTabAuxclick_(e: MouseEvent) {
+    if (e.button !== 1 || this.isInNameField_(e)) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    this.close_(this.getNodeId_(e));
+  }
+
+  // A middle press doesn't start autoscrolling the list (Windows, Linux) or
+  // paste (Linux).
+  protected onTabMousedown_(e: MouseEvent) {
+    if (e.button === 1 && !this.isInNameField_(e)) {
+      e.preventDefault();
+    }
+  }
+
+  // A middle click armed the row: leaving it disarms, as leaving × does.
+  protected onTabPointerleave_(e: PointerEvent) {
+    if (this.armedCloseId_ === this.getNodeId_(e)) {
+      this.disarmClose_();
+    }
+  }
+
+  private isInNameField_(e: Event): boolean {
+    return !!(e.target as Element).closest('.title-input');
+  }
+
+  private close_(id: string) {
     if (this.pinned && !this.findNode_(id)?.live &&
         this.armedCloseId_ !== id) {
       this.armClose_(id);

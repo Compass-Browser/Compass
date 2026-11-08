@@ -17,10 +17,12 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -30,6 +32,8 @@
 #include "compass/browser/window_sync/window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "ui/base/hit_test.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/color/color_provider.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
@@ -253,6 +257,50 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, BackFollowsHistory) {
   chrome::ExecuteCommand(little, IDC_BACK);
   ASSERT_TRUE(content::WaitForLoadStop(page));
   EXPECT_EQ(page->GetLastCommittedURL().path(), "/title1.html");
+}
+
+// Unlike upstream's popups, the address can be edited.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, TheAddressCanBeEdited) {
+  BrowserWindowInterface* little = OpenLittleWindow(
+      browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(little);
+  LocationBarView* location_bar =
+      BrowserView::GetBrowserViewForBrowser(little)->GetLocationBarView();
+  ASSERT_TRUE(location_bar);
+  EXPECT_FALSE(location_bar->GetPopupMode());
+  EXPECT_FALSE(location_bar->omnibox_view()->GetReadOnly());
+}
+
+// A tab dragged out of the windows (docs/design/sidebar.md, "Drag and drop")
+// moves, as it is, into a little window, and leaves the sidebar.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, DraggedOutTabMovesThere) {
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(AddTabAtIndex(1, url, ui::PAGE_TRANSITION_TYPED));
+  content::WebContents* page =
+      browser()->tab_strip_model()->GetWebContentsAt(1);
+  ASSERT_TRUE(content::WaitForLoadStop(page));
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  auto in_today = [&] {
+    for (const auto& entry : space.today_root()->children()) {
+      if (entry->url() == url) {
+        return true;
+      }
+    }
+    return false;
+  };
+  ASSERT_TRUE(base::test::RunUntil(in_today));
+
+  std::unique_ptr<tabs::TabModel> released =
+      WindowFeatures::From(browser())->tab_strip_bridge().ReleaseTab(
+          browser()->tab_strip_model()->GetTabAtIndex(1));
+  BrowserWindowInterface* little = OpenTabInLittleWindowAt(
+      browser()->GetProfile(), std::move(released), gfx::Point(300, 300));
+
+  ASSERT_TRUE(little);
+  EXPECT_TRUE(IsLittleWindow(little));
+  EXPECT_EQ(PageOf(little), page);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+  EXPECT_FALSE(in_today());
 }
 
 }  // namespace

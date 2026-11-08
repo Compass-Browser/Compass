@@ -200,6 +200,12 @@ interface PageHandler {
   // if |first|, else on the right. Ignored where SpaceModel::CanSplit() says
   // no.
   SplitNode(string id, string target_id, bool first);
+  // Entry |id|, dragged, was dropped where nothing took it. If the pointer
+  // is outside every Compass window, a tab entry's page opens there in a
+  // little window (docs/design/little-window.md): a live tab moves, as it
+  // is. A Today entry leaves the sidebar; a pinned entry or a favorite stays,
+  // unloaded. Ignored for folders and splits, and inside a window.
+  DropNodeOutside(string id);
   // A link dropped on the sidebar: a new entry for |url| at the slot |index|
   // among |parent_id|'s children, opened in the foreground. Only http(s) and
   // file URLs, and only where a tab can go.

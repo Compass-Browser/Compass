@@ -18,7 +18,9 @@ ${this.isTab_() ? html`
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
       ?claude="${this.node!.claude}"
       title="${this.getTitle_(this.node!)}" @click="${this.onTabClick_}"
-      @dblclick="${this.onTabDblclick_}">
+      @dblclick="${this.onTabDblclick_}" @mousedown="${this.onTabMousedown_}"
+      @auxclick="${this.onTabAuxclick_}"
+      @pointerleave="${this.onTabPointerleave_}">
     <img class="favicon" src="${this.getFaviconUrl_(this.node!)}" alt="">
     ${this.isEditing_(this.node!) ? html`
       <input class="title-input tab-title-input" spellcheck="false"
@@ -52,7 +54,10 @@ ${this.isSplit_() ? html`
           ?active="${this.isActive_(pane)}" ?unloaded="${!pane.live}"
           ?claude="${pane.claude}"
           title="${this.getTitle_(pane)}" @click="${this.onTabClick_}"
-          @dblclick="${this.onTabDblclick_}">
+          @dblclick="${this.onTabDblclick_}"
+          @mousedown="${this.onTabMousedown_}"
+          @auxclick="${this.onTabAuxclick_}"
+          @pointerleave="${this.onTabPointerleave_}">
         <img class="favicon" src="${this.getFaviconUrl_(pane)}" alt="">
         ${this.isEditing_(pane) ? html`
           <input class="title-input tab-title-input" spellcheck="false"

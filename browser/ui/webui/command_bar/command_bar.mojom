@@ -40,6 +40,11 @@ struct Result {
   // The page whose favicon the row shows; empty for searches, spaces and
   // commands.
   url.mojom.Url icon_url;
+  // A space's icon (docs/design/spaces.md, "Space icons"): its emoji or its
+  // symbol's name, at most one of them; both empty for none and for other
+  // kinds.
+  string space_emoji;
+  string space_symbol;
 };
 
 // Bootstraps the connection; called once by the page.

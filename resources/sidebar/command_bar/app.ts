@@ -7,6 +7,8 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Result} from '../command_bar.mojom-webui.js';
 import {Mode, ResultKind} from '../command_bar.mojom-webui.js';
+import type {SpaceSymbol} from '../space_icons.js';
+import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from '../space_icons.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -208,7 +210,17 @@ export class CompassCommandBarAppElement extends CrLitElement {
     return `chrome://favicon2/?${params.toString()}`;
   }
 
-  // The glyph rows without a favicon show.
+  // A space's symbol (docs/design/spaces.md, "Space icons"); an unknown one
+  // (from a later version) shows the glyph.
+  protected getSpaceSymbol_(result: Result): SpaceSymbol|null {
+    return result.spaceSymbol ? findSpaceSymbol(result.spaceSymbol) : null;
+  }
+
+  protected getSymbolViewBox_(): string {
+    return SPACE_SYMBOL_VIEW_BOX;
+  }
+
+  // The glyph rows without a favicon or a space icon show.
   protected getGlyph_(result: Result): string {
     switch (result.kind) {
       case ResultKind.kSearch:

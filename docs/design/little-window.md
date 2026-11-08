@@ -30,12 +30,16 @@ and close it, or keep it and move it into a space.
   space) lists the profile's spaces, the default checked. Picking one moves
   the page into the last active window showing it, else switches the last
   active window to it.
-- **Cmd+Option+N** opens an empty little window (the new tab page, whose
-  search box navigates it) centered on the current window's display. It
+- The address can be edited, as in a normal window's location bar
+  (suggestions, Enter loads it in the little window; Cmd+L focuses it).
+- **Cmd+Option+N** opens an empty little window (the new tab page) centered
+  on the current window's display, with the address focused. It
   takes upstream's New Split Tab shortcut; Compass splits by dragging a tab
   onto another or from the menu.
 - The page isn't in the sidebar while it's in a little window; it becomes
   an entry when it moves into a space.
+- A sidebar entry dragged out of the windows opens in a little window where
+  it's dropped ([sidebar.md](sidebar.md), "Dragging out of the windows").
 - Links that open a new tab go to the last active window, as from any
   popup. Extensions work in the page (content scripts, permissions,
   downloads); the window has no extension buttons.
@@ -78,6 +82,10 @@ mix) opens as upstream does.
     header's pill), which also marks the window (`IsLittleWindow()`). The
     location bar draws its rounded background instead of the popup's
     rectangle (`location_bar_view.cc` patch).
+  - The location bar isn't in popup mode (`toolbar_view.cc` patch:
+    `IsCreatingLittleWindow()` while the toolbar is made), so its omnibox
+    isn't read-only and has suggestions. `OpenNewLittleWindow()` focuses it
+    (`SetFocusToLocationBar()`).
   - Upstream's popup layout insets the page by
     `GetPopupContentFrameInsets()` and drops the separator for it;
     `MultiContentsView::SetBackgroundRadii()` rounds it.
@@ -95,7 +103,11 @@ mix) opens as upstream does.
   moved into another space's window kept that entry. Other popups still do.
 - The space menu: `LittleSpaceMenuButton`, a `views::MenuRunner` over a
   `ui::SimpleMenuModel` of the profile's `SpaceList`; same-profile spaces
-  only (a WebContents can't change profile).
+  only (a WebContents can't change profile). Each item shows its space's
+  icon (`GetSpaceIconImage()`, `views/sidebar/space_icon_image.h`): a
+  symbol as a vector icon made at run time from `space_icons.ts`'s path
+  (embedded with `build/embed_text.py`, parsed by `SkParsePath`; macOS
+  menus show it as a template image), an emoji drawn into an image.
 - Cmd+Option+N: `kNewLittleWindowCommand` (`compass_command_ids.h`, 39950,
   outside upstream's IDs) in the shortcuts outside the main menu
   (`AdjustShortcutsNotInMenu()`); `IDC_NEW_SPLIT_TAB` loses its key
@@ -110,9 +122,8 @@ mix) opens as upstream does.
 - Other profiles' spaces in the picker (the page would have to reload in
   that profile).
 - Cmd+Option+N with no Compass window open, and a File menu item.
-- The address can't be edited (upstream's popup location bar is
-  read-only); a new little window starts on the new tab page instead of
-  Arc's command bar.
+- A new little window starts on the new tab page (with the address
+  focused) instead of Arc's command bar.
 - Settings: off, and per-domain routing to spaces (Arc's Air Traffic
   Control).
 - Windows: written, not yet built or tried. Links from other
@@ -129,6 +140,7 @@ mix) opens as upstream does.
   over the opener's window, and keeping Compass's other windows behind it.
 - Linux: the same hook would do, but it's Windows-only for now.
 
-Tests: `LittleWindowBrowserTest.*`
+Tests: `LittleWindowBrowserTest.*` (`TheAddressCanBeEdited`,
+`DraggedOutTabMovesThere` among them)
 (`browser/ui/views/little_window/little_window_browsertest.mm`), including
 the real `application:openURLs:` path.

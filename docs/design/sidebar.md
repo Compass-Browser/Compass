@@ -220,6 +220,14 @@ button. The page does this alone (`CompassSidebarNodeElement`'s
 `CloseNode()` is unchanged. Delete and Backspace on a focused row, and the
 context menu, still close at once.
 
+**Middle click** on a tab row or a split's pane does what its button does,
+by the same rules (`node.ts`, `close_()`): an open tab closes, a loaded
+pinned one unloads, and an unloaded pinned entry is removed on a second
+middle click while armed (leaving the row disarms it). The press itself is
+cancelled, so it doesn't start autoscrolling the list (or paste, on Linux).
+Folders, splits' rows and spaces ignore it, and so do the name fields
+while being edited. Favorites' tiles have no button and ignore it too.
+
 `TabStripBridge::OpenNode()` opens a tab for an unloaded node. It navigates
 to the node's URL at the node's depth-first position in the strip. The
 bridge *adopts* the inserted tab for that node instead of creating a Today
@@ -502,12 +510,37 @@ file URLs only). The entry opens in the foreground. The document takes every
 drag that no drop target took, with `dropEffect = 'none'`, so nothing
 navigates the sidebar's own page.
 
-**Not taken over yet:** dragging an entry out of the sidebar into a new
-window. Hover cards and keyboard navigation came later (see their sections).
+**Dragging out of the windows.** An entry dropped outside every Compass
+window opens there, in a little window ([little-window.md](little-window.md))
+whose bar is under the pointer (within its display). A live tab moves as
+it is, as when a little window's page moves the other way; an unloaded
+entry's page loads there.
+
+- The page: a drag that ends (`dragend`) with `dropEffect` `'none'` and an
+  entry still being dragged (a drop on the sidebar ends the drag first)
+  calls `PageHandler.DropNodeOutside(id)`.
+- The handler reads the pointer (`display::Screen::GetCursorScreenPoint()`)
+  and does nothing if it's over a Compass window that shows
+  (`IsOutsideCompassWindows()`), or for a folder, a split or a pane.
+- A live tab, in this window or another one showing the space, leaves
+  through its window's `TabStripBridge::ReleaseTab()`: the strip removal
+  isn't mirrored (no placeholder), and the node goes as if the tab had
+  closed, without a Cmd+Z step: a Today entry is removed, a pinned entry or
+  a favorite goes back to its saved page, unloaded. A window left without
+  tabs stays, on an empty tab. `OpenTabInLittleWindowAt()` appends it to a
+  new little window.
+- An unloaded Today entry is removed, and its URL opens in a new little
+  window (`OpenLittleWindowAt()`); a pinned one or a favorite stays.
+- A drag cancelled with Esc outside the windows can't be told from a drop
+  there, so it opens a little window too.
+
+Hover cards and keyboard navigation came later (see their sections).
 
 **Tests:** browser tests that the region has no `TabStripView` and a sized
 sidebar, that resizing and collapsing work, and that a dropped link opens
-in Pinned without navigating the sidebar.
+in Pinned without navigating the sidebar; `ReleasingATabRemovesItsTodayNode`,
+`ReleasingAPinnedTabUnloadsItsEntry` and
+`LittleWindowBrowserTest.DraggedOutTabMovesThere` for dragging out.
 
 ## Today auto-archive
 
@@ -772,8 +805,7 @@ Labels are English literals for now, like the rest of Compass's UI; they move
 to a grit file when the UI is localized.
 
 **Not yet:** menus for the section headers and empty space (New Folder, New
-Tab), Copy Link of a split, and opening in a new window (which needs
-drag-out's window creation).
+Tab), Copy Link of a split, and opening in a new window.
 
 **Tests:** page handler tests build each kind of menu and choose its
 commands (pin, unpin, remove, favorites, move to space, duplicate live and

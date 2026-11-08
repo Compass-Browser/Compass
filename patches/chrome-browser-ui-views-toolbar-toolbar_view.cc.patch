@@ -1,17 +1,29 @@
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index f9bb38f92374559f70077dfcb24c2010d1b7efba..81e324aee4b96b47d41b26024b40e8293f63eda9 100644
+index f9bb38f92374559f70077dfcb24c2010d1b7efba..2694a1141eb991e57f4ba79183f298325df4a036 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  
  #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
  
++#include "compass/browser/ui/views/little_window/little_window.h"
 +#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 +
  #include <algorithm>
  #include <memory>
  #include <utility>
-@@ -1267,6 +1269,10 @@ void ToolbarView::ResetTabState(WebContents* tab) {
+@@ -348,7 +351,9 @@ void ToolbarView::Init() {
+     location_bar_view = std::make_unique<LocationBarView>(
+         browser_, browser_->GetProfile(),
+         chrome::BrowserCommandController::From(browser_), this,
+-        display_mode_ != DisplayMode::kNormal);
++        // Compass: a little window's address can be edited.
++        display_mode_ != DisplayMode::kNormal &&
++            !compass::IsCreatingLittleWindow());
+   }
+ 
+   // Make sure the toolbar shows by default.
+@@ -1267,6 +1272,10 @@ void ToolbarView::ResetTabState(WebContents* tab) {
  }
  
  void ToolbarView::SetPaneFocusAndFocusAppMenu() {
@@ -22,7 +34,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..81e324aee4b96b47d41b26024b40e829
    AppMenuControl* app_menu_control = GetAppMenuControl();
    if (app_menu_control) {
      app_menu_control->Focus(GetAsAccessiblePaneView());
-@@ -2000,6 +2006,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
+@@ -2000,6 +2009,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
  }
  
  void ToolbarView::FocusToolbar() {
@@ -33,7 +45,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..81e324aee4b96b47d41b26024b40e829
    SetPaneFocus(nullptr);
    if (toolbar_webview_) {
      toolbar_webview_->AdjustForToolbarFocus();
-@@ -2037,7 +2047,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
+@@ -2037,7 +2050,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
    if (anchor_not_drawn && browser_view_) {
      auto* top_container = browser_view_->top_container();
      CHECK(top_container);
@@ -42,7 +54,7 @@ index f9bb38f92374559f70077dfcb24c2010d1b7efba..81e324aee4b96b47d41b26024b40e829
    }
    return anchor;
  }
-@@ -2047,7 +2057,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
+@@ -2047,7 +2060,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
    page_actions::PageActionViewInterface* view =
        GetPageActionViewInterface(action_id);
    if (view) {

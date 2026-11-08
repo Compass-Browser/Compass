@@ -2,6 +2,22 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# The space symbols' paths (resources/sidebar/space_icons.ts, the page's) as
+# a string constant, compass/browser/ui/space_icons_ts.h, for native menus
+# (views/sidebar/space_icon_image.h).
+action("space_icons_ts") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "//compass/resources/sidebar/space_icons.ts" ]
+  outputs = [ "$target_gen_dir/space_icons_ts.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::space_icons_ts",
+    "kSpaceIcons=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
 # Compass's browser UI. Linked into //chrome/browser/ui, which also allows our
 # includes of its headers (see patches/chrome-browser-ui-BUILD.gn.patch), the
 # same way upstream does for //chrome/browser/ui/webui/tab_search.
@@ -40,6 +56,8 @@ source_set("ui") {
     "views/sidebar/sidebar_swap.h",
     "views/sidebar/sidebar_tint.cc",
     "views/sidebar/sidebar_tint.h",
+    "views/sidebar/space_icon_image.cc",
+    "views/sidebar/space_icon_image.h",
     "views/sidebar/compass_sidebar_view.cc",
     "views/sidebar/compass_sidebar_view.h",
     "webui/command_bar/command_bar_page_handler.cc",
@@ -96,6 +114,7 @@ source_set("ui") {
     "//compass/browser/ui/views/frame:content_frame",
   ]
   deps = [
+    ":space_icons_ts",
     "//chrome/browser/first_run",
     "//compass/browser/arc_import",
     "//compass/browser/claude",

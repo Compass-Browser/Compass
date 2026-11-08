@@ -31,6 +31,14 @@ ${this.results_.length ? html`
           aria-selected="${this.isSelected_(index)}">
         ${this.hasFavicon_(result) ? html`
           <img class="icon" src="${this.getFaviconUrl_(result)}" alt="">` :
+          this.getSpaceSymbol_(result) ? html`
+          <svg class="icon space-symbol" viewBox="${this.getSymbolViewBox_()}"
+              aria-hidden="true">
+            <path d="${this.getSpaceSymbol_(result)!.path}"></path>
+          </svg>` :
+          result.spaceEmoji ? html`
+          <span class="icon space-emoji" aria-hidden="true">
+            ${result.spaceEmoji}</span>` :
           html`<span class="icon glyph" aria-hidden="true">
             ${this.getGlyph_(result)}</span>`}
         <span class="title">${result.title}</span>
