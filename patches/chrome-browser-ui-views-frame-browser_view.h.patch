@@ -1,22 +1,24 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index 6c4807bbaaf0a8e12e1a2df8545b4b55f491c297..4f2b3d382026f3b79bbd8b2977c0bd42ff5d1187 100644
+index 6c4807bbaaf0a8e12e1a2df8545b4b55f491c297..ad0f1f8a86b1ddae79a2c6db84d62fafbf4ba193 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -126,6 +126,10 @@ class NativeViewHost;
+@@ -126,6 +126,11 @@ class NativeViewHost;
  class WebView;
  }  // namespace views
  
 +namespace compass {
++class BrowserViewAccelerators;
 +class BrowserViewExchange;
 +}  // namespace compass
 +
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserView
  //
-@@ -828,6 +832,7 @@ class BrowserView : public BrowserWindow,
+@@ -828,6 +833,8 @@ class BrowserView : public BrowserWindow,
    void DeleteBrowserWindow() final;
  
   private:
++  friend class compass::BrowserViewAccelerators;
 +  friend class compass::BrowserViewExchange;
    // Do not friend BrowserViewLayout. Use the BrowserViewLayoutDelegate
    // interface to keep these two classes decoupled and testable.

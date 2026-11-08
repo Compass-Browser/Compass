@@ -210,7 +210,13 @@ source_set("ui") {
     deps += [ "//chrome/browser/device_reauth" ]
   }
   if (is_win) {
-    sources += [ "views/frame/browser_view_exchange_win.cc" ]
+    sources += [
+      "views/frame/browser_view_accelerators_win.cc",
+      "views/frame/browser_view_accelerators_win.h",
+      "views/frame/browser_view_exchange_win.cc",
+    ]
+    # The shortcuts page reads upstream's accelerator table.
+    deps += [ "//chrome/browser/ui:accelerator_table" ]
   }
   if (is_mac) {
     sources += [

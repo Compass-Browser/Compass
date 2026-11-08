@@ -29,6 +29,10 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/ui/cocoa/shortcuts_mac.h"
+#elif BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/accelerator_table.h"
+#include "compass/browser/shortcuts/shortcuts_win.h"
+#include "compass/browser/ui/views/frame/browser_view_accelerators_win.h"
 #endif
 
 namespace compass {
@@ -114,7 +118,7 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
       return check;
     }
   }
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   if (std::optional<std::u16string> built_in =
           FindBuiltInShortcut(accelerator)) {
     check.error = "Already used by " + base::UTF16ToUTF8(*built_in) + ".";
@@ -133,7 +137,11 @@ ListedShortcut::~ListedShortcut() = default;
 std::vector<ListedShortcut> ListShortcuts() {
   ShortcutSettings& settings = ShortcutSettings::Get();
   std::vector<ListedShortcut> listed;
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
+  // The table's first load keeps the defaults (AdjustAcceleratorList()).
+  GetAcceleratorList();
+#endif
   for (const CustomizableCommand& command : GetCustomizableCommands()) {
     ListedShortcut& shortcut = listed.emplace_back();
     shortcut.id = command.id;
@@ -191,7 +199,12 @@ void CompassSettingsUI::BindInterface(
 
 ShortcutsPageHandler::ShortcutsPageHandler(
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
-    : receiver_(this, std::move(receiver)) {}
+    : receiver_(this, std::move(receiver)) {
+#if BUILDFLAG(IS_WIN)
+  // The windows follow what changes here.
+  BrowserViewAccelerators::Watch();
+#endif
+}
 
 ShortcutsPageHandler::~ShortcutsPageHandler() {
   // The page went away while recording.

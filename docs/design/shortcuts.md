@@ -1,6 +1,7 @@
 # Shortcuts
 
-Status: done (macOS). Based on Chromium 156.0.8078.48.
+Status: done (macOS); Windows written, not yet tried on a device. Based on
+Chromium 156.0.8078.48.
 
 ## Goal
 
@@ -35,7 +36,12 @@ element; Cmd+Shift+M, there too, takes the profile menu's entry.
 Tests: `CompassShortcutsBrowserTest` resolves key events through
 `CommandForKeyEvent()`, as typing does, and runs the commands.
 
-Other platforms' shortcuts (`accelerator_table.cc`) are unchanged.
+On Windows the same shortcuts come with Ctrl for Cmd (see "Windows" below):
+Ctrl+Shift+C copies the link (inspect element keeps F12's developer tools
+and Ctrl+Shift+I), Ctrl+S opens or closes the sidebar (Save Page As keeps
+its menu item), Ctrl+Shift+M mutes the tab (the profile menu loses it),
+Ctrl+Shift+E chats with Claude. Undo and redo of closing tabs have no keys
+there: Ctrl+Z would come before the page. Linux's shortcuts are upstream's.
 
 ## Customizing
 
@@ -107,9 +113,32 @@ get the focus. The pref is registered by a hook in `RegisterLocalState()`
   (`preventDefault()`), and `PipWindows` drops its global hot key. Recording
   ends on Esc, on keys, when the page loses focus and when it goes away.
 
-Off macOS the page lists only the space shortcuts, and on Windows
-click-through too (picture-in-picture.md "Click-through"), which can't have
-the Windows key.
+### How the browser follows it (Windows)
+
+`compass/browser/shortcuts/shortcuts_win.{h,cc}` has the same API as
+`shortcuts_mac.h` for the page (`GetCustomizableCommands()`: macOS's list
+less undo and redo of closing tabs; `GetDefaultAccelerators()`,
+`GetAccelerators()`, `FindBuiltInShortcut()`).
+
+- **The table.** A window's shortcuts are upstream's accelerator table
+  (`GetAcceleratorList()`), which `BrowserView::LoadAccelerators()`
+  registers with the window's focus manager, and which its menus show. A
+  hook at the table's end (patch) hands it to `AdjustAcceleratorList()`:
+  Compass's keys (`kCompassDefaults`) go over upstream's, then the user's
+  over those. The first call keeps the result before the user's as the
+  defaults the page shows.
+- **Changes and recording.** `BrowserViewAccelerators` (`browser/ui/views/
+  frame/browser_view_accelerators_win.{h,cc}`, a `BrowserView` friend,
+  patch) follows `ShortcutSettings`, from the moment a settings page opens:
+  on a change every window unregisters its accelerators, clears its table
+  and loads it again; while the page records keys, the windows register
+  none, so every key (Ctrl+T, Ctrl+W) reaches the page.
+- **Keys taken by upstream commands that aren't listed** (Ctrl+W, ...) are
+  refused ("Already used by another browser shortcut").
+- **Spaces** and **click-through** work as on macOS; click-through can't
+  have the Windows key (picture-in-picture.md "Click-through").
+
+Linux's page lists only the space shortcuts.
 
 Tests: `CompassShortcutsBrowserTest.CustomShortcuts`, `RecordingHoldsKeysBack`,
 `SpaceShortcuts`, `SettingsPage` (records keys by key events on the page, takes
