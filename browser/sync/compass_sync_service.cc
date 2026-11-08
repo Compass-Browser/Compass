@@ -27,6 +27,7 @@
 #include "base/task/thread_pool.h"
 #include "base/uuid.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
@@ -72,6 +73,13 @@
 
 namespace compass::sync {
 namespace {
+
+// What the sync page calls the device Compass runs on.
+#if BUILDFLAG(IS_MAC)
+constexpr char kThisDevice[] = "this Mac";
+#else
+constexpr char kThisDevice[] = "this computer";
+#endif
 
 // Focus and wake ask the server for changes at most this often.
 constexpr base::TimeDelta kMinRefreshInterval = base::Seconds(10);
@@ -448,7 +456,7 @@ SyncStatus CompassSyncService::GetStatus() const {
   }
   status.state = SyncState::kOn;
   if (GetProfileMapping().needed) {
-    status.message = "Choose how this Mac's other profiles sync.";
+    status.message = base::StrCat({"Choose how ", kThisDevice, "'s other profiles sync."});
     return status;
   }
   const base::Time last = sync_service_->GetLastSyncedTimeForDebugging();
@@ -1070,7 +1078,8 @@ void CompassSyncService::OnJoinFinished(const GURL& server_url,
     SetPairing({PairingStep::kWorking,
                 {},
                 {},
-                "Choose how this Mac's other profiles sync, then Continue."});
+                base::StrCat({"Choose how ", kThisDevice,
+                              "'s other profiles sync, then Continue."})});
     return;
   }
   // No other profile here (or a device that sent no list: they're mapped

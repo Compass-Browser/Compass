@@ -303,10 +303,10 @@ void McpBridge::Ask(Profile* profile,
           .SetTitle(name + u" wants to control Compass")
           .AddParagraph(ui::DialogModelLabel(
               name +
-              u" is an app on this Mac that uses Claude's tools in Compass. "
-              u"Allowed, it can read your tabs, take screenshots, read their "
-              u"consoles, run JavaScript, and click and type in them, signed "
-              u"in as you. Allow only apps you trust."))
+              u" is an app on this computer that uses Claude's tools in "
+              u"Compass. Allowed, it can read your tabs, take screenshots, "
+              u"read their consoles, run JavaScript, and click and type in "
+              u"them, signed in as you. Allow only apps you trust."))
           .AddCheckbox(kAlwaysAllowCheckbox,
                        ui::DialogModelLabel(u"Always allow " + name))
           .AddOkButton(base::BindOnce(&Pending::Allow, pending),

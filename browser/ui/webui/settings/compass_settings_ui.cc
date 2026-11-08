@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
@@ -60,7 +61,61 @@ ui::Accelerator ToAccelerator(const sidebar::mojom::ShortcutKeys& keys) {
                          modifiers);
 }
 
+#if BUILDFLAG(IS_WIN)
+// Names for the keys upstream's text leaves blank on Windows (it names only
+// F1, F4, F6 and F11 among the function keys, and maps the rest through the
+// keyboard layout, which has no character for them) or writes like main
+// keyboard keys (the numpad's).
+std::u16string WinKeyName(ui::KeyboardCode key) {
+  if (key >= ui::VKEY_F1 && key <= ui::VKEY_F24) {
+    return u"F" + base::NumberToString16(key - ui::VKEY_F1 + 1);
+  }
+  if (key >= ui::VKEY_NUMPAD0 && key <= ui::VKEY_NUMPAD9) {
+    return u"Num " + base::NumberToString16(key - ui::VKEY_NUMPAD0);
+  }
+  switch (key) {
+    case ui::VKEY_ADD:
+      return u"Num +";
+    case ui::VKEY_SUBTRACT:
+      return u"Num -";
+    case ui::VKEY_MULTIPLY:
+      return u"Num *";
+    case ui::VKEY_DIVIDE:
+      return u"Num /";
+    case ui::VKEY_DECIMAL:
+      return u"Num .";
+    case ui::VKEY_BROWSER_BACK:
+      return u"Browser Back";
+    case ui::VKEY_BROWSER_FORWARD:
+      return u"Browser Forward";
+    case ui::VKEY_BROWSER_REFRESH:
+      return u"Browser Refresh";
+    case ui::VKEY_BROWSER_STOP:
+      return u"Browser Stop";
+    case ui::VKEY_BROWSER_SEARCH:
+      return u"Browser Search";
+    case ui::VKEY_BROWSER_FAVORITES:
+      return u"Browser Favorites";
+    case ui::VKEY_BROWSER_HOME:
+      return u"Browser Home";
+    default:
+      return std::u16string();
+  }
+}
+#endif
+
 std::string ToText(const ui::Accelerator& accelerator) {
+#if BUILDFLAG(IS_WIN)
+  const std::u16string name = WinKeyName(accelerator.key_code());
+  if (!name.empty()) {
+    // Upstream's modifiers, before a key that has a name of its own.
+    std::vector<std::u16string> parts =
+        ui::Accelerator(ui::VKEY_A, accelerator.modifiers())
+            .GetShortcutVectorRepresentation();
+    parts.back() = name;
+    return base::UTF16ToUTF8(base::JoinString(parts, u"+"));
+  }
+#endif
   return base::UTF16ToUTF8(accelerator.GetShortcutText());
 }
 
