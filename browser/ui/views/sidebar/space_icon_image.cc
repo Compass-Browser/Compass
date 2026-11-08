@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/views/sidebar/space_icon_image.h"
 
+#include <array>
 #include <map>
 #include <memory>
 #include <optional>
@@ -109,9 +110,10 @@ std::optional<std::vector<gfx::PathElement>> ToVectorCommands(
       case SkPath::kConic_Verb: {
         // 2^2 quadratics are plenty at menu sizes.
         constexpr int kPow2 = 2;
-        SkPoint quads[1 + 2 * (1 << kPow2)];
+        std::array<SkPoint, 1 + 2 * (1 << kPow2)> quads;
         const int count = SkPath::ConvertConicToQuads(
-            points[0], points[1], points[2], iter.conicWeight(), quads, kPow2);
+            points[0], points[1], points[2], iter.conicWeight(), quads.data(),
+            kPow2);
         for (int i = 0; i < count; ++i) {
           path.emplace_back(gfx::QUADRATIC_TO);
           AddPoint(path, quads[1 + 2 * i]);
