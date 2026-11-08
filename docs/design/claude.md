@@ -20,10 +20,8 @@ yet.
   clients drive the same tools.
 - **No key ships with Compass.** Settings take an Anthropic API key, plus
   an optional endpoint (base URL and auth header style) for Bedrock, Vertex
-  or a compatible gateway. Compass never sends Claude subscription tokens
-  (`claude setup-token`'s, OAuth): Anthropic's terms keep them to
-  Anthropic's own apps. A subscription is used through the user's own
-  Claude Code instead ("Claude Code mode").
+  or a compatible gateway. A subscription is used through the user's own
+  Claude Code ("Claude Code mode").
 
 ## Shared core: `common/claude/`
 
