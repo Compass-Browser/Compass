@@ -278,7 +278,12 @@ another profile.
   of luma, as measured in Arc at full grain and intensity; the iOS app's
   `SpaceTint.maxGrain` is the same). One grain per
   physical pixel, tiled in widget coordinates so the region's tint and the
-  frame's line up.
+  frame's line up. That maximum was measured on a 2x display; below 2x a
+  grain is a bigger pixel and shows more (a 27" 2560x1440 monitor at 100%
+  next to a MacBook's), so the opacity is multiplied by
+  `GrainScaleMultiplier()`: 1 from 2x up, the scale over 2 below, never
+  under `kMinGrainScaleMultiplier` (0.5, at 1x). The empty page does the
+  same with `devicePixelRatio` (`empty.ts`).
 
 Both blend in fades and swipes with the colors (`SidebarTint::Look`). The
 theme editor sets them (below). Arc:

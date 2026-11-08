@@ -44,24 +44,41 @@ function grainTile(): string {
   return canvas.toDataURL();
 }
 
+// The grain's opacity on this display, as the sidebar's
+// (compass::GrainScaleMultiplier(), sidebar_tint.h): a grain is a physical
+// pixel, coarser below 2x, so it's fainter there, down to half at 1x.
+function grainScaleMultiplier(): number {
+  return Math.min(1, Math.max(0.5, window.devicePixelRatio / 2));
+}
+
 const root = document.documentElement;
 root.style.setProperty('--grain-tile', `url(${grainTile()})`);
+// The space's grain opacity, before the display's multiplier.
+let grainOpacity = 0;
+let tinted = false;
+function setGrainOpacity() {
+  root.style.setProperty(
+      '--grain-opacity',
+      `${tinted ? grainOpacity * grainScaleMultiplier() : 0}`);
+}
 function setGrainSize() {
   root.style.setProperty(
       '--grain-size', `${GRAIN_TILE_SIZE / window.devicePixelRatio}px`);
+  setGrainOpacity();
 }
 setGrainSize();
 // Moving to a display with another scale resizes the page.
 window.addEventListener('resize', setGrainSize);
 
 const router = new EmptyPageCallbackRouter();
-router.setTint.addListener((stops: number[], grainOpacity: number) => {
-  const tinted = stops.some(stop => (stop >>> 24) !== 0);
+router.setTint.addListener((stops: number[], opacity: number) => {
+  tinted = stops.some(stop => (stop >>> 24) !== 0);
   root.toggleAttribute('tinted', tinted);
   const colors = stops.map(cssColor).join(', ');
   root.style.setProperty(
       '--tint', `linear-gradient(to bottom right, ${colors})`);
-  root.style.setProperty('--grain-opacity', `${tinted ? grainOpacity : 0}`);
+  grainOpacity = opacity;
+  setGrainOpacity();
 });
 handler.setPage(router.$.bindNewPipeAndPassRemote());
 
