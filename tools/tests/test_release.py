@@ -181,6 +181,24 @@ class ReleaseTest(unittest.TestCase):
     self.assertEqual([release.SITE_DIR / 'win/CompassSetup-20261104.0900.exe'],
                      release.win_release_files(old))
 
+  def test_check_against_server(self):
+    server = {'releases': [_release('20261102.1000', 'stable'),
+                           _release('20261107.2010', 'beta', win=True,
+                                    build=2)]}
+    release.check_against_server(json.loads(json.dumps(server)), server)
+    # A local copy with more (unpublished or newer) releases is fine.
+    more = json.loads(json.dumps(server))
+    more['releases'].append(_release('20261108.0016', 'beta'))
+    release.check_against_server(more, server)
+    # One that lacks a release, or a release's Windows installer, isn't.
+    stale = {'releases': [_release('20261102.1000', 'stable'),
+                          _release('20261107.2010', 'beta')]}
+    with self.assertRaisesRegex(release.ReleaseError,
+                                r'20261107\.2010 \(win\)'):
+      release.check_against_server(stale, server)
+    with self.assertRaisesRegex(release.ReleaseError, r'20261102\.1000'):
+      release.check_against_server({'releases': []}, server)
+
   def test_win_installer_name(self):
     self.assertEqual('CompassInstaller-20261108.0900.exe',
                      release.win_installer_name('20261108.0900'))

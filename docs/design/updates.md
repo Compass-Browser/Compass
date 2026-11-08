@@ -106,6 +106,12 @@ tools/compass release feeds            # rewrite and upload the feeds
 tools/compass release publish-win 20261103.0215 --installer mini_installer.exe
 ```
 
+Every command that writes the feeds (`publish`, `publish-win`, `promote`,
+`feeds`) first compares the local `releases.json` with the server's, and
+stops if the server has a release (or a platform of one) the local copy
+lacks: feeds written from a stale copy would drop it. Start from the
+server's copy then.
+
 `publish` creates the version's GitHub release, uploads the archive and
 deltas to it, and only then uploads the feeds, so a feed never names a
 missing file. The release tags the commit it was built from when GitHub has
