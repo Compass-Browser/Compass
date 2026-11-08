@@ -9,9 +9,10 @@ app (ios.md).
 
 - `tools/compass gen portable --cpu android-arm64` sets up
   `out/Portable-android-arm64`.
-- `tools/compass build -c portable --cpu android-arm64 chrome_public_apk`
-  builds the APK. For now that's stock Chromium plus Compass's patches; the
-  Compass app target comes with milestone C1.
+- `tools/compass build -c portable --cpu android-arm64 compass_apk` builds
+  `apks/Compass.apk` (`it.cipi1965.compass`): Chrome's browser with
+  Compass's shell (`//compass/android`). `chrome_public_apk` still builds
+  plain Chromium from the same tree, without the shell.
 - Building from a Mac takes a few workarounds, which the tool applies:
   building.md, "Android from a Mac".
 - Testing happens on Genymotion SaaS arm64 devices, with gmsaas and adb.
@@ -75,10 +76,16 @@ It costs:
   patches/                    shared; Android hunks are guarded by is_android, desktop-only ones by !is_android
 ```
 
+- **The shell today (C1 spike).** `ChromeTabbedActivity` hands itself to
+  `CompassShellHook` at the end of native initialization (a two-line patch;
+  `ServiceLoaderUtil` finds the implementation, which only `compass_apk`
+  has). `CompassBar` adds a Compose bar as its own layer of Chrome's bottom
+  controls stack (`COMPASS_BAR`), so pages make room for it, and follows
+  the current tab. Chrome's toolbar is still there.
 - **The shell.** `CompassActivity` keeps Chrome's browser machinery: native
   start-up, Profile, the TabModel, the compositor, downloads, permissions,
   autofill, payments and Custom Tabs. Chrome's toolbar and tab switcher are
-  replaced with a Compose UI in a `ComposeView`. Milestone C2 settles where
+  replaced with a Compose UI in a `ComposeView`. Milestone C1 settles where
   exactly the shell plugs in. The first candidate is an activity derived
   from ChromeActivity with its own layout.
 - **Bridges.** Kotlin sees the C++ models through jni_zero.
@@ -163,10 +170,10 @@ guarded patches.
 
 | # | Scope |
 |---|---|
-| C0 | Tooling: `--cpu android-arm64`, `config/args/android.gn`, the Mac-host patches and fix-ups, and a stock Chromium build from the Compass checkout with every patch applied |
-| C1 | `//compass` and the patches build for Android, with desktop-only code gated off; branding (package, name, icons); sync joins a chain from a debug pairing screen |
-| C2 | Shell spike: `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor |
-| C3 | SpaceModel bridge; sidebar, spaces, favorites, pinned tree, Today and archive in Compose |
+| C0 | Tooling: `--cpu android-arm64`, `config/args/android.gn`, the Mac-host patches and fix-ups, and a stock Chromium build from the Compass checkout with every patch applied; desktop-only code gated off |
+| C1 | The app and the shell spike: `//compass/android:compass_apk` (package, name, icon) and `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor |
+| C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen |
+| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose |
 | C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock |
 | C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) |

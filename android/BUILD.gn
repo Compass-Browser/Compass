@@ -1,0 +1,58 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass for Android (docs/design/android.md): Chrome's browser with
+# Compass's own shell, in Kotlin and Jetpack Compose.
+
+import("//build/config/android/rules.gni")
+import("//chrome/android/chrome_public_apk_tmpl.gni")
+
+# What ChromeTabbedActivity calls once its UI is up. chrome_java depends on it
+# (patches/chrome-android-BUILD.gn.patch); the implementation is in :java and
+# only the Compass app has it, so chrome_public_apk runs without a shell.
+android_library("hook_java") {
+  sources = [ "java/src/it/cipi1965/compass/CompassShellHook.java" ]
+  deps = [ "//chrome/browser/browser_controls/android:java" ]
+}
+
+android_library("java") {
+  sources = [
+    "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
+    "java/src/it/cipi1965/compass/shell/CompassBar.java",
+    "java/src/it/cipi1965/compass/shell/CompassBarState.kt",
+    "java/src/it/cipi1965/compass/shell/CompassBarUi.kt",
+  ]
+  deps = [
+    ":hook_java",
+    "//base:base_java",
+    "//build/android:build_java",
+    "//chrome/android:chrome_java",
+    "//chrome/browser/browser_controls/android:java",
+    "//chrome/browser/tab:java",
+    "//chrome/browser/tabmodel:java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_compose_foundation_foundation_java",
+    "//third_party/androidx:androidx_compose_foundation_foundation_layout_java",
+    "//third_party/androidx:androidx_compose_material3_material3_java",
+    "//third_party/androidx:androidx_compose_runtime_runtime_java",
+    "//third_party/androidx:androidx_compose_ui_ui_graphics_java",
+    "//third_party/androidx:androidx_compose_ui_ui_java",
+    "//third_party/androidx:androidx_compose_ui_ui_text_java",
+    "//third_party/androidx:androidx_compose_ui_ui_unit_java",
+    "//third_party/androidx:androidx_lifecycle_lifecycle_common_java",
+    "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
+    "//third_party/androidx:androidx_savedstate_savedstate_java",
+    "//third_party/kotlin_stdlib:kotlin_stdlib_java",
+    "//url:gurl_java",
+  ]
+  enable_compose = true
+}
+
+chrome_public_apk_or_module_tmpl("compass_apk") {
+  target_type = "android_apk"
+  apk_name = "Compass"
+  manifest_package = "it.cipi1965.compass"
+  jinja_input = "//compass/android/AndroidManifest.xml"
+  deps = [ ":java" ]
+}

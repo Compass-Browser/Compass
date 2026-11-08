@@ -1,0 +1,13 @@
+diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
+index 6ed792010ee90f07562ce80b34afe5fe722df299..1148d36ea146550f0d9f55f8bc34ae0064b29580 100644
+--- a/chrome/android/BUILD.gn
++++ b/chrome/android/BUILD.gn
+@@ -310,6 +310,8 @@ if (_is_default_toolchain) {
+ 
+   android_library("chrome_java") {
+     deps = [
++      # Compass: the hook its shell implements (docs/design/android.md).
++      "//compass/android:hook_java",
+       ":base_module_java",
+       ":chrome_app_java_resources",
+       ":chrome_public_apk_template_resources",

@@ -1,0 +1,16 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java b/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java
+index fa9453e77d92ff029f752a31fefb61f6baeb7982..bf7aeef36dddebb7d5a0b506d0d65b739c8b83af 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java
+@@ -3031,6 +3031,11 @@ public class RootUiCoordinator
+         return mBottomControlsStacker;
+     }
+ 
++    /** Compass's shell adds its bottom bar to the stack. */
++    public BottomControlsStacker getBottomControlsStacker() {
++        return mBottomControlsStacker;
++    }
++
+     public @Nullable AdaptiveToolbarUiCoordinator getAdaptiveToolbarUiCoordinatorForTesting() {
+         return mAdaptiveToolbarUiCoordinator;
+     }
