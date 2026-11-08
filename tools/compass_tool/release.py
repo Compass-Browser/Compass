@@ -367,6 +367,26 @@ def win_installer_name(version: str) -> str:
   return 'CompassInstaller-%s.exe' % version
 
 
+def check_against_server(local: Dict, server: Dict) -> None:
+  """Refuses |local| (the release machine's releases.json) when the
+  server's has a release, or a platform of one, that it lacks: writing the
+  feeds from it would take them off the server. That happened once, with
+  two release machines' copies."""
+  have = {r['version']: r for r in local['releases']}
+  missing = []
+  for r in server['releases']:
+    mine = have.get(r['version'])
+    for platform in ('mac', 'win'):
+      if r.get(platform) and not (mine and mine.get(platform)):
+        missing.append('%s (%s)' % (r['version'], platform))
+  if missing:
+    raise ReleaseError(
+        'the local releases.json (%s) lacks releases the server has: %s. '
+        'Start from the server\'s: curl -o "<that file>" %s/releases.json, '
+        'then run this again.' % (SITE_DIR / 'releases.json',
+                                  ', '.join(missing), BASE_URL))
+
+
 def add_win_release(manifest: Dict, installer: Path, version: str,
                     chromium: str, channel: str, commit: str, tools: Path,
                     site: Path = SITE_DIR, win_build: int = 0,

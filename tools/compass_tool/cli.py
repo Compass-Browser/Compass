@@ -564,6 +564,12 @@ def cmd_release(layout: Layout, args) -> None:
 
 def _release(layout: Layout, args) -> None:
   manifest = release.load()
+  # Everything that writes the feeds starts from the server's releases: a
+  # stale local copy would drop the ones it lacks (build-win only reads the
+  # server's).
+  if args.action in ('publish', 'publish-win', 'promote', 'feeds') and \
+      not args.no_upload:
+    release.check_against_server(manifest, release.fetch_manifest())
   if args.action == 'list':
     for r in manifest['releases']:
       print('%-15s %-7s %s  chromium %s  %s' % (
