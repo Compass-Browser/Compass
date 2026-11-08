@@ -212,6 +212,11 @@ SpaceTintLook GetSpaceTintLook(const SpaceModel& space, TintSurface surface) {
   return look;
 }
 
+float GrainScaleMultiplier(float device_scale_factor) {
+  return std::clamp(device_scale_factor / 2.f, kMinGrainScaleMultiplier,
+                    1.f);
+}
+
 SidebarTint::SidebarTint(BrowserWindowInterface* browser)
     : browser_(browser),
       features_(WindowFeatures::From(browser)),
@@ -380,7 +385,8 @@ void SidebarTint::PaintGrain(gfx::Canvas* canvas, const SkPath* clip) {
   flags.setShader(cc::PaintShader::MakeImage(GrainTile(), SkTileMode::kRepeat,
                                              SkTileMode::kRepeat, &matrix));
   flags.setBlendMode(SkBlendMode::kOverlay);
-  flags.setAlphaf(kMaxGrainOpacity * look_.grain);
+  flags.setAlphaf(kMaxGrainOpacity * look_.grain *
+                  GrainScaleMultiplier(canvas->image_scale()));
   if (clip) {
     canvas->DrawPath(*clip, flags);
   } else {

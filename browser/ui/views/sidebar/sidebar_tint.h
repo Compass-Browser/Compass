@@ -55,6 +55,15 @@ struct SpaceTintLook {
 };
 SpaceTintLook GetSpaceTintLook(const SpaceModel& space, TintSurface surface);
 
+// What the grain's opacity is multiplied by on a display of
+// |device_scale_factor|. A grain is a physical pixel, and its opacity was
+// measured on 2x displays (Arc on a Mac); at 1x (a 27" 2560x1440 at 100%) a
+// pixel is twice as big and the same noise shows much more. 1 from 2x up,
+// then in step with the scale, down to kMinGrainScaleMultiplier at 1x and
+// below. The empty page has the same (empty.ts, grainScaleMultiplier()).
+inline constexpr float kMinGrainScaleMultiplier = 0.5f;
+float GrainScaleMultiplier(float device_scale_factor);
+
 // The mode a space in automatic mode gives its windows: light or dark where
 // its tint is strong enough to decide how light the frame is whatever the
 // system's mode, so text stays readable over it; nullopt (the system's)
