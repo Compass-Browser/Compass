@@ -1,12 +1,14 @@
 diff --git a/chrome/browser/ui/browser_window/internal/BUILD.gn b/chrome/browser/ui/browser_window/internal/BUILD.gn
-index 0aef559d48ee6fcef6e2e2587aea58ad60ed7b11..6efb3e0612eae34341f88f3760edd1f9cb171b96 100644
+index 0aef559d48ee6fcef6e2e2587aea58ad60ed7b11..4156942de3e02e0612c80dacde41a21c01bef63a 100644
 --- a/chrome/browser/ui/browser_window/internal/BUILD.gn
 +++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
-@@ -74,6 +74,7 @@ source_set("internal") {
+@@ -178,6 +178,9 @@ source_set("internal") {
+       "//components/saved_tab_groups/public",
+       "//components/search",
      ]
++    if (!is_android) {
++      deps += [ "//compass/browser/window_sync" ]
++    }
  
-     deps += [
-+      "//compass/browser/window_sync",
-       "//chrome/browser:global_features",
-       "//chrome/browser/actor/ui",
-       "//chrome/browser/autocomplete:aim_eligibility_service",
+     if (is_win || is_mac) {
+       deps += [

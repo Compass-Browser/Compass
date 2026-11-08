@@ -39,99 +39,102 @@ action("assets") {
   ]
 }
 
-source_set("claude") {
-  sources = [
-    "claude_activity.cc",
-    "claude_activity.h",
-    "claude_api.cc",
-    "claude_api.h",
-    "claude_client.cc",
-    "claude_client.h",
-    "claude_code.cc",
-    "claude_code.h",
-    "claude_code_process.cc",
-    "claude_code_process.h",
-    "claude_credentials.cc",
-    "claude_credentials.h",
-    "claude_request.cc",
-    "claude_request.h",
-    "claude_tools.cc",
-    "claude_tools.h",
-    "devtools_session.cc",
-    "devtools_session.h",
-    "key_events.cc",
-    "key_events.h",
-    "page_reader.cc",
-    "page_reader.h",
-    "sse_parser.cc",
-    "sse_parser.h",
-  ]
-  public_deps = [
-    ":assets",
-    ":prefs",
-    "//base",
-    "//services/network/public/cpp",
-    "//url",
-  ]
-  deps = [
-    "//base:i18n",
-    "//chrome/browser:browser_process",
-    "//chrome/common",
-    "//content/public/browser",
-    "//chrome/browser/profiles:profile",
-    "//components/os_crypt/async/browser",
-    "//components/os_crypt/async/common",
-    "//components/prefs",
-    "//net",
-    "//net/traffic_annotation",
-    "//services/network/public/mojom",
-    "//third_party/re2",
-    "//ui/base",
-    "//ui/gfx/geometry",
-  ]
-}
+# Desktop only so far: Android has no Claude UI yet (docs/design/android.md, C8).
+if (!is_android) {
+  source_set("claude") {
+    sources = [
+      "claude_activity.cc",
+      "claude_activity.h",
+      "claude_api.cc",
+      "claude_api.h",
+      "claude_client.cc",
+      "claude_client.h",
+      "claude_code.cc",
+      "claude_code.h",
+      "claude_code_process.cc",
+      "claude_code_process.h",
+      "claude_credentials.cc",
+      "claude_credentials.h",
+      "claude_request.cc",
+      "claude_request.h",
+      "claude_tools.cc",
+      "claude_tools.h",
+      "devtools_session.cc",
+      "devtools_session.h",
+      "key_events.cc",
+      "key_events.h",
+      "page_reader.cc",
+      "page_reader.h",
+      "sse_parser.cc",
+      "sse_parser.h",
+    ]
+    public_deps = [
+      ":assets",
+      ":prefs",
+      "//base",
+      "//services/network/public/cpp",
+      "//url",
+    ]
+    deps = [
+      "//base:i18n",
+      "//chrome/browser:browser_process",
+      "//chrome/common",
+      "//content/public/browser",
+      "//chrome/browser/profiles:profile",
+      "//components/os_crypt/async/browser",
+      "//components/os_crypt/async/common",
+      "//components/prefs",
+      "//net",
+      "//net/traffic_annotation",
+      "//services/network/public/mojom",
+      "//third_party/re2",
+      "//ui/base",
+      "//ui/gfx/geometry",
+    ]
+  }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "claude_api_unittest.cc",
-    "claude_code_unittest.cc",
-    "claude_request_unittest.cc",
-    "key_events_unittest.cc",
-    "sse_parser_unittest.cc",
-  ]
-  deps = [
-    ":claude",
-    ":prefs",
-    "//base",
-    "//components/prefs:test_support",
-    "//net",
-    "//testing/gtest",
-    "//url",
-  ]
-}
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "claude_api_unittest.cc",
+      "claude_code_unittest.cc",
+      "claude_request_unittest.cc",
+      "key_events_unittest.cc",
+      "sse_parser_unittest.cc",
+    ]
+    deps = [
+      ":claude",
+      ":prefs",
+      "//base",
+      "//components/prefs:test_support",
+      "//net",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
 
-source_set("browser_tests") {
-  testonly = true
-  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "claude_tools_browsertest.cc" ]
-  deps = [
-    ":claude",
-    ":prefs",
-    "//compass/browser/sidebar",
-    "//compass/browser/ui",
-    "//compass/browser/window_sync",
-    "//components/prefs",
-    "//base",
-    "//base/test:test_support",
-    "//chrome/browser/ui",
-    "//chrome/test:test_support",
-    "//chrome/test:test_support_ui",
-    "//content/public/browser",
-    "//content/test:test_support",
-    "//net:test_support",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//ui/base",
-  ]
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "claude_tools_browsertest.cc" ]
+    deps = [
+      ":claude",
+      ":prefs",
+      "//compass/browser/sidebar",
+      "//compass/browser/ui",
+      "//compass/browser/window_sync",
+      "//components/prefs",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//net:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/base",
+    ]
+  }
 }

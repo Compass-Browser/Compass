@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 238f8625e42d8703c72c266c36e32bbfb2113095..65922ef95c9fc7bc1c59069100502401f6c2590a 100644
+index 238f8625e42d8703c72c266c36e32bbfb2113095..ba69436f762905968306ac3dd7c55d15bcbd922e 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -591,6 +591,8 @@ if (!is_android) {
@@ -39,23 +39,27 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..65922ef95c9fc7bc1c59069100502401
        "//chrome/app:command_ids",
        "//chrome/browser/ui:ui_features",
        "//chrome/browser/ui/tabs",
-@@ -1309,6 +1318,7 @@ source_set("tab_helpers_impl") {
-   public_deps = [ ":tab_helpers" ]
+@@ -1424,6 +1433,9 @@ source_set("tab_helpers_impl") {
+     "//printing/buildflags",
+     "//ui/accessibility:ax_base",
+   ]
++  if (!is_android) {
++    deps += [ "//compass/browser/web_store" ]
++  }
+ 
+   if (is_android) {
+     deps += [
+@@ -1587,6 +1599,9 @@ static_library("ui") {
+     "//chrome/browser/ui/webui/flags",
+     "//chrome/browser/ui/webui/subresource_filter",
+   ]
++  if (!is_android) {
++    public_deps += [ "//compass/browser/ui" ]
++  }
  
    deps = [
-+    "//compass/browser/web_store",
-     ":recently_audible_helper",
-     ":tab_dialogs",
-     ":ui_features",
-@@ -1560,6 +1570,7 @@ static_library("ui") {
-     # New dependencies inside of //chrome/browser that generate header files
-     # should be added to //chrome/browser:browser_generated_files.
-     ":accelerator_utils_headers",
-+    "//compass/browser/ui",
-     ":browser_live_tab_context",
-     ":crypto_module_password_dialog",
-     ":download_close_type",
-@@ -2771,6 +2782,9 @@ static_library("ui") {
+     ":browser_element_identifiers",
+@@ -2771,6 +2786,9 @@ static_library("ui") {
        # tab_search includes browser.h, browser_window.h,
        # plural_string_handler.h from //chrome/browser/ui.
        "//chrome/browser/ui/webui/tab_search",

@@ -36,30 +36,33 @@ source_set("unit_tests") {
   ]
 }
 
-source_set("browser_tests") {
-  testonly = true
-  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "privacy_defaults_browsertest.cc" ]
-  deps = [
-    "//base",
-    "//chrome/browser:browser_process",
-    "//chrome/browser/profiles:profile",
-    "//chrome/browser/ui",
-    "//chrome/common",
-    "//chrome/common:chrome_features",
-    "//chrome/common:constants",
-    "//chrome/test:test_support",
-    "//chrome/test:test_support_ui",
-    "//components/autofill/core/common:features",
-    "//components/embedder_support:embedder_support",
-    "//components/network_time",
-    "//components/omnibox/browser:aim_eligibility_service_features",
-    "//components/password_manager/core/common",
-    "//components/prefs",
-    "//components/signin/public/base",
-    "//components/signin/public/base:signin_switches",
-    "//components/unified_consent",
-    "//content/test:test_support",
-    "//testing/gtest",
-  ]
+# Desktop browser tests.
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "privacy_defaults_browsertest.cc" ]
+    deps = [
+      "//base",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+      "//chrome/common",
+      "//chrome/common:chrome_features",
+      "//chrome/common:constants",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/autofill/core/common:features",
+      "//components/embedder_support:embedder_support",
+      "//components/network_time",
+      "//components/omnibox/browser:aim_eligibility_service_features",
+      "//components/password_manager/core/common",
+      "//components/prefs",
+      "//components/signin/public/base",
+      "//components/signin/public/base:signin_switches",
+      "//components/unified_consent",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
 }

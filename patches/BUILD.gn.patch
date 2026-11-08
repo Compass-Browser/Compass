@@ -1,17 +1,19 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index 29478cec8041b9cb494ae14fe6e4e2115714c023..809142b47f346270dc3ad1b52bb4f063fcd5df67 100644
+index 29478cec8041b9cb494ae14fe6e4e2115714c023..abaa9822d3ff142b575566836f3455835b5198c4 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
-@@ -98,6 +98,8 @@ group("gn_all") {
-     deps = [
-       "//base:base_perftests",
-       "//base:base_unittests",
-+      "//compass:compass_unittests",
-+      "//compass:compass_browsertests",
-       "//build/modules",
-       "//codelabs",
-       "//components:components_unittests",
-@@ -1621,7 +1623,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
+@@ -124,6 +124,10 @@ group("gn_all") {
+       "//ui/tests:ui_unittests",
+       "//url:url_unittests",
+     ]
++    if (!is_android) {
++      deps += [ "//compass:compass_unittests" ]
++      deps += [ "//compass:compass_browsertests" ]
++    }
+ 
+     if (current_cpu == "arm64" && is_android && host_os == "linux") {
+       deps += [
+@@ -1621,7 +1625,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
    }
  }
  
