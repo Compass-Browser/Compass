@@ -3,12 +3,16 @@
 # found in the LICENSE file.
 
 # Picture-in-picture windows' click-through, gestures and corners on macOS
-# and Windows (docs/design/picture-in-picture.md). Its own target, depending
-# on little of Chrome's, because upstream's //chrome/browser/ui/views/overlay
-# calls into it (see patches/).
+# and Windows, and the space tint their style asks for
+# (docs/design/picture-in-picture.md). pip_style.cc and pip_style.h are
+# built in upstream's overlay target instead, whose views they style (see
+# patches/). Its own target, depending on little of Chrome's, because
+# upstream's //chrome/browser/ui/views/overlay calls into it.
 source_set("pip_windows") {
   if (is_mac || is_win) {
     sources = [
+      "pip_tint.cc",
+      "pip_tint.h",
       "pip_windows.cc",
       "pip_windows.h",
     ]
@@ -16,6 +20,7 @@ source_set("pip_windows") {
     public_deps = [ "//compass/browser/shortcuts" ]
     deps = [
       "//base",
+      "//skia",
       "//ui/base",
       "//ui/base/accelerators/global_accelerator_listener",
       "//ui/display",

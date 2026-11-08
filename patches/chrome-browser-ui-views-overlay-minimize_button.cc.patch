@@ -1,19 +1,15 @@
 diff --git a/chrome/browser/ui/views/overlay/minimize_button.cc b/chrome/browser/ui/views/overlay/minimize_button.cc
-index 39989a61193a1fa7d296139d03138a770922c43a..1b51598217e1a23f5f6899ab6d4fd24db1a83f58 100644
+index 39989a61193a1fa7d296139d03138a770922c43a..59a043cabff69de624862cccfec8ffdd7891d68f 100644
 --- a/chrome/browser/ui/views/overlay/minimize_button.cc
 +++ b/chrome/browser/ui/views/overlay/minimize_button.cc
-@@ -15,10 +15,12 @@
+@@ -17,8 +17,10 @@ namespace {
  
- namespace {
- 
--constexpr int kMinimizeButtonVerticalMargin = 5;
--constexpr int kMinimizeButtonHorizontalMargin = 52;
+ constexpr int kMinimizeButtonVerticalMargin = 5;
+ constexpr int kMinimizeButtonHorizontalMargin = 52;
 -constexpr int kMinimizeButtonSize = 24;
 -constexpr int kMinimizeButtonIconSize = 16;
-+// Compass: larger than upstream's 24 DIP (16 DIP icons), centered on the
-+// favicon's line as upstream's; the three stay side by side.
-+constexpr int kMinimizeButtonVerticalMargin = 1;
-+constexpr int kMinimizeButtonHorizontalMargin = 68;
++// Compass: larger than upstream's 24 DIP (16 DIP icons). PipStyle places
++// it (patches/).
 +constexpr int kMinimizeButtonSize = 32;
 +constexpr int kMinimizeButtonIconSize = 20;
  

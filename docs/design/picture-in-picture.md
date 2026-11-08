@@ -179,16 +179,6 @@ macOS:
   title bar's height empty at its top. Its frame view drew a light line along the
   window's top edge, square to its corners: it's rounded and clipped too,
   and its title bar views (if any) hidden.
-- **Top buttons:** minimize, back to tab and close are 32 DIP with 20 DIP
-  icons (upstream: 24 and 16), side by side on the favicon's line, so
-  they're easier to hit; the site name ends before them (patches to
-  `close_image_button.cc`, `back_to_tab_button.cc`, `minimize_button.cc`,
-  `video_overlay_window_views.cc`). Windows too.
-- **Site name:** the favicon and site name show with the controls only, on
-  hover. Upstream also shows them for a few seconds after the window opens
-  and, on pages it doesn't trust for playback (most of Compass's automatic
-  ones), all the time, so a page can't pass itself off as another
-  (`video_overlay_window_views.cc` patch, `UpdateControlsVisibility()`).
 - **No macOS tiling:** `NSWindowCollectionBehaviorFullScreenDisallowsTiling`,
   so dragging it to a screen edge doesn't offer macOS's tiles; Compass's
   own snap (below) applies.
@@ -207,8 +197,48 @@ Windows:
   (`DWMWA_WINDOW_CORNER_PREFERENCE` = `DWMWCP_ROUND`, 8 DIP, with the
   system's shadow); upstream asks for them only for windows with
   `rounded_corners`. Windows 10 keeps square ones.
-- **Site name:** as on macOS (the patch isn't platform-specific).
 - **Snap layouts** and closing are left as they are.
+
+## Controls
+
+`compass::PipStyle` (`browser/ui/views/picture_in_picture/pip_style.{h,cc}`),
+macOS and Windows. It's built in upstream's overlay target (BUILD.gn patch),
+whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
+`SetUpViews()` and when `OnUpdateControlsBounds()` returns
+(`PipStyle::ScopedLayout`).
+
+- **No site name or favicon.** The title view stays hidden; back to tab
+  says where the video comes from. Upstream shows the site name on
+  untrusted pages so one can't pass itself off as another; Compass's
+  windows are nearly all automatic ones of the user's own tabs. Upstream's
+  timer for it is skipped too (`UpdateControlsVisibility()` patch).
+- **Top buttons:** back to tab in the top left corner, minimize and close
+  side by side in the top right, 32 DIP with 20 DIP icons (upstream: 24
+  and 16; button patches), `kMargin` (8 DIP) plus the pill's padding from
+  the edges.
+- **Pills.** Each group sits on a frosted pill: the top left and top right
+  buttons, the playback buttons (or a call's camera, hang up and
+  microphone) in the middle, and the timeline row at the bottom. A pill is
+  dark and translucent (70%), with the video behind it blurred, a faint
+  light edge, and round ends (the two-row bottom one: 14 DIP corners). The
+  pills are children of upstream's scrim, so they fade with the controls,
+  and take no events. The bottom row moves up so its pill stays `kMargin`
+  from the window's edges and clear of its rounded corners.
+- **Dim.** A 20% black over the video while the controls show, instead of
+  upstream's darker scrim and its black gradients at the top and bottom.
+- **Space color.** The window's colors are seeded with the color of the
+  space the tab belongs to (`Widget::SetUserColorOverride()`), as
+  `SidebarTint` seeds a browser window's: the timeline and focus rings take
+  it, and the pills get 20% of it. The space is the one whose sidebar lists
+  the tab (`LiveTabRegistry`, `SpaceList::FindSpaceOf()`), so a tab parked
+  for another space still has its own space's color; a tab the sidebar
+  doesn't list (a little window's) takes its window's. None off the record
+  or under an extension theme. `InstallPipTint()` (sidebar_tint.cc, from
+  the sidebar view) provides it through `SetPipTintProvider()`
+  (`pip_tint.h`, in the `pip_windows` target both sides depend on); each
+  layout asks again, so a color change shows at the next one.
+
+Test: `CompassAutoPipBrowserTest.PipStyle`.
 
 ## Known gaps
 

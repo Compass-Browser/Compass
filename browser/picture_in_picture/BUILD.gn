@@ -27,6 +27,9 @@ source_set("browser_tests") {
   ]
   if (is_mac || is_win) {
     deps += [
+      "//chrome/browser/ui/views/overlay",
+      "//chrome/browser/ui/views/overlay:impl",
+      "//compass/browser/ui",
       "//compass/browser/ui/views/picture_in_picture:pip_windows",
       "//ui/display",
       "//ui/gfx",

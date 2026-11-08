@@ -13,6 +13,7 @@
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image.h"
 #include "cc/paint/paint_shader.h"
@@ -23,7 +24,10 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -38,6 +42,10 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/view_class_properties.h"
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#include "compass/browser/ui/views/picture_in_picture/pip_tint.h"
+#endif
 #include "ui/views/widget/widget.h"
 
 namespace compass {
@@ -564,5 +572,48 @@ void SidebarTint::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 
 BEGIN_METADATA(SidebarTint)
 END_METADATA
+
+void InstallPipTint() {
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  static bool installed = false;
+  if (installed) {
+    return;
+  }
+  installed = true;
+  SetPipTintProvider(base::BindRepeating(
+      [](content::WebContents* contents) -> std::optional<SkColor> {
+        if (!contents) {
+          return std::nullopt;
+        }
+        Profile* profile =
+            Profile::FromBrowserContext(contents->GetBrowserContext());
+        const ThemeService* theme_service =
+            ThemeServiceFactory::GetForProfile(profile);
+        if (profile->IsOffTheRecord() ||
+            (theme_service && theme_service->UsingExtensionTheme())) {
+          return std::nullopt;
+        }
+        tabs::TabInterface* tab =
+            tabs::TabInterface::MaybeGetFromContents(contents);
+        SpaceService* service = SpaceService::GetIfExists(profile);
+        if (!tab || !service) {
+          return std::nullopt;
+        }
+        // The space whose sidebar lists the tab, wherever its window is (a
+        // tab of another space waits in the parking window).
+        const SidebarNode* node = service->registry().GetNode(tab);
+        const SpaceModel* space =
+            node ? service->space_list().FindSpaceOf(node) : nullptr;
+        // Not listed (a little window's): its window's space.
+        BrowserWindowInterface* window = tab->GetBrowserWindowInterface();
+        if (!space && window) {
+          if (WindowFeatures* features = WindowFeatures::From(window)) {
+            space = &features->space_model();
+          }
+        }
+        return space ? GetSpaceTint(space->color()) : std::nullopt;
+      }));
+#endif
+}
 
 }  // namespace compass

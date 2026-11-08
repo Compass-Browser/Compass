@@ -36,7 +36,14 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
+#include "chrome/browser/ui/views/overlay/close_image_button.h"
+#include "chrome/browser/ui/views/overlay/minimize_button.h"
+#include "chrome/browser/ui/views/overlay/playback_image_button.h"
+#include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+#include "compass/browser/ui/views/picture_in_picture/pip_style.h"
 #include "compass/browser/ui/views/picture_in_picture/pip_windows.h"
+#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
@@ -318,6 +325,59 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
       [&] { return click_through.windows_for_testing().empty(); }));
   EXPECT_FALSE(click_through.enabled());
   EXPECT_FALSE(click_through.is_listening_for_testing());
+}
+
+// Compass's controls (PipStyle): no site name, back to tab top left,
+// minimize and close top right, each group on its pill inside the window,
+// and the window's colors seeded with the tab's space color.
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipStyle) {
+  WindowFeatures::From(browser())->space_model().SetColor(SpaceColor::kBlue);
+  content::WebContents* video = OpenPlayingVideo(browser());
+  OpenBlankTab(browser());
+  PipWindows& pip_windows = PipWindows::Get();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return IsInAutoPip(video) && !pip_windows.windows_for_testing().empty();
+  }));
+  auto* window =
+      static_cast<VideoOverlayWindowViews*>(pip_windows.windows_for_testing()[0]
+                                                .get());
+  window->ForceControlsVisibleForTesting(true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !window->IsLayoutPendingForTesting(); }));
+
+  EXPECT_EQ(window->user_color_override(), GetSpaceTint(SpaceColor::kBlue));
+  EXPECT_FALSE(window->title_view_for_testing()->GetVisible());
+
+  const gfx::Size size = window->GetBounds().size();
+  const gfx::Rect back = window->back_to_tab_button_for_testing()->bounds();
+  const gfx::Rect minimize = window->minimize_button_for_testing()->bounds();
+  const gfx::Rect close = window->close_button_for_testing()->bounds();
+  EXPECT_LT(back.right(), size.width() / 2);
+  EXPECT_GT(minimize.x(), size.width() / 2);
+  EXPECT_EQ(minimize.right(), close.x());
+  EXPECT_EQ(back.y(), close.y());
+  EXPECT_EQ(close.width(), 32);
+
+  const PipStyle::PillBounds pills = PipStyle::GetPillBoundsForTesting(window);
+  EXPECT_TRUE(pills.top_leading.Contains(back));
+  EXPECT_TRUE(pills.top_trailing.Contains(minimize));
+  EXPECT_TRUE(pills.top_trailing.Contains(close));
+  EXPECT_EQ(pills.top_leading.origin(),
+            gfx::Point(PipStyle::kMargin, PipStyle::kMargin));
+  EXPECT_EQ(pills.top_trailing.right(), size.width() - PipStyle::kMargin);
+  EXPECT_TRUE(pills.center.Contains(
+      window->play_pause_controls_view_for_testing()->bounds()));
+  ASSERT_FALSE(pills.bottom.IsEmpty());
+  EXPECT_LE(pills.bottom.bottom(), size.height() - PipStyle::kMargin);
+  EXPECT_GE(pills.bottom.x(), PipStyle::kMargin);
+  EXPECT_LE(pills.bottom.right(), size.width() - PipStyle::kMargin);
+
+  // A color change follows at the next layout (a resize here).
+  WindowFeatures::From(browser())->space_model().SetColor(SpaceColor::kGreen);
+  pip_windows.ZoomWindow(window, 0.1);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return window->user_color_override() == GetSpaceTint(SpaceColor::kGreen);
+  }));
 }
 
 // Pinch keeps the aspect ratio and the center, within the sizes.

@@ -140,6 +140,7 @@ CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
       peek_(browser),
       claude_panel_(browser) {
   InstallSwapPresenter();
+  InstallPipTint();
   // A swap's window takes the page of the window it replaces
   // (sidebar_swap.cc).
   if (IsCreatingSwapWindow()) {

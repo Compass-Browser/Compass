@@ -206,8 +206,11 @@ source_set("ui") {
   }
   if (is_mac || is_win) {
     # chrome://compass-sync asks for Touch ID before showing the recovery
-    # code.
-    deps += [ "//chrome/browser/device_reauth" ]
+    # code. The sidebar tints picture-in-picture windows (InstallPipTint()).
+    deps += [
+      "//chrome/browser/device_reauth",
+      "//compass/browser/ui/views/picture_in_picture:pip_windows",
+    ]
   }
   if (is_win) {
     sources += [

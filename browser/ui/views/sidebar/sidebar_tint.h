@@ -33,6 +33,12 @@ namespace compass {
 // The color a space tints the sidebar with, or nullopt for none (grey).
 std::optional<SkColor> GetSpaceTint(SpaceColor color);
 
+// Has video picture-in-picture windows take the color of their tab's space
+// (PipStyle, SetPipTintProvider()), as SidebarTint has browser windows:
+// none off the record or under an extension theme. Once; macOS and
+// Windows.
+void InstallPipTint();
+
 // What a space paints over the frame color: its tint, partly transparent, or
 // transparent for none.
 SkColor GetSpaceFrameTint(SpaceColor color);

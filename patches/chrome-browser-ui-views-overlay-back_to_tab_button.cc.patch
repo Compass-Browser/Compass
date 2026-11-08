@@ -1,19 +1,15 @@
 diff --git a/chrome/browser/ui/views/overlay/back_to_tab_button.cc b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
-index 2aad3646bfe8d6c677375ce6f954818bf3fd5425..677b8cfc767692065abd24ba08b747596c806925 100644
+index 2aad3646bfe8d6c677375ce6f954818bf3fd5425..c02879580bc7ad8f712c31c78d78f2a546f65aee 100644
 --- a/chrome/browser/ui/views/overlay/back_to_tab_button.cc
 +++ b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
-@@ -15,10 +15,12 @@
+@@ -17,8 +17,10 @@ namespace {
  
- namespace {
- 
--constexpr int kBackToTabButtonVerticalMargin = 5;
--constexpr int kBackToTabButtonHorizontalMargin = 28;
+ constexpr int kBackToTabButtonVerticalMargin = 5;
+ constexpr int kBackToTabButtonHorizontalMargin = 28;
 -constexpr int kBackToTabButtonSize = 24;
 -constexpr int kBackToTabButtonIconSize = 16;
-+// Compass: larger than upstream's 24 DIP (16 DIP icons), centered on the
-+// favicon's line as upstream's; the three stay side by side.
-+constexpr int kBackToTabButtonVerticalMargin = 1;
-+constexpr int kBackToTabButtonHorizontalMargin = 36;
++// Compass: larger than upstream's 24 DIP (16 DIP icons). PipStyle places
++// it (patches/).
 +constexpr int kBackToTabButtonSize = 32;
 +constexpr int kBackToTabButtonIconSize = 20;
  
