@@ -41,6 +41,7 @@ public class CompassBar implements BottomControlsLayer {
     // Where the stack puts the bar, and the system navigation bar it sits on.
     private int mLayerYOffset;
     private int mNavigationBarHeight;
+    private @Nullable Integer mBackgroundColor;
 
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
         mActivity = activity;
@@ -57,7 +58,8 @@ public class CompassBar implements BottomControlsLayer {
                         mState,
                         this::goBack,
                         this::goForward,
-                        this::openNewTab);
+                        this::openNewTab,
+                        this::setBackgroundColor);
         ViewGroup content = mActivity.findViewById(android.R.id.content);
         content.addView(
                 view,
@@ -164,6 +166,17 @@ public class CompassBar implements BottomControlsLayer {
     public void onBrowserControlsOffsetUpdate(int layerYOffset) {
         mLayerYOffset = layerYOffset;
         position();
+    }
+
+    private void setBackgroundColor(int color) {
+        if (mBackgroundColor != null && mBackgroundColor == color) return;
+        mBackgroundColor = color;
+        mBottomControls.requestLayerUpdate(false);
+    }
+
+    @Override
+    public @Nullable Integer getBackgroundColor() {
+        return mBackgroundColor;
     }
 
     private void position() {

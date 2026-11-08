@@ -28,9 +28,11 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +41,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import java.util.function.IntConsumer
 
 object CompassBarUi {
     /** The bar as a view for Chrome's layout. */
@@ -51,12 +54,16 @@ object CompassBarUi {
         onBack: Runnable,
         onForward: Runnable,
         onNewTab: Runnable,
+        onBackgroundColor: IntConsumer,
     ): View {
         val view = ComposeView(context)
         view.setViewTreeLifecycleOwner(lifecycleOwner)
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setContent {
             CompassTheme(dark = state.incognito || isSystemInDarkTheme()) {
+                // Chrome paints the strip under the navigation bar in the bar's color.
+                val background = MaterialTheme.colorScheme.surfaceContainer.toArgb()
+                SideEffect { onBackgroundColor.accept(background) }
                 Bar(state, { onBack.run() }, { onForward.run() }, { onNewTab.run() })
             }
         }
