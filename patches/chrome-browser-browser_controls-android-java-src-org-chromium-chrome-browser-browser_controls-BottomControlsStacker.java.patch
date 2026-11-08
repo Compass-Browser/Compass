@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java b/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java
+index 235f264d419560c6527af0c89e20bb6730bb3988..8c713be29fcd6195e46865b2aa51b51b99218d86 100644
+--- a/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java
++++ b/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java
+@@ -54,6 +54,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
+         LayerType.BOTTOM_CHIN,
+         LayerType.BOTTOM_SHEET,
+         LayerType.BOTTOM_APP_BAR,
++        LayerType.COMPASS_BAR,
+         LayerType.TEST_BOTTOM_LAYER
+     })
+     public @interface LayerType {
+@@ -70,6 +71,9 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
+         int BOTTOM_SHEET = 6;
+         int BOTTOM_APP_BAR = 7;
+ 
++        // Compass's bottom bar (//compass/android).
++        int COMPASS_BAR = 8;
++
+         // Layer that's used for testing.
+         int TEST_BOTTOM_LAYER = 100;
+     }
+@@ -132,6 +136,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
+                 LayerType.TABSTRIP_TOOLBAR,
+                 LayerType.BOTTOM_TOOLBAR,
+                 LayerType.BOTTOM_APP_BAR,
++                LayerType.COMPASS_BAR,
+                 LayerType.BOTTOM_CHIN,
+                 LayerType.TEST_BOTTOM_LAYER
+             };
