@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import re
 import subprocess
 import sys
 import tempfile
@@ -236,6 +237,27 @@ class PatchSyncTest(unittest.TestCase):
     problems = self.quietly(patches.sync, self.patches_dir, self.src)
     self.assertEqual(problems, [])
     self.assertEqual(self.build_gn.read_text(), 'deps = [\n  ":c",\n  ":a",\n]\n')
+
+  def test_updates_patches_written_by_hand(self):
+    # The old version wasn't exported: less context than git diff gives,
+    # and an index line that names another file.
+    v1 = 'deps = [\n  ":a",\n  ":b",\n  ":d",\n  ":e",\n  ":f",\n]\n'
+    self.commit_patches(v1, keep_applied=True)
+    patch = self.patches_dir / 'chrome-BUILD.gn.patch'
+    by_hand = subprocess.run(
+        ['git', 'diff', '-U1', '--', 'chrome/BUILD.gn'], cwd=self.src,
+        check=True, capture_output=True, text=True).stdout
+    by_hand = re.sub(r'(?m)^index \S+', 'index 1234567..89abcde', by_hand)
+    self.assertNotEqual(by_hand.encode(), patch.read_bytes())
+    patch.write_text(by_hand)
+    git(self.base, 'commit', '-qa', '--amend', '--no-edit')
+    v2 = v1.replace(':b', ':c')
+    self.commit_patches(v2)
+    self.build_gn.write_text(v1)
+
+    problems = self.quietly(patches.sync, self.patches_dir, self.src)
+    self.assertEqual(problems, [])
+    self.assertEqual(self.build_gn.read_text(), v2)
 
   def test_same_change_ignores_hunk_header_context(self):
     a = b'--- a/x\n+++ b/x\n@@ -1,2 +1,3 @@ int f() {\n a\n+b\n'

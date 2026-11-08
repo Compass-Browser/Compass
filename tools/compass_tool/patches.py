@@ -210,7 +210,15 @@ def same_edits(a: bytes, b: bytes) -> bool:
 
 
 def matches_a_version(change: bytes, versions: List[bytes]) -> bool:
-  return any(same_change(change, version) for version in versions)
+  """Whether |change| (the checkout's diff) is one of |versions| applied.
+
+  Also when only the added and removed lines match: a version written by
+  hand has other context and index lines than git diff gives for the same
+  change. Edits that aren't exported add lines of their own, so they still
+  don't match.
+  """
+  return any(same_change(change, version) or same_edits(change, version)
+             for version in versions)
 
 
 def restore(repo: Path, path: str) -> None:
