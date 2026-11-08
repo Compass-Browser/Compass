@@ -158,6 +158,10 @@ class SpaceDirectory : public ProfileManagerObserver,
   // Whether a listed profile has another space with |space|'s ID: its copy,
   // while it moves to another profile (MoveSpaceToProfile()).
   bool HasOtherSpaceWithId(const SpaceModel& space) const;
+  // Once everything is in (IsLoaded()), drops the IDs of spaces no listed
+  // profile has from the order: those of a space lost with a crash, or of a
+  // profile deleted since.
+  void DropStaleOrder();
   void Changed();
 
   const base::FilePath user_data_dir_;
@@ -168,6 +172,8 @@ class SpaceDirectory : public ProfileManagerObserver,
   // Space IDs in the user's order. Spaces missing from it go last.
   std::vector<base::Uuid> order_;
   bool file_loaded_ = false;
+  // DropStaleOrder() ran.
+  bool stale_order_dropped_ = false;
 
   base::ImportantFileWriter writer_;
   base::ObserverList<Observer> observers_;

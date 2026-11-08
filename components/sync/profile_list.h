@@ -99,6 +99,9 @@ struct ProfileDir {
   // In the switcher ("Compass Spaces.json"); loaded in this run.
   bool listed = false;
   bool loaded = false;
+  // In Local State's profile list. A directory that isn't (a crash came
+  // before Local State was written) is no profile to Chromium: never kept.
+  bool registered = true;
 };
 
 // What the home profile does with this device's profile directories.
@@ -110,6 +113,9 @@ struct ProfileDirPlan {
   // after a crash, or after compass.sync.profile_dirs was cleared): their own
   // account, not listed, not loaded. They're deleted.
   std::vector<std::string> retire;
+  // Copies as above that aren't in Local State, so Chromium won't delete
+  // them: they're deleted from disk directly.
+  std::vector<std::string> remove;
 };
 
 // Picks one directory per sync UUID among |dirs|: the listed one, else a
@@ -117,7 +123,8 @@ struct ProfileDirPlan {
 // else one with the chain's |seed| and |server_url|, else the first by name.
 // Copies are retired only when the kept one is listed, loaded or recorded,
 // so the one kept is known to be the one in use. |home_uuid|'s directories
-// are neither kept nor retired.
+// are neither kept nor retired. Unregistered directories are only ever
+// removed, as copies of a kept registered one.
 ProfileDirPlan PlanProfileDirs(
     const std::vector<ProfileDir>& dirs,
     const std::string& home_uuid,

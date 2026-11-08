@@ -149,9 +149,10 @@ ProfileDirPlan PlanProfileDirs(
     const std::string& server_url,
     const std::map<std::string, std::string>& recorded) {
   std::map<std::string, std::vector<const ProfileDir*>> by_uuid;
+  std::map<std::string, std::vector<const ProfileDir*>> unregistered;
   for (const ProfileDir& dir : dirs) {
     if (!dir.uuid.empty() && dir.uuid != home_uuid) {
-      by_uuid[dir.uuid].push_back(&dir);
+      (dir.registered ? by_uuid : unregistered)[dir.uuid].push_back(&dir);
     }
   }
   ProfileDirPlan plan;
@@ -179,8 +180,14 @@ ProfileDirPlan PlanProfileDirs(
         plan.retire.push_back(dir->id);
       }
     }
+    for (const ProfileDir* dir : unregistered[uuid]) {
+      if (dir->account && !dir->listed && !dir->loaded) {
+        plan.remove.push_back(dir->id);
+      }
+    }
   }
   std::ranges::sort(plan.retire);
+  std::ranges::sort(plan.remove);
   return plan;
 }
 

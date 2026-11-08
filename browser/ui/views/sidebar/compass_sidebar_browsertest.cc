@@ -14,7 +14,10 @@
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
+#include "base/files/file_util.h"
+#include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
@@ -28,6 +31,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/common/chrome_constants.h"
+#include "chrome/common/chrome_paths.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -2624,6 +2628,40 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LoadBarSweepsWhileConnecting) 
   ASSERT_TRUE(content::WaitForLoadStop(contents));
   ASSERT_TRUE(base::test::RunUntil([&] { return !bar->IsShownForTesting(); }));
   EXPECT_FALSE(bar->GetVisible());
+}
+
+// A space ID in the switcher's order that no profile has (its space was lost
+// with a crash) is dropped once every listed profile's spaces are in.
+class SpaceDirectoryStaleOrderBrowserTest : public InProcessBrowserTest {
+ protected:
+  static constexpr char kStaleId[] = "d530ee77-2ecf-4010-926b-5585d0d80fb6";
+
+  bool SetUpUserDataDirectory() override {
+    base::FilePath user_data_dir;
+    return base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir) &&
+           base::WriteFile(
+               user_data_dir.AppendASCII("Compass Spaces.json"),
+               base::StrCat({R"({"version": 1, "profiles": ["Default"], )",
+                             R"("order": [")", kStaleId, R"("]})"}));
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(SpaceDirectoryStaleOrderBrowserTest,
+                       DropsSpacesNoProfileHas) {
+  SpaceDirectory* directory = SpaceDirectory::Get();
+  ASSERT_TRUE(base::test::RunUntil([&] { return directory->IsLoaded(); }));
+  EXPECT_FALSE(directory->GetSpaces().empty());
+  directory->Flush();
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::FilePath user_data_dir;
+  ASSERT_TRUE(base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir));
+  std::string json;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return base::ReadFileToString(
+               user_data_dir.AppendASCII("Compass Spaces.json"), &json) &&
+           json.find("\"order\"") != std::string::npos &&
+           json.find(kStaleId) == std::string::npos;
+  })) << json;
 }
 
 }  // namespace
