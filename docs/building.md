@@ -268,7 +268,7 @@ Then:
 
 ```sh
 tools/compass gen portable --cpu android-arm64
-tools/compass build -c portable --cpu android-arm64 chrome_public_apk
+tools/compass build -c portable --cpu android-arm64 compass_apk
 ```
 
 What makes the Mac host work:
@@ -286,6 +286,11 @@ What makes the Mac host work:
     `third_party/jdk/current`;
   - Chromium's pinned `aapt2` is Linux only, so it's replaced with a link
     to the SDK build tools' Mac `aapt2`.
+- **A GN arg** (`config/args/android.gn`): `v8_use_host_cpu_arm_features =
+  false`. On an Apple silicon host V8's `mksnapshot` runs natively, and by
+  default it lets the builtins it writes use the instructions its compiler
+  targets: the Mac's, which many Android CPUs lack (pages die of SIGILL on
+  their first JavaScript). On Linux it runs through a simulator.
 
 Limits:
 
