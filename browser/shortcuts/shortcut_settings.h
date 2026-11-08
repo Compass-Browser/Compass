@@ -36,8 +36,9 @@ void RegisterShortcutPrefs(PrefRegistrySimple* registry);
 // Ctrl+1–9 (Ctrl+Shift+1–9 off macOS): switch to the nth space.
 inline constexpr int kSpaceShortcutCount = 9;
 std::string SpaceShortcutId(int index);
-// Ctrl+Option+Cmd+P: lets clicks through picture-in-picture windows, from any
-// app (docs/design/picture-in-picture.md "Click-through").
+// Ctrl+Option+Cmd+P (Shift+Alt+P on Windows): lets clicks through
+// picture-in-picture windows, from any app (docs/design/picture-in-picture.md
+// "Click-through").
 inline constexpr char kPipClickThroughShortcutId[] = "pip-click-through";
 
 ui::Accelerator GetDefaultSpaceAccelerator(int index);

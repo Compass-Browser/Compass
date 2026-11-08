@@ -75,9 +75,9 @@ patch in `VideoOverlayWindowViews::ShowInactive()` sets both, as glic's
 floating window does (`glic_floating_ui.cc`). Document picture-in-picture
 windows (a `Browser` of their own) aren't changed.
 
-## Click-through (macOS)
+## Click-through
 
-**Ctrl+Option+Cmd+P**, from any app, while a video's picture-in-picture
+**Ctrl+Option+Cmd+P** (**Shift+Alt+P** on Windows), from any app, while a video's picture-in-picture
 window is open, makes it ignore the mouse: clicks, scrolls and hovers go to
 whatever is under it. While it does, the window fades to 25% under the
 pointer (150 ms), so you can see what you're clicking. Its controls stay
@@ -87,24 +87,37 @@ show them (`VideoOverlayWindowViews::UpdateControlsVisibility()` asks
 makes it take clicks again; so does closing it (the next one takes clicks).
 
 `compass::PipWindows` (`browser/ui/views/picture_in_picture/`, a
-target of its own) tracks the windows that `VideoOverlayWindowViews::
+target of its own: `pip_windows.cc` shared, `pip_windows_mac.mm` and
+`pip_windows_win.cc` the platforms') tracks the windows that `VideoOverlayWindowViews::
 ShowInactive()` (patch) hands it, until they hide (upstream hides a closed
 window and may show it again) or are destroyed. It sets
-`NSWindow.ignoresMouseEvents`, and registers the shortcut with upstream's
-`GlobalAcceleratorListener` (a Carbon hot key, as extension commands use)
-only while a window is open, so it takes the keys from other apps only
-then. The window gets no mouse events while it ignores them, so a 50 ms
-timer checks `NSEvent.mouseLocation` against its frame and animates its
-alpha. Document picture-in-picture windows aren't covered.
+`NSWindow.ignoresMouseEvents` on macOS, and `WS_EX_LAYERED |
+WS_EX_TRANSPARENT` on Windows (a top-level window lets clicks through only
+with both). It registers the shortcut with upstream's
+`GlobalAcceleratorListener` (a Carbon hot key on macOS, `RegisterHotKey()`
+on Windows, as extension commands use) only while a window is open, so it
+takes the keys from other apps only then. The window gets no mouse events
+while it ignores them, so a 50 ms timer checks the pointer against its
+bounds and fades it: the window's alpha on macOS, the layered window's
+(`SetLayeredWindowAttributes()`, stepped every 16 ms) on Windows. Document
+picture-in-picture windows aren't covered.
+
+On Windows the default is Shift+Alt+P: upstream's Windows hot keys take
+Shift, Ctrl and Alt only (a Windows key would be dropped), and Ctrl+Alt is
+AltGr, which types characters on many layouts. For the same reason the
+settings page refuses the Windows key for it, and `PipWindows` doesn't
+listen for a shortcut that has it.
 
 The keys can be changed in Keyboard shortcuts (shortcuts.md).
 
 Test: `CompassAutoPipBrowserTest.ClickThroughShortcut` (not the hover fade,
-which needs the real pointer).
+which needs the real pointer). On Windows, whether DirectComposition's
+content takes the layered window's alpha is to check by eye; the clicks go
+through either way.
 
-## Gestures (macOS)
+## Gestures
 
-On the window, with a trackpad:
+On the window, with a trackpad (macOS) or a precision touchpad (Windows):
 
 - **Pinch** resizes it around its center, keeping the video's aspect ratio,
   within upstream's minimum and maximum sizes (else the screen's work
@@ -127,7 +140,36 @@ Tests: `PipWindowsGeometryTest.*`, `CompassAutoPipBrowserTest.PipGestures`
 (the geometry on the real window; the trackpad events themselves are
 checked by hand).
 
-## Window shape and behavior (macOS)
+### Windows
+
+Windows hands a precision touchpad's gestures to classic windows as wheel
+messages, with no phase. `PipWindows` filters the window's messages
+(`ui::HWNDSubclass`) while it's tracked:
+
+- **Pinch** arrives as Ctrl+`WM_MOUSEWHEEL`: a notch's worth (120) resizes
+  by 10%. Ctrl and a mouse wheel do the same.
+- **Two fingers** arrive as `WM_MOUSEWHEEL`/`WM_MOUSEHWHEEL` in steps finer
+  than a notch, which is how they're told from a mouse wheel (whose notches
+  go on to upstream, which ignores them); a high-resolution mouse wheel
+  counts as fingers. 120 units move it 100 DIP. The direction follows the
+  touchpad's "Scrolling direction" (`ScrollDirection` under
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\PrecisionTouchPad`, 0 for
+  "down motion scrolls down"; natural by default), read when the window
+  shows.
+- **End:** 150 ms without a wheel message ends a gesture and snaps the
+  window. The touchpad's inertia can't be told from the fingers, so it
+  moves the window on, unlike macOS; the snap waits for it to stop.
+- **Magnet** after a drag or a resize: `WM_EXITSIZEMOVE` (the window is all
+  caption, so a drag is the system's move loop). The snap is animated with
+  a 200 ms ease-out.
+
+Test: `CompassAutoPipBrowserTest.PipWheelGestures` (wheel messages sent to
+the window). The real touchpad, and the direction's registry value, are
+checked by hand.
+
+## Window shape and behavior
+
+macOS:
 
 - **Corners:** `PipWindows` rounds the content view's layer (12 pt
   continuous corners, as the page card). The window has no system shadow:
@@ -153,6 +195,15 @@ checked by hand).
   tab" is meant to bring the tab up and is left alone (`WillFocusOpener()`,
   patch). Not reproduced in tests (needs a real click while another app is
   active); a guess at the mechanism until checked by eye.
+
+Windows:
+
+- **Corners:** Windows 11's rounded corners
+  (`DWMWA_WINDOW_CORNER_PREFERENCE` = `DWMWCP_ROUND`, 8 DIP, with the
+  system's shadow); upstream asks for them only for windows with
+  `rounded_corners`. Windows 10 keeps square ones.
+- **Site name:** as on macOS (the patch isn't platform-specific).
+- **Snap layouts** and closing are left as they are.
 
 ## Known gaps
 

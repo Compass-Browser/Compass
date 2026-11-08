@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_MAC_H_
-#define COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_MAC_H_
+#ifndef COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_H_
+#define COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_H_
 
 #include <vector>
 
@@ -11,6 +11,7 @@
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
@@ -22,16 +23,19 @@
 
 namespace compass {
 
-// What Compass adds to video picture-in-picture windows on macOS
+// What Compass adds to video picture-in-picture windows on macOS and Windows
 // (docs/design/picture-in-picture.md):
-// - Click-through: Ctrl+Option+Cmd+P (or the keys the user gave it,
-//   ShortcutSettings), from any app while a window is open,
+// - Click-through: Ctrl+Option+Cmd+P (Shift+Alt+P on Windows, or the keys
+//   the user gave it, ShortcutSettings), from any app while a window is open,
 //   makes it ignore the mouse, so clicks land on what's under it; again makes
 //   it take clicks again. Meanwhile it turns translucent under the pointer
 //   and shows no controls.
 // - Rounded corners.
-// - Trackpad gestures: pinch resizes it, two fingers move it, and at the end
-//   of a gesture or a drag it snaps to a screen edge it's close to.
+// - Gestures: pinch resizes it, two fingers move it, and at the end of a
+//   gesture or a drag it snaps to a screen edge it's close to.
+//
+// This file and pip_windows.cc are the shared part; pip_windows_mac.mm and
+// pip_windows_win.cc hold the platform's (the Platform*() methods).
 class PipWindows : public views::WidgetObserver,
                    public ui::GlobalAcceleratorListener::Observer,
                    public ShortcutSettings::Observer {
@@ -42,7 +46,9 @@ class PipWindows : public views::WidgetObserver,
   static ui::Accelerator GetAccelerator();
   // The window's opacity under the pointer while it ignores the mouse.
   static constexpr float kHoverOpacity = 0.25f;
-  // Its corners, as the page card's (docs/design/window-frame.md).
+  // Its corners, as the page card's (docs/design/window-frame.md). On
+  // Windows 11 the system's rounded corners instead (8 DIP); none on
+  // Windows 10.
   static constexpr double kCornerRadius = 12;
   // A window that ends a move this close to an edge of the screen's work
   // area snaps to it, kEdgeMargin from it.
@@ -78,29 +84,33 @@ class PipWindows : public views::WidgetObserver,
   bool enabled() const { return enabled_; }
   // Whether |widget| lets clicks through now. Its controls then stay hidden
   // (VideoOverlayWindowViews::UpdateControlsVisibility(), see patches/): the
-  // window still sees the pointer move, though not clicks.
+  // window may still see the pointer move, though not clicks.
   bool IsClickThrough(const views::Widget* widget) const;
 
   bool IsIgnoringMouseForTesting(views::Widget* widget) const;
   bool is_listening_for_testing() const { return listening_; }
   bool IsHoveredForTesting(views::Widget* widget) const;
+  // macOS only: whether dragging it to a screen edge offers macOS's tiles.
   bool AllowsTilingForTesting(views::Widget* widget) const;
-  double GetCornerRadiusForTesting(views::Widget* widget) const;
+  // Whether its corners are rounded (on Windows, whether DWM took the
+  // preference: Windows 11 only).
+  bool HasRoundCornersForTesting(views::Widget* widget) const;
   const std::vector<raw_ptr<views::Widget>>& windows_for_testing() const {
     return windows_;
   }
   // Runs one hover check now.
   void UpdateHoverForTesting() { UpdateHover(); }
 
-  // A pinch on |widget| by |magnification| (NSEvent's), and a move by two
-  // fingers. EndGesture() snaps it to an edge it's close to (animated unless
-  // |animate| is false).
+  // A pinch on |widget| by |magnification| (1 + it is the scale), and a move
+  // by two fingers. EndGesture() snaps it to an edge it's close to
+  // (animated unless |animate| is false).
   void ZoomWindow(views::Widget* widget, double magnification);
   void MoveWindow(views::Widget* widget, const gfx::Vector2d& delta);
   void EndGesture(views::Widget* widget, bool animate = true);
 
   // The window's "back to tab" button: Compass may come to the front (see
-  // RestoreFrontApp()). Called from VideoOverlayWindowViews (patch).
+  // RestoreFrontApp() in the .mm). Called from VideoOverlayWindowViews
+  // (patch, macOS).
   void WillFocusOpener();
 
   // views::WidgetObserver:
@@ -121,23 +131,27 @@ class PipWindows : public views::WidgetObserver,
   PipWindows();
   ~PipWindows() override;
 
-  void Apply(views::Widget* widget);
-  // Rounds the window's corners, without the system shadow.
-  void RoundCorners(views::Widget* widget);
   // Stops tracking |widget|, which takes clicks again.
   void RemoveWindow(views::Widget* widget);
   // Follows the pointer while click-through is on: the window under it fades.
   void UpdateHover();
   void SetHovered(views::Widget* widget, bool hovered);
   void UpdateListening();
-  // Gestures on the windows: an application event monitor (in the .mm)
-  // while any is open.
-  void UpdateEventMonitor();
   gfx::Rect GetWorkArea(views::Widget* widget) const;
-  // A window closed after a click on it while another app was in front
-  // (close, minimize): macOS then gives Compass the focus and brings its
-  // windows up. That app comes back to the front.
-  void RestoreFrontApp();
+
+  // The platform's part.
+  // A window to track: round its corners, watch its gestures.
+  void PlatformAddWindow(views::Widget* widget);
+  // It's no longer tracked: it takes clicks, is opaque, isn't watched.
+  void PlatformRemoveWindow(views::Widget* widget);
+  // Whether it ignores the mouse.
+  void PlatformSetIgnoresMouse(views::Widget* widget, bool ignores);
+  // Fades it to |opacity| (kFadeDuration).
+  void PlatformFade(views::Widget* widget, float opacity);
+  // Moves it to |bounds|, animated.
+  void PlatformAnimateBounds(views::Widget* widget, const gfx::Rect& bounds);
+  // Starts or stops watching for gestures as windows come and go.
+  void PlatformUpdateEventMonitor();
 
   std::vector<raw_ptr<views::Widget>> windows_;
   // Windows faded under the pointer.
@@ -156,4 +170,4 @@ class PipWindows : public views::WidgetObserver,
 
 }  // namespace compass
 
-#endif  // COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_MAC_H_
+#endif  // COMPASS_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_PIP_WINDOWS_H_

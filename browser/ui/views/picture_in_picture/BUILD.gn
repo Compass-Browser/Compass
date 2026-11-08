@@ -2,14 +2,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Click-through picture-in-picture (docs/design/picture-in-picture.md). Its
-# own target, depending on little of Chrome's, because upstream's
-# //chrome/browser/ui/views/overlay calls into it (see patches/).
+# Picture-in-picture windows' click-through, gestures and corners on macOS
+# and Windows (docs/design/picture-in-picture.md). Its own target, depending
+# on little of Chrome's, because upstream's //chrome/browser/ui/views/overlay
+# calls into it (see patches/).
 source_set("pip_windows") {
-  if (is_mac) {
+  if (is_mac || is_win) {
     sources = [
-      "pip_windows_mac.h",
-      "pip_windows_mac.mm",
+      "pip_windows.cc",
+      "pip_windows.h",
     ]
     # Its header includes ShortcutSettings.
     public_deps = [ "//compass/browser/shortcuts" ]
@@ -22,9 +23,17 @@ source_set("pip_windows") {
       "//ui/gfx",
       "//ui/views",
     ]
+  }
+  if (is_mac) {
+    sources += [ "pip_windows_mac.mm" ]
     frameworks = [
       "AppKit.framework",
       "QuartzCore.framework",
     ]
+  }
+  if (is_win) {
+    sources += [ "pip_windows_win.cc" ]
+    deps += [ "//ui/gfx/animation" ]
+    libs = [ "dwmapi.lib" ]
   }
 }
