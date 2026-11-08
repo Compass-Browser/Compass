@@ -55,6 +55,21 @@
 namespace compass {
 namespace {
 
+#if BUILDFLAG(IS_WIN)
+// Hot keys need an interactive window station: a test run over ssh (session
+// 0) can't register any, so there it checks the rest.
+bool CanRegisterHotKeys() {
+  USEROBJECTFLAGS flags = {};
+  return ::GetUserObjectInformation(::GetProcessWindowStation(), UOI_FLAGS,
+                                    &flags, sizeof(flags), nullptr) &&
+         (flags.dwFlags & WSF_VISIBLE);
+}
+#elif BUILDFLAG(IS_MAC)
+bool CanRegisterHotKeys() {
+  return true;
+}
+#endif
+
 class CompassAutoPipBrowserTest : public InProcessBrowserTest {
  protected:
   // A page with a looping video that doesn't ask for auto picture-in-picture.
@@ -275,7 +290,7 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
            !click_through.windows_for_testing().empty();
   }));
   views::Widget* window = click_through.windows_for_testing()[0];
-  EXPECT_TRUE(click_through.is_listening_for_testing());
+  EXPECT_EQ(click_through.is_listening_for_testing(), CanRegisterHotKeys());
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
 #if BUILDFLAG(IS_MAC)
   EXPECT_TRUE(click_through.HasRoundCornersForTesting(window));
@@ -394,10 +409,19 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipWheelGestures) {
   // Ctrl+wheel: a pinch out, keeping the aspect ratio.
   ::SendMessage(hwnd, WM_MOUSEWHEEL, MAKEWPARAM(MK_CONTROL, 2 * WHEEL_DELTA),
                 0);
-  const gfx::Rect zoomed = window->GetWindowBoundsInScreen();
-  EXPECT_GT(zoomed.width(), before.width());
-  EXPECT_NEAR(static_cast<double>(zoomed.width()) / zoomed.height(),
+  const gfx::Rect grown = window->GetWindowBoundsInScreen();
+  SCOPED_TRACE(testing::Message() << "work area " << work_area.ToString()
+                                  << ", before " << before.ToString()
+                                  << ", zoomed " << grown.ToString());
+  EXPECT_GT(grown.width(), before.width());
+  EXPECT_NEAR(static_cast<double>(grown.width()) / grown.height(),
               static_cast<double>(before.width()) / before.height(), 0.02);
+
+  // Back to the middle, with room to move either way.
+  window->CenterWindow(grown.size());
+  const gfx::Rect zoomed = window->GetWindowBoundsInScreen();
+  ASSERT_GE(zoomed.x() - work_area.x(), 50);
+  ASSERT_GE(work_area.right() - zoomed.right(), 50);
 
   // A finer horizontal step: a move sideways (which way depends on the
   // touchpad's scrolling direction).
