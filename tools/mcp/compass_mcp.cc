@@ -37,6 +37,8 @@
 #include <string>
 #include <vector>
 
+#include "compass/tools/mcp/compass_mcp_common.h"
+
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
 #include <mach-o/dyld.h>
@@ -46,6 +48,9 @@ extern char** environ;
 
 namespace {
 
+using compass::mcp::kNotListening;
+using compass::mcp::RequestId;
+
 constexpr char kSocketName[] = "compass-mcp.sock";
 // How long Compass may take to start and listen.
 constexpr int kWaitMs = 30000;
@@ -54,9 +59,6 @@ constexpr int kPollMs = 250;
 // for the listener, which the chat starts with its Claude Code process.
 constexpr int kChatWaitMs = 10000;
 
-constexpr char kNotListening[] =
-    "Compass isn't accepting MCP clients. Open Compass, then turn on "
-    "Settings > Claude > Allow MCP clients.";
 
 std::string Home() {
   const char* home = getenv("HOME");
@@ -181,36 +183,6 @@ bool WriteAll(int fd, const char* data, size_t size) {
     size -= written;
   }
   return true;
-}
-
-// The "id" of a JSON-RPC request, as its JSON text; empty for
-// notifications. Enough for answering errors, not a JSON parser.
-std::string RequestId(const std::string& line) {
-  size_t at = line.find("\"id\"");
-  if (at == std::string::npos) {
-    return std::string();
-  }
-  at = line.find(':', at + 4);
-  if (at == std::string::npos) {
-    return std::string();
-  }
-  ++at;
-  while (at < line.size() && (line[at] == ' ' || line[at] == '\t')) {
-    ++at;
-  }
-  if (at < line.size() && line[at] == '"') {
-    size_t end = at + 1;
-    while (end < line.size() && line[end] != '"') {
-      end += line[end] == '\\' ? 2 : 1;
-    }
-    return line.substr(at, end + 1 - at);
-  }
-  size_t end = at;
-  while (end < line.size() && line[end] != ',' && line[end] != '}' &&
-         line[end] != ' ') {
-    ++end;
-  }
-  return line.substr(at, end - at);
 }
 
 // Without Compass, every request gets an error that says what to do.

@@ -1,0 +1,12 @@
+diff --git a/chrome/installer/mini_installer/chrome.release b/chrome/installer/mini_installer/chrome.release
+index 33e8546206ba676150dd5d8c7bf57d3b5e2f36e1..7d9a00eaffb780000a98d70db98b27b82d21fbb5 100644
+--- a/chrome/installer/mini_installer/chrome.release
++++ b/chrome/installer/mini_installer/chrome.release
+@@ -8,6 +8,7 @@
+ #
+ chrome.exe: %(ChromeDir)s\
+ chrome_proxy.exe: %(ChromeDir)s\
++compass-mcp.exe: %(ChromeDir)s\
+ #
+ # Chrome version dir assembly manifest.
+ # The name of this file must match the name of the version dir, so we cannot

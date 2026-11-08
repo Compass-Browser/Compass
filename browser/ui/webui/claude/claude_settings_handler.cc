@@ -39,9 +39,24 @@ AuthStyle FromMojo(mojom::AuthStyle style) {
                                             : AuthStyle::kApiKey;
 }
 
-#if BUILDFLAG(IS_POSIX)
-// compass-mcp talks to the browser over a Unix socket, so it is built and
-// offered on POSIX only (the page says MCP isn't supported elsewhere).
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
+// compass-mcp talks to the browser over a Unix socket, or a named pipe on
+// Windows (the page says MCP isn't supported elsewhere).
+
+#if BUILDFLAG(IS_WIN)
+constexpr char kMcpRelayName[] = "compass-mcp.exe";
+
+// |text| as one word for cmd and PowerShell alike: in double quotes when it
+// holds a space or a quote character (paths don't hold '"').
+std::string QuoteForShell(const std::string& text) {
+  if (!text.empty() && text.find_first_of(" \t'&()^%!;,`$\"") ==
+                           std::string::npos) {
+    return text;
+  }
+  return "\"" + text + "\"";
+}
+#else
+constexpr char kMcpRelayName[] = "compass-mcp";
 
 // |text| as one shell word: quoted when it holds anything but safe
 // characters ("Application Support" has a space).
@@ -62,6 +77,7 @@ std::string QuoteForShell(const std::string& text) {
   }
   return quoted + "'";
 }
+#endif
 
 // "claude mcp add compass -- <the app's compass-mcp>", with the user data
 // directory when it isn't the default one (development builds).
@@ -70,18 +86,19 @@ std::string McpCommand() {
   base::PathService::Get(base::DIR_EXE, &exe_dir);
   std::string command = base::StrCat(
       {"claude mcp add compass -- ",
-       QuoteForShell(exe_dir.Append("compass-mcp").value())});
+       QuoteForShell(exe_dir.AppendASCII(kMcpRelayName).AsUTF8Unsafe())});
   base::FilePath user_data;
   base::FilePath default_user_data;
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data);
   if (chrome::GetDefaultUserDataDirectory(&default_user_data) &&
       user_data != default_user_data) {
     base::StrAppend(&command,
-                    {" ", QuoteForShell("--user-data-dir=" + user_data.value())});
+                    {" ", QuoteForShell("--user-data-dir=" +
+                                        user_data.AsUTF8Unsafe())});
   }
   return command;
 }
-#endif  // BUILDFLAG(IS_POSIX)
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
 
 }  // namespace
 
@@ -105,7 +122,7 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
                        ? mojom::Backend::kClaudeCode
                        : mojom::Backend::kApiKey;
   state->claude_code_path = prefs->GetString(prefs::kClaudeCodePath);
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
   state->claude_code_tools = true;
 #endif
   state->has_key = ClaudeCredentials::HasApiKey(profile_);
@@ -114,7 +131,7 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->auth_style = ToMojo(EndpointFromPrefs(*prefs).auth_style);
   state->model = prefs->GetString(prefs::kModel);
   state->browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
   state->mcp_supported = true;
   state->mcp_command = McpCommand();
 #endif
