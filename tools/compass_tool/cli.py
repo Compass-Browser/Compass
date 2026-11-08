@@ -193,6 +193,10 @@ def cmd_gen(layout: Layout, args) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     args_file.write_text(args_gn(layout, args.config, args.cpu))
   if android.is_android(args.cpu):
+    # Android needs patches already at gn gen time (BUILDCONFIG's host check,
+    # docs/building.md, "Android from a Mac"); elsewhere `build` applies them.
+    if not args.skip_patches:
+      sync_patches(layout)
     android.prepare_mac_host(layout.src)
   run([depot_tool('gn'), 'gen', out_dir.relative_to(layout.src).as_posix()],
       layout.src, env=layout.env())
@@ -976,6 +980,7 @@ def parser() -> argparse.ArgumentParser:
   add_cpu_argument(s)
   s.add_argument('--force', action='store_true',
                  help='overwrite an existing args.gn')
+  add_skip_patches(s)
   s.set_defaults(func=cmd_gen)
 
   s = sub.add_parser('build', help='build with autoninja')
