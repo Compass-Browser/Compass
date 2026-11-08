@@ -207,23 +207,31 @@ whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
 `SetUpViews()` and when `OnUpdateControlsBounds()` returns
 (`PipStyle::ScopedLayout`).
 
-- **No site name or favicon.** The title view stays hidden; back to tab
-  says where the video comes from. Upstream shows the site name on
+- **No site name or favicon.** The favicon and site name stay hidden (not
+  the title view: upstream's fades show the views they fade, the title view
+  and the scrims among them); back to tab says where the video comes from. Upstream shows the site name on
   untrusted pages so one can't pass itself off as another; Compass's
   windows are nearly all automatic ones of the user's own tabs. Upstream's
   timer for it is skipped too (`UpdateControlsVisibility()` patch).
-- **Top buttons:** back to tab in the top left corner, minimize and close
-  side by side in the top right, 32 DIP with 20 DIP icons (upstream: 24
-  and 16; button patches), `kMargin` (8 DIP) plus the pill's padding from
-  the edges.
+- **Top buttons:** back to tab in the top left corner, with its title
+  ("Back to tab", upstream's string for the button's tooltip) right of the
+  icon, inside the button so a click on it goes back too; minimize and
+  close side by side in the top right. 32 DIP high with 20 DIP icons
+  (upstream: 24 and 16; button patches), `kMargin` (8 DIP) plus the pill's
+  padding from the edges.
 - **Pills.** Each group sits on a frosted pill: the top left and top right
   buttons, the playback buttons (or a call's camera, hang up and
   microphone) in the middle, and the timeline row at the bottom. A pill is
-  dark and translucent (70%), with the video behind it blurred, a faint
-  light edge, and round ends (the two-row bottom one: 14 DIP corners). The
+  dark and translucent (70%; the middle one, over the picture itself,
+  40%), with the video behind it blurred, a faint light edge, and round
+  ends (the two-row bottom one: 14 DIP corners). The middle one has 16 DIP
+  at its sides, clear of its round ends. The
   pills are children of upstream's scrim, so they fade with the controls,
   and take no events. The bottom row moves up so its pill stays `kMargin`
   from the window's edges and clear of its rounded corners.
+- **Timeline handle:** a 12 DIP circle, the played line running up to it
+  (upstream: a 4x16 bar after a gap; `media_progress_view.cc` patch, so
+  Chrome's other media controls have it too).
 - **Dim.** A 20% black over the video while the controls show, instead of
   upstream's darker scrim and its black gradients at the top and bottom.
 - **Space color.** The window's colors are seeded with the color of the

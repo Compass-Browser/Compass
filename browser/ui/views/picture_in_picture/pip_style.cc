@@ -10,6 +10,7 @@
 
 #include "base/containers/span.h"
 #include "cc/paint/paint_flags.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
 #include "chrome/browser/ui/views/overlay/close_image_button.h"
 #include "chrome/browser/ui/views/overlay/hang_up_button.h"
@@ -22,18 +23,26 @@
 #include "chrome/browser/ui/views/overlay/toggle_microphone_button.h"
 #include "chrome/browser/ui/views/overlay/toggle_mute_button.h"
 #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/global_media_controls/public/views/media_progress_view.h"
 #include "compass/browser/ui/views/picture_in_picture/pip_tint.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/background.h"
+#include "ui/views/border.h"
+#include "ui/views/controls/button/image_button.h"
+#include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/controls/label.h"
+#include "ui/views/style/typography.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 
@@ -48,11 +57,18 @@ constexpr SkColor kDimColor = SkColorSetA(SK_ColorBLACK, 0x33);
 // mixed in; a faint light edge; the video behind it blurred.
 constexpr SkColor kPillBaseColor = SkColorSetRGB(0x1C, 0x1C, 0x1E);
 constexpr SkAlpha kPillAlpha = 0xB3;
+// The middle pill sits over the picture itself: lighter.
+constexpr SkAlpha kCenterPillAlpha = 0x66;
 constexpr float kTintShare = 0.2f;
 constexpr SkColor kPillEdgeColor = SkColorSetA(SK_ColorWHITE, 0x1F);
 constexpr float kPillBlurSigma = 24;
 // The bottom pill holds two rows: its corners stay this round.
 constexpr int kBottomPillRadius = 14;
+// Back to tab's icon (back_to_tab_button.cc patch), and the space between
+// it and its title, and after the title.
+constexpr int kBackToTabIconSize = 20;
+constexpr int kBackToTabTitleGap = 4;
+constexpr int kBackToTabTitleEnd = 12;
 
 enum class Group { kTopLeading, kTopTrailing, kCenter, kBottom };
 
@@ -91,7 +107,9 @@ class PipPill : public views::View {
                                      kTintShare);
     }
     const gfx::Rect bounds = GetLocalBounds();
-    canvas->FillRect(bounds, SkColorSetA(fill, kPillAlpha));
+    canvas->FillRect(bounds, SkColorSetA(fill, group_ == Group::kCenter
+                                                   ? kCenterPillAlpha
+                                                   : kPillAlpha));
     cc::PaintFlags edge;
     edge.setAntiAlias(true);
     edge.setStyle(cc::PaintFlags::kStroke_Style);
@@ -151,15 +169,18 @@ gfx::Rect UnionOfShown(base::span<views::View* const> views,
   return bounds;
 }
 
-int GetPillOutset(Group group) {
+// Space between a group's controls and its pill's edge. The middle one's
+// round ends need more room at the sides.
+gfx::Outsets GetPillOutsets(Group group) {
   switch (group) {
     case Group::kTopLeading:
     case Group::kTopTrailing:
-      return PipStyle::kPillPadding;
+      return gfx::Outsets(PipStyle::kPillPadding);
     case Group::kCenter:
-      return 3 * PipStyle::kPillPadding;
+      return gfx::Outsets::VH(3 * PipStyle::kPillPadding,
+                             8 * PipStyle::kPillPadding);
     case Group::kBottom:
-      return 2 * PipStyle::kPillPadding;
+      return gfx::Outsets(2 * PipStyle::kPillPadding);
   }
 }
 
@@ -167,12 +188,38 @@ int GetPillOutset(Group group) {
 
 // static
 void PipStyle::SetUp(VideoOverlayWindowViews* window) {
-  // No site name: back to tab says where the video comes from.
-  window->title_view_->SetVisible(false);
-  window->controls_top_scrim_view_->SetVisible(false);
-  window->controls_bottom_scrim_view_->SetVisible(false);
+  // No site name: back to tab says where the video comes from. Its
+  // contents, not the title view: upstream's fades show the views they fade
+  // (OverlayControlsFadeAnimation), the title view and the scrims among them.
+  window->favicon_view_->SetVisible(false);
+  window->origin_->SetVisible(false);
+  window->controls_top_scrim_view_->SetBackground(nullptr);
+  window->controls_bottom_scrim_view_->SetBackground(nullptr);
   window->controls_scrim_view_->SetBackground(
       views::CreateSolidBackground(kDimColor));
+
+  // Back to tab says so: its title right of the icon, inside the button, so
+  // a click on the title goes back too.
+  views::ImageButton* back = window->back_to_tab_button_;
+  const int icon_area = back->height();
+  const int icon_inset = (icon_area - kBackToTabIconSize) / 2;
+  auto* title = back->AddChildView(std::make_unique<views::Label>(
+      l10n_util::GetStringUTF16(IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT),
+      views::style::CONTEXT_LABEL, views::style::STYLE_BODY_4));
+  title->SetEnabledColor(kColorPipWindowForeground);
+  title->SetBackgroundColor(SK_ColorTRANSPARENT);
+  title->SetAutoColorReadabilityEnabled(false);
+  title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  title->SetCanProcessEventsWithinSubtree(false);
+  const int title_x = icon_inset + kBackToTabIconSize + kBackToTabTitleGap;
+  const int title_width = title->GetPreferredSize().width();
+  title->SetBounds(title_x, 0, title_width, icon_area);
+  back->SetSize({title_x + title_width + kBackToTabTitleEnd, icon_area});
+  back->SetImageHorizontalAlignment(views::ImageButton::ALIGN_LEFT);
+  back->SetBorder(
+      views::CreateEmptyBorder(gfx::Insets::TLBR(0, icon_inset, 0, 0)));
+  // Its hover and focus ring: the pill's shape, not a circle.
+  views::InstallPillHighlightPathGenerator(back);
   for (Group group : {Group::kTopLeading, Group::kTopTrailing, Group::kCenter,
                       Group::kBottom}) {
     window->controls_scrim_view_->AddChildView(
@@ -228,7 +275,7 @@ void PipStyle::Layout(VideoOverlayWindowViews* window) {
   const gfx::Rect bottom_row = UnionOfShown(bottom, container);
   if (!bottom_row.IsEmpty()) {
     gfx::Rect pill = bottom_row;
-    pill.Outset(GetPillOutset(Group::kBottom));
+    pill.Outset(GetPillOutsets(Group::kBottom));
     const int dy = std::min(0, size.height() - kMargin - pill.bottom());
     if (dy) {
       for (views::View* view : bottom) {
@@ -268,7 +315,7 @@ void PipStyle::Layout(VideoOverlayWindowViews* window) {
     if (bounds.IsEmpty()) {
       continue;
     }
-    bounds.Outset(GetPillOutset(pill->group()));
+    bounds.Outset(GetPillOutsets(pill->group()));
     bounds.Offset(-scrim->x(), -scrim->y());
     pill->SetBoundsRect(bounds);
   }

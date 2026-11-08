@@ -15,7 +15,8 @@ namespace compass {
 // Compass's look for video picture-in-picture windows on macOS and Windows
 // (docs/design/picture-in-picture.md, "Controls"):
 // - No site name or favicon.
-// - Back to tab in the top left corner; minimize and close in the top right.
+// - Back to tab, with its title, in the top left corner; minimize and close
+//   in the top right.
 // - Each group of controls (top left, top right, the playback or call
 //   buttons in the middle, the timeline row at the bottom) on a frosted
 //   pill, which fades with the controls; a light dim over the video instead

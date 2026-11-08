@@ -1,0 +1,19 @@
+diff --git a/components/global_media_controls/public/views/media_progress_view.cc b/components/global_media_controls/public/views/media_progress_view.cc
+index 3cb9e5f509fa30556273455620a7561bc51f00b5..002aed7127db2495d654879337e7b9045f0c1a61 100644
+--- a/components/global_media_controls/public/views/media_progress_view.cc
++++ b/components/global_media_controls/public/views/media_progress_view.cc
+@@ -55,10 +55,12 @@ constexpr float kProgressPhaseSpeed = 28.0f;
+ // The size of the rounded rectangle indicator at the end of the foreground
+ // squiggly or straight progress.
+ constexpr gfx::SizeF kSquigglyProgressIndicatorSize = gfx::SizeF(6, 14);
+-constexpr gfx::SizeF kStraightProgressIndicatorSize = gfx::SizeF(4, 16);
++// Compass: a round handle, as macOS's sliders (upstream: a 4x16 bar).
++constexpr gfx::SizeF kStraightProgressIndicatorSize = gfx::SizeF(12, 12);
+ 
+ // The width of the gap between the progress indicator and the straight lines.
+-constexpr float kStraightProgressIndicatorGap = 4.0f;
++// Compass: none, the played line runs up to the round handle.
++constexpr float kStraightProgressIndicatorGap = 0.0f;
+ 
+ // Defines how long the animation for progress transitioning between squiggly
+ // and straight lines will take.

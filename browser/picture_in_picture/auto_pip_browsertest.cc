@@ -346,7 +346,8 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipStyle) {
       [&] { return !window->IsLayoutPendingForTesting(); }));
 
   EXPECT_EQ(window->user_color_override(), GetSpaceTint(SpaceColor::kBlue));
-  EXPECT_FALSE(window->title_view_for_testing()->GetVisible());
+  EXPECT_FALSE(window->favicon_view_for_testing()->IsDrawn());
+  EXPECT_FALSE(window->origin_for_testing()->IsDrawn());
 
   const gfx::Size size = window->GetBounds().size();
   const gfx::Rect back = window->back_to_tab_button_for_testing()->bounds();
@@ -357,6 +358,8 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipStyle) {
   EXPECT_EQ(minimize.right(), close.x());
   EXPECT_EQ(back.y(), close.y());
   EXPECT_EQ(close.width(), 32);
+  // Back to tab carries its title.
+  EXPECT_GT(back.width(), 32 + 40);
 
   const PipStyle::PillBounds pills = PipStyle::GetPillBoundsForTesting(window);
   EXPECT_TRUE(pills.top_leading.Contains(back));
