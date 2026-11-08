@@ -4,7 +4,8 @@
 
 #include "compass/browser/claude/claude_api.h"
 
-#include "base/containers/contains.h"
+#include <algorithm>
+
 #include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -92,7 +93,7 @@ void AddBetas(const Endpoint& endpoint,
               const std::vector<std::string>& betas,
               net::HttpRequestHeaders& headers) {
   std::vector<std::string> all = betas;
-  if (UsesOAuthToken(endpoint) && !base::Contains(all, kOAuthBeta)) {
+  if (UsesOAuthToken(endpoint) && !std::ranges::contains(all, kOAuthBeta)) {
     all.push_back(kOAuthBeta);
   }
   if (!all.empty()) {
