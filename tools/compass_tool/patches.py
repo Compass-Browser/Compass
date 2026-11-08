@@ -147,9 +147,16 @@ def target_path(patch: Path) -> str:
       return line[len(b'+++ b/'):].decode()
     if line.startswith(b'--- a/') and old is None:
       old = line[len(b'--- a/'):].decode()
-  if old is None:
-    raise ValueError('no file in ' + str(patch))
-  return old
+  if old is not None:
+    return old
+  # A binary patch has no ---/+++ lines, only "diff --git a/<path> b/<path>".
+  first = patch.read_bytes().split(b'\n', 1)[0]
+  if first.startswith(b'diff --git a/'):
+    paths = first[len(b'diff --git a/'):].decode()
+    half = (len(paths) - len(' b/')) // 2
+    if paths[half:half + len(' b/')] == ' b/':
+      return paths[:half]
+  raise ValueError('no file in ' + str(patch))
 
 
 def past_versions(patches_dir: Path, patch: Path) -> List[bytes]:
