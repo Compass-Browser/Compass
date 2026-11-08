@@ -204,6 +204,23 @@ class PatchSyncTest(unittest.TestCase):
     self.quietly(patches.sync, self.patches_dir, self.src)
     self.assertEqual(self.build_gn.read_text(), v2)
 
+  def test_syncs_binary_patches(self):
+    logo = self.src / 'chrome' / 'logo.png'
+    logo.write_bytes(b'\x89PNG\x00upstream')
+    git(self.src, 'add', 'chrome/logo.png')
+    git(self.src, 'commit', '-qm', 'logo')
+    logo.write_bytes(b'\x89PNG\x00compass')
+    self.quietly(patches.export, self.patches_dir, self.src)
+    patch = self.patches_dir / 'chrome-logo.png.patch'
+    self.assertEqual(patches.target_path(patch), 'chrome/logo.png')
+    git(self.base, 'add', '-A', 'patches')
+    git(self.base, 'commit', '-qm', 'logo patch')
+    git(self.src, 'checkout', '--', 'chrome/logo.png')
+    for _ in range(2):  # Not applied, then applied.
+      problems = self.quietly(patches.sync, self.patches_dir, self.src)
+      self.assertEqual(problems, [])
+      self.assertEqual(logo.read_bytes(), b'\x89PNG\x00compass')
+
   def test_updates_patches_exported_with_another_diff_driver(self):
     # The old version was exported on a machine whose diff driver puts a
     # function name after the hunk header; this one prints none.
