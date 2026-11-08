@@ -157,8 +157,11 @@ and the page:
 The buttons are smaller than upstream's 45x29 DIP, which is a title bar's
 height: 36x24 DIP (`kCompactCaptionButtonSize`, through
 `GetCompactCaptionButtonSize()`, which `WindowsCaptionButton::
-CalculatePreferredSize()` asks first, patch), so the strip above the card is
-thin. The glyphs stay upstream's 10 DIP. A frame installed after the frame
+CalculatePreferredSize()` asks first, patch), and their container is no
+taller than they are (`BrowserFrameViewWin::LayoutCaptionButtons()` gives it
+the title bar's height, and its layout stretches them to it; patch), so the
+strip above the card is thin: the card's trailing exclusion is the
+container's bounds. The glyphs stay upstream's 10 DIP. A frame installed after the frame
 view sized its buttons makes them ask again (`UpdateCaptionButtons()`, once
 per widget).
 

@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/ui/views/frame/browser_frame_view_win.cc b/chrome/browser/ui/views/frame/browser_frame_view_win.cc
+index 5b7aa7203114f12765c3f71c2a2d7b33265db2e3..dcfa8a3a1bc59d5a454fd79e5c40475c098cd9a3 100644
+--- a/chrome/browser/ui/views/frame/browser_frame_view_win.cc
++++ b/chrome/browser/ui/views/frame/browser_frame_view_win.cc
+@@ -36,6 +36,7 @@
+ #include "chrome/browser/web_applications/web_app_icon_manager.h"
+ #include "chrome/browser/web_applications/web_app_provider.h"
+ #include "chrome/browser/win/titlebar_config.h"
++#include "compass/browser/ui/views/frame/window_frame.h"
+ #include "content/public/browser/web_contents.h"
+ #include "skia/ext/image_operations.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -734,10 +735,16 @@ void BrowserFrameViewWin::LayoutCaptionButtons() {
+   const gfx::Size preferred_size =
+       caption_button_container_->GetPreferredSize();
+ 
+-  const int height =
++  int height =
+       !GetBrowserView()->GetWebAppFrameToolbarPreferredSize().IsEmpty()
+           ? (TitlebarHeight(false) - WindowTopY())
+           : GetFrameHeight();
++  // Compass: its smaller buttons (compass/browser/ui/views/frame/
++  // window_frame.h) aren't stretched to a title bar's height.
++  if (std::optional<gfx::Size> compact =
++          compass::GetCompactCaptionButtonSize(GetBrowserView())) {
++    height = std::min(height, compact->height());
++  }
+ 
+   caption_button_container_->SetBounds(width() - preferred_size.width(),
+                                        WindowTopY(), preferred_size.width(),
