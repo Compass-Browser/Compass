@@ -43,13 +43,24 @@ translations to `gen/compass/strings/<same path>`, changing "Chromium" to
   made possible by the [Chromium] open source project".
 - "The Chromium Authors" becomes "The Compass Authors" (as `BRANDING`).
 - Placeholder examples (`<ex>`) are left alone.
+- "Chrome" and "Google Chrome" become "Compass" too. The shared strings
+  call the browser "Chrome" outright in about 480 messages that Chromium
+  builds show as well: permission bubbles ("Chrome thinks you don't want
+  notifications from this site"), security interstitials, page info,
+  autofill dialogs, settings. Other things' names keep it
+  (`_CHROME_KEEP`): the Chrome Web Store (and "Chrome Webstore"), Chrome
+  Enterprise, Remote Desktop, the Chrome Root Store and Root Program,
+  Chrome apps and extensions (the platforms Compass shares), Chrome OS, and
+  the builds upstream names (Chrome for iOS, Chrome for Testing).
 
 A message's translation ID is a fingerprint of its text, so renamed messages
 get new IDs. The script reads both versions with grit's own parser and copies
 each renamed message's translations under its new ID, with the same renaming
-(translations keep "Chromium" in Latin letters in every language). A message
-that names both the product and the project keeps its translations
-unchanged: word order differs, so the two can't be told apart.
+(translations keep "Chromium" and "Chrome" in Latin letters in almost every
+language). A message that names both the product and the project, or a name
+that stays ("Chrome Web Store"), keeps its translations unchanged: word
+order differs, and some languages translate the rest of the name
+("Интернет-магазин Chrome"), so the two can't be told apart.
 
 One message is replaced rather than renamed: the name a new profile gets
 when the user gives none (`IDS_PROFILE_MENU_PLACEHOLDER_PROFILE_NAME`,
@@ -236,6 +247,11 @@ either SVG.
 | `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_{16,32}.png` | `IDR_PRODUCT_LOGO_16/32`: `chrome://theme/current-channel-logo`, so the WebUI toolbar logo (settings, history, downloads, extensions), dialogs, infobars | glyph |
 | `ui/webui/resources/images/chrome_logo_dark.svg` | the same toolbars in dark mode (upstream: a white Chrome logo) | glyph, in color |
 | `components/vector_icons/chromium/product{,_refresh}.icon` | `vector_icons::kProductIcon` and `kProductRefreshIcon`: menus, page info for `chrome://` pages, permission and default browser prompts | glyph, one color |
+| `chrome/app/vector_icons/browser_logo_old.icon` | `kBrowserLogoOldIcon`: relaunch and update toasts, the task manager, a web app window's menu | glyph, one color |
+| `components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon`, `product_old.icon` | `omnibox::kProductChromeRefreshOldIcon`: infobars (restore pages, default browser, PDF), app menu items, `chrome://` suggestions in the omnibox and command bar; `kProductOldIcon`: the autofill popup | glyph, one color |
+| `ui/message_center/vector_icons/product_old.icon` | the header of the browser's notifications | glyph, one color |
+| `chrome/app/vector_icons/chrome_product.icon`, `components/omnibox/browser/vector_icons/chrome_product.icon`, `ui/message_center/vector_icons/chrome_product.icon` | `kChromeProductIcon`: the same places with `features::kRoundedIcons` on (off by default) | glyph, one color |
+| `ui/webui/resources/cr_components/searchbox/icons/chrome_product_cr23{,_old}.svg` | the WebUI searchbox's `chrome://` matches, the contextual tasks toolbar | glyph, black |
 | `components/resources/default_{100,200}_percent/chromium/favicon_product.png` | favicon of built-in pages | glyph |
 | `components/resources/default_{100,200}_percent/chromium/product_logo{,_white}.png` | `chrome://version` (logo and name) | glyph + "compass" |
 | `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_name_22{,_white}.png` | `IDR_PRODUCT_LOGO_NAME_22` | glyph + "compass" |
