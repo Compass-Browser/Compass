@@ -9,7 +9,9 @@
 #include <memory>
 #include <string>
 
+#include "base/callback_list.h"
 #include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
@@ -32,6 +34,8 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_utils.h"
@@ -131,6 +135,71 @@ class PipPill : public views::View {
 BEGIN_METADATA(PipPill)
 END_METADATA
 
+bool IsDigit(char16_t c) {
+  return c >= u'0' && c <= u'9';
+}
+
+// How wide |text| draws with every digit in a cell as wide as the widest
+// digit (PipTime).
+int GetDigitCellWidth(const gfx::FontList& font_list) {
+  int width = 0;
+  for (char16_t digit = u'0'; digit <= u'9'; ++digit) {
+    width = std::max(width,
+                     gfx::GetStringWidth(std::u16string(1, digit), font_list));
+  }
+  return width;
+}
+
+int GetTabularWidth(std::u16string_view text, const gfx::FontList& font_list) {
+  const int cell = GetDigitCellWidth(font_list);
+  int width = 0;
+  for (char16_t c : text) {
+    width += IsDigit(c) ? cell
+                        : gfx::GetStringWidth(std::u16string(1, c), font_list);
+  }
+  return width;
+}
+
+// The time, drawn from upstream's label (made transparent) with each digit
+// in a cell of its own, so it doesn't jiggle as it counts (the system font's
+// digits differ in width, and views can't ask for tabular ones), centered in
+// its bounds. It takes no events.
+class PipTime : public views::View {
+  METADATA_HEADER(PipTime, views::View)
+
+ public:
+  explicit PipTime(views::Label* source) : source_(source) {
+    SetCanProcessEventsWithinSubtree(false);
+    text_changed_subscription_ = source->AddTextChangedCallback(
+        base::BindRepeating(&PipTime::SchedulePaint, base::Unretained(this)));
+  }
+
+  // views::View:
+  void OnPaint(gfx::Canvas* canvas) override {
+    const std::u16string_view text = source_->GetText();
+    const gfx::FontList& font_list = source_->font_list();
+    const int cell = GetDigitCellWidth(font_list);
+    const SkColor color =
+        GetColorProvider()->GetColor(ui::kColorSysOnSurfaceSubtle);
+    int x = (width() - GetTabularWidth(text, font_list)) / 2;
+    for (char16_t c : text) {
+      const std::u16string character(1, c);
+      const int w = IsDigit(c) ? cell : gfx::GetStringWidth(character, font_list);
+      canvas->DrawStringRectWithFlags(character, font_list, color,
+                                      gfx::Rect(x, 0, w, height()),
+                                      gfx::Canvas::TEXT_ALIGN_CENTER);
+      x += w;
+    }
+  }
+
+ private:
+  const raw_ptr<views::Label> source_;
+  base::CallbackListSubscription text_changed_subscription_;
+};
+
+BEGIN_METADATA(PipTime)
+END_METADATA
+
 // Whether |view| shows: visible, and so is its parent below |container|
 // (the playback or call controls' box).
 bool IsShown(const views::View* view, const views::View* container) {
@@ -197,6 +266,12 @@ void PipStyle::SetUp(VideoOverlayWindowViews* window) {
   window->controls_scrim_view_->SetBackground(
       views::CreateSolidBackground(kDimColor));
 
+  // The time, drawn digit by digit over upstream's label (PipTime).
+  window->timestamp_->SetAutoColorReadabilityEnabled(false);
+  window->timestamp_->SetEnabledColor(SK_ColorTRANSPARENT);
+  window->timestamp_->parent()->AddChildView(
+      std::make_unique<PipTime>(window->timestamp_));
+
   // Back to tab says so: its title right of the icon, inside the button, so
   // a click on the title goes back too.
   views::ImageButton* back = window->back_to_tab_button_;
@@ -255,23 +330,27 @@ void PipStyle::LayOutBottomRow(VideoOverlayWindowViews* window,
       continue;
     }
     std::u16string widest = std::u16string(label->GetText());
+    int width;
     if (label == window->timestamp_) {
       const size_t slash = widest.find(u" / ");
       if (slash != std::u16string::npos) {
         const std::u16string duration = widest.substr(slash + 3);
         widest = duration + u" / " + duration;
       }
-      for (char16_t& c : widest) {
-        if (c >= u'0' && c <= u'9') {
-          c = u'8';
-        }
-      }
+      width = GetTabularWidth(widest, label->font_list());
+    } else {
+      width = label->GetPreferredSize().width();
     }
-    const int width =
-        gfx::GetStringWidth(widest, label->font_list()) +
-        label->GetInsets().width();
+    width += label->GetInsets().width();
     place(label, left, width, label->GetPreferredSize().height());
     left += width + kBottomGap;
+  }
+  // The time as drawn, over upstream's label.
+  for (views::View* child : window->timestamp_->parent()->children()) {
+    if (auto* time = views::AsViewClass<PipTime>(child)) {
+      time->SetBoundsRect(window->timestamp_->bounds());
+      time->SetVisible(IsShown(window->timestamp_, container));
+    }
   }
 
   int right = size.width() - kMargin - padding;

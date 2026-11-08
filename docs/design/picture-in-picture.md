@@ -232,7 +232,11 @@ whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
   right) are one: previous, the time, the timeline, next, mute, captions
   (`LayOutBottomRow()`), `kMargin` from the window's edges. The time is as
   wide as its longest text (the current time as long as the duration), so
-  the timeline doesn't move as it counts.
+  the timeline doesn't move as it counts. It's drawn by `PipTime` over
+  upstream's label (made transparent), each digit centered in a cell as
+  wide as the widest digit and the text centered in its space: the system
+  font's digits differ in width, and views can't ask for tabular ones, so
+  the label's text shifted every second.
 - **Timeline handle:** a 12 DIP circle, the played line running up to it
   (upstream: a 4x16 bar after a gap; `media_progress_view.cc` patch, so
   Chrome's other media controls have it too).
