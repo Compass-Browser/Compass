@@ -1,13 +1,16 @@
 diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index 12a5e53584f9f30117ba8e3e1c444974862dbd09..3127cce44b6c1416ec477d006ae4bbeb4837d8b5 100644
+index 12a5e53584f9f30117ba8e3e1c444974862dbd09..ca0827afb9e693e948c8e8634e5567e6a9df6508 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -194,6 +194,8 @@ template("chrome_extra_paks") {
+@@ -194,6 +194,11 @@ template("chrome_extra_paks") {
      if (defined(invoker.additional_paks)) {
        sources += invoker.additional_paks
      }
-+    sources += [ "$root_gen_dir/compass/compass_sidebar_resources.pak" ]
-+    deps += [ "//compass/resources/sidebar:resources" ]
++    if (!is_android) {
++      # Compass: its WebUI (sidebar, command bar, settings sections).
++      sources += [ "$root_gen_dir/compass/compass_sidebar_resources.pak" ]
++      deps += [ "//compass/resources/sidebar:resources" ]
++    }
  
      if (enable_extensions_core) {
        sources += [

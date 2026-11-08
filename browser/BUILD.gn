@@ -3,14 +3,17 @@
 # found in the LICENSE file.
 
 # Everything Compass adds to the browser process. //chrome/browser depends on
-# this target (see patches/chrome-browser-BUILD.gn.patch).
-group("browser") {
-  public_deps = [
-    "//compass/browser/shortcuts",
-    "//compass/browser/sidebar",
-    "//compass/browser/updates",
-    "//compass/browser/win",
-  ]
+# this target (see patches/chrome-browser-BUILD.gn.patch). Desktop only: on
+# Android these parts come one milestone at a time (docs/design/android.md).
+if (!is_android) {
+  group("browser") {
+    public_deps = [
+      "//compass/browser/shortcuts",
+      "//compass/browser/sidebar",
+      "//compass/browser/updates",
+      "//compass/browser/win",
+    ]
+  }
 }
 
 # Compass's feature defaults. //chrome/browser:core, which sets up the

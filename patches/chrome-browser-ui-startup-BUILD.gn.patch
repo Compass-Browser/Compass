@@ -1,14 +1,15 @@
 diff --git a/chrome/browser/ui/startup/BUILD.gn b/chrome/browser/ui/startup/BUILD.gn
-index 716f94e0dcb3b5a6d5c86596c64d493ddbfad2c7..7921b00ca6b3b0fdc969aba6e7817a460673737d 100644
+index 716f94e0dcb3b5a6d5c86596c64d493ddbfad2c7..ecb2a7ce1e1e55da89f237849261f9b216edd05f 100644
 --- a/chrome/browser/ui/startup/BUILD.gn
 +++ b/chrome/browser/ui/startup/BUILD.gn
-@@ -152,6 +152,9 @@ source_set("impl") {
-     "//chrome/browser/sync:factories",
-     "//chrome/browser/ui:simple_message_box_headers",
-     "//chrome/browser/ui/browser_window:create_browser_window",
-+
+@@ -187,6 +187,10 @@ source_set("impl") {
+     "//ui/gfx:native_ui_types",
+     "//url",
+   ]
++  if (!is_android) {
 +    # Compass: links from other apps open in little windows on Windows.
-+    "//compass/browser/ui",
-     "//chrome/browser/ui/dialogs",
-     "//chrome/browser/ui/profiles",
-     "//chrome/browser/webauthn",
++    deps += [ "//compass/browser/ui" ]
++  }
+   public_deps = [
+     "//chrome/browser:browser_public_dependencies",
+     "//ui/base/unowned_user_data",

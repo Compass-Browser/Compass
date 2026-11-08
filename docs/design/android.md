@@ -148,6 +148,14 @@ guarded patches.
     APK.
   - Test APKs are large, about 500 MB unstripped. Release builds are far
     smaller.
+- **Desktop-only code.** Patches that add `//compass/browser/*` to targets
+  Android also builds gate it with `if (!is_android)`, and their C++ hooks
+  with `#if !BUILDFLAG(IS_ANDROID)`. Inside `//compass`, a BUILD file that
+  Android loads keeps its desktop targets under `if (!is_android)`, because
+  GN resolves every target of a file it loads. Each milestone ungates what
+  it brings to Android. Today Android gets `components/sync`, the protocol,
+  strings, `common`, `browser:url_handler`, `browser:feature_overrides`,
+  `browser/prefs` and `browser/updates:hooks`.
 - **Signing.** The upload keystore and the FCM service account are kept out
   of the repository.
 

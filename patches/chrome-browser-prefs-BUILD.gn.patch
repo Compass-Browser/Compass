@@ -1,14 +1,23 @@
 diff --git a/chrome/browser/prefs/BUILD.gn b/chrome/browser/prefs/BUILD.gn
-index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..2d277aa45488996669932de4a11c5913261eb207 100644
+index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..7eea6aafa7b85a068742858da3db0601a5727794 100644
 --- a/chrome/browser/prefs/BUILD.gn
 +++ b/chrome/browser/prefs/BUILD.gn
-@@ -61,6 +61,9 @@ source_set("impl") {
+@@ -61,6 +61,7 @@ source_set("impl") {
      ":prefs",
      ":util",
      "//chrome/browser:browser_process",
 +    "//compass/browser/prefs",
-+    "//compass/browser/shortcuts",
-+    "//compass/browser/updates:prefs",
      "//chrome/browser:browser_process_impl",
      "//chrome/browser:chrome_content_browser_client",
      "//chrome/browser:defaults",
+@@ -207,6 +208,10 @@ source_set("impl") {
+     "//services/preferences/tracked:features",
+     "//ui/webui:buildflags",
+   ]
++  if (!is_android) {
++    deps += [ "//compass/browser/shortcuts" ]
++    deps += [ "//compass/browser/updates:prefs" ]
++  }
+ 
+   if (enable_print_preview) {
+     deps += [

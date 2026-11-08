@@ -1,12 +1,14 @@
 diff --git a/chrome/browser/lifetime/BUILD.gn b/chrome/browser/lifetime/BUILD.gn
-index bc5cec233fa79697d5284822684fffa564e28c67..f82b8f48c4922e3de015673fc08b28a49bbb0310 100644
+index bc5cec233fa79697d5284822684fffa564e28c67..55502f502a7d1f88f626e4c348bbde2e3bc6a1b6 100644
 --- a/chrome/browser/lifetime/BUILD.gn
 +++ b/chrome/browser/lifetime/BUILD.gn
-@@ -162,6 +162,7 @@ source_set("impl") {
-     deps += [
-       "//chrome/browser:global_features",
-       "//chrome/browser/background/glic",
-+      "//compass/browser/updates:hooks",
-       "//chrome/browser/download",
-       "//chrome/browser/first_run",
-       "//chrome/browser/glic",
+@@ -187,6 +187,9 @@ source_set("impl") {
+       "//components/site_engagement/content",
+       "//ui/base/idle",
+     ]
++    if (!is_android) {
++      deps += [ "//compass/browser/updates:hooks" ]
++    }
+   }
+ 
+   if (is_win || is_mac || is_linux) {

@@ -1,12 +1,14 @@
 diff --git a/chrome/browser/picture_in_picture/BUILD.gn b/chrome/browser/picture_in_picture/BUILD.gn
-index 7fb62932ff13244780f1efbb8e457ee2a37ba233..4239761e40a360354338a83a56b46154d022b567 100644
+index 7fb62932ff13244780f1efbb8e457ee2a37ba233..7b422c4589511228e060caeda79e0f12098651a8 100644
 --- a/chrome/browser/picture_in_picture/BUILD.gn
 +++ b/chrome/browser/picture_in_picture/BUILD.gn
-@@ -163,6 +163,7 @@ source_set("impl") {
-       "//components/unified_consent",
-       "//components/url_formatter",
-       "//net",
-+      "//compass/browser/window_sync",
+@@ -166,6 +166,9 @@ source_set("impl") {
        "//third_party/blink/public/common:headers",
        "//ui/views",
      ]
++    if (!is_android) {
++      deps += [ "//compass/browser/window_sync" ]
++    }
+   }
+ 
+   if (use_web_contents_occlusion_helper) {

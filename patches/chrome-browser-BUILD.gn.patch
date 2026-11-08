@@ -1,23 +1,34 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 33a6696fd803af080bb0a7d71b66e06d6950f86d..80a6fb21254315af3a9050bf57ffb858b0ffb7f4 100644
+index 33a6696fd803af080bb0a7d71b66e06d6950f86d..0f0f0af5419e81c9c8461f19f9451b22db27ce76 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -881,6 +881,10 @@ source_set("core") {
+@@ -881,6 +881,8 @@ source_set("core") {
    }
  
    deps = [
 +    "//compass/browser:url_handler",
-+    "//compass/browser/native_messaging",
 +    "//compass/browser:feature_overrides",
-+    "//compass/browser/ui/cocoa:shortcuts",
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -2062,6 +2066,7 @@ source_set("browser") {
+@@ -1264,6 +1266,10 @@ source_set("core") {
+     "//ui/webui:buildflags",
+     "//ui/webui/tracked_element",
    ]
++  if (!is_android) {
++    deps += [ "//compass/browser/native_messaging" ]
++    deps += [ "//compass/browser/ui/cocoa:shortcuts" ]
++  }
  
-   deps = [
-+    "//compass/browser",
-     ":bad_message",
-     ":browser_features",
-     ":browser_process",
+   if (enable_webui_ntp) {
+     deps += [
+@@ -2523,6 +2529,9 @@ source_set("browser") {
+     "//chrome/browser/sharing/glic_experimental_triggering:impl",
+     "//chrome/browser/ui/webauthn:impl",
+   ]
++  if (!is_android) {
++    deps += [ "//compass/browser" ]
++  }
+ 
+   if (enable_webui_ntp) {
+     deps += [
