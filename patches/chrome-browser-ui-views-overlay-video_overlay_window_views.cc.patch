@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..0c83f90d78f1ef54af5c37cbad9b0572038bbc45 100644
+index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..6be41a38ec904d778f03f035d703ab9834ffd56b 100644
 --- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 +++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 @@ -4,6 +4,10 @@
@@ -52,7 +52,17 @@ index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..0c83f90d78f1ef54af5c37cbad9b0572
              PictureInPictureWindowManager::GetInstance()
                  ->ExitPictureInPictureViaWindowUi(
                      PictureInPictureWindowManager::UiBehavior::
-@@ -1744,6 +1759,17 @@ void VideoOverlayWindowViews::ShowInactive() {
+@@ -1506,7 +1521,8 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   constexpr int kFaviconRightMargin = 4;
+   constexpr int kOriginTopMargin = 5;
+   constexpr int kOriginHeight = 24;
+-  constexpr int kOriginRightMargin = 80;
++  // Compass: clear of the larger buttons (minimize_button.cc patch).
++  constexpr int kOriginRightMargin = 104;
+   constexpr int kProgressBarHeight = 26;
+   constexpr int kCenterControlMargin = 16;
+   constexpr int kBottomControlsHorizontalMargin = 12;
+@@ -1744,6 +1760,17 @@ void VideoOverlayWindowViews::ShowInactive() {
  #endif
  
    views::Widget::SetVisibleOnAllWorkspaces(true);

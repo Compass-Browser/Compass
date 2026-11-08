@@ -179,6 +179,11 @@ macOS:
   title bar's height empty at its top. Its frame view drew a light line along the
   window's top edge, square to its corners: it's rounded and clipped too,
   and its title bar views (if any) hidden.
+- **Top buttons:** minimize, back to tab and close are 32 DIP with 20 DIP
+  icons (upstream: 24 and 16), side by side on the favicon's line, so
+  they're easier to hit; the site name ends before them (patches to
+  `close_image_button.cc`, `back_to_tab_button.cc`, `minimize_button.cc`,
+  `video_overlay_window_views.cc`). Windows too.
 - **Site name:** the favicon and site name show with the controls only, on
   hover. Upstream also shows them for a few seconds after the window opens
   and, on pages it doesn't trust for playback (most of Compass's automatic
