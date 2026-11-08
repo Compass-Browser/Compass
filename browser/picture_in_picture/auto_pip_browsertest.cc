@@ -398,7 +398,14 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipWheelGestures) {
                                   ->GetDisplayMatching(
                                       window->GetWindowBoundsInScreen())
                                   .work_area();
-  window->CenterWindow(window->GetWindowBoundsInScreen().size());
+  // (Widget::CenterWindow() left it at the right edge of an 800x600 screen.)
+  const auto center = [&](const gfx::Size& size) {
+    gfx::Rect bounds(size);
+    bounds.set_origin(work_area.CenterPoint() -
+                      gfx::Vector2d(size.width() / 2, size.height() / 2));
+    window->SetBounds(bounds);
+  };
+  center(window->GetWindowBoundsInScreen().size());
   const gfx::Rect before = window->GetWindowBoundsInScreen();
   ASSERT_TRUE(work_area.Contains(before));
 
@@ -418,7 +425,7 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipWheelGestures) {
               static_cast<double>(before.width()) / before.height(), 0.02);
 
   // Back to the middle, with room to move either way.
-  window->CenterWindow(grown.size());
+  center(grown.size());
   const gfx::Rect zoomed = window->GetWindowBoundsInScreen();
   ASSERT_GE(zoomed.x() - work_area.x(), 50);
   ASSERT_GE(work_area.right() - zoomed.right(), 50);
