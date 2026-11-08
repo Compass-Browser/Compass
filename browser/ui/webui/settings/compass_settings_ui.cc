@@ -99,6 +99,15 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
 #endif
     return check;
   }
+#if BUILDFLAG(IS_WIN)
+  // Click-through is a global hot key, and those can't take the Windows key
+  // here (PipWindows::UpdateListening()).
+  if (id == kPipClickThroughShortcutId && accelerator.IsCmdDown()) {
+    check.error =
+        "Use the key with Ctrl, Alt or Shift, not the Windows key.";
+    return check;
+  }
+#endif
   for (const ListedShortcut& shortcut : listed) {
     if (shortcut.id != id && std::ranges::contains(shortcut.keys, accelerator)) {
       check.conflict = &shortcut;
@@ -134,6 +143,8 @@ std::vector<ListedShortcut> ListShortcuts() {
     shortcut.default_keys = GetDefaultAccelerators(command.command);
     shortcut.customized = settings.IsCustomized(command.id);
   }
+#endif
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   {
     ListedShortcut& shortcut = listed.emplace_back();
     shortcut.id = kPipClickThroughShortcutId;

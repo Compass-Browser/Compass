@@ -14,6 +14,7 @@ wins and upstream's command loses it. The user can change them (see
 | Cmd+S | Opens or closes the sidebar (`IDC_TOGGLE_VERTICAL_TABS_COLLAPSE`); the View menu shows it | Save Page As, which keeps its File menu item without a shortcut. The sidebar toggle was Cmd+Shift+L, now free |
 | Cmd+Shift+R | Reloads without the cache (`IDC_RELOAD_BYPASSING_CACHE`) | The same: nothing to change |
 | Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
+| Shift+Alt+P (Windows) | The same, as Ctrl+Option+Cmd+P | Nothing |
 | Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md) | New Split Tab, which keeps its Tab menu item without a shortcut |
 | Shift+Alt+N (Windows) | A new little window, as Cmd+Option+N | New Split Tab |
 | Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
@@ -106,7 +107,9 @@ get the focus. The pref is registered by a hook in `RegisterLocalState()`
   (`preventDefault()`), and `PipWindows` drops its global hot key. Recording
   ends on Esc, on keys, when the page loses focus and when it goes away.
 
-Off macOS the page lists only the space shortcuts.
+Off macOS the page lists only the space shortcuts, and on Windows
+click-through too (picture-in-picture.md "Click-through"), which can't have
+the Windows key.
 
 Tests: `CompassShortcutsBrowserTest.CustomShortcuts`, `RecordingHoldsKeysBack`,
 `SpaceShortcuts`, `SettingsPage` (records keys by key events on the page, takes

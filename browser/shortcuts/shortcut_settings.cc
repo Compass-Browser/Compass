@@ -82,8 +82,15 @@ ui::Accelerator GetDefaultSpaceAccelerator(int index) {
 }
 
 ui::Accelerator GetDefaultPipClickThroughAccelerator() {
+#if BUILDFLAG(IS_MAC)
   return ui::Accelerator(
       ui::VKEY_P, ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
+#else
+  // Windows' global hot keys here can't take the Windows key, and Ctrl+Alt
+  // is AltGr, which types characters on many layouts (AltGr+Shift+P is Ö on
+  // US-International).
+  return ui::Accelerator(ui::VKEY_P, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN);
+#endif
 }
 
 std::vector<ui::Accelerator> GetSpaceAccelerators(int index) {

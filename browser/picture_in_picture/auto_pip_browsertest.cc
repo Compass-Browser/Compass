@@ -35,11 +35,18 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "compass/browser/ui/views/picture_in_picture/pip_windows_mac.h"
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#include "compass/browser/ui/views/picture_in_picture/pip_windows.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
+#include "base/win/windows_version.h"
+#include "ui/views/win/hwnd_util.h"
 #endif
 
 // Auto picture-in-picture as Compass sets it up: see
@@ -253,10 +260,10 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, BackToTabSwitchesProfiles) {
   EXPECT_TRUE(!parking || !parking->GetWindow()->IsVisible());
 }
 
-#if BUILDFLAG(IS_MAC)
-// Ctrl+Option+Cmd+P lets clicks through the picture-in-picture window and
-// back; the shortcut listens only while a window is open, and click-through
-// ends with the window.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+// Ctrl+Option+Cmd+P (Shift+Alt+P on Windows) lets clicks through the
+// picture-in-picture window and back; the shortcut listens only while a
+// window is open, and click-through ends with the window.
 IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   PipWindows& click_through = PipWindows::Get();
   EXPECT_FALSE(click_through.is_listening_for_testing());
@@ -270,9 +277,14 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   views::Widget* window = click_through.windows_for_testing()[0];
   EXPECT_TRUE(click_through.is_listening_for_testing());
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
-  EXPECT_EQ(click_through.GetCornerRadiusForTesting(window),
-            PipWindows::kCornerRadius);
+#if BUILDFLAG(IS_MAC)
+  EXPECT_TRUE(click_through.HasRoundCornersForTesting(window));
   EXPECT_FALSE(click_through.AllowsTilingForTesting(window));
+#else
+  // The system's rounded corners, which Windows 10 doesn't have.
+  EXPECT_EQ(click_through.HasRoundCornersForTesting(window),
+            base::win::GetVersion() >= base::win::Version::WIN11);
+#endif
 
   click_through.OnKeyPressed(PipWindows::GetAccelerator());
   EXPECT_TRUE(click_through.enabled());
@@ -351,7 +363,59 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipGestures) {
   EXPECT_EQ(window->GetWindowBoundsInScreen().x(),
             work_area.x() + PipWindows::kEdgeMargin);
 }
-#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN)
+// Windows sends a touchpad's pinch as Ctrl+wheel and its two-finger scrolls
+// as wheel steps finer than a notch: they resize and move the window. A
+// mouse wheel's notches don't.
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipWheelGestures) {
+  PipWindows& pip_windows = PipWindows::Get();
+  content::WebContents* video = OpenPlayingVideo(browser());
+  OpenBlankTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return IsInAutoPip(video) && !pip_windows.windows_for_testing().empty();
+  }));
+  views::Widget* window = pip_windows.windows_for_testing()[0];
+  HWND hwnd = views::HWNDForWidget(window);
+  ASSERT_TRUE(hwnd);
+  // Away from the edges, so nothing is kept on screen or snapped.
+  const gfx::Rect work_area = display::Screen::Get()
+                                  ->GetDisplayMatching(
+                                      window->GetWindowBoundsInScreen())
+                                  .work_area();
+  window->CenterWindow(window->GetWindowBoundsInScreen().size());
+  const gfx::Rect before = window->GetWindowBoundsInScreen();
+  ASSERT_TRUE(work_area.Contains(before));
+
+  // A notch of a mouse wheel: nothing.
+  ::SendMessage(hwnd, WM_MOUSEWHEEL, MAKEWPARAM(0, -WHEEL_DELTA), 0);
+  EXPECT_EQ(window->GetWindowBoundsInScreen(), before);
+
+  // Ctrl+wheel: a pinch out, keeping the aspect ratio.
+  ::SendMessage(hwnd, WM_MOUSEWHEEL, MAKEWPARAM(MK_CONTROL, 2 * WHEEL_DELTA),
+                0);
+  const gfx::Rect zoomed = window->GetWindowBoundsInScreen();
+  EXPECT_GT(zoomed.width(), before.width());
+  EXPECT_NEAR(static_cast<double>(zoomed.width()) / zoomed.height(),
+              static_cast<double>(before.width()) / before.height(), 0.02);
+
+  // A finer horizontal step: a move sideways (which way depends on the
+  // touchpad's scrolling direction).
+  ::SendMessage(hwnd, WM_MOUSEHWHEEL, MAKEWPARAM(0, WHEEL_DELTA / 2), 0);
+  const gfx::Rect moved = window->GetWindowBoundsInScreen();
+  EXPECT_NE(moved.x(), zoomed.x());
+  EXPECT_EQ(moved.y(), zoomed.y());
+  EXPECT_EQ(moved.size(), zoomed.size());
+
+  // While it lets clicks through, it gets no such messages; these are sent
+  // to it directly, so they would act: make sure they're passed on.
+  pip_windows.Toggle();
+  ::SendMessage(hwnd, WM_MOUSEHWHEEL, MAKEWPARAM(0, WHEEL_DELTA / 2), 0);
+  EXPECT_EQ(window->GetWindowBoundsInScreen(), moved);
+  pip_windows.Toggle();
+}
+#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
 }  // namespace
 }  // namespace compass

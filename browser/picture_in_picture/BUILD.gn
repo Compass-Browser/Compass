@@ -25,7 +25,7 @@ source_set("browser_tests") {
     "//testing/gtest",
     "//url",
   ]
-  if (is_mac) {
+  if (is_mac || is_win) {
     deps += [
       "//compass/browser/ui/views/picture_in_picture:pip_windows",
       "//ui/display",
