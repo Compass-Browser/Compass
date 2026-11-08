@@ -202,10 +202,15 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   const PrefService* prefs = profile->GetPrefs();
   Endpoint endpoint = EndpointFromPrefs(*prefs);
   endpoint.api_key = std::move(*key);
+  if (NeedsTokenRisksAccepted(endpoint)) {
+    page_->OnStreamDone(kTokenRisksMessage);
+    return;
+  }
 
   ChatOptions options;
   options.model = prefs->GetString(prefs::kModel);
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
+  options.oauth_token = UsesOAuthToken(endpoint);
   options.browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
   options.now = base::Time::Now();
   ChatRequest request =

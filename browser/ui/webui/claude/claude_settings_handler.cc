@@ -131,6 +131,7 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->auth_style = ToMojo(EndpointFromPrefs(*prefs).auth_style);
   state->model = prefs->GetString(prefs::kModel);
   state->browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
+  state->accept_token_risks = prefs->GetBoolean(prefs::kAcceptTokenRisks);
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
   state->mcp_supported = true;
   state->mcp_command = McpCommand();
@@ -203,6 +204,10 @@ void ClaudeSettingsHandler::SetBrowserScope(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kBrowserScope, enabled);
 }
 
+void ClaudeSettingsHandler::SetAcceptTokenRisks(bool accepted) {
+  profile_->GetPrefs()->SetBoolean(prefs::kAcceptTokenRisks, accepted);
+}
+
 void ClaudeSettingsHandler::SetMcpEnabled(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kMcpEnabled, enabled);
 }
@@ -251,6 +256,11 @@ void ClaudeSettingsHandler::OnKeyForTest(TestConnectionCallback callback,
   }
   Endpoint endpoint = EndpointFromPrefs(*profile_->GetPrefs());
   endpoint.api_key = std::move(*key);
+  if (NeedsTokenRisksAccepted(endpoint)) {
+    result->error = kTokenRisksMessage;
+    std::move(callback).Run(std::move(result));
+    return;
+  }
   scoped_refptr<network::SharedURLLoaderFactory> factory =
       loader_factory_ ? loader_factory_
                       : profile_->GetDefaultStoragePartition()

@@ -4,6 +4,7 @@
 
 #include "compass/browser/claude/claude_api.h"
 
+#include "base/containers/contains.h"
 #include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -63,14 +64,39 @@ GURL EndpointUrl(const GURL& base_url, std::string_view path) {
   return base_url.ReplaceComponents(replacements);
 }
 
+bool IsOAuthToken(std::string_view key) {
+  return base::StartsWith(base::TrimWhitespaceASCII(key, base::TRIM_ALL),
+                          "sk-ant-oat");
+}
+
+bool UsesOAuthToken(const Endpoint& endpoint) {
+  return endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
+}
+
+bool NeedsTokenRisksAccepted(const Endpoint& endpoint) {
+  return !endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
+}
+
 void AddRequestHeaders(const Endpoint& endpoint,
                        net::HttpRequestHeaders& headers) {
   headers.SetHeader("anthropic-version", kApiVersion);
-  if (endpoint.auth_style == AuthStyle::kBearer) {
+  if (endpoint.auth_style == AuthStyle::kBearer || UsesOAuthToken(endpoint)) {
     headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
                       base::StrCat({"Bearer ", endpoint.api_key}));
   } else {
     headers.SetHeader("x-api-key", endpoint.api_key);
+  }
+}
+
+void AddBetas(const Endpoint& endpoint,
+              const std::vector<std::string>& betas,
+              net::HttpRequestHeaders& headers) {
+  std::vector<std::string> all = betas;
+  if (UsesOAuthToken(endpoint) && !base::Contains(all, kOAuthBeta)) {
+    all.push_back(kOAuthBeta);
+  }
+  if (!all.empty()) {
+    headers.SetHeader("anthropic-beta", base::JoinString(all, ","));
   }
 }
 
@@ -83,6 +109,7 @@ Endpoint EndpointFromPrefs(const PrefService& prefs) {
                                 static_cast<int>(AuthStyle::kBearer)
                             ? AuthStyle::kBearer
                             : AuthStyle::kApiKey;
+  endpoint.allow_oauth_token = prefs.GetBoolean(prefs::kAcceptTokenRisks);
   return endpoint;
 }
 
@@ -125,7 +152,9 @@ std::string DescribeError(int http_status, std::string_view body) {
   }
   switch (http_status) {
     case net::HTTP_UNAUTHORIZED:
-      return "The key was refused (401). Check it, and the auth style.";
+      return "The key was refused (401). Check it, and the auth style. A "
+             "token from `claude setup-token` may have expired: make a new "
+             "one.";
     case net::HTTP_FORBIDDEN:
       return "The key isn't allowed to do this (403).";
     case net::HTTP_NOT_FOUND:

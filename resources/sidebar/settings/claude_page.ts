@@ -89,6 +89,11 @@ export class CompassClaudePageElement extends CompassSettingsPage {
           this.handler_.setBrowserScope(
               this.$<HTMLInputElement>('browserScope').checked);
         });
+    this.$<HTMLInputElement>('acceptTokenRisks')
+        .addEventListener('change', () => {
+          this.handler_.setAcceptTokenRisks(
+              this.$<HTMLInputElement>('acceptTokenRisks').checked);
+        });
     this.$<HTMLInputElement>('mcpEnabled').addEventListener('change', async () => {
       // Mojo keeps the order: the state read next has the change.
       this.handler_.setMcpEnabled(
@@ -122,6 +127,8 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLDetailsElement>('advanced').open =
         state.baseUrl !== '' || state.authStyle === AuthStyle.kBearer;
     this.$<HTMLInputElement>('browserScope').checked = state.browserScope;
+    this.$<HTMLInputElement>('acceptTokenRisks').checked =
+        state.acceptTokenRisks;
     this.renderMcp_(state);
     this.renderModels_();
   }

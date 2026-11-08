@@ -20,6 +20,21 @@ base::ListValue OneMessage() {
       base::DictValue().Set("role", "user").Set("content", "Hi"));
 }
 
+TEST(ClaudeRequestTest, OAuthTokenGetsClaudeCodeLineFirst) {
+  ChatOptions options;
+  options.model = "claude-opus-5-5";
+  options.now = base::Time::Now();
+  const size_t plain_size =
+      BuildChatRequest(OneMessage(), options).body.FindList("system")->size();
+
+  options.oauth_token = true;
+  ChatRequest request = BuildChatRequest(OneMessage(), options);
+  const base::ListValue* system = request.body.FindList("system");
+  ASSERT_EQ(system->size(), plain_size + 1);
+  EXPECT_EQ(*(*system)[0].GetDict().FindString("text"),
+            "You are Claude Code, Anthropic's official CLI for Claude.");
+}
+
 TEST(ClaudeRequestTest, Defaults) {
   ChatOptions options;
   options.model = "claude-opus-5-5";

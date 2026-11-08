@@ -59,6 +59,47 @@ TEST(ClaudeApiTest, Headers) {
   EXPECT_FALSE(bearer.HasHeader("x-api-key"));
 }
 
+TEST(ClaudeApiTest, OAuthTokenFromSetupToken) {
+  EXPECT_TRUE(IsOAuthToken("sk-ant-oat01-abcdef"));
+  EXPECT_TRUE(IsOAuthToken("  sk-ant-oat01-abcdef\n"));
+  EXPECT_FALSE(IsOAuthToken("sk-ant-api03-abcdef"));
+  EXPECT_FALSE(IsOAuthToken(""));
+
+  // Refused until the user accepts the risks.
+  Endpoint endpoint;
+  endpoint.api_key = "sk-ant-oat01-abcdef";
+  EXPECT_TRUE(NeedsTokenRisksAccepted(endpoint));
+  EXPECT_FALSE(UsesOAuthToken(endpoint));
+  net::HttpRequestHeaders refused;
+  AddBetas(endpoint, {}, refused);
+  EXPECT_FALSE(refused.HasHeader("anthropic-beta"));
+
+  // Accepted: Bearer even with the x-api-key style, and its beta.
+  endpoint.allow_oauth_token = true;
+  EXPECT_FALSE(NeedsTokenRisksAccepted(endpoint));
+  EXPECT_TRUE(UsesOAuthToken(endpoint));
+  net::HttpRequestHeaders headers;
+  AddRequestHeaders(endpoint, headers);
+  EXPECT_EQ(headers.GetHeader("Authorization"), "Bearer sk-ant-oat01-abcdef");
+  EXPECT_FALSE(headers.HasHeader("x-api-key"));
+  AddBetas(endpoint, {"a"}, headers);
+  EXPECT_EQ(headers.GetHeader("anthropic-beta"),
+            std::string("a,") + kOAuthBeta);
+
+  net::HttpRequestHeaders only_oauth;
+  AddBetas(endpoint, {}, only_oauth);
+  EXPECT_EQ(only_oauth.GetHeader("anthropic-beta"), kOAuthBeta);
+
+  // An API key brings no beta of its own, and needs nothing accepted.
+  endpoint.api_key = "sk-ant-api03-abcdef";
+  EXPECT_FALSE(NeedsTokenRisksAccepted(endpoint));
+  net::HttpRequestHeaders api_key;
+  AddBetas(endpoint, {}, api_key);
+  EXPECT_FALSE(api_key.HasHeader("anthropic-beta"));
+  AddBetas(endpoint, {"a"}, api_key);
+  EXPECT_EQ(api_key.GetHeader("anthropic-beta"), "a");
+}
+
 TEST(ClaudeApiTest, EndpointFromPrefs) {
   TestingPrefServiceSimple prefs;
   prefs::RegisterProfilePrefs(prefs.registry());
@@ -73,6 +114,10 @@ TEST(ClaudeApiTest, EndpointFromPrefs) {
   endpoint = EndpointFromPrefs(prefs);
   EXPECT_EQ(endpoint.base_url.spec(), "https://gw.example.com/a");
   EXPECT_EQ(endpoint.auth_style, AuthStyle::kBearer);
+  EXPECT_FALSE(endpoint.allow_oauth_token);
+
+  prefs.SetBoolean(prefs::kAcceptTokenRisks, true);
+  EXPECT_TRUE(EndpointFromPrefs(prefs).allow_oauth_token);
 }
 
 TEST(ClaudeApiTest, ParseModelList) {

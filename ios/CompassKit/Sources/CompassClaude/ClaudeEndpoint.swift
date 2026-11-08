@@ -41,15 +41,43 @@ public struct ClaudeEndpoint: Sendable {
   public var baseURL: URL
   public var authStyle: ClaudeAuthStyle
   public var apiKey: String
+  /// The user accepted the risks of subscription tokens (Settings → Claude).
+  public var allowOAuthToken: Bool
 
-  public init(baseURL: URL = Self.defaultBaseURL, authStyle: ClaudeAuthStyle = .apiKey, apiKey: String) {
+  public init(
+    baseURL: URL = Self.defaultBaseURL, authStyle: ClaudeAuthStyle = .apiKey, apiKey: String,
+    allowOAuthToken: Bool = false
+  ) {
     self.baseURL = baseURL
     self.authStyle = authStyle
     self.apiKey = apiKey
+    self.allowOAuthToken = allowOAuthToken
   }
+
+  /// The beta that lets the API take an OAuth token (`claude setup-token`).
+  public static let oauthBeta = "oauth-2025-04-20"
+
+  /// Whether `apiKey` is an OAuth token from `claude setup-token`
+  /// (sk-ant-oat01-…), not an API key.
+  public var isOAuthToken: Bool {
+    apiKey.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("sk-ant-oat")
+  }
+
+  /// Such a token, with the risks accepted: sent as Bearer, with
+  /// `oauthBeta`, whatever the style. The desktop's `UsesOAuthToken()`.
+  public var usesOAuthToken: Bool { allowOAuthToken && isOAuthToken }
+
+  /// Such a token without the risks accepted: nothing is sent, and
+  /// `tokenRisksMessage` says why.
+  public var needsTokenRisksAccepted: Bool { !allowOAuthToken && isOAuthToken }
+
+  public static let tokenRisksMessage =
+    "This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on "
+    + "\"Accept the Risks of Subscription Tokens\" in Settings → Claude."
 
   /// The Claude API itself, not a custom endpoint (server-side fallbacks
   /// are the Claude API's).
+
   public var isClaudeAPI: Bool { baseURL == Self.defaultBaseURL }
 
   /// A typed base URL, checked as the desktop's `ParseBaseUrl()`: empty is
@@ -84,11 +112,14 @@ public struct ClaudeEndpoint: Sendable {
     var request = URLRequest(url: url(path))
     request.httpMethod = body == nil ? "GET" : "POST"
     request.setValue(Self.apiVersion, forHTTPHeaderField: "anthropic-version")
-    switch authStyle {
-    case .apiKey: request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-    case .bearer: request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+    if authStyle == .bearer || usesOAuthToken {
+      request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+    } else {
+      request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
     }
-    if !betas.isEmpty { request.setValue(betas.joined(separator: ","), forHTTPHeaderField: "anthropic-beta") }
+    var allBetas = betas
+    if usesOAuthToken, !allBetas.contains(Self.oauthBeta) { allBetas.append(Self.oauthBeta) }
+    if !allBetas.isEmpty { request.setValue(allBetas.joined(separator: ","), forHTTPHeaderField: "anthropic-beta") }
     if let body {
       request.httpBody = body
       request.setValue("application/json", forHTTPHeaderField: "content-type")
@@ -102,7 +133,9 @@ public struct ClaudeEndpoint: Sendable {
     if status == 0 { return "Couldn't reach the server. Check the connection and the endpoint URL." }
     if let message = JSONValue.parse(body)?["error"]?["message"]?.string, !message.isEmpty { return message }
     switch status {
-    case 401: return "The key was refused (401). Check it, and the auth style."
+    case 401:
+      return "The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have "
+        + "expired: make a new one."
     case 403: return "The key isn't allowed to do this (403)."
     case 404: return "Nothing answers at that URL (404). Check the endpoint URL."
     case 429: return "Too many requests (429). Wait a moment and try again."

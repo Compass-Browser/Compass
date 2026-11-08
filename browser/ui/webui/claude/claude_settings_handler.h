@@ -55,6 +55,7 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler {
   void SetBackend(mojom::Backend backend) override;
   void SetClaudeCodePath(const std::string& path) override;
   void SetBrowserScope(bool enabled) override;
+  void SetAcceptTokenRisks(bool accepted) override;
   void SetMcpEnabled(bool enabled) override;
   void ForgetMcpClient(const std::string& client) override;
   void TestConnection(TestConnectionCallback callback) override;

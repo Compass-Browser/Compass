@@ -29,6 +29,14 @@ final class ClaudeSettings {
   /// "Let Claude use the whole browser" (off by default; the tab tools come
   /// with I4).
   var browserScope: Bool { didSet { defaults.set(browserScope, forKey: "ClaudeBrowserScope") } }
+  /// "Accept the Risks of Subscription Tokens": a token from `claude
+  /// setup-token` may be the key (ClaudeEndpoint.isOAuthToken).
+  var acceptTokenRisks: Bool {
+    didSet {
+      defaults.set(acceptTokenRisks, forKey: "ClaudeAcceptTokenRisks")
+      revision += 1
+    }
+  }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -40,6 +48,7 @@ final class ClaudeSettings {
     authStyle = defaults.string(forKey: "ClaudeAuthStyle").flatMap(ClaudeAuthStyle.init(rawValue:)) ?? .apiKey
     model = defaults.string(forKey: "ClaudeModel") ?? ClaudeEndpoint.defaultModel
     browserScope = defaults.bool(forKey: "ClaudeBrowserScope")
+    acceptTokenRisks = defaults.bool(forKey: "ClaudeAcceptTokenRisks")
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
   }
 
@@ -62,7 +71,7 @@ final class ClaudeSettings {
   /// Where requests go, with the key; nil without a key or with a bad URL.
   var endpoint: ClaudeEndpoint? {
     guard let key = Self.storedKey, let base = ClaudeEndpoint.parseBaseURL(baseURLText) else { return nil }
-    return ClaudeEndpoint(baseURL: base, authStyle: authStyle, apiKey: key)
+    return ClaudeEndpoint(baseURL: base, authStyle: authStyle, apiKey: key, allowOAuthToken: acceptTokenRisks)
   }
 
   func endpointChanged() { revision += 1 }
