@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/views/frame/windows_caption_button.cc b/chrome/browser/ui/views/frame/windows_caption_button.cc
+index a24088e544656cbe911895ef714c7ee08b93fb2e..7e824819b0de394cc1b89a95f33e72ff4e490a70 100644
+--- a/chrome/browser/ui/views/frame/windows_caption_button.cc
++++ b/chrome/browser/ui/views/frame/windows_caption_button.cc
+@@ -17,6 +17,7 @@
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
+ #include "chrome/browser/ui/views/frame/top_container_view.h"
+ #include "chrome/grit/theme_resources.h"
++#include "compass/browser/ui/views/frame/window_frame.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/theme_provider.h"
+ #include "ui/base/ui_base_features.h"
+@@ -54,6 +55,12 @@ WindowsCaptionButton::CreateIconPainter() {
+ 
+ gfx::Size WindowsCaptionButton::CalculatePreferredSize(
+     const views::SizeBounds& available_size) const {
++  // Compass: smaller buttons with its frame, which has no title bar.
++  if (std::optional<gfx::Size> compact = compass::GetCompactCaptionButtonSize(
++          frame_view_->GetBrowserView())) {
++    return gfx::Size(compact->width() + GetBetweenButtonSpacing(),
++                     compact->height());
++  }
+   const int width =
+       WindowFrameUtil::kWindowsCaptionButtonWidth + GetBetweenButtonSpacing();
+ 

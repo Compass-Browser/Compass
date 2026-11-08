@@ -154,6 +154,14 @@ and the page:
   bar. On macOS the traffic lights are a leading exclusion (in the
   sidebar), so nothing changes there.
 
+The buttons are smaller than upstream's 45x29 DIP, which is a title bar's
+height: 36x24 DIP (`kCompactCaptionButtonSize`, through
+`GetCompactCaptionButtonSize()`, which `WindowsCaptionButton::
+CalculatePreferredSize()` asks first, patch), so the strip above the card is
+thin. The glyphs stay upstream's 10 DIP. A frame installed after the frame
+view sized its buttons makes them ask again (`UpdateCaptionButtons()`, once
+per widget).
+
 Points on that strip hit-test as on the rest of the frame (`HTNOWHERE` from
 the browser view), so the Windows frame view checks its buttons first and
 drags the window elsewhere. Linux's frame view has the same problem and
