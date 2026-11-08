@@ -34,15 +34,24 @@ struct ClaudeEndpointTests {
   }
 
   @Test func oauthTokenFromSetupToken() {
-    let token = ClaudeEndpoint(apiKey: "sk-ant-oat01-abc")
-    #expect(token.isOAuthToken)
+    // Refused until the risks are accepted.
+    let refused = ClaudeEndpoint(apiKey: "sk-ant-oat01-abc")
+    #expect(refused.isOAuthToken)
+    #expect(refused.needsTokenRisksAccepted)
+    #expect(!refused.usesOAuthToken)
+    #expect(refused.request("v1/models").value(forHTTPHeaderField: "anthropic-beta") == nil)
+
+    let token = ClaudeEndpoint(apiKey: "sk-ant-oat01-abc", allowOAuthToken: true)
+    #expect(token.usesOAuthToken)
+    #expect(!token.needsTokenRisksAccepted)
     let request = token.request("v1/messages", body: Data("{}".utf8), betas: ["a"])
     #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-ant-oat01-abc")
     #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
     #expect(request.value(forHTTPHeaderField: "anthropic-beta") == "a,oauth-2025-04-20")
     #expect(token.request("v1/models").value(forHTTPHeaderField: "anthropic-beta") == "oauth-2025-04-20")
-    let key = ClaudeEndpoint(apiKey: "sk-ant-api03-abc")
+    let key = ClaudeEndpoint(apiKey: "sk-ant-api03-abc", allowOAuthToken: true)
     #expect(!key.isOAuthToken)
+    #expect(!key.needsTokenRisksAccepted)
     #expect(key.request("v1/models").value(forHTTPHeaderField: "anthropic-beta") == nil)
   }
 

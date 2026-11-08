@@ -246,8 +246,21 @@
 </div>
 <p class="hint">Stored encrypted on this device only; it never syncs, and
   pages never see it. To use your Claude subscription, connect with Claude
-  Code instead.</p>
+  Code instead, or, with the risks below accepted, use a token from
+  <code>claude setup-token</code>.</p>
 <p class="note" id="keyNote" hidden></p>
+<label class="claude-scope">
+  <input type="checkbox" id="acceptTokenRisks">
+  <span>
+    <span class="name">Accept the risks of subscription tokens</span>
+    <span class="hint block">Lets the key be a token from
+      <code>claude setup-token</code> (sk-ant-oat…), which uses your Claude
+      subscription. Compass then sends it as Claude Code does, saying it's
+      Claude Code. Anthropic doesn't offer these tokens for other apps: they
+      can stop working at any time, and using them this way may go against
+      the terms of your subscription. Off, such a token is refused.</span>
+  </span>
+</label>
 </section>
 
 <label class="field" for="model">Model</label>

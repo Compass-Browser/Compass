@@ -38,7 +38,10 @@ struct SettingsState {
   string model;
   // "Let Claude use the whole browser".
   bool browser_scope;
-  // "Allow MCP clients"; false where Compass has no MCP bridge (Windows).
+  // "Accept the risks of subscription tokens": a token from `claude
+  // setup-token` may be the key.
+  bool accept_token_risks;
+  // "Allow MCP clients"; false where Compass has no MCP bridge.
   bool mcp_supported;
   bool mcp_enabled;
   // The command that adds Compass to Claude Code.
@@ -77,6 +80,7 @@ interface SettingsHandler {
   // Empty looks in the usual places.
   SetClaudeCodePath(string path);
   SetBrowserScope(bool enabled);
+  SetAcceptTokenRisks(bool accepted);
   SetMcpEnabled(bool enabled);
   // Asks again next time |client| connects.
   ForgetMcpClient(string client);

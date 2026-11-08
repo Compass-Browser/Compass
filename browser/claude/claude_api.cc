@@ -69,11 +69,18 @@ bool IsOAuthToken(std::string_view key) {
                           "sk-ant-oat");
 }
 
+bool UsesOAuthToken(const Endpoint& endpoint) {
+  return endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
+}
+
+bool NeedsTokenRisksAccepted(const Endpoint& endpoint) {
+  return !endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
+}
+
 void AddRequestHeaders(const Endpoint& endpoint,
                        net::HttpRequestHeaders& headers) {
   headers.SetHeader("anthropic-version", kApiVersion);
-  if (endpoint.auth_style == AuthStyle::kBearer ||
-      IsOAuthToken(endpoint.api_key)) {
+  if (endpoint.auth_style == AuthStyle::kBearer || UsesOAuthToken(endpoint)) {
     headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
                       base::StrCat({"Bearer ", endpoint.api_key}));
   } else {
@@ -85,7 +92,7 @@ void AddBetas(const Endpoint& endpoint,
               const std::vector<std::string>& betas,
               net::HttpRequestHeaders& headers) {
   std::vector<std::string> all = betas;
-  if (IsOAuthToken(endpoint.api_key) && !base::Contains(all, kOAuthBeta)) {
+  if (UsesOAuthToken(endpoint) && !base::Contains(all, kOAuthBeta)) {
     all.push_back(kOAuthBeta);
   }
   if (!all.empty()) {
@@ -102,6 +109,7 @@ Endpoint EndpointFromPrefs(const PrefService& prefs) {
                                 static_cast<int>(AuthStyle::kBearer)
                             ? AuthStyle::kBearer
                             : AuthStyle::kApiKey;
+  endpoint.allow_oauth_token = prefs.GetBoolean(prefs::kAcceptTokenRisks);
   return endpoint;
 }
 

@@ -42,7 +42,7 @@ struct ClaudeSettingsView: View {
       } header: {
         Text("API Key")
       } footer: {
-        Text("An Anthropic API key from console.anthropic.com, or a key for the endpoint under Advanced. It stays in this device's Keychain. Claude Pro and Max subscriptions can't be used here.")
+        Text("An Anthropic API key from console.anthropic.com, or a key for the endpoint under Advanced. It stays in this device's Keychain. A token from `claude setup-token` uses your Claude subscription, only with the risks below accepted.")
       }
 
       Section {
@@ -66,6 +66,12 @@ struct ClaudeSettingsView: View {
             .foregroundStyle(testOK ? .green : .red)
             .font(.callout)
         }
+      }
+
+      Section {
+        Toggle("Accept the Risks of Subscription Tokens", isOn: $settings.acceptTokenRisks)
+      } footer: {
+        Text("Lets the key be a token from `claude setup-token` (sk-ant-oat…), which uses your Claude subscription. Compass then sends it as Claude Code does, saying it's Claude Code. Anthropic doesn't offer these tokens for other apps: they can stop working at any time, and using them this way may go against the terms of your subscription. Off, such a token is refused.")
       }
 
       Section {
@@ -100,6 +106,11 @@ struct ClaudeSettingsView: View {
 
   private func test() {
     guard let endpoint = settings.endpoint else { return }
+    if endpoint.needsTokenRisksAccepted {
+      testOK = false
+      testResult = ClaudeEndpoint.tokenRisksMessage
+      return
+    }
     testing = true
     testResult = nil
     Task {

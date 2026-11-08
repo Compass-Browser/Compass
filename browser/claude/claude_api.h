@@ -39,8 +39,10 @@ enum class AuthStyle {
 // `claude setup-token` prints (sk-ant-oat01-…).
 inline constexpr char kOAuthBeta[] = "oauth-2025-04-20";
 
-// Whether |key| is such a token, not an API key: it goes as
-// "Authorization: Bearer" with kOAuthBeta whatever the auth style says.
+// Whether |key| is such a token, not an API key. With the user's
+// "Accept the risks of subscription tokens" (Endpoint::allow_oauth_token) it
+// goes as "Authorization: Bearer" with kOAuthBeta whatever the auth style
+// says; without, it isn't sent (NeedsTokenRisksAccepted()).
 bool IsOAuthToken(std::string_view key);
 
 // Where requests go and how they authenticate.
@@ -53,7 +55,23 @@ struct Endpoint {
   GURL base_url;
   AuthStyle auth_style = AuthStyle::kApiKey;
   std::string api_key;
+  // The user accepted the risks of subscription tokens
+  // (prefs::kAcceptTokenRisks).
+  bool allow_oauth_token = false;
 };
+
+// Whether requests send |endpoint|'s key as a subscription token: it is one,
+// and the user accepted the risks.
+bool UsesOAuthToken(const Endpoint& endpoint);
+
+// Whether |endpoint|'s key is a subscription token the user hasn't accepted
+// the risks of: nothing is sent, and kTokenRisksMessage says why.
+bool NeedsTokenRisksAccepted(const Endpoint& endpoint);
+
+inline constexpr char kTokenRisksMessage[] =
+    "This is a token from `claude setup-token`, which uses your Claude "
+    "subscription. To use it, turn on \"Accept the risks of subscription "
+    "tokens\" in Compass's Claude settings.";
 
 // The base URL the user typed, normalized: https (http only to this
 // computer, for local gateways and tests), no query or fragment, no trailing

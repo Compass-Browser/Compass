@@ -41,23 +41,42 @@ public struct ClaudeEndpoint: Sendable {
   public var baseURL: URL
   public var authStyle: ClaudeAuthStyle
   public var apiKey: String
+  /// The user accepted the risks of subscription tokens (Settings → Claude).
+  public var allowOAuthToken: Bool
 
-  public init(baseURL: URL = Self.defaultBaseURL, authStyle: ClaudeAuthStyle = .apiKey, apiKey: String) {
+  public init(
+    baseURL: URL = Self.defaultBaseURL, authStyle: ClaudeAuthStyle = .apiKey, apiKey: String,
+    allowOAuthToken: Bool = false
+  ) {
     self.baseURL = baseURL
     self.authStyle = authStyle
     self.apiKey = apiKey
+    self.allowOAuthToken = allowOAuthToken
   }
 
-  /// The Claude API itself, not a custom endpoint (server-side fallbacks
-  /// are the Claude API's).
   /// The beta that lets the API take an OAuth token (`claude setup-token`).
   public static let oauthBeta = "oauth-2025-04-20"
 
   /// Whether `apiKey` is an OAuth token from `claude setup-token`
-  /// (sk-ant-oat01-…): sent as Bearer, with `oauthBeta`, whatever the style.
+  /// (sk-ant-oat01-…), not an API key.
   public var isOAuthToken: Bool {
     apiKey.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("sk-ant-oat")
   }
+
+  /// Such a token, with the risks accepted: sent as Bearer, with
+  /// `oauthBeta`, whatever the style. The desktop's `UsesOAuthToken()`.
+  public var usesOAuthToken: Bool { allowOAuthToken && isOAuthToken }
+
+  /// Such a token without the risks accepted: nothing is sent, and
+  /// `tokenRisksMessage` says why.
+  public var needsTokenRisksAccepted: Bool { !allowOAuthToken && isOAuthToken }
+
+  public static let tokenRisksMessage =
+    "This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on "
+    + "\"Accept the Risks of Subscription Tokens\" in Settings → Claude."
+
+  /// The Claude API itself, not a custom endpoint (server-side fallbacks
+  /// are the Claude API's).
 
   public var isClaudeAPI: Bool { baseURL == Self.defaultBaseURL }
 
@@ -93,13 +112,13 @@ public struct ClaudeEndpoint: Sendable {
     var request = URLRequest(url: url(path))
     request.httpMethod = body == nil ? "GET" : "POST"
     request.setValue(Self.apiVersion, forHTTPHeaderField: "anthropic-version")
-    if authStyle == .bearer || isOAuthToken {
+    if authStyle == .bearer || usesOAuthToken {
       request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
     } else {
       request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
     }
     var allBetas = betas
-    if isOAuthToken, !allBetas.contains(Self.oauthBeta) { allBetas.append(Self.oauthBeta) }
+    if usesOAuthToken, !allBetas.contains(Self.oauthBeta) { allBetas.append(Self.oauthBeta) }
     if !allBetas.isEmpty { request.setValue(allBetas.joined(separator: ","), forHTTPHeaderField: "anthropic-beta") }
     if let body {
       request.httpBody = body

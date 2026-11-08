@@ -31,6 +31,10 @@ inline constexpr char kModel[] = "compass.claude.model";
 // "Let Claude use the whole browser": other tabs and windows, not only the
 // current tab.
 inline constexpr char kBrowserScope[] = "compass.claude.browser_scope";
+// "Accept the risks of subscription tokens": a token from `claude
+// setup-token` may be used as the key (IsOAuthToken()). Off, such a key is
+// refused before anything is sent.
+inline constexpr char kAcceptTokenRisks[] = "compass.claude.accept_token_risks";
 // "Allow MCP clients": Claude Code and other MCP clients may use Claude's
 // tools on this profile, through compass-mcp (docs/design/claude.md, D6).
 inline constexpr char kMcpEnabled[] = "compass.claude.mcp_enabled";
