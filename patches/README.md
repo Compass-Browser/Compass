@@ -85,6 +85,7 @@ nothing else.
 | `chrome-browser-ui-views-location_bar-location_bar_view.cc.patch` | `RefreshContentSettingViews()` also updates the header's content setting icons (`compass::UpdateContentSettingsIcons()`), as it does the web app frame's; a little window's location bar is a pill, not the popup's rectangle |
 | `chrome-browser-ui-views-toolbar-toolbar_view.cc.patch` | Bubble anchors in the hidden toolbar go to the header (`compass::GetToolbarBubbleAnchor()`); `FocusToolbar()` and `SetPaneFocusAndFocusAppMenu()` focus the header instead (`compass::FocusToolbarControls()`, `compass::FocusAppMenu()`) |
 | `chrome-browser-ui-views-tabs-vertical-vertical_tab_strip_top_container.h.patch` | Makes `IsPositionInWindowCaption()` virtual, so `compass::SidebarHeader`'s buttons don't drag the window |
+| `chrome-browser-ui-views-tabs-vertical-vertical_tab_strip_top_container.cc.patch` | A collapsed sidebar shown on hover lays its header out as expanded (collapse button after the traffic lights), not in upstream's collapsed column, which put the collapse button under them |
 | `chrome-browser-ui-ui_features.cc.patch` | Hover card preview images on by default on macOS too (upstream turns them off there); the sidebar's hover cards show them |
 | `chrome-browser-ui-webui-chrome_web_ui_configs.cc.patch` | Registers Compass's WebUI configs |
 | `chrome-browser-chrome_browser_interface_binders_webui_parts_desktop.cc.patch` | Binds Compass's WebUI Mojo interfaces, and on chrome://settings those of Compass's sections (docs/design/settings.md) |

@@ -513,6 +513,38 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
   EXPECT_FALSE(region->is_expanded_on_hover());
 }
 
+// Shown on hover, the collapsed sidebar's collapse button sits where it does
+// expanded, after the traffic lights, not under them.
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
+                       ShownOnHoverCollapseButtonIsBesideTrafficLights) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::View* collapse = header()->GetCollapseButton();
+  views::View* pill = header()->pill_for_testing();
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return pill->IsDrawn(); }));
+  auto bounds_in_widget = [&] {
+    return collapse->ConvertRectToWidget(collapse->GetLocalBounds());
+  };
+  const gfx::Rect expanded = bounds_in_widget();
+  EXPECT_GT(expanded.x(), 0);
+
+  Collapse(region, true);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return !header()->GetVisible();
+  }));
+  // Shown as a bubble anchored in it shows it.
+  views::Button* button = FindButton(toolbar_controls()[0]);
+  ASSERT_TRUE(button);
+  std::optional<views::Button::ScopedAnchorHighlight> highlight(
+      button->AddAnchorHighlight());
+  ASSERT_TRUE(region->is_expanded_on_hover());
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return pill->IsDrawn() && bounds_in_widget() == expanded;
+  })) << bounds_in_widget().ToString() << " vs " << expanded.ToString();
+  EXPECT_LT(collapse->bounds().right(),
+            header()->back_button_for_testing()->bounds().x());
+}
+
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest,
                        PermissionPromptsAnchorToSiteInfo) {
   auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());

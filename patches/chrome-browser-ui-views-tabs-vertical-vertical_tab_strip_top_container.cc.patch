@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
+index d69e4dd30f732ec2767d5160b5fe22714e7d2e9d..be6cbbf913df30f331eb3b2b270fe57375e3d8c4 100644
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
+@@ -95,8 +95,10 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
+               ->GetPreferredSizeForOrientation(
+                   views::LayoutOrientation::kHorizontal)
+               .width() >= available_width ||
+-      available_width < VerticalTabStripRegionView::kCollapseSnapWidth ||
+-      is_collapsed) {
++      // Compass: not |is_collapsed|. Collapsed but shown on hover, the header
++      // is as wide as expanded and laid out as expanded, its buttons after
++      // the caption buttons rather than under them.
++      available_width < VerticalTabStripRegionView::kCollapseSnapWidth) {
+     combo_button_orientation_ = views::LayoutOrientation::kVertical;
+     int current_y = 0;
+ 
