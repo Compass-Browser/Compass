@@ -7,9 +7,11 @@
 #include <algorithm>
 #include <map>
 #include <optional>
+#include <set>
 #include <utility>
 
 #include "base/base64.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -176,9 +178,28 @@ Profile* FindLoadedProfile(const std::string& id) {
 }
 
 // Fills in the sync prefs of |dirs| that aren't loaded, from their
-// Preferences files under |user_data_dir|. Blocking.
+// Preferences files under |user_data_dir|, and adds the directories with a
+// Preferences file that Local State doesn't have (|dirs| are those it has),
+// as unregistered. Blocking.
 std::vector<ProfileDir> ReadProfileDirs(const base::FilePath& user_data_dir,
                                         std::vector<ProfileDir> dirs) {
+  std::set<std::string> known;
+  for (const ProfileDir& dir : dirs) {
+    known.insert(dir.id);
+  }
+  base::FileEnumerator subdirs(user_data_dir, /*recursive=*/false,
+                               base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath path = subdirs.Next(); !path.empty();
+       path = subdirs.Next()) {
+    const std::string id = path.BaseName().AsUTF8Unsafe();
+    if (!known.contains(id) &&
+        base::PathExists(path.Append(chrome::kPreferencesFilename))) {
+      ProfileDir dir;
+      dir.id = id;
+      dir.registered = false;
+      dirs.push_back(std::move(dir));
+    }
+  }
   for (ProfileDir& dir : dirs) {
     if (dir.loaded) {
       continue;
@@ -1652,6 +1673,23 @@ void CompassSyncService::OnProfileDirsScanned(std::vector<ProfileDir> dirs) {
                  << " is a copy of a synced profile; deleting it";
     entry->SetIsEphemeral(true);
     entry->SetIsOmitted(true);
+  }
+  // Copies Local State lost (a crash before it was written) are no profile
+  // to Chromium, which never deletes them: they go now.
+  for (const std::string& id : plan.remove) {
+    const base::FilePath path = profile_manager->user_data_dir().Append(
+        base::FilePath::FromUTF8Unsafe(id));
+    if (storage.GetProfileAttributesWithPath(path) ||
+        profile_manager->GetProfileByPath(path)) {
+      continue;
+    }
+    LOG(WARNING) << "Compass sync: " << id
+                 << " is an unregistered copy of a synced profile; deleting it";
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::GetDeletePathRecursivelyCallback(path));
   }
   prefs_->CommitPendingWrite();
   dirs_scanned_ = true;

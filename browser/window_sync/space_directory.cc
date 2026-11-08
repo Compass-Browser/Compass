@@ -434,7 +434,26 @@ void SpaceDirectory::AppendSpaces(SpaceService* service) {
   }
 }
 
+void SpaceDirectory::DropStaleOrder() {
+  if (stale_order_dropped_ || !IsLoaded()) {
+    return;
+  }
+  stale_order_dropped_ = true;
+  std::set<base::Uuid> ids;
+  for (const auto& [path, member] : members_) {
+    if (!member->service) {
+      continue;
+    }
+    for (const auto& space : member->service->space_list().spaces()) {
+      ids.insert(space->id());
+    }
+  }
+  std::erase_if(order_,
+                [&](const base::Uuid& id) { return !ids.contains(id); });
+}
+
 void SpaceDirectory::Changed() {
+  DropStaleOrder();
   if (file_loaded_) {
     writer_.ScheduleWrite(this);
   }

@@ -208,5 +208,39 @@ TEST(PlanProfileDirsTest, NeverRetiresTheUsersOwnProfiles) {
   EXPECT_EQ(plan.retire, (std::vector<std::string>{"Profile 2"}));
 }
 
+// The Windows device of 2026-11-08: a crash came after Profile 3's
+// Preferences were written but before Local State was, so Chromium doesn't
+// know it (and never deletes it). It's removed from disk; Profile 1, the
+// recorded one, is kept.
+TEST(PlanProfileDirsTest, RemovesAnUnregisteredCopy) {
+  ProfileDir lost = {"Profile 3", kWork, "A", "old", true, false, false};
+  lost.registered = false;
+  const std::vector<ProfileDir> dirs = {
+      {"Default", kHome, "B", "new", false, true, true},
+      {"Profile 1", kWork, "A", "old", true, true, true},
+      lost,
+  };
+  const ProfileDirPlan plan =
+      PlanProfileDirs(dirs, kHome, "B", "new", {{kWork, "Profile 1"}});
+  EXPECT_EQ(plan.keep,
+            (std::map<std::string, std::string>{{kWork, "Profile 1"}}));
+  EXPECT_TRUE(plan.retire.empty());
+  EXPECT_EQ(plan.remove, (std::vector<std::string>{"Profile 3"}));
+}
+
+// An unregistered directory is never kept, and without a registered one
+// for its UUID nothing is removed on a guess (the profile is created again).
+TEST(PlanProfileDirsTest, KeepsNoUnregisteredDirectory) {
+  ProfileDir lost = {"Profile 3", kWork, "B", "new", true, false, false};
+  lost.registered = false;
+  ProfileDir own = {"Profile 4", kPlay, "B", "new", false, false, false};
+  own.registered = false;
+  const ProfileDirPlan plan = PlanProfileDirs({lost, own}, kHome, "B", "new",
+                                              {{kWork, "Profile 3"}});
+  EXPECT_TRUE(plan.keep.empty());
+  EXPECT_TRUE(plan.retire.empty());
+  EXPECT_TRUE(plan.remove.empty());
+}
+
 }  // namespace
 }  // namespace compass::sync
