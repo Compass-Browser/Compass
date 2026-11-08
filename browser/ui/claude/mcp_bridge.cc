@@ -93,7 +93,7 @@ base::FilePath McpBridge::socket_path() const {
   }
   base::FilePath user_data;
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data);
-  return user_data.Append(kSocketName);
+  return user_data.AppendASCII(kSocketName);
 }
 
 void McpBridge::SetSocketPathForTesting(base::FilePath path) {

@@ -16,6 +16,7 @@ executable("compass-mcp") {
       "ole32.lib",
       "shell32.lib",
       "user32.lib",
+      "uuid.lib",
     ]
   } else {
     sources += [ "compass_mcp.cc" ]
