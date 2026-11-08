@@ -139,6 +139,9 @@ class OutDirTest(unittest.TestCase):
                      Path('/w/compass-chromium/src/out/Portable-android-arm64'))
     self.assertEqual('android-arm64', parser().parse_args(
         ['gen', 'portable', '--cpu', 'android-arm64']).cpu)
+    self.assertTrue(parser().parse_args(
+        ['gen', 'portable', '--cpu', 'android-arm64',
+         '--skip-patches']).skip_patches)
 
   def test_build_commands_take_cpu(self):
     for argv in (['gen', 'release', '--cpu', 'x64'],
