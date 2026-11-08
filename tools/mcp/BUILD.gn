@@ -3,14 +3,32 @@
 # found in the LICENSE file.
 
 # compass-mcp: MCP clients (Claude Code, Claude Desktop, ...) run it; it
-# relays their stdio to the running browser's MCP bridge. Plain POSIX, no
-# Chromium libraries, so it runs from the app bundle in any build. See
-# docs/design/claude.md, D6.
+# relays their stdio to the running browser's MCP bridge. Plain POSIX or
+# Win32, no Chromium libraries, so it runs from the app bundle (or next to
+# chrome.exe) in any build. See docs/design/claude.md, D6.
 executable("compass-mcp") {
-  sources = [ "compass_mcp.cc" ]
+  sources = [ "compass_mcp_common.h" ]
+  if (is_win) {
+    sources += [ "compass_mcp_win.cc" ]
+    deps = [ ":pipe_name" ]
+    libs = [
+      "advapi32.lib",
+      "ole32.lib",
+      "shell32.lib",
+      "user32.lib",
+    ]
+  } else {
+    sources += [ "compass_mcp.cc" ]
+  }
   if (is_mac) {
     frameworks = [ "CoreFoundation.framework" ]
   }
+}
+
+# The pipe's name, from the user data directory: compass-mcp.exe and the
+# browser's McpListener (browser/ui/claude/mcp_listener_win.cc) agree on it.
+source_set("pipe_name") {
+  sources = [ "mcp_pipe_name_win.h" ]
 }
 
 if (is_mac) {

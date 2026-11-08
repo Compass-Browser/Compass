@@ -1,0 +1,20 @@
+diff --git a/chrome/installer/mini_installer/BUILD.gn b/chrome/installer/mini_installer/BUILD.gn
+index 39cbdeb5f067ba57b65bb903ff36b9f96c4d8631..53317bd31178e8a1cc87a3c179b7aa8bd0b7089c 100644
+--- a/chrome/installer/mini_installer/BUILD.gn
++++ b/chrome/installer/mini_installer/BUILD.gn
+@@ -152,6 +152,7 @@ action("mini_installer_archive") {
+     "$root_out_dir/chrome.dll",
+     "$root_out_dir/chrome_elf.dll",
+     "$root_out_dir/chrome.exe",
++    "$root_out_dir/compass-mcp.exe",
+     "$root_out_dir/locales/en-US.pak",
+     "$root_out_dir/setup.exe",
+     "//chrome/tools/build/win/makecab.py",
+@@ -197,6 +198,7 @@ action("mini_installer_archive") {
+     "//chrome/chrome_elf",
+     "//chrome/common/win:eventlog_provider",
+     "//chrome/installer/setup",
++    "//compass/tools/mcp:compass-mcp",
+     "//third_party/icu:icudata",
+   ]
+ 

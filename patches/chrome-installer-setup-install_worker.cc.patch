@@ -1,0 +1,22 @@
+diff --git a/chrome/installer/setup/install_worker.cc b/chrome/installer/setup/install_worker.cc
+index 1a930947cc1e0effc578f76d8a2e85c6ea2a6e36..28ce3ff8ccc0c48f393364a071a1dfcea8b6f42c 100644
+--- a/chrome/installer/setup/install_worker.cc
++++ b/chrome/installer/setup/install_worker.cc
+@@ -343,6 +343,17 @@ void AddChromeWorkItems(const InstallParams& install_params,
+           WorkItem::MoveTreeOptions{.lenient_deletion = true})),
+       /*else_item=*/std::move(not_in_use_list)));
+ 
++  // Compass: compass-mcp.exe, next to chrome.exe, where MCP clients' configs
++  // point. It doesn't depend on the version, so a running one (a client's
++  // MCP server) is moved aside rather than waited for: Windows lets a running
++  // program be renamed. Best effort: Compass works without it.
++  install_list
++      ->AddMoveTreeWorkItem(
++          src_path.Append(FILE_PATH_LITERAL("compass-mcp.exe")),
++          target_path.Append(FILE_PATH_LITERAL("compass-mcp.exe")), temp_path,
++          WorkItem::MoveTreeOptions{.lenient_deletion = true})
++      ->set_best_effort(true);
++
+   // Update the version key now that chrome.exe or new_chrome.exe is in place.
+   AddVersionKeyWorkItems(install_params, install_list);
+ 

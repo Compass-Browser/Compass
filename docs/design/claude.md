@@ -197,8 +197,8 @@ The prompt has it ask first (below).
 
 ### MCP server
 
-macOS (and Linux, untried). Not built on Windows: it would need a named
-pipe. Claude Code declares itself as `claude-code` ("Claude Code"), the
+macOS, Windows (a named pipe in place of the socket, see "Windows" below)
+and Linux (untried). Claude Code declares itself as `claude-code` ("Claude Code"), the
 name "Always allow" stores.
 
 - **One tool layer.** `ClaudeTools` doesn't depend on the chat: the chat panel and MCP are two callers of that one layer, so MCP has no tool code of its own.
@@ -207,7 +207,13 @@ name "Always allow" stores.
   - Shipped as `Contents/MacOS/compass-mcp` (`bundle_data` in `tools/mcp/BUILD.gn`, added to the app's `bundle_deps` by the `chrome/BUILD.gn` patch), and signed with the hardened runtime by `compass sign` (`chrome/installer/mac/signing/parts.py` patch, part `compass-mcp`).
   - The user data directory: `--user-data-dir=DIR`, else `~/Library/Application Support/` and the app's `CrProductDirName`, else `Compass`, as the browser's `chrome_paths_mac.mm` (patch) and `compass::GetMacProductDirName()`.
   - Nothing listening: it starts Compass with `open -g` (in the background, without the focus), and waits up to 30 s. Still nothing (Compass closed, or MCP off): it answers each request with an error that says to turn on "Allow MCP clients", so the client shows why. `--no-launch` skips the start (tests).
-- **Browser side** (`browser/ui/claude/`, POSIX only; in the UI layer because it uses `ClaudeTabs` and dialogs):
+- **Windows** (`tools/mcp/compass_mcp_win.cc`, `browser/ui/claude/mcp_listener_win.cc`):
+  - The pipe is `\\.\pipe\compass-mcp-<16 hex digits>`, an FNV-1a hash of the user data directory's path (`mcp_pipe_name_win.h`, shared by both sides: ASCII letters lowercased, `/` as `\`, no trailing separator). The browser takes its first instance (`FILE_FLAG_FIRST_PIPE_INSTANCE`, so it can't join one another process made) with a protected DACL for this user only and `PIPE_REJECT_REMOTE_CLIENTS`; the relay checks that the server's process runs as the same user (`GetNamedPipeServerProcessId()`).
+  - `McpListener` there: overlapped pipe instances on the IO thread's completion port (`MessagePumpForIO::IOHandler`), one per connection and one waiting for the next client; each pending operation holds a reference to its instance until its completion comes.
+  - `compass-mcp.exe`: plain Win32. The default user data directory is `%LOCALAPPDATA%\Compass\User Data`. Nothing listening: it starts `chrome.exe` from its own folder, minimized without the focus, unless `ProcessSingleton`'s message window for that directory says Compass is running (another window would open). One thread copies stdin to the pipe; the pipe can't be half closed, so once stdin ends, replies still coming are passed on until none comes for 5 s.
+  - Shipped next to `chrome.exe` (`Application\compass-mcp.exe`, a path that stays across updates): built with `chrome.exe` (`chrome/BUILD.gn` patch), packed by `mini_installer` (`chrome.release`, `mini_installer/BUILD.gn` patches), moved into place by setup (`install_worker.cc` patch). A running copy (a client's MCP server) is moved aside, as Windows allows for a running program.
+  - Settings show `claude mcp add compass -- <...>\compass-mcp.exe`, quoted with double quotes for cmd and PowerShell when needed.
+- **Browser side** (`browser/ui/claude/`, POSIX and Windows; in the UI layer because it uses `ClaudeTabs` and dialogs):
   - **`McpListener`**, on the IO thread (net's sockets need its message pump), owned through a `base::SequenceBound`: a `net::UnixDomainServerSocket` that refuses peers of other users, mode 0600. It splits each connection into lines for the UI thread and queues writes back; a line over 8 MB closes the connection.
   - A socket's address holds 104 characters; a longer path (a long user name or user data directory) listens in a private `/tmp/compass-mcp-XXXXXX/s` and links to it from the usual place, as upstream's `ProcessSingleton` does. `compass-mcp` follows the link.
   - **`McpBridge`** (global): listens while a profile allows MCP clients; a connection serves the profile of the last active window among those (none: an error, and the connection closes).
@@ -245,7 +251,7 @@ an MCP server. The API key stays the other choice.
   - `McpBridge::RegisterChat()` gives the chat a 32-hex-digit token and keeps the listener on while it's registered, whatever "Allow MCP clients" says.
   - The MCP config runs `compass-mcp --user-data-dir=<the socket's directory> --chat=<token>`. With `--chat` the relay doesn't start Compass, waits up to 10 s for the socket, and writes `{"compass_chat": "<token>"}` first.
   - The bridge reads each connection's first line. A known token makes an `McpSession` whose calls run on the chat's own `ClaudeTools` (`RunChatTool()`): its target (the tab `StartTask()` pinned), its Stop, the "whole browser" permission and the indicator, with no "wants to control Compass" question (the user started it from the panel). An unknown token closes the connection; any other first line is an MCP client's, as before.
-- **Windows** has no MCP bridge yet: Claude Code runs without `--mcp-config` and only chats (with the attached page's text); settings say so. The process code has the Windows pipes, untried.
+- **Windows** runs the same way, with `compass-mcp.exe` and the named pipe (untried on a device yet).
 
 ## iOS (`ios/App/Claude/`)
 

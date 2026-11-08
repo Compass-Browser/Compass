@@ -41,13 +41,21 @@
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
 #include "compass/browser/ui/claude/mcp_bridge.h"
 #endif
 
 namespace compass::claude {
 
 namespace {
+
+#if BUILDFLAG(IS_WIN)
+constexpr base::FilePath::CharType kMcpRelayName[] =
+    FILE_PATH_LITERAL("compass-mcp.exe");
+#elif BUILDFLAG(IS_POSIX)
+constexpr base::FilePath::CharType kMcpRelayName[] =
+    FILE_PATH_LITERAL("compass-mcp");
+#endif
 
 // About 8,000 tokens of page text: enough for an article, not a whole
 // manual.
@@ -98,7 +106,7 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
 
 ClaudeChatPageHandler::~ClaudeChatPageHandler() {
   EndClaudeCode(/*forget=*/true);
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
   if (!chat_token_.empty()) {
     McpBridge::Get()->UnregisterChat(chat_token_);
   }
@@ -342,7 +350,7 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   options.model = profile->GetPrefs()->GetString(prefs::kModel);
   options.system_prompt = SystemPromptText();
   options.resume = claude_code_session_;
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
   // Compass's tools, through the bridge, as this chat's.
   McpBridge* bridge = McpBridge::Get();
   if (chat_token_.empty()) {
@@ -352,7 +360,7 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   }
   base::FilePath exe_dir;
   base::PathService::Get(base::DIR_EXE, &exe_dir);
-  options.mcp_relay = exe_dir.Append(FILE_PATH_LITERAL("compass-mcp"));
+  options.mcp_relay = exe_dir.Append(kMcpRelayName);
   options.user_data_dir = bridge->socket_path().DirName();
   options.chat_token = chat_token_;
 #endif
