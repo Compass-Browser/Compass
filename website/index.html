@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass Browser</title>
-<meta name="description" content="Compass is an open-source Arc alternative built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows and iPhone.">
+<meta name="description" content="Compass is an open-source Arc alternative built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows, iPhone and iPad.">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="compass.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="compass-256.png">
@@ -128,8 +128,8 @@ footer a { color: inherit; }
       </article>
 
       <article class="card" data-platform="ios">
-        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V4a3 3 0 0 0-3-3zm1 19a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h1.2l.4 1h4.8l.4-1H16a1 1 0 0 1 1 1v16z"/></svg>iPhone <span class="badge">Beta</span></h3>
-        <p class="req">iPhone, through Apple's TestFlight app.</p>
+        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V4a3 3 0 0 0-3-3zm1 19a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h1.2l.4 1h4.8l.4-1H16a1 1 0 0 1 1 1v16z"/></svg>iPhone and iPad <span class="badge">Beta</span></h3>
+        <p class="req">iPhone and iPad, through Apple's TestFlight app.</p>
         <p class="meta">Your spaces, tabs, history and passwords from Compass on your Mac, end-to-end encrypted.</p>
         <div class="actions">
           <a class="button" href="https://testflight.apple.com/join/SE4bmbk1">Join the beta on TestFlight</a>
@@ -218,6 +218,8 @@ footer a { color: inherit; }
     const ua = navigator.userAgent;
     const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
     if (/iPhone|iPad|iPod/.test(ua)) return 'ios';
+    // iPadOS Safari says it's a Mac; a touch screen gives it away.
+    if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return 'ios';
     if (/Android/.test(ua)) return 'android';
     if (/Mac/.test(platform) || /Macintosh/.test(ua)) return 'mac';
     if (/Win/.test(platform) || /Windows/.test(ua)) return 'win';
@@ -263,8 +265,8 @@ footer a { color: inherit; }
       enable(hero, latest[here], 'Download for ' + NAMES[here]);
       hint.textContent = 'Version ' + latest[here].version + (here === 'win' ? ' (beta)' : '') + ' · other platforms below';
     } else if (here === 'ios') {
-      enable(hero, { url: 'https://testflight.apple.com/join/SE4bmbk1' }, 'Join the iPhone beta');
-      hint.textContent = 'Compass for iPhone is in beta on TestFlight.';
+      enable(hero, { url: 'https://testflight.apple.com/join/SE4bmbk1' }, 'Join the iPhone and iPad beta');
+      hint.textContent = 'Compass for iPhone and iPad is in beta on TestFlight.';
     } else if (here === 'android') {
       hint.textContent = 'Compass for Android is coming soon.';
     }
