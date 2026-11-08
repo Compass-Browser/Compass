@@ -8,6 +8,7 @@
 
 The two ribbons of assets/compass_glyph.svg, in one color, scaled so the
 glyph spans 20 of the canvas's 24 units, as upstream's product icon does.
+svg() gives the same glyph as a one-color SVG.
 """
 
 import math
@@ -56,15 +57,22 @@ def bounds():
   return min(xs), min(ys), max(xs), max(ys)
 
 
-def main():
+def _n(value):
+  return ('%.2f' % value).rstrip('0').rstrip('.')
+
+
+def _transform(canvas, span):
+  """The scale and offsets that fit the glyph's |span| in a |canvas| square."""
   left, top, right, bottom = bounds()
-  scale = SPAN / max(right - left, bottom - top)
-  dx = CANVAS / 2 - (left + right) / 2 * scale
-  dy = CANVAS / 2 - (top + bottom) / 2 * scale
+  scale = span / max(right - left, bottom - top)
+  dx = canvas / 2 - (left + right) / 2 * scale
+  dy = canvas / 2 - (top + bottom) / 2 * scale
+  return scale, dx, dy
 
-  def n(value):
-    return ('%.2f' % value).rstrip('0').rstrip('.')
 
+def icon():
+  """The glyph as a vector icon, on a 24-unit canvas."""
+  scale, dx, dy = _transform(CANVAS, SPAN)
   lines = [
       '// Copyright 2026 The Compass Authors',
       '// Use of this source code is governed by a BSD-style license that can be',
@@ -75,13 +83,35 @@ def main():
   ]
   for ribbon in RIBBONS:
     x, y = ribbon[0]
-    lines.append('MOVE_TO, %s, %s,' % (n(x * scale + dx), n(y * scale + dy)))
+    lines.append('MOVE_TO, %s, %s,' % (_n(x * scale + dx), _n(y * scale + dy)))
     for r, large, sweep, x, y in ribbon[1:]:
       lines.append('ARC_TO, %s, %s, 0, %d, %d, %s, %s,' %
-                   (n(r * scale), n(r * scale), large, sweep,
-                    n(x * scale + dx), n(y * scale + dy)))
+                   (_n(r * scale), _n(r * scale), large, sweep,
+                    _n(x * scale + dx), _n(y * scale + dy)))
     lines.append('CLOSE,')
-  print('\n'.join(lines))
+  return '\n'.join(lines) + '\n'
+
+
+def svg(size=16):
+  """The glyph in black on a |size| px square, with the same margin as the
+  vector icon: for WebUI, which draws such icons as masks or plain images."""
+  scale, dx, dy = _transform(size, SPAN * size / CANVAS)
+  d = []
+  for ribbon in RIBBONS:
+    x, y = ribbon[0]
+    d.append('M%s %s' % (_n(x * scale + dx), _n(y * scale + dy)))
+    for r, large, sweep, x, y in ribbon[1:]:
+      d.append('A%s %s 0 %d %d %s %s' %
+               (_n(r * scale), _n(r * scale), large, sweep,
+                _n(x * scale + dx), _n(y * scale + dy)))
+    d.append('Z')
+  return ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" '
+          'viewBox="0 0 %d %d"><path fill="#000" d="%s"/></svg>\n' %
+          (size, size, size, size, ''.join(d)))
+
+
+def main():
+  print(icon(), end='')
 
 
 if __name__ == '__main__':

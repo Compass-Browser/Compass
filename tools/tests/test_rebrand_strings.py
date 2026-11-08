@@ -32,11 +32,42 @@ class RenameTest(unittest.TestCase):
 
   def test_keeps_the_project(self):
     self.assertEqual(
-        rename('Chrome is made possible by the Chromium open source project'),
-        'Chrome is made possible by the Chromium open source project')
+        rename('Chromium is made possible by the Chromium open source project'),
+        'Compass is made possible by the Chromium open source project')
     self.assertEqual(rename('The Chromium Projects'), 'The Chromium Projects')
     self.assertTrue(
-        rebrand_strings.names_project('the Chromium open-source project'))
+        rebrand_strings.keeps_a_name('the Chromium open-source project'))
+
+  def test_renames_chrome(self):
+    self.assertEqual(
+        rename("Chrome thinks you don't want notifications from this site."),
+        "Compass thinks you don't want notifications from this site.")
+    self.assertEqual(rename('Try restarting Chrome.'), 'Try restarting Compass.')
+    self.assertEqual(rename("You have Chrome's strongest security"),
+                     "You have Compass's strongest security")
+    self.assertEqual(rename('Customize Chrome'), 'Customize Compass')
+    self.assertEqual(rename('Google Chrome is trying to fill your password'),
+                     'Compass is trying to fill your password')
+    self.assertEqual(rename('Chrome を再起動'), 'Compass を再起動')
+
+  def test_keeps_longer_chrome_words(self):
+    for text in ('ChromeOS', 'Chromebook', 'chrome://settings', 'Chromecast',
+                 'IDS_CHROME_X', 'chrome'):
+      self.assertEqual(rename(text), text)
+
+  def test_keeps_other_chrome_names(self):
+    for text in ('Visit Chrome Web Store', 'the Chrome Webstore',
+                 'Try Chrome Enterprise Core', 'Chrome Remote Desktop history',
+                 'the Chrome Root Store', 'Quit all Chrome Apps',
+                 'Old versions of Chrome apps', 'Chrome OS',
+                 'Download Chrome for iOS', 'Chrome Extensions',
+                 'Chrome Browser Cloud Management'):
+      self.assertEqual(rename(text), text)
+    self.assertEqual(
+        rename('Remove it from Chrome: it violates the Chrome Web Store policy'),
+        'Remove it from Compass: it violates the Chrome Web Store policy')
+    self.assertTrue(rebrand_strings.keeps_a_name('Open Chrome Web Store'))
+    self.assertFalse(rebrand_strings.keeps_a_name('Relaunch Chrome'))
 
   def test_keeps_the_project_link_in_grd_and_xtb(self):
     grd = ('Chromium is made possible by the <ph name="BEGIN_LINK_CHROMIUM">'
@@ -45,7 +76,7 @@ class RenameTest(unittest.TestCase):
     self.assertEqual(
         rename(grd),
         grd.replace('Chromium is made', 'Compass is made', 1))
-    self.assertFalse(rebrand_strings.names_project(grd))
+    self.assertFalse(rebrand_strings.keeps_a_name(grd))
     xtb = ('<ph name="BEGIN_LINK_CHROMIUM"/>Chromium<ph name="END_LINK_CHROMIUM"/>'
            ' rende possibile Chromium')
     self.assertEqual(rename(xtb), xtb[:-len('Chromium')] + 'Compass')

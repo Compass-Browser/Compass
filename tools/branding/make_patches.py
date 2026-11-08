@@ -32,6 +32,25 @@ ICO = 'chrome/app/theme/chromium/win/chromium.ico'
 VECTOR_ICONS = [
     'components/vector_icons/chromium/product.icon',
     'components/vector_icons/chromium/product_refresh.icon',
+    # The same logo in one color, under names that aren't branded: toasts,
+    # the task manager, a web app window's menu (browser_logo_old); infobars,
+    # menu items, chrome:// suggestions (product_chrome_refresh_old); the
+    # autofill popup (omnibox product_old); notification headers
+    # (message_center product_old). chrome_product: the same places with
+    # features::kRoundedIcons on.
+    'chrome/app/vector_icons/browser_logo_old.icon',
+    'chrome/app/vector_icons/chrome_product.icon',
+    'components/omnibox/browser/vector_icons/chrome_product.icon',
+    'components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon',
+    'components/omnibox/browser/vector_icons/product_old.icon',
+    'ui/message_center/vector_icons/chrome_product.icon',
+    'ui/message_center/vector_icons/product_old.icon',
+]
+# WebUI's searchbox and the contextual tasks toolbar (one color).
+GLYPH_SVGS = [
+    'ui/webui/resources/cr_components/searchbox/icons/chrome_product_cr23.svg',
+    'ui/webui/resources/cr_components/searchbox/icons/'
+    'chrome_product_cr23_old.svg',
 ]
 DARK_LOGO = 'ui/webui/resources/images/chrome_logo_dark.svg'
 SVGS = [
@@ -71,18 +90,23 @@ def build(src: Path, staging: Path) -> None:
   (new / ICO).parent.mkdir(parents=True, exist_ok=True)
   (new / ICO).write_bytes(pack_ico(frames))
 
-  icon = subprocess.run([sys.executable, '-I',
-                         str(ROOT / 'tools/branding/make_icon.py')],
-                        check=True, stdout=subprocess.PIPE).stdout
-  for path in VECTOR_ICONS:
-    (new / path).parent.mkdir(parents=True, exist_ok=True)
-    (new / path).write_bytes(icon)
   for path in SVGS:
     shutil.copy(ROOT / 'assets/compass_card.svg', new / path)
+  build_glyphs(new)
 
-  # WebUI toolbars show this in dark mode (light mode: product_logo_32).
+
+def build_glyphs(new: Path) -> None:
+  """The one-color glyphs: vector icons, WebUI SVGs, the dark mode logo."""
   sys.path.insert(0, str(ROOT / 'tools/branding'))
   import make_icon
+  for path in VECTOR_ICONS:
+    (new / path).parent.mkdir(parents=True, exist_ok=True)
+    (new / path).write_text(make_icon.icon())
+  for path in GLYPH_SVGS:
+    (new / path).parent.mkdir(parents=True, exist_ok=True)
+    (new / path).write_text(make_icon.svg())
+
+  # WebUI toolbars show this in dark mode (light mode: product_logo_32).
   left, top, right, bottom = make_icon.bounds()
   side = max(right - left, bottom - top) * 1.08
   view_box = '%.1f %.1f %.1f %.1f' % ((left + right - side) / 2,

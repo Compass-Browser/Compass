@@ -5,8 +5,9 @@
 """Copies an upstream strings .grd, its parts and translations, renamed.
 
 Upstream's Chromium-branded strings name the product "Chromium" in their
-text. This writes a copy where they say "Compass" instead, for grit to build
-in place of the original (see strings/BUILD.gn and docs/design/branding.md).
+text, and many shared ones call it "Chrome" outright. This writes a copy
+where they say "Compass" instead, for grit to build in place of the original
+(see strings/BUILD.gn and docs/design/branding.md).
 
 Only message text changes, never names, order or conditions, so grit gives
 every message the same resource ID and the generated header stays the same.
@@ -43,6 +44,20 @@ _KEEP = re.compile(
     r'(?=<ph name="END_LINK_CHROMIUM")', re.S)
 _AUTHORS = ('The Chromium Authors', 'The Compass Authors')
 
+# "Chrome" (or "Google Chrome") where upstream means the browser, even in
+# Chromium builds: "Chrome thinks you don't want notifications from this
+# site", "Try restarting Chrome". Same word boundaries as _NAME.
+_CHROME = re.compile(r'(?<![A-Za-z0-9_])(?:Google\s+)?Chrome(?![A-Za-z0-9_])')
+# Names of other things that keep it: Google's store and services, the
+# extension and app platforms Compass shares, and the Chrome builds upstream
+# promotes or names (Chrome for iOS).
+_CHROME_KEEP = re.compile(
+    r'(?<![A-Za-z0-9_])(?:Google\s+)?Chrome\s+(?:'
+    r'Web\s*[Ss]tore|Enterprise|Remote\s+Desktop|Root\s+(?:Store|Program)|'
+    r'Browser\s+Cloud\s+Management|Privacy\s+Whitepaper|OS|Flex|'
+    r'[Aa]pps?|[Ee]xtensions?|for\s+(?:Testing|iOS|iPhone|Android|Business))'
+    r'(?![A-Za-z0-9_])')
+
 # Messages whose text Compass replaces outright, in every language: their
 # translations are dropped, so grit falls back to this English text.
 _REPLACED = {
@@ -57,9 +72,11 @@ _TRANSLATION = re.compile(r'(<translation id=")(\d+)(">)(.*?)(</translation>)',
                           re.S)
 
 
-def names_project(text):
-  """Whether |text| names the project outside a link (see _PROJECT)."""
-  return bool(_PROJECT.search(_KEEP.sub('', text)))
+def keeps_a_name(text):
+  """Whether |text| has a name that stays, outside a link: the project's
+  (_PROJECT) or one of _CHROME_KEEP's."""
+  text = _KEEP.sub('', text)
+  return bool(_PROJECT.search(text) or _CHROME_KEEP.search(text))
 
 
 def rename(text):
@@ -75,9 +92,12 @@ def rename(text):
 
 
 def _rename_span(text):
-  return _NAME.sub(
+  text = _NAME.sub(
       lambda m: m.group(0) if _PROJECT.match(text, m.start()) else _NEW_NAME,
       text)
+  return _CHROME.sub(
+      lambda m: m.group(0) if _CHROME_KEEP.match(text, m.start()) else
+      _NEW_NAME, text)
 
 
 def _message_name(open_tag):
@@ -175,10 +195,12 @@ def generate(grd, out_dir, grit_dir):
     raise SystemExit('rebrand_strings: messages differ after renaming')
   new_id = {o: n for (_, o), (_, n) in zip(old, new) if o != n}
   # A translation of a message that names both the product and the project
-  # can't tell them apart (word order differs): it keeps its text.
+  # (or another name that stays, "Chrome Web Store") can't tell them apart:
+  # word order differs, and some languages translate the rest of the name
+  # ("Интернет-магазин Chrome"). It keeps its text.
   keep_text = {
       o for (name, o), (_, n) in zip(old, new)
-      if o != n and names_project(sources_by_name.get(name, ''))
+      if o != n and keeps_a_name(sources_by_name.get(name, ''))
   }
   dropped = {o for name, o in old if name in _REPLACED}
 
