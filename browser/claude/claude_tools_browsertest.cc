@@ -563,7 +563,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, SpacesAndUnloadedEntries) {
     return Text(Run("list_tabs")).find(chat_id + ": Tools page") !=
                std::string::npos &&
            Text(Run("list_tabs")).find("[unloaded]") != std::string::npos;
-  }));
+  })) << Text(Run("list_tabs"));
   // select_tab loads it, in the background.
   content::WebContents* front = contents();
   ToolResult selected = Run("select_tab", "{\"tab_id\": \"" + chat_id + "\"}");
