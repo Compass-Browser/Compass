@@ -1,0 +1,16 @@
+diff --git a/build/config/BUILDCONFIG.gn b/build/config/BUILDCONFIG.gn
+index bc4236a4e7080b005e18bacea92fe1d5d71b5cb1..615b208583481953eb4232eea4617fd876400a69 100644
+--- a/build/config/BUILDCONFIG.gn
++++ b/build/config/BUILDCONFIG.gn
+@@ -262,7 +262,10 @@ _default_toolchain = ""
+ 
+ if (target_os == "android") {
+   # Targeting android on Mac is best-effort and not guaranteed to work.
+-  assert(host_os == "linux", "Android builds are only supported on Linux.")
++  # Compass builds Android on Apple silicon Macs (docs/building.md, "Android
++  # from a Mac").
++  assert(host_os == "linux" || host_os == "mac",
++         "Android builds are only supported on Linux and Mac.")
+   _default_toolchain = "//build/toolchain/android:android_clang_$target_cpu"
+ } else if (target_os == "chromeos" || target_os == "linux") {
+   # See comments in build/toolchain/cros/BUILD.gn about board compiles.

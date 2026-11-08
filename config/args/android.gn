@@ -1,0 +1,11 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# GN args for Android, imported after common.gn and the config's file when
+# `compass gen <config> --cpu android-arm64` writes args.gn (target_os and
+# target_cpu are set there). Design: docs/design/android.md. Building from a
+# Mac: docs/building.md, "Android from a Mac".
+
+# Android lint and Error Prone slow the build down and check upstream code.
+android_static_analysis = "off"

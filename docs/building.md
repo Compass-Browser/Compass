@@ -247,6 +247,56 @@ release and a Mac build rebuilds what reads the version on both sides
 (docs/design/updates.md, "Installer versions"). Keep a separate checkout
 for Windows builds.
 
+### Android from a Mac
+
+The Android app is built from the same checkout (docs/design/android.md):
+`--cpu android-arm64` builds it in `out/<Config>-android-arm64`. Chromium
+only supports Linux hosts for Android, and calls a Mac host "best-effort".
+On Apple silicon it does work, because Chromium's CIPD packages already come
+in Mac flavors: the JDK, the SDK build tools, the NDK (`darwin-x86_64`, run
+through Rosetta) and clang's Android runtimes.
+
+Set up once per checkout:
+
+1. Add `"android"` to `target_os` in the checkout's `.gclient` (e.g.
+   `target_os = ["mac", "android"]`) and run `tools/compass sync`, which
+   fetches the Android dependencies (tens of GB).
+2. Make sure Rosetta is installed (`softwareupdate --install-rosetta`). Some
+   of the NDK's tools are x86-64.
+
+Then:
+
+```sh
+tools/compass gen portable --cpu android-arm64
+tools/compass build -c portable --cpu android-arm64 chrome_public_apk
+```
+
+What makes the Mac host work:
+
+- **Patches** (they only matter on Android builds from a Mac):
+  - `build-config-BUILDCONFIG.gn.patch` lets the Android toolchain run on
+    a Mac host;
+  - `BUILD.gn.patch` skips the `optimize_gn_gen` group, which preloads
+    Linux host toolchains only to speed up `gn gen`;
+  - `build-config-android-config.gni.patch` lists the JDK's `.so` files as
+    build inputs only on a Linux host (the Mac JDK has `.dylib`s).
+- **Fix-ups** that `compass gen` and `compass build` apply to the checkout
+  after every sync (`tools/compass_tool/android.py`):
+  - the Mac JDK is a bundle, so its `Contents/Home/*` is linked into
+    `third_party/jdk/current`;
+  - Chromium's pinned `aapt2` is Linux only, so it's replaced with a link
+    to the SDK build tools' Mac `aapt2`.
+
+Limits:
+
+- **No emulator from the checkout.** `adb` and the emulator under
+  `third_party/android_sdk` are Linux builds. Use Google's Mac
+  platform-tools for `adb`, and a Genymotion SaaS arm64 device or the
+  Android Studio emulator to run the APK.
+- **Slow first build.** A full build of stock `chrome_public_apk` (portable
+  config) took 8h41m on a Mac mini running other jobs. Builds after small
+  changes are incremental.
+
 ## Troubleshooting
 
 - **A change to an override isn't picked up:** run `compass build` rather than

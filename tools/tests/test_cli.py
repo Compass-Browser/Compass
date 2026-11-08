@@ -134,6 +134,12 @@ class OutDirTest(unittest.TestCase):
     self.assertEqual('win-x64', parser().parse_args(
         ['release', 'build-win', '--cpu', 'win-x64']).cpu)
 
+  def test_out_dir_for_android(self):
+    self.assertEqual(self.layout().out_dir('portable', 'android-arm64'),
+                     Path('/w/compass-chromium/src/out/Portable-android-arm64'))
+    self.assertEqual('android-arm64', parser().parse_args(
+        ['gen', 'portable', '--cpu', 'android-arm64']).cpu)
+
   def test_build_commands_take_cpu(self):
     for argv in (['gen', 'release', '--cpu', 'x64'],
                  ['build', '-c', 'release', '--cpu', 'x64'],
@@ -214,3 +220,12 @@ class WinCrossTest(unittest.TestCase):
       self.assertIn('import("//compass/config/args/release.gn")', text)
       self.assertNotIn('target_os', args_gn(self.make(tmp + '/b'), 'release',
                                              'x64'))
+
+  def test_args_gn_for_android(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      text = args_gn(self.make(tmp), 'portable', 'android-arm64')
+      self.assertIn('target_os = "android"\n', text)
+      self.assertIn('target_cpu = "arm64"\n', text)
+      self.assertIn('import("//compass/config/args/portable.gn")', text)
+      self.assertTrue(text.rstrip().endswith(
+          'import("//compass/config/args/android.gn")'))

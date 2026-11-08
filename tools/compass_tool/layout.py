@@ -24,7 +24,9 @@ CONFIGS = {
 
 # Builds for another OS than the host's, as --cpu values: out/<Config>-<target>.
 # win-x64: Windows from a Mac (docs/building.md, "Windows from a Mac").
-CROSS_TARGETS = ('win-x64',)
+# android-arm64: Android, from a Mac or Linux (docs/building.md, "Android from
+# a Mac"; docs/design/android.md).
+CROSS_TARGETS = ('win-x64', 'android-arm64')
 
 
 def vs_toolchain_hash(src: Path) -> str:
