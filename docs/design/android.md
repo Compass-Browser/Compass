@@ -81,7 +81,11 @@ It costs:
   `ServiceLoaderUtil` finds the implementation, which only `compass_apk`
   has). `CompassBar` adds a Compose bar as its own layer of Chrome's bottom
   controls stack (`COMPASS_BAR`), so pages make room for it, and follows
-  the current tab. Chrome's toolbar is still there.
+  the current tab. Tapping its address opens Chrome's location bar until
+  Compass has its own (C4); Chrome's toolbar is still there.
+- **Branding so far.** The app is "Compass" with its own launcher icon (an
+  adaptive icon from the glyph, `android/res/`, overlaying Chrome's
+  `ic_launcher`), and there's no first-run experience.
 - **The shell.** `CompassActivity` keeps Chrome's browser machinery: native
   start-up, Profile, the TabModel, the compositor, downloads, permissions,
   autofill, payments and Custom Tabs. Chrome's toolbar and tab switcher are
