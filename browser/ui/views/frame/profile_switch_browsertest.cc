@@ -657,7 +657,9 @@ IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
       image.src = url;
       await image.decode();
       const canvas = new OffscreenCanvas(16, 16);
-      const context = canvas.getContext('2d');
+      // Read back on the CPU: with software GL (Linux without a GPU) a GPU
+      // canvas reads back as transparent black.
+      const context = canvas.getContext('2d', {willReadFrequently: true});
       context.drawImage(image, 0, 0, 16, 16);
       return [...context.getImageData(8, 8, 1, 1).data.slice(0, 3)];
     })($1))";
