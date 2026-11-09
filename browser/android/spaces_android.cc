@@ -27,7 +27,7 @@ namespace {
 // Chrome for Android's new tab page, which Compass's start page replaces.
 bool IsNewTabPage(const GURL& url) {
   return (url.SchemeIs("chrome-native") || url.SchemeIs("chrome")) &&
-         url.host_piece() == "newtab";
+         url.GetHost() == "newtab";
 }
 
 // The desktop's file (window_sync/space_service.cc): the same profile layout.
