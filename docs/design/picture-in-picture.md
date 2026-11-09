@@ -325,8 +325,12 @@ while a call is on (the site's hang up button and a remote tile exist), it:
   picture-in-picture request token, and it calls `requestPictureInPicture()`
   on the **pick**: the tile the site marks as speaking if a site entry says
   how, else the largest remote one shown (at least 100×100). Remote means a
-  `<video>` playing a `MediaStream` whose video tracks don't come from a
-  device (the user's own camera does). On Zoom, the largest `<canvas>`,
+  `<video>` playing a `MediaStream` whose video tracks aren't the user's
+  own camera: not named as one of their cameras (`enumerateDevices()`;
+  Chrome gives remote tracks a device id too, so that doesn't tell them
+  apart, but names them otherwise, e.g. Teams' "remote video") and not a
+  mirrored preview. Teams sets `disablePictureInPicture` on its tiles; the
+  pick gets it cleared. On Zoom, the largest `<canvas>`,
   captured (`captureStream()`) into a hidden 1×1 `<video>` made ahead, as
   the video needs a frame before it can go into the window. In speaker view
   the largest tile is the speaker's;

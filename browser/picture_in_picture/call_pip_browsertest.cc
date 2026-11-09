@@ -44,14 +44,16 @@ namespace compass {
 
 namespace {
 
-// Shaped like a call: the user's own camera (a device track, the largest
-// tile), two remote tiles (canvas streams: tracks without a device), and
+// Shaped like a call: the user's own camera (the largest tile), two remote
+// tiles (canvas streams, picture-in-picture switched off as Teams does), and
 // Teams' buttons, whose labels say what they'd do.
 constexpr char kCallPage[] = R"(<!doctype html>
 <style>video { display: block; }</style>
 <video id="self" width="480" height="360" muted autoplay></video>
-<video id="small" width="200" height="150" muted autoplay></video>
-<video id="large" width="400" height="300" muted autoplay></video>
+<video id="small" width="200" height="150" muted autoplay
+    disablepictureinpicture></video>
+<video id="large" width="400" height="300" muted autoplay
+    disablepictureinpicture></video>
 <button id="microphone-button" aria-label="Mute mic"></button>
 <button id="video-button" aria-label="Turn camera off"></button>
 <button id="hangup-button" aria-label="Leave"></button>

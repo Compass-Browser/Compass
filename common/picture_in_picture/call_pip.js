@@ -80,15 +80,30 @@
         getComputedStyle(element).visibility !== 'hidden';
   };
 
-  // The user's own camera: its tracks come from a device; remote ones don't.
-  const isOwnCamera = (video) =>
+  // The user's own camera: a track named as one of their cameras (Chrome
+  // gives remote tracks a device id too, but names them otherwise, e.g.
+  // Teams' "remote video"), or a mirrored preview.
+  let cameraLabels = new Set();
+  const refreshCameras = () => {
+    const devices = navigator.mediaDevices;
+    if (!devices || !devices.enumerateDevices) {
+      return;
+    }
+    devices.enumerateDevices().then((list) => {
+      cameraLabels = new Set(list.filter((d) => d.kind === 'videoinput' && d.label)
+                                 .map((d) => d.label));
+    }).catch(() => {});
+  };
+  const mirrored = (video) =>
+      /^matrix\(-1,/.test(getComputedStyle(video).transform);
+  const isOwnCamera = (video) => mirrored(video) ||
       video.srcObject.getVideoTracks().some((track) =>
-          !!(track.getSettings && track.getSettings().deviceId));
+          cameraLabels.has(track.label));
   const isRemoteVideo = (video) =>
       video instanceof HTMLVideoElement &&
       video.srcObject instanceof MediaStream &&
       video.srcObject.getVideoTracks().some((t) => t.readyState === 'live') &&
-      !isOwnCamera(video) && !video.disablePictureInPicture;
+      !isOwnCamera(video);
 
   // A canvas the site draws into, as a video: captured into a hidden
   // <video> that picture-in-picture can show. Made ahead (update()), as
@@ -146,13 +161,20 @@
     }
     return all.reduce((a, b) => area(b) > area(a) ? b : a);
   };
+  // Sites switch picture-in-picture off on their tiles (Teams sets
+  // disablePictureInPicture): on a call, the pick gets it back, as the
+  // window is what Compass offers here.
   const pick = () => {
     const element = pickElement();
     if (!element) {
       return null;
     }
-    return element instanceof HTMLCanvasElement ? videoForCanvas(element)
-                                                : element;
+    const video = element instanceof HTMLCanvasElement ?
+        videoForCanvas(element) : element;
+    if (video && video.disablePictureInPicture) {
+      video.disablePictureInPicture = false;
+    }
+    return video;
   };
 
   const inCall = () => !!query(site.hangUp) && candidates().length > 0;
@@ -219,6 +241,8 @@
   };
 
   const update = () => {
+    // Labels show once the page may use the camera: asked again each time.
+    refreshCameras();
     const on = inCall();
     for (const [action, handler] of Object.entries(handlers)) {
       setHandler(action, on ? handler : null);
