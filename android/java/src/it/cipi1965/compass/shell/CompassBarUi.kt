@@ -9,6 +9,7 @@ import android.os.Build
 import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ object CompassBarUi {
         onBack: Runnable,
         onForward: Runnable,
         onNewTab: Runnable,
+        onAddressClick: Runnable,
         onBackgroundColor: IntConsumer,
     ): View {
         val view = ComposeView(context)
@@ -64,7 +66,13 @@ object CompassBarUi {
                 // Chrome paints the strip under the navigation bar in the bar's color.
                 val background = MaterialTheme.colorScheme.surfaceContainer.toArgb()
                 SideEffect { onBackgroundColor.accept(background) }
-                Bar(state, { onBack.run() }, { onForward.run() }, { onNewTab.run() })
+                Bar(
+                    state,
+                    { onBack.run() },
+                    { onForward.run() },
+                    { onNewTab.run() },
+                    { onAddressClick.run() },
+                )
             }
         }
         return view
@@ -89,6 +97,7 @@ private fun Bar(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onNewTab: () -> Unit,
+    onAddressClick: () -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxSize()) {
         Row(
@@ -104,6 +113,7 @@ private fun Bar(
                         .height(44.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .clickable(onClick = onAddressClick)
                         .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {

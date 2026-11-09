@@ -1,0 +1,16 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java b/chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java
+index af93130ed9e80aed52b540c5f2cd0c4673b44734..239f489f999c283594ff682be859d4609bdba7e1 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java
+@@ -246,7 +246,10 @@ public abstract class FirstRunFlowSequencer {
+         // Retail demo mode suppresses the FRE, except on desktop devices where the signed-in
+         // experience needs to be showcased. Account visibility controls whether sign-in is
+         // actually available on those devices.
+-        if (CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
++        // Compass: no first run either, as on the desktop: no Google terms or sign-in.
++        boolean compassSkipsFirstRun = true;
++        if (compassSkipsFirstRun
++                || CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
+                 || (DeviceInfo.isRetailDemoMode() && !DeviceInfo.isDesktop())
+                 || ApiCompatibilityUtils.isRunningInUserTestHarness()) {
+             return false;

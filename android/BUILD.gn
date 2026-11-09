@@ -31,6 +31,8 @@ android_library("java") {
     "//chrome/browser/browser_controls/android:java",
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
+    "//chrome/browser/ui/android/omnibox:java",
+    "//components/omnibox/browser:browser_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_compose_foundation_foundation_java",
     "//third_party/androidx:androidx_compose_foundation_foundation_layout_java",
@@ -40,6 +42,7 @@ android_library("java") {
     "//third_party/androidx:androidx_compose_ui_ui_java",
     "//third_party/androidx:androidx_compose_ui_ui_text_java",
     "//third_party/androidx:androidx_compose_ui_ui_unit_java",
+    "//third_party/androidx:androidx_coordinatorlayout_coordinatorlayout_java",
     "//third_party/androidx:androidx_lifecycle_lifecycle_common_java",
     "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
     "//third_party/androidx:androidx_savedstate_savedstate_java",
@@ -49,10 +52,28 @@ android_library("java") {
   enable_compose = true
 }
 
+# Compass's launcher icon in place of Chromium's (ic_launcher in
+# //chrome/android:chrome_base_module_resources): an adaptive icon from
+# assets/compass_glyph.svg.
+android_resources("icon_resources") {
+  sources = [
+    "res/drawable/compass_icon_background.xml",
+    "res/drawable/compass_icon_foreground.xml",
+    "res/drawable/compass_icon_monochrome.xml",
+    "res/drawable/ic_launcher.xml",
+    "res/drawable/ic_launcher_round.xml",
+  ]
+  resource_overlay = true
+  deps = [ "//chrome/android:chrome_base_module_resources" ]
+}
+
 chrome_public_apk_or_module_tmpl("compass_apk") {
   target_type = "android_apk"
   apk_name = "Compass"
   manifest_package = "it.cipi1965.compass"
   jinja_input = "//compass/android/AndroidManifest.xml"
-  deps = [ ":java" ]
+  deps = [
+    ":icon_resources",
+    ":java",
+  ]
 }
