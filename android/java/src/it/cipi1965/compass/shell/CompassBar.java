@@ -17,6 +17,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import it.cipi1965.compass.extras.CompassIntents;
 
+import org.chromium.base.Callback;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -27,6 +28,7 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerT
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerVisibility;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.layouts.LayoutType;
+import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
@@ -53,6 +55,13 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable Spaces mSpaces;
     private @Nullable ClaudeChat mClaude;
     private @Nullable Integer mBackgroundColor;
+    private @Nullable SyncScreen mSync;
+    private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
+    private @Nullable TabModel mTabs;
+    private final Callback<Integer> mTabCountObserver =
+            count -> {
+                if (mTabs != null) mState.setTabCount(mTabs.getCount());
+            };
 
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
         mActivity = activity;
@@ -79,6 +88,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
         SyncScreen sync = new SyncScreen(mActivity, coordinator);
+        mSync = sync;
         mClaude = new ClaudeChat(mActivity, coordinator);
         spaces.setOnOpenSync(sync::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
@@ -102,7 +112,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                 });
 
         // Registers itself with the tab provider.
-        new ActivityTabProvider.ActivityTabTabObserver(
+        mTabObserver =
+                new ActivityTabProvider.ActivityTabTabObserver(
                         mActivity.getActivityTabProvider(), true) {
                     @Override
                     protected void onObservingDifferentTab(@Nullable Tab tab) {
@@ -126,11 +137,28 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                 };
 
         TabModel tabs = mActivity.getTabModelSelector().getModel(false);
-        tabs.getTabCountSupplier()
-                .addSyncObserverAndCall(count -> mState.setTabCount(tabs.getCount()));
+        mTabs = tabs;
+        tabs.getTabCountSupplier().addSyncObserverAndCall(mTabCountObserver);
 
         mBottomControls.addLayer(this);
         mBottomControls.requestLayerUpdate(false);
+        mActivity.getLifecycleDispatcher().register((DestroyObserver) this::destroy);
+    }
+
+    // The activity is going away (a window closed, or Android recreating it): the native bridges
+    // and the tab observers go with it.
+    private void destroy() {
+        if (mTabObserver != null) mTabObserver.destroy();
+        if (mTabs != null) mTabs.getTabCountSupplier().removeObserver(mTabCountObserver);
+        mBottomControls.removeLayer(this);
+        if (mSpaces != null) mSpaces.destroy();
+        if (mSync != null) mSync.destroy();
+        if (mClaude != null) mClaude.destroy();
+        mTabObserver = null;
+        mSpaces = null;
+        mSync = null;
+        mClaude = null;
+        mCommandBar = null;
     }
 
     private void update(@Nullable Tab tab) {
