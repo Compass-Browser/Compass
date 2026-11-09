@@ -48,39 +48,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Compass's look on Android, after the iOS app's (ios/App/Views/Theme.swift; docs/design/android.md,
- * "Look"): iOS's neutral colors instead of Material You's, the space's tint, frosted floating bars,
- * cards and rows. Sizes are the iOS points as dp.
+ * Compass's look on Android (docs/design/android.md, "Look"): the iOS app's layout, in Material
+ * You: the dynamic color scheme, tonal surfaces and Material 3 shapes, and the space's tint.
  */
 object CompassStyle {
-    val rowHeight = 44.dp
-    val rowRadius = 10.dp
-    val favicon = 18.dp
+    val rowHeight = 48.dp
+    val rowRadius = 24.dp
+    val favicon = 20.dp
     val indent = 18.dp
-    val tileHeight = 52.dp
-    val tileRadius = 12.dp
+    val tileHeight = 56.dp
+    val tileRadius = 16.dp
 
-    /** Tiles, pressed rows, the profile chip, the ⋯ circle. */
-    val fill = Color(0xFF8E8E93).copy(alpha = 0.14f)
-    val greyAccent = Color(0.55f, 0.57f, 0.62f)
-    val blue = Color(0xFF007AFF)
-    val orange = Color(0xFFFF9500)
-    val green = Color(0xFF34C759)
-    val red = Color(0xFFFF3B30)
-    val purple = Color(0xFFAF52DE)
-    val teal = Color(0xFF30B0C7)
-    val indigo = Color(0xFF5856D6)
-    val gray = Color(0xFF8E8E93)
+    /** Tiles, the profile chip, the ⋯ circle, pressed rows. */
+    val fill: Color
+        @Composable get() = MaterialTheme.colorScheme.surfaceContainerHighest
 
-    /** The selected row or tile: iOS's card color. */
+    /** The selected row or tile, as a navigation drawer's active item. */
     @Composable
-    fun active(): Color = MaterialTheme.colorScheme.surfaceContainerHigh
+    fun active(): Color = MaterialTheme.colorScheme.secondaryContainer
 
-    /** Cards on a tinted sheet. */
+    /** Cards and tonal buttons on a sheet. */
     @Composable
-    fun cardFill(): Color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.82f)
+    fun cardFill(): Color = MaterialTheme.colorScheme.surfaceContainerHigh
 
-    /** A color's sidebar tint: desaturated toward its luma (Theme.swift, RGB.tint). */
+    /** A color's sidebar tint: desaturated toward its luma (as the desktop's and iOS's). */
     fun tint(color: Color): Color {
         fun channel(l: Float, v: Float) = (0.96f * (l + 0.72f * (v - l))).coerceIn(0f, 1f)
         val l = 0.299f * color.red + 0.587f * color.green + 0.114f * color.blue
@@ -91,60 +82,23 @@ object CompassStyle {
     fun parse(tint: String): Color? =
         if (tint.isEmpty()) null else runCatching { Color(android.graphics.Color.parseColor(tint)) }.getOrNull()
 
-    /** A space's accent: its color, or grey. */
-    fun accent(tint: String): Color = parse(tint) ?: greyAccent
+    val greyAccent = Color(0.55f, 0.57f, 0.62f)
+
+    /** A space's accent: its color, or the theme's primary for grey. */
+    @Composable
+    fun accent(tint: String): Color = parse(tint) ?: MaterialTheme.colorScheme.primary
 }
 
-/** iOS's system colors as Material's color scheme, so every Compose screen is neutral. */
+/** Material You: the wallpaper's dynamic colors (Android 12+), else Material's baseline. */
 @Composable
 internal fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val colors =
-        if (dark) {
-            darkColorScheme(
-                primary = Color(0xFF0A84FF),
-                onPrimary = Color.White,
-                primaryContainer = Color(0xFF0A2A4D),
-                onPrimaryContainer = Color.White,
-                secondaryContainer = Color(0xFF2C2C2E),
-                onSecondaryContainer = Color.White,
-                background = Color.Black,
-                onBackground = Color.White,
-                surface = Color.Black,
-                onSurface = Color.White,
-                surfaceVariant = Color(0xFF2C2C2E),
-                onSurfaceVariant = Color(0xFF8D8D93),
-                surfaceContainerLowest = Color.Black,
-                surfaceContainerLow = Color(0xFF111112),
-                surfaceContainer = Color(0xFF1C1C1E),
-                surfaceContainerHigh = Color(0xFF1C1C1E),
-                surfaceContainerHighest = Color(0xFF2C2C2E),
-                outline = Color(0xFF38383A),
-                outlineVariant = Color(0xFF2C2C2E),
-                error = Color(0xFFFF453A),
-            )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (dark) androidx.compose.material3.dynamicDarkColorScheme(context)
+            else androidx.compose.material3.dynamicLightColorScheme(context)
         } else {
-            lightColorScheme(
-                primary = Color(0xFF007AFF),
-                onPrimary = Color.White,
-                primaryContainer = Color(0xFFE5F0FF),
-                onPrimaryContainer = Color.Black,
-                secondaryContainer = Color(0xFFE5E5EA),
-                onSecondaryContainer = Color.Black,
-                background = Color.White,
-                onBackground = Color.Black,
-                surface = Color.White,
-                onSurface = Color.Black,
-                surfaceVariant = Color(0xFFE5E5EA),
-                onSurfaceVariant = Color(0xFF8A8A8E),
-                surfaceContainerLowest = Color.White,
-                surfaceContainerLow = Color(0xFFF2F2F7),
-                surfaceContainer = Color(0xFFF2F2F7),
-                surfaceContainerHigh = Color.White,
-                surfaceContainerHighest = Color(0xFFE5E5EA),
-                outline = Color(0xFFC6C6C8),
-                outlineVariant = Color(0xFFE5E5EA),
-                error = Color(0xFFFF3B30),
-            )
+            if (dark) darkColorScheme() else lightColorScheme()
         }
     MaterialTheme(colorScheme = colors, content = content)
 }
@@ -165,19 +119,10 @@ fun Modifier.spaceTint(tint: String, background: Color, intensity: Float = 0.31f
         )
 }
 
-/**
- * A frosted bar floating over the page (Theme.swift, floatingGlass): Compose can't blur what's
- * behind a view, so it's a nearly opaque fill with the hairline stroke and the soft shadow.
- */
+/** A bar floating over the page: a tonal surface (surfaceContainer) with a soft shadow. */
 @Composable
-fun Modifier.floatingGlass(shape: Shape): Modifier {
-    val surface = MaterialTheme.colorScheme.surfaceContainerHigh
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    return this.shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.12f))
-        .clip(shape)
-        .background(surface.copy(alpha = 0.94f))
-        .border(0.5.dp, onSurface.copy(alpha = 0.08f), shape)
-}
+fun Modifier.floatingGlass(shape: Shape): Modifier =
+    this.shadow(3.dp, shape).clip(shape).background(MaterialTheme.colorScheme.surfaceContainer)
 
 /** A Material Symbol (res_symbols) as SF Symbols are drawn: |pt| is the iOS point size. */
 @Composable
@@ -224,14 +169,11 @@ fun SiteTile(url: String) {
     }
 }
 
-/** A white glyph on a colored square, as iOS's Settings rows (PageMenu.swift, menuIcon). */
+/** A list item's leading icon, in Material's style: the glyph alone, in onSurfaceVariant. */
 @Composable
-fun MenuIcon(@DrawableRes id: Int, color: Color) {
-    Box(
-        Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(color),
-        contentAlignment = Alignment.Center,
-    ) {
-        Sym(id, 15f, Color.White)
+fun MenuIcon(@DrawableRes id: Int, @Suppress("UNUSED_PARAMETER") color: Color = Color.Unspecified) {
+    Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+        Sym(id, 20f, MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -239,73 +181,58 @@ fun MenuIcon(@DrawableRes id: Int, color: Color) {
 @Composable
 fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CompassStyle.cardFill()),
+        modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CompassStyle.cardFill()),
         content = content,
     )
 }
 
-/** A card under a small uppercase title (Theme.swift, CardSection). */
+/** A card under its section title, in Material's style (titleSmall, primary). */
 @Composable
 fun CardSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            title.uppercase(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.4.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
-            modifier = Modifier.padding(start = 6.dp),
+            modifier = Modifier.padding(start = 16.dp),
         )
         Card(content = content)
     }
 }
 
-/**
- * A card's row (Theme.swift, Row): a 32 icon, a title over a subtitle, a trailing glyph; a
- * hairline above all but the first; the press fills it lightly.
- */
+/** A card's row, as a Material list item: leading icon, headline, supporting text, trailing. */
 @Composable
 fun CardRow(
     title: String,
     subtitle: String = "",
-    first: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") first: Boolean = false,
     @DrawableRes trailing: Int? = null,
     onClick: () -> Unit,
     icon: @Composable () -> Unit,
 ) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    Column {
-        if (!first) {
-            Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(0.5.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)))
-        }
-        Row(
-            Modifier.fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .background(if (pressed) onSurface.copy(alpha = 0.08f) else Color.Transparent)
-                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            icon()
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (subtitle.isNotEmpty()) {
-                    Text(
-                        subtitle,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+    Row(
+        Modifier.fillMaxWidth()
+            .heightIn(min = if (subtitle.isEmpty()) 56.dp else 72.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        icon()
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Spacer(Modifier.width(4.dp))
-            if (trailing != null) Sym(trailing, 13f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
         }
+        if (trailing != null) Sym(trailing, 16f, MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -315,9 +242,9 @@ fun Grabber(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.TopCenter) {
         Box(
             Modifier.padding(top = 7.dp)
-                .size(width = 40.dp, height = 5.dp)
-                .clip(RoundedCornerShape(2.5.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f))
+                .size(width = 32.dp, height = 4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
         )
     }
 }

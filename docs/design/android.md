@@ -200,13 +200,13 @@ It costs:
   keeps. As on the
   desktop's empty tab, a tab on it has no sidebar entry until it goes
   somewhere (`SpacesAndroid`).
-- **Look.** The shell follows the iOS app's look (ios.md; Theme.swift's
-  tokens in `CompassStyle.kt`), not Material You:
-  - iOS's neutral system colors as Compose's color scheme (`CompassTheme`),
-    the space's tint behind sheets (`spaceTint`), frosted floating bars
-    (`floatingGlass`, an opaque fill and shadow: Compose can't blur what's
-    behind a view), cards and rows (`Card`, `CardSection`, `CardRow`) and
-    site icons from Chrome's favicon database (`Favicons`, `SiteIcon`).
+- **Look.** The shell has the iOS app's layout (ios.md) in Material You's
+  style (`CompassStyle.kt`): the dynamic color scheme (`CompassTheme`),
+  tonal surfaces and Material 3 shapes and components (list items, tonal
+  buttons, menus with leading icons, a snackbar for undo, a FAB), with the
+  space's tint behind the sidebar, the picker and the start page
+  (`spaceTint`) and site icons from Chrome's favicon database (`Favicons`,
+  `SiteIcon`).
   - Icons are Material Symbols Rounded, weight 500, in place of SF Symbols
     (`android/res_symbols`, `android/material_symbols.md`).
   - **The bar** (`CompassBarUi.kt`) is the iOS app's: back, forward, the
@@ -226,14 +226,14 @@ It costs:
     next match and Done, over Chrome's `FindInPageBridge`. Chrome's find
     bar is part of the toolbar the shell hides.
   - **Undo closing**: tabs closed from the sidebar, the picker or Today's
-    Clear show iOS's toast over the bar ("Closed “Title”", Undo; four
-    seconds, or a flick down) instead of Chrome's snackbar
+    Clear show a Material snackbar over the bar ("Closed “Title”", Undo;
+    four seconds, or a flick down) instead of Chrome's
     (`UndoToast`, `UndoToastUi.kt`): a closure the tab model holds pending
     shows it, Undo cancels the closure and its end commits it; the
     `UndoBarController` patch keeps Chrome's snackbar away.
     A tab brought back gets a new Today entry.
   - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
-    sidebar's gear and the page menu: Sync, then the Chrome settings pages
+    sidebar's gear and the page menu, a Material settings screen: Sync, then the Chrome settings pages
     Compass keeps, each opened at its page (search engine, passwords, clear
     browsing data, site settings, privacy, …), and Passwords in Other Apps,
     Claude and Extensions.

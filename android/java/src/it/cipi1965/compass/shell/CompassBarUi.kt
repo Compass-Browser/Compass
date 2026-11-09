@@ -222,7 +222,7 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
             Modifier.fillMaxWidth()
                 .height(44.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -285,13 +285,15 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
     }
 }
 
-/** A menu item with its glyph on the trailing side, as iOS's menus. */
+/** A Material menu item: its icon leading. */
 @Composable
 internal fun MenuItem(label: String, @DrawableRes icon: Int, destructive: Boolean = false, onClick: () -> Unit) {
     val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     DropdownMenuItem(
-        text = { Text(label, fontSize = 17.sp, color = color) },
-        trailingIcon = { Sym(icon, 17f, color) },
+        text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = color) },
+        leadingIcon = {
+            Sym(icon, 17f, if (destructive) color else MaterialTheme.colorScheme.onSurfaceVariant)
+        },
         onClick = onClick,
     )
 }

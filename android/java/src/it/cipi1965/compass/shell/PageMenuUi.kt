@@ -151,7 +151,7 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
                 .fillMaxWidth()
                 .offset { IntOffset(0, drag.value.roundToInt()) }
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .spaceTint(if (state.incognito) "" else state.tint, MaterialTheme.colorScheme.surfaceContainerLow)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 // Taps on the sheet don't reach the scrim.
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                 .pointerInput(Unit) {
@@ -180,7 +180,7 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
                     if (state.pinned) "Unpin" else "Pin",
                     if (state.pinned) R.drawable.compass_sym_keep_off else R.drawable.compass_sym_keep,
                     enabled = !state.incognito && state.url.isNotEmpty(),
-                    tint = if (state.pinned) CompassStyle.accent(state.tint) else null,
+                    selected = state.pinned,
                 ) {
                     listener.onTogglePin()
                 }
@@ -199,7 +199,7 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
                     trailing = R.drawable.compass_sym_chevron_right,
                     onClick = { listener.onSiteSettings() },
                 ) {
-                    MenuIcon(R.drawable.compass_sym_tune, CompassStyle.blue)
+                    MenuIcon(R.drawable.compass_sym_tune)
                 }
                 CardRow(
                     "Settings",
@@ -207,7 +207,7 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
                     trailing = R.drawable.compass_sym_chevron_right,
                     onClick = { listener.onSettings() },
                 ) {
-                    MenuIcon(R.drawable.compass_sym_settings_fill, CompassStyle.gray)
+                    MenuIcon(R.drawable.compass_sym_settings_fill)
                 }
             }
         }
@@ -232,8 +232,7 @@ private fun AddressCard(state: PageMenuState, listener: PageMenuUi.Listener) {
         CardIcon(R.drawable.compass_sym_arrow_forward_ios, state.canGoForward) { listener.onForward() }
         Text(
             state.host.removePrefix("www.").ifEmpty { "Search or enter address" },
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier =
@@ -261,44 +260,46 @@ private fun CardIcon(@DrawableRes icon: Int, enabled: Boolean, onClick: () -> Un
     }
 }
 
-/** A square action: its glyph over its label, on a card (PageMenu.swift, tile). */
+/** A square action: its glyph over its label, on a tonal container (primary when selected). */
 @Composable
 private fun RowScope.Tile(
     label: String,
     @DrawableRes icon: Int,
     enabled: Boolean = true,
-    tint: Color? = null,
+    selected: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val color = tint ?: MaterialTheme.colorScheme.onSurface
+    val container = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val content = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
     Column(
         Modifier.weight(1f)
             .height(84.dp)
-            .scale(if (pressed) 0.96f else 1f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(CompassStyle.cardFill())
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .alpha(if (enabled) 1f else 0.35f),
+            .clip(RoundedCornerShape(20.dp))
+            .background(container)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.38f),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
-        Sym(icon, 22f, color)
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color, maxLines = 1)
+        Sym(icon, 20f, content)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = content, maxLines = 1)
     }
 }
 
-/** A wide capsule action (PageMenu.swift, Downloads and Archive). */
+/** A wide action: Material's filled tonal button. */
 @Composable
 private fun RowScope.WideButton(label: String, @DrawableRes icon: Int, onClick: () -> Unit) {
     Row(
-        Modifier.weight(1f).height(50.dp).clip(CircleShape).background(CompassStyle.cardFill()).clickable(onClick = onClick),
+        Modifier.weight(1f)
+            .height(48.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
-        Sym(icon, 17f)
-        Text(label, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Sym(icon, 15f, MaterialTheme.colorScheme.onSecondaryContainer)
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
     }
 }
 

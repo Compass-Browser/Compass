@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -123,8 +125,8 @@ private fun CommandBar(state: CommandBarState, listener: CommandBarUi.Listener) 
             Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(top = 10.dp)
-                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                .spaceTint(if (state.incognito) "" else state.tint, MaterialTheme.colorScheme.surfaceContainerLow)
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                 .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
         ) {
@@ -142,41 +144,34 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
     val keyboard = LocalSoftwareKeyboardController.current
     // The page's address starts all selected, to type over.
     var value by remember { mutableStateOf(TextFieldValue(state.text, TextRange(0, state.text.length))) }
-    var focused by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         focus.requestFocus()
         keyboard?.show()
     }
     Column(
-        Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 22.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
             if (state.editing) "Go to" else if (state.incognito) "New incognito tab" else "New tab in ${state.spaceName.ifEmpty { "this space" }}",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp),
+            modifier = Modifier.padding(start = 16.dp),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 Modifier.weight(1f)
-                    .height(46.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(CompassStyle.cardFill())
-                    .border(
-                        if (focused) 1.5.dp else 0.dp,
-                        if (focused) CompassStyle.accent(state.tint).copy(alpha = 0.55f) else Color.Transparent,
-                        RoundedCornerShape(14.dp),
-                    )
-                    .padding(horizontal = 12.dp),
+                    .height(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Sym(R.drawable.compass_sym_search, 16f, MaterialTheme.colorScheme.onSurfaceVariant)
                 Box(Modifier.weight(1f)) {
                     if (value.text.isEmpty()) {
-                        Text("Search or enter address", fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        Text("Search or enter address", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                     BasicTextField(
                         value = value,
@@ -185,8 +180,8 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                             if (it.text != state.text) listener.onTextChanged(it.text)
                         },
                         singleLine = true,
-                        textStyle = TextStyle(fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface),
-                        cursorBrush = SolidColor(CompassStyle.accent(state.tint)),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         keyboardOptions =
                             KeyboardOptions(
                                 capitalization = KeyboardCapitalization.None,
@@ -195,7 +190,7 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                                 imeAction = ImeAction.Go,
                             ),
                         keyboardActions = KeyboardActions(onGo = { listener.onSubmit(value.text) }),
-                        modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged { focused = it.isFocused },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
                     )
                 }
                 if (value.text.isNotEmpty()) {
@@ -210,12 +205,7 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                     }
                 }
             }
-            Text(
-                "Cancel",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.clickable { listener.onDismiss() }.padding(vertical = 8.dp),
-            )
+            TextButton(onClick = { listener.onDismiss() }) { Text("Cancel") }
         }
     }
 }
@@ -240,10 +230,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
                         trailing = R.drawable.compass_sym_keyboard_return,
                         onClick = { listener.onSubmit(text) },
                     ) {
-                        MenuIcon(
-                            if (state.typedIsAddress) R.drawable.compass_sym_public else R.drawable.compass_sym_search,
-                            CompassStyle.accent(state.tint),
-                        )
+                        MenuIcon(if (state.typedIsAddress) R.drawable.compass_sym_public else R.drawable.compass_sym_search)
                     }
                 }
             }
