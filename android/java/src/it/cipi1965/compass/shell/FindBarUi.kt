@@ -129,7 +129,7 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
                 value = state.text,
                 onValueChange = { listener.onTextChanged(it) },
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { listener.onNext(true) }),
@@ -157,13 +157,7 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
         ) {
             Sym(R.drawable.compass_sym_chevron_right, 18f, modifier = Modifier.rotate(90f).alpha(if (enabled) 1f else 0.3f))
         }
-        Text(
-            "Done",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clickable { listener.onDone() }.padding(start = 4.dp, top = 8.dp, bottom = 8.dp),
-        )
+        androidx.compose.material3.TextButton(onClick = { listener.onDone() }) { Text("Done") }
     }
 }
 }

@@ -190,7 +190,7 @@ object SidebarUi {
             CompassTheme(dark = isSystemInDarkTheme()) {
                 Box(
                     Modifier.fillMaxSize()
-                        .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surface)
+                        .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surfaceContainerLow)
                         .windowInsetsPadding(WindowInsets.safeDrawing)
                 ) {
                     SidebarContent(state, listener, Modifier.padding(top = 8.dp))
@@ -234,7 +234,7 @@ private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
                 .offset { IntOffset(0, (heightPx * (1f - position.value)).roundToInt()) }
                 .shadow(16.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                 .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surface)
+                .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                 // Chrome's layout keeps the navigation bar's inset from its children: at least
                 // the gesture bar's height, then.
@@ -333,7 +333,6 @@ private fun FavoritesGrid(state: SidebarState, listener: SidebarUi.Listener) {
                         Modifier.weight(1f)
                             .heightIn(min = CompassStyle.tileHeight)
                             .scale(if (pressed) 0.95f else 1f)
-                            .then(if (shown) Modifier.shadow(1.5.dp, RoundedCornerShape(CompassStyle.tileRadius)) else Modifier)
                             .clip(RoundedCornerShape(CompassStyle.tileRadius))
                             .background(if (shown) CompassStyle.active() else CompassStyle.fill)
                             .combinedClickable(
@@ -366,7 +365,7 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(space.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(space.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.weight(1f))
         Box {
             Box(
@@ -486,19 +485,16 @@ private fun SectionHeader(title: String, trailing: String? = null, onTrailing: (
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            title.uppercase(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.4.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         if (trailing != null) {
             Text(
                 trailing,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clip(CircleShape).clickable(onClick = onTrailing).padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
@@ -538,13 +534,12 @@ private fun NewTabRow(listener: SidebarUi.Listener) {
             .height(CompassStyle.rowHeight)
             .clip(RoundedCornerShape(CompassStyle.rowRadius))
             .combinedClickable(onLongClick = { listener.onNewIncognitoTab() }, onClick = { listener.onNewTab() })
-            .padding(horizontal = 12.dp)
-            .alpha(0.7f),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) { Sym(R.drawable.compass_sym_add, 15f) }
-        Text("New Tab", fontSize = 16.sp)
+        Text("New Tab", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -585,7 +580,6 @@ private fun NodeRow(
             Modifier.fillMaxWidth()
                 .height(CompassStyle.rowHeight)
                 .scale(if (pressed) 0.98f else 1f)
-                .then(if (shown) Modifier.shadow(1.5.dp, shape) else Modifier)
                 .clip(shape)
                 .background(if (shown) CompassStyle.active() else if (pressed) CompassStyle.fill else Color.Transparent)
                 .combinedClickable(
@@ -613,7 +607,7 @@ private fun NodeRow(
                     15f,
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
-                Text(node.title, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(node.title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             } else {
                 Box(Modifier.alpha(if (dim) 0.55f else 1f)) {
                     SiteIcon(node.url, CompassStyle.favicon)
@@ -622,7 +616,8 @@ private fun NodeRow(
                 }
                 Text(
                     node.title.ifEmpty { "Untitled" },
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (shown) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.alpha(if (dim) 0.55f else 1f),

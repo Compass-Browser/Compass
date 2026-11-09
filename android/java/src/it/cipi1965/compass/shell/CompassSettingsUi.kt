@@ -14,6 +14,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -110,87 +114,86 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
     fun open(row: CompassSettingsUi.Row) = listener.onRow(row)
     Box(
         Modifier.fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         Column(Modifier.fillMaxSize()) {
-            // The title bar: "Settings", and Done.
-            Box(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp)) {
+            // Material's top app bar: back, and the title.
+            Row(
+                Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(48.dp).clip(CircleShape).clickable { listener.onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Sym(R.drawable.compass_sym_arrow_back, 20f)
+                }
                 Text(
                     "Settings",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-                Text(
-                    "Done",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier =
-                        Modifier.align(Alignment.CenterEnd).clickable { listener.onDismiss() }.padding(vertical = 8.dp),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             }
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
                 CardSection("Sync") {
                     CardRow("Sync", state.syncSummary, first = true, trailing = R.drawable.compass_sym_chevron_right, onClick = {
                         open(CompassSettingsUi.Row.SYNC)
                     }) {
-                        MenuIcon(R.drawable.compass_sym_sync, CompassStyle.blue)
+                        MenuIcon(R.drawable.compass_sym_sync)
                     }
                 }
                 CardSection("Browsing") {
-                    SettingsRow("Search Engine", R.drawable.compass_sym_search, CompassStyle.blue, first = true) {
+                    SettingsRow("Search Engine", R.drawable.compass_sym_search, first = true) {
                         open(CompassSettingsUi.Row.SEARCH_ENGINE)
                     }
-                    SettingsRow("Passwords", R.drawable.compass_sym_key_fill, CompassStyle.gray) {
+                    SettingsRow("Passwords", R.drawable.compass_sym_key_fill) {
                         open(CompassSettingsUi.Row.PASSWORDS)
                     }
                     SettingsRow(
                         "Passwords in Other Apps",
                         R.drawable.compass_sym_key_fill,
-                        CompassStyle.gray,
                         subtitle = "Fill your Compass passwords in apps",
                     ) {
                         open(CompassSettingsUi.Row.AUTOFILL_APPS)
                     }
-                    SettingsRow("Claude", R.drawable.compass_sym_auto_awesome, CompassStyle.orange) {
+                    SettingsRow("Claude", R.drawable.compass_sym_auto_awesome) {
                         open(CompassSettingsUi.Row.CLAUDE)
                     }
-                    SettingsRow("Extensions", R.drawable.compass_sym_extension_fill, CompassStyle.green) {
+                    SettingsRow("Extensions", R.drawable.compass_sym_extension_fill) {
                         open(CompassSettingsUi.Row.EXTENSIONS)
                     }
                 }
                 CardSection("Tabs and data") {
-                    SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete, CompassStyle.red, first = true) {
+                    SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete, first = true) {
                         open(CompassSettingsUi.Row.CLEAR_DATA)
                     }
-                    SettingsRow("Downloads", R.drawable.compass_sym_download, CompassStyle.blue) {
+                    SettingsRow("Downloads", R.drawable.compass_sym_download) {
                         open(CompassSettingsUi.Row.DOWNLOADS)
                     }
                 }
                 CardSection("Privacy") {
-                    SettingsRow("Site Settings", R.drawable.compass_sym_public, Color.Black, first = true) {
+                    SettingsRow("Site Settings", R.drawable.compass_sym_public, first = true) {
                         open(CompassSettingsUi.Row.SITE_SETTINGS)
                     }
-                    SettingsRow("Privacy and Security", R.drawable.compass_sym_shield, CompassStyle.indigo) {
+                    SettingsRow("Privacy and Security", R.drawable.compass_sym_shield) {
                         open(CompassSettingsUi.Row.PRIVACY)
                     }
-                    SettingsRow("Privacy Policy", R.drawable.compass_sym_lock, CompassStyle.indigo) {
+                    SettingsRow("Privacy Policy", R.drawable.compass_sym_lock) {
                         open(CompassSettingsUi.Row.PRIVACY_POLICY)
                     }
                 }
                 CardSection("General") {
-                    SettingsRow("Accessibility", R.drawable.compass_sym_tune, CompassStyle.blue, first = true) {
+                    SettingsRow("Accessibility", R.drawable.compass_sym_tune, first = true) {
                         open(CompassSettingsUi.Row.ACCESSIBILITY)
                     }
-                    SettingsRow("Languages", R.drawable.compass_sym_language, CompassStyle.teal) {
+                    SettingsRow("Languages", R.drawable.compass_sym_language) {
                         open(CompassSettingsUi.Row.LANGUAGES)
                     }
-                    SettingsRow("More Settings", R.drawable.compass_sym_settings_fill, CompassStyle.gray) {
+                    SettingsRow("More Settings", R.drawable.compass_sym_settings_fill) {
                         open(CompassSettingsUi.Row.MORE)
                     }
                 }
@@ -210,12 +213,11 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
 private fun SettingsRow(
     title: String,
     icon: Int,
-    color: Color,
     subtitle: String = "",
     first: Boolean = false,
     onClick: () -> Unit,
 ) {
     CardRow(title, subtitle, first = first, trailing = R.drawable.compass_sym_chevron_right, onClick = onClick) {
-        MenuIcon(icon, color)
+        MenuIcon(icon)
     }
 }

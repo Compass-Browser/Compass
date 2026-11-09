@@ -12,6 +12,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -81,33 +87,32 @@ private fun Toast(state: UndoToastUi.State, listener: UndoToastUi.Listener) {
             exit = slideOutVertically { it } + fadeOut(),
         ) {
             Row(
-                Modifier.widthIn(max = 480.dp)
-                    .floatingGlass(CircleShape)
+                Modifier.widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .shadow(6.dp, RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.inverseSurface)
                     .pointerInput(Unit) {
                         detectVerticalDragGestures { change, dy ->
                             change.consume()
                             if (dy > 8) listener.onDismiss()
                         }
                     }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(start = 16.dp, end = 8.dp)
+                    .heightIn(min = 48.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(
                     state.text,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.inverseOnSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.MiddleEllipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
-                Text(
-                    "Undo",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { listener.onUndo() },
-                )
+                TextButton(onClick = { listener.onUndo() }) {
+                    Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+                }
             }
         }
     }

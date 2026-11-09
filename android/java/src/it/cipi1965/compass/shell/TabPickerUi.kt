@@ -165,15 +165,17 @@ private fun TabPicker(state: TabPickerState, listener: TabPickerUi.Listener) {
             // Above the gesture bar: Chrome's layout keeps its inset from its children.
             Box(Modifier.fillMaxWidth().padding(bottom = 24.dp, top = 8.dp), contentAlignment = Alignment.Center) {
                 Box(
-                    Modifier.size(width = 84.dp, height = 48.dp)
-                        .floatingGlass(CircleShape)
+                    Modifier.size(56.dp)
+                        .shadow(3.dp, RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .combinedClickable(
                             onLongClick = { listener.onIncognito(true) },
                             onClick = { listener.onNewTab() },
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Sym(R.drawable.compass_sym_add, 22f)
+                    Sym(R.drawable.compass_sym_add, 20f, MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
         }

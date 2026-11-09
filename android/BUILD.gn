@@ -174,6 +174,7 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_account_circle.xml",
     "res_symbols/drawable/compass_sym_add.xml",
     "res_symbols/drawable/compass_sym_archive.xml",
+    "res_symbols/drawable/compass_sym_arrow_back.xml",
     "res_symbols/drawable/compass_sym_arrow_back_ios_new.xml",
     "res_symbols/drawable/compass_sym_arrow_forward.xml",
     "res_symbols/drawable/compass_sym_arrow_forward_ios.xml",
