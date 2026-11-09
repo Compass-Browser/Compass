@@ -32,12 +32,33 @@ void SpacesBridge::Destroy(JNIEnv* env) {
 }
 
 std::string SpacesBridge::Snapshot(JNIEnv* env) {
-  return spaces_->Snapshot();
+  if (spaces_->loaded()) {
+    // Adopts the list's active space until this window picks one, and again
+    // once its space is gone (removed here, or by sync).
+    space_id_ = spaces_->SpaceOrActive(space_id_).id();
+  }
+  return spaces_->Snapshot(space_id_);
+}
+
+std::string SpacesBridge::ShownSpace(JNIEnv* env) {
+  return spaces_->loaded() ? spaces_->SpaceOrActive(space_id_)
+                                 .id()
+                                 .AsLowercaseString()
+                           : std::string();
+}
+
+void SpacesBridge::ShowSpace(JNIEnv* env, const std::string& space_id) {
+  base::Uuid id = base::Uuid::ParseLowercase(space_id);
+  if (id.is_valid()) {
+    space_id_ = id;
+  }
 }
 
 void SpacesBridge::SetActiveSpace(JNIEnv* env, const std::string& space_id) {
   if (SpaceModel* space =
           spaces_->list().FindSpace(base::Uuid::ParseLowercase(space_id))) {
+    space_id_ = space->id();
+    // The list's active space is the last one a window showed.
     spaces_->list().SetActiveSpace(*space);
   }
 }
@@ -48,6 +69,7 @@ std::string SpacesBridge::AddSpace(JNIEnv* env, const std::u16string& name) {
   if (!space) {
     return std::string();
   }
+  space_id_ = space->id();
   list.SetActiveSpace(*space);
   return space->id().AsLowercaseString();
 }
@@ -129,7 +151,7 @@ void SpacesBridge::TabOpened(JNIEnv* env,
                              const std::string& url,
                              const std::u16string& title,
                              bool restored) {
-  spaces_->TabOpened(tab_id, GURL(url), title, restored);
+  spaces_->TabOpened(tab_id, GURL(url), title, restored, space_id_);
 }
 
 void SpacesBridge::TabOpenedForNode(JNIEnv* env,

@@ -42,6 +42,17 @@ public class SpacesBridge {
         return SpacesBridgeJni.get().snapshot(mNativeSpacesBridge);
     }
 
+    /** The space this window shows (empty until the spaces are loaded). */
+    public String shownSpace() {
+        return SpacesBridgeJni.get().shownSpace(mNativeSpacesBridge);
+    }
+
+    /** Shows a space here without making it the one new windows start on. */
+    public void showSpace(String spaceId) {
+        SpacesBridgeJni.get().showSpace(mNativeSpacesBridge, spaceId);
+    }
+
+    /** Shows a space in this window; new windows start on it too. */
     public void setActiveSpace(String spaceId) {
         SpacesBridgeJni.get().setActiveSpace(mNativeSpacesBridge, spaceId);
     }
@@ -107,6 +118,11 @@ public class SpacesBridge {
 
         @JniType("std::string")
         String snapshot(long nativeSpacesBridge);
+
+        @JniType("std::string")
+        String shownSpace(long nativeSpacesBridge);
+
+        void showSpace(long nativeSpacesBridge, @JniType("std::string") String spaceId);
 
         void setActiveSpace(long nativeSpacesBridge, @JniType("std::string") String spaceId);
 

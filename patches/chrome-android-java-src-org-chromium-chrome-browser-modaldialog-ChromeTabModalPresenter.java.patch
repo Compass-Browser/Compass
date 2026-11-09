@@ -1,0 +1,41 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java b/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java
+index 22ef22a1a0b9d82989db457db584ac897f0b37ec..10ec96c1ab490f1e709b0c4e7e3f59740290a8e9 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java
+@@ -180,8 +180,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
+         maybeUpdateDialogLayout();
+ 
+         // Don't show the dialog container before browser controls are guaranteed fully visible.
+-        if (BrowserControlsUtils.areBrowserControlsFullyVisible(
+-                mBrowserControlsVisibilityManager)) {
++        if (areControlsFullyVisible()) {
+             runEnterAnimation();
+         } else {
+             mRunEnterAnimationOnCallback = true;
+@@ -232,6 +231,16 @@ public class ChromeTabModalPresenter extends TabModalPresenter
+         mScrimManager.showScrim(mScrimModel);
+     }
+ 
++    private boolean areControlsFullyVisible() {
++        // Compass: its shell hides the top toolbar (0 px, which counts as hidden) and has its bar
++        // in the bottom controls (docs/design/android.md): those are the ones to wait for.
++        if (it.cipi1965.compass.CompassShell.isPresent()) {
++            return mBrowserControlsVisibilityManager.getBottomControlHiddenRatio() == 0.f;
++        }
++        return BrowserControlsUtils.areBrowserControlsFullyVisible(
++                mBrowserControlsVisibilityManager);
++    }
++
+     @Override
+     protected void setBrowserControlsAccess(boolean restricted) {
+         if (restricted) {
+@@ -321,8 +330,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
+             boolean isVisibilityForced) {
+         if (getDialogModel() == null
+                 || !mRunEnterAnimationOnCallback
+-                || !BrowserControlsUtils.areBrowserControlsFullyVisible(
+-                        mBrowserControlsVisibilityManager)) {
++                || !areControlsFullyVisible()) {
+             return;
+         }
+         mRunEnterAnimationOnCallback = false;

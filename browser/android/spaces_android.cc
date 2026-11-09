@@ -85,10 +85,16 @@ void SpacesAndroid::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-std::string SpacesAndroid::Snapshot() const {
+SpaceModel& SpacesAndroid::SpaceOrActive(const base::Uuid& space_id) const {
+  SpaceModel* space = space_id.is_valid() ? list_.FindSpace(space_id) : nullptr;
+  return space ? *space : list_.active_space();
+}
+
+std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
+  const SpaceModel& shown = SpaceOrActive(space_id);
   base::DictValue snapshot;
   snapshot.Set("loaded", loaded_);
-  snapshot.Set("active", list_.active_space().id().AsLowercaseString());
+  snapshot.Set("active", shown.id().AsLowercaseString());
   base::ListValue spaces;
   for (const auto& space : list_.spaces()) {
     base::DictValue dict;
@@ -107,8 +113,8 @@ std::string SpacesAndroid::Snapshot() const {
   }
   snapshot.Set("spaces", std::move(spaces));
   snapshot.Set("favorites", SnapshotSection(*list_.favorites().pinned_root()));
-  snapshot.Set("pinned", SnapshotSection(*list_.active_space().pinned_root()));
-  snapshot.Set("today", SnapshotSection(*list_.active_space().today_root()));
+  snapshot.Set("pinned", SnapshotSection(*shown.pinned_root()));
+  snapshot.Set("today", SnapshotSection(*shown.today_root()));
   return base::WriteJson(snapshot).value_or("{}");
 }
 
@@ -144,7 +150,8 @@ base::ListValue SpacesAndroid::SnapshotSection(const SidebarNode& root) const {
 void SpacesAndroid::TabOpened(int tab_id,
                               const GURL& url,
                               const std::u16string& title,
-                              bool restored) {
+                              bool restored,
+                              const base::Uuid& space_id) {
   if (tabs_.contains(tab_id)) {
     return;
   }
@@ -153,10 +160,10 @@ void SpacesAndroid::TabOpened(int tab_id,
     return;
   }
   if (!loaded_) {
-    pending_tabs_.push_back({tab_id, url, title});
+    pending_tabs_.push_back({tab_id, url, title, space_id});
     return;
   }
-  SpaceModel& space = list_.active_space();
+  SpaceModel& space = SpaceOrActive(space_id);
   if (restored) {
     if (SidebarNode* node = FindUnopenedEntry(url)) {
       tabs_[tab_id] = node->id();
@@ -362,7 +369,7 @@ void SpacesAndroid::OnLoaded() {
   std::vector<PendingTab> pending;
   pending.swap(pending_tabs_);
   for (const PendingTab& tab : pending) {
-    TabOpened(tab.id, tab.url, tab.title, /*restored=*/true);
+    TabOpened(tab.id, tab.url, tab.title, /*restored=*/true, tab.space_id);
   }
   std::vector<base::OnceClosure> callbacks;
   callbacks.swap(on_loaded_);

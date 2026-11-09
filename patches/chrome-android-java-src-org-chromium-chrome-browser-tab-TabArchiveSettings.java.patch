@@ -1,0 +1,14 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/tab/TabArchiveSettings.java b/chrome/android/java/src/org/chromium/chrome/browser/tab/TabArchiveSettings.java
+index b24ad05d9e50cc74f84fedb8108a103953d0640b..b2fcf4c43ee4a1cd9a6dc5230e20ca7a1cc75d62 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/tab/TabArchiveSettings.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/tab/TabArchiveSettings.java
+@@ -178,6 +178,9 @@ public class TabArchiveSettings {
+ 
+     /** Returns whether archive is enabled in settings. */
+     public boolean getArchiveEnabled() {
++        // Compass: its sidebar archives tabs itself (Today, then the archive); Chrome moving
++        // tabs out of the window would take them from under it (docs/design/android.md).
++        if (it.cipi1965.compass.CompassShell.isPresent()) return false;
+         if (isArchiveForceDisabled()) {
+             return false;
+         }

@@ -32,6 +32,10 @@ class SpacesBridge : public SpacesAndroid::Observer {
 
   void Destroy(JNIEnv* env);
   std::string Snapshot(JNIEnv* env);
+  // The space this window shows, and showing one without making it the
+  // list's active space (the start page follows its window's).
+  std::string ShownSpace(JNIEnv* env);
+  void ShowSpace(JNIEnv* env, const std::string& space_id);
   void SetActiveSpace(JNIEnv* env, const std::string& space_id);
   std::string AddSpace(JNIEnv* env, const std::u16string& name);
   void EditSpace(JNIEnv* env,
@@ -65,6 +69,10 @@ class SpacesBridge : public SpacesAndroid::Observer {
  private:
   base::android::ScopedJavaGlobalRef<jobject> java_object_;
   raw_ptr<SpacesAndroid> spaces_;
+  // The space this window shows (SpacesAndroid::SpaceOrActive()): set when
+  // the window switches spaces, and taken from the list's active space until
+  // then, or once its space is gone.
+  base::Uuid space_id_;
   base::ScopedObservation<SpacesAndroid, SpacesAndroid::Observer>
       observation_{this};
 };

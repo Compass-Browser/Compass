@@ -94,8 +94,9 @@ It costs:
   the sidebar shows and takes the shell's tab events and actions. The
   sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
   space switcher, favorites, the pinned tree, Today, pin and favorite.
-  Chrome's tabs of every space stay in one TabModel; the sidebar shows the
-  active space's.
+  Chrome's tabs of every space stay in the window's TabModel; the sidebar
+  shows the window's space's. Chrome's own archiving of inactive tabs is
+  off (`TabArchiveSettings` patch): Today and the archive do that.
 - **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
   desktop (chain, pairing, Nigori, the notifier), without what needs
   windows: the refresh on a window's activation becomes the app coming
@@ -124,12 +125,27 @@ It costs:
   the activity patch): Ctrl+S puts the pane away or opens the drawer,
   Ctrl+T, Ctrl+L and Ctrl+K open the command bar, Ctrl+Shift+E opens
   Claude and Ctrl+Shift+C copies the URL. Chrome's other shortcuts stay.
+- **Multiple windows (C10).** Each window shows a space of its own, as on
+  the desktop (`SpacesBridge`, one per window, keeps it; the start page
+  follows its window's). The list's active space is the last one a window
+  switched to, and new windows start on it. Tabs opened in a window go to
+  its space's Today. Opening an entry whose tab is in another window moves
+  the tab here with Chrome's own move between windows, so page state
+  survives (sidebar.md, "Move on focus"); a moved tab keeps its entry.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
   command bar), a search widget, a "Pin to Compass" share target, and a
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
+- **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from the bar's tab
+  count, as on iOS: the window's tabs as cards in a row over the space's
+  tint, least recently shown at the left and the tab on screen centered.
+  A tap shows a card's tab, a flick up closes it (Chrome's undo snackbar
+  brings it back), a drag down closes the picker; it switches between
+  regular and incognito tabs and opens new ones. Thumbnails are Chrome's
+  (`TabContentManager`), the tab on screen captured as the picker opens. A
+  long press on the tab count opens Chrome's own tab switcher (tab groups).
 - **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)
@@ -207,7 +223,7 @@ chromewebstore.google.com a "Desktop site" exception the first time it runs
 is a tab-modal dialog, like a page's `alert()`: Chrome shows those only
 while its browser controls are fully shown, and under the shell the
 controls that count are the bottom ones, where Compass's bar is
-(`BrowserControlsManager` patch).
+(`ChromeTabModalPresenter` patch).
 
 ## Sync and push
 

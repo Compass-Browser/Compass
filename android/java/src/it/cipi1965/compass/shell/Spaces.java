@@ -20,14 +20,19 @@ import it.cipi1965.compass.spaces.SpacesBridge;
 
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tabwindow.TabWindowInfo;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
@@ -63,6 +68,8 @@ public class Spaces implements SidebarUi.Listener {
     // The spaces the launcher shortcuts were made for (id, emoji and name of each).
     private String mShortcutSpaces = "";
     private final TabModelObserver mTabModelObserver;
+    // A tab moving here from another window, selected when it arrives.
+    private int mMovingTab = Tab.INVALID_TAB_ID;
     private final TabModelSelectorTabObserver mTabObserver;
 
     public Spaces(ChromeTabbedActivity activity, ViewGroup parent) {
@@ -83,6 +90,17 @@ public class Spaces implements SidebarUi.Listener {
                             @TabLaunchType int type,
                             @TabCreationState int creationState,
                             boolean markedForSelection) {
+                        if (tab.getId() == mMovingTab) {
+                            // It keeps its entry (SpacesAndroid::TabOpened()).
+                            mMovingTab = Tab.INVALID_TAB_ID;
+                            mBridge.tabOpened(
+                                    tab.getId(), tab.getUrl().getSpec(), tab.getTitle(), false);
+                            TabModelUtils.selectTabById(
+                                    mActivity.getTabModelSelector(),
+                                    tab.getId(),
+                                    TabSelectionType.FROM_USER);
+                            return;
+                        }
                         if (mOpeningNode != null) {
                             mBridge.tabOpenedForNode(tab.getId(), mOpeningNode);
                             mOpeningNode = null;
@@ -105,10 +123,7 @@ public class Spaces implements SidebarUi.Listener {
                         mBridge.tabClosed(tab.getId());
                     }
 
-                    @Override
-                    public void tabRemoved(Tab tab) {
-                        mBridge.tabClosed(tab.getId());
-                    }
+                    // Not tabRemoved(): the tab moved to another window, and keeps its entry.
                 };
         mTabs.addObserver(mTabModelObserver);
         mTabObserver = new TabModelSelectorTabObserver(activity.getTabModelSelector()) {
@@ -227,6 +242,11 @@ public class Spaces implements SidebarUi.Listener {
         return mState;
     }
 
+    /** The space this window shows (each window has its own), or empty before they load. */
+    public String shownSpaceId() {
+        return mBridge.shownSpace();
+    }
+
     public void showSidebar() {
         if (mDocked) {
             // The pane is always there, unless Ctrl+S put it away.
@@ -310,6 +330,31 @@ public class Spaces implements SidebarUi.Listener {
         }
     }
 
+    /**
+     * Moves a tab that's open in another window of the app here, as the desktop does when a node
+     * whose tab lives in another window is activated (sidebar.md, "Move on focus"). Page state
+     * survives: it's Chrome's own move between windows.
+     */
+    private boolean moveHere(int tabId) {
+        if (!MultiWindowUtils.isMultiInstanceApi31Enabled()) return false;
+        TabWindowInfo info = TabWindowManagerSingleton.getInstance().getTabWindowInfoById(tabId);
+        if (info == null
+                || info.type != TabWindowInfo.TabWindowType.TABBED
+                || info.tab.isIncognito()
+                || info.windowId == mActivity.getWindowId()) {
+            return false;
+        }
+        mMovingTab = tabId;
+        MultiInstanceOrchestratorFactory.getInstance()
+                .moveTabsToWindowByIdChecked(
+                        mActivity.getWindowId(),
+                        List.of(info.tab),
+                        TabList.INVALID_TAB_INDEX,
+                        TabList.INVALID_TAB_INDEX,
+                        /* bringToFront= */ true);
+        return true;
+    }
+
     private int currentTabId() {
         Tab tab = mActivity.getActivityTabProvider().get();
         return tab != null ? tab.getId() : Tab.INVALID_TAB_ID;
@@ -323,6 +368,8 @@ public class Spaces implements SidebarUi.Listener {
         if (tabId != Tab.INVALID_TAB_ID && mTabs.getTabById(tabId) != null) {
             TabModelUtils.selectTabById(
                     mActivity.getTabModelSelector(), tabId, TabSelectionType.FROM_USER);
+        } else if (tabId != Tab.INVALID_TAB_ID && moveHere(tabId)) {
+            // Selected when it arrives (didAddTab()).
         } else {
             GURL gurl = new GURL(url);
             if (!gurl.isValid()) return;
