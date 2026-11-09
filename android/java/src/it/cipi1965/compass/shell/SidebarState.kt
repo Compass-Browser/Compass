@@ -44,6 +44,18 @@ class SidebarState {
     /** The tab on screen, to highlight its entry. */
     var currentTab by mutableStateOf(-1)
 
+    /** The pinned entry or favorite showing |tab|, or null (a Today tab, or none). */
+    fun pinnedNodeFor(tab: Int): Node? {
+        fun find(nodes: List<Node>): Node? {
+            for (node in nodes) {
+                if (node.tab == tab) return node
+                find(node.children)?.let { return it }
+            }
+            return null
+        }
+        return if (tab < 0) null else find(favorites) ?: find(pinned)
+    }
+
     val activeSpace: Space?
         get() = spaces.firstOrNull { it.id == activeId }
 

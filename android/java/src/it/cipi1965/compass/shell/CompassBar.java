@@ -9,6 +9,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.view.KeyEvent;
 import android.view.Gravity;
 import android.view.View;
@@ -40,7 +41,6 @@ import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewSceneLayer;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.components.browser_ui.widget.ViewResourceFrameLayout;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.url.GURL;
@@ -55,7 +55,8 @@ import java.util.WeakHashMap;
  * <p>Shell spike (milestone C1): Chrome's own toolbar stays for now.
  */
 public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
-    private static final int HEIGHT_DP = 64;
+    // The floating capsule (54) and its margins.
+    private static final int HEIGHT_DP = 62;
 
     private final ChromeTabbedActivity mActivity;
     private final BottomControlsStacker mBottomControls;
@@ -73,6 +74,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable SyncScreen mSync;
     private @Nullable Extensions mExtensions;
     private @Nullable TabPicker mTabPicker;
+    private @Nullable PageMenu mPageMenu;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =
@@ -126,6 +128,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mClaude = new ClaudeChat(mActivity, coordinator);
         mExtensions = new Extensions(mActivity, coordinator, view);
         mTabPicker = new TabPicker(mActivity, coordinator, this::newTab);
+        mPageMenu = new PageMenu(mActivity, coordinator, this);
+        Favicons.init(mActivity.getTabModelSelector().getModel(false).getProfile());
         spaces.setOnOpenSync(sync::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
         UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
@@ -170,6 +174,12 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                     public void onLoadStopped(Tab tab, boolean toDifferentDocument) {
                         update(tab);
                     }
+
+                    @Override
+                    public void onFaviconUpdated(
+                            Tab tab, @Nullable Bitmap icon, @Nullable GURL iconUrl) {
+                        Favicons.put(tab.getUrl().getSpec(), icon);
+                    }
                 };
 
         TabModel tabs = mActivity.getTabModelSelector().getModel(false);
@@ -195,6 +205,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mExtensions = null;
         if (mTabPicker != null) mTabPicker.destroy();
         mTabPicker = null;
+        mPageMenu = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -205,6 +216,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private void update(@Nullable Tab tab) {
         if (tab == null) {
             mState.setHost("");
+            mState.setUrl("");
             mState.setCanGoBack(false);
             mState.setCanGoForward(false);
             return;
@@ -213,6 +225,10 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         // The new tab page (chrome-native://newtab) shows the bar's placeholder.
         String host = url.getScheme().startsWith("chrome") ? "" : url.getHost();
         mState.setHost(host);
+        mState.setUrl(host.isEmpty() ? "" : url.getSpec());
+        mState.setDesktopSite(
+                tab.getWebContents() != null
+                        && tab.getWebContents().getNavigationController().getUseDesktopUserAgent());
         mState.setCanGoBack(tab.canGoBack());
         mState.setCanGoForward(tab.canGoForward());
         mState.setIncognito(tab.isIncognito());
@@ -311,7 +327,45 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mSpaces != null) mSpaces.onNodeClicked(nodeId, url);
     }
 
-    private void copyUrl() {
+    /** Runs one of Chrome's menu actions (its menu item's ID, by name). */
+    void chromeAction(String idName) {
+        int id = mActivity.getResources().getIdentifier(idName, "id", mActivity.getPackageName());
+        if (id != 0) mActivity.getMenuOrKeyboardActionController().onMenuOrKeyboardAction(id, true);
+    }
+
+    /** The pinned entry or favorite showing |tabId|, or null. */
+    @Nullable
+    SidebarState.Node pinnedNodeFor(int tabId) {
+        return mSpaces != null ? mSpaces.state().pinnedNodeFor(tabId) : null;
+    }
+
+    /** The window's space's tint ("#rrggbb", or empty). */
+    String spaceTint() {
+        return mState.getSpaceTint();
+    }
+
+    java.util.List<ExtensionsState.Action> extensionActions() {
+        return mExtensions != null ? mExtensions.actions() : java.util.Collections.emptyList();
+    }
+
+    void runExtension(String id) {
+        if (mExtensions != null) mExtensions.onRunAction(id);
+    }
+
+    /** Pins the tab on screen to the space, or unpins it (its tab stays open, in Today). */
+    void togglePin() {
+        Tab tab = mActivity.getActivityTab();
+        if (tab == null || mSpaces == null) return;
+        SidebarState.Node node = pinnedNodeFor(tab.getId());
+        if (node != null) {
+            mSpaces.onUnpinNode(node.id);
+        } else {
+            mSpaces.pinCurrentTab(false);
+        }
+    }
+
+    @Override
+    public void copyUrl() {
         Tab tab = mActivity.getActivityTab();
         if (tab == null) return;
         ClipboardManager clipboard =
@@ -353,21 +407,57 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mTabPicker != null) mTabPicker.show(mState.getSpaceTint());
     }
 
-    @Override
+    /** Chrome's own tab switcher (tab groups). */
     public void showTabSwitcher() {
         mActivity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ true);
     }
 
-    @Override
     public void showClaude() {
         if (mClaude != null) mClaude.show();
     }
 
     @Override
     public void showMenu() {
-        // Chrome's menu (settings, history, downloads, ...), until Compass has its own.
-        AppMenuHandler menu = mActivity.getRootUiCoordinatorForTesting().getAppMenuHandler();
-        if (menu != null && mView != null) menu.showAppMenu(mView, /* startDragging= */ false);
+        if (mPageMenu != null) mPageMenu.show();
+    }
+
+    @Override
+    public void newIncognitoTab() {
+        mActivity
+                .getTabCreator(true)
+                .launchNtp(org.chromium.chrome.browser.tab.TabLaunchType.FROM_CHROME_UI);
+    }
+
+    @Override
+    public void goBack() {
+        Tab tab = mActivity.getActivityTab();
+        if (tab != null && tab.canGoBack()) tab.goBack();
+    }
+
+    @Override
+    public void goForward() {
+        Tab tab = mActivity.getActivityTab();
+        if (tab != null && tab.canGoForward()) tab.goForward();
+    }
+
+    @Override
+    public void reload() {
+        chromeAction("reload_menu_id");
+    }
+
+    @Override
+    public void share() {
+        chromeAction("share_menu_id");
+    }
+
+    @Override
+    public void findInPage() {
+        chromeAction("find_in_page_id");
+    }
+
+    @Override
+    public void toggleDesktopSite() {
+        chromeAction("request_desktop_site_id");
     }
 
     @Override
