@@ -98,6 +98,24 @@ object SidebarUi {
         return view
     }
 
+    /** The sidebar as a permanent pane (wide windows): no scrim, it doesn't close. */
+    @JvmStatic
+    fun createPaneView(
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        savedStateOwner: SavedStateRegistryOwner,
+        state: SidebarState,
+        listener: Listener,
+    ): View {
+        val view = ComposeView(context)
+        view.setViewTreeLifecycleOwner(lifecycleOwner)
+        view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
+        view.setContent {
+            CompassTheme(dark = isSystemInDarkTheme()) { SidebarPanel(state, listener) }
+        }
+        return view
+    }
+
     /** A space's tint as a color, or null for grey. */
     @JvmStatic
     fun tintColor(tint: String): Color? =
@@ -107,7 +125,6 @@ object SidebarUi {
 @Composable
 private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
     BackHandler { listener.onDismiss() }
-    val tint = SidebarUi.tintColor(state.activeSpace?.tint ?: "")
     Box(Modifier.fillMaxSize()) {
         // The scrim closes it.
         Box(
@@ -120,9 +137,20 @@ private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
                     listener.onDismiss()
                 }
         )
+        SidebarPanel(state, listener, Modifier.width(320.dp))
+    }
+}
+
+@Composable
+private fun SidebarPanel(
+    state: SidebarState,
+    listener: SidebarUi.Listener,
+    modifier: Modifier = Modifier,
+) {
+    val tint = SidebarUi.tintColor(state.activeSpace?.tint ?: "")
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.fillMaxHeight().width(320.dp),
+            modifier = modifier.fillMaxHeight(),
         ) {
             Box(
                 Modifier.fillMaxSize()
@@ -163,7 +191,6 @@ private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
                 }
             }
         }
-    }
 }
 
 @Composable

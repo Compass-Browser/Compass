@@ -96,6 +96,11 @@ It costs:
   space switcher, favorites, the pinned tree, Today, pin and favorite.
   Chrome's tabs of every space stay in one TabModel; the sidebar shows the
   active space's.
+- **Wide windows (C10).** At 840dp and wider (tablets, unfolded
+  foldables, desktop windows), the sidebar is a pane on the left, as on the
+  desktop: `Spaces` moves Chrome's coordinator over by its width and puts
+  the pane next to it, and follows the window's size. Narrower, it's the
+  drawer. Chrome's keyboard shortcuts work; Ctrl+L opens the command bar.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
   command bar), a search widget, a "Pin to Compass" share target, and a
