@@ -488,6 +488,19 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
 
 // The space color seeds the window's theme: its frame color follows the
 // space, not during a swipe, and a grey space keeps the profile's theme.
+// A new window has its space's theme from the start: the tint's first
+// update runs while the window is built, before the browser has its window.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, NewWindowHasTheSpaceTheme) {
+  SpaceModel& home = WindowFeatures::From(browser())->space_model();
+  home.SetColor(SpaceColor::kBlue);
+  BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
+  ASSERT_EQ(&WindowFeatures::From(second)->space_model(), &home);
+  EXPECT_EQ(BrowserView::GetBrowserViewForBrowser(second)
+                ->GetWidget()
+                ->user_color_override(),
+            GetSpaceTint(SpaceColor::kBlue));
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowThemeFollowsTheSpace) {
   views::Widget* widget = browser_view()->GetWidget();
   WindowFeatures* features = WindowFeatures::From(browser());

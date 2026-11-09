@@ -500,8 +500,12 @@ void SidebarTint::UpdateColor(bool animate) {
 }
 
 void SidebarTint::UpdateWindowTheme() {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
-  views::Widget* widget = browser_view ? browser_view->GetWidget() : nullptr;
+  // The widget the tint is in, not the browser view's: the first update
+  // (AddedToWidget()) runs while the window is built, before the browser
+  // has its window, when BrowserView::GetBrowserViewForBrowser() is null.
+  // Skipped then, a window opened on the system's colors (white text in
+  // dark mode over a light space) until something updated it again.
+  views::Widget* widget = GetWidget();
   if (!widget || !features_) {
     return;
   }
