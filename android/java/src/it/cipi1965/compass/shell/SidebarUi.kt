@@ -49,6 +49,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
@@ -195,6 +196,7 @@ object SidebarUi {
 }
 
 /** A Material bottom sheet, in the space's tint, to the top of the screen. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
     CompassSheet(state.open, onDismiss = { listener.onDismiss() }, dragHandle = false, edgeToEdge = true) {
