@@ -19,11 +19,9 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerS
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerVisibility;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.omnibox.OmniboxStub;
+import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.toolbar.ToolbarManager;
-import org.chromium.components.omnibox.OmniboxFocusReason;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.url.GURL;
 
 /**
@@ -32,7 +30,7 @@ import org.chromium.url.GURL;
  *
  * <p>Shell spike (milestone C1): Chrome's own toolbar stays for now.
  */
-public class CompassBar implements BottomControlsLayer {
+public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private static final int HEIGHT_DP = 64;
 
     private final ChromeTabbedActivity mActivity;
@@ -40,6 +38,7 @@ public class CompassBar implements BottomControlsLayer {
     private final CompassBarState mState = new CompassBarState();
     private final int mHeightPx;
     private @Nullable View mView;
+    private @Nullable CommandBar mCommandBar;
     private @Nullable Integer mBackgroundColor;
 
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
@@ -49,17 +48,7 @@ public class CompassBar implements BottomControlsLayer {
     }
 
     public void attach() {
-        View view =
-                CompassBarUi.createView(
-                        mActivity,
-                        mActivity,
-                        mActivity,
-                        mState,
-                        this::goBack,
-                        this::goForward,
-                        this::openNewTab,
-                        this::focusOmnibox,
-                        this::setBackgroundColor);
+        View view = CompassBarUi.createView(mActivity, mActivity, mActivity, mState, this);
         // Chrome's bottom layers (the chin, its bottom toolbar, the mini player) live at the
         // bottom of its coordinator, which the stack's offsets are relative to; Chrome pads it or
         // not for the system navigation bar.
@@ -73,6 +62,7 @@ public class CompassBar implements BottomControlsLayer {
         params.gravity = Gravity.START | Gravity.BOTTOM;
         coordinator.addView(view, params);
         mView = view;
+        mCommandBar = new CommandBar(mActivity, coordinator);
 
         // Registers itself with the tab provider.
         new ActivityTabProvider.ActivityTabTabObserver(
@@ -122,25 +112,41 @@ public class CompassBar implements BottomControlsLayer {
         mState.setIncognito(tab.isIncognito());
     }
 
-    private void goBack() {
+    // CompassBarUi.Actions:
+
+    @Override
+    public void back() {
         Tab tab = mActivity.getActivityTabProvider().get();
         if (tab != null && tab.canGoBack()) tab.goBack();
     }
 
-    private void goForward() {
-        Tab tab = mActivity.getActivityTabProvider().get();
-        if (tab != null && tab.canGoForward()) tab.goForward();
+    @Override
+    public void openAddress() {
+        if (mCommandBar != null) mCommandBar.open(/* inNewTab= */ false);
     }
 
-    private void focusOmnibox() {
-        // Chrome's location bar takes the input until Compass has its own (milestone C4).
-        ToolbarManager toolbar = mActivity.getToolbarManager();
-        OmniboxStub omnibox = toolbar != null ? toolbar.getOmniboxStub() : null;
-        if (omnibox != null) omnibox.focusAndSelectAllText(OmniboxFocusReason.OMNIBOX_TAP);
+    @Override
+    public void newTab() {
+        if (mCommandBar != null) mCommandBar.open(/* inNewTab= */ true);
     }
 
-    private void openNewTab() {
-        mActivity.getTabCreator(false).launchNtp(TabLaunchType.FROM_CHROME_UI);
+    @Override
+    public void showTabs() {
+        mActivity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ true);
+    }
+
+    @Override
+    public void showMenu() {
+        // Chrome's menu (settings, history, downloads, ...), until Compass has its own.
+        AppMenuHandler menu = mActivity.getRootUiCoordinatorForTesting().getAppMenuHandler();
+        if (menu != null && mView != null) menu.showAppMenu(mView, /* startDragging= */ false);
+    }
+
+    @Override
+    public void backgroundColorChanged(int color) {
+        if (mBackgroundColor != null && mBackgroundColor == color) return;
+        mBackgroundColor = color;
+        mBottomControls.requestLayerUpdate(false);
     }
 
     // BottomControlsLayer:
@@ -170,12 +176,6 @@ public class CompassBar implements BottomControlsLayer {
     public void onBrowserControlsOffsetUpdate(int layerYOffset) {
         // Negative to move up; positive only mid-animation, as for Chrome's mini player.
         if (mView != null) mView.setTranslationY(Math.min(0, layerYOffset));
-    }
-
-    private void setBackgroundColor(int color) {
-        if (mBackgroundColor != null && mBackgroundColor == color) return;
-        mBackgroundColor = color;
-        mBottomControls.requestLayerUpdate(false);
     }
 
     @Override

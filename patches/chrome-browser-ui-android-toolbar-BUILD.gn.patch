@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/android/toolbar/BUILD.gn b/chrome/browser/ui/android/toolbar/BUILD.gn
+index 06c8a108a5fdf55f969f737c9604e67061c3be01..ee6ac8f9b788ad9a03564071447110084abf07b2 100644
+--- a/chrome/browser/ui/android/toolbar/BUILD.gn
++++ b/chrome/browser/ui/android/toolbar/BUILD.gn
+@@ -230,6 +230,8 @@ android_library("core_java") {
+   ]
+ 
+   deps = [
++    # Compass: its shell replaces the top toolbar (docs/design/android.md).
++    "//compass/android:hook_java",
+     ":adaptive_features_java",
+     ":java_resources",
+     ":optional_button_java",
