@@ -6,6 +6,7 @@ package it.cipi1965.compass;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.view.KeyEvent;
 
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 
@@ -20,6 +21,11 @@ public interface CompassShellHook {
 
     /** A new intent for the activity: true if the shell handled it, and Chrome shouldn't. */
     default boolean onNewIntent(Intent intent) {
+        return false;
+    }
+
+    /** A key event for the activity: true if it was one of the shell's shortcuts. */
+    default boolean dispatchKeyEvent(KeyEvent event) {
         return false;
     }
 }

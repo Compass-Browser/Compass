@@ -6,6 +6,7 @@ package it.cipi1965.compass;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.view.KeyEvent;
 
 import it.cipi1965.compass.shell.CompassBar;
 
@@ -28,5 +29,10 @@ public class CompassShellHookImpl implements CompassShellHook {
     @Override
     public boolean onNewIntent(Intent intent) {
         return mBar != null && mBar.handleIntent(intent);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        return mBar != null && mBar.dispatchKeyEvent(event);
     }
 }
