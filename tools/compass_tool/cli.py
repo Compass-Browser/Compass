@@ -12,13 +12,15 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from . import (android, checkout, mac_sign, overrides, patches, release,
-               sparkle, sync_server)
+from . import (android, checkout, linux_package, mac_sign, overrides,
+               patches, release, sparkle, sync_server)
 from .layout import (CONFIGS, CROSS_TARGETS, LINUX_TOOLCHAIN_DIR, Layout,
                      detect, host_cpu)
 from .process import CommandError, depot_tool, run
 
 DEFAULT_TARGET = 'chrome'
+# What the Linux packages hold: the browser and its setuid sandbox helper.
+LINUX_PACKAGE_TARGETS = ('chrome', 'sandbox/linux:chrome_sandbox')
 CPUS = ('arm64', 'x64')
 TEST_TARGET = 'compass_unittests'
 BROWSER_TEST_TARGET = 'compass_browsertests'
@@ -228,6 +230,31 @@ def cmd_gen(layout: Layout, args) -> None:
       sync_patches(layout)
   run([depot_tool('gn'), 'gen', out_dir.relative_to(layout.src).as_posix()],
       layout.src, env=layout.env())
+
+
+def cmd_package(layout: Layout, args) -> None:
+  """Linux: the .tar.xz, and with --flatpak a Flatpak bundle made from it in
+  WSL (docs/building.md, "Linux packages")."""
+  if args.cpu != 'linux-x64':
+    raise CommandError('package makes Linux packages: pass --cpu linux-x64')
+  require_linux_cross_host(layout)
+  out_dir = layout.out_dir(args.config, args.cpu)
+  if args.build:
+    build(layout, args.config, LINUX_PACKAGE_TARGETS, args.jobs,
+          args.skip_patches, args.cpu)
+  version = args.version or release.new_version()
+  strip_tool = layout.src / LINUX_TOOLCHAIN_DIR / 'bin' / 'llvm-strip.exe'
+  tarball = linux_package.make_tarball(
+      layout.root, layout.src, out_dir, version,
+      strip_tool if strip_tool.is_file() else None)
+  print('wrote %s' % tarball)
+  if args.flatpak:
+    stage = linux_package.stage_flatpak(layout.root, tarball, version,
+                                        out_dir / 'flatpak')
+    bundle = linux_package.build_flatpak(
+        stage, out_dir / linux_package.package_name(version, 'flatpak'),
+        args.wsl_distro)
+    print('wrote %s' % bundle)
 
 
 def add_skip_patches(parser) -> None:
@@ -1020,6 +1047,23 @@ def parser() -> argparse.ArgumentParser:
   add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_build)
+
+  s = sub.add_parser('package', help='Linux: package a --cpu linux-x64 '
+                     'build as .tar.xz (and a Flatpak with --flatpak)')
+  s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='portable')
+  add_cpu_argument(s)
+  s.add_argument('--version',
+                 help='the release version (default: date.time, as releases)')
+  s.add_argument('--build', action='store_true',
+                 help='build chrome and chrome_sandbox first')
+  s.add_argument('--flatpak', action='store_true',
+                 help='also build a Flatpak bundle, with flatpak-builder in '
+                 'WSL')
+  s.add_argument('--wsl-distro', default='Ubuntu-24.04',
+                 help='the WSL distribution with flatpak-builder')
+  add_skip_patches(s)
+  add_jobs_argument(s)
+  s.set_defaults(func=cmd_package)
 
   s = sub.add_parser('run', help='launch the built browser')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='debug')

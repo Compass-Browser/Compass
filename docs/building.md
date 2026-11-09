@@ -375,10 +375,50 @@ Limits:
   build all of Blink a second time for Windows (and its path lacks
   `.exe`). Without it, each new page sets up its JavaScript context at
   start, a little slower.
-- **No printing** (`use_cups = false`), **no crash symbols**, **no
-  `.deb`/`.rpm`** (no `dpkg-deb` or `rpmbuild` on Windows).
-- **Running it** takes a Linux machine or WSL2 (Ubuntu 24.04 runs it, with
-  `--no-sandbox` as root since `chrome-sandbox` isn't built).
+- **No printing** to system printers (`use_cups = false`; Save as PDF
+  works), **no crash symbols**, **no `.deb`/`.rpm`** yet.
+- **Running it** takes a Linux machine or WSL2.
+
+#### Linux packages
+
+```
+tools\compass.bat package --cpu linux-x64 --build --flatpak
+```
+
+`--build` builds `chrome` and `chrome_sandbox` first. `package` then writes
+two files into `out\Portable-linux-x64`, named after the release version
+(`--version`, by default date.time as for releases):
+
+- `Compass-<version>-linux-x64.tar.xz`: the browser with symbols stripped,
+  plus a `compass` launcher, a `.desktop` file, the icons and a README. The
+  Unix modes are set by `tools/compass_tool/linux_package.py`, since NTFS
+  doesn't record them. `chrome-sandbox` is setuid root, for distributions
+  that restrict user namespaces (Ubuntu 24.04 and later). Unpacking as a
+  regular user drops that bit, and the README says how to restore it.
+- `Compass-<version>-linux-x64.flatpak`: a Flatpak bundle made from the
+  tarball by `installer/linux/flatpak/io.github.Compass_Browser.Compass.yml`.
+  It's built with flatpak-builder in WSL (`--wsl-distro`, default
+  Ubuntu-24.04). It runs on the Freedesktop 25.08 runtime with Chromium's
+  BaseApp, whose zypak sandboxes the renderers through Flatpak instead of
+  `chrome-sandbox`. Install it with `flatpak install --user <file>`. The
+  same manifest can go to Flathub later, with the release URL and sha256 as
+  its source.
+
+Once in WSL, as root:
+
+```
+apt install flatpak flatpak-builder
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install flathub org.freedesktop.Sdk//25.08 org.chromium.Chromium.BaseApp//25.08
+```
+
+The browser needs glibc 2.25 or later. It also needs these libraries
+(Debian package names): libglib2.0-0, libnss3, libnspr4, libatk1.0-0,
+libatk-bridge2.0-0, libatspi2.0-0, libdbus-1-3, libexpat1, libudev1,
+libx11-6, libxext6, libxcomposite1, libxdamage1, libxfixes3, libxrandr2,
+libxcb1, libxkbcommon0, libcairo2, libpango-1.0-0, libgbm1 and libasound2.
+It uses GTK 3 or 4, PulseAudio or PipeWire, libva and Vulkan when they're
+installed.
 
 ## Troubleshooting
 

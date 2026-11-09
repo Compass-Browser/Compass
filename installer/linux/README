@@ -1,0 +1,13 @@
+Compass for Linux
+=================
+
+Run ./compass from this folder.
+
+Renderers are sandboxed with user namespaces. Where those are restricted
+(Ubuntu 24.04 and later), Compass needs its setuid helper; unpacking as root
+keeps it, otherwise run once:
+
+  sudo chown root:root chrome-sandbox && sudo chmod 4755 chrome-sandbox
+
+For a menu entry, edit Exec= and Icon= in compass.desktop to this folder's
+compass and product_logo_256.png, then copy it to ~/.local/share/applications.

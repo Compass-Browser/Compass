@@ -1,0 +1,71 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass as a Flatpak, from the release tarball (docs/building.md, "Linux
+# packages"). `compass package --cpu linux-x64 --flatpak` builds it from a
+# local copy, compass.tar.xz; on Flathub the source would be the release's URL
+# and sha256. Permissions follow Flathub's Chromium-based browsers.
+app-id: io.github.Compass_Browser.Compass
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+base: org.chromium.Chromium.BaseApp
+base-version: '25.08'
+command: compass
+separate-locales: false
+build-options:
+  no-debuginfo: true
+  strip: false
+finish-args:
+  - --require-version=1.8.2
+  - --device=all
+  - --share=ipc
+  - --share=network
+  - --socket=cups
+  - --socket=pcsc
+  - --socket=pulseaudio
+  - --socket=x11
+  - --socket=wayland
+  - --system-talk-name=org.bluez
+  - --system-talk-name=org.freedesktop.Avahi
+  - --system-talk-name=org.freedesktop.UPower
+  - --talk-name=com.canonical.AppMenu.Registrar
+  - --talk-name=org.freedesktop.FileManager1
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.kwalletd5
+  - --talk-name=org.kde.kwalletd6
+  - --talk-name=org.gnome.SessionManager
+  - --own-name=org.mpris.MediaPlayer2.compass.*
+  - --filesystem=xdg-run/pipewire-0
+  - --filesystem=home/.local/share/applications:create
+  - --filesystem=home/.local/share/icons:create
+  - --filesystem=xdg-desktop
+  - --filesystem=xdg-download
+  - --persist=.pki
+modules:
+  - name: compass
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/compass
+      - tar -xf compass.tar.xz --no-same-owner --strip-components=1 -C /app/compass
+      # zypak sandboxes the renderers through Flatpak; no setuid helper.
+      - rm -f /app/compass/chrome-sandbox
+      - install -Dm 755 compass.sh /app/bin/compass
+      - install -Dm 644 io.github.Compass_Browser.Compass.desktop -t /app/share/applications
+      - install -Dm 644 io.github.Compass_Browser.Compass.metainfo.xml -t /app/share/metainfo
+      - for size in 16 24 32 48 64 128 256; do
+          f=/app/compass/product_logo_$size.png;
+          [ -f $f ] && install -Dm 644 $f /app/share/icons/hicolor/${size}x${size}/apps/io.github.Compass_Browser.Compass.png;
+        done; true
+    sources:
+      - type: file
+        path: compass.tar.xz
+      - type: file
+        path: compass.sh
+      - type: file
+        path: io.github.Compass_Browser.Compass.desktop
+      - type: file
+        path: io.github.Compass_Browser.Compass.metainfo.xml
