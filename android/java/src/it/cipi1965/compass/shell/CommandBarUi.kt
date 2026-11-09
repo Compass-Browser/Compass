@@ -10,7 +10,6 @@ import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -26,13 +25,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -50,20 +47,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
@@ -113,26 +105,15 @@ object CommandBarUi {
 @Composable
 private fun CommandBar(state: CommandBarState, listener: CommandBarUi.Listener) {
     BackHandler { listener.onDismiss() }
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.25f))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                    listener.onDismiss()
-                }
-        )
-        Column(
-            Modifier.fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(top = 10.dp)
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-        ) {
-            Header(state, listener)
-            Results(state, listener)
-        }
+    // Material's full-screen search: the field at the top, the results under it.
+    Column(
+        Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime))
+    ) {
+        Header(state, listener)
+        Results(state, listener)
     }
 }
 
@@ -149,26 +130,22 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
         keyboard?.show()
     }
     Column(
-        Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
-            if (state.editing) "Go to" else if (state.incognito) "New incognito tab" else "New tab in ${state.spaceName.ifEmpty { "this space" }}",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 16.dp),
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Row(
                 Modifier.weight(1f)
                     .height(56.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .padding(horizontal = 16.dp),
+                    .padding(start = 4.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Sym(R.drawable.compass_sym_search, 16f, MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(onClick = { listener.onDismiss() }) {
+                    Sym(R.drawable.compass_sym_arrow_back, 20f, MaterialTheme.colorScheme.onSurface)
+                }
                 Box(Modifier.weight(1f)) {
                     if (value.text.isEmpty()) {
                         Text("Search or enter address", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
@@ -194,19 +171,21 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                     )
                 }
                 if (value.text.isNotEmpty()) {
-                    Box(
-                        Modifier.size(28.dp).clip(RoundedCornerShape(14.dp)).clickable {
-                            value = TextFieldValue("")
-                            listener.onTextChanged("")
-                        },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Sym(R.drawable.compass_sym_close, 14f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                    IconButton(onClick = {
+                        value = TextFieldValue("")
+                        listener.onTextChanged("")
+                    }) {
+                        Sym(R.drawable.compass_sym_close, 20f, MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
-            TextButton(onClick = { listener.onDismiss() }) { Text("Cancel") }
         }
+        Text(
+            if (state.editing) "Go to" else if (state.incognito) "New incognito tab" else "New tab in ${state.spaceName.ifEmpty { "this space" }}",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp),
+        )
     }
 }
 
@@ -257,12 +236,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
                 CardSection("Search suggestions") {
                     searches.forEachIndexed { i, (index, suggestion) ->
                         CardRow(suggestion.title, first = i == 0, onClick = { listener.onSuggestionClicked(index) }) {
-                            Box(
-                                Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Sym(R.drawable.compass_sym_search, 15f, MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            MenuIcon(R.drawable.compass_sym_search)
                         }
                     }
                 }

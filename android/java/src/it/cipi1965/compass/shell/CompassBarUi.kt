@@ -167,8 +167,8 @@ private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            BarIcon(R.drawable.compass_sym_arrow_back_ios_new, state.canGoBack) { actions.goBack() }
-            BarIcon(R.drawable.compass_sym_arrow_forward_ios, state.canGoForward) { actions.goForward() }
+            BarIcon(R.drawable.compass_sym_arrow_back, state.canGoBack) { actions.goBack() }
+            BarIcon(R.drawable.compass_sym_arrow_forward, state.canGoForward) { actions.goForward() }
             AddressPill(
                 state,
                 actions,
@@ -262,7 +262,7 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
                 menu = false
                 actions.copyUrl()
             }
-            MenuItem("Share", R.drawable.compass_sym_ios_share) {
+            MenuItem("Share", R.drawable.compass_sym_share) {
                 menu = false
                 actions.share()
             }

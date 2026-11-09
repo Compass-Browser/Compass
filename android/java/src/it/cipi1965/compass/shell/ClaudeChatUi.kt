@@ -7,25 +7,16 @@ package it.cipi1965.compass.shell
 import android.content.Context
 import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
-import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -34,19 +25,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -89,7 +78,9 @@ object ClaudeChatUi {
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme()) { if (state.open) ClaudeSheet(state, listener) }
+            CompassTheme(dark = isSystemInDarkTheme()) {
+                CompassSheet(state.open, onDismiss = { listener.onDismiss() }) { ClaudeSheet(state, listener) }
+            }
         }
         return view
     }
@@ -97,39 +88,16 @@ object ClaudeChatUi {
 
 @Composable
 private fun ClaudeSheet(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
-    BackHandler { listener.onDismiss() }
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.32f))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                    listener.onDismiss()
-                }
-        )
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            modifier =
-                Modifier.align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.7f)
-                    // Taps on the sheet don't reach the scrim.
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
-        ) {
-            Column(
-                Modifier.fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("✦ Claude", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    if (state.messages.isNotEmpty()) TextButton(onClick = { listener.onClear() }) { Text("New chat") }
-                    if (state.hasKey) TextButton(onClick = { listener.onForgetKey() }) { Text("Change key") }
-                }
-                if (!state.hasKey) KeyEntry(state, listener) else Chat(state, listener)
-            }
+    Column(
+        Modifier.fillMaxWidth().fillMaxHeight(0.7f).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("✦ Claude", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            if (state.messages.isNotEmpty()) TextButton(onClick = { listener.onClear() }) { Text("New chat") }
+            if (state.hasKey) TextButton(onClick = { listener.onForgetKey() }) { Text("Change key") }
         }
+        if (!state.hasKey) KeyEntry(state, listener) else Chat(state, listener)
     }
 }
 
