@@ -32,6 +32,10 @@ public class SyncScreen implements SyncScreenUi.Listener {
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    public void destroy() {
+        mBridge.destroy();
+    }
+
     public void show() {
         refresh();
         mView.setVisibility(View.VISIBLE);

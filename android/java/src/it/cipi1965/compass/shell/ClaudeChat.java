@@ -35,6 +35,10 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    public void destroy() {
+        mBridge.destroy();
+    }
+
     public void show() {
         refresh();
         mView.setVisibility(View.VISIBLE);

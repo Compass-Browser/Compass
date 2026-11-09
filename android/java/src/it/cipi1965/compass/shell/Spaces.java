@@ -62,6 +62,8 @@ public class Spaces implements SidebarUi.Listener {
     private @Nullable FrameLayout mRoot;
     // The spaces the launcher shortcuts were made for (id, emoji and name of each).
     private String mShortcutSpaces = "";
+    private final TabModelObserver mTabModelObserver;
+    private final TabModelSelectorTabObserver mTabObserver;
 
     public Spaces(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
@@ -73,7 +75,7 @@ public class Spaces implements SidebarUi.Listener {
             Tab tab = mTabs.getTabAt(i);
             mBridge.tabOpened(tab.getId(), tab.getUrl().getSpec(), tab.getTitle(), true);
         }
-        mTabs.addObserver(
+        mTabModelObserver =
                 new TabModelObserver() {
                     @Override
                     public void didAddTab(
@@ -107,8 +109,9 @@ public class Spaces implements SidebarUi.Listener {
                     public void tabRemoved(Tab tab) {
                         mBridge.tabClosed(tab.getId());
                     }
-                });
-        new TabModelSelectorTabObserver(activity.getTabModelSelector()) {
+                };
+        mTabs.addObserver(mTabModelObserver);
+        mTabObserver = new TabModelSelectorTabObserver(activity.getTabModelSelector()) {
             @Override
             public void onUrlUpdated(Tab tab) {
                 update(tab);
@@ -201,6 +204,13 @@ public class Spaces implements SidebarUi.Listener {
         } else {
             showSidebar();
         }
+    }
+
+    /** The activity is going away: stops following its tabs. */
+    public void destroy() {
+        mTabs.removeObserver(mTabModelObserver);
+        mTabObserver.destroy();
+        mBridge.destroy();
     }
 
     /** Runs when the spaces change (the bar shows the active space's icon). */
