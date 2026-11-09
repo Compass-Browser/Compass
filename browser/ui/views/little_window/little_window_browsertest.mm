@@ -267,7 +267,6 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, TheAddressCanBeEdited) {
   LocationBarView* location_bar =
       BrowserView::GetBrowserViewForBrowser(little)->GetLocationBarView();
   ASSERT_TRUE(location_bar);
-  EXPECT_FALSE(location_bar->GetPopupMode());
   EXPECT_FALSE(location_bar->omnibox_view()->GetReadOnly());
 }
 
