@@ -37,6 +37,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -203,7 +205,8 @@ private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
         Column(
             Modifier.fillMaxSize()
                 .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surfaceContainerLow)
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                // Full height: the sheet goes under the status bar, its content doesn't.
+                .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.navigationBars))
         ) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { BottomSheetDefaults.DragHandle() }
             SidebarContent(state, listener, Modifier.weight(1f))
