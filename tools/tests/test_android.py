@@ -29,7 +29,7 @@ class MacHostTest(unittest.TestCase):
       self.assertEqual(['bin', 'lib'], android.link_jdk(src))
       current = src / 'third_party/jdk/current'
       self.assertTrue((current / 'bin' / 'javac').exists())
-      self.assertEqual('Contents/Home/bin', os.readlink(current / 'bin'))
+      self.assertEqual(Path('Contents/Home/bin'), Path(os.readlink(current / 'bin')))
       self.assertEqual([], android.link_jdk(src))  # Idempotent.
 
   def test_link_jdk_on_a_linux_jdk(self):
