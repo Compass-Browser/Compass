@@ -1,7 +1,7 @@
 # Auto picture-in-picture
 
-Status: done. Based on Chromium 156.0.8078.48. Calls and leaving the window:
-in progress (checked against live calls: not yet).
+Status: done. Based on Chromium 156.0.8078.48. Calls: checked against a live Teams
+call (macOS); Zoom and Meet not yet.
 
 ## Goal
 
@@ -360,9 +360,9 @@ microphone, as Meet: tracked by `PipWindows` as a document window).
 
 ## Known gaps
 
-- Calls: the site entries in `call_pip.js` (Teams' and Zoom's buttons) need
-  checking against live calls in every language the labels are read in
-  (English and Italian), and break when a site changes its markup. Without
+- Calls: Teams' site entry matches a live call (Italian labels); Zoom's
+  needs checking, and English labels on both. Entries break when a site
+  changes its markup. Without
   a speaking marker, gallery view shows the largest tile, not necessarily
   the speaker's.
 - Calls on Zoom: a canvas that draws the whole gallery shows the whole
