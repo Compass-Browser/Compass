@@ -75,6 +75,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable Extensions mExtensions;
     private @Nullable TabPicker mTabPicker;
     private @Nullable PageMenu mPageMenu;
+    private @Nullable CompassSettings mSettings;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =
@@ -129,8 +130,10 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mExtensions = new Extensions(mActivity, coordinator, view);
         mTabPicker = new TabPicker(mActivity, coordinator, this::newTab);
         mPageMenu = new PageMenu(mActivity, coordinator, this);
+        CompassSettings settings = new CompassSettings(mActivity, coordinator, this);
+        mSettings = settings;
         Favicons.init(mActivity.getTabModelSelector().getModel(false).getProfile());
-        spaces.setOnOpenSync(sync::show);
+        spaces.setOnOpenSettings(settings::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
         UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
                 .setBoolean(Pref.SIGNIN_ALLOWED, false);
@@ -206,6 +209,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mTabPicker != null) mTabPicker.destroy();
         mTabPicker = null;
         mPageMenu = null;
+        mSettings = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -325,6 +329,19 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     public void openNode(String nodeId, String url) {
         if (mSpaces != null) mSpaces.onNodeClicked(nodeId, url);
+    }
+
+    void showSync() {
+        if (mSync != null) mSync.show();
+    }
+
+    void showSettings() {
+        if (mSettings != null) mSettings.show();
+    }
+
+    /** Sync's line for Settings. */
+    String syncSummary() {
+        return mSync != null ? mSync.summary() : "";
     }
 
     /** Runs one of Chrome's menu actions (its menu item's ID, by name). */

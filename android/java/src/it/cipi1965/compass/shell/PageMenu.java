@@ -133,7 +133,7 @@ public class PageMenu implements PageMenuUi.Listener {
 
     @Override
     public void onSettings() {
-        then(() -> mBar.chromeAction("preferences_id"));
+        then(mBar::showSettings);
     }
 
     @Override

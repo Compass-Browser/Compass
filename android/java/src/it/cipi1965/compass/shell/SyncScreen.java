@@ -52,6 +52,12 @@ public class SyncScreen implements SyncScreenUi.Listener {
         if ("off".equals(mState.getState())) onJoinWithPairingCode(server, code);
     }
 
+    /** A line for Settings' Sync row: off, or how it goes. */
+    public String summary() {
+        refresh();
+        return "off".equals(mState.getState()) ? "Off" : mState.getMessage();
+    }
+
     private void refresh() {
         mState.update(mBridge.snapshot());
     }

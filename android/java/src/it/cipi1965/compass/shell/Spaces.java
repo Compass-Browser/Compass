@@ -61,7 +61,7 @@ public class Spaces implements SidebarUi.Listener {
     // The node a tab is being opened for; its didAddTab() maps it instead of adding to Today.
     private @Nullable String mOpeningNode;
     private @Nullable Runnable mOnChanged;
-    private @Nullable Runnable mOnOpenSync;
+    private @Nullable Runnable mOnOpenSettings;
     private @Nullable View mPane;
     private boolean mDocked;
     // Ctrl+S put the pane away (docked windows only).
@@ -237,8 +237,8 @@ public class Spaces implements SidebarUi.Listener {
     }
 
     /** Runs when the sidebar's Sync row is picked. */
-    public void setOnOpenSync(Runnable onOpenSync) {
-        mOnOpenSync = onOpenSync;
+    public void setOnOpenSettings(Runnable onOpenSettings) {
+        mOnOpenSettings = onOpenSettings;
     }
 
     public SidebarState state() {
@@ -456,34 +456,31 @@ public class Spaces implements SidebarUi.Listener {
     @Override
     public void onNewTab() {
         onDismiss();
-        mActivity.getTabCreator(false).launchNtp(TabLaunchType.FROM_CHROME_UI);
-    }
-
-    @Override
-    public void onOpenSync() {
-        onDismiss();
-        if (mOnOpenSync != null) mOnOpenSync.run();
-    }
-
-    @Override
-    public void onOpenAutofillSettings() {
-        onDismiss();
-        // Android asks the user to make Compass the app that fills in other apps
-        // (CompassAutofillService); if it already is, its own settings.
-        Intent intent =
-                new Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
-                        .setData(android.net.Uri.parse("package:" + mActivity.getPackageName()));
-        try {
-            mActivity.startActivity(intent);
-        } catch (android.content.ActivityNotFoundException e) {
-            mActivity.startActivity(
-                    new Intent(android.provider.Settings.ACTION_SETTINGS));
+        // The command bar, for a new tab (as on iOS).
+        CompassBar bar = CompassBar.forActivity(mActivity);
+        if (bar != null) {
+            bar.newTab();
+        } else {
+            mActivity.getTabCreator(false).launchNtp(TabLaunchType.FROM_CHROME_UI);
         }
     }
 
     @Override
-    public void onPinCurrentTab(boolean favorite) {
-        pinCurrentTab(favorite);
+    public void onNewIncognitoTab() {
+        onDismiss();
+        mActivity.getTabCreator(true).launchNtp(TabLaunchType.FROM_CHROME_UI);
+    }
+
+    @Override
+    public void onClearToday() {
+        // Every Today entry: its tab closes, and the entry with it.
+        for (SidebarState.Node node : mState.getToday()) onCloseNode(node.id);
+    }
+
+    @Override
+    public void onOpenSettings() {
+        onDismiss();
+        if (mOnOpenSettings != null) mOnOpenSettings.run();
     }
 
     @Override
