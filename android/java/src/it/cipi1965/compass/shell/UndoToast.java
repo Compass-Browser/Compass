@@ -45,6 +45,7 @@ public class UndoToast implements UndoToastUi.Listener {
         mCommit = commit;
         mState.setText(text);
         mState.setShown(true);
+        org.chromium.base.Log.i("UndoToast", "showing %s", text);
         mView.bringToFront();
         mView.removeCallbacks(mTimeout);
         mView.postDelayed(mTimeout, DURATION_MS);

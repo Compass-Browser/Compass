@@ -9,6 +9,7 @@ import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -108,6 +109,8 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
         focus.requestFocus()
         keyboard?.show()
     }
+    // On a strip of its own: it covers the bar while it's up.
+    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
     Row(
         Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -162,4 +165,5 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
             modifier = Modifier.clickable { listener.onDone() }.padding(start = 4.dp, top = 8.dp, bottom = 8.dp),
         )
     }
+}
 }
