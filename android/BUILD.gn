@@ -31,6 +31,10 @@ generate_jni("jni_headers") {
 android_library("java") {
   sources = [
     "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
+    "java/src/it/cipi1965/compass/extras/CompassIntents.java",
+    "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
+    "java/src/it/cipi1965/compass/extras/PinShareActivity.java",
+    "java/src/it/cipi1965/compass/extras/SearchWidgetProvider.java",
     "java/src/it/cipi1965/compass/shell/CompassBar.java",
     "java/src/it/cipi1965/compass/shell/CompassBarState.kt",
     "java/src/it/cipi1965/compass/shell/CompassBarUi.kt",
@@ -68,6 +72,7 @@ android_library("java") {
     "//third_party/androidx:androidx_compose_ui_ui_text_java",
     "//third_party/androidx:androidx_compose_ui_ui_unit_java",
     "//third_party/androidx:androidx_coordinatorlayout_coordinatorlayout_java",
+    "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_lifecycle_lifecycle_common_java",
     "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
     "//third_party/androidx:androidx_savedstate_savedstate_java",
@@ -95,12 +100,23 @@ android_resources("icon_resources") {
   deps = [ "//chrome/android:chrome_base_module_resources" ]
 }
 
+# The extras' resources (the search widget).
+android_resources("extras_resources") {
+  sources = [
+    "res_extras/drawable/compass_widget_background.xml",
+    "res_extras/layout/compass_search_widget.xml",
+    "res_extras/xml/compass_search_widget.xml",
+  ]
+  deps = [ ":icon_resources" ]
+}
+
 chrome_public_apk_or_module_tmpl("compass_apk") {
   target_type = "android_apk"
   apk_name = "Compass"
   manifest_package = "it.cipi1965.compass"
   jinja_input = "//compass/android/AndroidManifest.xml"
   deps = [
+    ":extras_resources",
     ":icon_resources",
     ":java",
   ]

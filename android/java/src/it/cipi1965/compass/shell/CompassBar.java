@@ -4,11 +4,14 @@
 
 package it.cipi1965.compass.shell;
 
+import android.content.Intent;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+
+import it.cipi1965.compass.extras.CompassIntents;
 
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
@@ -66,6 +69,9 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mCommandBar = new CommandBar(mActivity, coordinator);
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
+        // Compass's own intents (the tile, the widget, shortcuts, the share target).
+        handleIntent(mActivity.getIntent());
+        mActivity.addOnNewIntentListener(this::handleIntent);
         spaces.setOnChanged(
                 () -> {
                     SidebarState.Space space = spaces.state().getActiveSpace();
@@ -126,6 +132,22 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mState.setCanGoBack(tab.canGoBack());
         mState.setCanGoForward(tab.canGoForward());
         mState.setIncognito(tab.isIncognito());
+    }
+
+    private void handleIntent(@Nullable Intent intent) {
+        if (intent == null || !CompassIntents.isCompassIntent(intent)) return;
+        String action = intent.getAction();
+        if (CompassIntents.ACTION_COMMAND_BAR.equals(action)) {
+            if (mCommandBar != null) mCommandBar.open(/* inNewTab= */ true);
+        } else if (CompassIntents.ACTION_OPEN_SPACE.equals(action)) {
+            String spaceId = intent.getStringExtra(CompassIntents.EXTRA_SPACE_ID);
+            if (spaceId != null && mSpaces != null) mSpaces.openSpace(spaceId);
+        } else if (CompassIntents.ACTION_PIN_URL.equals(action)) {
+            String url = intent.getStringExtra(CompassIntents.EXTRA_URL);
+            if (url != null && mSpaces != null) mSpaces.openAndPin(url);
+        }
+        // Handled once, even if the activity is recreated with it.
+        intent.setAction(null);
     }
 
     // CompassBarUi.Actions:

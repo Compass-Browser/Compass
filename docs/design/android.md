@@ -96,6 +96,12 @@ It costs:
   space switcher, favorites, the pinned tree, Today, pin and favorite.
   Chrome's tabs of every space stay in one TabModel; the sidebar shows the
   active space's.
+- **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
+  `extra_application_definitions`: a Quick Settings tile (new tab with the
+  command bar), a search widget, a "Pin to Compass" share target, and a
+  launcher shortcut per space (dynamic, from `Spaces`). They reach the
+  shell through `CompassIntents` (its own actions to Chrome's launcher
+  alias), which `CompassBar` handles at launch and on new intents.
 - **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)
