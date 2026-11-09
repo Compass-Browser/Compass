@@ -39,6 +39,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private final int mHeightPx;
     private @Nullable View mView;
     private @Nullable CommandBar mCommandBar;
+    private @Nullable Spaces mSpaces;
     private @Nullable Integer mBackgroundColor;
 
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
@@ -63,6 +64,21 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         coordinator.addView(view, params);
         mView = view;
         mCommandBar = new CommandBar(mActivity, coordinator);
+        Spaces spaces = new Spaces(mActivity, coordinator);
+        mSpaces = spaces;
+        spaces.setOnChanged(
+                () -> {
+                    SidebarState.Space space = spaces.state().getActiveSpace();
+                    mState.setSpaceLabel(
+                            space == null
+                                    ? ""
+                                    : !space.emoji.isEmpty()
+                                            ? space.emoji
+                                            : space.name.isEmpty()
+                                                    ? ""
+                                                    : space.name.substring(0, 1).toUpperCase());
+                    mState.setSpaceTint(space == null ? "" : space.tint);
+                });
 
         // Registers itself with the tab provider.
         new ActivityTabProvider.ActivityTabTabObserver(
@@ -115,9 +131,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     // CompassBarUi.Actions:
 
     @Override
-    public void back() {
-        Tab tab = mActivity.getActivityTabProvider().get();
-        if (tab != null && tab.canGoBack()) tab.goBack();
+    public void showSidebar() {
+        if (mSpaces != null) mSpaces.showSidebar();
     }
 
     @Override

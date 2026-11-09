@@ -1,5 +1,5 @@
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
-index 6ed792010ee90f07562ce80b34afe5fe722df299..1148d36ea146550f0d9f55f8bc34ae0064b29580 100644
+index 6ed792010ee90f07562ce80b34afe5fe722df299..5a967507acbaad5ccc3459db00f8bfa7ba271506 100644
 --- a/chrome/android/BUILD.gn
 +++ b/chrome/android/BUILD.gn
 @@ -310,6 +310,8 @@ if (_is_default_toolchain) {
@@ -11,3 +11,17 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..1148d36ea146550f0d9f55f8bc34ae00
        ":base_module_java",
        ":chrome_app_java_resources",
        ":chrome_public_apk_template_resources",
+@@ -3392,7 +3394,12 @@ template("libchrome_impl") {
+       deps += invoker.deps
+     }
+ 
+-    java_targets = [ "//chrome/android:chrome_public_apk" ]
++    # Compass: the JNI registration also covers the natives of its app's
++    # Java (libchrome is shared; docs/design/android.md).
++    java_targets = [
++      "//chrome/android:chrome_public_apk",
++      "//compass/android:compass_apk",
++    ]
+     forward_variables_from(invoker, "*", [ "deps" ])
+   }
+ }

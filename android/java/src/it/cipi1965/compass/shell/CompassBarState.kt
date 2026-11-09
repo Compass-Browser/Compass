@@ -15,4 +15,8 @@ class CompassBarState {
     var canGoForward by mutableStateOf(false)
     var incognito by mutableStateOf(false)
     var tabCount by mutableStateOf(0)
+    /** The active space's emoji, or its initial. */
+    var spaceLabel by mutableStateOf("")
+    /** The active space's tint ("#rrggbb"), or empty. */
+    var spaceTint by mutableStateOf("")
 }

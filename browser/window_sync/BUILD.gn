@@ -13,8 +13,6 @@ source_set("window_sync") {
     "live_tab_registry.h",
     "restored_tab_matcher.cc",
     "restored_tab_matcher.h",
-    "sidebar_store.cc",
-    "sidebar_store.h",
     "space_directory.cc",
     "space_directory.h",
     "space_service.cc",
@@ -69,7 +67,6 @@ source_set("window_sync") {
 source_set("unit_tests") {
   testonly = true
   sources = [
-    "sidebar_store_unittest.cc",
     "space_directory_unittest.cc",
     "space_swap_unittest.cc",
     "space_switch_unittest.cc",

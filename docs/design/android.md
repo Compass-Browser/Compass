@@ -85,6 +85,17 @@ It costs:
   switcher), new tab and Chrome's menu. Chrome's top toolbar is hidden
   (`CompassShell.isPresent()`, checked by a patched
   `TopToolbarCoordinator`).
+- **Spaces (C2, C3).** `//compass/browser/android` runs the desktop's
+  model on Android: `SpacesAndroid` (per profile) owns the `SpaceList` and
+  its `SidebarStore` (the same "Compass Sidebar.json") and maps Chrome's
+  tab IDs to nodes: a new tab is a Today entry, a restored one takes its
+  saved entry, a closed one leaves Today (a pinned tab or favorite stays,
+  unloaded). `SpacesBridge` (jni_zero) gives Java a JSON snapshot of what
+  the sidebar shows and takes the shell's tab events and actions. The
+  sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
+  space switcher, favorites, the pinned tree, Today, pin and favorite.
+  Chrome's tabs of every space stay in one TabModel; the sidebar shows the
+  active space's.
 - **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)
