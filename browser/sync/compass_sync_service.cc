@@ -41,6 +41,13 @@
 #include "compass/browser/sync/compass_sync_service_factory.h"
 #include "compass/browser/sync/sync_settings.h"
 #include "compass/components/sync/compass_sync_notifier.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/gcm/gcm_profile_service_factory.h"
+#include "chrome/browser/gcm/instance_id/instance_id_profile_service_factory.h"
+#include "compass/browser/sync/compass_push_android.h"
+#include "components/gcm_driver/gcm_profile_service.h"
+#include "components/gcm_driver/instance_id/instance_id_profile_service.h"
+#endif
 #include "compass/components/sync/pairing_network_transport.h"
 #include "compass/components/sync/pref_names.h"
 #include "compass/components/sync/sync_credentials.h"
@@ -335,6 +342,9 @@ void CompassSyncService::RegisterProfilePrefs(
 
 void CompassSyncService::Shutdown() {
   notifier_.reset();
+#if BUILDFLAG(IS_ANDROID)
+  push_.reset();
+#endif
   quota_fetcher_.reset();
   host_.reset();
   joiner_.reset();
@@ -813,6 +823,9 @@ void CompassSyncService::TriggerRefresh() {
 void CompassSyncService::UpdateNotifier() {
   if (!sync_service_ || !IsChainRunning() || !seed_) {
     notifier_.reset();
+#if BUILDFLAG(IS_ANDROID)
+    push_.reset();
+#endif
     return;
   }
   if (notifier_ || !AreDataTypesReleased() ||
@@ -865,7 +878,57 @@ void CompassSyncService::UpdateNotifier() {
           weak_factory_.GetWeakPtr()),
       content::GetNetworkConnectionTracker());
   notifier_->Start();
+#if BUILDFLAG(IS_ANDROID)
+  StartPush();
+#endif
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// FCM wakes the app for sent tabs while it's in the background, where the
+// notifier's stream is closed (android.md, "Sync and push").
+void CompassSyncService::StartPush() {
+  gcm::GCMProfileService* gcm = gcm::GCMProfileServiceFactory::GetForProfile(profile_);
+  instance_id::InstanceIDProfileService* instance_id =
+      instance_id::InstanceIDProfileServiceFactory::GetForProfile(profile_);
+  if (!gcm || !gcm->driver() || !instance_id || !instance_id->driver()) {
+    return;
+  }
+  push_ = std::make_unique<CompassPushAndroid>(
+      gcm->driver(), instance_id->driver(),
+      profile_->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      GetServerUrl(),
+      base::BindRepeating(
+          [](scoped_refptr<SyncCredentials> credentials)
+              -> std::optional<std::string> {
+            return credentials->MakeToken(base::Time::Now());
+          },
+          credentials_),
+      base::BindRepeating(
+          [](Profile* profile) -> std::string {
+            syncer::DeviceInfoSyncService* device_info =
+                DeviceInfoSyncServiceFactory::GetForProfile(profile);
+            const syncer::DeviceInfo* local =
+                device_info ? device_info->GetLocalDeviceInfoProvider()
+                                  ->GetLocalDeviceInfo()
+                            : nullptr;
+            return local ? local->guid() : std::string();
+          },
+          base::Unretained(profile_.get())),
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self) {
+            if (!self || !self->sync_service_) {
+              return;
+            }
+            self->sync_service_->TriggerRefresh(
+                syncer::SyncService::TriggerRefreshSource::
+                    kSyncInvalidationsService,
+                {syncer::SEND_TAB_TO_SELF});
+          },
+          weak_factory_.GetWeakPtr()));
+  push_->Start();
+}
+#endif
 
 // Quota (slice 7) ---------------------------------------------------------------
 
@@ -952,6 +1015,9 @@ void CompassSyncService::OnDeviceInfoChange() {
 
 void CompassSyncService::OnSyncShutdown(syncer::SyncService* sync) {
   notifier_.reset();
+#if BUILDFLAG(IS_ANDROID)
+  push_.reset();
+#endif
   quota_fetcher_.reset();
   setup_handle_.reset();
   sync_observation_.Reset();

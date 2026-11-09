@@ -24,6 +24,12 @@ namespace compass {
 
 namespace {
 
+// Chrome for Android's new tab page, which Compass's start page replaces.
+bool IsNewTabPage(const GURL& url) {
+  return (url.SchemeIs("chrome-native") || url.SchemeIs("chrome")) &&
+         url.host_piece() == "newtab";
+}
+
 // The desktop's file (window_sync/space_service.cc): the same profile layout.
 constexpr base::FilePath::CharType kStoreFileName[] =
     FILE_PATH_LITERAL("Compass Sidebar.json");
@@ -142,6 +148,10 @@ void SpacesAndroid::TabOpened(int tab_id,
   if (tabs_.contains(tab_id)) {
     return;
   }
+  if (IsNewTabPage(url)) {
+    empty_tabs_.insert(tab_id);
+    return;
+  }
   if (!loaded_) {
     pending_tabs_.push_back({tab_id, url, title});
     return;
@@ -166,6 +176,7 @@ void SpacesAndroid::TabOpenedForNode(int tab_id, const base::Uuid& node_id) {
   if (!FindNode(node_id)) {
     return;
   }
+  empty_tabs_.erase(tab_id);
   tabs_[tab_id] = node_id;
   Changed();
 }
@@ -178,6 +189,15 @@ void SpacesAndroid::TabUpdated(int tab_id,
       pending.url = url;
       pending.title = title;
     }
+  }
+  if (empty_tabs_.contains(tab_id)) {
+    // The start page's tab went somewhere: now it's an entry.
+    if (IsNewTabPage(url)) {
+      return;
+    }
+    empty_tabs_.erase(tab_id);
+    TabOpened(tab_id, url, title, /*restored=*/false);
+    return;
   }
   auto it = tabs_.find(tab_id);
   if (it == tabs_.end()) {
@@ -230,6 +250,7 @@ void SpacesAndroid::TabSelected(int tab_id) {
 }
 
 void SpacesAndroid::TabClosed(int tab_id) {
+  empty_tabs_.erase(tab_id);
   std::erase_if(pending_tabs_,
                 [&](const PendingTab& pending) { return pending.id == tab_id; });
   auto it = tabs_.find(tab_id);

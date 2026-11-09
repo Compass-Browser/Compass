@@ -60,6 +60,9 @@ namespace compass::sync {
 
 class CompassProfileCreator;
 class CompassSyncNotifier;
+#if BUILDFLAG(IS_ANDROID)
+class CompassPushAndroid;
+#endif
 class SyncCredentials;
 
 // A profile's place in a sync chain (docs/design/sync.md, slice 2): keeps
@@ -293,6 +296,9 @@ class CompassSyncService : public KeyedService,
   // Runs the change notifier while the chain's data types run, stops it
   // when the chain stops (slice 6).
   void UpdateNotifier();
+#if BUILDFLAG(IS_ANDROID)
+  void StartPush();
+#endif
 
   void StartJoin(const GURL& server_url,
                  const std::string& code,
@@ -334,6 +340,9 @@ class CompassSyncService : public KeyedService,
   std::unique_ptr<PairingHost> host_;
   std::unique_ptr<PairingJoiner> joiner_;
   std::unique_ptr<CompassSyncNotifier> notifier_;
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<CompassPushAndroid> push_;
+#endif
   PairingStatus pairing_;
 
   // Slice 5.

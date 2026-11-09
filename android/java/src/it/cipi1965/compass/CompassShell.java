@@ -4,7 +4,12 @@
 
 package it.cipi1965.compass;
 
+import android.app.Activity;
+
 import org.chromium.base.ServiceLoaderUtil;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.ui.native_page.NativePage;
 
 /**
  * Whether this app has Compass's shell (compass_apk does, chrome_public_apk doesn't). Chrome's
@@ -12,13 +17,20 @@ import org.chromium.base.ServiceLoaderUtil;
  */
 public final class CompassShell {
     private static Boolean sPresent;
+    private static @Nullable CompassShellHook sHook;
 
     private CompassShell() {}
 
     public static boolean isPresent() {
         if (sPresent == null) {
-            sPresent = ServiceLoaderUtil.maybeCreate(CompassShellHook.class) != null;
+            sHook = ServiceLoaderUtil.maybeCreate(CompassShellHook.class);
+            sPresent = sHook != null;
         }
         return sPresent;
+    }
+
+    /** The shell's start page for |tab|, or null (Chrome's new tab page). */
+    public static @Nullable NativePage createStartPage(Activity activity, Tab tab) {
+        return isPresent() && sHook != null ? sHook.createStartPage(activity, tab) : null;
     }
 }
