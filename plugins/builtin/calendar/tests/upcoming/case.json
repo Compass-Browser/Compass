@@ -1,0 +1,6 @@
+{
+  "config": {"hours": 12, "fallback": "https://calendar.google.com/calendar/r"},
+  "secrets": {"ics": "webcal://calendar.example.com/private-abc123/basic.ics"},
+  "env": {"now": "2026-11-09T08:30:00Z", "locale": "en-GB", "timeZone": "Europe/Rome"},
+  "responses": {"https://calendar.example.com/private-abc123/basic.ics": {"file": "calendar.ics", "headers": {"content-type": "text/calendar; charset=utf-8"}}}
+}

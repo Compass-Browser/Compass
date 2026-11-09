@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "https://jobs.example.com/board/job/1",
+        "title": "Senior Browser Engineer",
+        "url": "https://jobs.example.com/board/job/1"
+      },
+      {
+        "id": "https://jobs.example.com/board/job/2",
+        "title": "Rust developer & mentor",
+        "url": "https://jobs.example.com/board/job/2"
+      },
+      {
+        "id": "https://other.example.com/job/3",
+        "title": "Remote job",
+        "url": "https://other.example.com/job/3"
+      }
+    ],
+    "title": "Example Board – Jobs",
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://jobs.example.com/board",
+      "cookies": false
+    }
+  ]
+}

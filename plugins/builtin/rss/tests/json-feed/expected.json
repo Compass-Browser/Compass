@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "2",
+        "title": "Second, from its text",
+        "url": "https://news.example.net/2",
+        "time": 1793664000000
+      },
+      {
+        "id": "3",
+        "title": "Third",
+        "url": "https://news.example.net/3",
+        "time": 1793577600000
+      }
+    ],
+    "title": "Example News",
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://news.example.net/feed.json",
+      "cookies": false
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "ok": false,
+  "error": {
+    "code": "plugin_error"
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://calendar.example.com/private-old/basic.ics",
+      "cookies": false
+    }
+  ]
+}

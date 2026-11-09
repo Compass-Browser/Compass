@@ -1,0 +1,4 @@
+{
+  "config": {"url": "https://jobs.example.com/board", "match": "/\\/job\\/\\d+$/"},
+  "responses": {"https://jobs.example.com/board": {"file": "page.html", "headers": {"content-type": "text/html"}}}
+}

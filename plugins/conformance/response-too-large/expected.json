@@ -1,0 +1,13 @@
+{
+  "ok": false,
+  "error": {
+    "code": "response_too_large"
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://example.com/big",
+      "cookies": false
+    }
+  ]
+}

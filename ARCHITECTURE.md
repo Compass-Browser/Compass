@@ -294,6 +294,10 @@ auto-PiP helpers and overlay window. See
   ([docs/design/sidebar.md](docs/design/sidebar.md), "Today auto-archive").
 - **Import from Arc:** profiles, spaces and sidebar
   ([docs/design/arc-import.md](docs/design/arc-import.md)).
+- **Live folders** (plugins and SDK done, browser integration not started):
+  pinned folders filled by JavaScript plugins (RSS, GitHub, links from a
+  page, calendar) that run on every platform
+  ([docs/design/live-folders.md](docs/design/live-folders.md)).
 - **Boosts** (not started): per-site CSS/JS injection, planned as a built-in
   component extension so it reuses Chromium's content-script machinery.
 

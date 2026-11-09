@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "r",
+        "title": "blocked 2",
+        "url": "https://example.com/"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": []
+}

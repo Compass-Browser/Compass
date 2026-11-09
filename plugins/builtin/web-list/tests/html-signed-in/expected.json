@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "https://intranet.example.com/reports/q3",
+        "title": "Q3 report",
+        "url": "https://intranet.example.com/reports/q3"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://intranet.example.com/reports",
+      "cookies": true
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "1",
+        "title": "Numeric id",
+        "url": "https://example.com/1",
+        "time": 1794218400000,
+        "badge": "A very long…"
+      },
+      {
+        "id": "icon",
+        "title": "Bad icon and time",
+        "url": "https://example.com/z",
+        "subtitle": "kept"
+      },
+      {
+        "id": "extra",
+        "title": "Unknown fields dropped",
+        "url": "https://example.com/e"
+      }
+    ],
+    "title": "Folder title",
+    "nextRefresh": 120,
+    "warnings": [
+      "items[1]: duplicate id \"1\"",
+      "items[2]: url must be an http(s) URL",
+      "items[3]: url must be an http(s) URL",
+      "items[4]: title is required",
+      "items[5]: id must be a non-empty string",
+      "items[6]: not an object",
+      "items[7]: icon must be an http(s) URL",
+      "items[7]: time is not a date"
+    ]
+  },
+  "fetches": []
+}

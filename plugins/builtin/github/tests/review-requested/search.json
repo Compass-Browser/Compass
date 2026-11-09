@@ -1,0 +1,24 @@
+{
+  "total_count": 2,
+  "incomplete_results": false,
+  "items": [
+    {
+      "html_url": "https://github.com/compass-browser/compass/pull/812",
+      "number": 812,
+      "title": "Sidebar: live folders",
+      "repository_url": "https://api.github.com/repos/compass-browser/compass",
+      "updated_at": "2026-11-09T08:12:00Z",
+      "draft": true,
+      "pull_request": {"url": "https://api.github.com/repos/compass-browser/compass/pulls/812"}
+    },
+    {
+      "html_url": "https://github.com/compass-browser/compass/pull/799",
+      "number": 799,
+      "title": "Sync: keep unknown node fields",
+      "repository_url": "https://api.github.com/repos/compass-browser/compass",
+      "updated_at": "2026-11-08T17:40:00Z",
+      "draft": false,
+      "pull_request": {"url": "https://api.github.com/repos/compass-browser/compass/pulls/799"}
+    }
+  ]
+}

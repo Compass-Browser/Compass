@@ -1,0 +1,1 @@
+{"responses": {"https://example.com/a": {"body": "A"}, "https://deep.sub.example.com/b": {"json": {"name": "B"}}}}

@@ -1,0 +1,59 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "focus@example.com@1794211200000",
+        "title": "Focus time",
+        "url": "https://example.com/doc",
+        "subtitle": "9:00–10:00",
+        "time": 1794211200000,
+        "badge": "Now"
+      },
+      {
+        "id": "standup@example.com@1794214800000",
+        "title": "Standup",
+        "url": "https://meet.google.com/abc-defg-hij",
+        "subtitle": "10:00–10:15 · Google Meet",
+        "time": 1794214800000
+      },
+      {
+        "id": "one-on-one@example.com@1794236400000",
+        "title": "1:1 (moved)",
+        "url": "https://example.zoom.us/j/123456789?pwd=abc",
+        "subtitle": "16:00–16:30 · Zoom",
+        "time": 1794236400000
+      },
+      {
+        "id": "review@example.com@1794243600000",
+        "title": "Design review, sidebar",
+        "url": "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0?context=%7b%7d",
+        "subtitle": "18:00–19:00 · Teams",
+        "time": 1794243600000
+      },
+      {
+        "id": "partner@example.com@1794247200000",
+        "title": "Partner call",
+        "url": "https://acme.webex.com/meet/partner",
+        "subtitle": "19:00–19:45 · Webex",
+        "time": 1794247200000
+      },
+      {
+        "id": "room@example.com@1794247200000",
+        "title": "Planning",
+        "url": "https://calendar.google.com/calendar/r",
+        "subtitle": "19:00–19:30 · Room 4",
+        "time": 1794247200000
+      }
+    ],
+    "nextRefresh": 1800,
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://calendar.example.com/private-abc123/basic.ics",
+      "cookies": false
+    }
+  ]
+}

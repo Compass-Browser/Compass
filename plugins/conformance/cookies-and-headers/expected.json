@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "result": {
+    "items": [],
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://a.example.com/",
+      "cookies": true
+    },
+    {
+      "method": "GET",
+      "url": "https://b.example.com/",
+      "cookies": false
+    },
+    {
+      "method": "GET",
+      "url": "https://a.example.com/omit",
+      "cookies": false
+    }
+  ]
+}

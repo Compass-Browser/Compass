@@ -1,0 +1,8 @@
+{
+  "config": {"show": "search", "query": "is:issue label:bug", "repo": "octo-org", "limit": 5},
+  "secrets": {"token": "ghp_test"},
+  "responses": {"https://api.github.com/search/issues?q=is%3Aissue%20label%3Abug%20user%3Aocto-org&sort=updated&order=desc&per_page=5": {"json": {"total_count": 1, "items": [
+    {"html_url": "https://github.com/octo-org/app/issues/7", "number": 7, "title": "Crash on start",
+     "repository_url": "https://api.github.com/repos/octo-org/app", "updated_at": "2026-11-01T00:00:00Z"}
+  ]}}}
+}

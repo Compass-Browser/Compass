@@ -1,0 +1,7 @@
+{
+  "config": {"url": "https://blog.example.com/feed.xml"},
+  "env": {"now": "2026-11-09T09:00:00Z"},
+  "responses": {
+    "https://blog.example.com/feed.xml": {"file": "feed.xml", "headers": {"content-type": "application/rss+xml; charset=utf-8"}}
+  }
+}

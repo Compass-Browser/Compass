@@ -1,0 +1,15 @@
+{
+  "id": "compass.rss",
+  "name": "RSS Feed",
+  "description": "The latest posts from an RSS, Atom or JSON feed.",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "main.js",
+  "icon": "icon.svg",
+  "hosts": ["{config:url}"],
+  "config": [
+    {"key": "url", "type": "url", "label": "Feed URL", "placeholder": "https://example.com/feed.xml"},
+    {"key": "limit", "type": "number", "label": "Posts to show", "default": 15, "min": 1, "max": 50}
+  ],
+  "refresh": {"default": 1800, "min": 600}
+}

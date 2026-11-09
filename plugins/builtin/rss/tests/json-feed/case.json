@@ -1,0 +1,15 @@
+{
+  "config": {"url": "https://news.example.net/feed.json", "limit": 2},
+  "responses": {
+    "https://news.example.net/feed.json": {"json": {
+      "version": "https://jsonfeed.org/version/1.1",
+      "title": "Example News",
+      "items": [
+        {"id": "1", "url": "https://news.example.net/1", "title": "First", "date_published": "2026-11-01T00:00:00Z"},
+        {"id": "2", "url": "/2", "content_text": "Second, from its text", "date_published": "2026-11-03T00:00:00Z"},
+        {"id": "3", "url": "https://news.example.net/3", "title": "Third", "date_published": "2026-11-02T00:00:00Z"},
+        {"id": "4", "title": "No URL"}
+      ]
+    }}
+  }
+}

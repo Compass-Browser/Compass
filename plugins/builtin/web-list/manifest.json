@@ -1,0 +1,24 @@
+{
+  "id": "compass.web-list",
+  "name": "Links from a Page",
+  "description": "Links on a web page that match a pattern, or entries from a JSON endpoint.",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "main.js",
+  "icon": "icon.svg",
+  "hosts": ["{config:url}"],
+  "cookies": ["{config:url}"],
+  "config": [
+    {"key": "url", "type": "url", "label": "Page or JSON URL"},
+    {"key": "mode", "type": "select", "label": "Read it as", "default": "html",
+     "options": [{"value": "html", "label": "Web page links"}, {"value": "json", "label": "JSON"}]},
+    {"key": "match", "type": "string", "label": "Only links containing (text, or /regex/)", "optional": true},
+    {"key": "items", "type": "string", "label": "JSON: path to the list", "optional": true, "placeholder": "data.children"},
+    {"key": "title", "type": "string", "label": "JSON: title field", "optional": true, "default": "title"},
+    {"key": "link", "type": "string", "label": "JSON: URL field", "optional": true, "default": "url"},
+    {"key": "id", "type": "string", "label": "JSON: id field (defaults to the URL)", "optional": true},
+    {"key": "signedIn", "type": "bool", "label": "Use my login on this site"},
+    {"key": "limit", "type": "number", "label": "Links to show", "default": 20, "min": 1, "max": 50}
+  ],
+  "refresh": {"default": 1800, "min": 300}
+}

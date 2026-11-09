@@ -1,0 +1,1 @@
+{"limits": {"maxResponseBytes": 16}, "responses": {"https://example.com/big": {"body": "0123456789abcdefXYZ"}}}

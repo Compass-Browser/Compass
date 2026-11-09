@@ -1,0 +1,29 @@
+{
+  "id": "compass.github",
+  "name": "GitHub",
+  "description": "Pull requests and issues that need you: review requests, your PRs, assignments, mentions or any search.",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "main.js",
+  "icon": "icon.svg",
+  "hosts": ["api.github.com"],
+  "secrets": [
+    {"key": "token", "label": "GitHub token",
+     "help": "A fine-grained or classic personal access token with read access to the repositories you want to see (github.com/settings/tokens)."}
+  ],
+  "config": [
+    {"key": "show", "type": "select", "label": "Show", "default": "review-requested",
+     "options": [
+       {"value": "review-requested", "label": "Review requests"},
+       {"value": "authored", "label": "My open pull requests"},
+       {"value": "assigned", "label": "Assigned to me"},
+       {"value": "mentioned", "label": "Mentioning me"},
+       {"value": "search", "label": "Custom search"}
+     ]},
+    {"key": "repo", "type": "string", "label": "Only in (owner/repo or owner)", "optional": true},
+    {"key": "query", "type": "string", "label": "Search query (for Custom search)", "optional": true,
+     "placeholder": "is:pr is:open label:bug"},
+    {"key": "limit", "type": "number", "label": "Items to show", "default": 20, "min": 1, "max": 50}
+  ],
+  "refresh": {"default": 600, "min": 300}
+}

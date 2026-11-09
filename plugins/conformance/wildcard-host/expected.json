@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "a",
+        "title": "A",
+        "url": "https://example.com/a"
+      },
+      {
+        "id": "b",
+        "title": "B",
+        "url": "https://deep.sub.example.com/b"
+      },
+      {
+        "id": "c",
+        "title": "userinfo refused",
+        "url": "https://example.com/c"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://example.com/a",
+      "cookies": false
+    },
+    {
+      "method": "GET",
+      "url": "https://deep.sub.example.com/b",
+      "cookies": false
+    }
+  ]
+}
