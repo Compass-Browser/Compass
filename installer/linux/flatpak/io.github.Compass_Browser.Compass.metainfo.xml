@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 The Compass Authors -->
+<component type="desktop-application">
+  <id>io.github.Compass_Browser.Compass</id>
+  <name>Compass</name>
+  <summary>A Chromium browser with your tabs in a sidebar</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>BSD-3-Clause</project_license>
+  <developer id="io.github.compass_browser">
+    <name>The Compass Authors</name>
+  </developer>
+  <description>
+    <p>Compass keeps Chromium's engine, extensions and security model, and
+    replaces the tab strip with a sidebar.</p>
+    <ul>
+      <li>Spaces: separate sets of tabs, each with its own colors and profile</li>
+      <li>Pinned tabs and folders, kept as you left them</li>
+      <li>Split view: two tabs side by side in one window</li>
+      <li>A command bar, and Peek to preview a link without opening a tab</li>
+      <li>Sync without an account, end-to-end encrypted</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.Compass_Browser.Compass.desktop</launchable>
+  <url type="homepage">https://github.com/Compass-Browser/Compass</url>
+  <url type="bugtracker">https://github.com/Compass-Browser/Compass/issues</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@"/>
+  </releases>
+</component>
