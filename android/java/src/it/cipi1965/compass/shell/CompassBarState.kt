@@ -11,6 +11,10 @@ import androidx.compose.runtime.setValue
 /** What the bar shows; CompassBar keeps it in step with the current tab. */
 class CompassBarState {
     var host by mutableStateOf("")
+    /** The page's URL (its icon). */
+    var url by mutableStateOf("")
+    /** The site asks for its desktop version. */
+    var desktopSite by mutableStateOf(false)
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var incognito by mutableStateOf(false)
