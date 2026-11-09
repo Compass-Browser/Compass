@@ -466,6 +466,22 @@ public class Spaces implements SidebarUi.Listener {
     }
 
     @Override
+    public void onOpenAutofillSettings() {
+        onDismiss();
+        // Android asks the user to make Compass the app that fills in other apps
+        // (CompassAutofillService); if it already is, its own settings.
+        Intent intent =
+                new Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
+                        .setData(android.net.Uri.parse("package:" + mActivity.getPackageName()));
+        try {
+            mActivity.startActivity(intent);
+        } catch (android.content.ActivityNotFoundException e) {
+            mActivity.startActivity(
+                    new Intent(android.provider.Settings.ACTION_SETTINGS));
+        }
+    }
+
+    @Override
     public void onPinCurrentTab(boolean favorite) {
         pinCurrentTab(favorite);
     }

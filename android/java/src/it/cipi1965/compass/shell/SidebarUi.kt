@@ -95,6 +95,9 @@ object SidebarUi {
 
         fun onOpenSync()
 
+        /** Android's setting for the app that fills passwords in other apps (Compass's, if chosen). */
+        fun onOpenAutofillSettings()
+
         /** Pins the tab on screen to the space, or to the favorites. */
         fun onPinCurrentTab(favorite: Boolean)
 
@@ -237,6 +240,15 @@ private fun SidebarPanel(
                                 Modifier.fillMaxWidth()
                                     .padding(top = 24.dp)
                                     .clickable { listener.onOpenSync() }
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                        )
+                        Text(
+                            "Passwords in other apps",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clickable { listener.onOpenAutofillSettings() }
                                     .padding(horizontal = 20.dp, vertical = 12.dp),
                         )
                     }
