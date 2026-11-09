@@ -284,6 +284,26 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallInAFrame) {
   EXPECT_EQ(PipContents(), call);
 }
 
+// Zoom's web client stays visible to itself when its tab is left (it drops
+// its video while hidden); Teams and other pages see the real state.
+IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, ZoomStaysVisible) {
+  content::WebContents* zoom =
+      OpenCall(https_.GetURL("app.zoom.us", "/wc/123/start"));
+  EXPECT_TRUE(CallPipKeepsPageVisibleForTesting(zoom));
+  content::WebContents* teams =
+      OpenCall(https_.GetURL("teams.microsoft.com", "/v2/call"));
+  EXPECT_FALSE(CallPipKeepsPageVisibleForTesting(teams));
+
+  OpenBlankTab();
+  EXPECT_EQ("visible", content::EvalJs(zoom, "document.visibilityState"));
+  EXPECT_EQ("hidden", content::EvalJs(teams, "document.visibilityState"));
+
+  // Off the web client, it's let go.
+  ASSERT_TRUE(content::NavigateToURL(
+      zoom, https_.GetURL("app.zoom.us", "/pricing")));
+  EXPECT_FALSE(CallPipKeepsPageVisibleForTesting(zoom));
+}
+
 // Off a call site nothing is registered for the page.
 IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, OtherSitesAreLeftAlone) {
   content::WebContents* page =

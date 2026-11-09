@@ -34,6 +34,7 @@ source_set("call_pip") {
     "//base",
     "//chrome/common",
     "//content/public/browser",
+    "//ui/gfx/geometry",
     "//url",
   ]
 }

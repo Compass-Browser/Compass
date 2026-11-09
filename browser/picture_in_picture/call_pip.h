@@ -22,6 +22,10 @@ void AttachCallPip(content::WebContents* web_contents);
 // Whether |url| is a call site the script is for (it checks again).
 bool IsCallPipURL(const GURL& url);
 
+// Whether the tab's page is told it's visible while hidden (Zoom's web
+// client, which drops its video while hidden).
+bool CallPipKeepsPageVisibleForTesting(content::WebContents* web_contents);
+
 }  // namespace compass
 
 #endif  // COMPASS_BROWSER_PICTURE_IN_PICTURE_CALL_PIP_H_

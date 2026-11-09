@@ -7,14 +7,17 @@
 #include <string>
 #include <string_view>
 
+#include "base/functional/callback_helpers.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "compass/browser/picture_in_picture/call_pip_assets.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 
@@ -37,6 +40,14 @@ bool IsHostOrSubdomain(std::string_view host, std::string_view domain) {
           host[host.size() - domain.size() - 1] == '.');
 }
 
+// Zoom's web client: /wc/ on zoom.us or a subdomain.
+bool IsZoomWebClientURL(const GURL& url) {
+  const std::string_view path = url.path();
+  return url.SchemeIs(url::kHttpsScheme) &&
+         IsHostOrSubdomain(url.host(), kZoomHost) &&
+         (path == "/wc" || path.starts_with("/wc/"));
+}
+
 class CallPip : public content::WebContentsObserver,
                 public content::WebContentsUserData<CallPip> {
  public:
@@ -55,12 +66,35 @@ class CallPip : public content::WebContentsObserver,
         ISOLATED_WORLD_ID_CHROME_INTERNAL);
   }
 
+  // Zoom's web client drops the participants' video while its page is
+  // hidden, which empties (or freezes) the picture-in-picture window as soon
+  // as its tab is left. While the tab shows it, the page is told it's
+  // visible whatever the tab's state, as for a tab being captured: Compass's
+  // own tab and window checks see the real state.
+  void DidFinishNavigation(content::NavigationHandle* navigation) override {
+    if (!navigation->IsInPrimaryMainFrame() || !navigation->HasCommitted()) {
+      return;
+    }
+    const bool zoom = IsZoomWebClientURL(navigation->GetURL());
+    if (zoom && !keep_visible_) {
+      keep_visible_ = web_contents()->IncrementCapturerCount(
+          gfx::Size(), /*stay_hidden=*/false, /*stay_awake=*/false,
+          /*is_activity=*/false);
+    } else if (!zoom && keep_visible_) {
+      keep_visible_.RunAndReset();
+    }
+  }
+
+  bool keeps_visible_for_testing() const { return !!keep_visible_; }
+
  private:
   friend class content::WebContentsUserData<CallPip>;
 
   explicit CallPip(content::WebContents* web_contents)
       : content::WebContentsObserver(web_contents),
         content::WebContentsUserData<CallPip>(*web_contents) {}
+
+  base::ScopedClosureRunner keep_visible_;
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };
@@ -83,9 +117,12 @@ bool IsCallPipURL(const GURL& url) {
       return true;
     }
   }
-  const std::string_view path = url.path();
-  return IsHostOrSubdomain(host, kZoomHost) &&
-         (path == "/wc" || path.starts_with("/wc/"));
+  return IsZoomWebClientURL(url);
+}
+
+bool CallPipKeepsPageVisibleForTesting(content::WebContents* web_contents) {
+  CallPip* call_pip = CallPip::FromWebContents(web_contents);
+  return call_pip && call_pip->keeps_visible_for_testing();
 }
 
 }  // namespace compass

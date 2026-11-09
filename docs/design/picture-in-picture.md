@@ -350,6 +350,14 @@ while a call is on (the site's hang up button and a remote tile exist), it:
 - unregisters them all when the call ends, so other videos on the site go
   the usual way.
 
+Zoom's web client drops the participants' video while its page is hidden,
+which emptied the window half a second after it opened. While a tab shows
+the web client, `CallPip` holds a capturer count with `stay_hidden` false
+(`WebContents::IncrementCapturerCount()`, as for a tab being captured), so
+the page is always told it's visible. `WebContents::GetVisibility()`, which
+the tab and window checks read, stays the real one. Teams keeps its video
+while hidden and isn't kept visible.
+
 A site that registers one of these actions itself after the script keeps its
 own. The site entries (button selectors, the speaking tile) hold what was
 checked against live calls; they are the part to fix when a site changes.
@@ -357,7 +365,7 @@ checked against live calls; they are the part to fix when a site changes.
 Tests: `CompassCallPipBrowserTest.*` (a call page, with a fake camera and
 canvas streams as remote tiles, served as `teams.microsoft.com`):
 `LeavingShowsLargestTile`, `FollowsTheSpeaker`, `ButtonsPressTheSite`,
-`CallInAFrame`,
+`CallInAFrame`, `ZoomStaysVisible`,
 `OtherSitesAreLeftAlone`, `CallSites`, and `SitesOwnWindow` (a page that
 opens document picture-in-picture from its handler while using the
 microphone, as Meet: tracked by `PipWindows` as a document window).
