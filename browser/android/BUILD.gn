@@ -1,0 +1,26 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass for Android, the native side (docs/design/android.md): the
+# desktop's spaces model without its windows, and the JNI bridges the
+# Kotlin shell (//compass/android) talks to. //chrome/browser links it on
+# Android (patches/chrome-browser-BUILD.gn.patch).
+
+assert(is_android)
+
+source_set("android") {
+  sources = [
+    "spaces_android.cc",
+    "spaces_android.h",
+    "spaces_bridge.cc",
+    "spaces_bridge.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//compass/android:jni_headers",
+    "//compass/browser/sidebar",
+    "//url",
+  ]
+}

@@ -75,7 +75,7 @@
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
 #include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
-#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/sidebar/sidebar_store.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"

@@ -46,7 +46,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 object CompassBarUi {
     /** What the bar's controls do. */
     interface Actions {
-        fun back()
+        fun showSidebar()
 
         fun openAddress()
 
@@ -104,7 +104,7 @@ private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            BarButton("‹", state.canGoBack) { actions.back() }
+            SpaceButton(state) { actions.showSidebar() }
             Box(
                 modifier =
                     Modifier.weight(1f)
@@ -129,6 +129,23 @@ private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
             TabCount(state.tabCount) { actions.showTabs() }
             BarButton("+", true) { actions.newTab() }
             BarButton("⋮", true) { actions.showMenu() }
+        }
+    }
+}
+
+@Composable
+private fun SpaceButton(state: CompassBarState, onClick: () -> Unit) {
+    val tint = SidebarUi.tintColor(state.spaceTint) ?: MaterialTheme.colorScheme.outline
+    Box(
+        modifier =
+            Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(tint.copy(alpha = 0.25f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(state.spaceLabel.ifEmpty { "☰" }, style = MaterialTheme.typography.titleMedium)
         }
     }
 }

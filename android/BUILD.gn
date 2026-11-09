@@ -6,6 +6,7 @@
 # Compass's own shell, in Kotlin and Jetpack Compose.
 
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 import("//chrome/android/chrome_public_apk_tmpl.gni")
 
 # What ChromeTabbedActivity calls once its UI is up. chrome_java depends on it
@@ -22,6 +23,11 @@ android_library("hook_java") {
   ]
 }
 
+# For //compass/browser/android: the natives of the Java bridges.
+generate_jni("jni_headers") {
+  sources = [ "java/src/it/cipi1965/compass/spaces/SpacesBridge.java" ]
+}
+
 android_library("java") {
   sources = [
     "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
@@ -31,6 +37,10 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/CommandBar.java",
     "java/src/it/cipi1965/compass/shell/CommandBarState.kt",
     "java/src/it/cipi1965/compass/shell/CommandBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/SidebarState.kt",
+    "java/src/it/cipi1965/compass/shell/SidebarUi.kt",
+    "java/src/it/cipi1965/compass/shell/Spaces.java",
+    "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
   ]
   deps = [
     ":hook_java",
@@ -61,10 +71,12 @@ android_library("java") {
     "//third_party/androidx:androidx_lifecycle_lifecycle_common_java",
     "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
     "//third_party/androidx:androidx_savedstate_savedstate_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
+  srcjar_deps = [ ":jni_headers" ]
   enable_compose = true
 }
 

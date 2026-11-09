@@ -35,7 +35,7 @@
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/window_sync/empty_tab.h"
-#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/sidebar/sidebar_store.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/startup_space.h"
 #include "ui/base/base_window.h"

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 33a6696fd803af080bb0a7d71b66e06d6950f86d..0f0f0af5419e81c9c8461f19f9451b22db27ce76 100644
+index 33a6696fd803af080bb0a7d71b66e06d6950f86d..bf1e6a5f725fe038802468ed1d3a86811be7f103 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
 @@ -881,6 +881,8 @@ source_set("core") {
@@ -22,12 +22,15 @@ index 33a6696fd803af080bb0a7d71b66e06d6950f86d..0f0f0af5419e81c9c8461f19f9451b22
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2523,6 +2529,9 @@ source_set("browser") {
+@@ -2523,6 +2529,12 @@ source_set("browser") {
      "//chrome/browser/sharing/glic_experimental_triggering:impl",
      "//chrome/browser/ui/webauthn:impl",
    ]
 +  if (!is_android) {
 +    deps += [ "//compass/browser" ]
++  } else {
++    # Compass for Android: the spaces model and its JNI bridges.
++    deps += [ "//compass/browser/android" ]
 +  }
  
    if (enable_webui_ntp) {

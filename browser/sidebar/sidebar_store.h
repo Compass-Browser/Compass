@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COMPASS_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
-#define COMPASS_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
+#ifndef COMPASS_BROWSER_SIDEBAR_SIDEBAR_STORE_H_
+#define COMPASS_BROWSER_SIDEBAR_SIDEBAR_STORE_H_
 
 #include <optional>
 #include <string>
@@ -88,4 +88,4 @@ class SidebarStore : public SpaceList::Observer,
 
 }  // namespace compass
 
-#endif  // COMPASS_BROWSER_WINDOW_SYNC_SIDEBAR_STORE_H_
+#endif  // COMPASS_BROWSER_SIDEBAR_SIDEBAR_STORE_H_

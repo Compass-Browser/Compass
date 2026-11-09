@@ -24,7 +24,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "compass/browser/sidebar/space_model.h"
-#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/sidebar/sidebar_store.h"
 #include "compass/browser/window_sync/space_service.h"
 
 namespace compass {

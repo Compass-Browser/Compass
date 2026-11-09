@@ -1,0 +1,357 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package it.cipi1965.compass.shell
+
+import android.content.Context
+import android.view.View
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.compose.BackHandler
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+
+/** The sidebar: spaces, favorites, the pinned tree and Today, as on the desktop. */
+object SidebarUi {
+    interface Listener {
+        /** Shows the node's tab, or opens one for it at |url|. */
+        fun onNodeClicked(nodeId: String, url: String)
+
+        /** Closes a Today entry's tab (and the entry). */
+        fun onCloseNode(nodeId: String)
+
+        fun onUnpinNode(nodeId: String)
+
+        fun onToggleFolder(folderId: String, collapsed: Boolean)
+
+        fun onSpaceClicked(spaceId: String)
+
+        fun onAddSpace(name: String)
+
+        fun onNewTab()
+
+        /** Pins the tab on screen to the space, or to the favorites. */
+        fun onPinCurrentTab(favorite: Boolean)
+
+        fun onDismiss()
+    }
+
+    @JvmStatic
+    fun createView(
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        savedStateOwner: SavedStateRegistryOwner,
+        backOwner: OnBackPressedDispatcherOwner,
+        state: SidebarState,
+        listener: Listener,
+    ): View {
+        val view = ComposeView(context)
+        view.setViewTreeLifecycleOwner(lifecycleOwner)
+        view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
+        view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
+        view.setContent {
+            CompassTheme(dark = isSystemInDarkTheme()) {
+                if (state.open) Sidebar(state, listener)
+            }
+        }
+        return view
+    }
+
+    /** A space's tint as a color, or null for grey. */
+    @JvmStatic
+    fun tintColor(tint: String): Color? =
+        if (tint.isEmpty()) null else runCatching { Color(android.graphics.Color.parseColor(tint)) }.getOrNull()
+}
+
+@Composable
+private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
+    BackHandler { listener.onDismiss() }
+    val tint = SidebarUi.tintColor(state.activeSpace?.tint ?: "")
+    Box(Modifier.fillMaxSize()) {
+        // The scrim closes it.
+        Box(
+            Modifier.fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.32f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    listener.onDismiss()
+                }
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxHeight().width(320.dp),
+        ) {
+            Box(
+                Modifier.fillMaxSize()
+                    .background(tint?.copy(alpha = 0.10f) ?: Color.Transparent)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+            ) {
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
+                    item { SpaceHeader(state) }
+                    item {
+                        Row(
+                            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Chip("Pin tab") { listener.onPinCurrentTab(false) }
+                            Chip("Add to favorites") { listener.onPinCurrentTab(true) }
+                        }
+                    }
+                    item { SpaceSwitcher(state, listener) }
+                    if (state.favorites.isNotEmpty()) item { Favorites(state, listener) }
+                    if (state.pinned.isNotEmpty()) {
+                        item { SectionTitle("Pinned") }
+                        tree(state.pinned, 0, pinned = true, state, listener)
+                    }
+                    item { SectionTitle("Today") }
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { listener.onNewTab() }
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Text("+", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Text("New Tab", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    tree(state.today, 0, pinned = false, state, listener)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpaceHeader(state: SidebarState) {
+    val space = state.activeSpace ?: return
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (space.emoji.isNotEmpty()) Text(space.emoji, style = MaterialTheme.typography.titleLarge)
+        Text(space.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun SpaceSwitcher(state: SidebarState, listener: SidebarUi.Listener) {
+    LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = 8.dp),
+    ) {
+        items(state.spaces, key = { it.id }) { space ->
+            val active = space.id == state.activeId
+            val tint = SidebarUi.tintColor(space.tint) ?: MaterialTheme.colorScheme.outline
+            Box(
+                Modifier.size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (active) tint.copy(alpha = 0.35f) else tint.copy(alpha = 0.12f))
+                    .clickable { listener.onSpaceClicked(space.id) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    space.emoji.ifEmpty { space.name.take(1).uppercase() },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
+        item {
+            Box(
+                Modifier.size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .clickable { listener.onAddSpace("Space ${state.spaces.size + 1}") },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("+", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Favorites(state: SidebarState, listener: SidebarUi.Listener) {
+    LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(vertical = 8.dp),
+    ) {
+        items(state.favorites, key = { it.id }) { node ->
+            Column(
+                Modifier.width(64.dp).clip(RoundedCornerShape(12.dp)).clickable {
+                    listener.onNodeClicked(node.id, node.url)
+                },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.size(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (node.tab == state.currentTab) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerHighest
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(initial(node), style = MaterialTheme.typography.titleMedium)
+                }
+                Text(
+                    node.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Chip(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier =
+            Modifier.clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+private fun SectionTitle(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
+
+private fun LazyListScope.tree(
+    nodes: List<SidebarState.Node>,
+    depth: Int,
+    pinned: Boolean,
+    state: SidebarState,
+    listener: SidebarUi.Listener,
+) {
+    for (node in nodes) {
+        item(key = node.id) { NodeRow(node, depth, pinned, state, listener) }
+        if (node.isFolder && !node.collapsed) tree(node.children, depth + 1, pinned, state, listener)
+        // A split shows its panes.
+        if (node.type == "split") tree(node.children, depth + 1, pinned, state, listener)
+    }
+}
+
+@Composable
+private fun NodeRow(
+    node: SidebarState.Node,
+    depth: Int,
+    pinned: Boolean,
+    state: SidebarState,
+    listener: SidebarUi.Listener,
+) {
+    val current = node.tab >= 0 && node.tab == state.currentTab
+    Row(
+        Modifier.fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (current) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .clickable {
+                if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
+                else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
+            }
+            .padding(start = (12 + depth * 16).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier.size(28.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (node.isFolder) (if (node.collapsed) "▸" else "▾") else initial(node),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+        Text(
+            node.title.ifEmpty { node.url },
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            // An unloaded pinned tab is dimmer.
+            color =
+                if (pinned && node.type == "tab" && node.tab < 0) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (node.type == "tab") {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).clickable {
+                    if (pinned) listener.onUnpinNode(node.id) else listener.onCloseNode(node.id)
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("×", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            Spacer(Modifier.size(36.dp))
+        }
+    }
+}
+
+private fun initial(node: SidebarState.Node): String {
+    val text = node.title.ifEmpty { node.url.substringAfter("://").removePrefix("www.") }
+    return text.take(1).uppercase().ifEmpty { "•" }
+}

@@ -10,6 +10,8 @@ source_set("sidebar") {
     "sidebar_node.h",
     "sidebar_serializer.cc",
     "sidebar_serializer.h",
+    "sidebar_store.cc",
+    "sidebar_store.h",
     "space_list.cc",
     "space_list.h",
     "space_model.cc",
@@ -27,12 +29,14 @@ source_set("unit_tests") {
   sources = [
     "closed_entries_unittest.cc",
     "sidebar_serializer_unittest.cc",
+    "sidebar_store_unittest.cc",
     "space_list_unittest.cc",
     "space_model_unittest.cc",
   ]
   deps = [
     ":sidebar",
     "//base",
+    "//base/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

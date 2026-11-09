@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "compass/browser/window_sync/sidebar_store.h"
+#include "compass/browser/sidebar/sidebar_store.h"
 
 #include <string>
 #include <string_view>
