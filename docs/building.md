@@ -302,6 +302,88 @@ Limits:
   config) took 8h41m on a Mac mini running other jobs. Builds after small
   changes are incremental.
 
+### Linux from Windows
+
+Experimental. Chromium builds Linux only on Linux hosts, but nothing in GN
+forbids a Windows host, and with the patches below a Windows machine builds
+a working Linux x64 Compass: it starts under WSL2 and loads pages. There's
+no `--cpu` for it yet; the out directory and the extra toolchain are set up
+by hand.
+
+Set up once per checkout:
+
+1. **Linux dependencies.** The `checkout_linux` git dependencies in `DEPS`
+   (fontconfig, wayland, libdrm, pipewire, ...) at their pinned revisions,
+   with `core.symlinks=true`: a few headers are git symlinks (libsync's
+   `sync/sync.h`), which Git for Windows otherwise checks out as text files.
+   Adding `"linux"` to `.gclient`'s `target_os` and syncing does this too.
+2. **Sysroot.** Chromium's Debian sysroot
+   (`build/linux/sysroot_scripts/sysroots.json`, `bullseye_amd64`) in
+   `build/linux/debian_bullseye_amd64-sysroot`, unpacked with real symlinks
+   (an elevated shell can make them). Nine kernel headers differ from
+   others only in case (netfilter's `xt_CONNMARK.h` and `xt_connmark.h`);
+   Chromium uses neither.
+3. **Toolchain** in `src/third_party/compass-linux-llvm`. It has to be
+   inside `src/`, because siso refuses paths outside it. Start from a copy
+   of `third_party/llvm-build/Release+Asserts`, then add:
+   - `clang.exe` and `clang++.exe` (copies of `clang-cl.exe`), and
+     `ld.lld.exe` (a copy of `lld-link.exe`): the binaries pick their mode
+     from their name;
+   - `llvm-nm.exe` from Chromium's `Win/llvmobjdump-<clang revision>.tar.xz`;
+   - `llvm-ar`, `llvm-readelf`, `llvm-objcopy` and `llvm-strip` from an
+     official LLVM Windows release (Chromium doesn't ship them for Windows);
+   - `lib/clang/<version>/lib/x86_64-unknown-linux-gnu` from Chromium's
+     `Linux_x64/clang-<clang revision>.tar.xz` (the Linux runtimes).
+4. **Out directory**, with `args.gn`:
+
+   ```gn
+   import("//compass/config/args/common.gn")
+   import("//compass/config/args/portable.gn")
+   target_os = "linux"
+   target_cpu = "x64"
+   clang_base_path = "//third_party/compass-linux-llvm"
+   clang_use_chrome_plugins = false
+   use_cups = false                 # cups-config is a shell script
+   enable_remoting = false          # so is its build_deb.sh, run by gn gen
+   use_v8_context_snapshot = false  # see below
+   ```
+
+   plus the `cc_wrapper` line `compass gen` writes. Build `chrome` in it with
+   `autoninja`.
+
+What makes the Windows host work, all no-ops for other builds:
+
+- `build-toolchain-win-toolchain.gni.patch`,
+  `build-toolchain-win-BUILD.gn.patch`: the Windows toolchains, which a
+  Windows host uses as its host toolchains, assert `is_win`; they're
+  loaded with a Linux default toolchain here.
+- `build-toolchain-gcc_toolchain.gni.patch`: the static-library step runs
+  `//compass/build/toolchain/ar_wrapper.py` instead of a `cmd /s /c` line
+  that cmd.exe misreads under siso.
+- `BUILD.gn.patch`, `chrome-BUILD.gn.patch`: no breakpad host tools and no
+  Linux symbol files. On a Windows host breakpad builds its PDB `dump_syms`,
+  which can't read ELF.
+- `third_party-wayland-wayland_protocol.gni.patch`,
+  `third_party-wayland-BUILD.gn.patch`: `wayland_scanner` runs as
+  `wayland_scanner.exe`, and builds with the `getopt.h` and `unistd.h` in
+  `//compass/build/win_host_compat`.
+- `third_party-lzma_sdk-BUILD.gn.patch`: lzma's MASM files only for a
+  Windows target (upstream checks only the host).
+- `v8/src-wasm-wasm-objects.cc.patch`: `sys/mman.h` only when the host is
+  Linux too (upstream checks only the target, and `mksnapshot` is built for
+  the host).
+
+Limits:
+
+- **No V8 context snapshot.** Its generator runs on the host, so it would
+  build all of Blink a second time for Windows (and its path lacks
+  `.exe`). Without it, each new page sets up its JavaScript context at
+  start, a little slower.
+- **No printing** (`use_cups = false`), **no crash symbols**, **no
+  `.deb`/`.rpm`** (no `dpkg-deb` or `rpmbuild` on Windows).
+- **Running it** takes a Linux machine or WSL2 (Ubuntu 24.04 runs it, with
+  `--no-sandbox` as root since `chrome-sandbox` isn't built).
+
 ## Troubleshooting
 
 - **A change to an override isn't picked up:** run `compass build` rather than

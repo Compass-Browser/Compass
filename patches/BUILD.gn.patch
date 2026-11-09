@@ -1,5 +1,5 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index 29478cec8041b9cb494ae14fe6e4e2115714c023..abaa9822d3ff142b575566836f3455835b5198c4 100644
+index 29478cec8041b9cb494ae14fe6e4e2115714c023..290aa803cf198e297d2f7f4251cd1681ff3be7b2 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
 @@ -124,6 +124,10 @@ group("gn_all") {
@@ -13,7 +13,30 @@ index 29478cec8041b9cb494ae14fe6e4e2115714c023..abaa9822d3ff142b575566836f345583
  
      if (current_cpu == "arm64" && is_android && host_os == "linux") {
        deps += [
-@@ -1621,7 +1625,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
+@@ -594,6 +598,12 @@ group("gn_all") {
+         "//mojo:mojo_perftests",
+         "//services/service_manager/public/cpp",
+         "//testing/gmock:gmock_main",
++      ]
++    }
++    # Compass: breakpad has no host tools in a Windows host toolchain
++    # (docs/building.md, "Linux from Windows").
++    if ((is_android || is_linux) && host_os != "win") {
++      deps += [
+         "//third_party/breakpad:dump_syms($host_system_allocator_toolchain)",
+         "//third_party/breakpad:microdump_stackwalk($host_system_allocator_toolchain)",
+         "//third_party/breakpad:minidump_dump($host_system_allocator_toolchain)",
+@@ -1571,7 +1581,8 @@ group("chromium_builder_perf") {
+       data_deps += [ "//chrome/test:performance_browser_tests" ]
+     }
+ 
+-    if (!is_win) {
++    # Compass: as above, for a Windows host building for Linux.
++    if (!is_win && host_os != "win") {
+       data_deps += [ "//third_party/breakpad:minidump_stackwalk($host_system_allocator_toolchain)" ]
+     }
+   }
+@@ -1621,7 +1632,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
    }
  }
  

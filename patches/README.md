@@ -42,7 +42,7 @@ nothing else.
 
 | Patch | Why |
 |---|---|
-| `BUILD.gn.patch` | Adds `//compass:compass_unittests` to `gn_all` |
+| `BUILD.gn.patch` | Adds `//compass:compass_unittests` to `gn_all`; no breakpad host tools on a Windows host building for Linux (docs/building.md, "Linux from Windows") |
 | `crypto-subtle_passkey.h.patch` | Lets `compass::arc::MakeCryptoPassKey()` call the PBKDF2 key derivation, to decrypt Arc's data with Chromium's macOS parameters (docs/design/arc-import.md) |
 | `chrome-app-theme-chromium-BRANDING.patch` | Product name, company and bundle ID |
 | `tools-grit-grit_rule.gni.patch` | The `grit` template builds the Chromium-branded strings in `compass_rebranded_grds` from renamed copies (`//compass/strings`), with their start IDs from `gen/compass/strings/resource_ids` (docs/design/branding.md) |
@@ -50,7 +50,7 @@ nothing else.
 | `chrome-browser-ui-tab_helpers.cc.patch` | Every tab gets `compass::AttachWebStoreBranding()`: the Chrome Web Store's buttons say Compass (docs/design/branding.md "Web Store"); `chrome-browser-ui-BUILD.gn.patch` adds the dependency |
 | `*.png.patch`, `*.svg.patch`, `*.ico.patch`, `*.icon.patch` | Compass's logo in place of Chromium's (binary patches written by `tools/branding/make_patches.py`, docs/design/branding.md "Logo") |
 | `components-os_crypt-common-keychain_password_mac.mm.patch`, `components-os_crypt-common-BUILD.gn.patch` | On macOS the safe storage key lives in the Keychain item "Compass Safe Storage" (account "Compass") instead of upstream's "Chromium Safe Storage"; when the new item is missing, `compass::MoveLegacyKeychainPassword()` (`components/os_crypt/`) copies the old item's key so saved passwords and cookies stay readable |
-| `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`) |
+| `chrome-BUILD.gn.patch` | The macOS app icon comes from `assets/mac/` (`tools/build_mac_icon.sh` builds it from `assets/Compass.icon` and `assets/Compass.icns`); no Linux symbol files on a Windows host (docs/building.md, "Linux from Windows") |
 | `chrome-browser-BUILD.gn.patch` | Links `//compass/browser` into the browser (`//compass/browser/android` on Android), and `//compass/browser:feature_overrides`, `:url_handler`, `//compass/browser/native_messaging` and `//compass/browser/ui/cocoa:shortcuts` into `:core` |
 | `chrome-browser-chrome_browser_main.cc.patch` | macOS: at launch, after creating the user's NativeMessagingHosts folder, `compass::CopyNativeMessagingHostsFromChrome()` copies 1Password's manifest there from Chrome's folder, so the 1Password extension can reach the desktop app (docs/design/native-messaging.md) |
 | `chrome-browser-chrome_browser_main.cc.patch` (last hunk) | Windows: after the browser starts, `compass::win::RemoveProfileDesktopShortcuts()` removes the per-profile desktop shortcuts upstream made ("Your Chromium - Compass") and makes the plain one again |
@@ -156,3 +156,4 @@ nothing else.
 | `chrome-android-java-src-org-chromium-chrome-browser-tab-TabArchiveSettings.java.patch` | Chrome's own archiving of inactive tabs (and its promo) is off under Compass's shell (`CompassShell.isPresent()`), whose sidebar archives tabs itself |
 | `chrome-android-java-src-org-chromium-chrome-browser-toolbar-ToolbarManager.java.patch` | Android: Chrome's own bottom bar isn't enabled under Compass's shell (its bar is the bottom bar); under the shell, Chrome doesn't make its extensions toolbar (the shell's sheet owns the window's one extension actions model) |
 | `chrome-browser-ui-android-tabstrip-java-src-org-chromium-chrome-browser-tabstrip-TabStripTopControlLayer.java.patch`, `chrome-browser-ui-android-tabstrip-BUILD.gn.patch` | Android tablets: the tab strip's layer is hidden under Compass's shell; its sidebar has the tabs |
+| `build-toolchain-win-toolchain.gni.patch`, `build-toolchain-win-BUILD.gn.patch`, `build-toolchain-gcc_toolchain.gni.patch`, `third_party-wayland-wayland_protocol.gni.patch`, `third_party-wayland-BUILD.gn.patch`, `third_party-lzma_sdk-BUILD.gn.patch`, `v8/src-wasm-wasm-objects.cc.patch` | Linux built on a Windows host: the Windows host toolchains load under a Linux default toolchain, static libraries go through `//compass/build/toolchain/ar_wrapper.py`, `wayland_scanner.exe` builds with `//compass/build/win_host_compat`, lzma's MASM files and V8's `sys/mman.h` only where the host fits (docs/building.md, "Linux from Windows"); no-ops for every other build |

@@ -1,0 +1,15 @@
+diff --git a/third_party/wayland/wayland_protocol.gni b/third_party/wayland/wayland_protocol.gni
+index 79aeb40224f0e5b38a7985dac845cee2cfc715ec..fea0e4583cdc9bfb7b3ec46b2153596def48c316 100644
+--- a/third_party/wayland/wayland_protocol.gni
++++ b/third_party/wayland/wayland_protocol.gni
+@@ -105,6 +105,10 @@ template("wayland_protocol") {
+     deps = [ wayland_scanner_label ]
+     wayland_scanner_path = get_label_info(wayland_scanner_label,
+                                           "root_out_dir") + "/wayland_scanner"
++    if (host_os == "win") {
++      # Compass: Linux from Windows (docs/building.md).
++      wayland_scanner_path += ".exe"
++    }
+     args += [
+       "--cmd",
+       "./" + rebase_path(wayland_scanner_path, root_build_dir),

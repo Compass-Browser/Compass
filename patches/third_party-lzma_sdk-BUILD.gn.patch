@@ -1,0 +1,16 @@
+diff --git a/third_party/lzma_sdk/BUILD.gn b/third_party/lzma_sdk/BUILD.gn
+index a5601c67cdc84c77379e8ff9406747d409cd6929..25166d5fe78d35214a03913f62afbc4484e96adb 100644
+--- a/third_party/lzma_sdk/BUILD.gn
++++ b/third_party/lzma_sdk/BUILD.gn
+@@ -13,7 +13,10 @@ use_arm_neon_optimizations = target_cpu == "arm" || target_cpu == "arm64"
+ # LzmaDecOpt.asm only works on x64 and not x86.
+ # https://sourceforge.net/p/sevenzip/discussion/45797/thread/768932e9dd/?limit=25#0d6c
+ # If enable_lzma_opt is enabled, disable_llvm_ml should be enabled as well.
+-enable_lzma_opt = host_os == "win" && target_cpu == "x64" && !is_msan
++# Compass: also is_win, or a Windows host building for Linux hands the MASM
++# files to the Linux clang (docs/building.md, "Linux from Windows").
++enable_lzma_opt =
++    host_os == "win" && is_win && target_cpu == "x64" && !is_msan
+ if (enable_lzma_opt) {
+   assert(disable_llvm_ml)
+ }

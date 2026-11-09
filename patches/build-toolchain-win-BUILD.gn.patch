@@ -1,0 +1,15 @@
+diff --git a/build/toolchain/win/BUILD.gn b/build/toolchain/win/BUILD.gn
+index 860b6af8079509febc6e6cc1fb73b8890ed4af6f..c9abc5bf5f159f71d9db2e9572e4f5d17cade496 100644
+--- a/build/toolchain/win/BUILD.gn
++++ b/build/toolchain/win/BUILD.gn
+@@ -5,7 +5,9 @@
+ import("//build/config/win/visual_studio_version.gni")
+ import("//build/toolchain/win/toolchain.gni")
+ 
+-assert(is_win, "Should only be running on Windows")
++# Compass: a Windows host building for Linux uses these as its host
++# toolchains (docs/building.md, "Linux from Windows").
++assert(is_win || host_os == "win", "Should only be running on Windows")
+ 
+ # Setup the Visual Studio state.
+ #

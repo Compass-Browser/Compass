@@ -1,0 +1,15 @@
+diff --git a/build/toolchain/win/toolchain.gni b/build/toolchain/win/toolchain.gni
+index c62562f5f4507575bfd8ca8441589563a0b55f4d..074b2feec90f0d6606522ae05654026423315913 100644
+--- a/build/toolchain/win/toolchain.gni
++++ b/build/toolchain/win/toolchain.gni
+@@ -12,7 +12,9 @@ import("//build/toolchain/rbe.gni")
+ import("//build/toolchain/toolchain.gni")
+ import("//build/toolchain/win/win_toolchain_data.gni")
+ 
+-assert(is_win, "Should only be running on Windows")
++# Compass: a Windows host building for Linux uses these as its host
++# toolchains (docs/building.md, "Linux from Windows").
++assert(is_win || host_os == "win", "Should only be running on Windows")
+ 
+ # This tool will is used as a wrapper for various commands below.
+ _tool_wrapper_path =

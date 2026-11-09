@@ -1,0 +1,16 @@
+diff --git a/third_party/wayland/BUILD.gn b/third_party/wayland/BUILD.gn
+index d18530686678bead2f51129802a2a79244dd2c1d..d299611e1fb91b6ac9161cf755b3a0f68202bb53 100644
+--- a/third_party/wayland/BUILD.gn
++++ b/third_party/wayland/BUILD.gn
+@@ -288,6 +288,11 @@ config("wayland_scanner_config") {
+   ]
+ 
+   include_dirs = [ "include/" ]
++  if (is_win) {
++    # Compass: getopt.h and unistd.h for a Windows host building for Linux
++    # (docs/building.md, "Linux from Windows").
++    include_dirs += [ "//compass/build/win_host_compat/" ]
++  }
+ }
+ 
+ executable("wayland_scanner") {

@@ -1,0 +1,24 @@
+diff --git a/src/wasm/wasm-objects.cc b/src/wasm/wasm-objects.cc
+index 4c82b3c972299501925cb32788b0669a7499d2fd..ec2105869b19765d13fd6b44dc66a6d6deeb94af 100644
+--- a/src/wasm/wasm-objects.cc
++++ b/src/wasm/wasm-objects.cc
+@@ -4,14 +4,17 @@
+ 
+ #include "src/wasm/wasm-objects.h"
+ 
+-#if V8_TARGET_OS_LINUX
++// Compass: these are the host's headers, and mksnapshot for a Linux target
++// can be built on a Windows host (Compass's docs/building.md, "Linux from
++// Windows").
++#if V8_TARGET_OS_LINUX && V8_OS_LINUX
+ #include <sys/mman.h>
+ #include <sys/stat.h>
+ // `sys/mman.h defines `MAP_TYPE`, but `MAP_TYPE` also gets defined within V8.
+ // Since we don't need `sys/mman.h`'s `MAP_TYPE`, we undefine it immediately
+ // after the `#include`.
+ #undef MAP_TYPE
+-#endif  // V8_TARGET_OS_LINUX
++#endif  // V8_TARGET_OS_LINUX && V8_OS_LINUX
+ 
+ #include <optional>
+ 
