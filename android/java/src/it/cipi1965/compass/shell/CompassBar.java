@@ -23,8 +23,12 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerT
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerVisibility;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.layouts.LayoutType;
+import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
+import org.chromium.chrome.browser.preferences.Pref;
+import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.url.GURL;
 
 /**
@@ -69,9 +73,12 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mCommandBar = new CommandBar(mActivity, coordinator);
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
+        // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
+        UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
+                .setBoolean(Pref.SIGNIN_ALLOWED, false);
+        redirectOmniboxFocus();
         // Compass's own intents (the tile, the widget, shortcuts, the share target).
         handleIntent(mActivity.getIntent());
-        mActivity.addOnNewIntentListener(this::handleIntent);
         spaces.setOnChanged(
                 () -> {
                     SidebarState.Space space = spaces.state().getActiveSpace();
@@ -134,8 +141,30 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mState.setIncognito(tab.isIncognito());
     }
 
-    private void handleIntent(@Nullable Intent intent) {
-        if (intent == null || !CompassIntents.isCompassIntent(intent)) return;
+    // Chrome still focuses its (hidden) location bar: from the new tab page's search box, or
+    // Ctrl+L. The command bar takes over.
+    private void redirectOmniboxFocus() {
+        ToolbarManager toolbar = mActivity.getToolbarManager();
+        if (toolbar == null) return;
+        toolbar.getOmniboxStubSupplier()
+                .onAvailable(
+                        omnibox ->
+                                omnibox.addUrlFocusChangeListener(
+                                        hasFocus -> {
+                                            if (!hasFocus || mCommandBar == null) return;
+                                            if (toolbar.getLocationBar()
+                                                    instanceof LocationBarCoordinator location) {
+                                                location.clearOmniboxFocus();
+                                            }
+                                            // For the tab on screen (on the new tab page,
+                                            // that's the new tab).
+                                            mCommandBar.open(/* inNewTab= */ false);
+                                        }));
+    }
+
+    /** Handles Compass's own intents (CompassIntents); returns whether |intent| was one. */
+    public boolean handleIntent(@Nullable Intent intent) {
+        if (intent == null || !CompassIntents.isCompassIntent(intent)) return false;
         String action = intent.getAction();
         if (CompassIntents.ACTION_COMMAND_BAR.equals(action)) {
             if (mCommandBar != null) mCommandBar.open(/* inNewTab= */ true);
@@ -148,6 +177,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         }
         // Handled once, even if the activity is recreated with it.
         intent.setAction(null);
+        return true;
     }
 
     // CompassBarUi.Actions:

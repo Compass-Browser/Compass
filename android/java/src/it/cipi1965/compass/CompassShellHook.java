@@ -5,6 +5,7 @@
 package it.cipi1965.compass;
 
 import android.app.Activity;
+import android.content.Intent;
 
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 
@@ -16,4 +17,9 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 public interface CompassShellHook {
     /** Called when the activity has finished its native initialization. */
     void onFinishNativeInitialization(Activity activity, BottomControlsStacker bottomControls);
+
+    /** A new intent for the activity: true if the shell handled it, and Chrome shouldn't. */
+    default boolean onNewIntent(Intent intent) {
+        return false;
+    }
 }

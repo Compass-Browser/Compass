@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index af106d0a96ec69cd4ed511e2158888c47e19e578..c336fdad55b10959fd5ed907dd1029bd4d1232b1 100644
+index af106d0a96ec69cd4ed511e2158888c47e19e578..d7255609d02997878f1ceba89c8cb00c584fc0ce 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -53,6 +53,7 @@ import androidx.lifecycle.LifecycleRegistry;
@@ -10,18 +10,37 @@ index af106d0a96ec69cd4ed511e2158888c47e19e578..c336fdad55b10959fd5ed907dd1029bd
  import org.chromium.base.Callback;
  import org.chromium.base.CallbackController;
  import org.chromium.base.CallbackUtils;
-@@ -1661,6 +1662,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+@@ -442,6 +443,9 @@ import java.util.function.Supplier;
+  * accessible via a chrome specific tab switching UI.
+  */
+ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachIntentObserver {
++    // Compass's shell, in its app (docs/design/android.md).
++    private it.cipi1965.compass.@Nullable CompassShellHook mCompassShell;
++
+     // Name of the ChromeTabbedActivity alias that handles MAIN intents.
+     public static final String MAIN_LAUNCHER_ACTIVITY_NAME = "com.google.android.apps.chrome.Main";
+ 
+@@ -1661,6 +1665,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
  
              super.finishNativeInitialization();
  
 +            // Compass: its shell, when the app has one (docs/design/android.md).
-+            it.cipi1965.compass.CompassShellHook compassShell =
++            mCompassShell =
 +                    ServiceLoaderUtil.maybeCreate(it.cipi1965.compass.CompassShellHook.class);
-+            if (compassShell != null) {
-+                compassShell.onFinishNativeInitialization(
++            if (mCompassShell != null) {
++                mCompassShell.onFinishNativeInitialization(
 +                        this, mRootUiCoordinator.getBottomControlsStacker());
 +            }
 +
              TabbedStartupWindowPolicyDelegate.getInstance().initializeWithNative(originalProfile);
  
              // Deliberately not deferred to onDeferredStartup(): this timestamp is not just a
+@@ -1960,6 +1972,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+ 
+     @Override
+     public void onNewIntentWithNative(Intent intent) {
++        // Compass: its shell's own intents (the tile, the widget, shortcuts, sharing).
++        if (mCompassShell != null && mCompassShell.onNewIntent(intent)) return;
+         try {
+             TraceEvent.begin("ChromeTabbedActivity.onNewIntentWithNative");
+             if (IntentHandler.isActorNotificationIntent(intent)) {
