@@ -8,8 +8,10 @@ import android.content.Intent;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.graphics.drawable.Icon;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
@@ -39,6 +41,10 @@ import java.util.List;
  * Incognito tabs aren't in spaces.
  */
 public class Spaces implements SidebarUi.Listener {
+    // Windows at least this wide (Material's "expanded") show the sidebar as a pane.
+    private static final int PANE_MIN_WINDOW_DP = 840;
+    private static final int PANE_WIDTH_DP = 300;
+
     private final ChromeTabbedActivity mActivity;
     private final TabModel mTabs;
     private final SpacesBridge mBridge;
@@ -47,6 +53,8 @@ public class Spaces implements SidebarUi.Listener {
     // The node a tab is being opened for; its didAddTab() maps it instead of adding to Today.
     private @Nullable String mOpeningNode;
     private @Nullable Runnable mOnChanged;
+    private @Nullable View mPane;
+    private boolean mDocked;
     // The spaces the launcher shortcuts were made for (id, emoji and name of each).
     private String mShortcutSpaces = "";
 
@@ -119,6 +127,51 @@ public class Spaces implements SidebarUi.Listener {
                 new CoordinatorLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         onModelChanged();
+        setUpDocking(parent);
+    }
+
+    /** Whether the sidebar is a permanent pane (wide windows). */
+    public boolean isDocked() {
+        return mDocked;
+    }
+
+    // On wide windows (tablets, unfolded foldables, desktop windows) the sidebar is a pane next to
+    // the browser, as on the desktop: Chrome's coordinator moves over by its width.
+    private void setUpDocking(ViewGroup coordinator) {
+        if (!(coordinator.getParent() instanceof FrameLayout root)) return;
+        root.addOnLayoutChangeListener(
+                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    if (right - left != oldRight - oldLeft) {
+                        v.post(() -> updateDocking(coordinator, root));
+                    }
+                });
+        updateDocking(coordinator, root);
+    }
+
+    private void updateDocking(ViewGroup coordinator, FrameLayout root) {
+        float density = mActivity.getResources().getDisplayMetrics().density;
+        if (root.getWidth() == 0) return;
+        boolean dock = root.getWidth() / density >= PANE_MIN_WINDOW_DP;
+        if (dock == mDocked) return;
+        mDocked = dock;
+        int paneWidth = Math.round(PANE_WIDTH_DP * density);
+        if (mPane == null) {
+            mPane = SidebarUi.createPaneView(mActivity, mActivity, mActivity, mState, this);
+        }
+        ViewGroup.MarginLayoutParams params =
+                (ViewGroup.MarginLayoutParams) coordinator.getLayoutParams();
+        if (dock) {
+            root.addView(
+                    mPane,
+                    new FrameLayout.LayoutParams(
+                            paneWidth, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
+            params.setMarginStart(paneWidth);
+            onDismiss();
+        } else {
+            root.removeView(mPane);
+            params.setMarginStart(0);
+        }
+        coordinator.setLayoutParams(params);
     }
 
     /** Runs when the spaces change (the bar shows the active space's icon). */
@@ -131,6 +184,8 @@ public class Spaces implements SidebarUi.Listener {
     }
 
     public void showSidebar() {
+        // The pane is always there.
+        if (mDocked) return;
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);
