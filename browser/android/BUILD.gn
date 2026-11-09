@@ -11,8 +11,27 @@ assert(is_android)
 
 group("android") {
   deps = [
+    ":claude_bridge",
     ":spaces",
     ":sync_bridge",
+  ]
+}
+
+# The Claude chat's bridge, on the desktop's Claude client.
+source_set("claude_bridge") {
+  sources = [
+    "claude_bridge.cc",
+    "claude_bridge.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/prefs",
+    "//compass/android:jni_headers",
+    "//compass/browser/claude",
+    "//compass/browser/claude:prefs",
+    "//content/public/browser",
+    "//services/network/public/cpp",
   ]
 }
 

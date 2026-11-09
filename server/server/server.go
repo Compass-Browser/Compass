@@ -169,6 +169,8 @@ func LoadConfig() (Config, error) {
 		TeamID:  os.Getenv("COMPASS_SYNC_APNS_TEAM_ID"),
 		Host:    os.Getenv("COMPASS_SYNC_APNS_HOST"),
 	}
+	// FCM for Compass for Android: a Firebase service account's JSON key.
+	cfg.Push.FCM = push.FCMConfig{CredentialsPath: os.Getenv("COMPASS_SYNC_FCM_CREDENTIALS")}
 	if cfg.Push.APNs.Enabled() && (cfg.Push.APNs.KeyID == "" || cfg.Push.APNs.TeamID == "") {
 		return cfg, errors.New("COMPASS_SYNC_APNS_KEY needs COMPASS_SYNC_APNS_KEY_ID and COMPASS_SYNC_APNS_TEAM_ID")
 	}

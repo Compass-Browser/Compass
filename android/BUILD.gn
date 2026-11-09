@@ -28,16 +28,21 @@ generate_jni("jni_headers") {
   sources = [
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
+    "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
   ]
 }
 
 android_library("java") {
   sources = [
     "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
+    "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
     "java/src/it/cipi1965/compass/extras/CompassIntents.java",
     "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
     "java/src/it/cipi1965/compass/extras/PinShareActivity.java",
     "java/src/it/cipi1965/compass/extras/SearchWidgetProvider.java",
+    "java/src/it/cipi1965/compass/shell/ClaudeChat.java",
+    "java/src/it/cipi1965/compass/shell/ClaudeChatState.kt",
+    "java/src/it/cipi1965/compass/shell/ClaudeChatUi.kt",
     "java/src/it/cipi1965/compass/shell/CompassBar.java",
     "java/src/it/cipi1965/compass/shell/CompassBarState.kt",
     "java/src/it/cipi1965/compass/shell/CompassBarUi.kt",

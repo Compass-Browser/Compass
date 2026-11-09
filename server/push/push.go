@@ -38,6 +38,8 @@ type Config struct {
 	// Topics are the bundle IDs devices may register for.
 	Topics []string
 	APNs   APNsConfig
+	// FCM, for Compass for Android (fcm.go).
+	FCM FCMConfig
 }
 
 // The alert a new sent tab wakes a phone with; its notification service
@@ -51,7 +53,8 @@ const maxConcurrent = 16
 // Service serves registrations and sends the pushes.
 type Service struct {
 	cfg    Config
-	sender *Sender // Nil without a key: registrations are kept, nothing sent.
+	sender *Sender    // Nil without a key: registrations are kept, nothing sent.
+	fcm    *FCMSender // Nil without a service account, likewise.
 	slots  chan struct{}
 	now    func() time.Time
 	// sent is told about each push (tests).
@@ -70,6 +73,13 @@ func New(cfg Config) (*Service, error) {
 			return nil, err
 		}
 		s.sender = sender
+	}
+	if cfg.FCM.Enabled() {
+		fcm, err := NewFCMSender(cfg.FCM)
+		if err != nil {
+			return nil, err
+		}
+		s.fcm = fcm
 	}
 	return s, nil
 }
@@ -130,14 +140,34 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Token       string `json:"token"`
 		Environment string `json:"environment"`
 		Topic       string `json:"topic"`
+		// "apns" (the default, as older iOS clients send none) or "fcm".
+		Platform string `json:"platform"`
 	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 8192))
 	if err != nil || json.Unmarshal(raw, &body) != nil {
 		fail(w, http.StatusBadRequest, "JSON body required")
 		return
 	}
-	body.Token = strings.ToLower(body.Token)
+	if body.Platform == "fcm" {
+		switch {
+		case !validFCMToken(body.Token):
+			fail(w, http.StatusBadRequest, "token: FCM registration token required")
+			return
+		case !slices.Contains(s.cfg.Topics, body.Topic):
+			fail(w, http.StatusBadRequest, "topic: not an app this server pushes to")
+			return
+		}
+		// FCM registrations are marked by their environment.
+		body.Environment = FCMEnvironment
+	} else {
+		body.Token = strings.ToLower(body.Token)
+	}
 	switch {
+	case body.Platform != "" && body.Platform != "apns" && body.Platform != "fcm":
+		fail(w, http.StatusBadRequest, `platform: "apns" or "fcm"`)
+		return
+	case body.Platform == "fcm":
+		// Checked above.
 	case !validToken(body.Token):
 		fail(w, http.StatusBadRequest, "token: hex device token required")
 		return
@@ -166,8 +196,8 @@ func (s *Service) OnCommit(chain, cacheGUID string, created []int) {
 	if !slices.Contains(created, SendTabToSelfType) {
 		return
 	}
-	if s.sender == nil {
-		log.Debug().Msg("Push: a tab was sent, but no APNs key is configured")
+	if s.sender == nil && s.fcm == nil {
+		log.Debug().Msg("Push: a tab was sent, but no APNs key or FCM account is configured")
 		return
 	}
 	go s.wake(chain, cacheGUID)
@@ -190,7 +220,18 @@ func (s *Service) wake(chain, except string) {
 		case <-ctx.Done():
 			return
 		}
-		res, err := s.sender.Send(ctx, t.Environment, t.Topic, t.Token, sendTabPayload)
+		fcm := t.Environment == FCMEnvironment
+		var res Result
+		switch {
+		case fcm && s.fcm != nil:
+			res, err = s.fcm.Send(ctx, t.Token, "send-tab")
+		case !fcm && s.sender != nil:
+			res, err = s.sender.Send(ctx, t.Environment, t.Topic, t.Token, sendTabPayload)
+		default:
+			// This platform has no credentials here.
+			<-s.slots
+			continue
+		}
 		<-s.slots
 		if s.sent != nil {
 			s.sent(t, res, err)
@@ -198,13 +239,13 @@ func (s *Service) wake(chain, except string) {
 		switch {
 		case err != nil:
 			log.Warn().Err(err).Msg("Push: send failed")
-		case res.Invalid():
+		case fcm && FCMInvalid(res), !fcm && res.Invalid():
 			log.Info().Int("status", res.Status).Str("reason", res.Reason).Msg("Push: dropping an invalid token")
 			if err = s.cfg.Store.DropPushToken(ctx, chain, t.Token); err != nil {
 				log.Error().Err(err).Msg("Push: dropping a token failed")
 			}
 		case res.Status != http.StatusOK:
-			log.Warn().Int("status", res.Status).Str("reason", res.Reason).Msg("Push: APNs refused the push")
+			log.Warn().Int("status", res.Status).Str("reason", res.Reason).Bool("fcm", fcm).Msg("Push: the push was refused")
 		}
 	}
 }

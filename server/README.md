@@ -80,7 +80,8 @@ Environment variables (all optional):
 | `COMPASS_SYNC_APNS_KEY` | none | An APNs auth key (`.p8`), to wake iPhones when a tab is sent to them (see "Push to iPhones"); without it, sent tabs arrive at the next sync |
 | `COMPASS_SYNC_APNS_KEY_ID` | none | That key's ID (required with the key) |
 | `COMPASS_SYNC_APNS_TEAM_ID` | none | The Apple Developer team ID (required with the key) |
-| `COMPASS_SYNC_APNS_TOPICS` | `it.cipi1965.compass` | Comma-separated bundle IDs devices may register for |
+| `COMPASS_SYNC_APNS_TOPICS` | `it.cipi1965.compass` | Comma-separated bundle IDs devices may register for (Android package names too) |
+| `COMPASS_SYNC_FCM_CREDENTIALS` | none | A Firebase service account's JSON key, to wake Android devices through FCM (see "Push to iPhones"); without it, sent tabs reach them at the next sync |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
 
 Never list a proxy as trusted unless every request reaches the server
@@ -127,6 +128,15 @@ Identifiers & Profiles → Keys → Apple Push Notifications service), put the
 at `/data/apns.p8`) and set `COMPASS_SYNC_APNS_KEY`, `COMPASS_SYNC_APNS_KEY_ID`
 and `COMPASS_SYNC_APNS_TEAM_ID`. Without a key, registrations are kept and
 nothing is pushed.
+
+Android devices register with `"platform": "fcm"` and their FCM registration
+token (iOS sends no platform, which means APNs). The server wakes them with
+a data-only FCM message (`{"type": "send-tab"}`, high priority) through FCM
+HTTP v1; the app syncs and shows the tab. To turn it on, make a service
+account with the Firebase Cloud Messaging role in the app's Firebase
+project, put its JSON key where the container can read it, and set
+`COMPASS_SYNC_FCM_CREDENTIALS`. A token FCM reports as unregistered is
+dropped.
 
 ## Limits
 
