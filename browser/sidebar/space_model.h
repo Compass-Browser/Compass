@@ -193,6 +193,16 @@ struct ArchivedEntry {
   base::Time archived_at;
 };
 
+// One entry of a live folder as a refresh delivers it (the plugin's result,
+// already normalized by the runtime: docs/design/live-folders.md, "Result").
+struct LiveItem {
+  // The plugin's stable ID for the item. Items with an empty or repeated key
+  // are skipped.
+  std::string key;
+  GURL url;
+  std::u16string title;
+};
+
 // The sidebar tree of one space: a pinned section (folders, tabs and splits;
 // folders nest) and a today section (tabs and splits). Every window shows the
 // same SpaceModel. The model knows nothing about WebContents or windows.
@@ -207,6 +217,10 @@ struct ArchivedEntry {
 //    something has been in it and left. Not while a KeepEmptyFolders is
 //    alive: sync applies another device's changes in an order that can empty
 //    a folder for a moment.
+//  - Live folders only live in the pinned section, and hold only their
+//    entries: tabs with a live_item_key(), which ReplaceLiveItems() adds,
+//    orders and removes. Nothing else moves in, and entries aren't reordered
+//    or split; an entry moved out loses its key and becomes an ordinary tab.
 //
 // A profile's Favorites are a model of their own kind: its pinned root holds
 // only tabs, and its Today root nothing. See docs/design/command-bar.md,
@@ -319,6 +333,52 @@ class SpaceModel {
                         size_t index,
                         const base::Uuid& id = base::Uuid());
 
+  // Whether a live folder may be added to |parent|: the pinned root, or a
+  // plain folder in Pinned. Never in Favorites.
+  bool CanAddLiveFolder(const SidebarNode* parent) const;
+
+  // A live folder, empty until ReplaceLiveItems() fills it. |parent| must
+  // pass CanAddLiveFolder(); |id| is as for AddFolder().
+  SidebarNode* AddLiveFolder(SidebarNode* parent,
+                             size_t index,
+                             std::u16string title,
+                             LiveSource source,
+                             const base::Uuid& id = base::Uuid());
+
+  // Changes a live folder's plugin or settings. Its entries stay until the
+  // next refresh replaces them. Observers see OnNodeChanged().
+  void SetLiveSource(SidebarNode* folder, LiveSource source);
+
+  // Makes a live folder plain: its entries stay, as ordinary tabs.
+  // Observers see OnNodeChanged() for each entry, then the folder.
+  void ConvertToPlainFolder(SidebarNode* folder);
+
+  // Makes |folder|'s entries those of |items|, in their order, matched to
+  // the entries there by key: a match keeps its node (its ID, its live tab)
+  // and takes the item's URL and title as its saved page, and as its page
+  // too unless |is_open| says its tab is open (then the tab keeps showing
+  // what it shows). New items are added, unseen unless this is the folder's
+  // first refresh. Entries no item matches are removed, unless their tab is
+  // open: those stay, after the others, until a refresh finds them closed.
+  // Records |now| as the folder's live_refreshed().
+  void ReplaceLiveItems(SidebarNode* folder,
+                        const std::vector<LiveItem>& items,
+                        base::Time now,
+                        base::FunctionRef<bool(const SidebarNode&)> is_open);
+
+  // Only while loading: adds a saved entry to |folder|, which a saved
+  // refresh time goes with (SetLiveRefreshed()).
+  SidebarNode* AddLiveItem(SidebarNode* folder,
+                           size_t index,
+                           const LiveItem& item,
+                           const base::Uuid& id = base::Uuid());
+  void SetLiveRefreshed(SidebarNode* folder, base::Time refreshed);
+
+  // Marks a live folder's entry seen or not. Observers see OnNodeChanged().
+  void SetUnseen(SidebarNode* tab, bool unseen);
+  // Marks every entry of |folder| seen.
+  void MarkAllSeen(SidebarNode* folder);
+
   // Whether |node| may be moved into |new_parent|. Use it to validate drops.
   bool CanMove(const SidebarNode* node, const SidebarNode* new_parent) const;
 
@@ -417,6 +477,15 @@ class SpaceModel {
 
  private:
   bool CanContain(const SidebarNode* parent, SidebarNode::Type type) const;
+
+  // Move() without its check, for ReplaceLiveItems(), which reorders entries
+  // users can't.
+  void MoveNode(SidebarNode* node, SidebarNode* new_parent, size_t index);
+
+  // Clears the live item keys (and unseen) of the tabs in |node|'s subtree
+  // that aren't in a live folder. Observers aren't told, as for
+  // UpdateSavedUrls().
+  void UpdateLiveItems(SidebarNode* node);
 
   void NotifyArchiveChanged();
 

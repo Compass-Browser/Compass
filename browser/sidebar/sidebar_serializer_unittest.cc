@@ -583,5 +583,121 @@ TEST(SidebarSerializerTest, RoundTripsSavedUrls) {
   EXPECT_TRUE(restored.today_root()->children()[0]->saved_url().is_empty());
 }
 
+
+TEST(SidebarSerializerTest, RoundTripsLiveFolders) {
+  SpaceModel model;
+  SidebarNode* work = model.AddFolder(model.pinned_root(), 0, u"Work");
+  SidebarNode* live = model.AddLiveFolder(
+      work, 0, u"PRs",
+      LiveSource("github",
+                 base::DictValue().Set("query", "is:pr").Set("max", 20),
+                 GURL("https://plugins.test/github.js"), "abc123"));
+  const base::Time refreshed = base::Time::Now();
+  model.ReplaceLiveItems(
+      live,
+      {{"1", GURL("https://github.test/1"), u"One"},
+       {"2", GURL("https://github.test/2"), u"Two"}},
+      refreshed, [](const SidebarNode&) { return false; });
+  model.SetUnseen(live->children()[1].get(), true);
+  const base::Uuid one_id = live->children()[0]->id();
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  EXPECT_EQ(Describe(restored.pinned_root()), "Work{PRs{One,Two}}");
+  const SidebarNode* folder =
+      restored.pinned_root()->children()[0]->children()[0].get();
+  ASSERT_TRUE(folder->is_live_folder());
+  EXPECT_EQ(*folder->live_source(), *live->live_source());
+  EXPECT_EQ(folder->live_refreshed(), refreshed);
+  EXPECT_EQ(folder->children()[0]->id(), one_id);
+  EXPECT_EQ(folder->children()[0]->live_item_key(), "1");
+  EXPECT_FALSE(folder->children()[0]->unseen());
+  EXPECT_EQ(folder->children()[1]->live_item_key(), "2");
+  EXPECT_TRUE(folder->children()[1]->unseen());
+  EXPECT_EQ(folder->children()[1]->saved_url(), GURL("https://github.test/2"));
+}
+
+TEST(SidebarSerializerTest, LiveFoldersComeBackPlainWhereTheyCantBe) {
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"pinned": [
+            {"type": "folder", "title": "NoPlugin", "live": {"config": {}},
+             "children": [{"type": "tab", "title": "x", "url": "https://x.test/",
+                           "live_item": "x"}]},
+            {"type": "folder", "title": "Live",
+             "live": {"plugin": "rss", "config": {"url": "https://f.test/"}},
+             "children": [
+               {"type": "tab", "title": "a", "url": "https://a.test/",
+                "live_item": "a", "unseen": true},
+               {"type": "tab", "title": "keyless", "url": "https://k.test/"},
+               {"type": "folder", "title": "inner"},
+               {"type": "split", "children": [
+                 {"type": "tab", "title": "p", "url": "https://p.test/"},
+                 {"type": "tab", "title": "q", "url": "https://q.test/"}]}]},
+            {"type": "tab", "title": "stray", "url": "https://s.test/",
+             "live_item": "s", "unseen": true}],
+          "today": [
+            {"type": "folder", "title": "InToday",
+             "live": {"plugin": "rss", "config": {}},
+             "children": [{"type": "tab", "title": "t", "url": "https://t.test/",
+                           "live_item": "t"}]}]})",
+      base::JSON_PARSE_RFC);
+  SpaceModel model;
+  DeserializeSpace(data->GetDict(), model);
+
+  EXPECT_EQ(Describe(model.pinned_root()), "NoPlugin{x},Live{a},stray");
+  const SidebarNode* no_plugin = model.pinned_root()->children()[0].get();
+  EXPECT_FALSE(no_plugin->is_live_folder());
+  EXPECT_FALSE(no_plugin->children()[0]->is_live_item());
+  const SidebarNode* live = model.pinned_root()->children()[1].get();
+  EXPECT_TRUE(live->is_live_folder());
+  EXPECT_TRUE(live->live_refreshed().is_null());
+  EXPECT_TRUE(live->children()[0]->unseen());
+  const SidebarNode* stray = model.pinned_root()->children()[2].get();
+  EXPECT_FALSE(stray->is_live_item());
+  EXPECT_FALSE(stray->unseen());
+
+  EXPECT_EQ(Describe(model.today_root()), "InToday{t}");
+  const SidebarNode* in_today = model.today_root()->children()[0].get();
+  EXPECT_FALSE(in_today->is_live_folder());
+  EXPECT_FALSE(in_today->children()[0]->is_live_item());
+}
+
+TEST(SidebarSerializerTest, ClosedLiveFoldersComeBack) {
+  SpaceModel model;
+  SidebarNode* live = model.AddLiveFolder(
+      model.pinned_root(), 0, u"News",
+      LiveSource("rss", base::DictValue().Set("url", "https://f.test/")));
+  model.ReplaceLiveItems(live, {{"a", GURL("https://a.test/"), u"A"}},
+                         base::Time::Now(),
+                         [](const SidebarNode&) { return false; });
+  const base::DictValue saved = SerializeEntry(*live);
+  const base::DictValue saved_entry = SerializeEntry(*live->children()[0]);
+  model.Remove(live);
+
+  // Back in Pinned, it's live again.
+  SidebarNode* back = DeserializeEntry(saved, model, model.pinned_root(), 0);
+  ASSERT_TRUE(back);
+  EXPECT_TRUE(back->is_live_folder());
+  EXPECT_EQ(Describe(model.pinned_root()), "News{A}");
+  // An entry closed on its own comes back into its folder, or as a plain tab.
+  model.Remove(back->children()[0].get());
+  SidebarNode* entry = DeserializeEntry(saved_entry, model, back, 0);
+  ASSERT_TRUE(entry);
+  EXPECT_TRUE(entry->is_live_item());
+  SidebarNode* plain =
+      DeserializeEntry(saved_entry, model, model.today_root(), 0);
+  ASSERT_TRUE(plain);
+  EXPECT_FALSE(plain->is_live_item());
+  // A live folder's place takes nothing else.
+  EXPECT_FALSE(DeserializeEntry(SerializeEntry(*plain), model, back, 0));
+
+  // Restored into Today, it's a plain folder.
+  SidebarNode* in_today =
+      DeserializeEntry(saved, model, model.today_root(), 0);
+  ASSERT_TRUE(in_today);
+  EXPECT_FALSE(in_today->is_live_folder());
+}
+
 }  // namespace
 }  // namespace compass
