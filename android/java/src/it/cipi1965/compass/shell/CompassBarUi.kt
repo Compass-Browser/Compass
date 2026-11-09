@@ -56,6 +56,8 @@ object CompassBarUi {
 
         fun showMenu()
 
+        fun showClaude()
+
         /** The bar's background, for the strip under the navigation bar. */
         fun backgroundColorChanged(color: Int)
     }
@@ -128,6 +130,7 @@ private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
             }
             TabCount(state.tabCount) { actions.showTabs() }
             BarButton("+", true) { actions.newTab() }
+            BarButton("✦", true) { actions.showClaude() }
             BarButton("⋮", true) { actions.showMenu() }
         }
     }

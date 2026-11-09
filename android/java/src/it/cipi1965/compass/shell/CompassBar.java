@@ -47,6 +47,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable View mView;
     private @Nullable CommandBar mCommandBar;
     private @Nullable Spaces mSpaces;
+    private @Nullable ClaudeChat mClaude;
     private @Nullable Integer mBackgroundColor;
 
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
@@ -74,6 +75,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
         SyncScreen sync = new SyncScreen(mActivity, coordinator);
+        mClaude = new ClaudeChat(mActivity, coordinator);
         spaces.setOnOpenSync(sync::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
         UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
@@ -202,6 +204,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     @Override
     public void showTabs() {
         mActivity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ true);
+    }
+
+    @Override
+    public void showClaude() {
+        if (mClaude != null) mClaude.show();
     }
 
     @Override

@@ -1,0 +1,203 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package it.cipi1965.compass.shell
+
+import android.content.Context
+import android.view.View
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.compose.BackHandler
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+
+/** The Claude chat: a sheet over the page, about the page (docs/design/claude.md). */
+object ClaudeChatUi {
+    interface Listener {
+        fun onSend(text: String)
+
+        fun onStop()
+
+        fun onClear()
+
+        fun onSetKey(key: String)
+
+        fun onDismiss()
+    }
+
+    @JvmStatic
+    fun createView(
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        savedStateOwner: SavedStateRegistryOwner,
+        backOwner: OnBackPressedDispatcherOwner,
+        state: ClaudeChatState,
+        listener: Listener,
+    ): View {
+        val view = ComposeView(context)
+        view.setViewTreeLifecycleOwner(lifecycleOwner)
+        view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
+        view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
+        view.setContent {
+            CompassTheme(dark = isSystemInDarkTheme()) { if (state.open) ClaudeSheet(state, listener) }
+        }
+        return view
+    }
+}
+
+@Composable
+private fun ClaudeSheet(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
+    BackHandler { listener.onDismiss() }
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.32f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                    listener.onDismiss()
+                }
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            modifier =
+                Modifier.align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f)
+                    // Taps on the sheet don't reach the scrim.
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+        ) {
+            Column(
+                Modifier.fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✦ Claude", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    if (state.messages.isNotEmpty()) TextButton(onClick = { listener.onClear() }) { Text("New chat") }
+                }
+                if (!state.hasKey) KeyEntry(state, listener) else Chat(state, listener)
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeyEntry(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
+    var key by remember { mutableStateOf("") }
+    Text("Claude reads the page with you. Add an Anthropic API key to start; it's kept encrypted on this device.")
+    OutlinedTextField(
+        value = key,
+        onValueChange = { key = it.trim() },
+        label = { Text("API key") },
+        singleLine = true,
+        // A password keyboard: no suggestions, no learning.
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
+    Button(onClick = { listener.onSetKey(key) }, enabled = key.isNotEmpty()) { Text("Save") }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.Chat(
+    state: ClaudeChatState,
+    listener: ClaudeChatUi.Listener,
+) {
+    var text by remember { mutableStateOf("") }
+    val list = rememberLazyListState()
+    LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.text?.length) {
+        if (state.messages.isNotEmpty()) list.animateScrollToItem(state.messages.size - 1)
+    }
+    LazyColumn(state = list, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (state.messages.isEmpty()) {
+            item {
+                Text(
+                    "Ask about this page: a summary, an explanation, what it says about something.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(state.messages) { message ->
+            val mine = message.role == "user"
+            Box(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
+                Text(
+                    message.text.ifEmpty { "…" },
+                    modifier =
+                        Modifier.background(
+                                if (mine) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                RoundedCornerShape(16.dp),
+                            )
+                            .padding(12.dp),
+                )
+            }
+        }
+        if (state.error.isNotEmpty()) item { Text(state.error, color = MaterialTheme.colorScheme.error) }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text("Ask about this page") },
+            modifier = Modifier.weight(1f),
+            maxLines = 4,
+        )
+        if (state.streaming) {
+            TextButton(onClick = { listener.onStop() }) { Text("Stop") }
+        } else {
+            Button(
+                onClick = {
+                    listener.onSend(text.trim())
+                    text = ""
+                },
+                enabled = text.isNotBlank(),
+            ) {
+                Text("Ask")
+            }
+        }
+    }
+}

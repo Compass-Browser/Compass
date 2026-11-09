@@ -39,60 +39,66 @@ action("assets") {
   ]
 }
 
-# Desktop only so far: Android has no Claude UI yet (docs/design/android.md, C8).
-if (!is_android) {
-  source_set("claude") {
-    sources = [
-      "claude_activity.cc",
-      "claude_activity.h",
-      "claude_api.cc",
-      "claude_api.h",
-      "claude_client.cc",
-      "claude_client.h",
+# The Claude client, page tools and credentials; Android builds it too, without
+# Claude Code (docs/design/android.md, C8).
+source_set("claude") {
+  sources = [
+    "claude_activity.cc",
+    "claude_activity.h",
+    "claude_api.cc",
+    "claude_api.h",
+    "claude_client.cc",
+    "claude_client.h",
+    "claude_credentials.cc",
+    "claude_credentials.h",
+    "claude_request.cc",
+    "claude_request.h",
+    "claude_tools.cc",
+    "claude_tools.h",
+    "devtools_session.cc",
+    "devtools_session.h",
+    "key_events.cc",
+    "key_events.h",
+    "page_reader.cc",
+    "page_reader.h",
+    "sse_parser.cc",
+    "sse_parser.h",
+  ]
+  public_deps = [
+    ":assets",
+    ":prefs",
+    "//base",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+  deps = [
+    "//base:i18n",
+    "//chrome/browser:browser_process",
+    "//chrome/common",
+    "//content/public/browser",
+    "//chrome/browser/profiles:profile",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
+    "//components/prefs",
+    "//net",
+    "//net/traffic_annotation",
+    "//services/network/public/mojom",
+    "//third_party/re2",
+    "//ui/base",
+    "//ui/gfx/geometry",
+  ]
+  # Claude Code runs as a local process on the desktop (docs/design/claude.md).
+  if (!is_android) {
+    sources += [
       "claude_code.cc",
       "claude_code.h",
       "claude_code_process.cc",
       "claude_code_process.h",
-      "claude_credentials.cc",
-      "claude_credentials.h",
-      "claude_request.cc",
-      "claude_request.h",
-      "claude_tools.cc",
-      "claude_tools.h",
-      "devtools_session.cc",
-      "devtools_session.h",
-      "key_events.cc",
-      "key_events.h",
-      "page_reader.cc",
-      "page_reader.h",
-      "sse_parser.cc",
-      "sse_parser.h",
-    ]
-    public_deps = [
-      ":assets",
-      ":prefs",
-      "//base",
-      "//services/network/public/cpp",
-      "//url",
-    ]
-    deps = [
-      "//base:i18n",
-      "//chrome/browser:browser_process",
-      "//chrome/common",
-      "//content/public/browser",
-      "//chrome/browser/profiles:profile",
-      "//components/os_crypt/async/browser",
-      "//components/os_crypt/async/common",
-      "//components/prefs",
-      "//net",
-      "//net/traffic_annotation",
-      "//services/network/public/mojom",
-      "//third_party/re2",
-      "//ui/base",
-      "//ui/gfx/geometry",
     ]
   }
+}
 
+if (!is_android) {
   source_set("unit_tests") {
     testonly = true
     sources = [

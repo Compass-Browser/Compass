@@ -107,6 +107,14 @@ It costs:
   Sync row) joins a chain with a pairing code or the recovery code,
   starts one, adds devices and approves them, and turns data types on
   and off, through `SyncBridge` (the desktop's `SyncController`).
+- **Claude (C8).** The desktop's Claude client, key storage and page
+  reader (`//compass/browser/claude`, without Claude Code) build for
+  Android. `ClaudeBridge` runs a chat about the page on screen: each
+  question carries the page's text (read in an isolated world, as on the
+  desktop; incognito pages stay out), and the reply streams into a
+  Compose sheet (`ClaudeChatUi.kt`, the bar's ✦). The key is the
+  desktop's encrypted `ClaudeCredentials`. The browser tools (opening
+  tabs, clicking) are still desktop only.
 - **Wide windows (C10).** At 840dp and wider (tablets, unfolded
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts
