@@ -94,8 +94,8 @@ It costs:
   the sidebar shows and takes the shell's tab events and actions. The
   sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
   space switcher, favorites, the pinned tree, Today, pin and favorite.
-  Chrome's tabs of every space stay in one TabModel; the sidebar shows the
-  active space's.
+  Chrome's tabs of every space stay in the window's TabModel; the sidebar
+  shows the window's space's.
 - **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
   desktop (chain, pairing, Nigori, the notifier), without what needs
   windows: the refresh on a window's activation becomes the app coming
@@ -124,6 +124,13 @@ It costs:
   the activity patch): Ctrl+S puts the pane away or opens the drawer,
   Ctrl+T, Ctrl+L and Ctrl+K open the command bar, Ctrl+Shift+E opens
   Claude and Ctrl+Shift+C copies the URL. Chrome's other shortcuts stay.
+- **Multiple windows (C10).** Each window shows a space of its own, as on
+  the desktop (`SpacesBridge`, one per window, keeps it; the start page
+  follows its window's). The list's active space is the last one a window
+  switched to, and new windows start on it. Tabs opened in a window go to
+  its space's Today. Opening an entry whose tab is in another window moves
+  the tab here with Chrome's own move between windows, so page state
+  survives (sidebar.md, "Move on focus"); a moved tab keeps its entry.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
   command bar), a search widget, a "Pin to Compass" share target, and a

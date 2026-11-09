@@ -45,6 +45,10 @@ public class StartPage implements NativePage, StartPageUi.Listener {
     }
 
     private void refresh() {
+        // Its window's space (each window shows its own).
+        CompassBar bar = CompassBar.forActivity(mActivity);
+        String space = bar != null ? bar.shownSpaceId() : "";
+        if (!space.isEmpty()) mBridge.showSpace(space);
         mState.update(mBridge.snapshot(), mTab.getId());
     }
 

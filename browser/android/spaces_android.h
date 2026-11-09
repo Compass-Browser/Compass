@@ -73,18 +73,29 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  // What the sidebar shows, as JSON: the spaces (id, name, tint, emoji), the
-  // active one, its pinned and Today trees and the favorites; each node has
-  // its id, type, title, url, "tab" (its tab, or -1) and children.
-  std::string Snapshot() const;
+  // What a window's sidebar shows, as JSON: the spaces (id, name, tint,
+  // emoji), the one the window shows ("active": |space_id|, or the list's
+  // active space if there's no such space), its pinned and Today trees and
+  // the favorites; each node has its id, type, title, url, "tab" (its tab, or
+  // -1) and children.
+  std::string Snapshot(const base::Uuid& space_id) const;
+  // |space_id|'s space, or the list's active one if there's no such space.
+  // Each window shows a space of its own; the list's active space is the
+  // last one a window switched to, which new windows start on.
+  SpaceModel& SpaceOrActive(const base::Uuid& space_id) const;
 
   // Tabs, from the shell's TabModel observer. |restored| tabs come back from
   // the last session: they take the Today entry with their URL that has no
   // tab yet, if there is one, instead of adding one. A tab on the new tab
   // page (the start page) gets no entry until it goes somewhere, as the
-  // desktop's empty tab (command-bar.md, "No new tab page").
-  void TabOpened(int tab_id, const GURL& url, const std::u16string& title,
-                 bool restored);
+  // desktop's empty tab (command-bar.md, "No new tab page"). A new entry
+  // goes in |space_id|'s Today (the window's space; SpaceOrActive()). A tab
+  // that moved here from another window keeps its entry.
+  void TabOpened(int tab_id,
+                 const GURL& url,
+                 const std::u16string& title,
+                 bool restored,
+                 const base::Uuid& space_id = base::Uuid());
   // A tab the shell opened from |node_id| (a pinned tab, favorite or Today
   // entry with no tab).
   void TabOpenedForNode(int tab_id, const base::Uuid& node_id);
@@ -146,6 +157,7 @@ class SpacesAndroid : public base::SupportsUserData::Data,
     int id;
     GURL url;
     std::u16string title;
+    base::Uuid space_id;
   };
   std::vector<PendingTab> pending_tabs_;
   // An entry with |url| and no tab: a favorite, then a pinned tab, then a

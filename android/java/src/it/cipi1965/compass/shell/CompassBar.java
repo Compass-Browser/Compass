@@ -275,6 +275,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     }
 
     /** Opens a sidebar entry: its tab, or a new one for it. */
+    /** The space this window shows, or empty. */
+    public String shownSpaceId() {
+        return mSpaces != null ? mSpaces.shownSpaceId() : "";
+    }
+
     public void openNode(String nodeId, String url) {
         if (mSpaces != null) mSpaces.onNodeClicked(nodeId, url);
     }
