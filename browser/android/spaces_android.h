@@ -8,6 +8,10 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
+
+#include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
@@ -16,8 +20,8 @@
 #include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "url/gurl.h"
 
-class GURL;
 class Profile;
 
 namespace compass {
@@ -40,8 +44,15 @@ class SpacesAndroid : public base::SupportsUserData::Data,
     virtual void OnSpacesChanged() = 0;
   };
 
+  // What sync keeps on the spaces (compass_spaces_sync_android.cc).
+  class Attachment {
+   public:
+    virtual ~Attachment() = default;
+  };
+
   // Creates it on first use; it loads the profile's spaces then.
   static SpacesAndroid* Get(Profile* profile);
+  static SpacesAndroid* GetIfExists(Profile* profile);
 
   explicit SpacesAndroid(Profile* profile);
   SpacesAndroid(const SpacesAndroid&) = delete;
@@ -50,6 +61,13 @@ class SpacesAndroid : public base::SupportsUserData::Data,
 
   SpaceList& list() { return list_; }
   bool loaded() const { return loaded_; }
+  // Runs |callback| once the saved spaces are in (now, if they are).
+  void RunWhenLoaded(base::OnceClosure callback);
+
+  Attachment* sync_attachment() { return sync_attachment_.get(); }
+  void SetSyncAttachment(std::unique_ptr<Attachment> attachment) {
+    sync_attachment_ = std::move(attachment);
+  }
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -76,6 +94,12 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // Moves |tab_id|'s entry to the end of its space's pinned tree, or of the
   // favorites; the tab stays open on it.
   void Pin(int tab_id, bool favorite);
+
+  // Hands |from|'s tab, if it has one, to |to|, if it has none (sync
+  // replaced an entry with another).
+  void TransferTab(const base::Uuid& from, const base::Uuid& to);
+  // The tab on screen, or -1.
+  int current_tab() const { return current_tab_; }
 
   // The tab |node_id| is open in, or -1.
   int TabFor(const base::Uuid& node_id) const;
@@ -111,7 +135,22 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   bool loaded_ = false;
   // Tab ID -> node it shows.
   std::map<int, base::Uuid> tabs_;
+  // Tabs reported before the saved spaces were in: they're matched to saved
+  // entries once they are (OnLoaded()).
+  struct PendingTab {
+    int id;
+    GURL url;
+    std::u16string title;
+  };
+  std::vector<PendingTab> pending_tabs_;
+  // An entry with |url| and no tab: a favorite, then a pinned tab, then a
+  // Today tab, in any space.
+  SidebarNode* FindUnopenedEntry(const GURL& url);
+  int current_tab_ = -1;
+  std::vector<base::OnceClosure> on_loaded_;
   bool notify_pending_ = false;
+  // Destroyed first: sync's holder observes the list.
+  std::unique_ptr<Attachment> sync_attachment_;
   base::ObserverList<Observer> observers_;
   base::WeakPtrFactory<SpacesAndroid> weak_factory_{this};
 };
