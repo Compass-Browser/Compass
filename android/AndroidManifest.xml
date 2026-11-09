@@ -4,6 +4,41 @@
    Use of this source code is governed by a BSD-style license that can be
    found in the LICENSE file.
 
-   Chrome's manifest, as Compass. #}
+   Chrome's manifest, as Compass, with Compass's extras
+   (it.cipi1965.compass.extras): a Quick Settings tile, a search widget and
+   a "Pin to Compass" share target. #}
 
 {% block application_label %}Compass{% endblock %}
+
+{% block extra_application_definitions %}
+        <service android:name="it.cipi1965.compass.extras.NewTabTileService"
+            android:exported="true"
+            android:icon="@drawable/compass_icon_monochrome"
+            android:label="New tab"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <receiver android:name="it.cipi1965.compass.extras.SearchWidgetProvider"
+            android:exported="false"
+            android:label="Compass search">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/compass_search_widget" />
+        </receiver>
+        <activity android:name="it.cipi1965.compass.extras.PinShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="Pin to Compass"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+{% endblock %}

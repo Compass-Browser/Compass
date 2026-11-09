@@ -4,11 +4,16 @@
 
 package it.cipi1965.compass.shell;
 
+import android.content.Intent;
+import android.content.pm.ShortcutInfo;
+import android.content.pm.ShortcutManager;
+import android.graphics.drawable.Icon;
 import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.extras.CompassIntents;
 import it.cipi1965.compass.spaces.SpacesBridge;
 
 import org.chromium.build.annotations.Nullable;
@@ -25,6 +30,9 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * The profile's spaces in the shell (docs/design/android.md, C2 and C3): keeps the native model
  * (SpacesBridge) in step with Chrome's regular tabs, and runs the sidebar (SidebarUi.kt).
@@ -39,6 +47,8 @@ public class Spaces implements SidebarUi.Listener {
     // The node a tab is being opened for; its didAddTab() maps it instead of adding to Today.
     private @Nullable String mOpeningNode;
     private @Nullable Runnable mOnChanged;
+    // The spaces the launcher shortcuts were made for (id, emoji and name of each).
+    private String mShortcutSpaces = "";
 
     public Spaces(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
@@ -132,9 +142,70 @@ public class Spaces implements SidebarUi.Listener {
         if (tab != null && !tab.isIncognito()) mBridge.pin(tab.getId(), favorite);
     }
 
+    /** Shows a space (a launcher shortcut's), with its sidebar. */
+    public void openSpace(String spaceId) {
+        mBridge.setActiveSpace(spaceId);
+        showSidebar();
+    }
+
+    /** Opens |url| in a new tab and pins it to the active space (the share target). */
+    public void openAndPin(String url) {
+        GURL gurl = new GURL(url);
+        if (!gurl.isValid()) return;
+        Tab tab =
+                mActivity
+                        .getTabCreator(false)
+                        .createNewTab(
+                                new LoadUrlParams(gurl.getSpec(), PageTransition.LINK),
+                                TabLaunchType.FROM_EXTERNAL_APP,
+                                null);
+        if (tab != null) mBridge.pin(tab.getId(), false);
+    }
+
     private void onModelChanged() {
         mState.update(mBridge.snapshot(), currentTabId());
+        updateShortcuts();
         if (mOnChanged != null) mOnChanged.run();
+    }
+
+    // A launcher shortcut per space (the first few), to open it.
+    private void updateShortcuts() {
+        StringBuilder key = new StringBuilder();
+        for (SidebarState.Space space : mState.getSpaces()) {
+            key.append(space.id).append(space.emoji).append(space.name).append('\n');
+        }
+        if (key.toString().equals(mShortcutSpaces)) return;
+        mShortcutSpaces = key.toString();
+        ShortcutManager manager = mActivity.getSystemService(ShortcutManager.class);
+        if (manager == null) return;
+        // Chrome's static shortcuts (new tab, new incognito tab) count too.
+        int max = Math.max(0, manager.getMaxShortcutCountPerActivity() - 2);
+        int icon =
+                mActivity
+                        .getResources()
+                        .getIdentifier(
+                                "compass_icon_monochrome", "drawable", mActivity.getPackageName());
+        List<ShortcutInfo> shortcuts = new ArrayList<>();
+        int rank = 0;
+        for (SidebarState.Space space : mState.getSpaces()) {
+            if (shortcuts.size() >= max) break;
+            Intent intent = CompassIntents.create(mActivity, CompassIntents.ACTION_OPEN_SPACE);
+            intent.putExtra(CompassIntents.EXTRA_SPACE_ID, space.id);
+            String label = space.emoji.isEmpty() ? space.name : space.emoji + " " + space.name;
+            shortcuts.add(
+                    new ShortcutInfo.Builder(mActivity, "space-" + space.id)
+                            .setShortLabel(label.isEmpty() ? "Space" : label)
+                            .setIcon(Icon.createWithResource(mActivity, icon))
+                            .setIntent(intent)
+                            .setRank(rank++)
+                            .build());
+        }
+        try {
+            manager.setDynamicShortcuts(shortcuts);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Rate-limited or over the limit: the next change tries again.
+            mShortcutSpaces = "";
+        }
     }
 
     private int currentTabId() {
