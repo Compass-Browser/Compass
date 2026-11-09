@@ -14,6 +14,10 @@
 #include "components/variations/feature_overrides.h"
 #include "third_party/blink/public/common/features.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/flags/android/chrome_feature_list.h"
+#endif
+
 namespace compass {
 
 void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
@@ -38,6 +42,13 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // Asks accounts.google.com which Google accounts the cookies hold only when
   // a Google cookie changes, not at launch: there's no browser sign-in.
   overrides.EnableFeature(switches::kAvoidAutoTriggerListAccountsOnStale);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Compass's own bar is the bottom bar (docs/design/android.md); Chrome's,
+  // with the reworked top toolbar that comes with it, stays off. Builds that
+  // aren't official turn it on as a test default.
+  overrides.DisableFeature(chrome::android::kAndroidBottomBar);
+#endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   // No "Continue where you left off: Compass can restore your tabs..." bar:

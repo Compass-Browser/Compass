@@ -12,8 +12,14 @@ import("//chrome/android/chrome_public_apk_tmpl.gni")
 # (patches/chrome-android-BUILD.gn.patch); the implementation is in :java and
 # only the Compass app has it, so chrome_public_apk runs without a shell.
 android_library("hook_java") {
-  sources = [ "java/src/it/cipi1965/compass/CompassShellHook.java" ]
-  deps = [ "//chrome/browser/browser_controls/android:java" ]
+  sources = [
+    "java/src/it/cipi1965/compass/CompassShell.java",
+    "java/src/it/cipi1965/compass/CompassShellHook.java",
+  ]
+  deps = [
+    "//base:base_java",
+    "//chrome/browser/browser_controls/android:java",
+  ]
 }
 
 android_library("java") {
@@ -22,6 +28,9 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/CompassBar.java",
     "java/src/it/cipi1965/compass/shell/CompassBarState.kt",
     "java/src/it/cipi1965/compass/shell/CompassBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/CommandBar.java",
+    "java/src/it/cipi1965/compass/shell/CommandBarState.kt",
+    "java/src/it/cipi1965/compass/shell/CommandBarUi.kt",
   ]
   deps = [
     ":hook_java",
@@ -31,8 +40,14 @@ android_library("java") {
     "//chrome/browser/browser_controls/android:java",
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
+    "//chrome/browser/profiles/android:java",
+    "//chrome/browser/ui/android/appmenu:java",
+    "//chrome/browser/ui/android/layouts:java",
     "//chrome/browser/ui/android/omnibox:java",
     "//components/omnibox/browser:browser_java",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_activity_activity_compose_java",
+    "//third_party/androidx:androidx_activity_activity_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_compose_foundation_foundation_java",
     "//third_party/androidx:androidx_compose_foundation_foundation_layout_java",
@@ -47,6 +62,7 @@ android_library("java") {
     "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
     "//third_party/androidx:androidx_savedstate_savedstate_java",
     "//third_party/kotlin_stdlib:kotlin_stdlib_java",
+    "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
   enable_compose = true

@@ -42,9 +42,24 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import java.util.function.IntConsumer
 
 object CompassBarUi {
+    /** What the bar's controls do. */
+    interface Actions {
+        fun back()
+
+        fun openAddress()
+
+        fun showTabs()
+
+        fun newTab()
+
+        fun showMenu()
+
+        /** The bar's background, for the strip under the navigation bar. */
+        fun backgroundColorChanged(color: Int)
+    }
+
     /** The bar as a view for Chrome's layout. */
     @JvmStatic
     fun createView(
@@ -52,11 +67,7 @@ object CompassBarUi {
         lifecycleOwner: LifecycleOwner,
         savedStateOwner: SavedStateRegistryOwner,
         state: CompassBarState,
-        onBack: Runnable,
-        onForward: Runnable,
-        onNewTab: Runnable,
-        onAddressClick: Runnable,
-        onBackgroundColor: IntConsumer,
+        actions: Actions,
     ): View {
         val view = ComposeView(context)
         view.setViewTreeLifecycleOwner(lifecycleOwner)
@@ -65,14 +76,8 @@ object CompassBarUi {
             CompassTheme(dark = state.incognito || isSystemInDarkTheme()) {
                 // Chrome paints the strip under the navigation bar in the bar's color.
                 val background = MaterialTheme.colorScheme.surfaceContainer.toArgb()
-                SideEffect { onBackgroundColor.accept(background) }
-                Bar(
-                    state,
-                    { onBack.run() },
-                    { onForward.run() },
-                    { onNewTab.run() },
-                    { onAddressClick.run() },
-                )
+                SideEffect { actions.backgroundColorChanged(background) }
+                Bar(state, actions)
             }
         }
         return view
@@ -80,7 +85,7 @@ object CompassBarUi {
 }
 
 @Composable
-private fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
+internal fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val colors =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -92,28 +97,21 @@ private fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Bar(
-    state: CompassBarState,
-    onBack: () -> Unit,
-    onForward: () -> Unit,
-    onNewTab: () -> Unit,
-    onAddressClick: () -> Unit,
-) {
+private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            BarButton("‹", state.canGoBack, onBack)
-            BarButton("›", state.canGoForward, onForward)
+            BarButton("‹", state.canGoBack) { actions.back() }
             Box(
                 modifier =
                     Modifier.weight(1f)
                         .height(44.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .clickable(onClick = onAddressClick)
+                        .clickable { actions.openAddress() }
                         .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
@@ -128,8 +126,9 @@ private fun Bar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            TabCount(state.tabCount)
-            BarButton("+", true, onNewTab)
+            TabCount(state.tabCount) { actions.showTabs() }
+            BarButton("+", true) { actions.newTab() }
+            BarButton("⋮", true) { actions.showMenu() }
         }
     }
 }
@@ -147,10 +146,12 @@ private fun BarButton(label: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TabCount(count: Int) {
+private fun TabCount(count: Int, onClick: () -> Unit) {
     Box(
         modifier =
-            Modifier.padding(horizontal = 6.dp)
+            Modifier.clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick)
+                .padding(11.dp)
                 .size(26.dp)
                 .border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(7.dp)),
         contentAlignment = Alignment.Center,

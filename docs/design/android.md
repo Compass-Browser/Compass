@@ -81,8 +81,14 @@ It costs:
   `ServiceLoaderUtil` finds the implementation, which only `compass_apk`
   has). `CompassBar` adds a Compose bar as its own layer of Chrome's bottom
   controls stack (`COMPASS_BAR`), so pages make room for it, and follows
-  the current tab. Tapping its address opens Chrome's location bar until
-  Compass has its own (C4); Chrome's toolbar is still there.
+  the current tab: back, the address, the tab count (Chrome's tab
+  switcher), new tab and Chrome's menu. Chrome's top toolbar is hidden
+  (`CompassShell.isPresent()`, checked by a patched
+  `TopToolbarCoordinator`).
+- **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
+  searches for the current tab or a new one, with Chrome's
+  `AutocompleteController` (history, bookmarks, search suggestions)
+  behind it.
 - **Branding so far.** The app is "Compass" with its own launcher icon (an
   adaptive icon from the glyph, `android/res/`, overlaying Chrome's
   `ic_launcher`), and there's no first-run experience.
