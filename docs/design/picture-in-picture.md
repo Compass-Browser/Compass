@@ -315,9 +315,12 @@ other condition.
 `common/picture_in_picture/call_pip.js` is shared with iOS. On the desktop,
 `compass::AttachCallPip()` (`browser/picture_in_picture/call_pip.cc`,
 attached to every tab in the `tab_helpers.cc` patch) runs it in an
-isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`) of the main frame at
-`DOMContentLoaded`, on the hosts above only (`IsCallPipURL()`; the script
-checks again). It shares the page's DOM but not its JavaScript; Media
+isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`) at `DOMContentLoaded`
+of each frame of the shown page whose own URL is on the hosts above
+(`IsCallPipURL()`; the script checks again): Zoom's web client runs the
+call in a same-origin `<iframe>` of its `/wc/` page. Upstream routes the
+tab's Media Session to the frame playing, so handlers registered there
+count. It shares the page's DOM but not its JavaScript; Media
 Session handlers are the page's, whichever world sets them. Once a second,
 while a call is on (the site's hang up button and a remote tile exist), it:
 
@@ -354,6 +357,7 @@ checked against live calls; they are the part to fix when a site changes.
 Tests: `CompassCallPipBrowserTest.*` (a call page, with a fake camera and
 canvas streams as remote tiles, served as `teams.microsoft.com`):
 `LeavingShowsLargestTile`, `FollowsTheSpeaker`, `ButtonsPressTheSite`,
+`CallInAFrame`,
 `OtherSitesAreLeftAlone`, `CallSites`, and `SitesOwnWindow` (a page that
 opens document picture-in-picture from its handler while using the
 microphone, as Meet: tracked by `PipWindows` as a document window).
@@ -366,7 +370,9 @@ microphone, as Meet: tracked by `PipWindows` as a document window).
   a speaking marker, gallery view shows the largest tile, not necessarily
   the speaker's.
 - Calls on Zoom: a canvas that draws the whole gallery shows the whole
-  gallery.
+  gallery. The host's "End" asks, in the page, whether to end the meeting
+  for everyone. On iOS the call script runs in the main frame only, so
+  Zoom's framed call isn't found there.
 - Closing a window while its active tab plays may briefly ask for pip
   (the window hides before its tabs close); upstream drops the request with
   the tab.

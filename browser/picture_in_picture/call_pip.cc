@@ -43,8 +43,10 @@ class CallPip : public content::WebContentsObserver,
   ~CallPip() override = default;
 
   // content::WebContentsObserver:
+  // Any frame of the shown page whose own URL is a call's: Zoom's web
+  // client runs the call in a same-origin <iframe> of its /wc/ page.
   void DOMContentLoaded(content::RenderFrameHost* frame) override {
-    if (!frame->IsInPrimaryMainFrame() ||
+    if (!frame->GetMainFrame()->IsInPrimaryMainFrame() ||
         !IsCallPipURL(frame->GetLastCommittedURL())) {
       return;
     }

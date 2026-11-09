@@ -7,8 +7,10 @@
 // docs/design/picture-in-picture.md, "Calls".
 //
 // Runs where the page's DOM is shared but its JavaScript isn't: an isolated
-// world on desktop (browser/picture_in_picture/call_pip.cc), the CompassPiP
-// content world on iOS (ios/App/Browser/AutoPiP.swift). On a call site it:
+// world on desktop (browser/picture_in_picture/call_pip.cc), in each frame
+// whose URL is a call's (Zoom's call is in an <iframe>), the CompassPiP
+// content world on iOS (ios/App/Browser/AutoPiP.swift; main frame only). On
+// a call site it:
 // - picks the video to show: the active speaker's tile if the site marks it,
 //   else the largest remote one (a <video> playing a MediaStream that isn't
 //   the user's own camera, or a canvas the site draws video into, captured);
@@ -51,7 +53,11 @@
       canvas: true,
       microphone: '.join-audio-container__btn',
       camera: '.send-video-container__btn',
-      hangUp: '.footer__leave-btn',
+      // "End" for the host (it asks whether to end it for everyone).
+      hangUp: '.footer__leave-btn, ' +
+          ['End', 'Leave', 'Termina', 'Esci', 'Abbandona']
+              .map((label) => `button.footer-button__button[aria-label="${label}"]`)
+              .join(', '),
     },
   ];
 
@@ -194,13 +200,16 @@
   };
 
   // Media Session. WebKit lacks most of these actions: each is tried alone.
-  const session = navigator.mediaSession;
+  // Not touched before a call is on in this frame: a frame using it may get
+  // the tab's actions routed to it (Zoom's outer page, around the call's
+  // frame).
   const registered = new Set();
   const setHandler = (action, handler) => {
-    if (!session) {
+    if (!handler && !registered.has(action)) {
       return;
     }
-    if (!handler && !registered.has(action)) {
+    const session = navigator.mediaSession;
+    if (!session) {
       return;
     }
     try {
@@ -250,6 +259,7 @@
     if (!on) {
       return;
     }
+    const session = navigator.mediaSession;
     if (session && session.setMicrophoneActive) {
       const microphone = query(site.microphone);
       if (microphone) {

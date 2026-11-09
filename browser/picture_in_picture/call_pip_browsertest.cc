@@ -117,13 +117,18 @@ constexpr char kOwnWindowPage[] = R"(<!doctype html>
   }
 </script>)";
 
+// Zoom's web client: the call in a same-origin <iframe> of the page.
+constexpr char kFramedPage[] = R"(<!doctype html>
+<iframe src="/v2/call" width="1100" height="800"></iframe>)";
+
 std::unique_ptr<net::test_server::HttpResponse> ServePage(
     const net::test_server::HttpRequest& request) {
   auto response = std::make_unique<net::test_server::BasicHttpResponse>();
   response->set_content_type("text/html");
-  response->set_content(request.relative_url.starts_with("/own")
-                            ? kOwnWindowPage
-                            : kCallPage);
+  const std::string& url = request.relative_url;
+  response->set_content(url.starts_with("/own")      ? kOwnWindowPage
+                        : url.starts_with("/framed") ? kFramedPage
+                                                     : kCallPage);
   return response;
 }
 
@@ -250,6 +255,33 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, ButtonsPressTheSite) {
     return content::EvalJs(call, "clicks.join()").ExtractString() ==
            "microphone-button,video-button,hangup-button";
   }));
+}
+
+// A call in a frame of the page, as Zoom's, goes too.
+IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallInAFrame) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), https_.GetURL("teams.microsoft.com", "/framed"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  content::WebContents* call =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::RenderFrameHost* frame =
+      content::ChildFrameAt(call->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(frame);
+  ASSERT_EQ(true, content::EvalJs(frame, "start()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return content::EvalJs(frame, "ready()").ExtractBool(); }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return AutoPictureInPictureTabHelper::FromWebContents(call)
+        ->HasAutoPictureInPictureBeenRegistered();
+  }));
+
+  OpenBlankTab();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(frame, "document.pictureInPictureElement?.id ?? ''")
+               .ExtractString() == "large";
+  }));
+  EXPECT_EQ(PipContents(), call);
 }
 
 // Off a call site nothing is registered for the page.
