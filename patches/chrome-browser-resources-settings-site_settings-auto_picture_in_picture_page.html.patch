@@ -1,0 +1,19 @@
+diff --git a/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.html b/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.html
+index 94bda275d21a7ed69b33072a3b109dd68c9febe0..2f7ff81e0e14f91bc27b36d67768f442e7de99db 100644
+--- a/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.html
++++ b/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.html
+@@ -15,6 +15,14 @@
+        block-option-label="$i18n{siteSettingsAutoPictureInPictureBlocked}"
+        block-option-icon="settings:picture-in-picture-off">
+    </settings-category-default-radio-group>
++   <!-- Compass: also when the window is left, not only its tab
++        (compass::prefs::kPipOnLeavingWindow,
++        docs/design/picture-in-picture.md). -->
++   <settings-toggle-button id="compassPipOnLeavingWindow" class="hr"
++       pref="{{prefs.compass.pip.on_leaving_window}}"
++       label="Also when you leave the window"
++       sub-label="A playing video or a call goes into picture-in-picture when its window is covered or minimized, or you switch to another app.">
++   </settings-toggle-button>
+    <category-setting-exceptions
+        category="[[contentSettingsTypesEnum_.AUTO_PICTURE_IN_PICTURE]]"
+        allow-header=

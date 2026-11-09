@@ -4,11 +4,49 @@
 
 # Auto picture-in-picture is upstream's, set up by //compass/browser:
 # feature_overrides and a few patches (docs/design/picture-in-picture.md).
+
+# common/picture_in_picture/call_pip.js (shared with iOS) as a string
+# constant: compass/browser/picture_in_picture/call_pip_assets.h.
+action("assets") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "//compass/common/picture_in_picture/call_pip.js" ]
+  outputs = [ "$target_gen_dir/call_pip_assets.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::call_pip::assets",
+    "kCallPip=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
+# Picture-in-picture for Teams and Zoom calls. Upstream's tab helpers
+# (//chrome/browser/ui:tab_helpers_impl) depend on this target (see
+# patches/chrome-browser-ui-BUILD.gn.patch and
+# patches/chrome-browser-ui-tab_helpers.cc.patch).
+source_set("call_pip") {
+  sources = [
+    "call_pip.cc",
+    "call_pip.h",
+  ]
+  deps = [
+    ":assets",
+    "//base",
+    "//chrome/common",
+    "//content/public/browser",
+    "//url",
+  ]
+}
+
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "auto_pip_browsertest.cc" ]
+  sources = [
+    "auto_pip_browsertest.cc",
+    "call_pip_browsertest.cc",
+  ]
   deps = [
+    ":call_pip",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/picture_in_picture",
@@ -20,8 +58,12 @@ source_set("browser_tests") {
     "//chrome/test:test_support_ui",
     "//content/public/browser",
     "//content/test:test_support",
+    "//media",
+    "//net:test_support",
     "//compass/browser/sidebar",
+    "//compass/browser/prefs",
     "//compass/browser/window_sync",
+    "//components/prefs",
     "//testing/gtest",
     "//url",
   ]

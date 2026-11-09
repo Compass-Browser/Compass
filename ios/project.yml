@@ -39,6 +39,10 @@ targets:
         buildPhase: resources
       - path: ../common/claude/page_agent.js
         buildPhase: resources
+      # Picture-in-picture for calls, shared with the desktop
+      # (docs/design/picture-in-picture.md, "Calls").
+      - path: ../common/picture_in_picture/call_pip.js
+        buildPhase: resources
     entitlements:
       path: App/Compass.entitlements
       properties:

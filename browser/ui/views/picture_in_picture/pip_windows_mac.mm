@@ -197,6 +197,14 @@ void PipWindows::PlatformUpdateEventMonitor() {
                                          self->IsClickThrough(widget)) {
                                        return event;
                                      }
+                                     // A document window's page keeps
+                                     // its pinches and scrolls.
+                                     if (!self->TakesGestures(widget) &&
+                                         (event.type == NSEventTypeMagnify ||
+                                          event.type ==
+                                              NSEventTypeScrollWheel)) {
+                                       return event;
+                                     }
                                      switch (event.type) {
                                        case NSEventTypeMagnify:
                                          self->ZoomWindow(

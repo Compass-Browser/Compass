@@ -102,11 +102,14 @@ PipWindows::PipWindows() {
 }
 PipWindows::~PipWindows() = default;
 
-void PipWindows::AddWindow(views::Widget* widget) {
+void PipWindows::AddWindow(views::Widget* widget, Kind kind) {
   const bool added = !std::ranges::contains(windows_, widget);
   if (added) {
     windows_.push_back(widget);
     observations_.AddObservation(widget);
+    if (kind == Kind::kDocument) {
+      documents_.push_back(widget);
+    }
   }
   PlatformAddWindow(widget);
   PlatformSetIgnoresMouse(widget, enabled_);
@@ -138,6 +141,11 @@ bool PipWindows::IsClickThrough(const views::Widget* widget) const {
   return enabled_ && std::ranges::contains(windows_, widget);
 }
 
+bool PipWindows::TakesGestures(const views::Widget* widget) const {
+  return std::ranges::contains(windows_, widget) &&
+         !std::ranges::contains(documents_, widget);
+}
+
 bool PipWindows::IsHoveredForTesting(views::Widget* widget) const {
   return std::ranges::contains(hovered_, widget);
 }
@@ -159,6 +167,7 @@ void PipWindows::RemoveWindow(views::Widget* widget) {
   }
   observations_.RemoveObservation(widget);
   std::erase(windows_, widget);
+  std::erase(documents_, widget);
   std::erase(hovered_, widget);
   PlatformRemoveWindow(widget);
   // Click-through ends with the last window: the next one takes clicks.

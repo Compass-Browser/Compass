@@ -1,8 +1,50 @@
 diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..9959c8b6a0fba6f5e38e620e060773a25bf9b2ab 100644
+index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..ed8d4ec86da2bb26723721aa9e06e52e284d04c6 100644
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-@@ -693,9 +693,16 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+@@ -25,6 +25,8 @@
+ #include "components/content_settings/browser/page_specific_content_settings.h"
+ #include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "components/permissions/permission_decision_auto_blocker.h"
++#include "components/prefs/pref_service.h"
++#include "compass/browser/prefs/compass_prefs.h"
+ #include "content/public/browser/media_session.h"
+ #include "content/public/browser/media_session_service.h"
+ #include "content/public/browser/render_frame_host.h"
+@@ -460,9 +462,16 @@ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
+     return;
+   }
+ 
++  // Compass: the user may turn this off (Settings > Picture in picture).
++  // Coming back still closes a window opened before that.
++  const bool on_leaving_window =
++      Profile::FromBrowserContext(web_contents()->GetBrowserContext())
++          ->GetPrefs()
++          ->GetBoolean(compass::prefs::kPipOnLeavingWindow);
++
+   switch (occlusion_state) {
+     case OcclusionState::kOccluded:
+-      if (!is_in_picture_in_picture_) {
++      if (on_leaving_window && !is_in_picture_in_picture_) {
+         MaybeEnterAutoPictureInPicture();
+         MaybeScheduleAsyncTasks();
+       }
+@@ -471,9 +480,11 @@ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
+       MaybeExitAutoPictureInPicture();
+       break;
+     case OcclusionState::kHidden:
+-      // Don't make any changes for a hidden state. If we're already in autopip
+-      // then leave it open, and if we're not already in autopip then leave it
+-      // closed.
++      // Compass: a minimized window counts as left, as a covered one does.
++      if (on_leaving_window && !is_in_picture_in_picture_) {
++        MaybeEnterAutoPictureInPicture();
++        MaybeScheduleAsyncTasks();
++      }
+       break;
+   }
+ }
+@@ -693,9 +704,16 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
    // tab switch, it should have closed already by now.  Either it received a
    // notification from its tab strip helper, or we notified it, depending on
    // which one of us was notified by our respective tab strip helper.

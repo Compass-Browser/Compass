@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.ts b/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.ts
+index ecad7b97463ee5d3782112cbbf13a404f898e93d..f3b8e51bf0c6897f64edf8f0a77f9b96d47178d3 100644
+--- a/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.ts
++++ b/chrome/browser/resources/settings/site_settings/auto_picture_in_picture_page.ts
+@@ -7,6 +7,8 @@ import './site_settings_shared.css.js';
+ import '../settings_page/settings_subpage.js';
+ import '../settings_shared.css.js';
+ import './category_setting_exceptions.js';
++// Compass: the toggle for leaving the window.
++import '../controls/settings_toggle_button.js';
+ 
+ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+ 
+@@ -29,6 +31,9 @@ export class AutoPictureInPicturePageElement extends
+ 
+   static get properties() {
+     return {
++      // Compass: for the toggle for leaving the window.
++      prefs: Object,
++
+       searchTerm: String,
+ 
+       // Expose ContentSettingsTypes enum to the HTML template.
+@@ -39,6 +44,7 @@ export class AutoPictureInPicturePageElement extends
+     };
+   }
+ 
++  declare prefs: Object;
+   declare searchTerm: string;
+ 
+   // SettingsViewMixin implementation.

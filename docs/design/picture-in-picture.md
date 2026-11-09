@@ -1,6 +1,7 @@
 # Auto picture-in-picture
 
-Status: done. Based on Chromium 156.0.8078.48.
+Status: done. Based on Chromium 156.0.8078.48. Calls and leaving the window:
+in progress (checked against live calls: not yet).
 
 ## Goal
 
@@ -10,9 +11,14 @@ several tabs play, the one left last shows. The window floats over every
 app, including other apps' fullscreen spaces on macOS. Muted videos don't
 show.
 
-"Leaving" covers switching tabs, switching spaces, and swapping the window
-to another profile's space. Leaving the window itself (another app, another
-window, minimizing) doesn't count.
+"Leaving" covers switching tabs, switching spaces, swapping the window to
+another profile's space, and leaving the window itself: covering it with
+another app or window, or minimizing it (a setting turns that last one off;
+"Leaving the window" below).
+
+Calls go there too (Teams, Meet and Zoom on the web; "Calls" below): the
+active speaker's video, with the call's microphone, camera and hang up
+buttons, or the site's own mini window where it has one (Meet).
 
 ## Upstream does most of it
 
@@ -30,13 +36,16 @@ Compass changes five things:
 | Auto pip never replaces an open pip window | It replaces another tab's *auto* pip, so the tab left last shows. A pip window the user opened stays | `auto_picture_in_picture_tab_helper.cc` patch, `IsEligibleForAutoPictureInPicture()` |
 | A tab moved into a popup window keeps its "active" state | A tab moved into the profile's parking window counts as left | `auto_picture_in_picture_tab_strip_observer_helper.cc` patch, `compass::IsInParkingWindow()` |
 | "Back to tab" activates the tab in its `Browser` | A parked tab's space is shown in the window the user was in | `browser_web_contents_delegate.cc` patch, `compass::RevealParkedTab()` (below) |
+| Auto pip when the window is covered (`kAutoPictureInPictureOnWindowOccluded`) is off; a minimized window doesn't count | On, minimized counts, and a setting turns it off | `compass::RegisterFeatureOverrides()`; `auto_picture_in_picture_tab_helper.cc` patch, `OnOcclusionStateChanged()` ("Leaving the window" below) |
 
 The rest of upstream's conditions stay: the tab must have been audible
 recently (so muted videos and muted tabs don't show), hold audio focus, pass
 a Safe Browsing check of its URL (at most 500 ms), be https or file, and
 have exactly one video player, at least 100×100 DIP, in its main frame. A
 site that registers its own `enterpictureinpicture` handler gets that
-instead (it may open document picture-in-picture).
+instead (it may open document picture-in-picture). A tab using the camera
+or microphone with such a handler skips the playback conditions (sound,
+audio focus, the single video): that is what calls go through.
 
 ## Spaces
 
@@ -73,7 +82,10 @@ if it is also a fullscreen auxiliary window, and only an activation-
 independent ("nonactivating panel") window stays there when clicked. The
 patch in `VideoOverlayWindowViews::ShowInactive()` sets both, as glic's
 floating window does (`glic_floating_ui.cc`). Document picture-in-picture
-windows (a `Browser` of their own) aren't changed.
+windows (a `Browser` of their own, e.g. Meet's) get the same in
+`PictureInPictureBrowserFrameView::AddedToWidget()` (patch). A
+nonactivating panel can still be the key window, so their pages take typing
+(Meet's chat), as glic's does.
 
 ## Click-through
 
@@ -100,7 +112,9 @@ takes the keys from other apps only then. The window gets no mouse events
 while it ignores them, so a 50 ms timer checks the pointer against its
 bounds and fades it: the window's alpha on macOS, the layered window's
 (`SetLayeredWindowAttributes()`, stepped every 16 ms) on Windows. Document
-picture-in-picture windows aren't covered.
+picture-in-picture windows are tracked too
+(`PictureInPictureBrowserFrameView::AddedToWidget()`, patch, as
+`PipWindows::Kind::kDocument`): click-through, corners and snapping.
 
 On Windows the default is Shift+Alt+P: upstream's Windows hot keys take
 Shift, Ctrl and Alt only (a Windows key would be dropped), and Ctrl+Alt is
@@ -135,6 +149,9 @@ for magnify, scroll and mouse-up events while a window is open, and takes
 those aimed at a picture-in-picture window. The geometry is
 `PipWindows::Zoom()`, `Move()` and `Snap()`. Not during click-through (the
 window gets no such events).
+
+A document picture-in-picture window keeps pinches and scrolls for its page
+(`PipWindows::TakesGestures()`): it only snaps after a drag.
 
 Tests: `PipWindowsGeometryTest.*`, `CompassAutoPipBrowserTest.PipGestures`
 (the geometry on the real window; the trackpad events themselves are
@@ -256,10 +273,99 @@ whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
 
 Test: `CompassAutoPipBrowserTest.PipStyle`.
 
+## Leaving the window
+
+Upstream's `kAutoPictureInPictureOnWindowOccluded` (on, in
+`compass::RegisterFeatureOverrides()`) watches the active tab's window:
+`AutoPictureInPictureWindowOcclusionHelperWebContents` on macOS and Windows
+(the WebContents' visibility), `...Widget` on Linux. When it is covered
+(another app or window over it), the tab's video or call goes into
+picture-in-picture as if its tab were left; when it shows again, the window
+closes. Upstream ignores a hidden (minimized) window; Compass treats it as
+covered (`OnOcclusionStateChanged()`, patch). Switching to another app
+whose windows don't cover Compass's doesn't count: the video is still in
+view.
+
+Settings → Privacy and security → Site settings → Automatic
+picture-in-picture → "Also when you leave the window" (the
+`compass.pip.on_leaving_window` profile pref, `compass::prefs::
+kPipOnLeavingWindow`, default on; allowlisted for the settings page in the
+`prefs_util.cc` patch, the toggle in the `auto_picture_in_picture_page`
+patches). Off, the window being covered or minimized starts nothing; coming
+back still closes a window opened before.
+
+Tests: `CompassAutoPipBrowserTest.LeavingTheWindow`,
+`LeavingTheWindowTurnedOff` (the WebContents made occluded or hidden).
+
+## Calls
+
+A call's tab has many videos: the user's own camera and a tile per
+participant, all muted (the sound plays elsewhere). Upstream's
+browser-initiated auto pip wants exactly one, with sound, so calls only go
+into picture-in-picture where the site registers an `enterpictureinpicture`
+handler: then a tab using the camera or microphone is eligible with no
+other condition.
+
+| Site | Window | How |
+|---|---|---|
+| Meet (`meet.google.com`) | Meet's own document picture-in-picture window (participants, its controls) | Meet's handler; Compass adds its window behavior (above) |
+| Teams (`teams.microsoft.com`, `teams.live.com`, `teams.cloud.microsoft`) | Compass's video window: the active speaker | `call_pip.js` |
+| Zoom web client (`*.zoom.us/wc/...`) | Compass's video window: the active speaker (Zoom draws video into canvases, captured) | `call_pip.js` |
+
+`common/picture_in_picture/call_pip.js` is shared with iOS. On the desktop,
+`compass::AttachCallPip()` (`browser/picture_in_picture/call_pip.cc`,
+attached to every tab in the `tab_helpers.cc` patch) runs it in an
+isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`) of the main frame at
+`DOMContentLoaded`, on the hosts above only (`IsCallPipURL()`; the script
+checks again). It shares the page's DOM but not its JavaScript; Media
+Session handlers are the page's, whichever world sets them. Once a second,
+while a call is on (the site's hang up button and a remote tile exist), it:
+
+- registers `enterpictureinpicture`. Upstream's auto pip calls it with a
+  picture-in-picture request token, and it calls `requestPictureInPicture()`
+  on the **pick**: the tile the site marks as speaking if a site entry says
+  how, else the largest remote one shown (at least 100×100). Remote means a
+  `<video>` playing a `MediaStream` whose video tracks don't come from a
+  device (the user's own camera does). On Zoom, the largest `<canvas>`,
+  captured (`captureStream()`) into a hidden 1×1 `<video>` made ahead, as
+  the video needs a frame before it can go into the window. In speaker view
+  the largest tile is the speaker's;
+- follows the speaker: while its video is in the window, another pick that
+  stays the pick for 2 s takes its place (`requestPictureInPicture()` needs
+  no token while the page has a video in picture-in-picture), in the same
+  window;
+- registers `togglemicrophone`, `togglecamera` and `hangup`, which click the
+  site's own buttons, and reports `setMicrophoneActive()` and
+  `setCameraActive()` from the buttons' labels ("Unmute", "Turn camera on",
+  "Riattiva", ...: what pressing would do). Upstream's window then shows its
+  microphone, camera and hang up buttons, which `PipStyle` puts in the
+  centre pill;
+- unregisters them all when the call ends, so other videos on the site go
+  the usual way.
+
+A site that registers one of these actions itself after the script keeps its
+own. The site entries (button selectors, the speaking tile) hold what was
+checked against live calls; they are the part to fix when a site changes.
+
+Tests: `CompassCallPipBrowserTest.*` (a call page, with a fake camera and
+canvas streams as remote tiles, served as `teams.microsoft.com`):
+`LeavingShowsLargestTile`, `FollowsTheSpeaker`, `ButtonsPressTheSite`,
+`OtherSitesAreLeftAlone`, `CallSites`, and `SitesOwnWindow` (a page that
+opens document picture-in-picture from its handler while using the
+microphone, as Meet: tracked by `PipWindows` as a document window).
+
 ## Known gaps
 
-- Leaving the window (another app or window, minimizing) doesn't show
-  pip. Upstream's `kAutoPictureInPictureOnWindowOccluded` would add that.
+- Calls: the site entries in `call_pip.js` (Teams' and Zoom's buttons) need
+  checking against live calls in every language the labels are read in
+  (English and Italian), and break when a site changes its markup. Without
+  a speaking marker, gallery view shows the largest tile, not necessarily
+  the speaker's.
+- Calls on Zoom: a canvas that draws the whole gallery shows the whole
+  gallery.
+- Closing a window while its active tab plays may briefly ask for pip
+  (the window hides before its tabs close); upstream drops the request with
+  the tab.
 - chrome://settings shows the auto picture-in-picture default as Allow,
   a choice its radio buttons (Ask, Block) don't offer.
 - Plain http pages never auto pip (upstream rule).

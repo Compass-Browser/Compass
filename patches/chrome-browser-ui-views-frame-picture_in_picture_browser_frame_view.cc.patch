@@ -1,0 +1,36 @@
+diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
+index 59bdfa1e118091ea37ba235fb47b05797fdb16ed..9fa3166311876fee06b8a481cfec8b242ac3e464 100644
+--- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
++++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
+@@ -75,6 +75,10 @@
+ #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "extensions/common/constants.h"
+ #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++
++#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
++#include "compass/browser/ui/views/picture_in_picture/pip_windows.h"
++#endif
+ namespace {
+ 
+ constexpr int kWindowIconImageSize = 16;
+@@ -589,6 +593,20 @@ void PictureInPictureBrowserFrameView::AddedToWidget() {
+   PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowShown(
+       this);
+ 
++#if BUILDFLAG(IS_MAC)
++  // Compass: float over other apps' fullscreen spaces too, and take clicks
++  // (and keys) without activating the browser, as video picture-in-picture
++  // does (video_overlay_window_views.cc patch).
++  GetWidget()->SetActivationIndependence(true);
++  GetWidget()->SetCanAppearInExistingFullscreenSpaces(true);
++#endif
++#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
++  // Compass: click-through, corners, snapping to the edges; the page keeps
++  // its pinches and scrolls.
++  compass::PipWindows::Get().AddWindow(
++      GetWidget(), compass::PipWindows::Kind::kDocument);
++#endif
++
+   BrowserFrameView::AddedToWidget();
+ }
+ 

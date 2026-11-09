@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/settings/privacy_page/privacy_page_index.html b/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
+index 6714f1eb1091738e73e264cb5e17084200a33816..b297aefa0463cadc075b0a631945cf944b6b0c10 100644
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
+@@ -140,6 +140,7 @@
+       inSearchMode)]]" update-when-false>
+     <settings-auto-picture-in-picture-page slot="view"
+         id="siteSettingsAutoPictureInPicture" data-parent-view-id="privacy"
++        prefs="{{prefs}}"
+         route-path$="[[routes_.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE.path]]">
+     </settings-auto-picture-in-picture-page>
+   </template>

@@ -13,6 +13,9 @@ import WebKit
 /// The desktop's conditions, checked in the page: the video plays, isn't
 /// muted, is at least 100×100, and is the only such one in the main frame;
 /// a video in picture-in-picture already (the user's) is left alone.
+/// A call (Teams, Zoom: common/picture_in_picture/call_pip.js, as on the
+/// desktop) counts as playing while it's on, and shows its largest remote
+/// tile: call tiles are muted, and there are several.
 /// Scripts the app evaluates count as a user gesture, so WebKit lets the
 /// page enter picture-in-picture. The window's "back to the page" button
 /// puts the video back inline still playing; the page reports that, and
@@ -25,6 +28,17 @@ enum AutoPiP {
   /// Its own world: the page doesn't see which video Compass moved.
   static let world = WKContentWorld.world(name: "CompassPiP")
   static let handler = "compassPiP"
+
+  /// The desktop's call script, bundled (common/picture_in_picture/): in
+  /// this world, it leaves pages other than calls alone. On iOS it picks
+  /// the tile; WebKit wants a gesture for each picture-in-picture request,
+  /// so the window doesn't follow the speaker as on the desktop.
+  static var callScript: WKUserScript? {
+    guard let url = Bundle.main.url(forResource: "call_pip", withExtension: "js"),
+      let source = try? String(contentsOf: url, encoding: .utf8)
+    else { return nil }
+    return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: world)
+  }
 
   /// Watches the page's videos:
   /// - the one playing with sound gets `autoPictureInPicture` (WebKit's
@@ -54,16 +68,19 @@ enum AutoPiP {
             const videos = [...document.querySelectorAll("video")];
             const playing = videos.filter(eligible);
             const one = enabled && playing.length === 1 ? playing[0] : null;
+            const call = enabled && !!globalThis.compassCallPip?.inCall();
             for (const v of videos) if ("autoPictureInPicture" in v && v.webkitPresentationMode !== "picture-in-picture") {
               v.autoPictureInPicture = v === one;
             }
             if (one && !document.pictureInPictureElement) window.__compassAutoPiP = one;
-            const state = one ? "playing" : "idle";
+            const state = one || call ? "playing" : "idle";
             if (state !== last) { last = state; post("state:" + state); }
           };
           for (const type of ["play", "playing", "pause", "ended", "volumechange", "emptied", "resize", "loadedmetadata"]) {
             document.addEventListener(type, update, true);
           }
+          // A call starts and ends with no media event of its own.
+          if (globalThis.compassCallPip) setInterval(update, 1000);
           document.addEventListener("webkitpresentationmodechanged", (event) => {
             const video = event.target;
             const mode = video.webkitPresentationMode;
@@ -143,7 +160,9 @@ enum AutoPiP {
       const why = (v) => v.paused ? "paused" : v.ended ? "ended" : v.muted || v.volume === 0 ? "muted"
         : v.readyState < 2 ? "not ready" : v.disablePictureInPicture ? "PiP disabled by page"
         : v.offsetWidth < 100 || v.offsetHeight < 100 ? `small ${v.offsetWidth}x${v.offsetHeight}` : "";
-      const candidates = videos.filter((v) => !why(v));
+      // A call: its pick (the largest remote tile), muted as tiles are.
+      const call = globalThis.compassCallPip?.inCall() ? globalThis.compassCallPip.pick() : null;
+      const candidates = call ? [call] : videos.filter((v) => !why(v));
       if (candidates.length !== 1) return `${candidates.length} candidates (${videos.map(why).join(", ")})`;
       const video = candidates[0];
       window.__compassAutoPiP = video;

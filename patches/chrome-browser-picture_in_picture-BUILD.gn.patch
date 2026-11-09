@@ -1,8 +1,20 @@
 diff --git a/chrome/browser/picture_in_picture/BUILD.gn b/chrome/browser/picture_in_picture/BUILD.gn
-index 7fb62932ff13244780f1efbb8e457ee2a37ba233..7b422c4589511228e060caeda79e0f12098651a8 100644
+index 7fb62932ff13244780f1efbb8e457ee2a37ba233..16eba89e2dede4bc3b2d3affd15b089f9ff4e7a8 100644
 --- a/chrome/browser/picture_in_picture/BUILD.gn
 +++ b/chrome/browser/picture_in_picture/BUILD.gn
-@@ -166,6 +166,9 @@ source_set("impl") {
+@@ -106,9 +106,11 @@ source_set("impl") {
+     "//chrome/browser/safe_browsing",
+     "//chrome/browser/ui:recently_audible_helper",
+     "//chrome/browser/ui/navigator",
++    "//compass/browser/prefs",
+     "//components/content_settings/browser",
+     "//components/content_settings/core/browser",
+     "//components/permissions",
++    "//components/prefs",
+     "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
+     "//content/public/browser",
+     "//content/public/common",
+@@ -166,6 +168,9 @@ source_set("impl") {
        "//third_party/blink/public/common:headers",
        "//ui/views",
      ]
