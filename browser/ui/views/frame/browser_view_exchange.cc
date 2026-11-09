@@ -32,11 +32,15 @@ namespace compass {
 
 namespace {
 
-// |widget|'s own child widgets, not theirs.
+// |widget|'s own child widgets, not theirs. Owned ones too: on Linux the
+// bubbles and the command bar are top-level windows of their own, which the
+// window owns rather than contains.
 std::vector<views::Widget*> GetChildWidgets(views::Widget& widget) {
+  views::Widget::Widgets found =
+      views::Widget::GetAllChildWidgets(widget.GetNativeView());
+  found.merge(views::Widget::GetAllOwnedWidgets(widget.GetNativeView()));
   std::vector<views::Widget*> children;
-  for (views::Widget* child :
-       views::Widget::GetAllChildWidgets(widget.GetNativeView())) {
+  for (views::Widget* child : found) {
     if (child != &widget && child->parent() == &widget) {
       children.push_back(child);
     }

@@ -669,7 +669,8 @@ IN_PROC_BROWSER_TEST_F(CompassProfileSwitchBrowserTest,
   EXPECT_TRUE(base::test::RunUntil([&] {
     return content::EvalJs(page, content::JsReplace(kPixel, other_icon)) ==
            base::Value(base::ListValue().Append(255).Append(0).Append(0));
-  }));
+  })) << "last pixel: "
+      << content::EvalJs(page, content::JsReplace(kPixel, other_icon));
   // Not in the page's own profile.
   EXPECT_NE(content::EvalJs(page, content::JsReplace(
                                       kPixel, "chrome://compass-favicon/?" +

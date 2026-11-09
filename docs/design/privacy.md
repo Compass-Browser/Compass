@@ -11,7 +11,10 @@ turns off on top, what it keeps on purpose, and where each switch lives.
   (`patches/chrome-browser-ui-startup-first_run_service.cc.patch`), so the
   first-run profile picker never opens. `first_run::IsChromeFirstRun()` still
   works, so the sentinel, `initial_preferences` and auto-import behave as
-  upstream. The macOS first-run dialog is Chrome-branded only.
+  upstream. The macOS first-run dialog is Chrome-branded only. On Linux,
+  upstream shows a EULA dialog at first run unless `initial_preferences`
+  says otherwise; Compass turns that default off
+  (`patches/chrome-browser-first_run-first_run.h.patch`).
 - **Profile picker at startup:** off by default (Local State
   `profile.picker_availability_on_startup` = 1, disabled). The
   picker's "Ask on startup" checkbox goes with it. An enterprise policy can
