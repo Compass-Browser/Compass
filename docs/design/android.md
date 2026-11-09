@@ -95,7 +95,8 @@ It costs:
   sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
   space switcher, favorites, the pinned tree, Today, pin and favorite.
   Chrome's tabs of every space stay in the window's TabModel; the sidebar
-  shows the window's space's.
+  shows the window's space's. Chrome's own archiving of inactive tabs is
+  off (`TabArchiveSettings` patch): Today and the archive do that.
 - **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
   desktop (chain, pairing, Nigori, the notifier), without what needs
   windows: the refresh on a window's activation becomes the app coming
