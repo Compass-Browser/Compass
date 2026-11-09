@@ -16,3 +16,9 @@ android_static_analysis = "off"
 # renderer dies of SIGILL on the first JavaScript. Linux hosts run
 # mksnapshot through a simulator, where this doesn't come up.
 v8_use_host_cpu_arm_features = false
+
+# Desktop-class Android (docs/design/android.md, "Extensions"): turns on
+# upstream's extensions for Android (enable_desktop_android_extensions and
+# what it needs, like the WebUI new tab page). Compass's shell replaces the
+# desktop-class toolbar and tab strip it brings.
+is_desktop_android = true

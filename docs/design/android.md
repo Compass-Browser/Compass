@@ -172,7 +172,10 @@ It costs:
 Upstream Chromium is bringing extensions to desktop-class Android devices.
 The GN arg `is_desktop_android` turns on `enable_desktop_android_extensions`,
 and code ported so far is guarded by `enable_extensions_core`
-(`extensions/buildflags/buildflags.gni`). Compass builds with it on.
+(`extensions/buildflags/buildflags.gni`). Compass builds with it on
+(`config/args/android.gn`). `enable_desktop_android_extensions` alone
+doesn't build: the extensions code also needs what `is_desktop_android`
+brings, such as the WebUI new tab page.
 
 The first targets are installs from the Chrome Web Store, 1Password and
 uBlock. Gaps upstream hasn't filled yet get `//compass` code or small
