@@ -43,8 +43,9 @@ class CompassPushAndroid : public gcm::GCMAppHandler {
  public:
   // Compass's Firebase project (its project number, the FCM sender ID).
   static const char kSenderId[];
-  // The Instance ID app the token belongs to; FCM gives it back as the
-  // messages' subtype, which routes them here.
+  // The Instance ID app the token belongs to. The server puts it in its
+  // messages as their "subtype" (server/push: FCMSubtype), which Chromium
+  // routes them by.
   static const char kAppId[];
 
   using TokenGetter = base::RepeatingCallback<std::optional<std::string>()>;

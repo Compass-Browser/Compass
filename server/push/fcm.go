@@ -48,6 +48,10 @@ const (
 	// FCMEnvironment marks an FCM registration in the tokens table, whose
 	// environment is otherwise APNs's "sandbox" or "production".
 	FCMEnvironment = "fcm"
+	// FCMSubtype is the Instance ID app Compass for Android registers its
+	// token for (CompassPushAndroid::kAppId). Chromium routes a message by
+	// its "subtype" data and drops one without it; FCM doesn't add it.
+	FCMSubtype = "it.cipi1965.compass.sync-push"
 )
 
 // serviceAccount is the part of a service account key file used here.
@@ -184,7 +188,7 @@ func (s *FCMSender) Send(ctx context.Context, token, kind string) (Result, error
 	message, err := json.Marshal(map[string]any{
 		"message": map[string]any{
 			"token":   token,
-			"data":    map[string]string{"type": kind},
+			"data":    map[string]string{"type": kind, "subtype": FCMSubtype},
 			"android": map[string]any{"priority": "high", "ttl": "86400s"},
 		},
 	})
