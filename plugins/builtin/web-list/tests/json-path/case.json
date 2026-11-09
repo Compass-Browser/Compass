@@ -1,0 +1,10 @@
+{
+  "config": {"url": "https://api.example.com/r/browsers.json", "mode": "json", "items": "data.children",
+             "title": "data.title", "link": "data.url", "id": "data.id", "limit": 2},
+  "responses": {"https://api.example.com/r/browsers.json": {"json": {"data": {"children": [
+    {"data": {"id": "a1", "title": "Compass 1.0 is out", "url": "https://example.com/compass"}},
+    {"data": {"id": "a2", "title": "No URL here"}},
+    {"data": {"id": "a3", "title": "Relative &amp; escaped", "url": "/r/browsers/a3"}},
+    {"data": {"id": "a4", "title": "Over the limit", "url": "https://example.com/4"}}
+  ]}}}}
+}

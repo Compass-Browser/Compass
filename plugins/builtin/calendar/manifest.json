@@ -1,0 +1,22 @@
+{
+  "id": "compass.calendar",
+  "name": "Calendar",
+  "description": "Upcoming events with their meeting links, from a calendar's private iCal address.",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "main.js",
+  "icon": "icon.svg",
+  "hosts": ["{secret:ics}"],
+  "secrets": [
+    {"key": "ics", "label": "Private iCal address",
+     "help": "Google Calendar: Settings › your calendar › Secret address in iCal format. Outlook: Settings › Calendar › Shared calendars › Publish a calendar (ICS). iCloud: share the calendar publicly and copy the webcal:// link."}
+  ],
+  "config": [
+    {"key": "hours", "type": "number", "label": "Show the next (hours)", "default": 12, "min": 1, "max": 168},
+    {"key": "allDay", "type": "bool", "label": "Include all-day events"},
+    {"key": "onlyMeetings", "type": "bool", "label": "Only events with a meeting link"},
+    {"key": "fallback", "type": "url", "label": "Open events without a link at", "optional": true,
+     "placeholder": "https://calendar.google.com"}
+  ],
+  "refresh": {"default": 900, "min": 300}
+}

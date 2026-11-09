@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "tag:example.org,2026:v2.1",
+        "title": "v2.1.0 beta",
+        "url": "https://example.org/releases/v2.1",
+        "time": 1794045600000
+      },
+      {
+        "id": "tag:example.org,2026:v2",
+        "title": "v2.0.0",
+        "url": "https://example.org/feeds/releases/v2",
+        "time": 1793430000000
+      }
+    ],
+    "title": "Release notes",
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://example.org/feeds/releases.atom",
+      "cookies": false
+    }
+  ]
+}

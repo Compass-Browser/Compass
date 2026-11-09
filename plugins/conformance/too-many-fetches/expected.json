@@ -1,0 +1,23 @@
+{
+  "ok": false,
+  "error": {
+    "code": "too_many_fetches"
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://example.com/",
+      "cookies": false
+    },
+    {
+      "method": "GET",
+      "url": "https://example.com/",
+      "cookies": false
+    },
+    {
+      "method": "GET",
+      "url": "https://example.com/",
+      "cookies": false
+    }
+  ]
+}

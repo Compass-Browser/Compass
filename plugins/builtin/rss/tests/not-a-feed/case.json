@@ -1,0 +1,4 @@
+{
+  "config": {"url": "https://example.com/"},
+  "responses": {"https://example.com/": {"body": "<!doctype html><html><head><title>Hi</title></head><body>Not a feed</body></html>"}}
+}

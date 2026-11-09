@@ -1,0 +1,4 @@
+{
+  "config": {"url": "https://down.example.com/rss"},
+  "responses": {"https://down.example.com/rss": {"status": 503, "body": "Service Unavailable"}}
+}

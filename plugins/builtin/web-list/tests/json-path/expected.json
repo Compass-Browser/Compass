@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "a1",
+        "title": "Compass 1.0 is out",
+        "url": "https://example.com/compass"
+      },
+      {
+        "id": "a3",
+        "title": "Relative & escaped",
+        "url": "https://api.example.com/r/browsers/a3"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://api.example.com/r/browsers.json",
+      "cookies": false
+    }
+  ]
+}

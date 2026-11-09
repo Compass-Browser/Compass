@@ -1,0 +1,5 @@
+{
+  "config": {"url": "https://intranet.example.com/reports", "signedIn": true},
+  "grantCookies": false,
+  "responses": {"https://intranet.example.com/reports": {"body": "<a href='/reports/q3'>Q3 report</a><a href='/'>Home</a>"}}
+}

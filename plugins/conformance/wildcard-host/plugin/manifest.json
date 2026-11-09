@@ -1,0 +1,1 @@
+{"id": "test.wildcard-host", "name": "wildcard-host", "version": "1.0.0", "api": 1, "hosts": ["*.example.com"]}

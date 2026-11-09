@@ -1,0 +1,6 @@
+{
+  "config": {},
+  "secrets": {"ics": "https://calendar.example.com/private-old/basic.ics"},
+  "env": {"now": "2026-11-09T08:30:00Z"},
+  "responses": {"https://calendar.example.com/private-old/basic.ics": {"status": 404, "body": "Not Found"}}
+}

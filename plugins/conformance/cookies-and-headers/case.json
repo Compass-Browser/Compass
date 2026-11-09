@@ -1,0 +1,1 @@
+{"grantCookies": true, "responses": {"https://a.example.com/": {"body": "", "rejectHeaders": ["cookie"]}, "https://b.example.com/": {"body": ""}, "https://a.example.com/omit": {"body": ""}}}

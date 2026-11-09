@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "post-42",
+        "title": "Newest: café — \"quotes\"",
+        "url": "https://blog.example.com/2026/newest",
+        "time": 1794159000000
+      },
+      {
+        "id": "https://blog.example.com/2026/untitled",
+        "title": "A post with no title but a long description that stands in for it",
+        "url": "https://blog.example.com/2026/untitled",
+        "time": 1793880000000
+      },
+      {
+        "id": "https://blog.example.com/2026/older",
+        "title": "Older post with markup",
+        "url": "https://blog.example.com/2026/older",
+        "time": 1793606400000
+      }
+    ],
+    "title": "Example & Co. Blog",
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://blog.example.com/feed.xml",
+      "cookies": false
+    }
+  ]
+}

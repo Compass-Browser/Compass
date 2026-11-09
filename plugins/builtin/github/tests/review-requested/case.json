@@ -1,0 +1,5 @@
+{
+  "config": {"show": "review-requested", "repo": "https://github.com/compass-browser/compass/"},
+  "secrets": {"token": "ghp_test"},
+  "responses": {"https://api.github.com/search/issues?q=is%3Apr%20is%3Aopen%20archived%3Afalse%20review-requested%3A%40me%20repo%3Acompass-browser%2Fcompass&sort=updated&order=desc&per_page=20": {"file": "search.json", "headers": {"content-type": "application/json; charset=utf-8"}}}
+}

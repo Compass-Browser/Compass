@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+  <title>Example &amp; Co. Blog</title>
+  <link>https://blog.example.com/</link>
+  <atom:link href="https://blog.example.com/feed.xml" rel="self" type="application/rss+xml"/>
+  <item>
+    <title><![CDATA[Older post with <em>markup</em>]]></title>
+    <link>https://blog.example.com/2026/older</link>
+    <guid isPermaLink="true">https://blog.example.com/2026/older</guid>
+    <pubDate>Mon, 02 Nov 2026 08:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Newest: caf&#233; &mdash; &quot;quotes&quot;</title>
+    <link>/2026/newest</link>
+    <guid isPermaLink="false">post-42</guid>
+    <pubDate>Sun, 08 Nov 2026 18:30:00 +0100</pubDate>
+  </item>
+  <item>
+    <description>A post with no title but a long description that stands in for it</description>
+    <guid>https://blog.example.com/2026/untitled</guid>
+    <dc:date>2026-11-05T12:00:00Z</dc:date>
+  </item>
+  <item>
+    <title>No link, no permalink guid: dropped</title>
+    <guid isPermaLink="false">orphan</guid>
+    <pubDate>Fri, 06 Nov 2026 10:00:00 GMT</pubDate>
+  </item>
+</channel>
+</rss>

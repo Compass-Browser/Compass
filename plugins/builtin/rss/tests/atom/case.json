@@ -1,0 +1,4 @@
+{
+  "config": {"url": "https://example.org/feeds/releases.atom", "limit": 10},
+  "responses": {"https://example.org/feeds/releases.atom": {"file": "feed.xml"}}
+}

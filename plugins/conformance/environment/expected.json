@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "env",
+        "title": "1 true it-IT Europe/Rome 2026-11-09T12:00:00.000Z 1 undefined",
+        "url": "https://example.com/"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": []
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="html">Release &lt;b&gt;notes&lt;/b&gt;</title>
+  <link href="https://example.org/releases" rel="alternate"/>
+  <entry>
+    <title>v2.0.0</title>
+    <id>tag:example.org,2026:v2</id>
+    <link rel="replies" href="https://example.org/releases/v2/comments"/>
+    <link rel="alternate" type="text/html" href="releases/v2"/>
+    <updated>2026-11-01T10:00:00Z</updated>
+    <published>2026-10-31T09:00:00+02:00</published>
+  </entry>
+  <entry>
+    <title type="html">v2.1.0 &lt;i&gt;beta&lt;/i&gt;</title>
+    <id>tag:example.org,2026:v2.1</id>
+    <link href="https://example.org/releases/v2.1"/>
+    <updated>2026-11-07T10:00:00Z</updated>
+  </entry>
+</feed>
