@@ -116,6 +116,21 @@ void SpacesBridge::Pin(JNIEnv* env, int32_t tab_id, bool favorite) {
   spaces_->Pin(tab_id, favorite);
 }
 
+void SpacesBridge::MoveNode(JNIEnv* env,
+                            const std::string& node_id,
+                            const std::string& space_id,
+                            const std::string& section) {
+  SpacesAndroid::Section where = section == "favorites"
+                                     ? SpacesAndroid::Section::kFavorites
+                                 : section == "today"
+                                     ? SpacesAndroid::Section::kToday
+                                     : SpacesAndroid::Section::kPinned;
+  // Within this window's space unless another is named.
+  base::Uuid space = space_id.empty() ? spaces_->SpaceOrActive(space_id_).id()
+                                      : base::Uuid::ParseLowercase(space_id);
+  spaces_->MoveNode(base::Uuid::ParseLowercase(node_id), space, where);
+}
+
 void SpacesBridge::RemoveNode(JNIEnv* env, const std::string& node_id) {
   SidebarNode* node = spaces_->FindNode(base::Uuid::ParseLowercase(node_id));
   if (!node) {

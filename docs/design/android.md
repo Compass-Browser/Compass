@@ -93,7 +93,10 @@ It costs:
   unloaded). `SpacesBridge` (jni_zero) gives Java a JSON snapshot of what
   the sidebar shows and takes the shell's tab events and actions. The
   sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
-  space switcher, favorites, the pinned tree, Today, pin and favorite.
+  space switcher, favorites, the pinned tree, Today, pin and favorite. A
+  long press on an entry pins it, makes it a favorite, moves it to Today or
+  to another space (with its tab), copies its link, or closes or unpins it;
+  unpinning an entry whose tab is open leaves the tab in Today.
   Chrome's tabs of every space stay in the window's TabModel; the sidebar
   shows the window's space's. Chrome's own archiving of inactive tabs is
   off (`TabArchiveSettings` patch): Today and the archive do that.
@@ -114,8 +117,17 @@ It costs:
   question carries the page's text (read in an isolated world, as on the
   desktop; incognito pages stay out), and the reply streams into a
   Compose sheet (`ClaudeChatUi.kt`, the bar's ✦). The key is the
-  desktop's encrypted `ClaudeCredentials`. The browser tools (opening
-  tabs, clicking) are still desktop only.
+  desktop's encrypted `ClaudeCredentials`. Claude acts with the desktop's
+  tools (`ClaudeTools`): the page tools (read, find, click, type, scroll,
+  navigate, screenshot) on the tab the question is about, and, with "Let
+  Claude use the whole browser" on (a switch in the sheet, the desktop's
+  pref), list_tabs, open_tab, select_tab and close_tab over Chrome's tab
+  models (`ClaudeTabsAndroid`; a tab's id is its Android tab ID). The
+  bridge runs the loop the desktop's chat page runs: a reply that asks for
+  tools gets their results and goes on, up to 20 rounds a question. The
+  sheet shows each tool as a quiet line between the replies. tools.json's
+  `platforms` gains "android"; the desktop-only tools (spaces, folders,
+  splits, history, downloads) aren't offered.
 - **Wide windows (C10).** At 840dp and wider (tablets, unfolded
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts
@@ -138,6 +150,12 @@ It costs:
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
+- **The bar scrolls away** with the page, as on iOS: it's a layer of
+  Chrome's bottom controls that scrolls off (`DEFAULT_SCROLL_OFF`), and
+  while it moves the compositor draws a copy of it in step with the page
+  (`ScrollingBottomViewSceneLayer` over the bar's `ViewResourceFrameLayout`,
+  as Chrome's own bottom toolbar does); the view comes back once the bar is
+  all the way in.
 - **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from the bar's tab
   count, as on iOS: the window's tabs as cards in a row over the space's
   tint, least recently shown at the left and the tab on screen centered.

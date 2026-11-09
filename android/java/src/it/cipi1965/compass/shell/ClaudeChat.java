@@ -58,6 +58,11 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onBrowserScope(boolean allowed) {
+        mBridge.setBrowserScope(allowed);
+    }
+
+    @Override
     public void onStop() {
         mBridge.stop();
     }

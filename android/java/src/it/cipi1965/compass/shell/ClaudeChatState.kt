@@ -18,6 +18,8 @@ class ClaudeChatState {
     var streaming by mutableStateOf(false)
     var error by mutableStateOf("")
     var hasKey by mutableStateOf(false)
+    /** "Let Claude use the whole browser". */
+    var browserScope by mutableStateOf(false)
 
     fun update(json: String) {
         val data = JSONObject(json)
@@ -29,5 +31,6 @@ class ClaudeChatState {
         streaming = data.optBoolean("streaming")
         error = data.optString("error")
         hasKey = data.optBoolean("has_key")
+        browserScope = data.optBoolean("browser_scope")
     }
 }

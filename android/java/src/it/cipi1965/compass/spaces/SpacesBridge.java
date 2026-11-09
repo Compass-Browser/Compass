@@ -77,6 +77,14 @@ public class SpacesBridge {
         SpacesBridgeJni.get().pin(mNativeSpacesBridge, tabId, favorite);
     }
 
+    /**
+     * Moves an entry, with its tab, to a space's "pinned" tree or "today" (|spaceId| empty: this
+     * window's space), or to the "favorites".
+     */
+    public void moveNode(String nodeId, String spaceId, String section) {
+        SpacesBridgeJni.get().moveNode(mNativeSpacesBridge, nodeId, spaceId, section);
+    }
+
     public void removeNode(String nodeId) {
         SpacesBridgeJni.get().removeNode(mNativeSpacesBridge, nodeId);
     }
@@ -139,6 +147,12 @@ public class SpacesBridge {
         void removeSpace(long nativeSpacesBridge, @JniType("std::string") String spaceId);
 
         void pin(long nativeSpacesBridge, int tabId, boolean favorite);
+
+        void moveNode(
+                long nativeSpacesBridge,
+                @JniType("std::string") String nodeId,
+                @JniType("std::string") String spaceId,
+                @JniType("std::string") String section);
 
         void removeNode(long nativeSpacesBridge, @JniType("std::string") String nodeId);
 

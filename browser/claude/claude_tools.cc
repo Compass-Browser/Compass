@@ -130,6 +130,13 @@ constexpr char kNotPermitted[] =
     "the tab the chat is about. Tell the user if the task needs more.";
 
 // tools.json's entries for this platform, parsed once.
+// Where this build runs, as tools.json's "platforms" name it.
+#if BUILDFLAG(IS_ANDROID)
+constexpr char kPlatform[] = "android";
+#else
+constexpr char kPlatform[] = "desktop";
+#endif
+
 const base::ListValue& ToolEntries() {
   static const base::NoDestructor<base::ListValue> entries([] {
     base::ListValue entries;
@@ -139,7 +146,7 @@ const base::ListValue& ToolEntries() {
     for (base::Value& tool : *file->FindList("tools")) {
       const base::ListValue* platforms = tool.GetDict().FindList("platforms");
       if (platforms &&
-          !std::ranges::contains(*platforms, base::Value("desktop"))) {
+          !std::ranges::contains(*platforms, base::Value(kPlatform))) {
         continue;
       }
       entries.Append(std::move(tool));

@@ -51,6 +51,11 @@ public class ClaudeBridge {
         ClaudeBridgeJni.get().send(mNativeClaudeBridge, text, contents);
     }
 
+    /** "Let Claude use the whole browser": the tabs, not only the page. */
+    public void setBrowserScope(boolean allowed) {
+        ClaudeBridgeJni.get().setBrowserScope(mNativeClaudeBridge, allowed);
+    }
+
     public void stop() {
         ClaudeBridgeJni.get().stop(mNativeClaudeBridge);
     }
@@ -74,6 +79,8 @@ public class ClaudeBridge {
                 long nativeClaudeBridge,
                 @JniType("std::string") String text,
                 @JniType("content::WebContents*") @Nullable WebContents contents);
+
+        void setBrowserScope(long nativeClaudeBridge, boolean allowed);
 
         void stop(long nativeClaudeBridge);
 

@@ -45,6 +45,11 @@ class SpacesBridge : public SpacesAndroid::Observer {
                  const std::string& tint);
   void RemoveSpace(JNIEnv* env, const std::string& space_id);
   void Pin(JNIEnv* env, int32_t tab_id, bool favorite);
+  // |section|: "pinned", "today" or "favorites" (SpacesAndroid::MoveNode()).
+  void MoveNode(JNIEnv* env,
+                const std::string& node_id,
+                const std::string& space_id,
+                const std::string& section);
   void RemoveNode(JNIEnv* env, const std::string& node_id);
   void SetCollapsed(JNIEnv* env, const std::string& folder_id, bool collapsed);
   int32_t TabFor(JNIEnv* env, const std::string& node_id);
