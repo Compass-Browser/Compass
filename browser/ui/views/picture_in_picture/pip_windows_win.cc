@@ -162,6 +162,10 @@ class GestureFilter : public ui::HWNDMessageFilter {
     switch (message) {
       case WM_MOUSEWHEEL:
       case WM_MOUSEHWHEEL: {
+        // A document window's page keeps its wheel and pinches.
+        if (!pip_windows.TakesGestures(state->widget)) {
+          return false;
+        }
         const int delta = GET_WHEEL_DELTA_WPARAM(w_param);
         const bool ctrl = GET_KEYSTATE_WPARAM(w_param) & MK_CONTROL;
         if (message == WM_MOUSEWHEEL && ctrl) {

@@ -120,6 +120,9 @@ final class TabManager: NSObject {
     configuration.userContentController.addUserScript(DesktopViewport.script)
     configuration.userContentController.add(
       MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
+    if let callScript = AutoPiP.callScript {
+      configuration.userContentController.addUserScript(callScript)
+    }
     configuration.userContentController.addUserScript(AutoPiP.script)
     // Claude's read_console (ClaudeTools.swift).
     configuration.userContentController.addUserScript(ConsoleCapture.script)

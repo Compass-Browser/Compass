@@ -260,11 +260,15 @@ area between each two. Drop a tab on a split's pane to add it there.
 
 Chrome 156 has auto-PiP for tab switches
 (`chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h`).
-We extend its triggers and change how the window floats.
+We turn on its browser-initiated mode (any playing video, no site opt-in)
+and extend its triggers and how the window floats.
 
-**Triggers:** tab switch, space switch, window blur or minimize, app
-deactivation, and a tab moving to another window. We pick the most likely
-video: playing, audible, largest visible area, most recently interacted with.
+**Triggers:** tab switch, space switch, a tab moving to the parking window,
+and the window being covered or minimized (a setting). The video is
+upstream's pick (the page's only playing, audible video). Calls (Teams,
+Zoom) go through a shared script that shows the active speaker with the
+call's buttons; Meet's own document PiP window gets Compass's window
+behaviour.
 
 **Floating over everything:**
 

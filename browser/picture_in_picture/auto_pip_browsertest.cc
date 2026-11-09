@@ -19,7 +19,9 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "ui/base/base_window.h"
 #include "chrome/test/base/chrome_test_path_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -180,6 +182,42 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, MutedVideoDoesNotShow) {
       FROM_HERE, run_loop.QuitClosure(), base::Seconds(1));
   run_loop.Run();
   EXPECT_FALSE(PipContents());
+}
+
+// Leaving the window (covered, minimized, another app) shows the video too,
+// unless the user turned that off; coming back hides it.
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, LeavingTheWindow) {
+  content::WebContents* video = OpenPlayingVideo(browser());
+
+  video->WasOccluded();
+  ASSERT_TRUE(base::test::RunUntil([&] { return IsInAutoPip(video); }));
+  video->WasShown();
+  ASSERT_TRUE(base::test::RunUntil([&] { return !PipContents(); }));
+
+  // Minimized.
+  video->WasHidden();
+  ASSERT_TRUE(base::test::RunUntil([&] { return IsInAutoPip(video); }));
+  video->WasShown();
+  ASSERT_TRUE(base::test::RunUntil([&] { return !PipContents(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, LeavingTheWindowTurnedOff) {
+  browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kPipOnLeavingWindow,
+                                                  false);
+  content::WebContents* video = OpenPlayingVideo(browser());
+
+  video->WasOccluded();
+  // Long enough for the URL check (at most 500 ms) and the request.
+  base::RunLoop run_loop;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, run_loop.QuitClosure(), base::Seconds(1));
+  run_loop.Run();
+  EXPECT_FALSE(PipContents());
+  video->WasShown();
+
+  // Leaving the tab still does.
+  OpenBlankTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] { return IsInAutoPip(video); }));
 }
 
 // Switching spaces leaves the shown tab too.

@@ -12,6 +12,7 @@
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/variations/feature_overrides.h"
+#include "media/base/media_switches.h"
 #include "third_party/blink/public/common/features.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -26,6 +27,12 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // (docs/design/picture-in-picture.md).
   overrides.EnableFeature(
       blink::features::kBrowserInitiatedAutomaticPictureInPicture);
+#if !BUILDFLAG(IS_ANDROID)
+  // ...and when its window is covered or minimized, or Compass is left for
+  // another app, unless the user turned that off (prefs::kPipOnLeavingWindow,
+  // checked in the auto_picture_in_picture_tab_helper.cc patch).
+  overrides.EnableFeature(media::kAutoPictureInPictureOnWindowOccluded);
+#endif
 
   // No calls to Google that Compass doesn't need (docs/design/privacy.md).
   // The clock check behind certificate errors, over plain HTTP to

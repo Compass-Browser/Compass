@@ -23,7 +23,8 @@
 
 namespace compass {
 
-// What Compass adds to video picture-in-picture windows on macOS and Windows
+// What Compass adds to picture-in-picture windows on macOS and Windows, video
+// ones and a site's own (document picture-in-picture, e.g. Meet's)
 // (docs/design/picture-in-picture.md):
 // - Click-through: Ctrl+Option+Cmd+P (Shift+Alt+P on Windows, or the keys
 //   the user gave it, ShortcutSettings), from any app while a window is open,
@@ -32,7 +33,8 @@ namespace compass {
 //   and shows no controls.
 // - Rounded corners.
 // - Gestures: pinch resizes it, two fingers move it, and at the end of a
-//   gesture or a drag it snaps to a screen edge it's close to.
+//   gesture or a drag it snaps to a screen edge it's close to. A document
+//   window keeps pinches and scrolls for its page: it only snaps.
 //
 // This file and pip_windows.cc are the shared part; pip_windows_mac.mm and
 // pip_windows_win.cc hold the platform's (the Platform*() methods).
@@ -74,10 +76,18 @@ class PipWindows : public views::WidgetObserver,
   PipWindows(const PipWindows&) = delete;
   PipWindows& operator=(const PipWindows&) = delete;
 
+  enum class Kind {
+    // VideoOverlayWindowViews: the video, Compass's controls.
+    kVideo,
+    // A document picture-in-picture window: the site's page.
+    kDocument,
+  };
+
   // A picture-in-picture window showed (VideoOverlayWindowViews::
-  // ShowInactive(), see patches/). Tracked until it hides (upstream hides a
-  // closed window and may show it again) or is destroyed.
-  void AddWindow(views::Widget* widget);
+  // ShowInactive() and PictureInPictureBrowserFrameView::AddedToWidget(),
+  // see patches/). Tracked until it hides (upstream hides a closed window
+  // and may show it again) or is destroyed.
+  void AddWindow(views::Widget* widget, Kind kind = Kind::kVideo);
 
   // Turns click-through on or off for every picture-in-picture window.
   void Toggle();
@@ -86,6 +96,9 @@ class PipWindows : public views::WidgetObserver,
   // (VideoOverlayWindowViews::UpdateControlsVisibility(), see patches/): the
   // window may still see the pointer move, though not clicks.
   bool IsClickThrough(const views::Widget* widget) const;
+  // Whether pinches and two-finger scrolls on |widget| resize and move it
+  // (a tracked video window), rather than going to its page.
+  bool TakesGestures(const views::Widget* widget) const;
 
   bool IsIgnoringMouseForTesting(views::Widget* widget) const;
   bool is_listening_for_testing() const { return listening_; }
@@ -154,6 +167,8 @@ class PipWindows : public views::WidgetObserver,
   void PlatformUpdateEventMonitor();
 
   std::vector<raw_ptr<views::Widget>> windows_;
+  // Those of |windows_| that are document windows.
+  std::vector<raw_ptr<views::Widget>> documents_;
   // Windows faded under the pointer.
   std::vector<raw_ptr<views::Widget>> hovered_;
   bool enabled_ = false;
