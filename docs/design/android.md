@@ -371,6 +371,35 @@ controls that count are the bottom ones, where Compass's bar is
 | C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |
 | C11 | Release pipeline: official build, Play internal testing, APK on the GitHub release | Not started |
 
+## Parity with iOS
+
+What the iOS app (ios.md) does that Android doesn't yet, in the order
+planned. The first group is mostly shell work; splits and profiles are the
+two large pieces.
+
+| # | Scope | Notes |
+|---|---|---|
+| P1 | Archive | Closing a Today entry sends it to the space's archive; "Archive" in the sidebar's long-press menu; an archive view from the space menu (sidebar.md's rules, as on the desktop) |
+| P2 | Pinned URL | "Use This Page as Pinned URL" and "Back to Pinned URL" for a pinned tab or favorite; closing one goes back to its pinned URL |
+| P3 | On Launch | Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
+| P4 | Tab picker gesture | Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
+| P5 | Sidebar drag and drop | Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
+| P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
+| P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
+| P8 | Compass settings | Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
+| P9 | System extras | More widget kinds (Today, Other Devices, Quick Actions); the share target picks a folder; app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
+| P10 | Passwords from other apps | Other apps' logins save into Compass (Autofill's save request), not only fill |
+
+Still Chrome's look, to restyle in Material You with the shell's layout:
+History, Downloads, a link's long-press menu, page info and permission
+prompts, and the "Save password?" message. Chrome's own top toolbar also
+shows for a few seconds on a cold start before the shell hides it.
+
+Built but not yet tried end to end: the Claude tool loop with a real key,
+pairing with a desktop by QR code or code, a sent tab arriving by FCM,
+autofill in another app with saved passwords, and 1Password from the Web
+Store.
+
 ## Verification
 
 - **Each milestone:** build the APK and install it on a Genymotion SaaS
