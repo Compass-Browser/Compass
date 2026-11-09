@@ -77,6 +77,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable PageMenu mPageMenu;
     private @Nullable CompassSettings mSettings;
     private @Nullable FindBar mFindBar;
+    private @Nullable UndoToast mUndoToast;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =
@@ -134,6 +135,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         CompassSettings settings = new CompassSettings(mActivity, coordinator, this);
         mSettings = settings;
         mFindBar = new FindBar(mActivity, coordinator);
+        mUndoToast = new UndoToast(mActivity, coordinator, mHeightPx);
         Favicons.init(mActivity.getTabModelSelector().getModel(false).getProfile());
         spaces.setOnOpenSettings(settings::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
@@ -214,6 +216,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mSettings = null;
         if (mFindBar != null) mFindBar.onDone();
         mFindBar = null;
+        if (mUndoToast != null) mUndoToast.destroy();
+        mUndoToast = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -333,6 +337,13 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     public void openNode(String nodeId, String url) {
         if (mSpaces != null) mSpaces.onNodeClicked(nodeId, url);
+    }
+
+    /** Closed tabs' toast (CompassShell.showUndoToast). */
+    public boolean showUndoToast(String text, Runnable undo, Runnable commit) {
+        if (mUndoToast == null) return false;
+        mUndoToast.show(text, undo, commit);
+        return true;
     }
 
     void showSync() {

@@ -86,6 +86,8 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/TabPicker.java",
     "java/src/it/cipi1965/compass/shell/TabPickerState.kt",
     "java/src/it/cipi1965/compass/shell/TabPickerUi.kt",
+    "java/src/it/cipi1965/compass/shell/UndoToast.java",
+    "java/src/it/cipi1965/compass/shell/UndoToastUi.kt",
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
   ]

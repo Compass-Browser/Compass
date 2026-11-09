@@ -126,6 +126,13 @@ public class Spaces implements SidebarUi.Listener {
                         mBridge.tabClosed(tab.getId());
                     }
 
+                    @Override
+                    public void tabClosureUndone(Tab tab) {
+                        // Its entry went as it closed: a new one, at the top of Today.
+                        mBridge.tabOpened(
+                                tab.getId(), tab.getUrl().getSpec(), tab.getTitle(), false);
+                    }
+
                     // Not tabRemoved(): the tab moved to another window, and keeps its entry.
                 };
         mTabs.addObserver(mTabModelObserver);
@@ -396,8 +403,9 @@ public class Spaces implements SidebarUi.Listener {
             // Closing the tab removes a Today entry; a pinned one stays, unloaded.
             mTabs.getTabRemover()
                     .closeTabs(
+                            // Undo is the shell's toast (UndoToast).
                             org.chromium.chrome.browser.tabmodel.TabClosureParams.closeTab(tab)
-                                    .allowUndo(false)
+                                    .allowUndo(true)
                                     .build(),
                             /* allowDialog= */ false);
         } else {
@@ -473,8 +481,24 @@ public class Spaces implements SidebarUi.Listener {
 
     @Override
     public void onClearToday() {
-        // Every Today entry: its tab closes, and the entry with it.
-        for (SidebarState.Node node : mState.getToday()) onCloseNode(node.id);
+        // Every Today entry: its tab closes, and the entry with it; one step to undo.
+        List<Tab> tabs = new ArrayList<>();
+        for (SidebarState.Node node : mState.getToday()) {
+            int tabId = mBridge.tabFor(node.id);
+            Tab tab = tabId != Tab.INVALID_TAB_ID ? mTabs.getTabById(tabId) : null;
+            if (tab != null) {
+                tabs.add(tab);
+            } else {
+                mBridge.removeNode(node.id);
+            }
+        }
+        if (tabs.isEmpty()) return;
+        mTabs.getTabRemover()
+                .closeTabs(
+                        org.chromium.chrome.browser.tabmodel.TabClosureParams.closeTabs(tabs)
+                                .allowUndo(true)
+                                .build(),
+                        /* allowDialog= */ false);
     }
 
     @Override
