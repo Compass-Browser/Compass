@@ -36,11 +36,13 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
@@ -82,7 +84,31 @@ object StartPageUi {
 private fun StartPage(state: SidebarState, listener: StartPageUi.Listener) {
     // As on iOS, a tab with no page is the space's color, nothing else: the command bar (+, or a
     // tap on the address) and the sidebar are where to go from here.
+    if (state.incognito) {
+        IncognitoPage(listener)
+        return
+    }
     val background = MaterialTheme.colorScheme.surface
     SideEffect { listener.onBackgroundColor(background.toArgb()) }
     Box(Modifier.fillMaxSize().spaceTint(state.activeSpace?.tint ?: "", background))
+}
+
+/** An incognito tab with no page, as iOS's: dark, the glasses, what incognito keeps. */
+@Composable
+private fun IncognitoPage(listener: StartPageUi.Listener) {
+    val background = Color(0xFF171717)
+    SideEffect { listener.onBackgroundColor(background.toArgb()) }
+    Box(Modifier.fillMaxSize().background(background).padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Sym(it.cipi1965.compass.R.drawable.compass_sym_eyeglasses, 44f, Color.White)
+            Text(
+                "Incognito tabs aren't saved or synced, leave no history, and keep their cookies " +
+                    "only until you close them or quit Compass. Sites can still see your visits.",
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 360.dp),
+            )
+        }
+    }
 }

@@ -195,8 +195,9 @@ It costs:
   empty), search suggestions and history, from Chrome's
   `AutocompleteController`.
 - **The start page** (`StartPage`, `StartPageUi.kt`) replaces Chrome's new
-  tab page for regular tabs (`NativePageFactory` patch; incognito keeps
-  Chrome's): as the iOS app's empty page, the space's tint. As on the
+  tab page (`NativePageFactory` patch): as the iOS app's empty page, the
+  space's tint; for an incognito tab, a dark page with what incognito
+  keeps. As on the
   desktop's empty tab, a tab on it has no sidebar entry until it goes
   somewhere (`SpacesAndroid`).
 - **Look.** The shell follows the iOS app's look (ios.md; Theme.swift's

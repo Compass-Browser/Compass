@@ -26,7 +26,8 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 public class StartPage implements NativePage, StartPageUi.Listener {
     private final ChromeTabbedActivity mActivity;
     private final Tab mTab;
-    private final SpacesBridge mBridge;
+    // Not for incognito tabs: the spaces are the regular profile's.
+    private final @Nullable SpacesBridge mBridge;
     private final SidebarState mState = new SidebarState();
     private final View mView;
     private int mBackgroundColor;
@@ -39,12 +40,14 @@ public class StartPage implements NativePage, StartPageUi.Listener {
                                 & Configuration.UI_MODE_NIGHT_MASK)
                         == Configuration.UI_MODE_NIGHT_YES;
         mBackgroundColor = night ? Color.BLACK : Color.WHITE;
-        mBridge = new SpacesBridge(tab.getProfile(), this::refresh);
+        mState.setIncognito(tab.isIncognito());
+        mBridge = tab.isIncognito() ? null : new SpacesBridge(tab.getProfile(), this::refresh);
         refresh();
         mView = StartPageUi.createView(activity, activity, activity, mState, this);
     }
 
     private void refresh() {
+        if (mBridge == null) return;
         // Its window's space (each window shows its own).
         CompassBar bar = CompassBar.forActivity(mActivity);
         String space = bar != null ? bar.shownSpaceId() : "";
@@ -121,6 +124,6 @@ public class StartPage implements NativePage, StartPageUi.Listener {
 
     @Override
     public void destroy() {
-        mBridge.destroy();
+        if (mBridge != null) mBridge.destroy();
     }
 }
