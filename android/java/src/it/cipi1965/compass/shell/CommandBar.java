@@ -72,6 +72,12 @@ public class CommandBar
         mState.setText(pageUrl ? url.getSpec() : "");
         mState.setSuggestions(new ArrayList<>());
         mState.setIncognito(incognito);
+        mState.setEditing(!mInNewTab);
+        CompassBar bar = CompassBar.forActivity(mActivity);
+        mState.setSpaceName(bar != null ? bar.spaceName() : "");
+        mState.setTint(bar != null ? bar.spaceTint() : "");
+        mState.setTypedIsAddress(pageUrl);
+        updateEntries("");
         mInput.setPageUrl(url).setUserText(mState.getText());
         mController.startZeroSuggest(tab != null ? tab.getWebContents() : null, mInput);
 
@@ -89,6 +95,8 @@ public class CommandBar
     @Override
     public void onTextChanged(String text) {
         mState.setText(text);
+        mState.setTypedIsAddress(looksLikeAddress(text.trim()));
+        updateEntries(text.trim());
         if (mController == null) return;
         Tab tab = mActivity.getActivityTabProvider().get();
         mInput.setUserText(text);
@@ -103,6 +111,42 @@ public class CommandBar
     public void onSuggestionClicked(int index) {
         if (index < 0 || index >= mMatches.size()) return;
         navigate(mMatches.get(index).getUrl());
+    }
+
+    @Override
+    public void onEntryClicked(String id, String url) {
+        close();
+        CompassBar bar = CompassBar.forActivity(mActivity);
+        if (bar != null) bar.openNode(id, url);
+    }
+
+    /** The sidebar's entries for the typed text: Today's, or those it matches, at most 12. */
+    private void updateEntries(String text) {
+        CompassBar bar = CompassBar.forActivity(mActivity);
+        if (bar == null || mState.getIncognito()) {
+            mState.setEntries(new ArrayList<>());
+            return;
+        }
+        String needle = text.toLowerCase(java.util.Locale.ROOT);
+        List<CommandBarState.Entry> entries = new ArrayList<>();
+        for (CommandBarState.Entry entry : bar.sidebarEntries()) {
+            if (entries.size() >= 12) break;
+            boolean match =
+                    needle.isEmpty()
+                            ? entry.where.equals("Today")
+                            : entry.title.toLowerCase(java.util.Locale.ROOT).contains(needle)
+                                    || entry.url.toLowerCase(java.util.Locale.ROOT).contains(needle);
+            if (match) entries.add(entry);
+        }
+        mState.setEntries(entries);
+    }
+
+    /** "example.com", "https://…", "localhost:8000": an address, not a search. */
+    private static boolean looksLikeAddress(String text) {
+        if (text.isEmpty() || text.contains(" ")) return false;
+        if (text.contains("://")) return true;
+        int dot = text.indexOf('.');
+        return (dot > 0 && dot < text.length() - 1) || text.startsWith("localhost");
     }
 
     @Override
@@ -141,7 +185,9 @@ public class CommandBar
                 subtitle = url;
             }
             mMatches.add(match);
-            rows.add(new CommandBarState.Suggestion(title, subtitle, search));
+            rows.add(
+                    new CommandBarState.Suggestion(
+                            title, subtitle, search, match.getUrl().getSpec()));
         }
         mState.setSuggestions(rows);
     }

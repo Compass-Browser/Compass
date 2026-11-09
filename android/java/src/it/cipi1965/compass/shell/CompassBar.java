@@ -355,6 +355,35 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         return mSpaces != null ? mSpaces.state().pinnedNodeFor(tabId) : null;
     }
 
+    /** The window's space's name. */
+    String spaceName() {
+        SidebarState.Space space = mSpaces != null ? mSpaces.state().getActiveSpace() : null;
+        return space != null ? space.name : "";
+    }
+
+    /** The space's entries with their pages, for the command bar: favorites, pinned, Today. */
+    java.util.List<CommandBarState.Entry> sidebarEntries() {
+        java.util.List<CommandBarState.Entry> entries = new java.util.ArrayList<>();
+        if (mSpaces == null) return entries;
+        SidebarState state = mSpaces.state();
+        addEntries(entries, state.getFavorites(), "Favorites");
+        addEntries(entries, state.getPinned(), "Pinned");
+        addEntries(entries, state.getToday(), "Today");
+        return entries;
+    }
+
+    private static void addEntries(
+            java.util.List<CommandBarState.Entry> entries,
+            java.util.List<SidebarState.Node> nodes,
+            String where) {
+        for (SidebarState.Node node : nodes) {
+            if ("tab".equals(node.type) && !node.url.isEmpty()) {
+                entries.add(new CommandBarState.Entry(node.id, node.title, node.url, where));
+            }
+            addEntries(entries, node.children, where);
+        }
+    }
+
     /** The window's space's tint ("#rrggbb", or empty). */
     String spaceTint() {
         return mState.getSpaceTint();
