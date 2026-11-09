@@ -76,6 +76,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable TabPicker mTabPicker;
     private @Nullable PageMenu mPageMenu;
     private @Nullable CompassSettings mSettings;
+    private @Nullable FindBar mFindBar;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =
@@ -132,6 +133,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mPageMenu = new PageMenu(mActivity, coordinator, this);
         CompassSettings settings = new CompassSettings(mActivity, coordinator, this);
         mSettings = settings;
+        mFindBar = new FindBar(mActivity, coordinator);
         Favicons.init(mActivity.getTabModelSelector().getModel(false).getProfile());
         spaces.setOnOpenSettings(settings::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
@@ -210,6 +212,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mTabPicker = null;
         mPageMenu = null;
         mSettings = null;
+        if (mFindBar != null) mFindBar.onDone();
+        mFindBar = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -497,7 +501,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     @Override
     public void findInPage() {
-        chromeAction("find_in_page_id");
+        // Compass's find bar: Chrome's is part of the toolbar the shell hides.
+        if (mFindBar != null) mFindBar.show();
     }
 
     @Override
