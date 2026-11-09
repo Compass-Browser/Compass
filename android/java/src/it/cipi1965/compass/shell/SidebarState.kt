@@ -35,6 +35,8 @@ class SidebarState {
     }
 
     var open by mutableStateOf(false)
+    /** An incognito tab's page (the start page): no spaces. */
+    var incognito by mutableStateOf(false)
     var loaded by mutableStateOf(false)
     var spaces by mutableStateOf<List<Space>>(emptyList())
     var activeId by mutableStateOf("")
