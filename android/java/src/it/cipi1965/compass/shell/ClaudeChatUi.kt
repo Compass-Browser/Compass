@@ -65,6 +65,9 @@ object ClaudeChatUi {
 
         fun onSetKey(key: String)
 
+        /** Removes the saved key, to enter another. */
+        fun onForgetKey()
+
         fun onDismiss()
     }
 
@@ -118,6 +121,7 @@ private fun ClaudeSheet(state: ClaudeChatState, listener: ClaudeChatUi.Listener)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("✦ Claude", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                     if (state.messages.isNotEmpty()) TextButton(onClick = { listener.onClear() }) { Text("New chat") }
+                    if (state.hasKey) TextButton(onClick = { listener.onForgetKey() }) { Text("Change key") }
                 }
                 if (!state.hasKey) KeyEntry(state, listener) else Chat(state, listener)
             }
