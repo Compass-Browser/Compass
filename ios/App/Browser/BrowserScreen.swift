@@ -526,9 +526,33 @@ struct BrowserScreen: View {
       .frame(height: 44)
       .background(Color.primary.opacity(0.07), in: Capsule())
       .contentShape(Capsule())
+      .contentShape(.contextMenuPreview, Capsule())
     }
     .accessibilityLabel("Address")
     .accessibilityValue(host)
+    .contextMenu { if app.shownTab != nil { addressMenu } }
+  }
+
+  /// A long press on the address: reload, copy the address, and the
+  /// site's Desktop Site setting (Site Settings; the page reloads).
+  @ViewBuilder private var addressMenu: some View {
+    let view = app.shownTab.flatMap { app.tabs.live[$0.id] }
+    let url = view?.url ?? app.shownTab.flatMap { URL(string: $0.url) }
+    let site = SiteSettings.site(url)
+    let desktop = app.siteSettings.value(.desktopSite, site: site)
+    Button("Reload", systemImage: "arrow.clockwise") { view?.reload() }
+      .disabled(view == nil)
+    Button("Copy URL", systemImage: "doc.on.doc") {
+      if let url { UIPasteboard.general.url = url }
+    }
+    if let site {
+      Button(
+        desktop ? "Request Mobile Site" : "Request Desktop Site",
+        systemImage: desktop ? "iphone" : "desktopcomputer"
+      ) {
+        app.siteSettings.set(.desktopSite, !desktop, site: site)
+      }
+    }
   }
 
   private var host: String {
