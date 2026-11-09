@@ -6,7 +6,8 @@
 
    Chrome's manifest, as Compass, with Compass's extras
    (it.cipi1965.compass.extras): a Quick Settings tile, a search widget and
-   a "Pin to Compass" share target. #}
+   a "Pin to Compass" share target; and its passwords in other apps
+   (it.cipi1965.compass.autofill). #}
 
 {% block application_label %}Compass{% endblock %}
 
@@ -41,4 +42,19 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <service android:name="it.cipi1965.compass.autofill.CompassAutofillService"
+            android:exported="true"
+            android:label="Compass"
+            android:permission="android.permission.BIND_AUTOFILL_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.autofill.AutofillService" />
+            </intent-filter>
+            <meta-data android:name="android.autofill"
+                android:resource="@xml/compass_autofill_service" />
+        </service>
+        <activity android:name="it.cipi1965.compass.autofill.PasswordPickerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:label="Compass passwords"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 {% endblock %}

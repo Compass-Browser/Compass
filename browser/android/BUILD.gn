@@ -12,6 +12,7 @@ assert(is_android)
 group("android") {
   deps = [
     ":claude_bridge",
+    ":passwords_bridge",
     ":spaces",
     ":sync_bridge",
   ]
@@ -69,5 +70,20 @@ source_set("sync_bridge") {
     "//chrome/browser/profiles:profile",
     "//compass/android:jni_headers",
     "//compass/browser/sync",
+  ]
+}
+
+# The saved passwords for the autofill picker (other apps' forms).
+source_set("passwords_bridge") {
+  sources = [
+    "passwords_bridge.cc",
+    "passwords_bridge.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/core",
+    "//components/password_manager/core/browser/password_store:password_store_interface",
+    "//compass/android:jni_headers",
   ]
 }

@@ -144,6 +144,19 @@ It costs:
   its space's Today. Opening an entry whose tab is in another window moves
   the tab here with Chrome's own move between windows, so page state
   survives (sidebar.md, "Move on focus"); a moved tab keeps its entry.
+- **Passwords in other apps (C6)** (`it.cipi1965.compass.autofill`), as
+  the iOS AutoFill extension does: `CompassAutofillService` is an Android
+  autofill service. On another app's login form (or a page in another
+  browser) it offers "Compass passwords…", which opens the picker
+  (`PasswordPickerActivity`): it asks for the screen lock (if there's one),
+  starts Compass's browser process if it isn't running, and lists the
+  saved passwords (`PasswordsBridge`, over the profile's password store),
+  the app's or site's first: the site matching the form's web domain, or
+  an app's package words (com.example.app: example). The one picked fills
+  the form; only its password crosses to Java. Compass's own pages fill
+  through Chrome's autofill. The sidebar's "Passwords in other apps" opens
+  Android's setting to choose Compass. Saving from other apps isn't
+  offered.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
   command bar), a search widget, a "Pin to Compass" share target, and a
@@ -164,6 +177,9 @@ It costs:
   regular and incognito tabs and opens new ones. Thumbnails are Chrome's
   (`TabContentManager`), the tab on screen captured as the picker opens. A
   long press on the tab count opens Chrome's own tab switcher (tab groups).
+  Incognito tabs lock with Chrome's own setting ("Lock Incognito tabs when
+  you leave", in Privacy and security): its unlock screen comes up
+  whenever the window turns to them, from the picker too.
 - **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)

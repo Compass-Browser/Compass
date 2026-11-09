@@ -38,12 +38,16 @@ generate_jni("jni_headers") {
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
+    "java/src/it/cipi1965/compass/autofill/PasswordsBridge.java",
   ]
 }
 
 android_library("java") {
   sources = [
     "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
+    "java/src/it/cipi1965/compass/autofill/CompassAutofillService.java",
+    "java/src/it/cipi1965/compass/autofill/PasswordPickerActivity.kt",
+    "java/src/it/cipi1965/compass/autofill/PasswordsBridge.java",
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
     "java/src/it/cipi1965/compass/extras/CompassIntents.java",
     "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
@@ -150,6 +154,7 @@ android_resources("extras_resources") {
   sources = [
     "res_extras/drawable/compass_widget_background.xml",
     "res_extras/layout/compass_search_widget.xml",
+    "res_extras/xml/compass_autofill_service.xml",
     "res_extras/xml/compass_search_widget.xml",
   ]
   deps = [ ":icon_resources" ]

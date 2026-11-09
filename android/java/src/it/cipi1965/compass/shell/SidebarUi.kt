@@ -64,6 +64,13 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 /** The sidebar: spaces, favorites, the pinned tree and Today, as on the desktop. */
 object SidebarUi {
+    /** Where an entry is, for its long-press menu. */
+    internal enum class EntryPlace {
+        FAVORITES,
+        PINNED,
+        TODAY,
+    }
+
     interface Listener {
         /** Shows the node's tab, or opens one for it at |url|. */
         fun onNodeClicked(nodeId: String, url: String)
@@ -94,6 +101,9 @@ object SidebarUi {
         fun onNewTab()
 
         fun onOpenSync()
+
+        /** Android's setting for the app that fills passwords in other apps (Compass's, if chosen). */
+        fun onOpenAutofillSettings()
 
         /** Pins the tab on screen to the space, or to the favorites. */
         fun onPinCurrentTab(favorite: Boolean)
@@ -239,6 +249,15 @@ private fun SidebarPanel(
                                     .clickable { listener.onOpenSync() }
                                     .padding(horizontal = 20.dp, vertical = 12.dp),
                         )
+                        Text(
+                            "Passwords in other apps",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clickable { listener.onOpenAutofillSettings() }
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                        )
                     }
                 }
             }
@@ -377,7 +396,7 @@ private fun Favorites(state: SidebarState, listener: SidebarUi.Listener) {
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                EntryMenu(menu, { menu = false }, node, EntryPlace.FAVORITES, state, listener)
+                EntryMenu(menu, { menu = false }, node, SidebarUi.EntryPlace.FAVORITES, state, listener)
                 Box(
                     Modifier.size(52.dp)
                         .clip(RoundedCornerShape(14.dp))
@@ -466,7 +485,7 @@ private fun NodeRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EntryMenu(menu, { menu = false }, node, if (pinned) EntryPlace.PINNED else EntryPlace.TODAY, state, listener)
+        EntryMenu(menu, { menu = false }, node, if (pinned) SidebarUi.EntryPlace.PINNED else SidebarUi.EntryPlace.TODAY, state, listener)
         Box(
             Modifier.size(28.dp)
                 .clip(RoundedCornerShape(8.dp))
@@ -504,19 +523,13 @@ private fun NodeRow(
     }
 }
 
-private enum class EntryPlace {
-    FAVORITES,
-    PINNED,
-    TODAY,
-}
-
 /** An entry's long-press menu: where else it can go, its link, and closing it. */
 @Composable
 private fun EntryMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     node: SidebarState.Node,
-    place: EntryPlace,
+    place: SidebarUi.EntryPlace,
     state: SidebarState,
     listener: SidebarUi.Listener,
 ) {
@@ -531,13 +544,13 @@ private fun EntryMenu(
                 },
             )
         }
-        if (place != EntryPlace.PINNED) {
+        if (place != SidebarUi.EntryPlace.PINNED) {
             Item("Pin to this space") { listener.onMoveNode(node.id, "", "pinned") }
         }
-        if (place != EntryPlace.FAVORITES) {
+        if (place != SidebarUi.EntryPlace.FAVORITES) {
             Item("Add to favorites") { listener.onMoveNode(node.id, "", "favorites") }
         }
-        if (place == EntryPlace.PINNED && node.tab >= 0) {
+        if (place == SidebarUi.EntryPlace.PINNED && node.tab >= 0) {
             // Back to an ordinary tab: it goes when it closes.
             Item("Move to Today") { listener.onMoveNode(node.id, "", "today") }
         }
@@ -545,13 +558,13 @@ private fun EntryMenu(
             if (space.id == state.activeId) continue
             val name = listOf(space.emoji, space.name).filter { it.isNotEmpty() }.joinToString(" ")
             Item("Move to ${name.ifEmpty { "space" }}") {
-                listener.onMoveNode(node.id, space.id, if (place == EntryPlace.TODAY) "today" else "pinned")
+                listener.onMoveNode(node.id, space.id, if (place == SidebarUi.EntryPlace.TODAY) "today" else "pinned")
             }
         }
         if (node.url.isNotEmpty()) Item("Copy link") { listener.onCopyLink(node.url) }
         when {
-            place == EntryPlace.TODAY -> Item("Close tab") { listener.onCloseNode(node.id) }
-            else -> Item(if (place == EntryPlace.FAVORITES) "Remove from favorites" else "Unpin") {
+            place == SidebarUi.EntryPlace.TODAY -> Item("Close tab") { listener.onCloseNode(node.id) }
+            else -> Item(if (place == SidebarUi.EntryPlace.FAVORITES) "Remove from favorites" else "Unpin") {
                 listener.onUnpinNode(node.id)
             }
         }
