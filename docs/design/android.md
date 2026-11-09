@@ -191,6 +191,16 @@ The first targets are installs from the Chrome Web Store, 1Password and
 uBlock. Gaps upstream hasn't filled yet get `//compass` code or small
 guarded patches.
 
+Upstream's extensions UI (the puzzle menu, pinned actions, popups) is part
+of Chrome's tablet toolbar, which Compass replaces. Compass has its own
+extensions sheet instead (`Extensions`, `ExtensionsUi.kt`), opened from the
+menu's extensions item: it lists the window's extension actions through
+upstream's `ExtensionsToolbarBridge`, runs one on a tap, and shows its popup
+with Chrome's `ExtensionActionPopup` anchored to Compass's bar. It also
+links to chrome://extensions and the Chrome Web Store. There is one actions
+model per window, so under the shell Chrome doesn't make its own
+(`ToolbarManager` patch). `compass_apk` needs `is_desktop_android`.
+
 ## Sync and push
 
 - **Sync.** Sync is the desktop's, unchanged (sync.md). The Android client

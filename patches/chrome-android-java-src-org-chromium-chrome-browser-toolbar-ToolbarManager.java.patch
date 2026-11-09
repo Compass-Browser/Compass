@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
-index 774d76e8da1ab8af60c8ba6eb031ce1155bda97a..7ab48cf575de5da9cdcfbfb9840912873cba2dda 100644
+index 774d76e8da1ab8af60c8ba6eb031ce1155bda97a..d69ca7e203863bac201d29d1ec2d46b038052ce7 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
 @@ -2524,7 +2524,9 @@ public class ToolbarManager
@@ -13,3 +13,13 @@ index 774d76e8da1ab8af60c8ba6eb031ce1155bda97a..7ab48cf575de5da9cdcfbfb984091287
              enableBottomBar();
          }
      }
+@@ -2745,7 +2747,8 @@ public class ToolbarManager
+ 
+         ViewStub extensionsToolbarStub =
+                 mControlContainer.findViewById(R.id.extensions_toolbar_container_stub);
+-        if (extensionsToolbarStub != null) {
++        // Compass: its shell runs the window's extension actions (one model per window).
++        if (extensionsToolbarStub != null && !it.cipi1965.compass.CompassShell.isPresent()) {
+             ChromeAndroidTask task = mChromeAndroidTaskSupplier.get();
+             // ChromeAndroidTask is available only on Desktop Android.
+             if (task != null) {

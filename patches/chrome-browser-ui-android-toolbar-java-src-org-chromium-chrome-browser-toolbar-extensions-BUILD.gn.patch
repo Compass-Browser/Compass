@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
+index fe7cae3c4cef49e6957b7ae86be8c590fa0b8b38..9626fa833d249b906450522bf8e4ccd8205f6b22 100644
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
+@@ -13,6 +13,9 @@ android_library("java") {
+   visibility = [
+     ":*",
+     "//chrome/browser/ui/android/toolbar:*",
++
++    # Compass: its extensions sheet shows Chrome's action popups.
++    "//compass/android:*",
+   ]
+   resources_package = "org.chromium.chrome.browser.toolbar.extensions"
+   sources = [

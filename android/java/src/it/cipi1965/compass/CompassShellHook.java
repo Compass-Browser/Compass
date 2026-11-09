@@ -35,6 +35,11 @@ public interface CompassShellHook {
         return null;
     }
 
+    /** Chrome's menu asked for the extensions menu: true if the shell showed its own. */
+    default boolean showExtensions() {
+        return false;
+    }
+
     /** A key event for the activity: true if it was one of the shell's shortcuts. */
     default boolean dispatchKeyEvent(KeyEvent event) {
         return false;

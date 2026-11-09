@@ -42,6 +42,11 @@ public class CompassShellHookImpl implements CompassShellHook {
     }
 
     @Override
+    public boolean showExtensions() {
+        return mBar != null && mBar.showExtensions();
+    }
+
+    @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         return mBar != null && mBar.dispatchKeyEvent(event);
     }
