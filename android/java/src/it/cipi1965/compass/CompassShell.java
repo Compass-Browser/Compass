@@ -5,7 +5,9 @@
 package it.cipi1965.compass;
 
 import android.app.Activity;
+import android.content.Context;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
@@ -27,6 +29,19 @@ public final class CompassShell {
             sPresent = sHook != null;
         }
         return sPresent;
+    }
+
+    /**
+     * Chrome's undo bar for closed tabs (UndoBarController patch): true if the shell shows its own
+     * toast instead, which runs |undo| or, once it's gone, |commit|.
+     */
+    public static boolean showUndoToast(
+            Context context, String text, Runnable undo, Runnable commit) {
+        Activity activity = ContextUtils.activityFromContext(context);
+        return isPresent()
+                && sHook != null
+                && activity != null
+                && sHook.showUndoToast(activity, text, undo, commit);
     }
 
     /** The shell's start page for |tab|, or null (Chrome's new tab page). */

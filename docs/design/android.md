@@ -224,6 +224,12 @@ It costs:
     capsule over the keyboard with the text, "2 of 7", the previous and
     next match and Done, over Chrome's `FindInPageBridge`. Chrome's find
     bar is part of the toolbar the shell hides.
+  - **Undo closing**: tabs closed from the sidebar, the picker or Today's
+    Clear show iOS's toast over the bar ("Closed “Title”", Undo; four
+    seconds, or a flick down) instead of Chrome's snackbar
+    (`UndoToast`, `UndoToastUi.kt`; the `UndoBarController` patch hands the
+    closure to it, and Undo and the timeout end it as the snackbar would).
+    A tab brought back gets a new Today entry.
   - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
     sidebar's gear and the page menu: Sync, then the Chrome settings pages
     Compass keeps, each opened at its page (search engine, passwords, clear
