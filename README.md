@@ -37,6 +37,35 @@ the tab strip with a sidebar:
 - **Compass for iPhone** ([`ios/`](ios)): your spaces, tabs, history and
   passwords from the desktop.
 
+## A personal project
+
+Compass is a personal project. I build it for my own use and share it in
+case it's useful to someone else. Most of the code is written with AI
+coding tools, with me directing and reviewing the work.
+
+It comes as is, with no guarantee of any kind. It may have bugs, break
+after an update, or stop being maintained. Keep your own backups of
+anything you can't afford to lose, and use it at your own risk.
+
+### How sync security works
+
+- No accounts. The first device makes a random 128-bit seed. From it,
+  each device derives (HKDF-SHA256) an Ed25519 key that signs its
+  requests to the server, and a Chromium sync custom passphrase that
+  encrypts all data on the device before upload.
+- The server can see data types, item IDs, versions, sizes, times and
+  the device list (names, platforms). It can't see the content.
+- Adding a device: a code like `7-482913`. The 6 digits never reach the
+  server. The two devices run SPAKE2 over the server, then send the seed
+  with AES-256-GCM. A wrong code closes the pairing.
+- Recovery: the seed as 12 BIP39 words. Without a device or the words,
+  the data can't be recovered.
+- Every device holds the seed. Removing a device doesn't revoke it;
+  "Reset sync" makes a new seed.
+- No default server. You can run your own (`server/`).
+
+Details: [docs/design/sync.md](docs/design/sync.md).
+
 ## Download
 
 | Platform | Status | Get it |

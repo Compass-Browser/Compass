@@ -87,6 +87,8 @@ details code { font-size: 11.5px; word-break: break-all; }
 .feature h3 { margin: 0 0 4px; font-size: 17px; }
 .feature p { margin: 0; color: var(--muted); font-size: 15px; }
 
+.about { color: var(--muted); font-size: 15px; max-width: 720px; margin: 0 0 16px; }
+.about-h3 { margin: 24px 0 8px; font-size: 17px; }
 footer { max-width: 980px; margin: 64px auto 0; padding: 24px 16px 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
 footer a { color: inherit; }
 </style>
@@ -158,6 +160,13 @@ footer a { color: inherit; }
       <div class="feature"><h3>Chromium inside</h3><p>The web as Chrome sees it, with its extensions, and automatic updates.</p></div>
       <div class="feature"><h3>Open source</h3><p>The browser and the sync server, which you can also run yourself.</p></div>
     </div>
+  </section>
+
+  <section>
+    <h2>A personal project</h2>
+    <p class="about">Compass is a personal project, built mostly with AI coding tools, with me directing and reviewing the work. I share it in case it's useful to you too, but it comes with no guarantee: it may have bugs, break after an update, or stop being maintained. Use it at your own risk.</p>
+    <h3 class="about-h3">How sync security works</h3>
+    <p class="about">No accounts. A random 128-bit seed, shared by your devices, gives each one an Ed25519 key for the server and the passphrase for Chromium's sync encryption, applied on the device before upload. The server sees data types, sizes, times and the device list, but not the content. Devices pair with a 6-digit code through SPAKE2; the code never reaches the server. Recovery: 12 BIP39 words. <a href="https://github.com/Compass-Browser/Compass/blob/main/docs/design/sync.md">Full design</a>.</p>
   </section>
 </main>
 
