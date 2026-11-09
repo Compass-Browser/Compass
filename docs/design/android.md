@@ -200,11 +200,19 @@ guarded patches.
   service account) next to the APNs one.
   - Registration takes `platform: "apns" | "fcm"`, with APNs as the default
     so current iOS clients keep working.
-  - The client uses the firebase-messaging artifact Chromium already carries
-    in `third_party/android_deps`, configured with Compass's Firebase
-    project.
-  - Payloads are the same encrypted sent-tab references as on iOS
-    (send-tab.md).
+  - The client is `CompassPushAndroid` (`browser/sync`), started with the
+    sync notifier. It gets an FCM token for Compass's Firebase project (its
+    sender ID) through Chromium's own Instance ID driver, which uses Play
+    services, so no Firebase library is added. It registers the token as
+    iOS registers its APNs token (`POST <server>/compass/push`,
+    `platform: "fcm"`), and a wake-up (a message to its Instance ID app)
+    refreshes SEND_TAB_TO_SELF. Chrome's send-tab-to-self then shows the
+    tab's notification.
+  - The message carries nothing but `type: "send-tab"`: the tab comes by
+    sync, encrypted, as on iOS (send-tab.md).
+  - The server needs the project's service account key
+    (`COMPASS_SYNC_FCM_CREDENTIALS`); it lives with the server's
+    configuration, never in this repository.
 
 ## Building
 

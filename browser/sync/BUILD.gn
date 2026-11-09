@@ -31,6 +31,8 @@ source_set("sync") {
     # One profile and window: the spaces are SpacesAndroid's, and there's no
     # space directory or profile creation (docs/design/android.md).
     sources += [
+      "compass_push_android.cc",
+      "compass_push_android.h",
       "compass_spaces_sync_android.cc",
       "space_directory_android.cc",
     ]
@@ -80,7 +82,13 @@ source_set("sync") {
     "//services/network/public/cpp",
   ]
   if (is_android) {
-    deps += [ "//compass/browser/android:spaces" ]
+    deps += [
+      "//chrome/browser/gcm",
+      "//components/gcm_driver",
+      "//components/gcm_driver/instance_id",
+      "//compass/browser/android:spaces",
+      "//net",
+    ]
   } else {
     deps += [
       "//chrome/browser/ui:browser_manager_service",
