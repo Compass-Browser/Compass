@@ -22,7 +22,10 @@ import org.chromium.base.Callback;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.compositor.CompositorViewHolder;
+import org.chromium.chrome.browser.compositor.layouts.LayoutManagerChrome;
 import org.chromium.chrome.browser.browser_controls.BottomControlsLayer;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerScrollBehavior;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
@@ -33,8 +36,10 @@ import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
+import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewSceneLayer;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
+import org.chromium.components.browser_ui.widget.ViewResourceFrameLayout;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.url.GURL;
 
@@ -55,6 +60,10 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private final CompassBarState mState = new CompassBarState();
     private final int mHeightPx;
     private @Nullable View mView;
+    // The bar in a frame that the compositor can draw a copy of, which scrolls off with the page
+    // (as Chrome's bottom toolbar does), and that copy; null if the compositor wasn't up.
+    private @Nullable BarFrame mFrame;
+    private @Nullable ScrollingBottomViewSceneLayer mSceneLayer;
     private @Nullable CommandBar mCommandBar;
     private @Nullable Spaces mSpaces;
     private @Nullable ClaudeChat mClaude;
@@ -97,8 +106,16 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         CoordinatorLayout.LayoutParams params =
                 new CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mHeightPx);
         params.gravity = Gravity.START | Gravity.BOTTOM;
-        coordinator.addView(view, params);
+        BarFrame frame = new BarFrame(mActivity);
+        frame.setId(View.generateViewId());
+        frame.addView(
+                view,
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        coordinator.addView(frame, params);
+        mFrame = frame;
         mView = view;
+        attachCompositedCopy(frame);
         mCommandBar = new CommandBar(mActivity, coordinator);
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
@@ -351,8 +368,10 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     @Override
     public @LayerScrollBehavior int getScrollBehavior() {
-        // Scrolling off needs a composited copy of the bar; later.
-        return LayerScrollBehavior.NEVER_SCROLL_OFF;
+        // Scrolling off needs the composited copy of the bar.
+        return mSceneLayer != null
+                ? LayerScrollBehavior.DEFAULT_SCROLL_OFF
+                : LayerScrollBehavior.NEVER_SCROLL_OFF;
     }
 
     @Override
@@ -367,8 +386,56 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     @Override
     public void onBrowserControlsOffsetUpdate(int layerYOffset) {
+        if (mFrame == null) return;
+        if (mSceneLayer != null) mSceneLayer.setYOffset(layerYOffset);
+        // While the bar scrolls, the compositor draws its copy in step with the page; the view
+        // comes back once it's all the way in (BottomControlsMediator does the same).
+        boolean scrolled =
+                mSceneLayer != null
+                        && mActivity.getBrowserControlsManager().getBottomControlOffset() != 0;
+        mFrame.setVisibility(scrolled ? View.INVISIBLE : View.VISIBLE);
         // Negative to move up; positive only mid-animation, as for Chrome's mini player.
-        if (mView != null) mView.setTranslationY(Math.min(0, layerYOffset));
+        if (!scrolled) mFrame.setTranslationY(Math.min(0, layerYOffset));
+    }
+
+    @Override
+    public int updateOffsetTag(BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+        // With browser controls in viz, viz moves the copy by this tag.
+        if (mSceneLayer != null) {
+            mSceneLayer.setOffsetTag(offsetTagsInfo.getBottomControlsOffsetTag());
+        }
+        return 0;
+    }
+
+    @Override
+    public void clearOffsetTag() {
+        if (mSceneLayer != null) mSceneLayer.setOffsetTag(null);
+    }
+
+    private void attachCompositedCopy(BarFrame frame) {
+        CompositorViewHolder compositor = mActivity.getCompositorViewHolderSupplier().get();
+        LayoutManagerChrome layouts = mActivity.getLayoutManager();
+        if (compositor == null || layouts == null || compositor.getResourceManager() == null) {
+            return;
+        }
+        compositor
+                .getResourceManager()
+                .getDynamicResourceLoader()
+                .registerResource(frame.getId(), frame.getResourceAdapter());
+        ScrollingBottomViewSceneLayer layer =
+                new ScrollingBottomViewSceneLayer(frame, /* topShadowHeightPx= */ 0);
+        layer.setShowShadow(false);
+        layouts.addSceneOverlay(layer);
+        mSceneLayer = layer;
+    }
+
+    /** A frame the compositor can copy (Chrome's ViewResourceFrameLayout, made in code). */
+    private static class BarFrame extends ViewResourceFrameLayout {
+        BarFrame(Context context) {
+            super(context, null);
+            // Inflation would make the resource adapter.
+            onFinishInflate();
+        }
     }
 
     @Override

@@ -138,6 +138,12 @@ It costs:
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
+- **The bar scrolls away** with the page, as on iOS: it's a layer of
+  Chrome's bottom controls that scrolls off (`DEFAULT_SCROLL_OFF`), and
+  while it moves the compositor draws a copy of it in step with the page
+  (`ScrollingBottomViewSceneLayer` over the bar's `ViewResourceFrameLayout`,
+  as Chrome's own bottom toolbar does); the view comes back once the bar is
+  all the way in.
 - **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from the bar's tab
   count, as on iOS: the window's tabs as cards in a row over the space's
   tint, least recently shown at the left and the tab on screen centered.
