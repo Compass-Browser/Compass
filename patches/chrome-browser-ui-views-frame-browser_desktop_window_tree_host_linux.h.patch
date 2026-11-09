@@ -1,0 +1,27 @@
+diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_linux.h b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_linux.h
+index d17a9cf241060738a99ee12ef10d0f298720f9d1..e89f7e454937f93db8e0e66f67781a533b1eec89 100644
+--- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_linux.h
++++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_linux.h
+@@ -30,6 +30,10 @@ namespace ui {
+ class LinuxUi;
+ }  // namespace ui
+ 
++namespace compass {
++class BrowserViewExchange;
++}  // namespace compass
++
+ class BrowserDesktopWindowTreeHostLinux
+     : public BrowserDesktopWindowTreeHost,
+       public views::DesktopWindowTreeHostLinux,
+@@ -60,6 +64,11 @@ class BrowserDesktopWindowTreeHostLinux
+   void UpdateFrameHints() override;
+ 
+  private:
++  // Compass: re-points |browser_view_| after a BrowserView exchange, and
++  // makes the global menu bar again for the view that came in (profiles in
++  // place).
++  friend class compass::BrowserViewExchange;
++
+   // DesktopWindowTreeHostPlatform:
+   void AddAdditionalInitProperties(
+       const views::Widget::InitParams& params,

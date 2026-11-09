@@ -7,7 +7,7 @@ window swap of spaces slice 3 (D17, `sidebar_swap.cc`). Based on Chromium
 ## Goal
 
 Switching to a space of another profile happens in the same native window:
-same NSWindow/HWND, same macOS Space, same fullscreen, same window to
+same NSWindow, HWND or X11/Wayland window, same macOS Space, same fullscreen, same window to
 Mission Control and the OS. No second window shows, no transparent overlay,
 no fullscreen animation.
 
@@ -61,7 +61,8 @@ What ties a native window to its view, and how the exchange redoes it:
 | Tie | Redone by |
 |---|---|
 | `Widget::widget_delegate_`, `non_client_view_` (client view = the `BrowserView`) | `Widget::ExchangeContentsWith()` (views patch) |
-| `BrowserWidget::browser_view_`, `BrowserRootView::browser_view_`, `BrowserNativeWidgetMac::browser_view_`; on Windows `BrowserNativeWidgetAura::browser_view_` and `BrowserDesktopWindowTreeHostWin::browser_view_` | set by the exchange (`friend`) |
+| `BrowserWidget::browser_view_`, `BrowserRootView::browser_view_`, `BrowserNativeWidgetMac::browser_view_`; on Windows and Linux `BrowserNativeWidgetAura::browser_view_` and the tree host's (`BrowserDesktopWindowTreeHostWin`, `BrowserDesktopWindowTreeHostLinux`) | set by the exchange (`friend`) |
+| Linux: the tree host's `DbusAppmenu` (the global menu bar of KDE and Unity, with the profile's history and closed tabs) | made again for the view that comes in |
 | Windows: the tree host's `BrowserWindowPropertyManager` (taskbar relaunch command and icon) | made again for the view that comes in (the window icon is the plain app icon for every profile, so it stays, and the taskbar button carries no profile overlay) |
 | `BrowserView::browser_widget_` (owns the widget) | swapped |
 | Frame view (`BrowserFrameViewMac`, made for one view) | `CreateFrameView()` again |
