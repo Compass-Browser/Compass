@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java b/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java
+index 30095386a94782613f203ffe9a3d51e809a4ecb5..0f631354ff5e02b1682f6f6a941dc1b6d2932a19 100644
+--- a/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java
++++ b/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java
+@@ -178,6 +178,8 @@ public class NotificationPermissionController {
+         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || DeviceInfo.isRetailDemoMode()) {
+             return false;
+         }
++        // Compass: no prompt at startup; features ask when they need notifications.
++        if (!contextual) return false;
+ 
+         // Record the state of the notification permission before trying to ask but after verifying
+         // we are running on Android T.

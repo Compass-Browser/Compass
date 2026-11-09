@@ -146,3 +146,4 @@ nothing else.
 | `chrome-android-java-src-org-chromium-chrome-browser-ui-RootUiCoordinator.java.patch` | `getBottomControlsStacker()`, for the shell's bottom bar |
 | `chrome-browser-browser_controls-android-java-src-org-chromium-chrome-browser-browser_controls-BottomControlsStacker.java.patch` | A `COMPASS_BAR` layer type, above the bottom chin: the stack allows one layer per type |
 | `chrome-android-java-src-org-chromium-chrome-browser-firstrun-FirstRunFlowSequencer.java.patch` | No first-run experience on Android either (no Google terms, sign-in or promos), as `chrome-browser-ui-startup-first_run_service.cc.patch` does on the desktop |
+| `chrome-browser-notifications-android-java-src-org-chromium-chrome-browser-notifications-permissions-NotificationPermissionController.java.patch` | Android: no notification-permission prompt at startup; features that need notifications still ask when used |
