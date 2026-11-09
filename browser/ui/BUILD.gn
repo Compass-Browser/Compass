@@ -240,6 +240,10 @@ source_set("ui") {
     # The shortcuts page reads upstream's accelerator table.
     deps += [ "//chrome/browser/ui:accelerator_table" ]
   }
+  if (is_linux) {
+    sources += [ "views/frame/browser_view_exchange_linux.cc" ]
+    deps += [ "//build/config/linux/dbus:buildflags" ]
+  }
   if (is_mac) {
     sources += [
       "views/frame/browser_view_exchange_mac.mm",
