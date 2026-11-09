@@ -97,6 +97,8 @@ object FindBarUi {
     }
 }
 
+// BasicTextField's String overload, as the command bar's field.
+@Suppress("DEPRECATION")
 @Composable
 private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
     BackHandler { listener.onDone() }
