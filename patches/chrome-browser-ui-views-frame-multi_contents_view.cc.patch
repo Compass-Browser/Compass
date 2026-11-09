@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/multi_contents_view.cc b/chrome/browser/ui/views/frame/multi_contents_view.cc
-index a756f076ffce50efa86bb84421b4ff8a77e8c581..072fab76249eec27a501819880cb71b7d0ce8023 100644
+index a756f076ffce50efa86bb84421b4ff8a77e8c581..b8253045f633711dc87d08b2108ee8b83bc88717 100644
 --- a/chrome/browser/ui/views/frame/multi_contents_view.cc
 +++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
 @@ -5,7 +5,10 @@
@@ -19,7 +19,7 @@ index a756f076ffce50efa86bb84421b4ff8a77e8c581..072fab76249eec27a501819880cb71b7
  
 +  // Compass: the panes of splits of more than two tabs, each after a resize
 +  // area, hidden until a split shows them.
-+  resize_areas_.push_back(resize_area_);
++  resize_areas_.push_back(resize_area_.get());
 +  while (contents_container_views_.size() < kMaxPanes) {
 +    auto* resize_area =
 +        AddChildView(std::make_unique<MultiContentsResizeArea>(this));
@@ -346,7 +346,7 @@ index a756f076ffce50efa86bb84421b4ff8a77e8c581..072fab76249eec27a501819880cb71b7
      return;
    }
  
-@@ -862,6 +990,146 @@ void MultiContentsView::SetSplitViewInsets(const gfx::Insets& insets) {
+@@ -862,6 +990,147 @@ void MultiContentsView::SetSplitViewInsets(const gfx::Insets& insets) {
    InvalidateLayout(/*avoid_propagate_during_layout=*/true);
  }
  
@@ -360,7 +360,8 @@ index a756f076ffce50efa86bb84421b4ff8a77e8c581..072fab76249eec27a501819880cb71b7
 +                                  : resize_area_->GetPreferredSize().height();
 +  const int length =
 +      side_by_side ? available_space.width() : available_space.height();
-+  const int content = std::max(0, length - static_cast<int>(count - 1) * resize);
++  const int content =
++      std::max(0, length - static_cast<int>(count - 1) * resize);
 +
 +  // Each pane's share; equal unless the split was resized.
 +  std::vector<double> shares;
@@ -375,7 +376,7 @@ index a756f076ffce50efa86bb84421b4ff8a77e8c581..072fab76249eec27a501819880cb71b7
 +  }
 +  if (shares.size() != count || total <= 0) {
 +    shares.assign(count, 1.0);
-+    total = count;
++    total = static_cast<double>(count);
 +  }
 +  std::vector<int> sizes(count);
 +  int used = 0;
