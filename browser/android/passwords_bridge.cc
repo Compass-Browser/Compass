@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/android/jni_string.h"
 #include "base/json/json_writer.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
