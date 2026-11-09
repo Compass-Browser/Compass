@@ -6,6 +6,12 @@
 # Compass's own shell, in Kotlin and Jetpack Compose.
 
 import("//build/config/android/rules.gni")
+import("//extensions/buildflags/buildflags.gni")
+
+# The shell's extensions sheet uses upstream's desktop-Android extensions UI
+# classes (docs/design/android.md, "Extensions").
+assert(enable_extensions_core,
+       "Compass for Android builds with is_desktop_android (config/args/android.gn)")
 import("//third_party/jni_zero/jni_zero.gni")
 import("//chrome/android/chrome_public_apk_tmpl.gni")
 
@@ -52,6 +58,9 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/CommandBar.java",
     "java/src/it/cipi1965/compass/shell/CommandBarState.kt",
     "java/src/it/cipi1965/compass/shell/CommandBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/Extensions.java",
+    "java/src/it/cipi1965/compass/shell/ExtensionsState.kt",
+    "java/src/it/cipi1965/compass/shell/ExtensionsUi.kt",
     "java/src/it/cipi1965/compass/shell/SidebarState.kt",
     "java/src/it/cipi1965/compass/shell/SidebarUi.kt",
     "java/src/it/cipi1965/compass/shell/Spaces.java",
@@ -74,6 +83,10 @@ android_library("java") {
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/ui/android/appmenu:java",
+    "//chrome/browser/ui/android/extensions:java",
+    "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions:java",
+    "//chrome/browser/ui/browser_window/public/android:factory_java",
+    "//chrome/browser/ui/browser_window/public/android:java",
     "//chrome/browser/ui/android/layouts:java",
     "//chrome/browser/ui/android/native_page:java",
     "//chrome/browser/ui/android/omnibox:java",
