@@ -399,7 +399,6 @@ public class Spaces implements SidebarUi.Listener {
     public void onCloseNode(String nodeId) {
         int tabId = mBridge.tabFor(nodeId);
         Tab tab = tabId != Tab.INVALID_TAB_ID ? mTabs.getTabById(tabId) : null;
-        android.util.Log.w("CompassUndo", "close " + tabId + " tab " + tab);
         if (tab != null) {
             // Closing the tab removes a Today entry; a pinned one stays, unloaded.
             mTabs.getTabRemover()

@@ -47,9 +47,6 @@ public class UndoToast implements UndoToastUi.Listener {
         parent.addView(mView, params);
         for (boolean incognito : new boolean[] {false, true}) {
             TabModel model = activity.getTabModelSelector().getModel(incognito);
-            android.util.Log.w(
-                    "CompassUndo",
-                    "observing " + model + " pending " + model.supportsPendingClosures());
             TabModelObserver observer =
                     new TabModelObserver() {
                         @Override
@@ -57,7 +54,6 @@ public class UndoToast implements UndoToastUi.Listener {
                                 List<Tab> tabs,
                                 boolean isAllTabs,
                                 @TabClosingSource int closingSource) {
-                            android.util.Log.w("CompassUndo", "pending " + tabs.size());
                             show(model, tabs);
                         }
                     };
