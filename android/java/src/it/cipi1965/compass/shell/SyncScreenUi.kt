@@ -129,7 +129,8 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
             when (state.state) {
                 "unavailable" -> Text("Sync isn't available in this profile.")
                 "needs_restart" -> {
-                    Text("Compass restarts to start syncing.")
+                    // The service's message says why ("Restart Compass to start syncing.").
+                    if (state.message.isEmpty()) Text("Restart Compass to start syncing.")
                     Button(onClick = { listener.onRestart() }) { Text("Restart") }
                 }
                 "on", "starting", "error" -> Chain(state, listener)
