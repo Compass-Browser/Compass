@@ -37,7 +37,7 @@ public class CompassShellHookImpl implements CompassShellHook {
 
     @Override
     public @Nullable NativePage createStartPage(Activity activity, Tab tab) {
-        if (tab.isIncognito() || !(activity instanceof ChromeTabbedActivity cta)) return null;
+        if (!(activity instanceof ChromeTabbedActivity cta)) return null;
         return new StartPage(cta, tab);
     }
 

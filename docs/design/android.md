@@ -93,11 +93,15 @@ It costs:
   saved entry, a closed one leaves Today (a pinned tab or favorite stays,
   unloaded). `SpacesBridge` (jni_zero) gives Java a JSON snapshot of what
   the sidebar shows and takes the shell's tab events and actions. The
-  sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
-  space switcher, favorites, the pinned tree, Today, pin and favorite. A
-  long press on an entry pins it, makes it a favorite, moves it to Today or
-  to another space (with its tab), copies its link, or closes or unpins it;
-  unpinning an entry whose tab is open leaves the tab in Today.
+  sidebar (`SidebarUi.kt`) is the iOS app's panel up from the bottom (a
+  swipe up on the bar's address; full or half height, its grabber moves
+  it), in the space's tint: the favorites grid, the space's name and ⋯ menu
+  (rename, theme, delete), Pinned, Today with Clear and New Tab, and a bar
+  with Settings, the spaces and a new tab; a sideways swipe goes to the
+  next space. A long press on an entry pins it, makes it a favorite, moves
+  it to Today or to another space (with its tab), copies its link, or
+  closes or unpins it; unpinning an entry whose tab is open leaves the tab
+  in Today.
   Chrome's tabs of every space stay in the window's TabModel; the sidebar
   shows the window's space's. Chrome's own archiving of inactive tabs is
   off (`TabArchiveSettings` patch): Today and the archive do that.
@@ -172,29 +176,67 @@ It costs:
   while it moves the compositor draws a copy of it in step with the page
   (`ScrollingBottomViewSceneLayer` over the bar's `ViewResourceFrameLayout`,
   as Chrome's own bottom toolbar does); the view comes back once the bar is
-  all the way in. A sideways swipe on its address goes to the next or
-  previous tab, as on iOS.
-- **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from the bar's tab
-  count, as on iOS: the window's tabs as cards in a row over the space's
+  all the way in.
+- **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from a swipe up on
+  the bar left of the address, as on iOS: the window's tabs as cards in a row over the space's
   tint, least recently shown at the left and the tab on screen centered.
   A tap shows a card's tab, a flick up closes it (Chrome's undo snackbar
   brings it back), a drag down closes the picker; it switches between
-  regular and incognito tabs and opens new ones. Thumbnails are Chrome's
-  (`TabContentManager`), the tab on screen captured as the picker opens. A
-  long press on the tab count opens Chrome's own tab switcher (tab groups).
+  regular and incognito tabs (the glasses, when there are some), and its
+  one button opens a new tab. Thumbnails are Chrome's (`TabContentManager`),
+  the tab on screen captured as the picker opens.
   Incognito tabs lock with Chrome's own setting ("Lock Incognito tabs when
   you leave", in Privacy and security): its unlock screen comes up
   whenever the window turns to them, from the picker too.
-- **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
-  searches for the current tab or a new one, with Chrome's
-  `AutocompleteController` (history, bookmarks, search suggestions)
-  behind it.
+- **The command bar** (`CommandBar`, `CommandBarUi.kt`), as on iOS: a
+  sheet in the space's tint with the field ("New tab in <space>", or "Go
+  to" with the page's address selected) and cards: the typed address or
+  search, the sidebar's entries to switch to (Today's while the field is
+  empty), search suggestions and history, from Chrome's
+  `AutocompleteController`.
 - **The start page** (`StartPage`, `StartPageUi.kt`) replaces Chrome's new
-  tab page for regular tabs (`NativePageFactory` patch; incognito keeps
-  Chrome's): the space, a search field that opens the command bar, and the
-  space's favorites and pinned entries. Opening one goes to its tab (or a
-  new one) and closes the start page's. As on the desktop's empty tab, a
-  tab on it has no sidebar entry until it goes somewhere (`SpacesAndroid`).
+  tab page (`NativePageFactory` patch): as the iOS app's empty page, the
+  space's tint; for an incognito tab, a dark page with what incognito
+  keeps. As on the
+  desktop's empty tab, a tab on it has no sidebar entry until it goes
+  somewhere (`SpacesAndroid`).
+- **Look.** The shell has the iOS app's layout (ios.md) in Material You's
+  style (`CompassStyle.kt`): the dynamic color scheme (`CompassTheme`),
+  tonal surfaces and Material 3 shapes and components (list items, tonal
+  buttons, menus with leading icons, a snackbar for undo, a FAB), with the
+  space's tint behind the sidebar, the picker and the start page
+  (`spaceTint`) and site icons from Chrome's favicon database (`Favicons`,
+  `SiteIcon`).
+  - Icons are Material Symbols Rounded, weight 500, in place of SF Symbols
+    (`android/res_symbols`, `android/material_symbols.md`).
+  - **The bar** (`CompassBarUi.kt`) is the iOS app's: back, forward, the
+    address (the site's icon and host), + and ⋯ in a floating capsule.
+    Swiping up on it opens, by where the finger starts, the tab picker
+    (left of the address), the sidebar (on it) or the command bar (right
+    of it); a sideways swipe goes to the next or previous tab. A long press
+    on the address has Reload, Copy URL, Share, Find on Page and the
+    desktop or mobile site; one on + a new incognito tab.
+  - **The page menu** (`PageMenu`, `PageMenuUi.kt`), from ⋯, replaces
+    Chrome's app menu: the address with back, forward, copy and reload;
+    Find, Ask Claude, Pin and Share; Downloads and History; the window's
+    extensions; Site Settings and Settings. Its actions are the bar's or
+    Chrome's own (`onMenuOrKeyboardAction` with its menu item IDs).
+  - **Find on page** (`FindBar`, `FindBarUi.kt`) is Compass's: a floating
+    capsule over the keyboard with the text, "2 of 7", the previous and
+    next match and Done, over Chrome's `FindInPageBridge`. Chrome's find
+    bar is part of the toolbar the shell hides.
+  - **Undo closing**: tabs closed from the sidebar, the picker or Today's
+    Clear show a Material snackbar over the bar ("Closed “Title”", Undo;
+    four seconds, or a flick down) instead of Chrome's
+    (`UndoToast`, `UndoToastUi.kt`): a closure the tab model holds pending
+    shows it, Undo cancels the closure and its end commits it; the
+    `UndoBarController` patch keeps Chrome's snackbar away.
+    A tab brought back gets a new Today entry.
+  - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
+    sidebar's gear and the page menu, a Material settings screen: Sync, then the Chrome settings pages
+    Compass keeps, each opened at its page (search engine, passwords, clear
+    browsing data, site settings, privacy, …), and Passwords in Other Apps,
+    Claude and Extensions.
 - **Branding so far.** The app is "Compass" with its own launcher icon (an
   adaptive icon from the glyph, `android/res/`, overlaying Chrome's
   `ic_launcher`), and there's no first-run experience.

@@ -1,0 +1,16 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java b/chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java
+index 1194b1f8646703e10edc0dbf5c9d20a2e7d63a37..c38aa94e11d067662c2b7d68cf9cc13e9ef16060 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java
+@@ -132,6 +132,11 @@ public abstract class UndoBarController
+         UndoActionData undoActionData =
+                 new UndoActionData(closedTabs, savedTabGroupSyncIds, umaType);
+ 
++        // Compass: its shell shows its own toast (UndoToast), which ends the closure itself.
++        if (it.cipi1965.compass.CompassShell.isPresent() && savedTabGroupSyncIds.isEmpty()) {
++            return;
++        }
++
+         mSnackbarManageable
+                 .getSnackbarManager()
+                 .showSnackbar(

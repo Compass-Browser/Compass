@@ -60,12 +60,21 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/CompassBar.java",
     "java/src/it/cipi1965/compass/shell/CompassBarState.kt",
     "java/src/it/cipi1965/compass/shell/CompassBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/CompassSettings.java",
+    "java/src/it/cipi1965/compass/shell/CompassSettingsUi.kt",
+    "java/src/it/cipi1965/compass/shell/CompassStyle.kt",
     "java/src/it/cipi1965/compass/shell/CommandBar.java",
     "java/src/it/cipi1965/compass/shell/CommandBarState.kt",
     "java/src/it/cipi1965/compass/shell/CommandBarUi.kt",
     "java/src/it/cipi1965/compass/shell/Extensions.java",
     "java/src/it/cipi1965/compass/shell/ExtensionsState.kt",
     "java/src/it/cipi1965/compass/shell/ExtensionsUi.kt",
+    "java/src/it/cipi1965/compass/shell/Favicons.kt",
+    "java/src/it/cipi1965/compass/shell/FindBar.java",
+    "java/src/it/cipi1965/compass/shell/FindBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/PageMenu.java",
+    "java/src/it/cipi1965/compass/shell/PageMenuState.kt",
+    "java/src/it/cipi1965/compass/shell/PageMenuUi.kt",
     "java/src/it/cipi1965/compass/shell/SidebarState.kt",
     "java/src/it/cipi1965/compass/shell/SidebarUi.kt",
     "java/src/it/cipi1965/compass/shell/Spaces.java",
@@ -77,11 +86,14 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/TabPicker.java",
     "java/src/it/cipi1965/compass/shell/TabPickerState.kt",
     "java/src/it/cipi1965/compass/shell/TabPickerUi.kt",
+    "java/src/it/cipi1965/compass/shell/UndoToast.java",
+    "java/src/it/cipi1965/compass/shell/UndoToastUi.kt",
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
   ]
   deps = [
     ":hook_java",
+    ":symbols_resources",
     "//base:base_java",
     "//build/android:build_java",
     "//chrome/android:chrome_java",
@@ -94,6 +106,10 @@ android_library("java") {
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/ui/android/appmenu:java",
     "//chrome/browser/ui/android/extensions:java",
+    "//chrome/browser/ui/android/favicon:java",
+    "//chrome/browser/settings:factory_java",
+    "//components/browser_ui/settings/android:java",
+    "//components/find_in_page/android:java",
     "//chrome/browser/ui/android/toolbar:core_java",
     "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions:java",
     "//chrome/browser/ui/browser_window/public/android:factory_java",
@@ -132,6 +148,8 @@ android_library("java") {
     "//url:gurl_java",
   ]
   srcjar_deps = [ ":jni_headers" ]
+  # it.cipi1965.compass.R, for the icons.
+  resources_package = "it.cipi1965.compass"
   enable_compose = true
 }
 
@@ -148,6 +166,70 @@ android_resources("icon_resources") {
   ]
   resource_overlay = true
   deps = [ "//chrome/android:chrome_base_module_resources" ]
+}
+
+# Material Symbols, the icons (res_symbols/README.md).
+android_resources("symbols_resources") {
+  sources = [
+    "res_symbols/drawable/compass_sym_account_circle.xml",
+    "res_symbols/drawable/compass_sym_add.xml",
+    "res_symbols/drawable/compass_sym_archive.xml",
+    "res_symbols/drawable/compass_sym_arrow_back.xml",
+    "res_symbols/drawable/compass_sym_arrow_back_ios_new.xml",
+    "res_symbols/drawable/compass_sym_arrow_forward.xml",
+    "res_symbols/drawable/compass_sym_arrow_forward_ios.xml",
+    "res_symbols/drawable/compass_sym_auto_awesome.xml",
+    "res_symbols/drawable/compass_sym_check.xml",
+    "res_symbols/drawable/compass_sym_chevron_right.xml",
+    "res_symbols/drawable/compass_sym_close.xml",
+    "res_symbols/drawable/compass_sym_cloud_done.xml",
+    "res_symbols/drawable/compass_sym_cloud_done_fill.xml",
+    "res_symbols/drawable/compass_sym_cloud_off.xml",
+    "res_symbols/drawable/compass_sym_content_copy.xml",
+    "res_symbols/drawable/compass_sym_content_paste.xml",
+    "res_symbols/drawable/compass_sym_create_new_folder.xml",
+    "res_symbols/drawable/compass_sym_delete.xml",
+    "res_symbols/drawable/compass_sym_desktop_windows.xml",
+    "res_symbols/drawable/compass_sym_download.xml",
+    "res_symbols/drawable/compass_sym_edit.xml",
+    "res_symbols/drawable/compass_sym_extension_fill.xml",
+    "res_symbols/drawable/compass_sym_eyeglasses.xml",
+    "res_symbols/drawable/compass_sym_find_in_page.xml",
+    "res_symbols/drawable/compass_sym_folder.xml",
+    "res_symbols/drawable/compass_sym_folder_fill.xml",
+    "res_symbols/drawable/compass_sym_history.xml",
+    "res_symbols/drawable/compass_sym_home_fill.xml",
+    "res_symbols/drawable/compass_sym_ios_share.xml",
+    "res_symbols/drawable/compass_sym_keep.xml",
+    "res_symbols/drawable/compass_sym_keep_off.xml",
+    "res_symbols/drawable/compass_sym_key_fill.xml",
+    "res_symbols/drawable/compass_sym_keyboard_return.xml",
+    "res_symbols/drawable/compass_sym_language.xml",
+    "res_symbols/drawable/compass_sym_link.xml",
+    "res_symbols/drawable/compass_sym_lock.xml",
+    "res_symbols/drawable/compass_sym_more_horiz.xml",
+    "res_symbols/drawable/compass_sym_palette.xml",
+    "res_symbols/drawable/compass_sym_power.xml",
+    "res_symbols/drawable/compass_sym_public.xml",
+    "res_symbols/drawable/compass_sym_qr_code_scanner.xml",
+    "res_symbols/drawable/compass_sym_refresh.xml",
+    "res_symbols/drawable/compass_sym_remove_selection.xml",
+    "res_symbols/drawable/compass_sym_schedule.xml",
+    "res_symbols/drawable/compass_sym_search.xml",
+    "res_symbols/drawable/compass_sym_select_all.xml",
+    "res_symbols/drawable/compass_sym_settings.xml",
+    "res_symbols/drawable/compass_sym_settings_fill.xml",
+    "res_symbols/drawable/compass_sym_shield.xml",
+    "res_symbols/drawable/compass_sym_smartphone.xml",
+    "res_symbols/drawable/compass_sym_stacks.xml",
+    "res_symbols/drawable/compass_sym_star.xml",
+    "res_symbols/drawable/compass_sym_star_fill.xml",
+    "res_symbols/drawable/compass_sym_sync.xml",
+    "res_symbols/drawable/compass_sym_tune.xml",
+    "res_symbols/drawable/compass_sym_unarchive.xml",
+    "res_symbols/drawable/compass_sym_undo.xml",
+    "res_symbols/drawable/compass_sym_view_sidebar.xml",
+  ]
 }
 
 # The extras' resources (the search widget).

@@ -44,4 +44,5 @@ public interface CompassShellHook {
     default boolean dispatchKeyEvent(KeyEvent event) {
         return false;
     }
+
 }

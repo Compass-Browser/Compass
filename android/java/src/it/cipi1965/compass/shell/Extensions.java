@@ -119,6 +119,12 @@ public class Extensions
                 && mBridge.handleKeyDownEvent(event);
     }
 
+    /** The window's extension actions, as now (the page menu). */
+    public java.util.List<ExtensionsState.Action> actions() {
+        refresh();
+        return mState.getActions();
+    }
+
     private void refresh() {
         if (mBridge == null) return;
         Tab tab = mActivity.getActivityTab();

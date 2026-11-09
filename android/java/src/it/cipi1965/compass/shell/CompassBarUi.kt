@@ -5,50 +5,62 @@
 package it.cipi1965.compass.shell
 
 import android.content.Context
-import android.os.Build
 import android.view.View
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import it.cipi1965.compass.R
 import kotlin.math.abs
 
+/**
+ * Compass's bottom bar, as the iOS app's (BrowserScreen.swift): back, forward, the address, new
+ * tab and the page menu, in a frosted capsule. Swiping up on it opens, by where the finger starts,
+ * the tab picker (left of the address), the sidebar (on it) or the command bar (right of it);
+ * swiping sideways goes to the next or previous tab. A long press on the address has the page's
+ * quick actions, one on + a new incognito tab.
+ */
 object CompassBarUi {
-    /** What the bar's controls do. */
     interface Actions {
         fun showSidebar()
 
@@ -56,17 +68,28 @@ object CompassBarUi {
 
         fun showTabs()
 
-        /** Chrome's tab switcher (tab groups, its grid), from a long press on the tab count. */
-        fun showTabSwitcher()
-
         fun newTab()
 
-        /** The tab |offset| places over in the window's tabs (a swipe on the address). */
+        fun newIncognitoTab()
+
+        fun goBack()
+
+        fun goForward()
+
+        /** The tab |offset| places over in the window's tabs (a swipe on the bar). */
         fun switchTab(offset: Int)
 
         fun showMenu()
 
-        fun showClaude()
+        fun reload()
+
+        fun copyUrl()
+
+        fun share()
+
+        fun findInPage()
+
+        fun toggleDesktopSite()
 
         /** The bar's background, for the strip under the navigation bar. */
         fun backgroundColorChanged(color: Int)
@@ -87,7 +110,7 @@ object CompassBarUi {
         view.setContent {
             CompassTheme(dark = state.incognito || isSystemInDarkTheme()) {
                 // Chrome paints the strip under the navigation bar in the bar's color.
-                val background = MaterialTheme.colorScheme.surfaceContainer.toArgb()
+                val background = MaterialTheme.colorScheme.surface.toArgb()
                 SideEffect { actions.backgroundColorChanged(background) }
                 Bar(state, actions)
             }
@@ -97,112 +120,180 @@ object CompassBarUi {
 }
 
 @Composable
-internal fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
-    val context = LocalContext.current
-    val colors =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else {
-            if (dark) darkColorScheme() else lightColorScheme()
+private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
+    var pill by remember { mutableStateOf<Rect?>(null) }
+    Box(
+        Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            Modifier.fillMaxWidth()
+                .height(54.dp)
+                .floatingGlass(CircleShape)
+                // Inside the padding: the drag's coordinates are the pill's.
+                .padding(5.dp)
+                .pointerInput(Unit) {
+                    var start = Offset.Zero
+                    var total = Offset.Zero
+                    detectDragGestures(
+                        onDragStart = {
+                            start = it
+                            total = Offset.Zero
+                        },
+                        onDragEnd = {
+                            if (abs(total.x) > abs(total.y)) {
+                                // Sideways: the next or previous tab.
+                                if (abs(total.x) > 48.dp.toPx()) actions.switchTab(if (total.x < 0) 1 else -1)
+                            } else if (total.y < -30.dp.toPx()) {
+                                // Up: by where the finger started (thirds until the address is laid out).
+                                val p = pill
+                                val third = size.width / 3f
+                                val left = p?.left ?: third
+                                val right = p?.right ?: (2 * third)
+                                when {
+                                    start.x < left -> actions.showTabs()
+                                    start.x <= right -> actions.showSidebar()
+                                    else -> actions.newTab()
+                                }
+                            }
+                        },
+                    ) { change, amount ->
+                        change.consume()
+                        total += amount
+                    }
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            BarIcon(R.drawable.compass_sym_arrow_back_ios_new, state.canGoBack) { actions.goBack() }
+            BarIcon(R.drawable.compass_sym_arrow_forward_ios, state.canGoForward) { actions.goForward() }
+            AddressPill(
+                state,
+                actions,
+                // The pill's place, for the swipe's zones.
+                Modifier.weight(1f).onGloballyPositioned { pill = it.boundsInParent() },
+            )
+            NewTabButton(actions)
+            BarIcon(R.drawable.compass_sym_more_horiz, true) { actions.showMenu() }
         }
-    MaterialTheme(colorScheme = colors, content = content)
+    }
+}
+
+/** A bar button: an 18 pt glyph in a 40×44 target, faint while it can't act (BarIcon). */
+@Composable
+private fun BarIcon(@DrawableRes icon: Int, enabled: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+    Box(
+        Modifier.size(width = 40.dp, height = 44.dp)
+            .clip(CircleShape)
+            .combinedClickable(enabled = enabled, onLongClick = onLongClick, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Sym(icon, 18f, modifier = Modifier.alpha(if (enabled) 1f else 0.3f))
+    }
 }
 
 @Composable
-private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxSize()) {
+private fun NewTabButton(actions: CompassBarUi.Actions) {
+    var menu by remember { mutableStateOf(false) }
+    Box {
+        BarIcon(R.drawable.compass_sym_add, true, onLongClick = { menu = true }) { actions.newTab() }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            MenuItem("New Tab", R.drawable.compass_sym_add) {
+                menu = false
+                actions.newTab()
+            }
+            MenuItem("New Incognito Tab", R.drawable.compass_sym_eyeglasses) {
+                menu = false
+                actions.newIncognitoTab()
+            }
+        }
+    }
+}
+
+/** The address: the site's icon and host, or the search prompt (BrowserScreen.swift, addressPill). */
+@Composable
+private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, modifier: Modifier) {
+    var menu by remember { mutableStateOf(false) }
+    val empty = state.host.isEmpty()
+    Box(modifier) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            Modifier.fillMaxWidth()
+                .height(44.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onLongClick = if (empty) null else ({ menu = true }),
+                    onClick = { actions.openAddress() },
+                )
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            SpaceButton(state) { actions.showSidebar() }
-            Box(
-                modifier =
-                    Modifier.weight(1f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        // A swipe on the address goes to the next or previous tab, as on iOS.
-                        .pointerInput(Unit) {
-                            var dx = 0f
-                            detectHorizontalDragGestures(
-                                onDragStart = { dx = 0f },
-                                onDragEnd = {
-                                    if (abs(dx) > 48.dp.toPx()) actions.switchTab(if (dx < 0) 1 else -1)
-                                },
-                            ) { change, amount ->
-                                change.consume()
-                                dx += amount
-                            }
-                        }
-                        .clickable { actions.openAddress() }
-                        .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                val empty = state.host.isEmpty()
+            if (empty) {
+                Sym(R.drawable.compass_sym_search, 14f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 Text(
-                    text = if (empty) "Search or type URL" else state.host,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color =
-                        if (empty) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.onSurface,
+                    "Search or enter address",
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                SiteIcon(state.url, 16.dp)
+                Text(
+                    state.host.removePrefix("www."),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            TabCount(state.tabCount, onLongClick = { actions.showTabSwitcher() }) { actions.showTabs() }
-            BarButton("+", true) { actions.newTab() }
-            BarButton("✦", true) { actions.showClaude() }
-            BarButton("⋮", true) { actions.showMenu() }
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            MenuItem("Reload", R.drawable.compass_sym_refresh) {
+                menu = false
+                actions.reload()
+            }
+            MenuItem("Copy URL", R.drawable.compass_sym_content_copy) {
+                menu = false
+                actions.copyUrl()
+            }
+            MenuItem("Share", R.drawable.compass_sym_ios_share) {
+                menu = false
+                actions.share()
+            }
+            MenuItem("Find on Page", R.drawable.compass_sym_search) {
+                menu = false
+                actions.findInPage()
+            }
+            if (state.desktopSite) {
+                MenuItem("Request Mobile Site", R.drawable.compass_sym_smartphone) {
+                    menu = false
+                    actions.toggleDesktopSite()
+                }
+            } else {
+                MenuItem("Request Desktop Site", R.drawable.compass_sym_desktop_windows) {
+                    menu = false
+                    actions.toggleDesktopSite()
+                }
+            }
         }
     }
 }
 
+/** A Material menu item: its icon leading. */
 @Composable
-private fun SpaceButton(state: CompassBarState, onClick: () -> Unit) {
-    val tint = SidebarUi.tintColor(state.spaceTint) ?: MaterialTheme.colorScheme.outline
-    Box(
-        modifier =
-            Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(tint.copy(alpha = 0.25f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(state.spaceLabel.ifEmpty { "☰" }, style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
-
-@Composable
-private fun BarButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    TextButton(
+internal fun MenuItem(label: String, @DrawableRes icon: Int, destructive: Boolean = false, onClick: () -> Unit) {
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    DropdownMenuItem(
+        text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = color) },
+        leadingIcon = {
+            Sym(icon, 17f, if (destructive) color else MaterialTheme.colorScheme.onSurfaceVariant)
+        },
         onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.size(48.dp),
-        contentPadding = PaddingValues(0.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.headlineSmall)
-    }
-}
-
-@Composable
-private fun TabCount(count: Int, onLongClick: () -> Unit, onClick: () -> Unit) {
-    Box(
-        modifier =
-            Modifier.clip(RoundedCornerShape(12.dp))
-                .combinedClickable(onLongClick = onLongClick, onClick = onClick)
-                .padding(11.dp)
-                .size(26.dp)
-                .border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(7.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            if (count > 99) "99+" else count.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    )
 }
