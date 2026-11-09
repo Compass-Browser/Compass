@@ -16,8 +16,10 @@ import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
 import './theme_editor.js';
+import './live_folders/editor.js';
+import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
-import type {ArchivedEntry, ArchivedTab, Node, NowPlaying, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -187,8 +189,14 @@ export class CompassSidebarAppElement extends CrLitElement {
       nowPlaying_: {type: Array},
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
+      liveEditor_: {type: Object},
     };
   }
+
+  // The live folder editor, while it's open: for a new folder in
+  // |parentId|, or for folder |folderId| (docs/design/live-folders.md).
+  protected accessor liveEditor_:
+      {parentId: string|null, folderId: string|null}|null = null;
 
   // The profile's favorites, shared by its spaces (a root of tabs).
   protected accessor favorites_: Node|null = null;
@@ -289,6 +297,34 @@ export class CompassSidebarAppElement extends CrLitElement {
       router.nodeAudioChanged.addListener(this.onNodeAudioChanged_.bind(this)),
       router.nodeClaudeChanged.addListener(
           this.onNodeClaudeChanged_.bind(this)),
+      router.nodeLiveItemChanged.addListener(
+          (id: string, liveItem: boolean, unseen: boolean) => {
+            const node = this.nodes_.get(id);
+            if (node) {
+              node.liveItem = liveItem;
+              node.unseen = unseen;
+              this.requestUpdate();
+            }
+          }),
+      router.liveFolderChanged.addListener(
+          (id: string, liveFolder: LiveFolder|null) => {
+            const node = this.nodes_.get(id);
+            if (node) {
+              node.liveFolder = liveFolder;
+              this.requestUpdate();
+            }
+          }),
+      router.liveFolderStateChanged.addListener(
+          (id: string, state: LiveFolderState) => {
+            const node = this.nodes_.get(id) as LiveNode | undefined;
+            if (node) {
+              node.liveState = state;
+              this.requestUpdate();
+            }
+          }),
+      router.showLiveFolderEditor.addListener(
+          (parentId: string|null, folderId: string|null) =>
+              this.liveEditor_ = {parentId, folderId}),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
       router.setArchive.addListener(
@@ -819,6 +855,17 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected onNewTabClick_() {
     this.browserProxy_.handler.newTab();
+  }
+
+  // At the end of Pinned.
+  protected onNewLiveFolderClick_() {
+    if (this.pinned_) {
+      this.liveEditor_ = {parentId: this.pinned_.id, folderId: null};
+    }
+  }
+
+  protected onLiveEditorClose_() {
+    this.liveEditor_ = null;
   }
 
   // At the end of Pinned, or the top of Today, where new entries go.

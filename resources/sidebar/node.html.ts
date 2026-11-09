@@ -16,7 +16,7 @@ ${this.isTab_() ? html`
       data-node-id="${this.node!.id}"
       aria-selected="${this.isActive_(this.node!)}"
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
-      ?claude="${this.node!.claude}"
+      ?claude="${this.node!.claude}" ?unseen="${this.node!.unseen}"
       title="${this.getTitle_(this.node!)}" @click="${this.onTabClick_}"
       @dblclick="${this.onTabDblclick_}" @mousedown="${this.onTabMousedown_}"
       @auxclick="${this.onTabAuxclick_}"
@@ -88,13 +88,17 @@ ${this.isFolder_() ? html`
   <div class="folder-row row" draggable="true" data-node-id="${this.node!.id}"
       role="treeitem" tabindex="-1" aria-expanded="${!this.isCollapsed_()}"
       @click="${this.onFolderClick_}">
-    <svg class="folder-icon" viewBox="0 0 16 16" aria-hidden="true"
-        ?open="${!this.isCollapsed_()}">
-      <path class="back"
-          d="M1.5 12.5V4a1 1 0 0 1 1-1h3.4l1.5 1.5h5.6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z">
-      </path>
-      <path class="front"></path>
-    </svg>
+    ${this.node!.liveFolder ? html`
+      <span class="live-icon" aria-hidden="true"
+          ?refreshing="${this.liveState_().refreshing}"
+          style="${this.liveIconStyle_()}"></span>` : html`
+      <svg class="folder-icon" viewBox="0 0 16 16" aria-hidden="true"
+          ?open="${!this.isCollapsed_()}">
+        <path class="back"
+            d="M1.5 12.5V4a1 1 0 0 1 1-1h3.4l1.5 1.5h5.6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z">
+        </path>
+        <path class="front"></path>
+      </svg>`}
     ${this.isEditing_(this.node!) ? html`
       <input class="title-input folder-title-input" spellcheck="false"
           autocomplete="off" .value="${this.node!.title}"
@@ -103,6 +107,13 @@ ${this.isFolder_() ? html`
       <span class="title" @dblclick="${this.onFolderTitleDblclick_}">
         ${this.node!.title}
       </span>`}
+    ${this.liveState_().error ? html`
+      <span class="live-error" role="img" aria-label="${this.liveState_().error}"
+          title="${this.liveState_().error}"></span>` : nothing}
+    ${this.isCollapsed_() && this.unseenCount_() ? html`
+      <span class="live-unseen-count"
+          aria-label="${this.unseenCount_()} new">${this.unseenCount_()}</span>`
+      : nothing}
     <button class="close" aria-label="Delete folder"
         @click="${this.onDeleteFolderClick_}">&times;</button>
   </div>

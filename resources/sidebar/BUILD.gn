@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//ui/webui/resources/tools/build_webui.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
 
 # chrome://compass-sidebar, and the other Compass pages (the placeholder, the
 # command bar, the settings sections, which chrome://settings also serves
@@ -19,6 +20,7 @@ build_webui("build") {
     "compass_sync.html",
     "empty.html",
     "find_bar.html",
+    "live_folders.html",
     "placeholder.html",
     "compass_sidebar.html",
     "settings.html",
@@ -40,6 +42,8 @@ build_webui("build") {
     "command_bar/browser_proxy.ts",
     "empty.ts",
     "favicon.ts",
+    "live_folders/editor.ts",
+    "live_folders/host.ts",
     "find_bar/app.html.ts",
     "find_bar/app.ts",
     "find_bar/browser_proxy.ts",
@@ -94,6 +98,7 @@ build_webui("build") {
     "//compass/browser/ui/webui/claude:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/live_folders:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
   ]
@@ -102,7 +107,55 @@ build_webui("build") {
     "$root_gen_dir/compass/browser/ui/webui/claude/claude.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/find_bar/find_bar.mojom-webui.ts",
+    "$root_gen_dir/compass/browser/ui/webui/live_folders/live_folders.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sync/compass_sync.mojom-webui.ts",
   ]
+
+  # chrome-untrusted://live-folders/: the plugin SDK, runtime and built-in
+  # plugins, and the Worker script, which are classic scripts (not built).
+  extra_grdp_deps = [
+    ":build_live_plugins_grdp",
+    ":build_live_worker_grdp",
+  ]
+  extra_grdp_files = [
+    "$target_gen_dir/live_plugins.grdp",
+    "$target_gen_dir/live_worker.grdp",
+  ]
+}
+
+# Live folders' plugin scripts, as the plugins/ tree has them
+# (docs/design/live-folders.md), served under /plugins/.
+generate_grd("build_live_plugins_grdp") {
+  grd_prefix = "compass_live_plugins"
+  out_grd = "$target_gen_dir/live_plugins.grdp"
+  input_files_base_dir = rebase_path("//compass/plugins", "//")
+  resource_path_prefix = "plugins"
+  input_files = [
+    "builtin/calendar/icon.svg",
+    "builtin/calendar/main.js",
+    "builtin/calendar/manifest.json",
+    "builtin/github/icon.svg",
+    "builtin/github/main.js",
+    "builtin/github/manifest.json",
+    "builtin/rss/icon.svg",
+    "builtin/rss/main.js",
+    "builtin/rss/manifest.json",
+    "builtin/web-list/icon.svg",
+    "builtin/web-list/main.js",
+    "builtin/web-list/manifest.json",
+    "runtime/prelude.js",
+    "runtime/result.js",
+    "sdk/html.js",
+    "sdk/ics.js",
+    "sdk/text.js",
+    "sdk/xml.js",
+  ]
+}
+
+generate_grd("build_live_worker_grdp") {
+  grd_prefix = "compass_live_worker"
+  out_grd = "$target_gen_dir/live_worker.grdp"
+  input_files_base_dir = rebase_path(".", "//")
+  input_files = [ "live_folders/worker.js" ]
 }

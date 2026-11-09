@@ -1185,6 +1185,12 @@ void CompassSpacesSyncBridge::AddLocalNodes(
       // A new tab or blank page stays here.
       continue;
     }
+    if (child->is_live_item()) {
+      // A live folder's entries are made on each device and never sync
+      // (docs/design/live-folders.md, "Sync"). One that leaves its folder
+      // loses its key, and syncs from then on.
+      continue;
+    }
     auto it = mirror_.find(key);
     const sync_pb::CompassNode* synced =
         it != mirror_.end() && it->second.has_node() ? &it->second.node()

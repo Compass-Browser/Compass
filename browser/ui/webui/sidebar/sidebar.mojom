@@ -30,6 +30,22 @@ enum AudioState {
   kMuted,
 };
 
+// A live folder: a pinned folder a plugin fills (docs/design/live-folders.md).
+struct LiveFolder {
+  string plugin_id;
+  // Empty when the plugin isn't installed on this device.
+  string plugin_name;
+  // The plugin's icon, as a path on chrome://compass-sidebar/, or empty.
+  string icon_path;
+};
+
+// What a live folder is doing, besides its entries.
+struct LiveFolderState {
+  bool refreshing;
+  // The last refresh's error, for the user; empty if it worked.
+  string error;
+};
+
 // One entry of the window's SpaceModel, with its subtree.
 struct Node {
   // The node's UUID. Stable for its lifetime.
@@ -49,7 +65,78 @@ struct Node {
   bool claude;
   // Whether a folder shows only its own row. The same in every window.
   bool collapsed;
+  // Set for a live folder.
+  LiveFolder? live_folder;
+  // A live folder's entry, and whether it came with a refresh and hasn't
+  // been opened.
+  bool live_item;
+  bool unseen;
   array<Node> children;
+};
+
+// A field of a plugin's settings form (its manifest's "config").
+struct LiveConfigField {
+  string key;
+  // "string", "url", "number", "bool" or "select".
+  string type;
+  string label;
+  string placeholder;
+  bool optional;
+  // The default as JSON, or empty.
+  string default_json;
+  double? min;
+  double? max;
+  array<LiveSelectOption> options;
+};
+
+struct LiveSelectOption {
+  string value;
+  string label;
+};
+
+// A secret a plugin asks for: entered once per device, never synced.
+struct LiveSecretField {
+  string key;
+  string label;
+  string help;
+  bool optional;
+  // Whether one is stored: the form can leave it blank to keep it.
+  bool has_value;
+};
+
+// A plugin New Live Folder offers.
+struct LivePlugin {
+  string id;
+  string name;
+  string description;
+  string icon_path;
+  array<LiveConfigField> config;
+  array<LiveSecretField> secrets;
+  // The hosts it may send the profile's cookies to, once allowed; empty if
+  // it never does.
+  array<string> cookie_hosts;
+};
+
+// What the live folder editor shows for an existing folder.
+struct LiveFolderSource {
+  string plugin_id;
+  string title;
+  string config_json;
+  bool cookies_granted;
+};
+
+// The live folder editor's answer: a new folder (|folder_id| null, in
+// |parent_id|, at the end) or changes to one.
+struct LiveFolderEdit {
+  string? folder_id;
+  string? parent_id;
+  string plugin_id;
+  // For a new folder; empty takes the plugin's (then the feed's) name.
+  string title;
+  string config_json;
+  // Secrets by key; empty values keep what's stored.
+  map<string, string> secrets;
+  bool grant_cookies;
 };
 
 struct Tree {
@@ -283,6 +370,15 @@ interface PageHandler {
 
   // A now playing widget's button. Ignored for a widget that's gone.
   ActOnNowPlaying(string id, NowPlayingAction action);
+
+  // Live folders (docs/design/live-folders.md). The plugins New Live Folder
+  // offers.
+  GetLivePlugins() => (array<LivePlugin> plugins);
+  // Live folder |id|'s source, for the editor; null if it isn't one.
+  GetLiveFolderSource(string id) => (LiveFolderSource? source);
+  // Makes or changes a live folder; answers an error for the user, or empty.
+  SaveLiveFolder(LiveFolderEdit edit) => (string error);
+  RefreshLiveFolder(string id);
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
@@ -305,6 +401,17 @@ interface Page {
   NodeLiveChanged(string id, bool live);
   NodeAudioChanged(string id, AudioState audio);
   NodeClaudeChanged(string id, bool claude);
+  // A tab's live folder entry state changed (it was opened, or left its
+  // folder).
+  NodeLiveItemChanged(string id, bool live_item, bool unseen);
+  // A folder became live, changed plugin, or became plain (null).
+  LiveFolderChanged(string id, LiveFolder? live_folder);
+  // A live folder started or finished refreshing. Sent for every live folder
+  // after the tree.
+  LiveFolderStateChanged(string id, LiveFolderState state);
+  // "New Live Folder…" or "Edit Source…" was chosen: shows the live folder
+  // editor for a new folder in |parent_id|, or for folder |folder_id|.
+  ShowLiveFolderEditor(string? parent_id, string? folder_id);
   ActiveNodeChanged(string? id);
   // The window's space's archived entries, most recent first. Sent after the
   // tree, and whenever they change.

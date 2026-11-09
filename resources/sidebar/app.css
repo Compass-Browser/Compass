@@ -827,7 +827,74 @@ compass-sidebar-node {
  * (2026-11-02). Their rename fields match, so editing doesn't jump. */
 .tab .title,
 .folder-row .title,
-input.title-input {
+input/* Live folders (docs/design/live-folders.md, "UI"): the plugin's icon,
+   painted in the text color, in place of the folder glyph. */
+.live-icon {
+  background-color: currentColor;
+  flex-shrink: 0;
+  height: 16px;
+  mask: var(--live-icon) center / contain no-repeat;
+  opacity: 0.8;
+  width: 16px;
+}
+
+/* A plugin without an icon. */
+.live-icon[style=""] {
+  border-radius: 50%;
+  height: 8px;
+  margin: 4px;
+  width: 8px;
+}
+
+.live-icon[refreshing] {
+  animation: live-refreshing 700ms ease-in-out infinite alternate;
+}
+
+@keyframes live-refreshing {
+  to {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-icon[refreshing] {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
+.live-error {
+  background: var(--color-sys-error, #d93025);
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 6px;
+  margin-inline-start: 4px;
+  width: 6px;
+}
+
+.live-unseen-count {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 16px;
+  margin-inline-start: 4px;
+  padding: 0 5px;
+}
+
+/* A live folder's entry that came with a refresh and hasn't been opened. */
+.tab.row[unseen]::after {
+  background: var(--color-sys-primary, #0b57d0);
+  border-radius: 50%;
+  content: '';
+  flex-shrink: 0;
+  height: 6px;
+  margin-inline-start: 4px;
+  order: 99;
+  width: 6px;
+}
+
+.title-input {
   font-size: 14px;
 }
 
@@ -1034,4 +1101,130 @@ input.title-input {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* The live folder editor (live_folders/editor.ts), over the sidebar like the
+   space menu. */
+.live-editor {
+  animation: pop-in 140ms cubic-bezier(0.2, 0, 0, 1);
+  background: var(--color-tab-background-active-frame-active, #fff);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  color: var(--color-tab-foreground-active-frame-active, inherit);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  left: 8px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  position: absolute;
+  right: 8px;
+  top: 12px;
+  z-index: 2;
+}
+
+.live-editor-header {
+  align-items: center;
+  display: flex;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.live-editor-back {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+.live-editor-plugins,
+.live-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.live-editor-plugin {
+  align-items: flex-start;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  text-align: start;
+}
+
+.live-editor-plugin:hover,
+.live-editor-plugin:focus-visible {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.live-editor-plugin-text,
+.live-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.live-editor-plugin-name {
+  font-weight: 500;
+}
+
+.live-editor-hint {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.live-editor-field > span:first-child {
+  font-size: 12px;
+}
+
+.live-editor-field input,
+.live-editor-field select {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  padding: 5px 7px;
+}
+
+.live-editor-check {
+  align-items: flex-start;
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.live-editor-error {
+  color: var(--color-sys-error, #d93025);
+  font-size: 12px;
+}
+
+.live-editor-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.live-editor-buttons button {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 5px 12px;
+}
+
+.live-editor-buttons button.action {
+  background: var(--color-sys-primary, #0b57d0);
+  color: var(--color-sys-on-primary, #fff);
 }
