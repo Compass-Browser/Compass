@@ -4,7 +4,11 @@
 
 package it.cipi1965.compass.shell;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
+import android.view.KeyEvent;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -182,6 +186,46 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         // Handled once, even if the activity is recreated with it.
         intent.setAction(null);
         return true;
+    }
+
+    /**
+     * Compass's keyboard shortcuts, as on the desktop (Ctrl for Cmd); returns whether |event| was
+     * one. The rest are Chrome's (KeyboardShortcuts).
+     */
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (!event.isCtrlPressed() || event.isAltPressed() || event.isMetaPressed()) return false;
+        boolean shift = event.isShiftPressed();
+        int key = event.getKeyCode();
+        boolean ours =
+                shift
+                        ? key == KeyEvent.KEYCODE_E || key == KeyEvent.KEYCODE_C
+                        : key == KeyEvent.KEYCODE_S
+                                || key == KeyEvent.KEYCODE_T
+                                || key == KeyEvent.KEYCODE_L
+                                || key == KeyEvent.KEYCODE_K;
+        if (!ours) return false;
+        // Both halves of the key press are ours; the action runs on the first.
+        if (event.getAction() != KeyEvent.ACTION_DOWN || event.getRepeatCount() != 0) return true;
+        if (shift && key == KeyEvent.KEYCODE_E) {
+            showClaude();
+        } else if (shift) {
+            copyUrl();
+        } else if (key == KeyEvent.KEYCODE_S) {
+            if (mSpaces != null) mSpaces.toggleSidebar();
+        } else if (key == KeyEvent.KEYCODE_T) {
+            newTab();
+        } else {
+            openAddress();
+        }
+        return true;
+    }
+
+    private void copyUrl() {
+        Tab tab = mActivity.getActivityTab();
+        if (tab == null) return;
+        ClipboardManager clipboard =
+                (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
+        clipboard.setPrimaryClip(ClipData.newPlainText("URL", tab.getUrl().getSpec()));
     }
 
     // CompassBarUi.Actions:

@@ -56,6 +56,10 @@ public class Spaces implements SidebarUi.Listener {
     private @Nullable Runnable mOnOpenSync;
     private @Nullable View mPane;
     private boolean mDocked;
+    // Ctrl+S put the pane away (docked windows only).
+    private boolean mPaneHidden;
+    private @Nullable ViewGroup mCoordinator;
+    private @Nullable FrameLayout mRoot;
     // The spaces the launcher shortcuts were made for (id, emoji and name of each).
     private String mShortcutSpaces = "";
 
@@ -140,39 +144,63 @@ public class Spaces implements SidebarUi.Listener {
     // the browser, as on the desktop: Chrome's coordinator moves over by its width.
     private void setUpDocking(ViewGroup coordinator) {
         if (!(coordinator.getParent() instanceof FrameLayout root)) return;
+        mCoordinator = coordinator;
+        mRoot = root;
         root.addOnLayoutChangeListener(
                 (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                    if (right - left != oldRight - oldLeft) {
-                        v.post(() -> updateDocking(coordinator, root));
-                    }
+                    if (right - left != oldRight - oldLeft) v.post(this::updateDocking);
                 });
-        updateDocking(coordinator, root);
+        updateDocking();
     }
 
-    private void updateDocking(ViewGroup coordinator, FrameLayout root) {
+    private void updateDocking() {
+        if (mCoordinator == null || mRoot == null || mRoot.getWidth() == 0) return;
         float density = mActivity.getResources().getDisplayMetrics().density;
-        if (root.getWidth() == 0) return;
-        boolean dock = root.getWidth() / density >= PANE_MIN_WINDOW_DP;
-        if (dock == mDocked) return;
-        mDocked = dock;
+        boolean dock = mRoot.getWidth() / density >= PANE_MIN_WINDOW_DP;
+        if (dock != mDocked) {
+            mDocked = dock;
+            if (dock) onDismiss();
+        }
+        showPane(mDocked && !mPaneHidden);
+    }
+
+    private void showPane(boolean show) {
+        assert mCoordinator != null && mRoot != null;
+        boolean shown = mPane != null && mPane.getParent() == mRoot;
+        if (show == shown) return;
+        float density = mActivity.getResources().getDisplayMetrics().density;
         int paneWidth = Math.round(PANE_WIDTH_DP * density);
         if (mPane == null) {
             mPane = SidebarUi.createPaneView(mActivity, mActivity, mActivity, mState, this);
         }
         ViewGroup.MarginLayoutParams params =
-                (ViewGroup.MarginLayoutParams) coordinator.getLayoutParams();
-        if (dock) {
-            root.addView(
+                (ViewGroup.MarginLayoutParams) mCoordinator.getLayoutParams();
+        if (show) {
+            mRoot.addView(
                     mPane,
                     new FrameLayout.LayoutParams(
                             paneWidth, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
             params.setMarginStart(paneWidth);
-            onDismiss();
         } else {
-            root.removeView(mPane);
+            mRoot.removeView(mPane);
             params.setMarginStart(0);
         }
-        coordinator.setLayoutParams(params);
+        mCoordinator.setLayoutParams(params);
+    }
+
+    /**
+     * Ctrl+S, as on the desktop: puts the pane away or brings it back on wide windows, and opens or
+     * closes the drawer on narrow ones.
+     */
+    public void toggleSidebar() {
+        if (mDocked) {
+            mPaneHidden = !mPaneHidden;
+            showPane(!mPaneHidden);
+        } else if (mState.getOpen()) {
+            onDismiss();
+        } else {
+            showSidebar();
+        }
     }
 
     /** Runs when the spaces change (the bar shows the active space's icon). */
@@ -190,8 +218,11 @@ public class Spaces implements SidebarUi.Listener {
     }
 
     public void showSidebar() {
-        // The pane is always there.
-        if (mDocked) return;
+        if (mDocked) {
+            // The pane is always there, unless Ctrl+S put it away.
+            if (mPaneHidden) toggleSidebar();
+            return;
+        }
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);

@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index af106d0a96ec69cd4ed511e2158888c47e19e578..d7255609d02997878f1ceba89c8cb00c584fc0ce 100644
+index af106d0a96ec69cd4ed511e2158888c47e19e578..34457b23e46685516b8b16d854dd9a00f725f9b6 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -53,6 +53,7 @@ import androidx.lifecycle.LifecycleRegistry;
@@ -44,3 +44,11 @@ index af106d0a96ec69cd4ed511e2158888c47e19e578..d7255609d02997878f1ceba89c8cb00c
          try {
              TraceEvent.begin("ChromeTabbedActivity.onNewIntentWithNative");
              if (IntentHandler.isActorNotificationIntent(intent)) {
+@@ -5543,6 +5557,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+ 
+     @Override
+     public boolean dispatchKeyEvent(KeyEvent event) {
++        if (mCompassShell != null && mCompassShell.dispatchKeyEvent(event)) return true;
+         Boolean result =
+                 KeyboardShortcuts.dispatchKeyEvent(
+                         event,

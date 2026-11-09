@@ -119,7 +119,11 @@ It costs:
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts
   the pane next to it, and follows the window's size. Narrower, it's the
-  drawer. Chrome's keyboard shortcuts work; Ctrl+L opens the command bar.
+  drawer. With a keyboard, the shell takes the desktop's Compass keys
+  (Ctrl for Cmd) before Chrome's (`CompassBar.dispatchKeyEvent`, through
+  the activity patch): Ctrl+S puts the pane away or opens the drawer,
+  Ctrl+T, Ctrl+L and Ctrl+K open the command bar, Ctrl+Shift+E opens
+  Claude and Ctrl+Shift+C copies the URL. Chrome's other shortcuts stay.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
   command bar), a search widget, a "Pin to Compass" share target, and a
