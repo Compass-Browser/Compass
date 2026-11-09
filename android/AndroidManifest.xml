@@ -42,6 +42,18 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <activity android:name="it.cipi1965.compass.extras.PairInviteActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="compass-pair" />
+            </intent-filter>
+        </activity>
         <service android:name="it.cipi1965.compass.autofill.CompassAutofillService"
             android:exported="true"
             android:label="Compass"

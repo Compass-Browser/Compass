@@ -249,6 +249,10 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         } else if (CompassIntents.ACTION_PIN_URL.equals(action)) {
             String url = intent.getStringExtra(CompassIntents.EXTRA_URL);
             if (url != null && mSpaces != null) mSpaces.openAndPin(url);
+        } else if (CompassIntents.ACTION_PAIR.equals(action)) {
+            String server = intent.getStringExtra(CompassIntents.EXTRA_SERVER);
+            String code = intent.getStringExtra(CompassIntents.EXTRA_CODE);
+            if (server != null && code != null && mSync != null) mSync.join(server, code);
         }
         // Handled once, even if the activity is recreated with it.
         intent.setAction(null);
