@@ -135,7 +135,14 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         CompassSettings settings = new CompassSettings(mActivity, coordinator, this);
         mSettings = settings;
         mFindBar = new FindBar(mActivity, coordinator);
-        mUndoToast = new UndoToast(mActivity, coordinator, mHeightPx);
+        // Clear of the bar, as iOS's toast over its bar.
+        mUndoToast =
+                new UndoToast(
+                        mActivity,
+                        coordinator,
+                        mHeightPx
+                                + Math.round(
+                                        10 * mActivity.getResources().getDisplayMetrics().density));
         Favicons.init(mActivity.getTabModelSelector().getModel(false).getProfile());
         spaces.setOnOpenSettings(settings::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
