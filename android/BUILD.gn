@@ -25,7 +25,10 @@ android_library("hook_java") {
 
 # For //compass/browser/android: the natives of the Java bridges.
 generate_jni("jni_headers") {
-  sources = [ "java/src/it/cipi1965/compass/spaces/SpacesBridge.java" ]
+  sources = [
+    "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
+    "java/src/it/cipi1965/compass/sync/SyncBridge.java",
+  ]
 }
 
 android_library("java") {
@@ -44,7 +47,11 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/SidebarState.kt",
     "java/src/it/cipi1965/compass/shell/SidebarUi.kt",
     "java/src/it/cipi1965/compass/shell/Spaces.java",
+    "java/src/it/cipi1965/compass/shell/SyncScreen.java",
+    "java/src/it/cipi1965/compass/shell/SyncScreenState.kt",
+    "java/src/it/cipi1965/compass/shell/SyncScreenUi.kt",
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
+    "java/src/it/cipi1965/compass/sync/SyncBridge.java",
   ]
   deps = [
     ":hook_java",

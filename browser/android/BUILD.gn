@@ -9,7 +9,16 @@
 
 assert(is_android)
 
-source_set("android") {
+group("android") {
+  deps = [
+    ":spaces",
+    ":sync_bridge",
+  ]
+}
+
+# The spaces model (SpacesAndroid) and its bridge. Compass sync
+# (//compass/browser/sync) depends on it for COMPASS_SPACES.
+source_set("spaces") {
   sources = [
     "spaces_android.cc",
     "spaces_android.h",
@@ -22,5 +31,19 @@ source_set("android") {
     "//compass/android:jni_headers",
     "//compass/browser/sidebar",
     "//url",
+  ]
+}
+
+# The sync and pairing screen's bridge to CompassSyncService.
+source_set("sync_bridge") {
+  sources = [
+    "sync_bridge.cc",
+    "sync_bridge.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//compass/android:jni_headers",
+    "//compass/browser/sync",
   ]
 }

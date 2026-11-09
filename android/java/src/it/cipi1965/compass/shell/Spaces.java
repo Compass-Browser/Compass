@@ -53,6 +53,7 @@ public class Spaces implements SidebarUi.Listener {
     // The node a tab is being opened for; its didAddTab() maps it instead of adding to Today.
     private @Nullable String mOpeningNode;
     private @Nullable Runnable mOnChanged;
+    private @Nullable Runnable mOnOpenSync;
     private @Nullable View mPane;
     private boolean mDocked;
     // The spaces the launcher shortcuts were made for (id, emoji and name of each).
@@ -177,6 +178,11 @@ public class Spaces implements SidebarUi.Listener {
     /** Runs when the spaces change (the bar shows the active space's icon). */
     public void setOnChanged(Runnable onChanged) {
         mOnChanged = onChanged;
+    }
+
+    /** Runs when the sidebar's Sync row is picked. */
+    public void setOnOpenSync(Runnable onOpenSync) {
+        mOnOpenSync = onOpenSync;
     }
 
     public SidebarState state() {
@@ -342,6 +348,12 @@ public class Spaces implements SidebarUi.Listener {
     public void onNewTab() {
         onDismiss();
         mActivity.getTabCreator(false).launchNtp(TabLaunchType.FROM_CHROME_UI);
+    }
+
+    @Override
+    public void onOpenSync() {
+        onDismiss();
+        if (mOnOpenSync != null) mOnOpenSync.run();
     }
 
     @Override
