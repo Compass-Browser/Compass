@@ -220,6 +220,10 @@ It costs:
     Find, Ask Claude, Pin and Share; Downloads and History; the window's
     extensions; Site Settings and Settings. Its actions are the bar's or
     Chrome's own (`onMenuOrKeyboardAction` with its menu item IDs).
+  - **Find on page** (`FindBar`, `FindBarUi.kt`) is Compass's: a floating
+    capsule over the keyboard with the text, "2 of 7", the previous and
+    next match and Done, over Chrome's `FindInPageBridge`. Chrome's find
+    bar is part of the toolbar the shell hides.
   - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
     sidebar's gear and the page menu: Sync, then the Chrome settings pages
     Compass keeps, each opened at its page (search engine, passwords, clear
