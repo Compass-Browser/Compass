@@ -4,6 +4,7 @@
 
 package it.cipi1965.compass.shell;
 
+import android.content.SharedPreferences;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionPopup;
@@ -21,6 +23,9 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionPopupContents;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
 import org.chromium.chrome.browser.ui.toolbar.InvocationSource;
+import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
+import org.chromium.components.content_settings.ContentSetting;
+import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.PageTransition;
@@ -41,6 +46,9 @@ public class Extensions
                 ExtensionsToolbarBridge.ActionListDelegate {
     private static final int ICON_DP = 28;
     private static final String WEB_STORE_URL = "https://chromewebstore.google.com/";
+    private static final String WEB_STORE_PATTERN = "[*.]chromewebstore.google.com";
+    private static final String PREFS = "compass_shell";
+    private static final String PREF_WEB_STORE_DESKTOP = "web_store_desktop_site";
 
     private final ChromeTabbedActivity mActivity;
     private final View mAnchor;
@@ -64,11 +72,27 @@ public class Extensions
             mState.setAvailable(false);
             return;
         }
-        mBridge =
-                new ExtensionsToolbarBridge(
-                        task, activity.getTabModelSelector().getModel(false).getProfile());
+        Profile profile = activity.getTabModelSelector().getModel(false).getProfile();
+        ensureWebStoreDesktopSite(activity, profile);
+        mBridge = new ExtensionsToolbarBridge(task, profile);
         mBridge.addObserver(this);
         mBridge.setActionListDelegate(this);
+    }
+
+    /**
+     * The Web Store offers installs only to a desktop browser, so it opens as the desktop site: a
+     * site exception, set once, which the user can change in site settings.
+     */
+    private static void ensureWebStoreDesktopSite(ChromeTabbedActivity activity, Profile profile) {
+        SharedPreferences prefs = activity.getSharedPreferences(PREFS, 0);
+        if (prefs.getBoolean(PREF_WEB_STORE_DESKTOP, false)) return;
+        WebsitePreferenceBridge.setContentSettingCustomScope(
+                profile,
+                ContentSettingsType.REQUEST_DESKTOP_SITE,
+                WEB_STORE_PATTERN,
+                "*",
+                ContentSetting.ALLOW);
+        prefs.edit().putBoolean(PREF_WEB_STORE_DESKTOP, true).apply();
     }
 
     public void destroy() {

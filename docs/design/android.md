@@ -201,6 +201,14 @@ links to chrome://extensions and the Chrome Web Store. There is one actions
 model per window, so under the shell Chrome doesn't make its own
 (`ToolbarManager` patch). `compass_apk` needs `is_desktop_android`.
 
+The Web Store offers installs only to a desktop browser, so the shell gives
+chromewebstore.google.com a "Desktop site" exception the first time it runs
+(`Extensions`); the user can change it in site settings. The install prompt
+is a tab-modal dialog, like a page's `alert()`: Chrome shows those only
+while its browser controls are fully shown, and under the shell the
+controls that count are the bottom ones, where Compass's bar is
+(`BrowserControlsManager` patch).
+
 ## Sync and push
 
 - **Sync.** Sync is the desktop's, unchanged (sync.md). The Android client
@@ -217,7 +225,8 @@ model per window, so under the shell Chrome doesn't make its own
     iOS registers its APNs token (`POST <server>/compass/push`,
     `platform: "fcm"`), and a wake-up (a message to its Instance ID app)
     refreshes SEND_TAB_TO_SELF. Chrome's send-tab-to-self then shows the
-    tab's notification.
+    tab's notification. A device that leaves the chain removes its
+    registration (`DELETE <server>/compass/push`), as iOS does.
   - The message carries nothing but `type: "send-tab"`: the tab comes by
     sync, encrypted, as on iOS (send-tab.md).
   - The server needs the project's service account key
