@@ -4,12 +4,11 @@
 
 package it.cipi1965.compass.shell;
 
-import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowInsets;
-import android.widget.FrameLayout;
+
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
@@ -21,7 +20,10 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerT
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerVisibility;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.toolbar.ToolbarManager;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.url.GURL;
 
 /**
@@ -38,9 +40,6 @@ public class CompassBar implements BottomControlsLayer {
     private final CompassBarState mState = new CompassBarState();
     private final int mHeightPx;
     private @Nullable View mView;
-    // Where the stack puts the bar, and the system navigation bar it sits on.
-    private int mLayerYOffset;
-    private int mNavigationBarHeight;
     private @Nullable Integer mBackgroundColor;
 
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
@@ -59,23 +58,21 @@ public class CompassBar implements BottomControlsLayer {
                         this::goBack,
                         this::goForward,
                         this::openNewTab,
+                        this::focusOmnibox,
                         this::setBackgroundColor);
-        ViewGroup content = mActivity.findViewById(android.R.id.content);
-        content.addView(
-                view,
-                new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, mHeightPx, Gravity.BOTTOM));
+        // Chrome's bottom layers (the chin, its bottom toolbar, the mini player) live at the
+        // bottom of its coordinator, which the stack's offsets are relative to; Chrome pads it or
+        // not for the system navigation bar.
+        ViewGroup coordinator =
+                mActivity.findViewById(
+                        mActivity
+                                .getResources()
+                                .getIdentifier("coordinator", "id", mActivity.getPackageName()));
+        CoordinatorLayout.LayoutParams params =
+                new CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mHeightPx);
+        params.gravity = Gravity.START | Gravity.BOTTOM;
+        coordinator.addView(view, params);
         mView = view;
-        // The content view runs under the system navigation bar (edge to edge); the stack's
-        // offsets start above it.
-        view.setOnApplyWindowInsetsListener(
-                (v, insets) -> {
-                    WindowInsets root = v.getRootWindowInsets();
-                    mNavigationBarHeight = navigationBarHeight(root != null ? root : insets);
-                    position();
-                    return insets;
-                });
-        view.requestApplyInsets();
 
         // Registers itself with the tab provider.
         new ActivityTabProvider.ActivityTabTabObserver(
@@ -135,6 +132,13 @@ public class CompassBar implements BottomControlsLayer {
         if (tab != null && tab.canGoForward()) tab.goForward();
     }
 
+    private void focusOmnibox() {
+        // Chrome's location bar takes the input until Compass has its own (milestone C4).
+        ToolbarManager toolbar = mActivity.getToolbarManager();
+        OmniboxStub omnibox = toolbar != null ? toolbar.getOmniboxStub() : null;
+        if (omnibox != null) omnibox.focusAndSelectAllText(OmniboxFocusReason.OMNIBOX_TAP);
+    }
+
     private void openNewTab() {
         mActivity.getTabCreator(false).launchNtp(TabLaunchType.FROM_CHROME_UI);
     }
@@ -164,8 +168,8 @@ public class CompassBar implements BottomControlsLayer {
 
     @Override
     public void onBrowserControlsOffsetUpdate(int layerYOffset) {
-        mLayerYOffset = layerYOffset;
-        position();
+        // Negative to move up; positive only mid-animation, as for Chrome's mini player.
+        if (mView != null) mView.setTranslationY(Math.min(0, layerYOffset));
     }
 
     private void setBackgroundColor(int color) {
@@ -177,17 +181,5 @@ public class CompassBar implements BottomControlsLayer {
     @Override
     public @Nullable Integer getBackgroundColor() {
         return mBackgroundColor;
-    }
-
-    private void position() {
-        if (mView != null) mView.setTranslationY(mLayerYOffset - mNavigationBarHeight);
-    }
-
-    @SuppressWarnings("deprecation") // getSystemWindowInsetBottom(), before Android 11.
-    private static int navigationBarHeight(WindowInsets insets) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
-        }
-        return insets.getSystemWindowInsetBottom();
     }
 }

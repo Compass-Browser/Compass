@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2026 The Compass Authors
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<!-- Compass's glyph (assets/compass_glyph.svg), the launcher icon's foreground. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="846"
+    android:viewportHeight="846">
+    <group android:translateX="-89" android:translateY="-89">
+        <path android:pathData="M271.58 417.94 A275.0 275.0 0 0 0 734.36 696.01 A70.0 70.0 0 0 0 630.32 602.33 A135.0 135.0 0 0 1 403.14 465.83 A70.0 70.0 0 0 0 271.58 417.94 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="330" android:startY="430"
+                    android:endX="700" android:endY="660">
+                        <item android:offset="0" android:color="#FF3A5BEA"/>
+                        <item android:offset="0.55" android:color="#FF2238C9"/>
+                        <item android:offset="1" android:color="#FF170C83"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:pathData="M734.36 327.99 A275.0 275.0 0 0 0 280.77 628.22 A70.0 70.0 0 0 0 407.65 569.05 A135.0 135.0 0 0 1 630.32 421.67 A70.0 70.0 0 0 0 734.36 327.99 Z" android:fillAlpha="0.9">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="690" android:startY="340"
+                    android:endX="330" android:endY="620">
+                        <item android:offset="0" android:color="#FFFF8F98"/>
+                        <item android:offset="0.45" android:color="#FFFF5D70"/>
+                        <item android:offset="1" android:color="#FFF23D57"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

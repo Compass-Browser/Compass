@@ -143,3 +143,4 @@ nothing else.
 | `chrome-android-java-src-org-chromium-chrome-browser-ChromeTabbedActivity.java.patch` | At the end of native initialization, the tabbed activity hands itself to `CompassShellHook` if the app has one (`ServiceLoaderUtil`; only `compass_apk` does) |
 | `chrome-android-java-src-org-chromium-chrome-browser-ui-RootUiCoordinator.java.patch` | `getBottomControlsStacker()`, for the shell's bottom bar |
 | `chrome-browser-browser_controls-android-java-src-org-chromium-chrome-browser-browser_controls-BottomControlsStacker.java.patch` | A `COMPASS_BAR` layer type, above the bottom chin: the stack allows one layer per type |
+| `chrome-android-java-src-org-chromium-chrome-browser-firstrun-FirstRunFlowSequencer.java.patch` | No first-run experience on Android either (no Google terms, sign-in or promos), as `chrome-browser-ui-startup-first_run_service.cc.patch` does on the desktop |

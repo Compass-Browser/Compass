@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2026 The Compass Authors
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<!-- The glyph in one color, for themed launcher icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="846"
+    android:viewportHeight="846">
+    <group android:translateX="-89" android:translateY="-89">
+        <path android:pathData="M271.58 417.94 A275.0 275.0 0 0 0 734.36 696.01 A70.0 70.0 0 0 0 630.32 602.33 A135.0 135.0 0 0 1 403.14 465.83 A70.0 70.0 0 0 0 271.58 417.94 Z" android:fillColor="#FF000000"/>
+        <path android:pathData="M734.36 327.99 A275.0 275.0 0 0 0 280.77 628.22 A70.0 70.0 0 0 0 407.65 569.05 A135.0 135.0 0 0 1 630.32 421.67 A70.0 70.0 0 0 0 734.36 327.99 Z" android:fillColor="#FF000000"/>
+    </group>
+</vector>
