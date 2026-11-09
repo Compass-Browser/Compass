@@ -134,6 +134,8 @@ private fun CommandBar(state: CommandBarState, listener: CommandBarUi.Listener) 
     }
 }
 
+// The TextFieldValue overload of BasicTextField: the page's address starts all selected.
+@Suppress("DEPRECATION")
 @Composable
 private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
     val focus = remember { FocusRequester() }
