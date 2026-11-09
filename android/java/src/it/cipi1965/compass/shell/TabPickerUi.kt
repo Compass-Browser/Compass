@@ -13,6 +13,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import it.cipi1965.compass.R
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -40,12 +43,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
@@ -63,6 +64,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.min
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -115,29 +118,26 @@ object TabPickerUi {
 @Composable
 private fun TabPicker(state: TabPickerState, listener: TabPickerUi.Listener) {
     BackHandler { listener.onDismiss() }
-    val surface = MaterialTheme.colorScheme.surface
-    val background =
-        SidebarUi.tintColor(state.tint)?.takeIf { !state.incognito }?.copy(alpha = 0.22f)?.compositeOver(surface)
-            ?: MaterialTheme.colorScheme.surfaceContainer
     val pull = remember { mutableFloatStateOf(0f) }
     val dismissPx = with(LocalDensity.current) { 120.dp.toPx() }
-    Surface(
-        color = background,
-        modifier =
-            Modifier.fillMaxSize()
-                // A drag down off the cards closes the picker.
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragEnd = {
-                            if (pull.floatValue > dismissPx) listener.onDismiss()
-                            pull.floatValue = 0f
-                        },
-                        onDragCancel = { pull.floatValue = 0f },
-                    ) { change, dy ->
-                        change.consume()
-                        pull.floatValue = (pull.floatValue + dy).coerceAtLeast(0f)
-                    }
-                },
+    // The space's tint, a little darker (TabPicker.swift).
+    Box(
+        Modifier.fillMaxSize()
+            .spaceTint(if (state.incognito) "" else state.tint, MaterialTheme.colorScheme.surface)
+            .background(Color.Black.copy(alpha = 0.18f))
+            // A drag down off the cards closes the picker.
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (pull.floatValue > dismissPx) listener.onDismiss()
+                        pull.floatValue = 0f
+                    },
+                    onDragCancel = { pull.floatValue = 0f },
+                ) { change, dy ->
+                    change.consume()
+                    pull.floatValue = (pull.floatValue + dy).coerceAtLeast(0f)
+                }
+            }
     ) {
         Column(
             Modifier.fillMaxSize()
@@ -145,41 +145,35 @@ private fun TabPicker(state: TabPickerState, listener: TabPickerUi.Listener) {
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .offset { IntOffset(0, (pull.floatValue / 3).roundToInt()) }
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    if (state.cards.size == 1) "1 tab" else "${state.cards.size} tabs",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
+            // Incognito tabs are a switch away, when there are some.
+            Box(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 12.dp)) {
                 if (state.hasIncognito) {
-                    FilterChip(
-                        selected = !state.incognito,
-                        onClick = { listener.onIncognito(false) },
-                        label = { Text("Tabs") },
-                    )
-                    FilterChip(
-                        selected = state.incognito,
-                        onClick = { listener.onIncognito(true) },
-                        label = { Text("Incognito") },
-                    )
+                    Box(
+                        Modifier.align(Alignment.CenterEnd)
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (state.incognito) Color.White.copy(alpha = 0.25f) else Color.Transparent)
+                            .clickable { listener.onIncognito(!state.incognito) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Sym(R.drawable.compass_sym_eyeglasses, 18f)
+                    }
                 }
             }
             Cards(state, listener, Modifier.weight(1f).fillMaxWidth())
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = { listener.onIncognito(!state.incognito) }) {
-                    Text(if (state.incognito) "Leave incognito" else "New incognito tab")
+            // One button, as on iOS: a new tab (a long press: incognito).
+            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp, top = 8.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(width = 84.dp, height = 48.dp)
+                        .floatingGlass(CircleShape)
+                        .combinedClickable(
+                            onLongClick = { listener.onIncognito(true) },
+                            onClick = { listener.onNewTab() },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Sym(R.drawable.compass_sym_add, 22f)
                 }
-                Spacer(Modifier.weight(1f))
-                FilledTonalButton(onClick = { listener.onNewTab() }) { Text("+  New tab") }
-                Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { listener.onDismiss() }) { Text("Done") }
             }
         }
     }
@@ -278,34 +272,28 @@ private fun Card(
             Modifier.fillMaxWidth().height(40.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    card.title.ifEmpty { card.host },
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (card.host.isNotEmpty() && card.title.isNotEmpty()) {
-                    Text(
-                        card.host,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            SiteIcon("https://${card.host}/", 26.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                card.title.ifEmpty { card.host },
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
             Box(
                 Modifier.size(32.dp).clip(CircleShape).clickable { listener.onClose(card.id) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("✕", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Sym(R.drawable.compass_sym_close, 13f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
         }
-        val shape = RoundedCornerShape(16.dp)
+        val shape = RoundedCornerShape(26.dp)
         Box(
             Modifier.width(width)
                 .height(height)
+                .shadow(16.dp, shape, ambientColor = Color.Black.copy(alpha = 0.3f), spotColor = Color.Black.copy(alpha = 0.3f))
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .then(
