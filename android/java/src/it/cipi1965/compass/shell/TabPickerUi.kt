@@ -234,29 +234,43 @@ private fun Card(
     listener: TabPickerUi.Listener,
 ) {
     val scope = rememberCoroutineScope()
-    val lift = remember(card.id) { Animatable(0f) }
+    // Under the finger: set as it moves, so the release sees where it is.
+    val drag = remember(card.id) { mutableFloatStateOf(0f) }
+    // After the release: back, or off the top.
+    val settle = remember(card.id) { Animatable(0f) }
     val heightPx = with(LocalDensity.current) { height.toPx() }
+    val lift = drag.floatValue + settle.value
     Column(
         Modifier.width(width)
-            .offset { IntOffset(0, lift.value.roundToInt()) }
-            .alpha((1f + lift.value / heightPx).coerceIn(0f, 1f))
+            .offset { IntOffset(0, (drag.floatValue + settle.value).roundToInt()) }
+            .alpha((1f + lift / heightPx).coerceIn(0f, 1f))
             // A flick up closes the tab.
             .pointerInput(card.id) {
                 detectVerticalDragGestures(
                     onDragEnd = {
+                        val released = drag.floatValue
+                        drag.floatValue = 0f
                         scope.launch {
-                            if (lift.value < -heightPx * 0.25f) {
-                                lift.animateTo(-heightPx * 1.2f, tween(160))
+                            settle.snapTo(released)
+                            if (released < -heightPx * 0.2f) {
+                                settle.animateTo(-heightPx * 1.2f, tween(160))
                                 listener.onClose(card.id)
                             } else {
-                                lift.animateTo(0f)
+                                settle.animateTo(0f)
                             }
                         }
                     },
-                    onDragCancel = { scope.launch { lift.animateTo(0f) } },
+                    onDragCancel = {
+                        val released = drag.floatValue
+                        drag.floatValue = 0f
+                        scope.launch {
+                            settle.snapTo(released)
+                            settle.animateTo(0f)
+                        }
+                    },
                 ) { change, dy ->
                     change.consume()
-                    scope.launch { lift.snapTo((lift.value + dy).coerceAtMost(0f)) }
+                    drag.floatValue = (drag.floatValue + dy).coerceAtMost(0f)
                 }
             }
     ) {

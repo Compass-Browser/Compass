@@ -485,13 +485,14 @@ private fun NodeRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EntryMenu(menu, { menu = false }, node, if (pinned) SidebarUi.EntryPlace.PINNED else SidebarUi.EntryPlace.TODAY, state, listener)
         Box(
             Modifier.size(28.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
+            // Anchored here: in the row itself it would take a slot of its spacing.
+            EntryMenu(menu, { menu = false }, node, if (pinned) SidebarUi.EntryPlace.PINNED else SidebarUi.EntryPlace.TODAY, state, listener)
             Text(
                 if (node.isFolder) (if (node.collapsed) "▸" else "▾") else initial(node),
                 style = MaterialTheme.typography.labelLarge,
