@@ -12,19 +12,28 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
+import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelObserver;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * The toast after closing tabs (UndoToastUi.kt), in place of Chrome's undo snackbar
- * (UndoBarController patch): Undo reopens them, and once it's gone they're closed for good. A new
- * toast ends the one before.
+ * The toast after closing tabs (UndoToastUi.kt), in place of Chrome's undo snackbar (the
+ * UndoBarController patch keeps that away): a closure the tab model holds pending shows it; Undo
+ * cancels the closure, and once the toast is gone it's committed. A new toast ends the one before.
  */
 public class UndoToast implements UndoToastUi.Listener {
     private static final long DURATION_MS = 4000;
 
     private final UndoToastUi.State mState = new UndoToastUi.State();
     private final View mView;
-    private @Nullable Runnable mUndo;
-    private @Nullable Runnable mCommit;
+    private final List<TabModel> mModels = new ArrayList<>();
+    // The closure on show: its model and tabs.
+    private @Nullable TabModel mModel;
+    private final List<Integer> mTabIds = new ArrayList<>();
     private final Runnable mTimeout = this::onDismiss;
 
     /** |aboveBarPx|: how far over the bottom it floats (the bar's height). */
@@ -36,16 +45,37 @@ public class UndoToast implements UndoToastUi.Listener {
         params.gravity = Gravity.BOTTOM;
         params.bottomMargin = aboveBarPx;
         parent.addView(mView, params);
+        for (boolean incognito : new boolean[] {false, true}) {
+            TabModel model = activity.getTabModelSelector().getModel(incognito);
+            TabModelObserver observer =
+                    new TabModelObserver() {
+                        @Override
+                        public void onTabClosePending(
+                                List<Tab> tabs,
+                                boolean isAllTabs,
+                                @TabClosingSource int closingSource) {
+                            show(model, tabs);
+                        }
+                    };
+            model.addObserver(observer);
+            mModels.add(model);
+            mObservers.add(observer);
+        }
     }
 
-    public void show(String text, Runnable undo, Runnable commit) {
+    private final List<TabModelObserver> mObservers = new ArrayList<>();
+
+    private void show(TabModel model, List<Tab> tabs) {
+        if (tabs.isEmpty()) return;
         // The toast before: its tabs are closed now.
         finish(false);
-        mUndo = undo;
-        mCommit = commit;
-        mState.setText(text);
+        mModel = model;
+        for (Tab tab : tabs) mTabIds.add(tab.getId());
+        mState.setText(
+                tabs.size() == 1
+                        ? "Closed “" + tabs.get(0).getTitle() + "”"
+                        : "Closed " + tabs.size() + " tabs");
         mState.setShown(true);
-        org.chromium.base.Log.i("UndoToast", "showing %s", text);
         mView.bringToFront();
         mView.removeCallbacks(mTimeout);
         mView.postDelayed(mTimeout, DURATION_MS);
@@ -53,15 +83,28 @@ public class UndoToast implements UndoToastUi.Listener {
 
     public void destroy() {
         finish(false);
+        for (int i = 0; i < mModels.size(); i++) mModels.get(i).removeObserver(mObservers.get(i));
+        mModels.clear();
+        mObservers.clear();
     }
 
     private void finish(boolean undo) {
         mView.removeCallbacks(mTimeout);
-        Runnable action = undo ? mUndo : mCommit;
-        mUndo = null;
-        mCommit = null;
+        TabModel model = mModel;
+        mModel = null;
         mState.setShown(false);
-        if (action != null) action.run();
+        if (model != null) {
+            for (int id : mTabIds) {
+                // Chrome may have ended it already (the app went to the background).
+                if (!model.isClosurePending(id)) continue;
+                if (undo) {
+                    model.cancelTabClosure(id);
+                } else {
+                    model.commitTabClosure(id);
+                }
+            }
+        }
+        mTabIds.clear();
     }
 
     @Override

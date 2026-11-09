@@ -228,8 +228,9 @@ It costs:
   - **Undo closing**: tabs closed from the sidebar, the picker or Today's
     Clear show iOS's toast over the bar ("Closed “Title”", Undo; four
     seconds, or a flick down) instead of Chrome's snackbar
-    (`UndoToast`, `UndoToastUi.kt`; the `UndoBarController` patch hands the
-    closure to it, and Undo and the timeout end it as the snackbar would).
+    (`UndoToast`, `UndoToastUi.kt`): a closure the tab model holds pending
+    shows it, Undo cancels the closure and its end commits it; the
+    `UndoBarController` patch keeps Chrome's snackbar away.
     A tab brought back gets a new Today entry.
   - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
     sidebar's gear and the page menu: Sync, then the Chrome settings pages

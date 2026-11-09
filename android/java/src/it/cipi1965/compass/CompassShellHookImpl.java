@@ -42,13 +42,6 @@ public class CompassShellHookImpl implements CompassShellHook {
     }
 
     @Override
-    public boolean showUndoToast(Activity activity, String text, Runnable undo, Runnable commit) {
-        // The static hook (CompassShell) isn't the activity's: its bar has the toast.
-        CompassBar bar = CompassBar.forActivity(activity);
-        return bar != null && bar.showUndoToast(text, undo, commit);
-    }
-
-    @Override
     public boolean showExtensions() {
         return mBar != null && mBar.showExtensions();
     }
