@@ -291,7 +291,7 @@ On the iPhone the sidebar is a system sheet over the browser (`.sheet` with `pre
 - Picking an entry closes the sheet. With nothing selected, the browser shows an empty page in the space's color.
 - The command bar and Settings are presented by whichever view is in front: the sidebar while it's up, the browser otherwise (`AppModel.presented(_:fromSidebar:)`). One view can't present a second sheet over its own.
 - Spaces sit side by side and are paged by swipe. From top to bottom: a favorites grid, the pinned tree (nested folders that collapse), Today (newest first). The archive opens from the space menu.
-- The long-press menu has pin, unpin, archive, move to a space, split with, favorite, rename and delete, and for a pinned tab or favorite its pinned URL ("Use This Page as Pinned URL", "Back to Pinned URL"; closing goes back to it, see sidebar.md).
+- The long-press menu has pin, unpin, archive, move to a space, split with (another tab), add to split (a tab into a split beside it, or on a split a tab beside it into the split, up to four panes), favorite, rename and delete, and for a pinned tab or favorite its pinned URL ("Use This Page as Pinned URL", "Back to Pinned URL"; closing goes back to it, see sidebar.md).
 
 **Styled as the desktop's.** The look follows the desktop sidebar (`resources/sidebar/app.css`). The tokens are `SidebarStyle` in `Theme.swift`.
 

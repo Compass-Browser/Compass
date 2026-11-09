@@ -587,6 +587,48 @@ struct NodeRow: View {
     item.displayTitle.isEmpty ? "Untitled" : item.displayTitle
   }
 
+  /// "Split With" a tab beside it, and "Add to Split": this tab into a
+  /// split beside it, or (on a split) a tab beside it into this split. A
+  /// split holds at most `SpaceStore.maxSplitPanes` tabs.
+  @ViewBuilder private var splitItems: some View {
+    if let parent = node.parent, !parent.isSplit {
+      let siblings = parent.children.filter { $0 !== node && $0.isPhoneVisible }
+      let tabs = siblings.filter(\.isTab)
+      if node.isTab {
+        let splits = siblings.filter { $0.isSplit && $0.children.count < SpaceStore.maxSplitPanes }
+        if !tabs.isEmpty {
+          Menu("Split With", systemImage: "rectangle.split.2x1") {
+            ForEach(tabs) { other in
+              Button(other.displayTitle) { app.store.split(node, with: other) }
+            }
+          }
+        }
+        if !splits.isEmpty {
+          Menu("Add to Split", systemImage: "rectangle.split.3x1") {
+            ForEach(splits) { split in
+              Button(splitTitle(split)) {
+                withAnimation(SidebarStyle.motion) { _ = app.store.split(split, with: node) }
+              }
+            }
+          }
+        }
+      } else if node.isSplit, node.children.count < SpaceStore.maxSplitPanes, !tabs.isEmpty {
+        Menu("Add to Split", systemImage: "rectangle.split.3x1") {
+          ForEach(tabs) { tab in
+            Button(tab.displayTitle) {
+              withAnimation(SidebarStyle.motion) { _ = app.store.split(node, with: tab) }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /// A split in a menu: its panes' titles.
+  private func splitTitle(_ split: SidebarNode) -> String {
+    split.children.phoneVisible.map(title).joined(separator: " · ")
+  }
+
   @ViewBuilder private var menu: some View {
     let space = app.store.space(of: node)
     // iPad: the entry in a window of its own (its page moves there).
@@ -603,16 +645,7 @@ struct NodeRow: View {
     // Incognito: nothing that would copy it into synced lists (pinned,
     // favorites, other spaces); Close removes it.
     if let space, space.isIncognito {
-      if node.isTab, let parent = node.parent, !parent.isSplit {
-        let candidates = parent.children.filter { $0.isTab && $0 !== node }
-        if !candidates.isEmpty {
-          Menu("Split With", systemImage: "rectangle.split.2x1") {
-            ForEach(candidates) { other in
-              Button(other.displayTitle) { app.store.split(node, with: other) }
-            }
-          }
-        }
-      }
+      splitItems
     } else if let space {
       if node.section == .today {
         Button("Pin", systemImage: "pin") { app.store.move(node, to: space.pinned, at: space.pinned.children.count) }
@@ -639,16 +672,7 @@ struct NodeRow: View {
           }
         }
       }
-      if node.isTab, let parent = node.parent, !parent.isSplit {
-        let candidates = parent.children.filter { $0.isTab && $0 !== node }
-        if !candidates.isEmpty {
-          Menu("Split With", systemImage: "rectangle.split.2x1") {
-            ForEach(candidates) { other in
-              Button(other.displayTitle) { app.store.split(node, with: other) }
-            }
-          }
-        }
-      }
+      splitItems
     }
     Divider()
     Button(node.section == .today ? "Close" : "Delete", systemImage: "trash", role: .destructive) {
