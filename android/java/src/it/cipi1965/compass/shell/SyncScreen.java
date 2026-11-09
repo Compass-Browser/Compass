@@ -43,6 +43,15 @@ public class SyncScreen implements SyncScreenUi.Listener {
         mState.setOpen(true);
     }
 
+    /**
+     * A pairing invite (a desktop's QR code): joins with it, unless this device is in a chain
+     * already, and shows how it goes.
+     */
+    public void join(String server, String code) {
+        show();
+        if ("off".equals(mState.getState())) onJoinWithPairingCode(server, code);
+    }
+
     private void refresh() {
         mState.update(mBridge.snapshot());
     }

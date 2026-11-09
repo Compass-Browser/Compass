@@ -51,6 +51,7 @@ android_library("java") {
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
     "java/src/it/cipi1965/compass/extras/CompassIntents.java",
     "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
+    "java/src/it/cipi1965/compass/extras/PairInviteActivity.java",
     "java/src/it/cipi1965/compass/extras/PinShareActivity.java",
     "java/src/it/cipi1965/compass/extras/SearchWidgetProvider.java",
     "java/src/it/cipi1965/compass/shell/ClaudeChat.java",

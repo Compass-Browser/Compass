@@ -110,7 +110,10 @@ It costs:
   while it has a tab. The sync screen (`SyncScreen`, from the sidebar's
   Sync row) joins a chain with a pairing code or the recovery code,
   starts one, adds devices and approves them, and turns data types on
-  and off, through `SyncBridge` (the desktop's `SyncController`).
+  and off, through `SyncBridge` (the desktop's `SyncController`). A
+  desktop's pairing QR code (`compass-pair:?server=…&code=…`, sync.md)
+  opens in Compass from the camera (`PairInviteActivity`, which registers
+  the scheme) and joins with it.
 - **Claude (C8).** The desktop's Claude client, key storage and page
   reader (`//compass/browser/claude`, without Claude Code) build for
   Android. `ClaudeBridge` runs a chat about the page on screen: each
