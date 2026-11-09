@@ -16,16 +16,19 @@ TEST(UpdatePrefsTest, StableByDefault) {
   TestingPrefServiceSimple prefs;
   RegisterUpdatePrefs(prefs.registry());
   EXPECT_EQ(kChannelStable, prefs.GetString(kUpdateChannelPref));
-  EXPECT_FALSE(IsBetaChannel(prefs));
+  EXPECT_EQ(kChannelStable, UpdateChannel(prefs));
 }
 
-TEST(UpdatePrefsTest, BetaOnlyWhenPicked) {
+TEST(UpdatePrefsTest, PickedChannels) {
   TestingPrefServiceSimple prefs;
   RegisterUpdatePrefs(prefs.registry());
   prefs.SetString(kUpdateChannelPref, kChannelBeta);
-  EXPECT_TRUE(IsBetaChannel(prefs));
+  EXPECT_EQ(kChannelBeta, UpdateChannel(prefs));
+  prefs.SetString(kUpdateChannelPref, kChannelCanary);
+  EXPECT_EQ(kChannelCanary, UpdateChannel(prefs));
+  // Anything else is stable.
   prefs.SetString(kUpdateChannelPref, "nightly");
-  EXPECT_FALSE(IsBetaChannel(prefs));
+  EXPECT_EQ(kChannelStable, UpdateChannel(prefs));
 }
 
 TEST(UpdateHooksTest, PendingVersion) {

@@ -14,8 +14,15 @@ void RegisterUpdatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kUpdateChannelPref, kChannelStable);
 }
 
-bool IsBetaChannel(const PrefService& local_state) {
-  return local_state.GetString(kUpdateChannelPref) == kChannelBeta;
+std::string_view UpdateChannel(const PrefService& local_state) {
+  const std::string& channel = local_state.GetString(kUpdateChannelPref);
+  if (channel == kChannelBeta) {
+    return kChannelBeta;
+  }
+  if (channel == kChannelCanary) {
+    return kChannelCanary;
+  }
+  return kChannelStable;
 }
 
 }  // namespace compass::updates

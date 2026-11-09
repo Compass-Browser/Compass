@@ -5,6 +5,8 @@
 #ifndef COMPASS_BROWSER_UPDATES_UPDATE_PREFS_H_
 #define COMPASS_BROWSER_UPDATES_UPDATE_PREFS_H_
 
+#include <string_view>
+
 class PrefRegistrySimple;
 class PrefService;
 
@@ -13,9 +15,9 @@ namespace compass::updates {
 // Local State prefs: the update channel (kUpdateChannelPref, "stable").
 void RegisterUpdatePrefs(PrefRegistrySimple* registry);
 
-// Whether |local_state| picks the beta channel. Anything that isn't "beta"
-// counts as stable.
-bool IsBetaChannel(const PrefService& local_state);
+// The channel |local_state| picks: kChannelStable, kChannelBeta or
+// kChannelCanary. Anything else counts as stable.
+std::string_view UpdateChannel(const PrefService& local_state);
 
 }  // namespace compass::updates
 

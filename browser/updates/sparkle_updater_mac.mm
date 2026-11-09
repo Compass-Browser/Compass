@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/apple/bundle_locations.h"
 #include "base/apple/foundation_util.h"
@@ -99,7 +100,7 @@ class SparkleUpdater : public Updater {
                                      base::Unretained(this)));
     VLOG(1) << "Compass updates: Sparkle started, feed "
             << base::SysNSStringToUTF8(updater_.feedURL.absoluteString)
-            << (beta() ? ", beta" : ", stable");
+            << ", " << channel();
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
             kCheckForUpdatesSwitch)) {
       [updater_ checkForUpdatesInBackground];
@@ -134,8 +135,8 @@ class SparkleUpdater : public Updater {
   }
 
   // From the bridge (main thread).
-  bool beta() const {
-    return IsBetaChannel(*g_browser_process->local_state());
+  std::string_view channel() const {
+    return UpdateChannel(*g_browser_process->local_state());
   }
 
   void OnUpdateFound() {
@@ -244,8 +245,16 @@ void StartSparkleUpdater() {
 #pragma mark - SPUUpdaterDelegate
 
 - (NSSet<NSString*>*)allowedChannelsForUpdater:(SPUUpdater*)updater {
-  // Beta users also get stable releases (untagged items) when they're newer.
-  return _owner->beta() ? [NSSet setWithObject:@"beta"] : [NSSet set];
+  // Every channel also gets the ones before it when they're newer: stable
+  // releases (untagged items) for everyone, beta releases for canary users.
+  std::string_view channel = _owner->channel();
+  if (channel == compass::updates::kChannelCanary) {
+    return [NSSet setWithObjects:@"beta", @"canary", nil];
+  }
+  if (channel == compass::updates::kChannelBeta) {
+    return [NSSet setWithObject:@"beta"];
+  }
+  return [NSSet set];
 }
 
 - (BOOL)updaterShouldPromptForPermissionToCheckForUpdates:(SPUUpdater*)updater {

@@ -626,12 +626,16 @@ def _release(layout: Layout, args) -> None:
     found = release.find(manifest, args.version)
     if found['channel'] == 'stable':
       raise CommandError('%s is on stable already' % args.version)
-    found['channel'] = 'stable'
+    to = args.to or release.promotion(found['channel'])
+    if not release.gets(found['channel'], to) or to == found['channel']:
+      raise CommandError('%s is on %s: it can only go to a more tested '
+                         'channel' % (args.version, found['channel']))
+    found['channel'] = to
     feeds = release.write_feeds(manifest)
     if not args.no_upload:
       release.promote_on_github(found)
       release.upload(feeds)
-    print('%s is on stable' % args.version)
+    print('%s is on %s' % (args.version, to))
     return
   if args.action == 'feeds':
     feeds = release.write_feeds(manifest)
@@ -1070,8 +1074,8 @@ def parser() -> argparse.ArgumentParser:
   s.set_defaults(func=cmd_sign)
 
   s = sub.add_parser('release', help='publish a macOS release to the update '
-                     'feeds, build or publish a Windows one, promote one to '
-                     'stable, or list them')
+                     'feeds, build or publish a Windows one, promote one '
+                     '(canary to beta, beta to stable), or list them')
   s.add_argument('action', choices=['publish', 'build-win', 'publish-win',
                                     'promote', 'list', 'feeds'],
                  nargs='?', default='publish')
@@ -1079,7 +1083,11 @@ def parser() -> argparse.ArgumentParser:
                  help='promote: the version; publish, build-win: instead of the '
                  'time; publish-win: instead of the .json\'s')
   s.add_argument('--channel', choices=release.CHANNELS, default='beta',
-                 help='publish: the channel (default: %(default)s)')
+                 help='publish, publish-win: the channel (default: '
+                 '%(default)s)')
+  s.add_argument('--to', choices=release.CHANNELS[:-1],
+                 help='promote: the channel (default: the next more tested '
+                 'one)')
   add_cpu_argument(s)
   s.add_argument('--notes', help='publish: release notes')
   s.add_argument('--installer',

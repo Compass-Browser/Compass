@@ -13,10 +13,10 @@
 #include "base/containers/span.h"
 #include "url/gurl.h"
 
-// The channel manifests on the update server (stable.json, beta.json; written
-// by `compass release`, tools/compass_tool/release.py), and the checks an
-// update must pass before it's installed. The Windows updater uses them; macOS
-// has Sparkle (docs/design/updates.md).
+// The channel manifests on the update server (stable.json, beta.json,
+// canary.json; written by `compass release`, tools/compass_tool/release.py),
+// and the checks an update must pass before it's installed. The Windows
+// updater uses them; macOS has Sparkle (docs/design/updates.md).
 namespace compass::updates {
 
 // The update server's root: the feeds, and installers released before GitHub.
@@ -26,7 +26,7 @@ inline constexpr char kUpdateServer[] = "https://updates.compassbrowser.org";
 inline constexpr char kGitHubReleaseDownloads[] =
     "https://github.com/Compass-Browser/Compass/releases/download/";
 
-// The manifest |channel| ("stable" or "beta") reads.
+// The manifest |channel| ("stable", "beta" or "canary") reads.
 GURL ChannelManifestUrl(std::string_view channel);
 
 // One platform's entry ("mac", "win") of a channel manifest.

@@ -1,24 +1,28 @@
 # Automatic updates
 
-macOS updates through Sparkle, on both channels, published with
+macOS updates through Sparkle, on every channel, published with
 `compass release`. Windows updates through Compass's own updater over
 Chromium's installer, with installers built on Windows or cross-built on a
 Mac. Linux: not planned (distro packages or Flatpak).
 
 ## Channels
 
-Two channels, **stable** and **beta**, on the same app (one bundle ID, one
-profile). The user picks one on the About page (chrome://settings/help,
-"Update channel"); it's the Local State pref `compass.update_channel`
-(`"stable"` by default).
+Three channels, **stable**, **beta** and **canary**, on the same app (one
+bundle ID, one profile). The user picks one on the About page
+(chrome://settings/help, "Update channel"); it's the Local State pref
+`compass.update_channel` (`"stable"` by default; anything else it doesn't
+know counts as stable).
 
-- Every release goes to **beta** first. **Promoting** it to stable later
-  re-labels the same archive: nothing is rebuilt, so stable is always a beta
-  build that held up.
-- Beta users get stable releases too, whenever one is newer than the newest
-  beta.
-- Moving from beta back to stable never installs an older version: the app
-  stays on its beta build until stable passes it.
+- A release goes to **beta** (the default) or **canary**
+  (`--channel canary`), for builds that should be tried before beta.
+  **Promoting** it moves it one channel up (canary to beta, beta to stable;
+  `--to stable` skips beta). That re-labels the same archive: nothing is
+  rebuilt, so stable is always a build that held up on beta.
+- Each channel also gets the releases of the channels above it, whenever
+  one is newer: beta users get stable releases, canary users beta and
+  stable ones.
+- Moving to a more stable channel never installs an older version: the app
+  stays on its build until that channel passes it.
 
 ## Versions
 
@@ -44,9 +48,9 @@ assets of Compass's GitHub releases, one per version, tagged `v<version>`:
 https://github.com/Compass-Browser/Compass/releases/download/v<version>/<file>
 ```
 
-Beta releases are GitHub prereleases; promoting one to stable makes it the
-latest release. Each archive entry in `releases.json` carries its `url`.
-Releases made before the archives moved to GitHub have no `url`; theirs stay
+Beta and canary releases are GitHub prereleases; promoting one to stable
+makes it the latest release. Each archive entry in `releases.json` carries
+its `url`. Releases made before the archives moved to GitHub have no `url`; theirs stay
 on the update server, at `https://updates.compassbrowser.org/<file>`.
 
 ## Update server
@@ -55,14 +59,14 @@ on the update server, at `https://updates.compassbrowser.org/<file>`.
 Cloudflare. Feeds are served with `Cache-Control: no-cache`; archives and
 deltas never change once published, so they're cached for a year. The
 homepage, `https://compassbrowser.org` (`website/`), reads `stable.json` and
-`beta.json` for its download links (the feeds send
+`beta.json` for its download links, not `canary.json` (the feeds send
 `Access-Control-Allow-Origin: *`).
 
 | Path | What |
 |---|---|
 | `releases.json` | Every release: version, channel, commit, Chromium version, date, and per platform the file, URL, size, SHA-256 and Ed25519 signature (plus macOS deltas). The source of truth. |
-| `stable.json`, `beta.json` | The newest release each channel gets, per platform (`mac`, `win`): version, URL, size, SHA-256, signature, and for Windows the windowed installer's URL, size and SHA-256 (`win.installer`). The Windows updater reads these. |
-| `mac/appcast.xml` | Sparkle's feed, both channels (beta items carry `<sparkle:channel>beta</sparkle:channel>`). |
+| `stable.json`, `beta.json`, `canary.json` | The newest release each channel gets, per platform (`mac`, `win`): version, URL, size, SHA-256, signature, and for Windows the windowed installer's URL, size and SHA-256 (`win.installer`). The Windows updater reads these. |
+| `mac/appcast.xml` | Sparkle's feed, every channel (beta and canary items carry `<sparkle:channel>beta</sparkle:channel>` or `canary`). |
 | `mac/Compass-<version>.dmg` | Notarized, stapled disk images (older releases; newer ones are on GitHub). |
 | `mac/Compass-<from>-<to>.delta` | Sparkle binary deltas from the three previous releases (likewise). |
 | `win/CompassSetup-<version>.exe` | Chromium's mini_installer, which the Windows updater runs (likewise). |
@@ -100,7 +104,10 @@ checks the same signatures.
 ```sh
 tools/compass release                  # = publish --channel beta: build, sign,
                                        #   notarize, deltas, upload, feeds
-tools/compass release promote 20261103.0215   # that release goes to stable
+tools/compass release --channel canary  # the same, on canary
+tools/compass release promote 20261103.0215   # one channel up: canary to
+                                       #   beta, beta to stable
+tools/compass release promote 20261103.0215 --to stable
 tools/compass release list
 tools/compass release feeds            # rewrite and upload the feeds
 tools/compass release publish-win 20261103.0215 --installer mini_installer.exe
@@ -116,7 +123,7 @@ server's copy then.
 deltas to it, and only then uploads the feeds, so a feed never names a
 missing file. The release tags the commit it was built from when GitHub has
 that commit, and the default branch otherwise. `publish-win` adds the
-installer to the same release (or creates it), and `promote` also makes the
+installer to the same release (or creates it), and `promote` to stable also makes the
 GitHub release the latest, non-prerelease one. The local mirror of the site lives in
 `~/Library/Application Support/Compass Release/site` (it keeps old .dmg
 files, for deltas).
@@ -140,7 +147,9 @@ and `bin/` the tools.
   `SPUUpdater` from `PostBrowserStart()`. Info.plist sets automatic checks
   (every 4 hours), automatic downloads, and no system profile.
 - **No Sparkle UI:** a silent user driver, so Sparkle never shows a window.
-  Its delegate picks the channels (`allowedChannelsForUpdater:`) and takes
+  Its delegate picks the channels (`allowedChannelsForUpdater:`: none
+  beyond the untagged stable items on stable, `beta` on beta, `beta` and
+  `canary` on canary) and takes
   over installation (`willInstallUpdateOnQuit:` returns YES and keeps the
   handler).
 - **Chromium's UI:** once an update is downloaded, Compass tells upstream's
@@ -163,7 +172,7 @@ and `bin/` the tools.
   `--enable-logging=stderr --vmodule=sparkle_updater_mac=1` for the
   `Compass updates:` log lines. Test with a copy on the internal disk
   (e.g. `~/CompassUpdateTest/Compass.app`, its own `--user-data-dir` with
-  `{"compass":{"update_channel":"beta"}}` in Local State), started with
+  `{"compass":{"update_channel":"beta"}}`, or `"canary"`, in Local State), started with
   `open -n -g -a … --args …`, and quit it with an Apple Event to its PID
   (`NSRunningApplication … terminate`). Two traps: a
   copy started from a shell makes the shell its responsible process, so
@@ -222,7 +231,7 @@ browser decides when to run it.
   and leaves `CompassSetup-<version>.exe`, `CompassInstaller-<version>.exe`
   and a `.json` (version, Chromium, N, commit, installer) in the out dir.
   Copy them to the release machine and run `compass release publish-win
-  --installer CompassSetup-<version>.exe [--channel beta]`. A
+  --installer CompassSetup-<version>.exe [--channel beta|canary]`. A
   Mac can build it too (`--cpu win-x64`, docs/building.md "Windows from a
   Mac"), in a Chromium checkout of its own so the build number doesn't make
   its Mac builds rebuild.

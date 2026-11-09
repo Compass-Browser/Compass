@@ -20,7 +20,7 @@ index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..7f485a4841a0e17ea3ca4494def70d10
      };
    }
  
-@@ -129,6 +133,28 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -129,6 +133,32 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
    protected accessor feedbackAllowedPref_:
        chrome.settingsPrivate.PrefObject<boolean>|undefined;
  
@@ -33,9 +33,13 @@ index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..7f485a4841a0e17ea3ca4494def70d10
 +    const version = loadTimeData.valueExists('compassVersion') ?
 +        loadTimeData.getString('compassVersion') :
 +        '';
-+    const channel = this.compassUpdateChannelPref_?.value === 'beta' ?
-+        'Beta gets new features first, and stable releases when they\'re ' +
-+            'newer.' :
++    const descriptions: Record<string, string> = {
++      canary: 'Canary gets new builds first, and beta and stable ' +
++          'releases when they\'re newer. Expect rough edges.',
++      beta: 'Beta gets new features before stable, and stable releases ' +
++          'when they\'re newer.',
++    };
++    const channel = descriptions[this.compassUpdateChannelPref_?.value || ''] ||
 +        'Stable gets releases once they\'ve been on beta.';
 +    return version ? `Compass ${version}. ${channel}` : channel;
 +  }
@@ -49,7 +53,7 @@ index aaaf8c6e7e535ae5a7682891ce8f20a27eb795a3..7f485a4841a0e17ea3ca4494def70d10
    private aboutBrowserProxy_: AboutPageBrowserProxy =
        AboutPageBrowserProxyImpl.getInstance();
  
-@@ -144,6 +170,9 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -144,6 +174,9 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
      // <if expr="_google_chrome">
      this.mirrorPref('feedback_allowed', 'feedbackAllowedPref_');
      // </if>

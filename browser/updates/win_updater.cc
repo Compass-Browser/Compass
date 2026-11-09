@@ -162,10 +162,8 @@ class WinUpdater : public Updater {
     busy_ = true;
     timer_.Stop();
     Report(CheckStatus::kChecking);
-    const char* channel = IsBetaChannel(*g_browser_process->local_state())
-                              ? kChannelBeta
-                              : kChannelStable;
-    loader_ = MakeLoader(ChannelManifestUrl(channel));
+    loader_ = MakeLoader(
+        ChannelManifestUrl(UpdateChannel(*g_browser_process->local_state())));
     loader_->DownloadToString(
         g_browser_process->shared_url_loader_factory().get(),
         base::BindOnce(&WinUpdater::OnManifest, base::Unretained(this)),

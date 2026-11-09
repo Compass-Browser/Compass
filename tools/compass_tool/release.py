@@ -11,8 +11,8 @@ The release folder (~/Library/Application Support/Compass Release) keeps:
   ("port" and "key" are optional; never in the repository);
 - site/: a mirror of https://updates.compassbrowser.org, the update server:
   - releases.json: every release, the source of truth for the rest;
-  - stable.json, beta.json: the newest release on each channel;
-  - mac/appcast.xml: Sparkle's feed, both channels;
+  - stable.json, beta.json, canary.json: the newest release on each channel;
+  - mac/appcast.xml: Sparkle's feed, every channel;
   - mac/Compass-<version>.dmg and mac/Compass-<from>-<to>.delta.
 
 Archives (.dmg, deltas, Windows installers) are assets of a GitHub release
@@ -43,7 +43,9 @@ from xml.sax.saxutils import escape, quoteattr
 BASE_URL = 'https://updates.compassbrowser.org'
 # Where release archives are published (`gh release`).
 GITHUB_REPO = 'Compass-Browser/Compass'
-CHANNELS = ('stable', 'beta')
+# From the most to the least tested. Each channel also gets the releases of
+# the channels before it, and promoting a release moves it one step left.
+CHANNELS = ('stable', 'beta', 'canary')
 SCHEMA = 1
 # Deltas are made from this many earlier releases.
 DELTA_COUNT = 3
@@ -113,19 +115,34 @@ def find(manifest: Dict, version: str) -> Dict:
   raise ReleaseError('no release %s' % version)
 
 
+def gets(channel: str, release_channel: str) -> bool:
+  """Whether |channel|'s users get releases on |release_channel|: their own
+  and those of every more tested channel (canary users get beta and stable
+  releases too)."""
+  return CHANNELS.index(release_channel) <= CHANNELS.index(channel)
+
+
+def promotion(channel: str) -> str:
+  """The channel a release on |channel| is promoted to by default: the next
+  more tested one."""
+  index = CHANNELS.index(channel)
+  if index == 0:
+    raise ReleaseError('nothing comes after %s' % channel)
+  return CHANNELS[index - 1]
+
+
 def latest(manifest: Dict, channel: str, platform: str) -> Optional[Dict]:
-  """The newest release a |channel| user gets on |platform|: beta users get
-  stable releases too."""
+  """The newest release a |channel| user gets on |platform|."""
   eligible = [
       r for r in manifest['releases']
-      if r.get(platform) and (channel == 'beta' or r['channel'] == 'stable')
+      if r.get(platform) and gets(channel, r['channel'])
   ]
   return max(eligible, key=lambda r: version_key(r['version']), default=None)
 
 
 def channel_manifest(manifest: Dict, channel: str,
                      base_url: str = BASE_URL) -> Dict:
-  """stable.json / beta.json: what to download, per platform."""
+  """stable.json, beta.json, canary.json: what to download, per platform."""
   out = {'schema': SCHEMA, 'channel': channel}
   for platform in ('mac', 'win'):
     release = latest(manifest, channel, platform)
@@ -155,8 +172,9 @@ def channel_manifest(manifest: Dict, channel: str,
 
 
 def appcast(manifest: Dict, base_url: str = BASE_URL) -> str:
-  """Sparkle's feed. Beta releases carry <sparkle:channel>beta; promoted
-  ones carry none, so every user sees them."""
+  """Sparkle's feed. Beta and canary releases carry their <sparkle:channel>;
+  stable ones carry none, so every user sees them. The app picks which
+  channels it reads (browser/updates/sparkle_updater_mac.mm)."""
   items = []
   releases = sorted((r for r in manifest['releases'] if r.get('mac')),
                     key=lambda r: version_key(r['version']), reverse=True)
@@ -560,7 +578,7 @@ def github_release_args(release: Dict, target: Optional[str]) -> List[str]:
     notes += '\n\n' + release['notes']
   args = ['release', 'create', github_tag(release['version']), '--title',
           'Compass %s' % release['version'], '--notes', notes]
-  args.append('--prerelease' if release['channel'] == 'beta' else '--latest')
+  args.append('--latest' if release['channel'] == 'stable' else '--prerelease')
   if target:
     args += ['--target', target]
   return args
@@ -578,8 +596,11 @@ def publish_assets(release: Dict, paths: List[Path], commit: str = '') -> None:
 
 
 def promote_on_github(release: Dict) -> None:
-  """A beta that's promoted to stable stops being a prerelease and becomes
-  the latest release (if its archives are on GitHub)."""
+  """A release promoted to stable stops being a prerelease and becomes the
+  latest release (if its archives are on GitHub). Canary to beta changes
+  nothing there: both are prereleases."""
+  if release['channel'] != 'stable':
+    return
   archives = [release.get('mac') or {}, release.get('win') or {}]
   if not any(a.get('url') for a in archives):
     return

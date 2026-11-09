@@ -17,11 +17,13 @@
 // poller) can depend on this without a cycle.
 namespace compass::updates {
 
-// The update channels. The pref holds their names.
+// The update channels, from the most to the least tested. Each one also gets
+// the releases of the channels before it. The pref holds their names.
 inline constexpr char kChannelStable[] = "stable";
 inline constexpr char kChannelBeta[] = "beta";
+inline constexpr char kChannelCanary[] = "canary";
 
-// Local State: the channel the user picked (kChannelStable or kChannelBeta).
+// Local State: the channel the user picked (one of the above).
 inline constexpr char kUpdateChannelPref[] = "compass.update_channel";
 
 // What the About page shows.

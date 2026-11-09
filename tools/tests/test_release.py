@@ -80,6 +80,30 @@ class ReleaseTest(unittest.TestCase):
                      release.latest(newer_stable, 'beta', 'mac')['version'])
     self.assertIsNone(release.latest(MANIFEST, 'beta', 'win'))
 
+  def test_canary_users_get_beta_and_stable_releases_too(self):
+    canary = {'releases': MANIFEST['releases'] +
+              [_release('20261104.0900', 'canary')]}
+    self.assertEqual('20261104.0900',
+                     release.latest(canary, 'canary', 'mac')['version'])
+    # Beta and stable never get it.
+    self.assertEqual('20261103.0215',
+                     release.latest(canary, 'beta', 'mac')['version'])
+    self.assertEqual('20261102.1000',
+                     release.latest(canary, 'stable', 'mac')['version'])
+    # A newer beta or stable reaches canary users.
+    newer = {'releases': canary['releases'] +
+             [_release('20261105.0900', 'beta')]}
+    self.assertEqual('20261105.0900',
+                     release.latest(newer, 'canary', 'mac')['version'])
+
+  def test_promotion_goes_one_channel_at_a_time(self):
+    self.assertEqual('beta', release.promotion('canary'))
+    self.assertEqual('stable', release.promotion('beta'))
+    with self.assertRaises(release.ReleaseError):
+      release.promotion('stable')
+    self.assertTrue(release.gets('canary', 'stable'))
+    self.assertFalse(release.gets('beta', 'canary'))
+
   def test_channel_manifest(self):
     stable = release.channel_manifest(MANIFEST, 'stable', 'https://u')
     self.assertEqual('stable', stable['channel'])
@@ -107,13 +131,20 @@ class ReleaseTest(unittest.TestCase):
     self.assertEqual('20261102.1000', delta.get(SPARKLE + 'deltaFrom'))
     self.assertIsNone(stable.find(SPARKLE + 'deltas'))
 
+  def test_appcast_tags_canary_releases(self):
+    canary = {'releases': [_release('20261104.0900', 'canary')]}
+    item = ET.fromstring(release.appcast(canary, 'https://u')).find(
+        './channel/item')
+    self.assertEqual('canary', item.find(SPARKLE + 'channel').text)
+
   def test_write_feeds(self):
     with tempfile.TemporaryDirectory() as tmp:
       site = Path(tmp)
       manifest = json.loads(json.dumps(MANIFEST))
       written = release.write_feeds(manifest, site)
       self.assertEqual(['releases.json', 'stable.json', 'beta.json',
-                        'appcast.xml'], [p.name for p in written])
+                        'canary.json', 'appcast.xml'],
+                       [p.name for p in written])
       # The feeds go up last, after the archives they name.
       self.assertEqual(written[-1], site / 'mac' / 'appcast.xml')
       self.assertEqual(manifest, release.load(site))
@@ -243,8 +274,12 @@ class ReleaseTest(unittest.TestCase):
     self.assertEqual(('publish', 'beta', 'release'),
                      (args.action, args.channel, args.config))
     args = parser().parse_args(['release', 'promote', '20261103.0215'])
-    self.assertEqual(('promote', '20261103.0215'), (args.action,
-                                                     args.version))
+    self.assertEqual(('promote', '20261103.0215', None),
+                     (args.action, args.version, args.to))
+    args = parser().parse_args(['release', '--channel', 'canary'])
+    self.assertEqual('canary', args.channel)
+    args = parser().parse_args(['release', 'promote', '1', '--to', 'stable'])
+    self.assertEqual('stable', args.to)
 
   def test_set_gn_arg_replaces(self):
     with tempfile.TemporaryDirectory() as tmp:
@@ -450,6 +485,10 @@ class GitHubReleaseTest(unittest.TestCase):
     self.assertIn('--latest', stable)
     self.assertNotIn('--prerelease', stable)
     self.assertNotIn('--target', stable)
+    canary = release.github_release_args(_release('20261104.0900', 'canary'),
+                                         None)
+    self.assertIn('--prerelease', canary)
+    self.assertNotIn('--latest', canary)
 
   def _gh_calls(self, fn, existing_release=False, has_commit=True):
     calls = []
@@ -494,14 +533,18 @@ class GitHubReleaseTest(unittest.TestCase):
     self.assertNotIn('--target', create)
 
   def test_promote(self):
-    calls = self._gh_calls(
-        lambda: release.promote_on_github(self.MIXED['releases'][1]))
+    promoted = dict(self.MIXED['releases'][1], channel='stable')
+    calls = self._gh_calls(lambda: release.promote_on_github(promoted))
     self.assertEqual(['gh', 'release', 'edit', 'v20261103.0215',
                       '--prerelease=false', '--latest', '--repo',
                       'Compass-Browser/Compass'], calls[0])
     # Released before the move: nothing on GitHub to promote.
     self.assertEqual([], self._gh_calls(
         lambda: release.promote_on_github(self.MIXED['releases'][0])))
+    # Canary to beta: still a prerelease, nothing to change.
+    to_beta = dict(self.MIXED['releases'][1], channel='beta')
+    self.assertEqual([], self._gh_calls(
+        lambda: release.promote_on_github(to_beta)))
 
 
 class UploadTargetTest(unittest.TestCase):
