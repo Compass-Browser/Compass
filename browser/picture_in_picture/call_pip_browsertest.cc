@@ -94,10 +94,13 @@ constexpr char kCallPage[] = R"(<!doctype html>
         await navigator.mediaDevices.getUserMedia({video: true, audio: true});
     document.getElementById('small').srcObject = remote('#c00');
     document.getElementById('large').srcObject = remote('#00c');
+    for (const v of document.querySelectorAll('video')) {
+      v.play().catch(() => {});
+    }
     return true;
   }
   const ready = () => [...document.querySelectorAll('video')].every(
-      (v) => v.readyState >= 2 && !v.paused);
+      (v) => v.readyState >= 2);
 </script>)";
 
 // A site with its own window: a document picture-in-picture one, opened

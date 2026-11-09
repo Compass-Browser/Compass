@@ -322,7 +322,8 @@ call in a same-origin `<iframe>` of its `/wc/` page. Upstream routes the
 tab's Media Session to the frame playing, so handlers registered there
 count. It shares the page's DOM but not its JavaScript; Media
 Session handlers are the page's, whichever world sets them. Once a second,
-while a call is on (the site's hang up button and a remote tile exist), it:
+while a call is on (the site's hang up button shows: tiles come and go, and
+Zoom drops them while hidden), it:
 
 - registers `enterpictureinpicture`. Upstream's auto pip calls it with a
   picture-in-picture request token, and it calls `requestPictureInPicture()`

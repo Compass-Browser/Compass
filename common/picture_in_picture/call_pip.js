@@ -15,7 +15,8 @@
 //   else the largest remote one (a <video> playing a MediaStream that isn't
 //   the user's own camera, or a canvas the site draws video into, captured);
 // - registers the Media Session actions picture-in-picture uses while a call
-//   is on: `enterpictureinpicture` (which upstream's auto picture-in-picture
+//   is on (the site's hang up button shows): `enterpictureinpicture` (which
+//   upstream's auto picture-in-picture
 //   calls when the tab or window is left, with a token that allows
 //   requestPictureInPicture()), and `togglemicrophone`, `togglecamera` and
 //   `hangup`, which press the site's own buttons and show as the window's
@@ -183,7 +184,10 @@
     return video;
   };
 
-  const inCall = () => !!query(site.hangUp) && candidates().length > 0;
+  // On while the site shows its hang up button: tiles come and go (Zoom
+  // drops them while its page is hidden), and the handlers have to be there
+  // when the tab is left.
+  const inCall = () => !!query(site.hangUp);
 
   const labelOf = (button) =>
       (button.getAttribute('aria-label') || button.title ||
