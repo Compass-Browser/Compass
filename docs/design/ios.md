@@ -140,7 +140,7 @@ Everything is in `CompassCrypto`, apart from the pairing state machine and the c
 - **CompassModel** ports the desktop's sidebar (`browser/sidebar/`: `SidebarNode`, `SpaceModel`, `SpaceModel::CanMove`):
   - `SpaceStore` holds the spaces in `UniquePosition` order and the favorites root.
   - `Space` has pinned, Today and archive roots, and a theme (below). `SidebarNode` is a root, folder, tab or split. Node UUIDs are the desktop's, and are also the sync client tags.
-  - The invariants are the desktop's: folders nest in Pinned and Today (the desktop's roots accept both), splits hold at most two tabs and a split of one is dissolved, favorites hold only tabs, and roots don't move.
+  - The invariants are the desktop's: folders nest in Pinned and Today (the desktop's roots accept both), splits hold at most four tabs and a split of one is dissolved, favorites hold only tabs, and roots don't move.
   - Local edits are reported as a `SpaceStoreChange` (puts, deletes, and Today churn). `applyingRemote` keeps synced changes from echoing.
   - Restoring from the archive makes fresh IDs, as the desktop's `Unarchive` does.
   - The store is saved as one JSON snapshot.
@@ -277,7 +277,7 @@ The phone syncs every profile of the chain, each in its own account, as the desk
   - The bottom bar hides on scroll down and shows on scroll up.
   - Swiping horizontally on the bar moves between the space's Today/Pinned entries, as in Safari: the page and the bar follow the finger and the neighbor (its last snapshot, or its icon and title when it isn't loaded, and its bar) slides in beside them. Let go past a third of the screen, or flick past half, and it takes over; otherwise both spring back. Past the space's ends the swipe only gives a little.
   - Swiping up on the bar opens, by where the finger starts: left of the address pill (back, forward) the tab picker, on the pill the sidebar (both follow the finger), right of it (key, new tab, menu) the command bar for a new tab. The pill's frame on screen is measured; thirds of the screen until it is.
-  - Splits on the phone open as one entry with a pane picker (segmented control).
+  - Splits on the phone open as one entry. A split of two shows both panes, one above the other (side by side in landscape), each under a title strip; the front pane is outlined and the bar acts on it, and a tap on a strip brings that pane to the front. Only the bottom pane runs under the bar. A split of three or four shows one pane at a time under a pane picker (segmented control). `AppModel.showsPanesTogether`.
 - **Tab picker** (`TabPicker`): the loaded tabs only, as cards with their snapshot (taken as a tab is left and as the picker opens, in memory), least recently shown at the left. Cards left of the centered one stack behind it; cards to its right lie on top. A tap shows a tab, a flick up closes it (a Today entry goes to the archive, anything else unloads), a drag down closes the picker. One button: + (new tab).
 - **Command bar** (a sheet from the address pill or "+"): search or URL (DuckDuckGo by default; configurable), open, pinned and favorite entries, history (FTS) and tabs on other devices.
 - **Settings:** sync status, devices, profiles, the recovery code (behind Face ID or passcode), "Leave sync", and joining: "Join with a Mac" (scan the QR or type `<slot>-<6 digits>` plus the server URL, defaulting to the public instance), then "Use a recovery code".
@@ -338,7 +338,7 @@ The desktop's custom colors and gradients (spaces.md, "Space colors" through "Th
 
 ### Status bar over pages
 
-Pages run under the status bar, but fixed and sticky elements (YouTube's header) would go behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. The same at the bottom: `obscuredContentInsets.bottom` is the bar's measured inset (`BrowserScreen.barInset`: the bar or its collapsed pill, the save banner when it shows, and the home indicator), so fixed footers (YouTube's tab bar) sit above the bar; it follows the bar as it collapses. Splits on the phone sit under the pane picker and get 0 at the top.
+Pages run under the status bar, but fixed and sticky elements (YouTube's header) would go behind it: WKWebView's content inset moves the page, not its layout viewport. `WebView` sets `obscuredContentInsets.top` (iOS 26) to the status bar's height (`BrowserScreen.statusInset`, measured, so it follows rotation), so WebKit lays them out below it, as in Safari. The same at the bottom: `obscuredContentInsets.bottom` is the bar's measured inset (`BrowserScreen.barInset`: the bar or its collapsed pill, the save banner when it shows, and the home indicator), so fixed footers (YouTube's tab bar) sit above the bar; it follows the bar as it collapses. Split panes sit under their title strip or the pane picker and get 0 at the top.
 
 ### Auto picture-in-picture
 

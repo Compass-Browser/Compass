@@ -44,6 +44,8 @@ struct BrowserScreen: View {
   @State private var pageWidth: CGFloat = 0
   /// The status bar's height over the page, which runs under it.
   @State private var statusInset: CGFloat = 0
+  /// Compact in an iPhone's landscape: a split of two goes side by side.
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
   /// The bar (and the save banner) and the home indicator over the page's
   /// bottom: WebKit keeps fixed elements above it (`WebView.obscuredBottom`).
   @State private var barInset: CGFloat = 0
@@ -85,7 +87,7 @@ struct BrowserScreen: View {
   @ViewBuilder private var content: some View {
     @Bindable var app = app
     VStack(spacing: 0) {
-      if let node, node.isSplit, !app.isWide {
+      if let node, node.isSplit, !app.showsPanesTogether(node) {
         Picker("Pane", selection: $app.selectedPane) {
           ForEach(Array(node.children.enumerated()).filter { $0.element.isPhoneVisible }, id: \.offset) { index, pane in
             Text(pane.displayTitle).lineLimit(1).tag(index)
@@ -96,7 +98,7 @@ struct BrowserScreen: View {
         .padding(.vertical, 6)
       }
       Group {
-        if let node, node.isSplit, app.isWide { panes(node) } else { page }
+        if let node, app.showsPanesTogether(node) { panes(node) } else { page }
       }
       .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
       .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusInset = $0 }
@@ -150,13 +152,20 @@ struct BrowserScreen: View {
   /// How far a swipe moves a whole page.
   private var width: CGFloat { pageWidth > 0 ? pageWidth : Self.width }
 
-  /// A split in a wide window (iPad): its panes side by side, the front
-  /// one (`selectedPane`: the bar, the address, back and forward act on it)
-  /// outlined; a tap on a pane's title strip brings it to the front.
+  /// A split's panes shown together (`AppModel.showsPanesTogether`): side
+  /// by side in a wide window and in an iPhone's landscape, one above the
+  /// other in its portrait. The front one (`selectedPane`: the bar, the
+  /// address, back and forward act on it) is outlined; a tap on a pane's
+  /// title strip brings it to the front.
   private func panes(_ split: SidebarNode) -> some View {
-    HStack(spacing: 6) {
-      ForEach(Array(split.children.enumerated()).filter { $0.element.isPhoneVisible }, id: \.element.id) { index, pane in
+    let stacked = !app.isWide && verticalSizeClass != .compact
+    let shown = Array(split.children.enumerated()).filter { $0.element.isPhoneVisible }
+    let layout = stacked ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 6))
+    return layout {
+      ForEach(shown, id: \.element.id) { index, pane in
         let front = index == app.selectedPane
+        // Stacked, only the bottom pane runs under the bar.
+        let underBar = !stacked || pane === shown.last?.element
         VStack(spacing: 0) {
           Button { app.selectedPane = index } label: {
             HStack(spacing: 6) {
@@ -174,24 +183,32 @@ struct BrowserScreen: View {
             if app.hasPage(pane.id) {
               let view = app.tabs.webView(for: pane)
               WebView(
-                webView: view, bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
-                obscuredBottom: barInset)
+                webView: view,
+                bottomInset: underBar ? (app.barCollapsed ? Self.collapsedHeight : Self.barHeight) : 0,
+                obscuredBottom: underBar ? barInset : 0)
                 .id("\(pane.id)/\(ObjectIdentifier(view).hashValue)")
             } else {
               ElsewherePage(tab: pane)
             }
           }
-          .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
+          .clipShape(paneShape(roundedBottom: !underBar))
         }
         .overlay {
-          UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10)
-            .stroke(tint.opacity(front ? 0.8 : 0), lineWidth: 2)
+          paneShape(roundedBottom: !underBar).stroke(tint.opacity(front ? 0.8 : 0), lineWidth: 2)
         }
       }
     }
     .padding(.horizontal, 6)
     .background { emptyPage.ignoresSafeArea() }
     .ignoresSafeArea(edges: .bottom)
+  }
+
+  /// A pane's outline: rounded at the top, and at the bottom too when it
+  /// ends above the bar (the top pane of a stacked split).
+  private func paneShape(roundedBottom: Bool) -> UnevenRoundedRectangle {
+    let bottom: CGFloat = roundedBottom ? 10 : 0
+    return UnevenRoundedRectangle(
+      topLeadingRadius: 10, bottomLeadingRadius: bottom, bottomTrailingRadius: bottom, topTrailingRadius: 10)
   }
 
   /// The shown entry's page, or its space's color when there's none.

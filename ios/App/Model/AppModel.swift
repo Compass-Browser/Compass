@@ -136,10 +136,18 @@ final class AppModel {
   func detach() { services.detach(self) }
 
   /// The tabs this window shows: the shown one, or every pane of a split
-  /// side by side (a wide window).
+  /// shown together (`showsPanesTogether`).
   var displayedTabIDs: [String] {
-    if isWide, let node = selectedNode, node.isSplit { return node.children.filter(\.isPhoneVisible).map(\.id) }
+    if let node = selectedNode, showsPanesTogether(node) { return node.children.filter(\.isPhoneVisible).map(\.id) }
     return shownTab.map { [$0.id] } ?? []
+  }
+
+  /// Whether a split's panes show at once: in a wide window side by side,
+  /// on the phone a split of two (one above the other, side by side in
+  /// landscape). A bigger split on the phone shows one pane at a time,
+  /// under a picker.
+  func showsPanesTogether(_ node: SidebarNode) -> Bool {
+    node.isSplit && (isWide || node.children.filter(\.isPhoneVisible).count == 2)
   }
 
   /// Whether the tab's page is in this window, or another window has it
