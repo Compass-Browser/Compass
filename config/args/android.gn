@@ -22,3 +22,8 @@ v8_use_host_cpu_arm_features = false
 # what it needs, like the WebUI new tab page). Compass's shell replaces the
 # desktop-class toolbar and tab strip it brings.
 is_desktop_android = true
+
+# 64-bit only. Official builds otherwise add the 32-bit ABI (for 32-bit
+# WebView), whose V8 snapshot a Mac host can't build ("Do not know how to
+# build a snapshot for android_clang_arm on mac arm64").
+enable_android_secondary_abi = false
