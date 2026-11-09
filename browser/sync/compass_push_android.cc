@@ -16,6 +16,7 @@
 #include "components/gcm_driver/instance_id/instance_id_driver.h"
 #include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
+#include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -37,7 +38,9 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
             "Tells the user's sync server this device's FCM registration "
             "token, so the server can wake the device when another of the "
             "user's devices sends it a tab."
-          trigger: "When sync starts on the device, while sync is on."
+          trigger:
+            "When sync starts on the device, while sync is on; and, to "
+            "remove it, when the device leaves the chain."
           data: "The chain's signed token, the device's sync ID and its FCM "
                 "registration token."
           destination: OTHER
@@ -146,6 +149,30 @@ void CompassPushAndroid::OnRegistered(std::optional<std::string> body) {
                  << loader_->NetError() << ")";
   }
   loader_.reset();
+}
+
+void CompassPushAndroid::Unregister() {
+  const std::optional<std::string> access = token_getter_.Run();
+  const std::string guid = guid_getter_.Run();
+  if (!access || guid.empty()) {
+    return;
+  }
+  auto request = std::make_unique<network::ResourceRequest>();
+  request->url = MakePushUrl(server_url_, guid);
+  request->method = "DELETE";
+  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  request->headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
+                             base::StrCat({"Bearer ", *access}));
+  std::unique_ptr<network::SimpleURLLoader> loader =
+      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
+  loader->SetTimeoutDuration(base::Seconds(30));
+  network::SimpleURLLoader* raw = loader.get();
+  // The callback owns the loader, so the request goes on after this object.
+  raw->DownloadHeadersOnly(
+      loader_factory_.get(),
+      base::BindOnce([](std::unique_ptr<network::SimpleURLLoader> loader,
+                        scoped_refptr<net::HttpResponseHeaders> headers) {},
+                     std::move(loader)));
 }
 
 void CompassPushAndroid::ShutdownHandler() {
