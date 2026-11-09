@@ -1,0 +1,30 @@
+diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
+index 1bbf3afad91dd927bc7d9f1fe0d7ba69a507959b..ff71b0bba751feecb4ecef5209ac29d136df34ac 100644
+--- a/chrome/common/url_constants.h
++++ b/chrome/common/url_constants.h
+@@ -91,7 +91,8 @@ inline constexpr char kChromeHelpViaKeyboardURL[] =
+     "https://support.google.com/chromebook?p=help&ctx=keyboard";
+ #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+ #else
+-    "https://support.google.com/chrome?p=help&ctx=keyboard";
++    // Compass: help is its issue tracker.
++    "https://github.com/Compass-Browser/Compass/issues";
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
+ inline constexpr char kChromeHelpViaMenuURL[] =
+@@ -102,11 +103,13 @@ inline constexpr char kChromeHelpViaMenuURL[] =
+     "https://support.google.com/chromebook?p=help&ctx=menu";
+ #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+ #else
+-    "https://support.google.com/chrome?p=help&ctx=menu";
++    // Compass: help is its issue tracker.
++    "https://github.com/Compass-Browser/Compass/issues";
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
++// Compass: help is its issue tracker.
+ inline constexpr char kChromeHelpViaWebUIURL[] =
+-    "https://support.google.com/chrome?p=help&ctx=settings";
++    "https://github.com/Compass-Browser/Compass/issues";
+ #if BUILDFLAG(IS_CHROMEOS)
+ inline constexpr char kChromeOsHelpViaWebUIURL[] =
+ #if BUILDFLAG(GOOGLE_CHROME_BRANDING)

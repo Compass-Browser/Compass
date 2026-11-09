@@ -174,6 +174,26 @@ def message_ids(grd, grit_dir):
           for n in root.Preorder() if isinstance(n, message.MessageNode)]
 
 
+def ids_keeping_their_text(old, new, sources_by_name):
+  """The old translation IDs whose translations keep their text.
+
+  |old| and |new| are message_ids() before and after renaming, and
+  |sources_by_name| each name's message bodies in document order. A name can
+  have several messages, one per branch of an <if> ("About Chrome for
+  Testing", "About Chromium"): each is judged by its own text, matched by its
+  place among them.
+  """
+  seen = {}
+  keep = set()
+  for (name, o), (_, n) in zip(old, new):
+    index = seen.get(name, 0)
+    seen[name] = index + 1
+    bodies = sources_by_name.get(name, [])
+    if o != n and index < len(bodies) and keeps_a_name(bodies[index]):
+      keep.add(o)
+  return keep
+
+
 def generate(grd, out_dir, grit_dir):
   base = os.path.dirname(grd)
   name = os.path.basename(grd)
@@ -185,8 +205,7 @@ def generate(grd, out_dir, grit_dir):
     for m in _MESSAGE.finditer(source):
       key = re.search(r'name="(\w+)"', m.group(1))
       if key:
-        sources_by_name[key.group(1)] = (
-            sources_by_name.get(key.group(1), '') + m.group(2))
+        sources_by_name.setdefault(key.group(1), []).append(m.group(2))
     write_if_changed(os.path.join(out_dir, rel), rename_messages(source))
 
   old = message_ids(grd, grit_dir)
@@ -198,10 +217,7 @@ def generate(grd, out_dir, grit_dir):
   # (or another name that stays, "Chrome Web Store") can't tell them apart:
   # word order differs, and some languages translate the rest of the name
   # ("Интернет-магазин Chrome"). It keeps its text.
-  keep_text = {
-      o for (name, o), (_, n) in zip(old, new)
-      if o != n and keeps_a_name(sources_by_name.get(name, ''))
-  }
+  keep_text = ids_keeping_their_text(old, new, sources_by_name)
   dropped = {o for name, o in old if name in _REPLACED}
 
   def translate(m):

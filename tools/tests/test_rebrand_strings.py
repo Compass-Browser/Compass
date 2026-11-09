@@ -125,6 +125,21 @@ class DropRepeatedTranslationsTest(unittest.TestCase):
         '</translationbundle>\n')
 
 
+class IdsKeepingTheirTextTest(unittest.TestCase):
+
+  def test_judges_each_branch_of_a_name_by_its_own_text(self):
+    # One name in both branches of an <if>: Chrome for Testing keeps its
+    # name, Chromium's message is renamed (its translation too).
+    old = [('IDS_ABOUT', '1'), ('IDS_ABOUT', '2'), ('IDS_STORE', '3')]
+    new = [('IDS_ABOUT', '1'), ('IDS_ABOUT', '4'), ('IDS_STORE', '5')]
+    sources = {
+        'IDS_ABOUT': ['About Chrome for Testing', 'About Chromium'],
+        'IDS_STORE': ['Chromium and the Chrome Web Store'],
+    }
+    self.assertEqual(
+        rebrand_strings.ids_keeping_their_text(old, new, sources), {'3'})
+
+
 class SourceFilesTest(unittest.TestCase):
 
   def test_lists_parts_recursively_and_translations(self):

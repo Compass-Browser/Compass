@@ -60,7 +60,10 @@ each renamed message's translations under its new ID, with the same renaming
 language). A message that names both the product and the project, or a name
 that stays ("Chrome Web Store"), keeps its translations unchanged: word
 order differs, and some languages translate the rest of the name
-("Интернет-магазин Chrome"), so the two can't be told apart.
+("Интернет-магазин Chrome"), so the two can't be told apart. Each message is
+judged by its own text, even when an `<if>` gives one name two messages:
+"About Chrome for Testing" keeps its name, "About Chromium" (Italian
+"Informazioni su Chromium") is renamed.
 
 One message is replaced rather than renamed: the name a new profile gets
 when the user gives none (`IDS_PROFILE_MENU_PLACEHOLDER_PROFILE_NAME`,
