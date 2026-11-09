@@ -9,6 +9,7 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/run_until.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
@@ -135,6 +136,16 @@ std::unique_ptr<net::test_server::HttpResponse> ServePage(
 }  // namespace
 
 class CompassCallPipBrowserTest : public InProcessBrowserTest {
+ public:
+  // Leaving the window has its own tests (CompassAutoPipBrowserTest.
+  // LeavingTheWindow*). Without a desktop (a headless run, or Windows'
+  // session 0) the window counts as covered, and upstream ignores tab
+  // switches in a covered window.
+  CompassCallPipBrowserTest() {
+    features_.InitAndDisableFeature(
+        media::kAutoPictureInPictureOnWindowOccluded);
+  }
+
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
@@ -201,6 +212,7 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
   }
 
   net::EmbeddedTestServer https_{net::EmbeddedTestServer::TYPE_HTTPS};
+  base::test::ScopedFeatureList features_;
 };
 
 IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallSites) {
