@@ -93,7 +93,10 @@ It costs:
   unloaded). `SpacesBridge` (jni_zero) gives Java a JSON snapshot of what
   the sidebar shows and takes the shell's tab events and actions. The
   sidebar (`SidebarUi.kt`) is a drawer from the bar's space button: the
-  space switcher, favorites, the pinned tree, Today, pin and favorite.
+  space switcher, favorites, the pinned tree, Today, pin and favorite. A
+  long press on an entry pins it, makes it a favorite, moves it to Today or
+  to another space (with its tab), copies its link, or closes or unpins it;
+  unpinning an entry whose tab is open leaves the tab in Today.
   Chrome's tabs of every space stay in the window's TabModel; the sidebar
   shows the window's space's. Chrome's own archiving of inactive tabs is
   off (`TabArchiveSettings` patch): Today and the archive do that.

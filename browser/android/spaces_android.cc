@@ -297,14 +297,35 @@ void SpacesAndroid::Pin(int tab_id, bool favorite) {
   if (!node || !space) {
     return;
   }
-  SpaceModel& target = favorite ? list_.favorites() : *space;
-  SidebarNode* parent = target.pinned_root();
-  if (&target == space) {
-    if (space->CanMove(node, parent)) {
-      space->Move(node, parent, parent->children().size());
+  MoveNode(node->id(), space->id(),
+           favorite ? Section::kFavorites : Section::kPinned);
+}
+
+void SpacesAndroid::MoveNode(const base::Uuid& node_id,
+                             const base::Uuid& space_id,
+                             Section section) {
+  SidebarNode* node = FindNode(node_id);
+  SpaceModel* from = SpaceOf(node);
+  if (!node || !from) {
+    return;
+  }
+  SpaceModel* target = section == Section::kFavorites
+                           ? &list_.favorites()
+                           : list_.FindSpace(space_id);
+  if (!target) {
+    return;
+  }
+  // The favorites have no Today.
+  SidebarNode* parent = section == Section::kToday && target->today_root()
+                            ? target->today_root()
+                            : target->pinned_root();
+  size_t index = parent == target->today_root() ? 0 : parent->children().size();
+  if (target == from) {
+    if (from->CanMove(node, parent)) {
+      from->Move(node, parent, index);
     }
-  } else if (space->CanMoveToSpace(node, target, parent)) {
-    space->MoveToSpace(node, target, parent, parent->children().size());
+  } else if (from->CanMoveToSpace(node, *target, parent)) {
+    from->MoveToSpace(node, *target, parent, index);
   }
 }
 

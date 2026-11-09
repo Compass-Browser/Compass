@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
@@ -69,6 +72,14 @@ object SidebarUi {
         fun onCloseNode(nodeId: String)
 
         fun onUnpinNode(nodeId: String)
+
+        /**
+         * Moves an entry, with its tab: to a space's "pinned" tree or "today" (|spaceId| empty:
+         * this window's), or to the "favorites".
+         */
+        fun onMoveNode(nodeId: String, spaceId: String, section: String)
+
+        fun onCopyLink(url: String)
 
         fun onToggleFolder(folderId: String, collapsed: Boolean)
 
@@ -356,12 +367,17 @@ private fun Favorites(state: SidebarState, listener: SidebarUi.Listener) {
         modifier = Modifier.padding(vertical = 8.dp),
     ) {
         items(state.favorites, key = { it.id }) { node ->
+            var menu by remember { mutableStateOf(false) }
             Column(
-                Modifier.width(64.dp).clip(RoundedCornerShape(12.dp)).clickable {
-                    listener.onNodeClicked(node.id, node.url)
-                },
+                Modifier.width(64.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .combinedClickable(
+                        onLongClick = { menu = true },
+                        onClick = { listener.onNodeClicked(node.id, node.url) },
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                EntryMenu(menu, { menu = false }, node, EntryPlace.FAVORITES, state, listener)
                 Box(
                     Modifier.size(52.dp)
                         .clip(RoundedCornerShape(14.dp))
@@ -433,19 +449,24 @@ private fun NodeRow(
     listener: SidebarUi.Listener,
 ) {
     val current = node.tab >= 0 && node.tab == state.currentTab
+    var menu by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth()
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (current) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .clickable {
-                if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
-                else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
-            }
+            .combinedClickable(
+                onLongClick = { if (node.type == "tab") menu = true },
+                onClick = {
+                    if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
+                    else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
+                },
+            )
             .padding(start = (12 + depth * 16).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        EntryMenu(menu, { menu = false }, node, if (pinned) EntryPlace.PINNED else EntryPlace.TODAY, state, listener)
         Box(
             Modifier.size(28.dp)
                 .clip(RoundedCornerShape(8.dp))
@@ -479,6 +500,60 @@ private fun NodeRow(
             }
         } else {
             Spacer(Modifier.size(36.dp))
+        }
+    }
+}
+
+private enum class EntryPlace {
+    FAVORITES,
+    PINNED,
+    TODAY,
+}
+
+/** An entry's long-press menu: where else it can go, its link, and closing it. */
+@Composable
+private fun EntryMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    node: SidebarState.Node,
+    place: EntryPlace,
+    state: SidebarState,
+    listener: SidebarUi.Listener,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        @Composable
+        fun Item(label: String, action: () -> Unit) {
+            DropdownMenuItem(
+                text = { Text(label) },
+                onClick = {
+                    onDismiss()
+                    action()
+                },
+            )
+        }
+        if (place != EntryPlace.PINNED) {
+            Item("Pin to this space") { listener.onMoveNode(node.id, "", "pinned") }
+        }
+        if (place != EntryPlace.FAVORITES) {
+            Item("Add to favorites") { listener.onMoveNode(node.id, "", "favorites") }
+        }
+        if (place == EntryPlace.PINNED && node.tab >= 0) {
+            // Back to an ordinary tab: it goes when it closes.
+            Item("Move to Today") { listener.onMoveNode(node.id, "", "today") }
+        }
+        for (space in state.spaces) {
+            if (space.id == state.activeId) continue
+            val name = listOf(space.emoji, space.name).filter { it.isNotEmpty() }.joinToString(" ")
+            Item("Move to ${name.ifEmpty { "space" }}") {
+                listener.onMoveNode(node.id, space.id, if (place == EntryPlace.TODAY) "today" else "pinned")
+            }
+        }
+        if (node.url.isNotEmpty()) Item("Copy link") { listener.onCopyLink(node.url) }
+        when {
+            place == EntryPlace.TODAY -> Item("Close tab") { listener.onCloseNode(node.id) }
+            else -> Item(if (place == EntryPlace.FAVORITES) "Remove from favorites" else "Unpin") {
+                listener.onUnpinNode(node.id)
+            }
         }
     }
 }

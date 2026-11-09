@@ -4,6 +4,9 @@
 
 package it.cipi1965.compass.shell;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
@@ -404,7 +407,25 @@ public class Spaces implements SidebarUi.Listener {
 
     @Override
     public void onUnpinNode(String nodeId) {
-        mBridge.removeNode(nodeId);
+        int tabId = mBridge.tabFor(nodeId);
+        if (tabId != Tab.INVALID_TAB_ID && mTabs.getTabById(tabId) != null) {
+            // Its tab stays open, as an ordinary tab in Today.
+            mBridge.moveNode(nodeId, "", "today");
+        } else {
+            mBridge.removeNode(nodeId);
+        }
+    }
+
+    @Override
+    public void onMoveNode(String nodeId, String spaceId, String section) {
+        mBridge.moveNode(nodeId, spaceId, section);
+    }
+
+    @Override
+    public void onCopyLink(String url) {
+        ClipboardManager clipboard =
+                (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
+        clipboard.setPrimaryClip(ClipData.newPlainText("URL", url));
     }
 
     @Override

@@ -109,6 +109,15 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // favorites; the tab stays open on it.
   void Pin(int tab_id, bool favorite);
 
+  // Where MoveNode() puts an entry.
+  enum class Section { kPinned, kToday, kFavorites };
+  // Moves |node_id| (with its tab, if it has one) to |space_id|'s pinned
+  // tree (at the end) or Today (at the top), or to the end of the favorites
+  // (|space_id| unused).
+  void MoveNode(const base::Uuid& node_id,
+                const base::Uuid& space_id,
+                Section section);
+
   // Hands |from|'s tab, if it has one, to |to|, if it has none (sync
   // replaced an entry with another).
   void TransferTab(const base::Uuid& from, const base::Uuid& to);
