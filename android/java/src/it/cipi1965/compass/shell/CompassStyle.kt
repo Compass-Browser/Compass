@@ -7,22 +7,26 @@ package it.cipi1965.compass.shell
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -158,11 +162,11 @@ fun SiteIcon(url: String, size: Dp = 18.dp, modifier: Modifier = Modifier) {
     }
 }
 
-/** A site in a row: its icon in a 32 box on a faint fill (Theme.swift, SiteTile). */
+/** A site in a list item: its icon on a tonal circle, Material's leading avatar. */
 @Composable
 fun SiteTile(url: String) {
     Box(
-        Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
+        Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
         SiteIcon(url, 18.dp)
@@ -236,15 +240,42 @@ fun CardRow(
     }
 }
 
-/** The sheet's grabber: a short capsule at the top (SidebarPanel.swift). */
+/**
+ * A Material bottom sheet (ModalBottomSheet): scrim, drag handle, swipe down and back to close,
+ * predictive back. It slides away when |open| turns false too, not only on the user's dismiss.
+ * |edgeToEdge|: the content goes under the navigation bar (and pads itself), for a tinted sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Grabber(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.TopCenter) {
-        Box(
-            Modifier.padding(top = 7.dp)
-                .size(width = 32.dp, height = 4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-        )
+fun CompassSheet(
+    open: Boolean,
+    onDismiss: () -> Unit,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    dragHandle: Boolean = true,
+    edgeToEdge: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val sheetState = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded))
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(open) {
+        if (open) {
+            // Opened again while it was sliding away.
+            if (shown) sheetState.show() else shown = true
+        } else if (shown) {
+            sheetState.hide()
+            shown = false
+        }
     }
+    if (!shown) return
+    val handle: (@Composable () -> Unit)? = if (dragHandle) { { BottomSheetDefaults.DragHandle() } } else null
+    val insets: @Composable () -> WindowInsets =
+        if (edgeToEdge) { { WindowInsets(0, 0, 0, 0) } } else { { BottomSheetDefaults.modalWindowInsets } }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = containerColor,
+        dragHandle = handle,
+        contentWindowInsets = insets,
+        content = content,
+    )
 }

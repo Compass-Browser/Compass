@@ -7,38 +7,29 @@ package it.cipi1965.compass.shell
 import android.content.Context
 import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
-import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,7 +69,9 @@ object ExtensionsUi {
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme()) { if (state.open) ExtensionsSheet(state, listener) }
+            CompassTheme(dark = isSystemInDarkTheme()) {
+                CompassSheet(state.open, onDismiss = { listener.onDismiss() }) { ExtensionsSheet(state, listener) }
+            }
         }
         return view
     }
@@ -86,51 +79,30 @@ object ExtensionsUi {
 
 @Composable
 private fun ExtensionsSheet(state: ExtensionsState, listener: ExtensionsUi.Listener) {
-    BackHandler { listener.onDismiss() }
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.32f))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                    listener.onDismiss()
+    Column(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Extensions", style = MaterialTheme.typography.titleLarge)
+        when {
+            !state.available ->
+                Text(
+                    "Extensions aren't available in this window.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            state.actions.isEmpty() ->
+                Text(
+                    "No extensions yet. Add them from the Chrome Web Store.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            else ->
+                LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                    items(state.actions, key = { it.id }) { action -> ActionRow(action, listener) }
                 }
-        )
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            modifier =
-                Modifier.align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .heightIn(max = 560.dp)
-                    // Taps on the sheet don't reach the scrim.
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
-        ) {
-            Column(
-                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("Extensions", style = MaterialTheme.typography.titleLarge)
-                when {
-                    !state.available ->
-                        Text(
-                            "Extensions aren't available in this window.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    state.actions.isEmpty() ->
-                        Text(
-                            "No extensions yet. Add them from the Chrome Web Store.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    else ->
-                        LazyColumn(Modifier.heightIn(max = 400.dp)) {
-                            items(state.actions, key = { it.id }) { action -> ActionRow(action, listener) }
-                        }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { listener.onManage() }) { Text("Manage extensions") }
-                    TextButton(onClick = { listener.onWebStore() }) { Text("Chrome Web Store") }
-                }
-            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { listener.onManage() }) { Text("Manage extensions") }
+            TextButton(onClick = { listener.onWebStore() }) { Text("Chrome Web Store") }
         }
     }
 }
