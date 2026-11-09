@@ -252,7 +252,7 @@ windows, and you pin, archive or drag it as a unit.
 Chrome 156 already ships split tabs (`components/tabs/public/split_tab_data.h`,
 `chrome/browser/ui/views/frame/multi_contents_view.h`) with two panes. We build
 on them, extended by patches to four (`kMaxSplitPanes`,
-`split_tabs::kMaxTabsInSplit`): the tab strip model takes splits of up to four
+`MultiContentsView::kMaxPanes`): the tab strip model takes splits of up to four
 tabs, and `MultiContentsView` lays them out in a row or a column with a resize
 area between each two. Drop a tab on a split's pane to add it there.
 

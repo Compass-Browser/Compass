@@ -1016,12 +1016,12 @@ side by side. The bridge keeps the two in step (`TabStripBridge`):
 
 **Up to four panes** (`kMaxSplitPanes`). Upstream's split view has two;
 patches extend it (patches/README.md): `TabStripModel::AddToNewSplit()`
-takes up to `split_tabs::kMaxTabsInSplit` tabs, and `MultiContentsView`
-has four contents containers and three resize areas. A split shows its
+takes up to four tabs, and `MultiContentsView` has four contents
+containers and three resize areas (`kMaxPanes`). A split shows its
 panes in a row (side by side) or a column (stacked: the pane menu's
 orientation toggle), each the same size until a resize area between two
 of them is dragged; the shares stay with the split while other tabs show
-(`SplitTabVisualData::pane_sizes()`, not saved). A click (focus) in any
+(`MultiContentsView::pane_sizes_`, by split, not saved). A click (focus) in any
 pane makes it the active tab. Two panes work exactly as upstream's.
 
 The context menu has "Open in Split View" on an entry that can go next to

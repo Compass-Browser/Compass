@@ -760,7 +760,6 @@ void TabStripBridge::RemoveUnmirroredSplits() {
 }
 
 void TabStripBridge::CreateMirroredSplits() {
-  static_assert(kMaxSplitPanes <= split_tabs::kMaxTabsInSplit);
   std::vector<const SidebarNode*> splits;
   CollectSplits(space_model_->pinned_root(), splits);
   CollectSplits(space_model_->today_root(), splits);
