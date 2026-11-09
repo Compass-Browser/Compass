@@ -140,7 +140,7 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
                 CardSection("Sync") {
-                    CardRow("Sync", state.syncSummary, first = true, trailing = R.drawable.compass_sym_chevron_right, onClick = {
+                    CardRow("Sync", state.syncSummary, first = true, onClick = {
                         open(CompassSettingsUi.Row.SYNC)
                     }) {
                         MenuIcon(R.drawable.compass_sym_sync)
@@ -217,7 +217,7 @@ private fun SettingsRow(
     first: Boolean = false,
     onClick: () -> Unit,
 ) {
-    CardRow(title, subtitle, first = first, trailing = R.drawable.compass_sym_chevron_right, onClick = onClick) {
+    CardRow(title, subtitle, first = first, onClick = onClick) {
         MenuIcon(icon)
     }
 }

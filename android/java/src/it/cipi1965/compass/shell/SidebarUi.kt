@@ -7,7 +7,6 @@ package it.cipi1965.compass.shell
 import android.content.Context
 import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
-import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -23,30 +22,24 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,6 +48,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
@@ -63,12 +57,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -83,11 +76,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleOwner
@@ -96,8 +87,6 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import it.cipi1965.compass.R
 import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 /**
  * The sidebar, as the iOS app's (SidebarScreen.swift, SidebarPanel.swift): on phones a panel up
@@ -168,7 +157,7 @@ object SidebarUi {
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
             CompassTheme(dark = isSystemInDarkTheme()) {
-                if (state.open) Sidebar(state, listener)
+                Sidebar(state, listener)
             }
         }
         return view
@@ -205,55 +194,16 @@ object SidebarUi {
     fun tintColor(tint: String): Color? = CompassStyle.parse(tint)
 }
 
-/** The panel up from the bottom: full height, half (the page shows above), or gone. */
+/** A Material bottom sheet, in the space's tint, to the top of the screen. */
 @Composable
 private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
-    val scope = rememberCoroutineScope()
-    val position = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { position.animateTo(1f, spring(dampingRatio = 0.9f, stiffness = 500f)) }
-    fun close() {
-        scope.launch {
-            position.animateTo(0f, tween(220))
-            listener.onDismiss()
-        }
-    }
-    BackHandler { close() }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val height = maxHeight - top
-        val heightPx = with(LocalDensity.current) { height.toPx() }
-        Box(
-            Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.2f * position.value))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { close() }
-        )
+    CompassSheet(state.open, onDismiss = { listener.onDismiss() }, dragHandle = false, edgeToEdge = true) {
         Column(
-            Modifier.align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(height)
-                .offset { IntOffset(0, (heightPx * (1f - position.value)).roundToInt()) }
-                .shadow(16.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+            Modifier.fillMaxSize()
                 .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                // Chrome's layout keeps the navigation bar's inset from its children: at least
-                // the gesture bar's height, then.
-                .padding(bottom = maxOf(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(), 20.dp))
+                .windowInsetsPadding(WindowInsets.navigationBars)
         ) {
-            // The grabber moves the panel: it settles at full, half, or closed.
-            Grabber(
-                Modifier.pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragEnd = {
-                            val target = listOf(0f, 0.5f, 1f).minBy { abs(it - position.value) }
-                            if (target == 0f) close() else scope.launch { position.animateTo(target) }
-                        },
-                    ) { change, dy ->
-                        change.consume()
-                        scope.launch { position.snapTo((position.value - dy / heightPx).coerceIn(0f, 1f)) }
-                    }
-                }
-            )
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { BottomSheetDefaults.DragHandle() }
             SidebarContent(state, listener, Modifier.weight(1f))
         }
     }
