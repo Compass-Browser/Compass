@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +45,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import kotlin.math.abs
 
 object CompassBarUi {
     /** What the bar's controls do. */
@@ -57,6 +60,9 @@ object CompassBarUi {
         fun showTabSwitcher()
 
         fun newTab()
+
+        /** The tab |offset| places over in the window's tabs (a swipe on the address). */
+        fun switchTab(offset: Int)
 
         fun showMenu()
 
@@ -117,6 +123,19 @@ private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
                         .height(44.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        // A swipe on the address goes to the next or previous tab, as on iOS.
+                        .pointerInput(Unit) {
+                            var dx = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dx = 0f },
+                                onDragEnd = {
+                                    if (abs(dx) > 48.dp.toPx()) actions.switchTab(if (dx < 0) 1 else -1)
+                                },
+                            ) { change, amount ->
+                                change.consume()
+                                dx += amount
+                            }
+                        }
                         .clickable { actions.openAddress() }
                         .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart,

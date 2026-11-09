@@ -172,7 +172,8 @@ It costs:
   while it moves the compositor draws a copy of it in step with the page
   (`ScrollingBottomViewSceneLayer` over the bar's `ViewResourceFrameLayout`,
   as Chrome's own bottom toolbar does); the view comes back once the bar is
-  all the way in.
+  all the way in. A sideways swipe on its address goes to the next or
+  previous tab, as on iOS.
 - **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from the bar's tab
   count, as on iOS: the window's tabs as cards in a row over the space's
   tint, least recently shown at the left and the tab on screen centered.
@@ -319,7 +320,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C1 | The app and the shell spike: `//compass/android:compass_apk` (package, name, icon) and `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor | Done; the shell lives in Chrome's tabbed activity (`CompassShell`) rather than an activity of its own |
 | C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen | Done |
 | C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done; no archive view or drag and drop yet |
-| C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away; incognito lock and undo are Chrome's); swiping between tabs on the bar is open |
+| C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away, a swipe on its address switches tabs; incognito lock and undo are Chrome's) |
 | C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Pairing by code, recovery code and QR code (from the camera) done; one profile; no Compose settings yet |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
 | C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list | Web Store installs and the extensions sheet done (uBlock Origin Lite tested); 1Password not tried |
