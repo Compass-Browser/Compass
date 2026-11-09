@@ -10,6 +10,7 @@ import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +52,9 @@ object CompassBarUi {
         fun openAddress()
 
         fun showTabs()
+
+        /** Chrome's tab switcher (tab groups, its grid), from a long press on the tab count. */
+        fun showTabSwitcher()
 
         fun newTab()
 
@@ -128,7 +132,7 @@ private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            TabCount(state.tabCount) { actions.showTabs() }
+            TabCount(state.tabCount, onLongClick = { actions.showTabSwitcher() }) { actions.showTabs() }
             BarButton("+", true) { actions.newTab() }
             BarButton("✦", true) { actions.showClaude() }
             BarButton("⋮", true) { actions.showMenu() }
@@ -166,11 +170,11 @@ private fun BarButton(label: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TabCount(count: Int, onClick: () -> Unit) {
+private fun TabCount(count: Int, onLongClick: () -> Unit, onClick: () -> Unit) {
     Box(
         modifier =
             Modifier.clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = onClick)
+                .combinedClickable(onLongClick = onLongClick, onClick = onClick)
                 .padding(11.dp)
                 .size(26.dp)
                 .border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(7.dp)),

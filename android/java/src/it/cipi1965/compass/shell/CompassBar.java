@@ -61,6 +61,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable Integer mBackgroundColor;
     private @Nullable SyncScreen mSync;
     private @Nullable Extensions mExtensions;
+    private @Nullable TabPicker mTabPicker;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =
@@ -105,6 +106,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mSync = sync;
         mClaude = new ClaudeChat(mActivity, coordinator);
         mExtensions = new Extensions(mActivity, coordinator, view);
+        mTabPicker = new TabPicker(mActivity, coordinator, this::newTab);
         spaces.setOnOpenSync(sync::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
         UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
@@ -172,6 +174,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mClaude != null) mClaude.destroy();
         if (mExtensions != null) mExtensions.destroy();
         mExtensions = null;
+        if (mTabPicker != null) mTabPicker.destroy();
+        mTabPicker = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -311,6 +315,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     @Override
     public void showTabs() {
+        if (mTabPicker != null) mTabPicker.show(mState.getSpaceTint());
+    }
+
+    @Override
+    public void showTabSwitcher() {
         mActivity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ true);
     }
 

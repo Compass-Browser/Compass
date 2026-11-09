@@ -69,6 +69,9 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/SyncScreen.java",
     "java/src/it/cipi1965/compass/shell/SyncScreenState.kt",
     "java/src/it/cipi1965/compass/shell/SyncScreenUi.kt",
+    "java/src/it/cipi1965/compass/shell/TabPicker.java",
+    "java/src/it/cipi1965/compass/shell/TabPickerState.kt",
+    "java/src/it/cipi1965/compass/shell/TabPickerUi.kt",
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
   ]
@@ -79,6 +82,7 @@ android_library("java") {
     "//chrome/android:chrome_java",
     "//chrome/browser/browser_controls/android:java",
     "//chrome/browser/tab:java",
+    "//chrome/browser/tab_ui/android:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/tabwindow:java",
     "//chrome/browser/preferences:java",

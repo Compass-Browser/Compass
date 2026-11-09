@@ -138,6 +138,14 @@ It costs:
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
+- **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from the bar's tab
+  count, as on iOS: the window's tabs as cards in a row over the space's
+  tint, least recently shown at the left and the tab on screen centered.
+  A tap shows a card's tab, a flick up closes it (Chrome's undo snackbar
+  brings it back), a drag down closes the picker; it switches between
+  regular and incognito tabs and opens new ones. Thumbnails are Chrome's
+  (`TabContentManager`), the tab on screen captured as the picker opens. A
+  long press on the tab count opens Chrome's own tab switcher (tab groups).
 - **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)
@@ -215,7 +223,7 @@ chromewebstore.google.com a "Desktop site" exception the first time it runs
 is a tab-modal dialog, like a page's `alert()`: Chrome shows those only
 while its browser controls are fully shown, and under the shell the
 controls that count are the bottom ones, where Compass's bar is
-(`BrowserControlsManager` patch).
+(`ChromeTabModalPresenter` patch).
 
 ## Sync and push
 
