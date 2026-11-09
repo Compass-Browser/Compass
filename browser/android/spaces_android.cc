@@ -30,28 +30,6 @@ constexpr base::FilePath::CharType kStoreFileName[] =
 
 const char kUserDataKey[] = "compass_spaces_android";
 
-// The Today entry (a tab directly in Today) with |url| and no tab, in |space|.
-SidebarNode* FindUnopenedTodayTab(SpaceModel& space,
-                                  const GURL& url,
-                                  const std::map<int, base::Uuid>& tabs) {
-  for (const auto& child : space.today_root()->children()) {
-    if (child->type() != SidebarNode::Type::kTab || child->url() != url) {
-      continue;
-    }
-    bool open = false;
-    for (const auto& [tab_id, node_id] : tabs) {
-      if (node_id == child->id()) {
-        open = true;
-        break;
-      }
-    }
-    if (!open) {
-      return child.get();
-    }
-  }
-  return nullptr;
-}
-
 }  // namespace
 
 // static
@@ -64,6 +42,11 @@ SpacesAndroid* SpacesAndroid::Get(Profile* profile) {
     profile->SetUserData(kUserDataKey, std::move(owned));
   }
   return spaces;
+}
+
+// static
+SpacesAndroid* SpacesAndroid::GetIfExists(Profile* profile) {
+  return static_cast<SpacesAndroid*>(profile->GetUserData(kUserDataKey));
 }
 
 SpacesAndroid::SpacesAndroid(Profile* profile) {
@@ -79,6 +62,7 @@ SpacesAndroid::SpacesAndroid(Profile* profile) {
 }
 
 SpacesAndroid::~SpacesAndroid() {
+  sync_attachment_.reset();
   store_.reset();
   for (const auto& space : list_.spaces()) {
     space->RemoveObserver(this);
@@ -158,9 +142,13 @@ void SpacesAndroid::TabOpened(int tab_id,
   if (tabs_.contains(tab_id)) {
     return;
   }
+  if (!loaded_) {
+    pending_tabs_.push_back({tab_id, url, title});
+    return;
+  }
   SpaceModel& space = list_.active_space();
   if (restored) {
-    if (SidebarNode* node = FindUnopenedTodayTab(space, url, tabs_)) {
+    if (SidebarNode* node = FindUnopenedEntry(url)) {
       tabs_[tab_id] = node->id();
       Changed();
       return;
@@ -185,6 +173,12 @@ void SpacesAndroid::TabOpenedForNode(int tab_id, const base::Uuid& node_id) {
 void SpacesAndroid::TabUpdated(int tab_id,
                                const GURL& url,
                                const std::u16string& title) {
+  for (PendingTab& pending : pending_tabs_) {
+    if (pending.id == tab_id) {
+      pending.url = url;
+      pending.title = title;
+    }
+  }
   auto it = tabs_.find(tab_id);
   if (it == tabs_.end()) {
     return;
@@ -202,7 +196,29 @@ void SpacesAndroid::TabUpdated(int tab_id,
   }
 }
 
+void SpacesAndroid::RunWhenLoaded(base::OnceClosure callback) {
+  if (loaded_) {
+    std::move(callback).Run();
+  } else {
+    on_loaded_.push_back(std::move(callback));
+  }
+}
+
+void SpacesAndroid::TransferTab(const base::Uuid& from, const base::Uuid& to) {
+  if (TabFor(to) != -1) {
+    return;
+  }
+  for (auto& [tab_id, node_id] : tabs_) {
+    if (node_id == from) {
+      node_id = to;
+      Changed();
+      return;
+    }
+  }
+}
+
 void SpacesAndroid::TabSelected(int tab_id) {
+  current_tab_ = tab_id;
   auto it = tabs_.find(tab_id);
   if (it == tabs_.end()) {
     return;
@@ -214,6 +230,8 @@ void SpacesAndroid::TabSelected(int tab_id) {
 }
 
 void SpacesAndroid::TabClosed(int tab_id) {
+  std::erase_if(pending_tabs_,
+                [&](const PendingTab& pending) { return pending.id == tab_id; });
   auto it = tabs_.find(tab_id);
   if (it == tabs_.end()) {
     return;
@@ -293,8 +311,43 @@ SpaceModel* SpacesAndroid::SpaceOf(const SidebarNode* node) {
   return list_.FindSpaceOf(node);
 }
 
+SidebarNode* SpacesAndroid::FindUnopenedEntry(const GURL& url) {
+  SidebarNode* found = nullptr;
+  auto search = [&](auto& self, const SidebarNode& parent) -> void {
+    for (const auto& child : parent.children()) {
+      if (found) {
+        return;
+      }
+      if (child->type() == SidebarNode::Type::kTab && child->url() == url &&
+          TabFor(child->id()) == -1) {
+        found = child.get();
+        return;
+      }
+      self(self, *child);
+    }
+  };
+  search(search, *list_.favorites().pinned_root());
+  for (const auto& space : list_.spaces()) {
+    search(search, *space->pinned_root());
+  }
+  for (const auto& space : list_.spaces()) {
+    search(search, *space->today_root());
+  }
+  return found;
+}
+
 void SpacesAndroid::OnLoaded() {
   loaded_ = true;
+  std::vector<PendingTab> pending;
+  pending.swap(pending_tabs_);
+  for (const PendingTab& tab : pending) {
+    TabOpened(tab.id, tab.url, tab.title, /*restored=*/true);
+  }
+  std::vector<base::OnceClosure> callbacks;
+  callbacks.swap(on_loaded_);
+  for (base::OnceClosure& callback : callbacks) {
+    std::move(callback).Run();
+  }
   Changed();
 }
 
