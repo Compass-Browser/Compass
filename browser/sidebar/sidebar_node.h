@@ -6,15 +6,44 @@
 #define COMPASS_BROWSER_SIDEBAR_SIDEBAR_NODE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "base/values.h"
 #include "url/gurl.h"
 
 namespace compass {
+
+// Where a live folder's entries come from: a plugin, and the folder's
+// settings for it. The part of a live folder that syncs; the entries don't
+// (docs/design/live-folders.md).
+struct LiveSource {
+  LiveSource();
+  LiveSource(std::string plugin_id,
+             base::DictValue config,
+             GURL plugin_url = GURL(),
+             std::string plugin_sha256 = std::string());
+  LiveSource(const LiveSource&);
+  LiveSource& operator=(const LiveSource&);
+  LiveSource(LiveSource&&);
+  LiveSource& operator=(LiveSource&&);
+  ~LiveSource();
+
+  friend bool operator==(const LiveSource&, const LiveSource&) = default;
+
+  // The plugin's manifest ID, e.g. "rss". Never empty.
+  std::string plugin_id;
+  // The values of the plugin's config fields, by key.
+  base::DictValue config;
+  // Where an installed plugin came from, and the SHA-256 (lowercase hex) of
+  // what was installed; empty for a built-in.
+  GURL plugin_url;
+  std::string plugin_sha256;
+};
 
 // One node in a space's sidebar tree. Nodes are created and changed only
 // through SpaceModel, which enforces the tree's invariants.
@@ -69,6 +98,20 @@ class SidebarNode {
   // opens. Follows the live tab's mute state, and saved. False for other
   // nodes (docs/design/sidebar.md, "Sound").
   bool muted() const { return muted_; }
+  // A live folder's source; nullopt for other nodes. Saved.
+  const std::optional<LiveSource>& live_source() const { return live_source_; }
+  bool is_live_folder() const { return live_source_.has_value(); }
+  // When a live folder's entries were last replaced by a refresh, or null.
+  // Saved, not synced.
+  base::Time live_refreshed() const { return live_refreshed_; }
+  // A live folder's entry: the plugin's ID for the item it shows. Empty for
+  // every other node, including a tab dragged out of its live folder.
+  // Saved, not synced.
+  const std::string& live_item_key() const { return live_item_key_; }
+  bool is_live_item() const { return !live_item_key_.empty(); }
+  // Whether a live folder's entry came in with a refresh and hasn't been
+  // seen. False for other nodes. Saved.
+  bool unseen() const { return unseen_; }
   SidebarNode* parent() const { return parent_.get(); }
   const std::vector<std::unique_ptr<SidebarNode>>& children() const {
     return children_;
@@ -96,6 +139,10 @@ class SidebarNode {
   base::Time last_active_;
   bool collapsed_ = false;
   bool muted_ = false;
+  std::optional<LiveSource> live_source_;
+  base::Time live_refreshed_;
+  std::string live_item_key_;
+  bool unseen_ = false;
   raw_ptr<SidebarNode> parent_ = nullptr;
   std::vector<std::unique_ptr<SidebarNode>> children_;
 };

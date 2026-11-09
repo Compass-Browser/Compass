@@ -61,6 +61,45 @@ constexpr char kArchiveAfterKey[] = "archive_after_hours";
 constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
 constexpr char kTabsKey[] = "tabs";
+constexpr char kLiveKey[] = "live";
+constexpr char kLivePluginKey[] = "plugin";
+constexpr char kLiveConfigKey[] = "config";
+constexpr char kLiveSourceKey[] = "source";
+constexpr char kLiveSha256Key[] = "sha256";
+constexpr char kLiveRefreshedKey[] = "refreshed";
+constexpr char kLiveItemKey[] = "live_item";
+constexpr char kUnseenKey[] = "unseen";
+
+base::DictValue SerializeLiveSource(const SidebarNode& folder) {
+  const LiveSource& source = *folder.live_source();
+  base::DictValue dict;
+  dict.Set(kLivePluginKey, source.plugin_id);
+  dict.Set(kLiveConfigKey, source.config.Clone());
+  if (source.plugin_url.is_valid()) {
+    dict.Set(kLiveSourceKey, source.plugin_url.spec());
+  }
+  if (!source.plugin_sha256.empty()) {
+    dict.Set(kLiveSha256Key, source.plugin_sha256);
+  }
+  if (!folder.live_refreshed().is_null()) {
+    dict.Set(kLiveRefreshedKey, base::TimeToValue(folder.live_refreshed()));
+  }
+  return dict;
+}
+
+// nullopt unless |dict| names a plugin.
+std::optional<LiveSource> DeserializeLiveSource(const base::DictValue& dict) {
+  const std::string* plugin = dict.FindString(kLivePluginKey);
+  if (!plugin || plugin->empty()) {
+    return std::nullopt;
+  }
+  const base::DictValue* config = dict.FindDict(kLiveConfigKey);
+  const std::string* source = dict.FindString(kLiveSourceKey);
+  const std::string* sha256 = dict.FindString(kLiveSha256Key);
+  return LiveSource(*plugin, config ? config->Clone() : base::DictValue(),
+                    source ? GURL(*source) : GURL(),
+                    sha256 ? *sha256 : std::string());
+}
 
 // A palette color by its name (older versions read only those), any other as
 // "#rrggbb".
@@ -138,11 +177,20 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
         dict.Set(kSavedUrlKey, node.saved_url().spec());
         dict.Set(kSavedTitleKey, base::UTF16ToUTF8(node.saved_title()));
       }
+      if (node.is_live_item()) {
+        dict.Set(kLiveItemKey, node.live_item_key());
+        if (node.unseen()) {
+          dict.Set(kUnseenKey, true);
+        }
+      }
       break;
     case SidebarNode::Type::kFolder:
       dict.Set(kTypeKey, kFolder);
       if (node.collapsed()) {
         dict.Set(kCollapsedKey, true);
+      }
+      if (node.is_live_folder()) {
+        dict.Set(kLiveKey, SerializeLiveSource(node));
       }
       break;
     case SidebarNode::Type::kSplit:
@@ -213,19 +261,37 @@ base::Uuid SavedId(const base::DictValue& dict, SpaceModel& model) {
   return uuid;
 }
 
-// Adds the tab |dict| to |parent| at |index|.
+// Adds the tab |dict| to |parent| at |index|: a live folder's entry if
+// |parent| is a live folder (the caller has checked it has a key), else an
+// ordinary tab, whatever key it was saved with.
 SidebarNode* AddSavedTab(const base::DictValue& dict,
                          SpaceModel& model,
                          SidebarNode* parent,
                          size_t index) {
   const std::string* url = dict.FindString(kUrlKey);
   const std::string* title = dict.FindString(kTitleKey);
-  SidebarNode* tab = model.AddTab(parent, index,
-                                  GURL(url ? *url : std::string()),
-                                  title ? base::UTF8ToUTF16(*title) : u"",
-                                  SavedId(dict, model));
+  GURL gurl(url ? *url : std::string());
+  std::u16string title16 = title ? base::UTF8ToUTF16(*title) : u"";
+  SidebarNode* tab = nullptr;
+  if (parent->is_live_folder()) {
+    tab = model.AddLiveItem(
+        parent, index,
+        LiveItem{*dict.FindString(kLiveItemKey), gurl, std::move(title16)},
+        SavedId(dict, model));
+    model.SetUnseen(tab, dict.FindBool(kUnseenKey).value_or(false));
+  } else {
+    tab = model.AddTab(parent, index, gurl, std::move(title16),
+                       SavedId(dict, model));
+  }
   SetTabState(dict, model, tab);
   return tab;
+}
+
+// Whether |dict| is a live folder's entry: a tab with a key.
+bool IsSavedLiveItem(const base::DictValue& dict) {
+  const std::string* type = dict.FindString(kTypeKey);
+  const std::string* key = dict.FindString(kLiveItemKey);
+  return type && *type == kTab && key && !key->empty();
 }
 
 // Adds |dict| as a child of |parent| at |index|. Returns false if it was
@@ -239,6 +305,14 @@ bool DeserializeNode(const base::DictValue& dict,
   std::u16string title16 = title ? base::UTF8ToUTF16(*title) : u"";
   if (!type) {
     return false;
+  }
+  // A live folder holds only its entries.
+  if (parent->is_live_folder()) {
+    if (!IsSavedLiveItem(dict)) {
+      return false;
+    }
+    AddSavedTab(dict, model, parent, index);
+    return true;
   }
 
   if (*type == kTab) {
@@ -255,8 +329,25 @@ bool DeserializeNode(const base::DictValue& dict,
     if (parent->type() == SidebarNode::Type::kSplit) {
       return false;
     }
-    SidebarNode* folder = model.AddFolder(parent, index, std::move(title16),
-                                          SavedId(dict, model));
+    // A live folder where one can be (not in Today, say: then it's a plain
+    // folder of plain tabs, as an older build reads it).
+    std::optional<LiveSource> live;
+    const base::DictValue* live_dict = dict.FindDict(kLiveKey);
+    if (live_dict && model.CanAddLiveFolder(parent)) {
+      live = DeserializeLiveSource(*live_dict);
+    }
+    SidebarNode* folder =
+        live ? model.AddLiveFolder(parent, index, std::move(title16),
+                                   std::move(*live), SavedId(dict, model))
+             : model.AddFolder(parent, index, std::move(title16),
+                               SavedId(dict, model));
+    if (live) {
+      if (const base::Value* refreshed = live_dict->Find(kLiveRefreshedKey)) {
+        if (std::optional<base::Time> time = base::ValueToTime(*refreshed)) {
+          model.SetLiveRefreshed(folder, *time);
+        }
+      }
+    }
     model.SetCollapsed(folder, dict.FindBool(kCollapsedKey).value_or(false));
     if (children) {
       for (const base::Value& child : *children) {

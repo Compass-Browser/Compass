@@ -743,5 +743,211 @@ TEST_F(SpaceModelTest, PinnedTabsKeepASavedUrl) {
   EXPECT_EQ(d->saved_url(), GURL("https://d.test/"));
 }
 
+
+// Live folders (docs/design/live-folders.md).
+
+LiveSource RssSource() {
+  return LiveSource("rss", base::DictValue().Set("url", "https://feed.test/"));
+}
+
+std::vector<LiveItem> Items(std::initializer_list<const char*> keys) {
+  std::vector<LiveItem> items;
+  for (const char* key : keys) {
+    items.push_back({key, GURL(std::string("https://") + key + ".test/"),
+                     base::UTF8ToUTF16(key)});
+  }
+  return items;
+}
+
+constexpr auto NoneOpen = [](const SidebarNode&) { return false; };
+
+TEST_F(SpaceModelTest, LiveFoldersOnlyInPinned) {
+  SidebarNode* work = model_.AddFolder(model_.pinned_root(), 0, u"Work");
+  SidebarNode* today_folder =
+      model_.AddFolder(model_.today_root(), 0, u"Reading");
+  EXPECT_TRUE(model_.CanAddLiveFolder(model_.pinned_root()));
+  EXPECT_TRUE(model_.CanAddLiveFolder(work));
+  EXPECT_FALSE(model_.CanAddLiveFolder(model_.today_root()));
+  EXPECT_FALSE(model_.CanAddLiveFolder(today_folder));
+  SpaceModel favorites(SpaceModel::Kind::kFavorites);
+  EXPECT_FALSE(favorites.CanAddLiveFolder(favorites.pinned_root()));
+
+  SidebarNode* live =
+      model_.AddLiveFolder(work, 0, u"News", RssSource());
+  EXPECT_TRUE(live->is_live_folder());
+  EXPECT_EQ(live->live_source()->plugin_id, "rss");
+  EXPECT_FALSE(model_.CanAddLiveFolder(live));
+
+  // It moves around Pinned, alone or in its folder, but not to Today.
+  EXPECT_TRUE(model_.CanMove(live, model_.pinned_root()));
+  EXPECT_FALSE(model_.CanMove(live, model_.today_root()));
+  EXPECT_FALSE(model_.CanMove(live, today_folder));
+  EXPECT_FALSE(model_.CanMove(work, model_.today_root()));
+
+  SpaceModel other;
+  EXPECT_TRUE(model_.CanMoveToSpace(live, other, other.pinned_root()));
+  EXPECT_FALSE(model_.CanMoveToSpace(live, other, other.today_root()));
+  EXPECT_FALSE(model_.CanMoveToSpace(work, other, other.today_root()));
+}
+
+TEST_F(SpaceModelTest, LiveFoldersHoldOnlyTheirEntries) {
+  SidebarNode* live =
+      model_.AddLiveFolder(model_.pinned_root(), 0, u"News", RssSource());
+  model_.ReplaceLiveItems(live, Items({"a", "b"}), base::Time::Now(),
+                          NoneOpen);
+  SidebarNode* a = live->children()[0].get();
+  SidebarNode* b = live->children()[1].get();
+  SidebarNode* tab = Tab(model_.pinned_root(), "tab");
+  SidebarNode* folder = model_.AddFolder(model_.pinned_root(), 0, u"Folder");
+
+  EXPECT_FALSE(model_.CanMove(tab, live));
+  EXPECT_FALSE(model_.CanMove(folder, live));
+  // Entries keep the plugin's order, and stay single tabs.
+  EXPECT_FALSE(model_.CanMove(b, live));
+  EXPECT_FALSE(model_.CanSplit(a, tab));
+  // An entry can join a split elsewhere: it leaves the folder.
+  EXPECT_TRUE(model_.CanSplit(tab, a));
+  SpaceModel other;
+  SidebarNode* elsewhere =
+      other.AddLiveFolder(other.pinned_root(), 0, u"Other", RssSource());
+  EXPECT_FALSE(model_.CanMoveToSpace(tab, other, elsewhere));
+}
+
+TEST_F(SpaceModelTest, EntriesMovedOutBecomeOrdinaryTabs) {
+  SidebarNode* live =
+      model_.AddLiveFolder(model_.pinned_root(), 0, u"News", RssSource());
+  model_.ReplaceLiveItems(live, Items({"a"}), base::Time::Now(), NoneOpen);
+  model_.ReplaceLiveItems(live, Items({"a", "b", "c"}), base::Time::Now(),
+                          NoneOpen);
+  SidebarNode* b = live->children()[1].get();
+  SidebarNode* c = live->children()[2].get();
+  ASSERT_TRUE(b->unseen());
+
+  model_.Move(b, model_.pinned_root(), 0);
+  EXPECT_FALSE(b->is_live_item());
+  EXPECT_FALSE(b->unseen());
+  EXPECT_EQ(b->saved_url(), GURL("https://b.test/"));
+
+  // Into a split, or another space, too.
+  SidebarNode* d = Tab(model_.pinned_root(), "d");
+  model_.Split(d, c);
+  EXPECT_FALSE(c->is_live_item());
+
+  SidebarNode* a = live->children()[0].get();
+  SpaceModel other;
+  model_.MoveToSpace(a, other, other.today_root(), 0);
+  EXPECT_FALSE(a->is_live_item());
+
+  // A later refresh brings them back as new entries.
+  model_.ReplaceLiveItems(live, Items({"a", "b"}), base::Time::Now(),
+                          NoneOpen);
+  EXPECT_THAT(Titles(live), ElementsAre("a", "b"));
+  EXPECT_NE(live->children()[1].get(), b);
+}
+
+TEST_F(SpaceModelTest, ReplaceLiveItemsDiffsByKey) {
+  SidebarNode* live =
+      model_.AddLiveFolder(model_.pinned_root(), 0, u"News", RssSource());
+  const base::Time first = base::Time::Now();
+  model_.ReplaceLiveItems(live, Items({"a", "b", "c"}), first, NoneOpen);
+  EXPECT_THAT(Titles(live), ElementsAre("a", "b", "c"));
+  EXPECT_EQ(live->live_refreshed(), first);
+  // The first fill isn't news.
+  for (const auto& entry : live->children()) {
+    EXPECT_TRUE(entry->is_live_item());
+    EXPECT_FALSE(entry->unseen());
+    EXPECT_EQ(entry->saved_url(), entry->url());
+  }
+  const base::Uuid a_id = live->children()[0]->id();
+  const base::Uuid c_id = live->children()[2]->id();
+
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  std::vector<LiveItem> items = Items({"d", "c", "a", "d", ""});
+  items[2].title = u"A2";
+  items[2].url = GURL("https://a.test/2");
+  model_.ReplaceLiveItems(live, items, first + base::Minutes(10), NoneOpen);
+  model_.RemoveObserver(&observer);
+
+  // Plugin order; the repeated and keyless items are skipped.
+  EXPECT_THAT(Titles(live), ElementsAre("d", "c", "A2"));
+  EXPECT_TRUE(live->children()[0]->unseen());
+  EXPECT_EQ(live->children()[1]->id(), c_id);
+  EXPECT_FALSE(live->children()[1]->unseen());
+  EXPECT_EQ(live->children()[2]->id(), a_id);
+  EXPECT_EQ(live->children()[2]->url(), GURL("https://a.test/2"));
+  EXPECT_EQ(live->children()[2]->saved_url(), GURL("https://a.test/2"));
+  EXPECT_EQ(live->live_refreshed(), first + base::Minutes(10));
+  EXPECT_THAT(observer.events, Contains("added d"));
+  EXPECT_THAT(observer.events, Contains("changed A2"));
+  EXPECT_THAT(observer.events, Contains("removed b"));
+  EXPECT_EQ(observer.events.back(), "changed News");
+
+  model_.MarkAllSeen(live);
+  EXPECT_FALSE(live->children()[0]->unseen());
+}
+
+TEST_F(SpaceModelTest, ReplaceLiveItemsKeepsOpenTabs) {
+  SidebarNode* live =
+      model_.AddLiveFolder(model_.pinned_root(), 0, u"News", RssSource());
+  model_.ReplaceLiveItems(live, Items({"a", "b"}), base::Time::Now(),
+                          NoneOpen);
+  SidebarNode* a = live->children()[0].get();
+  SidebarNode* b = live->children()[1].get();
+  // a's tab went elsewhere.
+  model_.SetUrl(a, GURL("https://a.test/next"));
+  auto open = [&](const SidebarNode& node) { return &node == a || &node == b; };
+
+  std::vector<LiveItem> items = Items({"a", "c"});
+  items[0].url = GURL("https://a.test/new");
+  model_.ReplaceLiveItems(live, items, base::Time::Now(), open);
+
+  // b vanished but is open: it stays, after the others. a keeps its page.
+  EXPECT_THAT(Titles(live), ElementsAre("a", "c", "b"));
+  EXPECT_EQ(a->url(), GURL("https://a.test/next"));
+  EXPECT_EQ(a->saved_url(), GURL("https://a.test/new"));
+  EXPECT_TRUE(b->is_live_item());
+
+  // Once closed, the next refresh drops it.
+  model_.ReplaceLiveItems(live, items, base::Time::Now(), NoneOpen);
+  EXPECT_THAT(Titles(live), ElementsAre("a", "c"));
+}
+
+TEST_F(SpaceModelTest, ConvertToPlainFolderKeepsEntries) {
+  SidebarNode* live =
+      model_.AddLiveFolder(model_.pinned_root(), 0, u"News", RssSource());
+  model_.ReplaceLiveItems(live, Items({"a"}), base::Time::Now(), NoneOpen);
+  model_.ReplaceLiveItems(live, Items({"a", "b"}), base::Time::Now(),
+                          NoneOpen);
+
+  model_.ConvertToPlainFolder(live);
+
+  EXPECT_FALSE(live->is_live_folder());
+  EXPECT_TRUE(live->live_refreshed().is_null());
+  EXPECT_THAT(Titles(live), ElementsAre("a", "b"));
+  for (const auto& entry : live->children()) {
+    EXPECT_FALSE(entry->is_live_item());
+    EXPECT_FALSE(entry->unseen());
+  }
+  // Now anything goes, Today included.
+  EXPECT_TRUE(model_.CanMove(Tab(model_.pinned_root(), "x"), live));
+  EXPECT_TRUE(model_.CanMove(live, model_.today_root()));
+}
+
+TEST_F(SpaceModelTest, SetLiveSource) {
+  SidebarNode* live =
+      model_.AddLiveFolder(model_.pinned_root(), 0, u"News", RssSource());
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  model_.SetLiveSource(live, RssSource());
+  EXPECT_TRUE(observer.events.empty());
+  model_.SetLiveSource(
+      live, LiveSource("github", base::DictValue().Set("query", "is:pr")));
+  model_.RemoveObserver(&observer);
+  EXPECT_EQ(live->live_source()->plugin_id, "github");
+  EXPECT_EQ(*live->live_source()->config.FindString("query"), "is:pr");
+  EXPECT_THAT(observer.events, ElementsAre("changed News"));
+}
+
 }  // namespace
 }  // namespace compass

@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -89,6 +91,19 @@ void CollectTabs(SidebarNode* node, std::vector<SidebarNode*>& tabs) {
   for (const auto& child : node->children()) {
     CollectTabs(child.get(), tabs);
   }
+}
+
+bool ContainsLiveFolder(const SidebarNode* node) {
+  if (node->is_live_folder()) {
+    return true;
+  }
+  return std::ranges::any_of(node->children(), [](const auto& child) {
+    return ContainsLiveFolder(child.get());
+  });
+}
+
+bool InLiveFolder(const SidebarNode* node) {
+  return node->parent() && node->parent()->is_live_folder();
 }
 
 // The entries under |node|: tabs and splits, in folders too.
@@ -265,10 +280,171 @@ SidebarNode* SpaceModel::AddSplit(SidebarNode* parent,
                                                GURL(), id));
 }
 
+bool SpaceModel::CanAddLiveFolder(const SidebarNode* parent) const {
+  return parent && kind_ == Kind::kSpace && pinned_root_->Contains(parent) &&
+         CanContain(parent, Type::kFolder);
+}
+
+SidebarNode* SpaceModel::AddLiveFolder(SidebarNode* parent,
+                                       size_t index,
+                                       std::u16string title,
+                                       LiveSource source,
+                                       const base::Uuid& id) {
+  CHECK(CanAddLiveFolder(parent));
+  CHECK(!source.plugin_id.empty());
+  auto folder =
+      std::make_unique<SidebarNode>(Type::kFolder, std::move(title), GURL(), id);
+  folder->live_source_ = std::move(source);
+  return AddNode(parent, index, std::move(folder));
+}
+
+void SpaceModel::SetLiveSource(SidebarNode* folder, LiveSource source) {
+  CHECK(folder->is_live_folder());
+  CHECK(!source.plugin_id.empty());
+  if (folder->live_source_ == source) {
+    return;
+  }
+  folder->live_source_ = std::move(source);
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+void SpaceModel::ConvertToPlainFolder(SidebarNode* folder) {
+  CHECK(folder->is_live_folder());
+  folder->live_source_.reset();
+  folder->live_refreshed_ = base::Time();
+  for (const auto& child : folder->children()) {
+    child->live_item_key_.clear();
+    child->unseen_ = false;
+    for (auto& observer : observers_) {
+      observer.OnNodeChanged(*child);
+    }
+  }
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+void SpaceModel::ReplaceLiveItems(
+    SidebarNode* folder,
+    const std::vector<LiveItem>& items,
+    base::Time now,
+    base::FunctionRef<bool(const SidebarNode&)> is_open) {
+  CHECK(folder->is_live_folder());
+  CHECK(Contains(folder));
+  const bool first_refresh = folder->live_refreshed_.is_null();
+  std::set<std::string_view> keys;
+  size_t index = 0;
+  for (const LiveItem& item : items) {
+    if (item.key.empty() || !keys.insert(item.key).second) {
+      continue;
+    }
+    auto match = std::ranges::find(folder->children(), item.key,
+                                   [](const auto& child) -> const std::string& {
+                                     return child->live_item_key();
+                                   });
+    if (match == folder->children().end()) {
+      auto tab = std::make_unique<SidebarNode>(Type::kTab, item.title, item.url);
+      tab->live_item_key_ = item.key;
+      tab->unseen_ = !first_refresh;
+      AddNode(folder, index++, std::move(tab));
+      continue;
+    }
+    SidebarNode* tab = match->get();
+    if (folder->GetIndexOf(tab) != index) {
+      MoveNode(tab, folder, index);
+    }
+    ++index;
+    bool changed = false;
+    if (tab->saved_url_ != item.url || tab->saved_title_ != item.title) {
+      tab->saved_url_ = item.url;
+      tab->saved_title_ = item.title;
+      changed = true;
+    }
+    if (!is_open(*tab) && (tab->url_ != item.url || tab->title_ != item.title)) {
+      tab->url_ = item.url;
+      tab->title_ = item.title;
+      changed = true;
+    }
+    if (changed) {
+      for (auto& observer : observers_) {
+        observer.OnNodeChanged(*tab);
+      }
+    }
+  }
+  // What's left after |index| matched no item. Removing closes live tabs,
+  // which mustn't change the folder, but go by ID to be safe.
+  std::vector<base::Uuid> vanished;
+  for (size_t i = index; i < folder->children().size(); ++i) {
+    if (!is_open(*folder->children()[i])) {
+      vanished.push_back(folder->children()[i]->id());
+    }
+  }
+  for (const base::Uuid& id : vanished) {
+    if (SidebarNode* tab = FindIn(folder, id); tab && tab != folder) {
+      Remove(tab);
+    }
+  }
+  folder->live_refreshed_ = now;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+SidebarNode* SpaceModel::AddLiveItem(SidebarNode* folder,
+                                     size_t index,
+                                     const LiveItem& item,
+                                     const base::Uuid& id) {
+  CHECK(folder->is_live_folder());
+  CHECK(!item.key.empty());
+  auto tab = std::make_unique<SidebarNode>(Type::kTab, item.title, item.url, id);
+  tab->live_item_key_ = item.key;
+  return AddNode(folder, index, std::move(tab));
+}
+
+void SpaceModel::SetLiveRefreshed(SidebarNode* folder, base::Time refreshed) {
+  CHECK(folder->is_live_folder());
+  if (folder->live_refreshed_ == refreshed) {
+    return;
+  }
+  folder->live_refreshed_ = refreshed;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+void SpaceModel::SetUnseen(SidebarNode* tab, bool unseen) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  CHECK(!unseen || tab->is_live_item());
+  if (tab->unseen_ == unseen) {
+    return;
+  }
+  tab->unseen_ = unseen;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*tab);
+  }
+}
+
+void SpaceModel::MarkAllSeen(SidebarNode* folder) {
+  CHECK(folder->is_live_folder());
+  for (const auto& child : folder->children()) {
+    SetUnseen(child.get(), false);
+  }
+}
+
 bool SpaceModel::CanMove(const SidebarNode* node,
                          const SidebarNode* new_parent) const {
   if (!node || !new_parent || node->type() == Type::kRoot ||
       node->Contains(new_parent)) {
+    return false;
+  }
+  // Nothing moves into a live folder, nor around in one: a refresh decides
+  // its entries and their order.
+  if (new_parent->is_live_folder()) {
+    return false;
+  }
+  if (ContainsLiveFolder(node) && !pinned_root_->Contains(new_parent)) {
     return false;
   }
   return node->parent() == new_parent ||
@@ -278,10 +454,17 @@ bool SpaceModel::CanMove(const SidebarNode* node,
 void SpaceModel::Move(SidebarNode* node, SidebarNode* new_parent,
                       size_t index) {
   CHECK(CanMove(node, new_parent));
+  MoveNode(node, new_parent, index);
+}
+
+void SpaceModel::MoveNode(SidebarNode* node,
+                          SidebarNode* new_parent,
+                          size_t index) {
   SidebarNode* old_parent = node->parent();
   const size_t old_index = old_parent->GetIndexOf(node);
   new_parent->Add(old_parent->Remove(node), index);
   UpdateSavedUrls(node);
+  UpdateLiveItems(node);
   for (auto& observer : observers_) {
     observer.OnNodeMoved(*node, *old_parent, old_index);
   }
@@ -295,9 +478,17 @@ void SpaceModel::Move(SidebarNode* node, SidebarNode* new_parent,
 bool SpaceModel::CanMoveToSpace(const SidebarNode* node,
                                 const SpaceModel& target,
                                 const SidebarNode* new_parent) const {
-  return node && new_parent && &target != this && Contains(node) &&
-         node->type() != Type::kRoot && target.Contains(new_parent) &&
-         target.CanContain(new_parent, node->type());
+  if (!node || !new_parent || &target == this || !Contains(node) ||
+      node->type() == Type::kRoot || !target.Contains(new_parent) ||
+      new_parent->is_live_folder()) {
+    return false;
+  }
+  if (ContainsLiveFolder(node) &&
+      !(target.kind_ == Kind::kSpace &&
+        target.pinned_root_->Contains(new_parent))) {
+    return false;
+  }
+  return target.CanContain(new_parent, node->type());
 }
 
 void SpaceModel::MoveToSpace(SidebarNode* node,
@@ -326,7 +517,8 @@ bool SpaceModel::CanSplit(const SidebarNode* target,
   if (IsPane(target)) {
     target = target->parent();
   }
-  if (target->Contains(tab)) {
+  // A live folder's entries stay single tabs.
+  if (target->Contains(tab) || InLiveFolder(target)) {
     return false;
   }
   switch (target->type()) {
@@ -445,6 +637,16 @@ void SpaceModel::UpdateSavedUrls(SidebarNode* node) {
   }
   for (const auto& child : node->children()) {
     UpdateSavedUrls(child.get());
+  }
+}
+
+void SpaceModel::UpdateLiveItems(SidebarNode* node) {
+  if (node->type() == Type::kTab && !InLiveFolder(node)) {
+    node->live_item_key_.clear();
+    node->unseen_ = false;
+  }
+  for (const auto& child : node->children()) {
+    UpdateLiveItems(child.get());
   }
 }
 
@@ -647,6 +849,9 @@ bool SpaceModel::CanContain(const SidebarNode* parent, Type type) const {
       return type == Type::kTab || type == Type::kSplit ||
              type == Type::kFolder;
     case Type::kFolder:
+      if (parent->is_live_folder()) {
+        return type == Type::kTab;
+      }
       return type != Type::kRoot;
     case Type::kSplit:
       return type == Type::kTab &&
@@ -681,8 +886,14 @@ SidebarNode* SpaceModel::AddNode(SidebarNode* parent,
                                  std::unique_ptr<SidebarNode> node) {
   CHECK(parent);
   CHECK(CanContain(parent, node->type()));
+  // Only ReplaceLiveItems() and AddLiveItem() add to a live folder.
+  CHECK(!parent->is_live_folder() || node->is_live_item());
+  // Live folders only in Pinned (a subtree from another space, say).
+  CHECK(!ContainsLiveFolder(node.get()) ||
+        (kind_ == Kind::kSpace && pinned_root_->Contains(parent)));
   SidebarNode* added = parent->Add(std::move(node), index);
   UpdateSavedUrls(added);
+  UpdateLiveItems(added);
   for (auto& observer : observers_) {
     observer.OnNodeAdded(*added);
   }

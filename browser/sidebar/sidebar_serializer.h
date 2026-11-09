@@ -27,6 +27,13 @@ class SpaceModel;
 //             "url": "...", "last_active": "<time>", "children": [<node>...]}
 //   <archived> = {"id": "<uuid>", "archived": "<time>",
 //                 "tabs": [{"id", "title", "url"}...]}
+//   A live folder's <node> also has "live": {"plugin": "<id>", "config": {...},
+//   "source": "<plugin url>", "sha256": "<hex>", "refreshed": "<time>"}
+//   ("source", "sha256" and "refreshed" only when set), and its entries
+//   "live_item": "<key>" and, while unseen, "unseen": true. The entries are a
+//   cache, so the folder shows at once at startup. A live folder that can't
+//   be one where it's restored (or has no "plugin") comes back plain, as an
+//   older build reads it; tabs keep a "live_item" only in a live folder.
 // Times are base::TimeToValue() strings. "last_active" is only on tabs that
 // have one; "archive_after_hours" is 0 for never, and missing in older files
 // (the default applies).

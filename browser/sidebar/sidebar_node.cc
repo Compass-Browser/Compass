@@ -14,6 +14,37 @@
 
 namespace compass {
 
+LiveSource::LiveSource() = default;
+
+LiveSource::LiveSource(std::string plugin_id,
+                       base::DictValue config,
+                       GURL plugin_url,
+                       std::string plugin_sha256)
+    : plugin_id(std::move(plugin_id)),
+      config(std::move(config)),
+      plugin_url(std::move(plugin_url)),
+      plugin_sha256(std::move(plugin_sha256)) {}
+
+LiveSource::LiveSource(const LiveSource& other)
+    : plugin_id(other.plugin_id),
+      config(other.config.Clone()),
+      plugin_url(other.plugin_url),
+      plugin_sha256(other.plugin_sha256) {}
+
+LiveSource& LiveSource::operator=(const LiveSource& other) {
+  if (this != &other) {
+    plugin_id = other.plugin_id;
+    config = other.config.Clone();
+    plugin_url = other.plugin_url;
+    plugin_sha256 = other.plugin_sha256;
+  }
+  return *this;
+}
+
+LiveSource::LiveSource(LiveSource&&) = default;
+LiveSource& LiveSource::operator=(LiveSource&&) = default;
+LiveSource::~LiveSource() = default;
+
 SidebarNode::SidebarNode(Type type,
                          std::u16string title,
                          GURL url,
