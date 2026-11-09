@@ -17,11 +17,15 @@ group("android") {
   ]
 }
 
-# The Claude chat's bridge, on the desktop's Claude client.
+# The Claude chat's bridge, on the desktop's Claude client and tools, and
+# the browser tools' view of Chrome's tab models (ClaudeTabsAndroid, which
+# //chrome/browser's tab model headers come with: this links into it).
 source_set("claude_bridge") {
   sources = [
     "claude_bridge.cc",
     "claude_bridge.h",
+    "claude_tabs_android.cc",
+    "claude_tabs_android.h",
   ]
   deps = [
     "//base",
@@ -32,6 +36,7 @@ source_set("claude_bridge") {
     "//compass/browser/claude:prefs",
     "//content/public/browser",
     "//services/network/public/cpp",
+    "//url",
   ]
 }
 

@@ -43,6 +43,9 @@ public class TabPicker implements TabPickerUi.Listener {
     private final TabPickerState mState = new TabPickerState();
     private final View mView;
     private final Runnable mOnNewTab;
+    // The models observed while the picker is open (the activity's selector is gone by the time
+    // it's destroyed).
+    private final List<TabModel> mObserved = new ArrayList<>();
     private final TabModelObserver mObserver =
             new TabModelObserver() {
                 @Override
@@ -95,8 +98,12 @@ public class TabPicker implements TabPickerUi.Listener {
             mState.setAspect((float) content.getWidth() / content.getHeight());
         }
         TabModelSelector selector = mActivity.getTabModelSelector();
-        selector.getModel(false).addObserver(mObserver);
-        selector.getModel(true).addObserver(mObserver);
+        stopObserving();
+        for (boolean incognito : new boolean[] {false, true}) {
+            TabModel model = selector.getModel(incognito);
+            model.addObserver(mObserver);
+            mObserved.add(model);
+        }
         mState.getThumbnails().clear();
         refresh();
         // The tab on screen, as it is now; the others' come from disk.
@@ -117,10 +124,8 @@ public class TabPicker implements TabPickerUi.Listener {
     }
 
     private void stopObserving() {
-        TabModelSelector selector = mActivity.getTabModelSelector();
-        if (selector == null) return;
-        selector.getModel(false).removeObserver(mObserver);
-        selector.getModel(true).removeObserver(mObserver);
+        for (TabModel model : mObserved) model.removeObserver(mObserver);
+        mObserved.clear();
     }
 
     private void refresh() {

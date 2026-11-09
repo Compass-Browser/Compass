@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Shared by desktop (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it. Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"ios\"); without it, everywhere.",
+  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it. Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
   "tools": [
     {
       "scope": "page",

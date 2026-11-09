@@ -117,8 +117,17 @@ It costs:
   question carries the page's text (read in an isolated world, as on the
   desktop; incognito pages stay out), and the reply streams into a
   Compose sheet (`ClaudeChatUi.kt`, the bar's ✦). The key is the
-  desktop's encrypted `ClaudeCredentials`. The browser tools (opening
-  tabs, clicking) are still desktop only.
+  desktop's encrypted `ClaudeCredentials`. Claude acts with the desktop's
+  tools (`ClaudeTools`): the page tools (read, find, click, type, scroll,
+  navigate, screenshot) on the tab the question is about, and, with "Let
+  Claude use the whole browser" on (a switch in the sheet, the desktop's
+  pref), list_tabs, open_tab, select_tab and close_tab over Chrome's tab
+  models (`ClaudeTabsAndroid`; a tab's id is its Android tab ID). The
+  bridge runs the loop the desktop's chat page runs: a reply that asks for
+  tools gets their results and goes on, up to 20 rounds a question. The
+  sheet shows each tool as a quiet line between the replies. tools.json's
+  `platforms` gains "android"; the desktop-only tools (spaces, folders,
+  splits, history, downloads) aren't offered.
 - **Wide windows (C10).** At 840dp and wider (tablets, unfolded
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts

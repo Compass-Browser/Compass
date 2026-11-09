@@ -35,6 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,6 +61,9 @@ object ClaudeChatUi {
         fun onSend(text: String)
 
         fun onStop()
+
+        /** "Let Claude use the whole browser": the tabs, not only the page. */
+        fun onBrowserScope(allowed: Boolean)
 
         fun onClear()
 
@@ -166,6 +170,16 @@ private fun androidx.compose.foundation.layout.ColumnScope.Chat(
             }
         }
         items(state.messages) { message ->
+            if (message.role == "tool") {
+                // A tool Claude used: a quiet line between the bubbles.
+                Text(
+                    "· ${toolLabel(message.text)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+                return@items
+            }
             val mine = message.role == "user"
             Box(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
                 Text(
@@ -181,6 +195,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.Chat(
             }
         }
         if (state.error.isNotEmpty()) item { Text(state.error, color = MaterialTheme.colorScheme.error) }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "Let Claude use the whole browser",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = state.browserScope, onCheckedChange = { listener.onBrowserScope(it) })
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -205,3 +227,25 @@ private fun androidx.compose.foundation.layout.ColumnScope.Chat(
         }
     }
 }
+
+/** What a tool did, in words (common/claude/tools.json's names). */
+private fun toolLabel(name: String): String =
+    when (name) {
+        "read_page", "get_page_text" -> "Reading the page"
+        "find" -> "Looking for something on the page"
+        "screenshot" -> "Looking at the page"
+        "click" -> "Clicking"
+        "hover" -> "Pointing"
+        "type", "form_input" -> "Typing"
+        "key" -> "Pressing a key"
+        "scroll" -> "Scrolling"
+        "navigate" -> "Going to a page"
+        "wait" -> "Waiting"
+        "read_console" -> "Reading the console"
+        "run_js" -> "Running a script"
+        "list_tabs" -> "Looking at the tabs"
+        "open_tab" -> "Opening a tab"
+        "select_tab" -> "Switching tabs"
+        "close_tab" -> "Closing a tab"
+        else -> name
+    }
