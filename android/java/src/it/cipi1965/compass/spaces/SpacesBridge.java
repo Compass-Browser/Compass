@@ -51,6 +51,16 @@ public class SpacesBridge {
         return SpacesBridgeJni.get().addSpace(mNativeSpacesBridge, name);
     }
 
+    /** Edits a space: its name, its emoji (empty for none), its tint ("#rrggbb", empty: grey). */
+    public void editSpace(String spaceId, String name, String emoji, String tint) {
+        SpacesBridgeJni.get().editSpace(mNativeSpacesBridge, spaceId, name, emoji, tint);
+    }
+
+    /** Removes a space (not the last one); the space after it becomes active. */
+    public void removeSpace(String spaceId) {
+        SpacesBridgeJni.get().removeSpace(mNativeSpacesBridge, spaceId);
+    }
+
     /** Pins a tab's page to the active space, or to the favorites. */
     public void pin(int tabId, boolean favorite) {
         SpacesBridgeJni.get().pin(mNativeSpacesBridge, tabId, favorite);
@@ -102,6 +112,15 @@ public class SpacesBridge {
 
         @JniType("std::string")
         String addSpace(long nativeSpacesBridge, @JniType("std::u16string") String name);
+
+        void editSpace(
+                long nativeSpacesBridge,
+                @JniType("std::string") String spaceId,
+                @JniType("std::u16string") String name,
+                @JniType("std::string") String emoji,
+                @JniType("std::string") String tint);
+
+        void removeSpace(long nativeSpacesBridge, @JniType("std::string") String spaceId);
 
         void pin(long nativeSpacesBridge, int tabId, boolean favorite);
 

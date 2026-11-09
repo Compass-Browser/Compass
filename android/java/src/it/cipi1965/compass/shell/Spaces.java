@@ -329,6 +329,16 @@ public class Spaces implements SidebarUi.Listener {
     }
 
     @Override
+    public void onEditSpace(String spaceId, String name, String emoji, String tint) {
+        mBridge.editSpace(spaceId, name, emoji, tint);
+    }
+
+    @Override
+    public void onRemoveSpace(String spaceId) {
+        mBridge.removeSpace(spaceId);
+    }
+
+    @Override
     public void onNewTab() {
         onDismiss();
         mActivity.getTabCreator(false).launchNtp(TabLaunchType.FROM_CHROME_UI);
