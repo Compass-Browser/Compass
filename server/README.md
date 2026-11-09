@@ -83,10 +83,43 @@ Environment variables (all optional):
 | `COMPASS_SYNC_APNS_TOPICS` | `it.cipi1965.compass` | Comma-separated bundle IDs devices may register for (Android package names too) |
 | `COMPASS_SYNC_FCM_CREDENTIALS` | none | A Firebase service account's JSON key, to wake Android devices through FCM (see "Push to iPhones"); without it, sent tabs reach them at the next sync |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
+| `COMPASS_SYNC_ALLOWED_CHAINS` | none | Comma-separated chain IDs (hex public keys) to serve; when set, every other chain is refused (see "Private server") |
 
 Never list a proxy as trusted unless every request reaches the server
 through it: anyone who can connect directly could then choose the address
 the pairing rate limits see.
+
+## Private server (friends only)
+
+The server URL isn't a secret: anyone who knows it can start a chain. To
+serve only the people you choose, list their chains in
+`COMPASS_SYNC_ALLOWED_CHAINS` (in `docker-compose.yml`, under `sync`'s
+`environment`). A chain is one person's set of devices, so one entry
+covers all the devices they pair. Every other chain gets `401`, for
+syncing, pairing, push, quota and change notifications alike.
+
+To add a friend:
+
+1. They turn on sync in Compass with your server URL. The server refuses
+   them and logs their chain ID:
+   ```sh
+   docker compose logs sync | grep "chain not allowed"
+   ```
+2. Add the ID to the list (comma-separated) and run `docker compose up -d`.
+   The restart takes seconds, and devices reconnect by themselves.
+3. They sync again (or wait for the next retry).
+
+To turn a running open server into a private one without cutting off
+the people already using it, start the list with the chains it already
+holds:
+
+```sh
+sqlite3 <volume dir>/compass-sync.db "SELECT DISTINCT lower(client_id) FROM item_counts"
+```
+
+To remove someone, take their ID off the list (or put it in
+`BLOCKED_CLIENT_IDS`). Their data stays until `COMPASS_SYNC_IDLE_CHAIN_DAYS`
+expires it.
 
 ## Change notifications and reverse proxies
 

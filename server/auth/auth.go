@@ -80,12 +80,31 @@ func authenticate(tkn string) (string, error) {
 		return "", errors.New("token is expired")
 	}
 
-	blockedIDs := strings.Split(strings.ToLower(os.Getenv("BLOCKED_CLIENT_IDS")), ",")
-	if slices.Contains(blockedIDs, strings.ToLower(token.PublicKeyHex)) {
+	id := strings.ToLower(token.PublicKeyHex)
+	if slices.Contains(idList("BLOCKED_CLIENT_IDS"), id) {
 		return "", errors.New("this client ID is blocked")
 	}
 
+	// Compass: a private server serves only the chains it lists (README,
+	// "Private server"). The ID is in the error so the admin can add it.
+	if allowed := idList("COMPASS_SYNC_ALLOWED_CHAINS"); len(allowed) > 0 &&
+		!slices.Contains(allowed, id) {
+		return "", fmt.Errorf("chain not allowed: %s", id)
+	}
+
 	return token.PublicKeyHex, nil
+}
+
+// idList reads a comma-separated list of chain IDs (hex public keys) from
+// the environment variable |name|, lowercased, without blanks.
+func idList(name string) []string {
+	var ids []string
+	for _, s := range strings.Split(os.Getenv(name), ",") {
+		if s = strings.ToLower(strings.TrimSpace(s)); s != "" {
+			ids = append(ids, s)
+		}
+	}
+	return ids
 }
 
 // Authorize extracts the authorize token from the HTTP request and verify if

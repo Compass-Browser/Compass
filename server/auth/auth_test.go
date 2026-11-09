@@ -39,6 +39,34 @@ func (suite *AuthTestSuite) TestBlockedClientIDCaseInsensitive() {
 	suite.Require().Empty(id)
 }
 
+func (suite *AuthTestSuite) TestAllowedChains() {
+	tkn, _, allowedID, err := authtest.GenerateToken(time.Now().UnixMilli())
+	suite.Require().NoError(err)
+	otherTkn, _, otherID, err := authtest.GenerateToken(time.Now().UnixMilli())
+	suite.Require().NoError(err)
+
+	// Unset: everyone is allowed.
+	suite.T().Setenv("COMPASS_SYNC_ALLOWED_CHAINS", "")
+	id, err := auth.Authenticate(otherTkn)
+	suite.Require().NoError(err)
+	suite.Require().Equal(otherID, id)
+
+	// Set (with blanks and other casing): only the listed chain passes.
+	suite.T().Setenv("COMPASS_SYNC_ALLOWED_CHAINS", " "+strings.ToUpper(allowedID)+" , ")
+	id, err = auth.Authenticate(tkn)
+	suite.Require().NoError(err)
+	suite.Require().Equal(allowedID, id)
+	id, err = auth.Authenticate(otherTkn)
+	suite.Require().ErrorContains(err, "chain not allowed: "+otherID)
+	suite.Require().Empty(id)
+
+	// The blocklist wins over the allowlist.
+	suite.T().Setenv("BLOCKED_CLIENT_IDS", allowedID)
+	id, err = auth.Authenticate(tkn)
+	suite.Require().Error(err)
+	suite.Require().Empty(id)
+}
+
 func (suite *AuthTestSuite) TestAuthenticate() {
 	// invalid token format
 	id, err := auth.Authenticate(base64.URLEncoding.EncodeToString([]byte("||")))
