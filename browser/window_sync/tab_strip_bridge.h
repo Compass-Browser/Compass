@@ -179,15 +179,17 @@ class TabStripBridge : public TabStripModelObserver,
   tabs::TabInterface* OpenTabNode(SidebarNode* tab_node, bool foreground);
 
   // Splits (docs/design/sidebar.md, "Split tabs"). The model's splits whose
-  // panes are both live here are upstream splits too, and the other way
-  // round. The model split of |a| and |b|'s nodes, or null.
-  SidebarNode* GetModelSplit(const tabs::TabInterface* a,
-                             const tabs::TabInterface* b) const;
-  // Upstream split |a| and |b| (in strip order): the model follows.
-  void MirrorUpstreamSplit(tabs::TabInterface* a, tabs::TabInterface* b);
-  // An upstream split of these tabs ended. If both are still here, the user
-  // separated them, and the model follows. Pinned panes that closed keep
-  // their split.
+  // panes are all live here are upstream splits too, and the other way
+  // round. The model split whose panes are exactly |members|' nodes (two to
+  // kMaxSplitPanes, in any order), or null.
+  SidebarNode* GetModelSplit(
+      const std::vector<tabs::TabInterface*>& members) const;
+  // Upstream split of |members| (in strip order): the model follows.
+  void MirrorUpstreamSplit(const std::vector<tabs::TabInterface*>& members);
+  // An upstream split of these tabs ended. If they are all still here, the
+  // user separated them, and the model follows. When one closed or left, the
+  // model already has it (a split of three or more keeps the others, and
+  // shows again without it). Pinned panes that closed keep their split.
   void OnUpstreamSplitRemoved(std::vector<tabs::TabHandle> tabs);
   // Tab groups (docs/design/sidebar.md, "Tab groups"): each upstream group
   // becomes a Today folder, and the group ends.

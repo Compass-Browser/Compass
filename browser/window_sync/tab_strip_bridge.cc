@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -541,8 +542,12 @@ void TabStripBridge::OnSplitTabChanged(const SplitTabChange& change) {
       // A split moving in from another window is a model split already.
       if (added->reason() != SplitTabChange::SplitTabAddReason::
                                  kInsertedFromAnotherTabstrip &&
-          added->tabs().size() == 2u) {
-        MirrorUpstreamSplit(added->tabs()[0].first, added->tabs()[1].first);
+          added->tabs().size() >= 2u) {
+        std::vector<tabs::TabInterface*> members;
+        for (const auto& [tab, index] : added->tabs()) {
+          members.push_back(tab);
+        }
+        MirrorUpstreamSplit(members);
       }
       break;
     }
@@ -550,9 +555,12 @@ void TabStripBridge::OnSplitTabChanged(const SplitTabChange& change) {
       // A pane replaced by another tab.
       const SplitTabChange::ContentsChange* contents =
           change.GetContentsChange();
-      if (contents->new_tabs().size() == 2u) {
-        MirrorUpstreamSplit(contents->new_tabs()[0].first,
-                            contents->new_tabs()[1].first);
+      if (contents->new_tabs().size() >= 2u) {
+        std::vector<tabs::TabInterface*> members;
+        for (const auto& [tab, index] : contents->new_tabs()) {
+          members.push_back(tab);
+        }
+        MirrorUpstreamSplit(members);
       }
       break;
     }
@@ -658,55 +666,83 @@ void TabStripBridge::ConvertGroups() {
   ScheduleSyncStripOrder();
 }
 
-SidebarNode* TabStripBridge::GetModelSplit(const tabs::TabInterface* a,
-                                           const tabs::TabInterface* b) const {
-  SidebarNode* node_a = GetNode(a);
-  SidebarNode* node_b = GetNode(b);
-  if (!node_a || !node_b || node_a == node_b ||
-      node_a->parent() != node_b->parent() ||
-      node_a->parent()->type() != SidebarNode::Type::kSplit) {
+SidebarNode* TabStripBridge::GetModelSplit(
+    const std::vector<tabs::TabInterface*>& members) const {
+  if (members.size() < 2u) {
     return nullptr;
   }
-  return node_a->parent();
+  SidebarNode* split = nullptr;
+  std::set<const SidebarNode*> nodes;
+  for (const tabs::TabInterface* tab : members) {
+    SidebarNode* node = GetNode(tab);
+    if (!node || node->parent()->type() != SidebarNode::Type::kSplit ||
+        (split && node->parent() != split)) {
+      return nullptr;
+    }
+    split = node->parent();
+    nodes.insert(node);
+  }
+  // Every pane, each once.
+  return nodes.size() == members.size() &&
+                 split->children().size() == members.size()
+             ? split
+             : nullptr;
 }
 
-void TabStripBridge::MirrorUpstreamSplit(tabs::TabInterface* a,
-                                         tabs::TabInterface* b) {
+void TabStripBridge::MirrorUpstreamSplit(
+    const std::vector<tabs::TabInterface*>& members) {
   // Whatever the model can't hold goes back to how the model has it.
   ScheduleSyncStripOrder();
-  if (GetModelSplit(a, b)) {
+  if (GetModelSplit(members)) {
     return;
   }
-  SidebarNode* node_a = GetNode(a);
-  SidebarNode* node_b = GetNode(b);
-  if (!node_a || !node_b || !space_model_->Contains(node_a) ||
-      !space_model_->Contains(node_b)) {
-    return;
+  std::vector<SidebarNode*> nodes;
+  for (tabs::TabInterface* tab : members) {
+    SidebarNode* node = GetNode(tab);
+    if (!node || !space_model_->Contains(node) ||
+        std::ranges::find(nodes, node) != nodes.end()) {
+      return;
+    }
+    nodes.push_back(node);
   }
   base::AutoReset<bool> updating(&updating_, true);
-  for (SidebarNode* node : {node_a, node_b}) {
+  for (SidebarNode* node : nodes) {
     if (node->parent()->type() == SidebarNode::Type::kSplit) {
       space_model_->Unsplit(node->parent());
     }
   }
-  if (space_model_->CanSplit(node_a, node_b)) {
-    space_model_->Split(node_a, node_b);
+  // The first takes the others, in strip order.
+  for (size_t i = 1; i < nodes.size(); ++i) {
+    if (space_model_->CanSplit(nodes[0], nodes[i])) {
+      space_model_->Split(nodes[0], nodes[i]);
+    }
   }
 }
 
 void TabStripBridge::OnUpstreamSplitRemoved(
     std::vector<tabs::TabHandle> handles) {
-  if (!tab_strip_model_ || handles.size() != 2u) {
+  if (!tab_strip_model_ || handles.size() < 2u) {
     return;
   }
-  tabs::TabInterface* a = handles[0].Get();
-  tabs::TabInterface* b = handles[1].Get();
-  if (!a || !b || tab_strip_model_->GetIndexOfTab(a) == TabStripModel::kNoTab ||
-      tab_strip_model_->GetIndexOfTab(b) == TabStripModel::kNoTab ||
-      (a->GetSplit() && a->GetSplit() == b->GetSplit())) {
+  std::vector<tabs::TabInterface*> members;
+  for (const tabs::TabHandle& handle : handles) {
+    tabs::TabInterface* tab = handle.Get();
+    // One closed or left: the model has it already. A split of three or
+    // more keeps the others, which split again.
+    if (!tab || tab_strip_model_->GetIndexOfTab(tab) == TabStripModel::kNoTab) {
+      ScheduleSyncStripOrder();
+      return;
+    }
+    members.push_back(tab);
+  }
+  // Split again (the bridge mirrored a changed model split).
+  if (members[0]->GetSplit() &&
+      std::ranges::all_of(members, [&](const tabs::TabInterface* tab) {
+        return tab->GetSplit() == members[0]->GetSplit();
+      })) {
     return;
   }
-  if (SidebarNode* split = GetModelSplit(a, b)) {
+  if (SidebarNode* split = GetModelSplit(members)) {
     base::AutoReset<bool> updating(&updating_, true);
     space_model_->Unsplit(split);
   }
@@ -715,35 +751,47 @@ void TabStripBridge::OnUpstreamSplitRemoved(
 void TabStripBridge::RemoveUnmirroredSplits() {
   for (const split_tabs::SplitTabId& split_id :
        tab_strip_model_->ListSplits()) {
-    const std::vector<tabs::TabInterface*> tabs =
+    const std::vector<tabs::TabInterface*> members =
         tab_strip_model_->GetSplitData(split_id)->ListTabs();
-    if (tabs.size() != 2u || !GetModelSplit(tabs[0], tabs[1])) {
+    if (!GetModelSplit(members)) {
       tab_strip_model_->RemoveSplit(split_id);
     }
   }
 }
 
 void TabStripBridge::CreateMirroredSplits() {
+  static_assert(kMaxSplitPanes <= split_tabs::kMaxTabsInSplit);
   std::vector<const SidebarNode*> splits;
   CollectSplits(space_model_->pinned_root(), splits);
   CollectSplits(space_model_->today_root(), splits);
   for (const SidebarNode* split : splits) {
-    if (split->children().size() != 2u) {
+    if (split->children().size() < 2u) {
       continue;
     }
-    tabs::TabInterface* a = GetTab(split->children()[0].get());
-    tabs::TabInterface* b = GetTab(split->children()[1].get());
-    if (!a || !b || (a->GetSplit() && a->GetSplit() == b->GetSplit())) {
+    std::vector<tabs::TabInterface*> members;
+    std::vector<int> indices;
+    for (const auto& pane : split->children()) {
+      tabs::TabInterface* tab = GetTab(pane.get());
+      if (!tab) {
+        break;
+      }
+      members.push_back(tab);
+      indices.push_back(tab_strip_model_->GetIndexOfTab(tab));
+    }
+    // Every pane live here, and not split already.
+    if (members.size() != split->children().size() ||
+        std::ranges::any_of(members, [](const tabs::TabInterface* tab) {
+          return tab->GetSplit().has_value();
+        })) {
       continue;
     }
-    const int index_a = tab_strip_model_->GetIndexOfTab(a);
-    const int index_b = tab_strip_model_->GetIndexOfTab(b);
-    // The strip has them side by side by now (SyncStripOrder()).
-    if (std::abs(index_a - index_b) != 1) {
+    // The strip has them next to each other by now (SyncStripOrder()).
+    std::ranges::sort(indices);
+    if (indices.back() - indices.front() !=
+        static_cast<int>(indices.size()) - 1) {
       continue;
     }
-    tab_strip_model_->AddToNewSplit({index_a, index_b},
-                                    split_tabs::SplitTabVisualData(),
+    tab_strip_model_->AddToNewSplit(indices, split_tabs::SplitTabVisualData(),
                                     split_tabs::SplitTabCreatedSource::
                                         kTabContextMenu);
   }
@@ -1144,20 +1192,40 @@ void TabStripBridge::SyncStripOrder() {
   // Every upstream split left is a model split, whose tabs are next to each
   // other in |order|: it moves whole, so no move lands inside one.
   RemoveUnmirroredSplits();
+  // A split of more than two tabs in another order than the model's ends,
+  // and is made again below in the model's (see the loop).
+  for (const split_tabs::SplitTabId& split_id :
+       tab_strip_model_->ListSplits()) {
+    const std::vector<tabs::TabInterface*> members =
+        tab_strip_model_->GetSplitData(split_id)->ListTabs();
+    if (members.size() <= 2u) {
+      continue;
+    }
+    auto first = std::ranges::find(order, members[0]);
+    if (first == order.end() ||
+        static_cast<size_t>(order.end() - first) < members.size() ||
+        !std::equal(members.begin(), members.end(), first)) {
+      tab_strip_model_->RemoveSplit(split_id);
+    }
+  }
   for (size_t i = 0; i < order.size(); ++i) {
     const int from = tab_strip_model_->GetIndexOfTab(order[i]);
     if (std::optional<split_tabs::SplitTabId> split = order[i]->GetSplit()) {
+      const size_t count =
+          tab_strip_model_->GetSplitData(*split)->ListTabs().size();
       const int first = tab_strip_model_->GetIndexOfTab(
           tab_strip_model_->GetSplitData(*split)->ListTabs()[0]);
       if (first != static_cast<int>(i)) {
         tab_strip_model_->MoveSplitTo(*split, i, /*pinned=*/false,
                                       /*group_id=*/std::nullopt);
       }
-      // Its tabs in the model's order.
-      if (tab_strip_model_->GetTabAtIndex(i) != order[i]) {
+      // Its tabs in the model's order. Upstream reverses a split for any
+      // move inside it, so only two tabs are put right that way; larger
+      // splits in another order ended above.
+      if (count == 2u && tab_strip_model_->GetTabAtIndex(i) != order[i]) {
         tab_strip_model_->ReverseTabsInSplit(*split);
       }
-      ++i;
+      i += count - 1;
       continue;
     }
     if (from != static_cast<int>(i)) {

@@ -1,0 +1,45 @@
+diff --git a/components/split_tabs/split_tab_visual_data.h b/components/split_tabs/split_tab_visual_data.h
+index 5d14b4e38373ead928a469e954d60c10678ea472..ae8a96a9c6d673c464ab5e2e8efd09cb44a4ff3e 100644
+--- a/components/split_tabs/split_tab_visual_data.h
++++ b/components/split_tabs/split_tab_visual_data.h
+@@ -5,8 +5,16 @@
+ #ifndef COMPONENTS_SPLIT_TABS_SPLIT_TAB_VISUAL_DATA_H_
+ #define COMPONENTS_SPLIT_TABS_SPLIT_TAB_VISUAL_DATA_H_
+ 
++#include <cstddef>
++#include <utility>
++#include <vector>
++
+ namespace split_tabs {
+ 
++// Compass: a split holds up to this many tabs, in a row or a column
++// (docs/design/sidebar.md, "Split tabs").
++inline constexpr size_t kMaxTabsInSplit = 4;
++
+ // Orientation of a split view. Needs to be kept in sync with
+ // tab_search::mojom::SplitTabLayout in
+ // chrome/browser/ui/webui/tab_search/tab_search.mojom.
+@@ -41,6 +49,14 @@ class SplitTabVisualData {
+ 
+   void set_split_ratio(double split_ratio) { split_ratio_ = split_ratio; }
+ 
++  // Compass: each pane's share of the split's length, for a split of more
++  // than two tabs (split_ratio() is the first's of two). Empty, or not one
++  // per tab: equal shares.
++  void set_pane_sizes(std::vector<double> pane_sizes) {
++    pane_sizes_ = std::move(pane_sizes);
++  }
++  const std::vector<double>& pane_sizes() const { return pane_sizes_; }
++
+   SplitTabLayout split_layout() const { return split_layout_; }
+ 
+   double split_ratio() const { return split_ratio_; }
+@@ -53,6 +69,8 @@ class SplitTabVisualData {
+   SplitTabLayout split_layout_;
+   // ratio of the first split tab's width to the available width.
+   double split_ratio_ = 0.5;
++  // Compass: see set_pane_sizes().
++  std::vector<double> pane_sizes_;
+ };
+ 
+ }  // namespace split_tabs

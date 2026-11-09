@@ -36,7 +36,7 @@ public struct SpaceStoreChange: Sendable, Equatable {
 @MainActor
 @Observable
 public final class SpaceStore {
-  public static let maxSplitPanes = 2
+  public static let maxSplitPanes = 4
 
   public private(set) var spaces: [Space] = []
   /// Incognito (docs/design/ios.md, "Incognito"): one space kept apart from

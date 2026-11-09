@@ -485,8 +485,15 @@ void SidebarPageHandler::SplitNode(const std::string& id,
       !space.CanSplit(target, node)) {
     return;
   }
+  // On a pane: next to it, on the side it was dropped on.
+  const bool on_pane = target->parent()->type() == SidebarNode::Type::kSplit;
+  const size_t pane_index =
+      on_pane ? target->parent()->GetIndexOf(target) + (first ? 0 : 1) : 0;
   SidebarNode* split = space.Split(target, node);
-  if (first) {
+  if (on_pane) {
+    // Split() put it last; counted without it, as Move() wants.
+    space.Move(node, split, pane_index);
+  } else if (first) {
     space.Move(node, split, 0);
   }
   // Shows the split, its other pane too.

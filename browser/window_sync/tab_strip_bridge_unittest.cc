@@ -5,6 +5,7 @@
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/split_tabs/split_tab_visual_data.h"
+#include "components/tabs/public/split_tab_data.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
@@ -307,6 +309,48 @@ TEST_F(TabStripBridgeTest, ModelSplitsSplitTheWindow) {
   EXPECT_FALSE(a->GetSplit());
   EXPECT_THAT(Hosts(space_model().today_root()),
               ElementsAre("a.test", "c.test", "b.test"));
+}
+
+// Up to four panes (docs/design/sidebar.md, "Split tabs").
+TEST_F(TabStripBridgeTest, ModelSplitsOfFourSplitTheWindow) {
+  OpenTabs({"a.test", "b.test", "c.test", "d.test", "e.test"});
+
+  SidebarNode* split = space_model().Split(TodayAt(0), TodayAt(2));
+  space_model().Split(split, TodayAt(2));  // d, now at 2.
+  space_model().Split(split, TodayAt(1));  // b.
+  Settle();
+
+  EXPECT_THAT(StripHosts(),
+              ElementsAre("a.test", "c.test", "d.test", "b.test", "e.test"));
+  std::optional<split_tabs::SplitTabId> id =
+      tab_strip_model()->GetTabAtIndex(0)->GetSplit();
+  ASSERT_TRUE(id);
+  EXPECT_EQ(tab_strip_model()->GetSplitData(*id)->ListTabs().size(), 4u);
+  EXPECT_FALSE(tab_strip_model()->GetTabAtIndex(4)->GetSplit());
+
+  // A pane in another place: the window's split follows the model's order.
+  space_model().Move(split->children()[3].get(), split, 0);
+  Settle();
+  EXPECT_THAT(StripHosts(),
+              ElementsAre("b.test", "a.test", "c.test", "d.test", "e.test"));
+  id = tab_strip_model()->GetTabAtIndex(0)->GetSplit();
+  ASSERT_TRUE(id);
+  EXPECT_EQ(tab_strip_model()->GetSplitData(*id)->ListTabs().size(), 4u);
+
+  // Closing a pane leaves a split of three, here too.
+  tab_strip_model()->CloseWebContentsAt(1, CLOSE_NONE);
+  Settle();
+  ASSERT_EQ(split->children().size(), 3u);
+  id = tab_strip_model()->GetTabAtIndex(0)->GetSplit();
+  ASSERT_TRUE(id);
+  EXPECT_EQ(tab_strip_model()->GetSplitData(*id)->ListTabs().size(), 3u);
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test", "c.test", "d.test", "e.test"));
+
+  // Separated upstream: the model follows.
+  tab_strip_model()->RemoveSplit(*id);
+  Settle();
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("b.test", "c.test", "d.test", "e.test"));
 }
 
 TEST_F(TabStripBridgeTest, UpstreamSplitsSplitTheModel) {

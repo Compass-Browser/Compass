@@ -197,8 +197,9 @@ interface PageHandler {
   // and moving a favorite into the window's space makes it an entry there.
   MoveNode(string id, string new_parent_id, uint32 index);
   // A tab dropped on another tab: they show side by side, |id| on the left
-  // if |first|, else on the right. Ignored where SpaceModel::CanSplit() says
-  // no.
+  // if |first|, else on the right. On a split's pane, it joins the split
+  // next to that pane, on that side. Ignored where SpaceModel::CanSplit()
+  // says no (a split holds up to four tabs).
   SplitNode(string id, string target_id, bool first);
   // Entry |id|, dragged, was dropped where nothing took it. If the pointer
   // is outside every Compass window, a tab entry's page opens there in a

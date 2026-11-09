@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -40,6 +41,8 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_container_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
@@ -48,6 +51,7 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "ui/views/test/views_test_utils.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar_delegate.h"
 #include "content/public/browser/render_widget_host.h"
@@ -2274,6 +2278,73 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SplitsShowSideBySide) {
   model.Unsplit(model.today_root()->children()[0].get());
   ASSERT_TRUE(base::test::RunUntil([&] { return !view->IsInSplitView(); }));
   EXPECT_EQ(model.today_root()->children().size(), 3u);
+}
+
+// Up to four panes, in a row (docs/design/sidebar.md, "Split tabs").
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SplitsOfFourShowSideBySide) {
+  content::WebContents* contents = sidebar_contents();
+  OpenThreeTabs(browser(), contents);
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Four</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return model.today_root()->children().size() == 4u; }));
+  MultiContentsView* view =
+      BrowserView::GetBrowserViewForBrowser(browser())->multi_contents_view();
+  // The panes that show, in order.
+  auto shown = [&] {
+    std::vector<ContentsContainerView*> panes;
+    for (ContentsContainerView* pane : view->contents_container_views()) {
+      if (pane->GetVisible() && pane->contents_view()->web_contents()) {
+        panes.push_back(pane);
+      }
+    }
+    std::ranges::sort(panes, {}, [](ContentsContainerView* pane) {
+      return pane->GetBoundsInScreen().x();
+    });
+    return panes;
+  };
+
+  SidebarNode* split = model.Split(model.today_root()->children()[0].get(),
+                                   model.today_root()->children()[1].get());
+  model.Split(split, model.today_root()->children()[1].get());
+  model.Split(split, model.today_root()->children()[1].get());
+  ASSERT_EQ(split->children().size(), 4u);
+  ASSERT_TRUE(base::test::RunUntil([&] { return shown().size() == 4u; }));
+  EXPECT_TRUE(view->IsInSplitView());
+  // Side by side, each a fair share of the width, none over another.
+  views::test::RunScheduledLayout(
+      BrowserView::GetBrowserViewForBrowser(browser()));
+  std::vector<ContentsContainerView*> panes = shown();
+  for (size_t i = 0; i < panes.size(); ++i) {
+    EXPECT_GT(panes[i]->width(), view->width() / 8);
+    if (i > 0) {
+      EXPECT_LE(panes[i - 1]->GetBoundsInScreen().right(),
+                panes[i]->GetBoundsInScreen().x());
+    }
+  }
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      while (root.querySelectorAll('#today .split .pane').length !== 4) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+
+  // A pane closes: three are left, still split.
+  const int closing = browser()->tab_strip_model()->GetIndexOfWebContents(
+      panes[1]->contents_view()->web_contents());
+  browser()->tab_strip_model()->CloseWebContentsAt(closing, CLOSE_NONE);
+  ASSERT_TRUE(base::test::RunUntil([&] { return shown().size() == 3u; }));
+  EXPECT_EQ(split->children().size(), 3u);
+
+  // Separated, it's one page again.
+  model.Unsplit(split);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !view->IsInSplitView(); }));
+  EXPECT_EQ(shown().size(), 1u);
 }
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DropOnATabSplitsThem) {

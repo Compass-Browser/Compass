@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/ui/tabs/split_tab_metrics.cc b/chrome/browser/ui/tabs/split_tab_metrics.cc
+index d2d3a1db11a77e8ce2f071e6681b86cc25f4f698..cd4a4aa1bf85a79051b793fa7e73e482fd7a28d6 100644
+--- a/chrome/browser/ui/tabs/split_tab_metrics.cc
++++ b/chrome/browser/ui/tabs/split_tab_metrics.cc
+@@ -94,7 +94,8 @@ void LogSplitViewCreatedUKM(const TabStripModel* tab_strip_model,
+                             const SplitTabId split_id) {
+   SplitTabData* split_data = tab_strip_model->GetSplitData(split_id);
+   std::vector<tabs::TabInterface*> split_tabs = split_data->ListTabs();
+-  CHECK(split_tabs.size() == 2);
++  // Compass: splits of more than two tabs.
++  CHECK(split_tabs.size() >= 2);
+ 
+   int64_t split_event_id = base::RandUint64();
+ 
+@@ -112,7 +113,8 @@ void LogSplitViewUpdatedUKM(const TabStripModel* tab_strip_model,
+                             const SplitTabId split_id) {
+   SplitTabData* split_data = tab_strip_model->GetSplitData(split_id);
+   std::vector<tabs::TabInterface*> split_tabs = split_data->ListTabs();
+-  CHECK(split_tabs.size() == 2);
++  // Compass: splits of more than two tabs.
++  CHECK(split_tabs.size() >= 2);
+ 
+   int64_t split_event_id = base::RandUint64();
+ 

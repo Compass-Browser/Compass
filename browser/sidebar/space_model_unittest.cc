@@ -184,16 +184,37 @@ TEST_F(SpaceModelTest, SplitAcrossSectionsLandsInTargetsSection) {
 }
 
 TEST_F(SpaceModelTest, SplitRespectsPaneLimit) {
+  static_assert(kMaxSplitPanes == 4);
   SidebarNode* a = Tab(model_.today_root(), "a");
   SidebarNode* b = Tab(model_.today_root(), "b");
   SidebarNode* c = Tab(model_.today_root(), "c");
+  SidebarNode* d = Tab(model_.today_root(), "d");
+  SidebarNode* e = Tab(model_.today_root(), "e");
   SidebarNode* split = model_.Split(a, b);
 
-  EXPECT_FALSE(model_.CanSplit(split, c));
-  EXPECT_FALSE(model_.CanSplit(a, c));  // A pane stands for its split.
-  EXPECT_FALSE(model_.CanMove(c, split));
+  // A tab dropped on a pane joins its split, at the end.
+  EXPECT_TRUE(model_.CanSplit(a, c));
+  EXPECT_EQ(model_.Split(a, c), split);
+  EXPECT_TRUE(model_.CanMove(d, split));
+  model_.Move(d, split, 1);
+  EXPECT_THAT(Titles(model_.today_root()), ElementsAre("[a|d|b|c]", "e"));
+
+  EXPECT_FALSE(model_.CanSplit(split, e));
+  EXPECT_FALSE(model_.CanSplit(a, e));  // A pane stands for its split.
+  EXPECT_FALSE(model_.CanMove(e, split));
   EXPECT_FALSE(model_.CanSplit(split, a));  // Already a pane.
   EXPECT_FALSE(model_.CanSplit(a, a));
+}
+
+TEST_F(SpaceModelTest, RemovingAPaneOfThreeKeepsTheSplit) {
+  SidebarNode* a = Tab(model_.today_root(), "a");
+  SidebarNode* b = Tab(model_.today_root(), "b");
+  SidebarNode* c = Tab(model_.today_root(), "c");
+  model_.Split(model_.Split(a, b), c);
+
+  model_.Remove(b);
+
+  EXPECT_THAT(Titles(model_.today_root()), ElementsAre("[a|c]"));
 }
 
 TEST_F(SpaceModelTest, UnsplitPutsThePanesInItsPlace) {

@@ -60,14 +60,19 @@ struct SpaceStoreTests {
     let a = store.addTab(url: "https://a", to: space.today)!
     let b = store.addTab(url: "https://b", to: space.today)!
     let c = store.addTab(url: "https://c", to: space.today)!
+    let d = store.addTab(url: "https://d", to: space.today)!
+    let e = store.addTab(url: "https://e", to: space.today)!
     let split = store.split(a, with: b)!
     #expect(split.children.map(\.id) == [a.id, b.id])
-    #expect(space.today.children.count == 2)
-    #expect(store.split(split, with: c) == nil)  // at most two panes
-    #expect(!store.canMove(c, to: split))
+    #expect(space.today.children.count == 4)
+    #expect(store.split(split, with: c) === split)  // up to four panes
+    #expect(store.split(split, with: d) === split)
+    #expect(split.children.map(\.id) == [a.id, b.id, c.id, d.id])
+    #expect(store.split(split, with: e) == nil)
+    #expect(!store.canMove(e, to: split))
 
-    // Moving a pane out leaves one: the split is replaced by it.
-    store.move(b, to: space.today, at: 0)
+    // Moving panes out: the last one left replaces the split.
+    for pane in [b, c, d] { store.move(pane, to: space.today, at: 0) }
     #expect(a.parent === space.today)
     #expect(store.node(id: split.id) == nil)
     #expect(log().contains { $0.deletedNodes.contains(split.id) })

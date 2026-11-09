@@ -25,8 +25,9 @@
 
 namespace compass {
 
-// Matches upstream split tabs (MultiContentsView). See ARCHITECTURE.md §9.
-inline constexpr size_t kMaxSplitPanes = 2;
+// Matches upstream split tabs (MultiContentsView), which Compass extends from
+// two to split_tabs::kMaxTabsInSplit (patches/). See ARCHITECTURE.md §9.
+inline constexpr size_t kMaxSplitPanes = 4;
 
 // A space's color: grey, which leaves the sidebar untinted, or any opaque
 // color, from the palette the space menu offers (the constants below) or

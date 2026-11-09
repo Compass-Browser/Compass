@@ -990,25 +990,39 @@ extensions see the group end; its color isn't kept (folders have none).
 
 ## Split tabs
 
-A split entry (`SidebarNode::Type::kSplit`, two panes, saved since slice
-c) is upstream's split view when it's open: the window shows both panes
+A split entry (`SidebarNode::Type::kSplit`, two to four panes, saved since
+slice c) is upstream's split view when it's open: the window shows its panes
 side by side. The bridge keeps the two in step (`TabStripBridge`):
 
 - Model to strip: after every strip sync, the upstream splits that aren't
   a model split end (`RemoveUnmirroredSplits()`), the strip follows the
   tree with each split moved whole (`MoveSplitTo()`, panes in the model's
-  order), and each model split whose panes are both live here becomes an
-  upstream split (`CreateMirroredSplits()`, `AddToNewSplit()`).
+  order), and each model split whose panes are all live here becomes an
+  upstream split (`CreateMirroredSplits()`, `AddToNewSplit()`). Upstream
+  reverses a whole split for any move inside it, so a split of more than
+  two tabs in another order than the model's ends and is made again in the
+  model's.
 - Strip to model: a split made upstream (the split view button, "Open
   link in split view", an extension) splits the two entries in the model,
   where the first one was; a pane replaced upstream changes the model's
-  split. A split ended upstream with both tabs still in the window
+  split. A split ended upstream with all its tabs still in the window
   separates the entries; one that ended because a tab closed doesn't, so
-  a pinned split stays a split while unloaded. A tab moved out of its
-  split in the strip leaves it in the model too.
+  a pinned split stays a split while unloaded, and a split of three or four
+  keeps the others, which split again. A tab moved out of its split in the
+  strip leaves it in the model too.
 - Opening a pane (clicking it, or the split's active pane coming back)
-  opens the other pane in the background, so the split shows at once
+  opens the other panes in the background, so the split shows at once
   (`OpenNode()`).
+
+**Up to four panes** (`kMaxSplitPanes`). Upstream's split view has two;
+patches extend it (patches/README.md): `TabStripModel::AddToNewSplit()`
+takes up to `split_tabs::kMaxTabsInSplit` tabs, and `MultiContentsView`
+has four contents containers and three resize areas. A split shows its
+panes in a row (side by side) or a column (stacked: the pane menu's
+orientation toggle), each the same size until a resize area between two
+of them is dragged; the shares stay with the split while other tabs show
+(`SplitTabVisualData::pane_sizes()`, not saved). A click (focus) in any
+pane makes it the active tab. Two panes work exactly as upstream's.
 
 The context menu has "Open in Split View" on an entry that can go next to
 the window's active entry (it splits them and shows the split), and
@@ -1019,17 +1033,26 @@ favorites) splits them: dropped on the row's left half, the dragged tab
 goes on the left, on the right half on the right (mirrored right to left).
 The row shows that half highlighted. The top and bottom quarters still
 drop before and after. The page calls `SplitNode(id, target_id, first)`,
-which splits and shows the split.
+which splits and shows the split. Dropped on a pane of a split with room
+(fewer than four), the tab joins that split next to the pane, on the
+half it's dropped on (`target_id` is the pane); "Open in Split View" adds
+to the active entry's split the same way, at its end.
 
-Not yet: dragging onto the page itself, and the upstream split's layout
-and ratio (not saved).
+A split's row holds its panes side by side, so four panes share the
+sidebar's width (favicons, and as much of each title as fits).
 
-**Tests:** `UnsplitPutsThePanesInItsPlace`, the bridge's
-`ModelSplitsSplitTheWindow`, `UpstreamSplitsSplitTheModel`,
+Not yet: dragging onto the page itself, a grid of four, and the upstream
+split's layout and shares (not saved).
+
+**Tests:** `UnsplitPutsThePanesInItsPlace`, `SplitRespectsPaneLimit`,
+`RemovingAPaneOfThreeKeepsTheSplit`, the bridge's
+`ModelSplitsSplitTheWindow`, `ModelSplitsOfFourSplitTheWindow`,
+`UpstreamSplitsSplitTheModel`,
 `StripMovesOutOfASplitSeparateIt`, `ClosingAPinnedPaneKeepsItsSplit`, the
 handler's `SplitsAndSeparatesFromTheMenu` and
-`DroppingATabOnAnotherSplitsThem`, and the browser tests
-`SplitsShowSideBySide` and `DropOnATabSplitsThem`.
+`DroppingATabOnAnotherSplitsThem` (a third pane too), and the browser
+tests `SplitsShowSideBySide`, `DropOnATabSplitsThem` and
+`SplitsOfFourShowSideBySide`.
 
 ## Link folders
 

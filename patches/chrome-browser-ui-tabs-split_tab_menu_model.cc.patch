@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/ui/tabs/split_tab_menu_model.cc b/chrome/browser/ui/tabs/split_tab_menu_model.cc
+index f994e8162e301766737604bfa310461449e511c8..a6568993be9e98e11bb0b2584c7a9fe64eaac530 100644
+--- a/chrome/browser/ui/tabs/split_tab_menu_model.cc
++++ b/chrome/browser/ui/tabs/split_tab_menu_model.cc
+@@ -258,7 +258,9 @@ void SplitTabMenuModel::ExecuteCommand(int command_id, int event_flags) {
+   split_tabs::SplitTabData* const split_tab_data =
+       tab_strip_model_->GetSplitData(split_id);
+   std::vector<tabs::TabInterface*> tabs_in_split = split_tab_data->ListTabs();
+-  CHECK_EQ(tabs_in_split.size(), 2U);
++  // Compass: splits of more than two tabs.
++  CHECK_GE(tabs_in_split.size(), 2U);
++  const int last_index = static_cast<int>(tabs_in_split.size()) - 1;
+   CommandId split_command_id = GetCommandIdEnum(command_id);
+   switch (split_command_id) {
+     case CommandId::kReversePosition:
+@@ -269,12 +271,12 @@ void SplitTabMenuModel::ExecuteCommand(int command_id, int event_flags) {
+           tab_strip_model_->GetWebContentsAt(split_tab_index_.value()));
+       break;
+     case CommandId::kCloseStartTab: {
+-      int startIndex = base::i18n::IsRTL() ? 1 : 0;
++      int startIndex = base::i18n::IsRTL() ? last_index : 0;
+       CloseWebContents(tabs_in_split[startIndex]->GetContents());
+       break;
+     }
+     case CommandId::kCloseEndTab: {
+-      int endIndex = base::i18n::IsRTL() ? 0 : 1;
++      int endIndex = base::i18n::IsRTL() ? 0 : last_index;
+       CloseWebContents(tabs_in_split[endIndex]->GetContents());
+       break;
+     }

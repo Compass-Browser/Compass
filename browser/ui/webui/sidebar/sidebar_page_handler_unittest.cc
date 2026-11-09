@@ -1402,10 +1402,27 @@ TEST_F(SidebarPageHandlerTest, DroppingATabOnAnotherSplitsThem) {
   EXPECT_EQ(split->children()[1]->id().AsLowercaseString(), a);
   EXPECT_TRUE(tab_strip_model()->GetTabAtIndex(0)->GetSplit());
 
-  // Not onto itself, nor a third pane.
+  // Not onto itself.
   handler_remote_->SplitNode(a, a, /*first=*/false);
   Settle();
   EXPECT_EQ(split->children().size(), 2u);
+
+  // On a pane's right half: it joins the split, after that pane.
+  AddTab(browser(), GURL("https://c.test/"));
+  Settle();
+  std::string c;
+  for (const auto& entry : space_model().today_root()->children()) {
+    if (entry->url().host() == "c.test") {
+      c = entry->id().AsLowercaseString();
+    }
+  }
+  ASSERT_FALSE(c.empty());
+  handler_remote_->SplitNode(c, b, /*first=*/false);
+  Settle();
+  ASSERT_EQ(split->children().size(), 3u);
+  EXPECT_EQ(split->children()[0]->id().AsLowercaseString(), b);
+  EXPECT_EQ(split->children()[1]->id().AsLowercaseString(), c);
+  EXPECT_EQ(split->children()[2]->id().AsLowercaseString(), a);
 }
 
 TEST_F(SidebarPageHandlerTest, ChoosingForAGoneNodeDoesNothing) {

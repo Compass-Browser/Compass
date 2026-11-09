@@ -1,0 +1,67 @@
+diff --git a/chrome/browser/ui/views/frame/multi_contents_view.h b/chrome/browser/ui/views/frame/multi_contents_view.h
+index e39f000c2a9df3a6bc7b65f33a0d6f100840939a..a85b8526455447aa32341f6e1160d834fadfc095 100644
+--- a/chrome/browser/ui/views/frame/multi_contents_view.h
++++ b/chrome/browser/ui/views/frame/multi_contents_view.h
+@@ -47,7 +47,9 @@ class WebView;
+ }  // namespace views
+ 
+ // MultiContentsView shows up to two contents web views side by side, and
+-// manages their layout relative to each other.
++// manages their layout relative to each other. Compass: up to
++// split_tabs::kMaxTabsInSplit, in a row or a column, with a resize area
++// between each two.
+ class MultiContentsView
+     : public views::View,
+       public views::ResizeAreaDelegate,
+@@ -86,6 +88,15 @@ class MultiContentsView
+   // Returns the currently inactive ContentsWebView.
+   ContentsWebView* GetInactiveContentsView() const;
+ 
++  // Compass: every ContentsWebView but the active one, shown or not (a split
++  // of more than two tabs has more than one inactive).
++  std::vector<ContentsWebView*> GetOtherContentsViews() const;
++
++  // Compass: how many panes the split view shows, 2 to
++  // split_tabs::kMaxTabsInSplit. Panes past it are emptied and hidden; the
++  // others show as SetWebContentsAtIndex() fills them.
++  void SetPaneCount(size_t count);
++
+   // These are the rounded corner radii to render on the multi-contents view and
+   // (if necessary) the contents views themselves. The radii should already be
+   // adjusted for RtL (so e.g. `radii.upper_left()` is actually the corner that
+@@ -287,6 +298,17 @@ class MultiContentsView
+   // Helper function that gets the component of |size| along the resize axis.
+   int GetResizeAxisComponent(const gfx::Size& size) const;
+ 
++  // Compass: splits of more than two tabs.
++  // Swaps contents_container_views_[a] and [b], in the view hierarchy too.
++  void SwapContainers(size_t a, size_t b);
++  // Lays out the panes of a split of more than two tabs in
++  // |available_space|.
++  void CalculatePaneLayouts(
++      const gfx::Rect& available_space,
++      views::ProposedLayout::ChildLayoutList& child_layouts) const;
++  // Resizes the two panes on each side of the resize area being used.
++  void OnResizePanes(int resize_amount, bool done_resizing);
++
+   raw_ptr<BrowserView> browser_view_;
+   std::unique_ptr<MultiContentsViewDelegate> delegate_;
+ 
+@@ -309,6 +331,17 @@ class MultiContentsView
+   // each other.
+   raw_ptr<MultiContentsResizeArea> resize_area_ = nullptr;
+ 
++  // Compass: the resize areas between panes, resize_area_ first: area i is
++  // between contents_container_views_[i] and [i + 1].
++  std::vector<raw_ptr<MultiContentsResizeArea, DanglingUntriaged>>
++      resize_areas_;
++  // Compass: the panes the split view shows (see SetPaneCount()).
++  size_t pane_count_ = 2;
++  // Compass: while resizing a split of more than two tabs, the resize area
++  // used and the panes' sizes when it started.
++  std::optional<size_t> resizing_area_;
++  std::vector<int> initial_pane_sizes_on_resize_;
++
+   // The views that are shown for entering split view. E.g., this is shown when
+   // the user drags a link to the edge of the contents view.
+   raw_ptr<MultiContentsDropTargetView> drop_target_view_ = nullptr;

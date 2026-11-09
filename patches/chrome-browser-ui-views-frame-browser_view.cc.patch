@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486930ae1ae 100644
+index b68f089aebf83b82499611404433d430e9971f14..888ef501d185cabed54ffc2b2847ddb6900a110c 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -4,6 +4,11 @@
@@ -25,7 +25,20 @@ index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486
    // Remove the layout manager to avoid dangling. This needs to be earlier than
    // other cleanups that destroy views referenced in the layout manager.
    SetLayoutManager(nullptr);
-@@ -3064,6 +3073,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
+@@ -2027,7 +2036,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+       GetWidget()->GetFocusManager()->ClearFocus();
+     }
+ 
+-    multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
++    // Compass: every other pane of a split of more than two tabs.
++    for (ContentsWebView* other :
++         multi_contents_view_->GetOtherContentsViews()) {
++      other->SetWebContents(nullptr);
++    }
+     active_contents_view->SetWebContents(nullptr);
+   }
+ 
+@@ -3064,6 +3077,11 @@ void BrowserView::DisableTabStripEditingForTesting() {
  }
  
  bool BrowserView::IsToolbarVisible() const {
@@ -37,7 +50,63 @@ index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486
  #if BUILDFLAG(IS_MAC)
    // Immersive full screen makes it possible to display the toolbar when
    // kShowFullscreenToolbar is not set.
-@@ -4595,6 +4609,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
+@@ -4329,6 +4347,8 @@ void BrowserView::ShowSplitView(bool focus_active_view) {
+ 
+   std::vector<tabs::TabInterface*> split_tabs = split_data->ListTabs();
+ 
++  // Compass: splits of more than two tabs.
++  multi_contents_view_->SetPaneCount(split_tabs.size());
+   for (size_t i = 0; tabs::TabInterface* tab : split_tabs) {
+     multi_contents_view_->SetWebContentsAtIndex(tab->GetContents(), i++);
+   }
+@@ -4377,19 +4397,25 @@ void BrowserView::UpdateActiveTabInSplitView() {
+   // When active tab changes inside a split, it's generally due to focus change.
+   // However, there are cases where inactive tab can be activated without a
+   // focus change e.g. using tab shortcuts and in these cases update focus.
++  // Compass: any inactive pane.
+   if (GetWidget()->IsActive() &&
+-      multi_contents_view_->GetInactiveContentsView()->HasFocus()) {
++      std::ranges::any_of(multi_contents_view_->GetOtherContentsViews(),
++                          &ContentsWebView::HasFocus)) {
+     multi_contents_view_->GetActiveContentsView()->RequestFocus();
+   }
+ }
+ 
+ bool BrowserView::IsTabChangeInSplitView(content::WebContents* old_contents,
+                                          content::WebContents* new_contents) {
++  // Compass: any inactive pane.
+   return multi_contents_view_->IsInSplitView() &&
+          multi_contents_view_->GetActiveContentsView()->web_contents() ==
+              old_contents &&
+-         multi_contents_view_->GetInactiveContentsView()->web_contents() ==
+-             new_contents;
++         new_contents &&
++         std::ranges::any_of(multi_contents_view_->GetOtherContentsViews(),
++                             [new_contents](ContentsWebView* view) {
++                               return view->web_contents() == new_contents;
++                             });
+ }
+ 
+ void BrowserView::UpdateTabModalDialogHost() {
+@@ -4438,10 +4464,14 @@ void BrowserView::MaybeUpdateStoredFocusForWebContents(
+ std::vector<ContentsWebView*> BrowserView::GetAllVisibleContentsWebViews() {
+   std::vector<ContentsWebView*> contents_views;
+   contents_views.push_back(multi_contents_view_->GetActiveContentsView());
+-  ContentsWebView* inactive_contents_view =
+-      multi_contents_view_->GetInactiveContentsView();
++  // Compass: every pane that shows.
+   if (multi_contents_view_->IsInSplitView()) {
+-    contents_views.push_back(inactive_contents_view);
++    for (ContentsWebView* other :
++         multi_contents_view_->GetOtherContentsViews()) {
++      if (other->web_contents()) {
++        contents_views.push_back(other);
++      }
++    }
+   }
+   return contents_views;
+ }
+@@ -4595,6 +4625,12 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
      return views::CloseRequestResult::kCannotClose;
    }
  
@@ -50,7 +119,7 @@ index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486
    // Give beforeunload handlers, the user, or policy the chance to cancel the
    // close before we hide the window below.
    if (!UnloadController::From(browser_)->HandleBeforeClose()) {
-@@ -4736,6 +4756,10 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4736,6 +4772,10 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
          // controls before finally falling back to HTCAPTION.
          return HTNOWHERE;
        }
@@ -61,7 +130,7 @@ index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486
      }
    } else if (GetTabStripVisible()) {
      // Determine if the Horizontal TabStrip exists and is capable of being
-@@ -4794,6 +4818,11 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+@@ -4794,6 +4834,11 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -73,7 +142,7 @@ index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486
    // If the point's y coordinate is below the top of the topmost view and
    // otherwise within the bounds of this view, the point is considered to be
    // within the client area.
-@@ -5029,6 +5058,7 @@ void BrowserView::AddedToWidget() {
+@@ -5029,6 +5074,7 @@ void BrowserView::AddedToWidget() {
  #endif
  
    toolbar_->Init();
@@ -81,3 +150,12 @@ index b68f089aebf83b82499611404433d430e9971f14..d6870bf23bf739c0d08e028a9b01c486
  
    if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
      // When the WebUI Omnibox is embedded directly in the `BrowserView` (instead
+@@ -5418,6 +5464,8 @@ bool BrowserView::MaybeUpdateSplitView(content::WebContents* contents) {
+   if (updated_state) {
+     split_tabs::SplitTabData* split_data =
+         browser_->GetTabStripModel()->GetSplitData(new_tab->GetSplit().value());
++    // Compass: splits of more than two tabs.
++    multi_contents_view_->SetPaneCount(split_data->ListTabs().size());
+     multi_contents_view_->ShowSplitView(*split_data->visual_data());
+   } else if (current_state != updated_state) {
+     multi_contents_view_->CloseSplitView();

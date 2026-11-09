@@ -55,6 +55,9 @@ const ARCHIVE_DELAYS: ArchiveDelay[] = [
 
 // How long the pointer rests on a tab before its hover card shows. Once one
 // shows, moving to another tab moves it there at once. Upstream's delay.
+// The most tabs a split holds (kMaxSplitPanes, browser/sidebar/space_model.h).
+const MAX_SPLIT_PANES = 4;
+
 const HOVER_CARD_DELAY_MS = 500;
 // Crossing the gap between two rows doesn't hide the card.
 const HOVER_CARD_HIDE_DELAY_MS = 100;
@@ -1968,6 +1971,24 @@ export class CompassSidebarAppElement extends CrLitElement {
       }
       const rect = row.getBoundingClientRect();
       const y = (e.clientY - rect.top) / rect.height;
+      // A tab on a split's pane, in its middle half: it joins the split
+      // (up to four panes), next to that pane on the side it's dropped on.
+      const paneElement = element.closest<HTMLElement>('.pane');
+      const pane =
+          paneElement && this.nodes_.get(paneElement.dataset['nodeId']!);
+      if (dragged && pane && paneElement &&
+          this.canJoinSplit_(dragged, node) && y > 1 / 4 && y < 3 / 4) {
+        const paneRect = paneElement.getBoundingClientRect();
+        const rtl = getComputedStyle(row).direction === 'rtl';
+        const left =
+            (e.clientX - paneRect.left < paneRect.width / 2) !== rtl;
+        return {
+          parent: pane,
+          index: 0,
+          target: paneElement,
+          position: left ? 'split-left' : 'split-right',
+        };
+      }
       // A tab on another tab's middle half: side by side, on the side it's
       // dropped on.
       if (dragged && this.canSplit_(dragged, node) && y > 1 / 4 &&
@@ -2015,6 +2036,14 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   // Mirrors SpaceModel::CanSplit() for a tab entry dragged onto a tab entry,
   // outside the favorites.
+  // Mirrors SpaceModel::CanSplit() for a split: kMaxSplitPanes.
+  private canJoinSplit_(dragged: Node, split: Node): boolean {
+    return split.type === NodeType.kSplit && dragged.type === NodeType.kTab &&
+        split.children.length < MAX_SPLIT_PANES &&
+        !split.children.includes(dragged) &&
+        this.parents_.get(dragged.id) !== this.favorites_;
+  }
+
   private canSplit_(dragged: Node, target: Node): boolean {
     return dragged !== target && dragged.type === NodeType.kTab &&
         target.type === NodeType.kTab &&
