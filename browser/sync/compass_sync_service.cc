@@ -670,6 +670,12 @@ void CompassSyncService::LeaveProfile() {
   chain_profiles_known_ = false;
   prefs_->SetBoolean(syncer::prefs::kEnableLocalSyncBackend, false);
   prefs_->CommitPendingWrite();
+#if BUILDFLAG(IS_ANDROID)
+  // While the chain's credentials can still sign the request.
+  if (push_) {
+    push_->Unregister();
+  }
+#endif
   credentials_->Clear();
   seed_.reset();
   // Keeps the data types from configuring again; requests already fail

@@ -66,6 +66,12 @@ class CompassPushAndroid : public gcm::GCMAppHandler {
   // and the server keeps one per device).
   void Start();
 
+  // Tells the server to forget this device's registration (DELETE
+  // <server>/compass/push), as the device leaves the chain. Best effort: the
+  // request outlives this object, and a token the server keeps only wakes a
+  // device that no longer syncs. Call it before the chain's credentials go.
+  void Unregister();
+
   // <server>/compass/push?client_id=<guid>.
   static GURL MakePushUrl(const GURL& server_url, const std::string& guid);
 
