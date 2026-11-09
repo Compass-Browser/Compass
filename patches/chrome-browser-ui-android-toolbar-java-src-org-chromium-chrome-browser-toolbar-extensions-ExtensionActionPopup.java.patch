@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
+index 157f6a21a919023ea9aa73819c28218a28bbef4e..73f5193180b5ddeb8c2c8bf99bcd5847068209e7 100644
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
+@@ -53,7 +53,8 @@ import org.chromium.ui.widget.ViewRectProvider;
+  * managed by the nested {@link ContentsFrame}.
+  */
+ @NullMarked
+-class ExtensionActionPopup implements Destroyable {
++// Compass: public for its extensions sheet (docs/design/android.md).
++public class ExtensionActionPopup implements Destroyable {
+ 
+     /** The activity to use for creating views. */
+     private final Activity mActivity;
