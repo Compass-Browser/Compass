@@ -57,6 +57,19 @@ class BuildFilesTest(unittest.TestCase):
     self.assertNotIn('v8_context_snapshot.bin', names)
 
 
+class IconsTest(unittest.TestCase):
+
+  def test_finds_both_icon_folders(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      theme = Path(tmp) / 'chrome' / 'app' / 'theme'
+      for rel in ('chromium/linux/product_logo_256.png',
+                  'default_100_percent/chromium/linux/product_logo_16.png'):
+        (theme / rel).parent.mkdir(parents=True, exist_ok=True)
+        (theme / rel).write_bytes(b'png')
+      sizes = [size for size, _ in linux_package.icon_files(Path(tmp))]
+    self.assertEqual(sizes, [16, 256])
+
+
 class ModesTest(unittest.TestCase):
 
   def test_modes(self):
@@ -90,6 +103,7 @@ class TarballTest(unittest.TestCase):
     self.assertEqual(members[top + 'chrome-sandbox'].mode, 0o4755)
     self.assertEqual(members[top + 'chrome-sandbox'].uid, 0)
     self.assertEqual(members[top + 'resources.pak'].mode, 0o644)
+    self.assertGreater(members[top + 'chrome'].mtime, 0)
     self.assertTrue(members[top + 'locales'].isdir())
     self.assertTrue(members[top.rstrip('/')].isdir())
     self.assertIn(top + 'README', members)
@@ -117,7 +131,9 @@ class FlatpakTest(unittest.TestCase):
     self.assertIn('app-id: ' + linux_package.APP_ID, manifest)
     self.assertIn('rm -f /app/compass/chrome-sandbox', manifest)
     self.assertIn('Icon=' + linux_package.APP_ID + '\n', desktop)
-    self.assertIn('<release version="1.2"/>', metainfo)
+    self.assertRegex(metainfo,
+                     r'<release version="1.2" date="\d{4}-\d\d-\d\d"/>')
+    self.assertIn('name: zypak', manifest)
 
   def test_wsl_path(self):
     self.assertEqual(

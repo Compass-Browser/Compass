@@ -25,6 +25,6 @@
   <url type="bugtracker">https://github.com/Compass-Browser/Compass/issues</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="@VERSION@"/>
+    <release version="@VERSION@" date="@DATE@"/>
   </releases>
 </component>
