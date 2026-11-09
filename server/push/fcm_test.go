@@ -107,7 +107,8 @@ func TestFCMSendsAWakeUp(t *testing.T) {
 		t.Errorf("fetched %d OAuth tokens, want 1 (cached)", n)
 	}
 	message := fake.messages[0]["message"].(map[string]any)
-	if message["data"].(map[string]any)["type"] != "send-tab" {
+	data := message["data"].(map[string]any)
+	if data["type"] != "send-tab" || data["subtype"] != FCMSubtype {
 		t.Errorf("message = %v", message)
 	}
 	if message["android"].(map[string]any)["priority"] != "high" {
