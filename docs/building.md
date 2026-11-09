@@ -306,9 +306,9 @@ Limits:
 
 Experimental. Chromium builds Linux only on Linux hosts, but nothing in GN
 forbids a Windows host, and with the patches below a Windows machine builds
-a working Linux x64 Compass: it starts under WSL2 and loads pages. There's
-no `--cpu` for it yet; the out directory and the extra toolchain are set up
-by hand.
+a working Linux x64 Compass: it starts under WSL2 and loads pages. `--cpu
+linux-x64` builds it in `out/<Config>-linux-x64`; the dependencies, sysroot
+and toolchain below are set up by hand.
 
 Set up once per checkout:
 
@@ -334,22 +334,18 @@ Set up once per checkout:
      official LLVM Windows release (Chromium doesn't ship them for Windows);
    - `lib/clang/<version>/lib/x86_64-unknown-linux-gnu` from Chromium's
      `Linux_x64/clang-<clang revision>.tar.xz` (the Linux runtimes).
-4. **Out directory**, with `args.gn`:
 
-   ```gn
-   import("//compass/config/args/common.gn")
-   import("//compass/config/args/portable.gn")
-   target_os = "linux"
-   target_cpu = "x64"
-   clang_base_path = "//third_party/compass-linux-llvm"
-   clang_use_chrome_plugins = false
-   use_cups = false                 # cups-config is a shell script
-   enable_remoting = false          # so is its build_deb.sh, run by gn gen
-   use_v8_context_snapshot = false  # see below
-   ```
+Then:
 
-   plus the `cc_wrapper` line `compass gen` writes. Build `chrome` in it with
-   `autoninja`.
+```bat
+tools\compass.bat gen portable --cpu linux-x64
+tools\compass.bat build -c portable --cpu linux-x64 chrome
+```
+
+`config/args/linux.gn` points `clang_base_path` at the toolchain and turns
+off what a Windows host can't build: CUPS and remoting (`gn gen` runs their
+shell scripts) and the V8 context snapshot (below). `gen` applies the
+patches first, since `gn gen` already needs them.
 
 What makes the Windows host work, all no-ops for other builds:
 

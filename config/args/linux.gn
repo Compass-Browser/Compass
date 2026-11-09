@@ -1,0 +1,25 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# GN args for Linux built on a Windows host, imported after common.gn and the
+# config's file when `compass gen <config> --cpu linux-x64` writes args.gn
+# (target_os and target_cpu are set there). docs/building.md, "Linux from
+# Windows".
+
+# Chromium's Windows clang, plus the tools and Linux runtimes its Linux
+# toolchain needs (layout.LINUX_TOOLCHAIN_DIR).
+clang_base_path = "//third_party/compass-linux-llvm"
+
+# The plugins come with Chromium's own clang package, not with this copy.
+clang_use_chrome_plugins = false
+
+# gn gen runs the sysroot's cups-config and remoting's build_deb.sh, shell
+# scripts that a Windows host can't run.
+use_cups = false
+enable_remoting = false
+
+# Its generator runs on the host, so it would build all of Blink a second
+# time for Windows. Without it each new page sets up its JavaScript context
+# at start, a little slower.
+use_v8_context_snapshot = false

@@ -26,7 +26,12 @@ CONFIGS = {
 # win-x64: Windows from a Mac (docs/building.md, "Windows from a Mac").
 # android-arm64: Android, from a Mac or Linux (docs/building.md, "Android from
 # a Mac"; docs/design/android.md).
-CROSS_TARGETS = ('win-x64', 'android-arm64')
+# linux-x64: Linux, from Windows (docs/building.md, "Linux from Windows").
+CROSS_TARGETS = ('win-x64', 'android-arm64', 'linux-x64')
+
+# Where a Windows host keeps its toolchain for linux-x64, inside src/ because
+# siso rejects paths outside it (docs/building.md, "Linux from Windows").
+LINUX_TOOLCHAIN_DIR = 'third_party/compass-linux-llvm'
 
 
 def vs_toolchain_hash(src: Path) -> str:

@@ -10,9 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from compass_tool.cli import (args_gn, browser_test_args,  # noqa: E402
                               parser, require_buildable_layout,
-                              require_in_tree_init)
-from compass_tool.layout import (Layout, detect, host_cpu,  # noqa: E402
-                                 vs_toolchain_hash)
+                              require_in_tree_init, require_linux_cross_host)
+from compass_tool.layout import (LINUX_TOOLCHAIN_DIR, Layout,  # noqa: E402
+                                 detect, host_cpu, vs_toolchain_hash)
 from compass_tool.process import CommandError  # noqa: E402
 
 KEEP_GPU = '--disable-features=MacDisclaimGpuTccResponsibility'
@@ -45,6 +45,31 @@ class BuildableLayoutTest(unittest.TestCase):
 
   def test_other_platforms_init_linked_layout(self):
     require_in_tree_init(self.layout(False), 'darwin')
+
+
+class LinuxCrossHostTest(unittest.TestCase):
+
+  def layout(self, tmp):
+    return Layout(Path(tmp) / 'compass-chromium' / 'src' / 'compass',
+                  Path(tmp) / 'compass-chromium', True)
+
+  def test_needs_a_windows_host(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      for platform in ('darwin', 'linux'):
+        with self.assertRaises(CommandError) as raised:
+          require_linux_cross_host(self.layout(tmp), platform)
+        self.assertIn('Windows host', str(raised.exception))
+
+  def test_needs_the_toolchain(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      layout = self.layout(tmp)
+      with self.assertRaises(CommandError) as raised:
+        require_linux_cross_host(layout, 'win32')
+      self.assertIn('no Linux toolchain', str(raised.exception))
+      bin_dir = layout.src / LINUX_TOOLCHAIN_DIR / 'bin'
+      bin_dir.mkdir(parents=True)
+      (bin_dir / 'clang++.exe').write_bytes(b'')
+      require_linux_cross_host(layout, 'win32')
 
 
 class DetectTest(unittest.TestCase):
@@ -143,6 +168,13 @@ class OutDirTest(unittest.TestCase):
         ['gen', 'portable', '--cpu', 'android-arm64',
          '--skip-patches']).skip_patches)
 
+  def test_out_dir_for_linux_from_windows(self):
+    self.assertEqual(self.layout().out_dir('portable', 'linux-x64'),
+                     Path('/w/compass-chromium/src/out/Portable-linux-x64'))
+    for argv in (['gen', 'portable', '--cpu', 'linux-x64'],
+                 ['build', '-c', 'portable', '--cpu', 'linux-x64']):
+      self.assertEqual('linux-x64', parser().parse_args(argv).cpu)
+
   def test_build_commands_take_cpu(self):
     for argv in (['gen', 'release', '--cpu', 'x64'],
                  ['build', '-c', 'release', '--cpu', 'x64'],
@@ -223,6 +255,20 @@ class WinCrossTest(unittest.TestCase):
       self.assertIn('import("//compass/config/args/release.gn")', text)
       self.assertNotIn('target_os', args_gn(self.make(tmp + '/b'), 'release',
                                              'x64'))
+
+  def test_args_gn_for_linux_from_windows(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      text = args_gn(self.make(tmp), 'portable', 'linux-x64')
+      self.assertIn('target_os = "linux"\n', text)
+      self.assertIn('target_cpu = "x64"\n', text)
+      self.assertIn('import("//compass/config/args/portable.gn")', text)
+      self.assertTrue(text.rstrip().endswith(
+          'import("//compass/config/args/linux.gn")'))
+
+  def test_linux_args_name_the_toolchain_dir(self):
+    linux_gn = (Path(__file__).resolve().parents[2] / 'config' / 'args' /
+                'linux.gn').read_text()
+    self.assertIn('clang_base_path = "//%s"' % LINUX_TOOLCHAIN_DIR, linux_gn)
 
   def test_args_gn_for_android(self):
     with tempfile.TemporaryDirectory() as tmp:

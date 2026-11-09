@@ -14,7 +14,8 @@ from typing import Optional
 
 from . import (android, checkout, mac_sign, overrides, patches, release,
                sparkle, sync_server)
-from .layout import CONFIGS, CROSS_TARGETS, Layout, detect, host_cpu
+from .layout import (CONFIGS, CROSS_TARGETS, LINUX_TOOLCHAIN_DIR, Layout,
+                     detect, host_cpu)
 from .process import CommandError, depot_tool, run
 
 DEFAULT_TARGET = 'chrome'
@@ -61,6 +62,13 @@ def args_gn(layout: Layout, config: str, cpu: str | None) -> str:
         'target_cpu = "%s"' % android.TARGETS[cpu],
         'import("//compass/config/args/android.gn")',
     ]
+  elif cpu == 'linux-x64':
+    # Linux from Windows (docs/building.md, "Linux from Windows").
+    lines += [
+        'target_os = "linux"',
+        'target_cpu = "x64"',
+        'import("//compass/config/args/linux.gn")',
+    ]
   elif cpu:
     lines.append('target_cpu = "%s"' % cpu)
   return '\n'.join(lines) + '\n'
@@ -95,6 +103,20 @@ def require_checkout(layout: Layout) -> None:
   if not (layout.src / '.gn').is_file():
     raise CommandError('no Chromium checkout at %s; run `compass init` first' %
                        layout.src)
+
+
+def require_linux_cross_host(layout: Layout,
+                             platform: str = sys.platform) -> None:
+  """--cpu linux-x64 is Linux built on Windows, with its own toolchain."""
+  if platform != 'win32':
+    raise CommandError(
+        '--cpu linux-x64 builds Linux on a Windows host; on Linux, build '
+        'without --cpu (docs/building.md, "Linux from Windows")')
+  toolchain = layout.src / LINUX_TOOLCHAIN_DIR
+  if not (toolchain / 'bin' / 'clang++.exe').is_file():
+    raise CommandError(
+        'no Linux toolchain in %s: set it up first (docs/building.md, '
+        '"Linux from Windows")' % toolchain)
 
 
 def require_buildable_layout(layout: Layout,
@@ -198,6 +220,12 @@ def cmd_gen(layout: Layout, args) -> None:
     if not args.skip_patches:
       sync_patches(layout)
     android.prepare_mac_host(layout.src)
+  if args.cpu == 'linux-x64':
+    require_linux_cross_host(layout)
+    # The Windows host toolchains' is_win asserts are patched (docs/building.md,
+    # "Linux from Windows"), so patches go in before gn gen too.
+    if not args.skip_patches:
+      sync_patches(layout)
   run([depot_tool('gn'), 'gen', out_dir.relative_to(layout.src).as_posix()],
       layout.src, env=layout.env())
 
@@ -227,6 +255,8 @@ def build(layout: Layout, config: str, targets, jobs: int | None = None,
   if not (out_dir / 'args.gn').exists():
     raise CommandError('%s is not set up; run `compass gen %s%s`' %
                        (out_dir, config, ' --cpu ' + cpu if cpu else ''))
+  if cpu == 'linux-x64':
+    require_linux_cross_host(layout)
   if not skip_patches:
     sync_patches(layout)
   if android.is_android(cpu):
@@ -928,7 +958,7 @@ def add_cpu_argument(p: argparse.ArgumentParser) -> None:
   p.add_argument('--cpu', choices=CPUS + CROSS_TARGETS,
                  help='build for this CPU in out/<Config>-<cpu> (default: '
                  'the host\'s, in out/<Config>); win-x64: Windows, from a Mac; '
-                 'android-arm64: Android')
+                 'android-arm64: Android; linux-x64: Linux, from Windows')
 
 
 def add_universal_argument(p: argparse.ArgumentParser) -> None:
