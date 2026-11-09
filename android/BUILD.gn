@@ -211,6 +211,7 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_schedule.xml",
     "res_symbols/drawable/compass_sym_search.xml",
     "res_symbols/drawable/compass_sym_select_all.xml",
+    "res_symbols/drawable/compass_sym_settings.xml",
     "res_symbols/drawable/compass_sym_settings_fill.xml",
     "res_symbols/drawable/compass_sym_shield.xml",
     "res_symbols/drawable/compass_sym_smartphone.xml",
