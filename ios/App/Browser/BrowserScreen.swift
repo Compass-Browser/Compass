@@ -533,8 +533,9 @@ struct BrowserScreen: View {
     .contextMenu { if app.shownTab != nil { addressMenu } }
   }
 
-  /// A long press on the address: reload, copy the address, and the
-  /// site's Desktop Site setting (Site Settings; the page reloads).
+  /// A long press on the address: reload, copy the address, share, find on
+  /// page, and the site's Desktop Site setting (Site Settings; the page
+  /// reloads).
   @ViewBuilder private var addressMenu: some View {
     let view = app.shownTab.flatMap { app.tabs.live[$0.id] }
     let url = view?.url ?? app.shownTab.flatMap { URL(string: $0.url) }
@@ -545,6 +546,13 @@ struct BrowserScreen: View {
     Button("Copy URL", systemImage: "doc.on.doc") {
       if let url { UIPasteboard.general.url = url }
     }
+    if let url {
+      ShareLink(item: url, subject: Text(app.shownTab?.displayTitle ?? "")) {
+        Label("Share", systemImage: "square.and.arrow.up")
+      }
+    }
+    Button("Find on Page", systemImage: "magnifyingglass") { app.findOnPage() }
+      .disabled(view == nil)
     if let site {
       Button(
         desktop ? "Request Mobile Site" : "Request Desktop Site",
