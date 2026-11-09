@@ -38,6 +38,8 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewSceneLayer;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.components.browser_ui.widget.ViewResourceFrameLayout;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -332,6 +334,18 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     @Override
     public void newTab() {
         if (mCommandBar != null) mCommandBar.open(/* inNewTab= */ true);
+    }
+
+    @Override
+    public void switchTab(int offset) {
+        TabModel model = mActivity.getTabModelSelector().getCurrentModel();
+        int index = model.index() + offset;
+        if (index < 0 || index >= model.getCount()) return;
+        Tab tab = model.getTabAt(index);
+        if (tab != null) {
+            TabModelUtils.selectTabById(
+                    mActivity.getTabModelSelector(), tab.getId(), TabSelectionType.FROM_USER);
+        }
     }
 
     @Override
