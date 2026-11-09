@@ -4,6 +4,7 @@
 
 #include "compass/browser/android/spaces_bridge.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/sidebar/sidebar_node.h"
@@ -49,6 +50,44 @@ std::string SpacesBridge::AddSpace(JNIEnv* env, const std::u16string& name) {
   }
   list.SetActiveSpace(*space);
   return space->id().AsLowercaseString();
+}
+
+void SpacesBridge::EditSpace(JNIEnv* env,
+                             const std::string& space_id,
+                             const std::u16string& name,
+                             const std::string& emoji,
+                             const std::string& tint) {
+  SpaceModel* space =
+      spaces_->list().FindSpace(base::Uuid::ParseLowercase(space_id));
+  if (!space) {
+    return;
+  }
+  if (!name.empty() && name != space->name()) {
+    space->SetName(name);
+  }
+  std::optional<SpaceIcon> icon =
+      emoji.empty() ? SpaceIcon() : SpaceIcon::Emoji(emoji);
+  if (icon && *icon != space->icon()) {
+    space->SetIcon(*icon);
+  }
+  SpaceColor color;
+  uint32_t rgb = 0;
+  if (tint.size() == 7 && tint[0] == '#' &&
+      base::HexStringToUInt(std::string_view(tint).substr(1), &rgb)) {
+    color = SpaceColor::FromRGB((rgb >> 16) & 0xff, (rgb >> 8) & 0xff,
+                                rgb & 0xff);
+  }
+  if (color != space->color()) {
+    space->SetColor(color);
+  }
+}
+
+void SpacesBridge::RemoveSpace(JNIEnv* env, const std::string& space_id) {
+  SpaceList& list = spaces_->list();
+  SpaceModel* space = list.FindSpace(base::Uuid::ParseLowercase(space_id));
+  if (space && list.spaces().size() > 1) {
+    list.RemoveSpace(*space);
+  }
 }
 
 void SpacesBridge::Pin(JNIEnv* env, int32_t tab_id, bool favorite) {

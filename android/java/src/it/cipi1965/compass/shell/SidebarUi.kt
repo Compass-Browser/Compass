@@ -34,11 +34,18 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +75,10 @@ object SidebarUi {
         fun onSpaceClicked(spaceId: String)
 
         fun onAddSpace(name: String)
+
+        fun onEditSpace(spaceId: String, name: String, emoji: String, tint: String)
+
+        fun onRemoveSpace(spaceId: String)
 
         fun onNewTab()
 
@@ -148,6 +159,22 @@ private fun SidebarPanel(
     modifier: Modifier = Modifier,
 ) {
     val tint = SidebarUi.tintColor(state.activeSpace?.tint ?: "")
+    var editing by remember { mutableStateOf<SidebarState.Space?>(null) }
+    editing?.let { space ->
+        SpaceEditor(
+            space,
+            canDelete = state.spaces.size > 1,
+            onDone = { name, emoji, color ->
+                listener.onEditSpace(space.id, name, emoji, color)
+                editing = null
+            },
+            onDelete = {
+                listener.onRemoveSpace(space.id)
+                editing = null
+            },
+            onDismiss = { editing = null },
+        )
+    }
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             modifier = modifier.fillMaxHeight(),
@@ -158,7 +185,7 @@ private fun SidebarPanel(
                     .windowInsetsPadding(WindowInsets.safeDrawing)
             ) {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
-                    item { SpaceHeader(state) }
+                    item { SpaceHeader(state) { editing = state.activeSpace } }
                     item {
                         Row(
                             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -194,16 +221,80 @@ private fun SidebarPanel(
 }
 
 @Composable
-private fun SpaceHeader(state: SidebarState) {
+private fun SpaceHeader(state: SidebarState, onEdit: () -> Unit) {
     val space = state.activeSpace ?: return
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth()
+            .clickable(onClick = onEdit)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (space.emoji.isNotEmpty()) Text(space.emoji, style = MaterialTheme.typography.titleLarge)
         Text(space.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     }
+}
+
+// The palette of the desktop's theme editor (space_model.h): grey, then the tints.
+private val PALETTE =
+    listOf("", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e")
+
+@Composable
+private fun SpaceEditor(
+    space: SidebarState.Space,
+    canDelete: Boolean,
+    onDone: (String, String, String) -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(space.name) }
+    var emoji by remember { mutableStateOf(space.emoji) }
+    var tint by remember { mutableStateOf(space.tint) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit space") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = emoji,
+                    onValueChange = { emoji = it.take(8) },
+                    label = { Text("Emoji") },
+                    singleLine = true,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (color in PALETTE) {
+                        val swatch = SidebarUi.tintColor(color) ?: MaterialTheme.colorScheme.outline
+                        Box(
+                            Modifier.size(28.dp)
+                                .clip(CircleShape)
+                                .background(swatch)
+                                .border(
+                                    if (color == tint) 3.dp else 0.dp,
+                                    MaterialTheme.colorScheme.onSurface,
+                                    CircleShape,
+                                )
+                                .clickable { tint = color }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDone(name.trim(), emoji.trim(), tint) }) { Text("Done") }
+        },
+        dismissButton = {
+            Row {
+                if (canDelete) TextButton(onClick = onDelete) { Text("Delete") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }
 
 @Composable

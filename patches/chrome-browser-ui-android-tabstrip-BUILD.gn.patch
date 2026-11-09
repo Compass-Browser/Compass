@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/android/tabstrip/BUILD.gn b/chrome/browser/ui/android/tabstrip/BUILD.gn
+index e21d54ff7ed9216adbaa601d577128d16826f6f2..c7ab3412d10752b53485d76d5807727d1cfb7d5e 100644
+--- a/chrome/browser/ui/android/tabstrip/BUILD.gn
++++ b/chrome/browser/ui/android/tabstrip/BUILD.gn
+@@ -10,6 +10,8 @@ android_library("java") {
+     "java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java",
+   ]
+   deps = [
++    # Compass: its sidebar replaces the tab strip (docs/design/android.md).
++    "//compass/android:hook_java",
+     "//base:callback_java",
+     "//base:log_java",
+     "//base:metrics_java",

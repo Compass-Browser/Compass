@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java b/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java
+index 73d18ff796b6444878ed0461170f4a6bc669e51c..13fa35f2a1fc65143a28bec6366c4855f82d5842 100644
+--- a/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java
++++ b/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java
+@@ -188,6 +188,8 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
+ 
+     @Override
+     public int getTopControlVisibility() {
++        // Compass: its sidebar has the tabs (docs/design/android.md).
++        if (it.cipi1965.compass.CompassShell.isPresent()) return TopControlVisibility.HIDDEN;
+         if (mTransitionState != null) {
+             return mTransitionState.visibility;
+         }

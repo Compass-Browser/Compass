@@ -34,6 +34,12 @@ class SpacesBridge : public SpacesAndroid::Observer {
   std::string Snapshot(JNIEnv* env);
   void SetActiveSpace(JNIEnv* env, const std::string& space_id);
   std::string AddSpace(JNIEnv* env, const std::u16string& name);
+  void EditSpace(JNIEnv* env,
+                 const std::string& space_id,
+                 const std::u16string& name,
+                 const std::string& emoji,
+                 const std::string& tint);
+  void RemoveSpace(JNIEnv* env, const std::string& space_id);
   void Pin(JNIEnv* env, int32_t tab_id, bool favorite);
   void RemoveNode(JNIEnv* env, const std::string& node_id);
   void SetCollapsed(JNIEnv* env, const std::string& folder_id, bool collapsed);
