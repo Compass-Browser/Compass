@@ -177,6 +177,9 @@ It costs:
   regular and incognito tabs and opens new ones. Thumbnails are Chrome's
   (`TabContentManager`), the tab on screen captured as the picker opens. A
   long press on the tab count opens Chrome's own tab switcher (tab groups).
+  Incognito tabs lock with Chrome's own setting ("Lock Incognito tabs when
+  you leave", in Privacy and security): its unlock screen comes up
+  whenever the window turns to them, from the picker too.
 - **The command bar** (`CommandBar`, `CommandBarUi.kt`) takes URLs and
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)
