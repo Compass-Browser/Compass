@@ -162,7 +162,8 @@ private fun TabPicker(state: TabPickerState, listener: TabPickerUi.Listener) {
             }
             Cards(state, listener, Modifier.weight(1f).fillMaxWidth())
             // One button, as on iOS: a new tab (a long press: incognito).
-            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp, top = 8.dp), contentAlignment = Alignment.Center) {
+            // Above the gesture bar: Chrome's layout keeps its inset from its children.
+            Box(Modifier.fillMaxWidth().padding(bottom = 24.dp, top = 8.dp), contentAlignment = Alignment.Center) {
                 Box(
                     Modifier.size(width = 84.dp, height = 48.dp)
                         .floatingGlass(CircleShape)

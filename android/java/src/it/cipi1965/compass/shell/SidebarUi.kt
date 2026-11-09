@@ -236,7 +236,9 @@ private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
                 .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                 .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surface)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                // Chrome's layout keeps the navigation bar's inset from its children: at least
+                // the gesture bar's height, then.
+                .padding(bottom = maxOf(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(), 20.dp))
         ) {
             // The grabber moves the panel: it settles at full, half, or closed.
             Grabber(
