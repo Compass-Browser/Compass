@@ -15,7 +15,8 @@ app (ios.md).
   plain Chromium from the same tree, without the shell.
 - Building from a Mac takes a few workarounds, which the tool applies:
   building.md, "Android from a Mac".
-- Testing happens on Genymotion SaaS arm64 devices, with gmsaas and adb.
+- Testing happens on an arm64 Android emulator on an Apple-silicon Mac
+  (or Genymotion SaaS arm64 devices), with adb.
 
 ## Context
 
@@ -312,20 +313,20 @@ controls that count are the bottom ones, where Compass's bar is
 
 ## Milestones
 
-| # | Scope |
-|---|---|
-| C0 | Tooling: `--cpu android-arm64`, `config/args/android.gn`, the Mac-host patches and fix-ups, and a stock Chromium build from the Compass checkout with every patch applied; desktop-only code gated off |
-| C1 | The app and the shell spike: `//compass/android:compass_apk` (package, name, icon) and `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor |
-| C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen |
-| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose |
-| C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock |
-| C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass |
-| C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) |
-| C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list |
-| C8 | Claude: chat sheet, page tools, browser tools |
-| C9 | Widgets, Quick Settings tile, shortcuts, share target |
-| C10 | Tablets and foldables, keyboard shortcuts, multiple windows |
-| C11 | Release pipeline: official build, Play internal testing, APK on the GitHub release |
+| # | Scope | State |
+|---|---|---|
+| C0 | Tooling: `--cpu android-arm64`, `config/args/android.gn`, the Mac-host patches and fix-ups, and a stock Chromium build from the Compass checkout with every patch applied; desktop-only code gated off | Done |
+| C1 | The app and the shell spike: `//compass/android:compass_apk` (package, name, icon) and `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor | Done; the shell lives in Chrome's tabbed activity (`CompassShell`) rather than an activity of its own |
+| C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen | Done |
+| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done; no archive view or drag and drop yet |
+| C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away; incognito lock and undo are Chrome's); swiping between tabs on the bar is open |
+| C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Pairing by code, recovery code and QR code (from the camera) done; one profile; no Compose settings yet |
+| C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
+| C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list | Web Store installs and the extensions sheet done (uBlock Origin Lite tested); 1Password not tried |
+| C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; list, open, select and close tabs); not yet tried with a real key |
+| C9 | Widgets, Quick Settings tile, shortcuts, share target | Done |
+| C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |
+| C11 | Release pipeline: official build, Play internal testing, APK on the GitHub release | Not started |
 
 ## Verification
 
