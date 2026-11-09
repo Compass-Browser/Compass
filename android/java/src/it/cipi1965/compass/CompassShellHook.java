@@ -45,11 +45,4 @@ public interface CompassShellHook {
         return false;
     }
 
-    /**
-     * Tabs closed with undo: true if the shell shows its own toast for them, which runs |undo|
-     * or, once it's gone, |commit|.
-     */
-    default boolean showUndoToast(Activity activity, String text, Runnable undo, Runnable commit) {
-        return false;
-    }
 }

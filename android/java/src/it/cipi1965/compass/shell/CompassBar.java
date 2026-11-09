@@ -339,13 +339,6 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mSpaces != null) mSpaces.onNodeClicked(nodeId, url);
     }
 
-    /** Closed tabs' toast (CompassShell.showUndoToast). */
-    public boolean showUndoToast(String text, Runnable undo, Runnable commit) {
-        if (mUndoToast == null) return false;
-        mUndoToast.show(text, undo, commit);
-        return true;
-    }
-
     void showSync() {
         if (mSync != null) mSync.show();
     }
