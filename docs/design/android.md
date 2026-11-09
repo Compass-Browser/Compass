@@ -134,6 +134,12 @@ It costs:
   searches for the current tab or a new one, with Chrome's
   `AutocompleteController` (history, bookmarks, search suggestions)
   behind it.
+- **The start page** (`StartPage`, `StartPageUi.kt`) replaces Chrome's new
+  tab page for regular tabs (`NativePageFactory` patch; incognito keeps
+  Chrome's): the space, a search field that opens the command bar, and the
+  space's favorites and pinned entries. Opening one goes to its tab (or a
+  new one) and closes the start page's. As on the desktop's empty tab, a
+  tab on it has no sidebar entry until it goes somewhere (`SpacesAndroid`).
 - **Branding so far.** The app is "Compass" with its own launcher icon (an
   adaptive icon from the glyph, `android/res/`, overlaying Chrome's
   `ic_launcher`), and there's no first-run experience.

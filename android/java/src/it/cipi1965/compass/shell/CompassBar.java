@@ -4,6 +4,7 @@
 
 package it.cipi1965.compass.shell;
 
+import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -37,6 +38,9 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.url.GURL;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /**
  * Compass's bottom bar (CompassBarUi.kt) in Chrome's tabbed activity. It sits in the bottom
  * controls stack, so web content makes room for it, and follows the activity's current tab.
@@ -63,6 +67,14 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                 if (mTabs != null) mState.setTabCount(mTabs.getCount());
             };
 
+    // Each activity's bar, for the pages that need it (the start page).
+    private static final Map<Activity, CompassBar> sBars = new WeakHashMap<>();
+
+    /** The bar of |activity|, if it has one. */
+    public static @Nullable CompassBar forActivity(Activity activity) {
+        return sBars.get(activity);
+    }
+
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
         mActivity = activity;
         mBottomControls = bottomControls;
@@ -70,6 +82,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     }
 
     public void attach() {
+        sBars.put(mActivity, this);
         View view = CompassBarUi.createView(mActivity, mActivity, mActivity, mState, this);
         // Chrome's bottom layers (the chin, its bottom toolbar, the mini player) live at the
         // bottom of its coordinator, which the stack's offsets are relative to; Chrome pads it or
@@ -148,6 +161,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     // The activity is going away (a window closed, or Android recreating it): the native bridges
     // and the tab observers go with it.
     private void destroy() {
+        sBars.remove(mActivity);
         if (mTabObserver != null) mTabObserver.destroy();
         if (mTabs != null) mTabs.getTabCountSupplier().removeObserver(mTabCountObserver);
         mBottomControls.removeLayer(this);
@@ -246,6 +260,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
             openAddress();
         }
         return true;
+    }
+
+    /** Opens a sidebar entry: its tab, or a new one for it. */
+    public void openNode(String nodeId, String url) {
+        if (mSpaces != null) mSpaces.onNodeClicked(nodeId, url);
     }
 
     private void copyUrl() {

@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_ANDROID_SPACES_ANDROID_H_
 
 #include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <vector>
@@ -79,7 +80,9 @@ class SpacesAndroid : public base::SupportsUserData::Data,
 
   // Tabs, from the shell's TabModel observer. |restored| tabs come back from
   // the last session: they take the Today entry with their URL that has no
-  // tab yet, if there is one, instead of adding one.
+  // tab yet, if there is one, instead of adding one. A tab on the new tab
+  // page (the start page) gets no entry until it goes somewhere, as the
+  // desktop's empty tab (command-bar.md, "No new tab page").
   void TabOpened(int tab_id, const GURL& url, const std::u16string& title,
                  bool restored);
   // A tab the shell opened from |node_id| (a pinned tab, favorite or Today
@@ -135,6 +138,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   bool loaded_ = false;
   // Tab ID -> node it shows.
   std::map<int, base::Uuid> tabs_;
+  // Tabs on the new tab page, with no entry yet.
+  std::set<int> empty_tabs_;
   // Tabs reported before the saved spaces were in: they're matched to saved
   // entries once they are (OnLoaded()).
   struct PendingTab {

@@ -9,10 +9,14 @@ import android.content.Intent;
 import android.view.KeyEvent;
 
 import it.cipi1965.compass.shell.CompassBar;
+import it.cipi1965.compass.shell.StartPage;
 
 import org.chromium.build.annotations.ServiceImpl;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.ui.native_page.NativePage;
 
 /** Adds Compass's shell to each tabbed activity. */
 @ServiceImpl(CompassShellHook.class)
@@ -29,6 +33,12 @@ public class CompassShellHookImpl implements CompassShellHook {
     @Override
     public boolean onNewIntent(Intent intent) {
         return mBar != null && mBar.handleIntent(intent);
+    }
+
+    @Override
+    public @Nullable NativePage createStartPage(Activity activity, Tab tab) {
+        if (tab.isIncognito() || !(activity instanceof ChromeTabbedActivity cta)) return null;
+        return new StartPage(cta, tab);
     }
 
     @Override
