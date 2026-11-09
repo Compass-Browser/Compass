@@ -15,6 +15,7 @@ import io
 import shutil
 import tarfile
 import tempfile
+import time
 from pathlib import Path, PurePath, PurePosixPath
 from typing import Iterator, List, Tuple
 
@@ -51,13 +52,13 @@ def installer_dir(repo_root: Path) -> Path:
 
 def icon_files(src: Path) -> List[Tuple[int, Path]]:
   """Compass's logos, which the branding patches put over Chromium's."""
-  theme = src / 'chrome' / 'app' / 'theme' / 'chromium'
+  theme = src / 'chrome' / 'app' / 'theme'
   icons = []
   for size in ICON_SIZES:
-    path = theme / 'linux' / ('product_logo_%d.png' % size)
+    name = 'product_logo_%d.png' % size
+    path = theme / 'chromium' / 'linux' / name
     if not path.is_file():
-      path = theme / 'default_100_percent' / 'chromium' / 'linux' / (
-          'product_logo_%d.png' % size)
+      path = theme / 'default_100_percent' / 'chromium' / 'linux' / name
     if path.is_file():
       icons.append((size, path))
   return icons
@@ -140,13 +141,14 @@ def extra_files(repo_root: Path, src: Path) -> List[Tuple[str, bytes]]:
   return files
 
 
-def _info(arcname: str, size: int, mode: int) -> tarfile.TarInfo:
+def _info(arcname: str, size: int, mode: int,
+          mtime: float = 0) -> tarfile.TarInfo:
   info = tarfile.TarInfo(arcname)
   info.size = size
   info.mode = mode
   info.uid = info.gid = 0
   info.uname = info.gname = 'root'
-  info.mtime = 0
+  info.mtime = int(mtime)
   return info
 
 
@@ -154,8 +156,9 @@ def write_tarball(tarball: Path, top: str, files: List[Tuple[str, Path]],
                   extras: List[Tuple[str, bytes]]) -> Path:
   """|files| and |extras| under |top|/, with Unix modes set here."""
   partial = tarball.with_name(tarball.name + '.partial')
+  now = time.time()
   with tarfile.open(partial, 'w:xz', preset=6) as tar:
-    top_dir = _info(top, 0, 0o755)
+    top_dir = _info(top, 0, 0o755, now)
     top_dir.type = tarfile.DIRTYPE
     tar.addfile(top_dir)
     dirs = set()
@@ -167,15 +170,16 @@ def write_tarball(tarball: Path, top: str, files: List[Tuple[str, Path]],
       for parent in reversed(list(PurePosixPath(name).parents)[:-1]):
         if parent not in dirs:
           dirs.add(parent)
-          d = _info('%s/%s' % (top, parent), 0, 0o755)
+          d = _info('%s/%s' % (top, parent), 0, 0o755, now)
           d.type = tarfile.DIRTYPE
           tar.addfile(d)
       arcname = '%s/%s' % (top, name)
       if data is None:
         with path.open('rb') as f:
-          tar.addfile(_info(arcname, path.stat().st_size, mode_for(name)), f)
+          tar.addfile(_info(arcname, path.stat().st_size, mode_for(name),
+                            now), f)
       else:
-        tar.addfile(_info(arcname, len(data), mode_for(name)),
+        tar.addfile(_info(arcname, len(data), mode_for(name), now),
                     io.BytesIO(data))
   partial.replace(tarball)
   return tarball
@@ -206,7 +210,8 @@ def stage_flatpak(repo_root: Path, tarball: Path, version: str,
     shutil.copyfile(flatpak / name, stage / name)
   metainfo = (flatpak / (APP_ID + '.metainfo.xml')).read_text()
   (stage / (APP_ID + '.metainfo.xml')).write_bytes(
-      metainfo.replace('@VERSION@', version).encode())
+      metainfo.replace('@VERSION@', version).replace(
+          '@DATE@', time.strftime('%Y-%m-%d')).encode())
   (stage / (APP_ID + '.desktop')).write_bytes(
       desktop_entry(repo_root, 'compass', APP_ID).encode())
   return stage
