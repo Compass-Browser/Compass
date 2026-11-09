@@ -38,6 +38,7 @@ public final class CompassShell {
     public static boolean showUndoToast(
             Context context, String text, Runnable undo, Runnable commit) {
         Activity activity = ContextUtils.activityFromContext(context);
+        org.chromium.base.Log.i("CompassShell", "undo toast for %s: activity %s", text, activity);
         return isPresent()
                 && sHook != null
                 && activity != null
