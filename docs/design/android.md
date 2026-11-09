@@ -96,6 +96,17 @@ It costs:
   space switcher, favorites, the pinned tree, Today, pin and favorite.
   Chrome's tabs of every space stay in one TabModel; the sidebar shows the
   active space's.
+- **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
+  desktop (chain, pairing, Nigori, the notifier), without what needs
+  windows: the refresh on a window's activation becomes the app coming
+  back (`ApplicationStatusListener`), there's no space directory
+  (`space_directory_android.cc`: one profile) and no creation of the
+  chain's other profiles. COMPASS_SPACES runs the desktop's bridge on
+  `SpacesAndroid` (`compass_spaces_sync_android.cc`): an entry is in use
+  while it has a tab. The sync screen (`SyncScreen`, from the sidebar's
+  Sync row) joins a chain with a pairing code or the recovery code,
+  starts one, adds devices and approves them, and turns data types on
+  and off, through `SyncBridge` (the desktop's `SyncController`).
 - **Wide windows (C10).** At 840dp and wider (tablets, unfolded
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts

@@ -82,6 +82,8 @@ object SidebarUi {
 
         fun onNewTab()
 
+        fun onOpenSync()
+
         /** Pins the tab on screen to the space, or to the favorites. */
         fun onPinCurrentTab(favorite: Boolean)
 
@@ -215,6 +217,18 @@ private fun SidebarPanel(
                         }
                     }
                     tree(state.today, 0, pinned = false, state, listener)
+                    item {
+                        Text(
+                            "Sync",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .padding(top = 24.dp)
+                                    .clickable { listener.onOpenSync() }
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                        )
+                    }
                 }
             }
         }

@@ -73,6 +73,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mCommandBar = new CommandBar(mActivity, coordinator);
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
+        SyncScreen sync = new SyncScreen(mActivity, coordinator);
+        spaces.setOnOpenSync(sync::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
         UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
                 .setBoolean(Pref.SIGNIN_ALLOWED, false);

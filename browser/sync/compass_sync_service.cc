@@ -272,10 +272,23 @@ CompassSyncService::CompassSyncService(
   if (device_info_ && device_info_->GetDeviceInfoTracker()) {
     device_info_observation_.Observe(device_info_->GetDeviceInfoTracker());
   }
+#if BUILDFLAG(IS_ANDROID)
+  app_status_listener_ = base::android::ApplicationStatusListener::New(
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self,
+             base::android::ApplicationState state) {
+            if (self &&
+                state == base::android::APPLICATION_STATE_HAS_RUNNING_ACTIVITIES) {
+              self->TriggerRefresh();
+            }
+          },
+          weak_factory_.GetWeakPtr()));
+#else
   if (ProfileBrowserCollection* browsers =
           ProfileBrowserCollection::GetForProfile(profile)) {
     browser_observation_.Observe(browsers);
   }
+#endif
   if (base::PowerMonitor* power = base::PowerMonitor::GetInstance()) {
     power->AddPowerSuspendObserver(this);
     observing_power_ = true;
@@ -326,7 +339,9 @@ void CompassSyncService::Shutdown() {
   host_.reset();
   joiner_.reset();
   missing_profiles_.reset();
+#if !BUILDFLAG(IS_ANDROID)
   profile_creator_.reset();
+#endif
   attributes_observation_.Reset();
   // The directory goes with the profile manager, maybe first.
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists();
@@ -338,7 +353,11 @@ void CompassSyncService::Shutdown() {
   sync_observation_.Reset();
   device_info_observation_.Reset();
   device_info_ = nullptr;
+#if !BUILDFLAG(IS_ANDROID)
   browser_observation_.Reset();
+#else
+  app_status_listener_.reset();
+#endif
   if (observing_power_) {
     base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
     observing_power_ = false;
@@ -634,7 +653,9 @@ void CompassSyncService::LeaveProfile() {
   prefs_->ClearPref(prefs::kProfileDirs);
   prefs_->ClearPref(prefs::kProfilesRemoved);
   missing_profiles_.reset();
+#if !BUILDFLAG(IS_ANDROID)
   profile_creator_.reset();
+#endif
   chain_profiles_.clear();
   chain_profiles_known_ = false;
   prefs_->SetBoolean(syncer::prefs::kEnableLocalSyncBackend, false);
@@ -937,9 +958,11 @@ void CompassSyncService::OnSyncShutdown(syncer::SyncService* sync) {
   sync_service_ = nullptr;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void CompassSyncService::OnBrowserActivated(BrowserWindowInterface* browser) {
   TriggerRefresh();
 }
+#endif
 
 void CompassSyncService::OnResume() {
   TriggerRefresh();
@@ -1540,7 +1563,8 @@ void CompassSyncService::ReconcileProfiles() {
     }
   }
   // 2. The chain's profiles this device doesn't have are created, already
-  // syncing (CompassProfileCreator).
+  // syncing (CompassProfileCreator). Not on Android, which has one profile.
+#if !BUILDFLAG(IS_ANDROID)
   if (!chain_profiles_known_) {
     return;
   }
@@ -1601,6 +1625,7 @@ void CompassSyncService::ReconcileProfiles() {
         std::make_unique<MissingProfiles>(profile_creator_.get());
   }
   missing_profiles_->Update(chain_profiles_, local_uuids);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void CompassSyncService::ScanProfileDirs() {

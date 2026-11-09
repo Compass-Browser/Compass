@@ -17,10 +17,15 @@
 #include "base/power_monitor/power_observer.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_attributes_storage_observer.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/application_status_listener.h"
+#else
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#endif
 #include "compass/browser/sync/sync_controller.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/components/sync/chain.h"
@@ -77,7 +82,9 @@ class CompassSyncService : public KeyedService,
                            public SyncController,
                            public syncer::SyncServiceObserver,
                            public syncer::DeviceInfoTracker::Observer,
+#if !BUILDFLAG(IS_ANDROID)
                            public BrowserCollectionObserver,
+#endif
                            public base::PowerSuspendObserver,
                            public PairingHost::Delegate,
                            public ProfileAttributesStorageObserver {
@@ -152,8 +159,10 @@ class CompassSyncService : public KeyedService,
   void OnSyncCycleCompleted(syncer::SyncService* sync) override;
   void OnSyncShutdown(syncer::SyncService* sync) override;
 
+#if !BUILDFLAG(IS_ANDROID)
   // BrowserCollectionObserver:
   void OnBrowserActivated(BrowserWindowInterface* browser) override;
+#endif
 
   // base::PowerSuspendObserver:
   void OnResume() override;
@@ -332,7 +341,10 @@ class CompassSyncService : public KeyedService,
   // Home profile: the chain's profiles as its bridge last had them.
   std::vector<ChainProfile> chain_profiles_;
   bool chain_profiles_known_ = false;
+#if !BUILDFLAG(IS_ANDROID)
+  // Android has one profile: the chain's others aren't created there.
   std::unique_ptr<CompassProfileCreator> profile_creator_;
+#endif
   std::unique_ptr<MissingProfiles> missing_profiles_;
   bool scanning_dirs_ = false;
   bool dirs_scanned_ = false;
@@ -348,8 +360,15 @@ class CompassSyncService : public KeyedService,
   base::ScopedObservation<syncer::DeviceInfoTracker,
                           syncer::DeviceInfoTracker::Observer>
       device_info_observation_{this};
+#if BUILDFLAG(IS_ANDROID)
+  // The app coming back refreshes, as a window's activation does on the
+  // desktop.
+  std::unique_ptr<base::android::ApplicationStatusListener>
+      app_status_listener_;
+#else
   base::ScopedObservation<ProfileBrowserCollection, BrowserCollectionObserver>
       browser_observation_{this};
+#endif
   bool observing_power_ = false;
 
   // Slice 7: the chain's limits on the server (docs/design/sync.md, "Slice

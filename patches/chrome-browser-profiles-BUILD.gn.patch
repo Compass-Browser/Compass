@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..e7299eec4e78d3ee3044ba966410c9506d56ac58 100644
+index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..64404fde883fcde0d06f83bc4a8977fe7e000434 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
 @@ -551,6 +551,7 @@ source_set("profile_io_data") {
@@ -14,9 +14,9 @@ index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..e7299eec4e78d3ee3044ba966410c950
      "//services/network/public/cpp",
      "//ui/webui:buildflags",
    ]
++  # Compass sync's keyed service factory.
++  deps += [ "//compass/browser/sync" ]
 +  if (!is_android) {
-+    # Compass sync's keyed service factory.
-+    deps += [ "//compass/browser/sync" ]
 +    # The MCP bridge's (docs/design/claude.md, D6).
 +    deps += [ "//compass/browser/ui" ]
 +  }

@@ -8,9 +8,8 @@
 # drives it through SyncController.
 source_set("sync") {
   sources = [
-    "compass_profile_creator.cc",
+    # Android builds only its kLocalSyncDirName.
     "compass_profile_creator.h",
-    "compass_spaces_sync.cc",
     "compass_spaces_sync.h",
     "compass_sync_service.cc",
     "compass_sync_service.h",
@@ -22,21 +21,35 @@ source_set("sync") {
     "//base",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_util",
-    "//chrome/browser/ui/browser_window",
     "//components/keyed_service/core",
     "//components/sync/protocol",
     "//components/sync/service",
-    "//compass/browser/window_sync",
     "//compass/components/sync:chain",
     "//url",
   ]
+  if (is_android) {
+    # One profile and window: the spaces are SpacesAndroid's, and there's no
+    # space directory or profile creation (docs/design/android.md).
+    sources += [
+      "compass_spaces_sync_android.cc",
+      "space_directory_android.cc",
+    ]
+  } else {
+    sources += [
+      "compass_profile_creator.cc",
+      "compass_spaces_sync.cc",
+    ]
+    public_deps += [
+      "//chrome/browser/ui/browser_window",
+      "//compass/browser/window_sync",
+    ]
+  }
   deps = [
     ":favicon_png",
     ":spaces_bridge",
     "//base:i18n",
     "//chrome/browser/favicon",
     "//chrome/browser/history",
-    "//chrome/browser/ui/tabs:tab_strip",
     "//components/favicon/core",
     "//components/favicon_base",
     "//components/history/core/browser",
@@ -54,7 +67,6 @@ source_set("sync") {
     "//chrome/browser/sync",
     "//chrome/browser/sync:factories",
     "//chrome/common",
-    "//chrome/browser/ui:browser_manager_service",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/pref_registry",
@@ -67,6 +79,14 @@ source_set("sync") {
     "//google_apis",
     "//services/network/public/cpp",
   ]
+  if (is_android) {
+    deps += [ "//compass/browser/android:spaces" ]
+  } else {
+    deps += [
+      "//chrome/browser/ui:browser_manager_service",
+      "//chrome/browser/ui/tabs:tab_strip",
+    ]
+  }
 }
 
 # What chrome://compass-sync's switches mean for Chromium's sync, and other
