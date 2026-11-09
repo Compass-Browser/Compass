@@ -9,24 +9,44 @@ import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,34 +55,57 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.border
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import it.cipi1965.compass.R
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
-/** The sidebar: spaces, favorites, the pinned tree and Today, as on the desktop. */
+/**
+ * The sidebar, as the iOS app's (SidebarScreen.swift, SidebarPanel.swift): on phones a panel up
+ * from the bottom (full or half height, a drag on its grabber moves it), on wide windows a pane on
+ * the left; in the space's tint. The favorites grid, the space's header and menu, Pinned and
+ * Today, and a bar with Settings, the spaces and a new tab. A swipe sideways goes to the next
+ * space.
+ */
 object SidebarUi {
     /** Where an entry is, for its long-press menu. */
     internal enum class EntryPlace {
@@ -100,13 +143,12 @@ object SidebarUi {
 
         fun onNewTab()
 
-        fun onOpenSync()
+        fun onNewIncognitoTab()
 
-        /** Android's setting for the app that fills passwords in other apps (Compass's, if chosen). */
-        fun onOpenAutofillSettings()
+        /** Closes every Today tab of the space (Today's "Clear"). */
+        fun onClearToday()
 
-        /** Pins the tab on screen to the space, or to the favorites. */
-        fun onPinCurrentTab(favorite: Boolean)
+        fun onOpenSettings()
 
         fun onDismiss()
     }
@@ -145,182 +187,282 @@ object SidebarUi {
         view.setViewTreeLifecycleOwner(lifecycleOwner)
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme()) { SidebarPanel(state, listener) }
+            CompassTheme(dark = isSystemInDarkTheme()) {
+                Box(
+                    Modifier.fillMaxSize()
+                        .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surface)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                ) {
+                    SidebarContent(state, listener, Modifier.padding(top = 8.dp))
+                }
+            }
         }
         return view
     }
 
     /** A space's tint as a color, or null for grey. */
     @JvmStatic
-    fun tintColor(tint: String): Color? =
-        if (tint.isEmpty()) null else runCatching { Color(android.graphics.Color.parseColor(tint)) }.getOrNull()
+    fun tintColor(tint: String): Color? = CompassStyle.parse(tint)
 }
 
+/** The panel up from the bottom: full height, half (the page shows above), or gone. */
 @Composable
 private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
-    BackHandler { listener.onDismiss() }
-    Box(Modifier.fillMaxSize()) {
-        // The scrim closes it.
+    val scope = rememberCoroutineScope()
+    val position = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { position.animateTo(1f, spring(dampingRatio = 0.9f, stiffness = 500f)) }
+    fun close() {
+        scope.launch {
+            position.animateTo(0f, tween(220))
+            listener.onDismiss()
+        }
+    }
+    BackHandler { close() }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val height = maxHeight - top
+        val heightPx = with(LocalDensity.current) { height.toPx() }
         Box(
             Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.32f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) {
-                    listener.onDismiss()
-                }
+                .background(Color.Black.copy(alpha = 0.2f * position.value))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { close() }
         )
-        SidebarPanel(state, listener, Modifier.width(320.dp))
+        Column(
+            Modifier.align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(height)
+                .offset { IntOffset(0, (heightPx * (1f - position.value)).roundToInt()) }
+                .shadow(16.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surface)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                .windowInsetsPadding(WindowInsets.navigationBars)
+        ) {
+            // The grabber moves the panel: it settles at full, half, or closed.
+            Grabber(
+                Modifier.pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            val target = listOf(0f, 0.5f, 1f).minBy { abs(it - position.value) }
+                            if (target == 0f) close() else scope.launch { position.animateTo(target) }
+                        },
+                    ) { change, dy ->
+                        change.consume()
+                        scope.launch { position.snapTo((position.value - dy / heightPx).coerceIn(0f, 1f)) }
+                    }
+                }
+            )
+            SidebarContent(state, listener, Modifier.weight(1f))
+        }
+    }
+}
+
+/** The space's page (a swipe sideways: the next space) over the bar of spaces. */
+@Composable
+private fun SidebarContent(state: SidebarState, listener: SidebarUi.Listener, modifier: Modifier = Modifier) {
+    val index = state.spaces.indexOfFirst { it.id == state.activeId }
+    Column(modifier.fillMaxWidth()) {
+        AnimatedContent(
+            targetState = state.activeId,
+            transitionSpec = {
+                val forward =
+                    state.spaces.indexOfFirst { it.id == targetState } >= state.spaces.indexOfFirst { it.id == initialState }
+                (slideInHorizontally(tween(250)) { if (forward) it else -it } + fadeIn(tween(250))) togetherWith
+                    (slideOutHorizontally(tween(250)) { if (forward) -it else it } + fadeOut(tween(250)))
+            },
+            modifier =
+                Modifier.weight(1f).pointerInput(index, state.spaces.size) {
+                    var dx = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { dx = 0f },
+                        onDragEnd = {
+                            val next = index + if (dx < 0) 1 else -1
+                            if (abs(dx) > 60.dp.toPx() && next in state.spaces.indices) {
+                                listener.onSpaceClicked(state.spaces[next].id)
+                            }
+                        },
+                    ) { _, amount -> dx += amount }
+                },
+            label = "space",
+        ) { _ ->
+            SpacePage(state, listener)
+        }
+        SpacesBar(state, listener)
     }
 }
 
 @Composable
-private fun SidebarPanel(
-    state: SidebarState,
-    listener: SidebarUi.Listener,
-    modifier: Modifier = Modifier,
-) {
-    val tint = SidebarUi.tintColor(state.activeSpace?.tint ?: "")
-    var editing by remember { mutableStateOf<SidebarState.Space?>(null) }
-    editing?.let { space ->
-        SpaceEditor(
-            space,
-            canDelete = state.spaces.size > 1,
-            onDone = { name, emoji, color ->
-                listener.onEditSpace(space.id, name, emoji, color)
-                editing = null
-            },
-            onDelete = {
-                listener.onRemoveSpace(space.id)
-                editing = null
-            },
-            onDismiss = { editing = null },
-        )
+private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (state.favorites.isNotEmpty()) {
+            item(key = "favorites") { FavoritesGrid(state, listener) }
+        }
+        item(key = "header") { SpaceHeader(state, listener) }
+        item(key = "pinned-header") { SectionHeader("Pinned") }
+        if (state.pinned.isEmpty()) {
+            item(key = "pinned-empty") { PinnedEmpty() }
+        } else {
+            tree(state.pinned, 0, SidebarUi.EntryPlace.PINNED, state, listener)
+        }
+        item(key = "today-header") {
+            SectionHeader("Today", trailing = if (state.today.isEmpty()) null else "Clear") { listener.onClearToday() }
+        }
+        item(key = "new-tab") { NewTabRow(listener) }
+        tree(state.today, 0, SidebarUi.EntryPlace.TODAY, state, listener)
     }
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = modifier.fillMaxHeight(),
-        ) {
-            Box(
-                Modifier.fillMaxSize()
-                    .background(tint?.copy(alpha = 0.10f) ?: Color.Transparent)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-            ) {
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
-                    item { SpaceHeader(state) { editing = state.activeSpace } }
-                    item {
-                        Row(
-                            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Chip("Pin tab") { listener.onPinCurrentTab(false) }
-                            Chip("Add to favorites") { listener.onPinCurrentTab(true) }
-                        }
-                    }
-                    item { SpaceSwitcher(state, listener) }
-                    if (state.favorites.isNotEmpty()) item { Favorites(state, listener) }
-                    if (state.pinned.isNotEmpty()) {
-                        item { SectionTitle("Pinned") }
-                        tree(state.pinned, 0, pinned = true, state, listener)
-                    }
-                    item { SectionTitle("Today") }
-                    item {
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { listener.onNewTab() }
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            Text("+", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                            Text("New Tab", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                    tree(state.today, 0, pinned = false, state, listener)
-                    item {
-                        Text(
-                            "Sync",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier =
-                                Modifier.fillMaxWidth()
-                                    .padding(top = 24.dp)
-                                    .clickable { listener.onOpenSync() }
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                        )
-                        Text(
-                            "Passwords in other apps",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier =
-                                Modifier.fillMaxWidth()
-                                    .clickable { listener.onOpenAutofillSettings() }
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                        )
+}
+
+/** Favorites, four to a row; a shorter last row's tiles grow to fill it. */
+@Composable
+private fun FavoritesGrid(state: SidebarState, listener: SidebarUi.Listener) {
+    Column(Modifier.padding(top = 8.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (row in state.favorites.chunked(4)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (node in row) {
+                    var menu by remember { mutableStateOf(false) }
+                    val shown = node.tab >= 0 && node.tab == state.currentTab
+                    val interaction = remember { MutableInteractionSource() }
+                    val pressed by interaction.collectIsPressedAsState()
+                    Box(
+                        Modifier.weight(1f)
+                            .heightIn(min = CompassStyle.tileHeight)
+                            .scale(if (pressed) 0.95f else 1f)
+                            .then(if (shown) Modifier.shadow(1.5.dp, RoundedCornerShape(CompassStyle.tileRadius)) else Modifier)
+                            .clip(RoundedCornerShape(CompassStyle.tileRadius))
+                            .background(if (shown) CompassStyle.active() else CompassStyle.fill)
+                            .combinedClickable(
+                                interactionSource = interaction,
+                                indication = null,
+                                onLongClick = { menu = true },
+                                onClick = { listener.onNodeClicked(node.id, node.url) },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SiteIcon(node.url, 26.dp)
+                        EntryMenu(menu, { menu = false }, node, SidebarUi.EntryPlace.FAVORITES, state, listener)
                     }
                 }
             }
         }
+    }
+}
+
+/** The space's name and its ⋯ menu (rename, theme, delete). */
+@Composable
+private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
+    val space = state.activeSpace ?: return
+    var menu by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var theming by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().padding(start = 12.dp, top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(space.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.weight(1f))
+        Box {
+            Box(
+                Modifier.size(32.dp).clip(CircleShape).background(CompassStyle.fill).clickable { menu = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Sym(R.drawable.compass_sym_more_horiz, 15f)
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                MenuItem("Rename", R.drawable.compass_sym_edit) {
+                    menu = false
+                    renaming = true
+                }
+                MenuItem("Edit Theme", R.drawable.compass_sym_palette) {
+                    menu = false
+                    theming = true
+                }
+                if (state.spaces.size > 1) {
+                    HorizontalDivider()
+                    MenuItem("Delete Space", R.drawable.compass_sym_delete, destructive = true) {
+                        menu = false
+                        deleting = true
+                    }
+                }
+            }
+        }
+    }
+    if (renaming) {
+        RenameDialog(space.name, onDone = {
+            listener.onEditSpace(space.id, it, space.emoji, space.tint)
+            renaming = false
+        }) { renaming = false }
+    }
+    if (theming) {
+        ThemeDialog(space, onDone = { emoji, tint ->
+            listener.onEditSpace(space.id, space.name, emoji, tint)
+            theming = false
+        }) { theming = false }
+    }
+    if (deleting) {
+        AlertDialog(
+            onDismissRequest = { deleting = false },
+            title = { Text("Delete “${space.name}”?") },
+            text = { Text("Its pinned tabs and Today go with it, on every device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleting = false
+                    listener.onRemoveSpace(space.id)
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
+        )
+    }
 }
 
 @Composable
-private fun SpaceHeader(state: SidebarState, onEdit: () -> Unit) {
-    val space = state.activeSpace ?: return
-    Row(
-        Modifier.fillMaxWidth()
-            .clickable(onClick = onEdit)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (space.emoji.isNotEmpty()) Text(space.emoji, style = MaterialTheme.typography.titleLarge)
-        Text(space.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-    }
+private fun RenameDialog(name: String, onDone: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf(name) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Space") },
+        text = { OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
+        confirmButton = { TextButton(onClick = { onDone(text.trim().ifEmpty { name }) }) { Text("Done") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 // The palette of the desktop's theme editor (space_model.h): grey, then the tints.
 private val PALETTE =
     listOf("", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e")
 
+/** The space's icon and color (the desktop's theme editor's palette). */
 @Composable
-private fun SpaceEditor(
-    space: SidebarState.Space,
-    canDelete: Boolean,
-    onDone: (String, String, String) -> Unit,
-    onDelete: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var name by remember { mutableStateOf(space.name) }
+private fun ThemeDialog(space: SidebarState.Space, onDone: (String, String) -> Unit, onDismiss: () -> Unit) {
     var emoji by remember { mutableStateOf(space.emoji) }
     var tint by remember { mutableStateOf(space.tint) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit space") },
+        title = { Text("Edit Theme") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    singleLine = true,
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(
                     value = emoji,
                     onValueChange = { emoji = it.take(8) },
                     label = { Text("Emoji") },
                     singleLine = true,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (color in PALETTE) {
-                        val swatch = SidebarUi.tintColor(color) ?: MaterialTheme.colorScheme.outline
+                        val swatch = CompassStyle.parse(color) ?: CompassStyle.greyAccent
                         Box(
                             Modifier.size(28.dp)
                                 .clip(CircleShape)
                                 .background(swatch)
                                 .border(
-                                    if (color == tint) 3.dp else 0.dp,
-                                    MaterialTheme.colorScheme.onSurface,
+                                    if (color == tint) 3.dp else 0.5.dp,
+                                    if (color == tint) MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                                     CircleShape,
                                 )
                                 .clickable { tint = color }
@@ -329,197 +471,172 @@ private fun SpaceEditor(
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = { onDone(name.trim(), emoji.trim(), tint) }) { Text("Done") }
-        },
-        dismissButton = {
-            Row {
-                if (canDelete) TextButton(onClick = onDelete) { Text("Delete") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
+        confirmButton = { TextButton(onClick = { onDone(emoji.trim(), tint) }) { Text("Done") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
+/** "PINNED", "TODAY": small, uppercase, dimmed; Today's has Clear. */
 @Composable
-private fun SpaceSwitcher(state: SidebarState, listener: SidebarUi.Listener) {
-    LazyRow(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.padding(bottom = 8.dp),
+private fun SectionHeader(title: String, trailing: String? = null, onTrailing: () -> Unit = {}) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 12.dp, end = 6.dp, top = 14.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        items(state.spaces, key = { it.id }) { space ->
-            val active = space.id == state.activeId
-            val tint = SidebarUi.tintColor(space.tint) ?: MaterialTheme.colorScheme.outline
-            Box(
-                Modifier.size(40.dp)
-                    .clip(CircleShape)
-                    .background(if (active) tint.copy(alpha = 0.35f) else tint.copy(alpha = 0.12f))
-                    .clickable { listener.onSpaceClicked(space.id) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    space.emoji.ifEmpty { space.name.take(1).uppercase() },
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-        }
-        item {
-            Box(
-                Modifier.size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .clickable { listener.onAddSpace("Space ${state.spaces.size + 1}") },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("+", style = MaterialTheme.typography.titleMedium)
-            }
+        Text(
+            title.uppercase(),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.4.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+            modifier = Modifier.weight(1f),
+        )
+        if (trailing != null) {
+            Text(
+                trailing,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.clip(CircleShape).clickable(onClick = onTrailing).padding(horizontal = 6.dp, vertical = 2.dp),
+            )
         }
     }
 }
 
+/** No pinned tabs yet: a dashed box saying how. */
 @Composable
-private fun Favorites(state: SidebarState, listener: SidebarUi.Listener) {
-    LazyRow(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+private fun PinnedEmpty() {
+    val color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+    Box(
+        Modifier.fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .dashedBorder(color)
+            .padding(12.dp)
+    ) {
+        Text(
+            "Pin tabs to keep them in this space.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+        )
+    }
+}
+
+private fun Modifier.dashedBorder(color: Color): Modifier = drawBehind {
+    drawRoundRect(
+        color = color,
+        cornerRadius = CornerRadius(10.dp.toPx()),
+        style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))),
+    )
+}
+
+@Composable
+private fun NewTabRow(listener: SidebarUi.Listener) {
+    Row(
+        Modifier.fillMaxWidth()
+            .height(CompassStyle.rowHeight)
+            .clip(RoundedCornerShape(CompassStyle.rowRadius))
+            .combinedClickable(onLongClick = { listener.onNewIncognitoTab() }, onClick = { listener.onNewTab() })
+            .padding(horizontal = 12.dp)
+            .alpha(0.7f),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.padding(vertical = 8.dp),
     ) {
-        items(state.favorites, key = { it.id }) { node ->
-            var menu by remember { mutableStateOf(false) }
-            Column(
-                Modifier.width(64.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .combinedClickable(
-                        onLongClick = { menu = true },
-                        onClick = { listener.onNodeClicked(node.id, node.url) },
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                EntryMenu(menu, { menu = false }, node, SidebarUi.EntryPlace.FAVORITES, state, listener)
-                Box(
-                    Modifier.size(52.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (node.tab == state.currentTab) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerHighest
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(initial(node), style = MaterialTheme.typography.titleMedium)
-                }
-                Text(
-                    node.title,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
+        Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) { Sym(R.drawable.compass_sym_add, 15f) }
+        Text("New Tab", fontSize = 16.sp)
     }
-}
-
-@Composable
-private fun Chip(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier =
-            Modifier.clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.secondaryContainer)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-    )
-}
-
-@Composable
-private fun SectionTitle(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
-    )
 }
 
 private fun LazyListScope.tree(
     nodes: List<SidebarState.Node>,
     depth: Int,
-    pinned: Boolean,
+    place: SidebarUi.EntryPlace,
     state: SidebarState,
     listener: SidebarUi.Listener,
 ) {
     for (node in nodes) {
-        item(key = node.id) { NodeRow(node, depth, pinned, state, listener) }
-        if (node.isFolder && !node.collapsed) tree(node.children, depth + 1, pinned, state, listener)
+        item(key = node.id) { NodeRow(node, depth, place, state, listener) }
+        if (node.isFolder && !node.collapsed) tree(node.children, depth + 1, place, state, listener)
         // A split shows its panes.
-        if (node.type == "split") tree(node.children, depth + 1, pinned, state, listener)
+        if (node.type == "split") tree(node.children, depth + 1, place, state, listener)
     }
 }
 
+/** An entry: 44 high, the shown one a light pill with a soft shadow (SidebarScreen.swift, NodeRow). */
 @Composable
 private fun NodeRow(
     node: SidebarState.Node,
     depth: Int,
-    pinned: Boolean,
+    place: SidebarUi.EntryPlace,
     state: SidebarState,
     listener: SidebarUi.Listener,
 ) {
-    val current = node.tab >= 0 && node.tab == state.currentTab
+    val shown = node.tab >= 0 && node.tab == state.currentTab
+    val today = place == SidebarUi.EntryPlace.TODAY && node.type == "tab"
+    // A pinned tab with no page open is dimmer.
+    val dim = place != SidebarUi.EntryPlace.TODAY && node.type == "tab" && node.tab < 0
     var menu by remember { mutableStateOf(false) }
-    Row(
-        Modifier.fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (current) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .combinedClickable(
-                onLongClick = { if (node.type == "tab") menu = true },
-                onClick = {
-                    if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
-                    else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
-                },
-            )
-            .padding(start = (12 + depth * 16).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            Modifier.size(28.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = RoundedCornerShape(CompassStyle.rowRadius)
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth()
+                .height(CompassStyle.rowHeight)
+                .scale(if (pressed) 0.98f else 1f)
+                .then(if (shown) Modifier.shadow(1.5.dp, shape) else Modifier)
+                .clip(shape)
+                .background(if (shown) CompassStyle.active() else if (pressed) CompassStyle.fill else Color.Transparent)
+                .combinedClickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onLongClick = { if (node.type == "tab") menu = true },
+                    onClick = {
+                        if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
+                        else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
+                    },
+                )
+                .padding(start = 12.dp + CompassStyle.indent * depth, end = if (today) 36.dp else 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Anchored here: in the row itself it would take a slot of its spacing.
-            EntryMenu(menu, { menu = false }, node, if (pinned) SidebarUi.EntryPlace.PINNED else SidebarUi.EntryPlace.TODAY, state, listener)
-            Text(
-                if (node.isFolder) (if (node.collapsed) "▸" else "▾") else initial(node),
-                style = MaterialTheme.typography.labelLarge,
-            )
+            if (node.isFolder) {
+                Sym(
+                    R.drawable.compass_sym_chevron_right,
+                    11f,
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    Modifier.rotate(if (node.collapsed) 0f else 90f),
+                )
+                Sym(
+                    if (node.collapsed) R.drawable.compass_sym_folder else R.drawable.compass_sym_folder_fill,
+                    15f,
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+                Text(node.title, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            } else {
+                Box(Modifier.alpha(if (dim) 0.55f else 1f)) {
+                    SiteIcon(node.url, CompassStyle.favicon)
+                    // Anchored here: in the row itself it would take a slot of its spacing.
+                    EntryMenu(menu, { menu = false }, node, place, state, listener)
+                }
+                Text(
+                    node.title.ifEmpty { "Untitled" },
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alpha(if (dim) 0.55f else 1f),
+                )
+            }
         }
-        Text(
-            node.title.ifEmpty { node.url },
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            // An unloaded pinned tab is dimmer.
-            color =
-                if (pinned && node.type == "tab" && node.tab < 0) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (node.type == "tab") {
+        if (today) {
             Box(
-                Modifier.size(36.dp).clip(CircleShape).clickable {
-                    if (pinned) listener.onUnpinNode(node.id) else listener.onCloseNode(node.id)
-                },
+                Modifier.align(Alignment.CenterEnd)
+                    .size(width = 40.dp, height = 44.dp)
+                    .clip(CircleShape)
+                    .clickable { listener.onCloseNode(node.id) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("×", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Sym(R.drawable.compass_sym_close, 12f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))
             }
-        } else {
-            Spacer(Modifier.size(36.dp))
         }
     }
 }
@@ -536,43 +653,108 @@ private fun EntryMenu(
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         @Composable
-        fun Item(label: String, action: () -> Unit) {
-            DropdownMenuItem(
-                text = { Text(label) },
-                onClick = {
-                    onDismiss()
-                    action()
-                },
-            )
+        fun Item(label: String, icon: Int, destructive: Boolean = false, action: () -> Unit) {
+            MenuItem(label, icon, destructive) {
+                onDismiss()
+                action()
+            }
         }
-        if (place != SidebarUi.EntryPlace.PINNED) {
-            Item("Pin to this space") { listener.onMoveNode(node.id, "", "pinned") }
+        when (place) {
+            SidebarUi.EntryPlace.TODAY -> Item("Pin", R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
+            SidebarUi.EntryPlace.PINNED -> Item("Unpin", R.drawable.compass_sym_keep_off) { listener.onUnpinNode(node.id) }
+            SidebarUi.EntryPlace.FAVORITES -> {}
         }
         if (place != SidebarUi.EntryPlace.FAVORITES) {
-            Item("Add to favorites") { listener.onMoveNode(node.id, "", "favorites") }
+            Item("Add to Favorites", R.drawable.compass_sym_star) { listener.onMoveNode(node.id, "", "favorites") }
         }
-        if (place == SidebarUi.EntryPlace.PINNED && node.tab >= 0) {
-            // Back to an ordinary tab: it goes when it closes.
-            Item("Move to Today") { listener.onMoveNode(node.id, "", "today") }
+        if (place == SidebarUi.EntryPlace.FAVORITES) {
+            Item("Pin to This Space", R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
         }
         for (space in state.spaces) {
             if (space.id == state.activeId) continue
-            val name = listOf(space.emoji, space.name).filter { it.isNotEmpty() }.joinToString(" ")
-            Item("Move to ${name.ifEmpty { "space" }}") {
+            Item("Move to ${space.name.ifEmpty { "Space" }}", R.drawable.compass_sym_stacks) {
                 listener.onMoveNode(node.id, space.id, if (place == SidebarUi.EntryPlace.TODAY) "today" else "pinned")
             }
         }
-        if (node.url.isNotEmpty()) Item("Copy link") { listener.onCopyLink(node.url) }
-        when {
-            place == SidebarUi.EntryPlace.TODAY -> Item("Close tab") { listener.onCloseNode(node.id) }
-            else -> Item(if (place == SidebarUi.EntryPlace.FAVORITES) "Remove from favorites" else "Unpin") {
-                listener.onUnpinNode(node.id)
-            }
+        if (node.url.isNotEmpty()) Item("Copy Link", R.drawable.compass_sym_link) { listener.onCopyLink(node.url) }
+        HorizontalDivider()
+        when (place) {
+            SidebarUi.EntryPlace.TODAY ->
+                Item("Close", R.drawable.compass_sym_delete, destructive = true) { listener.onCloseNode(node.id) }
+            SidebarUi.EntryPlace.FAVORITES ->
+                Item("Remove from Favorites", R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
+            SidebarUi.EntryPlace.PINNED ->
+                Item("Delete", R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
         }
     }
 }
 
-private fun initial(node: SidebarState.Node): String {
-    val text = node.title.ifEmpty { node.url.substringAfter("://").removePrefix("www.") }
-    return text.take(1).uppercase().ifEmpty { "•" }
+/** Settings, the spaces (the shown one larger, in its color), a new space; a new tab. */
+@Composable
+private fun SpacesBar(state: SidebarState, listener: SidebarUi.Listener) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(44.dp).clip(CircleShape).clickable { listener.onOpenSettings() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Sym(R.drawable.compass_sym_settings, 18f)
+        }
+        LazyRow(
+            Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items(state.spaces, key = { it.id }) { space ->
+                val selected = space.id == state.activeId
+                val scale = remember { Animatable(1f) }
+                LaunchedEffect(selected) { scale.animateTo(if (selected) 1.15f else 1f, spring(dampingRatio = 0.6f)) }
+                Box(
+                    Modifier.size(34.dp).scale(scale.value).clip(CircleShape).clickable { listener.onSpaceClicked(space.id) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SpaceIcon(
+                        space,
+                        if (selected) CompassStyle.accent(space.tint)
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                    )
+                }
+            }
+            item(key = "add") {
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape).clickable { listener.onAddSpace("Space ${state.spaces.size + 1}") },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Sym(R.drawable.compass_sym_add, 15f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))
+                }
+            }
+        }
+        Box(
+            Modifier.size(44.dp)
+                .clip(CircleShape)
+                .combinedClickable(onLongClick = { listener.onNewIncognitoTab() }, onClick = { listener.onNewTab() }),
+            contentAlignment = Alignment.Center,
+        ) {
+            Sym(R.drawable.compass_sym_add, 18f)
+        }
+    }
+}
+
+/** A space's icon: its emoji, or its initial (SpaceIcon). */
+@Composable
+private fun SpaceIcon(space: SidebarState.Space, color: Color) {
+    if (space.emoji.isNotEmpty()) {
+        Text(space.emoji, fontSize = 20.sp)
+    } else {
+        Text(
+            space.name.take(1).uppercase().ifEmpty { "•" },
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.SansSerif,
+            color = color,
+        )
+    }
 }
