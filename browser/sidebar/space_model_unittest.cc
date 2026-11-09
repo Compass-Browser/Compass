@@ -206,6 +206,23 @@ TEST_F(SpaceModelTest, SplitRespectsPaneLimit) {
   EXPECT_FALSE(model_.CanSplit(a, a));
 }
 
+TEST_F(SpaceModelTest, UnsplittingFourPutsEachInItsPlace) {
+  Tab(model_.today_root(), "x");
+  SidebarNode* a = Tab(model_.today_root(), "a");
+  SidebarNode* b = Tab(model_.today_root(), "b");
+  SidebarNode* c = Tab(model_.today_root(), "c");
+  SidebarNode* d = Tab(model_.today_root(), "d");
+  Tab(model_.today_root(), "y");
+  SidebarNode* split = model_.Split(model_.Split(model_.Split(a, b), c), d);
+  ASSERT_THAT(Titles(model_.today_root()),
+              ElementsAre("x", "[a|b|c|d]", "y"));
+
+  model_.Unsplit(split);
+
+  EXPECT_THAT(Titles(model_.today_root()),
+              ElementsAre("x", "a", "b", "c", "d", "y"));
+}
+
 TEST_F(SpaceModelTest, RemovingAPaneOfThreeKeepsTheSplit) {
   SidebarNode* a = Tab(model_.today_root(), "a");
   SidebarNode* b = Tab(model_.today_root(), "b");
