@@ -1082,7 +1082,7 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('version', nargs='?',
                  help='promote: the version; publish, build-win: instead of the '
                  'time; publish-win: instead of the .json\'s')
-  s.add_argument('--channel', choices=release.CHANNELS, default='beta',
+  s.add_argument('--channel', choices=release.CHANNELS, default='canary',
                  help='publish, publish-win: the channel (default: '
                  '%(default)s)')
   s.add_argument('--to', choices=release.CHANNELS[:-1],

@@ -13,11 +13,10 @@ bundle ID, one profile). The user picks one on the About page
 `compass.update_channel` (`"stable"` by default; anything else it doesn't
 know counts as stable).
 
-- A release goes to **beta** (the default) or **canary**
-  (`--channel canary`), for builds that should be tried before beta.
-  **Promoting** it moves it one channel up (canary to beta, beta to stable;
-  `--to stable` skips beta). That re-labels the same archive: nothing is
-  rebuilt, so stable is always a build that held up on beta.
+- Every release goes to **canary** first. **Promoting** it moves it one
+  channel up: canary to beta, then beta to stable. That re-labels the same
+  archive: nothing is rebuilt, so stable is always a build that held up on
+  canary and beta.
 - Each channel also gets the releases of the channels above it, whenever
   one is newer: beta users get stable releases, canary users beta and
   stable ones.
@@ -102,12 +101,10 @@ checks the same signatures.
 ## Releasing
 
 ```sh
-tools/compass release                  # = publish --channel beta: build, sign,
-                                       #   notarize, deltas, upload, feeds
-tools/compass release --channel canary  # the same, on canary
+tools/compass release                  # = publish --channel canary: build,
+                                       #   sign, notarize, deltas, upload, feeds
 tools/compass release promote 20261103.0215   # one channel up: canary to
-                                       #   beta, beta to stable
-tools/compass release promote 20261103.0215 --to stable
+                                       #   beta, or beta to stable
 tools/compass release list
 tools/compass release feeds            # rewrite and upload the feeds
 tools/compass release publish-win 20261103.0215 --installer mini_installer.exe
@@ -231,8 +228,9 @@ browser decides when to run it.
   and leaves `CompassSetup-<version>.exe`, `CompassInstaller-<version>.exe`
   and a `.json` (version, Chromium, N, commit, installer) in the out dir.
   Copy them to the release machine and run `compass release publish-win
-  --installer CompassSetup-<version>.exe [--channel beta|canary]`. A
-  Mac can build it too (`--cpu win-x64`, docs/building.md "Windows from a
+  --installer CompassSetup-<version>.exe` (it joins the Mac release's
+  channel, or makes a canary release when there's none). A Mac can build it
+  too (`--cpu win-x64`, docs/building.md "Windows from a
   Mac"), in a Chromium checkout of its own so the build number doesn't make
   its Mac builds rebuild.
 - **First install:** mini_installer has no window: run by hand, it

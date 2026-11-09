@@ -271,13 +271,13 @@ class ReleaseTest(unittest.TestCase):
 
   def test_parser(self):
     args = parser().parse_args(['release'])
-    self.assertEqual(('publish', 'beta', 'release'),
+    self.assertEqual(('publish', 'canary', 'release'),
                      (args.action, args.channel, args.config))
     args = parser().parse_args(['release', 'promote', '20261103.0215'])
     self.assertEqual(('promote', '20261103.0215', None),
                      (args.action, args.version, args.to))
-    args = parser().parse_args(['release', '--channel', 'canary'])
-    self.assertEqual('canary', args.channel)
+    args = parser().parse_args(['release', '--channel', 'beta'])
+    self.assertEqual('beta', args.channel)
     args = parser().parse_args(['release', 'promote', '1', '--to', 'stable'])
     self.assertEqual('stable', args.to)
 
