@@ -69,6 +69,12 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onForgetKey() {
+        // An empty key removes the saved one (ClaudeCredentials).
+        mBridge.setApiKey("");
+    }
+
+    @Override
     public void onDismiss() {
         mState.setOpen(false);
         mView.setVisibility(View.GONE);
