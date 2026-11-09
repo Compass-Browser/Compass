@@ -351,8 +351,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     }
 
     /** The pinned entry or favorite showing |tabId|, or null. */
-    @Nullable
-    SidebarState.Node pinnedNodeFor(int tabId) {
+    SidebarState.@Nullable Node pinnedNodeFor(int tabId) {
         return mSpaces != null ? mSpaces.state().pinnedNodeFor(tabId) : null;
     }
 
