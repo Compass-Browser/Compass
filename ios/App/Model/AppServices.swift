@@ -34,6 +34,8 @@ final class AppServices {
   let contentBlocking = ContentBlocking()
   let downloads = Downloads()
   let extensions: WebExtensions
+  /// Live folders' plugins, refreshes and secrets.
+  let liveFolders: LiveFolders
   let directory: URL
   /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
   let system: SystemBridge
@@ -80,6 +82,7 @@ final class AppServices {
     siteSettings = SiteSettings(directory: directory)
     extensions = WebExtensions(directory: directory)
     tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
+    liveFolders = LiveFolders(store: store, tabs: tabs, directory: directory)
     system = SystemBridge()
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
@@ -253,7 +256,9 @@ final class AppServices {
 
   private func observeForSaving() {
     withObservationTracking {
-      _ = store.spaces.map { ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count) }) }
+      _ = store.spaces.map {
+        ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count, $0.unseen, $0.liveSource) })
+      }
       _ = store.favoritesRoots.map(\.children.count)
       _ = store.spaces.map(\.profileUUID)
     } onChange: { [weak self] in

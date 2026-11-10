@@ -271,6 +271,14 @@ final class TabManager: NSObject {
     return [.default()] + profiles.sorted().map(dataStore(for:))
   }
 
+  /// The website data a node's pages use: its profile's (live folders
+  /// read their cookies from it).
+  func dataStore(of node: SidebarNode) -> WKWebsiteDataStore {
+    if store.isIncognito(node) { return incognitoDataStore }
+    let profile = store.profile(of: node)
+    return dataStore(for: store.isHome(profile) ? "" : profile)
+  }
+
   private func dataStore(for profile: String) -> WKWebsiteDataStore {
     guard !profile.isEmpty, let uuid = UUID(uuidString: profile) else { return .default() }
     if let store = stores[profile] { return store }
