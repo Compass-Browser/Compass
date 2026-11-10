@@ -21,7 +21,7 @@
 #include "compass/browser/picture_in_picture/call_pip.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_switches.h"
+#include "components/permissions/permission_request_manager.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/base/media_switches.h"
@@ -152,8 +152,10 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
+    // A fake camera and microphone. Their prompt is accepted through
+    // Chrome's permission flow (AcceptMedia()), not --use-fake-ui-for-media-
+    // stream, which skips the capture indicator auto picture-in-picture reads.
     command_line->AppendSwitch(switches::kUseFakeDeviceForMediaStream);
-    command_line->AppendSwitch(switches::kUseFakeUIForMediaStream);
   }
 
   void SetUpOnMainThread() override {
@@ -167,6 +169,12 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(https_.Start());
   }
 
+  static void AcceptMedia(content::WebContents* contents) {
+    permissions::PermissionRequestManager::FromWebContents(contents)
+        ->set_auto_response_for_test(
+            permissions::PermissionRequestManager::ACCEPT_ALL);
+  }
+
   // Opens |url| in a new foreground tab and starts its call.
   content::WebContents* OpenCall(const GURL& url) {
     EXPECT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
@@ -174,6 +182,7 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
     content::WebContents* contents =
         browser()->tab_strip_model()->GetActiveWebContents();
+    AcceptMedia(contents);
     EXPECT_EQ(true, content::EvalJs(contents, "start()"));
     return contents;
   }
@@ -283,6 +292,7 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallInAFrame) {
   content::RenderFrameHost* frame =
       content::ChildFrameAt(call->GetPrimaryMainFrame(), 0);
   ASSERT_TRUE(frame);
+  AcceptMedia(call);
   ASSERT_EQ(true, content::EvalJs(frame, "start()"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return content::EvalJs(frame, "ready()").ExtractBool(); }));
