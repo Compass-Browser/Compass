@@ -191,6 +191,10 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     };
   }
 
+  onFieldChange(e: Event) {
+    this.onFieldInput(e);
+  }
+
   onCheckChange(e: Event) {
     this.values = {
       ...this.values,
@@ -235,11 +239,11 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     }
   }
 
-  onInstallClick() {
+  onInstallPluginClick() {
     this.openInstall_('');
   }
 
-  onInstallMissing() {
+  onInstallMissingClick() {
     this.openInstall_(this.missingPluginUrl);
   }
 
@@ -248,7 +252,7 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     this.preview = null;
   }
 
-  onInstallCancel() {
+  onInstallCancelClick() {
     this.installOpen = false;
     this.preview = null;
     this.error = '';
@@ -260,11 +264,11 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     this.preview = null;
     this.error = '';
     if (url) {
-      this.onReview();
+      this.onReviewClick();
     }
   }
 
-  async onReview() {
+  async onReviewClick() {
     this.error = '';
     this.preview = null;
     const {preview, error} =
@@ -281,7 +285,7 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     this.preview = preview;
   }
 
-  async onInstall() {
+  async onInstallConfirmClick() {
     const preview = this.preview;
     if (!preview || this.saving) {
       return;
@@ -344,6 +348,10 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     } else {
       this.close();
     }
+  }
+
+  onCancelClick() {
+    this.close();
   }
 
   close() {

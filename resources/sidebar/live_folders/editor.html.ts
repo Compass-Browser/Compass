@@ -48,11 +48,11 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
         <div class="live-editor-error" role="alert">${this.error}</div>` :
         nothing}
       <div class="live-editor-buttons">
-        <button @click="${this.onInstallCancel}">Cancel</button>
+        <button @click="${this.onInstallCancelClick}">Cancel</button>
         ${this.preview ? html`
           <button class="action" ?disabled="${this.saving}"
-              @click="${this.onInstall}">Install</button>` : html`
-          <button class="action" @click="${this.onReview}">Review</button>`}
+              @click="${this.onInstallConfirmClick}">Install</button>` : html`
+          <button class="action" @click="${this.onReviewClick}">Review</button>`}
       </div>
     </div>` : nothing}
 
@@ -75,7 +75,7 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
         ${field.type === 'select' ? html`
           <label class="live-editor-field">
             <span>${this.fieldLabel(field)}</span>
-            <select data-key="${field.key}" @change="${this.onFieldInput}">
+            <select data-key="${field.key}" @change="${this.onFieldChange}">
               ${field.options.map(option => html`
                 <option value="${option.value}"
                     ?selected="${option.value === this.fieldValue(field)}">
@@ -116,7 +116,7 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
         <div class="live-editor-error" role="alert">${this.error}</div>` :
         nothing}
       <div class="live-editor-buttons">
-        <button type="button" @click="${this.close}">Cancel</button>
+        <button type="button" @click="${this.onCancelClick}">Cancel</button>
         <button type="submit" class="action" ?disabled="${this.saving}">
           ${this.folderId ? 'Save' : 'Create'}
         </button>
@@ -129,10 +129,10 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
       nothing}
     <div class="live-editor-buttons">
       ${this.missingPluginUrl ? html`
-        <button class="action" @click="${this.onInstallMissing}">
+        <button class="action" @click="${this.onInstallMissingClick}">
           Install the plugin
         </button>` : nothing}
-      <button @click="${this.close}">Close</button>
+      <button @click="${this.onCancelClick}">Close</button>
     </div>` : nothing}
 
   ${!this.installOpen && !this.plugin && !this.folderId ? html`
@@ -155,8 +155,8 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
         </div>`)}
     </div>
     <div class="live-editor-buttons">
-      <button @click="${this.onInstallClick}">Install a plugin…</button>
-      <button @click="${this.close}">Cancel</button>
+      <button @click="${this.onInstallPluginClick}">Install a plugin…</button>
+      <button @click="${this.onCancelClick}">Cancel</button>
     </div>` : nothing}
 </div>
 <!--_html_template_end_-->`;
