@@ -77,7 +77,7 @@ sidebar::mojom::LiveFolderPtr ToMojoLiveFolder(const SidebarNode& node) {
   if (const LivePlugin* plugin =
           LivePluginRegistry::Get().Find(folder->plugin_id)) {
     folder->plugin_name = plugin->manifest.name;
-    folder->icon_path = plugin->IconPath();
+    folder->icon_url = plugin->IconUrl();
   }
   return folder;
 }
@@ -110,7 +110,7 @@ sidebar::mojom::LivePluginPtr ToMojoPlugin(const LivePlugin& plugin,
   result->id = manifest.id;
   result->name = manifest.name;
   result->description = manifest.description;
-  result->icon_path = plugin.IconPath();
+  result->icon_url = plugin.IconUrl();
   using Type = LivePluginManifest::ConfigField::Type;
   for (const auto& field : manifest.config) {
     auto f = sidebar::mojom::LiveConfigField::New();

@@ -64,7 +64,7 @@ function run(request: RunRequest): Promise<{result: RunResult}> {
             url: String(r.url ?? ''),
             method: String(r.method ?? 'GET'),
             headers: Object.fromEntries(Object.entries(r.headers || {}).map(
-                ([k, v]) => [String(k), String(v)])),
+                ([k, v]) => [k, String(v)])),
             body: typeof r.body === 'string' ? r.body : null,
             includeCredentials: r.credentials === 'include',
           };

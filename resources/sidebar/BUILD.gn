@@ -42,6 +42,7 @@ build_webui("build") {
     "command_bar/browser_proxy.ts",
     "empty.ts",
     "favicon.ts",
+    "live_folders/editor.html.ts",
     "live_folders/editor.ts",
     "live_folders/host.ts",
     "find_bar/app.html.ts",

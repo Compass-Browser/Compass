@@ -35,8 +35,9 @@ struct LiveFolder {
   string plugin_id;
   // Empty when the plugin isn't installed on this device.
   string plugin_name;
-  // The plugin's icon, as a path on chrome://compass-sidebar/, or empty.
-  string icon_path;
+  // The plugin's icon, as a URL the sidebar can load (a path on
+  // chrome://compass-sidebar/, or a data: URL), or empty.
+  string icon_url;
 };
 
 // What a live folder is doing, besides its entries.
@@ -109,7 +110,8 @@ struct LivePlugin {
   string id;
   string name;
   string description;
-  string icon_path;
+  // As LiveFolder.icon_url.
+  string icon_url;
   array<LiveConfigField> config;
   array<LiveSecretField> secrets;
   // The hosts it may send the profile's cookies to, once allowed; empty if

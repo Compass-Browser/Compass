@@ -83,8 +83,8 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   // The plugin's icon, painted in the text color.
   protected liveIconStyle_(): string {
-    const path = this.node?.liveFolder?.iconPath;
-    return path ? `--live-icon: url("/${path}")` : '';
+    const url = this.node?.liveFolder?.iconUrl;
+    return url ? `--live-icon: url("${url}")` : '';
   }
 
   // How many of a live folder's entries are new.

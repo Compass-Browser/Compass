@@ -23,10 +23,19 @@ struct LivePlugin {
 
   // "/plugins/builtin/rss/main.js".
   std::string EntryPath() const { return "/" + base_path + manifest.entry; }
-  // "plugins/builtin/rss/icon.svg", or empty.
-  std::string IconPath() const {
-    return manifest.icon.empty() ? std::string() : base_path + manifest.icon;
+  // A URL the sidebar can show its icon from: "/plugins/builtin/rss/icon.svg"
+  // on its own origin for a built-in, a data: URL for an installed plugin, or
+  // empty.
+  std::string IconUrl() const {
+    if (!icon_data_url.empty()) {
+      return icon_data_url;
+    }
+    return manifest.icon.empty() || !builtin ? std::string()
+                                             : "/" + base_path + manifest.icon;
   }
+
+  // An installed plugin's icon, read when it was loaded.
+  std::string icon_data_url;
 };
 
 // The plugins a profile can pick for a live folder: the built-ins, which

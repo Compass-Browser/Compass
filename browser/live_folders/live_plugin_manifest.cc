@@ -295,7 +295,7 @@ base::expected<LivePluginManifest, LivePluginErrors> ParseLivePluginManifest(
                       {"number", ConfigField::Type::kNumber},
                       {"bool", ConfigField::Type::kBool},
                       {"select", ConfigField::Type::kSelect}};
-      auto type_it =
+      const auto* type_it =
           type ? std::ranges::find(kTypes, std::string_view(*type),
                                    &std::pair<std::string_view,
                                               ConfigField::Type>::first)
