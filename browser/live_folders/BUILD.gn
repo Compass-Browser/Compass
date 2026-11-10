@@ -38,6 +38,7 @@ source_set("unit_tests") {
     "live_fetcher_unittest.cc",
     "live_folder_store_unittest.cc",
     "live_plugin_manifest_unittest.cc",
+    "live_plugin_package_unittest.cc",
     "live_result_unittest.cc",
   ]
   deps = [

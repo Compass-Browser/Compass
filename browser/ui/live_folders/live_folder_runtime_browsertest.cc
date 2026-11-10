@@ -27,6 +27,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "compass/browser/live_folders/live_plugin_package.h"
 #include "compass/browser/ui/live_folders/live_folder_host.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
@@ -291,6 +292,56 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
     return base::Value(std::move(outcome));
   }
 };
+
+// The runtime's rules (plugins/conformance/*), each with its own plugin,
+// installed as a user's would be: from disk, served on
+// chrome-untrusted://live-folders/installed/.
+std::vector<Case> InstallConformanceCases(const base::FilePath& plugins_dir) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  std::vector<Case> cases;
+  base::FileEnumerator dirs(PluginsDir().AppendASCII("conformance"), false,
+                            base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath dir = dirs.Next(); !dir.empty(); dir = dirs.Next()) {
+    const base::FilePath plugin = dir.AppendASCII("plugin");
+    std::string manifest_json;
+    std::string entry;
+    if (!base::ReadFileToString(plugin.AppendASCII("manifest.json"),
+                                &manifest_json) ||
+        !base::ReadFileToString(plugin.AppendASCII("main.js"), &entry)) {
+      continue;
+    }
+    auto package = MakeLivePluginPackage(
+        GURL("https://plugins.test/" + dir.BaseName().MaybeAsASCII() +
+             "/manifest.json"),
+        std::move(manifest_json), std::move(entry), std::string());
+    EXPECT_TRUE(package.has_value()) << dir;
+    if (!package.has_value()) {
+      continue;
+    }
+    EXPECT_TRUE(WriteLivePluginPackage(plugins_dir, *package));
+    LivePluginRegistry::Get().AddInstalled(*package);
+    cases.push_back({"conformance/" + dir.BaseName().MaybeAsASCII(), dir,
+                     package->manifest.id});
+  }
+  return cases;
+}
+
+IN_PROC_BROWSER_TEST_F(LiveFolderRuntimeBrowserTest, ConformanceCases) {
+  LiveFolderService* service = LiveFolderService::Get(browser()->profile());
+  ASSERT_TRUE(service);
+  std::vector<Case> cases = InstallConformanceCases(service->plugins_dir());
+  ASSERT_GE(cases.size(), 12u);
+  for (const Case& c : cases) {
+    SCOPED_TRACE(c.name);
+    std::optional<base::Value> expected =
+        ReadJson(c.dir.AppendASCII("expected.json"));
+    ASSERT_TRUE(expected) << c.name;
+    base::Value actual = Run(c);
+    EXPECT_EQ(actual, *expected)
+        << c.name << "\n  actual: " << base::WriteJson(actual).value_or("")
+        << "\n  expected: " << base::WriteJson(*expected).value_or("");
+  }
+}
 
 IN_PROC_BROWSER_TEST_F(LiveFolderRuntimeBrowserTest, BuiltinCases) {
   std::vector<Case> cases = BuiltinCases();
