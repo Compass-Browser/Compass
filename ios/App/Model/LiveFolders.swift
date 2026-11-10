@@ -58,8 +58,9 @@ final class LiveFolders {
     self.tabs = tabs
     pluginsDirectory = directory.appendingPathComponent("Live Plugins", isDirectory: true)
     settingsURL = directory.appendingPathComponent("Live Folders.json")
-    // The repo's plugins/ folder, copied into the app (project.yml).
-    scripts = Bundle.main.url(forResource: "plugins", withExtension: nil).flatMap { try? LiveScripts(directory: $0) }
+    // The repo's plugins/ sdk, runtime and builtin folders, copied to the
+    // top of the app's bundle (project.yml).
+    scripts = Bundle.main.resourceURL.flatMap { try? LiveScripts(directory: $0) }
     rules = scripts.map(LiveRules.init(scripts:))
     if let data = try? Data(contentsOf: settingsURL),
       let saved = try? JSONDecoder().decode(Settings.self, from: data)

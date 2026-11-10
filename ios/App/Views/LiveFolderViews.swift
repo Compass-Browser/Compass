@@ -78,7 +78,7 @@ struct LiveFolderEditor: View {
             expectedHash: folder?.liveSource?.pluginSHA256 ?? ""
           ) { installed in
             installing = false
-            if let installed, let p = live.plugin(id: installed.id) { choose(p) }
+            if let installed, let p = live.plugin(id: installed.manifest.id) { choose(p) }
           }
         } else if let plugin {
           form(plugin)

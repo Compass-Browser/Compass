@@ -83,6 +83,16 @@ final class AppServices {
     extensions = WebExtensions(directory: directory)
     tabs = TabManager(store: store, siteSettings: siteSettings, contentBlocking: contentBlocking)
     liveFolders = LiveFolders(store: store, tabs: tabs, directory: directory)
+    #if DEBUG
+      // -CompassLiveFolderDemo <feed URL>: an RSS live folder in the first
+      // space's Pinned, open (trying the runtime in the simulator).
+      if let feed = UserDefaults.standard.string(forKey: "CompassLiveFolderDemo"),
+        let rss = liveFolders.plugin(id: "compass.rss"), let space = store.spaces.first,
+        !space.pinned.subtree.contains(where: \.isLiveFolder)
+      {
+        liveFolders.create(plugin: rss, name: "", config: ["url": feed], secrets: [:], grantCookies: false, in: space.pinned)
+      }
+    #endif
     system = SystemBridge()
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()

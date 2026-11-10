@@ -28,7 +28,6 @@
 		1C967DE91A01640B9FCEDB3D /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E5F45F164FB346FCC2A5E35 /* manifest.json */; };
 		20FC5390B0E23578AE53F568 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6794D1252E649F6B927EAEF2 /* SearchEngine.swift */; };
 		23141F90C369B5DC02D45FD7 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = C1F5E18C01FE8E9B53C5726A /* CompassSync */; };
-		27B698F561CBE5D3D61F7C66 /* plugins in Resources */ = {isa = PBXBuildFile; fileRef = CEED430B2D7981C9C1C9A366 /* plugins */; };
 		28AE9D978D1FCDFAE4CE06BC /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ECB8BB8BB7B8645F265BCE1 /* ShareViewController.swift */; };
 		2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */; };
 		2D7DD330D12048A9E3C15504 /* CompassWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F778B3B5C9943AAABC5724 /* CompassWidgets.swift */; };
@@ -61,6 +60,7 @@
 		64E325502103288EB0F1FDA9 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */; };
 		6B1E7CBFA2F9BB6A7E53EBB4 /* page_agent.js in Resources */ = {isa = PBXBuildFile; fileRef = BF3F521821D3643A2FACB148 /* page_agent.js */; };
 		6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79254E7DBBF744D531F94471 /* SettingsView.swift */; };
+		6B527D6E319153F7466CB1C7 /* sdk in Resources */ = {isa = PBXBuildFile; fileRef = 085A8CC982D655A29D784FBB /* sdk */; };
 		6EB35E925912692C22E0147F /* DownloadActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */; };
 		72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */; };
 		75239D1EE578D0DDEB16FE09 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */; };
@@ -74,11 +74,13 @@
 		86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEA337DD801A959B39B43F /* SyncController.swift */; };
 		8DAFAAAC75CDF3AB68D09D02 /* DownloadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D248EE47245F87391C4DDC09 /* DownloadsTests.swift */; };
 		8E292FD1B0506116F383F4DC /* ThemeEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */; };
+		8F5AFF7BA9D325F61DA11487 /* runtime in Resources */ = {isa = PBXBuildFile; fileRef = 7156192D013F9EC3839D434E /* runtime */; };
 		9063D67CA8F47F572E0DFE97 /* ExtensionPackage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */; };
 		90D15113F681839FCF937BF2 /* ExtensionSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7886E54D0165384982BAE56C /* ExtensionSource.swift */; };
 		90E62600DBC31089EED9F6D5 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9916DE7F5FD4040F40A90C /* CompassSync */; };
 		91D855F27AF48E31EE21A8D2 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C104F34AF154CFDADE0CE18 /* Downloads.swift */; };
 		92E78CB5FCC5B40329F43E09 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */; };
+		9E50B387046D24A4C2406A57 /* builtin in Resources */ = {isa = PBXBuildFile; fileRef = 137D57B52CCE53CBA43509B6 /* builtin */; };
 		9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */; };
 		A035DC301CF07BB150374FD4 /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 804956549F3FF1171C330610 /* CompassShared */; };
 		A04E2FE056EF8197288FE01C /* ListWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DAC3E7BAAB02E17E37AB95 /* ListWidgets.swift */; };
@@ -190,10 +192,12 @@
 /* Begin PBXFileReference section */
 		038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeTabsTests.swift; sourceTree = "<group>"; };
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		085A8CC982D655A29D784FBB /* sdk */ = {isa = PBXFileReference; lastKnownFileType = folder; name = sdk; path = ../plugins/sdk; sourceTree = SOURCE_ROOT; };
 		0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceWidget.swift; sourceTree = "<group>"; };
 		0DED477E2FD46B08248E91DD /* PushService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PushService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EF2E3AF352111443E598110 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentTabNotifications.swift; sourceTree = "<group>"; };
+		137D57B52CCE53CBA43509B6 /* builtin */ = {isa = PBXFileReference; lastKnownFileType = folder; name = builtin; path = ../plugins/builtin; sourceTree = SOURCE_ROOT; };
 		1BD1561E3D74DB1D613CF34A /* Compass.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Compass.entitlements; sourceTree = "<group>"; };
 		1BF57BA01F2477CA55BC7407 /* Compass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Compass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1DA6517378FE106A32AFB54F /* LiveFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveFolders.swift; sourceTree = "<group>"; };
@@ -236,6 +240,7 @@
 		6794D1252E649F6B927EAEF2 /* SearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEngine.swift; sourceTree = "<group>"; };
 		6C26E8DD20C168CA5D31BE92 /* QuickWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickWidgets.swift; sourceTree = "<group>"; };
 		6E5F45F164FB346FCC2A5E35 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		7156192D013F9EC3839D434E /* runtime */ = {isa = PBXFileReference; lastKnownFileType = folder; name = runtime; path = ../plugins/runtime; sourceTree = SOURCE_ROOT; };
 		717D590ED19EB51A8B622101 /* Share.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Share.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		71E0DA10C9C7101FC286EA17 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		726541D9BE66CA543B0C251A /* CollapseBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapseBarTests.swift; sourceTree = "<group>"; };
@@ -279,7 +284,6 @@
 		C8869F83B348CDAA446122C7 /* DownloadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsView.swift; sourceTree = "<group>"; };
 		C93F45F6CF3D5B476056A454 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C98F12601AB2AF4C69845C13 /* CompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassApp.swift; sourceTree = "<group>"; };
-		CEED430B2D7981C9C1C9A366 /* plugins */ = {isa = PBXFileReference; lastKnownFileType = folder; name = plugins; path = ../plugins; sourceTree = SOURCE_ROOT; };
 		CEF087B09F1E59FE957A0DB0 /* StartScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartScreenTests.swift; sourceTree = "<group>"; };
 		CF8F914BD392DD404C347B1D /* PageMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenu.swift; sourceTree = "<group>"; };
 		D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlocking.swift; sourceTree = "<group>"; };
@@ -457,9 +461,9 @@
 		8B626287893CAD033B3BC801 /* compass-xcodegen-22299 */ = {
 			isa = PBXGroup;
 			children = (
-				CEED430B2D7981C9C1C9A366 /* plugins */,
 				EA555EC5986421BF28AF7541 /* assets */,
 				7A967FAD1B34BADDCF2CE4C5 /* common */,
+				AE94D537818DC1B4396C4DD4 /* plugins */,
 			);
 			name = "compass-xcodegen-22299";
 			path = ..;
@@ -481,6 +485,16 @@
 				76550DBD1ADDE55205A53854 /* call_pip.js */,
 			);
 			path = picture_in_picture;
+			sourceTree = "<group>";
+		};
+		AE94D537818DC1B4396C4DD4 /* plugins */ = {
+			isa = PBXGroup;
+			children = (
+				137D57B52CCE53CBA43509B6 /* builtin */,
+				7156192D013F9EC3839D434E /* runtime */,
+				085A8CC982D655A29D784FBB /* sdk */,
+			);
+			path = plugins;
 			sourceTree = "<group>";
 		};
 		B469E0DBFCE48FC1538DAAE7 /* Extensions */ = {
@@ -924,9 +938,11 @@
 				A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */,
 				F64AB0D9881832832B426B17 /* Compass.icon in Resources */,
 				9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */,
+				9E50B387046D24A4C2406A57 /* builtin in Resources */,
 				AD4401C3275D27058B25F01D /* call_pip.js in Resources */,
 				6B1E7CBFA2F9BB6A7E53EBB4 /* page_agent.js in Resources */,
-				27B698F561CBE5D3D61F7C66 /* plugins in Resources */,
+				8F5AFF7BA9D325F61DA11487 /* runtime in Resources */,
+				6B527D6E319153F7466CB1C7 /* sdk in Resources */,
 				5DA9796ECD66F327437A8F9B /* system_prompt.md in Resources */,
 				0AAFD0152FDBD995D73F3C59 /* tools.json in Resources */,
 			);
