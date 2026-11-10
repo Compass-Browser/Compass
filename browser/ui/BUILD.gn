@@ -30,6 +30,14 @@ source_set("ui") {
     "webui/arc_import/compass_arc_import_ui.h",
     "claude/claude_tabs.cc",
     "claude/claude_tabs.h",
+    "live_folders/live_folder_host.cc",
+    "live_folders/live_folder_host.h",
+    "live_folders/live_folder_service.cc",
+    "live_folders/live_folder_service.h",
+    "live_folders/live_folders_untrusted_ui.cc",
+    "live_folders/live_folders_untrusted_ui.h",
+    "live_folders/live_plugin_registry.cc",
+    "live_folders/live_plugin_registry.h",
     "views/claude/claude_panel.cc",
     "views/claude/claude_panel.h",
     "views/command_bar/command_bar.cc",
@@ -103,6 +111,7 @@ source_set("ui") {
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
     "//compass/browser/ui/webui/claude:mojo_bindings",
     "//compass/browser/ui/webui/find_bar:mojo_bindings",
+    "//compass/browser/ui/webui/live_folders:mojo_bindings",
     "//compass/browser/ui/webui/settings:sections",
     "//compass/browser/ui/webui/sidebar:mojo_bindings",
     "//compass/browser/ui/webui/sync:mojo_bindings",
@@ -118,6 +127,8 @@ source_set("ui") {
     "//chrome/browser/first_run",
     "//compass/browser/arc_import",
     "//compass/browser/claude",
+    "//compass/browser/live_folders",
+    "//third_party/icu",
     "//compass/browser/prefs",
     "//compass/browser/shortcuts",
     "//components/os_crypt/async/browser",
@@ -313,6 +324,7 @@ source_set("browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
     "arc_import/arc_importer_browsertest.cc",
+    "live_folders/live_folder_runtime_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/claude/claude_panel_browsertest.cc",
     "views/find_bar/find_bar_browsertest.cc",
@@ -328,7 +340,12 @@ source_set("browser_tests") {
   if (is_posix) {
     sources += [ "claude/mcp_bridge_browsertest.cc" ]
   }
+  # The plugin cases the runtime test reads.
+  data = [ "//compass/plugins/" ]
   deps = [
+    "//compass/browser/live_folders",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
     "//compass/browser/claude",
     "//net:test_support",
     ":ui",

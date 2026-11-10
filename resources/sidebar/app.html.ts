@@ -65,6 +65,15 @@ export function getHtml(this: CompassSidebarAppElement) {
         @folder-toggle="${this.onFolderToggle_}">
       <div class="section-header" data-flip="pinned-header">
         <span>Pinned</span>
+        <button id="newLiveFolder" class="new-folder"
+            aria-label="New live folder" title="New live folder"
+            @click="${this.onNewLiveFolderClick_}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3.5 12.5a6.4 6.4 0 0 1 9 0M5.5 10.3a3.6 3.6 0 0 1 5 0">
+            </path>
+            <circle cx="8" cy="12.6" r="0.6"></circle>
+          </svg>
+        </button>
         <button id="newFolder" class="new-folder" data-section="pinned"
             aria-label="New folder" title="New folder"
             @click="${this.onNewFolderClick_}">
@@ -128,6 +137,11 @@ export function getHtml(this: CompassSidebarAppElement) {
         .entriesScrollTop="${preview.scrollTop}">
     </compass-sidebar-preview>`)}
 </div>
+${this.liveEditor_ ? html`
+  <compass-live-folder-editor .parentId="${this.liveEditor_.parentId}"
+      .folderId="${this.liveEditor_.folderId}"
+      @close="${this.onLiveEditorClose_}">
+  </compass-live-folder-editor>` : nothing}
 ${this.getMenuSpace_() && this.themeOpen_ ? html`
   <div id="spaceMenu" class="theme" role="dialog" aria-label="Theme"
       @keydown="${this.onSpaceMenuKeydown_}">

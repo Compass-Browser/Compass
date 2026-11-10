@@ -1,0 +1,14 @@
+<!doctype html>
+<!-- chrome-untrusted://live-folders/: runs live folder plugins in Workers
+     (docs/design/live-folders.md, "Runtime"). Never shown. -->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Live folders</title>
+    <!-- result.js normalizes what a plugin returned, with the text SDK. -->
+    <script src="/plugins/sdk/text.js"></script>
+    <script src="/plugins/runtime/result.js"></script>
+    <script type="module" src="/live_folders/host.js"></script>
+  </head>
+  <body></body>
+</html>

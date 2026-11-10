@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -16,6 +17,8 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -163,6 +166,32 @@ void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
       proto.clear_collapsed();
     }
   }
+  if (node.is_live_folder()) {
+    const LiveSource& source = *node.live_source();
+    sync_pb::CompassLiveSource& live = *proto.mutable_live_source();
+    COMPASS_SET_STRING(live, plugin_id, source.plugin_id);
+    COMPASS_SET_STRING(live, config_json,
+                       base::WriteJson(source.config).value_or("{}"));
+    COMPASS_SET_STRING(live, plugin_url,
+                       source.plugin_url.possibly_invalid_spec());
+    COMPASS_SET_STRING(live, plugin_sha256, source.plugin_sha256);
+  } else if (proto.has_live_source()) {
+    proto.clear_live_source();
+  }
+}
+
+// A remote live folder's source, or nullopt if it has none (or no plugin).
+std::optional<LiveSource> LiveSourceFromProto(const sync_pb::CompassNode& node) {
+  if (!node.has_live_source() || node.live_source().plugin_id().empty()) {
+    return std::nullopt;
+  }
+  const sync_pb::CompassLiveSource& live = node.live_source();
+  std::optional<base::Value> config =
+      base::JSONReader::Read(live.config_json(), base::JSON_PARSE_RFC);
+  return LiveSource(live.plugin_id(),
+                    config && config->is_dict() ? std::move(config->GetDict())
+                                                : base::DictValue(),
+                    GURL(live.plugin_url()), live.plugin_sha256());
 }
 
 // last_active_time and archived_time: microseconds since the Windows epoch.
@@ -1185,6 +1214,12 @@ void CompassSpacesSyncBridge::AddLocalNodes(
       // A new tab or blank page stays here.
       continue;
     }
+    if (child->is_live_item()) {
+      // A live folder's entries are made on each device and never sync
+      // (docs/design/live-folders.md, "Sync"). One that leaves its folder
+      // loses its key, and syncs from then on.
+      continue;
+    }
     auto it = mirror_.find(key);
     const sync_pb::CompassNode* synced =
         it != mirror_.end() && it->second.has_node() ? &it->second.node()
@@ -1749,7 +1784,15 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
           node = target->AddTab(root, end, GURL(remote.url()), title, id);
           break;
         case Type::kFolder:
-          node = target->AddFolder(root, end, title, id);
+          // A live folder, where one can be: Pinned.
+          if (std::optional<LiveSource> live = LiveSourceFromProto(remote);
+              live && remote.section() == kSectionPinned &&
+              target->CanAddLiveFolder(root)) {
+            node = target->AddLiveFolder(root, end, title, std::move(*live),
+                                         id);
+          } else {
+            node = target->AddFolder(root, end, title, id);
+          }
           break;
         case Type::kSplit:
           node = target->AddSplit(root, end, id);
@@ -1803,6 +1846,26 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
         model->SetTitle(node, title);
       }
       model->SetCollapsed(node, remote.collapsed());
+      if (node->is_live_folder()) {
+        if (std::optional<LiveSource> live = LiveSourceFromProto(remote)) {
+          // Its settings, changed on another device.
+          model->SetLiveSource(node, std::move(*live));
+        } else {
+          // Made a normal folder on another device, whose entries come with
+          // it: this device's go, rather than sync as copies.
+          std::vector<base::Uuid> entries;
+          for (const auto& child : node->children()) {
+            entries.push_back(child->id());
+          }
+          for (const base::Uuid& entry_id : entries) {
+            if (SidebarNode* entry = model->FindById(entry_id);
+                entry && entry->is_live_item()) {
+              model->Remove(entry);
+            }
+          }
+          model->ConvertToPlainFolder(node);
+        }
+      }
     }
     to_place.push_back(key);
   }
@@ -1928,7 +1991,8 @@ void CompassSpacesSyncBridge::ApplyNodeDeletions(
                             : model->pinned_root();
     std::vector<base::Uuid> rescued;
     for (const auto& child : node->children()) {
-      if (!removing(child.get())) {
+      // A live folder's entries go with it.
+      if (!removing(child.get()) && !child->is_live_item()) {
         rescued.push_back(child->id());
       }
     }
@@ -2163,6 +2227,13 @@ SidebarNode* CompassSpacesSyncBridge::CopyNode(SpaceModel& model,
       }
       break;
     case Type::kFolder:
+      if (node.is_live_folder() && model.CanAddLiveFolder(parent)) {
+        // Its entries come with its next refresh.
+        copy = model.AddLiveFolder(parent, index, node.title(),
+                                   *node.live_source());
+        model.SetCollapsed(copy, node.collapsed());
+        break;
+      }
       copy = model.AddFolder(parent, index, node.title());
       model.SetCollapsed(copy, node.collapsed());
       for (const auto& child : node.children()) {

@@ -1,8 +1,11 @@
 # Live folders
 
 Status: plugin contract, SDK, built-in plugins and the Node reference runtime
-are done (`plugins/`, `tools/live_folders/`). Browser integration (model,
-runtime, UI, sync) is not started; its design is below under "Plan".
+are done (`plugins/`, `tools/live_folders/`), and so is the sidebar model
+and its file format. The desktop runtime and sidebar UI
+(`browser/live_folders/`, `browser/ui/live_folders/`) and sync (the
+folder's source in `CompassNode.live_source`) are being built and tested;
+installing plugins, Android and iOS follow. See "Plan" and "Order".
 
 ## Goal
 
@@ -227,12 +230,16 @@ the iOS one in `CompassKitTests`.
 
 ### Sync
 
-- `CompassNode` field 15: `LiveSource live_source {plugin_id, config_json,
-  plugin_url, plugin_sha256}`. The node keeps `type = FOLDER`, so older
+- `CompassNode` field 15: `CompassLiveSource live_source {plugin_id,
+  config_json, plugin_url, plugin_sha256}`. The node keeps `type = FOLDER`, so older
   clients show a plain, empty folder, and their mirrors keep field 15.
 - The bridge never uploads nodes with a `live_item_key`, and applying
   remote changes doesn't delete a live folder's local entries for being
-  absent remotely. Deleting the folder remotely still removes them.
+  absent remotely. Deleting the folder remotely still removes them (they
+  aren't rescued to Pinned as other children of a deleted folder are).
+- A folder made normal on one device brings that device's entries, as
+  tabs; the other devices drop their own generated entries rather than
+  upload them as copies. A remote config change updates the folder.
 - Secrets and cookie grants are per device. The plugin's URL and hash sync,
   so a device without the plugin offers to install it.
 - The server needs nothing: it stores specifics as opaque bytes.

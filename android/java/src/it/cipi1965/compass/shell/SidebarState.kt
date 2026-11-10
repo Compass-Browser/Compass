@@ -29,9 +29,15 @@ class SidebarState {
         /** The node's tab, or -1. */
         @JvmField val tab: Int,
         @JvmField val children: List<Node>,
+        /** A live folder's plugin, or empty (docs/design/live-folders.md). */
+        @JvmField val live: String = "",
+        /** A live folder's entry that came with a refresh and hasn't been opened. */
+        @JvmField val unseen: Boolean = false,
     ) {
         val isFolder: Boolean
             get() = type == "folder"
+        val isLiveFolder: Boolean
+            get() = isFolder && live.isNotEmpty()
     }
 
     var open by mutableStateOf(false)
@@ -90,6 +96,8 @@ class SidebarState {
                 it.optBoolean("collapsed"),
                 it.optInt("tab", -1),
                 nodes(it.optJSONArray("children")),
+                it.optString("live"),
+                it.optBoolean("unseen"),
             )
         }
 

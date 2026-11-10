@@ -1518,5 +1518,113 @@ TEST_F(CompassSpacesSyncBridgeTest, FaviconsReachOtherDevicesAndAreCollected) {
   EXPECT_FALSE(server_.entities.contains(key));
 }
 
+
+// Live folders (docs/design/live-folders.md, "Sync"): the folder and its
+// source sync; its entries are made on each device and never do.
+
+SidebarNode* AddLiveFolderWithEntries(SpaceModel& space,
+                                      std::vector<const char*> keys) {
+  SidebarNode* folder = space.AddLiveFolder(
+      space.pinned_root(), space.pinned_root()->children().size(), u"Feed",
+      LiveSource("compass.rss",
+                 base::DictValue().Set("url", "https://feed.test/rss")));
+  std::vector<LiveItem> items;
+  for (const char* key : keys) {
+    items.push_back({key, GURL(std::string("https://feed.test/") + key),
+                     base::UTF8ToUTF16(key)});
+  }
+  space.ReplaceLiveItems(folder, items, base::Time::Now(),
+                         [](const SidebarNode&) { return false; });
+  return folder;
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, LiveFoldersSyncWithoutTheirEntries) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SidebarNode* folder = AddLiveFolderWithEntries(a->space(0), {"1", "2"});
+  a->Join();
+
+  // The space and the folder; not its entries.
+  EXPECT_EQ(server_.entities.size(), 2u);
+  const sync_pb::CompassNode& synced =
+      server_.entities[Key(folder->id())].node();
+  EXPECT_EQ(synced.type(), kNodeFolder);
+  EXPECT_EQ(synced.live_source().plugin_id(), "compass.rss");
+  EXPECT_EQ(synced.live_source().config_json(),
+            R"({"url":"https://feed.test/rss"})");
+
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  SidebarNode* copy = b->space(0).FindById(folder->id());
+  ASSERT_TRUE(copy);
+  EXPECT_TRUE(copy->is_live_folder());
+  EXPECT_EQ(*copy->live_source(), *folder->live_source());
+  EXPECT_TRUE(copy->children().empty());
+
+  // B makes its own entries: nothing to send.
+  b->space(0).ReplaceLiveItems(
+      copy, {{"1", GURL("https://feed.test/1"), u"1"}}, base::Time::Now(),
+      [](const SidebarNode&) { return false; });
+  EXPECT_EQ(b->Push(), 0u);
+
+  // A changes the feed: B's folder follows.
+  a->space(0).SetLiveSource(
+      folder, LiveSource("compass.rss",
+                         base::DictValue().Set("url", "https://other.test/")));
+  EXPECT_EQ(a->Push(), 1u);
+  b->Pull();
+  EXPECT_EQ(*copy->live_source()->config.FindString("url"),
+            "https://other.test/");
+  ASSERT_EQ(copy->children().size(), 1u);
+
+  // An entry dragged out is an ordinary tab, and syncs.
+  SidebarNode* entry = folder->children()[0].get();
+  a->space(0).Move(entry, a->space(0).pinned_root(), 0);
+  EXPECT_EQ(a->Push(), 1u);
+  b->Pull();
+  EXPECT_TRUE(b->space(0).FindById(entry->id()));
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, ConvertedElsewhereKeepsOnlyThoseEntries) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SidebarNode* folder = AddLiveFolderWithEntries(a->space(0), {"1", "2"});
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  SidebarNode* copy = b->space(0).FindById(folder->id());
+  ASSERT_TRUE(copy);
+  b->space(0).ReplaceLiveItems(
+      copy,
+      {{"1", GURL("https://feed.test/1"), u"1"},
+       {"3", GURL("https://feed.test/3"), u"3"}},
+      base::Time::Now(), [](const SidebarNode&) { return false; });
+
+  // A makes it a normal folder: its two entries sync as tabs.
+  a->space(0).ConvertToPlainFolder(folder);
+  EXPECT_EQ(a->Push(), 3u);
+  b->Pull();
+  EXPECT_FALSE(copy->is_live_folder());
+  // A's entries, not B's own as well.
+  ASSERT_EQ(copy->children().size(), 2u);
+  for (const auto& child : copy->children()) {
+    EXPECT_FALSE(child->is_live_item());
+    EXPECT_TRUE(a->space(0).FindById(child->id()));
+  }
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, DeletedElsewhereTakesItsEntries) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SidebarNode* folder = AddLiveFolderWithEntries(a->space(0), {"1", "2"});
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  b->space(0).Remove(b->space(0).FindById(folder->id()));
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  // Gone with its entries: none were rescued to Pinned.
+  EXPECT_TRUE(a->space(0).pinned_root()->children().empty());
+  EXPECT_EQ(a->last_push(), 0u);
+}
+
 }  // namespace
 }  // namespace compass::sync

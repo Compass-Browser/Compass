@@ -25,6 +25,7 @@
 #include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
@@ -63,6 +64,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public WindowFeatures::Observer,
                            public LiveTabRegistry::Observer,
                            public claude::ClaudeActivity::Observer,
+                           public LiveFolderService::Observer,
                            public TabStripModelObserver {
  public:
   // What the entries' context menus offer (docs/design/sidebar.md, "Context
@@ -88,6 +90,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     // saved URL, or go back to it (docs/design/sidebar.md, "Pinned URL").
     kSetSavedUrl,
     kBackToSavedUrl,
+    // Live folders (docs/design/live-folders.md, "UI").
+    kNewLiveFolder,
+    kRefreshLiveFolder,
+    kEditLiveSource,
+    kMarkAllSeen,
+    kConvertToPlainFolder,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
     // Then one per device in "Send to Your Devices", in their order.
@@ -188,6 +196,22 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ShowContextMenu(const std::string& id, int32_t x, int32_t y) override;
   void ActOnNowPlaying(const std::string& id,
                        sidebar::mojom::NowPlayingAction action) override;
+  void GetLivePlugins(GetLivePluginsCallback callback) override;
+  void GetLiveFolderSource(const std::string& id,
+                           GetLiveFolderSourceCallback callback) override;
+  void SaveLiveFolder(sidebar::mojom::LiveFolderEditPtr edit,
+                      SaveLiveFolderCallback callback) override;
+  void RefreshLiveFolder(const std::string& id) override;
+  void PreviewLivePlugin(const std::string& url,
+                         PreviewLivePluginCallback callback) override;
+  void InstallLivePlugin(const std::string& url,
+                         const std::string& sha256,
+                         InstallLivePluginCallback callback) override;
+  void RemoveLivePlugin(const std::string& id,
+                        RemoveLivePluginCallback callback) override;
+
+  // LiveFolderService::Observer:
+  void OnLiveFolderStateChanged(const base::Uuid& folder_id) override;
 
   // Tells the page about a swipe across the sidebar (CompassSidebarView).
   void SendSwipe(sidebar::mojom::SwipePhase phase, float delta_x);
@@ -316,6 +340,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                           ProfileAttributesStorageObserver>
       profiles_observation_{this};
   base::RepeatingClosure tree_shown_callback_;
+  base::ScopedObservation<LiveFolderService, LiveFolderService::Observer>
+      live_folders_observation_{this};
   // The window's now playing widgets. Only with a page: unit tests have no
   // media session service.
   std::unique_ptr<NowPlayingTracker> now_playing_;

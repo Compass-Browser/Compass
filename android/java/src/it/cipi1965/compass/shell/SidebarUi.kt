@@ -558,7 +558,13 @@ private fun NodeRow(
                     Modifier.rotate(if (node.collapsed) 0f else 90f),
                 )
                 Sym(
-                    if (node.collapsed) R.drawable.compass_sym_folder else R.drawable.compass_sym_folder_fill,
+                    when {
+                        // A live folder: a plugin fills it, on the devices that run
+                        // plugins (not Android yet: docs/design/live-folders.md).
+                        node.isLiveFolder -> R.drawable.compass_sym_sync
+                        node.collapsed -> R.drawable.compass_sym_folder
+                        else -> R.drawable.compass_sym_folder_fill
+                    },
                     15f,
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
@@ -577,6 +583,9 @@ private fun NodeRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.alpha(if (dim) 0.55f else 1f),
                 )
+                if (node.unseen) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                }
             }
         }
         if (today) {

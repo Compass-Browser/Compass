@@ -7,8 +7,12 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import {getFaviconUrl} from './favicon.js';
 import {getHtml} from './node.html.js';
-import type {Node} from './sidebar.mojom-webui.js';
+import type {LiveFolderState, Node} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType} from './sidebar.mojom-webui.js';
+
+// A node with its live folder's state, which comes apart from the tree
+// (Page.LiveFolderStateChanged()).
+export type LiveNode = Node&{liveState?: LiveFolderState};
 
 // One sidebar entry: a tab, a split (its panes in a row) or a folder (its
 // children, indented). Renders into the light DOM, so the app's styles and
@@ -69,6 +73,25 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   protected isSplit_(): boolean {
     return this.node?.type === NodeType.kSplit;
+  }
+
+  // A live folder's refreshing and error, which the app keeps on the node.
+  protected liveState_(): LiveFolderState {
+    return (this.node as LiveNode | null)?.liveState ??
+        {refreshing: false, error: ''};
+  }
+
+  // The plugin's icon, painted in the text color.
+  protected liveIconStyle_(): string {
+    const url = this.node?.liveFolder?.iconUrl;
+    return url ? `--live-icon: url("${url}")` : '';
+  }
+
+  // How many of a live folder's entries are new.
+  protected unseenCount_(): number {
+    return this.node?.liveFolder ?
+        this.getChildren_().filter(child => child.unseen).length :
+        0;
   }
 
   protected isFolder_(): boolean {

@@ -128,12 +128,19 @@ base::ListValue SpacesAndroid::SnapshotSection(const SidebarNode& root) const {
       case SidebarNode::Type::kFolder:
         dict.Set("type", "folder");
         dict.Set("collapsed", node.collapsed());
+        // A live folder (docs/design/live-folders.md): its plugin.
+        if (node.is_live_folder()) {
+          dict.Set("live", node.live_source()->plugin_id);
+        }
         break;
       case SidebarNode::Type::kSplit:
         dict.Set("type", "split");
         break;
       default:
         dict.Set("type", "tab");
+        if (node.unseen()) {
+          dict.Set("unseen", true);
+        }
         break;
     }
     dict.Set("title", base::UTF16ToUTF8(node.display_title()));

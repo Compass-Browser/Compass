@@ -121,6 +121,24 @@ message CompassNode {
   // without them keeps its own.
   optional string saved_url = 13;
   optional string saved_title = 14;
+  // PINNED folders: set for a live folder, whose entries a plugin makes on
+  // each device and which never sync (docs/design/live-folders.md, "Sync").
+  // The node stays a FOLDER, so a client without it shows a plain, empty
+  // folder, and keeps this field when it changes the node.
+  optional CompassLiveSource live_source = 15;
+}
+
+// Where a live folder's entries come from (compass::LiveSource).
+message CompassLiveSource {
+  // The plugin's manifest ID, e.g. "compass.rss".
+  optional string plugin_id = 1;
+  // The folder's settings for it, as a JSON object.
+  optional string config_json = 2;
+  // An installed plugin's source and the SHA-256 (lowercase hex) of what was
+  // installed, so a device without it can offer to install it. Empty for a
+  // built-in.
+  optional string plugin_url = 3;
+  optional string plugin_sha256 = 4;
 }
 
 // A profile of the chain; only in the home profile's account. Each

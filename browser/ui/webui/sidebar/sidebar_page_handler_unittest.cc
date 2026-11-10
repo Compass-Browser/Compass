@@ -141,6 +141,19 @@ class FakePage : public sidebar::mojom::Page {
   void NodeClaudeChanged(const std::string& id, bool claude) override {
     events_.push_back(hosts_[id] + (claude ? " claude" : " no claude"));
   }
+  // Live folders: not recorded, so the other tests' sequences stay as they
+  // were.
+  void NodeLiveItemChanged(const std::string& id,
+                           bool live_item,
+                           bool unseen) override {}
+  void LiveFolderChanged(const std::string& id,
+                         sidebar::mojom::LiveFolderPtr live_folder) override {}
+  void LiveFolderStateChanged(
+      const std::string& id,
+      sidebar::mojom::LiveFolderStatePtr state) override {}
+  void ShowLiveFolderEditor(const std::optional<std::string>& parent_id,
+                            const std::optional<std::string>& folder_id)
+      override {}
   void ActiveNodeChanged(const std::optional<std::string>& id) override {
     events_.push_back("active " + (id ? hosts_[*id] : "none"));
   }

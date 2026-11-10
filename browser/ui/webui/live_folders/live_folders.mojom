@@ -1,0 +1,74 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// chrome-untrusted://live-folders/ runs live folder plugins, each refresh in
+// a dedicated Worker (docs/design/live-folders.md, "Runtime"). The browser
+// asks the page to run a refresh; the page relays the plugin's fetches and
+// logs back. The page is untrusted: the browser checks every fetch, and
+// checks results again.
+module live_folders.mojom;
+
+// One refresh. JSON travels as strings: the page hands it to the Worker as is.
+struct RunRequest {
+  int32 run_id;
+  // The scripts to load, in order, as paths on the page's origin: the SDK,
+  // the prelude, then the plugin's entry.
+  array<string> scripts;
+  // The validated config, as JSON.
+  string config_json;
+  // {now, locale, timeZone, secrets}, as JSON.
+  string env_json;
+  // How long the refresh may take, in milliseconds.
+  int32 timeout_ms;
+  int32 max_items;
+};
+
+struct RunResult {
+  bool ok;
+  // runtime/result.js's normalized result, as JSON, when ok.
+  string result_json;
+  // The contract's error code and a message, when not ok.
+  string error_code;
+  string error_message;
+};
+
+// What compass.fetch() asks for (runtime/prelude.js).
+struct FetchRequest {
+  string url;
+  string method;
+  map<string, string> headers;
+  string? body;
+  bool include_credentials;
+};
+
+struct FetchResult {
+  bool ok;
+  int32 status;
+  string url;
+  map<string, string> headers;
+  string body;
+  // When not ok.
+  string error_code;
+  string error_message;
+};
+
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// The browser's side.
+interface PageHandler {
+  // A plugin's compass.fetch() for refresh |run_id|.
+  Fetch(int32 run_id, FetchRequest request) => (FetchResult result);
+  // compass.log().
+  Log(int32 run_id, string message);
+};
+
+// The page's side.
+interface Page {
+  Run(RunRequest request) => (RunResult result);
+  // Stops a refresh: its Run() doesn't answer.
+  Cancel(int32 run_id);
+};
