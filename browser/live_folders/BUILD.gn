@@ -11,6 +11,8 @@ source_set("live_folders") {
     "live_folder_store.h",
     "live_plugin_manifest.cc",
     "live_plugin_manifest.h",
+    "live_plugin_package.cc",
+    "live_plugin_package.h",
     "live_result.cc",
     "live_result.h",
   ]
@@ -21,6 +23,7 @@ source_set("live_folders") {
   ]
   deps = [
     "//base:i18n",
+    "//crypto",
     "//components/os_crypt/async/common",
     "//net",
     "//net/traffic_annotation",

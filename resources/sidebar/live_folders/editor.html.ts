@@ -35,7 +35,7 @@ function renderPicker(el: CompassLiveFolderEditorElement) {
 
 function renderField(
     el: CompassLiveFolderEditorElement, field: LiveConfigField) {
-  const value = el.valueOf(field);
+  const value = el.fieldValue(field);
   const label = field.label + (field.optional ? ' (optional)' : '');
   // clang-format off
   switch (field.type) {

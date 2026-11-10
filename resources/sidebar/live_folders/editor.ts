@@ -98,7 +98,7 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
   }
 
   // The field's value: what the user entered, else the plugin's default.
-  valueOf(field: LiveConfigField): FieldValue|undefined {
+  fieldValue(field: LiveConfigField): FieldValue|undefined {
     const entered = this.values[field.key];
     if (entered !== undefined) {
       return entered;
