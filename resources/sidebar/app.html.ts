@@ -69,8 +69,9 @@ export function getHtml(this: CompassSidebarAppElement) {
             aria-label="New live folder" title="New live folder"
             @click="${this.onNewLiveFolderClick_}">
           <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M12.3 6.4A4.5 4.5 0 0 0 3.6 7M12.5 3.5v3h-3
-                     M3.7 9.6A4.5 4.5 0 0 0 12.4 9M3.5 12.5v-3h3"></path>
+            <path d="M2 4.2a.7.7 0 0 1 .7-.7h3.1l1.4 1.5h6.1a.7.7 0 0 1 .7.7
+                     v6.6a.7.7 0 0 1-.7.7H2.7a.7.7 0 0 1-.7-.7z
+                     M8.7 6.6 7.2 9h1.8l-1.5 2.4"></path>
           </svg>
         </button>
         <button id="newFolder" class="new-folder" data-section="pinned"
