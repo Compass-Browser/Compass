@@ -10,7 +10,10 @@
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/functional/callback_helpers.h"
+#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/live_folders/live_result.h"
@@ -28,6 +31,14 @@ namespace {
 constexpr char kStoreFileName[] = "Compass Live Folders.json";
 // The first retry after an error; it doubles with each one after.
 constexpr base::TimeDelta kFirstRetry = base::Minutes(5);
+
+// Runs once the installed plugins have been read (the first service reads
+// them, for the whole browser).
+std::vector<base::OnceClosure>& WhenPluginsLoaded() {
+  static base::NoDestructor<std::vector<base::OnceClosure>> callbacks;
+  return *callbacks;
+}
+bool g_reading_plugins = false;
 
 // What every refresh's context loads before the plugin
 // (docs/design/live-folders.md, "Runtime").
@@ -135,6 +146,29 @@ LiveFolderService::LiveFolderService(Profile* profile)
         }
       },
       weak_factory_.GetWeakPtr()));
+  LivePluginRegistry& registry = LivePluginRegistry::Get();
+  if (!registry.installed_loaded()) {
+    WhenPluginsLoaded().push_back(base::BindOnce(
+        &LiveFolderService::OnPluginsLoaded, weak_factory_.GetWeakPtr()));
+    if (!g_reading_plugins) {
+      g_reading_plugins = true;
+      base::ThreadPool::PostTaskAndReplyWithResult(
+          FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+          base::BindOnce(&ReadLivePluginPackages, plugins_dir()),
+          base::BindOnce([](std::vector<LivePluginPackage> packages) {
+            LivePluginRegistry& registry = LivePluginRegistry::Get();
+            for (const LivePluginPackage& package : packages) {
+              registry.AddInstalled(package);
+            }
+            registry.set_installed_loaded();
+            std::vector<base::OnceClosure> callbacks =
+                std::move(WhenPluginsLoaded());
+            for (base::OnceClosure& callback : callbacks) {
+              std::move(callback).Run();
+            }
+          }));
+    }
+  }
   // Not while the profile is being made: SpaceService reads the sidebar.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(
@@ -216,7 +250,8 @@ base::expected<SidebarNode*, std::string> LiveFolderService::CreateLiveFolder(
   index = std::min(index, parent->children().size());
   SidebarNode* folder = space.AddLiveFolder(
       parent, index, std::move(title),
-      LiveSource(plugin_id, KnownFields(plugin->manifest, config)));
+      LiveSource(plugin_id, KnownFields(plugin->manifest, config),
+                 plugin->source, plugin->sha256));
   store_.SetCookiesGranted(folder->id(),
                            grant_cookies && !plugin->manifest.cookies.empty());
   states_[folder->id()].title_from_plugin = title_from_plugin;
@@ -292,6 +327,85 @@ void LiveFolderService::Shutdown() {
 
 void LiveFolderService::OnStoreLoaded() {
   ScheduleNext();
+}
+
+void LiveFolderService::OnPluginsLoaded() {
+  ScheduleNext();
+}
+
+base::FilePath LiveFolderService::plugins_dir() const {
+  return LivePluginsDir(profile_->GetPath().DirName());
+}
+
+void LiveFolderService::PreviewPlugin(const GURL& url,
+                                      LivePluginPackageCallback callback) {
+  FetchLivePluginPackage(GetURLLoaderFactory(), url, std::move(callback));
+}
+
+void LiveFolderService::InstallPlugin(
+    const GURL& url,
+    const std::string& expected_sha256,
+    base::OnceCallback<void(std::string)> callback) {
+  FetchLivePluginPackage(
+      GetURLLoaderFactory(), url,
+      base::BindOnce(
+          [](base::WeakPtr<LiveFolderService> service, std::string expected,
+             base::OnceCallback<void(std::string)> callback,
+             base::expected<LivePluginPackage, std::string> package) {
+            if (!package.has_value()) {
+              std::move(callback).Run(package.error());
+              return;
+            }
+            if (package->sha256 != expected) {
+              std::move(callback).Run(
+                  "The plugin at that address has changed since. Review it "
+                  "again before installing.");
+              return;
+            }
+            if (!service) {
+              std::move(callback).Run("Compass is closing.");
+              return;
+            }
+            base::ThreadPool::PostTaskAndReplyWithResult(
+                FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+                base::BindOnce(&WriteLivePluginPackage, service->plugins_dir(),
+                               *package),
+                base::BindOnce(
+                    [](base::WeakPtr<LiveFolderService> service,
+                       LivePluginPackage package,
+                       base::OnceCallback<void(std::string)> callback,
+                       bool written) {
+                      if (!written) {
+                        std::move(callback).Run(
+                            "The plugin couldn't be saved on this device.");
+                        return;
+                      }
+                      LivePluginRegistry::Get().AddInstalled(package);
+                      std::move(callback).Run(std::string());
+                      if (service) {
+                        // Folders that were waiting for it.
+                        service->ScheduleNext();
+                      }
+                    },
+                    service, std::move(*package), std::move(callback)));
+          },
+          weak_factory_.GetWeakPtr(), expected_sha256, std::move(callback)));
+}
+
+void LiveFolderService::RemovePlugin(const std::string& id,
+                                     base::OnceClosure done) {
+  const LivePlugin* plugin = registry_->Find(id);
+  if (!plugin || plugin->builtin) {
+    std::move(done).Run();
+    return;
+  }
+  registry_->RemoveInstalled(id);
+  store_.RemoveSecrets(id);
+  base::ThreadPool::PostTaskAndReply(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(base::IgnoreResult(&DeleteLivePluginPackage),
+                     plugins_dir(), id),
+      std::move(done));
 }
 
 void LiveFolderService::OnSpacesLoaded() {
@@ -431,7 +545,8 @@ void LiveFolderService::Fail(const base::Uuid& folder_id, LiveError error) {
 }
 
 void LiveFolderService::ScheduleNext() {
-  if (!spaces_loaded_ || !store_.loaded()) {
+  if (!spaces_loaded_ || !store_.loaded() ||
+      !registry_->installed_loaded()) {
     return;
   }
   const base::Time now = Now();

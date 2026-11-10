@@ -202,6 +202,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void SaveLiveFolder(sidebar::mojom::LiveFolderEditPtr edit,
                       SaveLiveFolderCallback callback) override;
   void RefreshLiveFolder(const std::string& id) override;
+  void PreviewLivePlugin(const std::string& url,
+                         PreviewLivePluginCallback callback) override;
+  void InstallLivePlugin(const std::string& url,
+                         const std::string& sha256,
+                         InstallLivePluginCallback callback) override;
+  void RemoveLivePlugin(const std::string& id,
+                        RemoveLivePluginCallback callback) override;
 
   // LiveFolderService::Observer:
   void OnLiveFolderStateChanged(const base::Uuid& folder_id) override;

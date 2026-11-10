@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/base64.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
@@ -22,7 +23,7 @@ constexpr std::string_view kManifestName = "manifest.json";
 }  // namespace
 
 // static
-const LivePluginRegistry& LivePluginRegistry::Get() {
+LivePluginRegistry& LivePluginRegistry::Get() {
   static base::NoDestructor<LivePluginRegistry> registry;
   return *registry;
 }
@@ -60,6 +61,37 @@ LivePluginRegistry::LivePluginRegistry() {
 }
 
 LivePluginRegistry::~LivePluginRegistry() = default;
+
+void LivePluginRegistry::AddInstalled(const LivePluginPackage& package) {
+  const LivePlugin* existing = Find(package.manifest.id);
+  if (existing && existing->builtin) {
+    return;
+  }
+  RemoveInstalled(package.manifest.id);
+  LivePlugin plugin;
+  plugin.manifest = package.manifest;
+  plugin.base_path = "installed/" + package.manifest.id + "/" +
+                     package.manifest.version + "/";
+  if (!package.icon.empty()) {
+    plugin.icon_data_url =
+        std::string(package.manifest.icon.ends_with(".png")
+                        ? "data:image/png;base64,"
+                        : "data:image/svg+xml;base64,") +
+        base::Base64Encode(package.icon);
+  }
+  plugin.source = package.source;
+  plugin.sha256 = package.sha256;
+  plugins_.push_back(std::move(plugin));
+  std::ranges::sort(plugins_, {}, [](const LivePlugin& p) {
+    return p.manifest.name;
+  });
+}
+
+void LivePluginRegistry::RemoveInstalled(std::string_view id) {
+  std::erase_if(plugins_, [id](const LivePlugin& plugin) {
+    return !plugin.builtin && plugin.manifest.id == id;
+  });
+}
 
 const LivePlugin* LivePluginRegistry::Find(std::string_view id) const {
   auto it = std::ranges::find(plugins_, id, [](const LivePlugin& plugin) {

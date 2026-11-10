@@ -133,6 +133,19 @@ class LiveFolderService : public KeyedService,
       const std::map<std::string, std::string>& secrets,
       bool grant_cookies);
 
+  // Installed plugins (docs/design/live-folders.md, "Plugins"). Fetches the
+  // plugin whose manifest is at |url|, for the user to review.
+  void PreviewPlugin(const GURL& url, LivePluginPackageCallback callback);
+  // Fetches it again and installs it, if it's still what was reviewed (or,
+  // for a synced folder's plugin, what that folder names): its hash is
+  // |expected_sha256|. Answers an error for the user, or empty.
+  void InstallPlugin(const GURL& url,
+                     const std::string& expected_sha256,
+                     base::OnceCallback<void(std::string)> callback);
+  // Removes an installed plugin and its secrets. Its folders stay, and show
+  // that it's missing.
+  void RemovePlugin(const std::string& id, base::OnceClosure done);
+
   // Changes |folder|'s config, secrets and cookie grant, and refreshes it.
   base::expected<void, std::string> EditLiveFolder(
       SidebarNode* folder,
@@ -145,6 +158,9 @@ class LiveFolderService : public KeyedService,
 
   void SetURLLoaderFactoryForTesting(
       scoped_refptr<network::SharedURLLoaderFactory> factory);
+  // Where installed plugins live: <user data>/Compass Plugins.
+  base::FilePath plugins_dir() const;
+
   // Refresh results use this as now; the timer doesn't run.
   void SetClockForTesting(base::RepeatingCallback<base::Time()> now);
 
@@ -163,6 +179,7 @@ class LiveFolderService : public KeyedService,
 
  private:
   void OnStoreLoaded();
+  void OnPluginsLoaded();
   void OnSpacesLoaded();
 
   // The live folder |id| and its space, or null.
@@ -187,7 +204,7 @@ class LiveFolderService : public KeyedService,
   void NotifyStateChanged(const base::Uuid& folder_id);
 
   const raw_ptr<Profile> profile_;
-  const raw_ref<const LivePluginRegistry> registry_;
+  const raw_ref<LivePluginRegistry> registry_;
   LiveFolderHost host_;
   LiveFolderStore store_;
   base::WeakPtr<SpaceService> space_service_;

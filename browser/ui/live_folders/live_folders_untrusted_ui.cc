@@ -8,7 +8,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/memory/ref_counted_memory.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/live_folders/live_plugin_package.h"
 #include "compass/browser/ui/live_folders/live_folder_host.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/grit/compass_sidebar_resources.h"
@@ -22,6 +27,8 @@
 namespace compass {
 
 namespace {
+
+constexpr std::string_view kInstalledPrefix = "installed/";
 
 // The page's own files, out of Compass's WebUI resources.
 bool IsLiveFoldersResource(std::string_view path) {
@@ -47,6 +54,41 @@ LiveFoldersUntrustedUI::LiveFoldersUntrustedUI(content::WebUI* web_ui)
   }
   source->AddResourcePaths(resources);
   source->SetDefaultResource(IDR_COMPASS_SIDEBAR_LIVE_FOLDERS_HTML);
+
+  // Installed plugins' files, from <user data>/Compass Plugins.
+  Profile* profile = Profile::FromWebUI(web_ui);
+  source->SetRequestFilter(
+      base::BindRepeating([](const std::string& path) {
+        return path.starts_with(kInstalledPrefix);
+      }),
+      base::BindRepeating(
+          [](base::FilePath plugins_dir, const std::string& path,
+             content::WebUIDataSource::GotDataCallback callback) {
+            std::string_view relative =
+                std::string_view(path).substr(kInstalledPrefix.size());
+            relative = relative.substr(0, relative.find_first_of("?#"));
+            const base::FilePath file =
+                LivePluginFilePath(plugins_dir, relative);
+            if (file.empty()) {
+              std::move(callback).Run(nullptr);
+              return;
+            }
+            base::ThreadPool::PostTaskAndReplyWithResult(
+                FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+                base::BindOnce(
+                    [](base::FilePath file)
+                        -> scoped_refptr<base::RefCountedMemory> {
+                      std::string contents;
+                      if (!base::ReadFileToString(file, &contents)) {
+                        return nullptr;
+                      }
+                      return base::MakeRefCounted<base::RefCountedString>(
+                          std::move(contents));
+                    },
+                    file),
+                std::move(callback));
+          },
+          LivePluginsDir(profile->GetPath().DirName())));
 
   using Directive = network::mojom::CSPDirectiveName;
   source->OverrideContentSecurityPolicy(Directive::DefaultSrc,

@@ -117,6 +117,25 @@ struct LivePlugin {
   // The hosts it may send the profile's cookies to, once allowed; empty if
   // it never does.
   array<string> cookie_hosts;
+  // Ships with Compass; else installed, and removable.
+  bool builtin;
+};
+
+// A plugin about to be installed, for the user to review: what it reaches
+// and what it asks for.
+struct LivePluginPreview {
+  string id;
+  string name;
+  string description;
+  string version;
+  // Host patterns ("{config:url}" stands for the address the user enters).
+  array<string> hosts;
+  array<string> cookie_hosts;
+  // The secrets' labels.
+  array<string> secrets;
+  // Its address, and the hash InstallLivePlugin() checks.
+  string source;
+  string sha256;
 };
 
 // What the live folder editor shows for an existing folder.
@@ -125,6 +144,10 @@ struct LiveFolderSource {
   string title;
   string config_json;
   bool cookies_granted;
+  // For an installed plugin: where it comes from and its hash, so a device
+  // without it can install it.
+  string plugin_url;
+  string plugin_sha256;
 };
 
 // The live folder editor's answer: a new folder (|folder_id| null, in
@@ -381,6 +404,13 @@ interface PageHandler {
   // Makes or changes a live folder; answers an error for the user, or empty.
   SaveLiveFolder(LiveFolderEdit edit) => (string error);
   RefreshLiveFolder(string id);
+  // Fetches the plugin whose manifest is at |url| for review: null and an
+  // error for the user if it can't.
+  PreviewLivePlugin(string url) => (LivePluginPreview? preview, string error);
+  // Installs it if it's still the reviewed one (|sha256|); answers an
+  // error, or empty.
+  InstallLivePlugin(string url, string sha256) => (string error);
+  RemoveLivePlugin(string id) => ();
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,

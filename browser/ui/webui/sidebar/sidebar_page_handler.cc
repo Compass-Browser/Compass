@@ -153,6 +153,7 @@ sidebar::mojom::LivePluginPtr ToMojoPlugin(const LivePlugin& plugin,
   }
   // The manifest's patterns; placeholders show as the field they name.
   result->cookie_hosts = manifest.cookies;
+  result->builtin = plugin.builtin;
   return result;
 }
 
@@ -1576,7 +1577,9 @@ void SidebarPageHandler::GetLiveFolderSource(
   std::move(callback).Run(sidebar::mojom::LiveFolderSource::New(
       source.plugin_id, base::UTF16ToUTF8(node->title()),
       base::WriteJson(source.config).value_or("{}"),
-      service->store().CookiesGranted(node->id())));
+      service->store().CookiesGranted(node->id()),
+      source.plugin_url.is_valid() ? source.plugin_url.spec() : std::string(),
+      source.plugin_sha256));
 }
 
 void SidebarPageHandler::SaveLiveFolder(sidebar::mojom::LiveFolderEditPtr edit,
@@ -1621,6 +1624,63 @@ void SidebarPageHandler::RefreshLiveFolder(const std::string& id) {
   if (node && node->is_live_folder() && service) {
     service->Refresh(node->id());
   }
+}
+
+void SidebarPageHandler::PreviewLivePlugin(
+    const std::string& url,
+    PreviewLivePluginCallback callback) {
+  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
+  if (!service) {
+    std::move(callback).Run(nullptr, "Live folders aren't available here.");
+    return;
+  }
+  service->PreviewPlugin(
+      GURL(url),
+      base::BindOnce(
+          [](PreviewLivePluginCallback callback,
+             base::expected<LivePluginPackage, std::string> package) {
+            if (!package.has_value()) {
+              std::move(callback).Run(nullptr, package.error());
+              return;
+            }
+            const LivePluginManifest& manifest = package->manifest;
+            auto preview = sidebar::mojom::LivePluginPreview::New();
+            preview->id = manifest.id;
+            preview->name = manifest.name;
+            preview->description = manifest.description;
+            preview->version = manifest.version;
+            preview->hosts = manifest.hosts;
+            preview->cookie_hosts = manifest.cookies;
+            for (const auto& secret : manifest.secrets) {
+              preview->secrets.push_back(secret.label);
+            }
+            preview->source = package->source.spec();
+            preview->sha256 = package->sha256;
+            std::move(callback).Run(std::move(preview), std::string());
+          },
+          std::move(callback)));
+}
+
+void SidebarPageHandler::InstallLivePlugin(
+    const std::string& url,
+    const std::string& sha256,
+    InstallLivePluginCallback callback) {
+  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
+  if (!service) {
+    std::move(callback).Run("Live folders aren't available here.");
+    return;
+  }
+  service->InstallPlugin(GURL(url), sha256, std::move(callback));
+}
+
+void SidebarPageHandler::RemoveLivePlugin(const std::string& id,
+                                          RemoveLivePluginCallback callback) {
+  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
+  if (!service) {
+    std::move(callback).Run();
+    return;
+  }
+  service->RemovePlugin(id, std::move(callback));
 }
 
 void SidebarPageHandler::OnLiveFolderStateChanged(const base::Uuid& folder_id) {

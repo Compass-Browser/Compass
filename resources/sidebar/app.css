@@ -1228,3 +1228,31 @@ input.title-input {
   background: var(--color-sys-primary, #0b57d0);
   color: var(--color-sys-on-primary, #fff);
 }
+
+.live-editor-plugin-row {
+  align-items: center;
+  display: flex;
+}
+
+.live-editor-plugin-row .live-editor-plugin {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-editor-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.live-editor-preview {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 4px;
+  padding: 8px;
+}
