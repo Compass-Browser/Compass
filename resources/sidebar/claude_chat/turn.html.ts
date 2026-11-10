@@ -27,10 +27,11 @@ ${this.isUser_() ? html`
           <span class="memory-label"
               title="${this.getMemory_(item)!.text}">${this.getMemoryLabel_(item)}</span>
           ${this.getMemory_(item)!.undone ? html`
-            <span class="memory-undone">Undone</span>` :
-            this.getMemory_(item)!.undo !== undefined ? html`
-            <button class="link" data-id="${item.id}"
-                @click="${this.onUndoMemoryClick_}">Undo</button>` : nothing}
+            <span class="memory-undone">Undone</span>` : html`
+            ${this.getMemory_(item)!.undo !== undefined ? html`
+              <button class="link" data-id="${item.id}"
+                  @click="${this.onUndoMemoryClick_}">Undo</button>` :
+              nothing}`}
         </div>` :
       html`${item.type === 'tool_use' ? html`
         <details class="tool" ?running="${this.getTool_(item).running}"
