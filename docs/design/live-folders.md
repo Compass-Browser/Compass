@@ -286,9 +286,10 @@ the iOS one in `CompassKitTests`.
 
 ### Android
 
-Status: built (runtime, scheduler, JNI, Compose UI); the APK builds on the
-farm, the desktop's tests cover the shared runtime. Not yet tried on a
-device.
+Status: written (runtime, scheduler, JNI, Compose UI) on branch
+`live-folders-android`; the desktop's tests pass with the shared runtime
+refactored, but the Android code hasn't been compiled yet (the `android`
+farm recipe) nor tried on a device.
 
 - **Runtime: the desktop's, unchanged.** `LiveFolderService`,
   `LiveFolderHost` (the hidden `chrome-untrusted://live-folders/` page, a
