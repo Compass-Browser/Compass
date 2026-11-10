@@ -337,7 +337,13 @@ Zoom drops them while hidden), it:
   pick gets it cleared. On Zoom, the largest `<canvas>`,
   captured (`captureStream()`) into a hidden 1×1 `<video>` made ahead, as
   the video needs a frame before it can go into the window. In speaker view
-  the largest tile is the speaker's;
+  the largest tile is the speaker's. A pick the page turns on screen (the
+  CSS transforms of the tile and its ancestors make a quarter turn; Zoom
+  shows a phone's portrait camera that way) would show sideways, so its
+  track goes through a `MediaStreamTrackProcessor` that tags each frame
+  with the same turn (`new VideoFrame(frame, {rotation})`, nothing redrawn)
+  into a `MediaStreamTrackGenerator` played by a hidden `<video>`. WebKit
+  has neither, so on iOS a turned tile still shows sideways;
 - follows the speaker: while its video is in the window, another pick that
   stays the pick for 2 s takes its place (`requestPictureInPicture()` needs
   no token while the page has a video in picture-in-picture), in the same
@@ -366,7 +372,7 @@ checked against live calls; they are the part to fix when a site changes.
 Tests: `CompassCallPipBrowserTest.*` (a call page, with a fake camera and
 canvas streams as remote tiles, served as `teams.microsoft.com`):
 `LeavingShowsLargestTile`, `FollowsTheSpeaker`, `ButtonsPressTheSite`,
-`CallInAFrame`, `ZoomStaysVisible`,
+`CallInAFrame`, `TurnedTileShowsTurned`, `ZoomStaysVisible`,
 `OtherSitesAreLeftAlone`, `CallSites`, and `SitesOwnWindow` (a page that
 opens document picture-in-picture from its handler while using the
 microphone, as Meet: tracked by `PipWindows` as a document window).

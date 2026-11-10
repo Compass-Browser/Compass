@@ -259,6 +259,25 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, LeavingShowsLargestTile) {
   ASSERT_TRUE(base::test::RunUntil([&] { return !PipContents(); }));
 }
 
+// A tile the page turns on screen (Zoom, for a phone's portrait camera)
+// shows turned the same in the window: the 320x240 tile, turned a quarter,
+// is 240x320.
+IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, TurnedTileShowsTurned) {
+  content::WebContents* call = OpenTeamsCall();
+  ASSERT_TRUE(content::ExecJs(call, "large.style.transform = 'rotate(90deg)'"));
+
+  OpenBlankTab();
+  ASSERT_TRUE(base::test::RunUntil([&] { return PipContents() == call; }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(call, R"(
+        (() => {
+          const v = document.pictureInPictureElement;
+          return !!v && v.videoWidth === 240 && v.videoHeight === 320;
+        })())")
+        .ExtractBool();
+  }));
+}
+
 // Another tile that stays the largest takes the window over.
 IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, FollowsTheSpeaker) {
   content::WebContents* call = OpenTeamsCall();
