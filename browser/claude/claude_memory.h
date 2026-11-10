@@ -133,6 +133,8 @@ class ClaudeMemory : public KeyedService,
 class ClaudeMemoryFactory : public ProfileKeyedServiceFactory {
  public:
   static ClaudeMemoryFactory* GetInstance();
+  // Null for profiles without memory.
+  static ClaudeMemory* GetForProfile(Profile* profile);
 
  private:
   friend base::NoDestructor<ClaudeMemoryFactory>;

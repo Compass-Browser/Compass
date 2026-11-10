@@ -83,7 +83,7 @@ base::expected<std::string, std::string> NormalizeMemoryText(
         {"A memory is at most ", base::NumberToString(kMaxMemoryChars),
          " characters: keep it to one short fact."}));
   }
-  return normalized;
+  return base::ok(std::move(normalized));
 }
 
 ClaudeMemory::ClaudeMemory(const base::FilePath& path)
@@ -102,9 +102,7 @@ ClaudeMemory::~ClaudeMemory() {
 
 // static
 ClaudeMemory* ClaudeMemory::Get(Profile* profile) {
-  return static_cast<ClaudeMemory*>(
-      ClaudeMemoryFactory::GetInstance()->GetServiceForBrowserContext(
-          profile, /*create=*/true));
+  return ClaudeMemoryFactory::GetForProfile(profile);
 }
 
 void ClaudeMemory::WhenLoaded(base::OnceClosure done) {
@@ -352,6 +350,12 @@ std::optional<std::string> ClaudeMemory::SerializeData() {
 
 void ClaudeMemory::Shutdown() {
   Flush();
+}
+
+// static
+ClaudeMemory* ClaudeMemoryFactory::GetForProfile(Profile* profile) {
+  return static_cast<ClaudeMemory*>(
+      GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
 }
 
 // static
