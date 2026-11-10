@@ -59,6 +59,8 @@ TEST_F(ClaudeMemoryTest, AddUpdateRemovePersist) {
     id = added->id;
     // The same fact again is the same memory.
     EXPECT_EQ(memory->Add("prefers answers in italian")->id, id);
+    // Later, so the order (by creation) is defined.
+    task_environment_.FastForwardBy(base::Seconds(1));
     ASSERT_TRUE(memory->Add("Lives in Milan").has_value());
     EXPECT_EQ(memory->entries().size(), 2u);
 
