@@ -197,7 +197,9 @@ void McpSession::Initialize(const base::Value& id,
 
 void McpSession::ListTools(const base::Value& id) {
   base::ListValue tools;
-  for (base::Value& definition : ClaudeTools::Definitions()) {
+  // A chat's Claude Code gets the memory tools; other clients don't.
+  for (base::Value& definition :
+       ClaudeTools::Definitions(/*memory=*/!chat_.is_null())) {
     base::DictValue& dict = definition.GetDict();
     base::DictValue tool;
     tool.Set("name", std::move(*dict.Find("name")));

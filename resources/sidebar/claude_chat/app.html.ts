@@ -48,7 +48,8 @@ export function getHtml(this: CompassClaudeChatAppElement) {
     </div>` : html`${this.getShownTurns_().map(turn => html`
       <compass-claude-turn .turn="${turn}" .tools="${this.conversation.tools}"
           .revision="${this.revision_}"
-          @retry="${this.onTurnRetry_}"></compass-claude-turn>`)}`}`}
+          @retry="${this.onTurnRetry_}"
+          @undo-memory="${this.onTurnUndoMemory_}"></compass-claude-turn>`)}`}`}
 </main>
 
 <footer>

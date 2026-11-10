@@ -168,6 +168,21 @@ yet.
 - **Tools in the request.** `BuildChatRequest()` adds `ClaudeTools::Definitions()`: every tool of `tools.json`, the last one with `cache_control`, so they're cached with the prompt. The browser tools go even while the setting is off, and refuse: a conversation keeps working when the setting changes, and Claude can tell the user what it would need.
 - **Context control.** Only the two most recent screenshots stay in the request (`pruneScreenshots()` in `conversation.ts`; the panel keeps them all). Long page reads are cut at `max_chars`.
 
+### Memory
+
+Claude keeps short facts about the user across chats, saves them itself, and
+the user sees and can undo each save.
+
+- **The store** (`ClaudeMemory`, `browser/claude/claude_memory.{h,cc}`, target `:memory`): a `KeyedService` per profile (`ClaudeMemoryFactory`; none for Incognito, Guest or system profiles), in `<profile>/Compass Claude Memory.json`. Each memory is `{id (lowercase UUID), text, created, updated}`; at most 200, of at most 500 characters, whitespace collapsed, oldest first. Saving a fact it already has (same text, any case) returns that one.
+- **Into the prompt, frozen per chat.** The system prompt never changes within a chat (above), so the memories are taken once, with the chat's first message (`ClaudeChatPageHandler::FreezeMemory()`; Claude Code mode when it starts its process), and sent as a last system block, cached: `<memory>` with a line `- [<first 8 of the id>] <text>` per fact (`FormatMemoryBlock()`). Changes during the chat reach later chats; Claude knows them from its own tool results.
+- **Tools** (`tools.json`, `scope: "memory"`, desktop and iOS): `remember {text}`, `update_memory {id, text}`, `forget {id}`; ids by the 8-character prefix too. They need no tab and no permission (`ClaudeTools::RunMemoryTool()`). Sent only while memory is on and Claude may save (`ClaudeTools::Definitions(memory)`, frozen with the chat); turned off mid-chat, they refuse. MCP clients don't get them, only a chat's own Claude Code.
+- **The prompt** (`system_prompt.md`, "Memory"): lasting preferences and facts the user said or showed, never secrets, one-off tasks or page content; save without asking; prefer updating to a second fact; forget on request.
+- **Prompt injection.** A page could ask Claude to remember an instruction, which would then reach every later chat. Against it: the prompt says content is never a reason to save, the block calls memories notes rather than instructions, the limits, and above all the user sees every change: the panel shows a "Saved to memory: …" (or "Updated memory", "Forgot") line instead of a tool row, with **Undo** (`chat.mojom` `UndoMemory()`: the page handler keeps each change's previous state, and puts it back). In Claude Code mode the row is an ordinary tool row, without Undo.
+- **Settings** (Claude page, "Use memory" section): "Use memory" (`compass.claude.memory_enabled`, on) and "Let Claude save memories" (`compass.claude.memory_save`, on); the list, each fact editable and deletable; a field to add one; "Delete all memories", confirmed.
+- **Sync.** A fifth entity of `COMPASS_SPACES`, `CompassMemory` (`compass_spaces_specifics.proto`), in the account of the profile it belongs to, end-to-end encrypted like the rest. The bridge's pass diffs `GetLocalMemories()` with the mirror as it does profiles (nothing while the memory file isn't read yet, so a startup never deletes the account's); remote changes go to `ApplyMemories()`, where the later edit (`update_time`) wins. Clients that predate it refuse the entity and keep going. Memory goes with the "Spaces" sync switch.
+- **iOS.** The same rules in `CompassClaude`'s `MemoryList` (tested in `ClaudeMemoryTests`), the app's `ClaudeMemoryStore` (Application Support/Compass/Claude Memory.json), the tools in `ClaudeTools`, a memory line with Undo in the sheet, and Settings → Claude → Memory (toggles in UserDefaults `ClaudeMemoryEnabled`, `ClaudeMemorySave`; a list to edit, swipe to delete, add, Delete All). The phone has one Claude, so it syncs the home profile's memories (`CompassSpacesBridge+Memory`); other profiles' stay on their desktops.
+- **Not yet:** Android (its chat has its own short prompt and no memory tools); saved chat history, which memory doesn't replace.
+
 ### Settings
 
 - **New section "Claude"**, following the pattern in `docs/design/settings.md`: `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`, and the `route.ts`, `router.ts`, `settings_menu`, `settings_main` and BUILD patches.
@@ -178,7 +193,8 @@ yet.
   - a token from `claude setup-token` (`sk-ant-oat01-…`) goes in the same field: `IsOAuthToken()` sends it as `Authorization: Bearer` with the `oauth-2025-04-20` beta, whatever the auth style says (desktop `AddRequestHeaders()`/`AddBetas()`, iOS `ClaudeEndpoint.request()`). It uses the user's Claude subscription. The API wants Claude Code's line for these tokens, which `BuildChatRequest()` / `ChatRequest` put first in the system prompt when the key is such a token (`oauth_token`). Only with "Accept the risks of subscription tokens" on (`compass.claude.accept_token_risks`, off by default; iOS `ClaudeAcceptTokenRisks`): Anthropic doesn't offer these tokens for other apps, and Compass then says it's Claude Code. Off, such a key is refused before anything is sent (`NeedsTokenRisksAccepted()`, `kTokenRisksMessage`), in the chat and in Test connection. Not tried against the real API yet;
   - a model picker: the current models until "Test connection" lists the ones the key can use, plus any id already saved (a gateway's);
   - "Test connection";
-  - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages.
+  - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages;
+  - Memory (above).
 
 ### Browser tools
 
@@ -313,7 +329,7 @@ iOS gets no MCP server; iOS apps can't keep a local listener running in the back
 Desktop browser tests run headless through `compass test --browser`, and never take focus.
 
 - **Fake Claude server.** `ClaudeClient` and tool tests point `compass.claude.base_url` at an `EmbeddedTestServer` that serves canned SSE scripts, including `tool_use` turns. That's what the custom endpoint makes possible. No real key is needed in CI.
-- **Unit tests** (`browser/claude/*_unittest.cc`): the SSE parser (split chunks, errors, `ping`), request building (caching, auth style), screenshot pruning, scope checks; Claude Code's lines, arguments, user line and status (`ClaudeCodeTest`, from lines Claude Code 2.1.319 wrote).
+- **Unit tests** (`browser/claude/*_unittest.cc`): the SSE parser (split chunks, errors, `ping`), request building (caching, auth style, the memory block and tools), `ClaudeMemoryTest` (limits, persistence, short ids, sync's later-edit rule, remote changes before the file is read), screenshot pruning, scope checks; `CompassSpacesSyncBridgeTest.MemoriesSync`; Claude Code's lines, arguments, user line and status (`ClaudeCodeTest`, from lines Claude Code 2.1.319 wrote).
 - **Browser tests:**
   - `FindBarBrowserTest`: count, next/previous (keys and Cmd+G), no results, Esc, each tab's bar, the selection as the start, upstream's bar staying closed.
   - `ClaudeToolsBrowserTest` (`browser/claude/claude_tools_browsertest.cc`), against a test page:

@@ -10,7 +10,7 @@ import type {ActivePage, Setup} from '../chat.mojom-webui.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {ClaudeChatBrowserProxy} from './browser_proxy.js';
-import type {AssistantTurn, ContentBlock, ToolView, UserTurn} from './conversation.js';
+import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from './conversation.js';
 import {Conversation, pageBlock} from './conversation.js';
 import './turn.js';
 
@@ -19,8 +19,13 @@ import './turn.js';
 const MAX_TOOL_ROUNDS = 40;
 
 // A tool result's content as the panel shows it.
-function toolView(result: {content: ContentBlock[], is_error: boolean}):
-    ToolView {
+interface ToolResultJson {
+  content: ContentBlock[];
+  is_error: boolean;
+  memory?: MemoryView;
+}
+
+function toolView(result: ToolResultJson): ToolView {
   const text = result.content.filter(b => b.type === 'text')
                    .map(b => b.text || '')
                    .join('\n');
@@ -33,6 +38,7 @@ function toolView(result: {content: ContentBlock[], is_error: boolean}):
     text,
     image: source ? `data:${source.media_type};base64,${source.data}` :
                     undefined,
+    memory: result.memory,
   };
 }
 
@@ -320,7 +326,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     if (!this.streaming_) {
       return;
     }
-    let result: {content: ContentBlock[], is_error: boolean};
+    let result: ToolResultJson;
     try {
       result = JSON.parse(resultJson);
     } catch {
@@ -400,7 +406,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
         // Stopped, or another message: its results are closed already.
         return;
       }
-      let result: {content: ContentBlock[], is_error: boolean};
+      let result: ToolResultJson;
       try {
         result = JSON.parse(resultJson);
       } catch {
@@ -459,6 +465,20 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
   protected onAttachClick_() {
     this.attachPage_ = !this.attachPage_;
+  }
+
+  // A memory chip's Undo: the browser puts the memory back as it was.
+  protected async onTurnUndoMemory_(e: CustomEvent<string>) {
+    const view = this.conversation.tools.get(e.detail);
+    const undo = view?.memory?.undo;
+    if (!view?.memory || undo === undefined || view.memory.undone) {
+      return;
+    }
+    const {undone} = await this.browserProxy_.handler.undoMemory(undo);
+    if (undone) {
+      view.memory.undone = true;
+      this.changed_();
+    }
   }
 
   protected onTurnRetry_() {

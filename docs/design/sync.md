@@ -594,7 +594,7 @@ nudge delay.
 reference. It's built by `//components/sync/protocol` (its
 `protocol_sources.gni` lists it by its `//compass` path; `proto_in_dir` is
 `//`, so the import path is `compass/components/sync/protocol/...`).
-`CompassSpacesSpecifics` has a oneof of four entities:
+`CompassSpacesSpecifics` has a oneof of five entities:
 
 - `CompassSpace` (1): one per space. UUID, name, color, icon,
   `directory_position`, `profile_uuid`, `archive_after_seconds`, and the
@@ -607,6 +607,12 @@ reference. It's built by `//components/sync/protocol` (its
 - `CompassProfile` (3): one per profile of the chain, in the home
   profile's account (see "Profiles").
 - `CompassFavicon` (4): one per host (see "Favicons").
+- `CompassMemory` (5): one per fact Claude keeps about the user, in the
+  account of its profile: UUID, text, `create_time`, `update_time` (the
+  later edit wins). The bridge diffs `Delegate::GetLocalMemories()` with
+  the mirror, and hands remote ones to `Delegate::ApplyMemories()`; while
+  the profile's memory isn't loaded, the account's are left alone. See
+  docs/design/claude.md, "Memory".
 
 Choices: proto2 with `optional` fields, as all sync protos; the enums are
 `int32` fields with 0 = unset (`section` 1 PINNED, 2 TODAY, 3 FAVORITES, 4

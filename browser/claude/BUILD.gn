@@ -18,6 +18,20 @@ source_set("prefs") {
   ]
 }
 
+# Claude's memory of the user, per profile (docs/design/claude.md, "Memory").
+# Apart from :claude so sync can depend on it.
+source_set("memory") {
+  sources = [
+    "claude_memory.cc",
+    "claude_memory.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/core",
+  ]
+}
+
 # common/claude/ (shared with iOS) as string constants:
 # compass/browser/claude/claude_assets.h.
 action("assets") {
@@ -66,6 +80,7 @@ source_set("claude") {
   ]
   public_deps = [
     ":assets",
+    ":memory",
     ":prefs",
     "//base",
     "//services/network/public/cpp",
@@ -104,14 +119,17 @@ if (!is_android) {
     sources = [
       "claude_api_unittest.cc",
       "claude_code_unittest.cc",
+      "claude_memory_unittest.cc",
       "claude_request_unittest.cc",
       "key_events_unittest.cc",
       "sse_parser_unittest.cc",
     ]
     deps = [
       ":claude",
+      ":memory",
       ":prefs",
       "//base",
+      "//base/test:test_support",
       "//components/prefs:test_support",
       "//net",
       "//testing/gtest",

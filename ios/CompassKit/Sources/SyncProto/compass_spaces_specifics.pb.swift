@@ -85,6 +85,14 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .favicon(newValue)}
   }
 
+  public var memory: SyncPb_CompassMemory {
+    get {
+      if case .memory(let v)? = entity {return v}
+      return SyncPb_CompassMemory()
+    }
+    set {entity = .memory(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
@@ -92,6 +100,7 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     case node(SyncPb_CompassNode)
     case profile(SyncPb_CompassProfile)
     case favicon(SyncPb_CompassFavicon)
+    case memory(SyncPb_CompassMemory)
 
   }
 
@@ -637,13 +646,72 @@ public nonisolated struct SyncPb_CompassFavicon: Sendable {
   fileprivate var _updateTime: Int64? = nil
 }
 
+/// A fact Claude saved about the user (docs/design/claude.md, "Memory"), in
+/// the account of the profile it belongs to. Clients that predate it ignore
+/// it (their IsEntityDataValid() refuses it). Not in proto_visitors.h: its
+/// text stays out of sync-internals.
+public nonisolated struct SyncPb_CompassMemory: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A random UUID, lowercase. Also the client tag.
+  public var uuid: String {
+    get {_uuid ?? String()}
+    set {_uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {self._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {self._uuid = nil}
+
+  /// At most 500 characters.
+  public var text: String {
+    get {_text ?? String()}
+    set {_text = newValue}
+  }
+  /// Returns true if `text` has been explicitly set.
+  public var hasText: Bool {self._text != nil}
+  /// Clears the value of `text`. Subsequent reads from it will return its default value.
+  public mutating func clearText() {self._text = nil}
+
+  /// In microseconds since the Windows epoch.
+  public var createTime: Int64 {
+    get {_createTime ?? 0}
+    set {_createTime = newValue}
+  }
+  /// Returns true if `createTime` has been explicitly set.
+  public var hasCreateTime: Bool {self._createTime != nil}
+  /// Clears the value of `createTime`. Subsequent reads from it will return its default value.
+  public mutating func clearCreateTime() {self._createTime = nil}
+
+  /// The last edit; of two edits, the later wins.
+  public var updateTime: Int64 {
+    get {_updateTime ?? 0}
+    set {_updateTime = newValue}
+  }
+  /// Returns true if `updateTime` has been explicitly set.
+  public var hasUpdateTime: Bool {self._updateTime != nil}
+  /// Clears the value of `updateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateTime() {self._updateTime = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _uuid: String? = nil
+  fileprivate var _text: String? = nil
+  fileprivate var _createTime: Int64? = nil
+  fileprivate var _updateTime: Int64? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -703,6 +771,19 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .favicon(v)
         }
       }()
+      case 5: try {
+        var v: SyncPb_CompassMemory?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .memory(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .memory(v)
+        }
+      }()
       default: break
       }
     }
@@ -729,6 +810,10 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
     case .favicon?: try {
       guard case .favicon(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .memory?: try {
+      guard case .memory(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
     case nil: break
     }
@@ -1184,6 +1269,55 @@ nonisolated extension SyncPb_CompassFavicon: SwiftProtobuf.Message, SwiftProtobu
     if lhs._host != rhs._host {return false}
     if lhs._png != rhs._png {return false}
     if lhs._sourceSize != rhs._sourceSize {return false}
+    if lhs._updateTime != rhs._updateTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassMemory: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassMemory"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}text\0\u{3}create_time\0\u{3}update_time\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._text) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self._createTime) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self._updateTime) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._uuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._text {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._createTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._updateTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassMemory, rhs: SyncPb_CompassMemory) -> Bool {
+    if lhs._uuid != rhs._uuid {return false}
+    if lhs._text != rhs._text {return false}
+    if lhs._createTime != rhs._createTime {return false}
     if lhs._updateTime != rhs._updateTime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

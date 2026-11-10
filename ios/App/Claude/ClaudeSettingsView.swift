@@ -7,8 +7,8 @@ import SwiftUI
 
 /// Settings → Claude, the desktop's Claude settings page: the API key
 /// (only its hint shows once saved), the model, Test Connection, the
-/// whole-browser permission, and under Advanced a compatible endpoint and
-/// its auth style.
+/// whole-browser permission, memory, and under Advanced a compatible
+/// endpoint and its auth style.
 struct ClaudeSettingsView: View {
   @State private var keyField = ""
   @State private var testing = false
@@ -81,6 +81,22 @@ struct ClaudeSettingsView: View {
       }
 
       Section {
+        Toggle("Use Memory", isOn: $settings.memoryEnabled)
+        if settings.memoryEnabled {
+          Toggle("Let Claude Save Memories", isOn: $settings.memorySave)
+          NavigationLink {
+            ClaudeMemoryView()
+          } label: {
+            LabeledContent("Memories", value: "\(ClaudeMemoryStore.shared.entries.count)")
+          }
+        }
+      } header: {
+        Text("Memory")
+      } footer: {
+        Text("Claude keeps short facts about you, like how you like answers, and starts each new chat with them. Each save shows in the chat, with Undo. Memories sync with your spaces, end-to-end encrypted.")
+      }
+
+      Section {
         DisclosureGroup("Advanced", isExpanded: $showingAdvanced) {
           TextField("https://api.anthropic.com", text: $settings.baseURLText)
             .textInputAutocapitalization(.never)
@@ -125,6 +141,85 @@ struct ClaudeSettingsView: View {
         testOK = false
         testResult = error.message
       }
+    }
+  }
+}
+
+/// Settings → Claude → Memories: every fact Claude keeps, to edit (tap),
+/// delete (swipe) or add; Delete All.
+struct ClaudeMemoryView: View {
+  @State private var newText = ""
+  @State private var editing: MemoryEntry?
+  @State private var editText = ""
+  @State private var error: String?
+  @State private var confirmingDeleteAll = false
+
+  private var memory: ClaudeMemoryStore { .shared }
+
+  var body: some View {
+    List {
+      Section {
+        ForEach(memory.entries) { entry in
+          Button {
+            editText = entry.text
+            editing = entry
+          } label: {
+            Text(entry.text).foregroundStyle(.primary)
+          }
+        }
+        .onDelete { offsets in
+          for id in offsets.map({ memory.entries[$0].id }) { memory.remove(id) }
+        }
+        if memory.entries.isEmpty {
+          Text("No memories yet.").foregroundStyle(.secondary)
+        }
+      } footer: {
+        if let error { Text(error).foregroundStyle(.red) }
+      }
+
+      Section {
+        TextField("Add a fact, like “I live in Milan”", text: $newText)
+          .onSubmit(add)
+        Button("Add", action: add).disabled(newText.trimmingCharacters(in: .whitespaces).isEmpty)
+      }
+
+      if !memory.entries.isEmpty {
+        Section {
+          Button("Delete All Memories", role: .destructive) { confirmingDeleteAll = true }
+        }
+      }
+    }
+    .navigationTitle("Memories")
+    .confirmationDialog(
+      "Delete everything Claude remembers about you, on all your devices?", isPresented: $confirmingDeleteAll,
+      titleVisibility: .visible
+    ) {
+      Button("Delete All", role: .destructive) { memory.removeAll() }
+    }
+    .alert("Edit Memory", isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
+      TextField("Memory", text: $editText)
+      Button("Save") {
+        if let editing { report(memory.update(editing.id, text: editText)) }
+        editing = nil
+      }
+      Button("Cancel", role: .cancel) { editing = nil }
+    }
+  }
+
+  private func add() {
+    guard !newText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+    if report(memory.add(newText)) { newText = "" }
+  }
+
+  @discardableResult
+  private func report(_ result: Result<MemoryEntry, MemoryList.Failure>) -> Bool {
+    switch result {
+    case .success:
+      error = nil
+      return true
+    case .failure(let failure):
+      error = failure.description
+      return false
     }
   }
 }

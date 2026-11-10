@@ -87,7 +87,9 @@ struct ClaudeChatSheet: View {
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 14) {
           ForEach(chat.conversation.turns.filter { !$0.isToolResults }) { turn in
-            TurnView(turn: turn, tools: chat.toolViews) { chat.retry(app: app) }.id(turn.id)
+            TurnView(turn: turn, tools: chat.toolViews, undoMemory: { chat.undoMemory($0) }) {
+              chat.retry(app: app)
+            }.id(turn.id)
           }
           Color.clear.frame(height: 1).id("end")
         }
@@ -156,6 +158,7 @@ struct ClaudeChatSheet: View {
 private struct TurnView: View {
   let turn: Conversation.Turn
   let tools: [String: ClaudeChat.ToolView]
+  let undoMemory: (String) -> Void
   let retry: () -> Void
 
   var body: some View {
@@ -185,7 +188,11 @@ private struct TurnView: View {
             }
           case "tool_use":
             if let id = block["id"]?.string {
-              ToolRow(name: block["name"]?.string ?? "", input: block["input"], view: tools[id])
+              if let view = tools[id], let change = view.memory {
+                MemoryRow(change: change, undone: view.memoryUndone) { undoMemory(id) }
+              } else {
+                ToolRow(name: block["name"]?.string ?? "", input: block["input"], view: tools[id])
+              }
             }
           default:
             EmptyView()
@@ -242,6 +249,38 @@ private struct ThinkingView: View {
       if open {
         Text(text).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
       }
+    }
+  }
+}
+
+/// What a memory tool changed, with Undo (docs/design/claude.md, "Memory").
+private struct MemoryRow: View {
+  let change: ClaudeTools.MemoryChange
+  let undone: Bool
+  let undo: () -> Void
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      Image(systemName: change.kind == "forgot" ? "bookmark.slash" : "bookmark")
+      Text("\(verb): \(change.text)")
+        .strikethrough(undone)
+        .lineLimit(2)
+      Spacer(minLength: 0)
+      if undone {
+        Text("Undone")
+      } else {
+        Button("Undo", action: undo).font(.caption.weight(.medium))
+      }
+    }
+    .font(.caption)
+    .foregroundStyle(.secondary)
+  }
+
+  private var verb: String {
+    switch change.kind {
+    case "forgot": "Forgot"
+    case "updated": "Updated memory"
+    default: "Saved to memory"
     }
   }
 }

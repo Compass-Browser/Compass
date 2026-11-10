@@ -22,6 +22,9 @@ final class ClaudeChat {
     var isError = false
     var text = ""
     var image: UIImage?
+    /// What a memory tool changed: shown as a line with Undo.
+    var memory: ClaudeTools.MemoryChange?
+    var memoryUndone = false
   }
 
   private(set) var conversation = Conversation()
@@ -37,6 +40,9 @@ final class ClaudeChat {
   @ObservationIgnored private var attachedURL = ""
   @ObservationIgnored private var task: Task<Void, Never>?
   @ObservationIgnored private var tools: ClaudeTools?
+  /// The memory this chat started with, and whether it may save more: in
+  /// the system prompt, which never changes within a chat.
+  @ObservationIgnored private var chatMemory: (block: String, tools: Bool)?
 
   /// The page's text, at most this long (the desktop's).
   static let maxPageChars = 50000
@@ -95,6 +101,28 @@ final class ClaudeChat {
     tools?.forget()
     attachedURL = ""
     attachPage = true
+    chatMemory = nil
+  }
+
+  /// A memory line's Undo: the memory goes back to what it was.
+  func undoMemory(_ toolID: String) {
+    guard var view = toolViews[toolID], let change = view.memory, !view.memoryUndone else { return }
+    let memory = ClaudeMemoryStore.shared
+    let undone = change.before.map { memory.restore($0) } ?? (memory.remove(change.id) != nil)
+    if undone {
+      view.memoryUndone = true
+      toolViews[toolID] = view
+    }
+  }
+
+  /// The chat's memory, taken when its first message goes.
+  private func frozenMemory() -> (block: String, tools: Bool) {
+    if let chatMemory { return chatMemory }
+    let settings = ClaudeSettings.shared
+    let memory: (block: String, tools: Bool) =
+      settings.memoryEnabled ? (ClaudeMemoryStore.shared.promptBlock, settings.memorySave) : ("", false)
+    chatMemory = memory
+    return memory
   }
 
   /// Replies, and tool rounds while Claude asks for tools.
@@ -131,10 +159,12 @@ final class ClaudeChat {
       return
     }
     let started = settings.revision
+    let memory = frozenMemory()
     let options = ChatRequest.Options(
-      model: settings.model, systemPrompt: ClaudeSettings.systemPrompt, tools: ClaudeSettings.tools,
+      model: settings.model, systemPrompt: ClaudeSettings.systemPrompt,
+      tools: ClaudeSettings.tools + (memory.tools ? ClaudeSettings.memoryTools : []),
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
-      oauthToken: endpoint.usesOAuthToken)
+      oauthToken: endpoint.usesOAuthToken, memory: memory.block)
     let request = ChatRequest(messages: conversation.messages(), options: options)
     conversation.startReply()
     let error = await ClaudeClient.stream(request, endpoint: endpoint) { [weak self] name, data in
@@ -160,7 +190,7 @@ final class ClaudeChat {
       toolViews[id] = ToolView()
       actingTab = tools.targetTab
       let result = await tools.run(call["name"]?.string ?? "", input: call["input"] ?? .object([:]))
-      var view = ToolView(running: false, isError: result.isError)
+      var view = ToolView(running: false, isError: result.isError, memory: result.memoryChange)
       for block in result.content {
         if let text = block["text"]?.string { view.text += text }
         if let data = block["source"]?["data"]?.string, let bytes = Data(base64Encoded: data) {

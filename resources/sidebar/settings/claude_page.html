@@ -162,6 +162,29 @@
     padding: 2px 0;
   }
 
+  .compass-page .memory-list {
+    margin: 8px 0 4px;
+    padding: 0;
+  }
+
+  .compass-page .memory-list li {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    list-style: none;
+    padding: 3px 0;
+  }
+
+  .compass-page .memory-list li > span,
+  .compass-page .memory-list li > input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .compass-page .memory-list li > span {
+    overflow-wrap: anywhere;
+  }
+
   .compass-page .claude-scope {
     align-items: flex-start;
     border-top: var(--cr-separator-line,
@@ -300,6 +323,42 @@
       on for tasks you watch.</span>
   </span>
 </label>
+
+<section id="memory" hidden>
+  <label class="claude-scope">
+    <input type="checkbox" id="memoryEnabled">
+    <span>
+      <span class="name">Use memory</span>
+      <span class="hint block">Claude keeps short facts about you, like how
+        you like answers, and starts each new chat with them. They sync with
+        your spaces, end-to-end encrypted. Off, Claude neither sees nor saves
+        them; what's saved stays until you delete it.</span>
+    </span>
+  </label>
+  <div id="memoryDetails">
+    <label class="claude-scope">
+      <input type="checkbox" id="memorySave">
+      <span>
+        <span class="name">Let Claude save memories</span>
+        <span class="hint block">Claude saves what it thinks will help in
+          later chats, and shows each save in the chat, with Undo. Off,
+          only you add them, here.</span>
+      </span>
+    </label>
+    <ul id="memoryList" class="memory-list"></ul>
+    <p class="hint" id="memoryEmpty">No memories yet.</p>
+    <div class="claude-inline">
+      <input type="text" id="memoryNew" maxlength="500"
+          placeholder="Add a fact, like “I live in Milan”">
+      <button id="addMemory" class="secondary">Add</button>
+    </div>
+    <p class="note" id="memoryNote" hidden></p>
+    <div class="buttons">
+      <button id="removeAllMemories" class="secondary" hidden>Delete all
+        memories</button>
+    </div>
+  </div>
+</section>
 
 <section id="mcp">
   <label class="claude-scope">

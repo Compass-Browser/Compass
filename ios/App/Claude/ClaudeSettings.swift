@@ -37,6 +37,11 @@ final class ClaudeSettings {
       revision += 1
     }
   }
+  /// "Use Memory": what Claude saved goes into each new chat (on by
+  /// default; docs/design/claude.md, "Memory").
+  var memoryEnabled: Bool { didSet { defaults.set(memoryEnabled, forKey: "ClaudeMemoryEnabled") } }
+  /// "Let Claude Save Memories": the memory tools are sent.
+  var memorySave: Bool { didSet { defaults.set(memorySave, forKey: "ClaudeMemorySave") } }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -49,6 +54,8 @@ final class ClaudeSettings {
     model = defaults.string(forKey: "ClaudeModel") ?? ClaudeEndpoint.defaultModel
     browserScope = defaults.bool(forKey: "ClaudeBrowserScope")
     acceptTokenRisks = defaults.bool(forKey: "ClaudeAcceptTokenRisks")
+    memoryEnabled = defaults.object(forKey: "ClaudeMemoryEnabled") as? Bool ?? true
+    memorySave = defaults.object(forKey: "ClaudeMemorySave") as? Bool ?? true
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
   }
 
@@ -90,8 +97,13 @@ final class ClaudeSettings {
   /// its `scope` stays here, ClaudeTools.scopes).
   /// Entries for other platforms (`"platforms": ["desktop"]`) are left
   /// out; an entry without `platforms` is for every platform.
-  static let tools: [JSONValue] = bundled("tools", "json").flatMap { JSONValue.parse($0)?["tools"]?.array }?
-    .filter(isForIOS).compactMap { $0["definition"] } ?? []
+  static let tools: [JSONValue] = toolEntries.filter { $0["scope"]?.string != "memory" }.compactMap { $0["definition"] }
+  /// The memory tools (remember, update_memory, forget), sent while Claude
+  /// may save memories.
+  static let memoryTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "memory" }
+    .compactMap { $0["definition"] }
+  private static let toolEntries: [JSONValue] =
+    bundled("tools", "json").flatMap { JSONValue.parse($0)?["tools"]?.array }?.filter(isForIOS) ?? []
 
   nonisolated static func isForIOS(_ entry: JSONValue) -> Bool {
     guard let platforms = entry["platforms"]?.array else { return true }

@@ -24,6 +24,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kAcceptTokenRisks, false);
   registry->RegisterBooleanPref(kMcpEnabled, false);
   registry->RegisterListPref(kMcpAllowedClients);
+  registry->RegisterBooleanPref(kMemoryEnabled, true);
+  registry->RegisterBooleanPref(kMemorySave, true);
 }
 
 }  // namespace compass::claude::prefs

@@ -156,15 +156,23 @@ const base::ListValue& ToolEntries() {
   return *entries;
 }
 
-bool IsBrowserTool(const std::string& name) {
+std::string ScopeOf(const std::string& name) {
   for (const base::Value& tool : ToolEntries()) {
     const base::DictValue& dict = tool.GetDict();
     const std::string* tool_name = dict.FindStringByDottedPath("definition.name");
     if (tool_name && *tool_name == name) {
-      return Describe(dict, "scope") == "browser";
+      return Describe(dict, "scope");
     }
   }
-  return false;
+  return std::string();
+}
+
+bool IsBrowserTool(const std::string& name) {
+  return ScopeOf(name) == "browser";
+}
+
+bool IsMemoryTool(const std::string& name) {
+  return ScopeOf(name) == "memory";
 }
 
 }  // namespace
@@ -173,6 +181,11 @@ TabsDelegate::Result::Result() = default;
 TabsDelegate::Result::Result(Result&&) = default;
 TabsDelegate::Result& TabsDelegate::Result::operator=(Result&&) = default;
 TabsDelegate::Result::~Result() = default;
+
+MemoryChange::MemoryChange() = default;
+MemoryChange::MemoryChange(const MemoryChange&) = default;
+MemoryChange& MemoryChange::operator=(const MemoryChange&) = default;
+MemoryChange::~MemoryChange() = default;
 
 ToolResult::ToolResult() = default;
 ToolResult::ToolResult(ToolResult&&) = default;
@@ -233,9 +246,12 @@ void ClaudeTools::StopActing() {
 }
 
 // static
-base::ListValue ClaudeTools::Definitions() {
+base::ListValue ClaudeTools::Definitions(bool memory) {
   base::ListValue definitions;
   for (const base::Value& tool : ToolEntries()) {
+    if (!memory && Describe(tool.GetDict(), "scope") == "memory") {
+      continue;
+    }
     definitions.Append(tool.GetDict().FindDict("definition")->Clone());
   }
   if (!definitions.empty()) {
@@ -244,6 +260,72 @@ base::ListValue ClaudeTools::Definitions() {
         "cache_control", base::DictValue().Set("type", "ephemeral"));
   }
   return definitions;
+}
+
+void ClaudeTools::SetMemory(ClaudeMemory* memory,
+                            base::RepeatingCallback<bool()> may_save) {
+  memory_ = memory ? memory->GetWeakPtr() : nullptr;
+  may_save_memory_ = std::move(may_save);
+}
+
+ToolResult ClaudeTools::RunMemoryTool(const std::string& name,
+                                      const base::DictValue& input) {
+  if (!memory_) {
+    return ToolResult::Error("Memory isn't available here.");
+  }
+  if (may_save_memory_ && !may_save_memory_.Run()) {
+    return ToolResult::Error(
+        "The user turned off \"Let Claude save memories\" in Compass's "
+        "Claude settings.");
+  }
+  const std::string text = Describe(input, "text");
+  const std::string id = Describe(input, "id");
+  MemoryChange change;
+  if (name == "remember") {
+    const size_t before = memory_->entries().size();
+    base::expected<MemoryEntry, std::string> entry = memory_->Add(text);
+    if (!entry.has_value()) {
+      return ToolResult::Error(entry.error());
+    }
+    const std::string short_id = entry->id.substr(0, 8);
+    if (memory_->entries().size() == before) {
+      return ToolResult::Text(
+          base::StrCat({"Already remembered, as [", short_id, "]."}));
+    }
+    change.kind = "saved";
+    change.id = entry->id;
+    change.text = entry->text;
+    ToolResult result =
+        ToolResult::Text(base::StrCat({"Saved, as [", short_id, "]."}));
+    result.memory_change = std::move(change);
+    return result;
+  }
+  const MemoryEntry* existing = memory_->Find(id);
+  if (!existing) {
+    return ToolResult::Error(base::StrCat(
+        {"No memory has the id ", id,
+         ". It may have been deleted since the chat started."}));
+  }
+  change.before = *existing;
+  change.id = existing->id;
+  if (name == "update_memory") {
+    base::expected<MemoryEntry, std::string> entry =
+        memory_->Update(change.id, text);
+    if (!entry.has_value()) {
+      return ToolResult::Error(entry.error());
+    }
+    change.kind = "updated";
+    change.text = entry->text;
+    ToolResult result = ToolResult::Text("Updated.");
+    result.memory_change = std::move(change);
+    return result;
+  }
+  memory_->Remove(change.id);
+  change.kind = "forgot";
+  change.text = change.before->text;
+  ToolResult result = ToolResult::Text("Forgotten.");
+  result.memory_change = std::move(change);
+  return result;
 }
 
 void ClaudeTools::SetTarget(content::WebContents* contents) {
@@ -316,6 +398,11 @@ void ClaudeTools::Run(const std::string& name,
     Stop();
   }
   callback_ = std::move(callback);
+  if (IsMemoryTool(name)) {
+    // No tab, no permission: the profile's memory.
+    std::move(callback_).Run(RunMemoryTool(name, input));
+    return;
+  }
   content::WebContents* contents = web_contents();
   const bool browser_tool = IsBrowserTool(name);
   if (browser_tool) {

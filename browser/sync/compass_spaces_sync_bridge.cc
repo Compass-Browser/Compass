@@ -599,6 +599,11 @@ CompassSpacesSyncBridge::Delegate::GetLocalProfiles() {
 void CompassSpacesSyncBridge::Delegate::OnChainProfiles(
     const std::vector<sync_pb::CompassProfile>& profiles) {}
 
+std::optional<std::vector<sync_pb::CompassMemory>>
+CompassSpacesSyncBridge::Delegate::GetLocalMemories() {
+  return std::nullopt;
+}
+
 std::string CompassSpacesSyncBridge::Delegate::GetProfileUuid() {
   return std::string();
 }
@@ -761,6 +766,11 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
   if (profiles) {
     AddLocalProfiles(*profiles, local);
   }
+  const std::optional<std::vector<sync_pb::CompassMemory>> memories =
+      delegate_ ? delegate_->GetLocalMemories() : std::nullopt;
+  if (memories) {
+    AddLocalMemories(*memories, local);
+  }
   const base::TimeTicks now = base::TimeTicks::Now();
   std::optional<base::TimeTicks> next_send;
   throttled_.clear();
@@ -807,6 +817,13 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
         entry_hosts = GetEntryHosts();
       }
       if (IsFaviconGarbage(specifics.favicon(), *entry_hosts)) {
+        gone.push_back(key);
+      }
+      continue;
+    }
+    if (specifics.has_memory()) {
+      // Deleted here, unless the memory isn't loaded (or doesn't sync).
+      if (memories) {
         gone.push_back(key);
       }
       continue;
@@ -1032,6 +1049,33 @@ void CompassSpacesSyncBridge::AddLocalProfiles(
       } else {
         entity.clear_home();
       }
+    }
+    out[key] = std::move(specifics);
+  }
+}
+
+void CompassSpacesSyncBridge::AddLocalMemories(
+    const std::vector<sync_pb::CompassMemory>& memories,
+    Mirror& out) const {
+  for (const sync_pb::CompassMemory& memory : memories) {
+    const std::string& key = memory.uuid();
+    if (!ParseKey(key).is_valid() || out.contains(key)) {
+      continue;
+    }
+    sync_pb::CompassSpacesSpecifics specifics;
+    auto it = mirror_.find(key);
+    if (it != mirror_.end() && it->second.has_memory()) {
+      // Keeps what this version doesn't know.
+      specifics = it->second;
+    }
+    sync_pb::CompassMemory& entity = *specifics.mutable_memory();
+    COMPASS_SET_STRING(entity, uuid, key);
+    COMPASS_SET_STRING(entity, text, memory.text());
+    if (entity.create_time() != memory.create_time()) {
+      entity.set_create_time(memory.create_time());
+    }
+    if (entity.update_time() != memory.update_time()) {
+      entity.set_update_time(memory.update_time());
     }
     out[key] = std::move(specifics);
   }
@@ -1298,7 +1342,8 @@ void CompassSpacesSyncBridge::AddLocalNodes(
 bool CompassSpacesSyncBridge::WasDeletedLocally(
     const sync_pb::CompassSpacesSpecifics& specifics,
     const Mirror& local) const {
-  if (specifics.has_profile() || specifics.has_favicon()) {
+  if (specifics.has_profile() || specifics.has_favicon() ||
+      specifics.has_memory()) {
     // SendLocalChangesTo() decides.
     return false;
   }
@@ -1503,6 +1548,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   std::vector<std::string> nodes;
   std::set<std::string> deleted;
   bool profiles_changed = false;
+  // Memories that came or went.
+  std::vector<sync_pb::CompassMemory> memories;
+  std::set<std::string> deleted_memories;
   // Hosts whose icons or entries came: their icons go to the delegate.
   std::set<std::string> favicon_hosts;
   for (const std::unique_ptr<syncer::EntityChange>& change : changes) {
@@ -1511,6 +1559,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
       auto it = mirror_.find(key);
       if (it != mirror_.end() && it->second.has_profile()) {
         profiles_changed = true;
+      }
+      if (it != mirror_.end() && it->second.has_memory()) {
+        deleted_memories.insert(key);
       }
       mirror_.erase(key);
       unparked_.erase(key);
@@ -1524,6 +1575,10 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     batch->WriteData(key, specifics.SerializeAsString());
     if (specifics.has_profile()) {
       profiles_changed = true;
+      continue;
+    }
+    if (specifics.has_memory()) {
+      memories.push_back(specifics.memory());
       continue;
     }
     if (specifics.has_favicon()) {
@@ -1545,6 +1600,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
       // First: the home profile may take the chain's UUID, which the pass
       // below then uses.
       delegate_->OnChainProfiles(MirrorProfiles());
+    }
+    if (delegate_ && (!memories.empty() || !deleted_memories.empty())) {
+      delegate_->ApplyMemories(memories, deleted_memories);
     }
     const std::set<std::string> created = ApplySpaces(spaces, deleted);
     // Nodes that waited for a space that just came.
@@ -2504,6 +2562,9 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
   if (specifics.has_favicon()) {
     return specifics.favicon().uuid();
   }
+  if (specifics.has_memory()) {
+    return specifics.memory().uuid();
+  }
   return specifics.node().uuid();
 }
 
@@ -2555,7 +2616,8 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
   const sync_pb::CompassSpacesSpecifics& specifics =
       entity_data.specifics.compass_spaces();
   if (!specifics.has_space() && !specifics.has_node() &&
-      !specifics.has_profile() && !specifics.has_favicon()) {
+      !specifics.has_profile() && !specifics.has_favicon() &&
+      !specifics.has_memory()) {
     return false;
   }
   if (specifics.has_favicon()) {

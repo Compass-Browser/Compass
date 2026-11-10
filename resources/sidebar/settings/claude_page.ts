@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {Model, SettingsState} from '../claude.mojom-webui.js';
+import type {Memory, Model, SettingsState} from '../claude.mojom-webui.js';
 import {AuthStyle, Backend, SettingsHandler} from '../claude.mojom-webui.js';
 
 import {getTemplate} from './claude_page.html.js';
@@ -104,6 +104,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       navigator.clipboard.writeText(this.$('mcpCommand').textContent || '');
       this.$('copyMcpCommand').textContent = 'Copied';
     });
+    this.setUpMemory_();
     this.refresh_();
   }
 
@@ -131,6 +132,113 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         state.acceptTokenRisks;
     this.renderMcp_(state);
     this.renderModels_();
+    this.show('memory', state.memorySupported);
+    this.$<HTMLInputElement>('memoryEnabled').checked = state.memoryEnabled;
+    this.$<HTMLInputElement>('memorySave').checked = state.memorySave;
+    this.show('memoryDetails', state.memoryEnabled);
+    if (state.memorySupported) {
+      await this.refreshMemories_();
+    }
+  }
+
+  private setUpMemory_() {
+    this.$<HTMLInputElement>('memoryEnabled')
+        .addEventListener('change', async () => {
+          this.handler_.setMemoryEnabled(
+              this.$<HTMLInputElement>('memoryEnabled').checked);
+          await this.refresh_();
+        });
+    this.$<HTMLInputElement>('memorySave').addEventListener('change', () => {
+      this.handler_.setMemorySave(
+          this.$<HTMLInputElement>('memorySave').checked);
+    });
+    const add = async () => {
+      const input = this.$<HTMLInputElement>('memoryNew');
+      if (!input.value.trim()) {
+        return;
+      }
+      const {error} = await this.handler_.addMemory(input.value);
+      if (error) {
+        this.note_('memoryNote', error, true);
+        return;
+      }
+      input.value = '';
+      this.show('memoryNote', false);
+      await this.refreshMemories_();
+    };
+    this.$('addMemory').addEventListener('click', add);
+    this.$<HTMLInputElement>('memoryNew').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        add();
+      }
+    });
+    this.$('removeAllMemories').addEventListener('click', async () => {
+      if (!window.confirm(
+              'Delete everything Claude remembers about you, on all your ' +
+              'devices?')) {
+        return;
+      }
+      this.handler_.removeAllMemories();
+      await this.refreshMemories_();
+    });
+  }
+
+  private async refreshMemories_() {
+    const {memories} = await this.handler_.getMemories();
+    this.show('memoryEmpty', memories.length === 0);
+    this.show('removeAllMemories', memories.length > 0);
+    this.$('memoryList')
+        .replaceChildren(...memories.map(memory => this.memoryItem_(memory)));
+  }
+
+  // A memory: its text, Edit (in place) and Delete.
+  private memoryItem_(memory: Memory): HTMLLIElement {
+    const item = document.createElement('li');
+    const text = document.createElement('span');
+    text.textContent = memory.text;
+    const edit = document.createElement('button');
+    edit.className = 'secondary';
+    edit.textContent = 'Edit';
+    const remove = document.createElement('button');
+    remove.className = 'secondary';
+    remove.textContent = 'Delete';
+    remove.addEventListener('click', async () => {
+      this.handler_.removeMemory(memory.id);
+      await this.refreshMemories_();
+    });
+    let input: HTMLInputElement|null = null;
+    const save = async () => {
+      const {error} =
+          await this.handler_.updateMemory(memory.id, input?.value || '');
+      if (error) {
+        this.note_('memoryNote', error, true);
+        return;
+      }
+      this.show('memoryNote', false);
+      await this.refreshMemories_();
+    };
+    edit.addEventListener('click', () => {
+      if (input) {
+        save();
+        return;
+      }
+      input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 500;
+      input.value = memory.text;
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          save();
+        } else if (e.key === 'Escape') {
+          this.refreshMemories_();
+        }
+      });
+      edit.textContent = 'Save';
+      text.replaceWith(input);
+      input.focus();
+    });
+    item.append(text, edit, remove);
+    return item;
   }
 
   // "Allow MCP clients", how to add Compass to a client, the clients

@@ -10,7 +10,7 @@ index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..64404fde883fcde0d06f83bc4a8977fe
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -891,6 +892,12 @@ source_set("profiles_extra_parts_impl") {
+@@ -891,6 +892,14 @@ source_set("profiles_extra_parts_impl") {
      "//services/network/public/cpp",
      "//ui/webui:buildflags",
    ]
@@ -19,6 +19,8 @@ index 1c4ee4ac17e827a18dbb363f61aea886b5487bd2..64404fde883fcde0d06f83bc4a8977fe
 +  if (!is_android) {
 +    # The MCP bridge's (docs/design/claude.md, D6).
 +    deps += [ "//compass/browser/ui" ]
++    # Claude's memory (docs/design/claude.md, "Memory").
++    deps += [ "//compass/browser/claude:memory" ]
 +  }
  
    public_deps = [

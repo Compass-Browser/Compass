@@ -179,7 +179,36 @@ class TestDelegate : public CompassSpacesSyncBridge::Delegate {
     }
   }
   void OnFaviconsWritable() override { ++favicons_writable; }
+  std::optional<std::vector<sync_pb::CompassMemory>> GetLocalMemories()
+      override {
+    if (!memories) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassMemory> list;
+    for (const auto& [key, memory] : *memories) {
+      list.push_back(memory);
+    }
+    return list;
+  }
+  void ApplyMemories(const std::vector<sync_pb::CompassMemory>& changed,
+                     const std::set<std::string>& deleted) override {
+    if (!memories) {
+      return;
+    }
+    for (const sync_pb::CompassMemory& memory : changed) {
+      auto it = memories->find(memory.uuid());
+      if (it == memories->end() ||
+          memory.update_time() >= it->second.update_time()) {
+        (*memories)[memory.uuid()] = memory;
+      }
+    }
+    for (const std::string& key : deleted) {
+      memories->erase(key);
+    }
+  }
 
+  // Claude's memories by id; nullopt: not loaded.
+  std::optional<std::map<std::string, sync_pb::CompassMemory>> memories;
   // Synced icons handed over, by host: their PNG.
   std::map<std::string, std::string> favicons;
   int favicons_writable = 0;
@@ -327,6 +356,7 @@ class Device {
         syncer::COMPASS_SPACES,
         specifics.has_space()     ? specifics.space().uuid()
         : specifics.has_favicon() ? specifics.favicon().uuid()
+        : specifics.has_memory()  ? specifics.memory().uuid()
                                   : specifics.node().uuid());
     return data;
   }
@@ -1624,6 +1654,67 @@ TEST_F(CompassSpacesSyncBridgeTest, DeletedElsewhereTakesItsEntries) {
   // Gone with its entries: none were rescued to Pinned.
   EXPECT_TRUE(a->space(0).pinned_root()->children().empty());
   EXPECT_EQ(a->last_push(), 0u);
+}
+
+sync_pb::CompassMemory Memory(const std::string& text, int64_t update_time) {
+  sync_pb::CompassMemory memory;
+  memory.set_uuid(base::Uuid::GenerateRandomV4().AsLowercaseString());
+  memory.set_text(text);
+  memory.set_create_time(1);
+  memory.set_update_time(update_time);
+  return memory;
+}
+
+// Claude's memory (docs/design/claude.md, "Memory"): added, edited and
+// deleted on one device, the same on the others; a device whose memory
+// isn't loaded leaves the account's alone.
+TEST_F(CompassSpacesSyncBridgeTest, MemoriesSync) {
+  std::unique_ptr<Device> a = MakeDevice();
+  const sync_pb::CompassMemory italian = Memory("Prefers Italian", 10);
+  const std::string key = italian.uuid();
+  a->delegate().memories.emplace();
+  (*a->delegate().memories)[key] = italian;
+  a->Join();
+  ASSERT_TRUE(server_.entities.contains(key));
+  EXPECT_EQ(server_.entities[key].memory().text(), "Prefers Italian");
+
+  std::unique_ptr<Device> b = MakeDevice();
+  b->delegate().memories.emplace();
+  b->Join();
+  ASSERT_TRUE(b->delegate().memories->contains(key));
+  EXPECT_EQ(b->Push(), 0u) << "no echo";
+
+  sync_pb::CompassMemory edited = italian;
+  edited.set_text("Prefers Italian, short answers");
+  edited.set_update_time(20);
+  (*b->delegate().memories)[key] = edited;
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(a->delegate().memories->at(key).text(),
+            "Prefers Italian, short answers");
+  EXPECT_EQ(a->Push(), 0u) << "no echo";
+
+  // Not loaded: nothing of the account's goes.
+  std::unique_ptr<Device> c = MakeDevice();
+  c->Join();
+  EXPECT_TRUE(server_.entities.contains(key));
+
+  a->delegate().memories->erase(key);
+  a->Push();
+  EXPECT_FALSE(server_.entities.contains(key));
+  b->Pull();
+  EXPECT_FALSE(b->delegate().memories->contains(key));
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, MemoryEntitiesAreValid) {
+  std::unique_ptr<Device> a = MakeDevice();
+  sync_pb::CompassSpacesSpecifics specifics;
+  *specifics.mutable_memory() = Memory("Lives in Milan", 1);
+  syncer::EntityData data = Device::Data(specifics);
+  EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
+  EXPECT_EQ(a->bridge().GetStorageKey(data), specifics.memory().uuid());
+  data.specifics.mutable_compass_spaces()->mutable_memory()->set_uuid("x");
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
 }
 
 }  // namespace

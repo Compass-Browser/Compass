@@ -21,6 +21,17 @@ ${this.isUser_() ? html`
   <div class="turn assistant">
     ${this.getBlocks_().map((item, index) => html`${item.type === 'text' ?
       html`<div class="markdown">${this.renderText_(item.text)}</div>` :
+      html`${this.getMemory_(item) ? html`
+        <div class="memory" ?undone="${!!this.getMemory_(item)!.undone}">
+          <span class="memory-glyph" aria-hidden="true"></span>
+          <span class="memory-label"
+              title="${this.getMemory_(item)!.text}">${this.getMemoryLabel_(item)}</span>
+          ${this.getMemory_(item)!.undone ? html`
+            <span class="memory-undone">Undone</span>` :
+            this.getMemory_(item)!.undo !== undefined ? html`
+            <button class="link" data-id="${item.id}"
+                @click="${this.onUndoMemoryClick_}">Undo</button>` : nothing}
+        </div>` :
       html`${item.type === 'tool_use' ? html`
         <details class="tool" ?running="${this.getTool_(item).running}"
             ?error="${!!this.getTool_(item).isError}">
@@ -40,7 +51,7 @@ ${this.isUser_() ? html`
         <details class="thinking" ?open="${this.isLive_(index)}">
           <summary>${this.isLive_(index) ? 'Thinking…' : 'Thought'}</summary>
           <div class="thinking-text">${item.thinking}</div>
-        </details>` : nothing}`}`}`)}
+        </details>` : nothing}`}`}`}`)}
     ${this.isPending_() ? html`
       <div class="pending" aria-label="Claude is answering">
         <span></span><span></span><span></span>

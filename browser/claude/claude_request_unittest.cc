@@ -82,9 +82,36 @@ TEST(ClaudeRequestTest, Defaults) {
   for (const base::Value& tool : tools) {
     EXPECT_TRUE(tool.GetDict().FindDict("input_schema"));
     EXPECT_FALSE(tool.GetDict().contains("scope"));
+    // The memory tools only when asked for.
+    EXPECT_NE(*tool.GetDict().FindString("name"), "remember");
   }
   // No sampling parameters, which the API version refuses.
   EXPECT_FALSE(body.contains("temperature"));
+}
+
+TEST(ClaudeRequestTest, Memory) {
+  ChatOptions options;
+  options.model = "claude-opus-5-5";
+  options.now = base::Time::Now();
+  options.memory = "<memory>\n- [0123abcd] Prefers Italian\n</memory>";
+  options.memory_tools = true;
+  ChatRequest request = BuildChatRequest(OneMessage(), options);
+  // After the fixed blocks, and the one cached (the prefix ends there).
+  const base::ListValue& system = *request.body.FindList("system");
+  ASSERT_EQ(system.size(), 3u);
+  EXPECT_FALSE(system[1].GetDict().FindDict("cache_control"));
+  EXPECT_EQ(*system[2].GetDict().FindString("text"), options.memory);
+  EXPECT_TRUE(system[2].GetDict().FindDict("cache_control"));
+  const base::ListValue& tools = *request.body.FindList("tools");
+  for (const char* name : {"remember", "update_memory", "forget"}) {
+    EXPECT_TRUE(std::ranges::any_of(tools, [name](const base::Value& tool) {
+      return *tool.GetDict().FindString("name") == name;
+    })) << name;
+  }
+  EXPECT_TRUE(tools.back().GetDict().FindDict("cache_control"));
+
+  EXPECT_EQ(SystemPromptText(options.memory),
+            SystemPromptText() + "\n\n" + options.memory);
 }
 
 TEST(ClaudeRequestTest, NoFallbackOnGatewaysOrOtherModels) {

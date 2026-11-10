@@ -169,6 +169,17 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     // Sync runs (after the initial merge, or at startup if it already ran):
     // the delegate offers the icons of the pages open now (OfferFavicon()).
     virtual void OnFaviconsWritable() {}
+
+    // Claude's memory (docs/design/claude.md, "Memory"). The profile's
+    // memories as entities, once its memory is loaded; nullopt otherwise,
+    // and where memory doesn't sync: the account's are then left alone.
+    virtual std::optional<std::vector<sync_pb::CompassMemory>>
+    GetLocalMemories();
+    // Memories another device added or changed, and ones it deleted (keys).
+    // Called while applying; the later of two edits wins.
+    virtual void ApplyMemories(
+        const std::vector<sync_pb::CompassMemory>& changed,
+        const std::set<std::string>& deleted) {}
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -281,6 +292,9 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
       const std::vector<std::optional<syncer::UniquePosition>>& existing) const;
   // The profile entities of |profiles| (GetLocalProfiles()) into |out|.
   void AddLocalProfiles(const std::vector<sync_pb::CompassProfile>& profiles,
+                        Mirror& out) const;
+  // The memory entities of |memories| (GetLocalMemories()) into |out|.
+  void AddLocalMemories(const std::vector<sync_pb::CompassMemory>& memories,
                         Mirror& out) const;
   // The CompassProfile entities of the mirror.
   std::vector<sync_pb::CompassProfile> MirrorProfiles() const;

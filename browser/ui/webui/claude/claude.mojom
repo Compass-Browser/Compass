@@ -48,6 +48,17 @@ struct SettingsState {
   string mcp_command;
   // The clients the user always allows, by name.
   array<string> mcp_allowed_clients;
+  // "Use memory" and "Let Claude save memories" (docs/design/claude.md,
+  // "Memory"); false where the profile has no memory (Guest).
+  bool memory_supported;
+  bool memory_enabled;
+  bool memory_save;
+};
+
+// A fact Claude saved about the user.
+struct Memory {
+  string id;
+  string text;
 };
 
 struct Model {
@@ -84,6 +95,15 @@ interface SettingsHandler {
   SetMcpEnabled(bool enabled);
   // Asks again next time |client| connects.
   ForgetMcpClient(string client);
+  SetMemoryEnabled(bool enabled);
+  SetMemorySave(bool enabled);
+  // Oldest first.
+  GetMemories() => (array<Memory> memories);
+  // A fact the user adds or edits themselves; |error| says why not.
+  AddMemory(string text) => (string error);
+  UpdateMemory(string id, string text) => (string error);
+  RemoveMemory(string id);
+  RemoveAllMemories();
   // Lists the models with the saved key and endpoint; in Claude Code mode,
   // finds Claude Code and says whether it's signed in.
   TestConnection() => (ConnectionResult result);

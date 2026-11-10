@@ -45,7 +45,8 @@ let package = Package(
     .target(name: "CompassModel", dependencies: ["CompassShared"]),
     .target(name: "CompassClaude", dependencies: ["CompassShared"]),
     .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
-    .target(name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared"]),
+    .target(
+      name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude"]),
     .testTarget(name: "CompassCryptoTests", dependencies: ["CompassCrypto"]),
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),

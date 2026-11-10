@@ -232,6 +232,42 @@ button {
   color: var(--color-sys-error, #b3261e);
 }
 
+/* A memory tool's change, with its Undo. */
+.memory {
+  align-items: center;
+  color: var(--fg-dim);
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 2px 0;
+}
+
+.memory-glyph {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  flex: none;
+  height: 12px;
+  /* A bookmark ribbon. */
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  width: 9px;
+}
+
+.memory-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory[undone] .memory-label {
+  text-decoration: line-through;
+}
+
+.memory-undone {
+  flex: none;
+}
+
 .shot {
   border: 1px solid var(--line);
   border-radius: 6px;

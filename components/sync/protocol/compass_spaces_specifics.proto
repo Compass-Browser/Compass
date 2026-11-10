@@ -36,6 +36,7 @@ message CompassSpacesSpecifics {
     CompassNode node = 2;
     CompassProfile profile = 3;
     CompassFavicon favicon = 4;
+    CompassMemory memory = 5;
   }
 }
 
@@ -177,4 +178,19 @@ message CompassFavicon {
   optional int32 source_size = 4;
   // When it was written, in microseconds since the Windows epoch.
   optional int64 update_time = 5;
+}
+
+// A fact Claude saved about the user (docs/design/claude.md, "Memory"), in
+// the account of the profile it belongs to. Clients that predate it ignore
+// it (their IsEntityDataValid() refuses it). Not in proto_visitors.h: its
+// text stays out of sync-internals.
+message CompassMemory {
+  // A random UUID, lowercase. Also the client tag.
+  optional string uuid = 1;
+  // At most 500 characters.
+  optional string text = 2;
+  // In microseconds since the Windows epoch.
+  optional int64 create_time = 3;
+  // The last edit; of two edits, the later wins.
+  optional int64 update_time = 4;
 }

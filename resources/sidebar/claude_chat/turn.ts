@@ -4,7 +4,7 @@
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ContentBlock, ToolView, Turn} from './conversation.js';
+import type {ContentBlock, MemoryView, ToolView, Turn} from './conversation.js';
 import {renderMarkdown} from './markdown.js';
 import {getCss} from './turn.css.js';
 import {getHtml} from './turn.html.js';
@@ -12,7 +12,8 @@ import {getHtml} from './turn.html.js';
 // One message of the chat: the user's, with the page it carried, or
 // Claude's, rendered from its content blocks as they stream in. The turn is
 // changed in place; |revision| tells the element to render it again. Fires
-// "retry" from a failed reply's Retry button.
+// "retry" from a failed reply's Retry button, and "undo-memory" (with the
+// tool_use id) from a memory chip's Undo.
 export class CompassClaudeTurnElement extends CrLitElement {
   static get is() {
     return 'compass-claude-turn';
@@ -90,6 +91,26 @@ export class CompassClaudeTurnElement extends CrLitElement {
     return this.tools.get(item.id || '') || {running: false};
   }
 
+  // What a memory tool changed, once it has: shown as a chip, not a tool.
+  protected getMemory_(item: ContentBlock): MemoryView|undefined {
+    return item.type === 'tool_use' ? this.getTool_(item).memory : undefined;
+  }
+
+  protected getMemoryLabel_(item: ContentBlock): string {
+    const memory = this.getMemory_(item);
+    if (!memory) {
+      return '';
+    }
+    const verb = memory.kind === 'forgot' ? 'Forgot' :
+        memory.kind === 'updated'         ? 'Updated memory' :
+                                            'Saved to memory';
+    return `${verb}: ${memory.text}`;
+  }
+
+  protected onUndoMemoryClick_(e: Event) {
+    this.fire('undo-memory', (e.currentTarget as HTMLElement).dataset['id']);
+  }
+
   // A tool call, in a few words.
   protected getToolLabel_(item: ContentBlock): string {
     const input = (item.input || {}) as Record<string, unknown>;
@@ -130,6 +151,12 @@ export class CompassClaudeTurnElement extends CrLitElement {
         return `Go to ${short(input['url'])}`;
       case 'wait':
         return `Wait ${input['seconds'] ?? ''} s`;
+      case 'remember':
+        return `Remember “${short(input['text'])}”`;
+      case 'update_memory':
+        return `Update memory “${short(input['text'])}”`;
+      case 'forget':
+        return 'Forget a memory';
       default:
         return item.name || 'Tool';
     }

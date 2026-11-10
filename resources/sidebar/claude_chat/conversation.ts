@@ -55,6 +55,17 @@ export interface ToolView {
   text?: string;
   // A screenshot, as a data: URL.
   image?: string;
+  // What a memory tool changed (remember, update_memory, forget).
+  memory?: MemoryView;
+}
+
+export interface MemoryView {
+  // "saved", "updated" or "forgot".
+  kind: string;
+  text: string;
+  // PageHandler.UndoMemory()'s id; absent in Claude Code mode.
+  undo?: number;
+  undone?: boolean;
 }
 
 // How many screenshots the request keeps; older ones are replaced by a note

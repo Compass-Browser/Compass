@@ -28,6 +28,7 @@
 #include "compass/browser/claude/claude_code.h"
 #include "compass/browser/claude/claude_code_process.h"
 #include "compass/browser/claude/claude_credentials.h"
+#include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_request.h"
 #include "compass/browser/ui/claude/claude_tabs.h"
@@ -87,6 +88,13 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
       browser_(browser),
       controller_(controller),
       tools_(std::make_unique<ClaudeTabs>(browser->GetProfile(), browser)) {
+  tools_.SetMemory(ClaudeMemory::Get(browser_->GetProfile()),
+                   base::BindRepeating(
+                       [](PrefService* prefs) {
+                         return prefs->GetBoolean(prefs::kMemoryEnabled) &&
+                                prefs->GetBoolean(prefs::kMemorySave);
+                       },
+                       browser_->GetProfile()->GetPrefs()));
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
@@ -213,6 +221,10 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.oauth_token = UsesOAuthToken(endpoint);
   options.browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
   options.now = base::Time::Now();
+  const ChatMemory& memory =
+      FreezeMemory(/*new_chat=*/messages->GetList().size() == 1);
+  options.memory = memory.block;
+  options.memory_tools = memory.tools;
   ChatRequest request =
       BuildChatRequest(std::move(*messages).TakeList(), options);
 
@@ -228,6 +240,54 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
                           weak_factory_.GetWeakPtr()),
       base::BindOnce(&ClaudeChatPageHandler::OnStreamDone,
                      weak_factory_.GetWeakPtr(), request_id));
+}
+
+const ClaudeChatPageHandler::ChatMemory& ClaudeChatPageHandler::FreezeMemory(
+    bool new_chat) {
+  if (chat_memory_ && !new_chat) {
+    return *chat_memory_;
+  }
+  Profile* profile = browser_->GetProfile();
+  const PrefService* prefs = profile->GetPrefs();
+  ChatMemory memory;
+  ClaudeMemory* store = ClaudeMemory::Get(profile);
+  if (store && prefs->GetBoolean(prefs::kMemoryEnabled)) {
+    memory.block = FormatMemoryBlock(store->entries());
+    memory.tools = prefs->GetBoolean(prefs::kMemorySave);
+  }
+  chat_memory_ = std::move(memory);
+  return *chat_memory_;
+}
+
+std::string ClaudeChatPageHandler::ToolResultJson(ToolResult result) {
+  std::optional<MemoryChange> change = std::move(result.memory_change);
+  base::DictValue dict = std::move(result).ToDict();
+  if (change) {
+    const int32_t undo_id = next_undo_id_++;
+    dict.Set("memory", base::DictValue()
+                           .Set("kind", change->kind)
+                           .Set("text", change->text)
+                           .Set("undo", undo_id));
+    memory_undo_.emplace(undo_id, std::move(*change));
+  }
+  std::string json;
+  base::JSONWriter::Write(dict, &json);
+  return json;
+}
+
+void ClaudeChatPageHandler::UndoMemory(int32_t undo_id,
+                                       UndoMemoryCallback callback) {
+  auto it = memory_undo_.find(undo_id);
+  ClaudeMemory* store = ClaudeMemory::Get(browser_->GetProfile());
+  if (it == memory_undo_.end() || !store) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const MemoryChange change = std::move(it->second);
+  memory_undo_.erase(it);
+  const bool undone = change.before ? store->Restore(*change.before)
+                                    : store->Remove(change.id).has_value();
+  std::move(callback).Run(undone);
 }
 
 void ClaudeChatPageHandler::OnStreamEvent(const SseParser::Event& event) {
@@ -269,12 +329,19 @@ void ClaudeChatPageHandler::RunTool(const std::string& name,
   }
   tools_.Run(name, std::move(*input),
              base::BindOnce(
-                 [](RunToolCallback callback, ToolResult result) {
+                 [](base::WeakPtr<ClaudeChatPageHandler> handler,
+                    RunToolCallback callback, ToolResult result) {
+                   if (handler) {
+                     std::move(callback).Run(
+                         handler->ToolResultJson(std::move(result)));
+                     return;
+                   }
+                   // Going away ("Stopped"): the reply still goes.
                    std::string json;
                    base::JSONWriter::Write(std::move(result).ToDict(), &json);
                    std::move(callback).Run(json);
                  },
-                 std::move(callback)));
+                 weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void ClaudeChatPageHandler::Stop() {
@@ -307,6 +374,7 @@ void ClaudeChatPageHandler::SendToClaudeCode(base::ListValue messages) {
     // The conversation's first message: a new one (New chat, or the first
     // message Retried).
     EndClaudeCode(/*forget=*/true);
+    FreezeMemory(/*new_chat=*/true);
   } else if (claude_code_ &&
              claude_code_model_ != prefs->GetString(prefs::kModel)) {
     // Another model: the same conversation, resumed on it.
@@ -353,7 +421,8 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   Profile* profile = browser_->GetProfile();
   ClaudeCodeOptions options;
   options.model = profile->GetPrefs()->GetString(prefs::kModel);
-  options.system_prompt = SystemPromptText();
+  options.system_prompt =
+      SystemPromptText(FreezeMemory(/*new_chat=*/false).block);
   options.resume = claude_code_session_;
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
   // Compass's tools, through the bridge, as this chat's.

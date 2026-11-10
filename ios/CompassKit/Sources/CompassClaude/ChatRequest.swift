@@ -32,11 +32,15 @@ public struct ChatRequest: Sendable {
     public var claudeAPI: Bool
     /// The key is an OAuth token (`ClaudeEndpoint.isOAuthToken`): the API wants Claude Code's line first.
     public var oauthToken: Bool
+    /// The <memory> block (`MemoryList.promptBlock`) as it was when the chat
+    /// started; empty for none. Cached with the prompt: it doesn't change
+    /// within a chat.
+    public var memory: String
     public var now: Date
 
     public init(
       model: String, systemPrompt: String, tools: [JSONValue] = [], browserScope: Bool = false, windowTabs: String = "",
-      claudeAPI: Bool, oauthToken: Bool = false, now: Date = Date()
+      claudeAPI: Bool, oauthToken: Bool = false, memory: String = "", now: Date = Date()
     ) {
       self.model = model
       self.systemPrompt = systemPrompt
@@ -45,6 +49,7 @@ public struct ChatRequest: Sendable {
       self.windowTabs = windowTabs
       self.claudeAPI = claudeAPI
       self.oauthToken = oauthToken
+      self.memory = memory
       self.now = now
     }
   }
@@ -54,10 +59,14 @@ public struct ChatRequest: Sendable {
 
   public init(messages: [JSONValue], options: Options) {
     let ephemeral: JSONValue = ["type": "ephemeral"]
-    var system: [JSONValue] = [
-      ["type": "text", "text": .string(options.systemPrompt), "cache_control": ephemeral],
-      ["type": "text", "text": .string(Self.context(options))],
-    ]
+    // The prompt, then the chat's memory, cached up to the last of them.
+    var system: [JSONValue] = options.memory.isEmpty
+      ? [["type": "text", "text": .string(options.systemPrompt), "cache_control": ephemeral]]
+      : [
+        ["type": "text", "text": .string(options.systemPrompt)],
+        ["type": "text", "text": .string(options.memory), "cache_control": ephemeral],
+      ]
+    system.append(["type": "text", "text": .string(Self.context(options))])
     if options.oauthToken {
       system.insert(["type": "text", "text": .string(Self.oauthSystemLine)], at: 0)
     }

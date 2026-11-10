@@ -19,6 +19,7 @@
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
+#include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -137,6 +138,9 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->mcp_command = McpCommand();
 #endif
   state->mcp_enabled = prefs->GetBoolean(prefs::kMcpEnabled);
+  state->memory_supported = ClaudeMemory::Get(profile_) != nullptr;
+  state->memory_enabled = prefs->GetBoolean(prefs::kMemoryEnabled);
+  state->memory_save = prefs->GetBoolean(prefs::kMemorySave);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -215,6 +219,69 @@ void ClaudeSettingsHandler::SetMcpEnabled(bool enabled) {
 void ClaudeSettingsHandler::ForgetMcpClient(const std::string& client) {
   ScopedListPrefUpdate update(profile_->GetPrefs(), prefs::kMcpAllowedClients);
   update->EraseValue(base::Value(client));
+}
+
+void ClaudeSettingsHandler::SetMemoryEnabled(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kMemoryEnabled, enabled);
+}
+
+void ClaudeSettingsHandler::SetMemorySave(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kMemorySave, enabled);
+}
+
+void ClaudeSettingsHandler::GetMemories(GetMemoriesCallback callback) {
+  ClaudeMemory* memory = ClaudeMemory::Get(profile_);
+  if (!memory) {
+    std::move(callback).Run({});
+    return;
+  }
+  memory->WhenLoaded(base::BindOnce(
+      [](base::WeakPtr<ClaudeMemory> memory, GetMemoriesCallback callback) {
+        std::vector<mojom::MemoryPtr> memories;
+        if (memory) {
+          for (const MemoryEntry& entry : memory->entries()) {
+            memories.push_back(mojom::Memory::New(entry.id, entry.text));
+          }
+        }
+        std::move(callback).Run(std::move(memories));
+      },
+      memory->GetWeakPtr(), std::move(callback)));
+}
+
+void ClaudeSettingsHandler::AddMemory(const std::string& text,
+                                      AddMemoryCallback callback) {
+  ClaudeMemory* memory = ClaudeMemory::Get(profile_);
+  if (!memory) {
+    std::move(callback).Run("Memory isn't available in this profile.");
+    return;
+  }
+  base::expected<MemoryEntry, std::string> added = memory->Add(text);
+  std::move(callback).Run(added.has_value() ? std::string() : added.error());
+}
+
+void ClaudeSettingsHandler::UpdateMemory(const std::string& id,
+                                         const std::string& text,
+                                         UpdateMemoryCallback callback) {
+  ClaudeMemory* memory = ClaudeMemory::Get(profile_);
+  if (!memory) {
+    std::move(callback).Run("Memory isn't available in this profile.");
+    return;
+  }
+  base::expected<MemoryEntry, std::string> updated = memory->Update(id, text);
+  std::move(callback).Run(updated.has_value() ? std::string()
+                                              : updated.error());
+}
+
+void ClaudeSettingsHandler::RemoveMemory(const std::string& id) {
+  if (ClaudeMemory* memory = ClaudeMemory::Get(profile_)) {
+    memory->Remove(id);
+  }
+}
+
+void ClaudeSettingsHandler::RemoveAllMemories() {
+  if (ClaudeMemory* memory = ClaudeMemory::Get(profile_)) {
+    memory->RemoveAll();
+  }
 }
 
 void ClaudeSettingsHandler::TestConnection(TestConnectionCallback callback) {

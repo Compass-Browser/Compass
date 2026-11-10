@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_CLAUDE_CLAUDE_REQUEST_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/time/time.h"
@@ -28,6 +29,12 @@ struct ChatOptions {
   std::string window_tabs;
   // Send the tools (ClaudeTools::Definitions()).
   bool tools = true;
+  // Send the memory tools too (remember, update_memory, forget).
+  bool memory_tools = false;
+  // The <memory> block (FormatMemoryBlock()), as it was when the chat
+  // started: it's in the system prompt, which never changes in a chat. Empty
+  // for none.
+  std::string memory;
   base::Time now;
 };
 
@@ -51,10 +58,10 @@ struct ChatRequest {
 ChatRequest BuildChatRequest(base::ListValue messages,
                              const ChatOptions& options);
 
-// The whole system prompt, as one text: common/claude/system_prompt.md and
-// the note on Compass's <context> and <page> elements. Claude Code mode
-// passes it as --system-prompt.
-std::string SystemPromptText();
+// The whole system prompt, as one text: common/claude/system_prompt.md, the
+// note on Compass's <context> and <page> elements, and |memory| (a <memory>
+// block, or empty). Claude Code mode passes it as --system-prompt.
+std::string SystemPromptText(std::string_view memory = {});
 
 // What the browser says about itself in each user message: the date, the
 // permission, the window's tabs, as a <context> element. The page puts it

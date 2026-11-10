@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_WEBUI_CLAUDE_CLAUDE_CHAT_PAGE_HANDLER_H_
 #define COMPASS_BROWSER_UI_WEBUI_CLAUDE_CLAUDE_CHAT_PAGE_HANDLER_H_
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -76,6 +77,7 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void OpenLink(const std::string& url) override;
   void ClosePanel() override;
   void TakeQuestion(TakeQuestionCallback callback) override;
+  void UndoMemory(int32_t undo_id, UndoMemoryCallback callback) override;
 
   // The command bar's "Ask Claude", while the page is connected.
   void Ask(const std::string& question);
@@ -98,6 +100,16 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
                     std::optional<std::string> key);
   void OnStreamEvent(const SseParser::Event& event);
   void OnStreamDone(int request_id, std::optional<std::string> error);
+  // The memory a chat gets, taken as it starts (|new_chat|) and kept for
+  // the rest of it: it's in the system prompt (docs/design/claude.md,
+  // "Memory").
+  struct ChatMemory {
+    std::string block;
+    bool tools = false;
+  };
+  const ChatMemory& FreezeMemory(bool new_chat);
+  // A tool's result as RunTool() gives it: with a memory change's undo id.
+  std::string ToolResultJson(ToolResult result);
 
   // Claude Code mode (docs/design/claude.md, D8).
   bool UsesClaudeCode() const;
@@ -135,6 +147,10 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   std::string claude_code_output_;
   // McpBridge::RegisterChat()'s token, while registered.
   std::string chat_token_;
+  std::optional<ChatMemory> chat_memory_;
+  // What the memory tools changed in this page's chats, by undo id.
+  std::map<int32_t, MemoryChange> memory_undo_;
+  int32_t next_undo_id_ = 1;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;
   PrefChangeRegistrar pref_registrar_;

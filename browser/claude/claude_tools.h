@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -19,6 +20,7 @@
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "compass/browser/claude/claude_memory.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "url/gurl.h"
 
@@ -29,6 +31,22 @@ class WebContents;
 namespace compass::claude {
 
 class DevToolsSession;
+
+// What a memory tool changed, so the chat can undo it.
+struct MemoryChange {
+  MemoryChange();
+  MemoryChange(const MemoryChange&);
+  MemoryChange& operator=(const MemoryChange&);
+  ~MemoryChange();
+
+  // "saved", "updated" or "forgot".
+  std::string kind;
+  std::string id;
+  // The memory's text now (forgot: what it was).
+  std::string text;
+  // The memory before the change; none if it's new.
+  std::optional<MemoryEntry> before;
+};
 
 // What a tool returns: the tool_result's content blocks (text, image).
 struct ToolResult {
@@ -45,6 +63,8 @@ struct ToolResult {
 
   base::ListValue content;
   bool is_error = false;
+  // A memory tool's change; not part of the tool_result.
+  std::optional<MemoryChange> memory_change;
 };
 
 // The browser around ClaudeTools, for the browser tools (list_tabs,
@@ -116,11 +136,17 @@ class ClaudeTools : public content::WebContentsObserver {
   ClaudeTools& operator=(const ClaudeTools&) = delete;
   ~ClaudeTools() override;
 
-  // The definitions to send to the API: every tool. The browser tools are
-  // always sent and answer "not permitted" while "Let Claude use the whole
-  // browser" is off, so a conversation stays valid when it's switched.
-  // The last one is marked for caching.
-  static base::ListValue Definitions();
+  // The definitions to send to the API: every tool, the memory tools only
+  // with |memory|. The browser tools are always sent and answer "not
+  // permitted" while "Let Claude use the whole browser" is off, so a
+  // conversation stays valid when it's switched. The last one is marked for
+  // caching.
+  static base::ListValue Definitions(bool memory = false);
+
+  // The memory the memory tools change, and whether they may now ("Let
+  // Claude save memories"). Without it, they refuse.
+  void SetMemory(ClaudeMemory* memory,
+                 base::RepeatingCallback<bool()> may_save);
 
   // The task's tab: the page tools act on it until select_tab or open_tab
   // picks another. Setting another one stops what runs.
@@ -208,6 +234,9 @@ class ClaudeTools : public content::WebContentsObserver {
   void OpenTab(base::DictValue input);
   void SelectTab(base::DictValue input);
   void CloseTab(base::DictValue input);
+  // remember, update_memory, forget.
+  ToolResult RunMemoryTool(const std::string& name,
+                           const base::DictValue& input);
   // The browser tools ClaudeTabs runs.
   void RunBrowserTool(const std::string& name, base::DictValue input);
   void OnBrowserToolDone(TabsDelegate::Result result);
@@ -217,6 +246,8 @@ class ClaudeTools : public content::WebContentsObserver {
   void ShowIndicator(double x, double y);
 
   std::unique_ptr<TabsDelegate> tabs_;
+  base::WeakPtr<ClaudeMemory> memory_;
+  base::RepeatingCallback<bool()> may_save_memory_;
   // The tab the user's message was about (SetTarget()).
   base::WeakPtr<content::WebContents> task_tab_;
   // Tabs Claude opened: the ones close_tab may close.

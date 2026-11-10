@@ -40,6 +40,7 @@
 #include "ui/gfx/image/image.h"
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/common/channel_info.h"
+#include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
 #include "compass/browser/sync/compass_sync_service.h"
@@ -124,7 +125,8 @@ void SortDirectoryByPositions() {
 class SpacesSyncHolder : public SpaceService::Attachment,
                          public CompassSpacesSyncBridge::Delegate,
                          public SpaceList::Observer,
-                         public SpaceDirectory::Observer {
+                         public SpaceDirectory::Observer,
+                         public claude::ClaudeMemory::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpaceService* service)
       : profile_(profile), service_(service) {
@@ -141,6 +143,12 @@ class SpacesSyncHolder : public SpaceService::Attachment,
     }
     service->RunWhenLoaded(base::BindOnce(&SpacesSyncHolder::OnLoaded,
                                           weak_factory_.GetWeakPtr()));
+    // Claude's memory syncs with the spaces (docs/design/claude.md,
+    // "Memory"); it's a service of its own, which may go first.
+    if (claude::ClaudeMemory* memory = claude::ClaudeMemory::Get(profile)) {
+      memory_ = memory->GetWeakPtr();
+      memory->AddObserver(this);
+    }
   }
   SpacesSyncHolder(const SpacesSyncHolder&) = delete;
   SpacesSyncHolder& operator=(const SpacesSyncHolder&) = delete;
@@ -151,12 +159,54 @@ class SpacesSyncHolder : public SpaceService::Attachment,
       directory->RemoveObserver(this);
     }
     service_->space_list().RemoveObserver(this);
+    if (memory_) {
+      memory_->RemoveObserver(this);
+    }
     bridge_.reset();
   }
 
   CompassSpacesSyncBridge& bridge() { return *bridge_; }
 
   // CompassSpacesSyncBridge::Delegate:
+  std::optional<std::vector<sync_pb::CompassMemory>> GetLocalMemories()
+      override {
+    if (!memory_ || !memory_->loaded()) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassMemory> memories;
+    for (const claude::MemoryEntry& entry : memory_->entries()) {
+      sync_pb::CompassMemory& memory = memories.emplace_back();
+      memory.set_uuid(entry.id);
+      memory.set_text(entry.text);
+      memory.set_create_time(
+          entry.created.ToDeltaSinceWindowsEpoch().InMicroseconds());
+      memory.set_update_time(
+          entry.updated.ToDeltaSinceWindowsEpoch().InMicroseconds());
+    }
+    return memories;
+  }
+
+  void ApplyMemories(const std::vector<sync_pb::CompassMemory>& changed,
+                     const std::set<std::string>& deleted) override {
+    if (!memory_) {
+      return;
+    }
+    std::vector<claude::MemoryEntry> entries;
+    for (const sync_pb::CompassMemory& memory : changed) {
+      claude::MemoryEntry& entry = entries.emplace_back();
+      entry.id = memory.uuid();
+      entry.text = memory.text();
+      entry.created = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(memory.create_time()));
+      entry.updated = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(memory.update_time()));
+    }
+    memory_->ApplyRemote(entries, deleted);
+  }
+
+  // claude::ClaudeMemory::Observer:
+  void OnMemoriesChanged() override { bridge_->NotifyLocalChange(); }
+
   void DeleteSpace(SpaceModel& space) override {
     ::compass::DeleteSpace(profile_, space);
   }
@@ -471,6 +521,7 @@ class SpacesSyncHolder : public SpaceService::Attachment,
   const raw_ptr<Profile> profile_;
   const raw_ptr<SpaceService> service_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
+  base::WeakPtr<claude::ClaudeMemory> memory_;
   bool syncing_order_ = false;
   bool directory_pull_pending_ = false;
   base::CallbackListSubscription favicons_changed_;

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassClaude
 import CompassModel
 import Foundation
 import SwiftProtobuf
@@ -60,6 +61,10 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor public var onLocalCommit: (() -> Void)?
   /// A synced site icon arrived: (host, PNG). See +Favicons.
   @MainActor public var onFavicon: ((String, Data) -> Void)?
+  /// Claude's memories on this device, for the home account (+Memory).
+  @MainActor public var localMemories: (() -> [MemoryEntry])?
+  /// Memories another device changed or added, and ones it deleted (+Memory).
+  @MainActor public var onMemories: (([MemoryEntry], Set<String>) -> Void)?
   @MainActor public var now: () -> Date = Date.init
 
   struct SavedMirror: Codable {
@@ -201,6 +206,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     case .node(let node): node.uuid
     case .profile(let profile): profile.uuid
     case .favicon(let favicon): favicon.uuid
+    case .memory(let memory): memory.uuid
     case nil: nil
     }
   }
@@ -470,6 +476,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var deleted: Set<String> = []
     var profilesChanged = false
     var favicons: [(String, Data)] = []
+    var memories: [MemoryEntry] = []
+    var deletedMemories: Set<String> = []
     let byHash = Dictionary(
       mirror.keys.map { (ClientTagHash.make(type: .compassSpaces, tag: $0), $0) }, uniquingKeysWith: { a, _ in a })
     for change in changes {
@@ -482,10 +490,12 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         case .node: putNodes.append(id)
         case .profile: profilesChanged = true
         case .favicon(let f): if !f.host.isEmpty && !f.png.isEmpty { favicons.append((f.host, f.png)) }
+        case .memory(let m): memories.append(Self.memoryEntry(m))
         case nil: break
         }
       } else if let id = byHash[change.clientTagHash] {
         if case .profile = mirror[id]?.entity { profilesChanged = true }
+        if case .memory = mirror[id]?.entity { deletedMemories.insert(id) }
         mirror[id] = nil
         deleted.insert(id)
       }
@@ -520,6 +530,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     directory.reconcile()
     for (host, png) in favicons { onFavicon?(host, png) }
     collectFavicons()
+    if isHome && (!memories.isEmpty || !deletedMemories.isEmpty) { onMemories?(memories, deletedMemories) }
   }
 
   @MainActor
@@ -809,6 +820,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     }
     for space in store.spaces where owns(space) { add(space.id, desired(space)) }
     for node in store.allNodes where owns(node) { add(node.id, desired(node)) }
+    if isHome, let memories = localMemories?() {
+      for memory in memories { add(memory.id, desired(memory)) }
+    }
     tracking = true
     saveMirror()
     return result

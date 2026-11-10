@@ -53,8 +53,12 @@ ChatRequest::ChatRequest(ChatRequest&&) = default;
 ChatRequest& ChatRequest::operator=(ChatRequest&&) = default;
 ChatRequest::~ChatRequest() = default;
 
-std::string SystemPromptText() {
-  return base::StrCat({assets::kSystemPrompt, "\n\n", kAdditions});
+std::string SystemPromptText(std::string_view memory) {
+  std::string text = base::StrCat({assets::kSystemPrompt, "\n\n", kAdditions});
+  if (!memory.empty()) {
+    base::StrAppend(&text, {"\n\n", memory});
+  }
+  return text;
 }
 
 std::string BuildMessageContext(const ChatOptions& options) {
@@ -101,7 +105,12 @@ ChatRequest BuildChatRequest(base::ListValue messages,
     system.Append(TextBlock(kOAuthSystemLine));
   }
   system.Append(TextBlock(std::string(assets::kSystemPrompt)));
-  system.Append(TextBlock(kAdditions).Set("cache_control", Ephemeral()));
+  system.Append(TextBlock(kAdditions));
+  if (!options.memory.empty()) {
+    // Frozen when the chat started (ChatOptions::memory).
+    system.Append(TextBlock(options.memory));
+  }
+  system.back().GetDict().Set("cache_control", Ephemeral());
 
   request.body.Set("model", options.model);
   request.body.Set("max_tokens", kMaxTokens);
@@ -109,7 +118,7 @@ ChatRequest BuildChatRequest(base::ListValue messages,
   request.body.Set("messages", std::move(messages));
   if (options.tools) {
     // Cached with the prompt: they come before it in the cache's order.
-    request.body.Set("tools", ClaudeTools::Definitions());
+    request.body.Set("tools", ClaudeTools::Definitions(options.memory_tools));
   }
   // The conversation so far is cached too: each turn resends it.
   request.body.Set("cache_control", Ephemeral());

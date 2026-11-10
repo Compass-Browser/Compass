@@ -8,7 +8,8 @@
 class PrefRegistrySimple;
 
 // The Claude settings of a profile (docs/design/claude.md, "Settings"). None
-// of them sync: a key belongs to the device it was typed on.
+// of them sync: a key belongs to the device it was typed on. (The memories
+// themselves sync, with the spaces.)
 namespace compass::claude::prefs {
 
 // The API key, encrypted with the OS's safe storage (os_crypt_async), in
@@ -41,6 +42,13 @@ inline constexpr char kMcpEnabled[] = "compass.claude.mcp_enabled";
 // The MCP clients the user always allows, by the name they declare.
 inline constexpr char kMcpAllowedClients[] =
     "compass.claude.mcp_allowed_clients";
+
+// "Use memory": what Claude saved about the user goes into each new chat
+// (docs/design/claude.md, "Memory"). Off, the memory tools aren't sent
+// either; the memories stay.
+inline constexpr char kMemoryEnabled[] = "compass.claude.memory_enabled";
+// "Let Claude save memories": the memory tools are sent (with kMemoryEnabled).
+inline constexpr char kMemorySave[] = "compass.claude.memory_save";
 
 // Called by compass::RegisterCompassProfilePrefs().
 void RegisterProfilePrefs(PrefRegistrySimple* registry);

@@ -24,6 +24,8 @@ final class ClaudeTools {
   struct Result {
     var content: [JSONValue]
     var isError = false
+    /// What a memory tool changed, for the chat's Undo; not sent.
+    var memoryChange: MemoryChange?
 
     static func text(_ text: String) -> Result { Result(content: [["type": "text", "text": .string(text)]]) }
     static func error(_ text: String) -> Result { Result(content: [["type": "text", "text": .string(text)]], isError: true) }
@@ -61,10 +63,20 @@ final class ClaudeTools {
     opened = []
   }
 
+  /// What a memory tool did: "saved", "updated" or "forgot", the text now
+  /// (forgot: what it was), and the memory before (none if new).
+  struct MemoryChange {
+    var kind: String
+    var id: String
+    var text: String
+    var before: MemoryEntry?
+  }
+
   /// Runs one tool call.
   func run(_ name: String, input: JSONValue) async -> Result {
     let scopes = Self.scopes
     guard let scope = scopes[name] else { return .error("Unknown tool: \(name).") }
+    if scope == "memory" { return runMemoryTool(name, input: input) }
     if scope == "browser" {
       guard ClaudeSettings.shared.browserScope else { return .error(Self.notPermitted) }
       switch name {
@@ -109,6 +121,46 @@ final class ClaudeTools {
     case "run_js": return await runJS(view, input: input)
     default: return .error("\(name) isn't available on iOS.")
     }
+  }
+
+  /// remember, update_memory, forget: the profile's memory, no tab needed
+  /// (the desktop's ClaudeTools::RunMemoryTool()).
+  private func runMemoryTool(_ name: String, input: JSONValue) -> Result {
+    let settings = ClaudeSettings.shared
+    guard settings.memoryEnabled && settings.memorySave else {
+      return .error("The user turned off \"Let Claude Save Memories\" in Compass's Claude settings.")
+    }
+    let memory = ClaudeMemoryStore.shared
+    let text = input["text"]?.string ?? ""
+    let id = input["id"]?.string ?? ""
+    if name == "remember" {
+      let count = memory.entries.count
+      switch memory.add(text) {
+      case .failure(let failure): return .error(failure.description)
+      case .success(let entry):
+        let short = String(entry.id.prefix(8))
+        if memory.entries.count == count { return .text("Already remembered, as [\(short)].") }
+        var result = Result.text("Saved, as [\(short)].")
+        result.memoryChange = MemoryChange(kind: "saved", id: entry.id, text: entry.text, before: nil)
+        return result
+      }
+    }
+    guard let before = memory.find(id) else {
+      return .error("No memory has the id \(id). It may have been deleted since the chat started.")
+    }
+    if name == "update_memory" {
+      switch memory.update(before.id, text: text) {
+      case .failure(let failure): return .error(failure.description)
+      case .success(let entry):
+        var result = Result.text("Updated.")
+        result.memoryChange = MemoryChange(kind: "updated", id: entry.id, text: entry.text, before: before)
+        return result
+      }
+    }
+    memory.remove(before.id)
+    var result = Result.text("Forgotten.")
+    result.memoryChange = MemoryChange(kind: "forgot", id: before.id, text: before.text, before: before)
+    return result
   }
 
   /// tools.json's scopes, by tool name.

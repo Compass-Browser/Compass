@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassClaude
 import CompassCrypto
 import CompassModel
 import CompassShared
@@ -277,6 +278,14 @@ final class SyncController {
     // Site icons other devices got from pages (docs/design/sync.md, "Favicons").
     spaces.onFavicon = { host, png in Favicons.shared.setSynced(host: host, png: png) }
     for (host, png) in spaces.syncedFavicons { Favicons.shared.setSynced(host: host, png: png) }
+    if profile.isEmpty {
+      // Claude's memory goes with the home account (docs/design/claude.md,
+      // "Memory").
+      let memory = ClaudeMemoryStore.shared
+      spaces.localMemories = { memory.entries }
+      spaces.onMemories = { changed, deleted in memory.applyRemote(changed, deleted: deleted) }
+      memory.onChange = { [weak spaces] entries in spaces?.memoriesChanged(entries) }
+    }
     account.cacheGUID = cacheGUID
     account.authKey = authKey
     accounts[profile] = account
