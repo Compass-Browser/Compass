@@ -9,7 +9,6 @@
 // must come out as its expected.json says, as it does on the Node reference
 // runtime (tools/live_folders/run.mjs).
 
-#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>
@@ -20,6 +19,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
@@ -53,14 +53,25 @@ std::optional<base::Value> ReadJson(const base::FilePath& path) {
 
 // "2026-11-09T08:30:00Z", as the cases give "now".
 std::optional<double> ParseUtc(const std::string& text) {
-  base::Time::Exploded exploded = {};
-  char z = 0;
-  if (sscanf(text.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d%c", &exploded.year,
-             &exploded.month, &exploded.day_of_month, &exploded.hour,
-             &exploded.minute, &exploded.second, &z) != 7 ||
-      z != 'Z') {
+  if (text.size() != 20 || text[4] != '-' || text[7] != '-' ||
+      text[10] != 'T' || text[13] != ':' || text[16] != ':' ||
+      text[19] != 'Z') {
     return std::nullopt;
   }
+  auto number = [&text](size_t at, size_t length) {
+    int value = 0;
+    return base::StringToInt(std::string_view(text).substr(at, length),
+                             &value)
+               ? value
+               : -1;
+  };
+  base::Time::Exploded exploded = {};
+  exploded.year = number(0, 4);
+  exploded.month = number(5, 2);
+  exploded.day_of_month = number(8, 2);
+  exploded.hour = number(11, 2);
+  exploded.minute = number(14, 2);
+  exploded.second = number(17, 2);
   base::Time time;
   if (!base::Time::FromUTCExploded(exploded, &time)) {
     return std::nullopt;
@@ -210,10 +221,10 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
         case_env ? case_env->FindString("locale") : nullptr;
     const std::string* time_zone =
         case_env ? case_env->FindString("timeZone") : nullptr;
-    env.Set("now", now)
-        .Set("locale", locale ? *locale : "en-US")
-        // run.mjs runs in UTC.
-        .Set("timeZone", time_zone ? *time_zone : "UTC");
+    env.Set("now", now);
+    env.Set("locale", locale ? *locale : "en-US");
+    // run.mjs runs in UTC.
+    env.Set("timeZone", time_zone ? *time_zone : "UTC");
 
     LiveFetcher::Limits limits;
     base::TimeDelta timeout = base::Seconds(30);
@@ -257,7 +268,7 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
     base::test::TestFuture<base::expected<std::string, LiveError>,
                            std::vector<std::string>>
         done;
-    LiveFolderService* service = LiveFolderService::Get(browser()->profile());
+    LiveFolderService* service = LiveFolderService::Get(browser()->GetProfile());
     EXPECT_TRUE(service);
     service->host().Run(
         std::move(*run_spec),
@@ -327,7 +338,7 @@ std::vector<Case> InstallConformanceCases(const base::FilePath& plugins_dir) {
 }
 
 IN_PROC_BROWSER_TEST_F(LiveFolderRuntimeBrowserTest, ConformanceCases) {
-  LiveFolderService* service = LiveFolderService::Get(browser()->profile());
+  LiveFolderService* service = LiveFolderService::Get(browser()->GetProfile());
   ASSERT_TRUE(service);
   std::vector<Case> cases = InstallConformanceCases(service->plugins_dir());
   ASSERT_GE(cases.size(), 12u);

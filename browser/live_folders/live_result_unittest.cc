@@ -12,7 +12,7 @@ namespace compass {
 namespace {
 
 TEST(LiveResultTest, ChecksItemsAgain) {
-  auto result = ParseLiveResult(R"({
+  auto result = ParseLiveResult(R"json({
     "items": [
       {"id": "1", "title": "One", "url": "https://a.test/1"},
       {"id": "1", "title": "Again", "url": "https://a.test/again"},
@@ -21,7 +21,7 @@ TEST(LiveResultTest, ChecksItemsAgain) {
       {"title": "No id", "url": "https://a.test/4"},
       {"id": "5", "title": "Five", "url": "http://a.test/5"}
     ],
-    "title": "Feed", "nextRefresh": 600})");
+    "title": "Feed", "nextRefresh": 600})json");
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result->items.size(), 2u);
   EXPECT_EQ(result->items[0].key, "1");
