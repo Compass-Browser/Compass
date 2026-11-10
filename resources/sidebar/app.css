@@ -1210,6 +1210,7 @@ input.title-input {
 
 .live-editor-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
 }
@@ -1245,6 +1246,13 @@ input.title-input {
   color: inherit;
   cursor: pointer;
   opacity: 0.6;
+}
+
+.live-editor-local {
+  align-self: center;
+  font-size: 11px;
+  opacity: 0.6;
+  padding-inline: 6px;
 }
 
 .live-editor-preview {

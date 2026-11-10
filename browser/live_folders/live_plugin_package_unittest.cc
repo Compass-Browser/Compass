@@ -63,6 +63,39 @@ TEST(LivePluginPackageTest, WritesReadsAndDeletes) {
   EXPECT_TRUE(ReadLivePluginPackages(dir.GetPath()).empty());
 }
 
+TEST(LivePluginPackageTest, ReadsLocalPluginsAndKeepsThem) {
+  base::ScopedTempDir dir;
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  // A plugin someone is writing, put straight into the folder.
+  const base::FilePath local = dir.GetPath().AppendASCII("my-feed");
+  ASSERT_TRUE(base::CreateDirectory(local));
+  ASSERT_TRUE(base::WriteFile(local.AppendASCII("manifest.json"), kManifest));
+  ASSERT_TRUE(base::WriteFile(local.AppendASCII("main.js"), "// local"));
+  // One whose manifest doesn't validate is skipped.
+  const base::FilePath broken = dir.GetPath().AppendASCII("broken");
+  ASSERT_TRUE(base::CreateDirectory(broken));
+  ASSERT_TRUE(base::WriteFile(broken.AppendASCII("manifest.json"), "{}"));
+
+  std::vector<LivePluginPackage> read = ReadLivePluginPackages(dir.GetPath());
+  ASSERT_EQ(read.size(), 1u);
+  EXPECT_EQ(read[0].local_dir, "my-feed");
+  EXPECT_EQ(read[0].manifest.id, "com.example.feed");
+  EXPECT_FALSE(read[0].source.is_valid());
+  EXPECT_EQ(read[0].sha256, LivePluginHash(kManifest, "// local", ""));
+  EXPECT_EQ(LivePluginFilePath(dir.GetPath(), "my-feed/main.js"),
+            local.AppendASCII("main.js"));
+
+  // Installing or removing never deletes a local plugin's folder.
+  const base::FilePath named = dir.GetPath().AppendASCII("com.example.feed");
+  ASSERT_TRUE(base::CopyDirectory(local, named, true));
+  auto package = MakeLivePluginPackage(GURL("https://x.test/manifest.json"),
+                                       kManifest, "// entry", "");
+  ASSERT_TRUE(package.has_value());
+  EXPECT_FALSE(WriteLivePluginPackage(dir.GetPath(), *package));
+  EXPECT_FALSE(DeleteLivePluginPackage(dir.GetPath(), "com.example.feed"));
+  EXPECT_TRUE(base::PathExists(named.AppendASCII("main.js")));
+}
+
 TEST(LivePluginPackageTest, FilePathsStayInside) {
   const base::FilePath dir(FILE_PATH_LITERAL("/plugins"));
   EXPECT_FALSE(LivePluginFilePath(dir, "a/1/main.js").empty());
@@ -71,6 +104,9 @@ TEST(LivePluginPackageTest, FilePathsStayInside) {
   EXPECT_TRUE(LivePluginFilePath(dir, "a/1/sub/main.js").empty());
   EXPECT_TRUE(LivePluginFilePath(dir, "a/1/..").empty());
   EXPECT_TRUE(LivePluginFilePath(dir, "a/1/").empty());
+  EXPECT_FALSE(LivePluginFilePath(dir, "local/main.js").empty());
+  EXPECT_TRUE(LivePluginFilePath(dir, "main.js").empty());
+  EXPECT_TRUE(LivePluginFilePath(dir, "../main.js").empty());
 }
 
 }  // namespace

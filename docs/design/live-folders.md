@@ -258,7 +258,11 @@ the iOS one in `CompassKitTests`.
 - Secrets are encrypted with `OSCryptAsync` in
   `<profile>/Compass Live Folders.json`, with grants, installed plugins and
   seen state. Built-ins ship as grit resources; installed plugins live in
-  `<user data>/Compass Plugins/<id>/<version>/`.
+  `<user data>/Compass Plugins/<id>/<version>/`. A folder put straight into
+  `Compass Plugins` with a `manifest.json` in it is a local plugin (for
+  writing one without hosting it): read again whenever the plugin list
+  shows, served from where it is, never deleted by Compass, and with no
+  source URL, so other devices that sync its folders can't install it.
 - Refresh on folder expand, on space activation and on a per-folder timer
   (`nextRefresh` or `refresh.default`, clamped), with exponential backoff
   after errors, for loaded profiles only, paused in battery saver.

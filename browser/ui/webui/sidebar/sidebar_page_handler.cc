@@ -154,6 +154,7 @@ sidebar::mojom::LivePluginPtr ToMojoPlugin(const LivePlugin& plugin,
   // The manifest's patterns; placeholders show as the field they name.
   result->cookie_hosts = manifest.cookies;
   result->builtin = plugin.builtin;
+  result->local = plugin.local;
   return result;
 }
 
@@ -1555,13 +1556,33 @@ void SidebarPageHandler::SendNowPlaying() {
 
 void SidebarPageHandler::GetLivePlugins(GetLivePluginsCallback callback) {
   LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  std::vector<sidebar::mojom::LivePluginPtr> plugins;
-  if (service) {
-    for (const LivePlugin& plugin : service->registry().plugins()) {
-      plugins.push_back(ToMojoPlugin(plugin, &service->store()));
-    }
+  if (!service) {
+    std::move(callback).Run({});
+    return;
   }
-  std::move(callback).Run(std::move(plugins));
+  // Local plugins change on disk: read them again each time.
+  service->RescanPlugins(base::BindOnce(
+      [](base::WeakPtr<SidebarPageHandler> handler,
+         GetLivePluginsCallback callback) {
+        std::vector<sidebar::mojom::LivePluginPtr> plugins;
+        LiveFolderService* service =
+            handler ? LiveFolderService::Get(handler->browser_->GetProfile())
+                    : nullptr;
+        if (service) {
+          for (const LivePlugin& plugin : service->registry().plugins()) {
+            plugins.push_back(ToMojoPlugin(plugin, &service->store()));
+          }
+        }
+        std::move(callback).Run(std::move(plugins));
+      },
+      weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void SidebarPageHandler::OpenLivePluginsFolder() {
+  if (LiveFolderService* service =
+          LiveFolderService::Get(browser_->GetProfile())) {
+    service->OpenPluginsFolder();
+  }
 }
 
 void SidebarPageHandler::GetLiveFolderSource(

@@ -119,6 +119,8 @@ struct LivePlugin {
   array<string> cookie_hosts;
   // Ships with Compass; else installed, and removable.
   bool builtin;
+  // Read from a folder in Compass Plugins; removed by removing that folder.
+  bool local;
 };
 
 // A plugin about to be installed, for the user to review: what it reaches
@@ -411,6 +413,9 @@ interface PageHandler {
   // error, or empty.
   InstallLivePlugin(string url, string sha256) => (string error);
   RemoveLivePlugin(string id) => ();
+  // Shows <user data>/Compass Plugins (made if need be) in the file manager:
+  // a folder put there with a manifest.json is a local plugin.
+  OpenLivePluginsFolder();
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,

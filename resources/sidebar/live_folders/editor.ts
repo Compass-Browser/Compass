@@ -4,7 +4,9 @@
 
 // The live folder editor: New Live Folder… (pick a plugin, then fill in its
 // form) and Edit Source…, and installing plugins (review what one reaches
-// and asks for, then install it) or removing them. The form is built from
+// and asks for, then install it) or removing them. Local plugins are
+// folders put into the plugins folder, which the editor opens; the list
+// reads them again whenever it shows. The form is built from
 // the plugin's manifest: its config fields, the secrets it asks for (kept on
 // this device only) and, if it wants them, consent to send the profile's
 // cookies to its hosts (docs/design/live-folders.md, "UI").
@@ -75,10 +77,22 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
   private missingPluginSha256_ = '';
 
   private handler_ = SidebarBrowserProxy.getInstance().handler;
+  // Back from the file manager: local plugins may have been added.
+  private onWindowFocus_ = () => {
+    if (!this.folderId && !this.plugin && !this.installOpen) {
+      this.load_();
+    }
+  };
 
   override connectedCallback() {
     super.connectedCallback();
     this.load_();
+    window.addEventListener('focus', this.onWindowFocus_);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('focus', this.onWindowFocus_);
   }
 
   // In the light DOM: the app's styles apply.
@@ -225,6 +239,10 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     await this.handler_.removeLivePlugin(idOf(e));
     const {plugins} = await this.handler_.getLivePlugins();
     this.plugins = plugins;
+  }
+
+  onOpenFolderClick() {
+    this.handler_.openLivePluginsFolder();
   }
 
   onBackClick() {

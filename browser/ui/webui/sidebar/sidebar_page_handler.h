@@ -209,6 +209,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                          InstallLivePluginCallback callback) override;
   void RemoveLivePlugin(const std::string& id,
                         RemoveLivePluginCallback callback) override;
+  void OpenLivePluginsFolder() override;
 
   // LiveFolderService::Observer:
   void OnLiveFolderStateChanged(const base::Uuid& folder_id) override;

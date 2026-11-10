@@ -4,7 +4,9 @@
 
 #include "compass/browser/live_folders/live_plugin_package.h"
 
+#include <algorithm>
 #include <array>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -185,6 +187,43 @@ bool IsSafeName(std::string_view name) {
          });
 }
 
+// A local plugin's folder: its manifest is right inside it.
+bool IsLocalPluginDir(const base::FilePath& dir) {
+  return base::PathExists(dir.AppendASCII("manifest.json"));
+}
+
+std::optional<LivePluginPackage> ReadPackage(const base::FilePath& dir,
+                                             const GURL& source) {
+  std::string manifest_json;
+  if (!base::ReadFileToStringWithMaxSize(dir.AppendASCII("manifest.json"),
+                                         &manifest_json, kMaxManifestBytes)) {
+    return std::nullopt;
+  }
+  std::optional<base::Value> raw =
+      base::JSONReader::Read(manifest_json, base::JSON_PARSE_RFC);
+  auto manifest = raw ? ParseLivePluginManifest(*raw)
+                      : base::unexpected(LivePluginErrors{});
+  if (!manifest.has_value() || !IsSafeName(manifest->entry)) {
+    return std::nullopt;
+  }
+  std::string entry;
+  std::string icon;
+  if (!base::ReadFileToStringWithMaxSize(dir.AppendASCII(manifest->entry),
+                                         &entry, kMaxEntryBytes)) {
+    return std::nullopt;
+  }
+  if (!manifest->icon.empty() && IsSafeName(manifest->icon)) {
+    base::ReadFileToStringWithMaxSize(dir.AppendASCII(manifest->icon), &icon,
+                                      kMaxIconBytes);
+  }
+  auto package = MakeLivePluginPackage(source, std::move(manifest_json),
+                                       std::move(entry), std::move(icon));
+  if (!package.has_value()) {
+    return std::nullopt;
+  }
+  return std::move(*package);
+}
+
 }  // namespace
 
 LivePluginPackage::LivePluginPackage() = default;
@@ -262,6 +301,10 @@ bool WriteLivePluginPackage(const base::FilePath& plugins_dir,
   }
   const base::FilePath plugin_dir = plugins_dir.AppendASCII(manifest.id);
   const base::FilePath version_dir = plugin_dir.AppendASCII(manifest.version);
+  // A local plugin's folder by that name is the user's own.
+  if (IsLocalPluginDir(plugin_dir)) {
+    return false;
+  }
   // Other versions go: one installed version per plugin.
   base::DeletePathRecursively(plugin_dir);
   if (!base::CreateDirectory(version_dir)) {
@@ -285,58 +328,53 @@ bool WriteLivePluginPackage(const base::FilePath& plugins_dir,
 std::vector<LivePluginPackage> ReadLivePluginPackages(
     const base::FilePath& plugins_dir) {
   std::vector<LivePluginPackage> packages;
+  std::vector<LivePluginPackage> local;
   base::FileEnumerator plugins(plugins_dir, false,
                                base::FileEnumerator::DIRECTORIES);
   for (base::FilePath plugin = plugins.Next(); !plugin.empty();
        plugin = plugins.Next()) {
+    const std::string name = plugin.BaseName().MaybeAsASCII();
+    if (!IsSafeName(name)) {
+      continue;
+    }
+    if (IsLocalPluginDir(plugin)) {
+      std::optional<LivePluginPackage> package = ReadPackage(plugin, GURL());
+      if (package) {
+        package->local_dir = name;
+        local.push_back(std::move(*package));
+      }
+      continue;
+    }
     base::FileEnumerator versions(plugin, false,
                                   base::FileEnumerator::DIRECTORIES);
     for (base::FilePath dir = versions.Next(); !dir.empty();
          dir = versions.Next()) {
-      std::string manifest_json;
       std::string source_json;
-      if (!base::ReadFileToString(dir.AppendASCII("manifest.json"),
-                                  &manifest_json) ||
-          !base::ReadFileToString(dir.AppendASCII(kSourceFileName),
+      if (!base::ReadFileToString(dir.AppendASCII(kSourceFileName),
                                   &source_json)) {
         continue;
-      }
-      std::optional<base::Value> raw =
-          base::JSONReader::Read(manifest_json, base::JSON_PARSE_RFC);
-      auto manifest = raw ? ParseLivePluginManifest(*raw)
-                          : base::unexpected(LivePluginErrors{});
-      if (!manifest.has_value() ||
-          dir.BaseName().MaybeAsASCII() != manifest->version ||
-          plugin.BaseName().MaybeAsASCII() != manifest->id) {
-        continue;
-      }
-      std::string entry;
-      std::string icon;
-      if (!base::ReadFileToString(dir.AppendASCII(manifest->entry), &entry)) {
-        continue;
-      }
-      if (!manifest->icon.empty()) {
-        base::ReadFileToString(dir.AppendASCII(manifest->icon), &icon);
       }
       std::optional<base::Value> source =
           base::JSONReader::Read(source_json, base::JSON_PARSE_RFC);
       const std::string* url =
           source && source->is_dict() ? source->GetDict().FindString("source")
                                       : nullptr;
-      auto package = MakeLivePluginPackage(url ? GURL(*url) : GURL(),
-                                           std::move(manifest_json),
-                                           std::move(entry), std::move(icon));
-      if (package.has_value()) {
+      std::optional<LivePluginPackage> package =
+          ReadPackage(dir, url ? GURL(*url) : GURL());
+      if (package && dir.BaseName().MaybeAsASCII() == package->manifest.version &&
+          name == package->manifest.id) {
         packages.push_back(std::move(*package));
       }
     }
   }
+  // Local plugins come last: one with an installed plugin's ID replaces it.
+  std::ranges::move(local, std::back_inserter(packages));
   return packages;
 }
 
 bool DeleteLivePluginPackage(const base::FilePath& plugins_dir,
                              const std::string& id) {
-  return IsSafeName(id) &&
+  return IsSafeName(id) && !IsLocalPluginDir(plugins_dir.AppendASCII(id)) &&
          base::DeletePathRecursively(plugins_dir.AppendASCII(id));
 }
 
@@ -344,12 +382,15 @@ base::FilePath LivePluginFilePath(const base::FilePath& plugins_dir,
                                   std::string_view relative) {
   std::vector<std::string_view> parts = base::SplitStringPiece(
       relative, "/", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  if (parts.size() != 3 || !std::ranges::all_of(parts, IsSafeName)) {
+  if (parts.size() < 2 || parts.size() > 3 ||
+      !std::ranges::all_of(parts, IsSafeName)) {
     return base::FilePath();
   }
-  return plugins_dir.AppendASCII(parts[0])
-      .AppendASCII(parts[1])
-      .AppendASCII(parts[2]);
+  base::FilePath path = plugins_dir;
+  for (std::string_view part : parts) {
+    path = path.AppendASCII(part);
+  }
+  return path;
 }
 
 }  // namespace compass

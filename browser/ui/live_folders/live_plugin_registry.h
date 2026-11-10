@@ -41,6 +41,9 @@ struct LivePlugin {
   // An installed plugin's address and hash, which sync with its folders.
   GURL source;
   std::string sha256;
+  // A local plugin: read from a folder the user put in Compass Plugins, and
+  // removed by removing that folder.
+  bool local = false;
 };
 
 // The plugins a profile can pick for a live folder: the built-ins, which
@@ -61,10 +64,14 @@ class LivePluginRegistry {
   const LivePlugin* Find(std::string_view id) const;
 
   // Installed plugins (<user data>/Compass Plugins), served on
-  // chrome-untrusted://live-folders/installed/<id>/<version>/. Adding one
+  // chrome-untrusted://live-folders/installed/<id>/<version>/, or for a
+  // local plugin installed/<its folder>/. Adding one
   // replaces the plugin with its ID. Built-ins can't be replaced or removed.
   void AddInstalled(const LivePluginPackage& package);
   void RemoveInstalled(std::string_view id);
+  // Replaces every installed and local plugin with |packages| (as read
+  // again from <user data>/Compass Plugins).
+  void ReplaceInstalled(const std::vector<LivePluginPackage>& packages);
   // Whether the installed plugins were read yet.
   bool installed_loaded() const { return installed_loaded_; }
   void set_installed_loaded() { installed_loaded_ = true; }
