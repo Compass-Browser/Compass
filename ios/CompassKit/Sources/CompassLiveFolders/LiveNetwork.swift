@@ -10,10 +10,12 @@ import Foundation
 /// website data, for granted hosts), each redirect hop is checked against
 /// the allowlist, and bodies stop at the size limit.
 public struct URLSessionLiveFetcher: LiveFetcher {
-  /// The cookies to send to a URL (asked only for granted cookie hosts).
-  public var cookies: @Sendable (URL) async -> [HTTPCookie]
+  /// The cookie header fields to send to a URL
+  /// (`HTTPCookie.requestHeaderFields(with:)`); asked only for granted
+  /// cookie hosts.
+  public var cookies: @Sendable (URL) async -> [String: String]
 
-  public init(cookies: @escaping @Sendable (URL) async -> [HTTPCookie] = { _ in [] }) {
+  public init(cookies: @escaping @Sendable (URL) async -> [String: String] = { _ in [:] }) {
     self.cookies = cookies
   }
 
@@ -50,7 +52,7 @@ private final class FetchTask: NSObject, URLSessionDataDelegate, @unchecked Send
   let request: LiveFetchRequest
   let allowed: LiveAllowedHosts
   let limits: LiveLimits
-  let cookies: @Sendable (URL) async -> [HTTPCookie]
+  let cookies: @Sendable (URL) async -> [String: String]
   private let lock = NSLock()
   private var continuation: CheckedContinuation<LiveFetchResponse, Error>?
   private var body = Data()
@@ -59,7 +61,7 @@ private final class FetchTask: NSObject, URLSessionDataDelegate, @unchecked Send
 
   init(
     request: LiveFetchRequest, allowed: LiveAllowedHosts, limits: LiveLimits,
-    cookies: @escaping @Sendable (URL) async -> [HTTPCookie]
+    cookies: @escaping @Sendable (URL) async -> [String: String]
   ) {
     self.request = request
     self.allowed = allowed
@@ -76,8 +78,7 @@ private final class FetchTask: NSObject, URLSessionDataDelegate, @unchecked Send
   func addCookies(to urlRequest: inout URLRequest) async throws {
     urlRequest.setValue(nil, forHTTPHeaderField: "Cookie")
     guard request.withCookies, let url = urlRequest.url, allowed.allowsCookies(url) else { return }
-    let list = await cookies(url)
-    for (name, value) in HTTPCookie.requestHeaderFields(with: list) { urlRequest.setValue(value, forHTTPHeaderField: name) }
+    for (name, value) in await cookies(url) { urlRequest.setValue(value, forHTTPHeaderField: name) }
   }
 
   private func complete(_ result: Result<LiveFetchResponse, Error>) {

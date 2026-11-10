@@ -77,3 +77,46 @@ struct LivePluginTests {
     #expect(!allowed.allowsCookies(URL(string: "https://x.cdn.example.net/")!))
   }
 }
+
+/// The network path (URLSessionLiveFetcher) against real sites; opt in
+/// with COMPASS_LIVE_NETWORK=1.
+struct LiveNetworkTests {
+  static let enabled = ProcessInfo.processInfo.environment["COMPASS_LIVE_NETWORK"] == "1"
+
+  @Test(.enabled(if: enabled)) func feedOverTheNetwork() async throws {
+    let scripts = try LiveScripts(directory: LiveCaseTests.plugins)
+    let rss = scripts.builtins().first { $0.id == "compass.rss" }!
+    // http → https redirect on the same host, checked against the hosts.
+    let run = await LiveRuntime(scripts: scripts).run(
+      rss, configJSON: #"{"url": "http://www.apple.com/newsroom/rss-feed.rss"}"#, fetcher: URLSessionLiveFetcher())
+    let result = try run.result.get()
+    #expect(!result.items.isEmpty)
+    #expect(run.fetches.count == 1)
+  }
+
+  @Test(.enabled(if: enabled)) func redirectOffTheAllowlistFails() async throws {
+    let fetcher = URLSessionLiveFetcher()
+    let request = LiveFetchRequest(
+      method: "GET", url: URL(string: "http://github.com/")!, headers: [:], body: nil, withCookies: false)
+    do {
+      _ = try await fetcher.fetch(request, allowed: LiveAllowedHosts(hosts: ["github.com"], cookies: []), limits: LiveLimits())
+    } catch let error as LiveError {
+      Issue.record("same-host redirect refused: \(error)")
+    }
+    var limits = LiveLimits()
+    limits.maxResponseBytes = 1000
+    await #expect(throws: LiveError("response_too_large", "Response from github.com is too large")) {
+      _ = try await fetcher.fetch(
+        LiveFetchRequest(method: "GET", url: URL(string: "https://github.com/")!, headers: [:], body: nil, withCookies: false),
+        allowed: LiveAllowedHosts(hosts: ["github.com"], cookies: []), limits: limits)
+    }
+    let off = LiveFetchRequest(
+      method: "GET", url: URL(string: "https://apple.com/")!, headers: [:], body: nil, withCookies: false)
+    do {
+      _ = try await fetcher.fetch(off, allowed: LiveAllowedHosts(hosts: ["apple.com"], cookies: []), limits: LiveLimits())
+      Issue.record("redirect to www.apple.com was allowed")
+    } catch let error as LiveError {
+      #expect(error.code == "host_not_allowed")
+    }
+  }
+}

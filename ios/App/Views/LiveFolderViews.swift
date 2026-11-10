@@ -160,7 +160,7 @@ struct LiveFolderEditor: View {
     for field in p.manifest.config {
       let value = config[field.key].map { LiveJSON(object: $0) } ?? field.default
       if field.type == "bool" {
-        if case .bool(let b) = value { flags[field.key] = b } else { flags[field.key] = false }
+        if case .bool(let b)? = value { flags[field.key] = b } else { flags[field.key] = false }
       } else {
         text[field.key] = value?.text ?? ""
       }

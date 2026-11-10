@@ -41,12 +41,12 @@ final class LiveFolders {
   /// Built-ins first, then installed plugins, by name.
   private(set) var plugins: [LivePlugin] = []
 
-  @ObservationIgnored private let store: SpaceStore
-  @ObservationIgnored private let tabs: TabManager
-  @ObservationIgnored private let scripts: LiveScripts?
-  @ObservationIgnored let rules: LiveRules?
-  @ObservationIgnored private let pluginsDirectory: URL
-  @ObservationIgnored private let settingsURL: URL
+  private let store: SpaceStore
+  private let tabs: TabManager
+  private let scripts: LiveScripts?
+  let rules: LiveRules?
+  private let pluginsDirectory: URL
+  private let settingsURL: URL
   @ObservationIgnored private var cookieGrants: Set<String> = []
   @ObservationIgnored private var queue: [String] = []
   @ObservationIgnored private var running = 0
@@ -319,7 +319,7 @@ final class LiveFolders {
 
     let started = Date()
     let grant = cookiesGranted(folder)
-    let fetcher = URLSessionLiveFetcher { [weak self] url in await self?.cookies(for: url, folder: id) ?? [] }
+    let fetcher = URLSessionLiveFetcher { [weak self] url in await self?.cookieHeader(for: url, folder: id) ?? [:] }
     let outcome = await LiveRuntime(scripts: scripts).run(
       plugin, configJSON: source.configJSON, secrets: secrets(of: plugin, for: folder), grantCookies: grant,
       environment: LiveEnvironment(now: started), fetcher: fetcher)
@@ -355,13 +355,13 @@ final class LiveFolders {
 
   /// The cookies a URL would get in the website data of the folder's space
   /// (asked only for the plugin's cookie hosts, once the user allowed it).
-  private func cookies(for url: URL, folder id: String) async -> [HTTPCookie] {
-    guard let folder = store.node(id: id), cookiesGranted(folder) else { return [] }
+  private func cookieHeader(for url: URL, folder id: String) async -> [String: String] {
+    guard let folder = store.node(id: id), cookiesGranted(folder) else { return [:] }
     let all = await tabs.dataStore(of: folder).httpCookieStore.allCookies()
-    guard let host = url.host()?.lowercased() else { return [] }
+    guard let host = url.host()?.lowercased() else { return [:] }
     let path = url.path.isEmpty ? "/" : url.path
     let now = Date()
-    return all.filter { cookie in
+    let cookies = all.filter { cookie in
       var domain = cookie.domain.lowercased()
       if domain.hasPrefix(".") { domain.removeFirst() }
       guard host == domain || host.hasSuffix("." + domain) else { return false }
@@ -370,5 +370,6 @@ final class LiveFolders {
       if let expires = cookie.expiresDate, expires < now { return false }
       return true
     }
+    return HTTPCookie.requestHeaderFields(with: cookies)
   }
 }
