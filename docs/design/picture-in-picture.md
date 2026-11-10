@@ -1,7 +1,8 @@
 # Auto picture-in-picture
 
-Status: done. Based on Chromium 156.0.8078.48. Calls: checked against live Teams and
-Meet calls (macOS); Zoom not yet.
+Status: done. Based on Chromium 156.0.8078.48. Calls: checked against live Teams,
+Meet and Zoom web client calls (macOS), including a portrait phone camera on
+Zoom.
 
 ## Goal
 
@@ -379,8 +380,8 @@ microphone, as Meet: tracked by `PipWindows` as a document window).
 
 ## Known gaps
 
-- Calls: Teams' site entry matches a live call (Italian labels); Zoom's
-  needs checking, and English labels on both. Entries break when a site
+- Calls: Teams' and Zoom's site entries match live calls (Italian labels);
+  English labels need checking on both. Entries break when a site
   changes its markup. Without
   a speaking marker, gallery view shows the largest tile, not necessarily
   the speaker's.
