@@ -28,6 +28,8 @@ Decisions:
 
 ## Plugins
 
+How to write one: [../live-folder-plugins.md](../live-folder-plugins.md).
+
 A plugin is a folder (or a `.zip` of one):
 
 ```

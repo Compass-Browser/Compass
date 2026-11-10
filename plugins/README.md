@@ -1,7 +1,8 @@
 # Live folder plugins
 
 JavaScript plugins that fill live folders, the SDK they use and the runtime
-scripts every platform loads. The contract and how to test a plugin are in
+scripts every platform loads. How to write a plugin:
+[docs/live-folder-plugins.md](../docs/live-folder-plugins.md). The design:
 [docs/design/live-folders.md](../docs/design/live-folders.md).
 
 ```
