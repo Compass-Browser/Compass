@@ -42,13 +42,13 @@ successor is Dia (The Browser Company is part of Atlassian since October
 | **Sidebar and tabs** | | | | | | | | | | |
 | Spaces with themes | ✅ colors, gradients, grain, icons | ✅ Crest Studio emblems, gradients | ✅ | ~ | ✅ | ✅ | ✅ | ~ | ✅ | ✅ |
 | Separate profile / cookies per space | ✅ switched in the same window | ✅ plus Sub-Spaces that share sign-ins | ✅ | ? | ✅ | ✅ containers | ❌ | ❌ | ? | ✅ |
-| Locked private spaces | ~ iOS incognito lock | ✅ Face ID / Touch ID | ❌ | ? | ? | ❌ | ❌ | ❌ | ? | ? |
+| Locked private spaces | ~ incognito lock on iOS and Android | ✅ Face ID / Touch ID | ❌ | ? | ? | ❌ | ❌ | ❌ | ? | ? |
 | Favorites shared across spaces | ✅ | ? | ✅ | ? | ? | ✅ Essentials | ~ | ❌ | ? | ? |
-| Pinned tabs in nested folders | ✅ | ✅ | ✅ | ✅ pinned | ✅ groups | ✅ | ~ stacks | ~ groups | ✅ | ✅ |
+| Pinned tabs in nested folders | ✅ in Pinned and Today | ✅ | ✅ | ✅ pinned | ✅ groups | ✅ | ~ stacks | ~ groups | ✅ | ✅ |
 | Auto-archive of unused tabs | ✅ Today, 12 h default | ✅ Space cleanup, 12 h–30 days | ✅ | ? | ? | ❌ | ❌ | ❌ | ~ | ? |
 | Rename tabs, mute entries, undo close | ✅ | ~ | ✅ | ? | ? | ✅ | ✅ | ~ | ? | ? |
-| Split view | ✅ up to 4 panes | ✅ 2–4 panes | ✅ up to 4 | ? | ✅ side by side or stacked | ✅ up to 4 | ✅ tiling | ✅ | ✅ | ? |
-| Tree-style tabs | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ~ | ❌ | ❌ | ❌ |
+| Split view | ✅ up to 4 panes, side by side or stacked | ✅ 2–4 panes | ✅ up to 4 | ? | ✅ side by side or stacked | ✅ up to 4 | ✅ tiling | ✅ | ✅ | ? |
+| Tree-style tabs | ~ nested folders, made by hand | ~ | ~ | ❌ | ❌ | ~ | ~ | ❌ | ~ | ~ |
 | Custom shortcuts | ✅ | ✅ | ✅ | ✅ | ? | ✅ | ✅ | ❌ | ? | ? |
 | **Arc-style extras** | | | | | | | | | | |
 | Command bar, no toolbar | ✅ | ✅ | ✅ | ~ | ? | ✅ | ✅ Quick Commands | ❌ | ✅ | ? |
@@ -71,7 +71,7 @@ successor is Dia (The Browser Company is part of Atlassian since October
 | Agent across tabs and windows | ✅ off by default | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ? | ? |
 | MCP server for coding agents | ✅ macOS and Windows | ✅ Mac, per chosen space | ❌ | ? | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Own API key, Bedrock/Vertex, or Claude subscription via Claude Code | ✅ | — | ❌ | ❌ | ❌ | — | — | ❌ | ❌ | ? |
-| AI memory across sessions | ❌ | ❌ | ❌ | ✅ | ✅ kept on the Mac | ❌ | ❌ | ✅ | ? | ? |
+| AI memory across sessions | ✅ desktop and iPhone, synced end-to-end encrypted, each save shown with Undo | ❌ | ❌ | ✅ | ✅ kept on the Mac | ❌ | ❌ | ✅ | ? | ? |
 | **Sync and devices** | | | | | | | | | | |
 | Sync | ✅ no account, end-to-end encrypted, self-hostable | ✅ iCloud; passwords through iCloud Keychain | Arc account | account | data stays local | Firefox account | Vivaldi account | Microsoft account | ? | ? |
 | Send tab to phone | ✅ | ? | ❌ | ? | ? | ✅ | ✅ | ✅ | ❌ | ? |
@@ -90,7 +90,7 @@ As far as the sources show:
 - Live folders as JavaScript plugins meant to run on desktop, Android and
   iPhone.
 - Chrome Web Store extensions on the phone (uBlock Origin Lite and
-  1Password tested).
+  1Password tested; on iPhone, 1Password unlocks with Face ID).
 - Picture-in-picture for Teams, Meet and Zoom calls, with their controls.
 
 ## Compass and Crest
@@ -130,9 +130,7 @@ Features other browsers have that Compass doesn't, checked against the code:
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
 | Import from browsers other than Arc | Crest | Not started |
 | Notes / canvas | Arc, Vivaldi | Not started |
-| Tree-style tabs | Vivaldi, Floorp | Not started |
-| Stacked (top and bottom) splits | Phi, Vivaldi | Not started |
-| AI memory across sessions | Dia, Phi, Edge | Not started |
+| Tree-style tabs | Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |
 | Translucent sidebar | Arc | Arc's gradients import; translucency and vibrancy don't (docs/design/arc-import.md) |
 | Linux download | Zen, Vivaldi, Edge | Packages build (`.tar.xz`, Flatpak); not on the website |
 | Little windows and Arc import on Windows | Arc | Little windows written, not tried; Arc import macOS only |
