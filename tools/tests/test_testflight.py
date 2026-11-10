@@ -58,7 +58,8 @@ def run(api, **kwargs):
   kwargs.setdefault('group_name', None)
   number = testflight.submit_external(
       testflight.Client(lambda: 't', api), 'it.cipi1965.compass',
-      kwargs.pop('build_number', None), kwargs.pop('group_name'), 'Try pins',
+      kwargs.pop('build_number', None), kwargs.pop('group_name'),
+      kwargs.pop('what_to_test', 'Try pins'),
       sleep=lambda s: None, log=logs.append, **kwargs)
   return number, logs
 
@@ -91,6 +92,16 @@ class SubmitExternalTest(unittest.TestCase):
         ('POST', '/v1/betaGroups/EXT/relationships/builds'),
     ])
     self.assertTrue(any('already submitted' in line for line in logs))
+
+  def test_what_to_test_per_locale(self):
+    api = FakeApi(states=('VALID',),
+                  localizations=[{'id': 'L1', 'attributes': {'locale': 'en-US'}}])
+    run(api, what_to_test={'en-US': 'Try pins', 'it': 'Prova i pin'})
+    writes = [(m, p, b) for m, p, b in api.calls if m != 'GET']
+    self.assertEqual(writes[0][:2], ('PATCH', '/v1/betaBuildLocalizations/L1'))
+    self.assertEqual(writes[1][1], '/v1/betaBuildLocalizations')
+    self.assertEqual(writes[1][2]['data']['attributes'],
+                     {'locale': 'it', 'whatsNew': 'Prova i pin'})
 
   def test_group_by_name(self):
     with self.assertRaisesRegex(CommandError, 'external groups: Friends'):

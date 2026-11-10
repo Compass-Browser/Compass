@@ -1,6 +1,6 @@
-Closed a tab by mistake? You can now bring it back.
+Live folders, split view on the iPhone, and a quicker address bar.
 
-- Close a tab (flick its card away, tap × on a Today row, ⌘W, or Clear Today). A bar at the bottom says what closed: tap Undo and it comes back where it was, with its back and forward history.
-- Or shake the iPhone: "Undo Close Tab" brings back the last tab you closed, and you can keep shaking to go further back. Redo closes it again.
-- With a hardware keyboard, ⌘⇧T reopens the last closed tab.
-- While you're typing, a shake still undoes the typing, as usual.
+- Live folders: New Live Folder… (beside New Folder, or in the space menu) picks a plugin (GitHub, RSS, Calendar…) and fills the folder with what it finds. It refreshes by itself; a dot marks what's new, and the folder's menu has Refresh, Mark All Seen and Convert to Normal Folder. Live folders sync with Compass on the Mac.
+- Split view: long-press a tab and choose Add to Split. A split holds up to four pages, and on the iPhone a split of two shows both at once.
+- Long-press the address for Reload, Copy URL, Share, Find on Page and Desktop/Mobile Site.
+- 1Password: unlocking with Face ID now presses Unlock instead of showing the password.

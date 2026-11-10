@@ -21,7 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional, Union
 
 from .process import CommandError
 
@@ -154,17 +154,18 @@ class Client:
       raise CommandError('pass --group: external groups: %s' % names)
     return groups[0]
 
-  def set_what_to_test(self, build: str, text: str) -> None:
+  def set_what_to_test(self, build: str, text: str,
+                       locale: str = LOCALE) -> None:
     localizations = self.get('/v1/builds/%s/betaBuildLocalizations' % build)
     for loc in localizations:
-      if loc['attributes'].get('locale') == LOCALE:
+      if loc['attributes'].get('locale') == locale:
         self.call('PATCH', '/v1/betaBuildLocalizations/' + loc['id'], {
             'data': {'type': 'betaBuildLocalizations', 'id': loc['id'],
                      'attributes': {'whatsNew': text}}})
         return
     self.call('POST', '/v1/betaBuildLocalizations', {
         'data': {'type': 'betaBuildLocalizations',
-                 'attributes': {'locale': LOCALE, 'whatsNew': text},
+                 'attributes': {'locale': locale, 'whatsNew': text},
                  'relationships': {'build': {'data': {
                      'type': 'builds', 'id': build}}}}})
 
@@ -191,11 +192,16 @@ class Client:
 
 
 def submit_external(client: Client, bundle_id: str, build_number: Optional[str],
-                    group_name: Optional[str], what_to_test: str,
+                    group_name: Optional[str],
+                    what_to_test: Union[str, Dict[str, str]],
                     wait: float = 30 * 60, poll: float = 30,
                     sleep: Callable[[float], None] = time.sleep,
                     log: Callable[[str], None] = print) -> str:
-  """Sends a build to external testers; returns its build number."""
+  """Sends a build to external testers; returns its build number.
+  `what_to_test` is the en-US text, or the text per App Store Connect
+  locale ({'en-US': ..., 'it': ...})."""
+  if isinstance(what_to_test, str):
+    what_to_test = {LOCALE: what_to_test}
   app = client.app_id(bundle_id)
   group = client.external_group(app, group_name)
   deadline = time.monotonic() + wait
@@ -219,7 +225,8 @@ def submit_external(client: Client, bundle_id: str, build_number: Optional[str],
   if build['attributes'].get('usesNonExemptEncryption') is None:
     log('note: build %s has no export compliance answer; review may wait for '
         'it (ITSAppUsesNonExemptEncryption in Info.plist)' % number)
-  client.set_what_to_test(build_id, what_to_test)
+  for locale, text in what_to_test.items():
+    client.set_what_to_test(build_id, text, locale)
   client.add_to_group(group['id'], build_id)
   log('build %s: in external group "%s"' % (number, group['attributes']['name']))
   state = client.review_state(build_id)

@@ -935,11 +935,19 @@ def ios_external(args, build_number) -> None:
   if not (args.api_key and args.api_key_id and args.api_issuer):
     raise CommandError('external testing needs --api-key, --api-key-id and '
                        '--api-issuer')
+  what = {}
   if args.what_to_test_file:
-    what = Path(args.what_to_test_file).read_text().strip()
+    # WhatToTest.txt is en-US; WhatToTest.<locale>.txt beside it (it, de,
+    # fr-FR...) are its translations.
+    path = Path(args.what_to_test_file)
+    what[testflight.LOCALE] = path.read_text().strip()
+    for other in sorted(path.parent.glob('%s.*%s' % (path.stem, path.suffix))):
+      locale = other.name[len(path.stem) + 1:-len(path.suffix) or None]
+      if locale and '.' not in locale and other.read_text().strip():
+        what[locale] = other.read_text().strip()
   else:
-    what = (args.what_to_test or '').strip()
-  if not what:
+    what[testflight.LOCALE] = (args.what_to_test or '').strip()
+  if not what[testflight.LOCALE]:
     raise CommandError('external testing needs --what-to-test or '
                        '--what-to-test-file')
   key = Path(args.api_key).resolve()
@@ -1200,7 +1208,9 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--what-to-test', metavar='TEXT',
                  help='archive --external, external: the What to Test text')
   s.add_argument('--what-to-test-file', metavar='FILE',
-                 help='archive --external, external: What to Test, from a file')
+                 help='archive --external, external: What to Test, from a file '
+                 '(en-US; FILE.<locale>.txt beside it, e.g. WhatToTest.it.txt, '
+                 'for other languages)')
   s.add_argument('--api-key-id', help='archive, device: with --api-key, its key ID')
   s.add_argument('--api-issuer', help='archive, device: with --api-key, the issuer ID')
   s.set_defaults(func=cmd_ios)
