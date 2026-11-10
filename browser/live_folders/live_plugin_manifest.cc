@@ -9,7 +9,6 @@
 #include <set>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -283,7 +282,7 @@ base::expected<LivePluginManifest, LivePluginErrors> ParseLivePluginManifest(
       const std::string* key = NonEmptyString(f->Find("key"));
       if (!key || !IsKey(*key)) {
         errors.push_back(where + ".key is invalid");
-      } else if (base::Contains(keys, *key)) {
+      } else if (keys.contains(*key)) {
         errors.push_back(where + ".key \"" + *key + "\" is repeated");
       } else {
         keys.insert(*key);
@@ -370,7 +369,7 @@ base::expected<LivePluginManifest, LivePluginErrors> ParseLivePluginManifest(
       const std::string* label = s ? NonEmptyString(s->Find("label")) : nullptr;
       if (!key || !IsKey(*key) || !label) {
         errors.push_back(where + " needs a key and a label");
-      } else if (base::Contains(secret_keys, *key)) {
+      } else if (secret_keys.contains(*key)) {
         errors.push_back(where + ".key \"" + *key + "\" is repeated");
       } else {
         secret_keys.insert(*key);
@@ -401,8 +400,8 @@ base::expected<LivePluginManifest, LivePluginErrors> ParseLivePluginManifest(
         continue;
       }
       if (std::optional<Placeholder> p = ParsePlaceholder(*h)) {
-        const bool known = p->config ? base::Contains(keys, p->key)
-                                     : base::Contains(secret_keys, p->key);
+        const bool known = p->config ? keys.contains(p->key)
+                                     : secret_keys.contains(p->key);
         const ConfigField* field =
             p->config ? manifest.FindConfigField(p->key) : nullptr;
         if (!known) {
@@ -424,7 +423,7 @@ base::expected<LivePluginManifest, LivePluginErrors> ParseLivePluginManifest(
   manifest.hosts = check_hosts("hosts");
   manifest.cookies = check_hosts("cookies");
   for (const std::string& c : manifest.cookies) {
-    if (!base::Contains(manifest.hosts, c)) {
+    if (!std::ranges::contains(manifest.hosts, c)) {
       errors.push_back("cookies: \"" + c + "\" must also be listed in hosts");
     }
   }

@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -72,6 +71,50 @@ base::DictValue KnownFields(const LivePluginManifest& manifest,
 
 }  // namespace
 
+base::expected<LiveFolderHost::RunSpec, LiveError> MakeLiveRunSpec(
+    const LivePlugin& plugin,
+    const base::DictValue& config,
+    const LiveSecrets& secrets,
+    bool cookies_granted,
+    base::DictValue env,
+    scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
+    LiveFetcher::Limits limits,
+    base::TimeDelta timeout) {
+  const LivePluginManifest& manifest = plugin.manifest;
+  auto validated = ValidateLiveConfig(manifest, config);
+  if (!validated.has_value()) {
+    return base::unexpected(
+        LiveError{"bad_config", base::JoinString(validated.error(), ". ")});
+  }
+  // Only the plugin's own, declared secrets.
+  LiveSecrets own;
+  base::DictValue secrets_dict;
+  for (const auto& field : manifest.secrets) {
+    auto it = secrets.find(field.key);
+    if (it != secrets.end() && !it->second.empty()) {
+      own[field.key] = it->second;
+      secrets_dict.Set(field.key, it->second);
+    } else if (!field.optional) {
+      return base::unexpected(
+          LiveError{"missing_secret", field.label + " is not set"});
+    }
+  }
+  LiveFolderHost::RunSpec spec;
+  for (const char* script : kContextScripts) {
+    spec.scripts.push_back(script);
+  }
+  spec.scripts.push_back(plugin.EntryPath());
+  spec.env = std::move(env);
+  spec.env.Set("secrets", std::move(secrets_dict));
+  spec.timeout = timeout;
+  spec.max_items = static_cast<int>(kMaxLiveItems);
+  spec.fetcher = std::make_unique<LiveFetcher>(
+      std::move(loader_factory), ResolveLiveHosts(manifest, *validated, own),
+      cookies_granted, limits);
+  spec.config = std::move(*validated);
+  return spec;
+}
+
 LiveFolderState::LiveFolderState() = default;
 LiveFolderState::LiveFolderState(const LiveFolderState&) = default;
 LiveFolderState& LiveFolderState::operator=(const LiveFolderState&) = default;
@@ -126,7 +169,7 @@ void LiveFolderService::Refresh(const base::Uuid& folder_id) {
     return;
   }
   LiveFolderState& state = states_[folder_id];
-  if (state.refreshing || base::Contains(queue_, folder_id)) {
+  if (state.refreshing || std::ranges::contains(queue_, folder_id)) {
     return;
   }
   queue_.push_back(folder_id);
@@ -305,45 +348,24 @@ void LiveFolderService::StartRefresh(const base::Uuid& folder_id) {
                                        " isn't installed on this device"});
   }
   const LivePluginManifest& manifest = plugin->manifest;
-  auto config = ValidateLiveConfig(manifest, source.config);
-  if (!config.has_value()) {
-    return Fail(folder_id,
-                {"bad_config", base::JoinString(config.error(), ". ")});
-  }
-  LiveSecrets stored = store_.GetSecrets(manifest.id);
-  LiveSecrets secrets;
-  base::DictValue secrets_dict;
-  for (const auto& field : manifest.secrets) {
-    auto it = stored.find(field.key);
-    if (it != stored.end()) {
-      secrets[field.key] = it->second;
-      secrets_dict.Set(field.key, it->second);
-    } else if (!field.optional) {
-      return Fail(folder_id, {"missing_secret", field.label + " is not set"});
-    }
-  }
   const base::Time now = Now();
-  LiveFolderHost::RunSpec spec;
-  for (const char* script : kContextScripts) {
-    spec.scripts.push_back(script);
+  auto spec = MakeLiveRunSpec(
+      *plugin, source.config, store_.GetSecrets(manifest.id),
+      store_.CookiesGranted(folder_id),
+      base::DictValue()
+          .Set("now", now.InMillisecondsFSinceUnixEpoch())
+          .Set("locale", g_browser_process->GetApplicationLocale())
+          .Set("timeZone", TimeZoneId()),
+      GetURLLoaderFactory());
+  if (!spec.has_value()) {
+    return Fail(folder_id, spec.error());
   }
-  spec.scripts.push_back(plugin->EntryPath());
-  spec.env = base::DictValue()
-                 .Set("now", now.InMillisecondsFSinceUnixEpoch())
-                 .Set("locale", g_browser_process->GetApplicationLocale())
-                 .Set("timeZone", TimeZoneId())
-                 .Set("secrets", std::move(secrets_dict));
-  spec.max_items = static_cast<int>(kMaxLiveItems);
-  spec.fetcher = std::make_unique<LiveFetcher>(
-      GetURLLoaderFactory(), ResolveLiveHosts(manifest, *config, secrets),
-      store_.CookiesGranted(folder_id), LiveFetcher::Limits());
-  spec.config = std::move(*config);
 
   LiveFolderState& state = states_[folder_id];
   state.refreshing = true;
   state.last_attempt = now;
   run_ids_[folder_id] = host_.Run(
-      std::move(spec),
+      std::move(*spec),
       base::BindOnce(&LiveFolderService::OnRefreshDone,
                      weak_factory_.GetWeakPtr(), folder_id, now,
                      manifest.refresh_default, manifest.refresh_min));
@@ -421,7 +443,7 @@ void LiveFolderService::ScheduleNext() {
     if (inserted) {
       state.collapsed = folder.collapsed();
     }
-    if (state.refreshing || base::Contains(queue_, folder.id())) {
+    if (state.refreshing || std::ranges::contains(queue_, folder.id())) {
       return;
     }
     if (state.next_refresh.is_null()) {

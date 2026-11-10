@@ -823,11 +823,7 @@ compass-sidebar-node {
   font-weight: 500;
 }
 
-/* Entry names: a step above the sidebar's 13px, which read too small
- * (2026-11-02). Their rename fields match, so editing doesn't jump. */
-.tab .title,
-.folder-row .title,
-input/* Live folders (docs/design/live-folders.md, "UI"): the plugin's icon,
+/* Live folders (docs/design/live-folders.md, "UI"): the plugin's icon,
    painted in the text color, in place of the folder glyph. */
 .live-icon {
   background-color: currentColor;
@@ -839,7 +835,7 @@ input/* Live folders (docs/design/live-folders.md, "UI"): the plugin's icon,
 }
 
 /* A plugin without an icon. */
-.live-icon[style=""] {
+.live-icon[style=''] {
   border-radius: 50%;
   height: 8px;
   margin: 4px;
@@ -894,7 +890,11 @@ input/* Live folders (docs/design/live-folders.md, "UI"): the plugin's icon,
   width: 6px;
 }
 
-.title-input {
+/* Entry names: a step above the sidebar's 13px, which read too small
+ * (2026-11-02). Their rename fields match, so editing doesn't jump. */
+.tab .title,
+.folder-row .title,
+input.title-input {
   font-size: 14px;
 }
 

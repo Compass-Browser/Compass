@@ -66,6 +66,20 @@ struct LiveFolderState {
   bool title_from_plugin = false;
 };
 
+// Everything one refresh of |plugin| needs, checked as the runtimes do
+// (bad_config, then missing_secret): the context's scripts, the validated
+// config, the environment and a fetcher holding the host rules. |env| has
+// "now", "locale" and "timeZone"; the secrets are added.
+base::expected<LiveFolderHost::RunSpec, LiveError> MakeLiveRunSpec(
+    const LivePlugin& plugin,
+    const base::DictValue& config,
+    const LiveSecrets& secrets,
+    bool cookies_granted,
+    base::DictValue env,
+    scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
+    LiveFetcher::Limits limits = LiveFetcher::Limits(),
+    base::TimeDelta timeout = base::Seconds(30));
+
 // Runs a profile's live folders (docs/design/live-folders.md): the plugins
 // they can use, the secrets and cookie grants users gave them, and when each
 // refreshes: on a timer (the plugin's nextRefresh or its default, clamped),

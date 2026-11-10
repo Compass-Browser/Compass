@@ -31,11 +31,22 @@ source_set("live_folders") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "live_plugin_manifest_unittest.cc" ]
+  sources = [
+    "live_fetcher_unittest.cc",
+    "live_folder_store_unittest.cc",
+    "live_plugin_manifest_unittest.cc",
+    "live_result_unittest.cc",
+  ]
   deps = [
     ":live_folders",
     "//base",
     "//base/test:test_support",
+    "//components/os_crypt/async/browser:test_support",
+    "//components/os_crypt/async/common",
+    "//net",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

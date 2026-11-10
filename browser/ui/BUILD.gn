@@ -324,6 +324,7 @@ source_set("browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
     "arc_import/arc_importer_browsertest.cc",
+    "live_folders/live_folder_runtime_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/claude/claude_panel_browsertest.cc",
     "views/find_bar/find_bar_browsertest.cc",
@@ -339,7 +340,12 @@ source_set("browser_tests") {
   if (is_posix) {
     sources += [ "claude/mcp_bridge_browsertest.cc" ]
   }
+  # The plugin cases the runtime test reads.
+  data = [ "//compass/plugins/" ]
   deps = [
+    "//compass/browser/live_folders",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
     "//compass/browser/claude",
     "//net:test_support",
     ":ui",
