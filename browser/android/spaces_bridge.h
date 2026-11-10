@@ -11,6 +11,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "compass/browser/android/spaces_android.h"
 
@@ -68,6 +69,42 @@ class SpacesBridge : public SpacesAndroid::Observer {
   void TabSelected(JNIEnv* env, int32_t tab_id);
   void TabClosed(JNIEnv* env, int32_t tab_id);
 
+  // Live folders (docs/design/live-folders.md), through SpacesAndroid's
+  // LiveFolderService; JSON goes both ways (SpacesBridge.java says what's
+  // in it). Errors are messages for the user, empty for none.
+  // The plugins a folder can use, to |callback| (a Callback<String>).
+  void LivePlugins(JNIEnv* env,
+                   const base::android::JavaParamRef<jobject>& callback);
+  // A live folder's source, for Edit Source; empty if it isn't one.
+  std::string LiveFolderSource(JNIEnv* env, const std::string& folder_id);
+  // Makes a live folder at the end of this window's space's pinned tree
+  // (|folder_id| empty), or changes |folder_id|'s source.
+  std::string SaveLiveFolder(JNIEnv* env,
+                             const std::string& folder_id,
+                             const std::string& plugin_id,
+                             const std::u16string& title,
+                             const std::string& config_json,
+                             const std::string& secrets_json,
+                             bool grant_cookies);
+  void RefreshLiveFolder(JNIEnv* env, const std::string& folder_id);
+  void MarkAllSeen(JNIEnv* env, const std::string& folder_id);
+  // Its entries become ordinary pinned tabs.
+  void ConvertLiveFolder(JNIEnv* env, const std::string& folder_id);
+  // Installing a plugin from its manifest's address: what it is, for review
+  // ({"preview": …} or {"error": …}), then installing it if it's still that
+  // (an error, or empty).
+  void PreviewLivePlugin(JNIEnv* env,
+                         const std::string& url,
+                         const base::android::JavaParamRef<jobject>& callback);
+  void InstallLivePlugin(JNIEnv* env,
+                         const std::string& url,
+                         const std::string& sha256,
+                         const base::android::JavaParamRef<jobject>& callback);
+  // Removes an installed plugin and its secrets; |callback| gets "".
+  void RemoveLivePlugin(JNIEnv* env,
+                        const std::string& plugin_id,
+                        const base::android::JavaParamRef<jobject>& callback);
+
   // SpacesAndroid::Observer:
   void OnSpacesChanged() override;
 
@@ -80,6 +117,7 @@ class SpacesBridge : public SpacesAndroid::Observer {
   base::Uuid space_id_;
   base::ScopedObservation<SpacesAndroid, SpacesAndroid::Observer>
       observation_{this};
+  base::WeakPtrFactory<SpacesBridge> weak_factory_{this};
 };
 
 }  // namespace compass

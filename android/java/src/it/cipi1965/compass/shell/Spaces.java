@@ -56,6 +56,7 @@ public class Spaces implements SidebarUi.Listener {
     private final ChromeTabbedActivity mActivity;
     private final TabModel mTabs;
     private final SpacesBridge mBridge;
+    private final LiveFolders mLiveFolders;
     private final SidebarState mState = new SidebarState();
     private final View mView;
     // The node a tab is being opened for; its didAddTab() maps it instead of adding to Today.
@@ -159,6 +160,7 @@ public class Spaces implements SidebarUi.Listener {
                 mView,
                 new CoordinatorLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        mLiveFolders = new LiveFolders(activity, parent, mBridge);
         onModelChanged();
         setUpDocking(parent);
     }
@@ -505,6 +507,31 @@ public class Spaces implements SidebarUi.Listener {
     public void onOpenSettings() {
         onDismiss();
         if (mOnOpenSettings != null) mOnOpenSettings.run();
+    }
+
+    @Override
+    public void onNewLiveFolder() {
+        mLiveFolders.newFolder();
+    }
+
+    @Override
+    public void onEditLiveFolder(String folderId) {
+        mLiveFolders.editSource(folderId);
+    }
+
+    @Override
+    public void onRefreshLiveFolder(String folderId) {
+        mBridge.refreshLiveFolder(folderId);
+    }
+
+    @Override
+    public void onMarkAllSeen(String folderId) {
+        mBridge.markAllSeen(folderId);
+    }
+
+    @Override
+    public void onConvertLiveFolder(String folderId) {
+        mBridge.convertLiveFolder(folderId);
     }
 
     @Override

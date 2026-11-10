@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_LIVE_FOLDERS_LIVE_FOLDERS_UNTRUSTED_UI_H_
 #define COMPASS_BROWSER_UI_LIVE_FOLDERS_LIVE_FOLDERS_UNTRUSTED_UI_H_
 
+#include "build/build_config.h"
 #include "compass/browser/ui/webui/live_folders/live_folders.mojom.h"
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -14,6 +15,15 @@
 namespace compass {
 
 class LiveFoldersUntrustedUI;
+
+#if BUILDFLAG(IS_ANDROID)
+// Registers the page's config and Mojo binder, once. The desktop does it with
+// Compass's other pages (compass_web_ui_registry.cc, through patches of
+// Chrome's registries); Chrome's Android registries have no such hooks, and
+// both registries take additions at any time, so LiveFolderHost calls this
+// before it makes its page.
+void RegisterLiveFoldersUntrustedUI();
+#endif
 
 class LiveFoldersUntrustedUIConfig
     : public content::DefaultWebUIConfig<LiveFoldersUntrustedUI> {

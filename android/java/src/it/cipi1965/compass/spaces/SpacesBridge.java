@@ -9,6 +9,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.Callback;
 import org.chromium.chrome.browser.profiles.Profile;
 
 /**
@@ -118,6 +119,84 @@ public class SpacesBridge {
         SpacesBridgeJni.get().tabClosed(mNativeSpacesBridge, tabId);
     }
 
+    // Live folders (docs/design/live-folders.md). Errors are messages for the user; empty: none.
+
+    /**
+     * The plugins a live folder can use, as a JSON array: {id, name, description, builtin, local,
+     * config: [{key, type ("string", "url", "number", "bool", "select"), label, placeholder,
+     * optional, default?, min?, max?, options: [{value, label}]}], secrets: [{key, label, help,
+     * optional, set}], hosts, cookieHosts}.
+     */
+    public void livePlugins(Callback<String> callback) {
+        if (mNativeSpacesBridge == 0) return;
+        SpacesBridgeJni.get().livePlugins(mNativeSpacesBridge, callback);
+    }
+
+    /**
+     * A live folder's source: {pluginId, title, config, cookiesGranted, pluginUrl, pluginSha256};
+     * empty if it isn't one.
+     */
+    public String liveFolderSource(String folderId) {
+        return SpacesBridgeJni.get().liveFolderSource(mNativeSpacesBridge, folderId);
+    }
+
+    /**
+     * Makes a live folder at the end of this window's space's Pinned (|folderId| empty), or changes
+     * a live folder's source. |configJson|: the config object; |secretsJson|: {key: value} of
+     * secrets to store (empty values keep stored ones).
+     */
+    public String saveLiveFolder(
+            String folderId,
+            String pluginId,
+            String title,
+            String configJson,
+            String secretsJson,
+            boolean grantCookies) {
+        return SpacesBridgeJni.get()
+                .saveLiveFolder(
+                        mNativeSpacesBridge,
+                        folderId,
+                        pluginId,
+                        title,
+                        configJson,
+                        secretsJson,
+                        grantCookies);
+    }
+
+    public void refreshLiveFolder(String folderId) {
+        SpacesBridgeJni.get().refreshLiveFolder(mNativeSpacesBridge, folderId);
+    }
+
+    public void markAllSeen(String folderId) {
+        SpacesBridgeJni.get().markAllSeen(mNativeSpacesBridge, folderId);
+    }
+
+    /** Makes a live folder a normal one: its entries become pinned tabs. */
+    public void convertLiveFolder(String folderId) {
+        SpacesBridgeJni.get().convertLiveFolder(mNativeSpacesBridge, folderId);
+    }
+
+    /**
+     * The plugin whose manifest is at |url|, for review: {"preview": {id, name, description,
+     * version, hosts, cookieHosts, secrets (labels), source, sha256}} or {"error": message}.
+     */
+    public void previewLivePlugin(String url, Callback<String> callback) {
+        if (mNativeSpacesBridge == 0) return;
+        SpacesBridgeJni.get().previewLivePlugin(mNativeSpacesBridge, url, callback);
+    }
+
+    /** Installs the reviewed plugin, if it's still what was reviewed; the callback gets an error. */
+    public void installLivePlugin(String url, String sha256, Callback<String> callback) {
+        if (mNativeSpacesBridge == 0) return;
+        SpacesBridgeJni.get().installLivePlugin(mNativeSpacesBridge, url, sha256, callback);
+    }
+
+    /** Removes an installed plugin and its secrets; its folders stay. */
+    public void removeLivePlugin(String pluginId, Callback<String> callback) {
+        if (mNativeSpacesBridge == 0) return;
+        SpacesBridgeJni.get().removeLivePlugin(mNativeSpacesBridge, pluginId, callback);
+    }
+
     @NativeMethods
     interface Natives {
         long init(SpacesBridge caller, @JniType("Profile*") Profile profile);
@@ -180,5 +259,42 @@ public class SpacesBridge {
         void tabSelected(long nativeSpacesBridge, int tabId);
 
         void tabClosed(long nativeSpacesBridge, int tabId);
+
+        void livePlugins(long nativeSpacesBridge, Callback<String> callback);
+
+        @JniType("std::string")
+        String liveFolderSource(long nativeSpacesBridge, @JniType("std::string") String folderId);
+
+        @JniType("std::string")
+        String saveLiveFolder(
+                long nativeSpacesBridge,
+                @JniType("std::string") String folderId,
+                @JniType("std::string") String pluginId,
+                @JniType("std::u16string") String title,
+                @JniType("std::string") String configJson,
+                @JniType("std::string") String secretsJson,
+                boolean grantCookies);
+
+        void refreshLiveFolder(long nativeSpacesBridge, @JniType("std::string") String folderId);
+
+        void markAllSeen(long nativeSpacesBridge, @JniType("std::string") String folderId);
+
+        void convertLiveFolder(long nativeSpacesBridge, @JniType("std::string") String folderId);
+
+        void previewLivePlugin(
+                long nativeSpacesBridge,
+                @JniType("std::string") String url,
+                Callback<String> callback);
+
+        void installLivePlugin(
+                long nativeSpacesBridge,
+                @JniType("std::string") String url,
+                @JniType("std::string") String sha256,
+                Callback<String> callback);
+
+        void removeLivePlugin(
+                long nativeSpacesBridge,
+                @JniType("std::string") String pluginId,
+                Callback<String> callback);
     }
 }

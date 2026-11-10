@@ -142,6 +142,20 @@ object SidebarUi {
 
         fun onOpenSettings()
 
+        // Live folders (docs/design/live-folders.md; LiveFolders.java).
+
+        /** New Live Folder: the plugins, then the chosen one's form; it goes at the end of Pinned. */
+        fun onNewLiveFolder()
+
+        fun onEditLiveFolder(folderId: String)
+
+        fun onRefreshLiveFolder(folderId: String)
+
+        fun onMarkAllSeen(folderId: String)
+
+        /** Makes a live folder a normal one: its entries become pinned tabs that sync. */
+        fun onConvertLiveFolder(folderId: String)
+
         fun onDismiss()
     }
 
@@ -337,6 +351,10 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                 MenuItem("Edit Theme", R.drawable.compass_sym_palette) {
                     menu = false
                     theming = true
+                }
+                MenuItem("New Live Folder…", R.drawable.compass_sym_bolt) {
+                    menu = false
+                    listener.onNewLiveFolder()
                 }
                 if (state.spaces.size > 1) {
                     HorizontalDivider()
@@ -540,7 +558,7 @@ private fun NodeRow(
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
-                    onLongClick = { if (node.type == "tab") menu = true },
+                    onLongClick = { if (node.type == "tab" || node.isLiveFolder) menu = true },
                     onClick = {
                         if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
                         else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
@@ -557,18 +575,30 @@ private fun NodeRow(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     Modifier.rotate(if (node.collapsed) 0f else 90f),
                 )
-                Sym(
-                    when {
-                        // A live folder: a plugin fills it, on the devices that run
-                        // plugins (not Android yet: docs/design/live-folders.md).
-                        node.isLiveFolder -> R.drawable.compass_sym_sync
-                        node.collapsed -> R.drawable.compass_sym_folder
-                        else -> R.drawable.compass_sym_folder_fill
-                    },
-                    15f,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                Box {
+                    Sym(
+                        when {
+                            // A live folder (docs/design/live-folders.md): its plugin's
+                            // icon, or a crossed folder if this device hasn't the plugin.
+                            node.isLiveFolder && node.liveMissing -> R.drawable.compass_sym_folder_off
+                            node.isLiveFolder -> LiveFoldersUi.pluginIcon(node.live)
+                            node.collapsed -> R.drawable.compass_sym_folder
+                            else -> R.drawable.compass_sym_folder_fill
+                        },
+                        15f,
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    )
+                    if (node.isLiveFolder) LiveFolderMenu(menu, { menu = false }, node, listener)
+                }
+                Text(
+                    node.title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (node.isLiveFolder) Modifier.weight(1f) else Modifier,
                 )
-                Text(node.title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (node.isLiveFolder) LiveFolderBadge(node)
             } else {
                 Box(Modifier.alpha(if (dim) 0.55f else 1f)) {
                     SiteIcon(node.url, CompassStyle.favicon)
@@ -647,6 +677,47 @@ private fun EntryMenu(
             SidebarUi.EntryPlace.PINNED ->
                 Item("Delete", R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
         }
+    }
+}
+
+/**
+ * A live folder's long-press menu (the desktop's context menu): why its last refresh failed, then
+ * Refresh, Edit Source, Mark All Seen, Convert to Normal Folder and Delete.
+ */
+@Composable
+private fun LiveFolderMenu(expanded: Boolean, onDismiss: () -> Unit, node: SidebarState.Node, listener: SidebarUi.Listener) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        @Composable
+        fun Item(label: String, icon: Int, destructive: Boolean = false, action: () -> Unit) {
+            MenuItem(label, icon, destructive) {
+                onDismiss()
+                action()
+            }
+        }
+        val status =
+            when {
+                node.liveMissing -> "Its plugin isn't on this device. Edit Source to install it."
+                node.error.isNotEmpty() -> node.error
+                node.liveName.isNotEmpty() -> "From ${node.liveName}"
+                else -> ""
+            }
+        if (status.isNotEmpty()) {
+            Text(
+                status,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (node.error.isNotEmpty() || node.liveMissing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).width(240.dp),
+            )
+            HorizontalDivider()
+        }
+        Item("Refresh", R.drawable.compass_sym_refresh) { listener.onRefreshLiveFolder(node.id) }
+        Item("Edit Source…", R.drawable.compass_sym_edit) { listener.onEditLiveFolder(node.id) }
+        if (node.unseenCount > 0) Item("Mark All Seen", R.drawable.compass_sym_done_all) { listener.onMarkAllSeen(node.id) }
+        Item("Convert to Normal Folder", R.drawable.compass_sym_folder) { listener.onConvertLiveFolder(node.id) }
+        HorizontalDivider()
+        Item("Delete", R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
     }
 }
 

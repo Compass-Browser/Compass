@@ -282,7 +282,76 @@ the iOS one in `CompassKitTests`.
   file (showing hosts, cookie access and secrets first), secrets, removal.
 - Android: the same states in `SidebarState.kt` / `SidebarUi.kt` (the
   snapshot in `spaces_android.cc` carries them) and Compose sheets for the
-  picker and form; the runtime is the shared C++ service.
+  picker and form; the runtime is the shared C++ service. See "Android".
+
+### Android
+
+Status: built (runtime, scheduler, JNI, Compose UI); the APK builds on the
+farm, the desktop's tests cover the shared runtime. Not yet tried on a
+device.
+
+- **Runtime: the desktop's, unchanged.** `LiveFolderService`,
+  `LiveFolderHost` (the hidden `chrome-untrusted://live-folders/` page, a
+  dedicated Worker per refresh), `LivePluginRegistry` and the untrusted
+  WebUI are one target, `//compass/browser/ui/live_folders`, built on both
+  platforms. So the contract and limits are enforced by the same C++
+  (`LiveFetcher`: hosts per hop, cookies, sizes, counts; the backstop
+  timeout; `ParseLiveResult`) outside the plugin's context, and the page and
+  Worker scripts are the same files. Alternatives considered: V8 in the
+  browser process (no sandbox, a second runtime to keep in step) or Android's
+  JavaScriptSandbox (needs a recent system WebView and would reimplement
+  `compass.fetch` and the limits in Java). A renderer is already sandboxed
+  and already ships.
+- **Spaces.** The service no longer knows `SpaceService`: it takes a
+  `LiveFolderSpaces` (the list, when it's loaded, whether an entry's tab is
+  open). The desktop's wraps `SpaceService` and keeps the service a
+  `KeyedService` (`live_folder_service_factory.cc`); on Android
+  `SpacesAndroid` owns the service on its own spaces, runs it for the
+  regular profile only, and shuts it down in `OnProfileWillBeDestroyed()`
+  (its page's `WebContents` must go before the profile).
+  `LiveFolderService::Get()` is defined per platform.
+- **Resources.** Chrome's Android paks have none of Compass's WebUI. On
+  Android `resources/sidebar/BUILD.gn` builds only the live folders page,
+  its Mojo bindings, the Worker and the plugins, under the same grd and
+  prefix as the desktop's (same resource IDs from `resource_ids.spec`, same
+  C++ names). Its pak ships as an uncompressed APK asset
+  (`//compass/android:live_folders_assets`) that `LivePluginRegistry` adds
+  to the `ResourceBundle` on first use. No upstream patch: the untrusted
+  WebUI config and its Mojo binder are added to Chrome's registries at run
+  time (`RegisterLiveFoldersUntrustedUI()`, before the host makes its page),
+  since both take additions at any time.
+- **Secrets** go through the same `OSCryptAsync` store. On Android its key
+  provider is the POSIX one, so secrets are obfuscated rather than
+  hardware-protected; the app's private storage protects the file. The
+  Android Keystore would be a provider of its own.
+- **JNI.** `SpacesBridge` gains the editor's calls (plugins, a folder's
+  source, save, refresh, mark all seen, convert, preview / install /
+  remove a plugin), JSON both ways. The snapshot carries each live folder's
+  plugin name, `live_missing`, `refreshing` and `error`. Opening an entry
+  (a new tab for it, or selecting its tab) marks it seen.
+- **UI** (`LiveFolders.java`, `LiveFoldersState.kt`, `LiveFoldersUi.kt`):
+  New Live Folder… in the space's ⋯ menu opens a bottom sheet: the plugins
+  (installed ones can be removed), Install a Plugin… (address, review of
+  hosts, cookies and secrets, install), then the plugin's form: name, config
+  fields (text, URL, number, switch, menu), secrets (password fields, "Saved
+  on this device" when set) and the cookie grant. In the sidebar a live
+  folder shows its plugin's symbol (a crossed folder if the plugin is
+  missing), a spinner while refreshing, an error mark, and its count of new
+  entries when collapsed; its long-press menu has the error or source, then
+  Refresh, Edit Source…, Mark All Seen, Convert to Normal Folder and Delete.
+  Edit Source on a folder whose plugin is missing offers to install it from
+  the synced address (checked against the synced hash).
+- Local plugins (folders in `Compass Plugins`) are read on Android too, but
+  the app's private storage isn't reachable, so in practice there are none.
+- **Testing.** The runtime browser test (`LiveFolderRuntimeBrowserTest`,
+  the conformance and built-in cases) runs on the desktop only: running
+  Android browser tests needs a device or emulator, which the farm doesn't
+  have. On Android the shared code is the same; what's Android's own (the
+  pak asset, the run-time WebUI registration, a `WebContents` without a
+  window) is checked by hand on a device.
+- Not done: refreshes while the app is in the background (Android freezes
+  the process; they happen when it's back, and on expand and space
+  switches), battery saver pause.
 
 ### iOS
 

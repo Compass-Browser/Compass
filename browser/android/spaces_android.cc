@@ -17,6 +17,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "compass/browser/ui/live_folders/live_folder_spaces.h"
+#include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
@@ -36,7 +38,33 @@ constexpr base::FilePath::CharType kStoreFileName[] =
 
 const char kUserDataKey[] = "compass_spaces_android";
 
+// Live folders' view of SpacesAndroid's spaces and tabs.
+class AndroidLiveFolderSpaces : public LiveFolderSpaces {
+ public:
+  explicit AndroidLiveFolderSpaces(SpacesAndroid* spaces) : spaces_(spaces) {}
+  ~AndroidLiveFolderSpaces() override = default;
+
+  // LiveFolderSpaces:
+  void RunWhenLoaded(base::OnceClosure callback) override {
+    spaces_->RunWhenLoaded(std::move(callback));
+  }
+  SpaceList* list() override { return &spaces_->list(); }
+  bool HasTab(const SidebarNode& node) override {
+    return spaces_->TabFor(node.id()) != -1;
+  }
+
+ private:
+  // Owns the service, which owns this.
+  const raw_ptr<SpacesAndroid> spaces_;
+};
+
 }  // namespace
+
+// static
+LiveFolderService* LiveFolderService::Get(Profile* profile) {
+  SpacesAndroid* spaces = SpacesAndroid::GetIfExists(profile);
+  return spaces ? spaces->live_folders() : nullptr;
+}
 
 // static
 SpacesAndroid* SpacesAndroid::Get(Profile* profile) {
@@ -65,9 +93,21 @@ SpacesAndroid::SpacesAndroid(Profile* profile) {
       profile->GetPath().Append(kStoreFileName), &list_);
   store_->Load(base::BindOnce(&SpacesAndroid::OnLoaded,
                               weak_factory_.GetWeakPtr()));
+  profile_observation_.Observe(profile);
+  if (!profile->IsOffTheRecord()) {
+    live_folders_ = std::make_unique<LiveFolderService>(
+        profile, std::make_unique<AndroidLiveFolderSpaces>(this));
+    live_folders_observation_.Observe(live_folders_.get());
+  }
 }
 
 SpacesAndroid::~SpacesAndroid() {
+  // Normally gone already (OnProfileWillBeDestroyed()).
+  live_folders_observation_.Reset();
+  if (live_folders_) {
+    live_folders_->Shutdown();
+    live_folders_.reset();
+  }
   sync_attachment_.reset();
   store_.reset();
   for (const auto& space : list_.spaces()) {
@@ -128,9 +168,25 @@ base::ListValue SpacesAndroid::SnapshotSection(const SidebarNode& root) const {
       case SidebarNode::Type::kFolder:
         dict.Set("type", "folder");
         dict.Set("collapsed", node.collapsed());
-        // A live folder (docs/design/live-folders.md): its plugin.
+        // A live folder (docs/design/live-folders.md): its plugin, and
+        // whether it's refreshing or failed.
         if (node.is_live_folder()) {
-          dict.Set("live", node.live_source()->plugin_id);
+          const std::string& plugin_id = node.live_source()->plugin_id;
+          dict.Set("live", plugin_id);
+          const LivePluginRegistry& plugins = LivePluginRegistry::Get();
+          if (const LivePlugin* plugin = plugins.Find(plugin_id)) {
+            dict.Set("live_name", plugin->manifest.name);
+          } else if (plugins.installed_loaded()) {
+            dict.Set("live_missing", true);
+          }
+          if (const LiveFolderState* state =
+                  live_folders_ ? live_folders_->GetState(node.id())
+                                : nullptr) {
+            dict.Set("refreshing", state->refreshing);
+            if (state->error) {
+              dict.Set("error", state->error->message);
+            }
+          }
         }
         break;
       case SidebarNode::Type::kSplit:
@@ -192,7 +248,16 @@ void SpacesAndroid::TabOpenedForNode(int tab_id, const base::Uuid& node_id) {
   }
   empty_tabs_.erase(tab_id);
   tabs_[tab_id] = node_id;
+  MarkSeen(node_id);
   Changed();
+}
+
+void SpacesAndroid::MarkSeen(const base::Uuid& node_id) {
+  SidebarNode* node = FindNode(node_id);
+  SpaceModel* space = SpaceOf(node);
+  if (node && space && node->unseen()) {
+    space->SetUnseen(node, false);
+  }
 }
 
 void SpacesAndroid::TabUpdated(int tab_id,
@@ -261,6 +326,7 @@ void SpacesAndroid::TabSelected(int tab_id) {
   if (SpaceModel* space = SpaceOf(node)) {
     space->SetLastActive(node, base::Time::Now());
   }
+  MarkSeen(it->second);
 }
 
 void SpacesAndroid::TabClosed(int tab_id) {
@@ -478,6 +544,20 @@ void SpacesAndroid::OnSpaceChanged(const SpaceModel& space) {
 }
 
 void SpacesAndroid::OnArchiveChanged(const SpaceModel& space) {
+  Changed();
+}
+
+void SpacesAndroid::OnProfileWillBeDestroyed(Profile* profile) {
+  // Its page's WebContents goes while the profile is still there.
+  live_folders_observation_.Reset();
+  if (live_folders_) {
+    live_folders_->Shutdown();
+    live_folders_.reset();
+  }
+  profile_observation_.Reset();
+}
+
+void SpacesAndroid::OnLiveFolderStateChanged(const base::Uuid& folder_id) {
   Changed();
 }
 

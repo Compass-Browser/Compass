@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
 #include "base/task/sequenced_task_runner.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/site_instance.h"
@@ -17,6 +18,10 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "compass/browser/ui/live_folders/live_folders_untrusted_ui.h"
+#endif
 
 namespace compass {
 
@@ -114,10 +119,14 @@ void LiveFolderHost::EnsurePage() {
   if (web_contents_) {
     return;
   }
+#if BUILDFLAG(IS_ANDROID)
+  RegisterLiveFoldersUntrustedUI();
+#else
   // The page's Mojo binder is added to the untrusted registry while Compass
   // fills the trusted one (compass_web_ui_registry.cc), which happens on
   // first use: make sure it has.
   content::WebUIBrowserInterfaceBrokerRegistry::GetTrustedRegistry();
+#endif
   const GURL url(kLiveFoldersUrl);
   content::WebContents::CreateParams params(
       profile_, content::SiteInstance::CreateForURL(profile_, url));

@@ -72,6 +72,9 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/Favicons.kt",
     "java/src/it/cipi1965/compass/shell/FindBar.java",
     "java/src/it/cipi1965/compass/shell/FindBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/LiveFolders.java",
+    "java/src/it/cipi1965/compass/shell/LiveFoldersState.kt",
+    "java/src/it/cipi1965/compass/shell/LiveFoldersUi.kt",
     "java/src/it/cipi1965/compass/shell/PageMenu.java",
     "java/src/it/cipi1965/compass/shell/PageMenuState.kt",
     "java/src/it/cipi1965/compass/shell/PageMenuUi.kt",
@@ -177,27 +180,33 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_arrow_back.xml",
     "res_symbols/drawable/compass_sym_arrow_forward.xml",
     "res_symbols/drawable/compass_sym_auto_awesome.xml",
+    "res_symbols/drawable/compass_sym_bolt.xml",
     "res_symbols/drawable/compass_sym_check.xml",
     "res_symbols/drawable/compass_sym_chevron_right.xml",
     "res_symbols/drawable/compass_sym_close.xml",
     "res_symbols/drawable/compass_sym_cloud_done.xml",
     "res_symbols/drawable/compass_sym_cloud_done_fill.xml",
     "res_symbols/drawable/compass_sym_cloud_off.xml",
+    "res_symbols/drawable/compass_sym_code.xml",
     "res_symbols/drawable/compass_sym_content_copy.xml",
     "res_symbols/drawable/compass_sym_content_paste.xml",
     "res_symbols/drawable/compass_sym_create_new_folder.xml",
     "res_symbols/drawable/compass_sym_delete.xml",
     "res_symbols/drawable/compass_sym_desktop_windows.xml",
+    "res_symbols/drawable/compass_sym_done_all.xml",
     "res_symbols/drawable/compass_sym_download.xml",
     "res_symbols/drawable/compass_sym_edit.xml",
+    "res_symbols/drawable/compass_sym_error.xml",
+    "res_symbols/drawable/compass_sym_event.xml",
     "res_symbols/drawable/compass_sym_extension_fill.xml",
     "res_symbols/drawable/compass_sym_eyeglasses.xml",
     "res_symbols/drawable/compass_sym_find_in_page.xml",
     "res_symbols/drawable/compass_sym_folder.xml",
     "res_symbols/drawable/compass_sym_folder_fill.xml",
+    "res_symbols/drawable/compass_sym_folder_off.xml",
+    "res_symbols/drawable/compass_sym_format_list_bulleted.xml",
     "res_symbols/drawable/compass_sym_history.xml",
     "res_symbols/drawable/compass_sym_home_fill.xml",
-    "res_symbols/drawable/compass_sym_share.xml",
     "res_symbols/drawable/compass_sym_keep.xml",
     "res_symbols/drawable/compass_sym_keep_off.xml",
     "res_symbols/drawable/compass_sym_key_fill.xml",
@@ -212,11 +221,13 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_qr_code_scanner.xml",
     "res_symbols/drawable/compass_sym_refresh.xml",
     "res_symbols/drawable/compass_sym_remove_selection.xml",
+    "res_symbols/drawable/compass_sym_rss_feed.xml",
     "res_symbols/drawable/compass_sym_schedule.xml",
     "res_symbols/drawable/compass_sym_search.xml",
     "res_symbols/drawable/compass_sym_select_all.xml",
     "res_symbols/drawable/compass_sym_settings.xml",
     "res_symbols/drawable/compass_sym_settings_fill.xml",
+    "res_symbols/drawable/compass_sym_share.xml",
     "res_symbols/drawable/compass_sym_shield.xml",
     "res_symbols/drawable/compass_sym_smartphone.xml",
     "res_symbols/drawable/compass_sym_stacks.xml",
@@ -241,6 +252,17 @@ android_resources("extras_resources") {
   deps = [ ":icon_resources" ]
 }
 
+# Live folders' plugin runtime (docs/design/live-folders.md): the
+# chrome-untrusted://live-folders/ page and the built-in plugins, in Android's
+# build of Compass's WebUI pak (resources/sidebar/BUILD.gn). Chrome's paks
+# don't have it; LivePluginRegistry adds it from the APK, which needs it
+# uncompressed.
+android_assets("live_folders_assets") {
+  sources = [ "$root_gen_dir/compass/compass_sidebar_resources.pak" ]
+  disable_compression = true
+  deps = [ "//compass/resources/sidebar:resources" ]
+}
+
 chrome_public_apk_or_module_tmpl("compass_apk") {
   target_type = "android_apk"
   apk_name = "Compass"
@@ -250,5 +272,6 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
     ":extras_resources",
     ":icon_resources",
     ":java",
+    ":live_folders_assets",
   ]
 }

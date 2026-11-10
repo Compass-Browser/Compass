@@ -10,8 +10,16 @@
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "build/build_config.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
 #include "ui/base/resource/resource_bundle.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/apk_assets.h"
+#include "base/files/file.h"
+#include "base/files/memory_mapped_file.h"
+#include "ui/base/resource/resource_scale_factor.h"
+#endif
 
 namespace compass {
 
@@ -20,10 +28,37 @@ namespace {
 constexpr std::string_view kBuiltinPrefix = "plugins/builtin/";
 constexpr std::string_view kManifestName = "manifest.json";
 
+#if BUILDFLAG(IS_ANDROID)
+// Chrome's paks on Android leave out Compass's WebUI. Its Android build of
+// compass_sidebar_resources.pak holds only the live folders page and the
+// plugins (resources/sidebar/BUILD.gn), and ships as an uncompressed asset
+// of the app (android/BUILD.gn, :live_folders_assets), added to the shared
+// ResourceBundle here.
+constexpr char kAndroidPak[] = "assets/compass_sidebar_resources.pak";
+
+void AddAndroidPak() {
+  base::MemoryMappedFile::Region region;
+  const int fd = base::android::OpenApkAsset(kAndroidPak, &region);
+  if (fd < 0) {
+    LOG(ERROR) << "No " << kAndroidPak << ": live folders can't run";
+    return;
+  }
+  ui::ResourceBundle::GetSharedInstance().AddDataPackFromFileRegion(
+      base::File(fd), region, ui::kScaleFactorNone);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace
 
 // static
 LivePluginRegistry& LivePluginRegistry::Get() {
+#if BUILDFLAG(IS_ANDROID)
+  static const bool added = [] {
+    AddAndroidPak();
+    return true;
+  }();
+  (void)added;
+#endif
   static base::NoDestructor<LivePluginRegistry> registry;
   return *registry;
 }

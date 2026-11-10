@@ -1,0 +1,49 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Live folders' runtime (docs/design/live-folders.md, "Runtime"): the
+# service that schedules refreshes, the hidden chrome-untrusted://live-folders/
+# page that runs them, and the plugin registry. The desktop and Android share
+# it. The platforms add where the spaces are (LiveFolderSpaces) and
+# LiveFolderService::Get(): the desktop in //compass/browser/ui
+# (live_folder_service_factory.cc), Android in //compass/browser/android
+# (spaces_android.cc). Linked into //chrome/browser through those, whose
+# headers it includes.
+source_set("live_folders") {
+  sources = [
+    "live_folder_host.cc",
+    "live_folder_host.h",
+    "live_folder_service.cc",
+    "live_folder_service.h",
+    "live_folder_spaces.h",
+    "live_folders_untrusted_ui.cc",
+    "live_folders_untrusted_ui.h",
+    "live_plugin_registry.cc",
+    "live_plugin_registry.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/browser/live_folders",
+    "//compass/browser/sidebar",
+    "//compass/browser/ui/webui/live_folders:mojo_bindings",
+    "//components/keyed_service/core",
+    "//mojo/public/cpp/bindings",
+    "//url",
+  ]
+  deps = [
+    "//base:i18n",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
+    "//compass/resources/sidebar:resources",
+    "//content/public/browser",
+    "//content/public/common",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//third_party/icu",
+    "//ui/base",
+    "//ui/webui",
+  ]
+}

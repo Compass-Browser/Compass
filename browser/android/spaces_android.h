@@ -16,11 +16,15 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "base/supports_user_data.h"
 #include "base/values.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/live_folders/live_folder_service.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_observer.h"
 #include "url/gurl.h"
 
 class Profile;
@@ -35,9 +39,14 @@ class SidebarStore;
 // shell reports them here (TabOpened() and so on), and this keeps a tab ->
 // node map: an open tab is a Today entry, or a pinned tab or favorite it was
 // opened from.
+//
+// It also runs the profile's live folders (docs/design/live-folders.md): it
+// owns their LiveFolderService, the desktop's, which it gives its spaces.
 class SpacesAndroid : public base::SupportsUserData::Data,
                       public SpaceList::Observer,
-                      public SpaceModel::Observer {
+                      public SpaceModel::Observer,
+                      public ProfileObserver,
+                      public LiveFolderService::Observer {
  public:
   // Something changed in any space, the favorites, or the tab map.
   class Observer : public base::CheckedObserver {
@@ -61,6 +70,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   ~SpacesAndroid() override;
 
   SpaceList& list() { return list_; }
+  // Null for an off-the-record profile, and once the profile is going away.
+  LiveFolderService* live_folders() { return live_folders_.get(); }
   bool loaded() const { return loaded_; }
   // Runs |callback| once the saved spaces are in (now, if they are).
   void RunWhenLoaded(base::OnceClosure callback);
@@ -124,6 +135,9 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // The tab on screen, or -1.
   int current_tab() const { return current_tab_; }
 
+  // Its node isn't new anymore (a live folder's entry, opened).
+  void MarkSeen(const base::Uuid& node_id);
+
   // The tab |node_id| is open in, or -1.
   int TabFor(const base::Uuid& node_id) const;
   SidebarNode* FindNode(const base::Uuid& id);
@@ -144,6 +158,12 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnSpaceChanged(const SpaceModel& space) override;
   void OnArchiveChanged(const SpaceModel& space) override;
+
+  // ProfileObserver:
+  void OnProfileWillBeDestroyed(Profile* profile) override;
+
+  // LiveFolderService::Observer:
+  void OnLiveFolderStateChanged(const base::Uuid& folder_id) override;
 
  private:
   base::ListValue SnapshotSection(const SidebarNode& root) const;
@@ -175,6 +195,12 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   int current_tab_ = -1;
   std::vector<base::OnceClosure> on_loaded_;
   bool notify_pending_ = false;
+  // Live folders; gone once the profile is going away (it has a WebContents).
+  std::unique_ptr<LiveFolderService> live_folders_;
+  base::ScopedObservation<LiveFolderService, LiveFolderService::Observer>
+      live_folders_observation_{this};
+  base::ScopedObservation<Profile, ProfileObserver> profile_observation_{
+      this};
   // Destroyed first: sync's holder observes the list.
   std::unique_ptr<Attachment> sync_attachment_;
   base::ObserverList<Observer> observers_;

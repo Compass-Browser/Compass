@@ -33,11 +33,22 @@ class SidebarState {
         @JvmField val live: String = "",
         /** A live folder's entry that came with a refresh and hasn't been opened. */
         @JvmField val unseen: Boolean = false,
+        /** A live folder's plugin's name; empty if this device doesn't have the plugin. */
+        @JvmField val liveName: String = "",
+        /** A live folder whose plugin isn't on this device. */
+        @JvmField val liveMissing: Boolean = false,
+        /** A live folder that's refreshing. */
+        @JvmField val refreshing: Boolean = false,
+        /** Why a live folder's last refresh failed, or empty. */
+        @JvmField val error: String = "",
     ) {
         val isFolder: Boolean
             get() = type == "folder"
         val isLiveFolder: Boolean
             get() = isFolder && live.isNotEmpty()
+        /** A live folder's entries that haven't been opened. */
+        val unseenCount: Int
+            get() = children.count { it.unseen }
     }
 
     var open by mutableStateOf(false)
@@ -98,6 +109,10 @@ class SidebarState {
                 nodes(it.optJSONArray("children")),
                 it.optString("live"),
                 it.optBoolean("unseen"),
+                it.optString("live_name"),
+                it.optBoolean("live_missing"),
+                it.optBoolean("refreshing"),
+                it.optString("error"),
             )
         }
 

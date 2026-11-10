@@ -28,6 +28,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/live_folders/live_folder_host.h"
+#include "compass/browser/ui/live_folders/live_folder_spaces.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "components/keyed_service/core/keyed_service.h"
 
@@ -38,8 +39,6 @@ class SharedURLLoaderFactory;
 }
 
 namespace compass {
-
-class SpaceService;
 
 // A live folder's state that the sidebar shows besides the model's: whether
 // it's refreshing, the last error, and what the plugin logged.
@@ -86,6 +85,10 @@ base::expected<LiveFolderHost::RunSpec, LiveError> MakeLiveRunSpec(
 // when it's expanded, when its space becomes active, and on request, with
 // doubling delays after errors. Results go into the model with
 // SpaceModel::ReplaceLiveItems(); the entries never sync.
+//
+// The desktop and Android share it: on the desktop it's a KeyedService
+// (LiveFolderServiceFactory) on SpaceService's spaces; on Android
+// SpacesAndroid owns it, on its own spaces.
 class LiveFolderService : public KeyedService,
                           public SpaceList::Observer,
                           public SpaceModel::Observer {
@@ -102,12 +105,15 @@ class LiveFolderService : public KeyedService,
   static constexpr base::TimeDelta kMaxInterval = base::Days(1);
   static constexpr size_t kMaxConcurrentRefreshes = 2;
 
-  explicit LiveFolderService(Profile* profile);
+  LiveFolderService(Profile* profile,
+                    std::unique_ptr<LiveFolderSpaces> spaces);
   LiveFolderService(const LiveFolderService&) = delete;
   LiveFolderService& operator=(const LiveFolderService&) = delete;
   ~LiveFolderService() override;
 
-  // Null where there's none (incognito, guest, tests).
+  // Null where there's none (incognito, guest, tests). Defined per platform:
+  // live_folder_service_factory.cc on the desktop, spaces_android.cc on
+  // Android.
   static LiveFolderService* Get(Profile* profile);
 
   const LivePluginRegistry& registry() const { return *registry_; }
@@ -149,6 +155,7 @@ class LiveFolderService : public KeyedService,
   // have changed, or it may be new or gone), then runs |done|.
   void RescanPlugins(base::OnceClosure done);
   // Shows plugins_dir() in the file manager, making it first if need be.
+  // Desktop only: Android has no file manager for the app's own files.
   void OpenPluginsFolder();
 
   // Changes |folder|'s config, secrets and cookie grant, and refreshes it.
@@ -212,7 +219,7 @@ class LiveFolderService : public KeyedService,
   const raw_ref<LivePluginRegistry> registry_;
   LiveFolderHost host_;
   LiveFolderStore store_;
-  base::WeakPtr<SpaceService> space_service_;
+  const std::unique_ptr<LiveFolderSpaces> spaces_;
   bool spaces_loaded_ = false;
   std::map<base::Uuid, LiveFolderState> states_;
   std::map<base::Uuid, int> run_ids_;
@@ -229,6 +236,8 @@ class LiveFolderService : public KeyedService,
   base::WeakPtrFactory<LiveFolderService> weak_factory_{this};
 };
 
+// The desktop's (live_folder_service_factory.cc). Android has none:
+// SpacesAndroid makes the service.
 class LiveFolderServiceFactory : public ProfileKeyedServiceFactory {
  public:
   static LiveFolderServiceFactory* GetInstance();

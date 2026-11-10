@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/live_folders/live_folders_untrusted_ui.h"
 
+#include <memory>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -24,6 +25,11 @@
 #include "content/public/common/url_constants.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "content/public/browser/web_ui_browser_interface_broker_registry.h"
+#include "content/public/browser/webui_config_map.h"
+#endif
+
 namespace compass {
 
 namespace {
@@ -38,6 +44,21 @@ bool IsLiveFoldersResource(std::string_view path) {
 }
 
 }  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+void RegisterLiveFoldersUntrustedUI() {
+  static bool registered = false;
+  if (registered) {
+    return;
+  }
+  registered = true;
+  content::WebUIConfigMap::GetInstance().AddUntrustedWebUIConfig(
+      std::make_unique<LiveFoldersUntrustedUIConfig>());
+  content::WebUIBrowserInterfaceBrokerRegistry::GetUntrustedRegistry()
+      .ForWebUI<LiveFoldersUntrustedUI>()
+      .Add<live_folders::mojom::PageHandlerFactory>();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 LiveFoldersUntrustedUIConfig::LiveFoldersUntrustedUIConfig()
     : DefaultWebUIConfig(content::kChromeUIUntrustedScheme, kLiveFoldersHost) {}

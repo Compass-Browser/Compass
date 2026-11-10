@@ -9,120 +9,152 @@ import("//ui/webui/resources/tools/generate_grd.gni")
 # command bar, the settings sections, which chrome://settings also serves
 # under compass/). Produces :resources, whose pak is added to Chrome's resources
 # (see patches/chrome-chrome_paks.gni.patch).
-build_webui("build") {
-  grd_prefix = "compass_sidebar"
-  grit_output_dir = "$root_gen_dir/compass"
+if (is_android) {
+  # Android (docs/design/android.md) has none of these pages but one:
+  # chrome-untrusted://live-folders/, which runs live folder plugins
+  # (docs/design/live-folders.md, "Runtime"). Same grd and prefix as the
+  # desktop's, so the same resource IDs (tools/gritsettings/resource_ids.spec)
+  # and C++ names; its pak isn't among Chrome's paks but an asset of the app
+  # (//compass/android:live_folders_assets), which LivePluginRegistry adds.
+  build_webui("build") {
+    grd_prefix = "compass_sidebar"
+    grit_output_dir = "$root_gen_dir/compass"
 
-  static_files = [
-    "arc_import.html",
-    "claude_chat.html",
-    "command_bar.html",
-    "compass_sync.html",
-    "empty.html",
-    "find_bar.html",
-    "live_folders.html",
-    "placeholder.html",
-    "compass_sidebar.html",
-    "settings.html",
-  ]
-  ts_files = [
-    "app.html.ts",
-    "app.ts",
-    "browser_proxy.ts",
-    "claude_chat/app.html.ts",
-    "claude_chat/app.ts",
-    "claude_chat/browser_proxy.ts",
-    "claude_chat/conversation.ts",
-    "claude_chat/markdown.ts",
-    "claude_chat/turn.html.ts",
-    "claude_chat/turn.ts",
-    "colors.ts",
-    "command_bar/app.html.ts",
-    "command_bar/app.ts",
-    "command_bar/browser_proxy.ts",
-    "empty.ts",
-    "favicon.ts",
-    "live_folders/editor.html.ts",
-    "live_folders/editor.ts",
-    "live_folders/host.ts",
-    "find_bar/app.html.ts",
-    "find_bar/app.ts",
-    "find_bar/browser_proxy.ts",
-    "node.html.ts",
-    "node.ts",
-    "now_playing.html.ts",
-    "now_playing.ts",
-    "placeholder.ts",
-    "preview.html.ts",
-    "preview.ts",
-    "settings/page_base.ts",
-    "settings/standalone.ts",
-    "space_icons.ts",
-    "speaker_icon.ts",
-    "theme_editor.html.ts",
-    "theme_editor.ts",
-  ]
-  # Compass's settings sections (settings/page_base.ts): native elements whose
-  # markup is in their .html file.
-  web_component_files = [
-    "settings/arc_import_page.ts",
-    "settings/claude_page.ts",
-    "settings/shortcuts_page.ts",
-    "settings/sync_page.ts",
-  ]
-  html_to_wrapper_template = "native"
+    static_files = [ "live_folders.html" ]
+    ts_files = [ "live_folders/host.ts" ]
 
-  css_files = [
-    "app.css",
-    "claude_chat/app.css",
-    "claude_chat/turn.css",
-    "command_bar/app.css",
-    "find_bar/app.css",
-    "now_playing.css",
-    "preview.css",
-    "theme_editor.css",
-  ]
+    webui_context_type = "trusted"
 
-  webui_context_type = "trusted"
+    ts_deps = [ "//ui/webui/resources/mojo:build_ts" ]
 
-  # chrome://settings imports the settings sections (/compass/settings/...).
-  ts_composite = true
+    mojo_files_deps = [ "//compass/browser/ui/webui/live_folders:mojo_bindings_ts__generator" ]
+    mojo_files = [ "$root_gen_dir/compass/browser/ui/webui/live_folders/live_folders.mojom-webui.ts" ]
 
-  ts_deps = [
-    "//third_party/lit/v3_0:build_ts",
-    "//ui/webui/resources/cr_components/color_change_listener:build_ts",
-    "//ui/webui/resources/js:build_ts",
-    "//ui/webui/resources/mojo:build_ts",
-  ]
+    extra_grdp_deps = [
+      ":build_live_plugins_grdp",
+      ":build_live_worker_grdp",
+    ]
+    extra_grdp_files = [
+      "$target_gen_dir/live_plugins.grdp",
+      "$target_gen_dir/live_worker.grdp",
+    ]
+  }
+} else {
+  build_webui("build") {
+    grd_prefix = "compass_sidebar"
+    grit_output_dir = "$root_gen_dir/compass"
 
-  mojo_files_deps = [
-    "//compass/browser/ui/webui/claude:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/live_folders:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
-  ]
-  mojo_files = [
-    "$root_gen_dir/compass/browser/ui/webui/claude/chat.mojom-webui.ts",
-    "$root_gen_dir/compass/browser/ui/webui/claude/claude.mojom-webui.ts",
-    "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
-    "$root_gen_dir/compass/browser/ui/webui/find_bar/find_bar.mojom-webui.ts",
-    "$root_gen_dir/compass/browser/ui/webui/live_folders/live_folders.mojom-webui.ts",
-    "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
-    "$root_gen_dir/compass/browser/ui/webui/sync/compass_sync.mojom-webui.ts",
-  ]
+    static_files = [
+      "arc_import.html",
+      "claude_chat.html",
+      "command_bar.html",
+      "compass_sync.html",
+      "empty.html",
+      "find_bar.html",
+      "live_folders.html",
+      "placeholder.html",
+      "compass_sidebar.html",
+      "settings.html",
+    ]
+    ts_files = [
+      "app.html.ts",
+      "app.ts",
+      "browser_proxy.ts",
+      "claude_chat/app.html.ts",
+      "claude_chat/app.ts",
+      "claude_chat/browser_proxy.ts",
+      "claude_chat/conversation.ts",
+      "claude_chat/markdown.ts",
+      "claude_chat/turn.html.ts",
+      "claude_chat/turn.ts",
+      "colors.ts",
+      "command_bar/app.html.ts",
+      "command_bar/app.ts",
+      "command_bar/browser_proxy.ts",
+      "empty.ts",
+      "favicon.ts",
+      "live_folders/editor.html.ts",
+      "live_folders/editor.ts",
+      "live_folders/host.ts",
+      "find_bar/app.html.ts",
+      "find_bar/app.ts",
+      "find_bar/browser_proxy.ts",
+      "node.html.ts",
+      "node.ts",
+      "now_playing.html.ts",
+      "now_playing.ts",
+      "placeholder.ts",
+      "preview.html.ts",
+      "preview.ts",
+      "settings/page_base.ts",
+      "settings/standalone.ts",
+      "space_icons.ts",
+      "speaker_icon.ts",
+      "theme_editor.html.ts",
+      "theme_editor.ts",
+    ]
+    # Compass's settings sections (settings/page_base.ts): native elements whose
+    # markup is in their .html file.
+    web_component_files = [
+      "settings/arc_import_page.ts",
+      "settings/claude_page.ts",
+      "settings/shortcuts_page.ts",
+      "settings/sync_page.ts",
+    ]
+    html_to_wrapper_template = "native"
 
-  # chrome-untrusted://live-folders/: the plugin SDK, runtime and built-in
-  # plugins, and the Worker script, which are classic scripts (not built).
-  extra_grdp_deps = [
-    ":build_live_plugins_grdp",
-    ":build_live_worker_grdp",
-  ]
-  extra_grdp_files = [
-    "$target_gen_dir/live_plugins.grdp",
-    "$target_gen_dir/live_worker.grdp",
-  ]
+    css_files = [
+      "app.css",
+      "claude_chat/app.css",
+      "claude_chat/turn.css",
+      "command_bar/app.css",
+      "find_bar/app.css",
+      "now_playing.css",
+      "preview.css",
+      "theme_editor.css",
+    ]
+
+    webui_context_type = "trusted"
+
+    # chrome://settings imports the settings sections (/compass/settings/...).
+    ts_composite = true
+
+    ts_deps = [
+      "//third_party/lit/v3_0:build_ts",
+      "//ui/webui/resources/cr_components/color_change_listener:build_ts",
+      "//ui/webui/resources/js:build_ts",
+      "//ui/webui/resources/mojo:build_ts",
+    ]
+
+    mojo_files_deps = [
+      "//compass/browser/ui/webui/claude:mojo_bindings_ts__generator",
+      "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
+      "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
+      "//compass/browser/ui/webui/live_folders:mojo_bindings_ts__generator",
+      "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
+      "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
+    ]
+    mojo_files = [
+      "$root_gen_dir/compass/browser/ui/webui/claude/chat.mojom-webui.ts",
+      "$root_gen_dir/compass/browser/ui/webui/claude/claude.mojom-webui.ts",
+      "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
+      "$root_gen_dir/compass/browser/ui/webui/find_bar/find_bar.mojom-webui.ts",
+      "$root_gen_dir/compass/browser/ui/webui/live_folders/live_folders.mojom-webui.ts",
+      "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
+      "$root_gen_dir/compass/browser/ui/webui/sync/compass_sync.mojom-webui.ts",
+    ]
+
+    # chrome-untrusted://live-folders/: the plugin SDK, runtime and built-in
+    # plugins, and the Worker script, which are classic scripts (not built).
+    extra_grdp_deps = [
+      ":build_live_plugins_grdp",
+      ":build_live_worker_grdp",
+    ]
+    extra_grdp_files = [
+      "$target_gen_dir/live_plugins.grdp",
+      "$target_gen_dir/live_worker.grdp",
+    ]
+  }
 }
 
 # Live folders' plugin scripts, as the plugins/ tree has them

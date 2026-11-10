@@ -41,8 +41,10 @@ source_set("claude_bridge") {
   ]
 }
 
-# The spaces model (SpacesAndroid) and its bridge. Compass sync
-# (//compass/browser/sync) depends on it for COMPASS_SPACES.
+# The spaces model (SpacesAndroid) and its bridge, with the live folders
+# that run on it (//compass/browser/ui/live_folders, shared with the
+# desktop). Compass sync (//compass/browser/sync) depends on it for
+# COMPASS_SPACES.
 source_set("spaces") {
   sources = [
     "spaces_android.cc",
@@ -52,10 +54,15 @@ source_set("spaces") {
   ]
   deps = [
     "//base",
-    "//chrome/browser/profiles:profile",
     "//compass/android:jni_headers",
+    "//compass/browser/live_folders",
     "//compass/browser/sidebar",
     "//url",
+  ]
+  # spaces_android.h has LiveFolderService.
+  public_deps = [
+    "//chrome/browser/profiles:profile",
+    "//compass/browser/ui/live_folders",
   ]
 }
 

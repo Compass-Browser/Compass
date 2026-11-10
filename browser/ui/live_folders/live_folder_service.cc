@@ -13,18 +13,22 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/platform_util.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/live_folders/live_result.h"
-#include "compass/browser/window_sync/space_service.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/platform_util.h"
+#endif
 
 namespace compass {
 
@@ -133,11 +137,13 @@ LiveFolderState::LiveFolderState(const LiveFolderState&) = default;
 LiveFolderState& LiveFolderState::operator=(const LiveFolderState&) = default;
 LiveFolderState::~LiveFolderState() = default;
 
-LiveFolderService::LiveFolderService(Profile* profile)
+LiveFolderService::LiveFolderService(Profile* profile,
+                                     std::unique_ptr<LiveFolderSpaces> spaces)
     : profile_(profile),
       registry_(LivePluginRegistry::Get()),
       host_(profile),
-      store_(profile->GetPath().AppendASCII(kStoreFileName)) {
+      store_(profile->GetPath().AppendASCII(kStoreFileName)),
+      spaces_(std::move(spaces)) {
   g_browser_process->os_crypt_async()->GetInstance(base::BindOnce(
       [](base::WeakPtr<LiveFolderService> service,
          scoped_refptr<os_crypt_async::Encryptor> encryptor) {
@@ -171,28 +177,11 @@ LiveFolderService::LiveFolderService(Profile* profile)
           }));
     }
   }
-  // Not while the profile is being made: SpaceService reads the sidebar.
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(
-                     [](base::WeakPtr<LiveFolderService> service) {
-                       if (!service) {
-                         return;
-                       }
-                       SpaceService* spaces =
-                           SpaceService::Get(service->profile_);
-                       service->space_service_ = spaces->GetWeakPtr();
-                       spaces->RunWhenLoaded(base::BindOnce(
-                           &LiveFolderService::OnSpacesLoaded, service));
-                     },
-                     weak_factory_.GetWeakPtr()));
+  spaces_->RunWhenLoaded(base::BindOnce(&LiveFolderService::OnSpacesLoaded,
+                                        weak_factory_.GetWeakPtr()));
 }
 
 LiveFolderService::~LiveFolderService() = default;
-
-// static
-LiveFolderService* LiveFolderService::Get(Profile* profile) {
-  return LiveFolderServiceFactory::GetForProfile(profile);
-}
 
 const LiveFolderState* LiveFolderService::GetState(
     const base::Uuid& folder_id) const {
@@ -433,6 +422,9 @@ void LiveFolderService::RescanPlugins(base::OnceClosure done) {
 }
 
 void LiveFolderService::OpenPluginsFolder() {
+#if BUILDFLAG(IS_ANDROID)
+  NOTIMPLEMENTED();
+#else
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
       base::BindOnce(
@@ -448,15 +440,16 @@ void LiveFolderService::OpenPluginsFolder() {
             }
           },
           weak_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void LiveFolderService::OnSpacesLoaded() {
-  if (!space_service_) {
+  SpaceList* list = spaces_->list();
+  if (!list) {
     return;
   }
-  SpaceList& list = space_service_->space_list();
-  list_observation_.Observe(&list);
-  for (const auto& space : list.spaces()) {
+  list_observation_.Observe(list);
+  for (const auto& space : list->spaces()) {
     model_observations_.AddObservation(space.get());
   }
   spaces_loaded_ = true;
@@ -465,10 +458,10 @@ void LiveFolderService::OnSpacesLoaded() {
 
 SidebarNode* LiveFolderService::FindFolder(const base::Uuid& id,
                                            SpaceModel** space_out) {
-  if (!space_service_ || !spaces_loaded_) {
+  if (!spaces_loaded_ || !spaces_->list()) {
     return nullptr;
   }
-  for (const auto& space : space_service_->space_list().spaces()) {
+  for (const auto& space : spaces_->list()->spaces()) {
     SidebarNode* node = space->FindById(id);
     if (node && node->is_live_folder()) {
       if (space_out) {
@@ -482,10 +475,10 @@ SidebarNode* LiveFolderService::FindFolder(const base::Uuid& id,
 
 void LiveFolderService::ForEachLiveFolder(
     base::FunctionRef<void(SidebarNode&)> callback) {
-  if (!space_service_ || !spaces_loaded_) {
+  if (!spaces_loaded_ || !spaces_->list()) {
     return;
   }
-  for (const auto& space : space_service_->space_list().spaces()) {
+  for (const auto& space : spaces_->list()->spaces()) {
     CollectLiveFolders(*space->pinned_root(), callback);
   }
 }
@@ -553,11 +546,9 @@ void LiveFolderService::OnRefreshDone(
   if (!parsed.has_value()) {
     return Fail(folder_id, parsed.error());
   }
-  LiveTabRegistry* tabs =
-      space_service_ ? &space_service_->registry() : nullptr;
   space->ReplaceLiveItems(folder, parsed->items, Now(),
-                          [tabs](const SidebarNode& node) {
-                            return tabs && tabs->GetTab(&node);
+                          [this](const SidebarNode& node) {
+                            return spaces_->HasTab(node);
                           });
   if (state.title_from_plugin && !parsed->title.empty()) {
     space->SetTitle(folder, parsed->title);
@@ -671,11 +662,11 @@ void LiveFolderService::OnSpaceWillBeRemoved(SpaceModel& space) {
 }
 
 void LiveFolderService::OnActiveSpaceChanged() {
-  if (!space_service_ || !spaces_loaded_) {
+  if (!spaces_loaded_ || !spaces_->list()) {
     return;
   }
   CollectLiveFolders(
-      *space_service_->space_list().active_space().pinned_root(),
+      *spaces_->list()->active_space().pinned_root(),
       [this](SidebarNode& folder) { RefreshIfStale(folder); });
 }
 
@@ -751,45 +742,6 @@ void LiveFolderService::NotifyStateChanged(const base::Uuid& folder_id) {
   for (Observer& observer : observers_) {
     observer.OnLiveFolderStateChanged(folder_id);
   }
-}
-
-// static
-LiveFolderServiceFactory* LiveFolderServiceFactory::GetInstance() {
-  static base::NoDestructor<LiveFolderServiceFactory> instance;
-  return instance.get();
-}
-
-// static
-LiveFolderService* LiveFolderServiceFactory::GetForProfile(Profile* profile) {
-  return static_cast<LiveFolderService*>(
-      GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
-}
-
-LiveFolderServiceFactory::LiveFolderServiceFactory()
-    : ProfileKeyedServiceFactory(
-          "CompassLiveFolderService",
-          ProfileSelections::Builder()
-              .WithRegular(ProfileSelection::kOriginalOnly)
-              .WithGuest(ProfileSelection::kNone)
-              .WithSystem(ProfileSelection::kNone)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {}
-
-LiveFolderServiceFactory::~LiveFolderServiceFactory() = default;
-
-std::unique_ptr<KeyedService>
-LiveFolderServiceFactory::BuildServiceInstanceForBrowserContext(
-    content::BrowserContext* context) const {
-  return std::make_unique<LiveFolderService>(
-      Profile::FromBrowserContext(context));
-}
-
-bool LiveFolderServiceFactory::ServiceIsCreatedWithBrowserContext() const {
-  return true;
-}
-
-bool LiveFolderServiceFactory::ServiceIsNULLWhileTesting() const {
-  return true;
 }
 
 }  // namespace compass
