@@ -21,7 +21,10 @@
 #include "compass/browser/picture_in_picture/call_pip.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/web_contents.h"
-#include "components/permissions/permission_request_manager.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/base/media_switches.h"
@@ -152,9 +155,9 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
-    // A fake camera and microphone. Their prompt is accepted through
-    // Chrome's permission flow (AcceptMedia()), not --use-fake-ui-for-media-
-    // stream, which skips the capture indicator auto picture-in-picture reads.
+    // A fake camera and microphone, allowed for the page in its settings
+    // (AllowMedia()), not with --use-fake-ui-for-media-stream, which skips the
+    // capture indicator auto picture-in-picture reads to tell a call.
     command_line->AppendSwitch(switches::kUseFakeDeviceForMediaStream);
   }
 
@@ -169,20 +172,24 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(https_.Start());
   }
 
-  static void AcceptMedia(content::WebContents* contents) {
-    permissions::PermissionRequestManager::FromWebContents(contents)
-        ->set_auto_response_for_test(
-            permissions::PermissionRequestManager::ACCEPT_ALL);
+  void AllowMedia(const GURL& url) {
+    HostContentSettingsMap* settings =
+        HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    for (ContentSettingsType type : {ContentSettingsType::MEDIASTREAM_CAMERA,
+                                     ContentSettingsType::MEDIASTREAM_MIC}) {
+      settings->SetContentSettingDefaultScope(url, url, type,
+                                              CONTENT_SETTING_ALLOW);
+    }
   }
 
   // Opens |url| in a new foreground tab and starts its call.
   content::WebContents* OpenCall(const GURL& url) {
+    AllowMedia(url);
     EXPECT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
         browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
     content::WebContents* contents =
         browser()->tab_strip_model()->GetActiveWebContents();
-    AcceptMedia(contents);
     EXPECT_EQ(true, content::EvalJs(contents, "start()"));
     return contents;
   }
@@ -283,6 +290,7 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, ButtonsPressTheSite) {
 
 // A call in a frame of the page, as Zoom's, goes too.
 IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallInAFrame) {
+  AllowMedia(https_.GetURL("teams.microsoft.com", "/"));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), https_.GetURL("teams.microsoft.com", "/framed"),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
@@ -292,7 +300,6 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallInAFrame) {
   content::RenderFrameHost* frame =
       content::ChildFrameAt(call->GetPrimaryMainFrame(), 0);
   ASSERT_TRUE(frame);
-  AcceptMedia(call);
   ASSERT_EQ(true, content::EvalJs(frame, "start()"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return content::EvalJs(frame, "ready()").ExtractBool(); }));
