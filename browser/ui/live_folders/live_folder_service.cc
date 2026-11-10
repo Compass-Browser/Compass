@@ -345,12 +345,12 @@ void LiveFolderService::PreviewPlugin(const GURL& url,
 void LiveFolderService::InstallPlugin(
     const GURL& url,
     const std::string& expected_sha256,
-    base::OnceCallback<void(std::string)> callback) {
+    base::OnceCallback<void(const std::string&)> callback) {
   FetchLivePluginPackage(
       GetURLLoaderFactory(), url,
       base::BindOnce(
           [](base::WeakPtr<LiveFolderService> service, std::string expected,
-             base::OnceCallback<void(std::string)> callback,
+             base::OnceCallback<void(const std::string&)> callback,
              base::expected<LivePluginPackage, std::string> package) {
             if (!package.has_value()) {
               std::move(callback).Run(package.error());
@@ -373,7 +373,7 @@ void LiveFolderService::InstallPlugin(
                 base::BindOnce(
                     [](base::WeakPtr<LiveFolderService> service,
                        LivePluginPackage package,
-                       base::OnceCallback<void(std::string)> callback,
+                       base::OnceCallback<void(const std::string&)> callback,
                        bool written) {
                       if (!written) {
                         std::move(callback).Run(

@@ -141,7 +141,7 @@ class LiveFolderService : public KeyedService,
   // |expected_sha256|. Answers an error for the user, or empty.
   void InstallPlugin(const GURL& url,
                      const std::string& expected_sha256,
-                     base::OnceCallback<void(std::string)> callback);
+                     base::OnceCallback<void(const std::string&)> callback);
   // Removes an installed plugin and its secrets. Its folders stay, and show
   // that it's missing.
   void RemovePlugin(const std::string& id, base::OnceClosure done);
