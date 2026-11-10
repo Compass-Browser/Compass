@@ -276,173 +276,230 @@ public nonisolated struct SyncPb_CompassColor: Sendable {
   fileprivate var _rgb: UInt32? = nil
 }
 
-public nonisolated struct SyncPb_CompassNode: Sendable {
+public nonisolated struct SyncPb_CompassNode: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The node's ID (SidebarNode::id()), lowercase.
   public var uuid: String {
-    get {_uuid ?? String()}
-    set {_uuid = newValue}
+    get {_storage._uuid ?? String()}
+    set {_uniqueStorage()._uuid = newValue}
   }
   /// Returns true if `uuid` has been explicitly set.
-  public var hasUuid: Bool {self._uuid != nil}
+  public var hasUuid: Bool {_storage._uuid != nil}
   /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
-  public mutating func clearUuid() {self._uuid = nil}
+  public mutating func clearUuid() {_uniqueStorage()._uuid = nil}
 
   /// Its space; empty in FAVORITES, which belong to the profile.
   public var spaceUuid: String {
-    get {_spaceUuid ?? String()}
-    set {_spaceUuid = newValue}
+    get {_storage._spaceUuid ?? String()}
+    set {_uniqueStorage()._spaceUuid = newValue}
   }
   /// Returns true if `spaceUuid` has been explicitly set.
-  public var hasSpaceUuid: Bool {self._spaceUuid != nil}
+  public var hasSpaceUuid: Bool {_storage._spaceUuid != nil}
   /// Clears the value of `spaceUuid`. Subsequent reads from it will return its default value.
-  public mutating func clearSpaceUuid() {self._spaceUuid = nil}
+  public mutating func clearSpaceUuid() {_uniqueStorage()._spaceUuid = nil}
 
   /// Its parent; empty for an entry at the root of its section.
   public var parentUuid: String {
-    get {_parentUuid ?? String()}
-    set {_parentUuid = newValue}
+    get {_storage._parentUuid ?? String()}
+    set {_uniqueStorage()._parentUuid = newValue}
   }
   /// Returns true if `parentUuid` has been explicitly set.
-  public var hasParentUuid: Bool {self._parentUuid != nil}
+  public var hasParentUuid: Bool {_storage._parentUuid != nil}
   /// Clears the value of `parentUuid`. Subsequent reads from it will return its default value.
-  public mutating func clearParentUuid() {self._parentUuid = nil}
+  public mutating func clearParentUuid() {_uniqueStorage()._parentUuid = nil}
 
   /// 1 PINNED, 2 TODAY, 3 FAVORITES, 4 ARCHIVE. An archived entry is at the
   /// root of ARCHIVE; an archived split's panes are its children.
   public var section: Int32 {
-    get {_section ?? 0}
-    set {_section = newValue}
+    get {_storage._section ?? 0}
+    set {_uniqueStorage()._section = newValue}
   }
   /// Returns true if `section` has been explicitly set.
-  public var hasSection: Bool {self._section != nil}
+  public var hasSection: Bool {_storage._section != nil}
   /// Clears the value of `section`. Subsequent reads from it will return its default value.
-  public mutating func clearSection() {self._section = nil}
+  public mutating func clearSection() {_uniqueStorage()._section = nil}
 
   /// Among its siblings.
   public var position: SyncPb_UniquePosition {
-    get {_position ?? SyncPb_UniquePosition()}
-    set {_position = newValue}
+    get {_storage._position ?? SyncPb_UniquePosition()}
+    set {_uniqueStorage()._position = newValue}
   }
   /// Returns true if `position` has been explicitly set.
-  public var hasPosition: Bool {self._position != nil}
+  public var hasPosition: Bool {_storage._position != nil}
   /// Clears the value of `position`. Subsequent reads from it will return its default value.
-  public mutating func clearPosition() {self._position = nil}
+  public mutating func clearPosition() {_uniqueStorage()._position = nil}
 
   /// 1 TAB, 2 FOLDER, 3 SPLIT. Never changes for a node.
   public var type: Int32 {
-    get {_type ?? 0}
-    set {_type = newValue}
+    get {_storage._type ?? 0}
+    set {_uniqueStorage()._type = newValue}
   }
   /// Returns true if `type` has been explicitly set.
-  public var hasType: Bool {self._type != nil}
+  public var hasType: Bool {_storage._type != nil}
   /// Clears the value of `type`. Subsequent reads from it will return its default value.
-  public mutating func clearType() {self._type = nil}
+  public mutating func clearType() {_uniqueStorage()._type = nil}
 
   public var url: String {
-    get {_url ?? String()}
-    set {_url = newValue}
+    get {_storage._url ?? String()}
+    set {_uniqueStorage()._url = newValue}
   }
   /// Returns true if `url` has been explicitly set.
-  public var hasURL: Bool {self._url != nil}
+  public var hasURL: Bool {_storage._url != nil}
   /// Clears the value of `url`. Subsequent reads from it will return its default value.
-  public mutating func clearURL() {self._url = nil}
+  public mutating func clearURL() {_uniqueStorage()._url = nil}
 
   /// A tab's page title; a folder's name.
   public var title: String {
-    get {_title ?? String()}
-    set {_title = newValue}
+    get {_storage._title ?? String()}
+    set {_uniqueStorage()._title = newValue}
   }
   /// Returns true if `title` has been explicitly set.
-  public var hasTitle: Bool {self._title != nil}
+  public var hasTitle: Bool {_storage._title != nil}
   /// Clears the value of `title`. Subsequent reads from it will return its default value.
-  public mutating func clearTitle() {self._title = nil}
+  public mutating func clearTitle() {_uniqueStorage()._title = nil}
 
   /// The name the user gave a tab.
   public var customTitle: String {
-    get {_customTitle ?? String()}
-    set {_customTitle = newValue}
+    get {_storage._customTitle ?? String()}
+    set {_uniqueStorage()._customTitle = newValue}
   }
   /// Returns true if `customTitle` has been explicitly set.
-  public var hasCustomTitle: Bool {self._customTitle != nil}
+  public var hasCustomTitle: Bool {_storage._customTitle != nil}
   /// Clears the value of `customTitle`. Subsequent reads from it will return its default value.
-  public mutating func clearCustomTitle() {self._customTitle = nil}
+  public mutating func clearCustomTitle() {_uniqueStorage()._customTitle = nil}
 
   /// Folders: whether only the folder's own row shows.
   public var collapsed: Bool {
-    get {_collapsed ?? false}
-    set {_collapsed = newValue}
+    get {_storage._collapsed ?? false}
+    set {_uniqueStorage()._collapsed = newValue}
   }
   /// Returns true if `collapsed` has been explicitly set.
-  public var hasCollapsed: Bool {self._collapsed != nil}
+  public var hasCollapsed: Bool {_storage._collapsed != nil}
   /// Clears the value of `collapsed`. Subsequent reads from it will return its default value.
-  public mutating func clearCollapsed() {self._collapsed = nil}
+  public mutating func clearCollapsed() {_uniqueStorage()._collapsed = nil}
 
   /// TODAY tabs: when a tab was last shown on any device, in microseconds
   /// since the Windows epoch. Drives auto-archive; devices keep the latest.
   public var lastActiveTime: Int64 {
-    get {_lastActiveTime ?? 0}
-    set {_lastActiveTime = newValue}
+    get {_storage._lastActiveTime ?? 0}
+    set {_uniqueStorage()._lastActiveTime = newValue}
   }
   /// Returns true if `lastActiveTime` has been explicitly set.
-  public var hasLastActiveTime: Bool {self._lastActiveTime != nil}
+  public var hasLastActiveTime: Bool {_storage._lastActiveTime != nil}
   /// Clears the value of `lastActiveTime`. Subsequent reads from it will return its default value.
-  public mutating func clearLastActiveTime() {self._lastActiveTime = nil}
+  public mutating func clearLastActiveTime() {_uniqueStorage()._lastActiveTime = nil}
 
   /// ARCHIVE: when the entry was archived, same unit. Entries archived more
   /// than 30 days ago leave the server.
   public var archivedTime: Int64 {
-    get {_archivedTime ?? 0}
-    set {_archivedTime = newValue}
+    get {_storage._archivedTime ?? 0}
+    set {_uniqueStorage()._archivedTime = newValue}
   }
   /// Returns true if `archivedTime` has been explicitly set.
-  public var hasArchivedTime: Bool {self._archivedTime != nil}
+  public var hasArchivedTime: Bool {_storage._archivedTime != nil}
   /// Clears the value of `archivedTime`. Subsequent reads from it will return its default value.
-  public mutating func clearArchivedTime() {self._archivedTime = nil}
+  public mutating func clearArchivedTime() {_uniqueStorage()._archivedTime = nil}
 
   /// PINNED and FAVORITES tabs: the page the tab goes back to when it closes
   /// (its "pinned URL"), and that page's title. `url` follows the page it
   /// shows. A client without them (an older one) leaves them alone; a node
   /// without them keeps its own.
   public var savedURL: String {
-    get {_savedURL ?? String()}
-    set {_savedURL = newValue}
+    get {_storage._savedURL ?? String()}
+    set {_uniqueStorage()._savedURL = newValue}
   }
   /// Returns true if `savedURL` has been explicitly set.
-  public var hasSavedURL: Bool {self._savedURL != nil}
+  public var hasSavedURL: Bool {_storage._savedURL != nil}
   /// Clears the value of `savedURL`. Subsequent reads from it will return its default value.
-  public mutating func clearSavedURL() {self._savedURL = nil}
+  public mutating func clearSavedURL() {_uniqueStorage()._savedURL = nil}
 
   public var savedTitle: String {
-    get {_savedTitle ?? String()}
-    set {_savedTitle = newValue}
+    get {_storage._savedTitle ?? String()}
+    set {_uniqueStorage()._savedTitle = newValue}
   }
   /// Returns true if `savedTitle` has been explicitly set.
-  public var hasSavedTitle: Bool {self._savedTitle != nil}
+  public var hasSavedTitle: Bool {_storage._savedTitle != nil}
   /// Clears the value of `savedTitle`. Subsequent reads from it will return its default value.
-  public mutating func clearSavedTitle() {self._savedTitle = nil}
+  public mutating func clearSavedTitle() {_uniqueStorage()._savedTitle = nil}
+
+  /// PINNED folders: set for a live folder, whose entries a plugin makes on
+  /// each device and which never sync (docs/design/live-folders.md, "Sync").
+  /// The node stays a FOLDER, so a client without it shows a plain, empty
+  /// folder, and keeps this field when it changes the node.
+  public var liveSource: SyncPb_CompassLiveSource {
+    get {_storage._liveSource ?? SyncPb_CompassLiveSource()}
+    set {_uniqueStorage()._liveSource = newValue}
+  }
+  /// Returns true if `liveSource` has been explicitly set.
+  public var hasLiveSource: Bool {_storage._liveSource != nil}
+  /// Clears the value of `liveSource`. Subsequent reads from it will return its default value.
+  public mutating func clearLiveSource() {_uniqueStorage()._liveSource = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _uuid: String? = nil
-  fileprivate var _spaceUuid: String? = nil
-  fileprivate var _parentUuid: String? = nil
-  fileprivate var _section: Int32? = nil
-  fileprivate var _position: SyncPb_UniquePosition? = nil
-  fileprivate var _type: Int32? = nil
-  fileprivate var _url: String? = nil
-  fileprivate var _title: String? = nil
-  fileprivate var _customTitle: String? = nil
-  fileprivate var _collapsed: Bool? = nil
-  fileprivate var _lastActiveTime: Int64? = nil
-  fileprivate var _archivedTime: Int64? = nil
-  fileprivate var _savedURL: String? = nil
-  fileprivate var _savedTitle: String? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// Where a live folder's entries come from (compass::LiveSource).
+public nonisolated struct SyncPb_CompassLiveSource: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The plugin's manifest ID, e.g. "compass.rss".
+  public var pluginID: String {
+    get {_pluginID ?? String()}
+    set {_pluginID = newValue}
+  }
+  /// Returns true if `pluginID` has been explicitly set.
+  public var hasPluginID: Bool {self._pluginID != nil}
+  /// Clears the value of `pluginID`. Subsequent reads from it will return its default value.
+  public mutating func clearPluginID() {self._pluginID = nil}
+
+  /// The folder's settings for it, as a JSON object.
+  public var configJson: String {
+    get {_configJson ?? String()}
+    set {_configJson = newValue}
+  }
+  /// Returns true if `configJson` has been explicitly set.
+  public var hasConfigJson: Bool {self._configJson != nil}
+  /// Clears the value of `configJson`. Subsequent reads from it will return its default value.
+  public mutating func clearConfigJson() {self._configJson = nil}
+
+  /// An installed plugin's source and the SHA-256 (lowercase hex) of what was
+  /// installed, so a device without it can offer to install it. Empty for a
+  /// built-in.
+  public var pluginURL: String {
+    get {_pluginURL ?? String()}
+    set {_pluginURL = newValue}
+  }
+  /// Returns true if `pluginURL` has been explicitly set.
+  public var hasPluginURL: Bool {self._pluginURL != nil}
+  /// Clears the value of `pluginURL`. Subsequent reads from it will return its default value.
+  public mutating func clearPluginURL() {self._pluginURL = nil}
+
+  public var pluginSha256: String {
+    get {_pluginSha256 ?? String()}
+    set {_pluginSha256 = newValue}
+  }
+  /// Returns true if `pluginSha256` has been explicitly set.
+  public var hasPluginSha256: Bool {self._pluginSha256 != nil}
+  /// Clears the value of `pluginSha256`. Subsequent reads from it will return its default value.
+  public mutating func clearPluginSha256() {self._pluginSha256 = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _pluginID: String? = nil
+  fileprivate var _configJson: String? = nil
+  fileprivate var _pluginURL: String? = nil
+  fileprivate var _pluginSha256: String? = nil
 }
 
 /// A profile of the chain; only in the home profile's account. Each
@@ -815,7 +872,175 @@ nonisolated extension SyncPb_CompassColor: SwiftProtobuf.Message, SwiftProtobuf.
 
 nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassNode"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}section\0\u{1}position\0\u{1}type\0\u{1}url\0\u{1}title\0\u{3}custom_title\0\u{1}collapsed\0\u{3}last_active_time\0\u{3}archived_time\0\u{3}saved_url\0\u{3}saved_title\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}section\0\u{1}position\0\u{1}type\0\u{1}url\0\u{1}title\0\u{3}custom_title\0\u{1}collapsed\0\u{3}last_active_time\0\u{3}archived_time\0\u{3}saved_url\0\u{3}saved_title\0\u{3}live_source\0")
+
+  fileprivate class _StorageClass {
+    var _uuid: String? = nil
+    var _spaceUuid: String? = nil
+    var _parentUuid: String? = nil
+    var _section: Int32? = nil
+    var _position: SyncPb_UniquePosition? = nil
+    var _type: Int32? = nil
+    var _url: String? = nil
+    var _title: String? = nil
+    var _customTitle: String? = nil
+    var _collapsed: Bool? = nil
+    var _lastActiveTime: Int64? = nil
+    var _archivedTime: Int64? = nil
+    var _savedURL: String? = nil
+    var _savedTitle: String? = nil
+    var _liveSource: SyncPb_CompassLiveSource? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _uuid = source._uuid
+      _spaceUuid = source._spaceUuid
+      _parentUuid = source._parentUuid
+      _section = source._section
+      _position = source._position
+      _type = source._type
+      _url = source._url
+      _title = source._title
+      _customTitle = source._customTitle
+      _collapsed = source._collapsed
+      _lastActiveTime = source._lastActiveTime
+      _archivedTime = source._archivedTime
+      _savedURL = source._savedURL
+      _savedTitle = source._savedTitle
+      _liveSource = source._liveSource
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._uuid) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._spaceUuid) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._parentUuid) }()
+        case 4: try { try decoder.decodeSingularInt32Field(value: &_storage._section) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._position) }()
+        case 6: try { try decoder.decodeSingularInt32Field(value: &_storage._type) }()
+        case 7: try { try decoder.decodeSingularStringField(value: &_storage._url) }()
+        case 8: try { try decoder.decodeSingularStringField(value: &_storage._title) }()
+        case 9: try { try decoder.decodeSingularStringField(value: &_storage._customTitle) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._collapsed) }()
+        case 11: try { try decoder.decodeSingularInt64Field(value: &_storage._lastActiveTime) }()
+        case 12: try { try decoder.decodeSingularInt64Field(value: &_storage._archivedTime) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._savedURL) }()
+        case 14: try { try decoder.decodeSingularStringField(value: &_storage._savedTitle) }()
+        case 15: try { try decoder.decodeSingularMessageField(value: &_storage._liveSource) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._uuid {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._spaceUuid {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._parentUuid {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+      } }()
+      try { if let v = _storage._section {
+        try visitor.visitSingularInt32Field(value: v, fieldNumber: 4)
+      } }()
+      try { if let v = _storage._position {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      try { if let v = _storage._type {
+        try visitor.visitSingularInt32Field(value: v, fieldNumber: 6)
+      } }()
+      try { if let v = _storage._url {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 7)
+      } }()
+      try { if let v = _storage._title {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 8)
+      } }()
+      try { if let v = _storage._customTitle {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 9)
+      } }()
+      try { if let v = _storage._collapsed {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
+      } }()
+      try { if let v = _storage._lastActiveTime {
+        try visitor.visitSingularInt64Field(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._archivedTime {
+        try visitor.visitSingularInt64Field(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._savedURL {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._savedTitle {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 14)
+      } }()
+      try { if let v = _storage._liveSource {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassNode, rhs: SyncPb_CompassNode) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._uuid != rhs_storage._uuid {return false}
+        if _storage._spaceUuid != rhs_storage._spaceUuid {return false}
+        if _storage._parentUuid != rhs_storage._parentUuid {return false}
+        if _storage._section != rhs_storage._section {return false}
+        if _storage._position != rhs_storage._position {return false}
+        if _storage._type != rhs_storage._type {return false}
+        if _storage._url != rhs_storage._url {return false}
+        if _storage._title != rhs_storage._title {return false}
+        if _storage._customTitle != rhs_storage._customTitle {return false}
+        if _storage._collapsed != rhs_storage._collapsed {return false}
+        if _storage._lastActiveTime != rhs_storage._lastActiveTime {return false}
+        if _storage._archivedTime != rhs_storage._archivedTime {return false}
+        if _storage._savedURL != rhs_storage._savedURL {return false}
+        if _storage._savedTitle != rhs_storage._savedTitle {return false}
+        if _storage._liveSource != rhs_storage._liveSource {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassLiveSource: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassLiveSource"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}plugin_id\0\u{3}config_json\0\u{3}plugin_url\0\u{3}plugin_sha256\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -823,20 +1048,10 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._spaceUuid) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self._parentUuid) }()
-      case 4: try { try decoder.decodeSingularInt32Field(value: &self._section) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._position) }()
-      case 6: try { try decoder.decodeSingularInt32Field(value: &self._type) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self._url) }()
-      case 8: try { try decoder.decodeSingularStringField(value: &self._title) }()
-      case 9: try { try decoder.decodeSingularStringField(value: &self._customTitle) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self._collapsed) }()
-      case 11: try { try decoder.decodeSingularInt64Field(value: &self._lastActiveTime) }()
-      case 12: try { try decoder.decodeSingularInt64Field(value: &self._archivedTime) }()
-      case 13: try { try decoder.decodeSingularStringField(value: &self._savedURL) }()
-      case 14: try { try decoder.decodeSingularStringField(value: &self._savedTitle) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self._pluginID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._configJson) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._pluginURL) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._pluginSha256) }()
       default: break
       }
     }
@@ -847,66 +1062,26 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._uuid {
+    try { if let v = self._pluginID {
       try visitor.visitSingularStringField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._spaceUuid {
+    try { if let v = self._configJson {
       try visitor.visitSingularStringField(value: v, fieldNumber: 2)
     } }()
-    try { if let v = self._parentUuid {
+    try { if let v = self._pluginURL {
       try visitor.visitSingularStringField(value: v, fieldNumber: 3)
     } }()
-    try { if let v = self._section {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._position {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
-    try { if let v = self._type {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 6)
-    } }()
-    try { if let v = self._url {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
-    } }()
-    try { if let v = self._title {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 8)
-    } }()
-    try { if let v = self._customTitle {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 9)
-    } }()
-    try { if let v = self._collapsed {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
-    } }()
-    try { if let v = self._lastActiveTime {
-      try visitor.visitSingularInt64Field(value: v, fieldNumber: 11)
-    } }()
-    try { if let v = self._archivedTime {
-      try visitor.visitSingularInt64Field(value: v, fieldNumber: 12)
-    } }()
-    try { if let v = self._savedURL {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 13)
-    } }()
-    try { if let v = self._savedTitle {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 14)
+    try { if let v = self._pluginSha256 {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: SyncPb_CompassNode, rhs: SyncPb_CompassNode) -> Bool {
-    if lhs._uuid != rhs._uuid {return false}
-    if lhs._spaceUuid != rhs._spaceUuid {return false}
-    if lhs._parentUuid != rhs._parentUuid {return false}
-    if lhs._section != rhs._section {return false}
-    if lhs._position != rhs._position {return false}
-    if lhs._type != rhs._type {return false}
-    if lhs._url != rhs._url {return false}
-    if lhs._title != rhs._title {return false}
-    if lhs._customTitle != rhs._customTitle {return false}
-    if lhs._collapsed != rhs._collapsed {return false}
-    if lhs._lastActiveTime != rhs._lastActiveTime {return false}
-    if lhs._archivedTime != rhs._archivedTime {return false}
-    if lhs._savedURL != rhs._savedURL {return false}
-    if lhs._savedTitle != rhs._savedTitle {return false}
+  public static func ==(lhs: SyncPb_CompassLiveSource, rhs: SyncPb_CompassLiveSource) -> Bool {
+    if lhs._pluginID != rhs._pluginID {return false}
+    if lhs._configJson != rhs._configJson {return false}
+    if lhs._pluginURL != rhs._pluginURL {return false}
+    if lhs._pluginSha256 != rhs._pluginSha256 {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

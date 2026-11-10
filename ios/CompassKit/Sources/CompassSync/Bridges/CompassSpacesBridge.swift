@@ -20,6 +20,8 @@ import SyncProto
 ///   per entity every 10 s.
 /// - Remote children whose parent hasn't arrived wait ("parked") at the end
 ///   of their section root, and nothing is committed for them meanwhile.
+/// - A live folder syncs its source (`live_source`); its entries are made on
+///   each device and never sync (docs/design/live-folders.md, "Sync").
 ///
 /// One per profile account (slice 5; docs/design/ios.md, "M8"): it syncs
 /// the spaces of its profile, their entries and the profile's favorites,
@@ -239,7 +241,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor
   func desired(_ node: SidebarNode) -> SyncPb_CompassSpacesSpecifics? {
     if parked.contains(node.id) { return mirror[node.id] }
-    guard let section = node.section, let type = node.kind.nodeType else { return nil }
+    // A live folder's entries stay on this device.
+    guard !node.isLiveItem, let section = node.section, let type = node.kind.nodeType else { return nil }
     let existing = mirror[node.id]
     if section == .today, existing == nil, !node.tabs.allSatisfy({ Self.isRestorable($0.url) }) || node.isSplit && node.children.isEmpty {
       return nil
@@ -270,6 +273,25 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       n.clearSavedTitle()
     }
     if node.isFolder, node.collapsed { n.collapsed = true } else { n.clearCollapsed() }
+    if let source = node.liveSource {
+      var live = SyncPb_CompassLiveSource()
+      live.pluginID = source.pluginID
+      live.configJson = source.configJSON
+      if !source.pluginURL.isEmpty { live.pluginURL = source.pluginURL }
+      if !source.pluginSHA256.isEmpty { live.pluginSha256 = source.pluginSHA256 }
+      // The config as the server has it if it's the same object: another
+      // client may have written its keys in another order.
+      if let old = existing?.node.liveSource, old.pluginID == live.pluginID,
+        Self.sameJSON(old.configJson, live.configJson)
+      {
+        live.configJson = old.configJson
+      }
+      n.liveSource = live
+    } else if store.liveSourceCleared(node) {
+      // Made a plain folder here. A folder that's plain here only because
+      // it couldn't be live (or predates live folders) keeps the source.
+      n.clearLiveSource()
+    }
 
     // A position from the mirror stays only under the same parent, section
     // and space; elsewhere ours goes.
@@ -302,6 +324,23 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     }
     specifics.node = n
     return specifics
+  }
+
+  static func sameJSON(_ a: String, _ b: String) -> Bool {
+    guard let x = try? JSONSerialization.jsonObject(with: Data(a.utf8)) as? NSDictionary,
+      let y = try? JSONSerialization.jsonObject(with: Data(b.utf8)) as? NSDictionary
+    else { return a == b }
+    return x == y
+  }
+
+  /// A remote live folder's source, or nil if it has none (or no plugin).
+  static func liveSource(_ n: SyncPb_CompassNode) -> LiveSource? {
+    guard n.hasLiveSource, !n.liveSource.pluginID.isEmpty else { return nil }
+    let live = n.liveSource
+    let config = (try? JSONSerialization.jsonObject(with: Data(live.configJson.utf8))) is [String: Any]
+    return LiveSource(
+      pluginID: live.pluginID, configJSON: config ? live.configJson : "{}", pluginURL: live.pluginURL,
+      pluginSHA256: live.pluginSha256)
   }
 
   @MainActor
@@ -550,12 +589,31 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         // Only pinned tabs and favorites keep one; a node without one (from
         // a client that predates it) keeps its own.
         if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
+        if node.isLiveFolder {
+          if let live = Self.liveSource(n) {
+            // Its settings, changed on another device.
+            if live != node.liveSource { store.rawSetLiveSource(node, live) }
+          } else {
+            // Made a normal folder on another device, whose entries come
+            // with it: this device's go, rather than sync as copies.
+            for child in node.children where child.isLiveItem { store.rawDetach(child) }
+            store.rawSetLiveSource(node, nil)
+          }
+        } else if node.isFolder, let live = Self.liveSource(n), section == .pinned, node.children.isEmpty,
+          !store.isIncognito(node)
+        {
+          // A live folder that came while this client predated them (it kept
+          // the source, and showed a plain folder).
+          store.rawSetLiveSource(node, live)
+        }
       } else {
         let node = store.makeNode(
           id: id, kind: kind, title: n.title, customTitle: n.customTitle, url: n.url, lastActive: lastActive,
           archivedAt: archivedAt ?? (section == .archive ? now() : nil), collapsed: n.collapsed,
           position: Self.position(n.position))
         guard let root = root(for: n) else { continue }
+        // A live folder, where one can be: Pinned.
+        if kind == .folder, section == .pinned, let live = Self.liveSource(n) { store.rawSetLiveSource(node, live) }
         store.rawInsert(node, into: root)
         if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
       }
@@ -581,8 +639,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         keptEntries.insert(entry.id)
         continue
       }
-      // Children that weren't deleted themselves go to the end of the root.
-      for child in node.children where !ids.contains(child.id) {
+      // Children that weren't deleted themselves go to the end of the root;
+      // a live folder's entries go with it.
+      for child in node.children where !ids.contains(child.id) && !child.isLiveItem {
         store.rawDetach(child)
         store.rawInsert(child, into: root)
         parked.insert(child.id)

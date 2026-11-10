@@ -43,6 +43,19 @@ targets:
       # (docs/design/picture-in-picture.md, "Calls").
       - path: ../common/picture_in_picture/call_pip.js
         buildPhase: resources
+      # Live folder plugins: the SDK, the runtime scripts and the built-ins,
+      # shared with the desktop (docs/design/live-folders.md). Folders at
+      # the bundle's top, laid out as plugins/ is: a "plugins" folder would
+      # be the bundle's PlugIns (the extensions) on a case-insensitive disk.
+      - path: ../plugins/sdk
+        type: folder
+        buildPhase: resources
+      - path: ../plugins/runtime
+        type: folder
+        buildPhase: resources
+      - path: ../plugins/builtin
+        type: folder
+        buildPhase: resources
     entitlements:
       path: App/Compass.entitlements
       properties:
@@ -80,6 +93,8 @@ targets:
         product: CompassModel
       - package: CompassKit
         product: CompassClaude
+      - package: CompassKit
+        product: CompassLiveFolders
     info:
       path: App/Info.plist
       properties:

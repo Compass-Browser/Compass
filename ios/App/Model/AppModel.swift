@@ -27,6 +27,7 @@ final class AppModel {
   var contentBlocking: ContentBlocking { services.contentBlocking }
   var downloads: Downloads { services.downloads }
   var extensions: WebExtensions { services.extensions }
+  var liveFolders: LiveFolders { services.liveFolders }
   var directory: URL { services.directory }
   /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
   var system: SystemBridge { services.system }
@@ -91,6 +92,8 @@ final class AppModel {
   var showingSettings = false
   /// The downloads list, from the Lock Screen's download activity.
   var showingDownloads = false
+  /// New Live Folder / Edit Source (LiveFolderEditor).
+  var liveEditor: LiveEditorTarget?
   /// After joining a chain: what came over (profiles and spaces).
   var showingJoinSummary = false
   /// A pairing link opened from the camera, for the join screen.
@@ -449,8 +452,12 @@ final class AppModel {
   func show(_ node: SidebarNode) {
     if node.isFolder {
       store.setCollapsed(node, !node.collapsed)
+      // An opened live folder refreshes if it's been a while.
+      if node.isLiveFolder, !node.collapsed { liveFolders.expanded(node) }
       return
     }
+    // A live folder's entry, opened, is seen.
+    if node.unseen { store.setUnseen(node, false) }
     if let space = store.space(of: node) { selectedSpaceID = space.id }
     // Its card in the tab picker shows the page as it was left.
     let previous = shownTab

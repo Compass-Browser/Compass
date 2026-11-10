@@ -286,14 +286,44 @@ the iOS one in `CompassKitTests`.
 
 ### iOS
 
-- Regenerated protos; `SidebarNode.swift` gets `liveSource`, `liveItemKey`
-  and `unseen`; `SpaceStore` ports the model rules; the spaces bridge skips
-  generated nodes.
-- A `CompassLiveFolders` module runs each refresh in a fresh `JSContext`,
-  with `compass.fetch` on `URLSession` (cookies copied from the space's
-  `WKWebsiteDataStore` for granted hosts) and secrets in the Keychain.
-- Refresh in the foreground, on folder expand and in the existing
-  `BGAppRefreshTask`.
+Done (`ios/CompassKit/Sources/CompassLiveFolders`, `ios/App/Model/LiveFolders.swift`,
+`ios/App/Views/LiveFolderViews.swift`):
+
+- Regenerated `compass_spaces_specifics.pb.swift`; `SidebarNode` has
+  `liveSource`, `liveRefreshed`, `liveItemKey` and `unseen`, saved in
+  `Sidebar.json`; `SpaceStore` ports the model rules (`addLiveFolder`,
+  `setLiveSource`, `convertToPlainFolder`, `replaceLiveItems`,
+  `markAllSeen`). `CompassSpacesBridge` writes and reads `live_source`,
+  never commits an entry, drops this device's entries when the folder is
+  made normal or deleted elsewhere, and keeps a source it can't apply (a
+  live folder outside Pinned stays plain here without clearing it).
+- `CompassLiveFolders` runs each refresh in a fresh `JSContext` on its own
+  `JSVirtualMachine`. JavaScriptCore has no `URL`, `URLSearchParams`,
+  `TextEncoder`, `TextDecoder` or timers: `Resources/jsc_globals.js` ports
+  the WHATWG URL parser and the encodings (it passes WPT's
+  `urltestdata.json`), and the host provides `setTimeout`. It has no switch
+  for `eval` either, so the constructors that compile strings are replaced
+  before any plugin code runs. Manifest and config validation, the
+  allowlist and result normalization run `manifest.js` and `result.js` in
+  the host's own context. `compass.fetch` is an ephemeral `URLSession` with
+  no cookie store: redirects are checked hop by hop, bodies stop at 2 MB,
+  and the Cookie header comes from the space's `WKWebsiteDataStore` only
+  for granted cookie hosts. `CompassLiveFoldersTests` runs every builtin
+  and conformance case.
+- `LiveFolders` (the app) refreshes in the foreground (due folders, checked
+  every 30 s), when a folder opens after 5 minutes and in the existing
+  `BGAppRefreshTask`, two at a time, with the desktop's intervals and
+  backoff. Secrets are in the Keychain per profile and plugin
+  (`ThisDeviceOnly`); cookie grants are per folder in `Live Folders.json`.
+  The built-ins ship as the `sdk`, `runtime` and `builtin` folders at the
+  top of the app's bundle (a `plugins` folder would be its `PlugIns` on a
+  case-insensitive disk); installed plugins go in `Live Plugins/<id>/`,
+  from a manifest's address after a review, with the desktop's hash.
+- Sidebar: the plugin's icon (an SF Symbol for the built-ins, whose SVG
+  icons UIKit can't draw; an installed plugin's PNG), a spinner, a warning
+  with the error in the menu, unseen dots and a count on a closed folder;
+  New Live Folder… beside New Folder and in the space menu; Refresh, Edit
+  Source…, Mark All Seen and Convert to Normal Folder.
 
 ### Order
 
@@ -303,7 +333,7 @@ the iOS one in `CompassKitTests`.
 4. Sync.
 5. Installing plugins, Settings page, cookie grants.
 6. Android UI.
-7. iOS.
+7. iOS. **Done.**
 
 ## Known gaps
 
@@ -312,3 +342,8 @@ the iOS one in `CompassKitTests`.
   name are read in the viewer's zone. RRULE `BYWEEKNO`, `BYYEARDAY`,
   `BYHOUR` and sub-daily frequencies are ignored.
 - GitHub needs a token; there's no OAuth flow.
+- iOS: a plugin stuck in a synchronous loop times out, but its thread keeps
+  running until the app quits (JavaScriptCore has no public way to stop a
+  script). Installed plugins' SVG icons show as a bolt. A synced folder
+  whose plugin isn't installed offers to install it from Edit Source…, not
+  at once.

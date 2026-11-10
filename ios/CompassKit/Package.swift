@@ -20,6 +20,8 @@ let package = Package(
     .library(name: "CompassShared", targets: ["CompassShared"]),
     // Claude chat's request, stream and conversation (docs/design/claude.md).
     .library(name: "CompassClaude", targets: ["CompassClaude"]),
+    // Live folder plugins in JavaScriptCore (docs/design/live-folders.md).
+    .library(name: "CompassLiveFolders", targets: ["CompassLiveFolders"]),
   ],
   dependencies: [
     // Must match the protoc-gen-swift that generated Sources/SyncProto
@@ -42,12 +44,14 @@ let package = Package(
     .target(name: "CompassShared"),
     .target(name: "CompassModel", dependencies: ["CompassShared"]),
     .target(name: "CompassClaude", dependencies: ["CompassShared"]),
+    .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
     .target(name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared"]),
     .testTarget(name: "CompassCryptoTests", dependencies: ["CompassCrypto"]),
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),
     .testTarget(name: "CompassSharedTests", dependencies: ["CompassShared"]),
     .testTarget(name: "CompassClaudeTests", dependencies: ["CompassClaude"]),
+    .testTarget(name: "CompassLiveFoldersTests", dependencies: ["CompassLiveFolders"]),
   ],
   // BoringSSL's C++ needs C++17 (swift-crypto sets the same).
   cxxLanguageStandard: .cxx17

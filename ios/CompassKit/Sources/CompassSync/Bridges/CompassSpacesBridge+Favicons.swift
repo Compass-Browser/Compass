@@ -37,10 +37,11 @@ extension CompassSpacesBridge {
     return host.lowercased()
   }
 
-  /// The hosts this account's entries point at, every section included.
+  /// The hosts this account's entries point at, every section included
+  /// (not a live folder's entries, which stay on this device).
   @MainActor
   var ownHosts: Set<String> {
-    Set(store.allNodes.filter { $0.isTab && owns($0) }.compactMap { Self.host(of: $0.url) })
+    Set(store.allNodes.filter { $0.isTab && !$0.isLiveItem && owns($0) }.compactMap { Self.host(of: $0.url) })
   }
 
   /// The icons this account has, for the app's cache: (host, PNG).

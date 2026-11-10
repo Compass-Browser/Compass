@@ -30,6 +30,9 @@ struct CompassApp: App {
       let work = Task { @MainActor in
         await services.sync.syncNow()
         await services.contentBlocking.refresh()
+        // Live folders that are due (each device runs its own plugins).
+        await services.liveFolders.refreshDueAndWait()
+        try? services.store.save(to: services.sidebarURL)
         task.setTaskCompleted(success: true)
       }
       task.expirationHandler = { work.cancel() }
@@ -55,6 +58,9 @@ struct CompassApp: App {
       let app = services.active
       services.incognitoPhase(phase)
       services.sync.setActive(phase == .active)
+      // Live folders refresh while the app is in use (and in the
+      // background refresh task).
+      services.liveFolders.setActive(phase == .active)
       // Auto picture-in-picture: it has to start while the app is still on
       // screen, so on the way out (inactive), not in the background.
       if old == .active, phase == .inactive { app?.appActiveChanged(false) }
@@ -299,6 +305,7 @@ struct RootView: View {
       }
       .sheet(isPresented: $app.showingClaude) { ClaudeChatSheet() }
       .sheet(isPresented: $app.showingMenu) { PageMenu() }
+      .sheet(item: $app.liveEditor) { LiveFolderEditor(target: $0) }
       .sheet(isPresented: $app.showingDownloads) {
         NavigationStack {
           DownloadsView().toolbar { Button("Done") { app.showingDownloads = false } }

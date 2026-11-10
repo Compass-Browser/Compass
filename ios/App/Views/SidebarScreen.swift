@@ -308,6 +308,9 @@ struct SpacePage: View {
       renaming = true
     }
     Button("Edit Theme", systemImage: "paintpalette") { editingTheme = true }
+    Button("New Live Folder…", systemImage: LiveFolderMenu.newSymbol) {
+      app.liveEditor = LiveEditorTarget(mode: .create(parent: space.pinned.id))
+    }
     Button("Archive", systemImage: "archivebox") { showingArchive = true }
     Picker(selection: Binding(
       get: { ArchiveAfter(space.archiveAfter) },
@@ -516,18 +519,30 @@ struct NodeRow: View {
             .rotationEffect(.degrees(item.collapsed ? 0 : 90))
             .opacity(0.6)
             .frame(width: 10)
-          Image(systemName: item.collapsed ? "folder" : "folder.fill")
-            .font(.system(size: 15))
-            .opacity(0.7)
-            .contentTransition(.symbolEffect(.replace))
+          if item.isLiveFolder {
+            // The plugin's icon in place of the folder glyph.
+            LivePluginIcon(plugin: app.liveFolders.plugin(for: item))
+              .opacity(0.7)
+              .frame(width: 18)
+          } else {
+            Image(systemName: item.collapsed ? "folder" : "folder.fill")
+              .font(.system(size: 15))
+              .opacity(0.7)
+              .contentTransition(.symbolEffect(.replace))
+          }
         } else {
           SiteIcon(url: item.url, size: SidebarStyle.favicon).opacity(dimmed ? 0.55 : 1)
         }
         Text(title(item))
-          .font(.system(size: 16, weight: item.isFolder ? .medium : .regular))
+          .font(.system(size: 16, weight: item.isFolder || item.unseen ? .medium : .regular))
           .lineLimit(1)
-          .opacity(dimmed ? 0.55 : 1)
+          .opacity(dimmed && !item.unseen ? 0.55 : 1)
         Spacer(minLength: 0)
+        if item.isLiveFolder { LiveFolderStatus(folder: item) }
+        if item.unseen {
+          // A new entry since the folder was last looked at.
+          Circle().fill(Color.accentColor).frame(width: 7, height: 7).accessibilityLabel("New")
+        }
       }
       .padding(.leading, 12)
       .padding(.trailing, item.section == .today && !item.isFolder ? 36 : 12)
@@ -629,6 +644,14 @@ struct NodeRow: View {
     split.children.phoneVisible.map(title).joined(separator: " · ")
   }
 
+  /// Where New Folder puts a folder: in this folder, or beside this entry
+  /// (beside its live folder, for a live folder's entry).
+  private func folderParent(in space: Space) -> SidebarNode {
+    if node.isFolder && !node.isLiveFolder { return node }
+    let parent = node.parent ?? space.pinned
+    return parent.isLiveFolder ? parent.parent ?? space.pinned : parent
+  }
+
   @ViewBuilder private var menu: some View {
     let space = app.store.space(of: node)
     // iPad: the entry in a window of its own (its page moves there).
@@ -637,6 +660,7 @@ struct NodeRow: View {
         openWindow(value: WindowTarget(entry: node.id))
       }
     }
+    if node.isLiveFolder { LiveFolderMenu(folder: node) }
     Button("Rename", systemImage: "pencil") {
       newTitle = node.isFolder ? node.title : node.displayTitle
       renaming = true
@@ -660,8 +684,14 @@ struct NodeRow: View {
       }
       if node.section == .pinned {
         Button("New Folder", systemImage: "folder.badge.plus") {
-          let parent = node.isFolder ? node : (node.parent ?? space.pinned)
-          app.store.addFolder(name: "New Folder", to: parent)
+          app.store.addFolder(name: "New Folder", to: folderParent(in: space))
+        }
+        // Beside New Folder, in the same place.
+        let liveParent = folderParent(in: space)
+        if app.store.canAddLiveFolder(to: liveParent) {
+          Button("New Live Folder…", systemImage: LiveFolderMenu.newSymbol) {
+            app.liveEditor = LiveEditorTarget(mode: .create(parent: liveParent.id))
+          }
         }
       }
       let others = app.store.spaces.filter { $0 !== space }
