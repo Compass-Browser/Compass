@@ -228,7 +228,9 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
 
     LiveFetcher::Limits limits;
     base::TimeDelta timeout = base::Seconds(30);
+    std::optional<int> max_items;
     if (const base::DictValue* l = spec.FindDict("limits")) {
+      max_items = l->FindInt("maxItems");
       if (std::optional<int> ms = l->FindInt("timeoutMs")) {
         timeout = base::Milliseconds(*ms);
       }
@@ -252,6 +254,9 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &factory),
         limits, timeout);
+    if (run_spec.has_value() && max_items) {
+      run_spec->max_items = *max_items;
+    }
 
     base::DictValue outcome;
     base::ListValue fetches;

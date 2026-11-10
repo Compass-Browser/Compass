@@ -30,8 +30,7 @@ class LiveFolderStoreTest : public testing::Test {
   std::unique_ptr<LiveFolderStore> Load() {
     auto store = std::make_unique<LiveFolderStore>(Path());
     base::test::TestFuture<void> loaded;
-    store->Load(os_crypt_async::GetTestEncryptorForTesting(),
-                loaded.GetCallback());
+    store->Load(encryptor_, loaded.GetCallback());
     EXPECT_TRUE(loaded.Wait());
     EXPECT_TRUE(store->loaded());
     return store;
@@ -39,6 +38,9 @@ class LiveFolderStoreTest : public testing::Test {
 
   base::test::TaskEnvironment task_environment_;
   base::ScopedTempDir dir_;
+  // One key for every load: each test encryptor makes its own.
+  scoped_refptr<os_crypt_async::Encryptor> encryptor_ =
+      os_crypt_async::GetTestEncryptorForTesting();
 };
 
 TEST_F(LiveFolderStoreTest, KeepsSecretsEncryptedAndGrants) {
