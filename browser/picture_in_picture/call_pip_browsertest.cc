@@ -22,6 +22,7 @@
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/web_contents.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -174,7 +175,7 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
 
   void AllowMedia(const GURL& url) {
     HostContentSettingsMap* settings =
-        HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+        HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile());
     for (ContentSettingsType type : {ContentSettingsType::MEDIASTREAM_CAMERA,
                                      ContentSettingsType::MEDIASTREAM_MIC}) {
       settings->SetContentSettingDefaultScope(url, url, type,
