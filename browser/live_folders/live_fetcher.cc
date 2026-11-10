@@ -132,7 +132,7 @@ void LiveFetcher::Fetch(const LiveFetchRequest& request, Callback callback) {
   }
   if (!LiveUrlAllowed(url, allowed_.hosts)) {
     return fail("host_not_allowed",
-                url.host() + " is not in the plugin's hosts");
+                std::string(url.host()) + " is not in the plugin's hosts");
   }
   if (request.method != "GET" && request.method != "HEAD" &&
       request.method != "POST") {
@@ -211,14 +211,14 @@ void LiveFetcher::OnRedirect(Pending* pending, const GURL& new_url) {
   if (!LiveUrlAllowed(new_url, allowed_.hosts)) {
     return Finish(pending, base::unexpected(LiveError{
                                "host_not_allowed",
-                               "Redirect to " + new_url.host() +
+                               "Redirect to " + std::string(new_url.host()) +
                                    " is not allowed"}));
   }
   // Cookies stay with the hosts they were granted for.
   if (pending->cookies && !InCookieHosts(allowed_, new_url)) {
     return Finish(pending, base::unexpected(LiveError{
                                "host_not_allowed",
-                               "Redirect to " + new_url.host() +
+                               "Redirect to " + std::string(new_url.host()) +
                                    " would send it cookies"}));
   }
   pending->url = new_url;
@@ -233,13 +233,13 @@ void LiveFetcher::OnComplete(Pending* pending,
       return Finish(pending,
                     base::unexpected(LiveError{
                         "response_too_large",
-                        "Response from " + pending->url.host() + " is over " +
+                        "Response from " + std::string(pending->url.host()) + " is over " +
                             base::NumberToString(limits_.max_response_bytes) +
                             " bytes"}));
     }
     return Finish(pending, base::unexpected(LiveError{
                                "network", "Couldn't reach " +
-                                              pending->url.host() + " (" +
+                                              std::string(pending->url.host()) + " (" +
                                               net::ErrorToShortString(error) +
                                               ")"}));
   }
