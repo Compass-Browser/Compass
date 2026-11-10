@@ -145,9 +145,8 @@ std::unique_ptr<net::test_server::HttpResponse> ServePage(
 class CompassCallPipBrowserTest : public InProcessBrowserTest {
  public:
   // Leaving the window has its own tests (CompassAutoPipBrowserTest.
-  // LeavingTheWindow*). Without a desktop (a headless run, or Windows'
-  // session 0) the window counts as covered, and upstream ignores tab
-  // switches in a covered window.
+  // LeavingTheWindow*): here only leaving the tab counts, whatever the
+  // test machine's desktop says about the window being covered.
   CompassCallPipBrowserTest() {
     features_.InitAndDisableFeature(
         media::kAutoPictureInPictureOnWindowOccluded);
