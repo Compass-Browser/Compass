@@ -5,6 +5,55 @@
 import Foundation
 import Observation
 
+/// Where a live folder's entries come from: a plugin and the folder's
+/// settings for it (the desktop's compass::LiveSource). The part of a live
+/// folder that syncs; its entries don't (docs/design/live-folders.md).
+public struct LiveSource: Sendable, Equatable, Codable {
+  /// The plugin's manifest ID, e.g. "compass.rss".
+  public var pluginID: String
+  /// The folder's settings, a JSON object.
+  public var configJSON: String
+  /// An installed plugin's source and the SHA-256 (lowercase hex) of what
+  /// was installed; empty for a built-in.
+  public var pluginURL: String
+  public var pluginSHA256: String
+
+  public init(pluginID: String, configJSON: String = "{}", pluginURL: String = "", pluginSHA256: String = "") {
+    self.pluginID = pluginID
+    self.configJSON = configJSON
+    self.pluginURL = pluginURL
+    self.pluginSHA256 = pluginSHA256
+  }
+
+  /// The settings as a dictionary (empty if they aren't a JSON object).
+  public var config: [String: Any] {
+    (try? JSONSerialization.jsonObject(with: Data(configJSON.utf8))) as? [String: Any] ?? [:]
+  }
+
+  /// `config` as JSON, keys sorted, so equal settings compare equal.
+  public static func json(_ config: [String: Any]) -> String {
+    guard JSONSerialization.isValidJSONObject(config),
+      let data = try? JSONSerialization.data(withJSONObject: config, options: [.sortedKeys, .withoutEscapingSlashes])
+    else { return "{}" }
+    return String(decoding: data, as: UTF8.self)
+  }
+}
+
+/// One entry of a live folder as a refresh delivers it (the plugin's
+/// result, normalized by the runtime).
+public struct LiveItem: Sendable, Equatable {
+  /// The plugin's stable ID for the item; empty or repeated keys are skipped.
+  public var key: String
+  public var url: String
+  public var title: String
+
+  public init(key: String, url: String, title: String) {
+    self.key = key
+    self.url = url
+    self.title = title
+  }
+}
+
 /// One node of the sidebar: a section root, a folder, a tab or a split. A
 /// Swift port of the desktop's browser/sidebar/sidebar_node.h; nodes change
 /// only through SpaceStore, which keeps the tree's invariants.
@@ -50,6 +99,17 @@ public final class SidebarNode: Identifiable {
   /// Among its siblings; children are kept sorted by it.
   public internal(set) var position: UniquePosition
   public internal(set) var children: [SidebarNode] = []
+  /// A live folder's source; nil for other nodes.
+  public internal(set) var liveSource: LiveSource?
+  /// When a live folder's entries were last replaced by a refresh.
+  public internal(set) var liveRefreshed: Date?
+  /// A live folder's entry: the plugin's key for the item it shows. Empty
+  /// for every other node, including a tab moved out of its live folder.
+  public internal(set) var liveItemKey: String = ""
+  /// A live folder's entry that came with a refresh and hasn't been opened.
+  public internal(set) var unseen = false
+  /// Made a plain folder here, so sync clears its source on the server.
+  @ObservationIgnored var liveSourceCleared = false
   @ObservationIgnored public internal(set) weak var parent: SidebarNode?
   /// Synced fields this client doesn't understand, kept as received.
   @ObservationIgnored public var unknownFields: Data?
@@ -91,6 +151,12 @@ public final class SidebarNode: Identifiable {
   public var isTab: Bool { kind == .tab }
   public var isFolder: Bool { kind == .folder }
   public var isSplit: Bool { kind == .split }
+  public var isLiveFolder: Bool { liveSource != nil }
+  public var isLiveItem: Bool { !liveItemKey.isEmpty }
+  /// Whether this node is a live folder or has one below it.
+  public var containsLiveFolder: Bool { subtree.contains(where: \.isLiveFolder) }
+  /// A live folder's entries that haven't been opened.
+  public var unseenCount: Int { isLiveFolder ? children.filter(\.unseen).count : 0 }
 
   /// The section root this node lives under.
   public var root: SidebarNode {

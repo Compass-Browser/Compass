@@ -24,6 +24,21 @@ struct SidebarSnapshot: Codable {
     var position: Data
     var children: [Node]
     var unknownFields: Data?
+    /// A live folder's source and last refresh (absent elsewhere and in
+    /// files from before live folders, docs/design/live-folders.md).
+    var live: Live?
+    /// A live folder's entry: its key and whether it's unseen. Entries are
+    /// saved as a cache, so the folder shows at once at launch.
+    var liveItem: String?
+    var unseen: Bool?
+  }
+
+  struct Live: Codable {
+    var plugin: String
+    var config: String
+    var source: String?
+    var sha256: String?
+    var refreshed: Date?
   }
 
   struct SpaceRecord: Codable {
@@ -77,7 +92,13 @@ extension SpaceStore {
         id: n.id, kind: kind, title: n.title, customTitle: n.customTitle, url: n.url,
         savedURL: n.savedURL.isEmpty ? nil : n.savedURL, savedTitle: n.savedURL.isEmpty ? nil : n.savedTitle,
         lastActive: n.lastActive, archivedAt: n.archivedAt, collapsed: n.collapsed,
-        position: Data(n.position.compressed), children: n.children.map(node), unknownFields: n.unknownFields)
+        position: Data(n.position.compressed), children: n.children.map(node), unknownFields: n.unknownFields,
+        live: n.liveSource.map {
+          SidebarSnapshot.Live(
+            plugin: $0.pluginID, config: $0.configJSON, source: $0.pluginURL.isEmpty ? nil : $0.pluginURL,
+            sha256: $0.pluginSHA256.isEmpty ? nil : $0.pluginSHA256, refreshed: n.liveRefreshed)
+        },
+        liveItem: n.isLiveItem ? n.liveItemKey : nil, unseen: n.unseen ? true : nil)
     }
     let snapshot = SidebarSnapshot(
       spaces: spaces.map { s in
@@ -116,6 +137,15 @@ extension SpaceStore {
         archivedAt: n.archivedAt, collapsed: n.collapsed, position: UniquePosition(compressed: [UInt8](n.position)),
         savedURL: n.savedURL ?? "", savedTitle: n.savedTitle ?? "")
       node.unknownFields = n.unknownFields
+      if let live = n.live, kind == .folder, !live.plugin.isEmpty {
+        node.liveSource = LiveSource(
+          pluginID: live.plugin, configJSON: live.config, pluginURL: live.source ?? "", pluginSHA256: live.sha256 ?? "")
+        node.liveRefreshed = live.refreshed
+      }
+      if let key = n.liveItem, kind == .tab, parent.isLiveFolder {
+        node.liveItemKey = key
+        node.unseen = n.unseen ?? false
+      }
       rawInsert(node, into: parent)
       n.children.forEach { build($0, into: node) }
     }

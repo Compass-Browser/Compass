@@ -32,7 +32,12 @@ public struct SpaceStoreChange: Sendable, Equatable {
 ///  - a Today folder whose last child leaves (moved, removed, archived) is
 ///    removed too, and its emptied parents after it; one made empty stays.
 ///    Not while applying remote changes, whose order can empty a folder for
-///    a moment.
+///    a moment;
+///  - live folders only in Pinned (not incognito's), holding only their
+///    entries: tabs with a `liveItemKey`, which `replaceLiveItems` adds,
+///    orders and removes. Nothing else moves in, entries aren't reordered
+///    or split, and an entry moved out loses its key and becomes an
+///    ordinary tab (docs/design/live-folders.md, "Data model").
 @MainActor
 @Observable
 public final class SpaceStore {
@@ -166,6 +171,9 @@ public final class SpaceStore {
     // Folders nest, in Pinned and in Today (the desktop's roots accept
     // folders in both).
     case (.root(.pinned), _), (.root(.today), _): true
+    // A live folder holds only its entries (which only a refresh adds).
+    case (.folder, .tab) where parent.isLiveFolder: true
+    case (.folder, _) where parent.isLiveFolder: false
     case (.folder, _): parent.section == .pinned || parent.section == .today
     case (.root(.archive), .folder): false
     case (.root(.archive), _): true
@@ -180,6 +188,10 @@ public final class SpaceStore {
     // Incognito entries stay incognito, and nothing else goes in.
     if isIncognito(node) != (parent.root === incognito.pinned || parent.root === incognito.today
       || parent.root === incognito.archive) { return false }
+    // Nothing moves into a live folder, nor around in one: a refresh
+    // decides its entries and their order.
+    if parent.isLiveFolder { return false }
+    if node.containsLiveFolder, parent.section != .pinned { return false }
     if node.parent === parent { return true }
     // No folder in the archive or the favorites.
     if node.isFolder, parent.section != .pinned && parent.section != .today { return false }
@@ -262,7 +274,8 @@ public final class SpaceStore {
   }
 
   private func add(_ node: SidebarNode, to parent: SidebarNode, at index: Int?) -> SidebarNode? {
-    guard canContain(parent, node.kind) else { return nil }
+    // Only refreshes add to a live folder.
+    guard canContain(parent, node.kind), !parent.isLiveFolder || node.isLiveItem else { return nil }
     node.position = position(in: parent, at: index ?? parent.children.count, for: node.id)
     parent.insert(node)
     updateSavedURLs(node)
@@ -283,6 +296,7 @@ public final class SpaceStore {
     if parent.section == .archive && oldParent.section != .archive { node.archivedAt = now }
     parent.insert(node)
     updateSavedURLs(node)
+    updateLiveItems(node)
     let elsewhere = oldParent.root !== parent.root
     record { change in
       // A move to another section or space moves the whole subtree (its
@@ -315,7 +329,9 @@ public final class SpaceStore {
   /// a close, ClosedEntries): sync creates it again over its tombstone.
   @discardableResult
   public func reinsert(_ node: SidebarNode, into parent: SidebarNode, at index: Int, now: Date = Date()) -> Bool {
-    guard node.parent == nil, !node.isRoot, contains(parent), canContain(parent, node.kind) else { return false }
+    guard node.parent == nil, !node.isRoot, contains(parent), canContain(parent, node.kind),
+      !parent.isLiveFolder || node.isLiveItem, !node.containsLiveFolder || parent.section == .pinned
+    else { return false }
     // Nothing goes in or out of incognito.
     guard incognitoIDs.contains(node.id) == isIncognito(parent) else { return false }
     node.position = position(in: parent, at: index, for: node.id)
@@ -420,6 +436,129 @@ public final class SpaceStore {
     }
   }
 
+  /// Clears the live item keys (and unseen) of the tabs in `node`'s subtree
+  /// that aren't in a live folder (one moved out is an ordinary tab now).
+  /// Not reported: it happens as the subtree moves, which is.
+  func updateLiveItems(_ node: SidebarNode) {
+    for tab in node.subtree where tab.isLiveItem && tab.parent?.isLiveFolder != true {
+      tab.liveItemKey = ""
+      tab.unseen = false
+    }
+  }
+
+  // MARK: Live folders (docs/design/live-folders.md)
+
+  /// Whether a live folder may go in `parent`: Pinned's root or a plain
+  /// folder in Pinned, not incognito's.
+  public func canAddLiveFolder(to parent: SidebarNode) -> Bool {
+    parent.section == .pinned && !isIncognito(parent) && contains(parent)
+      && (parent.isRoot || (parent.isFolder && !parent.isLiveFolder))
+  }
+
+  /// A live folder, empty until `replaceLiveItems` fills it.
+  @discardableResult
+  public func addLiveFolder(
+    name: String, source: LiveSource, to parent: SidebarNode, at index: Int? = nil,
+    id: String = UUID().uuidString.lowercased()
+  ) -> SidebarNode? {
+    guard canAddLiveFolder(to: parent), !source.pluginID.isEmpty else { return nil }
+    let folder = SidebarNode(id: id, kind: .folder, title: name)
+    folder.liveSource = source
+    return add(folder, to: parent, at: index)
+  }
+
+  /// Changes a live folder's plugin or settings. Its entries stay until the
+  /// next refresh replaces them.
+  public func setLiveSource(_ folder: SidebarNode, _ source: LiveSource) {
+    guard folder.isLiveFolder, !source.pluginID.isEmpty, folder.liveSource != source else { return }
+    folder.liveSource = source
+    record { $0.putNodes.insert(folder.id) }
+  }
+
+  /// Makes a live folder plain: its entries stay, as ordinary tabs (which
+  /// sync from now on).
+  public func convertToPlainFolder(_ folder: SidebarNode) {
+    guard folder.isLiveFolder else { return }
+    folder.liveSource = nil
+    folder.liveRefreshed = nil
+    folder.liveSourceCleared = true
+    for child in folder.children {
+      child.liveItemKey = ""
+      child.unseen = false
+    }
+    record { $0.putNodes.formUnion(folder.subtree.map(\.id)) }
+  }
+
+  /// Makes `folder`'s entries those of `items`, in their order, matched to
+  /// the entries there by key (the desktop's SpaceModel::ReplaceLiveItems):
+  /// a match keeps its node (its ID, its live tab) and takes the item's URL
+  /// and title as its pinned URL, and as its page too unless `isOpen` says
+  /// its tab is open. New items are added, unseen unless this is the
+  /// folder's first refresh. Entries no item matches are removed unless
+  /// their tab is open: those stay, after the others, until a refresh finds
+  /// them closed. Records `now` as the folder's `liveRefreshed`.
+  public func replaceLiveItems(
+    _ folder: SidebarNode, items: [LiveItem], now: Date = Date(), isOpen: (SidebarNode) -> Bool = { _ in false }
+  ) {
+    guard folder.isLiveFolder, contains(folder) else { return }
+    let firstRefresh = folder.liveRefreshed == nil
+    var keys: Set<String> = []
+    var index = 0
+    batch {
+      for item in items {
+        guard !item.key.isEmpty, keys.insert(item.key).inserted else { continue }
+        guard let tab = folder.children.first(where: { $0.liveItemKey == item.key }) else {
+          let tab = SidebarNode(kind: .tab, title: item.title, url: item.url)
+          tab.liveItemKey = item.key
+          tab.unseen = !firstRefresh
+          tab.position = position(in: folder, at: index, for: tab.id)
+          folder.insert(tab)
+          updateSavedURLs(tab)
+          index += 1
+          record { $0.putNodes.insert(tab.id) }
+          continue
+        }
+        var changed = false
+        if folder.children.firstIndex(where: { $0 === tab }) != index {
+          folder.remove(tab)
+          tab.position = position(in: folder, at: index, for: tab.id)
+          folder.insert(tab)
+          changed = true
+        }
+        index += 1
+        if tab.savedURL != item.url || tab.savedTitle != item.title {
+          tab.savedURL = item.url
+          tab.savedTitle = item.title
+          changed = true
+        }
+        if !isOpen(tab), tab.url != item.url || tab.title != item.title {
+          tab.url = item.url
+          tab.title = item.title
+          changed = true
+        }
+        if changed { record { $0.putNodes.insert(tab.id) } }
+      }
+      for tab in folder.children.dropFirst(index) where !isOpen(tab) {
+        folder.remove(tab)
+        record { $0.deletedNodes.insert(tab.id) }
+      }
+      folder.liveRefreshed = now
+      record { $0.putNodes.insert(folder.id) }
+    }
+  }
+
+  /// Marks a live folder's entry seen or not.
+  public func setUnseen(_ tab: SidebarNode, _ unseen: Bool) {
+    guard tab.isTab, !unseen || tab.isLiveItem, tab.unseen != unseen else { return }
+    tab.unseen = unseen
+    record { $0.putNodes.insert(tab.id) }
+  }
+
+  /// Marks every entry of a live folder seen.
+  public func markAllSeen(_ folder: SidebarNode) {
+    batch { for child in folder.children { setUnseen(child, false) } }
+  }
+
   /// The user looked at a Today tab.
   public func touch(_ node: SidebarNode, now: Date = Date()) {
     guard node.section == .today else { return }
@@ -432,7 +571,9 @@ public final class SpaceStore {
   /// Makes `tab` a pane of `target` (a tab, which becomes a split, or a split).
   @discardableResult
   public func split(_ target: SidebarNode, with tab: SidebarNode) -> SidebarNode? {
-    guard tab.isTab, target !== tab, let targetParent = target.parent, targetParent.section != .favorites
+    // A live folder's entries stay single tabs.
+    guard tab.isTab, target !== tab, let targetParent = target.parent, targetParent.section != .favorites,
+      !targetParent.isLiveFolder
     else { return nil }
     if target.isSplit {
       guard target.children.count < Self.maxSplitPanes else { return nil }
@@ -602,7 +743,26 @@ public final class SpaceStore {
   public func rawInsert(_ node: SidebarNode, into parent: SidebarNode) {
     parent.insert(node)
     updateSavedURLs(node)
+    updateLiveItems(node)
   }
+
+  /// Sets or clears a folder's live source as received (sync). Clearing it
+  /// leaves the entries to the caller.
+  public func rawSetLiveSource(_ folder: SidebarNode, _ source: LiveSource?) {
+    guard folder.isFolder else { return }
+    folder.liveSource = source
+    if source == nil {
+      folder.liveRefreshed = nil
+      for child in folder.children {
+        child.liveItemKey = ""
+        child.unseen = false
+      }
+    }
+  }
+
+  /// Whether sync should clear the folder's source on the server: it was
+  /// made a plain folder here.
+  public func liveSourceCleared(_ node: SidebarNode) -> Bool { node.liveSourceCleared }
 
   /// Sets a pinned tab's or favorite's pinned URL as received (sync); a tab
   /// that keeps none (not in Pinned or Favorites) ignores it.
