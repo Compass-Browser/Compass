@@ -255,15 +255,21 @@ final class ExtensionUnlock: NSObject {
             }
           };
           // The submit button near the field: not a show/hide toggle (it's
-          // the first button after 1Password's field).
+          // the first button after 1Password's field: an unlabelled
+          // role=switch with aria-checked, inside the field's container).
           const label = (b) => [b.getAttribute("aria-label"), b.getAttribute("title"), b.textContent].join(" ").toLowerCase();
-          const toggle = (b) => b.hasAttribute("aria-pressed")
+          const toggle = (b) => b.hasAttribute("aria-pressed") || b.hasAttribute("aria-checked")
+            || /^(switch|checkbox)$/.test(b.getAttribute("role") || "")
             || /password|reveal|conceal|show|hide|mostra|nascondi|rivela|afficher|masquer|mostrar|ocultar|anzeigen|verbergen|einblenden|ausblenden/.test(label(b));
           const submitLike = /unlock|sblocca|déverrouiller|desbloquear|entsperren|ontgrendel|sign in|log ?in|accedi|connexion|continue|continua|submit|invia|\\bgo\\b/;
+          const usable = (b) => b && visible(b) && !b.disabled && b.getAttribute("aria-disabled") !== "true";
           const button = () => {
+            // 1Password's lock screen names its Unlock button.
+            const known = document.querySelector("[data-testid=lock-screen-submit-button]");
+            if (usable(known)) return known;
             for (let node = f.parentElement, depth = 0; node && depth < 6; node = node.parentElement, depth++) {
               const candidates = Array.from(node.querySelectorAll("button, [role=button], input[type=submit]"))
-                .filter((b) => visible(b) && !b.disabled && b.getAttribute("aria-disabled") !== "true"
+                .filter((b) => usable(b)
                   && (f.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) && !toggle(b));
               if (!candidates.length) continue;
               return candidates.find((b) => b.querySelector("[id*=unlock-icon], [class*=unlock-icon]") || /unlock-icon/.test(b.id + " " + b.className))
