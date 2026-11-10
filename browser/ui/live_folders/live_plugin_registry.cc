@@ -70,8 +70,11 @@ void LivePluginRegistry::AddInstalled(const LivePluginPackage& package) {
   RemoveInstalled(package.manifest.id);
   LivePlugin plugin;
   plugin.manifest = package.manifest;
-  plugin.base_path = "installed/" + package.manifest.id + "/" +
-                     package.manifest.version + "/";
+  plugin.local = !package.local_dir.empty();
+  plugin.base_path =
+      plugin.local ? "installed/" + package.local_dir + "/"
+                   : "installed/" + package.manifest.id + "/" +
+                         package.manifest.version + "/";
   if (!package.icon.empty()) {
     plugin.icon_data_url =
         std::string(package.manifest.icon.ends_with(".png")
@@ -91,6 +94,15 @@ void LivePluginRegistry::RemoveInstalled(std::string_view id) {
   std::erase_if(plugins_, [id](const LivePlugin& plugin) {
     return !plugin.builtin && plugin.manifest.id == id;
   });
+}
+
+void LivePluginRegistry::ReplaceInstalled(
+    const std::vector<LivePluginPackage>& packages) {
+  std::erase_if(plugins_,
+                [](const LivePlugin& plugin) { return !plugin.builtin; });
+  for (const LivePluginPackage& package : packages) {
+    AddInstalled(package);
+  }
 }
 
 const LivePlugin* LivePluginRegistry::Find(std::string_view id) const {

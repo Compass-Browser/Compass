@@ -145,6 +145,11 @@ class LiveFolderService : public KeyedService,
   // Removes an installed plugin and its secrets. Its folders stay, and show
   // that it's missing.
   void RemovePlugin(const std::string& id, base::OnceClosure done);
+  // Reads the installed and local plugins again (a local plugin's files may
+  // have changed, or it may be new or gone), then runs |done|.
+  void RescanPlugins(base::OnceClosure done);
+  // Shows plugins_dir() in the file manager, making it first if need be.
+  void OpenPluginsFolder();
 
   // Changes |folder|'s config, secrets and cookie grant, and refreshes it.
   base::expected<void, std::string> EditLiveFolder(

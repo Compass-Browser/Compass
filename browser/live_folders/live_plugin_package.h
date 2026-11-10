@@ -43,6 +43,10 @@ struct LivePluginPackage {
   GURL source;
   // LivePluginHash() of the files.
   std::string sha256;
+  // A local plugin's folder, directly in <user data>/Compass Plugins (its
+  // files are read from there, and it has no |source|); empty for an
+  // installed one.
+  std::string local_dir;
 };
 
 // The plugin's hash, which syncs with its folders so another device installs
@@ -78,17 +82,19 @@ base::FilePath LivePluginsDir(const base::FilePath& user_data_dir);
 bool WriteLivePluginPackage(const base::FilePath& plugins_dir,
                             const LivePluginPackage& package);
 
-// Blocking: the packages installed in |plugins_dir|. Ones that no longer
-// read or validate are skipped.
+// Blocking: the packages installed in |plugins_dir|, then its local plugins:
+// folders right inside it with a manifest.json, for trying out plugins
+// without hosting them. Ones that don't read or validate are skipped.
 std::vector<LivePluginPackage> ReadLivePluginPackages(
     const base::FilePath& plugins_dir);
 
-// Blocking: removes plugin |id|.
+// Blocking: removes installed plugin |id| (never a local plugin's folder).
 bool DeleteLivePluginPackage(const base::FilePath& plugins_dir,
                              const std::string& id);
 
-// The file |relative| ("<id>/<version>/<name>") under |plugins_dir|, or an
-// empty path if it reaches anywhere else.
+// The file |relative| ("<id>/<version>/<name>", or "<folder>/<name>" for a
+// local plugin) under |plugins_dir|, or an empty path if it reaches anywhere
+// else.
 base::FilePath LivePluginFilePath(const base::FilePath& plugins_dir,
                                   std::string_view relative);
 

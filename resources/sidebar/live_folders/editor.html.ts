@@ -148,7 +148,12 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
               <span class="live-editor-hint">${plugin.description}</span>
             </span>
           </button>
-          ${!plugin.builtin ? html`
+          ${plugin.local ? html`
+            <span class="live-editor-local"
+                title="From the plugins folder: remove its folder to remove it">
+              Local
+            </span>` : nothing}
+          ${!plugin.builtin && !plugin.local ? html`
             <button class="live-editor-remove" title="Remove ${plugin.name}"
                 aria-label="Remove ${plugin.name}" data-id="${plugin.id}"
                 @click="${this.onRemoveClick}">&times;</button>` : nothing}
@@ -156,6 +161,8 @@ export function getHtml(this: CompassLiveFolderEditorElement) {
     </div>
     <div class="live-editor-buttons">
       <button @click="${this.onInstallPluginClick}">Install a plugin…</button>
+      <button title="Put a plugin's folder, with its manifest.json, in it"
+          @click="${this.onOpenFolderClick}">Open plugins folder</button>
       <button @click="${this.onCancelClick}">Cancel</button>
     </div>` : nothing}
 </div>

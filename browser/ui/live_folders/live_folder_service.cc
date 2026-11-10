@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -14,6 +15,7 @@
 #include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/platform_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/live_folders/live_result.h"
@@ -406,6 +408,46 @@ void LiveFolderService::RemovePlugin(const std::string& id,
       base::BindOnce(base::IgnoreResult(&DeleteLivePluginPackage),
                      plugins_dir(), id),
       std::move(done));
+}
+
+void LiveFolderService::RescanPlugins(base::OnceClosure done) {
+  if (!registry_->installed_loaded()) {
+    // The first read is still on its way; it reads local plugins too.
+    WhenPluginsLoaded().push_back(std::move(done));
+    return;
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+      base::BindOnce(&ReadLivePluginPackages, plugins_dir()),
+      base::BindOnce(
+          [](base::WeakPtr<LiveFolderService> service, base::OnceClosure done,
+             std::vector<LivePluginPackage> packages) {
+            LivePluginRegistry::Get().ReplaceInstalled(packages);
+            std::move(done).Run();
+            if (service) {
+              // Folders that were waiting for a plugin that's now here.
+              service->ScheduleNext();
+            }
+          },
+          weak_factory_.GetWeakPtr(), std::move(done)));
+}
+
+void LiveFolderService::OpenPluginsFolder() {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+      base::BindOnce(
+          [](base::FilePath dir) { return base::CreateDirectory(dir); },
+          plugins_dir()),
+      base::BindOnce(
+          [](base::WeakPtr<LiveFolderService> service, bool made) {
+            if (service && made) {
+              platform_util::OpenItem(service->profile_,
+                                      service->plugins_dir(),
+                                      platform_util::OPEN_FOLDER,
+                                      base::DoNothing());
+            }
+          },
+          weak_factory_.GetWeakPtr()));
 }
 
 void LiveFolderService::OnSpacesLoaded() {
