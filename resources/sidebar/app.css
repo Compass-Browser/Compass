@@ -593,6 +593,11 @@ compass-sidebar-preview[side='next'] {
   width: 20px;
 }
 
+/* Beside New Folder, at the header's end. */
+#newLiveFolder {
+  margin-inline-start: auto;
+}
+
 /* Next to the archive button. */
 #newTodayFolder {
   margin-inline-start: auto;
