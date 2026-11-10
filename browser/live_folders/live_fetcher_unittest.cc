@@ -140,6 +140,8 @@ TEST_F(LiveFetcherTest, CookiesOnlyForGrantedCookieHosts) {
     factory_.AddResponse(request.url, "ok");
     EXPECT_TRUE(future.Take().has_value());
     EXPECT_EQ(fetcher->fetches().back().cookies, expected);
+    // Responses stay: the next request for this URL must wait too.
+    factory_.ClearResponses();
   }
 }
 
