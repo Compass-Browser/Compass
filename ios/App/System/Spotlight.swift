@@ -9,8 +9,8 @@ import UniformTypeIdentifiers
 /// Spaces, favorites and Pinned entries in Spotlight (Home Screen search). An item's
 /// ID is its sidebar node's, so a tap shows that entry; its domain is its
 /// space's. The index follows the snapshot: what left the sidebar leaves it.
-/// One more item stands for the app itself, so a search for "browser" finds
-/// Compass (the Home Screen name alone doesn't have the word).
+/// One more item stands for the app itself, so searches for "web" or
+/// "internet" find Compass too, not just its name.
 @MainActor
 final class Spotlight {
   /// The app's own item: a tap just opens the app.

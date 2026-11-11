@@ -98,9 +98,10 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        # "Compass" is taken on the App Store (ITMS-90129).
+        # "Compass" is taken on the App Store (ITMS-90129), for the display
+        # name too.
         CFBundleName: Compass Browser
-        CFBundleDisplayName: Compass
+        CFBundleDisplayName: Compass Browser
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}

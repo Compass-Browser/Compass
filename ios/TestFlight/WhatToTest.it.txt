@@ -1,5 +1,4 @@
 Claude si ricorda di te, e Spotlight trova i tuoi spazi.
 
 - Memoria di Claude: Claude può salvare brevi informazioni su di te (preferenze, ciò su cui lavori) e usarle nelle chat successive. Ogni salvataggio compare nella chat con Undo. Settings → Claude → Memory le elenca per modificarle, eliminarle o aggiungerne, con interruttori per disattivare la memoria o i salvataggi. Le memorie si sincronizzano con Compass sul Mac.
-- Spotlight: cerca dalla schermata Home il nome di uno spazio per aprirlo, o qualsiasi preferito o scheda fissata (ora tutte, non solo le prime). Cercando "browser" trovi Compass.
-- Sulla schermata Home l'app ora si chiama Compass.
+- Spotlight: cerca dalla schermata Home il nome di uno spazio per aprirlo, o qualsiasi preferito o scheda fissata (ora tutte, non solo le prime). Cercando "web" o "internet" trovi Compass.
