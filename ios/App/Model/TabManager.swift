@@ -395,15 +395,15 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     _ webView: WKWebView, contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
     completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
   ) {
-    MainActor.assumeIsolated {
+    let configuration = MainActor.assumeIsolated { () -> UIContextMenuConfiguration? in
       guard let id = live.first(where: { $0.value === webView })?.key,
         let items = extensions?.menuItems(forTab: id), !items.isEmpty
-      else { return completionHandler(nil) }
-      completionHandler(
-        UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggested in
-          UIMenu(children: suggested + [UIMenu(options: .displayInline, children: items)])
-        })
+      else { return nil }
+      return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggested in
+        UIMenu(children: suggested + [UIMenu(options: .displayInline, children: items)])
+      }
     }
+    completionHandler(configuration)
   }
 
   nonisolated func webView(
