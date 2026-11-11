@@ -369,6 +369,45 @@ The desktop's Cmd+Z / Cmd+Shift+Z for closed entries (sidebar.md, "Undo closing"
   - **⌘⇧T** (Tabs menu, "Reopen Closed Tab") undoes with a hardware keyboard. ⌘Z and ⌘⇧Z stay the text's: iOS gives a page no way to pass them on, as the desktop's undo waits for.
 - Tests: `ClosedEntriesTests` (places, Clear Today's order, a folder's tree, a pane back in its split, a gone parent, a pinned tab's page, incognito, steps and redo, the cap).
 
+### Peek
+
+The desktop's Peek ([peek.md](peek.md)) for touch: look at a link without
+opening a tab.
+
+- **Long-press a link.** The preview is the page itself, loading in a web
+  view of the tab's profile (its cookies, scripts, extensions, filter
+  lists). Tapping the preview, or **Peek** at the top of the menu, shows
+  that same page in Peek's card, no reload. The system's items (Open Link,
+  Copy Link, Share…) and the extensions' items stay.
+- **Links from pinned tabs and favorites** that open a new tab or window
+  (`target=_blank`, `window.open()` on a tap) peek too, so a pinned app
+  stays put, as on the desktop. The page is made from WebKit's own
+  configuration, so it keeps `window.opener`.
+- **The card** is a sheet: on an iPhone the large detent (swipe down to
+  close), on an iPad page-sized over the dimmed window (iOS 18; a form
+  sheet before). A bar above the page shows its title (or only its host
+  until it has one), **Open** and close.
+- **Close:** the close button, Esc, ⌘W, swiping it down (tapping outside
+  on an iPad), `window.close()`, or another tab shown. The page goes.
+- **Open** (⌘O): the page becomes the newest Today entry of its space,
+  with its history, scroll position and form state
+  (`TabManager.adopt`). A favorite's page goes to the window's space if it
+  has the same profile, else that profile's first space.
+- Inside the card, links load in the card; a link that opens a new tab
+  opens a Today entry, which closes the card. A long press in the card is
+  WebKit's own menu (its preview opens the link in the card).
+
+How: `TabManager.makeWebView(for:url:configuration:)` builds a web view as
+a tab's would be, without making it a tab; `webView(for:)` uses it for
+tabs, and `adopt(_:as:)` makes one a live tab later. The long-press
+preview's page waits in `TabManager`'s preview slot until the menu commits
+(`contextMenuForElement:willCommitWithAnimator:`) or ends. `onPeek` hands
+pages to the window of the tab they came from (`AppServices.owner(of:)`),
+whose `AppModel.peek` the card shows (`App/Browser/Peek.swift`).
+
+Not done: the page in the card has no password AutoFill, isn't in history
+until opened, and Esc goes to the card before the page.
+
 ### Incognito
 
 An incognito space at the end of the space switcher; its tabs kept in memory while the app runs, locked behind Face ID (or the passcode) once the app has been in the background, gone when it quits; saved logins still fill; extensions only with a per-extension "Allow in Incognito" (off by default, as in Chrome); no Claude (as the desktop).

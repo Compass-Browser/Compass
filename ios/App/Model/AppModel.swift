@@ -92,6 +92,8 @@ final class AppModel {
   var showingSettings = false
   /// The downloads list, from the Lock Screen's download activity.
   var showingDownloads = false
+  /// The page Peek's card shows (Peek.swift).
+  var peek: Peek?
   /// New Live Folder / Edit Source (LiveFolderEditor).
   var liveEditor: LiveEditorTarget?
   /// After joining a chain: what came over (profiles and spaces).
@@ -469,6 +471,9 @@ final class AppModel {
       selectedNodeID = node.id
       selectedPane = 0
     }
+    // Another tab shown (a link from the card opening a tab, too) closes
+    // Peek, as on the desktop.
+    peek = nil
     store.touch(node)
     if previous !== node, node.isTab { extensions.tabActivated(node.id, previous: previous?.id) }
     setBarCollapsed(false)
@@ -677,6 +682,8 @@ final class AppModel {
   /// the archive, anything else (pinned, a favorite) unloads, back on its
   /// pinned URL.
   func closeShown() {
+    // ⌘W closes Peek's card first.
+    if peek != nil { return closePeek() }
     guard let node = selectedNode else { return }
     userClose([(node, closeKind(node))])
   }

@@ -7,7 +7,7 @@ import WebKit
 
 /// Keyboard shortcuts with a hardware keyboard (iPad, or an iPhone with
 /// one), the desktop's where it has them (shortcuts.md): ⌘T and ⌘L the
-/// command bar, ⌘S the sidebar, ⌃1–9 the spaces, ⌘⇧C copy the link, ⌘⇧T
+/// command bar, ⌘O Peek's Open, ⌘S the sidebar, ⌃1–9 the spaces, ⌘⇧C copy the link, ⌘⇧T
 /// reopen a closed tab.
 /// iPadOS lists them in the menu bar and in the overlay ⌘ held down shows.
 struct BrowserCommands: Commands {
@@ -29,6 +29,10 @@ struct BrowserCommands: Commands {
         .keyboardShortcut("n", modifiers: [.command, .shift])
       Button("Open Location…") { app?.openCommandBar(newTab: false) }
         .keyboardShortcut("l")
+      // Peek's Open, as on the desktop.
+      Button("Open Peeked Page") { app?.openPeek() }
+        .keyboardShortcut("o")
+        .disabled(app?.peek == nil)
     }
     CommandGroup(after: .pasteboard) {
       Button("Copy Link") {

@@ -35,6 +35,8 @@ final class TabManager: NSObject {
   /// again on an undo close: the next web view made for the tab gets it,
   /// back and forward included, instead of loading its URL.
   @ObservationIgnored var restoring: [String: Any] = [:]
+  /// A long press's preview page (Peek), until its menu commits or ends.
+  private let preview = PreviewSlot()
   private let store: SpaceStore
   private let siteSettings: SiteSettings
   private let contentBlocking: ContentBlocking
@@ -45,6 +47,10 @@ final class TabManager: NSObject {
   @ObservationIgnored var extensions: WebExtensions?
   /// A link that wants a new window opens as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
+  /// A page to show in Peek's card: (its web view, the tab it came from).
+  var onPeek: ((WKWebView, String) -> Void)?
+  /// A page that isn't a tab (a peeked one) closed itself (`window.close()`).
+  var onPageClosed: ((WKWebView) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
   /// A picture-in-picture window's "back to the page" (AutoPiP): tab ID.
@@ -107,36 +113,74 @@ final class TabManager: NSObject {
       bump(node.id)
       return view
     }
-    let configuration = WKWebViewConfiguration()
-    // The home profile's spaces (and favorites) use the default store.
-    let profile = store.profile(of: node)
-    // Incognito: one in-memory store for the app's run (cookies, storage
-    // and cache never touch the disk).
-    configuration.websiteDataStore = store.isIncognito(node)
-      ? incognitoDataStore : dataStore(for: store.isHome(profile) ? "" : profile)
-    configuration.allowsInlineMediaPlayback = true
-    configuration.allowsPictureInPictureMediaPlayback = true
-    configuration.userContentController.addUserScript(PasswordScript.userScript)
-    configuration.userContentController.addUserScript(DesktopViewport.script)
-    configuration.userContentController.add(
-      MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
-    if let callScript = AutoPiP.callScript {
-      configuration.userContentController.addUserScript(callScript)
+    let view = makeWebView(for: node, url: URL(string: node.url))
+    register(view, as: node.id)
+    if let state = restoring.removeValue(forKey: node.id) {
+      view.interactionState = state
+    } else if let url = URL(string: node.url), !node.url.isEmpty {
+      view.load(URLRequest(url: url))
     }
-    configuration.userContentController.addUserScript(AutoPiP.script)
-    // Claude's read_console (ClaudeTools.swift).
-    configuration.userContentController.addUserScript(ConsoleCapture.script)
-    configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
-    let view = WKWebView(
-      frame: .zero,
-      configuration: extensions?.configure(configuration, for: URL(string: node.url)) ?? configuration)
+    return view
+  }
+
+  /// A web view as a tab of `node`'s would have it (its profile's website
+  /// data, the scripts, the extensions, the filter lists for `url`), not
+  /// loaded and not yet anyone's tab. Peek's pages start here
+  /// (docs/design/ios.md, "Peek").
+  ///
+  /// `configuration`: WebKit's own, for a page a tab opens
+  /// (`createWebViewWith`). It's the opener's, scripts and data store
+  /// included, and has to be used as given for the page to keep its opener.
+  func makeWebView(
+    for node: SidebarNode, url: URL?, configuration given: WKWebViewConfiguration? = nil
+  ) -> WKWebView {
+    let view: WKWebView
+    if let given {
+      view = WKWebView(frame: .zero, configuration: given)
+    } else {
+      let configuration = WKWebViewConfiguration()
+      // The home profile's spaces (and favorites) use the default store.
+      let profile = store.profile(of: node)
+      // Incognito: one in-memory store for the app's run (cookies, storage
+      // and cache never touch the disk).
+      configuration.websiteDataStore = store.isIncognito(node)
+        ? incognitoDataStore : dataStore(for: store.isHome(profile) ? "" : profile)
+      configuration.allowsInlineMediaPlayback = true
+      configuration.allowsPictureInPictureMediaPlayback = true
+      configuration.userContentController.addUserScript(PasswordScript.userScript)
+      configuration.userContentController.addUserScript(DesktopViewport.script)
+      configuration.userContentController.add(
+        MessageProxy(self), contentWorld: PasswordScript.world, name: PasswordScript.handler)
+      if let callScript = AutoPiP.callScript {
+        configuration.userContentController.addUserScript(callScript)
+      }
+      configuration.userContentController.addUserScript(AutoPiP.script)
+      // Claude's read_console (ClaudeTools.swift).
+      configuration.userContentController.addUserScript(ConsoleCapture.script)
+      configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
+      view = WKWebView(
+        frame: .zero,
+        configuration: extensions?.configure(configuration, for: url) ?? configuration)
+    }
     view.allowsBackForwardNavigationGestures = true
     view.isFindInteractionEnabled = true
-    applyContentBlocking(view, site: SiteSettings.site(URL(string: node.url)))
+    applyContentBlocking(view, site: SiteSettings.site(url))
     view.isInspectable = true
     view.navigationDelegate = self
     view.uiDelegate = self
-    let id = node.id
+    return view
+  }
+
+  /// `view`, made by `makeWebView` and maybe loaded already (a peeked
+  /// page), becomes the live tab of `node` as it is: no reload, its history,
+  /// scroll position and form state kept.
+  func adopt(_ view: WKWebView, as node: SidebarNode) {
+    if let old = live[node.id], old !== view { unload(node.id) }
+    register(view, as: node.id)
+    changed(node.id, view)
+  }
+
+  private func register(_ view: WKWebView, as id: String) {
     observe(view, as: id)
     live[id] = view
     bump(id)
@@ -144,12 +188,6 @@ final class TabManager: NSObject {
     // tab restored from the sidebar was never announced: 1Password's
     // background then found no tab for its messages).
     extensions?.tabOpened(id)
-    if let state = restoring.removeValue(forKey: id) {
-      view.interactionState = state
-    } else if let url = URL(string: node.url), !node.url.isEmpty {
-      view.load(URLRequest(url: url))
-    }
-    return view
   }
 
   private func observe(_ view: WKWebView, as id: String) {
@@ -385,7 +423,9 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
   }
 
   /// A long press on the page: the system's items, then the extensions'
-  /// context menu items (chrome.contextMenus) for that spot.
+  /// context menu items (chrome.contextMenus) for that spot. On a web link,
+  /// the preview is the page itself, loading in a web view of the tab's
+  /// profile: tapping it (or Peek) shows that same page in Peek's card.
   ///
   /// The completion-handler form, not the async one: WebKit continues the
   /// menu interaction (UIKit view work) on whatever thread the completion
@@ -396,24 +436,146 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
   ) {
     let configuration = MainActor.assumeIsolated { () -> UIContextMenuConfiguration? in
-      guard let id = live.first(where: { $0.value === webView })?.key,
-        let items = extensions?.menuItems(forTab: id), !items.isEmpty
-      else { return nil }
-      return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggested in
-        UIMenu(children: suggested + [UIMenu(options: .displayInline, children: items)])
+      guard let id = live.first(where: { $0.value === webView })?.key else { return nil }
+      let items = extensions?.menuItems(forTab: id) ?? []
+      let link = elementInfo.linkURL.flatMap { Self.isWeb($0) ? $0 : nil }
+      let peeks = link != nil && onPeek != nil && store.node(id: id) != nil
+      guard peeks || !items.isEmpty else { return nil }
+      let size = webView.bounds.size
+      let preview: UIContextMenuContentPreviewProvider? =
+        peeks ? { [weak self] in link.flatMap { self?.peekPreview($0, from: id, size: size) } } : nil
+      return UIContextMenuConfiguration(identifier: nil, previewProvider: preview) { [weak self] suggested in
+        var children = suggested
+        if peeks, let link {
+          let peek = UIAction(title: "Peek", image: UIImage(systemName: "eye")) { [weak self] _ in
+            self?.peek(link, from: id)
+          }
+          children.insert(peek, at: 0)
+        }
+        if !items.isEmpty { children.append(UIMenu(options: .displayInline, children: items)) }
+        return UIMenu(children: children)
       }
     }
     completionHandler(configuration)
   }
 
+  /// The preview was tapped: its page goes on to Peek's card, as it is.
+  func webView(
+    _ webView: WKWebView, contextMenuForElement elementInfo: WKContextMenuElementInfo,
+    willCommitWithAnimator animator: UIContextMenuInteractionCommitAnimating
+  ) {
+    guard let preview = self.preview.take() else { return }
+    animator.preferredCommitStyle = .pop
+    animator.addCompletion { [weak self] in self?.onPeek?(preview.page, preview.source) }
+  }
+
+  /// The menu closed without the preview tapped: its page goes (unless
+  /// Peek, from the menu, already took it).
+  func webView(_ webView: WKWebView, contextMenuDidEndForElement elementInfo: WKContextMenuElementInfo) {
+    // After the menu's action, which runs once the menu is gone.
+    DispatchQueue.main.async { [weak self] in _ = self?.preview.take() }
+  }
+
+  /// Peek from the long-press menu: the preview's page if it was this
+  /// link's, else a new one.
+  private func peek(_ url: URL, from source: String) {
+    guard let node = store.node(id: source) else { return }
+    let page: WKWebView
+    if let preview = self.preview.take(), preview.url == url, preview.source == source {
+      page = preview.page
+    } else {
+      page = makeWebView(for: node, url: url)
+      page.load(URLRequest(url: url))
+    }
+    onPeek?(page, source)
+  }
+
+  private func peekPreview(_ url: URL, from source: String, size: CGSize) -> UIViewController? {
+    guard let node = store.node(id: source) else { return nil }
+    let page = makeWebView(for: node, url: url)
+    page.load(URLRequest(url: url))
+    preview.value = PeekPreview(page: page, url: url, source: source)
+    let controller = PeekPreviewController(page: page)
+    if size.width > 0, size.height > 0 {
+      controller.preferredContentSize = CGSize(width: size.width, height: (size.height * 0.75).rounded())
+    }
+    return controller
+  }
+
+  nonisolated private static func isWeb(_ url: URL) -> Bool {
+    let scheme = url.scheme?.lowercased()
+    return scheme == "http" || scheme == "https"
+  }
+
+  /// A page wants a new tab or window (`target=_blank`, `window.open()`):
+  /// from a pinned tab or a favorite it peeks, so the pinned app stays put
+  /// (as on the desktop: docs/design/peek.md); from anywhere else it's a
+  /// new Today entry. WebKit only asks on a user's tap (iOS blocks pop-ups
+  /// that aren't).
   nonisolated func webView(
     _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
   ) -> WKWebView? {
-    if let url = navigationAction.request.url {
-      MainActor.assumeIsolated { openInNewTab?(url) }
+    MainActor.assumeIsolated { () -> WKWebView? in
+      let url = navigationAction.request.url
+      if onPeek != nil, let id = live.first(where: { $0.value === webView })?.key, let node = store.node(id: id),
+        node.section == .pinned || node.section == .favorites, url.map(Self.isWeb) ?? true
+      {
+        // WebKit's configuration, so the page keeps its opener; WebKit loads
+        // the request in it.
+        let page = makeWebView(for: node, url: url, configuration: configuration)
+        onPeek?(page, id)
+        return page
+      }
+      if let url { openInNewTab?(url) }
+      return nil
     }
-    return nil
+  }
+
+  /// `window.close()`: a peeked page's card closes (tabs stay, as before).
+  func webViewDidClose(_ webView: WKWebView) {
+    guard !live.values.contains(where: { $0 === webView }) else { return }
+    onPageClosed?(webView)
+  }
+
+  // MARK: Peek's preview
+
+  /// The page a long press is previewing, until the menu commits or ends.
+  struct PeekPreview {
+    let page: WKWebView
+    let url: URL
+    let source: String
+  }
+
+  /// Holds the preview's page (a box, so the delegate methods can take it
+  /// without being observed).
+  final class PreviewSlot {
+    var value: PeekPreview?
+    func take() -> PeekPreview? {
+      defer { value = nil }
+      return value
+    }
+  }
+}
+
+/// A long press's preview: the linked page, not yet anyone's tab.
+private final class PeekPreviewController: UIViewController {
+  let page: WKWebView
+
+  init(page: WKWebView) {
+    self.page = page
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
+
+  override func loadView() {
+    view = UIView()
+    view.backgroundColor = .systemBackground
+    page.frame = view.bounds
+    page.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    view.addSubview(page)
   }
 }
 

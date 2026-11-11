@@ -64,6 +64,7 @@
 		6EB35E925912692C22E0147F /* DownloadActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */; };
 		72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */; };
 		75239D1EE578D0DDEB16FE09 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */; };
+		2827204F714A0D874CE9DB14 /* Peek.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B64020D5018ABB32C63EBF /* Peek.swift */; };
 		77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD52168629F96C8A4ABCDBDF /* Favicons.swift */; };
 		77F55AE0293AF373981A228C /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 2CB99DFF6092C31970BA2AD3 /* popup.html */; };
 		7843D6FC2CA3DD057CA9A4F0 /* ShortcutsActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */; };
@@ -296,6 +297,7 @@
 		D248EE47245F87391C4DDC09 /* DownloadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTests.swift; sourceTree = "<group>"; };
 		DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUnlock.swift; sourceTree = "<group>"; };
 		E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcuts.swift; sourceTree = "<group>"; };
+		27B64020D5018ABB32C63EBF /* Peek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Peek.swift; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EDC160A2F8C9A864C250F339 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariOpen/Resources/_locales; sourceTree = SOURCE_ROOT; };
 		EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -626,6 +628,7 @@
 				2B2B8A168816D005B0C1644F /* BrowserScreen.swift */,
 				44957DA68D5128D0EA074A29 /* DesktopViewport.swift */,
 				E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */,
+				27B64020D5018ABB32C63EBF /* Peek.swift */,
 				32AD0FC2A4DD49EA6D182F11 /* WebView.swift */,
 			);
 			path = Browser;
@@ -990,6 +993,7 @@
 				FB2330F39EA3A9117C43CC3F /* IncognitoLockView.swift in Sources */,
 				AA8271B1D5E06BF32C8CA42C /* Intents.swift in Sources */,
 				75239D1EE578D0DDEB16FE09 /* KeyboardShortcuts.swift in Sources */,
+				2827204F714A0D874CE9DB14 /* Peek.swift in Sources */,
 				0D76BE83326730393C9D18BE /* Keychain.swift in Sources */,
 				BA7C6B8B4A54982738CAA1E8 /* LiveFolderViews.swift in Sources */,
 				0E676486C9655F69A2601BD3 /* LiveFolders.swift in Sources */,

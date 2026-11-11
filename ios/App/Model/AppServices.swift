@@ -110,6 +110,14 @@ final class AppServices {
     Task { [contentBlocking] in await contentBlocking.refresh() }
     // A page's window.open: a new tab in the window the user is in.
     tabs.openInNewTab = { [weak self] url in self?.active?.open(url.absoluteString) }
+    // Peek: the card shows in the window of the tab the page came from.
+    tabs.onPeek = { [weak self] page, source in
+      guard let self, let window = self.owner(of: source) ?? self.active else { return }
+      window.showPeek(page, from: source)
+    }
+    tabs.onPageClosed = { [weak self] page in
+      for window in self?.windows ?? [] where window.peek?.page === page { window.closePeek() }
+    }
     tabs.onPageLoaded = { [weak self] url, title, id in
       guard let self, !self.tabs.isIncognito(id) else { return }  // no history in incognito
       self.sync.recordVisit(url: url, title: title, profile: self.accountProfile(ofTab: id))

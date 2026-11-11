@@ -311,6 +311,8 @@ struct RootView: View {
       .sheet(isPresented: $app.showingClaude) { ClaudeChatSheet() }
       .sheet(isPresented: $app.showingMenu) { PageMenu() }
       .sheet(item: $app.liveEditor) { LiveFolderEditor(target: $0) }
+      // Peek: a link looked at in a card (Peek.swift).
+      .sheet(item: $app.peek) { PeekCard(peek: $0) }
       .sheet(isPresented: $app.showingDownloads) {
         NavigationStack {
           DownloadsView().toolbar { Button("Done") { app.showingDownloads = false } }
