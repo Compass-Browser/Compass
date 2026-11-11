@@ -46,6 +46,15 @@ final class AppServices {
   private(set) weak var active: AppModel?
   /// Which window each tab's web view belongs to (`AppModel.id`).
   private var holder: [String: UUID] = [:]
+  /// Little windows' pages (iPad) waiting for their scene to come up,
+  /// oldest first (`LittleWindowScene` takes them).
+  @ObservationIgnored private var pendingLittle: [Peek] = []
+  /// A little window's page that's opening in a space while no browser
+  /// window is open: the next one to come up takes it.
+  @ObservationIgnored private var pendingAdopt: (peek: Peek, space: Space?)?
+  /// The little window the user is in: the keyboard commands act on its
+  /// page. Nil once a browser window is the key one.
+  private(set) weak var keyLittle: Peek?
 
   /// Incognito is behind Face ID: since the app last went to the
   /// background with incognito tabs open.
@@ -200,6 +209,7 @@ final class AppServices {
   /// focused window, widgets' links, shortcuts, sent tabs) act on, and it
   /// takes back the tabs it shows (move on focus).
   func activate(_ window: AppModel) {
+    keyLittle = nil
     if active !== window {
       active = window
       extensions.app = window
@@ -212,6 +222,59 @@ final class AppServices {
       }
     }
     for id in window.displayedTabIDs { claim(id, for: window) }
+  }
+
+  // MARK: Little windows (iPad)
+
+  /// Asks iPadOS for a little window's scene, prominent (centered over the
+  /// others), for `little`. If iPadOS refuses, `failed` (the card instead).
+  func openLittleWindow(_ little: Peek, from scene: UIWindowScene?, failed: @escaping @MainActor () -> Void) {
+    pendingLittle.append(little)
+    let activity = NSUserActivity(activityType: LittleWindows.activityType)
+    // What the little window's scene matches (handlesExternalEvents).
+    activity.targetContentIdentifier = LittleWindows.activityType
+    let options = UIWindowScene.ActivationRequestOptions()
+    options.placement = UIWindowSceneProminentPlacement()
+    options.requestingScene = scene
+    let request = UISceneSessionActivationRequest(role: .windowApplication)
+    request.userActivity = activity
+    request.options = options
+    UIApplication.shared.activateSceneSession(for: request) { _ in
+      Task { @MainActor in
+        let services = AppServices.shared
+        guard let index = services.pendingLittle.firstIndex(where: { $0 === little }) else { return }
+        services.pendingLittle.remove(at: index)
+        failed()
+      }
+    }
+  }
+
+  /// A little window's scene came up: its page (nil for one iPadOS
+  /// restored, which then closes).
+  func takeLittle() -> Peek? { pendingLittle.isEmpty ? nil : pendingLittle.removeFirst() }
+
+  func littleBecameKey(_ little: Peek) { keyLittle = little }
+
+  /// Open in <space> from a little window: into the last active browser
+  /// window, or the next one to open.
+  func adoptLittle(_ little: Peek, in space: Space?) -> Bool {
+    if keyLittle === little { keyLittle = nil }
+    guard let window = active ?? windows.last else {
+      pendingAdopt = (little, space)
+      return false
+    }
+    window.adopt(little, in: space)
+    // That window comes to the front, with the page.
+    if let session = window.windowScene?.session {
+      UIApplication.shared.activateSceneSession(for: UISceneSessionActivationRequest(session: session)) { _ in }
+    }
+    return true
+  }
+
+  /// A page waiting for a browser window (`adoptLittle`).
+  func takePendingAdopt() -> (peek: Peek, space: Space?)? {
+    defer { pendingAdopt = nil }
+    return pendingAdopt
   }
 
   /// `window` takes the tab's web view. The window it leaves keeps a

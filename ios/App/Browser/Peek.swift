@@ -37,6 +37,8 @@ final class Peek: Identifiable {
   private(set) var canGoBack = false
   /// Bumped by ⌘L: a little window's address takes the focus.
   var editAddress = 0
+  /// Bumped by ⌘O in a little window of its own: it opens in its space.
+  var openRequest = 0
   @ObservationIgnored private var observations: [NSKeyValueObservation] = []
 
   init(_ kind: Kind = .peek, page: WKWebView, source: String?, spaceID: String?, profile: String) {
@@ -61,6 +63,11 @@ final class Peek: Identifiable {
     ]
   }
 
+  /// The spaces the page can open in: its profile's.
+  func spaces(in store: SpaceStore) -> [Space] {
+    store.spaces.filter { store.sameProfile($0.profileUUID, profile) }
+  }
+
   /// The pill's text: the title, or only the host until there is one.
   var heading: String { title.isEmpty ? host : title }
   var host: String {
@@ -74,6 +81,9 @@ final class Peek: Identifiable {
 enum LittleWindows {
   static let key = "LittleWindowLinks"
   static var isOn: Bool { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
+  /// The user activity that asks for a little window's scene (iPad), and
+  /// the scene's external-event condition (`LittleWindowScene`).
+  static let activityType = "it.cipi1965.compass.little-window"
 }
 
 extension AppModel {
@@ -96,15 +106,31 @@ extension AppModel {
     guard let space = window ?? store.spaces.first else { return openLink(url) }
     let page = tabs.makeWebView(profile: space.profileUUID, incognito: false, url: url)
     page.load(URLRequest(url: url))
+    let little = Peek(.little, page: page, source: nil, spaceID: space.id, profile: space.profileUUID)
+    // An iPad with windows (Stage Manager, or iPadOS's windowed apps): a
+    // window of its own, over the others. Full screen, or if iPadOS
+    // refuses, the card.
+    if isWindowed {
+      services.openLittleWindow(little, from: windowScene) { [weak self] in self?.showCard(little) }
+    } else {
+      showCard(little)
+    }
+  }
+
+  private func showCard(_ little: Peek) {
     closePeek()
     dismissOverlays()
     showingClaude = false
-    peek = Peek(.little, page: page, source: nil, spaceID: space.id, profile: space.profileUUID)
+    peek = little
   }
 
-  /// The spaces the card's page can open in: its profile's.
-  func peekSpaces(_ peek: Peek) -> [Space] {
-    store.spaces.filter { store.sameProfile($0.profileUUID, peek.profile) }
+  /// Whether this window is one of several on screen: an iPad window
+  /// smaller than its screen (Stage Manager, windowed apps, Split View).
+  private var isWindowed: Bool {
+    guard UIApplication.shared.supportsMultipleScenes, let scene = windowScene else { return false }
+    let window = scene.coordinateSpace.bounds.size
+    let screen = scene.screen.bounds.size
+    return window.width < screen.width - 1 || window.height < screen.height - 1
   }
 
   /// The card closes and its page goes.
@@ -119,6 +145,12 @@ extension AppModel {
   func openPeek(in target: Space? = nil) {
     guard let peek else { return }
     self.peek = nil
+    adopt(peek, in: target)
+  }
+
+  /// A card's (or a little window's) page becomes the newest Today entry of
+  /// `target`, else of its space, in this window.
+  func adopt(_ peek: Peek, in target: Space?) {
     let space = target ?? peek.spaceID.flatMap(store.space(id:)) ?? peekSpace(profile: peek.profile, of: nil)
     let page = peek.page
     guard let space,
@@ -142,10 +174,15 @@ extension AppModel {
 /// Peek's card: the page with its title and host, Open and close (a little
 /// window: back, and Open in <space>). A sheet: on a phone it fills the
 /// screen but for the top (swipe down closes it); on an iPad it's a
-/// page-sized card over the dimmed window (a tap outside closes it).
+/// page-sized card over the dimmed window (a tap outside closes it). On an
+/// iPad with windows, a little window is a window of its own showing this
+/// (`LittleWindowScene`).
 struct PeekCard: View {
-  @Environment(AppModel.self) private var app
   let peek: Peek
+  let store: SpaceStore
+  /// Open, in the given space (nil: the page's own).
+  let open: (Space?) -> Void
+  let close: () -> Void
   /// A little window's address, while it's edited.
   @State private var address: String?
   @FocusState private var addressFocused: Bool
@@ -167,7 +204,7 @@ struct PeekCard: View {
         }
         switch peek.kind {
         case .peek:
-          Button { app.openPeek() } label: {
+          Button { open(nil) } label: {
             Label("Open", systemImage: "arrow.up.forward.square").font(.subheadline.weight(.semibold))
           }
           .buttonStyle(.borderedProminent)
@@ -176,7 +213,7 @@ struct PeekCard: View {
         case .little:
           openIn
         }
-        Button { app.closePeek() } label: {
+        Button(action: close) {
           Image(systemName: "xmark.circle.fill")
             .font(.title2)
             .symbolRenderingMode(.hierarchical)
@@ -254,10 +291,10 @@ struct PeekCard: View {
   /// Open in <space>, and ⌄ for the profile's other spaces (with more
   /// than one), as the desktop's little window.
   private var openIn: some View {
-    let spaces = app.peekSpaces(peek)
-    let target = peek.spaceID.flatMap(app.store.space(id:)) ?? spaces.first
+    let spaces = peek.spaces(in: store)
+    let target = peek.spaceID.flatMap(store.space(id:)) ?? spaces.first
     return HStack(spacing: 0) {
-      Button { app.openPeek() } label: {
+      Button { open(nil) } label: {
         Text("Open in \(target.map(Self.name) ?? "Space")")
           .font(.subheadline.weight(.semibold))
           .lineLimit(1)
@@ -269,7 +306,7 @@ struct PeekCard: View {
       if spaces.count > 1 {
         Menu {
           ForEach(spaces, id: \.id) { space in
-            Button { app.openPeek(in: space) } label: {
+            Button { open(space) } label: {
               if space.id == target?.id {
                 Label(Self.name(space), systemImage: "checkmark")
               } else if case .symbol(let symbol)? = SpaceIcon.parse(space.icon) {
@@ -294,6 +331,51 @@ struct PeekCard: View {
   }
 
   private static func name(_ space: Space) -> String { space.name.isEmpty ? "Space" : space.name }
+}
+
+/// A little window as a window of its own (iPad with windows): the card's
+/// bar and page filling it. Its page is the one `AppServices` holds for the
+/// scene coming up; one iPadOS restores has none and closes. Open in
+/// <space> moves the page into the last active browser window.
+struct LittleWindowScene: View {
+  @State private var peek: Peek?
+  @Environment(\.dismissWindow) private var dismissWindow
+  @Environment(\.openWindow) private var openWindow
+  private var services: AppServices { .shared }
+
+  var body: some View {
+    Group {
+      if let peek {
+        PeekCard(peek: peek, store: services.store, open: { open(peek, in: $0) }, close: { close(peek) })
+          .background { KeyWindowReader(installsKeyCommands: false) { services.littleBecameKey(peek) } }
+          .background {
+            // ⌘W, as in a browser window.
+            Button("Close Window") { close(peek) }
+              .keyboardShortcut("w")
+              .opacity(0)
+              .accessibilityHidden(true)
+          }
+          .onChange(of: peek.openRequest) { open(peek, in: nil) }
+      } else {
+        Color(uiColor: .systemBackground)
+      }
+    }
+    .onAppear {
+      guard peek == nil else { return }
+      if let little = services.takeLittle() { peek = little } else { dismissWindow() }
+    }
+  }
+
+  private func open(_ peek: Peek, in space: Space?) {
+    // No browser window open: one opens and takes the page.
+    if !services.adoptLittle(peek, in: space) { openWindow(value: WindowTarget()) }
+    dismissWindow()
+  }
+
+  private func close(_ peek: Peek) {
+    peek.page.stopLoading()
+    dismissWindow()
+  }
 }
 
 extension View {

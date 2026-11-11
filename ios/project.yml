@@ -141,7 +141,8 @@ targets:
         # Downloads on the Lock Screen and in the Dynamic Island.
         NSSupportsLiveActivities: true
         # Spotlight results open entries (CSSearchableItemActionType).
-        NSUserActivityTypes: [com.apple.corespotlightitem]
+        # it.cipi1965.compass.little-window: a little window's scene (iPad).
+        NSUserActivityTypes: [com.apple.corespotlightitem, it.cipi1965.compass.little-window]
         # Downloads show in the Files app (Documents/Downloads).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true

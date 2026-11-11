@@ -16,8 +16,11 @@ struct BrowserCommands: Commands {
 
   /// The window the user is in.
   private var app: AppModel? { services.active }
-  /// The page the user sees: Peek's card's, else the shown tab's.
-  private var webView: WKWebView? { app?.peek?.page ?? app?.shownTab.flatMap { services.tabs.live[$0.id] } }
+  /// The page the user sees: a little window's (iPad), Peek's card's, else
+  /// the shown tab's.
+  private var webView: WKWebView? { peek?.page ?? app?.shownTab.flatMap { services.tabs.live[$0.id] } }
+  /// The card or little window the user is in.
+  private var peek: Peek? { services.keyLittle ?? app?.peek }
 
   var body: some Commands {
     CommandGroup(replacing: .newItem) {
@@ -30,7 +33,7 @@ struct BrowserCommands: Commands {
         .keyboardShortcut("n", modifiers: [.command, .shift])
       Button("Open Location…") {
         // A little window's own address.
-        if let peek = app?.peek {
+        if let peek {
           if peek.kind == .little { peek.editAddress += 1 }
         } else {
           app?.openCommandBar(newTab: false)
@@ -38,9 +41,11 @@ struct BrowserCommands: Commands {
       }
       .keyboardShortcut("l")
       // Peek's Open, as on the desktop.
-      Button("Open Peeked Page") { app?.openPeek() }
-        .keyboardShortcut("o")
-        .disabled(app?.peek == nil)
+      Button("Open Peeked Page") {
+        if let little = services.keyLittle { little.openRequest += 1 } else { app?.openPeek() }
+      }
+      .keyboardShortcut("o")
+      .disabled(peek == nil)
     }
     CommandGroup(after: .pasteboard) {
       Button("Copy Link") {

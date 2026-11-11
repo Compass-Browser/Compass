@@ -440,8 +440,27 @@ card, over whatever the window shows, in its little-window mode:
     reads it.
 
 Links from Compass's own extensions and widgets (`compass://open`) still
-open as tabs: they name their space. An iPad gets the same card for now;
-a window of its own (a second scene) is the next step.
+open as tabs: they name their space.
+
+**iPad.** When the window the link arrives in is one of several on screen
+(smaller than the screen: Stage Manager, iPadOS's windowed apps, Split
+View), the little window is a window of its own, centered over the others:
+the same bar and page, 720×900 by default. Open in <space> moves the page
+into the last active browser window (or a new one, with none open) and
+brings it to the front; close, Esc or ⌘W closes the window. Keyboard
+commands (⌘L, ⌘O, ⌘[, ⌘R…) act on the little window while it's the key
+one. A full-screen window gets the card, as on an iPhone.
+
+How: the page is made as for the card and waits in `AppServices`
+(`openLittleWindow`) while a scene session is requested
+(`activateSceneSession`, `UIWindowSceneProminentPlacement`) with an
+`NSUserActivity` of type and `targetContentIdentifier`
+`it.cipi1965.compass.little-window`. A second `WindowGroup(id: "little")`
+matches it (`handlesExternalEvents(matching:)`); the browser windows don't
+claim it, having no `handlesExternalEvents(preferring:allowing:)`, so
+SwiftUI makes a new little scene, whose `LittleWindowScene` takes the
+waiting page. One iPadOS restores after a relaunch has no page and closes.
+If iPadOS refuses the request, the card shows instead.
 
 Not done: the address has no suggestions.
 

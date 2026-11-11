@@ -54,6 +54,14 @@ struct CompassApp: App {
       WindowRoot(target: $target)
     }
     .commands { BrowserCommands(services: services) }
+    // iPad: a link from another app in a window of its own (Peek.swift).
+    // Only the little-window activity opens one: the browser windows don't
+    // claim it (no handlesExternalEvents(preferring:allowing:)).
+    WindowGroup(id: "little") {
+      LittleWindowScene()
+    }
+    .defaultSize(width: 720, height: 900)
+    .handlesExternalEvents(matching: [LittleWindows.activityType])
     .onChange(of: phase) { old, phase in
       let app = services.active
       services.incognitoPhase(phase)
@@ -101,7 +109,9 @@ struct WindowRoot: View {
       if let app {
         RootView()
           .environment(app)
-          .background { KeyWindowReader { AppServices.shared.activate(app) } }
+          .background {
+            KeyWindowReader(window: { app.windowScene = $0.windowScene }) { AppServices.shared.activate(app) }
+          }
           // Saved with the window: iPadOS restores it on this entry.
           .onChange(of: app.selectedNodeID) { _, id in
             // Not an incognito entry: iPadOS saves it to disk.
@@ -130,6 +140,8 @@ struct WindowRoot: View {
       let model = AppModel(services: .shared)
       app = model
       model.attach(showing: target?.entry)
+      // A little window's page opened in a space while no window was.
+      if let pending = AppServices.shared.takePendingAdopt() { model.adopt(pending.peek, in: pending.space) }
       #if DEBUG
         // -CompassSecondWindow YES: the first window's entry, 8 s in, in a
         // window of its own (as "Open in New Window").
@@ -170,13 +182,29 @@ struct WindowRoot: View {
 /// Calls `becameKey` when this view's window becomes the key window (the
 /// one the user is in), and at once if it already is.
 struct KeyWindowReader: UIViewRepresentable {
+  /// The browser's ⌘W and ⌃⇧Tab (PriorityKeyCommands): not in a little
+  /// window.
+  var installsKeyCommands = true
+  /// The window it's in, when that changes.
+  var window: ((UIWindow) -> Void)? = nil
   let becameKey: () -> Void
 
-  func makeUIView(context: Context) -> Reader { Reader(becameKey: becameKey) }
-  func updateUIView(_ view: Reader, context: Context) { view.becameKey = becameKey }
+  func makeUIView(context: Context) -> Reader {
+    let reader = Reader(becameKey: becameKey)
+    reader.installsKeyCommands = installsKeyCommands
+    reader.onWindow = window
+    return reader
+  }
+
+  func updateUIView(_ view: Reader, context: Context) {
+    view.becameKey = becameKey
+    view.onWindow = window
+  }
 
   final class Reader: UIView {
     var becameKey: () -> Void
+    var installsKeyCommands = true
+    var onWindow: ((UIWindow) -> Void)?
     private var observer: NSObjectProtocol?
 
     init(becameKey: @escaping () -> Void) {
@@ -196,7 +224,8 @@ struct KeyWindowReader: UIViewRepresentable {
         forName: UIWindow.didBecomeKeyNotification, object: window, queue: .main
       ) { [weak self] _ in MainActor.assumeIsolated { self?.becameKey() } }
       if window.isKeyWindow { DispatchQueue.main.async { [weak self] in self?.becameKey() } }
-      PriorityKeyCommands.install(in: window)
+      onWindow?(window)
+      if installsKeyCommands { PriorityKeyCommands.install(in: window) }
     }
   }
 }
@@ -314,7 +343,9 @@ struct RootView: View {
       .sheet(isPresented: $app.showingMenu) { PageMenu() }
       .sheet(item: $app.liveEditor) { LiveFolderEditor(target: $0) }
       // Peek: a link looked at in a card (Peek.swift).
-      .sheet(item: $app.peek) { PeekCard(peek: $0) }
+      .sheet(item: $app.peek) { peek in
+        PeekCard(peek: peek, store: app.store, open: { app.openPeek(in: $0) }, close: { app.closePeek() })
+      }
       .sheet(isPresented: $app.showingDownloads) {
         NavigationStack {
           DownloadsView().toolbar { Button("Done") { app.showingDownloads = false } }

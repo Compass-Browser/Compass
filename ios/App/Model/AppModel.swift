@@ -94,6 +94,8 @@ final class AppModel {
   var showingDownloads = false
   /// The page Peek's card shows (Peek.swift).
   var peek: Peek?
+  /// The scene this window is in (little windows open from it).
+  @ObservationIgnored weak var windowScene: UIWindowScene?
   /// New Live Folder / Edit Source (LiveFolderEditor).
   var liveEditor: LiveEditorTarget?
   /// After joining a chain: what came over (profiles and spaces).

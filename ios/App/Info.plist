@@ -76,6 +76,7 @@
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>com.apple.corespotlightitem</string>
+		<string>it.cipi1965.compass.little-window</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
