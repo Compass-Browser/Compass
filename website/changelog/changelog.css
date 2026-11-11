@@ -45,3 +45,5 @@ code { font-size: 14px; }
   background: var(--chip); color: var(--muted);
 }
 .badge.stable { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.badge.canary { background: color-mix(in srgb, #e8a400 18%, transparent); color: #b57f00; }
+@media (prefers-color-scheme: dark) { .badge.canary { color: #f2c14e; } }
