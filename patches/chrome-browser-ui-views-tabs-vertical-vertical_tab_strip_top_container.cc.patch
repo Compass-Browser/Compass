@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
-index fc3337bf30a15d3c6d8725ce55385fc22bc41d6a..a3fc4e72cd9c0caf8cc62635ca59737e4d6e9715 100644
+index fc3337bf30a15d3c6d8725ce55385fc22bc41d6a..84440ed9e8c7591e8672f11883889ef7b00e5f0c 100644
 --- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
 +++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
 @@ -141,15 +141,14 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
@@ -21,4 +21,22 @@ index fc3337bf30a15d3c6d8725ce55385fc22bc41d6a..a3fc4e72cd9c0caf8cc62635ca59737e
 +       available_width < tabs::kVerticalTabStripCollapseSnapWidth)) {
      combo_button_orientation_ = views::LayoutOrientation::kVertical;
      int current_y = 0;
+ 
+@@ -259,12 +258,12 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
+                                          size_bounds.width().is_bounded() &&
+                                          WillWrapDueToOverflow(available_width);
+ 
+-    // In collapsed mode with expand on hover, the vertical tab strip is
+-    // positioned below the caption buttons exclusion zone, so the collapse
+-    // button does not need to be shifted over.
++    // Compass: not when collapsed with expand on hover. Upstream puts the
++    // strip shown on hover below the caption buttons; Compass's starts at the
++    // window's top (browser_view_tabbed_layout_impl.cc patch), so its buttons
++    // go after the caption buttons, as expanded.
+     const int left_alignment =
+-        (wrapped_due_to_overflow || is_exiting_expand_on_hover_ ||
+-         (is_collapsed && is_expand_on_hover))
++        (wrapped_due_to_overflow || is_exiting_expand_on_hover_)
+             ? 0
+             : caption_button_width_;
  
