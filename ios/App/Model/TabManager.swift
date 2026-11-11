@@ -414,6 +414,72 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     MainActor.assumeIsolated { setConnecting(webView, false) }
   }
 
+  /// HTTP authentication (Basic, Digest): WKWebView shows no prompt of its
+  /// own (without this, the server's 401 page shows), so Compass asks for
+  /// the user name and password. Anything else (server trust, client
+  /// certificates) gets the system's handling.
+  nonisolated func webView(
+    _ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping @MainActor (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    let method = challenge.protectionSpace.authenticationMethod
+    guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else {
+      return MainActor.assumeIsolated { completionHandler(.performDefaultHandling, nil) }
+    }
+    // A saved credential, tried once.
+    if challenge.previousFailureCount == 0, let saved = challenge.proposedCredential, saved.hasPassword {
+      return MainActor.assumeIsolated { completionHandler(.useCredential, saved) }
+    }
+    let space = challenge.protectionSpace
+    let failed = challenge.previousFailureCount > 0
+    MainActor.assumeIsolated {
+      // WebKit waits on the answer: exactly once, and a cancel when the
+      // alert couldn't be shown.
+      final class Once: @unchecked Sendable {
+        var handler: (@MainActor (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)?
+      }
+      let once = Once()
+      once.handler = completionHandler
+      let answer: @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void = {
+        disposition, credential in
+        let handler = once.handler
+        once.handler = nil
+        handler?(disposition, credential)
+      }
+      var message = "\(space.host) requires a user name and password."
+      if let realm = space.realm, !realm.isEmpty { message += "\n\u{201C}\(realm)\u{201D}" }
+      if space.receivesCredentialSecurely == false { message += "\nYour login information will be sent insecurely." }
+      if failed { message = "The user name or password was incorrect.\n" + message }
+      let alert = UIAlertController(title: "Sign In", message: message, preferredStyle: .alert)
+      alert.addTextField {
+        $0.placeholder = "User Name"
+        $0.textContentType = .username
+        $0.autocapitalizationType = .none
+        $0.autocorrectionType = .no
+        $0.text = challenge.proposedCredential?.user
+      }
+      alert.addTextField {
+        $0.placeholder = "Password"
+        $0.textContentType = .password
+        $0.isSecureTextEntry = true
+      }
+      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
+        answer(.cancelAuthenticationChallenge, nil)
+      })
+      alert.addAction(UIAlertAction(title: "Sign In", style: .default) { [weak alert] _ in
+        let user = alert?.textFields?[0].text ?? ""
+        let password = alert?.textFields?[1].text ?? ""
+        answer(.useCredential, URLCredential(user: user, password: password, persistence: .forSession))
+      })
+      guard Presenter.present(alert) else { return answer(.cancelAuthenticationChallenge, nil) }
+      // UIKit drops a presentation over one that's still animating.
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(2))
+        if alert.presentingViewController == nil { answer(.cancelAuthenticationChallenge, nil) }
+      }
+    }
+  }
+
   private func setConnecting(_ webView: WKWebView, _ on: Bool) {
     guard let id = live.first(where: { $0.value === webView })?.key else { return }
     if on { connecting.insert(id) } else { connecting.remove(id) }
