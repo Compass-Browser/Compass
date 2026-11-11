@@ -105,7 +105,7 @@ private fun ClaudeSheet(state: ClaudeChatState, listener: ClaudeChatUi.Listener)
 private fun KeyEntry(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
     var key by remember { mutableStateOf("") }
     Text("Claude reads the page with you. Add an Anthropic API key to start; it's kept encrypted on this device.")
-    OutlinedTextField(
+    @Suppress("DEPRECATION") OutlinedTextField(
         value = key,
         onValueChange = { key = it.trim() },
         label = { Text("API key") },
@@ -173,7 +173,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.Chat(
         Switch(checked = state.browserScope, onCheckedChange = { listener.onBrowserScope(it) })
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+        @Suppress("DEPRECATION") OutlinedTextField(
             value = text,
             onValueChange = { text = it },
             placeholder = { Text("Ask about this page") },

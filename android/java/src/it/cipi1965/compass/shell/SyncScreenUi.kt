@@ -179,7 +179,7 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         "Sync joins a chain of your devices: everything is encrypted on them, " +
             "and the server can't read it. There's no account."
     )
-    OutlinedTextField(
+    @Suppress("DEPRECATION") OutlinedTextField(
         value = server,
         onValueChange = { server = it.trim() },
         label = { Text("Sync server") },
@@ -190,7 +190,7 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     HorizontalDivider()
     Text("Pair with a device", style = MaterialTheme.typography.titleMedium)
     Text("On a device that syncs, choose Add a device, then enter its code here.")
-    OutlinedTextField(
+    @Suppress("DEPRECATION") OutlinedTextField(
         value = code,
         onValueChange = { code = it },
         label = { Text("Pairing code") },
@@ -205,7 +205,7 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     }
     HorizontalDivider()
     Text("Or use your recovery code", style = MaterialTheme.typography.titleMedium)
-    OutlinedTextField(
+    @Suppress("DEPRECATION") OutlinedTextField(
         value = words,
         onValueChange = { words = it },
         label = { Text("Recovery code") },

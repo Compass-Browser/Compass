@@ -382,7 +382,7 @@ private fun RenameDialog(name: String, onDone: (String) -> Unit, onDismiss: () -
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Rename Space") },
-        text = { OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
+        text = { @Suppress("DEPRECATION") OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
         confirmButton = { TextButton(onClick = { onDone(text.trim().ifEmpty { name }) }) { Text("Done") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
@@ -402,7 +402,7 @@ private fun ThemeDialog(space: SidebarState.Space, onDone: (String, String) -> U
         title = { Text("Edit Theme") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                OutlinedTextField(
+                @Suppress("DEPRECATION") OutlinedTextField(
                     value = emoji,
                     onValueChange = { emoji = it.take(8) },
                     label = { Text("Emoji") },

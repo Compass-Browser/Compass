@@ -213,7 +213,7 @@ class PasswordPickerActivity : ComponentActivity() {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         else -> {
-                            OutlinedTextField(
+                            @Suppress("DEPRECATION") OutlinedTextField(
                                 value = query,
                                 onValueChange = { query = it },
                                 placeholder = { Text("Search") },
