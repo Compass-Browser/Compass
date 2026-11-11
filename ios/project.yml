@@ -100,7 +100,7 @@ targets:
       properties:
         # "Compass" is taken on the App Store (ITMS-90129).
         CFBundleName: Compass Browser
-        CFBundleDisplayName: Compass Browser
+        CFBundleDisplayName: Compass
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}

@@ -33,6 +33,8 @@ final class SystemBridge {
   @ObservationIgnored private var snapshotTask: Task<Void, Never>?
   @ObservationIgnored private var iconTask: Task<Void, Never>?
   @ObservationIgnored private var hosts: Set<String> = []
+  /// What Spotlight was last given.
+  @ObservationIgnored private var spotlightSpaces: [SpaceInfo] = []
   @ObservationIgnored private let spotlight = Spotlight()
   /// After a launch the index and the icon menu are set even when the
   /// snapshot didn't change.
@@ -86,12 +88,17 @@ final class SystemBridge {
     let snapshot = app.store.snapshot(
       style: Self.style, glyph: Self.glyph, recentSpaceIDs: recentSpaceIDs,
       devices: Self.devices(app.sync), syncOn: app.sync.isOn)
-    guard (try? container.write(snapshot)) == true || !wroteOnce else { return }
+    // Spotlight gets every favorite and Pinned entry, not the widgets' first
+    // few, and their icons; a change past those few counts as a change.
+    let all = app.store.snapshot(style: Self.style, glyph: Self.glyph, limit: .max)
+    let wrote = (try? container.write(snapshot)) == true
+    guard wrote || all.spaces != spotlightSpaces || !wroteOnce else { return }
     wroteOnce = true
-    hosts = Self.hosts(in: snapshot)
+    spotlightSpaces = all.spaces
+    hosts = Self.hosts(in: snapshot).union(Spotlight.isEnabled ? Self.hosts(in: all) : [])
     copyIcons(hosts)
     WidgetCenter.shared.reloadAllTimelines()
-    spotlight.update(snapshot, icons: container, enabled: Spotlight.isEnabled)
+    spotlight.update(all, icons: container, enabled: Spotlight.isEnabled)
     HomeQuickActions.update(snapshot)
   }
 

@@ -6,11 +6,17 @@ import CompassShared
 import CoreSpotlight
 import UniformTypeIdentifiers
 
-/// Favorites and Pinned entries in Spotlight (Home Screen search). An item's
+/// Spaces, favorites and Pinned entries in Spotlight (Home Screen search). An item's
 /// ID is its sidebar node's, so a tap shows that entry; its domain is its
 /// space's. The index follows the snapshot: what left the sidebar leaves it.
+/// One more item stands for the app itself, so a search for "browser" finds
+/// Compass (the Home Screen name alone doesn't have the word).
 @MainActor
 final class Spotlight {
+  /// The app's own item: a tap just opens the app.
+  static let appItemID = "compass.app"
+  /// A space's item ID is this plus the space's ID.
+  static let spacePrefix = "space:"
   static let enabledKey = "CompassSpotlight"
   /// Settings → "Show in Spotlight"; on unless turned off.
   static var isEnabled: Bool { UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true }
@@ -24,9 +30,13 @@ final class Spotlight {
     set { UserDefaults.standard.set(Array(newValue), forKey: Self.indexedKey) }
   }
   func update(_ snapshot: Snapshot, icons: SharedContainer, enabled: Bool) {
+    if !appIndexed {
+      index.indexSearchableItems([Self.appItem]) { _ in }
+      appIndexed = true
+    }
     guard enabled else {
       if !indexed.isEmpty {
-        index.deleteAllSearchableItems { _ in }
+        index.deleteSearchableItems(withIdentifiers: Array(indexed)) { _ in }
         indexed = []
         lastSignature = [:]
       }
@@ -35,6 +45,14 @@ final class Spotlight {
     var items: [String: CSSearchableItem] = [:]
     var signature: [String: String] = [:]
     for space in snapshot.spaces {
+      // The space itself: a tap shows its sidebar.
+      let spaceID = Self.spacePrefix + space.id
+      let spaceAttributes = CSSearchableItemAttributeSet(contentType: .content)
+      spaceAttributes.title = space.name
+      spaceAttributes.contentDescription = "Space in Compass"
+      spaceAttributes.keywords = ["space", "Compass"]
+      items[spaceID] = CSSearchableItem(uniqueIdentifier: spaceID, domainIdentifier: space.id, attributeSet: spaceAttributes)
+      signature[spaceID] = "space|\(space.name)"
       for (entry, kind) in space.favorites.map({ ($0, "Favorite") }) + space.pinned.map({ ($0, "Pinned") }) {
         guard items[entry.id] == nil else { continue }
         let attributes = CSSearchableItemAttributeSet(contentType: .url)
@@ -60,4 +78,13 @@ final class Spotlight {
   }
 
   private var lastSignature: [String: String] = [:]
+  private var appIndexed = false
+
+  private static var appItem: CSSearchableItem {
+    let attributes = CSSearchableItemAttributeSet(contentType: .application)
+    attributes.title = "Compass"
+    attributes.contentDescription = "Web browser"
+    attributes.keywords = ["browser", "web browser", "web", "internet", "Compass Browser"]
+    return CSSearchableItem(uniqueIdentifier: appItemID, domainIdentifier: "app", attributeSet: attributes)
+  }
 }

@@ -8,19 +8,20 @@ import Foundation
 extension SpaceStore {
   /// The extensions' picture of the sidebar (CompassShared.Snapshot). The
   /// app supplies what the model doesn't know: each space's colors and
-  /// symbol, the recently shown spaces and the other devices.
+  /// symbol, the recently shown spaces and the other devices. `limit` caps
+  /// each list (Spotlight passes `.max` to get every entry).
   public func snapshot(
     style: (Space) -> SpaceStyle, glyph: (Space) -> SpaceGlyph, recentSpaceIDs: [String] = [],
-    devices: [DeviceTabs] = [], syncOn: Bool = false, now: Date = Date()
+    devices: [DeviceTabs] = [], syncOn: Bool = false, limit: Int = Snapshot.maxEntries, now: Date = Date()
   ) -> Snapshot {
     let spaces = spaces.map { space -> SpaceInfo in
       let today = Self.webTabs(in: space.today.children).reversed()
       return SpaceInfo(
         id: space.id, name: space.name, icon: glyph(space), style: style(space),
-        favorites: Array(Self.webTabs(in: favorites(for: space).children).prefix(Snapshot.maxEntries)),
-        pinned: Array(Self.webTabs(in: space.pinned.children).prefix(Snapshot.maxEntries)),
+        favorites: Array(Self.webTabs(in: favorites(for: space).children).prefix(limit)),
+        pinned: Array(Self.webTabs(in: space.pinned.children).prefix(limit)),
         folders: Self.folders(in: space.pinned),
-        today: Array(today.prefix(Snapshot.maxEntries)),
+        today: Array(today.prefix(limit)),
         todayCount: today.count)
     }
     let known = Set(spaces.map(\.id))

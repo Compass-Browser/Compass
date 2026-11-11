@@ -459,7 +459,7 @@ Everything goes through the App Group `group.it.cipi1965.compass`, which the app
   - the download Live Activity.
   - Small widgets use `OpenLinkIntent` buttons, since they don't support links.
 - **Focus filter** (`CompassFocusFilter`): the space shown while that Focus is on, optionally the only one in the sidebar.
-- **Spotlight**: favorites and Pinned entries, with the node ID as the item ID. Off with Settings → Show in Spotlight.
+- **Spotlight**: spaces (item ID `space:<id>`; a tap shows its sidebar), and every favorite and Pinned entry, not just the widgets' first 16 (with the node ID as the item ID). Off with Settings → Show in Spotlight. One more item, `compass.app`, stays on regardless: the app itself with the keywords "browser", "web" and "internet", since the Home Screen name is just "Compass".
 - **Icon menu**: New Tab, Search and the 3 most recent spaces.
 - **SafariOpen**: a Safari web extension (popup) with Open, or Pin to a space. It writes to the Inbox, then sends the tab to `compass://inbox`.
 - **Shortcuts** (app only, run in the app's process): Add to Space (Pinned or Today), Open URL in Space, Get Pinned Tabs, Get Today Tabs (tabs and folders, each with its folder path) and Get Spaces. There are no Siri phrases yet (`AppShortcutsProvider`).

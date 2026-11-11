@@ -110,9 +110,14 @@ struct WindowRoot: View {
           }
           .onDisappear { app.detach() }
           .onOpenURL { url in open(url, in: app) }
-          // A Spotlight result: a favorite or Pinned entry.
+          // A Spotlight result: a space, a favorite or a Pinned entry.
           .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
+            guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+              id != Spotlight.appItemID
+            else { return }
+            if id.hasPrefix(Spotlight.spacePrefix) {
+              app.system.handle(.space(String(id.dropFirst(Spotlight.spacePrefix.count))))
+            } else {
               app.system.handle(.node(id))
             }
           }
