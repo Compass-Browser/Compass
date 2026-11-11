@@ -124,6 +124,11 @@ final class AppServices {
       guard let self, let window = self.owner(of: source) ?? self.active else { return }
       window.showPeek(page, from: source)
     }
+    // A link's long-press items: in the window of the tab it's in.
+    tabs.onLinkAction = { [weak self] action, url, source in
+      guard let self, let window = self.owner(of: source) ?? self.active else { return }
+      window.open(action, url, from: source)
+    }
     tabs.onPageClosed = { [weak self] page in
       for window in self?.windows ?? [] where window.peek?.page === page { window.closePeek() }
     }

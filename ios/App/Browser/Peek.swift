@@ -101,8 +101,8 @@ extension AppModel {
   /// window: the card, over whatever this window shows, with a page of the
   /// window's space's profile (not incognito). It reaches the sidebar only
   /// when it's opened in a space.
-  func showLittleWindow(_ url: URL) {
-    let window = selectedSpace.flatMap { $0.isIncognito ? nil : $0 }
+  func showLittleWindow(_ url: URL, in target: Space? = nil) {
+    let window = (target ?? selectedSpace).flatMap { $0.isIncognito ? nil : $0 }
     guard let space = window ?? store.spaces.first else { return openLink(url) }
     let page = tabs.makeWebView(profile: space.profileUUID, incognito: false, url: url)
     page.load(URLRequest(url: url))
@@ -131,6 +131,28 @@ extension AppModel {
     let window = scene.coordinateSpace.bounds.size
     let screen = scene.screen.bounds.size
     return window.width < screen.width - 1 || window.height < screen.height - 1
+  }
+
+  /// A long-press item on a link in the tab `source` (TabManager's
+  /// LinkAction). The link goes to the tab's space (a favorite's: this
+  /// window's, if it's of the same profile), so it keeps the tab's profile.
+  func open(_ action: TabManager.LinkAction, _ url: URL, from source: String) {
+    guard let node = store.node(id: source) else { return }
+    let space = peekSpace(profile: store.profile(of: node), of: node)
+    switch action {
+    case .newTab:
+      openLink(url, in: space)
+    case .background:
+      guard let space, let tab = store.addTab(url: url.absoluteString, to: space.today) else { return }
+      extensions.tabOpened(tab.id)
+    case .incognito:
+      openLink(url, in: store.incognito)
+    case .littleWindow:
+      showLittleWindow(url, in: space)
+    case .pin:
+      guard let space, !space.isIncognito else { return }
+      store.addTab(url: url.absoluteString, to: space.pinned)
+    }
   }
 
   /// The card closes and its page goes.
@@ -164,7 +186,7 @@ extension AppModel {
   /// A space of `profile` for a peeked page: `node`'s own, else this
   /// window's (a favorite's page goes where the user is), else the
   /// profile's first.
-  private func peekSpace(profile: String, of node: SidebarNode?) -> Space? {
+  func peekSpace(profile: String, of node: SidebarNode?) -> Space? {
     if let node, let space = store.space(of: node) { return space }
     if let space = selectedSpace, !space.isIncognito, store.sameProfile(space.profileUUID, profile) { return space }
     return store.spaces.first { store.sameProfile($0.profileUUID, profile) }

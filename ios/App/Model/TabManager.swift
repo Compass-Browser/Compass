@@ -49,6 +49,22 @@ final class TabManager: NSObject {
   var openInNewTab: ((URL) -> Void)?
   /// A page to show in Peek's card: (its web view, the tab it came from).
   var onPeek: ((WKWebView, String) -> Void)?
+  /// A link's long-press item: (what to do, the link, the tab it's in).
+  var onLinkAction: ((LinkAction, URL, String) -> Void)?
+
+  /// The long-press menu's items for a web link, after Peek.
+  enum LinkAction {
+    /// A new Today entry of the tab's space, shown.
+    case newTab
+    /// The same, not shown.
+    case background
+    /// A new incognito tab, shown.
+    case incognito
+    /// A little window (Peek.swift), of the tab's profile.
+    case littleWindow
+    /// A new Pinned entry of the tab's space.
+    case pin
+  }
   /// A page that isn't a tab (a peeked one) closed itself (`window.close()`).
   var onPageClosed: ((WKWebView) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
@@ -515,19 +531,48 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
       guard let id = live.first(where: { $0.value === webView })?.key else { return nil }
       let items = extensions?.menuItems(forTab: id) ?? []
       let link = elementInfo.linkURL.flatMap { Self.isWeb($0) ? $0 : nil }
-      let peeks = link != nil && onPeek != nil && store.node(id: id) != nil
-      guard peeks || !items.isEmpty else { return nil }
+      let node = store.node(id: id)
+      let peeks = link != nil && onPeek != nil && node != nil
+      let acts = link != nil && onLinkAction != nil && node != nil
+      // An incognito tab's links stay incognito: no Open in Incognito (it
+      // is already), and no little window or Pin, which would put them in a
+      // normal space.
+      let incognito = node.map(store.isIncognito) ?? false
+      guard peeks || acts || !items.isEmpty else { return nil }
       let size = webView.bounds.size
       let preview: UIContextMenuContentPreviewProvider? =
         peeks ? { [weak self] in link.flatMap { self?.peekPreview($0, from: id, size: size) } } : nil
       return UIContextMenuConfiguration(identifier: nil, previewProvider: preview) { [weak self] suggested in
-        var children = suggested
+        // Peek and the link's places first, then the system's items (Open
+        // Link, Copy Link, Share…), then the extensions'.
+        var ours: [UIMenuElement] = []
         if peeks, let link {
-          let peek = UIAction(title: "Peek", image: UIImage(systemName: "eye")) { [weak self] _ in
-            self?.peek(link, from: id)
-          }
-          children.insert(peek, at: 0)
+          ours.append(
+            UIAction(title: "Peek", image: UIImage(systemName: "eye")) { [weak self] _ in
+              self?.peek(link, from: id)
+            })
         }
+        if acts, let link {
+          var actions: [(String, String, LinkAction)] = [
+            ("Open in New Tab", "plus.square.on.square", .newTab),
+            ("Open in Background", "square.on.square.dashed", .background),
+          ]
+          if !incognito {
+            actions += [
+              ("Open in Incognito", "eyeglasses", .incognito),
+              ("Open in Little Window", "macwindow", .littleWindow),
+              ("Pin", "pin", .pin),
+            ]
+          }
+          for (title, symbol, action) in actions {
+            ours.append(
+              UIAction(title: title, image: UIImage(systemName: symbol)) { [weak self] _ in
+                self?.onLinkAction?(action, link, id)
+              })
+          }
+        }
+        var children = suggested
+        if !ours.isEmpty { children.insert(UIMenu(options: .displayInline, children: ours), at: 0) }
         if !items.isEmpty { children.append(UIMenu(options: .displayInline, children: items)) }
         return UIMenu(children: children)
       }

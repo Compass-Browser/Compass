@@ -412,6 +412,14 @@ struct BrowserScreen: View {
           }
       }
         .accessibilityLabel("Menu")
+        // A long press: Share the shown page, as the menu's Share tile does.
+        .contextMenu {
+          if let tab = app.shownTab, let url = view?.url ?? URL(string: tab.url) {
+            ShareLink(item: url, subject: Text(tab.displayTitle)) {
+              Label("Share", systemImage: "square.and.arrow.up")
+            }
+          }
+        }
     }
     // The sidebar's neutral look, not the system tint.
     .buttonStyle(.plain)
