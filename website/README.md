@@ -2,9 +2,11 @@
 
 The homepage: one static page whose download links come from the update
 server's `stable.json` and `beta.json` (not `canary.json`;
-docs/design/updates.md), and the privacy policy (also linked from the iOS
+docs/design/updates.md), and Linux's from GitHub Releases (Linux isn't in the
+feeds yet; canary builds are left out), the privacy policy (also linked from the iOS
 app's Settings), and a changelog for each platform in `changelog/`
-(`/changelog/mac`, `/changelog/windows`, `/changelog/ios`), written by hand
+(`/changelog/mac`, `/changelog/windows`, `/changelog/linux`,
+`/changelog/ios`), written by hand
 for each release.
 
 There's no build step. To preview it, serve this folder locally:

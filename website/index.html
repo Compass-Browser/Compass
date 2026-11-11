@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass Browser</title>
-<meta name="description" content="Compass is an open-source Arc alternative built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows, iPhone and iPad.">
+<meta name="description" content="Compass is an open-source Arc alternative built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows, Linux, iPhone and iPad.">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="compass.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="compass-256.png">
@@ -131,6 +131,18 @@ footer a { color: inherit; }
         </div>
       </article>
 
+      <article class="card" data-platform="linux">
+        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2c-2.8 0-4.5 2.3-4.5 5.2 0 1.6-.6 2.7-1.6 4.1C4.6 13 3.5 15 3.5 17.2c0 .9.2 1.7.6 2.4L3 21h4.2c1.3.7 3 1 4.8 1s3.5-.3 4.8-1H21l-1.1-1.4c.4-.7.6-1.5.6-2.4 0-2.2-1.1-4.2-2.4-5.9-1-1.4-1.6-2.5-1.6-4.1C16.5 4.3 14.8 2 12 2zm0 8.2c2.3 0 4 2.6 4 5.6S14.3 20 12 20s-4-1.2-4-4.2 1.7-5.6 4-5.6zM10.3 6a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zm3.4 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8z"/></svg>Linux <span class="badge">Beta</span></h3>
+        <p class="req">64-bit (x64), as a tarball or a Flatpak. No automatic updates yet: download new versions from here.</p>
+        <p class="meta" data-meta="linux">Version 20261110.0949</p>
+        <p class="meta"><a href="/changelog/linux">What's new</a></p>
+        <div class="actions">
+          <details data-sums><summary>SHA-256</summary></details>
+          <a class="button secondary" data-link="flatpak" href="https://github.com/Compass-Browser/Compass/releases/download/v20261110.0949/Compass-20261110.0949-linux-x64.flatpak">Download Flatpak</a>
+          <a class="button" data-link="tarball" href="https://github.com/Compass-Browser/Compass/releases/download/v20261110.0949/Compass-20261110.0949-linux-x64.tar.xz">Download for Linux</a>
+        </div>
+      </article>
+
       <article class="card" data-platform="ios">
         <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V4a3 3 0 0 0-3-3zm1 19a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h1.2l.4 1h4.8l.4-1H16a1 1 0 0 1 1 1v16z"/></svg>iPhone and iPad <span class="badge">Beta</span></h3>
         <p class="req">iPhone and iPad, through Apple's TestFlight app.</p>
@@ -182,7 +194,7 @@ footer a { color: inherit; }
 <script>
 (() => {
   const FEEDS = 'https://updates.compassbrowser.org/';
-  const NAMES = { mac: 'Mac', win: 'Windows' };
+  const NAMES = { mac: 'Mac', win: 'Windows', linux: 'Linux' };
 
   const fmtSize = (bytes) => (bytes / 1e6).toFixed(0) + ' MB';
   const fmtDate = (iso) => {
@@ -235,8 +247,42 @@ footer a { color: inherit; }
     if (/Android/.test(ua)) return 'android';
     if (/Mac/.test(platform) || /Macintosh/.test(ua)) return 'mac';
     if (/Win/.test(platform) || /Windows/.test(ua)) return 'win';
+    if (!/CrOS/.test(ua) && (/Linux|X11/.test(platform) || /Linux|X11/.test(ua))) return 'linux';
     return null;
   };
+
+  // Linux isn't in the update feeds yet: the newest GitHub release with a
+  // Linux tarball, leaving out canary builds (their notes say "canary").
+  // The card's links are the last one known, for when GitHub can't answer.
+  const linux = () =>
+    fetch('https://api.github.com/repos/Compass-Browser/Compass/releases?per_page=30')
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => [])
+      .then((releases) => {
+        for (const r of releases) {
+          if (r.draft || /canary/i.test(r.body || '')) continue;
+          const asset = (ext) => (r.assets || []).find((a) => a.name.endsWith('-linux-x64' + ext));
+          const tar = asset('.tar.xz');
+          if (!tar) continue;
+          const entry = (a) => a && {
+            url: a.browser_download_url, size: a.size,
+            version: r.tag_name.replace(/^v/, ''),
+            sha256: (a.digest || '').replace(/^sha256:/, ''),
+          };
+          return { tar: entry(tar), flatpak: entry(asset('.flatpak')), date: r.published_at };
+        }
+        return null;
+      });
+
+  const linuxDone = linux().then((l) => {
+    const card = document.querySelector('[data-platform="linux"]');
+    if (!l) return;
+    enable(card.querySelector('[data-link="tarball"]'), l.tar);
+    const fp = card.querySelector('[data-link="flatpak"]');
+    if (l.flatpak) enable(fp, l.flatpak); else fp.remove();
+    card.querySelector('[data-meta="linux"]').textContent = describe(Object.assign({ date: l.date }, l.tar));
+    sums(card, [['Tarball', l.tar], ['Flatpak', l.flatpak]].filter(([, e]) => e && e.sha256));
+  });
 
   Promise.all([load('stable'), load('beta')]).then(([stable, beta]) => {
     const latest = {};
@@ -273,7 +319,13 @@ footer a { color: inherit; }
     const here = detect();
     const hero = document.getElementById('hero-download');
     const hint = document.getElementById('hero-hint');
-    if (here && latest[here]) {
+    if (here === 'linux') {
+      linuxDone.then(() => {
+        const tar = document.querySelector('[data-platform="linux"] [data-link="tarball"]');
+        enable(hero, { url: tar.href }, 'Download for Linux');
+        hint.textContent = 'Linux beta, as a tarball · Flatpak and other platforms below';
+      });
+    } else if (here && latest[here]) {
       enable(hero, latest[here], 'Download for ' + NAMES[here]);
       hint.textContent = 'Version ' + latest[here].version + (here === 'win' ? ' (beta)' : '') + ' · other platforms below';
     } else if (here === 'ios') {
