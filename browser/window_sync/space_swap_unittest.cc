@@ -13,7 +13,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "content/public/browser/web_contents.h"
@@ -24,6 +23,7 @@
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/startup_space.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/test/compass_browser_window_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
@@ -47,16 +47,16 @@ std::vector<std::string> Hosts(TabStripModel* strip) {
 }
 
 // Switching to spaces of another profile (docs/design/spaces.md, slice 3).
-class SpaceSwapTest : public BrowserWithTestWindowTest {
+class SpaceSwapTest : public CompassBrowserWindowTest {
  protected:
   SpaceSwapTest()
-      : BrowserWithTestWindowTest(
+      : CompassBrowserWindowTest(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
     // The tests switch spaces themselves.
     SetShowFirstSpaceAtStartupForTesting(false);
-    BrowserWithTestWindowTest::SetUp();
+    CompassBrowserWindowTest::SetUp();
     other_profile_ = profile_manager()->CreateTestingProfile("other");
     // Test windows can't be created the production way.
     for (Profile* p : std::vector<Profile*>{profile(), other_profile_.get()}) {
@@ -87,7 +87,7 @@ class SpaceSwapTest : public BrowserWithTestWindowTest {
       window->GetTabStripModel()->CloseAllTabs();
     }
     windows_.clear();
-    BrowserWithTestWindowTest::TearDown();
+    CompassBrowserWindowTest::TearDown();
   }
 
   // Opens tabs so the strip reads |hosts|, left to right.

@@ -1,8 +1,8 @@
 diff --git a/components/history/core/browser/browsing_history_service.cc b/components/history/core/browser/browsing_history_service.cc
-index 9bef3b70338ea483e2416e01f6da822abf606054..1aa6afcdbe28249fbd6eae29437a9fa98fb67fdd 100644
+index 65af28275b195edb14cff72729768f1b6ea75f2f..ad07554b6f2c60e9a6f579a10d2f7845b5731fa7 100644
 --- a/components/history/core/browser/browsing_history_service.cc
 +++ b/components/history/core/browser/browsing_history_service.cc
-@@ -451,7 +451,10 @@ void BrowsingHistoryService::RemoveVisits(
+@@ -465,7 +465,10 @@ void BrowsingHistoryService::RemoveVisits(
      expire_args.restrict_app_id = entry.app_id;
  
      // TODO(dubroy): Figure out the proper way to handle an error here.

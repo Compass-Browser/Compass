@@ -153,14 +153,14 @@ TEST_F(SidebarImportTest, MutedTabsStayMuted) {
 TEST_F(SidebarImportTest, TodayKeepsSplitsAndCountsAsUsedNow) {
   AddArcSidebar(list_, profile_, spaces_, kNow);
   const SidebarNode* today = list_.spaces()[0]->today_root();
-  // A split takes two panes; the third tab follows it.
-  ASSERT_EQ(today->children().size(), 2u);
+  // A split takes up to kMaxSplitPanes tabs: all three, side by side.
+  ASSERT_EQ(today->children().size(), 1u);
   const SidebarNode* split = today->children()[0].get();
   EXPECT_EQ(split->type(), SidebarNode::Type::kSplit);
-  ASSERT_EQ(split->children().size(), 2u);
+  ASSERT_EQ(split->children().size(), 3u);
   EXPECT_EQ(split->children()[1]->url(), GURL("https://d.test/"));
-  EXPECT_EQ(today->children()[1]->url(), GURL("https://e.test/"));
-  EXPECT_EQ(today->children()[1]->last_active(), kNow);
+  EXPECT_EQ(split->children()[2]->url(), GURL("https://e.test/"));
+  EXPECT_EQ(split->children()[2]->last_active(), kNow);
   // A tab without a saved title is named after its host.
   EXPECT_EQ(split->children()[0]->title(), u"c.test");
 }

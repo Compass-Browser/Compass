@@ -1,8 +1,8 @@
 diff --git a/components/sync/base/data_type.cc b/components/sync/base/data_type.cc
-index c4cb0b89180a4039e7f57433a9d69fe3d89b377d..4fb302e849b66c36874f6cb52e4fb32e1ce56553 100644
+index 23a494f2739e74c3cae7cac8d8e5d62013ca2659..8f5fc46e3694bcc1dc76c056a4657939fbfbfc64 100644
 --- a/components/sync/base/data_type.cc
 +++ b/components/sync/base/data_type.cc
-@@ -1174,10 +1174,30 @@ constexpr std::array<DataTypeInfo, syncer::GetNumDataTypes()>
+@@ -1176,10 +1176,30 @@ constexpr std::array<DataTypeInfo, syncer::GetNumDataTypes()>
              .cross_user_sharing_policy = CrossUserSharingPolicy::kNone,
              .local_sync_support_policy = LocalSyncSupportPolicy::kUnsupported,
          },
@@ -44,7 +44,7 @@ index c4cb0b89180a4039e7f57433a9d69fe3d89b377d..4fb302e849b66c36874f6cb52e4fb32e
    }
  }
  
-@@ -1733,6 +1756,8 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
+@@ -1729,6 +1752,8 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
        return DataTypeForHistograms::kJourney;
      case AUTOFILL_ENTITY_SUPPRESSION:
        return DataTypeForHistograms::kAutofillEntitySuppression;

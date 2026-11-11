@@ -1,5 +1,5 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index d98c86e5dace91937c62c5428084686c666ab0d4..2ed407427d4b59e3228ce1e3cb3dd109e494a3f3 100644
+index f1d133b6cda978b105c6110b279fdd75a1b2f061..e88f4d0adc588485cc0f700ef29c148e6b32f306 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
 @@ -32,6 +32,7 @@ import("//tools/resources/generate_resource_allowlist.gni")
@@ -10,7 +10,7 @@ index d98c86e5dace91937c62c5428084686c666ab0d4..2ed407427d4b59e3228ce1e3cb3dd109
  
  assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
  
-@@ -245,6 +246,9 @@ if (!is_android && !is_mac) {
+@@ -246,6 +247,9 @@ if (!is_android && !is_mac) {
          "//chrome/notification_helper",
          "//chrome/windows_services/elevated_tracing_service",
          "//components/crash/win:chrome_wer",
@@ -20,7 +20,7 @@ index d98c86e5dace91937c62c5428084686c666ab0d4..2ed407427d4b59e3228ce1e3cb3dd109
        ]
  
        if (is_chrome_branded) {
-@@ -535,10 +539,15 @@ if (is_win) {
+@@ -540,10 +544,15 @@ if (is_win) {
      }
    }
  
@@ -37,7 +37,7 @@ index d98c86e5dace91937c62c5428084686c666ab0d4..2ed407427d4b59e3228ce1e3cb3dd109
      extra_substitutions = [
        "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
        "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
-@@ -566,8 +575,16 @@ if (is_win) {
+@@ -569,8 +578,16 @@ if (is_win) {
        ":chrome_app_strings_bundle_data",
        ":chrome_resources",
        ":chrome_versioned_bundle_data",
@@ -54,7 +54,7 @@ index d98c86e5dace91937c62c5428084686c666ab0d4..2ed407427d4b59e3228ce1e3cb3dd109
      if (enable_updater) {
        bundle_deps += [ ":chromium_updater_privileged_helper" ]
      }
-@@ -670,12 +687,12 @@ if (is_win) {
+@@ -673,12 +690,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {
@@ -69,7 +69,7 @@ index d98c86e5dace91937c62c5428084686c666ab0d4..2ed407427d4b59e3228ce1e3cb3dd109
      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
    }
  
-@@ -1864,7 +1881,9 @@ if (is_win && enable_resource_allowlist_generation) {
+@@ -1860,7 +1877,9 @@ if (is_win && enable_resource_allowlist_generation) {
  }
  
  if (is_linux || is_chromeos) {

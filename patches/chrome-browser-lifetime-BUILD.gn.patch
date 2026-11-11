@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/lifetime/BUILD.gn b/chrome/browser/lifetime/BUILD.gn
-index bc5cec233fa79697d5284822684fffa564e28c67..55502f502a7d1f88f626e4c348bbde2e3bc6a1b6 100644
+index 6297884e91ca2cc9a0f98446ad2bb1cc5b9f30fb..b1d2d3d1d170eca8fb14e5d8ab6f3a9b664b65fa 100644
 --- a/chrome/browser/lifetime/BUILD.gn
 +++ b/chrome/browser/lifetime/BUILD.gn
-@@ -187,6 +187,9 @@ source_set("impl") {
+@@ -186,6 +186,9 @@ source_set("impl") {
        "//components/site_engagement/content",
        "//ui/base/idle",
      ]

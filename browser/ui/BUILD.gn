@@ -135,6 +135,7 @@ source_set("ui") {
     "//components/os_crypt/async/common",
     "//components/qr_code_generator",
     "//components/send_tab_to_self",
+    "//components/sync_device_info",
     "//compass/common:url",
     "//chrome/app/vector_icons",
     "//components/download/public/common:public",
@@ -289,6 +290,7 @@ source_set("unit_tests") {
     "webui/sync/compass_sync_page_handler_unittest.cc",
   ]
   deps = [
+    "//compass/test:browser_window_test",
     ":ui",
     "//compass/browser/claude",
     "//compass/browser/sync",
@@ -367,7 +369,7 @@ source_set("browser_tests") {
     "//components/constrained_window",
     "//extensions:test_support",
     "//extensions/common",
-    "//chrome/browser/ui",
+    "//chrome/browser",
     "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/find_bar",
     "//chrome/browser/ui/tabs:tab_strip",

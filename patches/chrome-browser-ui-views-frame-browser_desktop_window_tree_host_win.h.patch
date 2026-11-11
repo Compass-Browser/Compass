@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h
-index 85d6ce03f81da01135941e30146cc7f3d4bf786e..03a001fd87c38b8ea7ae5410e3e4c84ad7d4cefa 100644
+index 2f5e7d43e3c42ea3fea86305d316850a99b6f275..b1bd3c533063e4b9a22941abcf6b424629fe4bb7 100644
 --- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h
 +++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h
 @@ -27,6 +27,10 @@ class BrowserView;

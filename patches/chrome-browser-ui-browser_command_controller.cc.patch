@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
-index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..c647444dcf4a61232e0020e4ea0985060747229c 100644
+index 8db569509667170e4c158083c384824655e2966f..452f05677141c3dae18c7aa94576d68d98ba2fc0 100644
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
 @@ -4,6 +4,9 @@
@@ -12,7 +12,7 @@ index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..c647444dcf4a61232e0020e4ea098506
  #include <stddef.h>
  
  #include <algorithm>
-@@ -628,10 +631,22 @@ void BrowserCommandController::ShowCustomizeChromeSidePanel(
+@@ -640,10 +643,22 @@ void BrowserCommandController::ShowCustomizeChromeSidePanel(
  // BrowserCommandController, CommandUpdater implementation:
  
  bool BrowserCommandController::SupportsCommand(int id) const {
@@ -35,7 +35,7 @@ index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..c647444dcf4a61232e0020e4ea098506
    return command_updater_->IsCommandEnabled(id);
  }
  
-@@ -640,6 +655,12 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+@@ -652,6 +667,12 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
      WindowOpenDisposition disposition,
      std::optional<actions::ActionInvocationContext> context,
      base::TimeTicks time_stamp) {
@@ -48,7 +48,7 @@ index 921461b9e9bd0423d6d180762d0a06d0a3cd9c94..c647444dcf4a61232e0020e4ea098506
    if (!SupportsCommand(id) || !IsCommandEnabled(id)) {
      return false;
    }
-@@ -657,6 +678,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
+@@ -669,6 +690,10 @@ bool BrowserCommandController::ExecuteCommandWithDispositionAndContext(
  
    DCHECK(IsCommandEnabled(id)) << "Invalid/disabled command " << id;
  

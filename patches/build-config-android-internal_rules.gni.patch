@@ -1,8 +1,8 @@
 diff --git a/build/config/android/internal_rules.gni b/build/config/android/internal_rules.gni
-index 15a18fe867abca76166c4d96fcf901156d9d7417..bd4f3d842f7e2a6519c7f662af3f39447126a33b 100644
+index 59ada1ede34466b46f6bc486bd4756dc6e37dfec..d1120a01d59862730f1013e0263488146cfadd08 100644
 --- a/build/config/android/internal_rules.gni
 +++ b/build/config/android/internal_rules.gni
-@@ -4013,6 +4013,7 @@ if (enable_java_templates) {
+@@ -3975,6 +3975,7 @@ if (enable_java_templates) {
            "*/AsyncTabParamsManagerImpl.kt",
            "//third_party/androidx/*",
            "//chrome/browser/ui/android/bricks/internal/*",

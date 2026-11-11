@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
@@ -670,7 +671,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarMotionBrowserTest,
     }
     SCOPED_TRACE(testing::Message() << "region width " << region->width());
     went_below_snap |=
-        region->width() < VerticalTabStripRegionView::kCollapseSnapWidth;
+        region->width() < tabs::kVerticalTabStripCollapseSnapWidth;
     const gfx::Rect now = sidebar()->GetBoundsInScreen();
     EXPECT_EQ(now.y(), page.y());
     EXPECT_EQ(now.height(), page.height());

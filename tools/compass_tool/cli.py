@@ -570,7 +570,7 @@ def chrome_version(src: Path) -> dict:
 
 
 def upstream_chromium_version(src: Path) -> str:
-  """chrome/VERSION with upstream's MINOR (0), e.g. "156.0.8078.48"."""
+  """chrome/VERSION with upstream's MINOR (0), e.g. "157.0.8103.51"."""
   v = chrome_version(src)
   return '%s.0.%s.%s' % (v['MAJOR'], v['BUILD'], v['PATCH'])
 
@@ -1033,7 +1033,7 @@ def parser() -> argparse.ArgumentParser:
                  'and re-apply patches').set_defaults(func=cmd_sync)
 
   s = sub.add_parser('update-chromium', help='move to a new Chromium tag')
-  s.add_argument('version', help='e.g. 156.0.8078.48')
+  s.add_argument('version', help='e.g. 157.0.8103.51')
   s.set_defaults(func=cmd_update_chromium)
 
   s = sub.add_parser('patches', help='manage patches/')

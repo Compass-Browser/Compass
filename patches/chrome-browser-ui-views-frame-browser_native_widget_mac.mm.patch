@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-index 818924fc76681c38faad1c2082b686cbf67f3cdd..a3437628b0a79d0cbf5e0d96365445c271f71b80 100644
+index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f10a91c90 100644
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -48,6 +48,8 @@
+@@ -49,6 +49,8 @@
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/generated_resources.h"
@@ -11,7 +11,7 @@ index 818924fc76681c38faad1c2082b686cbf67f3cdd..a3437628b0a79d0cbf5e0d96365445c2
  #include "components/bookmarks/common/bookmark_pref_names.h"
  #include "components/dom_distiller/content/browser/distillable_page_utils.h"
  #include "components/dom_distiller/core/url_utils.h"
-@@ -268,6 +270,20 @@ - (NSTouchBar*)makeTouchBar {
+@@ -275,6 +277,20 @@ - (NSTouchBar*)makeTouchBar {
  void BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
      bool* override_titlebar_height,
      float* titlebar_height) {
@@ -32,7 +32,7 @@ index 818924fc76681c38faad1c2082b686cbf67f3cdd..a3437628b0a79d0cbf5e0d96365445c2
    if (browser_view_ && browser_view_->browser_widget() &&
        browser_view_->browser_widget()->GetFrameView()) {
      *override_titlebar_height = true;
-@@ -726,15 +742,18 @@ - (NSTouchBar*)makeTouchBar {
+@@ -735,15 +751,18 @@ - (NSTouchBar*)makeTouchBar {
                           NSWindowStyleMaskTitled | NSWindowStyleMaskResizable;
      params->window_title_hidden = true;
    } else if (browser_view_->GetIsNormalType() ||
@@ -54,7 +54,7 @@ index 818924fc76681c38faad1c2082b686cbf67f3cdd..a3437628b0a79d0cbf5e0d96365445c2
        params->window_title_hidden = true;
      }
    } else {
-@@ -755,6 +774,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -764,6 +783,17 @@ - (NSTouchBar*)makeTouchBar {
    return ns_window;
  }
  

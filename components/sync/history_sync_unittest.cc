@@ -277,7 +277,8 @@ TEST_F(CompassHistoryDeleteDirectivesTest, RemoveVisitsUnderLocalSync) {
   sync_service.SetLocalSyncEnabled(true);
   TestBrowsingHistoryDriver driver;
   history::BrowsingHistoryService service(&driver, history_service_.get(),
-                                          &sync_service);
+                                          &sync_service,
+                                          /*device_info_tracker=*/nullptr);
   service.RemoveVisits(OneVisit());
   history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
 
@@ -295,7 +296,8 @@ TEST_F(CompassHistoryDeleteDirectivesTest, RemoveVisitsWithoutLocalSync) {
   ASSERT_FALSE(sync_service.IsLocalSyncEnabled());
   TestBrowsingHistoryDriver driver;
   history::BrowsingHistoryService service(&driver, history_service_.get(),
-                                          &sync_service);
+                                          &sync_service,
+                                          /*device_info_tracker=*/nullptr);
   service.RemoveVisits(OneVisit());
   history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
   EXPECT_TRUE(Directives().empty());

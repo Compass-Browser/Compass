@@ -73,6 +73,7 @@ source_set("unit_tests") {
     "tab_strip_bridge_unittest.cc",
   ]
   deps = [
+    "//compass/test:browser_window_test",
     ":window_sync",
     "//base",
     "//base/test:test_support",

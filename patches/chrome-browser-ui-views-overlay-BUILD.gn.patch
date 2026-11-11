@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/overlay/BUILD.gn b/chrome/browser/ui/views/overlay/BUILD.gn
-index 5fda29ab24a114db9e71fc2a3f1f4ad8b28f4a79..7c6292b7d571b32e63d3a513b4962a977c30d14b 100644
+index 82beb8fabd4d3039350580ef982b6c7175184ec5..cd72cf87645d517d9a2d9c7a69aa37c5414c4564 100644
 --- a/chrome/browser/ui/views/overlay/BUILD.gn
 +++ b/chrome/browser/ui/views/overlay/BUILD.gn
 @@ -92,12 +92,27 @@ source_set("impl") {

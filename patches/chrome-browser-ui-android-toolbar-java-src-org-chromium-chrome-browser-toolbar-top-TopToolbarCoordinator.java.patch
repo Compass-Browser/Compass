@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarCoordinator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarCoordinator.java
-index ef5e179386d83db4e0d212339ea10e7d06a7638d..be549039678b568f99eed5e663bc0f41c2c0949c 100644
+index 09e41b2a6095055b73590a35920401d6803975c7..2ff04659fdd915880f5c78bbbce18548d70b327c 100644
 --- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarCoordinator.java
 +++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarCoordinator.java
-@@ -1010,6 +1010,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
+@@ -1073,6 +1073,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
  
      @Override
      public int getTopControlVisibility() {

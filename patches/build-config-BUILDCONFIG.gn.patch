@@ -1,5 +1,5 @@
 diff --git a/build/config/BUILDCONFIG.gn b/build/config/BUILDCONFIG.gn
-index bc4236a4e7080b005e18bacea92fe1d5d71b5cb1..615b208583481953eb4232eea4617fd876400a69 100644
+index a8dcb4d4675505227c2259a8851d9b2ee904faef..14b661ecee482d4a6634c584db091dcd92a1ef03 100644
 --- a/build/config/BUILDCONFIG.gn
 +++ b/build/config/BUILDCONFIG.gn
 @@ -262,7 +262,10 @@ _default_toolchain = ""

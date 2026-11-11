@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java b/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java
-index 22ef22a1a0b9d82989db457db584ac897f0b37ec..10ec96c1ab490f1e709b0c4e7e3f59740290a8e9 100644
+index 24caf755916ac57d1426094a669b6b2c4a1a987d..1c24fb33f8b462c77053356495b352e3ff91d3bb 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenter.java
 @@ -180,8 +180,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
@@ -29,7 +29,7 @@ index 22ef22a1a0b9d82989db457db584ac897f0b37ec..10ec96c1ab490f1e709b0c4e7e3f5974
      @Override
      protected void setBrowserControlsAccess(boolean restricted) {
          if (restricted) {
-@@ -321,8 +330,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
+@@ -327,8 +336,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
              boolean isVisibilityForced) {
          if (getDialogModel() == null
                  || !mRunEnterAnimationOnCallback

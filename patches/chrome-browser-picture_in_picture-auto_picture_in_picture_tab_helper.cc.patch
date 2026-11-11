@@ -1,17 +1,18 @@
 diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..ed8d4ec86da2bb26723721aa9e06e52e284d04c6 100644
+index 46dd2104b7fadfc8f244d7fd540de6ddce2cc723..1f18ced10a462aabe5a838eb2c575622b203fae5 100644
 --- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
 +++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
-@@ -25,6 +25,8 @@
+@@ -26,7 +26,9 @@
  #include "components/content_settings/browser/page_specific_content_settings.h"
  #include "components/content_settings/core/browser/host_content_settings_map.h"
  #include "components/permissions/permission_decision_auto_blocker.h"
 +#include "components/prefs/pref_service.h"
+ #include "components/tabs/public/tab_interface.h"
 +#include "compass/browser/prefs/compass_prefs.h"
  #include "content/public/browser/media_session.h"
  #include "content/public/browser/media_session_service.h"
  #include "content/public/browser/render_frame_host.h"
-@@ -460,9 +462,16 @@ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
+@@ -498,9 +500,16 @@ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
      return;
    }
  
@@ -29,7 +30,7 @@ index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..ed8d4ec86da2bb26723721aa9e06e52e
          MaybeEnterAutoPictureInPicture();
          MaybeScheduleAsyncTasks();
        }
-@@ -471,9 +480,11 @@ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
+@@ -509,9 +518,11 @@ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
        MaybeExitAutoPictureInPicture();
        break;
      case OcclusionState::kHidden:
@@ -44,7 +45,7 @@ index 359dba00ed10188be14ebf9464c8c3e1b8fc626b..ed8d4ec86da2bb26723721aa9e06e52e
        break;
    }
  }
-@@ -693,9 +704,16 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+@@ -746,9 +757,16 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
    // tab switch, it should have closed already by now.  Either it received a
    // notification from its tab strip helper, or we notified it, depending on
    // which one of us was notified by our respective tab strip helper.

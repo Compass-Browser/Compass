@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/shell_integration_win.cc b/chrome/browser/shell_integration_win.cc
-index 4482eecc5e282bcb420e97cabb25e592a76b3e4a..e2ccd4ed0c1bc2720428660b3470886715e51081 100644
+index 9b060dbf154ab151838d809210bbed61fcf6bceb..84a728c7a5014052b23999d245e637288db0feca 100644
 --- a/chrome/browser/shell_integration_win.cc
 +++ b/chrome/browser/shell_integration_win.cc
-@@ -747,10 +747,12 @@ std::wstring GetAppUserModelIdForApp(const std::wstring& app_name,
+@@ -893,10 +893,12 @@ std::wstring GetAppUserModelIdForApp(const std::wstring& app_name,
  }
  
  std::wstring GetAppUserModelIdForBrowser(const base::FilePath& profile_path) {

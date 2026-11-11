@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/chrome_browser_field_trials.cc b/chrome/browser/chrome_browser_field_trials.cc
-index bb7f9dd0eb6269ff5f8e179c0b9b4cc28dd34c3c..7b9185f72ff5b2bcb60e7f5a0e8cf258ce497eef 100644
+index 13a39b68c39e5de489e2850f6d9f3e9d5295bc40..08ed2c223be4c2d1471cff27c192e866b09fa016 100644
 --- a/chrome/browser/chrome_browser_field_trials.cc
 +++ b/chrome/browser/chrome_browser_field_trials.cc
 @@ -28,6 +28,7 @@
@@ -10,7 +10,7 @@ index bb7f9dd0eb6269ff5f8e179c0b9b4cc28dd34c3c..7b9185f72ff5b2bcb60e7f5a0e8cf258
  #include "third_party/blink/public/common/features.h"
  
  #if BUILDFLAG(IS_ANDROID)
-@@ -399,6 +400,8 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
+@@ -395,6 +396,8 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
    // Desktop-first features which are past incubation should either end up here,
    // or to a finch trial that enables it for all form factors.
  #endif  // BUILDFLAG(IS_ANDROID)

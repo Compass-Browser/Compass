@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/sync/BUILD.gn b/chrome/browser/sync/BUILD.gn
-index 28605d54c3cd85ef6d725ae17808915067ddcf0a..b6faed61015931ba3ac32b26bf21e1d510811d6b 100644
+index 3137b9ad6d6aeb9a995051ebce955bbd6cb94520..54045dae9eb2ddfc5d6288fadf17fdb1c6d6b71f 100644
 --- a/chrome/browser/sync/BUILD.gn
 +++ b/chrome/browser/sync/BUILD.gn
-@@ -85,6 +85,8 @@ source_set("sync") {
+@@ -84,6 +84,8 @@ source_set("sync") {
      "//components/paint_preview/buildflags",
    ]
    deps = [

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/toolbar/BUILD.gn b/chrome/browser/ui/toolbar/BUILD.gn
-index cbcfc3ab2ea3f43ca527959b0b36f2e5225501cd..ad2e951e64115a1e449403ebf463170fc2ebf92e 100644
+index e5b57ddd9670a118de43c7e2dad38d9e2e53150a..644443a0767ae1a79c6cc928a71774856c54583d 100644
 --- a/chrome/browser/ui/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/toolbar/BUILD.gn
 @@ -14,6 +14,7 @@ source_set("toolbar") {
@@ -10,7 +10,7 @@ index cbcfc3ab2ea3f43ca527959b0b36f2e5225501cd..ad2e951e64115a1e449403ebf463170f
      "//base",
      "//chrome/browser/autocomplete",
      "//chrome/browser/contextual_tasks",
-@@ -103,7 +104,12 @@ source_set("toolbar") {
+@@ -105,7 +106,12 @@ source_set("toolbar") {
  
  source_set("impl") {
    sources = []

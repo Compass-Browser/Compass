@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/extensions/api/settings_private/prefs_util.cc b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-index 618a67dabc0fdd7cab4aa745b3309fadfea1d4c9..07caa18a873eae0f7ee84068dae233974719d09f 100644
+index faea6fee54c8fcd5c6743ffe5508f224e75b685b..0a5c23aeed37145b2bc3b7a5f1a1aeda20f07805 100644
 --- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
 +++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
-@@ -1225,6 +1225,13 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
+@@ -1230,6 +1230,13 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHardwareAccelerationModeEnabled] =
        settings_api::PrefType::kBoolean;

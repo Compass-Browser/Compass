@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
-index b6cf0bffe2c5e05270dff10c6586a765c0a73134..89deadeb17807885f7df98f560d938eae7ea1813 100644
+index 03c569359266d727bd37b45d43bad933405dd6d7..cd16ae3b3e61d2434ced4d147eacb70840d23282 100644
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 @@ -11,6 +11,10 @@ export function getHtml(this: SettingsAppearancePageElement) {
@@ -14,19 +14,19 @@ index b6cf0bffe2c5e05270dff10c6586a765c0a73134..89deadeb17807885f7df98f560d938ea
          ?hidden="${!this.pageVisibility_.setTheme}">
        <cr-link-row id="openTheme" class="first"
 @@ -302,6 +306,7 @@ export function getHtml(this: SettingsAppearancePageElement) {
-         inverted>
+         label="$i18n{showWindowDecorations}" inverted>
      </settings-toggle-button>
  </if>
 +    </div>
      <div class="cr-row">
        <div class="flex cr-padded-text" aria-hidden="true">
          $i18n{fontSize}
-@@ -340,7 +345,7 @@ export function getHtml(this: SettingsAppearancePageElement) {
+@@ -338,7 +343,7 @@ export function getHtml(this: SettingsAppearancePageElement) {
      </settings-toggle-button>
  </if>
    </div>
 -  <settings-toggle-button class="hr" id="splitViewDragAndDrop"
 +  <settings-toggle-button class="hr" id="splitViewDragAndDrop" hidden
        pref-key="browser.split_view_drag_and_drop_enabled"
-       label="${this.i18n(this.splitViewHorizontalEnabled_
-                ? 'allowSplitViewDragAndDropHorizontal'
+       label="${this.i18n(
+           this.splitViewHorizontalEnabled_ ?

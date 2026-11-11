@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/frame/BUILD.gn
-index d1973034eed485334dad8980883d3647be2e4759..023646d0e8afe66bcdb7bcf443ba5c5f23ed3223 100644
+index 07ff3566c110c9a29950070f9f773d00d70fbeea..d35cbb93e909b06571975aceee5cb8b164d52cf8 100644
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -77,6 +77,11 @@ source_set("picture_in_picture_browser_frame_view") {
+@@ -78,6 +78,11 @@ source_set("picture_in_picture_browser_frame_view") {
    if (enable_extensions_core) {
      deps += [ "//extensions/common:common_constants" ]
    }
@@ -14,7 +14,7 @@ index d1973034eed485334dad8980883d3647be2e4759..023646d0e8afe66bcdb7bcf443ba5c5f
  }
  
  # immersive_mode_tester is only built on ChromeOS, matching the platforms
-@@ -1813,6 +1818,7 @@ source_set("system_menu_model_builder_impl") {
+@@ -2227,6 +2232,7 @@ source_set("system_menu_model_builder_impl") {
      "//chrome/browser/ui/toolbar",
      "//chrome/browser/ui/web_applications",
      "//chrome/browser/user_education",
@@ -22,7 +22,7 @@ index d1973034eed485334dad8980883d3647be2e4759..023646d0e8afe66bcdb7bcf443ba5c5f
      "//chrome/common:chrome_features",
      "//chrome/common:constants",
      "//components/strings:components_strings",
-@@ -2463,6 +2469,9 @@ source_set("browser_view_tabbed_layout_impl") {
+@@ -3127,6 +3133,9 @@ source_set("browser_view_tabbed_layout_impl") {
      "//chrome/browser/ui/views/infobars",
      "//chrome/browser/ui/views/side_panel",
      "//chrome/browser/ui/views/tabs/organizer",

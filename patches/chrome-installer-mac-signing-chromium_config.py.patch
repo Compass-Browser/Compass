@@ -1,0 +1,15 @@
+diff --git a/chrome/installer/mac/signing/chromium_config.py b/chrome/installer/mac/signing/chromium_config.py
+index 933690858aac8ba8f2e0c6a247a8af1face548de..1430e6a1e5926a0d98c4336e573dfb0a471747ff 100644
+--- a/chrome/installer/mac/signing/chromium_config.py
++++ b/chrome/installer/mac/signing/chromium_config.py
+@@ -15,3 +15,10 @@ class ChromiumCodeSignConfig(BuildPropsCodeSignConfig):
+     @property
+     def provisioning_profile_basename(self):
+         return None
++
++    # Compass: Gatekeeper rejects a Developer ID app until it's notarized,
++    # and this runs before notarization. `compass sign` assesses the stapled
++    # .dmg instead.
++    @property
++    def run_spctl_assess(self):
++        return False

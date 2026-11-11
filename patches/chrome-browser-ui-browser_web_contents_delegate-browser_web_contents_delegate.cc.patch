@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..195ab801f9703af8f3e1ae69fcdadb9cc7f9ae94 100644
+index 2e02cc461e5048073b61064061e8a5b5260afb75..95cf9d60560e6716a35738007bf9b09ab4ecc10f 100644
 --- a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 +++ b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 @@ -113,6 +113,9 @@
@@ -12,7 +12,7 @@ index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..195ab801f9703af8f3e1ae69fcdadb9c
  #if BUILDFLAG(IS_CHROMEOS)
  #include "chrome/browser/ui/settings_window_manager_chromeos.h"
  #endif
-@@ -548,6 +551,12 @@ content::WebContents* BrowserWebContentsDelegate::OpenURLFromTab(
+@@ -542,6 +545,12 @@ content::WebContents* BrowserWebContentsDelegate::OpenURLFromTab(
                                    std::move(navigation_handle_callback));
    }
  
@@ -25,7 +25,7 @@ index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..195ab801f9703af8f3e1ae69fcdadb9c
    // If the source is already split, navigate the other pane instead of
    // creating a new tab. Return |source| so that WebContentsImpl::OpenURL()
    // sees new_contents == this and skips the DidOpenRequestedURL notification,
-@@ -726,6 +735,12 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
+@@ -720,6 +729,12 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
      return nullptr;
    }
  
@@ -38,7 +38,7 @@ index 3bc40bcc9139a11d399caf6f51f281d80c4cfa78..195ab801f9703af8f3e1ae69fcdadb9c
    // If a backgrounded actor task triggered a new tab/popup, don't interrupt the
    // user.
    if (source && actor::IsRunningBackgroundActorTask(*source)) {
-@@ -743,6 +758,10 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
+@@ -737,6 +752,10 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
  
  void BrowserWebContentsDelegate::ActivateContents(
      content::WebContents* contents) {

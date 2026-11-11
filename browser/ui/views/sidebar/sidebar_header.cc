@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -45,6 +46,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"
@@ -80,6 +82,11 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "url/url_constants.h"
+
+// patches/chrome-browser-ui-tabs-vertical_tab_strip_state.h.patch sets the
+// collapsed width to this, without depending on //compass.
+static_assert(tabs::kVerticalTabStripCollapsedWidth ==
+              compass::kCollapsedSidebarWidth);
 
 namespace compass {
 
@@ -630,7 +637,7 @@ bool SidebarHeader::IsLaidOutCollapsed(int width) const {
   // Expanded on hover (or held expanded for a bubble), the region is
   // collapsed but as wide as expanded: lay out as expanded, as the page does.
   return state_controller_->IsCollapsed() &&
-         width < VerticalTabStripRegionView::kCollapseSnapWidth;
+         width < tabs::kVerticalTabStripCollapseSnapWidth;
 }
 
 void SidebarHeader::UpdateContentSettingsOrientation() {

@@ -1,8 +1,8 @@
 diff --git a/ui/views/widget/widget.h b/ui/views/widget/widget.h
-index b0896143e16f0fed556672d7c5645800d2c26a4e..8cf11017b6b681f8a20e6c0b498a4203c0fefd4e 100644
+index 2de787c406d4a8a03326b209e5cbda9e44752345..3f5515d28893b661e9dfbb45d2b5f2fb05d18c98 100644
 --- a/ui/views/widget/widget.h
 +++ b/ui/views/widget/widget.h
-@@ -1234,6 +1234,12 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
+@@ -1229,6 +1229,12 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
    // Tell the window that something caused the frame type to change.
    void FrameTypeChanged();
  
@@ -15,7 +15,7 @@ index b0896143e16f0fed556672d7c5645800d2c26a4e..8cf11017b6b681f8a20e6c0b498a4203
    NonClientView* non_client_view() {
      return const_cast<NonClientView*>(
          const_cast<const Widget*>(this)->non_client_view());
-@@ -1859,6 +1865,10 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
+@@ -1855,6 +1861,10 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
    // disabled.
    bool movement_disabled_ = false;
  

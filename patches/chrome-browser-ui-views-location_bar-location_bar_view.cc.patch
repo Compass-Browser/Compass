@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-index bac174d0b227aa593d369b6e2e7f7b58179f2c16..9529a0b8e0185e163be4118a001b57736c41286c 100644
+index d07cbfe86cf9b1e6693e6bfac7e88d11b868a619..09485d3b1b9ce9caa33f183e85b8e69d3287388d 100644
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
 @@ -4,6 +4,9 @@
@@ -12,7 +12,7 @@ index bac174d0b227aa593d369b6e2e7f7b58179f2c16..9529a0b8e0185e163be4118a001b5773
  #include <algorithm>
  #include <memory>
  #include <ranges>
-@@ -1432,7 +1435,8 @@ void LocationBarView::RefreshBackground() {
+@@ -1463,7 +1466,8 @@ void LocationBarView::RefreshBackground() {
      border_color = color_provider->GetColor(kColorLocationBarBorderOnMismatch);
    }
  
@@ -22,7 +22,7 @@ index bac174d0b227aa593d369b6e2e7f7b58179f2c16..9529a0b8e0185e163be4118a001b5773
      SetBackground(views::CreateSolidBackground(background_color_));
    } else {
      SetBackground(CreateRoundRectBackground(
-@@ -1465,6 +1469,9 @@ bool LocationBarView::RefreshContentSettingViews() {
+@@ -1496,6 +1500,9 @@ bool LocationBarView::RefreshContentSettingViews() {
      }
    }
  

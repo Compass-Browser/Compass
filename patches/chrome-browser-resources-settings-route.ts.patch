@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index d733ae8b320e3e6c609189056b9832bb136446ed..b46fd7e4e67778cf21f06ed3442ca0f8e62474a0 100644
+index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..21f6de14316a5d03cf767c47c61c877c29f18bed 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
 @@ -258,6 +258,18 @@ function createRoutes(): SettingsRoutes {
@@ -21,7 +21,7 @@ index d733ae8b320e3e6c609189056b9832bb136446ed..b46fd7e4e67778cf21f06ed3442ca0f8
    // Advanced Routes
    r.ADVANCED = new Route('/advanced');
  
-@@ -342,7 +354,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
+@@ -341,7 +353,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
  // Returns the "effective" route when at chrome://settings/.
  export function getTopLevelRoute(): Route {
    if (!loadTimeData.getBoolean('isGuest')) {

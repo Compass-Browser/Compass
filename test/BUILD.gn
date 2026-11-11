@@ -1,0 +1,21 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Unit tests whose code is about Browsers: BrowserWithTestWindowTest with the
+# Browser Chromium 157 took out of it.
+source_set("browser_window_test") {
+  testonly = true
+  sources = [
+    "compass_browser_window_test.cc",
+    "compass_browser_window_test.h",
+  ]
+  public_deps = [ "//chrome/test:test_support" ]
+  deps = [
+    "//base",
+    "//chrome/browser",
+    "//content/public/browser",
+    "//ui/base",
+    "//url",
+  ]
+}
