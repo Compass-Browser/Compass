@@ -1,6 +1,5 @@
-Anteprima dei link, e finestrelle per i link da altre app.
+Su iPad le finestrelle hanno una finestra tutta loro.
 
-- Peek: tieni premuto un link e l'anteprima è la pagina stessa. Tocca l'anteprima (o Peek nel menu) per guardarla in una scheda sovrapposta; Open la trasforma in una scheda senza ricaricarla, chiudendola non resta nulla. Anche i link delle schede fissate e dei preferiti che aprirebbero una nuova scheda si aprono così.
-- Finestrelle: con Compass come browser predefinito, un link da Mail, Messaggi o qualsiasi altra app si apre in una scheda sovrapposta invece che in una nuova scheda. Tocca l'indirizzo per modificarlo, usa indietro, poi Open nel tuo spazio (o scegli un altro spazio con la freccia) oppure chiudila.
-- Settings → Links from Other Apps: disattiva le finestrelle per tornare alle schede, o attiva "Share Sheet Opens a Little Window" perché condividere un link a Compass salti il modulo e lo apra subito.
-- Corretto: mancavano le voci delle estensioni nel menu del tocco prolungato.
+- iPad con le finestre (Stage Manager, app in finestra o Split View): con Compass come browser predefinito, un link da un'altra app si apre in una piccola finestra sua, al centro sopra le altre. Open nel tuo spazio sposta la pagina nella finestra di Compass senza ricaricarla; chiudi, Esc o ⌘W la chiudono. ⌘L modifica l'indirizzo, ⌘O la apre, ⌘[ torna indietro.
+- Con Compass a schermo intero, e su iPhone, i link da altre app si aprono ancora nella scheda sovrapposta, come nella build precedente.
+- Segnalaci: una finestrella che si apre come finestra intera o non si apre, il pulsante indietro sotto i controlli della finestra, o una finestra vuota che compare dopo aver riaperto Compass.
