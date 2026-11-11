@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
-index 6de34be12716efefd10d38ce36f4ca7b4e9e3af3..7e30a4c3fbddde7b70d31feb90cfa981b5c80bb0 100644
+index bf13db120fc1e011f2562c7e9a9e8074c81cc0b0..622e866984a6d45a3656b4b8c0e8416f4f5cada3 100644
 --- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
 @@ -628,6 +628,10 @@ SkBitmap GetBadgedIconBitmapForProfile(Profile* profile) {
@@ -10,6 +10,6 @@ index 6de34be12716efefd10d38ce36f4ca7b4e9e3af3..7e30a4c3fbddde7b70d31feb90cfa981
 +  // profile. Profiles switch inside one window (profiles in place), and
 +  // every profile's windows are one app in the taskbar.
 +  badged = false;
-   // Hold onto the previous icon so that the currently displayed
-   // icon is valid until replaced with the new icon.
-   base::win::ScopedGDIObject<HICON> previous_icon = std::move(icon_handle_);
+   // Keep the previous badged icon alive until the window has switched away
+   // from it.
+   base::win::ScopedGDIObject<HICON> previous_badged_icon =

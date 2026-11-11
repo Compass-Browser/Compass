@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
-index 378e1a6f0c8b438ea3fc754dc9614a68d77406aa..42b9210f3d8ad4c612040a1abf0fea6f0d9f6891 100644
+index 28f49b378fec86b02d397633859aee639747bc2b..30f769d00cad3a5b41bdbc1eba9df04db93027da 100644
 --- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 +++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 @@ -4,6 +4,8 @@
@@ -11,15 +11,15 @@ index 378e1a6f0c8b438ea3fc754dc9614a68d77406aa..42b9210f3d8ad4c612040a1abf0fea6f
  #include "base/feature_list.h"
  #include "base/functional/bind.h"
  #include "chrome/browser/actor/ui/actor_overlay_ui.h"
-@@ -598,6 +600,7 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
+@@ -588,6 +590,7 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
    registry.ForWebUI<TabSearchUI>()
        .Add<tab_search::mojom::PageHandlerFactory>()
        .Add<tab_search::mojom::SearchHandler>();
 +  compass::PopulateWebUIInterfaceBrokers(registry);
    registry.ForWebUI<OrganizerPanelUI>()
+       .Add<organizer_panel::mojom::ForeignTabsPageHandlerFactory>()
        .Add<organizer_panel::mojom::PageHandlerFactory>()
-       .Add<tab_search::mojom::PageHandlerFactory>()
-@@ -630,7 +633,12 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
+@@ -617,7 +620,12 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
        .Add<batch_upload_promo::mojom::PageHandlerFactory>()
        .Add<customize_color_scheme_mode::mojom::
                 CustomizeColorSchemeModeHandlerFactory>()

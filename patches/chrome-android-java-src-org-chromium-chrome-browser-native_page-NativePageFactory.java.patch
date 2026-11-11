@@ -1,8 +1,8 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/native_page/NativePageFactory.java b/chrome/android/java/src/org/chromium/chrome/browser/native_page/NativePageFactory.java
-index 89bd722abae676bf5ea6f4c73794fb22cd0ee5d2..5ac9b28632bfc045ced4536a50f4549d4979637b 100644
+index 2bac95cea1b339ed51b0fc5eca86cf7e72ad1028..9a5d6b7b618c579545f81a7cc22c617a009fcc35 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/native_page/NativePageFactory.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/native_page/NativePageFactory.java
-@@ -281,6 +281,10 @@ public class NativePageFactory {
+@@ -282,6 +282,10 @@ public class NativePageFactory {
          }
  
          protected NativePage buildNewTabPage(Tab tab, String url) {

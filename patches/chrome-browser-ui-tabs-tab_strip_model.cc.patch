@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/tab_strip_model.cc
-index e03b98f928807751c05a65cde350acbe638e84ca..0940a4e2ad5de53470b4435e1a831e0ef1c7a016 100644
+index c8c7e124660e5d93f95ffdec9fedff3abf6ff5e0..45cc8695c932da892aa6ee0a2fa7aecdd0b5be59 100644
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -1975,7 +1975,8 @@ split_tabs::SplitTabId TabStripModel::AddToNewSplit(
+@@ -1977,7 +1977,8 @@ split_tabs::SplitTabId TabStripModel::AddToNewSplit(
      split_tabs::SplitTabCreatedSource source) {
    ReentrancyCheck reentrancy_check(&reentrancy_guard_);
  

@@ -1,5 +1,5 @@
 diff --git a/components/history/core/browser/sync/history_data_type_controller.cc b/components/history/core/browser/sync/history_data_type_controller.cc
-index fd2ff8758f0e8b02cea3d89bb9476c6cf7649d53..c26890dff318183285165b77d61473e1b697186b 100644
+index fd2ff8758f0e8b02cea3d89bb9476c6cf7649d53..a9f65bde779827e5eda8480d3295a6bceef5b5d3 100644
 --- a/components/history/core/browser/sync/history_data_type_controller.cc
 +++ b/components/history/core/browser/sync/history_data_type_controller.cc
 @@ -62,7 +62,10 @@ syncer::DataTypeController::PreconditionState

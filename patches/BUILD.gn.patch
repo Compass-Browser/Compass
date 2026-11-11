@@ -1,5 +1,5 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index 29478cec8041b9cb494ae14fe6e4e2115714c023..290aa803cf198e297d2f7f4251cd1681ff3be7b2 100644
+index 516aa805059c1af3e03dff6271a8a95626cfea97..f4efce5841ed77f05aa68a6f5b62385653cd9128 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
 @@ -124,6 +124,10 @@ group("gn_all") {

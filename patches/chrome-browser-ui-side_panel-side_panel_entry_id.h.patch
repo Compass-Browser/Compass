@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ui/side_panel/side_panel_entry_id.h b/chrome/browser/ui/side_panel/side_panel_entry_id.h
-index 3e9dc27c0b3e393ecef67e31ce2f5a73e1cccab7..9120d39441a8093e6f1c3b7df495c3120b82fb9a 100644
+index 534627028f59e880ddb20bd0114d1919ccf79830..c09e019b27013ced283eaf3c11ea11d5379670b0 100644
 --- a/chrome/browser/ui/side_panel/side_panel_entry_id.h
 +++ b/chrome/browser/ui/side_panel/side_panel_entry_id.h
-@@ -45,6 +45,8 @@
-     "TabsFromOtherDevices")                                                   \
+@@ -43,6 +43,8 @@
+   V(kGlic, kActionSidePanelShowGlic, "Glic")                                  \
    V(kSidePanelDev, std::nullopt, "SidePanelDev")                              \
    V(kTestTabScopedEntry, std::nullopt, "TestTabScopedEntry")                  \
 +  /* Compass: the chat with Claude, which draws its own header. */           \

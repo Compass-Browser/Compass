@@ -1,5 +1,5 @@
 diff --git a/src/wasm/wasm-objects.cc b/src/wasm/wasm-objects.cc
-index 4c82b3c972299501925cb32788b0669a7499d2fd..ec2105869b19765d13fd6b44dc66a6d6deeb94af 100644
+index fd1020925ea9eade8e247f95d63b524d4d447f56..106ce22007866c51398ab5d793a7bd0fac541ff4 100644
 --- a/src/wasm/wasm-objects.cc
 +++ b/src/wasm/wasm-objects.cc
 @@ -4,14 +4,17 @@
@@ -20,5 +20,5 @@ index 4c82b3c972299501925cb32788b0669a7499d2fd..ec2105869b19765d13fd6b44dc66a6d6
 -#endif  // V8_TARGET_OS_LINUX
 +#endif  // V8_TARGET_OS_LINUX && V8_OS_LINUX
  
+ #include <bit>
  #include <optional>
- 

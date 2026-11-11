@@ -1,8 +1,8 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
-index 774d76e8da1ab8af60c8ba6eb031ce1155bda97a..d69ca7e203863bac201d29d1ec2d46b038052ce7 100644
+index a6e265da6e007857cea8a1ccaea3abfc16fd5459..5cda6950de9574558e313365ad981d06f5795566 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
-@@ -2524,7 +2524,9 @@ public class ToolbarManager
+@@ -2541,7 +2541,9 @@ public class ToolbarManager
      /** Enable the bottom controls. */
      public void enableBottomControls() {
          enableTabGroupUiControls();
@@ -13,7 +13,7 @@ index 774d76e8da1ab8af60c8ba6eb031ce1155bda97a..d69ca7e203863bac201d29d1ec2d46b0
              enableBottomBar();
          }
      }
-@@ -2745,7 +2747,8 @@ public class ToolbarManager
+@@ -2748,7 +2750,8 @@ public class ToolbarManager
  
          ViewStub extensionsToolbarStub =
                  mControlContainer.findViewById(R.id.extensions_toolbar_container_stub);

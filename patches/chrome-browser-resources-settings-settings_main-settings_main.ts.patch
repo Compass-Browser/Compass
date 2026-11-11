@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/chrome/browser/resources/settings/settings_main/settings_main.ts
-index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..2782a79e3b3b55bdd8d5f300239c414eec71056a 100644
+index 34b2cae7e954acae25c0543747d148e6848cfe89..913b4a28eec3188037ad43a23c45ddc44eec6b28 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.ts
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.ts
 @@ -20,6 +20,11 @@ import '../performance_page/performance_page_index.js';
@@ -14,7 +14,7 @@ index 4b6a86f0d9cf27a459d27c1c3ca9160de8c3ac34..2782a79e3b3b55bdd8d5f300239c414e
  // <if expr="not is_chromeos">
  import '../default_browser_page/default_browser_page.js';
  
-@@ -316,6 +321,12 @@ export class SettingsMainElement extends SettingsMainElementBase {
+@@ -307,6 +312,12 @@ export class SettingsMainElement extends SettingsMainElementBase {
          (!!this.lastRoute_ && route.contains(this.lastRoute_));
    }
  

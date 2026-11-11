@@ -1,17 +1,24 @@
 diff --git a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
-index d69e4dd30f732ec2767d5160b5fe22714e7d2e9d..be6cbbf913df30f331eb3b2b270fe57375e3d8c4 100644
+index fc3337bf30a15d3c6d8725ce55385fc22bc41d6a..a3fc4e72cd9c0caf8cc62635ca59737e4d6e9715 100644
 --- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
 +++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.cc
-@@ -95,8 +95,10 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
-               ->GetPreferredSizeForOrientation(
-                   views::LayoutOrientation::kHorizontal)
-               .width() >= available_width ||
--      available_width < VerticalTabStripRegionView::kCollapseSnapWidth ||
--      is_collapsed) {
-+      // Compass: not |is_collapsed|. Collapsed but shown on hover, the header
-+      // is as wide as expanded and laid out as expanded, its buttons after
-+      // the caption buttons rather than under them.
-+      available_width < VerticalTabStripRegionView::kCollapseSnapWidth) {
+@@ -141,15 +141,14 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
+                                  .width();
+   }
+ 
+-  const bool is_collapsed_with_combo =
+-      is_collapsed && combo_button_ && combo_button_->GetVisible();
+-
+   // Once the available width is below the collapse snap width, we update the
+   // orientation in order to have smooth transition during animation.
+   if (!is_segmented_expand_on_hover &&
+       (trailing_control_width >= available_width ||
+-       available_width < tabs::kVerticalTabStripCollapseSnapWidth ||
+-       is_collapsed_with_combo)) {
++       // Compass: not |is_collapsed_with_combo|. Collapsed but shown on
++       // hover, the header is as wide as expanded and laid out as expanded,
++       // its buttons after the caption buttons rather than under them.
++       available_width < tabs::kVerticalTabStripCollapseSnapWidth)) {
      combo_button_orientation_ = views::LayoutOrientation::kVertical;
      int current_y = 0;
  

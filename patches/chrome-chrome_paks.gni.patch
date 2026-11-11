@@ -1,5 +1,5 @@
 diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index 12a5e53584f9f30117ba8e3e1c444974862dbd09..ca0827afb9e693e948c8e8634e5567e6a9df6508 100644
+index 150c570d3ea9756dd068bd919a57b722a4c7e056..e241e78a2f7051fb49160056260392cf843f0f2a 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
 @@ -194,6 +194,11 @@ template("chrome_extra_paks") {

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-index 01763a850c07badae922065057065a2591c0e2e6..28d32900682963ff92e5c3caed1864778828ab97 100644
+index 25138503199acc9163f72374dc9945697f3fc48e..cace6988c97b3ee929cc7c9adc51bab823cb298c 100644
 --- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 +++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
-@@ -72,6 +72,7 @@
+@@ -70,6 +70,7 @@
  #include "chrome/common/url_constants.h"
  #include "chrome/grit/branded_strings.h"
  #include "chrome/grit/generated_resources.h"
@@ -10,7 +10,7 @@ index 01763a850c07badae922065057065a2591c0e2e6..28d32900682963ff92e5c3caed186477
  #include "components/autofill/content/browser/content_autofill_client.h"
  #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
  #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
-@@ -354,6 +355,10 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
+@@ -352,6 +353,10 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
    std::u16string browser_version = VersionUI::GetAnnotatedVersionStringForUi();
  
    html_source->AddString("aboutBrowserVersion", browser_version);

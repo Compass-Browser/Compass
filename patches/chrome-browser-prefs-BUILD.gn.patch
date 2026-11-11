@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/prefs/BUILD.gn b/chrome/browser/prefs/BUILD.gn
-index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..7eea6aafa7b85a068742858da3db0601a5727794 100644
+index 66f9c0d285f331355dd808c821307c0467933a4f..a0d265f527166d7d76fd37f0371d9b97a54190c2 100644
 --- a/chrome/browser/prefs/BUILD.gn
 +++ b/chrome/browser/prefs/BUILD.gn
-@@ -61,6 +61,7 @@ source_set("impl") {
+@@ -60,6 +60,7 @@ source_set("impl") {
      ":prefs",
      ":util",
      "//chrome/browser:browser_process",
@@ -10,7 +10,7 @@ index 831aaa964eab5ee4d7fb40c60a101dcb4083478d..7eea6aafa7b85a068742858da3db0601
      "//chrome/browser:browser_process_impl",
      "//chrome/browser:chrome_content_browser_client",
      "//chrome/browser:defaults",
-@@ -207,6 +208,10 @@ source_set("impl") {
+@@ -213,6 +214,10 @@ source_set("impl") {
      "//services/preferences/tracked:features",
      "//ui/webui:buildflags",
    ]

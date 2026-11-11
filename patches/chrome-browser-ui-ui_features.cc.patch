@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/ui_features.cc b/chrome/browser/ui/ui_features.cc
-index 562d8529586fa175ca3a790b5217669c638cadbe..5096f647382ac05c54d7f030415472332a0dc6e1 100644
+index 1f958582a085d4709b3ef430f2eb99d57ab1be0f..8b44c278adf16f616a0f5a532126ee5b5175fcab 100644
 --- a/chrome/browser/ui/ui_features.cc
 +++ b/chrome/browser/ui/ui_features.cc
-@@ -266,13 +266,8 @@ BASE_FEATURE(kNewTabButtonContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
+@@ -278,13 +278,8 @@ BASE_FEATURE(kNewTabButtonContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
  
  // Enables preview images in tab-hover cards.
  // https://crbug.com/41439486

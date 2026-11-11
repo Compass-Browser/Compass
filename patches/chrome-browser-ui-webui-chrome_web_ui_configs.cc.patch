@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-index 139fecebd5645797d1c3f3989d664c38ac5fe241..f4cd93eff46898886d0b2025d625a2491c7c31ec 100644
+index d79e9dfdb0e675f19c4a3f7e8ef8b06abdc7d3f5..67dfe8633903840f97ba8c7abbb73295eb17afff 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 @@ -4,6 +4,8 @@
@@ -11,11 +11,11 @@ index 139fecebd5645797d1c3f3989d664c38ac5fe241..f4cd93eff46898886d0b2025d625a249
  #include "build/android_buildflags.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -404,6 +406,7 @@ void RegisterChromeWebUIConfigs() {
+@@ -413,6 +415,7 @@ void RegisterChromeWebUIConfigs() {
    map.AddWebUIConfig(std::make_unique<SystemInfoUIConfig>());
    map.AddWebUIConfig(std::make_unique<tabs::TabGroupHomeUIConfig>());
    map.AddWebUIConfig(std::make_unique<TabSearchUIConfig>());
 +  compass::RegisterWebUIConfigs(map);
-   map.AddWebUIConfig(std::make_unique<TabsFromOtherDevicesUIConfig>());
    map.AddWebUIConfig(std::make_unique<TermsUIConfig>());
    map.AddWebUIConfig(std::make_unique<UserEducationInternalsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<WebAppInternalsUIConfig>());

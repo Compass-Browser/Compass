@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5fa6bbc9f1 100644
+index 7764d4a4728973dc075efb308daa3d67ba2e10b6..7164b3f9cb7f7bad55a71b64706b5c47b0cdbb09 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
  #include <algorithm>
  #include <memory>
  #include <optional>
-@@ -268,6 +270,13 @@ BrowserViewTabbedLayoutImpl::CalculateSeparatorInfo() const {
+@@ -314,6 +316,13 @@ BrowserViewTabbedLayoutImpl::CalculateSeparatorInfo() const {
        break;
    }
  
@@ -25,7 +25,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
    return info;
  }
  
-@@ -603,7 +612,9 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation() {
+@@ -663,7 +672,9 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation() {
  
    // Now that the proper default value is set, calculate all of the corner
    // animation values.
@@ -36,7 +36,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
    VerticalTabStripAnimation animation;
    animation.current_motion =
        controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
-@@ -900,6 +911,14 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -979,6 +990,14 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                      layout_data_->tab_strip_type == TabStripType::kVertical);
    }
  
@@ -51,30 +51,30 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
    if (IsParentedTo(views().vertical_tab_strip_background_blur_backdrop,
                     views().browser_view)) {
      layout.AddChild(
-@@ -914,9 +933,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
-   if (IsParentedTo(views().vertical_tab_strip_top_corner,
+@@ -994,9 +1013,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                     views().browser_view)) {
      gfx::Rect corner_bounds;
+     const double top_corner = layout_data_->vertical_tabs_top_corner();
 -    const bool top_corner_visible =
 -        layout_data_->tab_strip_type == TabStripType::kVertical &&
--        vertical_tab_strip_animation.top_corner > 0.0;
+-        top_corner > 0.0;
 +    // Compass: the card has its own corners.
 +    const bool top_corner_visible = false;
  
      // The top corner is drawn when the tabstrip goes all the way to the top.
      if (top_corner_visible) {
-@@ -937,9 +955,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
-   if (IsParentedTo(views().vertical_tab_strip_bottom_corner,
+@@ -1017,9 +1035,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                     views().browser_view)) {
      gfx::Rect corner_bounds;
+     const double bottom_corner = layout_data_->vertical_tabs_bottom_corner();
 -    const bool bottom_corner_visible =
 -        layout_data_->tab_strip_type == TabStripType::kVertical &&
--        vertical_tab_strip_animation.bottom_corner > 0.0;
+-        bottom_corner > 0.0;
 +    const bool bottom_corner_visible = false;
      if (bottom_corner_visible) {
        auto preferred =
            views().vertical_tab_strip_bottom_corner->GetPreferredSize();
-@@ -1003,7 +1019,11 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1082,7 +1098,11 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      } else {
        main_background_bounds = params.visual_client_area;
      }
@@ -87,7 +87,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
      main_background_layout =
          &layout.AddChild(views().main_background_region, main_background_bounds,
                           main_background_visibility);
-@@ -1137,8 +1157,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1216,8 +1236,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
    // especially obvious in split view, where turning the separator off provides
    // the required top padding.
    const auto& separator_info = layout_data_->separator_info;
@@ -99,7 +99,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
  
    // Updating the top, left and right insets for contents container view when
    // in split view. This is dependent on a number of other browser states.
-@@ -1260,6 +1282,13 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1594,6 +1616,13 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
      }
      views().multi_contents_view->SetBackgroundRadii(content_corners);
    }
@@ -111,9 +111,9 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
 +    views().multi_contents_view->SetBackgroundRadii(gfx::RoundedCornersF());
 +  }
  
-   // Make final visual adjustments required for child views to paint.
-   if (layout_data_->tab_strip_type == TabStripType::kVertical) {
-@@ -1595,6 +1624,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+   // Want to cut the vertical tabstrip and its decorations out of the top
+   // container in transparency mode.
+@@ -1681,6 +1710,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
            vertical_tabs_bottom_corner_size;
      }
  
@@ -122,7 +122,7 @@ index 389c6f8c6e66768cb20a960f11ba620c7516f44b..513410cdd43c55892fada8c97602de5f
      vertical_tabs_background->SetCorners(vertical_tabs_corners);
  
      // Apply shadow for expand-on-hover.
-@@ -1630,6 +1661,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1716,6 +1747,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
      if (animation.expand_on_hover_width > 0.0) {
        vertical_tabs_outline.bottom = true;
      }

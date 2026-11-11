@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/system_menu_model_builder.cc b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
-index 20c579d108dd5211ab635beffbb37ca2e9080090..cdf33e696018667c66f5d314108aa70b554b5534 100644
+index 3505b4e7b80d25b1e4c5ab1f2560b23d42f97e6d..c7349e660a2111a2f248f76587df46fbb3aca9ec 100644
 --- a/chrome/browser/ui/views/frame/system_menu_model_builder.cc
 +++ b/chrome/browser/ui/views/frame/system_menu_model_builder.cc
 @@ -4,6 +4,8 @@

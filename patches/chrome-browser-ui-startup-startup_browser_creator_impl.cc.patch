@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index c19d4ba646850e49d845046f01dc46b661d71acb..9eadcdd57b9dc0e7825ff7dfc2b034ed5d671847 100644
+index 1e34f398af7c05e1290c22270343b3fe03b7687b..2ab207c7a189aea9856da3244002cc2866224b57 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 @@ -97,6 +97,10 @@
@@ -33,7 +33,7 @@ index c19d4ba646850e49d845046f01dc46b661d71acb..9eadcdd57b9dc0e7825ff7dfc2b034ed
  // Utility functions ----------------------------------------------------------
  
  // On ChromeOS Ash check the previous apps launching history info to decide
-@@ -526,14 +543,47 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+@@ -543,14 +560,47 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
    const bool whats_new_enabled =
        whats_new::ShouldShowForState(local_state, promotions_enabled);
  
@@ -81,7 +81,7 @@ index c19d4ba646850e49d845046f01dc46b661d71acb..9eadcdd57b9dc0e7825ff7dfc2b034ed
      return;
    }
    BrowserOpenBehaviorOptions behavior_options = 0;
-@@ -580,6 +630,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+@@ -597,6 +647,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
  
    BrowserWindowInterface* browser = RestoreOrCreateBrowser(
        tabs, behavior, restore_options, process_startup, is_post_crash_launch);

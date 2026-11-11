@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/resources/settings/privacy_page/privacy_page_index.html b/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
-index 6714f1eb1091738e73e264cb5e17084200a33816..b297aefa0463cadc075b0a631945cf944b6b0c10 100644
+index 7e32733631c27be162dd3d65f2b1285e7e76289d..bd0c26e61030ca2b7b9dc694a1d8749c1ede00c5 100644
 --- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
 +++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.html
-@@ -140,6 +140,7 @@
+@@ -128,6 +128,7 @@
        inSearchMode)]]" update-when-false>
      <settings-auto-picture-in-picture-page slot="view"
          id="siteSettingsAutoPictureInPicture" data-parent-view-id="privacy"
