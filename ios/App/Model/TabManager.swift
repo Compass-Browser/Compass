@@ -431,11 +431,14 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
   /// menu interaction (UIKit view work) on whatever thread the completion
   /// runs on, and a nonisolated async method finishes on a background
   /// executor, which crashed on long presses (TestFlight 20261110.2150).
-  nonisolated func webView(
+  /// On the main actor, with WebKit's `@MainActor` completion handler: with
+  /// a plain one the method only "nearly matches" the protocol's and WebKit
+  /// never calls it.
+  func webView(
     _ webView: WKWebView, contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
-    completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
+    completionHandler: @escaping @MainActor (UIContextMenuConfiguration?) -> Void
   ) {
-    let configuration = MainActor.assumeIsolated { () -> UIContextMenuConfiguration? in
+    let configuration = { () -> UIContextMenuConfiguration? in
       guard let id = live.first(where: { $0.value === webView })?.key else { return nil }
       let items = extensions?.menuItems(forTab: id) ?? []
       let link = elementInfo.linkURL.flatMap { Self.isWeb($0) ? $0 : nil }
@@ -455,7 +458,7 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         if !items.isEmpty { children.append(UIMenu(options: .displayInline, children: items)) }
         return UIMenu(children: children)
       }
-    }
+    }()
     completionHandler(configuration)
   }
 
