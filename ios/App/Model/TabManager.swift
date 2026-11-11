@@ -386,16 +386,23 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
 
   /// A long press on the page: the system's items, then the extensions'
   /// context menu items (chrome.contextMenus) for that spot.
+  ///
+  /// The completion-handler form, not the async one: WebKit continues the
+  /// menu interaction (UIKit view work) on whatever thread the completion
+  /// runs on, and a nonisolated async method finishes on a background
+  /// executor, which crashed on long presses (TestFlight 20261110.2150).
   nonisolated func webView(
-    _ webView: WKWebView, contextMenuConfigurationFor elementInfo: WKContextMenuElementInfo
-  ) async -> UIContextMenuConfiguration? {
-    await MainActor.run {
+    _ webView: WKWebView, contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
+    completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
+  ) {
+    MainActor.assumeIsolated {
       guard let id = live.first(where: { $0.value === webView })?.key,
         let items = extensions?.menuItems(forTab: id), !items.isEmpty
-      else { return nil }
-      return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggested in
-        UIMenu(children: suggested + [UIMenu(options: .displayInline, children: items)])
-      }
+      else { return completionHandler(nil) }
+      completionHandler(
+        UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggested in
+          UIMenu(children: suggested + [UIMenu(options: .displayInline, children: items)])
+        })
     }
   }
 
