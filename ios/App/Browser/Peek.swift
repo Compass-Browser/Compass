@@ -35,6 +35,8 @@ final class Peek: Identifiable {
   private(set) var title = ""
   private(set) var url: URL?
   private(set) var canGoBack = false
+  /// Bumped by ⌘L: a little window's address takes the focus.
+  var editAddress = 0
   @ObservationIgnored private var observations: [NSKeyValueObservation] = []
 
   init(_ kind: Kind = .peek, page: WKWebView, source: String?, spaceID: String?, profile: String) {
@@ -65,6 +67,13 @@ final class Peek: Identifiable {
     guard let host = url?.host() else { return url?.absoluteString ?? "" }
     return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
   }
+}
+
+/// Settings → "Open in a Little Window": links from other apps open in the
+/// card (on by default) or, off, as new tabs.
+enum LittleWindows {
+  static let key = "LittleWindowLinks"
+  static var isOn: Bool { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
 }
 
 extension AppModel {
@@ -137,6 +146,9 @@ extension AppModel {
 struct PeekCard: View {
   @Environment(AppModel.self) private var app
   let peek: Peek
+  /// A little window's address, while it's edited.
+  @State private var address: String?
+  @FocusState private var addressFocused: Bool
 
   var body: some View {
     VStack(spacing: 0) {
@@ -148,13 +160,11 @@ struct PeekCard: View {
           .disabled(!peek.canGoBack)
           .accessibilityLabel("Back")
         }
-        VStack(alignment: .leading, spacing: 1) {
-          Text(peek.heading).font(.subheadline.weight(.semibold)).lineLimit(1)
-          if !peek.title.isEmpty, !peek.host.isEmpty {
-            Text(peek.host).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-          }
+        if peek.kind == .little {
+          addressField
+        } else {
+          heading.frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         switch peek.kind {
         case .peek:
           Button { app.openPeek() } label: {
@@ -186,6 +196,59 @@ struct PeekCard: View {
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
     .peekSizing()
+    .onChange(of: peek.editAddress) { editAddress() }
+  }
+
+  private var heading: some View {
+    VStack(alignment: .leading, spacing: 1) {
+      Text(peek.heading).font(.subheadline.weight(.semibold)).lineLimit(1)
+      if !peek.title.isEmpty, !peek.host.isEmpty {
+        Text(peek.host).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+      }
+    }
+  }
+
+  /// A little window's address, as a normal window's: the title and host
+  /// until tapped (or ⌘L), then the URL to edit; Go loads what's typed
+  /// (an address, or else a search) in the card.
+  @ViewBuilder private var addressField: some View {
+    if address != nil {
+      TextField("Search or enter address", text: Binding(get: { address ?? "" }, set: { address = $0 }))
+        .font(.subheadline)
+        .keyboardType(.webSearch)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .submitLabel(.go)
+        .focused($addressFocused)
+        // Focused once it's there: not in the same update that shows it.
+        .onAppear { addressFocused = true }
+        .onSubmit(load)
+        .onChange(of: addressFocused) { _, focused in if !focused { address = nil } }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: 34)
+        .background(Color.primary.opacity(0.07), in: Capsule())
+    } else {
+      Button(action: editAddress) {
+        heading
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityHint("Edits the address")
+    }
+  }
+
+  private func editAddress() {
+    guard peek.kind == .little else { return }
+    address = peek.url?.absoluteString ?? ""
+    addressFocused = true
+  }
+
+  private func load() {
+    let text = (address ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    address = nil
+    guard !text.isEmpty, let url = URL(string: AppModel.url(for: text)) else { return }
+    peek.page.load(URLRequest(url: url))
   }
 
   /// Open in <space>, and ⌄ for the profile's other spaces (with more

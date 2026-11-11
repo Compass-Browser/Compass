@@ -31,6 +31,11 @@ public struct SharedContainer: Sendable {
   /// The group's settings (the share sheet's last space).
   public static var defaults: UserDefaults { UserDefaults(suiteName: groupID) ?? .standard }
 
+  /// Settings → "Share Sheet Opens a Little Window" (in `defaults`): the
+  /// share sheet skips its form and opens the link in a little window.
+  public static let shareOpensLittleWindowKey = "ShareOpensLittleWindow"
+  public static var shareOpensLittleWindow: Bool { defaults.bool(forKey: shareOpensLittleWindowKey) }
+
   public var snapshotURL: URL { root.appendingPathComponent("Snapshot.json") }
   public var focusURL: URL { root.appendingPathComponent("Focus.json") }
   public var inbox: Inbox { Inbox(directory: root.appendingPathComponent("Inbox", isDirectory: true)) }

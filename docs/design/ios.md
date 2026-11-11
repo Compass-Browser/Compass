@@ -417,7 +417,7 @@ card, over whatever the window shows, in its little-window mode:
 
 - The page is of the shown space's profile (the first space's, when
   incognito is shown: a link from outside never opens incognito).
-- The bar has back (no forward, as on the desktop), the title and host,
+- The bar has back (no forward, as on the desktop), the address,
   **Open in <space>** naming the shown space, and a **⌄** listing the
   profile's spaces when it has more than one (same profile only: the page
   can't change its website data). Either makes the page the newest Today
@@ -425,15 +425,25 @@ card, over whatever the window shows, in its little-window mode:
 - Closing it (the close button, Esc, ⌘W, a swipe down) lets the page go:
   it never reached the sidebar. iOS's own "◀ Mail" in the status bar goes
   back to the app the link came from.
+- The address shows the title and host; tapping it (or ⌘L) edits the URL,
+  and Go loads what's typed (an address, or else a search) in the card.
 - A second link replaces the first. With a keyboard, ⌘[ and ⌘] go back and
   forward in the card's page, ⌘R reloads it and ⌘O opens it.
+- Settings → Links from Other Apps:
+  - **Open in a Little Window** (on): off, links from other apps open as
+    new Today entries of the shown space, as before.
+  - **Share Sheet Opens a Little Window** (off): on, "Compass Browser" in
+    the share sheet skips its form (Open or Add to Pinned, the space, the
+    folder) and opens the link in a little window: an Inbox request with
+    the `little` action. It's in the App Group's defaults
+    (`SharedContainer.shareOpensLittleWindowKey`), where the extension
+    reads it.
 
 Links from Compass's own extensions and widgets (`compass://open`) still
 open as tabs: they name their space. An iPad gets the same card for now;
 a window of its own (a second scene) is the next step.
 
-Not done: the address can't be edited, and there's no setting to open
-outside links as tabs instead.
+Not done: the address has no suggestions.
 
 ### Incognito
 

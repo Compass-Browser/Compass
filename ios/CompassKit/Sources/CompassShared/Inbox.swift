@@ -13,6 +13,9 @@ public struct InboxItem: Codable, Equatable, Sendable, Identifiable {
     case open
     /// A new Pinned tab in the space, in `folderID` if given.
     case pin
+    /// A little window: the page in a card, not yet a tab (the share sheet
+    /// with "Share Sheet Opens a Little Window" on).
+    case little
   }
 
   public var id: String

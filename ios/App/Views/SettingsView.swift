@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassCrypto
+import CompassShared
 import CompassSync
 import LocalAuthentication
 import SwiftUI
@@ -17,6 +18,10 @@ struct SettingsView: View {
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
   @AppStorage(AutoPiP.scrollKey) private var autoPiPScroll = true
   @AppStorage(StartScreen.key) private var startScreen = StartScreen.sidebar
+  @AppStorage(LittleWindows.key) private var littleWindows = true
+  // In the App Group: the share extension reads it.
+  @AppStorage(SharedContainer.shareOpensLittleWindowKey, store: SharedContainer.defaults)
+  private var shareOpensLittleWindow = false
 
   var body: some View {
     NavigationStack {
@@ -99,6 +104,26 @@ struct SettingsView: View {
             }
           }
           .disabled(!autoPiP)
+        }
+        Section {
+          Toggle(isOn: $littleWindows) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("Open in a Little Window", "macwindow", .indigo)
+              Text("Links from other apps open in a card over your tabs; Open in a space makes them a tab")
+                .font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
+            }
+          }
+          Toggle(isOn: $shareOpensLittleWindow) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("Share Sheet Opens a Little Window", "square.and.arrow.up.fill", .indigo)
+              Text("Sharing a link to Compass skips choosing a space and opens it in a little window")
+                .font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
+            }
+          }
+        } header: {
+          Text("Links from Other Apps")
+        } footer: {
+          Text("Links from other apps reach Compass when it's your default browser (Settings → Apps → Default Browser App).")
         }
         Section {
           Toggle(isOn: $spotlight) {

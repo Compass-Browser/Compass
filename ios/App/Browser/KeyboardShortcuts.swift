@@ -28,8 +28,15 @@ struct BrowserCommands: Commands {
         .keyboardShortcut("n")
       Button("New Incognito Tab") { app?.openIncognitoTab() }
         .keyboardShortcut("n", modifiers: [.command, .shift])
-      Button("Open Location…") { app?.openCommandBar(newTab: false) }
-        .keyboardShortcut("l")
+      Button("Open Location…") {
+        // A little window's own address.
+        if let peek = app?.peek {
+          if peek.kind == .little { peek.editAddress += 1 }
+        } else {
+          app?.openCommandBar(newTab: false)
+        }
+      }
+      .keyboardShortcut("l")
       // Peek's Open, as on the desktop.
       Button("Open Peeked Page") { app?.openPeek() }
         .keyboardShortcut("o")

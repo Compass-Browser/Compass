@@ -152,10 +152,11 @@ struct WindowRoot: View {
       return
     }
     // A web link, with Compass as the default browser: a little window
-    // (the card, Peek.swift) over whatever the window shows; Open in <space>
-    // makes it a tab.
+    // (the card, Peek.swift) over whatever the window shows, where Open in
+    // <space> makes it a tab; with the setting off, a new tab of the shown
+    // space.
     if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-      app.showLittleWindow(url)
+      if LittleWindows.isOn { app.showLittleWindow(url) } else { app.openLink(url) }
       return
     }
     // compass-pair: links from the Mac's QR code (camera app).

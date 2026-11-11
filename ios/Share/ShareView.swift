@@ -11,7 +11,9 @@ struct ShareView: View {
   var body: some View {
     NavigationStack {
       Group {
-        if let done = model.done {
+        if model.skipping, model.url != nil || !model.loaded {
+          ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let done = model.done {
           VStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 44)).foregroundStyle(.green)
             Text(done).font(.headline)

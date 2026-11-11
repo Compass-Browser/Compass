@@ -56,6 +56,9 @@ final class ShareViewController: UIViewController {
       model.url = url
       model.title = title
       model.loaded = true
+      // Settings → "Share Sheet Opens a Little Window": no form, straight to
+      // the app's little window.
+      if url != nil, SharedContainer.shareOpensLittleWindow { model.openLittleWindow() }
     }
   }
 
@@ -111,6 +114,8 @@ final class ShareModel {
   var spaceID: String?
   /// nil = Pinned's top level.
   var folderID: String?
+  /// Going straight to a little window (the setting): no form.
+  var skipping = SharedContainer.shareOpensLittleWindow
   var done: String?
   var finish: ((Bool) -> Void)?
 
@@ -130,6 +135,19 @@ final class ShareModel {
     guard space.id != spaceID else { return }
     spaceID = space.id
     folderID = nil
+  }
+
+  /// The link opens in the app's little window, without the form.
+  func openLittleWindow() {
+    guard let url, let container = SharedContainer.group,
+      (try? container.inbox.add(InboxItem(action: .little, url: url.absoluteString, title: title))) != nil
+    else {
+      // The form, then, to open it as usual.
+      skipping = false
+      return
+    }
+    SharedContainer.postChanged()
+    finish?(true)
   }
 
   func confirm() {

@@ -199,6 +199,8 @@ final class SystemBridge {
       switch item.action {
       case .open:
         app.openLink(url, in: space)
+      case .little:
+        app.showLittleWindow(url)
       case .pin:
         guard let space = space ?? app.selectedSpace else { continue }
         let parent = item.folderID.flatMap(app.store.node(id:)).flatMap { $0.isFolder ? $0 : nil } ?? space.pinned
