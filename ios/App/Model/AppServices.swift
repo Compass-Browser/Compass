@@ -236,14 +236,13 @@ final class AppServices {
     let options = UIWindowScene.ActivationRequestOptions()
     options.placement = UIWindowSceneProminentPlacement()
     options.requestingScene = scene
-    let request = UISceneSessionActivationRequest(role: .windowApplication)
+    var request = UISceneSessionActivationRequest(role: .windowApplication)
     request.userActivity = activity
     request.options = options
-    UIApplication.shared.activateSceneSession(for: request) { _ in
+    UIApplication.shared.activateSceneSession(for: request) { [weak self] _ in
       Task { @MainActor in
-        let services = AppServices.shared
-        guard let index = services.pendingLittle.firstIndex(where: { $0 === little }) else { return }
-        services.pendingLittle.remove(at: index)
+        guard let self, let index = self.pendingLittle.firstIndex(where: { $0 === little }) else { return }
+        self.pendingLittle.remove(at: index)
         failed()
       }
     }
