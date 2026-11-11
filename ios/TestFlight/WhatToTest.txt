@@ -1,5 +1,5 @@
-Little windows on iPad get a window of their own.
+More ways to open a link, and Share from the menu button.
 
-- iPad with windows (Stage Manager, windowed apps or Split View): with Compass as your default browser, a link from another app opens in a small window of its own, centered over your other windows. Open in your space moves the page into your Compass window without reloading; close, Esc or ⌘W closes it. ⌘L edits its address, ⌘O opens it, ⌘[ goes back.
-- With Compass full screen, and on iPhone, links from other apps still open in the card, as in the last build.
-- Please report: a little window that opens as a full window or doesn't open at all, its back button under the window controls, or an empty window appearing after relaunching Compass.
+- Long-press a link: after Peek, the menu now has Open in New Tab, Open in Background, Open in Incognito, Open in Little Window and Pin. In an incognito tab only Peek, Open in New Tab and Open in Background show, so its links stay incognito.
+- Long-press the … button in the bottom bar to share the page you're on.
+- Still looking for reports on little windows on iPad: one that opens as a full window or doesn't open at all, its back button under the window controls, or an empty window after relaunching Compass.

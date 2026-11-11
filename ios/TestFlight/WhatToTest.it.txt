@@ -1,5 +1,5 @@
-Su iPad le finestrelle hanno una finestra tutta loro.
+Più modi di aprire un link, e Condividi dal pulsante del menu.
 
-- iPad con le finestre (Stage Manager, app in finestra o Split View): con Compass come browser predefinito, un link da un'altra app si apre in una piccola finestra sua, al centro sopra le altre. Open nel tuo spazio sposta la pagina nella finestra di Compass senza ricaricarla; chiudi, Esc o ⌘W la chiudono. ⌘L modifica l'indirizzo, ⌘O la apre, ⌘[ torna indietro.
-- Con Compass a schermo intero, e su iPhone, i link da altre app si aprono ancora nella scheda sovrapposta, come nella build precedente.
-- Segnalaci: una finestrella che si apre come finestra intera o non si apre, il pulsante indietro sotto i controlli della finestra, o una finestra vuota che compare dopo aver riaperto Compass.
+- Tieni premuto un link: dopo Peek, il menu ora ha Open in New Tab, Open in Background, Open in Incognito, Open in Little Window e Pin. In una scheda in incognito compaiono solo Peek, Open in New Tab e Open in Background, così i suoi link restano in incognito.
+- Tieni premuto il pulsante … nella barra in basso per condividere la pagina che stai guardando.
+- Aspettiamo ancora segnalazioni sulle finestrelle su iPad: una che si apre come finestra intera o non si apre, il pulsante indietro sotto i controlli della finestra, o una finestra vuota dopo aver riaperto Compass.
