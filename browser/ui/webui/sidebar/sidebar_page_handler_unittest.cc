@@ -22,7 +22,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
@@ -41,6 +40,7 @@
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/test/compass_browser_window_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -208,15 +208,15 @@ std::vector<std::string> Hosts(const sidebar::mojom::Node& parent) {
   return hosts;
 }
 
-class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
+class SidebarPageHandlerTest : public CompassBrowserWindowTest {
  protected:
   // Mock time lets tests step past Browser's coalesced UI updates.
   SidebarPageHandlerTest()
-      : BrowserWithTestWindowTest(
+      : CompassBrowserWindowTest(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
+    CompassBrowserWindowTest::SetUp();
     // Test windows can't be created the production way.
     WindowFeatures::From(browser())->service().SetParkingWindowFactoryForTesting(
         base::BindLambdaForTesting([this](Profile* profile) {
@@ -241,7 +241,7 @@ class SidebarPageHandlerTest : public BrowserWithTestWindowTest {
       parking_->GetTabStripModel()->CloseAllTabs();
       parking_.reset();
     }
-    BrowserWithTestWindowTest::TearDown();
+    CompassBrowserWindowTest::TearDown();
   }
 
   sidebar::mojom::TreePtr GetTree() {

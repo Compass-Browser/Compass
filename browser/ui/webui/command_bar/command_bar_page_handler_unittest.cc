@@ -19,7 +19,6 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "components/omnibox/browser/omnibox_event_global_tracker.h"
 #include "components/omnibox/browser/omnibox_log.h"
@@ -29,6 +28,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/test/compass_browser_window_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -121,16 +121,16 @@ class FakePage : public command_bar::mojom::Page {
   std::vector<command_bar::mojom::ResultPtr> results_;
 };
 
-class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
+class CommandBarPageHandlerTest : public CompassBrowserWindowTest {
  protected:
   // Mock time lets tests step past Browser's coalesced UI updates.
   CommandBarPageHandlerTest()
-      : BrowserWithTestWindowTest(
+      : CompassBrowserWindowTest(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   TestingProfile::TestingFactories GetTestingFactories() override {
     TestingProfile::TestingFactories factories =
-        BrowserWithTestWindowTest::GetTestingFactories();
+        CompassBrowserWindowTest::GetTestingFactories();
     factories.emplace_back(
         TemplateURLServiceFactory::GetInstance(),
         base::BindRepeating(&TemplateURLServiceFactory::BuildInstanceFor));
@@ -141,7 +141,7 @@ class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
   }
 
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
+    CompassBrowserWindowTest::SetUp();
     search_test_utils::WaitForTemplateURLServiceToLoad(
         TemplateURLServiceFactory::GetForProfile(profile()));
     // Test windows can't be created the production way.
@@ -172,7 +172,7 @@ class CommandBarPageHandlerTest : public BrowserWithTestWindowTest {
       parking_->GetTabStripModel()->CloseAllTabs();
       parking_.reset();
     }
-    BrowserWithTestWindowTest::TearDown();
+    CompassBrowserWindowTest::TearDown();
   }
 
   // Opens the bar in |mode| and queries |text|, as the page does.

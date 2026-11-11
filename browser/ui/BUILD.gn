@@ -290,6 +290,7 @@ source_set("unit_tests") {
     "webui/sync/compass_sync_page_handler_unittest.cc",
   ]
   deps = [
+    "//compass/test:browser_window_test",
     ":ui",
     "//compass/browser/claude",
     "//compass/browser/sync",
