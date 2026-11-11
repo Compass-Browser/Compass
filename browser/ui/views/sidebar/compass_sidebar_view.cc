@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
 
+
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -55,6 +56,10 @@
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#include "compass/browser/ui/views/little_window/little_window_hot_key.h"
+#endif
 
 namespace compass {
 
@@ -141,6 +146,10 @@ CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
       claude_panel_(browser) {
   InstallSwapPresenter();
   InstallPipTint();
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  // The little window's shortcut, from any app from now on.
+  LittleWindowHotKey::Get().Start();
+#endif
   // A swap's window takes the page of the window it replaces
   // (sidebar_swap.cc).
   if (IsCreatingSwapWindow()) {

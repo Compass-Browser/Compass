@@ -114,14 +114,39 @@ mix) opens as upstream does.
   equivalent. With browser actions on, upstream's command updater only knows
   commands that have an action, so `BrowserCommandController` hands
   Compass's own commands to `HandleBrowserCommand()` before its
-  supported/enabled check (patch). It works while a Compass window is key;
-  there's no File menu item (Compass has no string resources of its own).
+  supported/enabled check (patch). There's no File menu item (Compass has
+  no string resources of its own).
+
+## From any app
+
+The shortcut (Cmd+Option+N, Shift+Alt+N on Windows, or the user's from
+the shortcuts page) works from any app, with or without a Compass window:
+`LittleWindowHotKey` (`little_window_hot_key.{h,cc}`, macOS and Windows)
+registers it as a system hot key through upstream's
+`GlobalAcceleratorListener` (a Carbon hot key on macOS, `RegisterHotKey()`
+on Windows), as picture-in-picture's click-through does, from the first
+Compass window on (`CompassSidebarView`) for as long as Compass runs.
+
+- The hot key takes the keys while Compass is in front too. With a Compass
+  window active, it opens the little window from it, as the window's
+  shortcut does (`OpenNewLittleWindow()`).
+- From another app, the little window is of the last active window's
+  profile (else the last used one) and opens over that app's window, as a
+  link from it would (`OpenNewLittleWindowOverOtherApp()`, macOS's
+  `FindOpenerWindow()`), on the pointer's display without one.
+- A changed shortcut moves the hot key; a removed one drops it. While the
+  shortcuts page records keys it lets them go, or it would take them.
+- If another app already holds the keys, registering fails and only
+  Compass's own windows have the shortcut.
+- Linux: not yet (its shortcuts are upstream's).
+- Test: `LittleWindowBrowserTest.HotKeyFromAnyApp` (macOS). Windows: not
+  yet tried on a device.
 
 ## Not done
 
 - Other profiles' spaces in the picker (the page would have to reload in
   that profile).
-- Cmd+Option+N with no Compass window open, and a File menu item.
+- A File menu item.
 - A new little window starts on the new tab page (with the address
   focused) instead of Arc's command bar.
 - Settings: off, and per-domain routing to spaces (Arc's Air Traffic

@@ -611,24 +611,44 @@ BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url) {
       opener);
 }
 
+namespace {
+
+// A new little window on the new tab page, active and ready to type an
+// address.
+BrowserWindowInterface* CreateNewLittleWindow(
+    Profile* profile,
+    const std::optional<gfx::Rect>& near,
+    const std::optional<OpenerWindow>& opener) {
+  BrowserWindowInterface* browser = CreateLittleWindow(
+      profile, GURL(chrome::kChromeUINewTabPageURL), near, opener);
+  if (browser) {
+    browser->GetWindow()->Activate();
+    if (BrowserView* view = BrowserView::GetBrowserViewForBrowser(browser)) {
+      view->SetFocusToLocationBar(/*is_user_initiated=*/true);
+    }
+  }
+  return browser;
+}
+
+}  // namespace
+
 BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from) {
   BrowserView* from_view = BrowserView::GetBrowserViewForBrowser(from);
   std::optional<gfx::Rect> near;
   if (from_view && from_view->GetWidget()) {
     near = from_view->GetWidget()->GetWindowBoundsInScreen();
   }
-  BrowserWindowInterface* browser =
-      CreateLittleWindow(from->GetProfile(),
-                         GURL(chrome::kChromeUINewTabPageURL), near,
-                         /*opener=*/std::nullopt);
-  if (browser) {
-    browser->GetWindow()->Activate();
-    // Ready to type an address.
-    if (BrowserView* view = BrowserView::GetBrowserViewForBrowser(browser)) {
-      view->SetFocusToLocationBar(/*is_user_initiated=*/true);
-    }
-  }
-  return browser;
+  return CreateNewLittleWindow(from->GetProfile(), near,
+                               /*opener=*/std::nullopt);
+}
+
+BrowserWindowInterface* OpenNewLittleWindowOverOtherApp(Profile* profile) {
+  // Before Compass's own windows can come over it.
+  const std::optional<OpenerWindow> opener = FindOpenerWindow();
+  return CreateNewLittleWindow(
+      profile,
+      opener ? std::optional<gfx::Rect>(opener->bounds) : std::nullopt,
+      opener);
 }
 
 bool IsOutsideCompassWindows(const gfx::Point& point) {

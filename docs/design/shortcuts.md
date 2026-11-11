@@ -16,7 +16,7 @@ wins and upstream's command loses it. The user can change them (see
 | Cmd+Shift+R | Reloads without the cache (`IDC_RELOAD_BYPASSING_CACHE`) | The same: nothing to change |
 | Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
 | Shift+Alt+P (Windows) | The same, as Ctrl+Option+Cmd+P | Nothing |
-| Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md) | New Split Tab, which keeps its Tab menu item without a shortcut |
+| Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md), from any app (a system hot key, little-window.md "From any app") | New Split Tab, which keeps its Tab menu item without a shortcut |
 | Shift+Alt+N (Windows) | A new little window, as Cmd+Option+N | New Split Tab |
 | Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
 | Cmd+Z, Cmd+Shift+Z | Outside text, and only when the page passes on the keys: undo and redo closing sidebar entries (`kUndoCloseTabCommand`, `kRedoCloseTabCommand`, sidebar.md "Undo closing"). Cmd+Shift+T undoes the same | The Edit menu's Undo and Redo, which text keeps |

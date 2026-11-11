@@ -3,6 +3,11 @@
 // found in the LICENSE file.
 
 #include "compass/browser/ui/views/little_window/little_window.h"
+#include "compass/browser/ui/views/little_window/little_window_hot_key.h"
+#include "compass/browser/shortcuts/shortcut_settings.h"
+#include "ui/base/accelerators/accelerator.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 
 #import <Cocoa/Cocoa.h>
 
@@ -139,6 +144,29 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, NewLittleWindowCommand) {
   EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "new-tab-page");
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
   EXPECT_TRUE(chrome::ExecuteCommand(little, kNewLittleWindowCommand));
+}
+
+// The shortcut is a system hot key too, so it works from any app, and not
+// while the settings page records keys. A press opens a little window on
+// the new tab page.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, HotKeyFromAnyApp) {
+  LittleWindowHotKey& hot_key = LittleWindowHotKey::Get();
+  const ui::Accelerator keys(ui::VKEY_N,
+                             ui::EF_COMMAND_DOWN | ui::EF_ALT_DOWN);
+  EXPECT_TRUE(hot_key.listening());
+  EXPECT_EQ(hot_key.listening_accelerator(), keys);
+  ShortcutSettings::Get().SetRecording(true);
+  EXPECT_FALSE(hot_key.listening());
+  ShortcutSettings::Get().SetRecording(false);
+  EXPECT_TRUE(hot_key.listening());
+
+  ASSERT_FALSE(FindLittleWindow());
+  hot_key.OnKeyPressed(keys);
+  EXPECT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
+  BrowserWindowInterface* little = FindLittleWindow();
+  ASSERT_EQ(little->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "new-tab-page");
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
 }
 
 // Opening in a space the window doesn't show switches it there, and the

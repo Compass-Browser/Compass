@@ -57,6 +57,11 @@ BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url);
 // docs/design/shortcuts.md): a new little window on the new tab page, centered on |from|'s display.
 BrowserWindowInterface* OpenNewLittleWindow(BrowserWindowInterface* from);
 
+// The same shortcut pressed in another app (LittleWindowHotKey): a new
+// little window of |profile| on the new tab page, over that app's window as
+// a link from it would open (on the pointer's display without one).
+BrowserWindowInterface* OpenNewLittleWindowOverOtherApp(Profile* profile);
+
 // A sidebar entry dragged out of the windows (docs/design/sidebar.md, "Drag
 // and drop"): whether |point|, in screen coordinates, is outside every
 // Compass window on screen.
