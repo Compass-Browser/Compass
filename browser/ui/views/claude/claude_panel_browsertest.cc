@@ -422,12 +422,16 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, KeepsTheChatWhenClosed) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/page.html")));
   panel()->Ask("Which animal jumps?");
+  // The page is there once its request is.
   EXPECT_TRUE(base::test::RunUntil([&] {
     return panel()->IsShowing() && panel()->web_contents_for_testing() &&
-           TurnText(panel()->web_contents_for_testing(), "assistant",
-                    ".markdown") == "Hello from the fake API.";
+           LastBody().find("Which animal jumps?") != std::string::npos;
   }));
   content::WebContents* contents = panel()->web_contents_for_testing();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return TurnText(contents, "assistant", ".markdown") ==
+           "Hello from the fake API.";
+  }));
 
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleClaudeCommand));
   EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));
