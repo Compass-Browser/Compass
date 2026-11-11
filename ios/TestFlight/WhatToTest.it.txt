@@ -1,4 +1,6 @@
-Claude si ricorda di te, e Spotlight trova i tuoi spazi.
+Anteprima dei link, e finestrelle per i link da altre app.
 
-- Memoria di Claude: Claude può salvare brevi informazioni su di te (preferenze, ciò su cui lavori) e usarle nelle chat successive. Ogni salvataggio compare nella chat con Undo. Settings → Claude → Memory le elenca per modificarle, eliminarle o aggiungerne, con interruttori per disattivare la memoria o i salvataggi. Le memorie si sincronizzano con Compass sul Mac.
-- Spotlight: cerca dalla schermata Home il nome di uno spazio per aprirlo, o qualsiasi preferito o scheda fissata (ora tutte, non solo le prime). Cercando "web" o "internet" trovi Compass.
+- Peek: tieni premuto un link e l'anteprima è la pagina stessa. Tocca l'anteprima (o Peek nel menu) per guardarla in una scheda sovrapposta; Open la trasforma in una scheda senza ricaricarla, chiudendola non resta nulla. Anche i link delle schede fissate e dei preferiti che aprirebbero una nuova scheda si aprono così.
+- Finestrelle: con Compass come browser predefinito, un link da Mail, Messaggi o qualsiasi altra app si apre in una scheda sovrapposta invece che in una nuova scheda. Tocca l'indirizzo per modificarlo, usa indietro, poi Open nel tuo spazio (o scegli un altro spazio con la freccia) oppure chiudila.
+- Settings → Links from Other Apps: disattiva le finestrelle per tornare alle schede, o attiva "Share Sheet Opens a Little Window" perché condividere un link a Compass salti il modulo e lo apra subito.
+- Corretto: mancavano le voci delle estensioni nel menu del tocco prolungato.

@@ -1,4 +1,6 @@
-Claude remembers you, and Spotlight finds your spaces.
+Peek at links, and little windows for links from other apps.
 
-- Claude memory: Claude can save short facts about you (preferences, what you work on) and uses them in later chats. Each save shows in the chat with Undo. Settings → Claude → Memory lists them to edit, delete or add, with switches to turn memory or saving off. Memories sync with Compass on the Mac.
-- Spotlight: search from the Home Screen for a space's name to open it, or for any favorite or pinned tab (all of them now, not just the first few). Searching "web" or "internet" finds Compass.
+- Peek: long-press a link and the preview is the page itself. Tap the preview (or Peek in the menu) to look at it in a card; Open makes it a tab without reloading, closing it leaves nothing behind. Links from pinned tabs and favorites that would open a new tab peek too.
+- Little windows: with Compass as your default browser, a link from Mail, Messages or any other app opens in a card over your tabs instead of a new tab. Tap the address to edit it, use back, then Open in your space (or pick another space with the arrow) or close it.
+- Settings → Links from Other Apps: turn little windows off to get tabs as before, or turn on "Share Sheet Opens a Little Window" so sharing a link to Compass skips the form and opens it straight away.
+- Fixed: extensions' items in the long-press menu were missing.
