@@ -16,7 +16,8 @@ struct BrowserCommands: Commands {
 
   /// The window the user is in.
   private var app: AppModel? { services.active }
-  private var webView: WKWebView? { app?.shownTab.flatMap { services.tabs.live[$0.id] } }
+  /// The page the user sees: Peek's card's, else the shown tab's.
+  private var webView: WKWebView? { app?.peek?.page ?? app?.shownTab.flatMap { services.tabs.live[$0.id] } }
 
   var body: some Commands {
     CommandGroup(replacing: .newItem) {

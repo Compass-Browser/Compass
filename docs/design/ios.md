@@ -408,6 +408,33 @@ whose `AppModel.peek` the card shows (`App/Browser/Peek.swift`).
 Not done: the page in the card has no password AutoFill, isn't in history
 until opened, and Esc goes to the card before the page.
 
+### Little windows
+
+The desktop's little windows ([little-window.md](little-window.md)) on an
+iPhone: with Compass as the default browser, a web link from another app
+(Mail, Messages, Slack) doesn't land among the tabs. It opens in Peek's
+card, over whatever the window shows, in its little-window mode:
+
+- The page is of the shown space's profile (the first space's, when
+  incognito is shown: a link from outside never opens incognito).
+- The bar has back (no forward, as on the desktop), the title and host,
+  **Open in <space>** naming the shown space, and a **⌄** listing the
+  profile's spaces when it has more than one (same profile only: the page
+  can't change its website data). Either makes the page the newest Today
+  entry of that space, as it is, and shows it.
+- Closing it (the close button, Esc, ⌘W, a swipe down) lets the page go:
+  it never reached the sidebar. iOS's own "◀ Mail" in the status bar goes
+  back to the app the link came from.
+- A second link replaces the first. With a keyboard, ⌘[ and ⌘] go back and
+  forward in the card's page, ⌘R reloads it and ⌘O opens it.
+
+Links from Compass's own extensions and widgets (`compass://open`) still
+open as tabs: they name their space. An iPad gets the same card for now;
+a window of its own (a second scene) is the next step.
+
+Not done: the address can't be edited, and there's no setting to open
+outside links as tabs instead.
+
 ### Incognito
 
 An incognito space at the end of the space switcher; its tabs kept in memory while the app runs, locked behind Face ID (or the passcode) once the app has been in the background, gone when it quits; saved logins still fill; extensions only with a per-extension "Allow in Incognito" (off by default, as in Chrome); no Claude (as the desktop).

@@ -134,16 +134,23 @@ final class TabManager: NSObject {
   func makeWebView(
     for node: SidebarNode, url: URL?, configuration given: WKWebViewConfiguration? = nil
   ) -> WKWebView {
+    makeWebView(profile: store.profile(of: node), incognito: store.isIncognito(node), url: url, configuration: given)
+  }
+
+  /// The same for a page of `profile` that has no tab to come from (a link
+  /// from another app, in a little window).
+  func makeWebView(
+    profile: String, incognito: Bool, url: URL?, configuration given: WKWebViewConfiguration? = nil
+  ) -> WKWebView {
     let view: WKWebView
     if let given {
       view = WKWebView(frame: .zero, configuration: given)
     } else {
       let configuration = WKWebViewConfiguration()
       // The home profile's spaces (and favorites) use the default store.
-      let profile = store.profile(of: node)
       // Incognito: one in-memory store for the app's run (cookies, storage
       // and cache never touch the disk).
-      configuration.websiteDataStore = store.isIncognito(node)
+      configuration.websiteDataStore = incognito
         ? incognitoDataStore : dataStore(for: store.isHome(profile) ? "" : profile)
       configuration.allowsInlineMediaPlayback = true
       configuration.allowsPictureInPictureMediaPlayback = true
