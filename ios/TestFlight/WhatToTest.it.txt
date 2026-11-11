@@ -1,6 +1,5 @@
-Cartelle live, split view su iPhone e una barra degli indirizzi più rapida.
+Claude si ricorda di te, e Spotlight trova i tuoi spazi.
 
-- Cartelle live: Nuova cartella live… (accanto a Nuova cartella, o nel menu dello spazio) sceglie un plugin (GitHub, RSS, Calendario…) e riempie la cartella con quello che trova. Si aggiorna da sola; un pallino segna le novità, e il menu della cartella ha Aggiorna, Segna tutto come visto e Converti in cartella normale. Le cartelle live si sincronizzano con Compass sul Mac.
-- Split view: tieni premuta una scheda e scegli Aggiungi allo split. Uno split contiene fino a quattro pagine, e su iPhone uno split di due le mostra entrambe insieme.
-- Tieni premuto l'indirizzo per Ricarica, Copia URL, Condividi, Trova nella pagina e Sito desktop/mobile.
-- 1Password: lo sblocco con Face ID ora preme Sblocca invece di mostrare la password.
+- Memoria di Claude: Claude può salvare brevi informazioni su di te (preferenze, ciò su cui lavori) e usarle nelle chat successive. Ogni salvataggio compare nella chat con Undo. Settings → Claude → Memory le elenca per modificarle, eliminarle o aggiungerne, con interruttori per disattivare la memoria o i salvataggi. Le memorie si sincronizzano con Compass sul Mac.
+- Spotlight: cerca dalla schermata Home il nome di uno spazio per aprirlo, o qualsiasi preferito o scheda fissata (ora tutte, non solo le prime). Cercando "browser" trovi Compass.
+- Sulla schermata Home l'app ora si chiama Compass.

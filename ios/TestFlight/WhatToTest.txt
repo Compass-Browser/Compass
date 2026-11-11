@@ -1,6 +1,5 @@
-Live folders, split view on the iPhone, and a quicker address bar.
+Claude remembers you, and Spotlight finds your spaces.
 
-- Live folders: New Live Folder… (beside New Folder, or in the space menu) picks a plugin (GitHub, RSS, Calendar…) and fills the folder with what it finds. It refreshes by itself; a dot marks what's new, and the folder's menu has Refresh, Mark All Seen and Convert to Normal Folder. Live folders sync with Compass on the Mac.
-- Split view: long-press a tab and choose Add to Split. A split holds up to four pages, and on the iPhone a split of two shows both at once.
-- Long-press the address for Reload, Copy URL, Share, Find on Page and Desktop/Mobile Site.
-- 1Password: unlocking with Face ID now presses Unlock instead of showing the password.
+- Claude memory: Claude can save short facts about you (preferences, what you work on) and uses them in later chats. Each save shows in the chat with Undo. Settings → Claude → Memory lists them to edit, delete or add, with switches to turn memory or saving off. Memories sync with Compass on the Mac.
+- Spotlight: search from the Home Screen for a space's name to open it, or for any favorite or pinned tab (all of them now, not just the first few). Searching "browser" finds Compass.
+- The app is now called Compass on the Home Screen.
