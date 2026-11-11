@@ -250,7 +250,7 @@ class NodeMenu : public ui::SimpleMenuModel,
 
   // Adds "Send to Your Devices" with |devices|, if there are any.
   void AddSendToDevices(
-      std::vector<send_tab_to_self::TargetDeviceInfo> devices) {
+      std::vector<syncer::RemoteDeviceInfo> devices) {
     devices_ = std::move(devices);
     for (size_t i = 0; i < devices_.size(); ++i) {
       devices_menu_.AddItem(SidebarPageHandler::kSendToDeviceFirst + i,
@@ -288,7 +288,7 @@ class NodeMenu : public ui::SimpleMenuModel,
   ui::SimpleMenuModel spaces_menu_;
   std::vector<std::string> space_ids_;
   ui::SimpleMenuModel devices_menu_;
-  std::vector<send_tab_to_self::TargetDeviceInfo> devices_;
+  std::vector<syncer::RemoteDeviceInfo> devices_;
 };
 
 }  // namespace
@@ -1212,7 +1212,7 @@ send_tab_to_self::SendTabToSelfModel* SidebarPageHandler::send_tab_model() {
   return service ? service->GetSendTabToSelfModel() : nullptr;
 }
 
-std::vector<send_tab_to_self::TargetDeviceInfo>
+std::vector<syncer::RemoteDeviceInfo>
 SidebarPageHandler::GetSendTargets(const GURL& url) {
   if (!send_tab_to_self::SendTabToSelfEntry::IsValidUrl(url)) {
     return {};
@@ -1231,7 +1231,7 @@ SidebarPageHandler::GetSendTargets(const GURL& url) {
   if (!model) {
     return {};
   }
-  std::vector<send_tab_to_self::TargetDeviceInfo> devices =
+  std::vector<syncer::RemoteDeviceInfo> devices =
       model->GetTargetDeviceInfoSortedList();
   if (devices.size() > kMaxSendTargets) {
     devices.resize(kMaxSendTargets);
@@ -1241,7 +1241,7 @@ SidebarPageHandler::GetSendTargets(const GURL& url) {
 
 void SidebarPageHandler::SendNodeToDevice(
     const std::string& id,
-    const send_tab_to_self::TargetDeviceInfo& device) {
+    const syncer::RemoteDeviceInfo& device) {
   SidebarNode* node = FindNode(id);
   send_tab_to_self::SendTabToSelfModel* model = send_tab_model();
   if (!node || node->type() != SidebarNode::Type::kTab || !model) {

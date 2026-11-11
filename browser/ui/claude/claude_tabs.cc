@@ -43,7 +43,7 @@
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
-#include "components/send_tab_to_self/target_device_info.h"
+#include "components/sync_device_info/remote_device_info.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/web_contents.h"
@@ -883,7 +883,7 @@ Result ClaudeTabs::SendTabToDevice(const base::DictValue& input,
   if (!model || !model->IsReady()) {
     return Error("Sending tabs needs Compass sync with another device.");
   }
-  std::vector<send_tab_to_self::TargetDeviceInfo> devices =
+  std::vector<syncer::RemoteDeviceInfo> devices =
       model->GetTargetDeviceInfoSortedList();
   const std::string* device = input.FindString("device");
   if (!device || devices.empty()) {

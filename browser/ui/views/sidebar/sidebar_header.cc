@@ -46,6 +46,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"

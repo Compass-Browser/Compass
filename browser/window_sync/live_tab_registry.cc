@@ -43,13 +43,16 @@ class LiveTabRegistry::AudioWatch : public content::WebContentsObserver {
     if (!contents) {
       return;
     }
-    // Tab helpers attach it to every tab; tests' tabs may lack it.
-    RecentlyAudibleHelper::CreateForWebContents(contents);
-    audible_subscription_ =
-        RecentlyAudibleHelper::FromWebContents(contents)
-            ->RegisterRecentlyAudibleChangedCallback(base::BindRepeating(
-                [](AudioWatch* watch, bool) { watch->Update(); },
-                base::Unretained(this)));
+    // Every tab has one (a tab feature since Chromium 157); contents that
+    // aren't in a tab don't.
+    RecentlyAudibleHelper* helper =
+        RecentlyAudibleHelper::FromWebContents(contents);
+    if (!helper) {
+      return;
+    }
+    audible_subscription_ = helper->RegisterRecentlyAudibleChangedCallback(
+        base::BindRepeating([](AudioWatch* watch, bool) { watch->Update(); },
+                            base::Unretained(this)));
   }
 
   void OnWillDiscardContents(tabs::TabInterface* tab,

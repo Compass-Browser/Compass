@@ -27,8 +27,8 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
-#include "components/send_tab_to_self/target_device_info.h"
 #include "components/sync_device_info/device_info.h"
+#include "components/sync_device_info/remote_device_info.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
@@ -1143,7 +1143,7 @@ TEST_F(SidebarPageHandlerTest, SendsEntriesToDevicesFromTheMenu) {
   EXPECT_THAT(MenuCommands(TodayId(1)), Not(Contains(Command::kSendToDevices)));
 
   send_tab_to_self::FakeSendTabToSelfModel model;
-  std::vector<send_tab_to_self::TargetDeviceInfo> devices;
+  std::vector<syncer::RemoteDeviceInfo> devices;
   for (int i = 0; i < 7; ++i) {
     devices.emplace_back(i == 0 ? "iPhone" : "Mac " + base::NumberToString(i),
                          "guid-" + base::NumberToString(i),

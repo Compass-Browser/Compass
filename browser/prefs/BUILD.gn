@@ -46,7 +46,7 @@ if (!is_android) {
       "//base",
       "//chrome/browser:browser_process",
       "//chrome/browser/profiles:profile",
-      "//chrome/browser/ui",
+      "//chrome/browser",
       "//chrome/common",
       "//chrome/common:chrome_features",
       "//chrome/common:constants",

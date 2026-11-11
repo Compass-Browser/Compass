@@ -52,7 +52,7 @@ source_set("browser_tests") {
     "//base/test:test_support",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile_test_util",
-    "//chrome/browser/ui",
+    "//chrome/browser",
     "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support",
