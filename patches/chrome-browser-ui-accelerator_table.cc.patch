@@ -1,19 +1,19 @@
 diff --git a/chrome/browser/ui/accelerator_table.cc b/chrome/browser/ui/accelerator_table.cc
-index 1a68ca92321945aa8e3f61755351f455f27cca73..be2687007054ebddefc892f5c5f1143493281c84 100644
+index a000ed9aeb15cf1efa518aa0cd4e833a4a49ec8c..84c74f68d61e56fdca7a79a5462f0938258484b5 100644
 --- a/chrome/browser/ui/accelerator_table.cc
 +++ b/chrome/browser/ui/accelerator_table.cc
-@@ -15,6 +15,10 @@
- #include "build/branding_buildflags.h"
+@@ -16,6 +16,10 @@
  #include "build/build_config.h"
  #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/ui/actions/command_id_to_action_id.h"
 +#include "compass/browser/ui/compass_command_ids.h"
 +#if BUILDFLAG(IS_WIN)
 +#include "compass/browser/shortcuts/shortcuts_win.h"
 +#endif
- #include "chrome/browser/ui/tabs/features.h"
- #include "chrome/browser/ui/ui_features.h"
- #include "components/lens/buildflags.h"
-@@ -325,7 +329,15 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
+ #include "printing/buildflags/buildflags.h"
+ #include "ui/base/accelerators/accelerator.h"
+ #include "ui/base/ui_base_features.h"
+@@ -318,7 +322,15 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
                           std::begin(kDevToolsAcceleratorMap),
                           std::end(kDevToolsAcceleratorMap));
  
@@ -30,8 +30,8 @@ index 1a68ca92321945aa8e3f61755351f455f27cca73..be2687007054ebddefc892f5c5f11434
      accelerators->emplace_back(AcceleratorMapping(
          {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN, IDC_NEW_SPLIT_TAB}));
  #elif BUILDFLAG(IS_CHROMEOS)
-@@ -361,7 +373,24 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
- #endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS)
+@@ -358,7 +370,25 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
+     }
    }
  
 +#if BUILDFLAG(IS_WIN)
@@ -46,7 +46,8 @@ index 1a68ca92321945aa8e3f61755351f455f27cca73..be2687007054ebddefc892f5c5f11434
 +  std::vector<AcceleratorMapping> adjusted;
 +  for (const compass::CommandAccelerator& entry : list) {
 +    adjusted.push_back({entry.accelerator.key_code(),
-+                        entry.accelerator.modifiers(), entry.command});
++                        entry.accelerator.modifiers(), entry.command,
++                        chrome::GetActionIdForCommandId(entry.command)});
 +  }
 +  return adjusted;
 +#else

@@ -193,7 +193,8 @@ bool IsPlaceholderProfileName(std::u16string_view name);
 // Upstream renames default-named profiles only once per install, so profiles
 // made before the placeholder changed keep the old one otherwise; and a name
 // taken from the chain counts as chosen, though it's the placeholder of the
-// device that published it. Run when the directory is created.
+// device that published it. Profiles go in order of their directories,
+// so the oldest gets "Default". Run when the directory is created.
 void RenamePlaceholderProfiles(ProfileAttributesStorage& storage);
 
 }  // namespace compass

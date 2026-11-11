@@ -41,7 +41,7 @@ to freeze the desktop. Limit the parallel jobs to about RAM ÷ 2.5 GB:
   Chromium at VS 2022 with the environment variable
   `GYP_MSVS_OVERRIDE_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`.
 - The exact Windows SDK version Chromium pins (`SDK_VERSION` in
-  `build/toolchain/win/setup_toolchain.py`; 10.0.28000 for Chromium 156),
+  `build/toolchain/win/setup_toolchain.py`; 10.0.28000 for Chromium 157),
   including *Debugging Tools for Windows*:
   `winget install --id Microsoft.WindowsSDK.10.0.28000 -e --override "/features OptionId.DesktopCPPx64 OptionId.DesktopCPPx86 OptionId.WindowsDesktopDebuggers /quiet /norestart"`
 - `DEPOT_TOOLS_WIN_TOOLCHAIN=0` as a system environment variable, and
@@ -210,7 +210,7 @@ win-x64` builds it in `out/<Config>-win-x64`. Setting it up, once per Mac:
    --no-history` there, for the Windows-only dependencies.
 2. Package the Windows toolchain on a Windows machine, with the Visual
    Studio and SDK that `build/vs_toolchain.py` names (`MSVS_VERSIONS`,
-   `SDK_VERSION`: for Chromium 156, Visual Studio 2026 with its C++ workload,
+   `SDK_VERSION`: for Chromium 157, Visual Studio 2026 with its C++ workload,
    MSVC v145 and ATL, and SDK 10.0.28000.0; the script refuses older Visual
    Studios, so a machine that builds with VS 2022 Build Tools can't make it):
 

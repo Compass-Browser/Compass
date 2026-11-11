@@ -12,13 +12,13 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/test/compass_browser_window_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -47,15 +47,15 @@ std::vector<std::string> Hosts(const SidebarNode* parent) {
   return hosts;
 }
 
-class SpaceSwitchTest : public BrowserWithTestWindowTest {
+class SpaceSwitchTest : public CompassBrowserWindowTest {
  protected:
   // Mock time lets tests step past Browser's coalesced UI updates.
   SpaceSwitchTest()
-      : BrowserWithTestWindowTest(
+      : CompassBrowserWindowTest(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
+    CompassBrowserWindowTest::SetUp();
     // Test windows can't be created the production way.
     service().SetParkingWindowFactoryForTesting(
         base::BindLambdaForTesting([this](Profile* profile) {
@@ -75,7 +75,7 @@ class SpaceSwitchTest : public BrowserWithTestWindowTest {
     }
     second_.reset();
     parking_.reset();
-    BrowserWithTestWindowTest::TearDown();
+    CompassBrowserWindowTest::TearDown();
   }
 
   // Opens tabs so the strip reads |hosts|, left to right.

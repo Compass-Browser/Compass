@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java b/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java
-index 235f264d419560c6527af0c89e20bb6730bb3988..8c713be29fcd6195e46865b2aa51b51b99218d86 100644
+index a3a7106e7f9cca80791786344574530a32e131b1..99ecce392e5bb7893a57a7312d27e8f46b179789 100644
 --- a/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java
 +++ b/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BottomControlsStacker.java
 @@ -54,6 +54,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser

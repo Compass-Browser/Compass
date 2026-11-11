@@ -48,8 +48,9 @@ Upstream's `BrowserViewTabbedLayoutImpl` does the work, with a few patches
 
 ## Collapsed
 
-`VerticalTabStripRegionView::kCollapsedWidth` is `kCollapsedSidebarWidth`
-(region header patch), so upstream's collapse animation, minimum size and
+Upstream's collapsed width (`tabs::kVerticalTabStripCollapsedWidth`) is
+`kCollapsedSidebarWidth` (`vertical_tab_strip_state.h` patch, asserted in
+`sidebar_header.cc`), so upstream's collapse animation, minimum size and
 expand on hover all work with it. At that width the region hides its
 children (region `.cc` patch, `CalculateProposedLayout()`): the header and
 the sidebar page don't show as a sliver. The region's background and tint

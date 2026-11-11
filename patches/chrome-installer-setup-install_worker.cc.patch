@@ -1,8 +1,8 @@
 diff --git a/chrome/installer/setup/install_worker.cc b/chrome/installer/setup/install_worker.cc
-index 1a930947cc1e0effc578f76d8a2e85c6ea2a6e36..28ce3ff8ccc0c48f393364a071a1dfcea8b6f42c 100644
+index a8e1e6e39477dc789fde5dcd16b4c405f702c56a..a0000770a370adacf1ecee11b7808098f23780da 100644
 --- a/chrome/installer/setup/install_worker.cc
 +++ b/chrome/installer/setup/install_worker.cc
-@@ -343,6 +343,17 @@ void AddChromeWorkItems(const InstallParams& install_params,
+@@ -344,6 +344,17 @@ void AddChromeWorkItems(const InstallParams& install_params,
            WorkItem::MoveTreeOptions{.lenient_deletion = true})),
        /*else_item=*/std::move(not_in_use_list)));
  

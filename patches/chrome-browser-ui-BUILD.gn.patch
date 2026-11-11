@@ -1,28 +1,28 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 238f8625e42d8703c72c266c36e32bbfb2113095..834a14b46888ea70f8abe2e59c74efd227c616e1 100644
+index 1e352a02e9720c91917e329c22674fdd33451f4b..559f36f9531128e183374f92807a766c2e444fab 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -591,6 +591,8 @@ if (!is_android) {
-       "//chrome/browser:browser_public_dependencies",
-     ]
+@@ -614,6 +614,8 @@ if (!is_android) {
+     sources = [ "unload_controller.cc" ]
+     public_deps = [ ":unload_controller" ]
      deps = [
 +      # Compass keeps a window whose last tab closed.
 +      "//compass/browser/window_sync",
        ":browser_commands",
        ":browser_live_tab_context",
        ":browser_manager_service",
-@@ -657,6 +659,8 @@ if (!is_android) {
-       "//chrome/browser:browser_public_dependencies",
-     ]
+@@ -678,6 +680,8 @@ if (!is_android) {
+     sources = [ "browser_command_controller.cc" ]
+     public_deps = [ ":browser_command_controller" ]
      deps = [
 +      # Compass offers commands to its command bar first.
 +      "//compass/browser/ui",
        ":accelerator_table",
        ":browser_actions",
        ":browser_commands",
-@@ -804,6 +808,9 @@ if (!is_android) {
-       "//chrome/browser:browser_public_dependencies",
-     ]
+@@ -827,6 +831,9 @@ if (!is_android) {
+     sources = [ "browser_commands.cc" ]
+     public_deps = [ ":browser_commands" ]
      deps = [
 +      "//compass/common:url",
 +      # Compass's find bar takes chrome::FindInPage().
@@ -30,20 +30,24 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..834a14b46888ea70f8abe2e59c74efd2
        ":accelerator_utils_headers",
        ":browser_command_controller",
        ":browser_init_state",
-@@ -1086,6 +1093,10 @@ if (!is_android) {
-     public = [ "accelerator_table.h" ]
-     sources = [ "accelerator_table.cc" ]
-     deps = [
+@@ -1118,6 +1125,14 @@ source_set("accelerator_table") {
+     "//ui/events:event_constants",
+     "//ui/events:events_base",
+   ]
++  if (!is_android) {
++    deps += [
 +      # Compass's Shift+Alt+N (a little window) on Windows, and its
 +      # shortcuts and the user's there.
 +      "//compass/browser/shortcuts",
 +      "//compass/browser/ui:app_menu_hooks",
-       "//chrome/app:command_ids",
-       "//chrome/browser/ui:ui_features",
-       "//chrome/browser/ui/tabs",
-@@ -1424,6 +1435,12 @@ source_set("tab_helpers_impl") {
-     "//printing/buildflags",
++    ]
++  }
+   if (is_mac) {
+     deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
+   }
+@@ -1437,6 +1452,12 @@ source_set("tab_helpers_impl") {
      "//ui/accessibility:ax_base",
+     "//ui/webui:buildflags",
    ]
 +  if (!is_android) {
 +    deps += [
@@ -54,23 +58,12 @@ index 238f8625e42d8703c72c266c36e32bbfb2113095..834a14b46888ea70f8abe2e59c74efd2
  
    if (is_android) {
      deps += [
-@@ -1587,6 +1604,9 @@ static_library("ui") {
-     "//chrome/browser/ui/webui/flags",
-     "//chrome/browser/ui/webui/subresource_filter",
-   ]
-+  if (!is_android) {
-+    public_deps += [ "//compass/browser/ui" ]
-+  }
- 
-   deps = [
-     ":browser_element_identifiers",
-@@ -2771,6 +2791,9 @@ static_library("ui") {
-       # tab_search includes browser.h, browser_window.h,
-       # plural_string_handler.h from //chrome/browser/ui.
-       "//chrome/browser/ui/webui/tab_search",
-+
-+      # Compass's sidebar includes browser views and commands.
-+      "//compass/browser/ui",
-     ]
- 
-     if (is_win || is_chromeos) {
+@@ -1506,6 +1527,8 @@ if (!is_android) {
+   source_set("core") {
+     sources = [ "browser.cc" ]
+     deps = [
++      # Compass keeps a window whose last tab closed (browser.cc).
++      "//compass/browser/window_sync",
+       ":browser_command_controller",
+       ":browser_header",
+       ":browser_init_state",

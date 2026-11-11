@@ -30,7 +30,7 @@
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
-#include "components/send_tab_to_self/target_device_info.h"
+#include "components/sync_device_info/remote_device_info.h"
 #include "ui/menus/simple_menu_model.h"
 
 class BrowserWindowInterface;
@@ -226,7 +226,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // Sends node |id|'s page to |device| (send tab to self,
   // docs/design/send-tab.md).
   void SendNodeToDevice(const std::string& id,
-                        const send_tab_to_self::TargetDeviceInfo& device);
+                        const syncer::RemoteDeviceInfo& device);
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -297,7 +297,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void SendArchive();
   // The devices |url| can be sent to, most recently active first, or none
   // if sync doesn't offer sending it.
-  std::vector<send_tab_to_self::TargetDeviceInfo> GetSendTargets(
+  std::vector<syncer::RemoteDeviceInfo> GetSendTargets(
       const GURL& url);
   send_tab_to_self::SendTabToSelfModel* send_tab_model();
   void SendNowPlaying();

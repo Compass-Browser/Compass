@@ -1,5 +1,5 @@
 diff --git a/components/sync/service/sync_service_impl.cc b/components/sync/service/sync_service_impl.cc
-index d37ce22f7d9626155bb2f4b748f0dba1e4e5d987..241fe82b09e0a5909ac2fdbada25b70c3abafb0f 100644
+index 1f03761e1860c29035701b17b703654bd6243f2c..e8ee806a54a5594c44c7d00e99f92156357163cb 100644
 --- a/components/sync/service/sync_service_impl.cc
 +++ b/components/sync/service/sync_service_impl.cc
 @@ -69,6 +69,7 @@

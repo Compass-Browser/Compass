@@ -1,8 +1,8 @@
 diff --git a/build/config/android/config.gni b/build/config/android/config.gni
-index e2a796f5d50f15e35ae1c33162fe2a190cda9ea3..0188291598857a61b83370f1a3a86eb56f8ef8d1 100644
+index 39b6b962b2567c654b045fc63a88f27827bfb4c0..24d16b7d04baa92666c805bfca83d82879d2a870 100644
 --- a/build/config/android/config.gni
 +++ b/build/config/android/config.gni
-@@ -483,25 +483,32 @@ if (is_android) {
+@@ -471,25 +471,32 @@ if (is_android) {
      "//third_party/jdk/current/lib/ct.sym",
      "//third_party/jdk/current/lib/jrt-fs.jar",
      "//third_party/jdk/current/lib/jvm.cfg",

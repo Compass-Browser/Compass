@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page.html.ts b/chrome/browser/resources/settings/about_page/about_page.html.ts
-index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..3dbce204cd4be6b596ffe8daed46d4a9bacfb34e 100644
+index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..1ef377c7ee1b211638bf288d58549e14157b72e8 100644
 --- a/chrome/browser/resources/settings/about_page/about_page.html.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
 @@ -67,6 +67,23 @@ export function getHtml(this: SettingsAboutPageElement) {

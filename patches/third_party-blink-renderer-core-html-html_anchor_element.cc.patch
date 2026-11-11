@@ -1,5 +1,5 @@
 diff --git a/third_party/blink/renderer/core/html/html_anchor_element.cc b/third_party/blink/renderer/core/html/html_anchor_element.cc
-index 7bfebda73ba90227a994198e7d9a9827a2dd4045..9fd03f1c8924818da40e10ddaa44ad0f3c4420dc 100644
+index a9f2c1b74fe90cc30b2a2cf54f77c1cf7bf946a8..14a129d9ce6f98cbd7f2e01b46b46fd315d59b33 100644
 --- a/third_party/blink/renderer/core/html/html_anchor_element.cc
 +++ b/third_party/blink/renderer/core/html/html_anchor_element.cc
 @@ -519,7 +519,6 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {

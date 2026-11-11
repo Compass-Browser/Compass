@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/lifetime/application_lifetime_desktop.cc b/chrome/browser/lifetime/application_lifetime_desktop.cc
-index b1dca3d525dcbbc77bd38c31530ef6c8230b3f26..cfbf880c16a20eaf876247193ffb9d0d7ab0195e 100644
+index fbf902d9c2564467214a259596f1415e4c17ed7b..b74e76be52957b5ec8532c36cdde6087bdf5aec3 100644
 --- a/chrome/browser/lifetime/application_lifetime_desktop.cc
 +++ b/chrome/browser/lifetime/application_lifetime_desktop.cc
 @@ -47,6 +47,7 @@

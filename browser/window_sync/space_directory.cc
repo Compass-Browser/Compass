@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 #include "base/check.h"
 #include "base/files/file_util.h"
@@ -467,7 +468,12 @@ bool IsPlaceholderProfileName(std::u16string_view name) {
 }
 
 void RenamePlaceholderProfiles(ProfileAttributesStorage& storage) {
-  for (ProfileAttributesEntry* entry : storage.GetAllProfilesAttributes()) {
+  // In order of their directories ("Default", "Profile 1", ...), so the
+  // oldest gets "Default": the storage's own order is a hash map's.
+  std::vector<ProfileAttributesEntry*> entries =
+      storage.GetAllProfilesAttributes();
+  std::ranges::sort(entries, {}, &ProfileAttributesEntry::GetPath);
+  for (ProfileAttributesEntry* entry : entries) {
     if (IsPlaceholderProfileName(entry->GetLocalProfileName())) {
       entry->SetLocalProfileName(storage.ChooseNameForNewProfile(),
                                  /*is_default_name=*/true);

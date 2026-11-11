@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
-index c1bb5d445e89d04df601b51295adadaf8452b2ee..c056d481ac30eae85fa51a07a15c7e133d3fee7b 100644
+index 0e2111a106d6c0f9f5d6fa6a3e21f8feeb5e08e4..0b75c91330a346de116159503dca2bf54e024e74 100644
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -99,6 +99,7 @@
+@@ -104,6 +104,7 @@
  #include "chrome/grit/generated_resources.h"
  #include "chrome/grit/settings_resources.h"
  #include "chrome/grit/settings_resources_map.h"
@@ -10,7 +10,7 @@ index c1bb5d445e89d04df601b51295adadaf8452b2ee..c056d481ac30eae85fa51a07a15c7e13
  #include "components/account_manager_core/account_manager_facade.h"
  #include "components/autofill/content/browser/content_autofill_client.h"
  #include "components/autofill/core/browser/at_memory/at_memory_enablement_util.h"
-@@ -240,6 +241,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+@@ -247,6 +248,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
    html_source->OverrideContentSecurityPolicy(
        network::mojom::CSPDirectiveName::WorkerSrc,
        "worker-src blob: chrome://resources 'self';");
@@ -19,7 +19,7 @@ index c1bb5d445e89d04df601b51295adadaf8452b2ee..c056d481ac30eae85fa51a07a15c7e13
  
    AddSettingsPageUIHandler(std::make_unique<AppearanceHandler>(web_ui));
  
-@@ -658,9 +661,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+@@ -679,9 +682,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
    // Within the AI subpage are separate sections for Glic, for GEIC, and for all
    // other AI features. The visibility of these is separately controlled, but
    // we want to show the subpage if any of them are enabled.

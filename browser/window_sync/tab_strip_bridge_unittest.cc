@@ -23,7 +23,6 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/split_tabs/split_tab_visual_data.h"
@@ -40,6 +39,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/test/compass_browser_window_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/page_transition_types.h"
@@ -77,12 +77,12 @@ std::vector<std::string> Hosts(const SidebarNode* parent) {
   return hosts;
 }
 
-class TabStripBridgeTest : public BrowserWithTestWindowTest {
+class TabStripBridgeTest : public CompassBrowserWindowTest {
  protected:
   // Mock time lets tests step past Browser's coalesced UI updates, which
   // carry committed URLs.
   TabStripBridgeTest()
-      : BrowserWithTestWindowTest(
+      : CompassBrowserWindowTest(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   // Opens tabs so the strip reads |hosts|, left to right.

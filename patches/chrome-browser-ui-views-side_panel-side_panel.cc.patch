@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/side_panel/side_panel.cc b/chrome/browser/ui/views/side_panel/side_panel.cc
-index 48d9dd08489dddd43374ad71836f1a2773daa554..ad4c10915ec0b633b180c5c4d2de563dd1551dcd 100644
+index 0098885c7d17b32f9cb08bcecbc1411f16af56cc..84700acb21c9887cb9ad87712504e3c8eb59160e 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel.cc
 +++ b/chrome/browser/ui/views/side_panel/side_panel.cc
 @@ -87,8 +87,11 @@ constexpr int kOverlapFromToolbar = 4;

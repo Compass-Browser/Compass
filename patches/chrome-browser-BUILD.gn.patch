@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 33a6696fd803af080bb0a7d71b66e06d6950f86d..bf1e6a5f725fe038802468ed1d3a86811be7f103 100644
+index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..6c81753f54bbb283022f849538dc2ed74836f365 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -881,6 +881,8 @@ source_set("core") {
+@@ -1046,6 +1046,8 @@ source_set("core") {
    }
  
    deps = [
@@ -11,8 +11,8 @@ index 33a6696fd803af080bb0a7d71b66e06d6950f86d..bf1e6a5f725fe038802468ed1d3a8681
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -1264,6 +1266,10 @@ source_set("core") {
-     "//ui/webui:buildflags",
+@@ -1435,6 +1437,10 @@ source_set("core") {
+     "//ui/webui/resources/cr_components/color_change_listener:mojom",
      "//ui/webui/tracked_element",
    ]
 +  if (!is_android) {
@@ -22,9 +22,9 @@ index 33a6696fd803af080bb0a7d71b66e06d6950f86d..bf1e6a5f725fe038802468ed1d3a8681
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2523,6 +2529,12 @@ source_set("browser") {
-     "//chrome/browser/sharing/glic_experimental_triggering:impl",
-     "//chrome/browser/ui/webauthn:impl",
+@@ -2827,6 +2833,12 @@ source_set("browser") {
+     "//ui/webui",
+     "//ui/webui:buildflags",
    ]
 +  if (!is_android) {
 +    deps += [ "//compass/browser" ]

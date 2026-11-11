@@ -27,7 +27,7 @@ source_set("browser_tests") {
     ":web_store",
     "//base",
     "//base/test:test_support",
-    "//chrome/browser/ui",
+    "//chrome/browser",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",

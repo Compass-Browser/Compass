@@ -1,8 +1,8 @@
 diff --git a/ui/views/widget/widget.cc b/ui/views/widget/widget.cc
-index 35d5b656d91fad27a065d3d33e8fb76e4fdf281b..7f86db3fd2b679554dc23a7bc823bef5874a4007 100644
+index dd051b97e2c34c147b42feda9e46367086ace871..951bd7b453b073c585c119971f4a3d41bafa2023 100644
 --- a/ui/views/widget/widget.cc
 +++ b/ui/views/widget/widget.cc
-@@ -1564,6 +1564,38 @@ void* Widget::GetNativeWindowProperty(const char* name) const {
+@@ -1567,6 +1567,38 @@ void* Widget::GetNativeWindowProperty(const char* name) const {
                          : nullptr;
  }
  
@@ -41,7 +41,7 @@ index 35d5b656d91fad27a065d3d33e8fb76e4fdf281b..7f86db3fd2b679554dc23a7bc823bef5
  void Widget::UpdateWindowTitle() {
    if (!native_widget_ || !non_client_view_) {
      return;
-@@ -2292,6 +2324,10 @@ void Widget::OnNativeWidgetPaint(const ui::PaintContext& context) {
+@@ -2295,6 +2327,10 @@ void Widget::OnNativeWidgetPaint(const ui::PaintContext& context) {
  }
  
  int Widget::GetNonClientComponent(const gfx::Point& point) {
