@@ -848,11 +848,17 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
 enum Presenter {
   /// False when there's nothing to present it over (it isn't shown).
   @discardableResult
-  static func present(_ controller: UIViewController) -> Bool {
+  static func present(_ controller: UIViewController, from anchor: CGRect? = nil) -> Bool {
     let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
       .first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
     guard var top = (scene?.keyWindow ?? scene?.windows.first)?.rootViewController else { return false }
     while let presented = top.presentedViewController, !presented.isBeingDismissed { top = presented }
+    // A popover (the iPad's share sheet) points at `anchor`, in window
+    // coordinates; without one, at the middle of the bottom.
+    if let popover = controller.popoverPresentationController, let window = top.view.window {
+      popover.sourceView = window
+      popover.sourceRect = anchor ?? CGRect(x: window.bounds.midX, y: window.bounds.maxY - 40, width: 1, height: 1)
+    }
     top.present(controller, animated: true)
     return true
   }

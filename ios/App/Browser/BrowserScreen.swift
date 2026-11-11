@@ -392,34 +392,32 @@ struct BrowserScreen: View {
         .accessibilityLabel("New tab")
         .accessibilityIdentifier("BarNewTab")
         .contextMenu { NewTabMenu() }
-      Button { app.showingMenu = true } label: {
-        BarIcon(symbol: "ellipsis")
-          .scaleEffect(menuBounce ? 1.35 : 1)
-          .onGeometryChange(for: CGPoint.self, of: { geo in
-            let frame = geo.frame(in: .global)
-            return CGPoint(x: frame.midX, y: frame.midY)
-          }) { menuCenter = $0 }
-          .overlay {
-            // A download running: its progress around the menu button.
-            if let progress = app.downloads.overallProgress {
-              Circle().stroke(Color.primary.opacity(0.12), lineWidth: 2.5).frame(width: 30, height: 30)
-              Circle().trim(from: 0, to: max(progress, 0.03))
-                .stroke(tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .frame(width: 30, height: 30)
-                .animation(.easeOut(duration: 0.2), value: progress)
-            }
-          }
-      }
-        .accessibilityLabel("Menu")
-        // A long press: Share the shown page, as the menu's Share tile does.
-        .contextMenu {
-          if let tab = app.shownTab, let url = view?.url ?? URL(string: tab.url) {
-            ShareLink(item: url, subject: Text(tab.displayTitle)) {
-              Label("Share", systemImage: "square.and.arrow.up")
-            }
+      // A tap: the menu. A long press: the share sheet, straight away.
+      BarIcon(symbol: "ellipsis")
+        .scaleEffect(menuBounce ? 1.35 : 1)
+        .onGeometryChange(for: CGPoint.self, of: { geo in
+          let frame = geo.frame(in: .global)
+          return CGPoint(x: frame.midX, y: frame.midY)
+        }) { menuCenter = $0 }
+        .overlay {
+          // A download running: its progress around the menu button.
+          if let progress = app.downloads.overallProgress {
+            Circle().stroke(Color.primary.opacity(0.12), lineWidth: 2.5).frame(width: 30, height: 30)
+            Circle().trim(from: 0, to: max(progress, 0.03))
+              .stroke(tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+              .rotationEffect(.degrees(-90))
+              .frame(width: 30, height: 30)
+              .animation(.easeOut(duration: 0.2), value: progress)
           }
         }
+        .contentShape(Rectangle())
+        .onLongPressGesture(minimumDuration: 0.4) { sharePage() }
+        .onTapGesture { app.showingMenu = true }
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Menu")
+        .accessibilityAction { app.showingMenu = true }
+        .accessibilityAction(named: "Share") { sharePage() }
     }
     // The sidebar's neutral look, not the system tint.
     .buttonStyle(.plain)
@@ -539,6 +537,17 @@ struct BrowserScreen: View {
     .accessibilityLabel("Address")
     .accessibilityValue(host)
     .contextMenu { if app.shownTab != nil { addressMenu } }
+  }
+
+  /// The share sheet for the shown page, from the menu button (a popover
+  /// on the iPad, pointing at it).
+  private func sharePage() {
+    guard let tab = app.shownTab,
+          let url = app.tabs.live[tab.id]?.url ?? URL(string: tab.url) else { return }
+    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    let anchor = menuCenter.map { CGRect(x: $0.x - 15, y: $0.y - 15, width: 30, height: 30) }
+    Presenter.present(sheet, from: anchor)
   }
 
   /// A long press on the address: reload, copy the address, share, find on
