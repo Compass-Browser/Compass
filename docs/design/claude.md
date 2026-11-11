@@ -81,7 +81,7 @@ yet.
   - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model, New chat, close).
   - Upstream provides resizing, the open and close animation, and the switch with extensions' `sidePanel` pages.
   - The entry has no toolbar action. Upstream's `SidePanelToolbarPinningController::UpdateActiveState()` `CHECK`s for one, so a second patch makes it skip entries without one.
-  - Closing the panel keeps its view cached, so the conversation survives a close and reopen.
+  - Closing the panel keeps the conversation. Upstream's side panel destroys a closed entry's view (`ClearCachedEntryViews()`), so `ClaudePanel` owns the page's `WebUIContentsWrapper` for the window's life and wraps it in a new `SidePanelWebUIView` at each show (which shows itself: the wrapper reports ready only on the first load). A reply streaming as the panel closes goes on, and so does a Claude Code session.
   - In tests, `ClaudePanel::web_contents_for_testing()` reads the view the panel made. Upstream's `SidePanelUI::GetWebContentsForTest()` builds a new view, and so a new page, on each call.
   - The panel shows once the page calls `ShowUI()`.
 - **Shortcut.** `kToggleClaudeCommand` (`compass_command_ids.h`), default Cmd+Shift+E on macOS (`AdjustShortcutsNotInMenu()`; Cmd+E stays "Use Selection for Find"). It's customizable as "Chat with Claude".
@@ -106,7 +106,7 @@ yet.
   - Each tool call is a collapsible row in the reply: a few words ("Click e12", "Type “Ada”"), its input and its result; screenshots show under it. Tool-result turns aren't shown as messages.
   - Stop (or Esc) ends the reply and the running tool. Tool calls left without a result get one ("Stopped by the user."), or the API would refuse the next request. Consecutive user turns (tool results, then a new message) go as one message.
   - A failed reply to tool results gets Retry, which asks for that reply again.
-- **Conversation lifetime.** In the page, for as long as the panel's page lives. Saved history comes later.
+- **Conversation lifetime.** In the page, which lives as long as the window (closing the panel keeps it; New chat starts over). Closing the window or quitting loses it: saved history comes later.
   - A reply stopped while Claude was thinking leaves a thinking block without its signature, which the API would refuse; it isn't sent back.
 
 ### Browser-side services (per profile, `browser/claude/`)

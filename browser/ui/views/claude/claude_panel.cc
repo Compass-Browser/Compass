@@ -19,16 +19,10 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "compass/browser/ui/webui/claude/claude_chat_page_handler.h"
 #include "compass/browser/ui/webui/claude/claude_chat_ui.h"
-#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/view.h"
 #include "url/gurl.h"
-
-using SidePanelWebUIViewT_ClaudeChatUI =
-    SidePanelWebUIViewT<compass::claude::ClaudeChatUI>;
-BEGIN_TEMPLATE_METADATA(SidePanelWebUIViewT_ClaudeChatUI, SidePanelWebUIViewT)
-END_METADATA
 
 namespace compass::claude {
 
@@ -143,18 +137,27 @@ void ClaudePanel::RegisterEntryIfNeeded() {
 
 std::unique_ptr<views::View> ClaudePanel::CreateView(
     SidePanelEntryScope& scope) {
-  auto wrapper = std::make_unique<WebUIContentsWrapperT<ClaudeChatUI>>(
-      GURL(kClaudeChatURL), browser_->GetProfile(),
-      IDS_TASK_MANAGER_TOOL_PREFIX,
-      // Esc stops a reply, in the page.
-      /*esc_closes_ui=*/false);
-  // The chat sits on the window's tint, as the sidebar does, not in a box
-  // (the side_panel.cc patch drops upstream's toolbar-colored one).
-  views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
-      wrapper->web_contents(), SK_ColorTRANSPARENT);
-  auto view = std::make_unique<SidePanelWebUIViewT<ClaudeChatUI>>(
+  // A page already there has its conversation: show it again. Its wrapper
+  // reports ready to show only once, as the page first loads (ShowUI()), so
+  // the new view shows itself.
+  const bool reopening = contents_ && contents_->web_contents();
+  if (!reopening) {
+    contents_ = std::make_unique<WebUIContentsWrapperT<ClaudeChatUI>>(
+        GURL(kClaudeChatURL), browser_->GetProfile(),
+        IDS_TASK_MANAGER_TOOL_PREFIX,
+        // Esc stops a reply, in the page.
+        /*esc_closes_ui=*/false);
+    // The chat sits on the window's tint, as the sidebar does, not in a box
+    // (the side_panel.cc patch drops upstream's toolbar-colored one).
+    views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+        contents_->web_contents(), SK_ColorTRANSPARENT);
+  }
+  auto view = std::make_unique<SidePanelWebUIView>(
       scope, base::RepeatingClosure(), base::RepeatingClosure(),
-      std::move(wrapper));
+      contents_.get());
+  if (reopening) {
+    view->ShowUI();
+  }
   view_.SetView(view.get());
   return view;
 }

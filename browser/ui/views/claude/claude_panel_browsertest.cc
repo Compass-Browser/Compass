@@ -415,6 +415,43 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AskOpensAndSends) {
   EXPECT_EQ(body->FindList("messages")->size(), 3u);
 }
 
+// Closing the panel keeps the conversation: reopened, it's the same page
+// with the same turns, and the next message goes on from them.
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, KeepsTheChatWhenClosed) {
+  SetUpClaude();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/page.html")));
+  panel()->Ask("Which animal jumps?");
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return panel()->IsShowing() && panel()->web_contents_for_testing() &&
+           TurnText(panel()->web_contents_for_testing(), "assistant",
+                    ".markdown") == "Hello from the fake API.";
+  }));
+  content::WebContents* contents = panel()->web_contents_for_testing();
+
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleClaudeCommand));
+  EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));
+
+  EXPECT_EQ(Open(), contents);
+  EXPECT_EQ(TurnText(contents, "assistant", ".markdown"),
+            "Hello from the fake API.");
+  EXPECT_EQ(TurnText(contents, "user", ".attached"), "Fox page");
+
+  // Closed again, a question goes to the same conversation.
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleClaudeCommand));
+  EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));
+  panel()->Ask("And which one is lazy?");
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return panel()->IsShowing() &&
+           LastBody().find("And which one is lazy?") != std::string::npos;
+  }));
+  EXPECT_EQ(panel()->web_contents_for_testing(), contents);
+  std::optional<base::DictValue> body =
+      base::JSONReader::ReadDict(LastBody(), base::JSON_PARSE_RFC);
+  ASSERT_TRUE(body);
+  EXPECT_EQ(body->FindList("messages")->size(), 3u);
+}
+
 // The agent loop: a tool_use reply runs the tool in the browser and sends
 // its result back, then the final reply shows. docs/design/claude.md, D4.
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsToolsAndSendsResults) {

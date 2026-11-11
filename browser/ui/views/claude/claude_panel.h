@@ -14,6 +14,8 @@
 
 class BrowserWindowInterface;
 class SidePanelEntryScope;
+template <class T>
+class WebUIContentsWrapperT;
 
 namespace content {
 class WebContents;
@@ -26,12 +28,15 @@ class View;
 namespace compass::claude {
 
 class ClaudeChatPageHandler;
+class ClaudeChatUI;
 
 // A window's chat with Claude: chrome://compass-claude in the side panel,
 // on the right (the sidebar is on the left), registered as a window-wide
 // entry the first time it opens. It has no upstream header: the page draws
-// its own. Owned by the window's sidebar view. See docs/design/claude.md,
-// "Chat panel".
+// its own. The page lives as long as the window: closing the panel only
+// takes its view away (upstream's side panel drops a closed entry's view,
+// and would take the conversation with it). Owned by the window's sidebar
+// view. See docs/design/claude.md, "Chat panel".
 class ClaudePanel {
  public:
   DECLARE_USER_DATA(ClaudePanel);
@@ -71,6 +76,9 @@ class ClaudePanel {
   const raw_ptr<BrowserWindowInterface> browser_;
   bool registered_ = false;
   raw_ptr<ClaudeChatPageHandler> page_handler_ = nullptr;
+  // The page, made on the first show and kept while the window lives; each
+  // show wraps it in a new view.
+  std::unique_ptr<WebUIContentsWrapperT<ClaudeChatUI>> contents_;
   // The panel's view, while it exists.
   views::ViewTracker view_;
   std::string pending_question_;
