@@ -15,6 +15,14 @@ open settings tab). Sync is hidden where upstream hides the people page
 (guest). Import from Arc is listed everywhere; off macOS it says Arc wasn't
 found.
 
+Upstream's **On startup** section is gone (no menu item, view or route;
+upstream does the same for a guest): Compass's sidebar brings back its
+spaces and their tabs itself (docs/design/sidebar.md, "Today persistence"),
+so choosing what opens at launch has no place in Compass. The pref behind it (`RestoreOnStartup`) keeps whatever value it
+had and still decides whether the first window shows the switcher's first
+space (docs/design/spaces.md, "Startup with several profiles"); policy can
+still set it.
+
 The standalone pages stay: they show the same element alone, and the
 end-to-end sync steps (`tools/sync_e2e/`) and browser tests drive them with
 `document.getElementById()`. Nothing in the browser links to them any more.

@@ -92,6 +92,19 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
   EXPECT_EQ(content::EvalJs(contents(), "location.pathname"), "/shortcuts");
 }
 
+// Upstream's "On startup" section is gone: its menu item is hidden and
+// there's no view for it (docs/design/settings.md).
+IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, NoOnStartupSection) {
+  Open("chrome://settings/");
+  EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
+            "/sync");
+  EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
+              deepQuery('a#onStartup')?.hidden === true &&
+                  !deepQuery('div#onStartup') &&
+                  !deepQuery('settings-on-startup-page'))"),
+            true);
+}
+
 // compass://settings/shortcuts lists the shortcuts and records keys as the
 // standalone page does.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ShortcutsSection) {

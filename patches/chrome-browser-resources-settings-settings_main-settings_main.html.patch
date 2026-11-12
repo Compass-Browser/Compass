@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html b/chrome/browser/resources/settings/settings_main/settings_main.html
-index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..e070ce8ce5b1e2e69e0bfdb18a21cbd0ccc3afef 100644
+index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..6c55c17feeb7d10367dfc3b3161a9f8a41a7362c 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
 @@ -52,14 +52,43 @@
@@ -48,3 +48,19 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..e070ce8ce5b1e2e69e0bfdb18a21cbd0
    <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
      <div slot="view" id="privacy">
        <template is="dom-if" if="[[renderPlugin_(
+@@ -130,14 +159,7 @@
+   </template>
+ </if>
+ 
+-  <template is="dom-if" if="[[showPage_(pageVisibility_.onStartup)]]">
+-    <div slot="view" id="onStartup">
+-      <template is="dom-if" if="[[renderPlugin_(
+-          routes_.ON_STARTUP, lastRoute_, inSearchMode_)]]" update-when-false>
+-        <settings-on-startup-page></settings-on-startup-page>
+-      </template>
+-    </div>
+-  </template>
++  <!-- Compass: no "On startup" (route.ts). -->
+ 
+   <template is="dom-if" if="[[showPage_(pageVisibility_.languages)]]">
+     <div slot="view" id="languages">

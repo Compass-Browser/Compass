@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index c35c985ddf3447612e803fc595cdae2b514953a7..50baa778ba323303496d80644f17f03707ab02de 100644
+index c35c985ddf3447612e803fc595cdae2b514953a7..0188cf4c11dd33d6b7d42b6dc46f6c57ca6e30e3 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
 @@ -2,9 +2,10 @@
@@ -48,3 +48,15 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..50baa778ba323303496d80644f17f037
          <a role="menuitem" id="autofill" href="/autofill"
              @click="${this.onAutofillClick_}"
              class="cr-nav-menu-item"
+@@ -65,9 +92,9 @@
+           <cr-ripple></cr-ripple>
+         </a>
+ </if>
++        <!-- Compass: no "On startup" (route.ts). -->
+         <a role="menuitem" id="onStartup" href="/onStartup"
+-            class="cr-nav-menu-item"
+-            ?hidden="${this.shouldHideMenuItem_(this.pageVisibility_?.onStartup)}">
++            class="cr-nav-menu-item" hidden>
+           <cr-icon icon="settings:power-settings-new"></cr-icon>
+           <span class="menu-label">$i18n{onStartup}</span>
+           <cr-ripple></cr-ripple>

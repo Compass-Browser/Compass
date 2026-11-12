@@ -1,27 +1,32 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..21f6de14316a5d03cf767c47c61c877c29f18bed 100644
+index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..b79f9953afd04bed760e047ca93db5c7e96c0418 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -258,6 +258,18 @@ function createRoutes(): SettingsRoutes {
-         '/onStartup', 'onStartup', loadTimeData.getString('onStartup'));
+@@ -253,10 +253,20 @@ function createRoutes(): SettingsRoutes {
    }
+   // </if>
  
+-  if (visibility.onStartup !== false) {
+-    r.ON_STARTUP = r.BASIC.createSection(
+-        '/onStartup', 'onStartup', loadTimeData.getString('onStartup'));
++  // Compass: no "On startup". Its windows come back with their spaces
++  // (docs/design/settings.md), so ON_STARTUP stays undefined, as for a guest.
++
 +  // Compass's sections (compass/resources/sidebar/settings). Sync is off
 +  // where the people page is (guest).
 +  if (visibility.people !== false) {
 +    r.COMPASS_SYNC = r.BASIC.createSection('/sync', 'compassSync', 'Sync');
-+  }
+   }
 +  r.COMPASS_SHORTCUTS = r.BASIC.createSection(
 +      '/shortcuts', 'compassShortcuts', 'Keyboard shortcuts');
 +  r.COMPASS_ARC_IMPORT = r.BASIC.createSection(
 +      '/importArc', 'compassArcImport', 'Import from Arc');
 +  r.COMPASS_CLAUDE = r.BASIC.createSection('/claude', 'compassClaude',
 +                                           'Claude');
-+
+ 
    // Advanced Routes
    r.ADVANCED = new Route('/advanced');
- 
-@@ -341,7 +353,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
+@@ -341,7 +351,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
  // Returns the "effective" route when at chrome://settings/.
  export function getTopLevelRoute(): Route {
    if (!loadTimeData.getBoolean('isGuest')) {
