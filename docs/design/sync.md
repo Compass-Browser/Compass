@@ -1,6 +1,6 @@
 # Sync between devices
 
-Based on Chromium 156.0.8078.48.
+Based on Chromium 157.0.8103.51.
 
 ARCHITECTURE.md §1 already commits to "our own end-to-end encrypted,
 self-hostable service" (Chrome Sync is closed to third-party builds since

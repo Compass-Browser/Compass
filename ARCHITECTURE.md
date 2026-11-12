@@ -113,7 +113,7 @@ panel and tab search. Platform polish goes in small native shims: macOS
 vibrancy (`NSVisualEffectView`) and traffic-light placement, Windows 11 Mica,
 and Linux CSD/SSD handling.
 
-Chrome 156 already has a vertical tab strip region
+Chrome 157 has a vertical tab strip region (since 156)
 (`chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h`). We put our
 WebUI sidebar in that slot instead of building a new frame layout.
 
@@ -249,7 +249,7 @@ windows, and you pin, archive or drag it as a unit.
   focused pane. The focused pane is clearly marked. Extensions see the focused
   pane as the active tab.
 
-Chrome 156 already ships split tabs (`components/tabs/public/split_tab_data.h`,
+Chrome 157 ships split tabs (since 156) (`components/tabs/public/split_tab_data.h`,
 `chrome/browser/ui/views/frame/multi_contents_view.h`) with two panes. We build
 on them, extended by patches to four (`kMaxSplitPanes`,
 `MultiContentsView::kMaxPanes`): the tab strip model takes splits of up to four
@@ -258,7 +258,7 @@ area between each two. Drop a tab on a split's pane to add it there.
 
 ## 10. Picture-in-picture
 
-Chrome 156 has auto-PiP for tab switches
+Chrome 157 has auto-PiP for tab switches (since 156)
 (`chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h`).
 We turn on its browser-initiated mode (any playing video, no site opt-in)
 and extend its triggers and how the window floats.

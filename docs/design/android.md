@@ -45,7 +45,7 @@ It costs:
 **Decisions:**
 
 - **Foundation:** a Chromium fork with Compass's own shell in Kotlin and
-  Jetpack Compose. Chromium 156 builds Kotlin and Compose itself
+  Jetpack Compose. Chromium (156 and 157) builds Kotlin and Compose itself
   (`enable_compose` in its Android templates, Compose and Material 3 in
   `third_party/androidx`), and Chrome already ships Compose UI
   (`chrome/browser/ui/android/bricks/`).

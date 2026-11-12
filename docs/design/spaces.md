@@ -1,7 +1,7 @@
 # Spaces
 
 Status: slices 1, 2 and 3 done. Builds on ARCHITECTURE.md §6 (D6) and the
-sidebar slices in [sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
+sidebar slices in [sidebar.md](sidebar.md). Based on Chromium 157.0.8103.51.
 
 ## Goal
 

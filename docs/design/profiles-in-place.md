@@ -2,7 +2,7 @@
 
 Status: done, as the `BrowserView` exchange below (D18). Replaces the
 window swap of spaces slice 3 (D17, `sidebar_swap.cc`). Based on Chromium
-156.0.8078.48.
+157.0.8103.51.
 
 ## Goal
 

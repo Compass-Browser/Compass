@@ -94,6 +94,10 @@ public nonisolated struct SyncPb_JourneySpecifics: Sendable {
 
   public var continuationQueries: [SyncPb_JourneySpecifics.ContinuationQuery] = []
 
+  /// Collections in display order, may be empty. Collections only group pages
+  /// from `history_entries`; they don't add pages to the journey.
+  public var collections: [SyncPb_JourneySpecifics.Collection] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated struct HistoryEntry: Sendable {
@@ -148,6 +152,58 @@ public nonisolated struct SyncPb_JourneySpecifics: Sendable {
     fileprivate var _prompt: String? = nil
   }
 
+  /// A page card in a collection.
+  public nonisolated struct CollectionItem: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Must also be in `history_entries` (matched by visit timestamp); the
+    /// client resolves URL and title from local history and ignores items
+    /// that aren't.
+    public var historyEntry: SyncPb_JourneySpecifics.HistoryEntry {
+      get {_historyEntry ?? SyncPb_JourneySpecifics.HistoryEntry()}
+      set {_historyEntry = newValue}
+    }
+    /// Returns true if `historyEntry` has been explicitly set.
+    public var hasHistoryEntry: Bool {self._historyEntry != nil}
+    /// Clears the value of `historyEntry`. Subsequent reads from it will return its default value.
+    public mutating func clearHistoryEntry() {self._historyEntry = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _historyEntry: SyncPb_JourneySpecifics.HistoryEntry? = nil
+  }
+
+  /// A titled group of similar pages from this journey, shown as one section
+  /// of the journey's details page.
+  public nonisolated struct Collection: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Complete section heading, shown as-is.
+    public var title: String {
+      get {_title ?? String()}
+      set {_title = newValue}
+    }
+    /// Returns true if `title` has been explicitly set.
+    public var hasTitle: Bool {self._title != nil}
+    /// Clears the value of `title`. Subsequent reads from it will return its default value.
+    public mutating func clearTitle() {self._title = nil}
+
+    /// Collection items, in display order.
+    public var items: [SyncPb_JourneySpecifics.CollectionItem] = []
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _title: String? = nil
+  }
+
   public init() {}
 
   fileprivate var _journeyID: String? = nil
@@ -164,7 +220,7 @@ fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_JourneySpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".JourneySpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}journey_id\0\u{1}title\0\u{1}emoji\0\u{1}overview\0\u{3}short_overview\0\u{3}creation_time_windows_epoch_micros\0\u{3}history_entries\0\u{3}continuation_queries\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}journey_id\0\u{1}title\0\u{1}emoji\0\u{1}overview\0\u{3}short_overview\0\u{3}creation_time_windows_epoch_micros\0\u{3}history_entries\0\u{3}continuation_queries\0\u{1}collections\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -180,6 +236,7 @@ nonisolated extension SyncPb_JourneySpecifics: SwiftProtobuf.Message, SwiftProto
       case 6: try { try decoder.decodeSingularInt64Field(value: &self._creationTimeWindowsEpochMicros) }()
       case 7: try { try decoder.decodeRepeatedMessageField(value: &self.historyEntries) }()
       case 8: try { try decoder.decodeRepeatedMessageField(value: &self.continuationQueries) }()
+      case 9: try { try decoder.decodeRepeatedMessageField(value: &self.collections) }()
       default: break
       }
     }
@@ -214,6 +271,9 @@ nonisolated extension SyncPb_JourneySpecifics: SwiftProtobuf.Message, SwiftProto
     if !self.continuationQueries.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.continuationQueries, fieldNumber: 8)
     }
+    if !self.collections.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.collections, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -226,6 +286,7 @@ nonisolated extension SyncPb_JourneySpecifics: SwiftProtobuf.Message, SwiftProto
     if lhs._creationTimeWindowsEpochMicros != rhs._creationTimeWindowsEpochMicros {return false}
     if lhs.historyEntries != rhs.historyEntries {return false}
     if lhs.continuationQueries != rhs.continuationQueries {return false}
+    if lhs.collections != rhs.collections {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -299,6 +360,79 @@ nonisolated extension SyncPb_JourneySpecifics.ContinuationQuery: SwiftProtobuf.M
   public static func ==(lhs: SyncPb_JourneySpecifics.ContinuationQuery, rhs: SyncPb_JourneySpecifics.ContinuationQuery) -> Bool {
     if lhs._title != rhs._title {return false}
     if lhs._prompt != rhs._prompt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_JourneySpecifics.CollectionItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_JourneySpecifics.protoMessageName + ".CollectionItem"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}history_entry\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._historyEntry) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._historyEntry {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_JourneySpecifics.CollectionItem, rhs: SyncPb_JourneySpecifics.CollectionItem) -> Bool {
+    if lhs._historyEntry != rhs._historyEntry {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_JourneySpecifics.Collection: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_JourneySpecifics.protoMessageName + ".Collection"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}title\0\u{1}items\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._title) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._title {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    if !self.items.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_JourneySpecifics.Collection, rhs: SyncPb_JourneySpecifics.Collection) -> Bool {
+    if lhs._title != rhs._title {return false}
+    if lhs.items != rhs.items {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

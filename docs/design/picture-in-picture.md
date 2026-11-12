@@ -1,6 +1,6 @@
 # Auto picture-in-picture
 
-Status: done. Based on Chromium 156.0.8078.48. Calls: checked against live Teams,
+Status: done. Based on Chromium 157.0.8103.51. Calls: checked against live Teams,
 Meet and Zoom web client calls (macOS), including a portrait phone camera on
 Zoom.
 

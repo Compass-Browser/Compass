@@ -12,6 +12,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -22,6 +27,46 @@ import SwiftProtobuf
 fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
+}
+
+/// Plaintext content serialized and encrypted into
+/// EncryptedTabContextItemSpecifics.encrypted_content.
+public nonisolated struct SyncPb_TabContextItemContent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var content: SyncPb_TabContextItemContent.OneOf_Content? = nil
+
+  /// Uncompressed payload bytes.
+  public var rawData: Data {
+    get {
+      if case .rawData(let v)? = content {return v}
+      return Data()
+    }
+    set {content = .rawData(newValue)}
+  }
+
+  /// Gzip-compressed (RFC 1952) payload bytes.
+  public var gzipCompressedData: Data {
+    get {
+      if case .gzipCompressedData(let v)? = content {return v}
+      return Data()
+    }
+    set {content = .gzipCompressedData(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public nonisolated enum OneOf_Content: Equatable, Sendable {
+    /// Uncompressed payload bytes.
+    case rawData(Data)
+    /// Gzip-compressed (RFC 1952) payload bytes.
+    case gzipCompressedData(Data)
+
+  }
+
+  public init() {}
 }
 
 /// Specifics for ENCRYPTED_TAB_CONTEXT_ITEM.
@@ -50,14 +95,16 @@ public nonisolated struct SyncPb_EncryptedTabContextItemSpecifics: Sendable {
   /// Clears the value of `itemID`. Subsequent reads from it will return its default value.
   public mutating func clearItemID() {self._itemID = nil}
 
-  public var encryptedData: SyncPb_EncryptedData {
-    get {_encryptedData ?? SyncPb_EncryptedData()}
-    set {_encryptedData = newValue}
+  /// Encrypted serialized TabContextItemContent proto, encrypted with the
+  /// container's encryption key.
+  public var encryptedContent: SyncPb_EncryptedData {
+    get {_encryptedContent ?? SyncPb_EncryptedData()}
+    set {_encryptedContent = newValue}
   }
-  /// Returns true if `encryptedData` has been explicitly set.
-  public var hasEncryptedData: Bool {self._encryptedData != nil}
-  /// Clears the value of `encryptedData`. Subsequent reads from it will return its default value.
-  public mutating func clearEncryptedData() {self._encryptedData = nil}
+  /// Returns true if `encryptedContent` has been explicitly set.
+  public var hasEncryptedContent: Bool {self._encryptedContent != nil}
+  /// Clears the value of `encryptedContent`. Subsequent reads from it will return its default value.
+  public mutating func clearEncryptedContent() {self._encryptedContent = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -65,16 +112,73 @@ public nonisolated struct SyncPb_EncryptedTabContextItemSpecifics: Sendable {
 
   fileprivate var _containerID: String? = nil
   fileprivate var _itemID: String? = nil
-  fileprivate var _encryptedData: SyncPb_EncryptedData? = nil
+  fileprivate var _encryptedContent: SyncPb_EncryptedData? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
+nonisolated extension SyncPb_TabContextItemContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TabContextItemContent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}raw_data\0\u{3}gzip_compressed_data\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Data?
+        try decoder.decodeSingularBytesField(value: &v)
+        if let v = v {
+          if self.content != nil {try decoder.handleConflictingOneOf()}
+          self.content = .rawData(v)
+        }
+      }()
+      case 2: try {
+        var v: Data?
+        try decoder.decodeSingularBytesField(value: &v)
+        if let v = v {
+          if self.content != nil {try decoder.handleConflictingOneOf()}
+          self.content = .gzipCompressedData(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.content {
+    case .rawData?: try {
+      guard case .rawData(let v)? = self.content else { preconditionFailure() }
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 1)
+    }()
+    case .gzipCompressedData?: try {
+      guard case .gzipCompressedData(let v)? = self.content else { preconditionFailure() }
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_TabContextItemContent, rhs: SyncPb_TabContextItemContent) -> Bool {
+    if lhs.content != rhs.content {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension SyncPb_EncryptedTabContextItemSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EncryptedTabContextItemSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}container_id\0\u{3}item_id\0\u{3}encrypted_data\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}container_id\0\u{3}item_id\0\u{3}encrypted_content\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -84,7 +188,7 @@ nonisolated extension SyncPb_EncryptedTabContextItemSpecifics: SwiftProtobuf.Mes
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self._containerID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self._itemID) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._encryptedData) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._encryptedContent) }()
       default: break
       }
     }
@@ -101,7 +205,7 @@ nonisolated extension SyncPb_EncryptedTabContextItemSpecifics: SwiftProtobuf.Mes
     try { if let v = self._itemID {
       try visitor.visitSingularStringField(value: v, fieldNumber: 2)
     } }()
-    try { if let v = self._encryptedData {
+    try { if let v = self._encryptedContent {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     try unknownFields.traverse(visitor: &visitor)
@@ -110,7 +214,7 @@ nonisolated extension SyncPb_EncryptedTabContextItemSpecifics: SwiftProtobuf.Mes
   public static func ==(lhs: SyncPb_EncryptedTabContextItemSpecifics, rhs: SyncPb_EncryptedTabContextItemSpecifics) -> Bool {
     if lhs._containerID != rhs._containerID {return false}
     if lhs._itemID != rhs._itemID {return false}
-    if lhs._encryptedData != rhs._encryptedData {return false}
+    if lhs._encryptedContent != rhs._encryptedContent {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -2,7 +2,7 @@
 
 Status: done (reader, profile copy, sidebar, archive, the import page);
 not yet run end to end on a real Arc install. macOS only. Based on Chromium
-156.0.8078.48.
+157.0.8103.51.
 
 ## Goal
 

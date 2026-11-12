@@ -1388,11 +1388,7 @@ public nonisolated struct SyncPb_AutofillValuableSpecifics: @unchecked Sendable 
   /// Clears the value of `serializedChromeValuablesMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearSerializedChromeValuablesMetadata() {_uniqueStorage()._serializedChromeValuablesMetadata = nil}
 
-  /// Opaque context token, containing an encrypted `UpsertPassContextToken`
-  /// issued by Google Wallet. This token certifies that the user was shown the
-  /// necessary notices and disclosures prior to upserting the pass into Wallet.
-  /// It is transient and only set during upsert operations, never persisted.
-  /// It will only exist for public non-readonly passes.
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var contextToken: String {
     get {_storage._contextToken ?? String()}
     set {_uniqueStorage()._contextToken = newValue}
@@ -1411,6 +1407,20 @@ public nonisolated struct SyncPb_AutofillValuableSpecifics: @unchecked Sendable 
   public var hasPassViewURL: Bool {_storage._passViewURL != nil}
   /// Clears the value of `passViewURL`. Subsequent reads from it will return its default value.
   public mutating func clearPassViewURL() {_uniqueStorage()._passViewURL = nil}
+
+  /// Opaque legal message token issued by Google Wallet. This token certifies
+  /// that the user was shown the necessary notices and disclosures prior to
+  /// upserting the pass into Wallet. It is transient and only set during upsert
+  /// operations, never persisted. It will only exist for public non-readonly
+  /// passes.
+  public var legalMessageToken: Data {
+    get {_storage._legalMessageToken ?? Data()}
+    set {_uniqueStorage()._legalMessageToken = newValue}
+  }
+  /// Returns true if `legalMessageToken` has been explicitly set.
+  public var hasLegalMessageToken: Bool {_storage._legalMessageToken != nil}
+  /// Clears the value of `legalMessageToken`. Subsequent reads from it will return its default value.
+  public mutating func clearLegalMessageToken() {_uniqueStorage()._legalMessageToken = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2357,7 +2367,7 @@ nonisolated extension SyncPb_Shipment: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension SyncPb_AutofillValuableSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AutofillValuableSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}loyalty_card\0\u{3}vehicle_registration\0\u{3}serialized_chrome_valuables_metadata\0\u{3}flight_reservation\0\u{3}is_editable\0\u{1}passport\0\u{3}driver_license\0\u{3}national_id_card\0\u{3}redress_number\0\u{3}known_traveler_number\0\u{3}event_ticket\0\u{3}transit_pass\0\u{1}offer\0\u{1}order\0\u{1}shipment\0\u{3}context_token\0\u{3}pass_view_url\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}loyalty_card\0\u{3}vehicle_registration\0\u{3}serialized_chrome_valuables_metadata\0\u{3}flight_reservation\0\u{3}is_editable\0\u{1}passport\0\u{3}driver_license\0\u{3}national_id_card\0\u{3}redress_number\0\u{3}known_traveler_number\0\u{3}event_ticket\0\u{3}transit_pass\0\u{1}offer\0\u{1}order\0\u{1}shipment\0\u{3}context_token\0\u{3}pass_view_url\0\u{3}legal_message_token\0")
 
   fileprivate class _StorageClass {
     var _id: String? = nil
@@ -2366,6 +2376,7 @@ nonisolated extension SyncPb_AutofillValuableSpecifics: SwiftProtobuf.Message, S
     var _serializedChromeValuablesMetadata: SyncPb_Any? = nil
     var _contextToken: String? = nil
     var _passViewURL: String? = nil
+    var _legalMessageToken: Data? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -2382,6 +2393,7 @@ nonisolated extension SyncPb_AutofillValuableSpecifics: SwiftProtobuf.Message, S
       _serializedChromeValuablesMetadata = source._serializedChromeValuablesMetadata
       _contextToken = source._contextToken
       _passViewURL = source._passViewURL
+      _legalMessageToken = source._legalMessageToken
     }
   }
 
@@ -2574,6 +2586,7 @@ nonisolated extension SyncPb_AutofillValuableSpecifics: SwiftProtobuf.Message, S
         }()
         case 17: try { try decoder.decodeSingularStringField(value: &_storage._contextToken) }()
         case 18: try { try decoder.decodeSingularStringField(value: &_storage._passViewURL) }()
+        case 19: try { try decoder.decodeSingularBytesField(value: &_storage._legalMessageToken) }()
         default: break
         }
       }
@@ -2658,6 +2671,9 @@ nonisolated extension SyncPb_AutofillValuableSpecifics: SwiftProtobuf.Message, S
       try { if let v = _storage._passViewURL {
         try visitor.visitSingularStringField(value: v, fieldNumber: 18)
       } }()
+      try { if let v = _storage._legalMessageToken {
+        try visitor.visitSingularBytesField(value: v, fieldNumber: 19)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2673,6 +2689,7 @@ nonisolated extension SyncPb_AutofillValuableSpecifics: SwiftProtobuf.Message, S
         if _storage._serializedChromeValuablesMetadata != rhs_storage._serializedChromeValuablesMetadata {return false}
         if _storage._contextToken != rhs_storage._contextToken {return false}
         if _storage._passViewURL != rhs_storage._passViewURL {return false}
+        if _storage._legalMessageToken != rhs_storage._legalMessageToken {return false}
         return true
       }
       if !storagesAreEqual {return false}

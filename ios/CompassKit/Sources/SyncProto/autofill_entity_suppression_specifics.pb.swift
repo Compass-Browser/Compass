@@ -32,6 +32,7 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// LINT.IfChange(EntitySuppressionKey)
 public nonisolated struct SyncPb_EntitySuppressionKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -88,6 +89,7 @@ public nonisolated struct SyncPb_EntitySuppressionKey: Sendable {
   fileprivate var _entityTypeName: String? = nil
 }
 
+/// LINT.IfChange(AutofillEntitySuppressionSpecifics)
 public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -103,6 +105,10 @@ public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   /// Clears the value of `guid`. Subsequent reads from it will return its default value.
   public mutating func clearGuid() {self._guid = nil}
 
+  /// Only set by older clients, which sync full hashes instead of
+  /// `entity_suppression_hash`.
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var entitySuppressionKey: SyncPb_EntitySuppressionKey {
     get {_entitySuppressionKey ?? SyncPb_EntitySuppressionKey()}
     set {_entitySuppressionKey = newValue}
@@ -122,6 +128,27 @@ public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   /// Clears the value of `schemaVersion`. Subsequent reads from it will return its default value.
   public mutating func clearSchemaVersion() {self._schemaVersion = nil}
 
+  /// The time the suppression was created.
+  public var creationTimeWindowsEpochMicros: Int64 {
+    get {_creationTimeWindowsEpochMicros ?? 0}
+    set {_creationTimeWindowsEpochMicros = newValue}
+  }
+  /// Returns true if `creationTimeWindowsEpochMicros` has been explicitly set.
+  public var hasCreationTimeWindowsEpochMicros: Bool {self._creationTimeWindowsEpochMicros != nil}
+  /// Clears the value of `creationTimeWindowsEpochMicros`. Subsequent reads from it will return its default value.
+  public mutating func clearCreationTimeWindowsEpochMicros() {self._creationTimeWindowsEpochMicros = nil}
+
+  /// The leading bits of a SHA-256 hash of the entity type and the merge
+  /// constraint values of the suppressed entity.
+  public var entitySuppressionHash: UInt32 {
+    get {_entitySuppressionHash ?? 0}
+    set {_entitySuppressionHash = newValue}
+  }
+  /// Returns true if `entitySuppressionHash` has been explicitly set.
+  public var hasEntitySuppressionHash: Bool {self._entitySuppressionHash != nil}
+  /// Clears the value of `entitySuppressionHash`. Subsequent reads from it will return its default value.
+  public mutating func clearEntitySuppressionHash() {self._entitySuppressionHash = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -129,6 +156,8 @@ public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   fileprivate var _guid: String? = nil
   fileprivate var _entitySuppressionKey: SyncPb_EntitySuppressionKey? = nil
   fileprivate var _schemaVersion: Int32? = nil
+  fileprivate var _creationTimeWindowsEpochMicros: Int64? = nil
+  fileprivate var _entitySuppressionHash: UInt32? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -215,7 +244,7 @@ nonisolated extension SyncPb_EntitySuppressionKey.Attribute: SwiftProtobuf.Messa
 
 nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AutofillEntitySuppressionSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}guid\0\u{3}entity_suppression_key\0\u{3}schema_version\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}guid\0\u{3}entity_suppression_key\0\u{3}schema_version\0\u{3}creation_time_windows_epoch_micros\0\u{3}entity_suppression_hash\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -226,6 +255,8 @@ nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.M
       case 1: try { try decoder.decodeSingularStringField(value: &self._guid) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._entitySuppressionKey) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self._schemaVersion) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self._creationTimeWindowsEpochMicros) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self._entitySuppressionHash) }()
       default: break
       }
     }
@@ -245,6 +276,12 @@ nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.M
     try { if let v = self._schemaVersion {
       try visitor.visitSingularInt32Field(value: v, fieldNumber: 3)
     } }()
+    try { if let v = self._creationTimeWindowsEpochMicros {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._entitySuppressionHash {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -252,6 +289,8 @@ nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.M
     if lhs._guid != rhs._guid {return false}
     if lhs._entitySuppressionKey != rhs._entitySuppressionKey {return false}
     if lhs._schemaVersion != rhs._schemaVersion {return false}
+    if lhs._creationTimeWindowsEpochMicros != rhs._creationTimeWindowsEpochMicros {return false}
+    if lhs._entitySuppressionHash != rhs._entitySuppressionHash {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

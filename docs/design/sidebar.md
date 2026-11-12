@@ -1,7 +1,7 @@
 # Sidebar: hosting and first slice
 
 Status: decided. Resolves the first open question in ARCHITECTURE.md §15.
-Based on Chromium 156.0.8078.48.
+Based on Chromium 157.0.8103.51.
 
 ## What upstream already gives us
 

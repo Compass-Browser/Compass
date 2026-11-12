@@ -1,7 +1,7 @@
 # Branding
 
 Status: strings, `compass://`, the logo and the Web Store button done. Based on Chromium
-156.0.8078.48.
+157.0.8103.51.
 
 ## Goal
 

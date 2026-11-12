@@ -659,9 +659,6 @@ public nonisolated struct SyncPb_CommitResponse: Sendable {
     /// You're out of date; update and check your data
     case conflict = 2
 
-    /// TODO(ncarter): What's the difference between RETRY and TRANSIENT_ERROR?
-    case retry = 3
-
     /// What the client sent was invalid, and trying again
     case invalidMessage = 4
 
@@ -1635,7 +1632,7 @@ nonisolated extension SyncPb_CommitResponse: SwiftProtobuf.Message, SwiftProtobu
 }
 
 nonisolated extension SyncPb_CommitResponse.ResponseType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}SUCCESS\0\u{1}CONFLICT\0\u{1}RETRY\0\u{1}INVALID_MESSAGE\0\u{1}OVER_QUOTA\0\u{1}TRANSIENT_ERROR\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}SUCCESS\0\u{1}CONFLICT\0\u{2}\u{2}INVALID_MESSAGE\0\u{1}OVER_QUOTA\0\u{1}TRANSIENT_ERROR\0")
 }
 
 nonisolated extension SyncPb_CommitResponse.EntryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

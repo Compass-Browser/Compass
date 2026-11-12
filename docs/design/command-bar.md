@@ -2,7 +2,7 @@
 
 Status: slices 1 to 4 done (command bar, sidebar header, no toolbar,
 Favorites). Builds on ARCHITECTURE.md §4 and §11 and on
-[sidebar.md](sidebar.md). Based on Chromium 156.0.8078.48.
+[sidebar.md](sidebar.md). Based on Chromium 157.0.8103.51.
 
 ## Goal
 

@@ -127,6 +127,17 @@ public nonisolated struct SyncPb_LoopbackServerProto: Sendable {
   /// Clears the value of `lastVersionAssigned`. Subsequent reads from it will return its default value.
   public mutating func clearLastVersionAssigned() {self._lastVersionAssigned = nil}
 
+  /// Set to true if bookmarks have been migrated to modern schema with client
+  /// tag hash and specifics hierarchy fields.
+  public var bookmarksMigratedToClientTagHash: Bool {
+    get {_bookmarksMigratedToClientTagHash ?? false}
+    set {_bookmarksMigratedToClientTagHash = newValue}
+  }
+  /// Returns true if `bookmarksMigratedToClientTagHash` has been explicitly set.
+  public var hasBookmarksMigratedToClientTagHash: Bool {self._bookmarksMigratedToClientTagHash != nil}
+  /// Clears the value of `bookmarksMigratedToClientTagHash`. Subsequent reads from it will return its default value.
+  public mutating func clearBookmarksMigratedToClientTagHash() {self._bookmarksMigratedToClientTagHash = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -134,6 +145,7 @@ public nonisolated struct SyncPb_LoopbackServerProto: Sendable {
   fileprivate var _version: Int64? = nil
   fileprivate var _storeBirthday: Int64? = nil
   fileprivate var _lastVersionAssigned: Int64? = nil
+  fileprivate var _bookmarksMigratedToClientTagHash: Bool? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -190,7 +202,7 @@ nonisolated extension SyncPb_LoopbackServerEntity.TypeEnum: SwiftProtobuf._Proto
 
 nonisolated extension SyncPb_LoopbackServerProto: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LoopbackServerProto"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{3}store_birthday\0\u{1}entities\0\u{3}keystore_keys\0\u{3}last_version_assigned\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{3}store_birthday\0\u{1}entities\0\u{3}keystore_keys\0\u{3}last_version_assigned\0\u{3}bookmarks_migrated_to_client_tag_hash\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -203,6 +215,7 @@ nonisolated extension SyncPb_LoopbackServerProto: SwiftProtobuf.Message, SwiftPr
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.entities) }()
       case 4: try { try decoder.decodeRepeatedBytesField(value: &self.keystoreKeys) }()
       case 5: try { try decoder.decodeSingularInt64Field(value: &self._lastVersionAssigned) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self._bookmarksMigratedToClientTagHash) }()
       default: break
       }
     }
@@ -228,6 +241,9 @@ nonisolated extension SyncPb_LoopbackServerProto: SwiftProtobuf.Message, SwiftPr
     try { if let v = self._lastVersionAssigned {
       try visitor.visitSingularInt64Field(value: v, fieldNumber: 5)
     } }()
+    try { if let v = self._bookmarksMigratedToClientTagHash {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -237,6 +253,7 @@ nonisolated extension SyncPb_LoopbackServerProto: SwiftProtobuf.Message, SwiftPr
     if lhs.entities != rhs.entities {return false}
     if lhs.keystoreKeys != rhs.keystoreKeys {return false}
     if lhs._lastVersionAssigned != rhs._lastVersionAssigned {return false}
+    if lhs._bookmarksMigratedToClientTagHash != rhs._bookmarksMigratedToClientTagHash {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

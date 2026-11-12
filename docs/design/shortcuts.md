@@ -1,7 +1,7 @@
 # Shortcuts
 
 Status: done (macOS); Windows written, not yet tried on a device. Based on
-Chromium 156.0.8078.48.
+Chromium 157.0.8103.51.
 
 ## Goal
 
