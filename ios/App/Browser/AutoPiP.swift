@@ -75,7 +75,8 @@ enum AutoPiP {
   /// it starts (YouTube's player, for one). Every video gets it as it's
   /// added, before it can play; the player's own fullscreen button still
   /// works. Main frame and frames alike (embeds), from the document's start.
-  static let inlineScript = WKUserScript(
+  static var inlineScript: WKUserScript {
+    WKUserScript(
     source: """
       (() => {
         const inline = (video) => {
@@ -100,6 +101,7 @@ enum AutoPiP {
       })();
       """,
     injectionTime: .atDocumentStart, forMainFrameOnly: false, in: world)
+  }
 
   static var script: WKUserScript {
     WKUserScript(
