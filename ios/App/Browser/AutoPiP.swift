@@ -90,7 +90,11 @@ enum AutoPiP {
             for (const v of videos) if ("autoPictureInPicture" in v && v.webkitPresentationMode !== "picture-in-picture") {
               v.autoPictureInPicture = v === one;
             }
-            if (one && !document.pictureInPictureElement) window.__compassAutoPiP = one;
+            // Not document.pictureInPictureElement: on YouTube WebKit keeps
+            // reporting one while no window is open. A video's own mode is
+            // what's on screen.
+            const inPiP = videos.some((v) => v.webkitPresentationMode === "picture-in-picture");
+            if (one && !inPiP) window.__compassAutoPiP = one;
             const state = one || call ? "playing" : "idle";
             if (state !== last) { last = state; post("state:" + state); }
           };
@@ -158,8 +162,7 @@ enum AutoPiP {
           // document.
           const inWindow = () => {
             const video = window.__compassAutoPiP;
-            return !!video && (document.pictureInPictureElement === video
-              || video.webkitPresentationMode === "picture-in-picture" || video.__compassEntering);
+            return !!video && (video.webkitPresentationMode === "picture-in-picture" || video.__compassEntering);
           };
           for (const type of ["visibilitychange", "webkitvisibilitychange", "pagehide", "blur"]) {
             window.addEventListener(type, (event) => {
@@ -192,7 +195,9 @@ enum AutoPiP {
     ((scroll) => {
       const videos = [...document.querySelectorAll("video")];
       if (!videos.length) return "no video";
-      if (document.pictureInPictureElement) return "already in PiP";
+      // A video's own mode, not document.pictureInPictureElement, which
+      // WebKit keeps set on YouTube with no window open.
+      if (videos.some((v) => v.webkitPresentationMode === "picture-in-picture")) return "already in PiP";
       if (videos.some((v) => v.webkitPresentationMode && v.webkitPresentationMode !== "inline")) return "already presented";
       const why = (v) => v.paused ? "paused" : v.ended ? "ended" : v.muted || v.volume === 0 ? "muted"
         : v.readyState < 2 ? "not ready"
