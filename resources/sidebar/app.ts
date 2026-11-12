@@ -84,6 +84,9 @@ const EASE_OUT = 'cubic-bezier(0.2, 0, 0, 1)';
 // while the tint fades (SidebarTint's kFadeDuration). A two-finger swipe
 // moves them with the fingers (docs/design/spaces.md, "Swiping").
 const SLIDE_MS = 280;
+// How long requests for other spaces' trees gather before they go, as one
+// round (a switch sends SetSpaces and SetTree in turn).
+const REFRESH_DELAY_MS = 30;
 // Of the sidebar's width: the entries follow the fingers all the way, and
 // letting go this far switches; letting go past the second switches too,
 // unless the fingers were coming back. Short of it, they go back.
@@ -272,6 +275,13 @@ export class CompassSidebarAppElement extends CrLitElement {
   // Other spaces' trees, for the previews, by space ID. Refetched whenever
   // the window's space or the spaces change.
   private spaceTrees_: Map<string, Tree> = new Map();
+  // Those trees as fetched, serialized: a fetch that brings the same tree
+  // renders nothing.
+  private spaceTreeKeys_: Map<string, string> = new Map();
+  // Fetches asked for within one moment go as one round (a switch sends
+  // both SetSpaces and SetTree); |neighborsOnly| while every request was
+  // for the neighbors only.
+  private refreshQueued_: {neighborsOnly: boolean}|null = null;
   // A switch the browser was asked for, or told the page about.
   private slide_: Slide|null = null;
   private slideTimer_: number|null = null;
@@ -1227,26 +1237,58 @@ export class CompassSidebarAppElement extends CrLitElement {
         });
       }
     }
+    // The same previews: no render, which would redo both previews' rows.
+    if (previews.length === this.previews_.length &&
+        previews.every((preview, i) => {
+          const shown = this.previews_[i]!;
+          return preview.space === shown.space && preview.side === shown.side &&
+              preview.tree === shown.tree &&
+              preview.scrollTop === shown.scrollTop;
+        })) {
+      return;
+    }
     this.previews_ = previews;
   }
 
   // Fetches the other spaces' trees again, for entries that changed there.
-  // The neighbors show theirs; a click further away shows its own.
-  private refreshPreviews_() {
-    for (const space of this.spaces_) {
-      if (this.isActiveSpace_(space)) {
-        continue;
-      }
-      this.browserProxy_.handler.getSpaceTree(space.id).then(({tree}) => {
-        if (tree) {
-          this.spaceTrees_.set(space.id, tree);
-        } else {
-          this.spaceTrees_.delete(space.id);
-        }
-        this.updatePreviews_();
-      });
-    }
+  // The neighbors show theirs; a click further away shows its own. With
+  // |neighborsOnly| (a swipe starting), only the neighbors': the swipe shows
+  // nothing else, and every fetch makes the browser serialize a whole tree
+  // on the frames the swipe starts on. Requests within a moment go as one
+  // round, and a tree that didn't change doesn't render again.
+  private refreshPreviews_(neighborsOnly = false) {
     this.updatePreviews_();
+    if (this.refreshQueued_) {
+      this.refreshQueued_.neighborsOnly &&= neighborsOnly;
+      return;
+    }
+    this.refreshQueued_ = {neighborsOnly};
+    setTimeout(() => {
+      const {neighborsOnly} = this.refreshQueued_!;
+      this.refreshQueued_ = null;
+      const neighbors =
+          [this.getNeighborSpace_(-1), this.getNeighborSpace_(1)];
+      for (const space of this.spaces_) {
+        if (this.isActiveSpace_(space) ||
+            (neighborsOnly && !neighbors.includes(space))) {
+          continue;
+        }
+        this.browserProxy_.handler.getSpaceTree(space.id).then(({tree}) => {
+          const key = tree ? JSON.stringify(tree) : '';
+          if (key === (this.spaceTreeKeys_.get(space.id) ?? '') &&
+              this.spaceTrees_.has(space.id) === !!tree) {
+            return;
+          }
+          this.spaceTreeKeys_.set(space.id, key);
+          if (tree) {
+            this.spaceTrees_.set(space.id, tree);
+          } else {
+            this.spaceTrees_.delete(space.id);
+          }
+          this.updatePreviews_();
+        });
+      }
+    }, REFRESH_DELAY_MS);
   }
 
   // Back to where the swipe found them.
@@ -1498,7 +1540,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.settleAnimations_ = [];
     this.swipe_ = {offset: 0, direction: 0, target: null, back: false};
     // Usually there already; this catches up on what changed there.
-    this.refreshPreviews_();
+    this.refreshPreviews_(/*neighborsOnly=*/ true);
   }
 
   // The space |direction| (1 or -1) away from the window's, if any.
@@ -1746,6 +1788,8 @@ export class CompassSidebarAppElement extends CrLitElement {
       previousId: string, activeId: string, spaces: Space[]) {
     // The space left is a neighbor now, or soon: keep what it showed.
     if (this.favorites_ && this.pinned_ && this.today_) {
+      // Not as fetched: the next fetch renders it again.
+      this.spaceTreeKeys_.delete(previousId);
       this.spaceTrees_.set(previousId, {
         favorites: this.favorites_,
         pinned: this.pinned_,

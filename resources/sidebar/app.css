@@ -201,6 +201,14 @@ input {
   overflow: hidden;
 }
 
+/* While a swipe or slide moves them, on layers of their own: the inline
+   transforms and opacities a swipe writes every frame then only composite,
+   instead of repainting every entry each frame (slow on low-power Macs). */
+#stage[sliding] #spacePane,
+#stage[sliding] compass-sidebar-preview {
+  will-change: transform, opacity;
+}
+
 /* The neighboring spaces, built and waiting off to the side for a swipe. */
 compass-sidebar-preview[side='previous'] {
   transform: translateX(-100%);

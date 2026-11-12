@@ -421,9 +421,15 @@ void SidebarTint::RemovedFromWidget() {
 }
 
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
-  look_ = Blend(gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
-                                           animation->GetCurrentValue()),
-                from_, GetTargetLook());
+  const Look look = Blend(gfx::Tween::CalculateValue(
+                              gfx::Tween::EASE_OUT, animation->GetCurrentValue()),
+                          from_, GetTargetLook());
+  // The tint covers the window: a repaint that changes nothing still costs
+  // a whole window's raster.
+  if (look == look_) {
+    return;
+  }
+  look_ = look;
   SchedulePaint();
 }
 
@@ -494,7 +500,13 @@ void SidebarTint::UpdateColor(bool animate) {
     animation_.Start();
     return;
   }
+  const bool was_animating = animation_.is_animating();
   animation_.Stop();
+  // Unchanged (a swipe's preview asked for again, a space update that
+  // doesn't touch its colors): no whole-window repaint.
+  if (target == look_ && !was_animating) {
+    return;
+  }
   look_ = target;
   SchedulePaint();
 }

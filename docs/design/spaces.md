@@ -483,6 +483,19 @@ cached tree. In both cases the page drives the tint through
 once the slide's first frame is out, since switching keeps the browser busy
 for a moment; once the browser has switched, it fades the tint itself.
 
+Kept cheap for low-power Macs:
+
+- Other spaces' trees are fetched in one round per moment
+  (`refreshPreviews_()`: a switch sends `SetSpaces()` and `SetTree()`), only
+  the neighbors' as a swipe starts, and a tree that comes back unchanged
+  (compared serialized) renders nothing; the previews re-render only when
+  one of them changed.
+- While the stage slides, the live pane and the previews are on layers of
+  their own (`will-change`), so the transforms and opacities a swipe writes
+  every frame composite instead of repainting every entry.
+- The tint skips repaints that wouldn't change it: it covers the window,
+  so each one rasters the whole window.
+
 Switches from elsewhere (Ctrl+1–9, a new or deleted space) slide too: when `SetSpaces()` names another active space, the page waits for
 its tree; then a copy of the old pane (in a shadow root of its own, like the
 FLIP copies in sidebar.md, "Motion") slides out while the live pane slides
