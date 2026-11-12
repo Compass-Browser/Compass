@@ -141,6 +141,14 @@ export class CompassCommandBarAppElement extends CrLitElement {
         }
         break;
       }
+      case 'Tab': {
+        // Focus stays in the field; Tab takes the completion to type on.
+        e.preventDefault();
+        if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+          this.takeCompletion_();
+        }
+        break;
+      }
       case 'Enter': {
         e.preventDefault();
         const result = this.results_[this.selectedIndex_];
@@ -170,6 +178,33 @@ export class CompassCommandBarAppElement extends CrLitElement {
     if (index !== -1) {
       this.accept_(this.results_[index]!.id, e.metaKey || e.ctrlKey);
     }
+  }
+
+  // Tab: the field's inline completion becomes typed text, caret at its end;
+  // without one, a selected search suggestion fills the field. Then queries
+  // the new text, so more words can follow.
+  private takeCompletion_() {
+    const input = this.input_;
+    let text = '';
+    if (input.value.length > this.typed_.length &&
+        input.value.startsWith(this.typed_) &&
+        input.selectionStart === this.typed_.length &&
+        input.selectionEnd === input.value.length) {
+      text = input.value;
+    } else {
+      const result = this.results_[this.selectedIndex_];
+      if (result?.kind === ResultKind.kSearch &&
+          result.title !== this.typed_) {
+        text = result.title;
+      }
+    }
+    if (!text) {
+      return;
+    }
+    input.value = text;
+    input.setSelectionRange(text.length, text.length);
+    this.typed_ = text;
+    this.browserProxy_.handler.query(text, false);
   }
 
   private accept_(id: number, newEntry: boolean) {

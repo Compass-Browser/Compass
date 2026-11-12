@@ -104,7 +104,10 @@ per change:
   omnibox providers, as `chrome://omnibox` builds it. Results come in
   several passes; each one resends the list. The default match is first,
   and Enter takes it. Its inline autocompletion is shown selected in the
-  field, as in the omnibox.
+  field, as in the omnibox. Tab takes the completion as typed text, caret
+  at its end, and queries again, so more words can follow; with no
+  completion in the field, Tab fills it with the selected search
+  suggestion. Tab never moves focus out of the field.
 - **Entries**: favorites and tab nodes of the profile's spaces whose title
   or URL contains every word of the query, at most five: favorites first,
   then the window's space, then the others. Shown as "Switch to". Choosing
