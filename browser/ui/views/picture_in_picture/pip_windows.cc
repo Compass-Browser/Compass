@@ -111,8 +111,18 @@ void PipWindows::AddWindow(views::Widget* widget, Kind kind) {
       documents_.push_back(widget);
     }
   }
+  if (windows_.size() == 1 && added) {
+    // Click-through stays on from the last window (or the last run) until
+    // the shortcut turns it off.
+    enabled_ =
+        ShortcutSettings::Get().IsPipClickThroughOn().value_or(enabled_);
+  }
   PlatformAddWindow(widget);
   PlatformSetIgnoresMouse(widget, enabled_);
+  if (enabled_ && !hover_timer_.IsRunning()) {
+    hover_timer_.Start(FROM_HERE, kHoverInterval, this,
+                       &PipWindows::UpdateHover);
+  }
   UpdateListening();
   PlatformUpdateEventMonitor();
 }
@@ -122,6 +132,7 @@ void PipWindows::Toggle() {
     return;
   }
   enabled_ = !enabled_;
+  ShortcutSettings::Get().SetPipClickThroughOn(enabled_);
   for (views::Widget* widget : windows_) {
     PlatformSetIgnoresMouse(widget, enabled_);
   }
@@ -170,9 +181,9 @@ void PipWindows::RemoveWindow(views::Widget* widget) {
   std::erase(documents_, widget);
   std::erase(hovered_, widget);
   PlatformRemoveWindow(widget);
-  // Click-through ends with the last window: the next one takes clicks.
+  // Click-through stays on for the next window (until the shortcut turns
+  // it off); nothing to follow meanwhile.
   if (windows_.empty()) {
-    enabled_ = false;
     hover_timer_.Stop();
   }
   UpdateListening();

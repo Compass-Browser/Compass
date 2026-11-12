@@ -40,6 +40,9 @@ std::string SpaceShortcutId(int index);
 // picture-in-picture windows, from any app (docs/design/picture-in-picture.md
 // "Click-through").
 inline constexpr char kPipClickThroughShortcutId[] = "pip-click-through";
+// Whether click-through is on: it stays on for the next picture-in-picture
+// windows, across restarts, until the shortcut turns it off (Local State).
+inline constexpr char kPipClickThroughOnPref[] = "compass.pip.click_through";
 
 ui::Accelerator GetDefaultSpaceAccelerator(int index);
 ui::Accelerator GetDefaultPipClickThroughAccelerator();
@@ -102,6 +105,12 @@ class ShortcutSettings {
   // Reads and writes |prefs| instead of Local State (nullptr: memory only),
   // starting from what it holds.
   void SetPrefServiceForTesting(PrefService* prefs);
+
+  // Picture-in-picture click-through, kept on until turned off
+  // (kPipClickThroughOnPref).
+  // nullopt without Local State (some tests).
+  std::optional<bool> IsPipClickThroughOn() const;
+  void SetPipClickThroughOn(bool on);
 
  private:
   // Local State, or the test's prefs, if kShortcutsPref is registered there.

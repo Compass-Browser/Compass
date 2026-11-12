@@ -70,6 +70,7 @@ std::vector<ui::Accelerator> AcceleratorsFor(std::string_view id,
 
 void RegisterShortcutPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kShortcutsPref);
+  registry->RegisterBooleanPref(kPipClickThroughOnPref, false);
 }
 
 std::string SpaceShortcutId(int index) {
@@ -212,6 +213,21 @@ void ShortcutSettings::SetPrefServiceForTesting(PrefService* prefs) {
     loaded_ = true;
   }
   NotifyChanged();
+}
+
+std::optional<bool> ShortcutSettings::IsPipClickThroughOn() const {
+  PrefService* prefs = GetPrefs();
+  if (!prefs || !prefs->FindPreference(kPipClickThroughOnPref)) {
+    return std::nullopt;
+  }
+  return prefs->GetBoolean(kPipClickThroughOnPref);
+}
+
+void ShortcutSettings::SetPipClickThroughOn(bool on) {
+  PrefService* prefs = GetPrefs();
+  if (prefs && prefs->FindPreference(kPipClickThroughOnPref)) {
+    prefs->SetBoolean(kPipClickThroughOnPref, on);
+  }
 }
 
 PrefService* ShortcutSettings::GetPrefs() const {

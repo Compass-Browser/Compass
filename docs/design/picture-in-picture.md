@@ -97,7 +97,10 @@ pointer (150 ms), so you can see what you're clicking. Its controls stay
 hidden meanwhile: macOS still sends the window pointer moves, which would
 show them (`VideoOverlayWindowViews::UpdateControlsVisibility()` asks
 `PipWindows::IsClickThrough()`, patch). The same shortcut
-makes it take clicks again; so does closing it (the next one takes clicks).
+makes it take clicks again. Until then it stays on: the next
+picture-in-picture windows (coming back to the video's tab and leaving it
+again, another video) let clicks through as they open, after a restart too
+(`compass.pip.click_through` in Local State, through `ShortcutSettings`).
 
 `compass::PipWindows` (`browser/ui/views/picture_in_picture/`, a
 target of its own: `pip_windows.cc` shared, `pip_windows_mac.mm` and

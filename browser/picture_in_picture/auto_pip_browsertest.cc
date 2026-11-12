@@ -22,6 +22,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "compass/browser/prefs/compass_prefs.h"
+#include "compass/browser/shortcuts/shortcut_settings.h"
 #include "ui/base/base_window.h"
 #include "chrome/test/base/chrome_test_path_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -323,7 +324,8 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, BackToTabSwitchesProfiles) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 // Ctrl+Option+Cmd+P (Shift+Alt+P on Windows) lets clicks through the
 // picture-in-picture window and back; the shortcut listens only while a
-// window is open, and click-through ends with the window.
+// window is open, and click-through stays on for the next windows until the
+// shortcut turns it off.
 IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   PipWindows& click_through = PipWindows::Get();
   EXPECT_FALSE(click_through.is_listening_for_testing());
@@ -356,13 +358,30 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
   EXPECT_FALSE(click_through.IsHoveredForTesting(window));
 
-  // On again, then the window goes: off, and no longer listening.
+  // On again, then the window goes: no longer listening, but still on, and
+  // saved.
   click_through.OnKeyPressed(PipWindows::GetAccelerator());
   Activate(browser(), video);
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return click_through.windows_for_testing().empty(); }));
-  EXPECT_FALSE(click_through.enabled());
+  EXPECT_TRUE(click_through.enabled());
   EXPECT_FALSE(click_through.is_listening_for_testing());
+  EXPECT_EQ(ShortcutSettings::Get().IsPipClickThroughOn(), true);
+
+  // Leaving the video again: the new window lets clicks through right away.
+  OpenBlankTab(browser());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return IsInAutoPip(video) &&
+           !click_through.windows_for_testing().empty();
+  }));
+  window = click_through.windows_for_testing()[0];
+  EXPECT_TRUE(click_through.IsIgnoringMouseForTesting(window));
+  EXPECT_TRUE(click_through.IsClickThrough(window));
+
+  // The shortcut turns it off for good.
+  click_through.OnKeyPressed(PipWindows::GetAccelerator());
+  EXPECT_FALSE(click_through.IsIgnoringMouseForTesting(window));
+  EXPECT_EQ(ShortcutSettings::Get().IsPipClickThroughOn(), false);
 }
 
 // Compass's controls (PipStyle): no site name, back to tab top left,
