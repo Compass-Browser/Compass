@@ -11,6 +11,7 @@
 
 #include "base/time/time.h"
 #include "base/values.h"
+#include "compass/browser/claude/claude_tools.h"
 
 namespace compass::claude {
 
@@ -25,6 +26,10 @@ struct ChatOptions {
   bool oauth_token = false;
   // "Let Claude use the whole browser".
   bool browser_scope = false;
+  // The file tools' setting, said in the context (docs/design/claude.md,
+  // "Files"), and whether Claude Code's own tools are on with it.
+  FilesConfig files;
+  bool claude_code_own_tools = false;
   // The chat window's tabs, a line each ("- title — url"), for context.
   std::string window_tabs;
   // Send the tools (ClaudeTools::Definitions()).
@@ -55,6 +60,10 @@ struct ChatRequest {
 // the model, the system prompt (common/claude/system_prompt.md) and the
 // rest, so the page can't change Claude's instructions. See
 // docs/design/claude.md, "Request defaults".
+// The context's line about files ("File access is off…").
+std::string DescribeFilesAccess(const FilesConfig& files,
+                                bool claude_code_own_tools);
+
 ChatRequest BuildChatRequest(base::ListValue messages,
                              const ChatOptions& options);
 

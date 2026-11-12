@@ -32,6 +32,7 @@
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_request.h"
+#include "compass/browser/ui/claude/claude_files_config.h"
 #include "compass/browser/ui/claude/claude_tabs.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
@@ -96,6 +97,11 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
                                 prefs->GetBoolean(prefs::kMemorySave);
                        },
                        browser_->GetProfile()->GetPrefs()));
+  tools_.SetFiles(
+      base::BindRepeating(&GetFilesConfig,
+                          base::Unretained(browser_->GetProfile())),
+      base::BindRepeating(&ClaudeChatPageHandler::AskApproval,
+                          weak_factory_.GetWeakPtr()));
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
@@ -103,6 +109,9 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
   pref_registrar_.Add(prefs::kModel, changed);
   pref_registrar_.Add(prefs::kBrowserScope, changed);
   pref_registrar_.Add(prefs::kBackend, changed);
+  pref_registrar_.Add(prefs::kFilesAccess, changed);
+  pref_registrar_.Add(prefs::kFilesFolder, changed);
+  pref_registrar_.Add(prefs::kClaudeCodeOwnTools, changed);
   active_tab_subscription_ = browser_->RegisterActiveTabDidChange(
       base::BindRepeating(&ClaudeChatPageHandler::OnActiveTabChanged,
                           base::Unretained(this)));
@@ -112,6 +121,13 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
     panel->SetPageHandler(this);
   }
 }
+
+ClaudeChatPageHandler::PendingApproval::PendingApproval() = default;
+ClaudeChatPageHandler::PendingApproval::PendingApproval(PendingApproval&&) =
+    default;
+ClaudeChatPageHandler::PendingApproval&
+ClaudeChatPageHandler::PendingApproval::operator=(PendingApproval&&) = default;
+ClaudeChatPageHandler::PendingApproval::~PendingApproval() = default;
 
 ClaudeChatPageHandler::~ClaudeChatPageHandler() {
   EndClaudeCode(/*forget=*/true);
@@ -216,6 +232,10 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
     return;
   }
 
+  if (messages->GetList().size() == 1) {
+    // A new chat: "Allow for this chat" ends.
+    CancelApprovals(/*new_chat=*/true);
+  }
   ChatOptions options;
   options.model = prefs->GetString(prefs::kModel);
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
@@ -311,6 +331,9 @@ void ClaudeChatPageHandler::GetContext(GetContextCallback callback) {
   options.browser_scope =
       browser_->GetProfile()->GetPrefs()->GetBoolean(prefs::kBrowserScope);
   options.now = base::Time::Now();
+  options.files = GetFilesConfig(browser_->GetProfile());
+  options.claude_code_own_tools =
+      UsesClaudeCode() && ClaudeCodeOwnToolsOn(browser_->GetProfile());
   options.window_tabs = WindowTabs();
   std::move(callback).Run(BuildMessageContext(options));
 }
@@ -353,6 +376,7 @@ void ClaudeChatPageHandler::Stop() {
   // The conversation goes on from where it was with the next message.
   EndClaudeCode(/*forget=*/false);
   tools_.Stop();
+  CancelApprovals(/*new_chat=*/false);
 }
 
 bool ClaudeChatPageHandler::UsesClaudeCode() const {
@@ -371,11 +395,21 @@ void ClaudeChatPageHandler::SendToClaudeCode(base::ListValue messages) {
     return;
   }
   const PrefService* prefs = browser_->GetProfile()->GetPrefs();
+  Profile* profile = browser_->GetProfile();
+  const bool own_tools = ClaudeCodeOwnToolsOn(profile);
+  const base::FilePath folder =
+      own_tools ? GetFilesConfig(profile).folder : base::FilePath();
   if (messages.size() == 1) {
     // The conversation's first message: a new one (New chat, or the first
     // message Retried).
     EndClaudeCode(/*forget=*/true);
+    CancelApprovals(/*new_chat=*/true);
     FreezeMemory(/*new_chat=*/true);
+  } else if (own_tools != claude_code_own_tools_ ||
+             folder != claude_code_folder_) {
+    // Its tools or folder changed: a session can't move to another folder,
+    // so a new one starts (the page keeps showing the conversation).
+    EndClaudeCode(/*forget=*/true);
   } else if (claude_code_ &&
              claude_code_model_ != prefs->GetString(prefs::kModel)) {
     // Another model: the same conversation, resumed on it.
@@ -439,10 +473,18 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   options.user_data_dir = bridge->socket_path().DirName();
   options.chat_token = chat_token_;
 #endif
+  // With its own tools it works in the user's folder; without, in an empty
+  // one of the profile's.
+  options.own_tools = ClaudeCodeOwnToolsOn(profile);
+  claude_code_own_tools_ = options.own_tools;
+  claude_code_folder_ = options.own_tools ? GetFilesConfig(profile).folder
+                                          : base::FilePath();
   claude_code_model_ = options.model;
+  ++claude_code_generation_;
   claude_code_ = ClaudeCodeProcess::Start(
       *program, ClaudeCodeArgs(options),
-      profile->GetPath().Append(kClaudeCodeDir),
+      options.own_tools ? claude_code_folder_
+                        : profile->GetPath().Append(kClaudeCodeDir),
       base::BindRepeating(&ClaudeChatPageHandler::OnClaudeCodeLine,
                           weak_factory_.GetWeakPtr()),
       base::BindOnce(&ClaudeChatPageHandler::OnClaudeCodeExit,
@@ -480,6 +522,11 @@ void ClaudeChatPageHandler::OnClaudeCodeLine(std::string line) {
       case ClaudeCodeEvent::Type::kToolResult:
         page_->OnToolResult(event.tool_use_id, event.data);
         break;
+      case ClaudeCodeEvent::Type::kPermission:
+        OnClaudeCodePermission(std::move(event.name),
+                               std::move(event.request_id),
+                               std::move(event.data));
+        break;
       case ClaudeCodeEvent::Type::kResult:
         if (claude_code_replying_) {
           claude_code_replying_ = false;
@@ -492,6 +539,7 @@ void ClaudeChatPageHandler::OnClaudeCodeLine(std::string line) {
 
 void ClaudeChatPageHandler::OnClaudeCodeExit(int exit_code) {
   claude_code_.reset();
+  CancelApprovals(/*new_chat=*/false);
   if (claude_code_replying_) {
     claude_code_replying_ = false;
     page_->OnStreamDone(
@@ -500,6 +548,10 @@ void ClaudeChatPageHandler::OnClaudeCodeExit(int exit_code) {
 }
 
 void ClaudeChatPageHandler::EndClaudeCode(bool forget) {
+  if (claude_code_) {
+    // Its questions can't be answered anymore.
+    CancelApprovals(/*new_chat=*/false);
+  }
   claude_code_.reset();
   claude_code_replying_ = false;
   if (forget) {
@@ -517,6 +569,78 @@ void ClaudeChatPageHandler::RunChatTool(
     return;
   }
   tools_.Run(name, std::move(arguments), std::move(done));
+}
+
+void ClaudeChatPageHandler::OnClaudeCodePermission(std::string tool,
+                                                   std::string request_id,
+                                                   std::string input_json) {
+  const ClaudeCodeApproval described =
+      DescribeClaudeCodePermission(tool, input_json);
+  ApprovalRequest request;
+  request.tool = tool;
+  request.title = described.title;
+  request.detail = described.detail;
+  AskApproval(
+      std::move(request),
+      base::BindOnce(
+          [](base::WeakPtr<ClaudeChatPageHandler> handler, int generation,
+             std::string request_id, std::string input_json, bool allow) {
+            if (!handler || !handler->claude_code_ ||
+                handler->claude_code_generation_ != generation) {
+              return;
+            }
+            handler->claude_code_->Write(
+                ClaudeCodePermissionLine(request_id, allow, input_json));
+          },
+          weak_factory_.GetWeakPtr(), claude_code_generation_,
+          std::move(request_id), std::move(input_json)));
+}
+
+void ClaudeChatPageHandler::AskApproval(ApprovalRequest request,
+                                        base::OnceCallback<void(bool)> done) {
+  if (allowed_for_chat_.contains(request.tool)) {
+    std::move(done).Run(true);
+    return;
+  }
+  const int32_t id = next_approval_id_++;
+  PendingApproval pending;
+  pending.tool = request.tool;
+  pending.done = std::move(done);
+  approvals_.emplace(id, std::move(pending));
+  page_->OnApproval(id, request.title, request.detail);
+  // The question needs the panel: it may have been closed while Claude
+  // worked.
+  if (ClaudePanel* panel = ClaudePanel::From(browser_);
+      panel && !panel->IsShowing()) {
+    panel->Show();
+  }
+}
+
+void ClaudeChatPageHandler::AnswerApproval(
+    int32_t id,
+    chat::mojom::ApprovalDecision decision) {
+  auto it = approvals_.find(id);
+  if (it == approvals_.end()) {
+    return;
+  }
+  if (decision == chat::mojom::ApprovalDecision::kAllowForChat) {
+    allowed_for_chat_.insert(it->second.tool);
+  }
+  base::OnceCallback<void(bool)> done = std::move(it->second.done);
+  approvals_.erase(it);
+  std::move(done).Run(decision != chat::mojom::ApprovalDecision::kDeny);
+}
+
+void ClaudeChatPageHandler::CancelApprovals(bool new_chat) {
+  if (new_chat) {
+    allowed_for_chat_.clear();
+  }
+  std::map<int32_t, PendingApproval> waiting = std::move(approvals_);
+  approvals_.clear();
+  for (auto& [id, pending] : waiting) {
+    page_->OnApprovalCancelled(id);
+    std::move(pending.done).Run(false);
+  }
 }
 
 void ClaudeChatPageHandler::OpenSettings() {

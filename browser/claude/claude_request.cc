@@ -61,6 +61,27 @@ std::string SystemPromptText(std::string_view memory) {
   return text;
 }
 
+std::string DescribeFilesAccess(const FilesConfig& files,
+                                bool claude_code_own_tools) {
+  if (files.access == prefs::FilesAccess::kOff || files.folder.empty()) {
+    return "File access is off: the file tools refuse.";
+  }
+  if (files.access == prefs::FilesAccess::kSave) {
+    return base::StrCat({"You can save new files for the user with save_file, "
+                         "into ",
+                         files.folder.BaseName().AsUTF8Unsafe(),
+                         "; each save asks the user."});
+  }
+  return base::StrCat(
+      {"You can list, read and write files in the user's folder ",
+       files.folder.AsUTF8Unsafe(),
+       " (paths are relative to it); each save or write asks the user.",
+       claude_code_own_tools
+           ? " Claude Code's own tools (files, shell, web) work there too, "
+             "and ask the user before what changes things."
+           : ""});
+}
+
 std::string BuildMessageContext(const ChatOptions& options) {
   std::string context = base::StrCat(
       {"<context>\nToday is ",
@@ -70,6 +91,9 @@ std::string BuildMessageContext(const ChatOptions& options) {
              "windows too.\n"
            : "You can only use the tab the user is chatting about; the "
              "\"whole browser\" permission is off.\n"});
+  base::StrAppend(&context, {DescribeFilesAccess(options.files,
+                                                 options.claude_code_own_tools),
+                             "\n"});
   if (!options.window_tabs.empty()) {
     base::StrAppend(
         &context,

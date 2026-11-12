@@ -22,6 +22,13 @@ enum Backend {
 };
 
 // The profile's Claude settings. The key itself never leaves the browser.
+// Files (docs/design/claude.md, "Files"): prefs::FilesAccess.
+enum FilesAccess {
+  kOff,
+  kSave,
+  kFolder,
+};
+
 struct SettingsState {
   Backend backend;
   // Claude Code's path as set; empty to look in the usual places.
@@ -53,6 +60,13 @@ struct SettingsState {
   bool memory_supported;
   bool memory_enabled;
   bool memory_save;
+  FilesAccess files_access;
+  // The chosen folder; empty for none.
+  string files_folder;
+  // Where "Save files" goes without one: Downloads.
+  string default_save_folder;
+  // Claude Code mode's own tools (files, shell, web) in the folder.
+  bool claude_code_own_tools;
 };
 
 // A fact Claude saved about the user.
@@ -107,4 +121,11 @@ interface SettingsHandler {
   // Lists the models with the saved key and endpoint; in Claude Code mode,
   // finds Claude Code and says whether it's signed in.
   TestConnection() => (ConnectionResult result);
+  SetFilesAccess(FilesAccess access);
+  // Shows the system's folder picker; |folder| is the one chosen and saved,
+  // empty if the user cancelled.
+  ChooseFilesFolder() => (string folder);
+  // No folder: "Save files" goes to Downloads again.
+  ClearFilesFolder();
+  SetClaudeCodeOwnTools(bool enabled);
 };

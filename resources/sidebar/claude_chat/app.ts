@@ -6,6 +6,7 @@ import {ColorChangeUpdater} from '//resources/cr_components/color_change_listene
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ActivePage, Setup} from '../chat.mojom-webui.js';
+import {ApprovalDecision} from '../chat.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -15,6 +16,12 @@ import {ClaudeChatBrowserProxy} from './browser_proxy.js';
 import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from './conversation.js';
 import {Conversation, pageBlock} from './conversation.js';
 import './turn.js';
+
+interface Approval {
+  id: number;
+  title: string;
+  detail: string;
+}
 
 // How many rounds of tools a message may take before Claude stops and the
 // user is asked to go on.
@@ -69,6 +76,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
   static override get properties() {
     return {
+      approvals_: {type: Array},
       attachPage_: {type: Boolean},
       claudeCode_: {type: Boolean},
       hasKey_: {type: Boolean},
@@ -83,6 +91,9 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     };
   }
 
+  // What tools ask the user before they act, oldest first; the first one
+  // shows (docs/design/claude.md, "Files").
+  protected accessor approvals_: Approval[] = [];
   protected accessor attachPage_: boolean = true;
   protected accessor claudeCode_: boolean = false;
   protected accessor hasKey_: boolean = true;
@@ -129,6 +140,9 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       router.onSetupChanged.addListener(this.applySetup_.bind(this)),
       router.onActivePageChanged.addListener(this.applyPage_.bind(this)),
       router.onAsk.addListener(this.ask_.bind(this)),
+      router.onApproval.addListener(this.onApproval_.bind(this)),
+      router.onApprovalCancelled.addListener(
+          this.onApprovalCancelled_.bind(this)),
     ];
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && this.streaming_) {
@@ -535,6 +549,35 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.attachPage_ = true;
     this.changed_();
     this.input_.focus();
+  }
+
+  private onApproval_(id: number, title: string, detail: string) {
+    this.approvals_ = [...this.approvals_, {id, title, detail}];
+  }
+
+  private onApprovalCancelled_(id: number) {
+    this.approvals_ = this.approvals_.filter(approval => approval.id !== id);
+  }
+
+  private answer_(decision: ApprovalDecision) {
+    const approval = this.approvals_[0];
+    if (!approval) {
+      return;
+    }
+    this.approvals_ = this.approvals_.slice(1);
+    this.browserProxy_.handler.answerApproval(approval.id, decision);
+  }
+
+  protected onAllowClick_() {
+    this.answer_(ApprovalDecision.kAllow);
+  }
+
+  protected onAllowForChatClick_() {
+    this.answer_(ApprovalDecision.kAllowForChat);
+  }
+
+  protected onDenyClick_() {
+    this.answer_(ApprovalDecision.kDeny);
   }
 
   protected onCloseClick_() {

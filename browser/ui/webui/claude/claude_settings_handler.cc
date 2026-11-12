@@ -15,16 +15,20 @@
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/ui/claude/claude_files_config.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace compass::claude {
 
@@ -108,7 +112,15 @@ ClaudeSettingsHandler::ClaudeSettingsHandler(
     mojo::PendingReceiver<mojom::SettingsHandler> receiver)
     : profile_(profile), receiver_(this, std::move(receiver)) {}
 
-ClaudeSettingsHandler::~ClaudeSettingsHandler() = default;
+ClaudeSettingsHandler::~ClaudeSettingsHandler() {
+  if (folder_dialog_) {
+    folder_dialog_->ListenerDestroyed();
+  }
+}
+
+void ClaudeSettingsHandler::SetWebContents(content::WebContents* web_contents) {
+  web_contents_ = web_contents ? web_contents->GetWeakPtr() : nullptr;
+}
 
 void ClaudeSettingsHandler::SetLoaderFactoryForTesting(
     scoped_refptr<network::SharedURLLoaderFactory> factory) {
@@ -141,6 +153,20 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->memory_supported = ClaudeMemory::Get(profile_) != nullptr;
   state->memory_enabled = prefs->GetBoolean(prefs::kMemoryEnabled);
   state->memory_save = prefs->GetBoolean(prefs::kMemorySave);
+  switch (GetFilesConfig(profile_).access) {
+    case prefs::FilesAccess::kOff:
+      state->files_access = mojom::FilesAccess::kOff;
+      break;
+    case prefs::FilesAccess::kSave:
+      state->files_access = mojom::FilesAccess::kSave;
+      break;
+    case prefs::FilesAccess::kFolder:
+      state->files_access = mojom::FilesAccess::kFolder;
+      break;
+  }
+  state->files_folder = prefs->GetString(prefs::kFilesFolder);
+  state->default_save_folder = DefaultSaveFolder(profile_).AsUTF8Unsafe();
+  state->claude_code_own_tools = prefs->GetBoolean(prefs::kClaudeCodeOwnTools);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -227,6 +253,61 @@ void ClaudeSettingsHandler::SetMemoryEnabled(bool enabled) {
 
 void ClaudeSettingsHandler::SetMemorySave(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kMemorySave, enabled);
+}
+
+void ClaudeSettingsHandler::SetFilesAccess(mojom::FilesAccess access) {
+  prefs::FilesAccess value = prefs::FilesAccess::kOff;
+  if (access == mojom::FilesAccess::kSave) {
+    value = prefs::FilesAccess::kSave;
+  } else if (access == mojom::FilesAccess::kFolder) {
+    value = prefs::FilesAccess::kFolder;
+  }
+  profile_->GetPrefs()->SetInteger(prefs::kFilesAccess,
+                                   static_cast<int>(value));
+}
+
+void ClaudeSettingsHandler::ChooseFilesFolder(
+    ChooseFilesFolderCallback callback) {
+  if (folder_dialog_ || !web_contents_) {
+    // One at a time; none without the page's window.
+    std::move(callback).Run(std::string());
+    return;
+  }
+  folder_callback_ = std::move(callback);
+  folder_dialog_ = ui::SelectFileDialog::Create(
+      this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
+  const FilesConfig config = GetFilesConfig(profile_);
+  folder_dialog_->SelectFile(
+      ui::SelectFileDialog::SELECT_FOLDER, u"Choose a folder for Claude",
+      config.folder.empty() ? DefaultSaveFolder(profile_) : config.folder,
+      /*file_types=*/nullptr, /*file_type_index=*/0,
+      /*default_extension=*/base::FilePath::StringType(),
+      web_contents_->GetTopLevelNativeWindow());
+}
+
+void ClaudeSettingsHandler::FileSelected(const ui::SelectedFileInfo& file,
+                                         int index) {
+  folder_dialog_.reset();
+  const std::string folder = file.path().AsUTF8Unsafe();
+  profile_->GetPrefs()->SetString(prefs::kFilesFolder, folder);
+  if (folder_callback_) {
+    std::move(folder_callback_).Run(folder);
+  }
+}
+
+void ClaudeSettingsHandler::FileSelectionCanceled() {
+  folder_dialog_.reset();
+  if (folder_callback_) {
+    std::move(folder_callback_).Run(std::string());
+  }
+}
+
+void ClaudeSettingsHandler::ClearFilesFolder() {
+  profile_->GetPrefs()->ClearPref(prefs::kFilesFolder);
+}
+
+void ClaudeSettingsHandler::SetClaudeCodeOwnTools(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kClaudeCodeOwnTools, enabled);
 }
 
 void ClaudeSettingsHandler::GetMemories(GetMemoriesCallback callback) {

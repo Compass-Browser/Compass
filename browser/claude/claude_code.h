@@ -51,6 +51,10 @@ struct ClaudeCodeOptions {
   // A session to continue (after Stop, or another model); empty for a new
   // conversation.
   std::string resume;
+  // Claude Code's own tools (files, shell, web), asking through stdio
+  // before what changes things (docs/design/claude.md, "Files"). Off, it
+  // has none.
+  bool own_tools = false;
 };
 
 // The arguments after the program: print mode, stream-json both ways with
@@ -88,6 +92,9 @@ struct ClaudeCodeEvent {
     kToolResult,
     // The reply to the message ended: |error| empty if it completed.
     kResult,
+    // Claude Code asks whether a tool may run (its own tools): name is the
+    // tool, data its input as JSON, request_id what the answer quotes.
+    kPermission,
   };
 
   ClaudeCodeEvent();
@@ -101,11 +108,31 @@ struct ClaudeCodeEvent {
   std::string data;
   std::string tool_use_id;
   std::string error;
+  std::string request_id;
 };
 
 // The events in a line of stdout (a user message can carry several tool
 // results). Not JSON: none (a warning on stderr, which shares the pipe).
 std::vector<ClaudeCodeEvent> ParseClaudeCodeLine(std::string_view line);
+
+// The stdin line answering a kPermission event: allow (with the input
+// unchanged) or deny.
+std::string ClaudeCodePermissionLine(const std::string& request_id,
+                                     bool allow,
+                                     const std::string& input_json);
+
+// What the user is asked about a Claude Code tool: a title ("Run a
+// command") and the detail (the command, the file and its content).
+struct ClaudeCodeApproval {
+  std::string title;
+  std::string detail;
+};
+ClaudeCodeApproval DescribeClaudeCodePermission(const std::string& tool,
+                                                const std::string& input_json);
+
+// The tools Claude Code has with own_tools (no subagents).
+inline constexpr char kClaudeCodeOwnTools[] =
+    "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch";
 
 // What settings' Test connection says of Claude Code, from the output of
 // `claude --version` and `claude auth status` (JSON).

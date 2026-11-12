@@ -26,6 +26,10 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterListPref(kMcpAllowedClients);
   registry->RegisterBooleanPref(kMemoryEnabled, true);
   registry->RegisterBooleanPref(kMemorySave, true);
+  registry->RegisterIntegerPref(kFilesAccess,
+                                static_cast<int>(FilesAccess::kOff));
+  registry->RegisterStringPref(kFilesFolder, std::string());
+  registry->RegisterBooleanPref(kClaudeCodeOwnTools, false);
 }
 
 }  // namespace compass::claude::prefs

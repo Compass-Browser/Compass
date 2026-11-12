@@ -238,6 +238,65 @@ footer {
   white-space: nowrap;
 }
 
+/* A tool asks before it writes or runs something. */
+.approval {
+  background: var(--tint);
+  border: 1px solid color-mix(in srgb, #d97757 55%, transparent);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.approval-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.approval-detail {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  margin: 0;
+  max-height: 140px;
+  overflow: auto;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.approval-buttons {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.approval-more {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.approval-button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: inherit;
+  padding: 4px 11px;
+}
+
+.approval-button:hover {
+  background: var(--tint);
+}
+
+.approval-button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--color-sys-on-primary, #fff);
+}
+
 .composer {
   align-items: flex-end;
   background: var(--tint);

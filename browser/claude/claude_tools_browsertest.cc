@@ -7,13 +7,19 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/json/json_reader.h"
+#include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
@@ -618,6 +624,112 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, HistoryDownloadsDevices) {
   EXPECT_EQ(Text(Run("list_downloads")), "No downloads.");
   // No sync in tests.
   EXPECT_TRUE(Run("send_tab_to_device").is_error);
+}
+
+// The file tools refuse without the setting, keep to the folder, and write
+// only what the user allowed (docs/design/claude.md, "Files").
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, FilesNeedTheSetting) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir dir;
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  const base::FilePath folder = dir.GetPath().AppendASCII("Work");
+  ASSERT_TRUE(base::CreateDirectory(folder));
+
+  FilesConfig config;
+  std::vector<ApprovalRequest> asked;
+  bool allow = true;
+  tools_->SetFiles(
+      base::BindLambdaForTesting([&] { return config; }),
+      base::BindLambdaForTesting(
+          [&](ApprovalRequest request, base::OnceCallback<void(bool)> done) {
+            asked.push_back(std::move(request));
+            std::move(done).Run(allow);
+          }));
+
+  // Off.
+  ToolResult off = Run("save_file", R"({"name":"a.md","content":"x"})");
+  EXPECT_TRUE(off.is_error);
+  EXPECT_NE(Text(off).find("Not permitted"), std::string::npos);
+  EXPECT_TRUE(asked.empty());
+
+  // Save files: new files only, each asked about.
+  config.access = prefs::FilesAccess::kSave;
+  config.folder = folder;
+  EXPECT_TRUE(Run("list_files").is_error);
+  EXPECT_TRUE(Run("read_file", R"({"path":"a.md"})").is_error);
+  ToolResult saved = Run("save_file", R"({"name":"a.md","content":"one"})");
+  EXPECT_FALSE(saved.is_error) << Text(saved);
+  ASSERT_EQ(asked.size(), 1u);
+  EXPECT_EQ(asked[0].tool, "save_file");
+  EXPECT_EQ(asked[0].title, "Save \u201ca.md\u201d in Work");
+  EXPECT_EQ(asked[0].detail, "one");
+  EXPECT_FALSE(Run("save_file", R"({"name":"a.md","content":"two"})").is_error);
+  std::string text;
+  ASSERT_TRUE(base::ReadFileToString(folder.AppendASCII("a.md"), &text));
+  EXPECT_EQ(text, "one");
+  ASSERT_TRUE(base::ReadFileToString(folder.AppendASCII("a (1).md"), &text));
+  EXPECT_EQ(text, "two");
+  EXPECT_TRUE(Run("save_file", R"({"name":"../x.md","content":"x"})").is_error);
+
+  // Use a folder: write, replace, read, list; nothing outside.
+  config.access = prefs::FilesAccess::kFolder;
+  asked.clear();
+  EXPECT_FALSE(
+      Run("write_file", R"({"path":"notes/b.md","content":"hi"})").is_error);
+  ASSERT_EQ(asked.size(), 1u);
+  EXPECT_EQ(asked[0].title, "Create \u201cnotes/b.md\u201d in Work");
+  EXPECT_FALSE(
+      Run("write_file", R"({"path":"notes/b.md","content":"hello"})").is_error);
+  ASSERT_EQ(asked.size(), 2u);
+  EXPECT_EQ(asked[1].title, "Replace \u201cnotes/b.md\u201d in Work");
+  EXPECT_EQ(Text(Run("read_file", R"({"path":"notes/b.md"})")), "hello");
+  EXPECT_NE(Text(Run("list_files")).find("notes/"), std::string::npos);
+  EXPECT_TRUE(
+      Run("write_file", R"({"path":"../out.md","content":"x"})").is_error);
+  EXPECT_FALSE(base::PathExists(dir.GetPath().AppendASCII("out.md")));
+  EXPECT_EQ(asked.size(), 2u);
+
+  // Denied: nothing written.
+  allow = false;
+  ToolResult denied =
+      Run("write_file", R"({"path":"denied.md","content":"x"})");
+  EXPECT_TRUE(denied.is_error);
+  EXPECT_EQ(Text(denied), "The user didn't allow it.");
+  EXPECT_FALSE(base::PathExists(folder.AppendASCII("denied.md")));
+
+  // "Use a folder" without one.
+  config.folder.clear();
+  EXPECT_NE(Text(Run("list_files")).find("hasn't chosen a folder"),
+            std::string::npos);
+}
+
+// Stop while the user decides: the tool ends, and a late answer writes
+// nothing.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, StopWhileAsking) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir dir;
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  FilesConfig config;
+  config.access = prefs::FilesAccess::kFolder;
+  config.folder = dir.GetPath();
+  base::OnceCallback<void(bool)> answer;
+  tools_->SetFiles(
+      base::BindLambdaForTesting([&] { return config; }),
+      base::BindLambdaForTesting(
+          [&](ApprovalRequest request, base::OnceCallback<void(bool)> done) {
+            answer = std::move(done);
+          }));
+  base::test::TestFuture<ToolResult> result;
+  base::DictValue input;
+  input.Set("path", "late.md");
+  input.Set("content", "x");
+  tools_->Run("write_file", std::move(input), result.GetCallback());
+  ASSERT_TRUE(base::test::RunUntil([&] { return !answer.is_null(); }));
+  tools_->Stop();
+  EXPECT_EQ(Text(result.Get()), "Stopped by the user.");
+  std::move(answer).Run(true);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(dir.GetPath().AppendASCII("late.md")));
 }
 
 }  // namespace

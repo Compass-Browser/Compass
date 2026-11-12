@@ -157,6 +157,31 @@ export class CompassClaudeTurnElement extends CrLitElement {
         return `Update memory “${short(input['text'])}”`;
       case 'forget':
         return 'Forget a memory';
+      case 'save_file':
+        return `Save “${short(input['name'])}”`;
+      case 'list_files':
+        return input['path'] ? `List “${short(input['path'])}”` :
+                               'List the folder';
+      case 'read_file':
+        return `Read “${short(input['path'])}”`;
+      case 'write_file':
+        return `Write “${short(input['path'])}”`;
+      // Claude Code's own tools.
+      case 'Bash':
+        return `Run ${short(input['command'])}`;
+      case 'Read':
+        return `Read “${short(input['file_path'])}”`;
+      case 'Write':
+        return `Write “${short(input['file_path'])}”`;
+      case 'Edit':
+        return `Edit “${short(input['file_path'])}”`;
+      case 'Glob':
+      case 'Grep':
+        return `Search files for “${short(input['pattern'])}”`;
+      case 'WebFetch':
+        return `Fetch ${short(input['url'])}`;
+      case 'WebSearch':
+        return `Search the web for “${short(input['query'])}”`;
       default:
         return item.name || 'Tool';
     }

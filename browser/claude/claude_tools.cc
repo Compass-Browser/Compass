@@ -18,10 +18,13 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/types/expected_macros.h"
 #include "build/build_config.h"
 #include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/claude/claude_assets.h"
+#include "compass/browser/claude/claude_files.h"
 #include "compass/browser/claude/devtools_session.h"
 #include "compass/browser/claude/key_events.h"
 #include "compass/browser/claude/page_reader.h"
@@ -175,6 +178,37 @@ bool IsMemoryTool(const std::string& name) {
   return ScopeOf(name) == "memory";
 }
 
+bool IsFilesTool(const std::string& name) {
+  return ScopeOf(name) == "files";
+}
+
+constexpr char kFilesOff[] =
+    "Not permitted: the user hasn't turned on file access (Compass settings, "
+    "Claude, Files). Tell the user if the task needs it.";
+constexpr char kNoFolder[] =
+    "Not permitted: the user hasn't chosen a folder for Claude yet (Compass "
+    "settings, Claude, Files). Tell the user if the task needs it.";
+constexpr char kSaveOnly[] =
+    "Not permitted: Claude may only save new files (save_file). With \"Use "
+    "a folder\" in Compass settings (Claude, Files), it can also list, read "
+    "and write files in one folder. Tell the user if the task needs it.";
+constexpr char kNotAllowed[] = "The user didn't allow it.";
+// How much of a file the approval shows.
+constexpr size_t kApprovalDetailChars = 2000;
+
+std::string ApprovalDetail(std::string_view content) {
+  std::u16string text = base::UTF8ToUTF16(content);
+  if (text.size() <= kApprovalDetailChars) {
+    return std::string(content);
+  }
+  text.resize(kApprovalDetailChars);
+  return base::StrCat({base::UTF16ToUTF8(text), "\n…"});
+}
+
+std::string FolderName(const base::FilePath& folder) {
+  return folder.BaseName().AsUTF8Unsafe();
+}
+
 }  // namespace
 
 TabsDelegate::Result::Result() = default;
@@ -246,10 +280,11 @@ void ClaudeTools::StopActing() {
 }
 
 // static
-base::ListValue ClaudeTools::Definitions(bool memory) {
+base::ListValue ClaudeTools::Definitions(bool memory, bool files) {
   base::ListValue definitions;
   for (const base::Value& tool : ToolEntries()) {
-    if (!memory && Describe(tool.GetDict(), "scope") == "memory") {
+    const std::string scope = Describe(tool.GetDict(), "scope");
+    if ((!memory && scope == "memory") || (!files && scope == "files")) {
       continue;
     }
     definitions.Append(tool.GetDict().FindDict("definition")->Clone());
@@ -260,6 +295,11 @@ base::ListValue ClaudeTools::Definitions(bool memory) {
         "cache_control", base::DictValue().Set("type", "ephemeral"));
   }
   return definitions;
+}
+
+void ClaudeTools::SetFiles(FilesConfigGetter config, Approver approve) {
+  files_config_ = std::move(config);
+  approve_ = std::move(approve);
 }
 
 void ClaudeTools::SetMemory(ClaudeMemory* memory,
@@ -403,6 +443,12 @@ void ClaudeTools::Run(const std::string& name,
     std::move(callback_).Run(RunMemoryTool(name, input));
     return;
   }
+  if (IsFilesTool(name)) {
+    // No tab: files, with the setting and the user's approval. No timeout
+    // either: the user may take a while to decide.
+    RunFileTool(name, std::move(input));
+    return;
+  }
   content::WebContents* contents = web_contents();
   const bool browser_tool = IsBrowserTool(name);
   if (browser_tool) {
@@ -507,6 +553,164 @@ void ClaudeTools::OnBrowserToolDone(TabsDelegate::Result result) {
     Retarget(result.act_on.get());
   }
   Finish(std::move(result.result));
+}
+
+void ClaudeTools::RunFileTool(const std::string& name, base::DictValue input) {
+  if (!files_config_) {
+    Finish(ToolResult::Error("File tools aren't available here."));
+    return;
+  }
+  FilesConfig config = files_config_.Run();
+  if (config.access == prefs::FilesAccess::kOff) {
+    Finish(ToolResult::Error(kFilesOff));
+    return;
+  }
+  if (config.folder.empty()) {
+    Finish(ToolResult::Error(kNoFolder));
+    return;
+  }
+  if (name != "save_file" && config.access != prefs::FilesAccess::kFolder) {
+    Finish(ToolResult::Error(kSaveOnly));
+    return;
+  }
+  if (!file_runner_) {
+    file_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
+  }
+  const std::string path = Describe(input, "path");
+  const std::string content = Describe(input, "content");
+  if (name == "list_files") {
+    file_runner_->PostTaskAndReplyWithResult(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::FilePath folder, std::string path) {
+              return files::ListFolder(folder, path);
+            },
+            config.folder, path),
+        base::BindOnce(&ClaudeTools::FinishWithText,
+                       run_weak_factory_.GetWeakPtr()));
+    return;
+  }
+  if (name == "read_file") {
+    const int offset = std::max(0, input.FindInt("offset").value_or(0));
+    file_runner_->PostTaskAndReplyWithResult(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::FilePath folder, std::string path, size_t offset) {
+              return files::ReadTextFile(folder, path, offset);
+            },
+            config.folder, path, static_cast<size_t>(offset)),
+        base::BindOnce(&ClaudeTools::FinishWithText,
+                       run_weak_factory_.GetWeakPtr()));
+    return;
+  }
+  if (std::optional<std::string> error = files::CheckContent(content)) {
+    Finish(ToolResult::Error(*error));
+    return;
+  }
+  if (name == "save_file") {
+    const std::string file_name = Describe(input, "name");
+    if (std::optional<std::string> error = files::CheckFileName(file_name)) {
+      Finish(ToolResult::Error(*error));
+      return;
+    }
+    ApprovalRequest request;
+    request.tool = name;
+    request.title = base::StrCat({"Save \u201c", file_name, "\u201d in ",
+                                  FolderName(config.folder)});
+    request.detail = ApprovalDetail(content);
+    ApproveThenWrite(
+        std::move(request),
+        base::BindOnce(
+            [](base::FilePath folder, std::string name, std::string content)
+                -> base::expected<std::string, std::string> {
+              ASSIGN_OR_RETURN(base::FilePath saved,
+                               files::SaveNewFile(folder, name, content));
+              return base::ok(
+                  base::StrCat({"Saved as ", saved.AsUTF8Unsafe(), "."}));
+            },
+            config.folder, file_name, content));
+    return;
+  }
+  // write_file: is it a new file or a replaced one? The approval says.
+  base::expected<base::FilePath, std::string> full =
+      files::JoinInFolder(config.folder, path);
+  if (!full.has_value() || path.empty()) {
+    Finish(ToolResult::Error(full.has_value() ? "write_file needs a path."
+                                              : full.error()));
+    return;
+  }
+  file_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::FilePath folder,
+             base::FilePath full) -> base::expected<bool, std::string> {
+            RETURN_IF_ERROR(files::CheckStaysInFolder(folder, full));
+            return files::FileExists(full);
+          },
+          config.folder, *full),
+      base::BindOnce(&ClaudeTools::OnWriteChecked,
+                     run_weak_factory_.GetWeakPtr(), config, path, content));
+}
+
+void ClaudeTools::OnWriteChecked(FilesConfig config,
+                                 std::string path,
+                                 std::string content,
+                                 base::expected<bool, std::string> exists) {
+  if (!exists.has_value()) {
+    Finish(ToolResult::Error(exists.error()));
+    return;
+  }
+  ApprovalRequest request;
+  request.tool = "write_file";
+  request.title = base::StrCat({*exists ? "Replace \u201c" : "Create \u201c",
+                                files::DisplayPath(path), "\u201d in ",
+                                FolderName(config.folder)});
+  request.detail = ApprovalDetail(content);
+  ApproveThenWrite(
+      std::move(request),
+      base::BindOnce(
+          [](base::FilePath folder, std::string path, std::string content)
+              -> base::expected<std::string, std::string> {
+            ASSIGN_OR_RETURN(bool replaced,
+                             files::WriteTextFile(folder, path, content));
+            return base::ok(base::StrCat({replaced ? "Replaced " : "Created ",
+                                          files::DisplayPath(path), "."}));
+          },
+          config.folder, path, content));
+}
+
+void ClaudeTools::ApproveThenWrite(
+    ApprovalRequest request,
+    base::OnceCallback<base::expected<std::string, std::string>()> write) {
+  if (!approve_) {
+    Finish(ToolResult::Error("Compass can't ask the user here."));
+    return;
+  }
+  approve_.Run(std::move(request),
+               base::BindOnce(&ClaudeTools::OnApproval,
+                              run_weak_factory_.GetWeakPtr(),
+                              std::move(write)));
+}
+
+void ClaudeTools::OnApproval(
+    base::OnceCallback<base::expected<std::string, std::string>()> write,
+    bool allowed) {
+  if (!allowed) {
+    Finish(ToolResult::Error(kNotAllowed));
+    return;
+  }
+  file_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE, std::move(write),
+      base::BindOnce(&ClaudeTools::FinishWithText,
+                     run_weak_factory_.GetWeakPtr()));
+}
+
+void ClaudeTools::FinishWithText(
+    base::expected<std::string, std::string> text) {
+  Finish(text.has_value() ? ToolResult::Text(std::move(*text))
+                          : ToolResult::Error(std::move(text.error())));
 }
 
 void ClaudeTools::Finish(ToolResult result) {

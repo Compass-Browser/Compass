@@ -50,6 +50,23 @@ inline constexpr char kMemoryEnabled[] = "compass.claude.memory_enabled";
 // "Let Claude save memories": the memory tools are sent (with kMemoryEnabled).
 inline constexpr char kMemorySave[] = "compass.claude.memory_save";
 
+// Files (docs/design/claude.md, "Files"): FilesAccess's value. Off, the file
+// tools refuse.
+inline constexpr char kFilesAccess[] = "compass.claude.files_access";
+// The folder for "Save files" (empty: Downloads) and "Use a folder" (empty:
+// none chosen, as off), as a UTF-8 path.
+inline constexpr char kFilesFolder[] = "compass.claude.files_folder";
+// Claude Code mode with "Use a folder": Claude Code's own tools (files,
+// shell, web) in the folder, each change asking the user.
+inline constexpr char kClaudeCodeOwnTools[] =
+    "compass.claude.claude_code_own_tools";
+
+enum class FilesAccess {
+  kOff = 0,
+  kSave = 1,
+  kFolder = 2,
+};
+
 // Called by compass::RegisterCompassProfilePrefs().
 void RegisterProfilePrefs(PrefRegistrySimple* registry);
 

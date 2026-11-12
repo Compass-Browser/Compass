@@ -31,6 +31,15 @@ struct PageText {
 };
 
 // Bootstraps the connection; called once by the page.
+// The user's answer to a tool that asks first (docs/design/claude.md,
+// "Files").
+enum ApprovalDecision {
+  kDeny,
+  kAllow,
+  // This tool, without asking again, until New chat.
+  kAllowForChat,
+};
+
 interface PageHandlerFactory {
   CreatePageHandler(pending_remote<Page> page,
                     pending_receiver<PageHandler> handler);
@@ -82,6 +91,9 @@ interface PageHandler {
   // Undoes what a memory tool did: |undo_id| is its result's "memory.undo".
   // False if it can't (already undone, or the memory changed since).
   UndoMemory(int32 undo_id) => (bool undone);
+
+  // Answers OnApproval(|id|).
+  AnswerApproval(int32 id, ApprovalDecision decision);
 };
 
 // Implemented by the page.
@@ -98,4 +110,10 @@ interface Page {
   OnActivePageChanged(ActivePage page);
   // The command bar's "Ask Claude": send |text|, with the page attached.
   OnAsk(string text);
+
+  // A tool asks before it acts: the panel shows |title| and |detail| with
+  // Allow, Allow for this chat and Deny, and answers with AnswerApproval().
+  OnApproval(int32 id, string title, string detail);
+  // Approval |id| no longer waits (Stop, New chat, Claude Code ended).
+  OnApprovalCancelled(int32 id);
 };

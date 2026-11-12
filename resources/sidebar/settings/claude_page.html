@@ -208,6 +208,17 @@
     display: block;
   }
 
+  .compass-page .files-folder {
+    margin: 10px 0 0;
+  }
+
+  .compass-page .files-folder .saved-key {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .compass-page .claude-scope .name {
     font-weight: 500;
   }
@@ -323,6 +334,56 @@
       on for tasks you watch.</span>
   </span>
 </label>
+
+<section id="files">
+  <div class="field">Files</div>
+  <div class="claude-backend" role="radiogroup" aria-label="Files">
+    <label>
+      <input type="radio" name="files" id="filesOff">
+      <span>
+        <span class="name">Off</span>
+        <span class="hint block">Claude can't use files on this
+          computer.</span>
+      </span>
+    </label>
+    <label>
+      <input type="radio" name="files" id="filesSave">
+      <span>
+        <span class="name">Save files</span>
+        <span class="hint block">Claude can save new files it makes for you,
+          like notes or a table, in one folder. It doesn't read or replace
+          your files.</span>
+      </span>
+    </label>
+    <label>
+      <input type="radio" name="files" id="filesFolder">
+      <span>
+        <span class="name">Use a folder</span>
+        <span class="hint block">Claude can list, read and write files in one
+          folder you choose, and nowhere else.</span>
+      </span>
+    </label>
+  </div>
+  <div class="claude-inline files-folder" id="filesFolderRow" hidden>
+    <span class="saved-key" id="filesFolderPath"></span>
+    <button id="chooseFilesFolder" class="secondary">Choose…</button>
+    <button id="clearFilesFolder" class="secondary" hidden>Use
+      Downloads</button>
+  </div>
+  <p class="hint" id="filesAsk" hidden>Claude asks before each file it saves
+    or changes, in the chat: Allow, Allow for this chat, or Deny.</p>
+  <label class="claude-scope" id="ownToolsRow" hidden>
+    <input type="checkbox" id="claudeCodeOwnTools">
+    <span>
+      <span class="name">Let Claude Code use its own tools</span>
+      <span class="hint block">Claude Code's own tools work in the folder
+        too: reading and editing files, running commands, and fetching from
+        the web. It asks before each change, each command that isn't
+        read-only, and the web. Web pages can try to give Claude
+        instructions of their own, so read what you allow.</span>
+    </span>
+  </label>
+</section>
 
 <section id="memory" hidden>
   <label class="claude-scope">

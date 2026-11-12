@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 #include "base/callback_list.h"
@@ -79,6 +80,8 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void ClosePanel() override;
   void TakeQuestion(TakeQuestionCallback callback) override;
   void UndoMemory(int32_t undo_id, UndoMemoryCallback callback) override;
+  void AnswerApproval(int32_t id,
+                      chat::mojom::ApprovalDecision decision) override;
 
   // The command bar's "Ask Claude", while the page is connected.
   void Ask(const std::string& question);
@@ -130,6 +133,17 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
                    base::DictValue arguments,
                    base::OnceCallback<void(ToolResult)> done);
 
+  // Files (docs/design/claude.md, "Files"). The tools' and Claude Code's
+  // questions to the user, shown in the panel.
+  void AskApproval(ApprovalRequest request,
+                   base::OnceCallback<void(bool)> done);
+  // Denies what waits; with |new_chat|, forgets "Allow for this chat" too.
+  void CancelApprovals(bool new_chat);
+  // Claude Code asks whether one of its own tools may run.
+  void OnClaudeCodePermission(std::string tool,
+                              std::string request_id,
+                              std::string input_json);
+
   mojo::Receiver<chat::mojom::PageHandler> receiver_;
   mojo::Remote<chat::mojom::Page> page_;
   const raw_ptr<BrowserWindowInterface> browser_;
@@ -146,6 +160,26 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   bool claude_code_replying_ = false;
   // The last of its output that wasn't JSON (stderr), to say why it ended.
   std::string claude_code_output_;
+  // How the process (or the session to resume) was started: with Claude
+  // Code's own tools, in this folder (empty without them).
+  bool claude_code_own_tools_ = false;
+  base::FilePath claude_code_folder_;
+  // Counts processes started, so an answer for one that ended isn't written
+  // to the next.
+  int claude_code_generation_ = 0;
+  struct PendingApproval {
+    PendingApproval();
+    PendingApproval(PendingApproval&&);
+    PendingApproval& operator=(PendingApproval&&);
+    ~PendingApproval();
+    std::string tool;
+    base::OnceCallback<void(bool)> done;
+  };
+  // Approvals the panel shows, by id.
+  std::map<int32_t, PendingApproval> approvals_;
+  int32_t next_approval_id_ = 1;
+  // Tools the user allowed for this chat.
+  std::set<std::string> allowed_for_chat_;
   // McpBridge::RegisterChat()'s token, while registered.
   std::string chat_token_;
   std::optional<ChatMemory> chat_memory_;

@@ -19,8 +19,13 @@
 #include "compass/browser/ui/webui/claude/claude.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "ui/shell_dialogs/select_file_dialog.h"
 
 class Profile;
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace network {
 class SharedURLLoaderFactory;
@@ -33,13 +38,17 @@ class ClaudeClient;
 // The browser side of compass://settings/claude: reads and writes the
 // profile's Claude prefs, saves the key encrypted (ClaudeCredentials) and
 // tests the connection. See docs/design/claude.md, "Settings".
-class ClaudeSettingsHandler : public mojom::SettingsHandler {
+class ClaudeSettingsHandler : public mojom::SettingsHandler,
+                              public ui::SelectFileDialog::Listener {
  public:
   ClaudeSettingsHandler(Profile* profile,
                         mojo::PendingReceiver<mojom::SettingsHandler> receiver);
   ClaudeSettingsHandler(const ClaudeSettingsHandler&) = delete;
   ClaudeSettingsHandler& operator=(const ClaudeSettingsHandler&) = delete;
   ~ClaudeSettingsHandler() override;
+
+  // The settings page's tab: the folder picker's window.
+  void SetWebContents(content::WebContents* web_contents);
 
   // Where TestConnection() sends requests; the profile's network by default.
   void SetLoaderFactoryForTesting(
@@ -68,6 +77,14 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler {
   void RemoveMemory(const std::string& id) override;
   void RemoveAllMemories() override;
   void TestConnection(TestConnectionCallback callback) override;
+  void SetFilesAccess(mojom::FilesAccess access) override;
+  void ChooseFilesFolder(ChooseFilesFolderCallback callback) override;
+  void ClearFilesFolder() override;
+  void SetClaudeCodeOwnTools(bool enabled) override;
+
+  // ui::SelectFileDialog::Listener:
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void FileSelectionCanceled() override;
 
  private:
   void OnKeyForTest(TestConnectionCallback callback,
@@ -78,6 +95,9 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler {
                            std::optional<ClaudeCodeStatus> status);
 
   const raw_ptr<Profile> profile_;
+  base::WeakPtr<content::WebContents> web_contents_;
+  scoped_refptr<ui::SelectFileDialog> folder_dialog_;
+  ChooseFilesFolderCallback folder_callback_;
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
   std::unique_ptr<ClaudeClient> client_;
   mojo::Receiver<mojom::SettingsHandler> receiver_;

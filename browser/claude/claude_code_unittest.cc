@@ -162,6 +162,72 @@ TEST(ClaudeCodeTest, Args) {
   EXPECT_EQ(relay_args[1].GetString(), "--chat=abc123");
 }
 
+// With its own tools: the list (no subagents) and the questions on stdio.
+TEST(ClaudeCodeTest, OwnToolsArgs) {
+  ClaudeCodeOptions options;
+  options.own_tools = true;
+  std::vector<std::string> args = ClaudeCodeArgs(options);
+  EXPECT_TRUE(Has(args, "--tools", kClaudeCodeOwnTools));
+  EXPECT_TRUE(Has(args, "--permission-prompt-tool", "stdio"));
+  EXPECT_FALSE(Has(args, "--tools", ""));
+  EXPECT_EQ(std::string(kClaudeCodeOwnTools).find("Agent"), std::string::npos);
+  EXPECT_EQ(std::string(kClaudeCodeOwnTools).find("Task"), std::string::npos);
+}
+
+TEST(ClaudeCodeTest, PermissionRequests) {
+  auto events = ParseClaudeCodeLine(
+      R"({"type":"control_request","request_id":"r-1","request":)"
+      R"({"subtype":"can_use_tool","tool_name":"Write","input":)"
+      R"({"file_path":"/w/a.md","content":"hi"},"tool_use_id":"toolu_9"}})");
+  ASSERT_EQ(events.size(), 1u);
+  EXPECT_EQ(events[0].type, ClaudeCodeEvent::Type::kPermission);
+  EXPECT_EQ(events[0].request_id, "r-1");
+  EXPECT_EQ(events[0].name, "Write");
+  EXPECT_EQ(*Json(events[0].data).FindString("content"), "hi");
+  // Other control requests aren't questions.
+  EXPECT_TRUE(ParseClaudeCodeLine(
+                  R"({"type":"control_request","request_id":"r-2",)"
+                  R"("request":{"subtype":"interrupt"}})")
+                  .empty());
+
+  base::DictValue allow = Json(ClaudeCodePermissionLine(
+      "r-1", /*allow=*/true, R"({"file_path":"/w/a.md","content":"hi"})"));
+  EXPECT_EQ(*allow.FindString("type"), "control_response");
+  EXPECT_EQ(*allow.FindStringByDottedPath("response.subtype"), "success");
+  EXPECT_EQ(*allow.FindStringByDottedPath("response.request_id"), "r-1");
+  EXPECT_EQ(*allow.FindStringByDottedPath("response.response.behavior"),
+            "allow");
+  EXPECT_EQ(*allow.FindStringByDottedPath(
+                "response.response.updatedInput.content"),
+            "hi");
+  base::DictValue deny = Json(ClaudeCodePermissionLine("r-1", false, "{}"));
+  EXPECT_EQ(*deny.FindStringByDottedPath("response.response.behavior"),
+            "deny");
+  EXPECT_TRUE(deny.FindStringByDottedPath("response.response.message"));
+  EXPECT_TRUE(ClaudeCodePermissionLine("r-1", false, "{}").ends_with("\n"));
+}
+
+TEST(ClaudeCodeTest, DescribesPermissions) {
+  ClaudeCodeApproval command = DescribeClaudeCodePermission(
+      "Bash", R"({"command":"rm -rf build","description":"Clean up"})");
+  EXPECT_EQ(command.title, "Run a command");
+  EXPECT_EQ(command.detail, "Clean up\n\nrm -rf build");
+  ClaudeCodeApproval write = DescribeClaudeCodePermission(
+      "Write", R"({"file_path":"/w/a.md","content":"hi"})");
+  EXPECT_EQ(write.title, "Write \u201c/w/a.md\u201d");
+  EXPECT_EQ(write.detail, "hi");
+  ClaudeCodeApproval fetch = DescribeClaudeCodePermission(
+      "WebFetch", R"({"url":"https://example.com","prompt":"Read it"})");
+  EXPECT_EQ(fetch.title, "Fetch https://example.com");
+  ClaudeCodeApproval other =
+      DescribeClaudeCodePermission("NotebookEdit", R"({"a":1})");
+  EXPECT_EQ(other.title, "Use NotebookEdit");
+  const std::string long_content(5000, 'x');
+  ClaudeCodeApproval long_write = DescribeClaudeCodePermission(
+      "Write", R"({"file_path":"a","content":")" + long_content + "\"}");
+  EXPECT_LT(long_write.detail.size(), 2100u);
+}
+
 TEST(ClaudeCodeTest, UserLine) {
   base::ListValue content;
   content.Append(base::DictValue()

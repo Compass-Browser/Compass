@@ -91,6 +91,37 @@ constexpr char kToolReply[] =
     "\"tool_use\"}}\n\n"
     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
 
+// A reply that saves a file (save_file).
+constexpr char kSaveReply[] =
+    "event: message_start\n"
+    "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_3\","
+    "\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}}\n\n"
+    "event: content_block_start\n"
+    "data: {\"type\":\"content_block_start\",\"index\":0,"
+    "\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_save\","
+    "\"name\":\"save_file\",\"input\":{}}}\n\n"
+    "event: content_block_delta\n"
+    "data: {\"type\":\"content_block_delta\",\"index\":0,"
+    "\"delta\":{\"type\":\"input_json_delta\","
+    "\"partial_json\":\"{\\\"name\\\": \\\"fox.md\\\", \\\"content\\\": "
+    "\\\"The quick fox\\\"}\"}}\n\n"
+    "event: content_block_stop\n"
+    "data: {\"type\":\"content_block_stop\",\"index\":0}\n\n"
+    "event: message_delta\n"
+    "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":"
+    "\"tool_use\"}}\n\n"
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
+
+// How often |needle| is in |text|.
+size_t Count(const std::string& text, const std::string& needle) {
+  size_t count = 0;
+  for (size_t at = text.find(needle); at != std::string::npos;
+       at = text.find(needle, at + needle.size())) {
+    ++count;
+  }
+  return count;
+}
+
 #if BUILDFLAG(IS_POSIX)
 // A fake `claude` for Claude Code mode: it saves its arguments and the
 // messages it gets, calls get_page_text through the MCP server its
@@ -206,7 +237,13 @@ class ClaudePanelBrowserTest : public InProcessBrowserTest {
     }
     response->set_code(net::HTTP_OK);
     response->set_content_type("text/event-stream");
-    response->set_content(wants_tool ? kToolReply : kReply);
+    // "Save a file" saves one, once per such message: until its result.
+    const bool wants_save =
+        Count(request.content, "Save a file") >
+        Count(request.content, "\"tool_use_id\":\"toolu_save\"");
+    response->set_content(wants_save   ? kSaveReply
+                          : wants_tool ? kToolReply
+                                       : kReply);
     return response;
   }
 
@@ -538,6 +575,89 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsToolsAndSendsResults) {
                                           "'.tool-label')?.textContent)"
                                           ".filter(Boolean).join()"),
             "Read the page's text");
+}
+
+// save_file asks in the panel first: Allow for this chat stops the
+// questions until New chat; Deny writes nothing (docs/design/claude.md,
+// "Files").
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksBeforeSaving) {
+  SetUpClaude();
+  base::ScopedTempDir dir;
+  base::FilePath folder;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(dir.CreateUniqueTempDir());
+    folder = dir.GetPath().AppendASCII("Saved");
+    ASSERT_TRUE(base::CreateDirectory(folder));
+  }
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  prefs->SetInteger(prefs::kFilesAccess,
+                    static_cast<int>(prefs::FilesAccess::kSave));
+  prefs->SetString(prefs::kFilesFolder, folder.AsUTF8Unsafe());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/page.html")));
+  content::WebContents* contents = Open();
+  ASSERT_TRUE(contents);
+  const std::string root = std::string("const root = ") + kRoot + ";";
+  auto send = [&](const std::string& text) {
+    ASSERT_TRUE(content::ExecJs(contents, root + R"(
+        const input = root.querySelector('#input');
+        input.value = ')" + text + R"(';
+        input.dispatchEvent(new InputEvent('input'));
+        input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}));)"));
+  };
+  auto approval_title = [&] {
+    return content::EvalJs(contents,
+                            std::string("(") + kRoot +
+                                ".querySelector('#approvalTitle')"
+                                "?.textContent.trim() || '')")
+        .ExtractString();
+  };
+  auto click = [&](const std::string& id) {
+    ASSERT_TRUE(content::ExecJs(
+        contents, root + "root.querySelector('#" + id + "').click();"));
+  };
+  auto exists = [&](const std::string& name) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    return base::PathExists(folder.AppendASCII(name));
+  };
+  // The reply ended: Send is back instead of Stop.
+  auto idle = [&] {
+    return content::EvalJs(contents, std::string("!!") + kRoot +
+                                         ".querySelector('#send')")
+        .ExtractBool();
+  };
+
+  send("Save a file.");
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return approval_title() == "Save \u201cfox.md\u201d in Saved"; }));
+  EXPECT_FALSE(exists("fox.md"));
+  click("allowForChat");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return TurnText(contents, "assistant", ".markdown") ==
+           "Hello from the fake API.";
+  }));
+  EXPECT_TRUE(exists("fox.md"));
+  EXPECT_EQ(approval_title(), "");
+  ASSERT_TRUE(base::test::RunUntil(idle));
+
+  // Allowed for this chat: no question.
+  send("Save a file again.");
+  ASSERT_TRUE(base::test::RunUntil([&] { return exists("fox (1).md"); }));
+  EXPECT_EQ(approval_title(), "");
+  ASSERT_TRUE(base::test::RunUntil([&] { return Bodies().size() == 4u; }));
+  ASSERT_TRUE(base::test::RunUntil(idle));
+
+  // A new chat asks again; Deny.
+  click("newChat");
+  send("Save a file.");
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return approval_title() == "Save \u201cfox.md\u201d in Saved"; }));
+  click("deny");
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return LastBody().find("The user didn't allow it.") != std::string::npos;
+  }));
+  EXPECT_FALSE(exists("fox (2).md"));
 }
 
 #if BUILDFLAG(IS_POSIX)

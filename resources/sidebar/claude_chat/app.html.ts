@@ -70,6 +70,29 @@ export function getHtml(this: CompassClaudeChatAppElement) {
       <span class="page-glyph" aria-hidden="true"></span>
       <span class="chip-text">${this.pageTitle_ || this.pageUrl_}</span>
     </button>` : nothing}`}
+  ${this.approvals_.length ? html`
+    <div class="approval" id="approval" role="alertdialog"
+        aria-labelledby="approvalTitle" aria-describedby="approvalDetail">
+      <div class="approval-title" id="approvalTitle">
+        ${this.approvals_[0]!.title}
+      </div>
+      ${this.approvals_[0]!.detail ? html`
+        <pre class="approval-detail" id="approvalDetail">${
+            this.approvals_[0]!.detail}</pre>` : nothing}
+      <div class="approval-buttons">
+        ${this.approvals_.length > 1 ? html`
+          <span class="approval-more">
+            ${this.approvals_.length - 1} more waiting
+          </span>` : nothing}
+        <span class="spacer"></span>
+        <button class="approval-button" id="deny"
+            @click="${this.onDenyClick_}">Deny</button>
+        <button class="approval-button" id="allowForChat"
+            @click="${this.onAllowForChatClick_}">Allow for this chat</button>
+        <button class="approval-button primary" id="allow"
+            @click="${this.onAllowClick_}">Allow</button>
+      </div>
+    </div>` : nothing}
   <div class="composer">
     <textarea id="input" rows="1" placeholder="Ask Claude…"
         aria-label="Message to Claude" ?disabled="${!this.hasKey_}"

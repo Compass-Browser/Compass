@@ -14,13 +14,17 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/files/file_path.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "compass/browser/claude/claude_memory.h"
+#include "compass/browser/claude/claude_prefs.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "url/gurl.h"
 
@@ -31,6 +35,24 @@ class WebContents;
 namespace compass::claude {
 
 class DevToolsSession;
+
+// The file tools' setting at a call (docs/design/claude.md, "Files").
+struct FilesConfig {
+  prefs::FilesAccess access = prefs::FilesAccess::kOff;
+  // "Save files": the folder, Downloads when none is chosen. "Use a folder":
+  // the folder, empty when none is chosen.
+  base::FilePath folder;
+};
+
+// What a tool asks the user before it acts.
+struct ApprovalRequest {
+  // The tool's name: "Allow for this chat" is per tool.
+  std::string tool;
+  // "Save “notes.md” in Downloads".
+  std::string title;
+  // What it writes (the start of it), or runs.
+  std::string detail;
+};
 
 // What a memory tool changed, so the chat can undo it.
 struct MemoryChange {
@@ -141,12 +163,22 @@ class ClaudeTools : public content::WebContentsObserver {
   // permitted" while "Let Claude use the whole browser" is off, so a
   // conversation stays valid when it's switched. The last one is marked for
   // caching.
-  static base::ListValue Definitions(bool memory = false);
+  // |files|: the file tools (always sent where they exist, as the browser
+  // tools; left out for MCP clients that have their own).
+  static base::ListValue Definitions(bool memory = false, bool files = true);
 
   // The memory the memory tools change, and whether they may now ("Let
   // Claude save memories"). Without it, they refuse.
   void SetMemory(ClaudeMemory* memory,
                  base::RepeatingCallback<bool()> may_save);
+
+  // The file tools' setting, read at each call, and how they ask the user
+  // before a write: |approve| runs its callback with true to go on. Without
+  // them, the file tools refuse.
+  using FilesConfigGetter = base::RepeatingCallback<FilesConfig()>;
+  using Approver = base::RepeatingCallback<void(ApprovalRequest,
+                                                base::OnceCallback<void(bool)>)>;
+  void SetFiles(FilesConfigGetter config, Approver approve);
 
   // The task's tab: the page tools act on it until select_tab or open_tab
   // picks another. Setting another one stops what runs.
@@ -237,6 +269,20 @@ class ClaudeTools : public content::WebContentsObserver {
   // remember, update_memory, forget.
   ToolResult RunMemoryTool(const std::string& name,
                            const base::DictValue& input);
+  // save_file, list_files, read_file, write_file.
+  void RunFileTool(const std::string& name, base::DictValue input);
+  // Asks the user about |request|, then runs |write| on the file sequence.
+  void ApproveThenWrite(
+      ApprovalRequest request,
+      base::OnceCallback<base::expected<std::string, std::string>()> write);
+  void OnApproval(
+      base::OnceCallback<base::expected<std::string, std::string>()> write,
+      bool allowed);
+  void OnWriteChecked(FilesConfig config,
+                      std::string path,
+                      std::string content,
+                      base::expected<bool, std::string> exists);
+  void FinishWithText(base::expected<std::string, std::string> text);
   // The browser tools ClaudeTabs runs.
   void RunBrowserTool(const std::string& name, base::DictValue input);
   void OnBrowserToolDone(TabsDelegate::Result result);
@@ -248,6 +294,10 @@ class ClaudeTools : public content::WebContentsObserver {
   std::unique_ptr<TabsDelegate> tabs_;
   base::WeakPtr<ClaudeMemory> memory_;
   base::RepeatingCallback<bool()> may_save_memory_;
+  FilesConfigGetter files_config_;
+  Approver approve_;
+  // Where file work runs (blocking).
+  scoped_refptr<base::SequencedTaskRunner> file_runner_;
   // The tab the user's message was about (SetTarget()).
   base::WeakPtr<content::WebContents> task_tab_;
   // Tabs Claude opened: the ones close_tab may close.

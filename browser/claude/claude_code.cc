@@ -164,14 +164,20 @@ std::vector<std::string> ClaudeCodeArgs(const ClaudeCodeOptions& options) {
       // Compass's prompt, not Claude Code's coding one.
       "--system-prompt",
       options.system_prompt,
-      // None of Claude Code's own tools: no files, shell or web.
-      "--tools",
-      "",
       // Not the user's settings, hooks or MCP servers either.
       "--setting-sources",
       "",
       "--strict-mcp-config",
   };
+  if (options.own_tools) {
+    // Its own tools, in the folder it runs in; it asks Compass (stdio)
+    // before what its permission mode asks about.
+    args.insert(args.end(), {"--tools", kClaudeCodeOwnTools,
+                             "--permission-prompt-tool", "stdio"});
+  } else {
+    // None of Claude Code's own tools: no files, shell or web.
+    args.insert(args.end(), {"--tools", ""});
+  }
   if (!options.model.empty()) {
     args.insert(args.end(), {"--model", options.model});
   }
@@ -283,6 +289,28 @@ std::vector<ClaudeCodeEvent> ParseClaudeCodeLine(std::string_view line) {
     }
     return events;
   }
+  if (*type == "control_request") {
+    // {"type": "control_request", "request_id": …, "request": {"subtype":
+    // "can_use_tool", "tool_name": …, "input": {…}}}: one of its own tools
+    // wants to run (--permission-prompt-tool stdio).
+    const std::string* request_id = dict->FindString("request_id");
+    const base::DictValue* request = dict->FindDict("request");
+    const std::string* subtype =
+        request ? request->FindString("subtype") : nullptr;
+    const std::string* tool =
+        request ? request->FindString("tool_name") : nullptr;
+    if (!request_id || !subtype || *subtype != "can_use_tool" || !tool) {
+      return events;
+    }
+    const base::DictValue* input = request->FindDict("input");
+    ClaudeCodeEvent& event = events.emplace_back();
+    event.type = ClaudeCodeEvent::Type::kPermission;
+    event.request_id = *request_id;
+    event.name = *tool;
+    event.data =
+        ToJson(base::Value(input ? input->Clone() : base::DictValue()));
+    return events;
+  }
   if (*type == "result") {
     ClaudeCodeEvent& event = events.emplace_back();
     event.type = ClaudeCodeEvent::Type::kResult;
@@ -292,6 +320,86 @@ std::vector<ClaudeCodeEvent> ParseClaudeCodeLine(std::string_view line) {
     return events;
   }
   return events;
+}
+
+std::string ClaudeCodePermissionLine(const std::string& request_id,
+                                     bool allow,
+                                     const std::string& input_json) {
+  base::DictValue answer;
+  if (allow) {
+    std::optional<base::DictValue> input =
+        base::JSONReader::ReadDict(input_json, base::JSON_PARSE_RFC);
+    answer.Set("behavior", "allow");
+    answer.Set("updatedInput", input ? std::move(*input) : base::DictValue());
+  } else {
+    answer.Set("behavior", "deny");
+    answer.Set("message", "The user didn't allow it.");
+  }
+  return ToJson(base::Value(
+             base::DictValue()
+                 .Set("type", "control_response")
+                 .Set("response", base::DictValue()
+                                      .Set("subtype", "success")
+                                      .Set("request_id", request_id)
+                                      .Set("response", std::move(answer))))) +
+         "\n";
+}
+
+ClaudeCodeApproval DescribeClaudeCodePermission(const std::string& tool,
+                                                const std::string& input_json) {
+  std::optional<base::DictValue> parsed =
+      base::JSONReader::ReadDict(input_json, base::JSON_PARSE_RFC);
+  const base::DictValue input =
+      parsed ? std::move(*parsed) : base::DictValue();
+  auto field = [&input](const char* key) {
+    const std::string* value = input.FindString(key);
+    return value ? *value : std::string();
+  };
+  auto quoted = [](const std::string& text) {
+    return base::StrCat({"\u201c", text, "\u201d"});
+  };
+  ClaudeCodeApproval approval;
+  if (tool == "Bash") {
+    approval.title = "Run a command";
+    approval.detail = field("command");
+    if (const std::string why = field("description"); !why.empty()) {
+      approval.detail = base::StrCat({why, "\n\n", approval.detail});
+    }
+  } else if (tool == "Write") {
+    approval.title = base::StrCat({"Write ", quoted(field("file_path"))});
+    approval.detail = field("content");
+  } else if (tool == "Edit") {
+    approval.title = base::StrCat({"Edit ", quoted(field("file_path"))});
+    approval.detail = base::StrCat({"Replace:\n", field("old_string"),
+                                    "\n\nWith:\n", field("new_string")});
+  } else if (tool == "WebFetch") {
+    approval.title = base::StrCat({"Fetch ", field("url")});
+    approval.detail = field("prompt");
+  } else if (tool == "WebSearch") {
+    approval.title = "Search the web";
+    approval.detail = field("query");
+  } else if (tool == "Read") {
+    approval.title = base::StrCat({"Read ", quoted(field("file_path"))});
+  } else if (tool == "Glob" || tool == "Grep") {
+    approval.title = base::StrCat({"Search files for ",
+                                   quoted(field("pattern"))});
+    approval.detail = field("path");
+  } else {
+    approval.title = base::StrCat({"Use ", tool});
+    approval.detail = input_json;
+  }
+  constexpr size_t kMaxDetail = 2000;
+  if (approval.detail.size() > kMaxDetail) {
+    size_t cut = kMaxDetail;
+    // Not in the middle of a character.
+    while (cut > 0 && (static_cast<unsigned char>(approval.detail[cut]) &
+                       0xC0) == 0x80) {
+      --cut;
+    }
+    approval.detail.resize(cut);
+    approval.detail += "\n…";
+  }
+  return approval;
 }
 
 ClaudeCodeStatus DescribeClaudeCodeStatus(std::string_view version,

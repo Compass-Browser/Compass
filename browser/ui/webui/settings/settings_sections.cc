@@ -14,6 +14,7 @@
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sync/compass_sync_ui.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
+#include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 
 namespace compass {
@@ -50,6 +51,7 @@ class SettingsSectionsImpl : public SettingsSections {
     claude_.reset();
     claude_ = std::make_unique<claude::ClaudeSettingsHandler>(
         Profile::FromWebUI(web_ui_), std::move(receiver));
+    claude_->SetWebContents(web_ui_->GetWebContents());
   }
 
  private:

@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import type {Memory, Model, SettingsState} from '../claude.mojom-webui.js';
-import {AuthStyle, Backend, SettingsHandler} from '../claude.mojom-webui.js';
+import {AuthStyle, Backend, FilesAccess, SettingsHandler} from
+    '../claude.mojom-webui.js';
 
 import {KNOWN_MODELS} from '../claude_models.js';
 
@@ -99,7 +100,66 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       this.$('copyMcpCommand').textContent = 'Copied';
     });
     this.setUpMemory_();
+    this.setUpFiles_();
     this.refresh_();
+  }
+
+  // Files (docs/design/claude.md, "Files").
+  private setUpFiles_() {
+    const choices: Array<[string, FilesAccess]> = [
+      ['filesOff', FilesAccess.kOff],
+      ['filesSave', FilesAccess.kSave],
+      ['filesFolder', FilesAccess.kFolder],
+    ];
+    for (const [id, access] of choices) {
+      this.$<HTMLInputElement>(id).addEventListener('change', async () => {
+        this.handler_.setFilesAccess(access);
+        await this.refresh_();
+        if (access === FilesAccess.kFolder && !this.state_?.filesFolder) {
+          await this.handler_.chooseFilesFolder();
+          await this.refresh_();
+        }
+      });
+    }
+    this.$('chooseFilesFolder').addEventListener('click', async () => {
+      await this.handler_.chooseFilesFolder();
+      await this.refresh_();
+    });
+    this.$('clearFilesFolder').addEventListener('click', async () => {
+      this.handler_.clearFilesFolder();
+      await this.refresh_();
+    });
+    this.$<HTMLInputElement>('claudeCodeOwnTools')
+        .addEventListener('change', () => {
+          this.handler_.setClaudeCodeOwnTools(
+              this.$<HTMLInputElement>('claudeCodeOwnTools').checked);
+        });
+  }
+
+  private renderFiles_(state: SettingsState) {
+    const access = state.filesAccess;
+    this.$<HTMLInputElement>('filesOff').checked = access === FilesAccess.kOff;
+    this.$<HTMLInputElement>('filesSave').checked =
+        access === FilesAccess.kSave;
+    this.$<HTMLInputElement>('filesFolder').checked =
+        access === FilesAccess.kFolder;
+    this.show('filesFolderRow', access !== FilesAccess.kOff);
+    this.show('filesAsk', access !== FilesAccess.kOff);
+    const path = this.$('filesFolderPath');
+    if (access === FilesAccess.kSave) {
+      path.textContent = state.filesFolder ||
+          `Downloads (${state.defaultSaveFolder})`;
+    } else {
+      path.textContent = state.filesFolder || 'No folder chosen';
+    }
+    path.title = path.textContent;
+    this.show('clearFilesFolder',
+              access === FilesAccess.kSave && state.filesFolder !== '');
+    const claudeCode = state.backend === Backend.kClaudeCode;
+    this.show('ownToolsRow', claudeCode && access === FilesAccess.kFolder);
+    const ownTools = this.$<HTMLInputElement>('claudeCodeOwnTools');
+    ownTools.checked = state.claudeCodeOwnTools;
+    ownTools.disabled = state.filesFolder === '';
   }
 
   private async refresh_() {
@@ -125,6 +185,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLInputElement>('acceptTokenRisks').checked =
         state.acceptTokenRisks;
     this.renderMcp_(state);
+    this.renderFiles_(state);
     this.renderModels_();
     this.show('memory', state.memorySupported);
     this.$<HTMLInputElement>('memoryEnabled').checked = state.memoryEnabled;

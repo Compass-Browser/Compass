@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/chrome_version.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/ui/claude/claude_files_config.h"
 #include "compass/browser/ui/claude/claude_tabs.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "components/prefs/pref_service.h"
@@ -197,9 +198,12 @@ void McpSession::Initialize(const base::Value& id,
 
 void McpSession::ListTools(const base::Value& id) {
   base::ListValue tools;
-  // A chat's Claude Code gets the memory tools; other clients don't.
-  for (base::Value& definition :
-       ClaudeTools::Definitions(/*memory=*/!chat_.is_null())) {
+  // A chat's Claude Code gets the memory tools, and the file tools unless it
+  // uses its own; other clients get neither (they have their own files).
+  const bool chat = !chat_.is_null();
+  for (base::Value& definition : ClaudeTools::Definitions(
+           /*memory=*/chat,
+           /*files=*/chat && !ClaudeCodeOwnToolsOn(profile_))) {
     base::DictValue& dict = definition.GetDict();
     base::DictValue tool;
     tool.Set("name", std::move(*dict.Find("name")));

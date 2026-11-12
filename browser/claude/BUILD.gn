@@ -65,6 +65,8 @@ source_set("claude") {
     "claude_client.h",
     "claude_credentials.cc",
     "claude_credentials.h",
+    "claude_files.cc",
+    "claude_files.h",
     "claude_request.cc",
     "claude_request.h",
     "claude_tools.cc",
@@ -119,6 +121,7 @@ if (!is_android) {
     sources = [
       "claude_api_unittest.cc",
       "claude_code_unittest.cc",
+      "claude_files_unittest.cc",
       "claude_memory_unittest.cc",
       "claude_request_unittest.cc",
       "key_events_unittest.cc",
