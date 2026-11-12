@@ -43,8 +43,10 @@ inline bool IsCompassCommand(int id) {
 }
 
 // Upstream commands of features Compass removes: bookmarks and the reading
-// list (pinned tabs are the bookmarks) and horizontal tabs (the sidebar is
-// the tab strip).
+// list (pinned tabs are the bookmarks), horizontal tabs (the sidebar is the
+// tab strip), tab search (the command bar finds tabs), and the app menu's
+// profile row and tab groups menu (a space picks its profile; folders are
+// its groups).
 // BrowserCommandController reports them unsupported, so no menu, shortcut
 // or caller can run them, and the menus leave them out.
 inline bool IsRemovedCommand(int id) {
@@ -65,6 +67,9 @@ inline bool IsRemovedCommand(int id) {
     case IDC_READING_LIST_MENU_SHOW_UI:
     case IDC_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST:
     case IDC_TOGGLE_VERTICAL_TABS:
+    case IDC_TAB_SEARCH:
+    case IDC_PROFILE_MENU_IN_APP_MENU:
+    case IDC_SAVED_TAB_GROUPS_MENU:
       return true;
     default:
       return false;

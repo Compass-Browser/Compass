@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 047674248727a122fb3aee712981eefd0a4c3049..e43db1507147293daec451d0cdb902cdd5f73f13 100644
+index 047674248727a122fb3aee712981eefd0a4c3049..4a9453ab7cdc0d403b8ddedd20e36aa27268db90 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
 @@ -293,9 +293,10 @@
@@ -34,3 +34,15 @@ index 047674248727a122fb3aee712981eefd0a4c3049..e43db1507147293daec451d0cdb902cd
            .submenu({
                Item(bookmarks_manager_string_id)
                    .command_id(IDC_SHOW_BOOKMARK_MANAGER),
+@@ -564,8 +569,10 @@
+                   .command_id(IDC_MOVE_TAB_TO_NEW_WINDOW),
+               Item(IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT)
+                   .command_id(IDC_NEW_SPLIT_TAB),
++              // Compass: no tab search; the command bar finds tabs.
+               Item(IDS_SEARCH_TABS)
+-                  .command_id(IDC_TAB_SEARCH),
++                  .command_id(IDC_TAB_SEARCH)
++                  .remove_if(true),
+               Item().is_separator(),
+           })
+           .Build();

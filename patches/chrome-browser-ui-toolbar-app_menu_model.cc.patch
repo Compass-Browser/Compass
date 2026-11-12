@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/toolbar/app_menu_model.cc b/chrome/browser/ui/toolbar/app_menu_model.cc
-index bd2dc982ea244b2107a23600b255509895c000f0..3538421f0f0ab58d5230101d2b229662b34ca91f 100644
+index bd2dc982ea244b2107a23600b255509895c000f0..16959d7d7c26d98092867c29b26cc123b1788faa 100644
 --- a/chrome/browser/ui/toolbar/app_menu_model.cc
 +++ b/chrome/browser/ui/toolbar/app_menu_model.cc
 @@ -4,6 +4,9 @@
@@ -12,7 +12,18 @@ index bd2dc982ea244b2107a23600b255509895c000f0..3538421f0f0ab58d5230101d2b229662
  #include <algorithm>
  #include <cmath>
  #include <memory>
-@@ -1066,7 +1069,11 @@ void ToolsMenuModel::Build(BrowserWindowInterface* browser) {
+@@ -1055,7 +1058,9 @@ void ToolsMenuModel::Build(BrowserWindowInterface* browser) {
+ #if BUILDFLAG(IS_CHROMEOS)
+   is_tablet_mode = display::Screen::Get()->InTabletMode();
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+-  if (!is_tablet_mode) {
++  // Compass: no tab search; the command bar finds tabs
++  // (compass::IsRemovedCommand()).
++  if (!is_tablet_mode && !compass::IsRemovedCommand(IDC_TAB_SEARCH)) {
+     AddItemWithStringIdAndVectorIcon(this, IDC_TAB_SEARCH, IDS_TAB_SEARCH_MENU,
+                                      features::IsRoundedIconsEnabled()
+                                          ? kManageSearchIcon
+@@ -1066,7 +1071,11 @@ void ToolsMenuModel::Build(BrowserWindowInterface* browser) {
        this, IDC_NAME_WINDOW, IDS_NAME_WINDOW,
        features::IsRoundedIconsEnabled() ? kWebAssetIcon : kNameWindowOldIcon);
  
@@ -25,7 +36,7 @@ index bd2dc982ea244b2107a23600b255509895c000f0..3538421f0f0ab58d5230101d2b229662
      if (controller->ShouldDisplayVerticalTabs()) {
        AddItemWithStringIdAndVectorIcon(
            this, IDC_TOGGLE_VERTICAL_TABS, IDS_SWITCH_TO_HORIZONTAL_TAB,
-@@ -2040,6 +2047,12 @@ bool AppMenuModel::IsCommandIdChecked(int command_id) const {
+@@ -2040,6 +2049,12 @@ bool AppMenuModel::IsCommandIdChecked(int command_id) const {
  }
  
  bool AppMenuModel::IsCommandIdEnabled(int command_id) const {
@@ -38,7 +49,25 @@ index bd2dc982ea244b2107a23600b255509895c000f0..3538421f0f0ab58d5230101d2b229662
    GlobalError* error =
        GlobalErrorServiceFactory::GetForProfile(browser_->GetProfile())
            ->GetGlobalErrorByMenuItemCommandID(command_id);
-@@ -2224,7 +2237,9 @@ void AppMenuModel::Build() {
+@@ -2175,6 +2190,9 @@ void AppMenuModel::Build() {
+   AddSeparator(ui::NORMAL_SEPARATOR);
+ 
+ #if !BUILDFLAG(IS_CHROMEOS)
++  // Compass: no profile row; a space picks its profile
++  // (compass::IsRemovedCommand()).
++  if (!compass::IsRemovedCommand(kProfileMenuPlaceholder)) {
+   sub_menus_.push_back(std::make_unique<ProfileSubMenuModel>(
+       this, browser()->GetProfile(),
+       BrowserWindow::FromBrowser(browser())->GetColorProvider()));
+@@ -2189,6 +2207,7 @@ void AppMenuModel::Build() {
+   SetAccessibleNameAt(GetIndexOfCommandId(kProfileMenuPlaceholder).value(),
+                       profile_submenu_model->accessible_name());
+   AddSeparator(ui::SPACING_SEPARATOR);
++  }
+ #endif
+ 
+   if (!browser_->GetProfile()->IsGuestSession()) {
+@@ -2224,7 +2243,9 @@ void AppMenuModel::Build() {
        features::IsRoundedIconsEnabled() ? kDownloadIcon : kDownloadMenuOldIcon);
    SetElementIdentifierAt(GetIndexOfCommandId(IDC_SHOW_DOWNLOADS).value(),
                           kDownloadsMenuItem);
@@ -49,7 +78,19 @@ index bd2dc982ea244b2107a23600b255509895c000f0..3538421f0f0ab58d5230101d2b229662
      bookmark_sub_menu_model_ =
          std::make_unique<BookmarkSubMenuModel>(this, browser_);
  
-@@ -2463,6 +2478,16 @@ void AppMenuModel::Build() {
+@@ -2238,7 +2259,10 @@ void AppMenuModel::Build() {
+         kBookmarksMenuItem);
+   }
+ 
+-  if (browser_->GetProfile()->IsRegularProfile()) {
++  // Compass: no tab groups menu; folders are its groups
++  // (compass::IsRemovedCommand()).
++  if (browser_->GetProfile()->IsRegularProfile() &&
++      !compass::IsRemovedCommand(kSavedTabGroupsMenuPlaceholder)) {
+     auto saved_tab_groups_model = std::make_unique<ui::SimpleMenuModel>(this);
+     sub_menus_.push_back(std::move(saved_tab_groups_model));
+     AddSubMenuWithStringIdAndVectorIcon(
+@@ -2463,6 +2487,16 @@ void AppMenuModel::Build() {
  #endif
  #endif
  

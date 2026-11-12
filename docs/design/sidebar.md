@@ -48,6 +48,13 @@ only the native `TabStripView`. Everything else in the region stays upstream.**
   something writes `false`, and `IDC_TOGGLE_VERTICAL_TABS` is a removed
   command (`compass::IsRemovedCommand()`), left out of the app menu, the
   macOS View menu and the title bar menu (D20).
+- **Other upstream menu items Compass leaves out** (removed commands too):
+  tab search (`IDC_TAB_SEARCH`: More tools, the macOS Tab menu and its
+  shortcut; the command bar finds tabs), the app menu's profile row
+  (`IDC_PROFILE_MENU_IN_APP_MENU`; a space picks its profile) and its tab
+  groups menu (`IDC_SAVED_TAB_GROUPS_MENU`; folders are Compass's groups).
+  History's "Your devices" section isn't built
+  (`RecentTabsSubMenuModel::BuildTabsFromOtherDevices()`).
 
 Alternatives we rejected:
 

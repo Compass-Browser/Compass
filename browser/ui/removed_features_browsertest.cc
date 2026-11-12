@@ -3,23 +3,28 @@
 // found in the LICENSE file.
 
 // Upstream features Compass removes: bookmarks and the reading list (pinned
-// tabs are the bookmarks) and horizontal tabs (compass::IsRemovedCommand()).
+// tabs are the bookmarks), horizontal tabs, tab search and parts of the app
+// menu (compass::IsRemovedCommand()).
 
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/strings/grit/components_strings.h"
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace compass {
@@ -75,6 +80,31 @@ IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest,
   prefs->SetBoolean(prefs::kVerticalTabsEnabled, false);
   EXPECT_TRUE(prefs->GetBoolean(prefs::kVerticalTabsEnabled));
   EXPECT_TRUE(controller->ShouldDisplayVerticalTabs());
+}
+
+// The app menu has no profile row, no tab groups menu and no "Search tabs"
+// under More tools; History has no "Your devices".
+IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest, AppMenuLeavesOut) {
+  EXPECT_FALSE(chrome::SupportsCommand(browser(), IDC_TAB_SEARCH));
+  EXPECT_FALSE(chrome::ExecuteCommand(browser(), IDC_TAB_SEARCH));
+
+  AppMenuModel model(/*provider=*/nullptr, browser());
+  model.Init();
+  EXPECT_FALSE(
+      model.GetIndexOfCommandId(AppMenuModel::kProfileMenuPlaceholder));
+  EXPECT_FALSE(
+      model.GetIndexOfCommandId(AppMenuModel::kSavedTabGroupsMenuPlaceholder));
+  EXPECT_TRUE(model.GetIndexOfCommandId(AppMenuModel::kRecentTabsMenuPlaceholder));
+
+  ToolsMenuModel tools(&model, browser());
+  EXPECT_TRUE(tools.GetItemCount());
+  EXPECT_FALSE(tools.GetIndexOfCommandId(IDC_TAB_SEARCH));
+
+  RecentTabsSubMenuModel history(/*accelerator_provider=*/nullptr, browser());
+  const std::u16string devices = l10n_util::GetStringUTF16(IDS_YOUR_DEVICES);
+  for (size_t i = 0; i < history.GetItemCount(); ++i) {
+    EXPECT_NE(history.GetLabelAt(i), devices) << i;
+  }
 }
 
 }  // namespace

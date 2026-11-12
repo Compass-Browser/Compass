@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc b/chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc
+index 9f467ba218f62d82f72194a9daa329257060abfa..68a5c6a4549714ab6532616c302ad94d5f5930a3 100644
+--- a/chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc
++++ b/chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc
+@@ -510,6 +510,10 @@ void RecentTabsSubMenuModel::BuildLocalEntries() {
+ }
+ 
+ void RecentTabsSubMenuModel::BuildTabsFromOtherDevices() {
++  // Compass: no "Your devices" in History (docs/design/sidebar.md).
++  if ((true)) {
++    return;
++  }
+   if (!remote_tabs_menu_util::ShouldShowTabsFromOtherDevices(
+           browser_->GetProfile())) {
+     return;
