@@ -330,8 +330,11 @@ opens the theme editor in the menu's place (laid out after Arc's):
   `"appearance": "light"|"dark"` (auto left out), mojo
   `SetSpaceAppearance()`. `SidebarTint::UpdateWindowTheme()` sets
   `Widget::SetColorModeOverride()`, so the browser's UI (frame, sidebar,
-  menus, WebUI) takes that mode; web pages keep the system's. Off the
-  record stays dark. Arc's equivalent wasn't found in its file, so imports
+  menus, WebUI) takes that mode. Web pages keep the system's, whatever
+  the space's mode: `GetPreferredColorScheme()` (patched in
+  chrome_content_browser_client.cc) gives every non-WebUI page the
+  system's `prefers-color-scheme` and a root scrollbar to match, as
+  upstream does only off the record. Off the record stays dark. Arc's equivalent wasn't found in its file, so imports
   stay automatic.
 - The pad: the space's colors as dots, hue as the angle round the center
   (red at the top, clockwise) and saturation as the distance (to 42% of

@@ -63,6 +63,8 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
+#include "ui/native_theme/mock_os_settings_provider.h"
+#include "ui/native_theme/native_theme.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "compass/browser/ui/views/frame/load_bar.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -628,6 +630,37 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, CollapsesAndResizes) {
     return region->width() == resized_width;
   }));
   EXPECT_TRUE(sidebar()->IsDrawn());
+}
+
+// Web pages follow the system's light or dark mode, not their space's
+// (docs/design/spaces.md, "Theme editor"); the browser's WebUI follows the
+// space's.
+class PageColorSchemeBrowserTest : public InProcessBrowserTest {
+ protected:
+  ui::MockOsSettingsProvider os_settings_provider_;
+};
+
+IN_PROC_BROWSER_TEST_F(PageColorSchemeBrowserTest, PagesFollowTheSystem) {
+  os_settings_provider_.SetPreferredColorScheme(
+      ui::NativeTheme::PreferredColorScheme::kLight);
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  space.SetAppearance(SpaceAppearance::kDark);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<p>page</p>")));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  auto page_is_dark = [&] {
+    return content::EvalJs(contents,
+                           "matchMedia('(prefers-color-scheme: dark)').matches")
+        .ExtractBool();
+  };
+  EXPECT_FALSE(page_is_dark());
+
+  os_settings_provider_.SetPreferredColorScheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+  EXPECT_TRUE(base::test::RunUntil(page_is_dark));
+  space.SetAppearance(SpaceAppearance::kLight);
+  EXPECT_TRUE(page_is_dark());
 }
 
 // Closing, the header and the page slide out sideways at their expanded size:

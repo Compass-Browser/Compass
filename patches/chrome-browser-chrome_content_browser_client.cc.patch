@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
-index 1defcfa514d5b100c35165f02ce91df492fa351e..2d650249eba545e680e78f94ababafd254d04e08 100644
+index 1defcfa514d5b100c35165f02ce91df492fa351e..9262e6859b112583a31ee15a45cdf12501cf924e 100644
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
 @@ -247,6 +247,7 @@
@@ -10,7 +10,31 @@ index 1defcfa514d5b100c35165f02ce91df492fa351e..2d650249eba545e680e78f94ababafd2
  #include "components/autofill/core/common/autofill_features.h"
  #include "components/autofill/core/common/autofill_switches.h"
  #include "components/blocked_content/popup_blocker.h"
-@@ -5170,6 +5171,9 @@ ChromeContentBrowserClient::GetForcedColorsForWebContents(
+@@ -4096,8 +4097,10 @@ GetPreferredColorScheme(const WebPreferences& web_prefs,
+       !security_principal.IsWebUI()) {
+     preferred_color_scheme = blink::mojom::PreferredColorScheme::kLight;
+   } else {
+-    if (profile->IsIncognitoProfile() && !security_principal.IsWebUI()) {
+-      // Incognito contents follow the device color mode by default.
++    // Compass: web pages follow the device color mode, as incognito ones
++    // do upstream. The window's mode is its space's (docs/design/spaces.md,
++    // "Theme editor"); only WebUI follows it.
++    if (!security_principal.IsWebUI()) {
+       preferred_color_scheme = ToBlinkPreferredColorScheme(
+           ui::NativeTheme::GetInstanceForWeb()->preferred_color_scheme());
+     } else {
+@@ -4123,6 +4126,10 @@ GetPreferredColorScheme(const WebPreferences& web_prefs,
+           web_contents->GetColorProvider().GetColor(kColorToolbar))
+           ? blink::mojom::PreferredColorScheme::kDark
+           : blink::mojom::PreferredColorScheme::kLight;
++  // Compass: a page's scrollbar matches the page, not the space's toolbar.
++  if (!security_principal.IsWebUI()) {
++    preferred_root_scrollbar_color_scheme = preferred_color_scheme;
++  }
+ #endif
+ 
+ #if BUILDFLAG(ENABLE_GUEST_VIEW)
+@@ -5170,6 +5177,9 @@ ChromeContentBrowserClient::GetForcedColorsForWebContents(
  
  void ChromeContentBrowserClient::BrowserURLHandlerCreated(
      BrowserURLHandler* handler) {
