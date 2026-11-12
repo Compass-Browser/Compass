@@ -70,6 +70,37 @@ enum AutoPiP {
   ///   picture-in-picture, so the app answers with enterSource/exitSource.
   ///   After its window closes or goes back to the page, a video isn't
   ///   moved again until it has been on screen.
+  /// Videos play in the page, not fullscreen: on the iPhone WebKit plays a
+  /// video inline only if it has `playsinline`, else it goes fullscreen as
+  /// it starts (YouTube's player, for one). Every video gets it as it's
+  /// added, before it can play; the player's own fullscreen button still
+  /// works. Main frame and frames alike (embeds), from the document's start.
+  static let inlineScript = WKUserScript(
+    source: """
+      (() => {
+        const inline = (video) => {
+          if (video.playsInline) return;
+          video.playsInline = true;
+          video.setAttribute("playsinline", "");
+          video.setAttribute("webkit-playsinline", "");
+        };
+        const scan = (root) => {
+          if (root instanceof HTMLVideoElement) inline(root);
+          if (root.querySelectorAll) for (const video of root.querySelectorAll("video")) inline(video);
+        };
+        new MutationObserver((records) => {
+          for (const record of records) for (const node of record.addedNodes) scan(node);
+        }).observe(document, { childList: true, subtree: true });
+        scan(document);
+        // A video made with document.createElement and played before it's
+        // in the page.
+        document.addEventListener("play", (event) => {
+          if (event.target instanceof HTMLVideoElement) inline(event.target);
+        }, true);
+      })();
+      """,
+    injectionTime: .atDocumentStart, forMainFrameOnly: false, in: world)
+
   static var script: WKUserScript {
     WKUserScript(
       source: """

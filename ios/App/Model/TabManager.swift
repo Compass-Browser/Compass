@@ -177,6 +177,7 @@ final class TabManager: NSObject {
       if let callScript = AutoPiP.callScript {
         configuration.userContentController.addUserScript(callScript)
       }
+      configuration.userContentController.addUserScript(AutoPiP.inlineScript)
       configuration.userContentController.addUserScript(AutoPiP.script)
       // Claude's read_console (ClaudeTools.swift).
       configuration.userContentController.addUserScript(ConsoleCapture.script)
