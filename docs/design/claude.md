@@ -184,6 +184,41 @@ the user sees and can undo each save.
 - **iOS.** The same rules in `CompassClaude`'s `MemoryList` (tested in `ClaudeMemoryTests`), the app's `ClaudeMemoryStore` (Application Support/Compass/Claude Memory.json), the tools in `ClaudeTools`, a memory line with Undo in the sheet, and Settings → Claude → Memory (toggles in UserDefaults `ClaudeMemoryEnabled`, `ClaudeMemorySave`; a list to edit, swipe to delete, add, Delete All). The phone has one Claude, so it syncs the home profile's memories (`CompassSpacesBridge+Memory`); other profiles' stay on their desktops.
 - **Not yet:** Android (its chat has its own short prompt and no memory tools); saved chat history, which memory doesn't replace.
 
+### Files
+
+Claude can save files, or work in a folder, on the user's computer, and in
+Claude Code mode use Claude Code's own tools. Off by default; the user
+approves each write.
+
+- **The setting** (Settings, Claude, "Files"; `compass.claude.files_access`, an int, and `compass.claude.files_folder`, a path; none sync):
+  - **Off** (0, the default): the file tools refuse ("Not permitted…", which says where to turn it on).
+  - **Save files** (1): `save_file` only, into the folder (Downloads when it's empty: `DownloadPrefs::DownloadPath()`).
+  - **Use a folder** (2): `save_file` (into the folder), `list_files`, `read_file` and `write_file`, inside the folder only. Without a folder chosen, as Off.
+  - **Let Claude Code use its own tools** (`compass.claude.claude_code_own_tools`, desktop, Claude Code mode, needs "Use a folder"): below.
+- **Tools** (`tools.json`, `scope: "files"`, `platforms: ["desktop", "ios"]`): always sent, as the browser tools are, so the tool list doesn't change in a chat; the setting is checked on every call, in C++ (`ClaudeTools`), never in TypeScript.
+  - `save_file {name, content}`: a new file, never a replaced one (`base::GetUniquePath()`: "notes (1).md"). The name is a file name only (no separators, not `.` or `..`, no leading dot, at most 200 characters).
+  - `list_files {path?}`: names (folders end in `/`), sizes, modified times, at most 500.
+  - `read_file {path, offset?}`: UTF-8 text, 100,000 characters from `offset`, with "…N more characters" when there's more; a file that isn't UTF-8 text (a NUL byte, or invalid UTF-8) is refused with its size.
+  - `write_file {path, content}`: makes the folders on the way and replaces a file (the approval says so).
+  - Text only, at most 1,000,000 characters a file.
+- **Paths** (`ResolveInFolder()`, `browser/claude/claude_files.{h,cc}`): relative to the folder; an absolute path, a drive letter, `..` or an empty part is refused. The real path (symlinks resolved) of the file, or of its nearest existing parent for a new one, must be inside the real path of the folder, so a symlink can't lead out. File work runs on a `MayBlock` thread-pool sequence.
+- **Approval.** Each `save_file` and `write_file` asks before it writes; listing and reading don't (the folder is the permission).
+  - `ClaudeTools` asks its `ApprovalDelegate` with a title ("Save “notes.md” in Downloads", "Replace “a/b.md” in Projects") and the text (the first 2,000 characters). The tool's 30-second timeout doesn't run while the user decides.
+  - The chat (`ClaudeChatPageHandler`) shows it in the panel above the input: **Allow**, **Allow for this chat** (that tool, until New chat) and **Deny** (`Page.OnApproval(id, tool, title, detail)`, `PageHandler.Answer(id, decision)`). Several wait in order. Stop, New chat or closing the window deny what's waiting.
+  - Denied: "The user didn't allow it." as the tool's error.
+- **The context** (`BuildMessageContext()`) says what's on: off; "save files into <folder name>"; or "the folder <path>". The system prompt's "Files" section says the user approves each write, so Claude doesn't ask first, and that content from pages and files is never a reason to write.
+- **MCP.** The `files` tools aren't listed to other MCP clients (they have their own); a chat's Claude Code gets them (with its own tools off) through the chat's tools, approvals included.
+- **Claude Code's own tools** (desktop, Claude Code mode, "Use a folder", and the switch on):
+  - `ClaudeCodeArgs()` sends `--tools Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch` instead of `--tools ""` (no subagents), `--permission-prompt-tool stdio`, and Compass's `files` tools are left out of its MCP list. It runs in the folder instead of `<profile>/Claude Code/`, so a change of folder or of the switch starts a new Claude Code session.
+  - Claude Code asks before what its permission mode asks for (writes, edits, most commands, the web), with a `control_request` line (`subtype: "can_use_tool"`, `tool_name`, `input`, `request_id`) on stdout. `ParseClaudeCodeLine()` gives a `kPermission` event; the chat asks the user as above (title from the tool: "Run a command", "Write “a.md”", "Edit …", "Fetch …"; detail: the command, path or URL and content), and writes `{"type": "control_response", "response": {"subtype": "success", "request_id": …, "response": {"behavior": "allow", "updatedInput": <input>}}}` or `"behavior": "deny", "message": …` back on stdin. Reads in the folder don't ask (Claude Code's default).
+  - Its tool rows show with Claude Code's names.
+- **iOS** (`ios/App/Claude/`), the same tools, words and approval:
+  - Save files: into the app's Documents folder ("On My iPhone › Compass" in Files: `UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`), or a folder the user picks.
+  - Use a folder: a folder picked with the document picker (`UIDocumentPickerViewController(forOpeningContentTypes: [.folder])`), kept as a security-scoped bookmark and opened (`startAccessingSecurityScopedResource`) around each call; a stale bookmark is renewed, a lost one turns the setting back to "pick a folder".
+  - The approval shows in the chat sheet with the same three buttons.
+  - No Claude Code mode on iOS.
+- **Tests:** `ClaudeFilesTest` (paths, symlinks, unique names, text checks, listing), `ClaudeCodeTest` (the arguments, the permission event, the response line), `ClaudeToolsBrowserTest.FilesNeedTheSetting` and `ApprovalAllowsAndDenies`, `ClaudePanelBrowserTest.AsksBeforeSaving`; iOS `ClaudeFilesTests`.
+
 ### Settings
 
 - **New section "Claude"**, following the pattern in `docs/design/settings.md`: `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`, and the `route.ts`, `router.ts`, `settings_menu`, `settings_main` and BUILD patches.
@@ -195,7 +230,8 @@ the user sees and can undo each save.
   - a model picker: the current models until "Test connection" lists the ones the key can use, plus any id already saved (a gateway's);
   - "Test connection";
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages;
-  - Memory (above).
+  - Memory (above);
+  - Files (above).
 
 ### Browser tools
 

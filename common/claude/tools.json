@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
+  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
   "tools": [
     {
       "scope": "page",
@@ -795,6 +795,112 @@
           },
           "required": [
             "id"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "files",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "save_file",
+        "description": "Save a new text file for the user: notes, a summary, a CSV, code. It goes into the folder the user chose in Compass's Claude settings (Downloads unless they changed it) and never replaces a file: a name that's taken gets a number. The user sees what you save and approves it first. Returns where it was saved. Needs file access to be on.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "The file's name with its extension, like \"notes.md\"; no folders."
+            },
+            "content": {
+              "type": "string",
+              "description": "The whole file, as text (UTF-8), at most 1,000,000 characters."
+            }
+          },
+          "required": [
+            "name",
+            "content"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "files",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "list_files",
+        "description": "List what's in the user's working folder (chosen in Compass's Claude settings), or in a folder inside it: names, folders marked with a trailing /, sizes and when each changed. At most 500 entries. Needs \"Use a folder\" access.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "A folder relative to the working folder, like \"notes/2026\"; empty or omitted for the working folder itself."
+            }
+          },
+          "required": []
+        }
+      }
+    },
+    {
+      "scope": "files",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "read_file",
+        "description": "Read a text file in the user's working folder: up to 100,000 characters from offset, and says when there's more. Not for binary files. Needs \"Use a folder\" access.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "The file, relative to the working folder."
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The character to start from (default 0)."
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "files",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "write_file",
+        "description": "Create or replace a text file in the user's working folder; folders on the way are made. The user sees the change and approves it first (they're told when it replaces a file). Files outside the working folder can't be written. Needs \"Use a folder\" access.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "The file, relative to the working folder, like \"notes/today.md\"."
+            },
+            "content": {
+              "type": "string",
+              "description": "The whole new file, as text (UTF-8), at most 1,000,000 characters."
+            }
+          },
+          "required": [
+            "path",
+            "content"
           ]
         }
       }
