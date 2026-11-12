@@ -255,6 +255,7 @@ either SVG.
 | `ui/message_center/vector_icons/product_old.icon` | the header of the browser's notifications | glyph, one color |
 | `chrome/app/vector_icons/chrome_product.icon`, `components/omnibox/browser/vector_icons/chrome_product.icon`, `ui/message_center/vector_icons/chrome_product.icon` | `kChromeProductIcon`: the same places with `features::kRoundedIcons` on (off by default) | glyph, one color |
 | `ui/webui/resources/cr_components/searchbox/icons/chrome_product_cr23{,_old}.svg` | the WebUI searchbox's `chrome://` matches, the contextual tasks toolbar | glyph, black |
+| `ui/webui/resources/cr_elements/icons.html.ts`, `chrome/browser/resources/settings/icons.html.ts` (`chrome-product` in each iconset) | `cr:chrome-product`, `settings20:chrome-product`: settings' "About Compass" menu item, Safety Hub, the certificate manager | glyph, one color (by hand, not `make_patches.py`) |
 | `components/resources/default_{100,200}_percent/chromium/favicon_product.png` | favicon of built-in pages | glyph |
 | `components/resources/default_{100,200}_percent/chromium/product_logo{,_white}.png` | `chrome://version` (logo and name) | glyph + "compass" |
 | `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_name_22{,_white}.png` | `IDR_PRODUCT_LOGO_NAME_22` | glyph + "compass" |
