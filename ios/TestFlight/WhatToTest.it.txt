@@ -1,5 +1,7 @@
-Claude ora può salvare e modificare file, sempre con il tuo OK.
+Claude ora può salvare e modificare file, sempre con il tuo OK, e il picture in picture automatico funziona su YouTube.
 
 - Impostazioni → Claude → Files: scegli Save Files (i nuovi file vanno nella cartella Downloads di Compass, nell'app File) o Use a Folder (scegli una cartella; Claude può elencare, leggere e scrivere file lì dentro, e da nessun'altra parte). Spento per impostazione predefinita.
 - Chiedi a Claude un file ("salva questi appunti in un file", "correggi gli errori in notes.md"). Prima di ogni salvataggio o modifica una scheda mostra cosa scriverà: Allow, Allow for This Chat o Deny.
-- Segnalate: una cartella dimenticata dopo aver riaperto Compass, file nel posto sbagliato, o una scheda che non sparisce.
+- YouTube: avvia un video con l'audio, poi cambia scheda o scorrilo fuori dallo schermo; deve continuare in una finestra picture in picture.
+- Se il picture in picture automatico non parte, Impostazioni → Auto Picture in Picture → Copy Diagnostics, e incollalo nella segnalazione.
+- Segnalate anche: una cartella dimenticata dopo aver riaperto Compass, file nel posto sbagliato, o una scheda che non sparisce.
