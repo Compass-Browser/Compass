@@ -9,6 +9,9 @@
 The two ribbons of assets/compass_glyph.svg, in one color, scaled so the
 glyph spans 20 of the canvas's 24 units, as upstream's product icon does.
 svg() gives the same glyph as a one-color SVG.
+
+Each ribbon is a path of its own: the two wind opposite ways, so as one
+path their overlap would cancel out and show what's behind the icon.
 """
 
 import math
@@ -81,7 +84,9 @@ def icon():
       '',
       'CANVAS_DIMENSIONS, %d,' % CANVAS,
   ]
-  for ribbon in RIBBONS:
+  for i, ribbon in enumerate(RIBBONS):
+    if i:
+      lines.append('NEW_PATH,')
     x, y = ribbon[0]
     lines.append('MOVE_TO, %s, %s,' % (_n(x * scale + dx), _n(y * scale + dy)))
     for r, large, sweep, x, y in ribbon[1:]:
@@ -96,8 +101,9 @@ def svg(size=16):
   """The glyph in black on a |size| px square, with the same margin as the
   vector icon: for WebUI, which draws such icons as masks or plain images."""
   scale, dx, dy = _transform(size, SPAN * size / CANVAS)
-  d = []
+  paths = []
   for ribbon in RIBBONS:
+    d = []
     x, y = ribbon[0]
     d.append('M%s %s' % (_n(x * scale + dx), _n(y * scale + dy)))
     for r, large, sweep, x, y in ribbon[1:]:
@@ -105,9 +111,10 @@ def svg(size=16):
                (_n(r * scale), _n(r * scale), large, sweep,
                 _n(x * scale + dx), _n(y * scale + dy)))
     d.append('Z')
+    paths.append('<path fill="#000" d="%s"/>' % ''.join(d))
   return ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" '
-          'viewBox="0 0 %d %d"><path fill="#000" d="%s"/></svg>\n' %
-          (size, size, size, size, ''.join(d)))
+          'viewBox="0 0 %d %d">%s</svg>\n' %
+          (size, size, size, size, ''.join(paths)))
 
 
 def main():

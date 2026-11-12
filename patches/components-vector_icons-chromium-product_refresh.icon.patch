@@ -1,8 +1,8 @@
 diff --git a/components/vector_icons/chromium/product_refresh.icon b/components/vector_icons/chromium/product_refresh.icon
-index 9551dab91d42270ab37b157d7cd65e85b36da129..6e41fe914a568573a22bed66b7a84ef57395565f 100644
+index 9551dab91d42270ab37b157d7cd65e85b36da129..e4df10c9bd579f86ac7851647f422032a4c038ad 100644
 --- a/components/vector_icons/chromium/product_refresh.icon
 +++ b/components/vector_icons/chromium/product_refresh.icon
-@@ -1,79 +1,18 @@
+@@ -1,79 +1,19 @@
 -// Copyright 2024 The Chromium Authors
 +// Copyright 2026 The Compass Authors
  // Use of this source code is governed by a BSD-style license that can be
@@ -24,7 +24,7 @@ index 9551dab91d42270ab37b157d7cd65e85b36da129..6e41fe914a568573a22bed66b7a84ef5
 +ARC_TO, 4.91, 4.91, 0, 0, 1, 8.34, 10.32,
 +ARC_TO, 2.55, 2.55, 0, 0, 0, 3.56, 8.58,
  CLOSE,
--NEW_PATH,
+ NEW_PATH,
 -FILL_RULE_NONZERO,
 -// Right color
 -PATH_COLOR_ARGB, 0xFF, 0xAE, 0xCB, 0xFA,

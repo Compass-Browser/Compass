@@ -1,8 +1,8 @@
 diff --git a/chrome/app/vector_icons/browser_logo_old.icon b/chrome/app/vector_icons/browser_logo_old.icon
-index 36957d19b5dc147cd16b667187005a45efc89a78..6e41fe914a568573a22bed66b7a84ef57395565f 100644
+index 36957d19b5dc147cd16b667187005a45efc89a78..e4df10c9bd579f86ac7851647f422032a4c038ad 100644
 --- a/chrome/app/vector_icons/browser_logo_old.icon
 +++ b/chrome/app/vector_icons/browser_logo_old.icon
-@@ -1,46 +1,18 @@
+@@ -1,46 +1,19 @@
 -// Copyright 2023 The Chromium Authors
 +// Copyright 2026 The Compass Authors
  // Use of this source code is governed by a BSD-style license that can be
@@ -36,6 +36,7 @@ index 36957d19b5dc147cd16b667187005a45efc89a78..6e41fe914a568573a22bed66b7a84ef5
 -R_LINE_TO, 2.77, 4.73,
 -R_CUBIC_TO, 0.33, 0.59, 0.77, 1.05, 1.35, 1.38,
 -R_CUBIC_TO, 0.58, 0.33, 1.2, 0.5, 1.87, 0.5,
++NEW_PATH,
 +MOVE_TO, 20.39, 5.31,
 +ARC_TO, 10, 10, 0, 0, 0, 3.89, 16.23,
 +ARC_TO, 2.55, 2.55, 0, 0, 0, 8.51, 14.07,

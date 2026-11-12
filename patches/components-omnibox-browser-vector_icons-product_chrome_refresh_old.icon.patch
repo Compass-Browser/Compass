@@ -1,8 +1,8 @@
 diff --git a/components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon b/components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon
-index 5c35bda0d736b6b257da1544e0326fddca944c50..6e41fe914a568573a22bed66b7a84ef57395565f 100644
+index 5c35bda0d736b6b257da1544e0326fddca944c50..e4df10c9bd579f86ac7851647f422032a4c038ad 100644
 --- a/components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon
 +++ b/components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon
-@@ -1,51 +1,18 @@
+@@ -1,51 +1,19 @@
 -// Copyright 2023 The Chromium Authors
 +// Copyright 2026 The Compass Authors
  // Use of this source code is governed by a BSD-style license that can be
@@ -37,6 +37,7 @@ index 5c35bda0d736b6b257da1544e0326fddca944c50..6e41fe914a568573a22bed66b7a84ef5
 -R_LINE_TO, 2.63, 4.55,
 -R_CUBIC_TO, 0.34, 0.59, 0.81, 1.07, 1.41, 1.43,
 -R_CUBIC_TO, 0.6, 0.36, 1.26, 0.54, 2.01, 0.54,
++NEW_PATH,
 +MOVE_TO, 20.39, 5.31,
 +ARC_TO, 10, 10, 0, 0, 0, 3.89, 16.23,
 +ARC_TO, 2.55, 2.55, 0, 0, 0, 8.51, 14.07,

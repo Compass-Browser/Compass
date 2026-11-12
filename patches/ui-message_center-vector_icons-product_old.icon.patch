@@ -1,8 +1,8 @@
 diff --git a/ui/message_center/vector_icons/product_old.icon b/ui/message_center/vector_icons/product_old.icon
-index 7a9570e8162642dc51e02f1ecc980696d6b85d4e..6e41fe914a568573a22bed66b7a84ef57395565f 100644
+index 7a9570e8162642dc51e02f1ecc980696d6b85d4e..e4df10c9bd579f86ac7851647f422032a4c038ad 100644
 --- a/ui/message_center/vector_icons/product_old.icon
 +++ b/ui/message_center/vector_icons/product_old.icon
-@@ -1,35 +1,18 @@
+@@ -1,35 +1,19 @@
 -// Copyright 2017 The Chromium Authors
 +// Copyright 2026 The Compass Authors
  // Use of this source code is governed by a BSD-style license that can be
@@ -30,6 +30,7 @@ index 7a9570e8162642dc51e02f1ecc980696d6b85d4e..6e41fe914a568573a22bed66b7a84ef5
 -R_CUBIC_TO, 0, 20, 14.4, 36.4, 33.6, 39.6,
 -R_LINE_TO, 13.2, -22.8,
 -R_CUBIC_TO, -2.4, 0.8, -4.4, 1.2, -6.8, 1.2,
++NEW_PATH,
 +MOVE_TO, 20.39, 5.31,
 +ARC_TO, 10, 10, 0, 0, 0, 3.89, 16.23,
 +ARC_TO, 2.55, 2.55, 0, 0, 0, 8.51, 14.07,

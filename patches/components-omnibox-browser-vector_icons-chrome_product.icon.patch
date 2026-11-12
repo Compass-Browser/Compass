@@ -1,8 +1,8 @@
 diff --git a/components/omnibox/browser/vector_icons/chrome_product.icon b/components/omnibox/browser/vector_icons/chrome_product.icon
-index bf0481342d68e85ab057b6ae121f328000eedcbf..6e41fe914a568573a22bed66b7a84ef57395565f 100644
+index bf0481342d68e85ab057b6ae121f328000eedcbf..e4df10c9bd579f86ac7851647f422032a4c038ad 100644
 --- a/components/omnibox/browser/vector_icons/chrome_product.icon
 +++ b/components/omnibox/browser/vector_icons/chrome_product.icon
-@@ -1,48 +1,18 @@
+@@ -1,48 +1,19 @@
 -// Copyright 2026 The Chromium Authors
 +// Copyright 2026 The Compass Authors
  // Use of this source code is governed by a BSD-style license that can be
@@ -37,6 +37,7 @@ index bf0481342d68e85ab057b6ae121f328000eedcbf..6e41fe914a568573a22bed66b7a84ef5
 -R_LINE_TO, 4, 6.93f,
 -R_ARC_TO, 5.97f, 5.97f, 0, 0, 0, 2.15f, 2.18f,
 -R_CUBIC_TO, 0.92f, 0.55f, 1.93f, 0.82f, 3.05f, 0.82f,
++NEW_PATH,
 +MOVE_TO, 20.39, 5.31,
 +ARC_TO, 10, 10, 0, 0, 0, 3.89, 16.23,
 +ARC_TO, 2.55, 2.55, 0, 0, 0, 8.51, 14.07,

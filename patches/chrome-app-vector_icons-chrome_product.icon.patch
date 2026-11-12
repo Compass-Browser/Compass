@@ -1,8 +1,8 @@
 diff --git a/chrome/app/vector_icons/chrome_product.icon b/chrome/app/vector_icons/chrome_product.icon
-index 31cb949b87c19fbbbb9833294cc9201e994a5504..6e41fe914a568573a22bed66b7a84ef57395565f 100644
+index 31cb949b87c19fbbbb9833294cc9201e994a5504..e4df10c9bd579f86ac7851647f422032a4c038ad 100644
 --- a/chrome/app/vector_icons/chrome_product.icon
 +++ b/chrome/app/vector_icons/chrome_product.icon
-@@ -1,47 +1,18 @@
+@@ -1,47 +1,19 @@
 -// Copyright 2026 The Chromium Authors
 +// Copyright 2026 The Compass Authors
  // Use of this source code is governed by a BSD-style license that can be
@@ -37,6 +37,7 @@ index 31cb949b87c19fbbbb9833294cc9201e994a5504..6e41fe914a568573a22bed66b7a84ef5
 -R_LINE_TO, 2.77f, 4.73f,
 -R_CUBIC_TO, 0.33f, 0.59f, 0.77f, 1.05f, 1.35f, 1.38f,
 -R_CUBIC_TO, 0.58f, 0.33f, 1.2f, 0.5f, 1.87f, 0.5f,
++NEW_PATH,
 +MOVE_TO, 20.39, 5.31,
 +ARC_TO, 10, 10, 0, 0, 0, 3.89, 16.23,
 +ARC_TO, 2.55, 2.55, 0, 0, 0, 8.51, 14.07,
