@@ -66,6 +66,41 @@ struct LivePluginTests {
     #expect(!LivePluginPackage.isAllowedSource(URL(string: "http://example.com/m.json")!))
   }
 
+  @Test func pluginsCopiedInByHand() throws {
+    let rules = LiveRules(scripts: scripts)
+    let fm = FileManager.default
+    let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? fm.removeItem(at: dir) }
+    let manifest = Data("""
+      {"id": "com.example.hand", "name": "By Hand", "version": "1.0", "api": 1, "hosts": ["example.com"]}
+      """.utf8)
+    let entryName = try rules.manifest(manifest).entry
+    let good = dir.appendingPathComponent("By Hand", isDirectory: true)
+    try fm.createDirectory(at: good, withIntermediateDirectories: true)
+    try manifest.write(to: good.appendingPathComponent("manifest.json"))
+    try Data("async function fetchItems() { return {items: []}; }".utf8)
+      .write(to: good.appendingPathComponent(entryName))
+    // No manifest; a script missing; a built-in's ID; a loose file.
+    try fm.createDirectory(at: dir.appendingPathComponent("Empty"), withIntermediateDirectories: true)
+    let noScript = dir.appendingPathComponent("No Script", isDirectory: true)
+    try fm.createDirectory(at: noScript, withIntermediateDirectories: true)
+    try manifest.write(to: noScript.appendingPathComponent("manifest.json"))
+    let claim = dir.appendingPathComponent("Claim", isDirectory: true)
+    try fm.createDirectory(at: claim, withIntermediateDirectories: true)
+    try Data(#"{"id": "compass.rss", "name": "X", "version": "1", "api": 1}"#.utf8)
+      .write(to: claim.appendingPathComponent("manifest.json"))
+    try Data("x".utf8).write(to: claim.appendingPathComponent(entryName))
+    try Data("note".utf8).write(to: dir.appendingPathComponent("Read Me.txt"))
+
+    let found = LivePluginPackage.manual(in: dir, rules: rules)
+    #expect(found.plugins.map(\.id) == ["com.example.hand"])
+    #expect(found.plugins.first?.sourceURL.hasPrefix("file:") == true)
+    #expect(found.problems.count == 3)
+    #expect(found.problems.contains { $0.hasPrefix("Empty: ") && $0.contains("manifest.json") })
+    #expect(found.problems.contains { $0.hasPrefix("No Script: ") })
+    #expect(found.problems.contains { $0.hasPrefix("Claim: ") })
+  }
+
   @Test func redirectsAndCookieHosts() {
     let allowed = LiveAllowedHosts(hosts: ["example.com", "*.cdn.example.net"], cookies: ["example.com"])
     #expect(allowed.allows(URL(string: "https://example.com/a")!))

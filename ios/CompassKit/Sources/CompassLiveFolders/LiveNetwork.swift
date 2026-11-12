@@ -283,6 +283,52 @@ public struct LivePluginPackage: Sendable, Equatable {
     }
   }
 
+  /// Plugins the user copied in by hand (the Files app's "Live Folder
+  /// Plugins" folder): each folder with a manifest.json, its entry and its
+  /// icon beside it, as a plugin's own files are. Their source is the
+  /// folder's file URL, so other devices syncing their folders can't fetch
+  /// them. Folders that aren't a valid plugin come back in `problems`, by
+  /// folder name.
+  public static func manual(in directory: URL, rules: LiveRules)
+    -> (plugins: [LivePlugin], problems: [String])
+  {
+    let fm = FileManager.default
+    let names = (try? fm.contentsOfDirectory(atPath: directory.path)) ?? []
+    var plugins: [LivePlugin] = []
+    var problems: [String] = []
+    for name in names.sorted() where !name.hasPrefix(".") {
+      let folder = directory.appendingPathComponent(name, isDirectory: true)
+      var isFolder: ObjCBool = false
+      guard fm.fileExists(atPath: folder.path, isDirectory: &isFolder), isFolder.boolValue else { continue }
+      do {
+        guard let manifestJSON = try? Data(contentsOf: folder.appendingPathComponent("manifest.json")) else {
+          throw LiveError("bad_plugin", "no manifest.json")
+        }
+        guard manifestJSON.count <= maxManifestBytes else { throw LiveError("bad_plugin", "manifest.json is too large") }
+        let manifest: LiveManifest
+        do {
+          manifest = try rules.manifest(manifestJSON)
+        } catch let error as LiveError {
+          throw LiveError("bad_manifest", error.message)
+        }
+        guard let entry = try? Data(contentsOf: folder.appendingPathComponent(manifest.entry)) else {
+          throw LiveError("bad_plugin", "no \(manifest.entry) beside manifest.json")
+        }
+        guard entry.count <= maxEntryBytes else { throw LiveError("bad_plugin", "\(manifest.entry) is too large") }
+        var icon = manifest.icon.flatMap { try? Data(contentsOf: folder.appendingPathComponent($0)) } ?? Data()
+        if icon.count > maxIconBytes { icon = Data() }
+        let package = try LivePluginPackage(
+          source: folder, manifestJSON: manifestJSON, entry: entry, icon: icon, rules: rules)
+        plugins.append(package.plugin)
+      } catch let error as LiveError {
+        problems.append("\(name): \(error.message)")
+      } catch {
+        problems.append("\(name): \(error.localizedDescription)")
+      }
+    }
+    return (plugins, problems)
+  }
+
   public var plugin: LivePlugin {
     LivePlugin(
       manifest: manifest, source: String(decoding: entry, as: UTF8.self), icon: icon.isEmpty ? nil : icon,

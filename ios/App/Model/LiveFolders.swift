@@ -46,6 +46,13 @@ final class LiveFolders {
   private let scripts: LiveScripts?
   let rules: LiveRules?
   private let pluginsDirectory: URL
+  /// Plugins copied in by hand: Documents/Live Folder Plugins, which the
+  /// Files app shows under On My iPhone › Compass. Read again whenever the
+  /// app comes to the front.
+  static let manualDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("Live Folder Plugins", isDirectory: true)
+  /// Folders there that aren't a valid plugin, and why.
+  private(set) var manualProblems: [String] = []
   private let settingsURL: URL
   @ObservationIgnored private var cookieGrants: Set<String> = []
   @ObservationIgnored private var queue: [String] = []
@@ -85,7 +92,39 @@ final class LiveFolders {
     guard let scripts, let rules else { return }
     let installed = LivePluginPackage.installed(in: pluginsDirectory, rules: rules)
       .filter { !$0.isBuiltin }.sorted { $0.manifest.name.localizedStandardCompare($1.manifest.name) == .orderedAscending }
-    plugins = scripts.builtins() + installed
+    prepareManualDirectory()
+    let manual = LivePluginPackage.manual(in: Self.manualDirectory, rules: rules)
+    manualProblems = manual.problems
+    // A plugin copied in by hand wins over one installed from an address
+    // with the same ID: it's the one being worked on.
+    let manualIDs = Set(manual.plugins.map(\.id))
+    let all = (installed.filter { !manualIDs.contains($0.id) } + manual.plugins.filter { !$0.isBuiltin })
+      .sorted { $0.manifest.name.localizedStandardCompare($1.manifest.name) == .orderedAscending }
+    plugins = scripts.builtins() + all
+  }
+
+  /// Made on first use, with a note on what goes in it.
+  private func prepareManualDirectory() {
+    let fm = FileManager.default
+    guard !fm.fileExists(atPath: Self.manualDirectory.path) else { return }
+    try? fm.createDirectory(at: Self.manualDirectory, withIntermediateDirectories: true)
+    let note = """
+      Live folder plugins you install by hand.
+
+      Copy a plugin's folder here: its manifest.json, with the script and
+      icon it names beside it. Compass loads it the next time it comes to
+      the front, and lists it in New Live Folder. Delete the folder to
+      remove the plugin.
+
+      Install only plugins you trust: a plugin sees the pages it reaches.
+
+      """
+    try? Data(note.utf8).write(to: Self.manualDirectory.appendingPathComponent("Read Me.txt"))
+  }
+
+  /// Whether `plugin` came from the hand-installed folder.
+  func isManual(_ plugin: LivePlugin) -> Bool {
+    plugin.sourceURL.hasPrefix("file:")
   }
 
   func plugin(id: String) -> LivePlugin? { plugins.first { $0.id == id } }
@@ -114,6 +153,9 @@ final class LiveFolders {
 
   func remove(_ plugin: LivePlugin) {
     guard !plugin.isBuiltin else { return }
+    if isManual(plugin), let folder = URL(string: plugin.sourceURL) {
+      try? FileManager.default.removeItem(at: folder)
+    }
     try? FileManager.default.removeItem(at: pluginsDirectory.appendingPathComponent(plugin.id, isDirectory: true))
     reloadPlugins()
   }
