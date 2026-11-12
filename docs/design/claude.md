@@ -78,7 +78,8 @@ yet.
 ### Chat panel
 
 - **Surface.** `compass::claude::ClaudePanel` (`browser/ui/views/claude/`), owned by the window's sidebar view. It registers a window-wide upstream side panel entry on first use, `SidePanelEntry::Id::kCompassClaude` (one-line patch of `side_panel_entry_id.h`), on the right, since the sidebar is on the left. The entry holds `chrome://compass-claude` (`ClaudeChatUI`) in a `SidePanelWebUIViewT`.
-  - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model, New chat, close).
+  - The entry has no upstream header (`set_should_show_header(false)`), so it needs no browser action: the page draws its own (title, model menu, New chat, close).
+  - The **model menu** lists the known models (`resources/sidebar/claude_models.ts`, shared with settings' picker) and the one in use if it's another; choosing one sets `compass.claude.model` (`PageHandler.SetModel()`), as settings do. It's off while Claude replies. The conversation goes on with the new model: on the Claude API its earlier thinking that no longer matches is dropped; on Claude Code the session is resumed on it.
   - Upstream provides resizing, the open and close animation, and the switch with extensions' `sidePanel` pages.
   - The entry has no toolbar action. Upstream's `SidePanelToolbarPinningController::UpdateActiveState()` `CHECK`s for one, so a second patch makes it skip entries without one.
   - Closing the panel keeps the conversation. Upstream's side panel destroys a closed entry's view (`ClearCachedEntryViews()`), so `ClaudePanel` owns the page's `WebUIContentsWrapper` for the window's life and wraps it in a new `SidePanelWebUIView` at each show (which shows itself: the wrapper reports ready only on the first load). A reply streaming as the panel closes goes on, and so does a Claude Code session.

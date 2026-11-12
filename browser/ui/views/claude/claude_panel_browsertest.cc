@@ -311,6 +311,33 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, WithoutAKeyAsksForOne) {
   EXPECT_TRUE(base::test::RunUntil([&] { return !panel()->IsShowing(); }));
 }
 
+// The header's model menu sets the model, and shows one picked elsewhere
+// (settings, a gateway's id) too.
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, ModelMenuSetsTheModel) {
+  SetUpClaude();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  content::WebContents* contents = Open();
+  ASSERT_TRUE(contents);
+  const std::string menu = std::string(kRoot) + ".querySelector('#model')";
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(contents, menu + "?.value").ExtractString() ==
+           "claude-opus-5-5";
+  }));
+  ASSERT_TRUE(content::ExecJs(
+      contents, "{ const m = " + menu +
+                    "; m.value = 'claude-sonnet-5-5';"
+                    " m.dispatchEvent(new Event('change')); }"));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return prefs->GetString(prefs::kModel) == "claude-sonnet-5-5";
+  }));
+
+  prefs->SetString(prefs::kModel, "my-gateway-model");
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(contents, menu + "?.value").ExtractString() ==
+           "my-gateway-model";
+  }));
+}
+
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksAboutThePage) {
   SetUpClaude();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(

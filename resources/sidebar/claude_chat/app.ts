@@ -9,6 +9,8 @@ import type {ActivePage, Setup} from '../chat.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
+import {KNOWN_MODELS} from '../claude_models.js';
+
 import {ClaudeChatBrowserProxy} from './browser_proxy.js';
 import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from './conversation.js';
 import {Conversation, pageBlock} from './conversation.js';
@@ -202,6 +204,23 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.pageUrl_ = page.url;
     this.pageTitle_ = page.title;
     this.pageReadable_ = page.readable;
+  }
+
+  // The model menu: the known models, and the one in use if it's another
+  // (typed in settings). Names without "Claude ".
+  protected getModels_() {
+    const models = KNOWN_MODELS.map(
+        m => ({id: m.id, name: m.displayName.replace(/^Claude /, '')}));
+    if (this.model_ && !models.some(m => m.id === this.model_)) {
+      models.push({id: this.model_, name: this.model_});
+    }
+    return models;
+  }
+
+  protected onModelChange_(e: Event) {
+    const model = (e.target as HTMLSelectElement).value;
+    this.model_ = model;
+    this.browserProxy_.handler.setModel(model);
   }
 
   protected canSend_(): boolean {

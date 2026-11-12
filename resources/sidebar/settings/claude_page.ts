@@ -5,6 +5,8 @@
 import type {Memory, Model, SettingsState} from '../claude.mojom-webui.js';
 import {AuthStyle, Backend, SettingsHandler} from '../claude.mojom-webui.js';
 
+import {KNOWN_MODELS} from '../claude_models.js';
+
 import {getTemplate} from './claude_page.html.js';
 import {CompassSettingsPage} from './page_base.js';
 
@@ -12,14 +14,6 @@ import {CompassSettingsPage} from './page_base.js';
 // the browser, which stores it encrypted; the page only ever gets its hint
 // back. Or the chat runs on the user's Claude Code (D8). See
 // docs/design/claude.md, "Settings".
-
-// Offered before a connection test lists what the key can use.
-const KNOWN_MODELS: Model[] = [
-  {id: 'claude-opus-5-5', displayName: 'Claude Opus 5.5'},
-  {id: 'claude-sonnet-5-5', displayName: 'Claude Sonnet 5.5'},
-  {id: 'claude-haiku-5-5', displayName: 'Claude Haiku 5.5'},
-  {id: 'claude-fable-5-1', displayName: 'Claude Fable 5.1'},
-];
 
 export class CompassClaudePageElement extends CompassSettingsPage {
   private handler_ = SettingsHandler.getRemote();

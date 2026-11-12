@@ -74,6 +74,7 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
                RunToolCallback callback) override;
   void Stop() override;
   void OpenSettings() override;
+  void SetModel(const std::string& model) override;
   void OpenLink(const std::string& url) override;
   void ClosePanel() override;
   void TakeQuestion(TakeQuestionCallback callback) override;

@@ -13,6 +13,7 @@
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/path_service.h"
 #include "base/task/thread_pool.h"
@@ -520,6 +521,19 @@ void ClaudeChatPageHandler::RunChatTool(
 
 void ClaudeChatPageHandler::OpenSettings() {
   chrome::ShowSettingsSubPage(browser_, kClaudeSettingsSubPage);
+}
+
+void ClaudeChatPageHandler::SetModel(const std::string& model) {
+  // As ClaudeSettingsHandler::SetModel(); the pref change sends the page
+  // its setup again.
+  PrefService* prefs = browser_->GetProfile()->GetPrefs();
+  const std::string_view trimmed =
+      base::TrimWhitespaceASCII(model, base::TRIM_ALL);
+  if (trimmed.empty()) {
+    prefs->ClearPref(prefs::kModel);
+  } else {
+    prefs->SetString(prefs::kModel, std::string(trimmed));
+  }
 }
 
 void ClaudeChatPageHandler::OpenLink(const std::string& url) {

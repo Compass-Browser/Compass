@@ -70,6 +70,9 @@ interface PageHandler {
   // Stops the reply and any tool; no OnStreamDone follows.
   Stop();
   OpenSettings();
+  // The header's model menu: sets the model, as Claude settings do (empty
+  // for the default). The conversation goes on with it.
+  SetModel(string model);
   // A link in a reply: opens in a new tab (http and https only).
   OpenLink(string url);
   ClosePanel();

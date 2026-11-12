@@ -12,7 +12,13 @@ export function getHtml(this: CompassClaudeChatAppElement) {
 <header>
   <span class="logo" aria-hidden="true"></span>
   <span class="title">Claude</span>
-  <span class="model" title="Model (Claude settings)">${this.model_}</span>
+  <select class="model" id="model" title="Model" aria-label="Model"
+      ?disabled="${this.streaming_}" @change="${this.onModelChange_}">
+    ${this.getModels_().map(m => html`
+      <option value="${m.id}" .selected="${m.id === this.model_}">
+        ${m.name}
+      </option>`)}
+  </select>
   <span class="spacer"></span>
   <button class="icon" id="newChat" title="New chat" aria-label="New chat"
       ?disabled="${!this.hasTurns_()}" @click="${this.onNewChatClick_}">

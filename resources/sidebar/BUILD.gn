@@ -36,6 +36,7 @@ build_webui("build") {
     "claude_chat/markdown.ts",
     "claude_chat/turn.html.ts",
     "claude_chat/turn.ts",
+    "claude_models.ts",
     "colors.ts",
     "command_bar/app.html.ts",
     "command_bar/app.ts",
