@@ -76,7 +76,10 @@ enum AutoPiP {
         (() => {
           const enabled = \(isOn);
           const post = (m) => window.webkit.messageHandlers.\(handler).postMessage(m);
-          const eligible = (v) => !v.paused && !v.ended && !v.muted && v.volume > 0 && !v.disablePictureInPicture
+          // disablePictureInPicture doesn't count: YouTube sets it on its
+          // player, and the window is what Compass offers (the enter script
+          // clears it), as for calls.
+          const eligible = (v) => !v.paused && !v.ended && !v.muted && v.volume > 0
             && v.offsetWidth >= 100 && v.offsetHeight >= 100;
           let last = "idle";
           const update = () => {
@@ -148,6 +151,25 @@ enum AutoPiP {
             }
             return "";
           };
+          // While Compass's window shows the video, the page doesn't hear it
+          // went hidden: YouTube pauses on that (background play is a paid
+          // feature there), which would end the window at once. A capture
+          // listener on the window comes before the page's own on the
+          // document.
+          const inWindow = () => {
+            const video = window.__compassAutoPiP;
+            return !!video && (document.pictureInPictureElement === video
+              || video.webkitPresentationMode === "picture-in-picture" || video.__compassEntering);
+          };
+          for (const type of ["visibilitychange", "webkitvisibilitychange", "pagehide", "blur"]) {
+            window.addEventListener(type, (event) => {
+              // The page's own (not a field's blur, which still has to work).
+              if ((event.target === window || event.target === document) && inWindow()) {
+                event.stopImmediatePropagation();
+              }
+            }, true);
+          }
+
           // Watched from its first play; observing again reports where it
           // is now (a video started while off screen counts).
           const watched = new WeakSet();
@@ -173,13 +195,18 @@ enum AutoPiP {
       if (document.pictureInPictureElement) return "already in PiP";
       if (videos.some((v) => v.webkitPresentationMode && v.webkitPresentationMode !== "inline")) return "already presented";
       const why = (v) => v.paused ? "paused" : v.ended ? "ended" : v.muted || v.volume === 0 ? "muted"
-        : v.readyState < 2 ? "not ready" : v.disablePictureInPicture ? "PiP disabled by page"
+        : v.readyState < 2 ? "not ready"
         : v.offsetWidth < 100 || v.offsetHeight < 100 ? `small ${v.offsetWidth}x${v.offsetHeight}` : "";
       // A call: its pick (the largest remote tile), muted as tiles are.
       const call = globalThis.compassCallPip?.inCall() ? globalThis.compassCallPip.pick() : null;
       const candidates = call ? [call] : videos.filter((v) => !why(v));
       if (candidates.length !== 1) return `${candidates.length} candidates (${videos.map(why).join(", ")})`;
       const video = candidates[0];
+      // Sites switch it off (YouTube's player): the window is Compass's.
+      if (video.disablePictureInPicture) video.disablePictureInPicture = false;
+      // Until the window is up, the page's "hidden" is held back too.
+      video.__compassEntering = true;
+      setTimeout(() => { video.__compassEntering = false; }, 3000);
       window.__compassAutoPiP = video;
       if (scroll) window.__compassAutoPiPScroll = video;
       if (video.requestPictureInPicture) {
