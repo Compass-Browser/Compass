@@ -1,5 +1,5 @@
-Più modi di aprire un link, e Condividi dal pulsante del menu.
+Claude ora può salvare e modificare file, sempre con il tuo OK.
 
-- Tieni premuto un link: dopo Peek, il menu ora ha Open in New Tab, Open in Background, Open in Incognito, Open in Little Window e Pin. In una scheda in incognito compaiono solo Peek, Open in New Tab e Open in Background, così i suoi link restano in incognito.
-- Tieni premuto il pulsante … nella barra in basso per condividere la pagina che stai guardando.
-- Aspettiamo ancora segnalazioni sulle finestrelle su iPad: una che si apre come finestra intera o non si apre, il pulsante indietro sotto i controlli della finestra, o una finestra vuota dopo aver riaperto Compass.
+- Impostazioni → Claude → Files: scegli Save Files (i nuovi file vanno nella cartella Downloads di Compass, nell'app File) o Use a Folder (scegli una cartella; Claude può elencare, leggere e scrivere file lì dentro, e da nessun'altra parte). Spento per impostazione predefinita.
+- Chiedi a Claude un file ("salva questi appunti in un file", "correggi gli errori in notes.md"). Prima di ogni salvataggio o modifica una scheda mostra cosa scriverà: Allow, Allow for This Chat o Deny.
+- Segnalate: una cartella dimenticata dopo aver riaperto Compass, file nel posto sbagliato, o una scheda che non sparisce.

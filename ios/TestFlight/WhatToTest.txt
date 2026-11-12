@@ -1,5 +1,5 @@
-More ways to open a link, and Share from the menu button.
+Claude can now save and edit files, with your OK each time.
 
-- Long-press a link: after Peek, the menu now has Open in New Tab, Open in Background, Open in Incognito, Open in Little Window and Pin. In an incognito tab only Peek, Open in New Tab and Open in Background show, so its links stay incognito.
-- Long-press the … button in the bottom bar to share the page you're on.
-- Still looking for reports on little windows on iPad: one that opens as a full window or doesn't open at all, its back button under the window controls, or an empty window after relaunching Compass.
+- Settings → Claude → Files: choose Save Files (new files go to Compass's Downloads folder, in the Files app) or Use a Folder (pick a folder; Claude can list, read and write files in it, and nowhere else). Off by default.
+- Ask Claude for a file ("save these notes as a file", "fix the typos in notes.md"). Before each save or change a card shows what it will write: Allow, Allow for This Chat, or Deny.
+- Please report: a folder that's forgotten after relaunching Compass, files in the wrong place, or a card that doesn't go away.
