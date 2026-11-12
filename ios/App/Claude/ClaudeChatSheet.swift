@@ -103,6 +103,9 @@ struct ClaudeChatSheet: View {
 
   private var composer: some View {
     VStack(spacing: 6) {
+      if let approval = chat.approvals.first {
+        ApprovalCard(approval: approval, more: chat.approvals.count - 1) { chat.answer(approval.id, $0) }
+      }
       if let tab = app.shownTab {
         Button {
           chat.attachPage.toggle()
@@ -150,6 +153,50 @@ struct ClaudeChatSheet: View {
   private func send() {
     chat.send(text, app: app)
     text = ""
+  }
+}
+
+/// A file write waiting for the user (docs/design/claude.md, "Files"):
+/// what and where, the content's start, and Allow / Allow for This Chat /
+/// Deny.
+private struct ApprovalCard: View {
+  let approval: ClaudeChat.Approval
+  let more: Int
+  let answer: (ClaudeChat.Decision) -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Label(approval.title, systemImage: "doc.badge.plus")
+        .font(.subheadline.weight(.semibold))
+      if !approval.detail.isEmpty {
+        ScrollView {
+          Text(approval.detail)
+            .font(.caption.monospaced())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)
+        }
+        .frame(maxHeight: 120)
+        .padding(8)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+      }
+      HStack {
+        Button("Deny", role: .cancel) { answer(.deny) }
+          .accessibilityIdentifier("ClaudeApprovalDeny")
+        Spacer()
+        Button("Allow for This Chat") { answer(.allowForChat) }
+          .accessibilityIdentifier("ClaudeApprovalAllowChat")
+        Button("Allow") { answer(.allow) }
+          .buttonStyle(.borderedProminent)
+          .accessibilityIdentifier("ClaudeApprovalAllow")
+      }
+      .font(.subheadline)
+      if more > 0 {
+        Text("\(more) more waiting").font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .padding(12)
+    .background(.background, in: RoundedRectangle(cornerRadius: 14))
+    .overlay(RoundedRectangle(cornerRadius: 14).stroke(.orange.opacity(0.6)))
   }
 }
 

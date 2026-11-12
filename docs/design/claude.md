@@ -213,11 +213,13 @@ approves each write.
   - Claude Code asks before what its permission mode asks for (writes, edits, most commands, the web), with a `control_request` line (`subtype: "can_use_tool"`, `tool_name`, `input`, `request_id`) on stdout. `ParseClaudeCodeLine()` gives a `kPermission` event; the chat asks the user as above (title from the tool: "Run a command", "Write “a.md”", "Edit …", "Fetch …"; detail: the command, path or URL and content), and writes `{"type": "control_response", "response": {"subtype": "success", "request_id": …, "response": {"behavior": "allow", "updatedInput": <input>}}}` or `"behavior": "deny", "message": …` back on stdin. Reads in the folder don't ask (Claude Code's default).
   - Its tool rows show with Claude Code's names.
 - **iOS** (`ios/App/Claude/`), the same tools, words and approval:
-  - Save files: into the app's Documents folder ("On My iPhone › Compass" in Files: `UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`), or a folder the user picks.
-  - Use a folder: a folder picked with the document picker (`UIDocumentPickerViewController(forOpeningContentTypes: [.folder])`), kept as a security-scoped bookmark and opened (`startAccessingSecurityScopedResource`) around each call; a stale bookmark is renewed, a lost one turns the setting back to "pick a folder".
-  - The approval shows in the chat sheet with the same three buttons.
+  - Settings → Claude → Files (`ClaudeSettings.fileAccess`, UserDefaults `ClaudeFilesAccess`): "Not Use Files", "Save Files" or "Use a Folder".
+  - Save files: into Compass's Downloads (`Documents/Downloads`, which Files shows under On My iPhone › Compass, as downloads do), or a folder the user picks.
+  - Use a folder: a folder picked with the document picker (SwiftUI's `fileImporter` with `.folder`), kept as a bookmark (UserDefaults `ClaudeFilesFolder`) and opened (`startAccessingSecurityScopedResource`) around each call; a stale bookmark is renewed, a lost one is dropped, so settings ask for a folder again.
+  - The rules and file work are `ClaudeFiles` in `CompassClaude` (the desktop's, in Swift); `ClaudeTools.runFileTool()` checks the setting and asks; the context line names the folder rather than its path, which means nothing on iOS.
+  - The approval is a card above the sheet's input (`ClaudeChat.approvals`, the first shown, "N more waiting") with the same three buttons; Stop and New Chat deny what waits.
   - No Claude Code mode on iOS.
-- **Tests:** `ClaudeFilesTest` (paths, symlinks, unique names, text checks, listing), `ClaudeCodeTest` (the arguments, the permission event, the response line), `ClaudeToolsBrowserTest.FilesNeedTheSetting` and `ApprovalAllowsAndDenies`, `ClaudePanelBrowserTest.AsksBeforeSaving`; iOS `ClaudeFilesTests`.
+- **Tests:** `ClaudeFilesTest` (paths, symlinks, unique names, text checks, listing), `ClaudeCodeTest` (the arguments, the permission event, the response line), `ClaudeToolsBrowserTest.FilesNeedTheSetting` and `ApprovalAllowsAndDenies`, `ClaudePanelBrowserTest.AsksBeforeSaving`; iOS `ClaudeFilesTests` (CompassKit).
 
 ### Settings
 

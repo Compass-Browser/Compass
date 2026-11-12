@@ -50,6 +50,20 @@ final class ClaudeTools {
 
   private weak var app: AppModel?
 
+  /// What the user is asked before a file is written (docs/design/claude.md,
+  /// "Files").
+  struct Approval {
+    /// The tool asking: "Allow for This Chat" allows it.
+    var tool: String
+    var title: String
+    /// The content's start (ClaudeFiles.preview).
+    var detail: String
+  }
+
+  /// Asks the user (the chat's approval card); without it, nothing is
+  /// written.
+  var approve: ((Approval) async -> Bool)?
+
   init(app: AppModel) { self.app = app }
 
   func reset() {
@@ -77,6 +91,7 @@ final class ClaudeTools {
     let scopes = Self.scopes
     guard let scope = scopes[name] else { return .error("Unknown tool: \(name).") }
     if scope == "memory" { return runMemoryTool(name, input: input) }
+    if scope == "files" { return await runFileTool(name, input: input) }
     if scope == "browser" {
       guard ClaudeSettings.shared.browserScope else { return .error(Self.notPermitted) }
       switch name {
@@ -120,6 +135,51 @@ final class ClaudeTools {
     case "read_console": return await readConsole(view, input: input)
     case "run_js": return await runJS(view, input: input)
     default: return .error("\(name) isn't available on iOS.")
+    }
+  }
+
+  /// save_file, list_files, read_file, write_file: no tab needed; the Files
+  /// setting decides, and writes ask the user first (the desktop's
+  /// ClaudeTools::RunFileTool()).
+  private func runFileTool(_ name: String, input: JSONValue) async -> Result {
+    let settings = ClaudeSettings.shared
+    let access = settings.fileAccess
+    if access == .off { return .error(ClaudeFiles.notPermittedOff) }
+    if access == .save && name != "save_file" { return .error(ClaudeFiles.notPermittedSaveOnly) }
+    guard let folder = settings.openFolder(for: access) else { return .error(ClaudeFiles.notPermittedNoFolder) }
+    defer { folder.close() }
+    let files = ClaudeFiles(root: folder.url)
+    let path = input["path"]?.string ?? ""
+    let content = input["content"]?.string ?? ""
+    do {
+      switch name {
+      case "save_file":
+        let fileName = input["name"]?.string ?? ""
+        guard ClaudeFiles.isValidName(fileName) else { return .error(ClaudeFiles.Failure.badName.description) }
+        guard content.count <= ClaudeFiles.maxChars else { return .error(ClaudeFiles.Failure.tooLong.description) }
+        let approval = Approval(
+          tool: name, title: "Save “\(fileName)” in \(folder.name)", detail: ClaudeFiles.preview(content))
+        guard await approve?(approval) == true else { return .error(ClaudeFiles.denied) }
+        let url = try files.save(name: fileName, content: content)
+        return .text("Saved as “\(url.lastPathComponent)” in \(folder.name).")
+      case "list_files":
+        return .text(try files.list(path))
+      case "read_file":
+        return .text(try files.read(path, offset: Int(input["offset"]?.number ?? 0)))
+      case "write_file":
+        guard content.count <= ClaudeFiles.maxChars else { return .error(ClaudeFiles.Failure.tooLong.description) }
+        let target = try files.target(path)
+        let approval = Approval(
+          tool: name, title: "\(target.replaces ? "Replace" : "Create") “\(path)” in \(folder.name)",
+          detail: ClaudeFiles.preview(content))
+        guard await approve?(approval) == true else { return .error(ClaudeFiles.denied) }
+        try files.write(content, to: target.url)
+        return .text("\(target.replaces ? "Replaced" : "Wrote") “\(path)” (\(content.count) characters).")
+      default:
+        return .error("\(name) isn't available on iOS.")
+      }
+    } catch {
+      return .error(String(describing: error))
     }
   }
 

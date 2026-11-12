@@ -42,6 +42,16 @@ final class ClaudeSettings {
   var memoryEnabled: Bool { didSet { defaults.set(memoryEnabled, forKey: "ClaudeMemoryEnabled") } }
   /// "Let Claude Save Memories": the memory tools are sent.
   var memorySave: Bool { didSet { defaults.set(memorySave, forKey: "ClaudeMemorySave") } }
+  /// Settings → Claude → Files: what the file tools may do (off by
+  /// default; docs/design/claude.md, "Files").
+  var fileAccess: ClaudeFileAccess { didSet { defaults.set(fileAccess.rawValue, forKey: "ClaudeFilesAccess") } }
+  /// The picked folder's name; nil without one (Save Files then uses the
+  /// app's Downloads folder).
+  private(set) var folderName: String?
+  /// The picked folder, as a security-scoped bookmark.
+  private var folderBookmark: Data? {
+    didSet { defaults.set(folderBookmark, forKey: "ClaudeFilesFolder") }
+  }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -57,6 +67,88 @@ final class ClaudeSettings {
     memoryEnabled = defaults.object(forKey: "ClaudeMemoryEnabled") as? Bool ?? true
     memorySave = defaults.object(forKey: "ClaudeMemorySave") as? Bool ?? true
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
+    fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
+    folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
+    folderName = folderBookmark.flatMap(Self.resolve)?.url.lastPathComponent
+  }
+
+  // MARK: Files
+
+  /// Save Files' folder without a picked one: Compass's Downloads (in
+  /// Files, On My iPhone › Compass › Downloads), as the desktop's.
+  static var documents: URL { Downloads.folderURL }
+  static let documentsName = "Downloads"
+
+  /// Keeps a folder from the document picker (its access already started
+  /// by the picker): false if it can't be kept.
+  @discardableResult
+  func setFolder(_ url: URL) -> Bool {
+    let accessing = url.startAccessingSecurityScopedResource()
+    defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+    guard let bookmark = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+    else { return false }
+    folderBookmark = bookmark
+    folderName = url.lastPathComponent
+    return true
+  }
+
+  func clearFolder() {
+    folderBookmark = nil
+    folderName = nil
+  }
+
+  private static func resolve(_ bookmark: Data) -> (url: URL, stale: Bool)? {
+    var stale = false
+    guard let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+    else { return nil }
+    return (url, stale)
+  }
+
+  /// A folder the file tools work in, opened until `close()`.
+  struct OpenFolder {
+    let url: URL
+    let name: String
+    let path: String
+    fileprivate let scoped: Bool
+    func close() { if scoped { url.stopAccessingSecurityScopedResource() } }
+  }
+
+  /// The folder for `access`, opened: the picked one, else (Save Files)
+  /// the app's Documents. nil when there's none to use; a bookmark that no
+  /// longer resolves is dropped, so settings ask for a folder again.
+  func openFolder(for access: ClaudeFileAccess) -> OpenFolder? {
+    guard access != .off else { return nil }
+    if let bookmark = folderBookmark {
+      guard let resolved = Self.resolve(bookmark) else {
+        clearFolder()
+        return access == .save ? documentsFolder : nil
+      }
+      let (url, stale) = resolved
+      let scoped = url.startAccessingSecurityScopedResource()
+      if stale, let renewed = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+        folderBookmark = renewed
+      }
+      folderName = url.lastPathComponent
+      return OpenFolder(url: url, name: url.lastPathComponent, path: url.path, scoped: scoped)
+    }
+    return access == .save ? documentsFolder : nil
+  }
+
+  private var documentsFolder: OpenFolder {
+    OpenFolder(url: Self.documents, name: Self.documentsName, path: Self.documents.path, scoped: false)
+  }
+
+  /// The context line for the next message (the desktop's).
+  var filesContextLine: String {
+    switch fileAccess {
+    case .off: return ClaudeFiles.contextLine(.off, folderName: "", folderPath: "")
+    case .save: return ClaudeFiles.contextLine(.save, folderName: folderName ?? Self.documentsName, folderPath: "")
+    case .folder:
+      guard let folder = openFolder(for: .folder) else { return ClaudeFiles.contextLine(.off, folderName: "", folderPath: "") }
+      folder.close()
+      // The folder's name: its path on iOS means nothing to the user.
+      return ClaudeFiles.contextLine(.folder, folderName: folder.name, folderPath: "“\(folder.name)”")
+    }
   }
 
   private static var storedKey: String? {

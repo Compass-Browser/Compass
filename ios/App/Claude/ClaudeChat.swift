@@ -27,7 +27,27 @@ final class ClaudeChat {
     var memoryUndone = false
   }
 
+  /// A write waiting for the user (the approval card).
+  struct Approval: Identifiable {
+    let id = UUID()
+    let tool: String
+    let title: String
+    let detail: String
+  }
+
+  enum Decision {
+    case allow
+    /// That tool, until New Chat.
+    case allowForChat
+    case deny
+  }
+
   private(set) var conversation = Conversation()
+  /// Writes waiting for the user, in order; the card shows the first.
+  private(set) var approvals: [Approval] = []
+  @ObservationIgnored private var waiting: [UUID: CheckedContinuation<Bool, Never>] = [:]
+  /// Tools allowed for this chat ("Allow for This Chat").
+  @ObservationIgnored private var allowedForChat: Set<String> = []
   private(set) var streaming = false
   /// Each tool call's state, by tool_use id.
   private(set) var toolViews: [String: ToolView] = [:]
@@ -60,6 +80,7 @@ final class ClaudeChat {
     conversation.closeOpenTools("Not run: the reply ended first.")
     let tools = self.tools ?? ClaudeTools(app: app)
     self.tools = tools
+    tools.approve = { [weak self] approval in await self?.ask(approval) ?? false }
     // Claude's tools act on this tab until the next message.
     tools.targetTab = app.shownTab?.id
     tools.taskTab = app.shownTab?.id
@@ -85,6 +106,7 @@ final class ClaudeChat {
   }
 
   func stop() {
+    denyAll()
     task?.cancel()
     task = nil
     conversation.finishReply()
@@ -102,6 +124,36 @@ final class ClaudeChat {
     attachedURL = ""
     attachPage = true
     chatMemory = nil
+    allowedForChat = []
+  }
+
+  /// Asks the user before a file is written; true to go ahead.
+  func ask(_ request: ClaudeTools.Approval) async -> Bool {
+    if allowedForChat.contains(request.tool) { return true }
+    guard streaming else { return false }
+    let approval = Approval(tool: request.tool, title: request.title, detail: request.detail)
+    return await withCheckedContinuation { continuation in
+      waiting[approval.id] = continuation
+      approvals.append(approval)
+    }
+  }
+
+  /// The card's answer.
+  func answer(_ id: UUID, _ decision: Decision) {
+    guard let continuation = waiting.removeValue(forKey: id) else { return }
+    if decision == .allowForChat, let approval = approvals.first(where: { $0.id == id }) {
+      allowedForChat.insert(approval.tool)
+    }
+    approvals.removeAll { $0.id == id }
+    continuation.resume(returning: decision != .deny)
+  }
+
+  /// Stop and New Chat: whatever waits is denied.
+  private func denyAll() {
+    let pending = waiting
+    waiting = [:]
+    approvals = []
+    for continuation in pending.values { continuation.resume(returning: false) }
   }
 
   /// A memory line's Undo: the memory goes back to what it was.
@@ -164,7 +216,7 @@ final class ClaudeChat {
       model: settings.model, systemPrompt: ClaudeSettings.systemPrompt,
       tools: ClaudeSettings.tools + (memory.tools ? ClaudeSettings.memoryTools : []),
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
-      oauthToken: endpoint.usesOAuthToken, memory: memory.block)
+      oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine)
     let request = ChatRequest(messages: conversation.messages(), options: options)
     conversation.startReply()
     let error = await ClaudeClient.stream(request, endpoint: endpoint) { [weak self] name, data in

@@ -4,6 +4,7 @@
 
 import CompassClaude
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Settings → Claude, the desktop's Claude settings page: the API key
 /// (only its hint shows once saved), the model, Test Connection, the
@@ -15,6 +16,8 @@ struct ClaudeSettingsView: View {
   @State private var testResult: String?
   @State private var testOK = false
   @State private var showingAdvanced = false
+  @State private var pickingFolder = false
+  @State private var folderError: String?
 
   private var settings: ClaudeSettings { .shared }
 
@@ -97,6 +100,32 @@ struct ClaudeSettingsView: View {
       }
 
       Section {
+        Picker("Claude Can", selection: $settings.fileAccess) {
+          Text("Not Use Files").tag(ClaudeFileAccess.off)
+          Text("Save Files").tag(ClaudeFileAccess.save)
+          Text("Use a Folder").tag(ClaudeFileAccess.folder)
+        }
+        .accessibilityIdentifier("ClaudeFilesAccess")
+        if settings.fileAccess != .off {
+          LabeledContent(
+            "Folder",
+            value: settings.folderName
+              ?? (settings.fileAccess == .save ? ClaudeSettings.documentsName : "None"))
+          Button(settings.folderName == nil ? "Choose a Folder…" : "Choose Another Folder…") { pickingFolder = true }
+          if settings.folderName != nil, settings.fileAccess == .save {
+            Button("Use Downloads") { settings.clearFolder() }
+          }
+          if let folderError {
+            Text(folderError).font(.caption).foregroundStyle(.red)
+          }
+        }
+      } header: {
+        Text("Files")
+      } footer: {
+        Text(filesFooter)
+      }
+
+      Section {
         DisclosureGroup("Advanced", isExpanded: $showingAdvanced) {
           TextField("https://api.anthropic.com", text: $settings.baseURLText)
             .textInputAutocapitalization(.never)
@@ -118,6 +147,27 @@ struct ClaudeSettingsView: View {
       }
     }
     .navigationTitle("Claude")
+    .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
+      switch result {
+      case .success(let url):
+        folderError = settings.setFolder(url) ? nil : "Compass can't keep access to that folder."
+      case .failure(let error):
+        folderError = error.localizedDescription
+      }
+    }
+  }
+
+  private var filesFooter: String {
+    switch settings.fileAccess {
+    case .off:
+      return "Claude can't save, read or write files."
+    case .save:
+      return "Claude can save new files it makes for you, like notes or a table, in the folder; it never replaces one. You see each file and allow it first."
+    case .folder:
+      return settings.folderName == nil
+        ? "Choose the folder Claude may use."
+        : "Claude can list and read the files in the folder, and save and change them after you allow each one. Files can contain text written to trick Claude: use a folder with only what the task needs."
+    }
   }
 
   private func test() {
