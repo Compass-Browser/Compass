@@ -399,9 +399,14 @@ final class AppModel {
     if let shown { AutoPiP.exit(tabs.live[shown]) }
     // Kept in the window first (SwiftUI drops it on this update), or its
     // window would end at once.
-    if let left, tabs.playingVideo.contains(left), AutoPiP.isOn, hasPage(left), let view = tabs.live[left] {
-      AutoPiP.park(view)
-      AutoPiP.enter(view)
+    if let left {
+      let playing = tabs.playingVideo.contains(left), view = tabs.live[left]
+      AutoPiP.note(
+        "left \(left.prefix(8)): playing \(playing), on \(AutoPiP.isOn), here \(hasPage(left)), view \(view != nil), in a window \(view?.window != nil)")
+      if playing, AutoPiP.isOn, hasPage(left), let view {
+        AutoPiP.park(view)
+        AutoPiP.enter(view)
+      }
     }
   }
 
@@ -425,6 +430,7 @@ final class AppModel {
       let want = try? await view.evaluateJavaScript(
         "window.__compassAutoPiPWant ? window.__compassAutoPiPWant() : ''", in: nil, contentWorld: AutoPiP.world)
       guard self.shownTab?.id == id else { return }
+      AutoPiP.note("scroll settled \(id.prefix(8)): wants \(want as? String ?? "nothing")")
       switch want as? String {
       case "in": AutoPiP.exit(view)
       case "out":

@@ -714,18 +714,18 @@ final class MessageProxy: NSObject, WKScriptMessageHandler {
       if message.name == AutoPiP.handler {
         if let state = message.body as? String, state.hasPrefix("state:") {
           if state == "state:playing" { target.playingVideo.insert(id) } else { target.playingVideo.remove(id) }
+          AutoPiP.note("page \(id.prefix(8)): \(state.dropFirst(6))")
           return
         }
         if let scroll = message.body as? String, scroll.hasPrefix("scroll:") {
+          AutoPiP.note("page \(id.prefix(8)): \(scroll)")
           target.onPictureInPictureScroll?(id, scroll == "scroll:out")
           return
         }
         if let log = message.body as? String, log.hasPrefix("log:") {
           // The window closed: a parked view leaves the lot.
           if log == "log:mode inline" { DispatchQueue.main.async { AutoPiP.unpark(view) } }
-          #if DEBUG
-            print("AutoPiP: page: \(log.dropFirst(4))")
-          #endif
+          AutoPiP.note("page \(id.prefix(8)): \(log.dropFirst(4))")
           return
         }
         target.onPictureInPictureRestore?(id)

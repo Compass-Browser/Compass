@@ -27,6 +27,21 @@ enum AutoPiP {
 
   /// Its own world: the page doesn't see which video Compass moved.
   static let world = WKContentWorld.world(name: "CompassPiP")
+
+  /// What auto picture-in-picture did lately (the page's reports, each tab
+  /// switch's decision, each attempt's outcome), newest last: Settings →
+  /// Auto Picture in Picture → Copy Diagnostics, to see on a device why a
+  /// window didn't open.
+  @MainActor private(set) static var recent: [String] = []
+
+  @MainActor static func note(_ line: String) {
+    let time = Date().formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second())
+    recent.append("\(time) \(line)")
+    if recent.count > 60 { recent.removeFirst(recent.count - 60) }
+    #if DEBUG
+      print("AutoPiP: \(line)")
+    #endif
+  }
   static let handler = "compassPiP"
 
   /// The desktop's call script, bundled (common/picture_in_picture/): in
@@ -207,16 +222,16 @@ enum AutoPiP {
   static let scrollKey = "AutoPictureInPictureScroll"
   static var scrollIsOn: Bool { isOn && (UserDefaults.standard.object(forKey: scrollKey) as? Bool ?? true) }
 
-  static func enter(_ view: WKWebView?, scroll: Bool = false) {
+  @MainActor static func enter(_ view: WKWebView?, scroll: Bool = false) {
     guard isOn, let view else { return }
     view.evaluateJavaScript(enterSource(scroll: scroll), in: nil, in: world) { result in
       if case .success(let outcome) = result, outcome as? String != "entered" { unpark(view) }
-      #if DEBUG
-        switch result {
-        case .success(let outcome): print("AutoPiP: enter: \(outcome)")
-        case .failure(let error): print("AutoPiP: enter failed: \(error)")
-        }
-      #endif
+      let line: String
+      switch result {
+      case .success(let outcome): line = "enter\(scroll ? " (scroll)" : ""): \(outcome)"
+      case .failure(let error): line = "enter failed: \(error.localizedDescription)"
+      }
+      MainActor.assumeIsolated { note(line) }
     }
   }
 
@@ -240,10 +255,19 @@ enum AutoPiP {
   /// window closes.
   private static var parking: UIView?
 
-  static func park(_ view: WKWebView) {
-    guard parking == nil || view.superview !== parking, let window = UIApplication.shared.connectedScenes
-      .compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
-    else { return }
+  @MainActor static func park(_ view: WKWebView) {
+    // The window the tab is in (SwiftUI drops it on this update), else the
+    // key window of the scene in front: with several scenes (iPad, little
+    // windows) the first one listed may not be on screen, and a page
+    // parked there ends its window at once.
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let front = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+    guard parking == nil || view.superview !== parking,
+      let window = view.window ?? front?.keyWindow ?? front?.windows.first
+    else {
+      note("park: no window")
+      return
+    }
     let lot = parking ?? {
       let lot = UIView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
       lot.clipsToBounds = true
@@ -256,9 +280,7 @@ enum AutoPiP {
     let size = view.bounds.size
     lot.addSubview(view)
     view.frame = CGRect(origin: .zero, size: size)
-    #if DEBUG
-      print("AutoPiP: parked the tab's view")
-    #endif
+    note("parked the tab's view")
   }
 
   /// Its window closed (or the tab came back, SwiftUI moved it): out of

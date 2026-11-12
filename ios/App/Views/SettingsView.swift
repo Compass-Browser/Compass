@@ -104,6 +104,13 @@ struct SettingsView: View {
             }
           }
           .disabled(!autoPiP)
+          Button("Copy Diagnostics") {
+            UIPasteboard.general.string = AutoPiP.recent.isEmpty
+              ? "No auto picture-in-picture activity since Compass started."
+              : AutoPiP.recent.joined(separator: "\n")
+          }
+        } footer: {
+          Text("What auto picture in picture did lately, to paste in a bug report.")
         }
         Section {
           Toggle(isOn: $littleWindows) {
