@@ -132,6 +132,17 @@ It costs:
   an unloaded entry's page back to it ("Favorite URL" for favorites).
   Closing one's tab takes it back to its pinned URL, unloaded
   (`SpacesAndroid::TabClosed()`).
+- **Drag and drop (P5)** in the sidebar (`SidebarUi.kt`, `EntryDrag`): a
+  long press on an entry picks it up (its menu opens as before, and goes
+  once the finger moves); the entry follows the finger and drops by the
+  row under its middle: above or below an entry, into a folder (its
+  middle; not a live folder), at the top of Pinned or Today (their
+  headers or New Tab), or into the favorites (the grid). A line or a fill
+  shows where. `SpacesAndroid::MoveNodeTo()` moves it on the model's own
+  rules (`CanMove()`, `Move()`; across spaces `MoveToSpace()`), with its
+  tab. Not yet: dropping on another space's icon (the menu's "Move to"
+  does that), dragging favorites or a split's panes, and scrolling the
+  list while dragging.
 - **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
   **Sidebar** (the default: the sidebar comes up over the restored tab) or
   **Last Tab** (the tab last shown, sidebar down; if there's none once
@@ -403,7 +414,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C0 | Tooling: `--cpu android-arm64`, `config/args/android.gn`, the Mac-host patches and fix-ups, and a stock Chromium build from the Compass checkout with every patch applied; desktop-only code gated off | Done |
 | C1 | The app and the shell spike: `//compass/android:compass_apk` (package, name, icon) and `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor | Done; the shell lives in Chrome's tabbed activity (`CompassShell`) rather than an activity of its own |
 | C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen | Done |
-| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done; no drag and drop yet (P5) |
+| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done |
 | C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away, a swipe on its address switches tabs; incognito lock and undo are Chrome's) |
 | C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Pairing by code, recovery code and QR code (from the camera) done; one profile; no Compose settings yet |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
@@ -425,7 +436,7 @@ two large pieces.
 | P2 | Pinned URL | **Done** (above, "Pinned URL"). "Use This Page as Pinned URL" and "Back to Pinned URL" for a pinned tab or favorite; closing one goes back to its pinned URL |
 | P3 | On Launch | **Done** (above, "On Launch"). Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
 | P4 | Tab picker gesture | **Done** (C4: `CompassBarUi.kt`, "The bar"; the picker opens when the swipe ends rather than following the finger). Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
-| P5 | Sidebar drag and drop | Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
+| P5 | Sidebar drag and drop | **Done**, within the shown space and into the favorites (above, "Drag and drop"); onto other spaces through the menu. Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |

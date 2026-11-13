@@ -22,6 +22,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -47,6 +48,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -72,14 +75,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -106,6 +115,46 @@ object SidebarUi {
         FAVORITES,
         PINNED,
         TODAY,
+    }
+
+    /** Where a drop goes, and the row that shows it (above it, below it, or into it). */
+    internal class DropTarget(
+        @JvmField val parentId: String,
+        @JvmField val beforeId: String,
+        @JvmField val rowKey: String,
+        @JvmField val edge: Edge,
+    )
+
+    /** A row's part in a drag: picking it up, moving, letting go. */
+    internal interface RowDrag {
+        fun start(nodeId: String)
+
+        fun move(dy: Float)
+
+        fun end()
+
+        fun cancel()
+
+        fun state(): EntryDrag
+    }
+
+    internal enum class Edge {
+        TOP,
+        BOTTOM,
+        INSIDE,
+    }
+
+    /**
+     * An entry being dragged (docs/design/android.md, P5): a long press picks it up (its menu
+     * opens, and goes as the finger moves), and it drops where the finger lets go.
+     */
+    internal class EntryDrag {
+        var nodeId by mutableStateOf<String?>(null)
+        /** How far the finger moved, in pixels. */
+        var dy by mutableStateOf(0f)
+        /** The dragged row's center when it was picked up, in the list's pixels. */
+        var startY = 0f
+        var target by mutableStateOf<DropTarget?>(null)
     }
 
     interface Listener {
@@ -161,6 +210,12 @@ object SidebarUi {
 
         /** Takes a pinned tab or favorite back to its pinned URL. */
         fun onBackToSavedUrl(nodeId: String)
+
+        /**
+         * Drag and drop: moves an entry, with its tab, into |parentId| (a folder or a root:
+         * SidebarState's pinnedId, todayId, favoritesId) before |beforeId| (empty: at the end).
+         */
+        fun onMoveNodeTo(nodeId: String, parentId: String, beforeId: String)
 
         fun onOpenSettings()
 
@@ -272,26 +327,129 @@ private fun SidebarContent(state: SidebarState, listener: SidebarUi.Listener, mo
 
 @Composable
 private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
+    val list = rememberLazyListState()
+    val drag = remember { SidebarUi.EntryDrag() }
+    val threshold = with(LocalDensity.current) { 12.dp.toPx() }
+    val dragging =
+        object : SidebarUi.RowDrag {
+            override fun start(nodeId: String) {
+                val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == nodeId } ?: return
+                if (entryPlaces(state)[nodeId] == null) return
+                drag.nodeId = nodeId
+                drag.dy = 0f
+                drag.startY = item.offset + item.size / 2f
+                drag.target = null
+            }
+
+            override fun move(dy: Float) {
+                if (drag.nodeId == null) return
+                drag.dy += dy
+                drag.target = if (abs(drag.dy) < threshold) null else dropTarget(state, list, drag)
+            }
+
+            override fun end() {
+                val nodeId = drag.nodeId
+                val target = drag.target
+                drag.nodeId = null
+                drag.target = null
+                drag.dy = 0f
+                if (nodeId != null && target != null) listener.onMoveNodeTo(nodeId, target.parentId, target.beforeId)
+            }
+
+            override fun cancel() {
+                drag.nodeId = null
+                drag.target = null
+                drag.dy = 0f
+            }
+
+            override fun state(): SidebarUi.EntryDrag = drag
+        }
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = list,
         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (state.favorites.isNotEmpty()) {
-            item(key = "favorites") { FavoritesGrid(state, listener) }
+            item(key = "favorites") { Box(Modifier.dropMark(drag, "favorites")) { FavoritesGrid(state, listener) } }
         }
         item(key = "header") { SpaceHeader(state, listener) }
-        item(key = "pinned-header") { SectionHeader("Pinned") }
+        item(key = "pinned-header") { Box(Modifier.dropMark(drag, "pinned-header")) { SectionHeader("Pinned") } }
         if (state.pinned.isEmpty()) {
-            item(key = "pinned-empty") { PinnedEmpty() }
+            item(key = "pinned-empty") { Box(Modifier.dropMark(drag, "pinned-empty")) { PinnedEmpty() } }
         } else {
-            tree(state.pinned, 0, SidebarUi.EntryPlace.PINNED, state, listener)
+            tree(state.pinned, 0, SidebarUi.EntryPlace.PINNED, state, listener, dragging)
         }
         item(key = "today-header") {
-            SectionHeader("Today", trailing = if (state.today.isEmpty()) null else "Clear") { listener.onClearToday() }
+            Box(Modifier.dropMark(drag, "today-header")) {
+                SectionHeader("Today", trailing = if (state.today.isEmpty()) null else "Clear") { listener.onClearToday() }
+            }
         }
-        item(key = "new-tab") { NewTabRow(listener) }
-        tree(state.today, 0, SidebarUi.EntryPlace.TODAY, state, listener)
+        item(key = "new-tab") { Box(Modifier.dropMark(drag, "new-tab")) { NewTabRow(listener) } }
+        tree(state.today, 0, SidebarUi.EntryPlace.TODAY, state, listener, dragging)
+    }
+}
+
+/** Each pinned and Today entry (not a split's panes): its parent's ID and its siblings. */
+private fun entryPlaces(state: SidebarState): Map<String, Pair<String, List<SidebarState.Node>>> {
+    val places = HashMap<String, Pair<String, List<SidebarState.Node>>>()
+    fun walk(parentId: String, nodes: List<SidebarState.Node>) {
+        for (node in nodes) {
+            places[node.id] = parentId to nodes
+            if (node.isFolder) walk(node.id, node.children)
+        }
+    }
+    walk(state.pinnedId, state.pinned)
+    walk(state.todayId, state.today)
+    return places
+}
+
+/**
+ * Where the dragged entry would drop, by the row under its center: above or below an entry, into
+ * a folder (its middle), at the top of Pinned or Today (their headers), or into the favorites.
+ */
+private fun dropTarget(state: SidebarState, list: LazyListState, drag: SidebarUi.EntryDrag): SidebarUi.DropTarget? {
+    val y = drag.startY + drag.dy
+    val over = list.layoutInfo.visibleItemsInfo.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: return null
+    val key = over.key as? String ?: return null
+    when (key) {
+        "favorites" -> return SidebarUi.DropTarget(state.favoritesId, "", key, SidebarUi.Edge.INSIDE)
+        "pinned-header", "pinned-empty" ->
+            return SidebarUi.DropTarget(state.pinnedId, state.pinned.firstOrNull()?.id ?: "", key, SidebarUi.Edge.BOTTOM)
+        "today-header", "new-tab" ->
+            return SidebarUi.DropTarget(state.todayId, state.today.firstOrNull()?.id ?: "", key, SidebarUi.Edge.BOTTOM)
+    }
+    if (key == drag.nodeId) return null
+    val (parentId, siblings) = entryPlaces(state)[key] ?: return null
+    val node = siblings.firstOrNull { it.id == key } ?: return null
+    val at = (y - over.offset) / over.size.coerceAtLeast(1)
+    if (node.isFolder && !node.isLiveFolder && at > 0.25f && at < 0.75f) {
+        return SidebarUi.DropTarget(node.id, "", key, SidebarUi.Edge.INSIDE)
+    }
+    if (at < 0.5f) return SidebarUi.DropTarget(parentId, node.id, key, SidebarUi.Edge.TOP)
+    // Below an open folder: at the top of it.
+    if (node.isFolder && !node.isLiveFolder && !node.collapsed && node.children.isNotEmpty()) {
+        return SidebarUi.DropTarget(node.id, node.children.first().id, key, SidebarUi.Edge.BOTTOM)
+    }
+    val next = siblings.getOrNull(siblings.indexOf(node) + 1)
+    return SidebarUi.DropTarget(parentId, next?.id ?: "", key, SidebarUi.Edge.BOTTOM)
+}
+
+/** Where a drop would go, on the row that shows it: a line above or below it, or a fill. */
+@Composable
+private fun Modifier.dropMark(drag: SidebarUi.EntryDrag, key: String): Modifier {
+    val color = MaterialTheme.colorScheme.primary
+    val target = drag.target
+    if (target == null || target.rowKey != key) return this
+    return drawWithContent {
+        drawContent()
+        val stroke = 2.dp.toPx()
+        when (target.edge) {
+            SidebarUi.Edge.TOP -> drawRect(color, size = Size(size.width, stroke))
+            SidebarUi.Edge.BOTTOM -> drawRect(color, topLeft = Offset(0f, size.height - stroke), size = Size(size.width, stroke))
+            SidebarUi.Edge.INSIDE ->
+                drawRoundRect(color.copy(alpha = 0.18f), cornerRadius = CornerRadius(10.dp.toPx()))
+        }
     }
 }
 
@@ -640,12 +798,13 @@ private fun LazyListScope.tree(
     place: SidebarUi.EntryPlace,
     state: SidebarState,
     listener: SidebarUi.Listener,
+    drag: SidebarUi.RowDrag,
 ) {
     for (node in nodes) {
-        item(key = node.id) { NodeRow(node, depth, place, state, listener) }
-        if (node.isFolder && !node.collapsed) tree(node.children, depth + 1, place, state, listener)
+        item(key = node.id) { NodeRow(node, depth, place, state, listener, drag) }
+        if (node.isFolder && !node.collapsed) tree(node.children, depth + 1, place, state, listener, drag)
         // A split shows its panes.
-        if (node.type == "split") tree(node.children, depth + 1, place, state, listener)
+        if (node.type == "split") tree(node.children, depth + 1, place, state, listener, drag)
     }
 }
 
@@ -657,8 +816,11 @@ private fun NodeRow(
     place: SidebarUi.EntryPlace,
     state: SidebarState,
     listener: SidebarUi.Listener,
+    drag: SidebarUi.RowDrag,
 ) {
     val shown = node.tab >= 0 && node.tab == state.currentTab
+    val dragged = drag.state().nodeId == node.id
+    val threshold = with(LocalDensity.current) { 12.dp.toPx() }
     val today = place == SidebarUi.EntryPlace.TODAY && node.type == "tab"
     // A pinned tab with no page open is dimmer.
     val dim = place != SidebarUi.EntryPlace.TODAY && node.type == "tab" && node.tab < 0
@@ -666,13 +828,26 @@ private fun NodeRow(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val shape = RoundedCornerShape(CompassStyle.rowRadius)
-    Box(Modifier.fillMaxWidth()) {
+    Box(
+        Modifier.fillMaxWidth()
+            .zIndex(if (dragged) 1f else 0f)
+            .graphicsLayer {
+                // The entry follows the finger, lifted.
+                translationY = if (dragged) drag.state().dy else 0f
+                shadowElevation = if (dragged) 6.dp.toPx() else 0f
+                this.shape = shape
+                this.clip = dragged
+            }
+            .dropMark(drag.state(), node.id)
+    ) {
         Row(
             Modifier.fillMaxWidth()
                 .height(CompassStyle.rowHeight)
                 .scale(if (pressed) 0.98f else 1f)
                 .clip(shape)
-                .background(if (shown) CompassStyle.active() else if (pressed) CompassStyle.fill else Color.Transparent)
+                .background(
+                    if (shown || dragged) CompassStyle.active() else if (pressed) CompassStyle.fill else Color.Transparent
+                )
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
@@ -682,6 +857,24 @@ private fun NodeRow(
                         else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
                     },
                 )
+                // Inside the click: it sees the moves first, and the long press's menu goes once
+                // the entry is dragged.
+                .pointerInput(node.id) {
+                    var moved = 0f
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            moved = 0f
+                            drag.start(node.id)
+                        },
+                        onDragEnd = { drag.end() },
+                        onDragCancel = { drag.cancel() },
+                    ) { change, amount ->
+                        change.consume()
+                        moved += amount.y
+                        if (abs(moved) > threshold) menu = false
+                        drag.move(amount.y)
+                    }
+                }
                 .padding(start = 12.dp + CompassStyle.indent * depth, end = if (today) 36.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),

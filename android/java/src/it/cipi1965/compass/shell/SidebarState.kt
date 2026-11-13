@@ -63,6 +63,10 @@ class SidebarState {
     var favorites by mutableStateOf<List<Node>>(emptyList())
     var pinned by mutableStateOf<List<Node>>(emptyList())
     var today by mutableStateOf<List<Node>>(emptyList())
+    /** The roots' IDs (pinned and Today of the shown space, the favorites), for drops. */
+    var pinnedId by mutableStateOf("")
+    var todayId by mutableStateOf("")
+    var favoritesId by mutableStateOf("")
     /** The shown space's archive, newest first. */
     var archive by mutableStateOf<List<ArchivedEntry>>(emptyList())
     /** How long the shown space's Today entries stay unseen before the archive; 0: never. */
@@ -101,6 +105,9 @@ class SidebarState {
         favorites = nodes(data.optJSONArray("favorites"))
         pinned = nodes(data.optJSONArray("pinned"))
         today = nodes(data.optJSONArray("today"))
+        pinnedId = data.optString("pinned_id")
+        todayId = data.optString("today_id")
+        favoritesId = data.optString("favorites_id")
         archive =
             data.optJSONArray("archive").objects().map {
                 ArchivedEntry(
