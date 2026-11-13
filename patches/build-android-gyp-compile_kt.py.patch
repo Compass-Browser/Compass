@@ -1,0 +1,15 @@
+diff --git a/build/android/gyp/compile_kt.py b/build/android/gyp/compile_kt.py
+index 673e0f630bdcf7c2d9487dd93ce5fdc02b35eebc..dbddfe16ecc2b41ca897fe4df5fe73cdd8d4375e 100755
+--- a/build/android/gyp/compile_kt.py
++++ b/build/android/gyp/compile_kt.py
+@@ -165,7 +165,9 @@ def main(argv):
+     argv = build_utils.ExpandFileArgs(argv)
+     args, source_files = _ParseOptions(argv)
+ 
+-    if sys.platform == 'linux' and platform.machine() == 'x86_64':
++    # Compass: the GraalVM-native kotlinc crashes on the Compass shell
++    # (LanguageSubstitutors) on Linux hosts; the JVM kotlinc below builds it.
++    if False:
+         kotlinc_cmd = [
+             _KOTLINC_GRAALVM_PATH,
+             '-Xmx1G',
