@@ -58,6 +58,8 @@ constexpr char kMutedKey[] = "muted";
 constexpr char kSavedUrlKey[] = "saved_url";
 constexpr char kSavedTitleKey[] = "saved_title";
 constexpr char kArchiveAfterKey[] = "archive_after_hours";
+// Present (true) only for a space that stays on this device.
+constexpr char kLocalOnlyKey[] = "local_only";
 constexpr char kArchiveKey[] = "archive";
 constexpr char kArchivedAtKey[] = "archived";
 constexpr char kTabsKey[] = "tabs";
@@ -508,6 +510,9 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
     data.Set(kIconKey, SerializeIcon(model.icon()));
   }
   data.Set(kArchiveAfterKey, model.archive_after().InHours());
+  if (!model.synced()) {
+    data.Set(kLocalOnlyKey, true);
+  }
   data.Set(kPinnedKey, SerializeSection(*model.pinned_root(), false));
   data.Set(kTodayKey, SerializeSection(*model.today_root(), true));
   data.Set(kArchiveKey, SerializeArchive(model));
@@ -649,6 +654,9 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
     if (std::optional<int> hours = saved[i]->FindInt(kArchiveAfterKey);
         hours && *hours >= 0) {
       space->SetArchiveAfter(base::Hours(*hours));
+    }
+    if (saved[i]->FindBool(kLocalOnlyKey).value_or(false)) {
+      space->SetSynced(false);
     }
     DeserializeSpace(*saved[i], *space);
   }

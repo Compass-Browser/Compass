@@ -187,6 +187,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       activeSpaceId_: {type: String},
       menuSpaceId_: {type: String},
       confirmingDelete_: {type: Boolean},
+      confirmingUnsync_: {type: Boolean},
       themeOpen_: {type: Boolean},
       archive_: {type: Array},
       nowPlaying_: {type: Array},
@@ -219,6 +220,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor menuSpaceId_: string|null = null;
   // Delete asks to be clicked twice.
   protected accessor confirmingDelete_: boolean = false;
+  // So does turning sync off, which removes the space from the other
+  // devices.
+  protected accessor confirmingUnsync_: boolean = false;
   // The space menu shows the theme editor instead.
   protected accessor themeOpen_: boolean = false;
   protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
@@ -417,6 +421,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   private openSpaceMenu_(id: string) {
     this.menuSpaceId_ = id;
     this.confirmingDelete_ = false;
+    this.confirmingUnsync_ = false;
     this.updateComplete.then(() => {
       this.shadowRoot.querySelector<HTMLInputElement>('#spaceNameInput')
           ?.select();
@@ -426,6 +431,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   private closeSpaceMenu_() {
     this.menuSpaceId_ = null;
     this.confirmingDelete_ = false;
+    this.confirmingUnsync_ = false;
     this.themeOpen_ = false;
   }
 
@@ -577,6 +583,34 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
   }
 
+  // "Sync to your other devices": shown while the profile's spaces sync, or
+  // for a space already kept on this device (docs/design/sync.md, "Spaces
+  // that don't sync").
+  protected canChangeSpaceSync_(): boolean {
+    const space = this.getMenuSpace_();
+    return !!space && (space.syncOn || !space.synced);
+  }
+
+  protected getSpaceSyncLabel_(): string {
+    if (this.confirmingUnsync_) {
+      return 'Click again to remove it from your other devices';
+    }
+    return 'Sync to your other devices';
+  }
+
+  protected onSpaceSyncClick_() {
+    const space = this.getMenuSpace_();
+    if (!space) {
+      return;
+    }
+    if (space.synced && !this.confirmingUnsync_) {
+      this.confirmingUnsync_ = true;
+      return;
+    }
+    this.confirmingUnsync_ = false;
+    this.browserProxy_.handler.setSpaceSynced(space.id, !space.synced);
+  }
+
   protected onDeleteSpaceClick_() {
     if (!this.confirmingDelete_) {
       this.confirmingDelete_ = true;
@@ -599,9 +633,10 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   protected getSpaceTitle_(space: Space): string {
-    return this.hasOtherProfiles_() ?
+    const name = this.hasOtherProfiles_() ?
         `${space.name} · ${space.profileName}` :
         space.name;
+    return space.synced ? name : `${name} · On this device only`;
   }
 
   protected isMenuSpaceProfile_(profile: ProfileOption): boolean {

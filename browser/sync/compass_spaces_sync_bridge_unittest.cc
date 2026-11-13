@@ -1717,5 +1717,139 @@ TEST_F(CompassSpacesSyncBridgeTest, MemoryEntitiesAreValid) {
   EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
 }
 
+
+// Spaces that don't sync (docs/design/sync.md) ------------------------------
+
+// The names of |list|'s spaces, in order.
+std::string SpaceNames(const SpaceList& list) {
+  std::string result;
+  for (const auto& space : list.spaces()) {
+    result += (result.empty() ? "" : " ") + base::UTF16ToUTF8(space->name());
+  }
+  return result;
+}
+
+// Whether the server has anything of the space |id|: the space or a node in
+// it.
+bool ServerHasSpace(const Server& server, const base::Uuid& id) {
+  const std::string key = id.AsLowercaseString();
+  return std::ranges::any_of(server.entities, [&key](const auto& entry) {
+    const sync_pb::CompassSpacesSpecifics& specifics = entry.second;
+    return (specifics.has_space() && specifics.space().uuid() == key) ||
+           (specifics.has_node() && specifics.node().space_uuid() == key);
+  });
+}
+
+// Nothing of a space that stays on this device goes up; the favorites do.
+TEST_F(CompassSpacesSyncBridgeTest, LocalSpaceIsNotUploaded) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel* local = a->list().AddSpace(1, u"Private");
+  local->SetSynced(false);
+  local->AddTab(local->pinned_root(), 0, GURL("https://bank.test/"), u"Bank");
+  local->AddTab(local->today_root(), 0, GURL("https://doc.test/"), u"Doc");
+  a->Join();
+  EXPECT_FALSE(ServerHasSpace(server_, local->id()));
+  EXPECT_TRUE(ServerHasSpace(server_, a->space(0).id()));
+
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  EXPECT_EQ(SpaceNames(b->list()), "Main");
+  EXPECT_EQ(Describe(*b->favorites().pinned_root()), "Fav");
+
+  // Changes to it don't go up either.
+  local->SetName(u"Secret");
+  local->AddTab(local->today_root(), 1, GURL("https://more.test/"), u"More");
+  EXPECT_EQ(a->Push(), 0u);
+}
+
+// Turning sync off removes the space from the other devices and keeps it
+// here; turning it back on uploads it again.
+TEST_F(CompassSpacesSyncBridgeTest, TurningSyncOffDeletesRemotely) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel* second = a->list().AddSpace(1, u"Second");
+  second->AddTab(second->pinned_root(), 0, GURL("https://s.test/"), u"S");
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  ASSERT_EQ(SpaceNames(b->list()), "Main Second");
+
+  second->SetSynced(false);
+  EXPECT_EQ(a->Push(), 2u);  // The space and its tab.
+  EXPECT_FALSE(ServerHasSpace(server_, second->id()));
+  b->Pull();
+  EXPECT_EQ(SpaceNames(b->list()), "Main");
+  EXPECT_EQ(SpaceNames(a->list()), "Main Second");
+  EXPECT_EQ(Describe(*second->pinned_root()), "S");
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, TurningSyncOnUploads) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel* local = a->list().AddSpace(1, u"Second");
+  local->SetSynced(false);
+  local->AddTab(local->pinned_root(), 0, GURL("https://s.test/"), u"S");
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  ASSERT_EQ(SpaceNames(b->list()), "Main");
+
+  local->SetSynced(true);
+  EXPECT_EQ(a->Push(), 2u);
+  b->Pull();
+  ASSERT_EQ(SpaceNames(b->list()), "Main Second");
+  EXPECT_EQ(Describe(*b->space(1).pinned_root()), "S");
+  EXPECT_EQ(b->space(1).id(), local->id());
+}
+
+// A device that changed the space before it heard it went local: its changes
+// don't reach the local space, and the delete wins in the end.
+TEST_F(CompassSpacesSyncBridgeTest, LocalSpaceIgnoresRemoteChanges) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  SpaceModel* second = a->list().AddSpace(1, u"Second");
+  second->AddTab(second->pinned_root(), 0, GURL("https://s.test/"), u"S");
+  second->AddTab(second->pinned_root(), 1, GURL("https://t.test/"), u"T");
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  second->SetSynced(false);
+  a->Push();
+  // B hasn't heard yet: renames it, removes a tab, adds one.
+  SpaceModel& second_b = b->space(1);
+  second_b.SetName(u"Renamed");
+  second_b.Remove(FindByTitle(*second_b.pinned_root(), u"T"));
+  second_b.AddTab(second_b.pinned_root(), 1, GURL("https://u.test/"), u"U");
+  b->Push();
+
+  a->Pull();
+  EXPECT_EQ(second->name(), u"Second");
+  EXPECT_EQ(Describe(*second->pinned_root()), "S T");
+  // A deleted it all again.
+  EXPECT_GT(a->last_push(), 0u);
+  EXPECT_FALSE(ServerHasSpace(server_, second->id()));
+  b->Pull();
+  EXPECT_EQ(SpaceNames(b->list()), "Main");
+}
+
+// Remote reorders leave a local space after the synced space it followed.
+TEST_F(CompassSpacesSyncBridgeTest, LocalSpacesKeepTheirPlace) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->list().AddSpace(1, u"Local")->SetSynced(false);
+  a->list().AddSpace(2, u"Second");
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  ASSERT_EQ(SpaceNames(b->list()), "Main Second");
+
+  b->list().MoveSpace(b->space(1), 0);
+  b->Push();
+  a->Pull();
+  EXPECT_EQ(SpaceNames(a->list()), "Second Main Local");
+}
+
 }  // namespace
 }  // namespace compass::sync

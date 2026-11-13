@@ -72,8 +72,8 @@ IN_PROC_BROWSER_TEST_F(CompassMainMenuBrowserTest, SpacesMenu) {
             [main indexOfItemWithTag:IDC_TAB_MENU] + 1);
 
   [spaces.delegate menuNeedsUpdate:spaces];
-  // One space, a separator and New Space.
-  ASSERT_EQ(3, spaces.numberOfItems);
+  // One space, a separator, New Space and New Space on This Device.
+  ASSERT_EQ(4, spaces.numberOfItems);
   NSMenuItem* first = [spaces itemAtIndex:0];
   EXPECT_NSEQ(base::SysUTF16ToNSString(features->space_model().name()),
               first.title);
@@ -85,16 +85,18 @@ IN_PROC_BROWSER_TEST_F(CompassMainMenuBrowserTest, SpacesMenu) {
   EXPECT_TRUE([spaces itemAtIndex:1].separatorItem);
   NSMenuItem* add = [spaces itemAtIndex:2];
   EXPECT_NSEQ(@"New Space", add.title);
+  EXPECT_NSEQ(@"New Space on This Device", [spaces itemAtIndex:3].title);
 
   SpaceModel* old_space = &features->space_model();
   [NSApp sendAction:add.action to:add.target from:add];
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return &features->space_model() != old_space; }));
   EXPECT_EQ(u"Space 2", features->space_model().name());
+  EXPECT_TRUE(features->space_model().synced());
 
   // Now two spaces, the new one checked, with Ctrl+2.
   [spaces.delegate menuNeedsUpdate:spaces];
-  ASSERT_EQ(4, spaces.numberOfItems);
+  ASSERT_EQ(5, spaces.numberOfItems);
   EXPECT_EQ(NSControlStateValueOff, [spaces itemAtIndex:0].state);
   NSMenuItem* second = [spaces itemAtIndex:1];
   EXPECT_NSEQ(@"Space 2", second.title);
@@ -105,6 +107,15 @@ IN_PROC_BROWSER_TEST_F(CompassMainMenuBrowserTest, SpacesMenu) {
   [NSApp sendAction:first.action to:first.target from:first];
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return &features->space_model() == old_space; }));
+
+  // New Space on This Device: one that doesn't sync.
+  [spaces.delegate menuNeedsUpdate:spaces];
+  NSMenuItem* add_local = [spaces itemAtIndex:spaces.numberOfItems - 1];
+  [NSApp sendAction:add_local.action to:add_local.target from:add_local];
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return &features->space_model() != old_space; }));
+  EXPECT_EQ(u"Space 3", features->space_model().name());
+  EXPECT_FALSE(features->space_model().synced());
 }
 
 }  // namespace

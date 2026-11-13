@@ -186,6 +186,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void PreviewSpace(const std::optional<std::string>& id,
                     double progress) override;
   void SetArchiveAfter(const std::string& space_id, uint32_t hours) override;
+  void SetSpaceSynced(const std::string& space_id, bool synced) override;
   void RestoreArchived(const std::string& id) override;
   void RemoveArchived(const std::string& id) override;
   void ClearArchive() override;

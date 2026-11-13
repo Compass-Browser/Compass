@@ -210,6 +210,17 @@ ${this.getMenuSpace_() && !this.themeOpen_ ? html`
         <option value="">New profile…</option>
       </select>
     </label>
+    <button id="spaceSync" role="menuitemcheckbox"
+        ?hidden="${!this.canChangeSpaceSync_()}"
+        aria-checked="${!!this.getMenuSpace_()!.synced}"
+        ?checked="${!!this.getMenuSpace_()!.synced}"
+        ?confirming="${this.confirmingUnsync_}"
+        @click="${this.onSpaceSyncClick_}">
+      <span>${this.getSpaceSyncLabel_()}</span>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M3.5 8.5l3 3 6-7"></path>
+      </svg>
+    </button>
     <button id="deleteSpace" role="menuitem"
         ?disabled="${!this.canDeleteSpace_()}"
         ?confirming="${this.confirmingDelete_}"
@@ -252,6 +263,7 @@ ${this.archiveOpen_ ? html`
         aria-label="${this.getSpaceTitle_(space)}"
         aria-selected="${this.isActiveSpace_(space)}"
         ?active="${this.isActiveSpace_(space)}"
+        ?local-only="${!space.synced}"
         @click="${this.onSpaceClick_}"
         @contextmenu="${this.onSpaceContextmenu_}"
         @dragstart="${this.onSpaceDragstart_}"

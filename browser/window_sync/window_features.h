@@ -98,7 +98,9 @@ class WindowFeatures : public SpaceList::Observer {
 
   // Adds "Space N" at the end of the profile's spaces and shows it: the
   // sidebar's +, the command bar's "New space" and the macOS Spaces menu.
-  void AddSpaceAndSwitch();
+  // |synced| false makes a space that stays on this device ("New space on
+  // this device").
+  void AddSpaceAndSwitch(bool synced = true);
 
   // For a window just opened on its space, with no tabs, by a swap (see
   // SwitchWindowToSpace()): steps 3 to 5 of a switch. The space's parked tabs
@@ -288,6 +290,12 @@ bool KeepWindowWithNoTabs(BrowserWindowInterface* browser);
 // no window the user can see. Upstream's auto picture-in-picture counts a tab
 // moved there as switched away from (see docs/design/picture-in-picture.md).
 bool IsInParkingWindow(content::WebContents* contents);
+
+// Whether |contents| is the live tab of an entry in a space that stays on
+// this device (SpaceModel::synced() off). Upstream's session sync leaves such
+// tabs out of this device's open tabs (docs/design/sync.md, "Spaces that
+// don't sync").
+bool IsInUnsyncedSpace(content::WebContents* contents);
 
 // |profile|'s most recently active window the user can see tabs in (normal,
 // not parking, not closing or swapped away), or null.

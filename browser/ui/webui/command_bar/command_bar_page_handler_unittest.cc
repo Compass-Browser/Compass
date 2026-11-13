@@ -214,6 +214,7 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
   EXPECT_EQ(page_.text(), "");
   EXPECT_THAT(page_.LocalResults(),
               ElementsAre("entry b.test", "entry a.test", "command New space",
+                          "command New space on this device",
                           "command Pin tab", "command Add to Favorites",
                           "command Copy URL",
                           "command Reload", "command History",
@@ -356,6 +357,8 @@ TEST_F(CommandBarPageHandlerTest, StaysQuietInAWindowThatSwappedAway) {
   EXPECT_THAT(page_.LocalResults(),
               Not(Contains(testing::StartsWith("entry"))));
   EXPECT_THAT(page_.LocalResults(), Not(Contains("command New space")));
+  EXPECT_THAT(page_.LocalResults(),
+              Not(Contains("command New space on this device")));
   EXPECT_THAT(page_.LocalResults(), Not(Contains("command Pin tab")));
   EXPECT_THAT(page_.LocalResults(),
               Not(Contains("command Add to Favorites")));

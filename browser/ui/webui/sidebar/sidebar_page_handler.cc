@@ -52,6 +52,8 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "compass/browser/sidebar/closed_entries.h"
+#include "compass/browser/sync/compass_sync_service.h"
+#include "compass/browser/sync/compass_sync_service_factory.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/undo_close.h"
@@ -849,6 +851,13 @@ void SidebarPageHandler::SetArchiveAfter(const std::string& space_id,
   }
 }
 
+void SidebarPageHandler::SetSpaceSynced(const std::string& space_id,
+                                        bool synced) {
+  if (SpaceModel* space = FindAnySpace(space_id).space) {
+    space->SetSynced(synced);
+  }
+}
+
 void SidebarPageHandler::RestoreArchived(const std::string& id) {
   const base::Uuid uuid = base::Uuid::ParseLowercase(id);
   if (!uuid.is_valid()) {
@@ -1495,6 +1504,11 @@ void SidebarPageHandler::SendSpaces() {
     mojo_space->icon = ToMojoIcon(space->icon());
     mojo_space->archive_after_hours =
         static_cast<uint32_t>(space->archive_after().IntDiv(GetArchiveHour()));
+    mojo_space->synced = space->synced();
+    sync::CompassSyncService* sync_service =
+        sync::CompassSyncServiceFactory::GetForProfileIfExists(
+            entry.profile->GetOriginalProfile());
+    mojo_space->sync_on = sync_service && sync_service->AreDataTypesReleased();
     spaces.push_back(std::move(mojo_space));
   }
   // The profiles a space can be assigned to, as the profile menu lists them.

@@ -837,7 +837,7 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
       }
       continue;
     }
-    if (WasDeletedLocally(specifics, local)) {
+    if (IsLocalOnly(specifics) || WasDeletedLocally(specifics, local)) {
       gone.push_back(key);
     }
   }
@@ -910,7 +910,9 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
   std::vector<const SpaceModel*> spaces;
   for (const auto& space : list_->spaces()) {
     const std::string key = Key(space->id());
-    if (std::ranges::contains(keys, key)) {
+    // A space that stays on this device, and all that's in it, never goes
+    // up (docs/design/sync.md, "Spaces that don't sync").
+    if (!space->synced() || std::ranges::contains(keys, key)) {
       continue;
     }
     std::optional<syncer::UniquePosition> position;
@@ -1418,6 +1420,11 @@ CompassSpacesSyncBridge::GetEntryUrlsByHost() const {
     }
   };
   for (const auto& space : list_->spaces()) {
+    // A space that stays on this device gives no host away: its sites'
+    // icons don't sync (and go when only it has them).
+    if (!space->synced()) {
+      continue;
+    }
     walk(*space->pinned_root());
     walk(*space->today_root());
     for (const ArchivedEntry& entry : space->archive()) {
@@ -1591,6 +1598,26 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     (specifics.has_space() ? spaces : nodes).push_back(key);
   }
 
+  // Spaces that stay on this device: nothing remote changes them or what's
+  // in them. What came stays in the mirror, so the next pass deletes it
+  // again (docs/design/sync.md, "Spaces that don't sync").
+  std::erase_if(spaces, [this](const std::string& key) {
+    return IsLocalOnly(mirror_[key]);
+  });
+  std::erase_if(nodes, [this](const std::string& key) {
+    return IsLocalOnly(mirror_[key]);
+  });
+  bool local_ignored = false;
+  std::erase_if(deleted, [this, &local_ignored](const std::string& key) {
+    const base::Uuid id = ParseKey(key);
+    const bool local = id.is_valid() && IsInLocalSpace(id);
+    local_ignored |= local;
+    return local;
+  });
+  if (local_ignored) {
+    VLOG(1) << "[compass-sync] spaces: ignored deletes in local spaces";
+  }
+
   {
     base::AutoReset<bool> applying(&applying_remote_, true);
     // Another device's moves can empty a Today folder for a moment; it
@@ -1705,7 +1732,16 @@ std::set<std::string> CompassSpacesSyncBridge::ApplySpaces(
 void CompassSpacesSyncBridge::OrderSpaces() {
   std::vector<std::pair<syncer::UniquePosition, SpaceModel*>> positioned;
   std::vector<SpaceModel*> others;
+  // Spaces that stay on this device have no position: each keeps its place
+  // after the synced space before it (null: first).
+  std::map<SpaceModel*, std::vector<SpaceModel*>> followers;
+  SpaceModel* previous = nullptr;
   for (const auto& space : list_->spaces()) {
+    if (!space->synced()) {
+      followers[previous].push_back(space.get());
+      continue;
+    }
+    previous = space.get();
     auto it = mirror_.find(Key(space->id()));
     std::optional<syncer::UniquePosition> position;
     if (it != mirror_.end() && it->second.has_space() &&
@@ -1722,11 +1758,19 @@ void CompassSpacesSyncBridge::OrderSpaces() {
   std::ranges::stable_sort(positioned, [](const auto& a, const auto& b) {
     return a.first.LessThan(b.first);
   });
-  std::vector<SpaceModel*> order;
+  std::vector<SpaceModel*> synced;
   for (const auto& [position, space] : positioned) {
-    order.push_back(space);
+    synced.push_back(space);
   }
-  order.insert(order.end(), others.begin(), others.end());
+  synced.insert(synced.end(), others.begin(), others.end());
+  std::vector<SpaceModel*> order = followers[nullptr];
+  for (SpaceModel* space : synced) {
+    order.push_back(space);
+    auto it = followers.find(space);
+    if (it != followers.end()) {
+      order.insert(order.end(), it->second.begin(), it->second.end());
+    }
+  }
   for (size_t i = 0; i < order.size(); ++i) {
     if (list_->spaces()[i].get() != order[i]) {
       // It's further down: the slots before i hold order[0..i).
@@ -1776,8 +1820,8 @@ void CompassSpacesSyncBridge::MergeWithChain(
   }
   std::vector<SpaceModel*> unused;
   for (const auto& space : list_->spaces()) {
-    if (!mirror_.contains(Key(space->id())) && space->name() == u"Home" &&
-        space->pinned_root()->children().empty()) {
+    if (space->synced() && !mirror_.contains(Key(space->id())) &&
+        space->name() == u"Home" && space->pinned_root()->children().empty()) {
       unused.push_back(space.get());
     }
   }
@@ -2400,6 +2444,44 @@ SpaceModel* CompassSpacesSyncBridge::ModelOf(const SidebarNode* node) const {
 bool CompassSpacesSyncBridge::IsSynced(const SidebarNode* node) const {
   return list_->favorites().pinned_root()->Contains(node) ||
          list_->FindSpaceOf(node);
+}
+
+bool CompassSpacesSyncBridge::IsInLocalSpace(const base::Uuid& id) const {
+  for (const auto& space : list_->spaces()) {
+    if (space->synced()) {
+      continue;
+    }
+    if (space->id() == id || space->FindById(id) || space->FindArchived(id)) {
+      return true;
+    }
+    for (const ArchivedEntry& entry : space->archive()) {
+      if (std::ranges::contains(entry.tabs, id, &ArchivedEntry::Tab::id)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool CompassSpacesSyncBridge::IsLocalOnly(
+    const sync_pb::CompassSpacesSpecifics& specifics) const {
+  if (specifics.has_space()) {
+    const base::Uuid id = ParseKey(specifics.space().uuid());
+    const SpaceModel* space = id.is_valid() ? list_->FindSpace(id) : nullptr;
+    return space && !space->synced();
+  }
+  if (!specifics.has_node()) {
+    return false;
+  }
+  const sync_pb::CompassNode& node = specifics.node();
+  const base::Uuid space_id = ParseKey(node.space_uuid());
+  if (const SpaceModel* space =
+          space_id.is_valid() ? list_->FindSpace(space_id) : nullptr;
+      space && !space->synced()) {
+    return true;
+  }
+  const base::Uuid id = ParseKey(node.uuid());
+  return id.is_valid() && IsInLocalSpace(id);
 }
 
 SpaceModel* CompassSpacesSyncBridge::TargetModel(

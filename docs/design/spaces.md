@@ -153,7 +153,10 @@ switcher's order (`GetSwitchableSpaces()`), with a check on the window's and
 each one's shortcut (`GetSpaceAccelerators()`, the user's if changed), then
 New Space, which adds "Space N" and shows it
 (`WindowFeatures::AddSpaceAndSwitch()`, as the sidebar's + and the command
-bar's "New space"). It's filled each time it opens (`menuNeedsUpdate:`), so
+bar's "New space"), and New Space on This Device, which makes one that
+doesn't sync (`AddSpaceAndSwitch(/*synced=*/false)`, as the command bar's
+"New space on this device"; docs/design/sync.md, "Spaces that don't
+sync"). It's filled each time it opens (`menuNeedsUpdate:`), so
 it needs no observers. The menu shows the shortcuts but doesn't run them
 (`menuHasKeyEquivalent:` says no): `SpaceShortcuts` does, after the page.
 Without a window, New Space is greyed out and the list is empty. Test:

@@ -81,6 +81,7 @@ class FakePage : public sidebar::mojom::Page {
     for (size_t i = 0; i < spaces.size(); ++i) {
       if (spaces[i]->id == active_id) {
         archive_after_hours_ = spaces[i]->archive_after_hours;
+        synced_ = spaces[i]->synced;
       }
       // Another profile's are starred.
       const std::string name =
@@ -178,6 +179,7 @@ class FakePage : public sidebar::mojom::Page {
     return archive_;
   }
   uint32_t archive_after_hours() const { return archive_after_hours_; }
+  bool synced() const { return synced_; }
   const std::vector<sidebar::mojom::ProfileOptionPtr>& profiles() const {
     return profiles_;
   }
@@ -196,6 +198,7 @@ class FakePage : public sidebar::mojom::Page {
   std::vector<std::string> events_;
   std::string spaces_;
   uint32_t archive_after_hours_ = 0;
+  bool synced_ = true;
   std::vector<sidebar::mojom::ProfileOptionPtr> profiles_;
   std::vector<sidebar::mojom::ArchivedEntryPtr> archive_;
 };
@@ -891,6 +894,24 @@ TEST_F(SidebarPageHandlerTest, DeletingTheWindowsSpaceSwitchesAway) {
   sidebar::mojom::TreePtr tree = page_.TakeTree();
   ASSERT_TRUE(tree);
   EXPECT_THAT(Hosts(*tree->today), ElementsAre("a.test", "b.test"));
+}
+
+// The space menu's "Sync to your other devices": the page hears the change.
+TEST_F(SidebarPageHandlerTest, SetSpaceSynced) {
+  const std::string id = space_model().id().AsLowercaseString();
+  EXPECT_TRUE(page_.synced());
+  handler_remote_->SetSpaceSynced(id, false);
+  Settle();
+  EXPECT_FALSE(space_model().synced());
+  EXPECT_FALSE(page_.synced());
+  handler_remote_->SetSpaceSynced(id, true);
+  Settle();
+  EXPECT_TRUE(space_model().synced());
+  EXPECT_TRUE(page_.synced());
+  // An unknown space is ignored.
+  handler_remote_->SetSpaceSynced("nope", false);
+  Settle();
+  EXPECT_TRUE(space_model().synced());
 }
 
 TEST_F(SidebarPageHandlerTest, ArchivesAndRestores) {

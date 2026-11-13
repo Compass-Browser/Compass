@@ -245,6 +245,16 @@ void SpaceModel::SetArchiveAfter(base::TimeDelta archive_after) {
   }
 }
 
+void SpaceModel::SetSynced(bool synced) {
+  if (synced_ == synced) {
+    return;
+  }
+  synced_ = synced;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
 void SpaceModel::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
 }

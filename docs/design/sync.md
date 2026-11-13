@@ -930,6 +930,65 @@ theme isn't committed back. Every theme setter fires
 the new fields as unknown fields and the icon string as received; it only
 reads and writes `color`.
 
+### Spaces that don't sync
+
+A space can stay on this device: "Sync to your other devices" off in its
+menu, or made that way with "New Space on This Device" (command bar, the
+macOS Spaces menu). `SpaceModel::synced()`, true by default, saved as
+`"local_only": true` in `Compass Sidebar.json` (left out when synced); the
+flag itself never syncs, so there's no proto field.
+
+- **Nothing of it goes up.** `ComputeLocalSpecifics()` leaves out the space
+  and everything in it: Pinned (folders, live folders, splits), Today and
+  its archive. Favorites are the profile's, not a space's, and keep syncing.
+- **Turning sync off removes it from the other devices** (the menu asks
+  first): the next pass finds the space's entities in the mirror but not in
+  the model, and deletes them, as deleting the space would there. Here
+  nothing changes. Moving an entry from a synced space into a local one
+  deletes it elsewhere the same way; moving one out uploads it.
+- **Turning it on uploads it** like a new space (same IDs: the server
+  revives tombstones, see "Server").
+- **Incoming changes never touch it.** Remote entities for a local space,
+  for a node in one or for a node whose space is one (a device that edited
+  it before hearing of the delete) go into the mirror but not into the
+  model, and the next pass deletes them again, so the chain converges on
+  the delete. A remote delete of such a space or node is ignored.
+- **Order.** Local spaces have no synced position; when remote positions
+  reorder the switcher, each keeps its place after the synced space it
+  followed (`OrderSpaces()`), and `DirectoryPositions()` drops positions
+  of spaces that have none.
+- **Open tabs** (`SESSIONS`): tabs of a local space aren't in this device's
+  synced session, so other devices' "Tabs from other devices" don't list
+  them (`compass::IsInUnsyncedSpace()`, called by
+  `TabContentsSyncedTabDelegate::ShouldSync()`, desktop). History still
+  syncs: it's the profile's, not the space's.
+- **Moving to another profile** keeps the flag.
+- **Favicons**: hosts of a local space's entries aren't offered, and an
+  icon only a local space uses is collected (`GetEntryUrlsByHost()`).
+- **UI**: the space menu's "Sync to your other devices" (a check; turning it
+  off wants a second click) shows while the profile's spaces sync, or for a
+  space already kept here. The switcher shows a small dot on the space's
+  button, and its tooltip says "On this device only".
+- **Platforms**:
+  - Desktop (macOS, Windows, Linux): all of the above.
+  - Android shares the C++ model, serializer and bridge, so a flag set on
+    the desktop side of a profile is kept and respected; it has no UI to set
+    it yet, and its open tabs aren't filtered (no window_sync there).
+  - iOS (`CompassSpacesBridge`, `Space.synced`, saved as `localOnly`): the
+    same rules in its change-driven bridge (`desired()` gives nothing for a
+    local space's nodes; `localChanged()` deletes a space turned off and
+    uploads one turned on; `applyRemote()` drops and deletes again what
+    comes for a local space; the initial merge leaves them out). The space
+    menu has "Sync to Other Devices", asking before it turns off; the
+    header shows `icloud.slash`. Favicons aren't filtered there yet.
+- **Tests**: `CompassSpacesSyncBridgeTest.LocalSpaceIsNotUploaded`,
+  `LocalSpaceIgnoresRemoteChanges`, `TurningSyncOffDeletesRemotely`,
+  `TurningSyncOnUploads`, `LocalSpacesKeepTheirPlace`;
+  `SidebarSerializerTest.LocalOnlyRoundTrips`; `SpaceModelTest.SetSynced`;
+  `SidebarPageHandlerTest.SetSpaceSynced`;
+  `CompassSidebarBrowserTest.LocalSpace` (menu, marker, session sync);
+  `CompassMainMenuBrowserTest.SpacesMenu`; iOS `LocalSpaceSyncTests`.
+
 ### Patches for a new data type
 
 Chromium has no plug-in point for types, so these are patches (small, but

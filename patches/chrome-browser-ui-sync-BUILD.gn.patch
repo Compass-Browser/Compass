@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/sync/BUILD.gn b/chrome/browser/ui/sync/BUILD.gn
+index 8a146b9585dcb507a2e1438fe7bc3b39c79cca5d..d78ee02e58d899856c3afb7026d2180ef8039ea2 100644
+--- a/chrome/browser/ui/sync/BUILD.gn
++++ b/chrome/browser/ui/sync/BUILD.gn
+@@ -60,6 +60,8 @@ source_set("impl") {
+       "browser_synced_window_delegates_getter.cc",
+     ]
+     deps += [
++      # Compass leaves out tabs of spaces that stay on the device.
++      "//compass/browser/window_sync",
+       "//chrome/browser/sync",
+       "//chrome/browser/ui/tabs:tab_strip",
+       "//components/bookmarks/browser",

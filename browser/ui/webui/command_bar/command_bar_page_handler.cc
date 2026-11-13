@@ -75,6 +75,7 @@ struct CommandInfo {
 
 constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kNewSpace, u"New space"},
+    {CommandBarCommand::kNewLocalSpace, u"New space on this device"},
     {CommandBarCommand::kPinEntry, u"Pin tab"},
     {CommandBarCommand::kUnpinEntry, u"Unpin tab"},
     {CommandBarCommand::kAddFavorite, u"Add to Favorites"},
@@ -660,6 +661,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kNewSpace:
       features->AddSpaceAndSwitch();
       break;
+    case CommandBarCommand::kNewLocalSpace:
+      features->AddSpaceAndSwitch(/*synced=*/false);
+      break;
     case CommandBarCommand::kPinEntry: {
       SidebarNode* node = GetActiveNode();
       // A pane moves with its split.
@@ -732,6 +736,7 @@ bool CommandBarPageHandler::IsCommandAvailable(
   WindowFeatures *features = GetFeatures();
   switch (command) {
     case CommandBarCommand::kNewSpace:
+    case CommandBarCommand::kNewLocalSpace:
       return features && !features->is_parking_window();
     case CommandBarCommand::kPinEntry: {
       const SidebarNode* node = GetActiveNode();

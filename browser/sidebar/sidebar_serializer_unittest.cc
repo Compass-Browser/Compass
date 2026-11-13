@@ -413,6 +413,25 @@ TEST(SidebarSerializerTest, RoundTripsArchiveState) {
   EXPECT_EQ(space.archive()[0].tabs[1].id, b_id);
 }
 
+// A space that stays on this device says so; synced ones (and older files)
+// have no key.
+TEST(SidebarSerializerTest, LocalOnlyRoundTrips) {
+  SpaceList list;
+  list.AddSpace(1, u"Private")->SetSynced(false);
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* spaces = data.FindList("spaces");
+  ASSERT_TRUE(spaces);
+  ASSERT_EQ(spaces->size(), 2u);
+  EXPECT_FALSE((*spaces)[0].GetDict().contains("local_only"));
+  EXPECT_EQ((*spaces)[1].GetDict().FindBool("local_only"), true);
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  ASSERT_EQ(restored.spaces().size(), 2u);
+  EXPECT_TRUE(restored.spaces()[0]->synced());
+  EXPECT_FALSE(restored.spaces()[1]->synced());
+}
+
 TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {
   std::optional<base::Value> data = base::JSONReader::Read(
       R"({"version": 2, "spaces": [{"name": "Home", "archive_after_hours": 0},

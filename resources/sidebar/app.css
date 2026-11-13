@@ -324,6 +324,19 @@ compass-sidebar-preview[side='next'] {
   opacity: 1;
 }
 
+/* A space that stays on this device: a small dot at its corner. */
+.space[local-only]::after {
+  background: currentColor;
+  border-radius: 50%;
+  bottom: 1px;
+  content: '';
+  height: 4px;
+  inset-inline-end: 1px;
+  opacity: 0.6;
+  position: absolute;
+  width: 4px;
+}
+
 /* Drawn, not a "+" character, whose glyph sits below the center. */
 #addSpace svg {
   fill: none;
@@ -528,6 +541,49 @@ compass-sidebar-preview[side='next'] {
 
 #spaceProfile[hidden] {
   display: none;
+}
+
+#spaceSync {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 4px 6px;
+  text-align: start;
+}
+
+#spaceSync[hidden] {
+  display: none;
+}
+
+#spaceSync:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+#spaceSync[confirming] {
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(220, 38, 38);
+}
+
+#spaceSync svg {
+  fill: none;
+  flex-shrink: 0;
+  height: 14px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  visibility: hidden;
+  width: 14px;
+}
+
+#spaceSync[checked]:not([confirming]) svg {
+  visibility: visible;
 }
 
 #deleteSpace {

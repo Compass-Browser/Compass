@@ -306,6 +306,13 @@ class SpaceModel {
   base::TimeDelta archive_after() const { return archive_after_; }
   void SetArchiveAfter(base::TimeDelta archive_after);
 
+  // Whether the space syncs to the chain's other devices. Off, it stays on
+  // this device: nothing of it goes up, and turning it off removes it from
+  // the others (docs/design/sync.md, "Spaces that don't sync"). Not synced
+  // itself. Favorites are always synced.
+  bool synced() const { return synced_; }
+  void SetSynced(bool synced);
+
   SidebarNode* pinned_root() { return pinned_root_.get(); }
   const SidebarNode* pinned_root() const { return pinned_root_.get(); }
   SidebarNode* today_root() { return today_root_.get(); }
@@ -514,6 +521,7 @@ class SpaceModel {
   SpaceAppearance appearance_ = SpaceAppearance::kAuto;
   SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
+  bool synced_ = true;
   std::vector<ArchivedEntry> archive_;
   std::unique_ptr<SidebarNode> pinned_root_;
   std::unique_ptr<SidebarNode> today_root_;

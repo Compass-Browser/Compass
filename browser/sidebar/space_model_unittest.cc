@@ -93,6 +93,20 @@ TEST_F(SpaceModelTest, StartsEmpty) {
   EXPECT_FALSE(model_.CanMove(model_.pinned_root(), model_.today_root()));
 }
 
+// Spaces sync unless set not to; a change tells observers once.
+TEST_F(SpaceModelTest, SetSynced) {
+  EXPECT_TRUE(model_.synced());
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  model_.SetSynced(false);
+  model_.SetSynced(false);
+  EXPECT_FALSE(model_.synced());
+  EXPECT_EQ(observer.events, std::vector<std::string>({"space"}));
+  model_.SetSynced(true);
+  EXPECT_TRUE(model_.synced());
+  model_.RemoveObserver(&observer);
+}
+
 TEST_F(SpaceModelTest, FoldersNestInPinnedAndToday) {
   SidebarNode* work = model_.AddFolder(model_.pinned_root(), 0, u"Work");
   SidebarNode* docs = model_.AddFolder(work, 0, u"Docs");

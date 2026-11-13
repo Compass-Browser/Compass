@@ -37,6 +37,9 @@ class WindowFeatures;
 // What a command result does. See docs/design/command-bar.md, "Results".
 enum class CommandBarCommand {
   kNewSpace,
+  // A space that stays on this device (docs/design/sync.md, "Spaces that
+  // don't sync").
+  kNewLocalSpace,
   kPinEntry,
   kUnpinEntry,
   kAddFavorite,

@@ -324,6 +324,11 @@ class SpacesSyncHolder : public SpaceService::Attachment,
       auto it = positions.find(key);
       if (it != positions.end()) {
         DirectoryPositions().insert_or_assign(key, it->second);
+      } else {
+        // None (any more): a space that stays on this device keeps its
+        // place in the switcher (docs/design/sync.md, "Spaces that don't
+        // sync").
+        DirectoryPositions().erase(key);
       }
     }
     if (remote) {

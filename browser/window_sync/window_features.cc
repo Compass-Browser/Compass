@@ -388,11 +388,13 @@ WindowFeatures* WindowFeatures::From(BrowserWindowInterface* browser) {
   return Get(browser->GetUnownedUserDataHost());
 }
 
-void WindowFeatures::AddSpaceAndSwitch() {
+void WindowFeatures::AddSpaceAndSwitch(bool synced) {
   SpaceList& list = service_->space_list();
   SpaceModel* space = list.AddSpace(
       list.spaces().size(),
       u"Space " + base::NumberToString16(list.spaces().size() + 1));
+  // Before sync's pass, which is posted.
+  space->SetSynced(synced);
   SwitchToSpace(*space);
 }
 
@@ -843,6 +845,7 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   moved.SetAppearance(space.appearance());
   moved.SetIcon(space.icon());
   moved.SetArchiveAfter(space.archive_after());
+  moved.SetSynced(space.synced());
   for (const ArchivedEntry& entry : space.archive()) {
     moved.AddArchived(entry);
   }
@@ -1117,6 +1120,24 @@ bool IsInParkingWindow(content::WebContents* contents) {
       tab ? tab->GetBrowserWindowInterface() : nullptr;
   WindowFeatures* features = browser ? WindowFeatures::From(browser) : nullptr;
   return features && features->is_parking_window();
+}
+
+bool IsInUnsyncedSpace(content::WebContents* contents) {
+  tabs::TabInterface* tab =
+      contents ? tabs::TabInterface::MaybeGetFromContents(contents) : nullptr;
+  BrowserWindowInterface* browser =
+      tab ? tab->GetBrowserWindowInterface() : nullptr;
+  if (!browser) {
+    return false;
+  }
+  SpaceService* service = SpaceService::GetIfExists(browser->GetProfile());
+  if (!service) {
+    return false;
+  }
+  SidebarNode* node = service->registry().GetNode(tab);
+  const SpaceModel* space =
+      node ? service->space_list().FindSpaceOf(node) : nullptr;
+  return space && !space->synced();
 }
 
 bool RevealParkedTab(content::WebContents* contents) {

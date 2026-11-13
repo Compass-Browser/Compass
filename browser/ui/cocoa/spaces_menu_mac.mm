@@ -85,6 +85,14 @@ char kControllerKey;
                           keyEquivalent:@""];
   add.target = self;
   [menu addItem:add];
+  // One that stays on this Mac (docs/design/sync.md, "Spaces that don't
+  // sync").
+  NSMenuItem* add_local = [[NSMenuItem alloc]
+      initWithTitle:@"New Space on This Device"
+             action:browser ? @selector(newLocalSpace:) : nil
+      keyEquivalent:@""];
+  add_local.target = self;
+  [menu addItem:add_local];
 }
 
 // The menu shows the space shortcuts but doesn't take them: the window's
@@ -112,6 +120,13 @@ char kControllerKey;
 - (void)newSpace:(id)sender {
   if (BrowserWindowInterface* browser = TargetBrowser()) {
     compass::WindowFeatures::From(browser)->AddSpaceAndSwitch();
+  }
+}
+
+- (void)newLocalSpace:(id)sender {
+  if (BrowserWindowInterface* browser = TargetBrowser()) {
+    compass::WindowFeatures::From(browser)->AddSpaceAndSwitch(
+        /*synced=*/false);
   }
 }
 

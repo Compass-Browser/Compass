@@ -511,6 +511,53 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, UndockedDevToolsIsNoTab) {
   EXPECT_EQ(today, space.today_root()->children().size());
 }
 
+// A space that stays on this device (docs/design/sync.md, "Spaces that
+// don't sync"): its tabs are left out of session sync, the switcher marks it,
+// and its menu turns sync back on in one click.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LocalSpace) {
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  // A page, so the tab is an entry.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<title>Local</title>")));
+  content::WebContents* tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  EXPECT_FALSE(IsInUnsyncedSpace(tab));
+  space.SetSynced(false);
+  EXPECT_TRUE(IsInUnsyncedSpace(tab));
+
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      const button = await until(
+          () => root.querySelector('.space[local-only]'));
+      if (!button.title.endsWith('On this device only')) return false;
+      root.querySelector('#spaceName').dispatchEvent(new MouseEvent(
+          'dblclick', {bubbles: true, composed: true}));
+      const toggle = await until(() => {
+        const t = root.querySelector('#spaceSync');
+        return t && !t.hidden ? t : null;
+      });
+      if (toggle.getAttribute('aria-checked') !== 'false') return false;
+      toggle.click();
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return space.synced(); }));
+  EXPECT_FALSE(IsInUnsyncedSpace(tab));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      while (root.querySelector('.space[local-only]')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
+    })())"));
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, NewWindowHasTheSpaceTheme) {
   SpaceModel& home = WindowFeatures::From(browser())->space_model();
   home.SetColor(SpaceColor::kBlue);

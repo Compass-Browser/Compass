@@ -201,8 +201,9 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // profiles): a pass looks for what to commit.
   void NotifyLocalChange();
 
-  // The URLs of this profile's entries, in every section, archives and
-  // favorites included, by host (lowercase).
+  // The URLs of this profile's synced entries, in every section, archives
+  // and favorites included, by host (lowercase). Spaces that stay on this
+  // device are left out.
   std::map<std::string, std::vector<GURL>> GetEntryUrlsByHost() const;
   std::set<std::string> GetEntryHosts() const;
   // An icon this device took from a page it loaded on |host|: a PNG of at
@@ -374,6 +375,13 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   SpaceModel* ModelOf(const SidebarNode* node) const;
   // Whether |node| is in a space or the favorites.
   bool IsSynced(const SidebarNode* node) const;
+  // Whether |id| is a space that stays on this device (SpaceModel::synced()
+  // off), or a node or archived entry in one.
+  bool IsInLocalSpace(const base::Uuid& id) const;
+  // Whether |specifics| is of a space that stays on this device, or of a node
+  // in one or for one: never applied, deleted again by the next pass
+  // (docs/design/sync.md, "Spaces that don't sync").
+  bool IsLocalOnly(const sync_pb::CompassSpacesSpecifics& specifics) const;
   // The model a remote node belongs in, or null if it isn't here (yet).
   SpaceModel* TargetModel(const sync_pb::CompassNode& node) const;
   void MoveNode(SidebarNode* node,

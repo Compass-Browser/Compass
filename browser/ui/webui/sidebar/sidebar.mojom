@@ -250,6 +250,11 @@ struct Space {
   SpaceIcon? icon;
   // How long a Today entry may go unseen before it's archived; 0 for never.
   uint32 archive_after_hours;
+  // Whether it syncs to the chain's other devices (compass::SpaceModel::
+  // synced()), and whether its profile's spaces sync at all: the menu offers
+  // the switch when they do, or when the space is already kept here.
+  bool synced;
+  bool sync_on;
   // The profile it belongs to: its ID (as ProfileOption's) and name.
   string profile_id;
   string profile_name;
@@ -377,6 +382,10 @@ interface PageHandler {
   PreviewSpace(string? id, double progress);
   // 0 turns auto-archive off for the space. At most a year.
   SetArchiveAfter(string space_id, uint32 hours);
+  // Makes the space sync to the other devices, or stay on this one (turning
+  // it off removes it from them). See docs/design/sync.md, "Spaces that
+  // don't sync".
+  SetSpaceSynced(string space_id, bool synced);
 
   // The window's space's archive. Restoring puts the entry back at the end of
   // Today and opens it in the foreground.
