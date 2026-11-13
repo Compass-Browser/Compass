@@ -113,7 +113,7 @@ public class PageMenu implements PageMenuUi.Listener {
 
     @Override
     public void onHistory() {
-        then(() -> mBar.chromeAction("open_history_menu_id"));
+        then(mBar::showHistory);
     }
 
     @Override

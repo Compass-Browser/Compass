@@ -73,6 +73,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable Integer mBackgroundColor;
     private @Nullable SyncScreen mSync;
     private @Nullable DevicesWidget mDevicesWidget;
+    private @Nullable HistoryScreen mHistory;
     private @Nullable Extensions mExtensions;
     private @Nullable TabPicker mTabPicker;
     private @Nullable PageMenu mPageMenu;
@@ -130,6 +131,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         SyncScreen sync = new SyncScreen(mActivity, coordinator);
         mSync = sync;
         mClaude = new ClaudeChat(mActivity, coordinator);
+        mHistory = new HistoryScreen(mActivity, coordinator);
         mDevicesWidget =
                 new DevicesWidget(
                         mActivity, mActivity.getTabModelSelector().getModel(false).getProfile());
@@ -222,6 +224,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mSync != null) mSync.destroy();
         if (mDevicesWidget != null) mDevicesWidget.destroy();
         mDevicesWidget = null;
+        if (mHistory != null) mHistory.destroy();
+        mHistory = null;
         if (mClaude != null) mClaude.destroy();
         if (mExtensions != null) mExtensions.destroy();
         mExtensions = null;
@@ -490,6 +494,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     /** Chrome's own tab switcher (tab groups). */
     public void showTabSwitcher() {
         mActivity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ true);
+    }
+
+    /** Compass's History screen (HistoryScreen), in place of Chrome's. */
+    public void showHistory() {
+        if (mHistory != null) mHistory.show();
     }
 
     public void showClaude() {

@@ -268,6 +268,11 @@ It costs:
   sync's open tabs through Chrome's `ForeignSessionHelper`, every word in
   the title, URL or device name, at most six, the most recently active
   device first; one opens as a new Today entry).
+- **History** (`HistoryScreen`, `HistoryUi.kt`), from the page menu, in
+  place of Chrome's: as the iOS app's, a search field over the visits
+  (Chrome's `BrowsingHistoryBridge`, a page at a time as the list scrolls),
+  newest first under Today, Yesterday and their dates; a tap opens one in
+  the tab, × removes it, Clear… opens Chrome's Clear Browsing Data.
 - **The start page** (`StartPage`, `StartPageUi.kt`) replaces Chrome's new
   tab page (`NativePageFactory` patch): as the iOS app's empty page, the
   space's tint; for an incognito tab, a dark page with what incognito
@@ -480,7 +485,7 @@ two large pieces.
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 
 Still Chrome's look, to restyle in Material You with the shell's layout:
-History, Downloads, a link's long-press menu, page info and permission
+Downloads, a link's long-press menu, page info and permission
 prompts, and the "Save password?" message. Chrome's own top toolbar also
 shows for a few seconds on a cold start before the shell hides it.
 
