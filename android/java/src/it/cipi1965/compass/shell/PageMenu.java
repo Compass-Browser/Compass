@@ -108,7 +108,7 @@ public class PageMenu implements PageMenuUi.Listener {
 
     @Override
     public void onDownloads() {
-        then(() -> mBar.chromeAction("downloads_menu_id"));
+        then(mBar::showDownloads);
     }
 
     @Override

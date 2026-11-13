@@ -273,6 +273,13 @@ It costs:
   (Chrome's `BrowsingHistoryBridge`, a page at a time as the list scrolls),
   newest first under Today, Yesterday and their dates; a tap opens one in
   the tab, × removes it, Clear… opens Chrome's Clear Browsing Data.
+- **Downloads** (`DownloadsScreen`, `DownloadsUi.kt`), from the page
+  menu, in place of Chrome's download home: the profile's downloads from
+  Chrome's `OfflineContentProvider` (`OfflineContentAggregatorFactory`),
+  newest first, kept up to date while open; those under way show their
+  progress with Pause or Resume and ×; a tap opens a finished one, a long
+  press deletes it (after asking). Settings opens Chrome's download
+  settings.
 - **The start page** (`StartPage`, `StartPageUi.kt`) replaces Chrome's new
   tab page (`NativePageFactory` patch): as the iOS app's empty page, the
   space's tint; for an incognito tab, a dark page with what incognito
@@ -485,8 +492,8 @@ two large pieces.
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 
 Still Chrome's look, to restyle in Material You with the shell's layout:
-Downloads, a link's long-press menu, page info and permission
-prompts, and the "Save password?" message. Chrome's own top toolbar also
+a link's long-press menu, page info and permission prompts, and the "Save
+password?" message. Chrome's own top toolbar also
 shows for a few seconds on a cold start before the shell hides it.
 
 Built but not yet tried end to end: the Claude tool loop with a real key,

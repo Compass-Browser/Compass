@@ -74,6 +74,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable SyncScreen mSync;
     private @Nullable DevicesWidget mDevicesWidget;
     private @Nullable HistoryScreen mHistory;
+    private @Nullable DownloadsScreen mDownloads;
     private @Nullable Extensions mExtensions;
     private @Nullable TabPicker mTabPicker;
     private @Nullable PageMenu mPageMenu;
@@ -132,6 +133,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mSync = sync;
         mClaude = new ClaudeChat(mActivity, coordinator);
         mHistory = new HistoryScreen(mActivity, coordinator);
+        mDownloads = new DownloadsScreen(mActivity, coordinator);
         mDevicesWidget =
                 new DevicesWidget(
                         mActivity, mActivity.getTabModelSelector().getModel(false).getProfile());
@@ -226,6 +228,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mDevicesWidget = null;
         if (mHistory != null) mHistory.destroy();
         mHistory = null;
+        if (mDownloads != null) mDownloads.destroy();
+        mDownloads = null;
         if (mClaude != null) mClaude.destroy();
         if (mExtensions != null) mExtensions.destroy();
         mExtensions = null;
@@ -494,6 +498,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     /** Chrome's own tab switcher (tab groups). */
     public void showTabSwitcher() {
         mActivity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ true);
+    }
+
+    /** Compass's Downloads screen (DownloadsScreen), in place of Chrome's download home. */
+    public void showDownloads() {
+        if (mDownloads != null) mDownloads.show();
     }
 
     /** Compass's History screen (HistoryScreen), in place of Chrome's. */
