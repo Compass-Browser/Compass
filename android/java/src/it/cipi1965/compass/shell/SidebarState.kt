@@ -18,7 +18,13 @@ class SidebarState {
         /** "#rrggbb", or empty for grey. */
         @JvmField val tint: String,
         @JvmField val emoji: String,
+        /** Its pinned tree's root, and that tree's folders (live ones aside), for Pin to Compass. */
+        @JvmField val pinnedId: String = "",
+        @JvmField val folders: List<Folder> = emptyList(),
     )
+
+    /** A folder of a space's pinned tree; |depth| 0 is in the root. */
+    class Folder(@JvmField val id: String, @JvmField val title: String, @JvmField val depth: Int)
 
     class Node(
         @JvmField val id: String,
@@ -100,6 +106,10 @@ class SidebarState {
                     it.optString("name"),
                     it.optString("tint"),
                     it.optString("emoji"),
+                    it.optString("pinned_id"),
+                    it.optJSONArray("folders").objects().map { folder ->
+                        Folder(folder.optString("id"), folder.optString("title"), folder.optInt("depth"))
+                    },
                 )
             }
         favorites = nodes(data.optJSONArray("favorites"))

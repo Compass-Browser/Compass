@@ -29,6 +29,22 @@ namespace compass {
 
 namespace {
 
+// The folders of a space's pinned tree, depth first, for the share target's picker: each one's
+// ID, title and depth (0: in the root). Live folders fill themselves and aren't offered.
+void AppendFolders(const SidebarNode& root, int depth, base::ListValue& folders) {
+  for (const auto& child : root.children()) {
+    if (child->type() != SidebarNode::Type::kFolder || child->is_live_folder()) {
+      continue;
+    }
+    base::DictValue dict;
+    dict.Set("id", child->id().AsLowercaseString());
+    dict.Set("title", base::UTF16ToUTF8(child->display_title()));
+    dict.Set("depth", depth);
+    folders.Append(std::move(dict));
+    AppendFolders(*child, depth + 1, folders);
+  }
+}
+
 // Chrome for Android's new tab page, which Compass's start page replaces.
 bool IsNewTabPage(const GURL& url) {
   return (url.SchemeIs("chrome-native") || url.SchemeIs("chrome")) &&
@@ -151,6 +167,11 @@ std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
     dict.Set("emoji", space->icon().kind() == SpaceIcon::Kind::kEmoji
                           ? space->icon().value()
                           : std::string());
+    // Where the share target can pin to (Pin to Compass's picker).
+    dict.Set("pinned_id", space->pinned_root()->id().AsLowercaseString());
+    base::ListValue folders;
+    AppendFolders(*space->pinned_root(), 0, folders);
+    dict.Set("folders", std::move(folders));
     spaces.Append(std::move(dict));
   }
   snapshot.Set("spaces", std::move(spaces));

@@ -48,7 +48,7 @@ import java.util.List;
  * (SpacesBridge) in step with Chrome's regular tabs, and runs the sidebar (SidebarUi.kt).
  * Incognito tabs aren't in spaces.
  */
-public class Spaces implements SidebarUi.Listener {
+public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     // Windows at least this wide (Material's "expanded") show the sidebar as a pane.
     private static final int PANE_MIN_WINDOW_DP = 840;
     private static final int PANE_WIDTH_DP = 300;
@@ -74,6 +74,12 @@ public class Spaces implements SidebarUi.Listener {
     // A tab moving here from another window, selected when it arrives.
     private int mMovingTab = Tab.INVALID_TAB_ID;
     private final TabModelSelectorTabObserver mTabObserver;
+    // Pin to Compass: the tab the share target opened, until its pinned entry shows up; then the
+    // picker for where it goes (PinPickerUi.kt).
+    private int mPinningTab = Tab.INVALID_TAB_ID;
+    private final PinPickerUi.State mPinPicker = new PinPickerUi.State();
+    private @Nullable String mPinnedNode;
+    private @Nullable View mPinView;
 
     public Spaces(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
@@ -293,11 +299,61 @@ public class Spaces implements SidebarUi.Listener {
                                 new LoadUrlParams(gurl.getSpec(), PageTransition.LINK),
                                 TabLaunchType.FROM_EXTERNAL_APP,
                                 null);
-        if (tab != null) mBridge.pin(tab.getId(), false);
+        if (tab == null) return;
+        mPinningTab = tab.getId();
+        mBridge.pin(tab.getId(), false);
+        showPinPicker();
+    }
+
+    // Once the shared page's entry is in the model: the picker, to move it elsewhere.
+    private void showPinPicker() {
+        if (mPinningTab == Tab.INVALID_TAB_ID) return;
+        SidebarState.Node node = mState.pinnedNodeFor(mPinningTab);
+        if (node == null) return;
+        mPinningTab = Tab.INVALID_TAB_ID;
+        mPinnedNode = node.id;
+        mPinPicker.setTitle(node.title.isEmpty() ? node.url : node.title);
+        mPinPicker.setParentId(mState.getPinnedId());
+        if (mPinView == null) {
+            mPinView =
+                    PinPickerUi.createView(
+                            mActivity, mActivity, mActivity, mState, mPinPicker, this);
+            ((ViewGroup) mView.getParent())
+                    .addView(
+                            mPinView,
+                            new CoordinatorLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        mPinView.setVisibility(View.VISIBLE);
+        mPinView.bringToFront();
+        mPinPicker.setOpen(true);
+    }
+
+    @Override
+    public void onPinInto(String parentId) {
+        if (mPinnedNode == null || parentId.isEmpty()) return;
+        if (mBridge.moveNodeTo(mPinnedNode, parentId, "")) mPinPicker.setParentId(parentId);
+    }
+
+    @Override
+    public void onPinPickerDone() {
+        mPinPicker.setOpen(false);
+        mPinnedNode = null;
+        // After the sheet has slid away.
+        if (mPinView != null) {
+            View view = mPinView;
+            view.postDelayed(
+                    () -> {
+                        if (!mPinPicker.getOpen()) view.setVisibility(View.GONE);
+                    },
+                    400);
+        }
     }
 
     private void onModelChanged() {
         mState.update(mBridge.snapshot(), currentTabId());
+        showPinPicker();
         updateShortcuts();
         if (mOnChanged != null) mOnChanged.run();
     }

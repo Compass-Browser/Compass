@@ -182,4 +182,24 @@ public class SidebarStateTest {
         assertEquals("P", SidebarUi.entryPlaces(state).get("b").getFirst());
         assertEquals("T", SidebarUi.entryPlaces(state).get("d").getFirst());
     }
+
+    @Test
+    public void spacesListTheirFoldersForPinToCompass() {
+        SidebarState state = new SidebarState();
+        state.update(
+                "{\"spaces\": ["
+                        + " {\"id\": \"s1\", \"name\": \"Home\", \"pinned_id\": \"P1\","
+                        + "  \"folders\": [{\"id\": \"f1\", \"title\": \"Work\", \"depth\": 0},"
+                        + "   {\"id\": \"f2\", \"title\": \"Docs\", \"depth\": 1}]},"
+                        + " {\"id\": \"s2\", \"name\": \"Play\", \"pinned_id\": \"P2\"}]}",
+                -1);
+        List<SidebarState.Space> spaces = state.getSpaces();
+        assertEquals(2, spaces.size());
+        assertEquals("P1", spaces.get(0).pinnedId);
+        assertEquals(2, spaces.get(0).folders.size());
+        assertEquals("Docs", spaces.get(0).folders.get(1).title);
+        assertEquals(1, spaces.get(0).folders.get(1).depth);
+        assertEquals("P2", spaces.get(1).pinnedId);
+        assertTrue(spaces.get(1).folders.isEmpty());
+    }
 }

@@ -224,6 +224,11 @@ It costs:
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
+  Pin to Compass opens the shared link and pins it to the active space,
+  then a sheet (`PinPickerUi.kt`, as the iOS share extension's picker)
+  moves it to the favorites, another space's pinned tree or one of its
+  folders (live folders aside; the snapshot lists each space's
+  `pinned_id` and `folders`).
 - **The bar scrolls away** with the page, as on iOS: it's a layer of
   Chrome's bottom controls that scrolls off (`DEFAULT_SCROLL_OFF`), and
   while it moves the compositor draws a copy of it in step with the page
@@ -450,7 +455,7 @@ two large pieces.
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | Search engine and privacy done (above, "Settings"); site settings still Chrome's. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
-| P9 | System extras | More widget kinds (Today, Other Devices, Quick Actions); the share target picks a folder; app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
+| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). More widget kinds (Today, Other Devices, Quick Actions); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | Other apps' logins save into Compass (Autofill's save request), not only fill |
 
 Still Chrome's look, to restyle in Material You with the shell's layout:
