@@ -23,7 +23,6 @@
 #include "compass/browser/claude/claude_tools.h"
 #include "compass/browser/claude/devtools_format.h"
 #include "compass/browser/claude/devtools_session.h"
-#include "base/i18n/time_formatting.h"
 #include "base/time/time.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/re2/src/re2/re2.h"
@@ -199,11 +198,10 @@ std::string FormatCookie(const base::DictValue& cookie, bool show_values) {
   if (cookie.FindBool("session").value_or(false) || expires <= 0) {
     text += "; session";
   } else {
-    base::StrAppend(
-        &text,
-        {"; expires ",
-         base::UnlocalizedTimeFormatWithPattern(
-             base::Time::FromSecondsSinceUnixEpoch(expires), "yyyy-MM-dd")});
+    base::Time::Exploded day;
+    base::Time::FromSecondsSinceUnixEpoch(expires).UTCExplode(&day);
+    text += base::StringPrintf("; expires %04d-%02d-%02d", day.year,
+                               day.month, day.day_of_month);
   }
   if (cookie.FindBool("httpOnly").value_or(false)) {
     text += "; HttpOnly";
@@ -1249,7 +1247,7 @@ void ClaudeTools::EditPageStorage(base::DictValue input) {
     Finish(ToolResult::Error("Only web pages (http, https) have cookies."));
     return;
   }
-  const std::string host = url.host();
+  const std::string host(url.host());
   const std::string where =
       store == "cookies"
           ? std::string()
