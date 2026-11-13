@@ -26,10 +26,44 @@ class CommandBarState {
         @JvmField val where: String,
     )
 
+    /** A tab open on another device of the sync chain (command-bar.md, "Tabs on other devices"). */
+    class DeviceTab(@JvmField val title: String, @JvmField val url: String, @JvmField val device: String)
+
+    /** Another device's open tabs, as sync has them; |modified|: when it last changed. */
+    class Device(@JvmField val name: String, @JvmField val modified: Long, @JvmField val tabs: List<DeviceTab>)
+
+    companion object {
+        /** At most this many tabs on other devices. */
+        const val MAX_DEVICE_TABS = 6
+
+        /**
+         * The other devices' tabs whose title, URL or device name contains every word of |query|,
+         * at most MAX_DEVICE_TABS, grouped by device, the most recently active device first. None
+         * for an empty query.
+         */
+        @JvmStatic
+        fun matchDeviceTabs(devices: List<Device>, query: String): List<DeviceTab> {
+            val words = query.lowercase().split(' ').filter { it.isNotEmpty() }
+            if (words.isEmpty()) return emptyList()
+            val matches = ArrayList<DeviceTab>()
+            for (device in devices.sortedByDescending { it.modified }) {
+                for (tab in device.tabs) {
+                    val haystack = "${tab.title}\n${tab.url}\n${device.name}".lowercase()
+                    if (words.all { haystack.contains(it) }) {
+                        matches.add(tab)
+                        if (matches.size == MAX_DEVICE_TABS) return matches
+                    }
+                }
+            }
+            return matches
+        }
+    }
+
     var open by mutableStateOf(false)
     var text by mutableStateOf("")
     var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
     var entries by mutableStateOf<List<Entry>>(emptyList())
+    var deviceTabs by mutableStateOf<List<DeviceTab>>(emptyList())
     var incognito by mutableStateOf(false)
     /** Editing the page's address ("Go to"), not a new tab. */
     var editing by mutableStateOf(false)

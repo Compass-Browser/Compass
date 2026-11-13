@@ -261,7 +261,10 @@ It costs:
   to" with the page's address selected) and cards: the typed address or
   search, the sidebar's entries to switch to (Today's while the field is
   empty), search suggestions and history, from Chrome's
-  `AutocompleteController`.
+  `AutocompleteController`, and tabs on other devices (command-bar.md:
+  sync's open tabs through Chrome's `ForeignSessionHelper`, every word in
+  the title, URL or device name, at most six, the most recently active
+  device first; one opens as a new Today entry).
 - **The start page** (`StartPage`, `StartPageUi.kt`) replaces Chrome's new
   tab page (`NativePageFactory` patch): as the iOS app's empty page, the
   space's tint; for an incognito tab, a dark page with what incognito

@@ -12,6 +12,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
+import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.components.omnibox.AutocompleteInput;
@@ -42,6 +43,8 @@ public class CommandBar
     private @Nullable AutocompleteController mController;
     // Opens results in a new tab instead of the current one.
     private boolean mInNewTab;
+    // Tabs on other devices (sync's SESSIONS), while open and not Incognito.
+    private @Nullable ForeignSessionHelper mSessions;
 
     public CommandBar(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
@@ -78,6 +81,12 @@ public class CommandBar
         mState.setTint(bar != null ? bar.spaceTint() : "");
         mState.setTypedIsAddress(pageUrl);
         updateEntries("");
+        if (!incognito) {
+            mSessions = new ForeignSessionHelper(profile);
+            mSessions.setOnForeignSessionCallback(() -> updateDeviceTabs(mState.getText().trim()));
+            mSessions.triggerSessionSync();
+        }
+        updateDeviceTabs("");
         mInput.setPageUrl(url).setUserText(mState.getText());
         mController.startZeroSuggest(tab != null ? tab.getWebContents() : null, mInput);
 
@@ -97,6 +106,7 @@ public class CommandBar
         mState.setText(text);
         mState.setTypedIsAddress(looksLikeAddress(text.trim()));
         updateEntries(text.trim());
+        updateDeviceTabs(text.trim());
         if (mController == null) return;
         Tab tab = mActivity.getActivityTabProvider().get();
         mInput.setUserText(text);
@@ -139,6 +149,41 @@ public class CommandBar
             if (match) entries.add(entry);
         }
         mState.setEntries(entries);
+    }
+
+    /** Tabs on other devices for the typed text (CommandBarState.matchDeviceTabs()). */
+    private void updateDeviceTabs(String text) {
+        if (mSessions == null || !mSessions.isTabSyncEnabled() || text.isEmpty()) {
+            mState.setDeviceTabs(new ArrayList<>());
+            return;
+        }
+        List<CommandBarState.Device> devices = new ArrayList<>();
+        for (ForeignSessionHelper.ForeignSession session : mSessions.getForeignSessions()) {
+            List<CommandBarState.DeviceTab> tabs = new ArrayList<>();
+            for (ForeignSessionHelper.ForeignSessionWindow window : session.windows) {
+                for (ForeignSessionHelper.ForeignSessionTab tab : window.tabs) {
+                    if (!tab.url.isValid()) continue;
+                    tabs.add(
+                            new CommandBarState.DeviceTab(
+                                    tab.title, tab.url.getSpec(), session.name));
+                }
+            }
+            devices.add(new CommandBarState.Device(session.name, session.modifiedTime, tabs));
+        }
+        mState.setDeviceTabs(CommandBarState.matchDeviceTabs(devices, text));
+    }
+
+    @Override
+    public void onDeviceTabClicked(String url) {
+        GURL gurl = new GURL(url);
+        close();
+        if (!gurl.isValid()) return;
+        mActivity
+                .getTabCreator(false)
+                .createNewTab(
+                        new LoadUrlParams(gurl.getSpec(), PageTransition.AUTO_BOOKMARK),
+                        TabLaunchType.FROM_CHROME_UI,
+                        null);
     }
 
     /** "example.com", "https://…", "localhost:8000": an address, not a search. */
@@ -224,6 +269,11 @@ public class CommandBar
             mController = null;
         }
         mMatches.clear();
+        if (mSessions != null) {
+            mSessions.destroy();
+            mSessions = null;
+        }
+        mState.setDeviceTabs(new ArrayList<>());
         mState.setOpen(false);
         mView.setVisibility(View.GONE);
     }

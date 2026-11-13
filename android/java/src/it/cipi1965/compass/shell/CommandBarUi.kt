@@ -65,7 +65,8 @@ import it.cipi1965.compass.R
 /**
  * The command bar, as the iOS app's (CommandBar.swift): a sheet in the space's tint with the field
  * ("New tab in <space>", or "Go to" for the page's address, all selected) and cards: the typed
- * address or search, the sidebar's entries to switch to, search suggestions and history.
+ * address or search, the sidebar's entries to switch to, search suggestions, history and tabs on
+ * other devices.
  */
 object CommandBarUi {
     interface Listener {
@@ -74,6 +75,9 @@ object CommandBarUi {
         fun onSuggestionClicked(index: Int)
 
         fun onEntryClicked(id: String, url: String)
+
+        /** A tab on another device: opens its page as a new Today entry. */
+        fun onDeviceTabClicked(url: String)
 
         fun onSubmit(text: String)
 
@@ -253,6 +257,22 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
                             onClick = { listener.onSuggestionClicked(index) },
                         ) {
                             SiteTile(suggestion.url)
+                        }
+                    }
+                }
+            }
+        }
+        if (state.deviceTabs.isNotEmpty()) {
+            item(key = "devices") {
+                CardSection("Tabs on other devices") {
+                    state.deviceTabs.forEachIndexed { i, tab ->
+                        CardRow(
+                            tab.title.ifEmpty { tab.url },
+                            subtitle = "On ${tab.device} · ${tab.url.removePrefix("https://").removePrefix("www.")}",
+                            first = i == 0,
+                            onClick = { listener.onDeviceTabClicked(tab.url) },
+                        ) {
+                            SiteTile(tab.url)
                         }
                     }
                 }
