@@ -7,6 +7,7 @@
 
 #include <jni.h>
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -15,8 +16,11 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "compass/browser/claude/claude_memory.h"
+#include "compass/browser/claude/claude_tools.h"
 #include "compass/browser/claude/page_reader.h"
 #include "compass/browser/claude/sse_parser.h"
 
@@ -41,19 +45,23 @@ struct ToolResult;
 // Claude can act on the page with the page tools and, with "Let Claude use
 // the whole browser" on, on the tabs (ClaudeTabsAndroid). A reply that asks
 // for tools gets their results and goes on, as the desktop's chat does.
-class ClaudeBridge {
+class ClaudeBridge : public claude::ClaudeMemory::Observer {
  public:
   ClaudeBridge(JNIEnv* env,
                const base::android::JavaRef<jobject>& java_object,
                Profile* profile);
   ClaudeBridge(const ClaudeBridge&) = delete;
   ClaudeBridge& operator=(const ClaudeBridge&) = delete;
-  ~ClaudeBridge();
+  ~ClaudeBridge() override;
 
   void Destroy(JNIEnv* env);
-  // The conversation (roles "user", "assistant" and "tool", for a tool
-  // Claude used), whether a reply streams, the last error, whether there's a
-  // key and whether Claude may use the whole browser, as JSON.
+  // The conversation (roles "user", "assistant", "tool", for a tool Claude
+  // used, and "memory", for a change to its memory: "kind" "saved",
+  // "updated" or "forgot", the text, its "undo" id and whether it was
+  // "undone"), whether a reply streams, the last error, whether there's a
+  // key, whether Claude may use the whole browser, the model in use, and
+  // the memory: "memory_enabled", "memory_save" and the "memories" (id,
+  // text; oldest first), as JSON.
   std::string Snapshot(JNIEnv* env);
   void SetApiKey(JNIEnv* env, const std::string& key);
   // "Let Claude use the whole browser" (the desktop's setting).
@@ -65,11 +73,30 @@ class ClaudeBridge {
             content::WebContents* contents);
   void Stop(JNIEnv* env);
   void Clear(JNIEnv* env);
+  // The model the next reply uses (the desktop's compass.claude.model; empty:
+  // the default).
+  void SetModel(JNIEnv* env, const std::string& model);
+
+  // Memory (docs/design/claude.md, "Memory"): the settings, Undo of a
+  // change Claude made, and the user's own changes to the list.
+  void SetMemoryEnabled(JNIEnv* env, bool enabled);
+  void SetMemorySave(JNIEnv* env, bool enabled);
+  void UndoMemory(JNIEnv* env, int32_t undo_id);
+  void AddMemory(JNIEnv* env, const std::string& text);
+  void RemoveMemory(JNIEnv* env, const std::string& id);
+  void RemoveAllMemories(JNIEnv* env);
+
+  // claude::ClaudeMemory::Observer:
+  void OnMemoriesChanged() override;
 
  private:
   struct Message {
     std::string role;
     std::string text;
+    // A "memory" message's change, and its Undo.
+    std::string kind;
+    int undo_id = 0;
+    bool undone = false;
   };
   // A content block of the reply that streams.
   struct Block {
@@ -115,6 +142,17 @@ class ClaudeBridge {
   std::unique_ptr<claude::ClaudeTools> tools_;
   bool streaming_ = false;
   std::string error_;
+  // The memory as the chat's first question took it: the <memory> block
+  // (empty: none) and whether the memory tools go with each request. The
+  // system prompt stays the same within a chat, as on the desktop.
+  bool memory_frozen_ = false;
+  std::string memory_block_;
+  bool memory_tools_ = false;
+  // Each memory change's state before it, for Undo.
+  std::map<int, claude::MemoryChange> memory_undo_;
+  int next_undo_id_ = 1;
+  base::ScopedObservation<claude::ClaudeMemory, claude::ClaudeMemory::Observer>
+      memory_observation_{this};
   base::WeakPtrFactory<ClaudeBridge> weak_factory_{this};
 };
 

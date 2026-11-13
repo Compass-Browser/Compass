@@ -84,6 +84,41 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onSetModel(String model) {
+        mBridge.setModel(model);
+    }
+
+    @Override
+    public void onUndoMemory(int undoId) {
+        mBridge.undoMemory(undoId);
+    }
+
+    @Override
+    public void onMemoryEnabled(boolean enabled) {
+        mBridge.setMemoryEnabled(enabled);
+    }
+
+    @Override
+    public void onMemorySave(boolean enabled) {
+        mBridge.setMemorySave(enabled);
+    }
+
+    @Override
+    public void onAddMemory(String text) {
+        mBridge.addMemory(text);
+    }
+
+    @Override
+    public void onRemoveMemory(String id) {
+        mBridge.removeMemory(id);
+    }
+
+    @Override
+    public void onRemoveAllMemories() {
+        mBridge.removeAllMemories();
+    }
+
+    @Override
     public void onDismiss() {
         mState.setOpen(false);
         mView.setVisibility(View.GONE);

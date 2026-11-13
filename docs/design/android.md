@@ -173,7 +173,11 @@ It costs:
   tools gets their results and goes on, up to 20 rounds a question. The
   sheet shows each tool as a quiet line between the replies. tools.json's
   `platforms` gains "android"; the desktop-only tools (spaces, folders,
-  splits, history, downloads) aren't offered.
+  splits, history, downloads) aren't offered. The header has the model
+  menu (the desktop's known models, `compass.claude.model`), and Claude
+  keeps memories as on the desktop (claude.md, "Memory"): the memory
+  tools, a "Saved to memory" line with Undo, and Memory in the sheet's ⋯
+  menu to see, add and delete them; they sync with the spaces.
 - **Wide windows (C10).** At 840dp and wider (tablets, unfolded
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts
