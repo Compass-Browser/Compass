@@ -9,11 +9,12 @@ import argparse
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
-from . import (android, checkout, linux_package, mac_sign, overrides,
-               patches, release, sparkle, sync_server)
+from . import (android, checkout, flatpak_remote, linux_package, mac_sign,
+               overrides, patches, release, sparkle, sync_server)
 from .layout import (CONFIGS, CROSS_TARGETS, LINUX_TOOLCHAIN_DIR, Layout,
                      detect, host_cpu)
 from .process import CommandError, depot_tool, run
@@ -252,13 +253,29 @@ def cmd_package(layout: Layout, args) -> None:
       layout.root, layout.src, out_dir, version,
       strip_tool if strip_tool.is_file() else None)
   print('wrote %s' % tarball)
+  # What `release publish-linux` needs to know, next to the tarball.
+  import json
+  info = {
+      'version': version,
+      'chromium': upstream_chromium_version(layout.src),
+      'channel': args.channel,
+      'commit': git_commit(layout.root, mark_dirty=True),
+  }
   if args.flatpak:
     stage = linux_package.stage_flatpak(layout.root, tarball, version,
                                         out_dir / 'flatpak')
-    bundle = linux_package.build_flatpak(
+    bundle, oci = linux_package.build_flatpak(
         stage, out_dir / linux_package.package_name(version, 'flatpak'),
-        args.wsl_distro)
-    print('wrote %s' % bundle)
+        out_dir / linux_package.package_name(version, 'oci'),
+        args.wsl_distro, flatpak_remote.FLATPAK_BRANCHES[args.channel],
+        flatpak_remote.REMOTE_URL)
+    info['bundle'] = bundle.name
+    info['oci'] = oci.name
+    print('wrote %s and %s' % (bundle, oci))
+  sidecar = out_dir / linux_package.package_name(version, 'json')
+  sidecar.write_text(json.dumps(info, indent=2) + '\n')
+  print('publish them: compass release publish-linux --tarball %s (with the '
+        'files next to it)' % tarball.name)
 
 
 def add_skip_patches(parser) -> None:
@@ -637,7 +654,84 @@ def cmd_release(layout: Layout, args) -> None:
     raise CommandError(str(e))
 
 
+def linux_package_info(tarball: Path) -> dict:
+  """What `package` wrote next to the tarball, or {}."""
+  sidecar = tarball.parent / (tarball.name[:-len('.tar.xz')] + '.json') \
+      if tarball.name.endswith('.tar.xz') else tarball.with_suffix('.json')
+  if not sidecar.is_file():
+    return {}
+  import json
+  return json.loads(sidecar.read_text())
+
+
+def publish_linux(args) -> None:
+  """A Linux release: the tarball, the Flatpak bundle and the Flatpak's
+  layer as assets of its GitHub prerelease, then the Flatpak remote's index
+  on the repository's flatpak branch, which installed Flatpaks update from
+  (docs/building.md, "Linux releases"). The macOS/Windows feeds aren't
+  touched."""
+  if not args.tarball:
+    raise CommandError('publish-linux: give --tarball (the '
+                       'Compass-<version>-linux-x64.tar.xz from `compass '
+                       'package`, with the files it wrote next to it)')
+  tarball = Path(args.tarball)
+  info = linux_package_info(tarball)
+  version = args.version or info.get('version')
+  if not version:
+    raise CommandError('publish-linux: which version? (no .json next to %s)'
+                       % tarball.name)
+  channel = info.get('channel') or args.channel
+  chromium = args.chromium or info.get('chromium', '')
+  paths = [tarball]
+  image = None
+  if info.get('oci'):
+    image = flatpak_remote.Image(tarball.parent / info['oci'], version)
+    paths.append(tarball.parent / info['bundle'])
+  stage = Path(tempfile.mkdtemp(prefix='compass-linux-'))
+  try:
+    if image:
+      for name, blob in image.layers:
+        target = stage / name
+        try:
+          os.link(blob, target)
+        except OSError:
+          shutil.copyfile(blob, target)
+        paths.append(target)
+      ref = stage / flatpak_remote.flatpakref_name(channel)
+      ref.write_text(flatpak_remote.flatpakref(channel))
+      paths.append(ref)
+    if args.no_upload:
+      for path in paths:
+        print('would upload %s' % path.name)
+      if image:
+        for path in flatpak_remote.site_files(image, None, channel):
+          print('would write %s on the %s branch' %
+                (path, flatpak_remote.SITE_BRANCH))
+      return
+    release.publish_assets({'version': version, 'chromium': chromium,
+                            'channel': channel}, paths,
+                           info.get('commit', '').replace('-dirty', ''))
+    if image:
+      github = flatpak_remote.GitHub()
+      old = flatpak_remote.read_site_file(github, 'index/static')
+      commit = flatpak_remote.update_site(
+          github, flatpak_remote.site_files(image, old, channel),
+          'Compass %s (%s)' % (version, channel))
+      print('the Flatpak remote serves %s (%s branch at %s)' %
+            (version, flatpak_remote.SITE_BRANCH, commit[:10]))
+      print('install: flatpak install %s%s' %
+            (flatpak_remote.SITE_URL, flatpak_remote.flatpakref_name(channel)))
+  except flatpak_remote.RemoteError as e:
+    raise CommandError(str(e))
+  finally:
+    shutil.rmtree(stage, ignore_errors=True)
+  print('published %s for Linux (%s)' % (version, channel))
+
+
 def _release(layout: Layout, args) -> None:
+  if args.action == 'publish-linux':
+    publish_linux(args)
+    return
   manifest = release.load()
   # Everything that writes the feeds starts from the server's releases: a
   # stale local copy would drop the ones it lacks (build-win only reads the
@@ -1084,6 +1178,9 @@ def parser() -> argparse.ArgumentParser:
                  'WSL')
   s.add_argument('--wsl-distro', default='Ubuntu-24.04',
                  help='the WSL distribution with flatpak-builder')
+  s.add_argument('--channel', choices=release.CHANNELS, default='canary',
+                 help='the release channel, which is the Flatpak\'s branch '
+                 '(default: %(default)s)')
   add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_package)
@@ -1137,10 +1234,12 @@ def parser() -> argparse.ArgumentParser:
   s.set_defaults(func=cmd_sign)
 
   s = sub.add_parser('release', help='publish a macOS release to the update '
-                     'feeds, build or publish a Windows one, promote one '
-                     '(canary to beta, beta to stable), or list them')
+                     'feeds, build or publish a Windows one, publish a Linux '
+                     'one, promote one (canary to beta, beta to stable), or '
+                     'list them')
   s.add_argument('action', choices=['publish', 'build-win', 'publish-win',
-                                    'promote', 'list', 'feeds'],
+                                    'publish-linux', 'promote', 'list',
+                                    'feeds'],
                  nargs='?', default='publish')
   s.add_argument('version', nargs='?',
                  help='promote: the version; publish, build-win: instead of the '
@@ -1155,6 +1254,10 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--notes', help='publish: release notes')
   s.add_argument('--installer',
                  help='publish-win: the mini_installer.exe to publish')
+  s.add_argument('--tarball',
+                 help='publish-linux: the Compass-<version>-linux-x64.tar.xz '
+                 'from `package` (its .json, Flatpak bundle and OCI image '
+                 'next to it)')
   s.add_argument('--chromium',
                  help='publish-win: its Chromium version, for a release '
                  'that has no macOS build')

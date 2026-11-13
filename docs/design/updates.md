@@ -260,6 +260,24 @@ browser decides when to run it.
   runs the file itself, with no mark of the web. No differential updates
   (mini_installer is about 130 MB).
 
+## Linux: Flatpak
+
+Linux updates are Flatpak's own: no feed, no updater in the browser.
+`release publish-linux` puts each release's tarball, bundle and Flatpak layer
+on its GitHub prerelease, and the image's index, manifest and config on the
+repository's `flatpak` branch, which is an OCI Flatpak remote
+(`oci+https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/`;
+docs/building.md, "Linux releases"). The channel is the Flatpak's branch
+(`canary` now). Installed copies update with `flatpak update` or their
+software center, and take the new version at the next start.
+
+- **Not done:** promoting a Linux release (a stable branch), OCI deltas
+  (each update downloads the whole layer), and a "Restart to update" prompt.
+  Flatpak's portal can tell a running app an update is installed
+  (`org.freedesktop.portal.Flatpak.CreateUpdateMonitor`, signal
+  `UpdateAvailable`), which a Linux-only `UpgradeDetector` could turn into
+  Chromium's relaunch prompt.
+
 ## Not done
 
 - Phased rollouts (`sparkle:phasedRolloutInterval`) and critical updates

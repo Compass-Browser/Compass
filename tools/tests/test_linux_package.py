@@ -141,10 +141,18 @@ class FlatpakTest(unittest.TestCase):
         '/mnt/c/src/out/flatpak')
 
   def test_script_runs_builder_and_bundle(self):
-    script = linux_package.flatpak_script('/mnt/c/s', '/mnt/c/o/C.flatpak')
+    script = linux_package.flatpak_script(
+        '/mnt/c/s', '/mnt/c/o/C.flatpak', '/mnt/c/o/C.oci', 'canary',
+        'oci+https://example.test/')
     self.assertIn('flatpak-builder', script)
-    self.assertIn('build-bundle', script)
-    self.assertIn('"/mnt/c/o/C.flatpak"', script)
+    self.assertIn('--default-branch=canary', script)
+    # The bundle updates from the remote once installed.
+    self.assertIn('--repo-url=oci+https://example.test/ repo '
+                  '"/mnt/c/o/C.flatpak" %s canary' % linux_package.APP_ID,
+                  script)
+    self.assertIn('build-bundle --oci repo oci %s canary' %
+                  linux_package.APP_ID, script)
+    self.assertIn('cp -r oci "/mnt/c/o/C.oci"', script)
 
 
 class PackageArgsTest(unittest.TestCase):
@@ -156,6 +164,7 @@ class PackageArgsTest(unittest.TestCase):
     self.assertTrue(args.flatpak)
     self.assertTrue(args.build)
     self.assertEqual(args.wsl_distro, 'Ubuntu-24.04')
+    self.assertEqual(args.channel, 'canary')
 
 
 if __name__ == '__main__':

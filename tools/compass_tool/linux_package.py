@@ -2,7 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Linux packages of a `--cpu linux-x64` build: a .tar.xz, and a Flatpak
-bundle made from it (docs/building.md, "Linux packages").
+made from it, as a bundle and as an OCI image for the Flatpak remote
+(docs/building.md, "Linux packages" and "Linux releases").
 
 The tarball is written on the Windows host, so Unix modes come from here, not
 from the out dir's files (NTFS has no exec bits). The Flatpak is built in WSL
@@ -224,30 +225,42 @@ def wsl_path(path: PurePath) -> str:
   return '/mnt/%s/%s' % (drive, rest)
 
 
-def flatpak_script(stage: str, bundle: str) -> str:
-  """Runs in WSL, as root (docs/building.md, "Linux packages")."""
+def flatpak_script(stage: str, bundle: str, oci: str, branch: str,
+                   repo_url: str) -> str:
+  """Runs in WSL, as root (docs/building.md, "Linux packages"). Writes the
+  single-file bundle, which updates from |repo_url| once installed, and the
+  OCI image that remote serves (docs/building.md, "Linux releases")."""
   return '\n'.join([
       'set -e',
       # flatpak-builder wants a Linux filesystem for its state and build dirs.
       'work=/var/tmp/compass-flatpak',
-      'rm -rf "$work"/build',
+      'rm -rf "$work"/build "$work"/repo "$work"/oci',
       'mkdir -p "$work"',
       'cp -r "%s"/. "$work"/' % stage,
       'cd "$work"',
       'flatpak-builder --force-clean --install-deps-from=flathub '
-      '--repo=repo build %s.yml' % APP_ID,
+      '--default-branch=%s --repo=repo build %s.yml' % (branch, APP_ID),
       'flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/'
-      'flathub.flatpakrepo repo "%s" %s' % (bundle, APP_ID),
+      'flathub.flatpakrepo --repo-url=%s repo "%s" %s %s' % (
+          repo_url, bundle, APP_ID, branch),
+      'flatpak build-bundle --oci repo oci %s %s' % (APP_ID, branch),
+      'rm -rf "%s"' % oci,
+      'cp -r oci "%s"' % oci,
   ]) + '\n'
 
 
-def build_flatpak(stage: Path, bundle: Path, distro: str) -> Path:
+def build_flatpak(stage: Path, bundle: Path, oci: Path, distro: str,
+                  branch: str, repo_url: str) -> Tuple[Path, Path]:
+  """The bundle and the OCI image (a directory) of the staged Flatpak."""
   wsl = shutil.which('wsl') or r'C:\Program Files\WSL\wsl.exe'
   script = stage / 'build.sh'
   script.write_bytes(
-      flatpak_script(wsl_path(stage), wsl_path(bundle)).encode())
+      flatpak_script(wsl_path(stage), wsl_path(bundle), wsl_path(oci), branch,
+                     repo_url).encode())
   run([wsl, '-d', distro, '-u', 'root', '--', 'bash', wsl_path(script)],
       stage)
   if not bundle.is_file():
     raise CommandError('flatpak-builder did not write %s' % bundle)
-  return bundle
+  if not (oci / 'index.json').is_file():
+    raise CommandError('flatpak build-bundle --oci did not write %s' % oci)
+  return bundle, oci

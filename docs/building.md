@@ -425,6 +425,46 @@ libxcb1, libxkbcommon0, libcairo2, libpango-1.0-0, libgbm1 and libasound2.
 It uses GTK 3 or 4, PulseAudio or PipeWire, libva and Vulkan when they're
 installed.
 
+`package` also writes, next to the tarball:
+
+- `Compass-<version>-linux-x64.oci`: the same Flatpak as an OCI image (a
+  folder), for the remote below;
+- `Compass-<version>-linux-x64.json`: the version, Chromium version, channel
+  (`--channel`, default canary) and commit, for `release publish-linux`.
+
+The Flatpak's branch is the channel (`canary`), so a later stable one installs
+next to it, and the bundle names the remote below as where it updates from.
+
+#### Linux releases
+
+```
+tools/compass release publish-linux --tarball Compass-<version>-linux-x64.tar.xz
+```
+
+Everything is on GitHub; the macOS and Windows update feeds aren't touched.
+
+- **The GitHub prerelease** `v<version>` gets the tarball, the bundle, the
+  Flatpak's layer (`…oci-layer.tar.gz`, the browser itself) and
+  `compass-canary.flatpakref`.
+- **The Flatpak remote** is `oci+https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/`,
+  the repository's `flatpak` branch (`tools/compass_tool/flatpak_remote.py`).
+  An OSTree repository is a tree of small files, which release assets can't
+  hold, so it's an OCI remote: Flatpak reads `index/static` (the current
+  image of each branch, with its ref and metadata), then the image's manifest
+  and config under `v2/compass/`, all a few KB on that branch, then the layer
+  from the URL its manifest lists, the release asset. Each release adds one
+  commit to the branch, through the GitHub API. Flatpak checks everything
+  against its digest; OCI remotes have no GPG signatures, so the index's
+  integrity is GitHub's HTTPS.
+- **Installing:**
+  `flatpak install https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/compass-canary.flatpakref`
+  (the Freedesktop runtime and Chromium's BaseApp come from Flathub). Or
+  install the bundle: it adds the same remote.
+- **Updates** come with `flatpak update` and the software centers' automatic
+  updates. A running Compass keeps its version until it's restarted.
+- `--no-upload` lists what it would publish. Publishing needs `gh` signed in
+  with write access to the repository.
+
 ## Troubleshooting
 
 - **A change to an override isn't picked up:** run `compass build` rather than
