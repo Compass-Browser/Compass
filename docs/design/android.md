@@ -287,9 +287,12 @@ It costs:
     A Today tab brought back gets its entry back from the archive (P1).
   - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
     sidebar's gear and the page menu, a Material settings screen: Sync, then the Chrome settings pages
-    Compass keeps, each opened at its page (search engine, passwords, clear
-    browsing data, site settings, privacy, …), and Passwords in Other Apps,
-    Claude and Extensions.
+    Compass keeps, each opened at its page (passwords, clear browsing data,
+    site settings, privacy, …), and Passwords in Other Apps, Claude and
+    Extensions. Search Engine is Compass's own page (P8): the engines
+    Chrome offers (`TemplateUrlService`: its prepopulated ones, and the
+    default if it's another), the default checked; a tap makes one the
+    default (`setSearchEngine()`), unless policy set it.
 - **Branding so far.** The app is "Compass" with its own launcher icon (an
   adaptive icon from the glyph, `android/res/`, overlaying Chrome's
   `ic_launcher`), and there's no first-run experience.
@@ -439,7 +442,7 @@ two large pieces.
 | P5 | Sidebar drag and drop | **Done**, within the shown space and into the favorites (above, "Drag and drop"); onto other spaces through the menu. Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
-| P8 | Compass settings | Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
+| P8 | Compass settings | Search engine done (above, "Settings"); privacy and site settings still Chrome's. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
 | P9 | System extras | More widget kinds (Today, Other Devices, Quick Actions); the share target picks a folder; app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | Other apps' logins save into Compass (Autofill's save request), not only fill |
 

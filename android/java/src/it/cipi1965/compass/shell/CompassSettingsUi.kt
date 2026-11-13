@@ -14,6 +14,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
@@ -77,8 +79,23 @@ object CompassSettingsUi {
         PRIVACY_POLICY,
     }
 
+    /** The page on screen: the list, or one of Compass's own settings pages. */
+    enum class Page {
+        MAIN,
+        SEARCH_ENGINE,
+    }
+
+    /** A search engine to choose (Chrome's TemplateUrlService). */
+    class Engine(@JvmField val keyword: String, @JvmField val name: String, @JvmField val host: String)
+
     interface Listener {
         fun onRow(row: Row)
+
+        /** Makes the engine with |keyword| the default search engine. */
+        fun onSetSearchEngine(keyword: String)
+
+        /** Back from a page to the list. */
+        fun onBack()
 
         /** Settings → On Launch: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
         fun onSetOnLaunch(value: String)
@@ -93,6 +110,12 @@ object CompassSettingsUi {
         var syncSummary by mutableStateOf("")
         /** What a launch shows: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
         var onLaunch by mutableStateOf(OnLaunch.SIDEBAR)
+        var page by mutableStateOf(Page.MAIN)
+        var searchEngines by mutableStateOf<List<Engine>>(emptyList())
+        /** The default search engine's keyword. */
+        var searchEngine by mutableStateOf("")
+        /** Set by policy: it can't be changed here. */
+        var searchEngineManaged by mutableStateOf(false)
     }
 
     @JvmStatic
@@ -110,7 +133,12 @@ object CompassSettingsUi {
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
             CompassTheme(dark = isSystemInDarkTheme()) {
-                if (state.open) Settings(state, listener)
+                if (state.open) {
+                    when (state.page) {
+                        Page.SEARCH_ENGINE -> SearchEnginePage(state, listener)
+                        Page.MAIN -> Settings(state, listener)
+                    }
+                }
             }
         }
         return view
@@ -163,7 +191,12 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     }
                 }
                 CardSection("Browsing") {
-                    SettingsRow("Search Engine", R.drawable.compass_sym_search, first = true) {
+                    SettingsRow(
+                        "Search Engine",
+                        R.drawable.compass_sym_search,
+                        subtitle = state.searchEngines.firstOrNull { it.keyword == state.searchEngine }?.name ?: "",
+                        first = true,
+                    ) {
                         open(CompassSettingsUi.Row.SEARCH_ENGINE)
                     }
                     SettingsRow("Passwords", R.drawable.compass_sym_key_fill) {
@@ -228,6 +261,83 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Settings → Search Engine, Compass's own page (docs/design/android.md, P8): the engines Chrome
+ * offers (its prepopulated ones, and the default if it's another), the default checked.
+ */
+@Composable
+private fun SearchEnginePage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    BackHandler { listener.onBack() }
+    Box(
+        Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(48.dp).clip(CircleShape).clickable { listener.onBack() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Sym(R.drawable.compass_sym_arrow_back, 20f)
+                }
+                Text(
+                    "Search Engine",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                if (state.searchEngineManaged) {
+                    Text(
+                        "Your organization chose the search engine.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                    )
+                }
+                CardSection("Search with") {
+                    for (engine in state.searchEngines) {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .heightIn(min = 64.dp)
+                                .clickable(enabled = !state.searchEngineManaged) {
+                                    listener.onSetSearchEngine(engine.keyword)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            RadioButton(
+                                selected = engine.keyword == state.searchEngine,
+                                enabled = !state.searchEngineManaged,
+                                onClick = { listener.onSetSearchEngine(engine.keyword) },
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(engine.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                                if (engine.host.isNotEmpty()) {
+                                    Text(
+                                        engine.host,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

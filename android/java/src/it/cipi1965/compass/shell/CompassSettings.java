@@ -12,11 +12,19 @@ import android.view.ViewGroup;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.components.browser_ui.settings.SettingsNavigation.SettingsFragment;
+import org.chromium.components.search_engines.TemplateUrl;
+import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Compass's settings screen (CompassSettingsUi.kt), from the sidebar's gear and the page menu.
@@ -50,6 +58,8 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     }
 
     public void show() {
+        mState.setPage(CompassSettingsUi.Page.MAIN);
+        loadSearchEngines();
         mState.setSyncSummary(mBar.syncSummary());
         mState.setOnLaunch(OnLaunch.get());
         mView.setVisibility(View.VISIBLE);
@@ -68,7 +78,10 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                 onDismiss();
                 mBar.showSync();
             }
-            case SEARCH_ENGINE -> chromeSettings(SettingsFragment.SEARCH_ENGINE);
+            case SEARCH_ENGINE -> {
+                loadSearchEngines();
+                mState.setPage(CompassSettingsUi.Page.SEARCH_ENGINE);
+            }
             case PASSWORDS -> chromeSettings(SettingsFragment.AUTOFILL_AND_PASSWORDS);
             case AUTOFILL_APPS -> openAutofillSettings();
             case CLAUDE -> {
@@ -111,6 +124,54 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         } catch (android.content.ActivityNotFoundException e) {
             mActivity.startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
         }
+    }
+
+    private TemplateUrlService searchEngines() {
+        return TemplateUrlServiceFactory.getForProfile(
+                mActivity.getTabModelSelector().getModel(false).getProfile());
+    }
+
+    // The engines Chrome offers (its prepopulated ones, and the default if it's another one) and
+    // the default, once Chrome's list is loaded.
+    private void loadSearchEngines() {
+        TemplateUrlService service = searchEngines();
+        service.runWhenLoaded(
+                () -> {
+                    TemplateUrl current = service.getDefaultSearchEngineTemplateUrl();
+                    List<CompassSettingsUi.Engine> engines = new ArrayList<>();
+                    Set<String> keywords = new HashSet<>();
+                    for (TemplateUrl url : service.getTemplateUrls()) {
+                        boolean isCurrent =
+                                current != null && url.getKeyword().equals(current.getKeyword());
+                        if (!url.getIsPrepopulated() && !isCurrent) continue;
+                        if (!keywords.add(url.getKeyword())) continue;
+                        engines.add(
+                                new CompassSettingsUi.Engine(
+                                        url.getKeyword(), url.getShortName(), host(url.getURL())));
+                    }
+                    mState.setSearchEngines(engines);
+                    mState.setSearchEngine(current != null ? current.getKeyword() : "");
+                    mState.setSearchEngineManaged(service.isDefaultSearchManaged());
+                });
+    }
+
+    // A search URL template's host ("www.google.com"), or empty.
+    private static String host(String template) {
+        String host = Uri.parse(template.replace("{searchTerms}", "q")).getHost();
+        return host != null ? host : "";
+    }
+
+    @Override
+    public void onSetSearchEngine(String keyword) {
+        TemplateUrlService service = searchEngines();
+        if (service.isDefaultSearchManaged()) return;
+        service.setSearchEngine(keyword);
+        mState.setSearchEngine(keyword);
+    }
+
+    @Override
+    public void onBack() {
+        mState.setPage(CompassSettingsUi.Page.MAIN);
     }
 
     @Override
