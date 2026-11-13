@@ -9,6 +9,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -245,6 +246,27 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ListsAndCallsTools) {
   EXPECT_FALSE(tools[0].GetDict().contains("input_schema"));
   // Listing asks nothing.
   EXPECT_TRUE(asked_.empty());
+
+  // The developer tools only while they're on, without edit_page_storage,
+  // which asks in a chat.
+  auto names = [](const base::ListValue& list) {
+    std::vector<std::string> names;
+    for (const base::Value& tool : list) {
+      names.push_back(*tool.GetDict().FindString("name"));
+    }
+    return names;
+  };
+  EXPECT_FALSE(std::ranges::contains(names(tools), "network_requests"));
+  profile()->GetPrefs()->SetBoolean(prefs::kDevTools, true);
+  client->Request(20, "tools/list");
+  std::optional<base::DictValue> with_devtools = client->Read();
+  ASSERT_TRUE(with_devtools);
+  const std::vector<std::string> devtools_names =
+      names(*with_devtools->FindListByDottedPath("result.tools"));
+  EXPECT_TRUE(std::ranges::contains(devtools_names, "network_requests"));
+  EXPECT_TRUE(std::ranges::contains(devtools_names, "emulate"));
+  EXPECT_FALSE(std::ranges::contains(devtools_names, "edit_page_storage"));
+  profile()->GetPrefs()->SetBoolean(prefs::kDevTools, false);
 
   // The first call asks; the user's active tab is the target.
   std::optional<base::DictValue> text = Call(*client, 3, "get_page_text");
