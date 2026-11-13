@@ -230,7 +230,10 @@ It costs:
   command bar), widgets (search; Quick Actions: search, Incognito, Claude,
   the sidebar; Today: the active space's first four Today entries, which
   `Spaces` publishes to `TodayWidgetProvider` as they change, so it shows
-  them while Compass isn't running), a "Pin to Compass" share target, and a
+  them while Compass isn't running; Other Devices: the sync chain's other
+  devices' open tabs, which `DevicesWidget` publishes from Chrome's
+  `ForeignSessionHelper`; both through `ListWidgetProvider`), a "Pin to
+  Compass" share target, and a
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
@@ -473,7 +476,7 @@ two large pieces.
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | **Done** (above, "Settings"): search engine, privacy, site settings; a site's own exceptions and the rest on Chrome's pages. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
-| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today and Quick Actions widgets (done, above); an Other Devices widget; app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
+| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 
 Still Chrome's look, to restyle in Material You with the shell's layout:

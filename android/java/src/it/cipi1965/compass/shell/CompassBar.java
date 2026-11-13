@@ -72,6 +72,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable ClaudeChat mClaude;
     private @Nullable Integer mBackgroundColor;
     private @Nullable SyncScreen mSync;
+    private @Nullable DevicesWidget mDevicesWidget;
     private @Nullable Extensions mExtensions;
     private @Nullable TabPicker mTabPicker;
     private @Nullable PageMenu mPageMenu;
@@ -129,6 +130,9 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         SyncScreen sync = new SyncScreen(mActivity, coordinator);
         mSync = sync;
         mClaude = new ClaudeChat(mActivity, coordinator);
+        mDevicesWidget =
+                new DevicesWidget(
+                        mActivity, mActivity.getTabModelSelector().getModel(false).getProfile());
         mExtensions = new Extensions(mActivity, coordinator, view);
         mTabPicker = new TabPicker(mActivity, coordinator, this::newTab);
         mPageMenu = new PageMenu(mActivity, coordinator, this);
@@ -216,6 +220,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mBottomControls.removeLayer(this);
         if (mSpaces != null) mSpaces.destroy();
         if (mSync != null) mSync.destroy();
+        if (mDevicesWidget != null) mDevicesWidget.destroy();
+        mDevicesWidget = null;
         if (mClaude != null) mClaude.destroy();
         if (mExtensions != null) mExtensions.destroy();
         mExtensions = null;

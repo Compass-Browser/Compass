@@ -19,6 +19,7 @@ import android.widget.FrameLayout;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import it.cipi1965.compass.extras.CompassIntents;
+import it.cipi1965.compass.extras.ListWidgetProvider;
 import it.cipi1965.compass.extras.TodayWidgetProvider;
 import it.cipi1965.compass.spaces.SpacesBridge;
 
@@ -57,8 +58,6 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     // Windows at least this wide (Material's "expanded") show the sidebar as a pane.
     private static final int PANE_MIN_WINDOW_DP = 840;
     private static final int PANE_WIDTH_DP = 300;
-    // The Today widget's rows (compass_today_widget.xml).
-    private static final int TODAY_WIDGET_ROWS = 4;
 
     private final ChromeTabbedActivity mActivity;
     private final TabModel mTabs;
@@ -339,24 +338,25 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     private void publishToday() {
         if (!mState.getLoaded()) return;
         try {
-            JSONArray entries = new JSONArray();
+            JSONArray rows = new JSONArray();
             for (SidebarState.Node node : mState.getToday()) {
                 if (node.isFolder() || node.url.isEmpty()) continue;
-                entries.put(
+                rows.put(
                         new JSONObject()
                                 .put("id", node.id)
                                 .put("title", node.title)
                                 .put("url", node.url));
-                if (entries.length() == TODAY_WIDGET_ROWS) break;
+                if (rows.length() == ListWidgetProvider.rows()) break;
             }
             SidebarState.Space space = mState.getActiveSpace();
-            String name = "";
-            if (space != null) {
-                name = (space.emoji.isEmpty() ? "" : space.emoji + " ") + space.name;
+            String title = "Today";
+            if (space != null && !space.name.isEmpty()) {
+                title = (space.emoji.isEmpty() ? "" : space.emoji + " ") + space.name + " · Today";
             }
-            TodayWidgetProvider.publish(
+            ListWidgetProvider.publish(
                     mActivity,
-                    new JSONObject().put("space", name.trim()).put("entries", entries).toString());
+                    new TodayWidgetProvider(),
+                    new JSONObject().put("title", title).put("rows", rows).toString());
         } catch (JSONException e) {
             // Not published.
         }
