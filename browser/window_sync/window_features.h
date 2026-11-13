@@ -96,6 +96,10 @@ class WindowFeatures : public SpaceList::Observer {
   // "Switching, step by step".
   void SwitchToSpace(SpaceModel& space);
 
+  // Adds "Space N" at the end of the profile's spaces and shows it: the
+  // sidebar's +, the command bar's "New space" and the macOS Spaces menu.
+  void AddSpaceAndSwitch();
+
   // For a window just opened on its space, with no tabs, by a swap (see
   // SwitchWindowToSpace()): steps 3 to 5 of a switch. The space's parked tabs
   // come in, and the entry it showed last is shown. With nothing open, the

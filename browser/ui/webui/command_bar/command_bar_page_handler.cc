@@ -657,14 +657,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
   }
   WindowFeatures *features = GetFeatures();
   switch (command) {
-    case CommandBarCommand::kNewSpace: {
-      SpaceList& list = features->service().space_list();
-      SpaceModel* space = list.AddSpace(
-          list.spaces().size(),
-          u"Space " + base::NumberToString16(list.spaces().size() + 1));
-      features->SwitchToSpace(*space);
+    case CommandBarCommand::kNewSpace:
+      features->AddSpaceAndSwitch();
       break;
-    }
     case CommandBarCommand::kPinEntry: {
       SidebarNode* node = GetActiveNode();
       // A pane moves with its split.

@@ -714,11 +714,7 @@ void SidebarPageHandler::PreviewSpace(const std::optional<std::string>& id,
 }
 
 void SidebarPageHandler::AddSpace() {
-  SpaceList& list = features_->service().space_list();
-  SpaceModel* space = list.AddSpace(
-      list.spaces().size(),
-      u"Space " + base::NumberToString16(list.spaces().size() + 1));
-  features_->SwitchToSpace(*space);
+  features_->AddSpaceAndSwitch();
 }
 
 void SidebarPageHandler::RenameSpace(const std::string& id,

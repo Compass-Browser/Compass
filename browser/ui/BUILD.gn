@@ -274,8 +274,12 @@ source_set("ui") {
       "views/little_window/little_window_mac.h",
       "views/little_window/little_window_mac.mm",
       "arc_import/arc_importer_mac.mm",
+      "cocoa/spaces_menu_mac.mm",
     ]
-    deps += [ "//compass/browser/ui/cocoa:shortcuts" ]
+    deps += [
+      "//compass/browser/ui/cocoa:shortcuts",
+      "//compass/browser/ui/cocoa:spaces_menu_hooks",
+    ]
   } else {
     sources += [ "arc_import/arc_importer_other.cc" ]
   }
@@ -425,6 +429,7 @@ source_set("browser_tests") {
     ]
     deps += [
       "//compass/browser/ui/cocoa:shortcuts",
+      "//compass/browser/ui/cocoa:spaces_menu_hooks",
       "//ui/base/clipboard:clipboard_test_support",
       "//ui/events:events_base",
     ]

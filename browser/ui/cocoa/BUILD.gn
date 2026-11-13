@@ -27,3 +27,11 @@ source_set("shortcuts") {
     "Carbon.framework",
   ]
 }
+
+# The Spaces menu's declaration, for the menu bar's builder (see patches/),
+# with no dependencies so it can include it without a cycle; the definition
+# is in //compass/browser/ui.
+source_set("spaces_menu_hooks") {
+  public = [ "spaces_menu_mac.h" ]
+  frameworks = [ "AppKit.framework" ]
+}

@@ -1,13 +1,15 @@
 diff --git a/chrome/browser/ui/cocoa/BUILD.gn b/chrome/browser/ui/cocoa/BUILD.gn
-index c8352aebb0337178be15f96b71888fe522fb6db6..f3753f40e49b5ed91df44d91c810f178f74072fa 100644
+index c8352aebb0337178be15f96b71888fe522fb6db6..e35ab03952622cb94dd9bc303aaffadf78cfec29 100644
 --- a/chrome/browser/ui/cocoa/BUILD.gn
 +++ b/chrome/browser/ui/cocoa/BUILD.gn
-@@ -120,6 +120,8 @@ source_set("cocoa") {
+@@ -120,6 +120,10 @@ source_set("cocoa") {
    public_deps = [ "//chrome/browser/ui:browser_live_tab_context" ]
  
    deps = [
 +    # Compass's shortcuts over upstream's.
 +    "//compass/browser/ui/cocoa:shortcuts",
++    # The menu bar's Spaces menu.
++    "//compass/browser/ui/cocoa:spaces_menu_hooks",
      "//chrome/app:command_ids",
      "//chrome/app/theme:chrome_unscaled_resources_grit",
      "//chrome/browser:app_controller_mac",

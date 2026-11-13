@@ -144,6 +144,21 @@ outside macOS, where Ctrl+number picks tabs). `CompassSidebarView` registers
 them with the window's focus manager, so they work while the sidebar is
 collapsed. Pages get the keys first, as with upstream's own shortcuts.
 
+### Spaces menu
+
+On macOS the menu bar has a Spaces menu, between Tab and Window
+(`browser/ui/cocoa/spaces_menu_mac.mm`, listed by `main_menu_builder.mm`,
+patch). It lists the spaces the active window can switch to, in the
+switcher's order (`GetSwitchableSpaces()`), with a check on the window's and
+each one's shortcut (`GetSpaceAccelerators()`, the user's if changed), then
+New Space, which adds "Space N" and shows it
+(`WindowFeatures::AddSpaceAndSwitch()`, as the sidebar's + and the command
+bar's "New space"). It's filled each time it opens (`menuNeedsUpdate:`), so
+it needs no observers. The menu shows the shortcuts but doesn't run them
+(`menuHasKeyEquivalent:` says no): `SpaceShortcuts` does, after the page.
+Without a window, New Space is greyed out and the list is empty. Test:
+`CompassMainMenuBrowserTest.SpacesMenu`.
+
 ## UI
 
 The sidebar shows the space's name at the top, and at the bottom a row of

@@ -13,6 +13,7 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
@@ -382,6 +383,14 @@ WindowFeatures::~WindowFeatures() {
 // static
 WindowFeatures* WindowFeatures::From(BrowserWindowInterface* browser) {
   return Get(browser->GetUnownedUserDataHost());
+}
+
+void WindowFeatures::AddSpaceAndSwitch() {
+  SpaceList& list = service_->space_list();
+  SpaceModel* space = list.AddSpace(
+      list.spaces().size(),
+      u"Space " + base::NumberToString16(list.spaces().size() + 1));
+  SwitchToSpace(*space);
 }
 
 void WindowFeatures::SwitchToSpace(SpaceModel& target) {

@@ -1,8 +1,18 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f7444f0827c 100644
+index 047674248727a122fb3aee712981eefd0a4c3049..a7817d8098000c580a75404063341c0663f4c6ff 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
-@@ -293,23 +293,32 @@
+@@ -29,6 +29,9 @@
+ #import "ui/base/l10n/l10n_util_mac.h"
+ #include "ui/strings/grit/ui_strings.h"
+ 
++// Compass: the Spaces menu.
++#import "compass/browser/ui/cocoa/spaces_menu_mac.h"
++
+ namespace chrome {
+ namespace {
+ 
+@@ -293,23 +296,32 @@
        Item(IDS_VIEW_MENU_MAC)
            .tag(IDC_VIEW_MENU)
            .submenu({
@@ -42,7 +52,7 @@ index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f74
                Item(IDS_VERTICAL_TABS_VIEW_MENU_TOGGLE_COLLAPSE)
                    .command_id(IDC_TOGGLE_VERTICAL_TABS_COLLAPSE)
                    .key_equivalent(@"L", NSEventModifierFlagCommand),
-@@ -374,9 +383,10 @@
+@@ -374,9 +386,10 @@
        Item(IDS_HISTORY_MENU_MAC)
            .tag(IDC_HISTORY_MENU)
            .submenu({
@@ -54,7 +64,7 @@ index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f74
                Item(IDS_HISTORY_BACK_MAC)
                    .command_id(IDC_BACK),
                Item(IDS_HISTORY_FORWARD_MAC)
-@@ -425,6 +435,9 @@
+@@ -425,6 +438,9 @@
    NSMenuItem* item =
        Item(IDS_BOOKMARKS_MENU)
            .tag(AppMenuModel::kBookmarksMenuPlaceholder)
@@ -64,7 +74,7 @@ index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f74
            .submenu({
                Item(bookmarks_manager_string_id)
                    .command_id(IDC_SHOW_BOOKMARK_MANAGER),
-@@ -451,6 +464,9 @@
+@@ -451,6 +467,9 @@
    NSMenuItem* item =
        Item(IDS_PROFILES_MENU_NAME)
            .tag(IDC_PROFILE_MAIN_MENU)
@@ -74,7 +84,7 @@ index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f74
            .submenu({})
            .Build();
    // clang-format on
-@@ -546,12 +562,15 @@
+@@ -546,12 +565,15 @@
                    .command_id(IDC_PIN_TARGET_TAB)
                    .is_alternate()
                    .key_equivalent(@"", NSEventModifierFlagOption),
@@ -92,7 +102,7 @@ index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f74
                Item(IDS_TAB_CXMENU_CLOSEOTHERTABS)
                    .command_id(IDC_WINDOW_CLOSE_OTHER_TABS),
                Item(is_rtl ? IDS_TAB_CXMENU_CLOSETABSTOLEFT
-@@ -564,8 +583,10 @@
+@@ -564,8 +586,10 @@
                    .command_id(IDC_MOVE_TAB_TO_NEW_WINDOW),
                Item(IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT)
                    .command_id(IDC_NEW_SPLIT_TAB),
@@ -104,3 +114,12 @@ index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f74
                Item().is_separator(),
            })
            .Build();
+@@ -628,6 +652,8 @@
+            &BuildBookmarksMenu,
+            &BuildProfilesMenu,
+            &BuildTabMenu,
++           // Compass: the spaces, and New Space.
++           &compass::BuildSpacesMenu,
+            &BuildWindowMenu,
+            &BuildHelpMenu,
+        }) {
