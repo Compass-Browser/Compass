@@ -12,12 +12,19 @@ import android.view.ViewGroup;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.preferences.Pref;
+import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
+import org.chromium.chrome.browser.prefetch.settings.PreloadPagesState;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.safe_browsing.SafeBrowsingBridge;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.components.browser_ui.settings.SettingsNavigation.SettingsFragment;
 import org.chromium.components.search_engines.TemplateUrl;
+import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 
@@ -32,6 +39,10 @@ import java.util.Set;
  */
 public class CompassSettings implements CompassSettingsUi.Listener {
     private static final String PRIVACY_POLICY_URL = "https://compassbrowser.org/privacy";
+    // Chrome's cookie controls (content_settings::CookieControlsMode, pref_names.h).
+    private static final String COOKIE_CONTROLS_MODE = "profile.cookie_controls_mode";
+    private static final int COOKIES_BLOCK_THIRD_PARTY = 1;
+    private static final int COOKIES_INCOGNITO_ONLY = 2;
 
     private final ChromeTabbedActivity mActivity;
     private final CompassBar mBar;
@@ -95,7 +106,11 @@ public class CompassSettings implements CompassSettingsUi.Listener {
             case CLEAR_DATA -> chromeSettings(SettingsFragment.CLEAR_BROWSING_DATA);
             case DOWNLOADS -> chromeSettings(SettingsFragment.DOWNLOADS);
             case SITE_SETTINGS -> chromeSettings(SettingsFragment.SITE);
-            case PRIVACY -> chromeSettings(SettingsFragment.PRIVACY);
+            case PRIVACY -> {
+                loadPrivacy();
+                mState.setPage(CompassSettingsUi.Page.PRIVACY);
+            }
+            case MORE_PRIVACY -> chromeSettings(SettingsFragment.PRIVACY);
             case ACCESSIBILITY -> chromeSettings(SettingsFragment.ACCESSIBILITY);
             case LANGUAGES -> chromeSettings(SettingsFragment.LANGUAGE);
             case MORE -> chromeSettings(SettingsFragment.MAIN);
@@ -167,6 +182,87 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         if (service.isDefaultSearchManaged()) return;
         service.setSearchEngine(keyword);
         mState.setSearchEngine(keyword);
+    }
+
+    private Profile profile() {
+        return mActivity.getTabModelSelector().getModel(false).getProfile();
+    }
+
+    // Privacy's page from Chrome's settings: Safe Browsing's level, and its switches.
+    private void loadPrivacy() {
+        Profile profile = profile();
+        PrefService prefs = UserPrefs.get(profile);
+        SafeBrowsingBridge safeBrowsing = new SafeBrowsingBridge(profile);
+        mState.setSafeBrowsing(safeBrowsing.getSafeBrowsingState());
+        mState.setSafeBrowsingManaged(safeBrowsing.isSafeBrowsingManaged());
+        Set<CompassSettingsUi.PrivacySwitch> on = new HashSet<>();
+        Set<CompassSettingsUi.PrivacySwitch> managed = new HashSet<>();
+        if (prefs.getInteger(COOKIE_CONTROLS_MODE) == COOKIES_BLOCK_THIRD_PARTY) {
+            on.add(CompassSettingsUi.PrivacySwitch.BLOCK_THIRD_PARTY_COOKIES);
+        }
+        if (prefs.isManagedPreference(COOKIE_CONTROLS_MODE)) {
+            managed.add(CompassSettingsUi.PrivacySwitch.BLOCK_THIRD_PARTY_COOKIES);
+        }
+        if (prefs.getBoolean(Pref.HTTPS_ONLY_MODE_ENABLED)) {
+            on.add(CompassSettingsUi.PrivacySwitch.HTTPS_ONLY);
+        }
+        if (prefs.isManagedPreference(Pref.HTTPS_ONLY_MODE_ENABLED)) {
+            managed.add(CompassSettingsUi.PrivacySwitch.HTTPS_ONLY);
+        }
+        if (PreloadPagesSettingsBridge.getState(profile) != PreloadPagesState.NO_PRELOADING) {
+            on.add(CompassSettingsUi.PrivacySwitch.PRELOAD_PAGES);
+        }
+        if (PreloadPagesSettingsBridge.isNetworkPredictionManaged(profile)) {
+            managed.add(CompassSettingsUi.PrivacySwitch.PRELOAD_PAGES);
+        }
+        if (prefs.getBoolean(Pref.ENABLE_DO_NOT_TRACK)) {
+            on.add(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK);
+        }
+        if (prefs.isManagedPreference(Pref.ENABLE_DO_NOT_TRACK)) {
+            managed.add(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK);
+        }
+        mState.setPrivacyOn(on);
+        mState.setPrivacyManaged(managed);
+    }
+
+    @Override
+    public void onSetSafeBrowsing(int level) {
+        SafeBrowsingBridge safeBrowsing = new SafeBrowsingBridge(profile());
+        if (safeBrowsing.isSafeBrowsingManaged()) return;
+        safeBrowsing.setSafeBrowsingState(level);
+        loadPrivacy();
+    }
+
+    @Override
+    public void onSetPrivacySwitch(CompassSettingsUi.PrivacySwitch which, boolean on) {
+        Profile profile = profile();
+        PrefService prefs = UserPrefs.get(profile);
+        switch (which) {
+            case BLOCK_THIRD_PARTY_COOKIES -> {
+                if (prefs.isManagedPreference(COOKIE_CONTROLS_MODE)) break;
+                // Off is "block in Incognito only", Chrome's default on Android.
+                prefs.setInteger(
+                        COOKIE_CONTROLS_MODE,
+                        on ? COOKIES_BLOCK_THIRD_PARTY : COOKIES_INCOGNITO_ONLY);
+            }
+            case HTTPS_ONLY -> {
+                if (prefs.isManagedPreference(Pref.HTTPS_ONLY_MODE_ENABLED)) break;
+                prefs.setBoolean(Pref.HTTPS_ONLY_MODE_ENABLED, on);
+            }
+            case PRELOAD_PAGES -> {
+                if (PreloadPagesSettingsBridge.isNetworkPredictionManaged(profile)) break;
+                PreloadPagesSettingsBridge.setState(
+                        profile,
+                        on
+                                ? PreloadPagesState.STANDARD_PRELOADING
+                                : PreloadPagesState.NO_PRELOADING);
+            }
+            case DO_NOT_TRACK -> {
+                if (prefs.isManagedPreference(Pref.ENABLE_DO_NOT_TRACK)) break;
+                prefs.setBoolean(Pref.ENABLE_DO_NOT_TRACK, on);
+            }
+        }
+        loadPrivacy();
     }
 
     @Override

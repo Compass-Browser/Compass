@@ -34,6 +34,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,6 +75,8 @@ object CompassSettingsUi {
         DOWNLOADS,
         SITE_SETTINGS,
         PRIVACY,
+        /** Chrome's Privacy and Security page, for what Compass's doesn't show. */
+        MORE_PRIVACY,
         ACCESSIBILITY,
         LANGUAGES,
         MORE,
@@ -83,6 +87,22 @@ object CompassSettingsUi {
     enum class Page {
         MAIN,
         SEARCH_ENGINE,
+        PRIVACY,
+    }
+
+    /** Safe Browsing's levels (Chrome's SafeBrowsingState). */
+    object SafeBrowsing {
+        const val OFF = 0
+        const val STANDARD = 1
+        const val ENHANCED = 2
+    }
+
+    /** The switches on the Privacy page. */
+    enum class PrivacySwitch {
+        BLOCK_THIRD_PARTY_COOKIES,
+        HTTPS_ONLY,
+        PRELOAD_PAGES,
+        DO_NOT_TRACK,
     }
 
     /** A search engine to choose (Chrome's TemplateUrlService). */
@@ -93,6 +113,12 @@ object CompassSettingsUi {
 
         /** Makes the engine with |keyword| the default search engine. */
         fun onSetSearchEngine(keyword: String)
+
+        /** Privacy: Safe Browsing's level (SafeBrowsing). */
+        fun onSetSafeBrowsing(level: Int)
+
+        /** Privacy: one of its switches. */
+        fun onSetPrivacySwitch(which: PrivacySwitch, on: Boolean)
 
         /** Back from a page to the list. */
         fun onBack()
@@ -116,6 +142,12 @@ object CompassSettingsUi {
         var searchEngine by mutableStateOf("")
         /** Set by policy: it can't be changed here. */
         var searchEngineManaged by mutableStateOf(false)
+        /** Privacy: Safe Browsing's level (SafeBrowsing), and whether policy sets it. */
+        var safeBrowsing by mutableStateOf(SafeBrowsing.STANDARD)
+        var safeBrowsingManaged by mutableStateOf(false)
+        /** Privacy: the switches that are on, and those policy sets. */
+        var privacyOn by mutableStateOf<Set<PrivacySwitch>>(emptySet())
+        var privacyManaged by mutableStateOf<Set<PrivacySwitch>>(emptySet())
     }
 
     @JvmStatic
@@ -136,6 +168,7 @@ object CompassSettingsUi {
                 if (state.open) {
                     when (state.page) {
                         Page.SEARCH_ENGINE -> SearchEnginePage(state, listener)
+                        Page.PRIVACY -> PrivacyPage(state, listener)
                         Page.MAIN -> Settings(state, listener)
                     }
                 }
@@ -272,6 +305,105 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
  */
 @Composable
 private fun SearchEnginePage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    SubPage("Search Engine", listener) {
+        if (state.searchEngineManaged) {
+            Text(
+                "Your organization chose the search engine.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+            )
+        }
+        CardSection("Search with") {
+            for (engine in state.searchEngines) {
+                RadioRow(
+                    engine.name,
+                    engine.host,
+                    selected = engine.keyword == state.searchEngine,
+                    enabled = !state.searchEngineManaged,
+                ) {
+                    listener.onSetSearchEngine(engine.keyword)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Settings → Privacy and Security, Compass's own page (docs/design/android.md, P8): Safe
+ * Browsing's level and the switches people look for, as on the desktop's privacy page; the rest
+ * on Chrome's page (More Privacy Settings).
+ */
+@Composable
+private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    SubPage("Privacy and Security", listener) {
+        CardSection("Safe Browsing") {
+            val levels = listOf(
+                Triple(CompassSettingsUi.SafeBrowsing.ENHANCED, "Enhanced Protection",
+                    "Checks sites and downloads in real time with Google"),
+                Triple(CompassSettingsUi.SafeBrowsing.STANDARD, "Standard Protection",
+                    "Warns about sites and downloads known to be dangerous"),
+                Triple(CompassSettingsUi.SafeBrowsing.OFF, "No Protection", "Not recommended"),
+            )
+            for ((level, title, subtitle) in levels) {
+                RadioRow(
+                    title,
+                    subtitle,
+                    selected = state.safeBrowsing == level,
+                    enabled = !state.safeBrowsingManaged,
+                ) {
+                    listener.onSetSafeBrowsing(level)
+                }
+            }
+        }
+        CardSection("Browsing") {
+            val switches = listOf(
+                Triple(CompassSettingsUi.PrivacySwitch.BLOCK_THIRD_PARTY_COOKIES, "Block Third-Party Cookies",
+                    "Sites can't use cookies to follow you across sites"),
+                Triple(CompassSettingsUi.PrivacySwitch.HTTPS_ONLY, "Always Use Secure Connections",
+                    "Warns before loading a site that doesn't support HTTPS"),
+                Triple(CompassSettingsUi.PrivacySwitch.PRELOAD_PAGES, "Preload Pages",
+                    "Loads pages you're likely to visit, for faster browsing"),
+                Triple(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK, "Send \"Do Not Track\"",
+                    "Asks sites not to track you; many ignore it"),
+            )
+            for ((which, title, subtitle) in switches) {
+                SwitchRow(
+                    title,
+                    subtitle,
+                    checked = which in state.privacyOn,
+                    enabled = which !in state.privacyManaged,
+                ) {
+                    listener.onSetPrivacySwitch(which, it)
+                }
+            }
+        }
+        CardSection("More") {
+            SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete, first = true) {
+                listener.onRow(CompassSettingsUi.Row.CLEAR_DATA)
+            }
+            SettingsRow("More Privacy Settings", R.drawable.compass_sym_shield) {
+                listener.onRow(CompassSettingsUi.Row.MORE_PRIVACY)
+            }
+        }
+        if (state.safeBrowsingManaged || state.privacyManaged.isNotEmpty()) {
+            Text(
+                "Your organization manages some of these settings.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 24.dp),
+            )
+        }
+    }
+}
+
+/** One of Compass's settings pages: the top app bar (back, title) over a scrolling column. */
+@Composable
+private fun SubPage(
+    title: String,
+    listener: CompassSettingsUi.Listener,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     BackHandler { listener.onBack() }
     Box(
         Modifier.fillMaxSize()
@@ -290,56 +422,57 @@ private fun SearchEnginePage(state: CompassSettingsUi.State, listener: CompassSe
                 ) {
                     Sym(R.drawable.compass_sym_arrow_back, 20f)
                 }
-                Text(
-                    "Search Engine",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
+                Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 4.dp))
             }
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                if (state.searchEngineManaged) {
-                    Text(
-                        "Your organization chose the search engine.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-                    )
-                }
-                CardSection("Search with") {
-                    for (engine in state.searchEngines) {
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .heightIn(min = 64.dp)
-                                .clickable(enabled = !state.searchEngineManaged) {
-                                    listener.onSetSearchEngine(engine.keyword)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            RadioButton(
-                                selected = engine.keyword == state.searchEngine,
-                                enabled = !state.searchEngineManaged,
-                                onClick = { listener.onSetSearchEngine(engine.keyword) },
-                            )
-                            Column(Modifier.weight(1f)) {
-                                Text(engine.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
-                                if (engine.host.isNotEmpty()) {
-                                    Text(
-                                        engine.host,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RadioRow(title: String, subtitle: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        RadioButton(selected = selected, enabled = enabled, onClick = onClick)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+            if (subtitle.isNotEmpty()) {
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(enabled = enabled) { onChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onChange)
     }
 }
 
