@@ -55,6 +55,8 @@ struct SidebarSnapshot: Codable {
     var icon: String
     var profileUUID: String
     var archiveAfter: TimeInterval?
+    /// True for a space that stays on this device; absent otherwise.
+    var localOnly: Bool?
     var position: Data
     var pinned: [Node]
     var today: [Node]
@@ -108,7 +110,7 @@ extension SpaceStore {
           colorRGB: s.theme.color?.hex, gradient: s.theme.gradient.isEmpty ? nil : s.theme.gradient.map(\.hex),
           intensity: s.theme.intensity, grain: s.theme.grain, appearance: s.theme.appearance,
           icon: s.icon, profileUUID: s.profileUUID,
-          archiveAfter: s.archiveAfter, position: Data(s.position.compressed),
+          archiveAfter: s.archiveAfter, localOnly: s.synced ? nil : true, position: Data(s.position.compressed),
           pinned: s.pinned.children.map(node), today: s.today.children.map(node),
           archive: s.archive.children.map(node), unknownFields: s.unknownFields)
       }, favorites: favorites.children.map(node),
@@ -159,6 +161,7 @@ extension SpaceStore {
           profileUUID: record.profileUUID, archiveAfter: record.archiveAfter,
           position: UniquePosition(compressed: [UInt8](record.position)))
         space.unknownFields = record.unknownFields
+        space.synced = record.localOnly != true
         record.pinned.forEach { build($0, into: space.pinned) }
         record.today.forEach { build($0, into: space.today) }
         record.archive.forEach { build($0, into: space.archive) }

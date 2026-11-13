@@ -140,6 +140,8 @@ struct SpacePage: View {
   @State private var showingArchive = false
   @State private var editingTheme = false
   @State private var moving: ChainProfile?
+  /// Asking before a space stops syncing (it leaves the other devices).
+  @State private var stoppingSync = false
 
   var body: some View {
     // A plain stack, not a List: List rows only fade and jump in height,
@@ -259,6 +261,12 @@ struct SpacePage: View {
     } message: {
       Text("Its tabs will be signed out of sites, because each profile keeps its own cookies.")
     }
+    .alert("Stop syncing “\(space.name)”?", isPresented: $stoppingSync) {
+      Button("Stop Syncing", role: .destructive) { app.store.setSynced(space, false) }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("It stays on this device and is removed from your other devices.")
+    }
   }
 
   /// The space's name (`#spaceName`), its profile and its menu.
@@ -267,6 +275,12 @@ struct SpacePage: View {
       Text(space.name)
         .font(.system(size: 17, weight: .semibold))
         .lineLimit(1)
+      if !space.synced {
+        Image(systemName: "icloud.slash")
+          .font(.system(size: 12, weight: .medium))
+          .opacity(0.5)
+          .accessibilityLabel("On this device only")
+      }
       if !space.isIncognito, let profile = app.sync.profileName(of: space) {
         Text(profile)
           .font(.system(size: 11, weight: .medium))
@@ -330,6 +344,17 @@ struct SpacePage: View {
           Button(profile.name) { moving = profile }
         }
       }
+    }
+    // Shown while sync is set up, or for a space already kept here
+    // (docs/design/sync.md, "Spaces that don't sync").
+    if app.sync.state != .off || !space.synced {
+      Toggle(
+        "Sync to Other Devices", systemImage: "icloud",
+        isOn: Binding(
+          get: { space.synced },
+          set: { on in
+            if on { app.store.setSynced(space, true) } else { stoppingSync = true }
+          }))
     }
     if app.store.spaces.count > 1 {
       Button("Delete Space", systemImage: "trash", role: .destructive) {

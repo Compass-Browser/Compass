@@ -229,6 +229,14 @@ public final class SpaceStore {
     record { $0.putSpaces.insert(space.id) }
   }
 
+  /// "Sync to your other devices": off keeps the space on this device and
+  /// removes it from the others; on uploads it again.
+  public func setSynced(_ space: Space, _ synced: Bool) {
+    guard space.synced != synced, !space.isIncognito else { return }
+    space.synced = synced
+    record { $0.putSpaces.insert(space.id) }
+  }
+
   public func moveSpace(_ space: Space, to index: Int) {
     guard let from = spaces.firstIndex(where: { $0 === space }) else { return }
     var others = spaces

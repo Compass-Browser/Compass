@@ -112,6 +112,29 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor func ownsSpace(id: String) -> Bool { store.space(id: id).map(owns) ?? false }
   @MainActor var ownFavorites: SidebarNode { store.favorites(forProfile: ownProfile) }
 
+  // MARK: Spaces that don't sync (docs/design/sync.md)
+
+  /// Whether `id` is a space that stays on this device.
+  @MainActor func isLocalSpace(id: String) -> Bool { store.space(id: id).map { !$0.synced } ?? false }
+  /// Whether `node` is in a space that stays on this device.
+  @MainActor func isLocal(_ node: SidebarNode) -> Bool { store.space(of: node).map { !$0.synced } ?? false }
+  /// Whether a remote entity is of a local space, or of a node in or for one:
+  /// never applied, deleted again.
+  @MainActor func isLocal(id: String, _ specifics: SyncPb_CompassSpacesSpecifics?) -> Bool {
+    if isLocalSpace(id: id) { return true }
+    if let node = store.node(id: id), isLocal(node) { return true }
+    if case .node(let n)? = specifics?.entity, isLocalSpace(id: n.spaceUuid) { return true }
+    return false
+  }
+  /// Deletes what the server has of `ids`.
+  @MainActor func deleteFromServer(_ ids: [String]) {
+    for id in ids where mirror[id] != nil {
+      mirror[id] = nil
+      lastCommit[id] = nil
+      queueDelete(id)
+    }
+  }
+
   /// The CompassProfile entities this account has (the home's: the chain's
   /// profile list).
   @MainActor
@@ -246,6 +269,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   /// What we'd commit for a node, or nil if it stays local.
   @MainActor
   func desired(_ node: SidebarNode) -> SyncPb_CompassSpacesSpecifics? {
+    if isLocal(node) { return nil }
     if parked.contains(node.id) { return mirror[node.id] }
     // A live folder's entries stay on this device.
     guard !node.isLiveItem, let section = node.section, let type = node.kind.nodeType else { return nil }
@@ -359,10 +383,26 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       queue.append(.delete(id))
     }
     for id in change.putSpaces {
-      if let space = store.space(id: id), owns(space) { commit(id, desired(space)) }
+      guard let space = store.space(id: id), owns(space) else { continue }
+      if !space.synced {
+        // Turned off (or changed while off): what the others have goes.
+        deleteFromServer([space.id] + space.allNodes.map(\.id))
+        continue
+      }
+      commit(id, desired(space))
+      // Turned on: its entries go up too (the rest are already there).
+      for node in space.allNodes where mirror[node.id] == nil {
+        if let specifics = desired(node) { commit(node.id, specifics) }
+      }
     }
     for id in change.putNodes.subtracting(change.deletedNodes) {
-      if let node = store.node(id: id), owns(node), let specifics = desired(node) { commit(id, specifics) }
+      guard let node = store.node(id: id), owns(node) else { continue }
+      if isLocal(node) {
+        // Moved into a local space: it leaves the other devices.
+        deleteFromServer([id] + node.subtree.map(\.id))
+      } else if let specifics = desired(node) {
+        commit(id, specifics)
+      }
     }
     for id in change.todayChurn.subtracting(change.putNodes) {
       guard let node = store.node(id: id), owns(node) else { continue }
@@ -500,6 +540,13 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         deleted.insert(id)
       }
     }
+    // Spaces that stay on this device: nothing remote changes them or what's
+    // in them, and what came is deleted again (docs/design/sync.md).
+    let local = (putSpaces + putNodes).filter { isLocal(id: $0, mirror[$0]) }
+    putSpaces.removeAll { local.contains($0) }
+    putNodes.removeAll { local.contains($0) }
+    deleted = deleted.filter { !isLocal(id: $0, nil) }
+    deleteFromServer(local)
     // First: the home UUID may come with the list, and the spaces below
     // carry it (the desktop's OnChainProfiles() before its pass).
     if profilesChanged && isHome { directory.homeProfilesChanged() }
@@ -511,7 +558,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       let waiting = mirror.compactMap { id, s -> String? in
         guard case .node(let n) = s.entity, !putNodes.contains(id),
           store.node(id: id).map({ !owns($0) }) ?? true,
-          n.section == Section.favorites.rawValue || ownsSpace(id: n.spaceUuid)
+          n.section == Section.favorites.rawValue || (ownsSpace(id: n.spaceUuid) && !isLocalSpace(id: n.spaceUuid))
         else { return nil }
         return id
       }
@@ -781,7 +828,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       // chain's first space.
       if let first = store.spaces.first(where: { mirror[$0.id] != nil && owns($0) }) {
         for space in store.spaces
-        where mirror[space.id] == nil && owns(space) && space.name == "Home" && space.pinned.children.isEmpty {
+        where mirror[space.id] == nil && owns(space) && space.synced && space.name == "Home"
+          && space.pinned.children.isEmpty
+        {
           for entry in space.today.children {
             store.rawDetach(entry)
             store.rawUpdate(
@@ -818,7 +867,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       e.compassSpaces = s
       result.append((id, e))
     }
-    for space in store.spaces where owns(space) { add(space.id, desired(space)) }
+    for space in store.spaces where owns(space) && space.synced { add(space.id, desired(space)) }
     for node in store.allNodes where owns(node) { add(node.id, desired(node)) }
     if isHome, let memories = localMemories?() {
       for memory in memories { add(memory.id, desired(memory)) }

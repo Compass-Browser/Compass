@@ -19,6 +19,11 @@ public final class Space: Identifiable {
   public internal(set) var profileUUID: String
   /// How long a Today entry may go unseen before it's archived; nil = never.
   public internal(set) var archiveAfter: TimeInterval?
+  /// Whether it syncs to the chain's other devices. Off, it stays on this
+  /// device: nothing of it goes up, and turning it off removes it from the
+  /// others (docs/design/sync.md, "Spaces that don't sync"). Not synced
+  /// itself.
+  public internal(set) var synced = true
   /// In the browser-wide list of spaces.
   public internal(set) var position: UniquePosition
   public let pinned: SidebarNode
