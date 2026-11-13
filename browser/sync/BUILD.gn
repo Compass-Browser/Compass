@@ -81,10 +81,9 @@ source_set("sync") {
     "//google_apis",
     "//services/network/public/cpp",
   ]
-  if (!is_android) {
-    # Claude's memory syncs with the spaces (compass_spaces_sync.cc).
-    deps += [ "//compass/browser/claude:memory" ]
-  }
+  # Claude's memory syncs with the spaces (compass_spaces_sync.cc,
+  # compass_spaces_sync_android.cc).
+  deps += [ "//compass/browser/claude:memory" ]
   if (is_android) {
     deps += [
       "//chrome/browser/gcm",

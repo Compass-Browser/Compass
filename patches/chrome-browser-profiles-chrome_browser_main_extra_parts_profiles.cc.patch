@@ -7,21 +7,22 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..dbeb05baecac62d1bd0ba4cfa3a5ea44
  #include "chrome/browser/sync/prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.h"
  #include "chrome/browser/sync/sync_service_factory.h"
 +#include "compass/browser/sync/compass_sync_service_factory.h"
-+#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +#include "compass/browser/claude/claude_memory.h"
++#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +#include "compass/browser/ui/claude/mcp_service.h"
 +#include "compass/browser/ui/live_folders/live_folder_service.h"
 +#endif
  #include "chrome/browser/sync/user_event_service_factory.h"
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/themes/theme_service_factory.h"
-@@ -1517,6 +1523,12 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -1517,6 +1523,13 @@ void ChromeBrowserMainExtraPartsProfiles::
    sync_file_system::SyncFileSystemServiceFactory::GetInstance();
  #endif
    SyncServiceFactory::GetInstance();
 +  compass::sync::CompassSyncServiceFactory::GetInstance();
-+#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
++  // Claude's memory: the desktop's chat and Android's (claude_bridge.cc).
 +  compass::claude::ClaudeMemoryFactory::GetInstance();
++#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +  compass::claude::McpServiceFactory::GetInstance();
 +  compass::LiveFolderServiceFactory::GetInstance();
 +#endif

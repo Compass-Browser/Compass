@@ -8,16 +8,22 @@
 // and an entry is in use while it has a tab.
 
 #include <memory>
+#include <optional>
+#include <set>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/common/channel_info.h"
 #include "compass/browser/android/spaces_android.h"
+#include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -38,7 +44,8 @@ namespace compass::sync {
 namespace {
 
 class SpacesSyncHolder : public SpacesAndroid::Attachment,
-                         public CompassSpacesSyncBridge::Delegate {
+                         public CompassSpacesSyncBridge::Delegate,
+                         public claude::ClaudeMemory::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpacesAndroid* spaces)
       : spaces_(spaces) {
@@ -49,14 +56,64 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
                                 chrome::GetChannel())),
         DataTypeStoreServiceFactory::GetForProfile(profile)->GetStoreFactory(),
         &spaces->list(), this);
+    // Claude's memory syncs with the spaces, as on the desktop
+    // (compass_spaces_sync.cc; docs/design/claude.md, "Memory").
+    if (claude::ClaudeMemory* memory = claude::ClaudeMemory::Get(profile)) {
+      memory_ = memory->GetWeakPtr();
+      memory->AddObserver(this);
+    }
   }
   SpacesSyncHolder(const SpacesSyncHolder&) = delete;
   SpacesSyncHolder& operator=(const SpacesSyncHolder&) = delete;
-  ~SpacesSyncHolder() override = default;
+  ~SpacesSyncHolder() override {
+    if (memory_) {
+      memory_->RemoveObserver(this);
+    }
+    bridge_.reset();
+  }
 
   CompassSpacesSyncBridge& bridge() { return *bridge_; }
 
   // CompassSpacesSyncBridge::Delegate:
+  std::optional<std::vector<sync_pb::CompassMemory>> GetLocalMemories()
+      override {
+    if (!memory_ || !memory_->loaded()) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassMemory> memories;
+    for (const claude::MemoryEntry& entry : memory_->entries()) {
+      sync_pb::CompassMemory& memory = memories.emplace_back();
+      memory.set_uuid(entry.id);
+      memory.set_text(entry.text);
+      memory.set_create_time(
+          entry.created.ToDeltaSinceWindowsEpoch().InMicroseconds());
+      memory.set_update_time(
+          entry.updated.ToDeltaSinceWindowsEpoch().InMicroseconds());
+    }
+    return memories;
+  }
+
+  void ApplyMemories(const std::vector<sync_pb::CompassMemory>& changed,
+                     const std::set<std::string>& deleted) override {
+    if (!memory_) {
+      return;
+    }
+    std::vector<claude::MemoryEntry> entries;
+    for (const sync_pb::CompassMemory& memory : changed) {
+      claude::MemoryEntry& entry = entries.emplace_back();
+      entry.id = memory.uuid();
+      entry.text = memory.text();
+      entry.created = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(memory.create_time()));
+      entry.updated = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(memory.update_time()));
+    }
+    memory_->ApplyRemote(entries, deleted);
+  }
+
+  // claude::ClaudeMemory::Observer:
+  void OnMemoriesChanged() override { bridge_->NotifyLocalChange(); }
+
   void DeleteSpace(SpaceModel& space) override {
     SpaceList& list = spaces_->list();
     if (list.spaces().size() > 1) {
@@ -120,6 +177,7 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
  private:
   const raw_ptr<SpacesAndroid> spaces_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
+  base::WeakPtr<claude::ClaudeMemory> memory_;
 };
 
 // Runs COMPASS_SPACES only once the chain's passphrase is in place, as on the
