@@ -19,6 +19,7 @@ import android.widget.FrameLayout;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import it.cipi1965.compass.extras.CompassIntents;
+import it.cipi1965.compass.extras.TodayWidgetProvider;
 import it.cipi1965.compass.spaces.SpacesBridge;
 
 import org.chromium.build.annotations.Nullable;
@@ -40,6 +41,10 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,6 +57,8 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     // Windows at least this wide (Material's "expanded") show the sidebar as a pane.
     private static final int PANE_MIN_WINDOW_DP = 840;
     private static final int PANE_WIDTH_DP = 300;
+    // The Today widget's rows (compass_today_widget.xml).
+    private static final int TODAY_WIDGET_ROWS = 4;
 
     private final ChromeTabbedActivity mActivity;
     private final TabModel mTabs;
@@ -305,6 +312,56 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
         showPinPicker();
     }
 
+    /**
+     * The Today widget's entry: its tab, if the entry is still in the shown space's Today; else
+     * its page in a new tab.
+     */
+    public void openEntry(String nodeId, String url) {
+        boolean inToday = false;
+        for (SidebarState.Node node : mState.getToday()) {
+            if (node.id.equals(nodeId)) inToday = true;
+        }
+        if (inToday) {
+            onNodeClicked(nodeId, url);
+            return;
+        }
+        GURL gurl = new GURL(url);
+        if (!gurl.isValid()) return;
+        mActivity
+                .getTabCreator(false)
+                .createNewTab(
+                        new LoadUrlParams(gurl.getSpec(), PageTransition.AUTO_BOOKMARK),
+                        TabLaunchType.FROM_CHROME_UI,
+                        null);
+    }
+
+    // The Today widget (TodayWidgetProvider): the shown space's Today entries, as they change.
+    private void publishToday() {
+        if (!mState.getLoaded()) return;
+        try {
+            JSONArray entries = new JSONArray();
+            for (SidebarState.Node node : mState.getToday()) {
+                if (node.isFolder() || node.url.isEmpty()) continue;
+                entries.put(
+                        new JSONObject()
+                                .put("id", node.id)
+                                .put("title", node.title)
+                                .put("url", node.url));
+                if (entries.length() == TODAY_WIDGET_ROWS) break;
+            }
+            SidebarState.Space space = mState.getActiveSpace();
+            String name = "";
+            if (space != null) {
+                name = (space.emoji.isEmpty() ? "" : space.emoji + " ") + space.name;
+            }
+            TodayWidgetProvider.publish(
+                    mActivity,
+                    new JSONObject().put("space", name.trim()).put("entries", entries).toString());
+        } catch (JSONException e) {
+            // Not published.
+        }
+    }
+
     // Once the shared page's entry is in the model: the picker, to move it elsewhere.
     private void showPinPicker() {
         if (mPinningTab == Tab.INVALID_TAB_ID) return;
@@ -354,6 +411,7 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     private void onModelChanged() {
         mState.update(mBridge.snapshot(), currentTabId());
         showPinPicker();
+        publishToday();
         updateShortcuts();
         if (mOnChanged != null) mOnChanged.run();
     }

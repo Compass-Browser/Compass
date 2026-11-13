@@ -220,7 +220,10 @@ It costs:
   offered.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
-  command bar), a search widget, a "Pin to Compass" share target, and a
+  command bar), widgets (search; Quick Actions: search, Incognito, Claude,
+  the sidebar; Today: the active space's first four Today entries, which
+  `Spaces` publishes to `TodayWidgetProvider` as they change, so it shows
+  them while Compass isn't running), a "Pin to Compass" share target, and a
   launcher shortcut per space (dynamic, from `Spaces`). They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
@@ -455,7 +458,7 @@ two large pieces.
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | Search engine and privacy done (above, "Settings"); site settings still Chrome's. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
-| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). More widget kinds (Today, Other Devices, Quick Actions); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
+| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today and Quick Actions widgets (done, above); an Other Devices widget; app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | Other apps' logins save into Compass (Autofill's save request), not only fill |
 
 Still Chrome's look, to restyle in Material You with the shell's layout:

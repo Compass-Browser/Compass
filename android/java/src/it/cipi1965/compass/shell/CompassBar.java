@@ -288,6 +288,18 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         } else if (CompassIntents.ACTION_PIN_URL.equals(action)) {
             String url = intent.getStringExtra(CompassIntents.EXTRA_URL);
             if (url != null && mSpaces != null) mSpaces.openAndPin(url);
+        } else if (CompassIntents.ACTION_INCOGNITO.equals(action)) {
+            newIncognitoTab();
+        } else if (CompassIntents.ACTION_CLAUDE.equals(action)) {
+            showClaude();
+        } else if (CompassIntents.ACTION_SIDEBAR.equals(action)) {
+            showSidebar();
+        } else if (CompassIntents.ACTION_OPEN_ENTRY.equals(action)) {
+            String nodeId = intent.getStringExtra(CompassIntents.EXTRA_NODE_ID);
+            String url = intent.getStringExtra(CompassIntents.EXTRA_URL);
+            if (url != null && mSpaces != null) {
+                mSpaces.openEntry(nodeId != null ? nodeId : "", url);
+            }
         } else if (CompassIntents.ACTION_PAIR.equals(action)) {
             String server = intent.getStringExtra(CompassIntents.EXTRA_SERVER);
             String code = intent.getStringExtra(CompassIntents.EXTRA_CODE);

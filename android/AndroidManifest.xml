@@ -5,8 +5,8 @@
    found in the LICENSE file.
 
    Chrome's manifest, as Compass, with Compass's extras
-   (it.cipi1965.compass.extras): a Quick Settings tile, a search widget and
-   a "Pin to Compass" share target; and its passwords in other apps
+   (it.cipi1965.compass.extras): a Quick Settings tile, search, quick
+   actions and Today widgets, and a "Pin to Compass" share target; and its passwords in other apps
    (it.cipi1965.compass.autofill). #}
 
 {% block application_label %}Compass{% endblock %}
@@ -29,6 +29,24 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/compass_search_widget" />
+        </receiver>
+        <receiver android:name="it.cipi1965.compass.extras.QuickActionsWidgetProvider"
+            android:exported="false"
+            android:label="Compass quick actions">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/compass_actions_widget" />
+        </receiver>
+        <receiver android:name="it.cipi1965.compass.extras.TodayWidgetProvider"
+            android:exported="false"
+            android:label="Compass Today">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/compass_today_widget" />
         </receiver>
         <activity android:name="it.cipi1965.compass.extras.PinShareActivity"
             android:exported="true"

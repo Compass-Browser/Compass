@@ -22,6 +22,18 @@ public final class CompassIntents {
     /** Opens a page ({@link #EXTRA_URL}) and pins it to the active space. */
     public static final String ACTION_PIN_URL = "it.cipi1965.compass.action.PIN_URL";
 
+    /** Opens a new Incognito tab. */
+    public static final String ACTION_INCOGNITO = "it.cipi1965.compass.action.INCOGNITO";
+
+    /** Opens Claude's chat. */
+    public static final String ACTION_CLAUDE = "it.cipi1965.compass.action.CLAUDE";
+
+    /** Shows the sidebar. */
+    public static final String ACTION_SIDEBAR = "it.cipi1965.compass.action.SIDEBAR";
+
+    /** Opens a Today entry ({@link #EXTRA_NODE_ID}), or its page ({@link #EXTRA_URL}) if it's gone. */
+    public static final String ACTION_OPEN_ENTRY = "it.cipi1965.compass.action.OPEN_ENTRY";
+
     /** Joins a chain with a pairing invite ({@link #EXTRA_SERVER}, {@link #EXTRA_CODE}). */
     public static final String ACTION_PAIR = "it.cipi1965.compass.action.PAIR";
 
@@ -29,6 +41,7 @@ public final class CompassIntents {
     public static final String EXTRA_SERVER = "it.cipi1965.compass.extra.SERVER";
     public static final String EXTRA_CODE = "it.cipi1965.compass.extra.CODE";
     public static final String EXTRA_URL = "it.cipi1965.compass.extra.URL";
+    public static final String EXTRA_NODE_ID = "it.cipi1965.compass.extra.NODE_ID";
 
     // The launcher alias of Chrome's tabbed activity, in every Compass build.
     private static final String MAIN_ACTIVITY = "com.google.android.apps.chrome.Main";
@@ -49,6 +62,15 @@ public final class CompassIntents {
         return ACTION_COMMAND_BAR.equals(action)
                 || ACTION_OPEN_SPACE.equals(action)
                 || ACTION_PIN_URL.equals(action)
-                || ACTION_PAIR.equals(action);
+                || ACTION_PAIR.equals(action)
+                || ACTION_INCOGNITO.equals(action)
+                || ACTION_CLAUDE.equals(action)
+                || ACTION_SIDEBAR.equals(action)
+                || ACTION_OPEN_ENTRY.equals(action);
+    }
+
+    /** One of the extras' resources, by type and name (they're in the APK's package). */
+    public static int resource(Context context, String type, String name) {
+        return context.getResources().getIdentifier(name, type, context.getPackageName());
     }
 }
