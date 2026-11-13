@@ -133,6 +133,15 @@ void SpacesBridge::MoveNode(JNIEnv* env,
   spaces_->MoveNode(base::Uuid::ParseLowercase(node_id), space, where);
 }
 
+bool SpacesBridge::MoveNodeTo(JNIEnv* env,
+                              const std::string& node_id,
+                              const std::string& parent_id,
+                              const std::string& before_id) {
+  return spaces_->MoveNodeTo(base::Uuid::ParseLowercase(node_id),
+                             base::Uuid::ParseLowercase(parent_id),
+                             base::Uuid::ParseLowercase(before_id));
+}
+
 void SpacesBridge::RemoveNode(JNIEnv* env, const std::string& node_id) {
   SidebarNode* node = spaces_->FindNode(base::Uuid::ParseLowercase(node_id));
   if (!node) {

@@ -156,6 +156,14 @@ class SpacesAndroid : public base::SupportsUserData::Data,
                 const base::Uuid& space_id,
                 Section section);
 
+  // Drag and drop (docs/design/android.md, P5): moves |node_id| (with its
+  // tab) into |parent_id| (a folder, or a pinned or Today root), before
+  // |before_id| (one of its children), or at its end if that's invalid.
+  // Across spaces too. Returns whether it moved (CanMove() decides).
+  bool MoveNodeTo(const base::Uuid& node_id,
+                  const base::Uuid& parent_id,
+                  const base::Uuid& before_id);
+
   // Hands |from|'s tab, if it has one, to |to|, if it has none (sync
   // replaced an entry with another).
   void TransferTab(const base::Uuid& from, const base::Uuid& to);

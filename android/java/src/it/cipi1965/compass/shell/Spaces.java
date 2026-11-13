@@ -489,6 +489,11 @@ public class Spaces implements SidebarUi.Listener {
     }
 
     @Override
+    public void onMoveNodeTo(String nodeId, String parentId, String beforeId) {
+        mBridge.moveNodeTo(nodeId, parentId, beforeId);
+    }
+
+    @Override
     public void onCopyLink(String url) {
         ClipboardManager clipboard =
                 (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);

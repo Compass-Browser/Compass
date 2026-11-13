@@ -157,6 +157,11 @@ std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
   snapshot.Set("favorites", SnapshotSection(*list_.favorites().pinned_root()));
   snapshot.Set("pinned", SnapshotSection(*shown.pinned_root()));
   snapshot.Set("today", SnapshotSection(*shown.today_root()));
+  // The roots' IDs, for drops (MoveNodeTo()).
+  snapshot.Set("pinned_id", shown.pinned_root()->id().AsLowercaseString());
+  snapshot.Set("today_id", shown.today_root()->id().AsLowercaseString());
+  snapshot.Set("favorites_id",
+               list_.favorites().pinned_root()->id().AsLowercaseString());
   base::ListValue archive;
   for (const ArchivedEntry& entry : shown.archive()) {
     std::u16string title;
@@ -586,6 +591,56 @@ void SpacesAndroid::MoveNode(const base::Uuid& node_id,
   } else if (from->CanMoveToSpace(node, *target, parent)) {
     from->MoveToSpace(node, *target, parent, index);
   }
+}
+
+bool SpacesAndroid::MoveNodeTo(const base::Uuid& node_id,
+                               const base::Uuid& parent_id,
+                               const base::Uuid& before_id) {
+  SidebarNode* node = FindNode(node_id);
+  SidebarNode* parent = FindNode(parent_id);
+  if (!parent) {
+    // A root: the pinned tree or Today of a space, or the favorites'.
+    for (const auto& space : list_.spaces()) {
+      if (space->pinned_root()->id() == parent_id) {
+        parent = space->pinned_root();
+      } else if (space->today_root() &&
+                 space->today_root()->id() == parent_id) {
+        parent = space->today_root();
+      }
+    }
+    if (list_.favorites().pinned_root()->id() == parent_id) {
+      parent = list_.favorites().pinned_root();
+    }
+  }
+  SpaceModel* from = SpaceOf(node);
+  SpaceModel* target = SpaceOf(parent);
+  if (!node || !parent || !from || !target || node == parent ||
+      node->Contains(parent)) {
+    return false;
+  }
+  size_t index = parent->children().size();
+  for (size_t i = 0; i < parent->children().size(); ++i) {
+    if (parent->children()[i]->id() == before_id) {
+      index = i;
+      break;
+    }
+  }
+  if (from == target) {
+    if (!from->CanMove(node, parent)) {
+      return false;
+    }
+    // Counted after |node| has left its parent (SpaceModel::Move()).
+    if (node->parent() == parent && parent->GetIndexOf(node) < index) {
+      --index;
+    }
+    from->Move(node, parent, index);
+    return true;
+  }
+  if (!from->CanMoveToSpace(node, *target, parent)) {
+    return false;
+  }
+  from->MoveToSpace(node, *target, parent, index);
+  return true;
 }
 
 int SpacesAndroid::TabFor(const base::Uuid& node_id) const {

@@ -103,6 +103,15 @@ public class SpacesBridge {
         SpacesBridgeJni.get().moveNode(mNativeSpacesBridge, nodeId, spaceId, section);
     }
 
+    /**
+     * Drag and drop: moves an entry, with its tab, into |parentId| (a folder, or the pinned,
+     * Today or favorites root: SidebarState's root IDs) before |beforeId| (one of its children;
+     * empty: at its end). Returns whether it moved.
+     */
+    public boolean moveNodeTo(String nodeId, String parentId, String beforeId) {
+        return SpacesBridgeJni.get().moveNodeTo(mNativeSpacesBridge, nodeId, parentId, beforeId);
+    }
+
     public void removeNode(String nodeId) {
         SpacesBridgeJni.get().removeNode(mNativeSpacesBridge, nodeId);
     }
@@ -216,6 +225,12 @@ public class SpacesBridge {
                 @JniType("std::string") String nodeId,
                 @JniType("std::string") String spaceId,
                 @JniType("std::string") String section);
+
+        boolean moveNodeTo(
+                long nativeSpacesBridge,
+                @JniType("std::string") String nodeId,
+                @JniType("std::string") String parentId,
+                @JniType("std::string") String beforeId);
 
         void removeNode(long nativeSpacesBridge, @JniType("std::string") String nodeId);
 
