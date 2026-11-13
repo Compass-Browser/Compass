@@ -105,6 +105,32 @@ It costs:
   Chrome's tabs of every space stay in the window's TabModel; the sidebar
   shows the window's space's. Chrome's own archiving of inactive tabs is
   off (`TabArchiveSettings` patch): Today and the archive do that.
+- **The archive (P1),** as on iOS and the desktop (sidebar.md, "Today
+  auto-archive"), on the desktop's `SpaceModel::Archive()`. Closing a Today
+  entry's tab sends the entry to its space's archive
+  (`SpacesAndroid::TabClosed()`), however it closes: the row's ×, Close,
+  "Archive" in the long-press menu, Today's Clear, a flick in the tab
+  picker, or Chrome's own closes. Undo (the shell's snackbar) brings the
+  entry back out of the archive, at the top of Today
+  (`TabClosureUndone()`). An entry with no open tab is archived directly
+  (`ArchiveNode()`). The archiver runs as on the desktop, 30 s after the
+  spaces load and every 10 minutes after that: it archives the Today
+  entries that went unseen for their space's delay and closes their tabs
+  (`OnTabsArchived()`, no undo). An entry shown in a window is kept; each
+  window's bridge reports the tab it shows, and both the tab a window
+  leaves and the one it shows are stamped as last active, so the clock
+  starts when an entry leaves the screen. The space's ⋯ menu has
+  "Archive", a sheet of the space's archived entries, newest first, with
+  their age (a tap puts one back at the top of Today and opens it, × drops
+  one, Clear drops them all), and "Archive Tabs After…" (12 or 24 hours, 7
+  or 30 days, or never: the space's `archive_after`, which syncs).
+- **Pinned URL (P2)** (sidebar.md, "Pinned URL"). A pinned tab's or
+  favorite's long-press menu, while it's on another page than its pinned
+  URL, has "Use This Page as Pinned URL" (`SetSavedUrl()` with the page)
+  and "Back to Pinned URL", which loads the pinned URL in its tab, or sets
+  an unloaded entry's page back to it ("Favorite URL" for favorites).
+  Closing one's tab takes it back to its pinned URL, unloaded
+  (`SpacesAndroid::TabClosed()`).
 - **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
   desktop (chain, pairing, Nigori, the notifier), without what needs
   windows: the refresh on a window's activation becomes the app coming
@@ -231,7 +257,7 @@ It costs:
     (`UndoToast`, `UndoToastUi.kt`): a closure the tab model holds pending
     shows it, Undo cancels the closure and its end commits it; the
     `UndoBarController` patch keeps Chrome's snackbar away.
-    A tab brought back gets a new Today entry.
+    A Today tab brought back gets its entry back from the archive (P1).
   - **Settings** (`CompassSettings`, `CompassSettingsUi.kt`), from the
     sidebar's gear and the page menu, a Material settings screen: Sync, then the Chrome settings pages
     Compass keeps, each opened at its page (search engine, passwords, clear
@@ -361,7 +387,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C0 | Tooling: `--cpu android-arm64`, `config/args/android.gn`, the Mac-host patches and fix-ups, and a stock Chromium build from the Compass checkout with every patch applied; desktop-only code gated off | Done |
 | C1 | The app and the shell spike: `//compass/android:compass_apk` (package, name, icon) and `CompassActivity`, with a Compose bottom bar over Chrome's tabs and compositor | Done; the shell lives in Chrome's tabbed activity (`CompassShell`) rather than an activity of its own |
 | C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen | Done |
-| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done; no archive view or drag and drop yet |
+| C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done; no drag and drop yet (P5) |
 | C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away, a swipe on its address switches tabs; incognito lock and undo are Chrome's) |
 | C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Pairing by code, recovery code and QR code (from the camera) done; one profile; no Compose settings yet |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
@@ -379,8 +405,8 @@ two large pieces.
 
 | # | Scope | Notes |
 |---|---|---|
-| P1 | Archive | Closing a Today entry sends it to the space's archive; "Archive" in the sidebar's long-press menu; an archive view from the space menu (sidebar.md's rules, as on the desktop) |
-| P2 | Pinned URL | "Use This Page as Pinned URL" and "Back to Pinned URL" for a pinned tab or favorite; closing one goes back to its pinned URL |
+| P1 | Archive | **Done** (above, "The archive"). Closing a Today entry sends it to the space's archive; "Archive" in the sidebar's long-press menu; an archive view from the space menu (sidebar.md's rules, as on the desktop) |
+| P2 | Pinned URL | **Done** (above, "Pinned URL"). "Use This Page as Pinned URL" and "Back to Pinned URL" for a pinned tab or favorite; closing one goes back to its pinned URL |
 | P3 | On Launch | Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
 | P4 | Tab picker gesture | Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
 | P5 | Sidebar drag and drop | Reorder entries and move them between folders, Pinned and Today, and onto other spaces |

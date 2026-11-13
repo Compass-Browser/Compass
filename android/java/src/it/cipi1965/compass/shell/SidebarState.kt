@@ -33,12 +33,26 @@ class SidebarState {
         @JvmField val live: String = "",
         /** A live folder's entry that came with a refresh and hasn't been opened. */
         @JvmField val unseen: Boolean = false,
+        /** A pinned tab's or favorite's pinned URL, or empty (docs/design/sidebar.md, "Pinned URL"). */
+        @JvmField val savedUrl: String = "",
     ) {
         val isFolder: Boolean
             get() = type == "folder"
         val isLiveFolder: Boolean
             get() = isFolder && live.isNotEmpty()
+        /** A pinned tab or favorite that's on another page than its pinned URL. */
+        val isAwayFromSavedUrl: Boolean
+            get() = type == "tab" && savedUrl.isNotEmpty() && url != savedUrl
     }
+
+    /** An archived Today entry: a tab, or a split's panes (title: theirs, joined). */
+    class ArchivedEntry(
+        @JvmField val id: String,
+        @JvmField val title: String,
+        @JvmField val url: String,
+        /** Milliseconds since the epoch. */
+        @JvmField val archivedAt: Long,
+    )
 
     var open by mutableStateOf(false)
     /** An incognito tab's page (the start page): no spaces. */
@@ -49,6 +63,10 @@ class SidebarState {
     var favorites by mutableStateOf<List<Node>>(emptyList())
     var pinned by mutableStateOf<List<Node>>(emptyList())
     var today by mutableStateOf<List<Node>>(emptyList())
+    /** The shown space's archive, newest first. */
+    var archive by mutableStateOf<List<ArchivedEntry>>(emptyList())
+    /** How long the shown space's Today entries stay unseen before the archive; 0: never. */
+    var archiveAfterHours by mutableStateOf(12)
     /** The tab on screen, to highlight its entry. */
     var currentTab by mutableStateOf(-1)
 
@@ -83,6 +101,16 @@ class SidebarState {
         favorites = nodes(data.optJSONArray("favorites"))
         pinned = nodes(data.optJSONArray("pinned"))
         today = nodes(data.optJSONArray("today"))
+        archive =
+            data.optJSONArray("archive").objects().map {
+                ArchivedEntry(
+                    it.optString("id"),
+                    it.optString("title"),
+                    it.optString("url"),
+                    it.optDouble("archived_at", 0.0).toLong(),
+                )
+            }
+        archiveAfterHours = data.optInt("archive_after_hours", 12)
         currentTab = currentTabId
     }
 
@@ -98,6 +126,7 @@ class SidebarState {
                 nodes(it.optJSONArray("children")),
                 it.optString("live"),
                 it.optBoolean("unseen"),
+                it.optString("saved_url"),
             )
         }
 

@@ -25,7 +25,9 @@ SpacesBridge::SpacesBridge(
   observation_.Observe(spaces_.get());
 }
 
-SpacesBridge::~SpacesBridge() = default;
+SpacesBridge::~SpacesBridge() {
+  spaces_->WindowClosed(this);
+}
 
 void SpacesBridge::Destroy(JNIEnv* env) {
   delete this;
@@ -183,16 +185,85 @@ void SpacesBridge::TabUpdated(JNIEnv* env,
 }
 
 void SpacesBridge::TabSelected(JNIEnv* env, int32_t tab_id) {
-  spaces_->TabSelected(tab_id);
+  spaces_->TabSelected(tab_id, this);
 }
 
 void SpacesBridge::TabClosed(JNIEnv* env, int32_t tab_id) {
   spaces_->TabClosed(tab_id);
 }
 
+void SpacesBridge::TabClosureUndone(JNIEnv* env,
+                                    int32_t tab_id,
+                                    const std::string& url,
+                                    const std::u16string& title) {
+  spaces_->TabClosureUndone(tab_id, GURL(url), title, space_id_);
+}
+
+void SpacesBridge::ArchiveNode(JNIEnv* env, const std::string& node_id) {
+  spaces_->ArchiveNode(base::Uuid::ParseLowercase(node_id));
+}
+
+std::string SpacesBridge::RestoreArchived(JNIEnv* env,
+                                          const std::string& entry_id) {
+  SidebarNode* node =
+      spaces_->RestoreArchived(base::Uuid::ParseLowercase(entry_id));
+  return node ? node->id().AsLowercaseString() : std::string();
+}
+
+void SpacesBridge::RemoveArchived(JNIEnv* env, const std::string& entry_id) {
+  spaces_->RemoveArchived(base::Uuid::ParseLowercase(entry_id));
+}
+
+void SpacesBridge::ClearArchive(JNIEnv* env) {
+  if (spaces_->loaded()) {
+    spaces_->SpaceOrActive(space_id_).ClearArchive();
+  }
+}
+
+void SpacesBridge::SetArchiveAfter(JNIEnv* env, int32_t hours) {
+  if (spaces_->loaded()) {
+    spaces_->SetArchiveAfter(spaces_->SpaceOrActive(space_id_).id(), hours);
+  }
+}
+
+void SpacesBridge::UseCurrentPageAsSavedUrl(JNIEnv* env,
+                                            const std::string& node_id) {
+  spaces_->UseCurrentPageAsSavedUrl(base::Uuid::ParseLowercase(node_id));
+}
+
+std::string SpacesBridge::BackToSavedUrl(JNIEnv* env,
+                                         const std::string& node_id) {
+  SidebarNode* node = spaces_->FindNode(base::Uuid::ParseLowercase(node_id));
+  if (!node || !node->saved_url().is_valid()) {
+    return std::string();
+  }
+  // With no tab, the entry itself goes back; an open tab is loaded there by
+  // the shell, and its entry follows.
+  if (spaces_->TabFor(node->id()) == -1 && node->url() != node->saved_url()) {
+    SpaceList& list = spaces_->list();
+    SpaceModel* space = list.favorites().Contains(node)
+                            ? &list.favorites()
+                            : list.FindSpaceOf(node);
+    if (space) {
+      space->SetUrl(node, node->saved_url());
+      if (!node->saved_title().empty()) {
+        space->SetTitle(node, node->saved_title());
+      }
+    }
+  }
+  return node->saved_url().spec();
+}
+
 void SpacesBridge::OnSpacesChanged() {
   Java_SpacesBridge_onChanged(jni_zero::AttachCurrentThread(),
                               java_object_);
+}
+
+void SpacesBridge::OnTabsArchived(const std::vector<int>& tab_ids) {
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  for (int tab_id : tab_ids) {
+    Java_SpacesBridge_onTabArchived(env, java_object_, tab_id);
+  }
 }
 
 static int64_t JNI_SpacesBridge_Init(

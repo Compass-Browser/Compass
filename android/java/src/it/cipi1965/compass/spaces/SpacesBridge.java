@@ -9,6 +9,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.Callback;
 import org.chromium.chrome.browser.profiles.Profile;
 
 /**
@@ -20,9 +21,21 @@ import org.chromium.chrome.browser.profiles.Profile;
 public class SpacesBridge {
     private long mNativeSpacesBridge;
     private final Runnable mOnChanged;
+    private final Callback<Integer> mOnTabArchived;
 
+    /** A bridge that only reads (the start page): archived tabs are the window's to close. */
     public SpacesBridge(Profile profile, Runnable onChanged) {
+        this(profile, onChanged, tabId -> {});
+    }
+
+    /**
+     * @param onChanged runs when anything in the spaces changes.
+     * @param onTabArchived gets each open tab whose Today entry the archiver archived; the tab
+     *     should close (without undo).
+     */
+    public SpacesBridge(Profile profile, Runnable onChanged, Callback<Integer> onTabArchived) {
         mOnChanged = onChanged;
+        mOnTabArchived = onTabArchived;
         mNativeSpacesBridge = SpacesBridgeJni.get().init(this, profile);
     }
 
@@ -35,6 +48,11 @@ public class SpacesBridge {
     @CalledByNative
     private void onChanged() {
         mOnChanged.run();
+    }
+
+    @CalledByNative
+    private void onTabArchived(int tabId) {
+        mOnTabArchived.onResult(tabId);
     }
 
     /** The spaces, favorites and open tabs; see SpacesAndroid::Snapshot(). */
@@ -118,6 +136,51 @@ public class SpacesBridge {
         SpacesBridgeJni.get().tabClosed(mNativeSpacesBridge, tabId);
     }
 
+    /** A closed tab came back: its entry comes back out of the archive, or a new one is made. */
+    public void tabClosureUndone(int tabId, String url, String title) {
+        SpacesBridgeJni.get().tabClosureUndone(mNativeSpacesBridge, tabId, url, title);
+    }
+
+    /** Archives a Today entry that has no open tab (one with a tab is archived by closing it). */
+    public void archiveNode(String nodeId) {
+        SpacesBridgeJni.get().archiveNode(mNativeSpacesBridge, nodeId);
+    }
+
+    /**
+     * Puts an archived entry back at the top of its space's Today, unloaded, and returns the node
+     * to open (empty if none).
+     */
+    public String restoreArchived(String entryId) {
+        return SpacesBridgeJni.get().restoreArchived(mNativeSpacesBridge, entryId);
+    }
+
+    public void removeArchived(String entryId) {
+        SpacesBridgeJni.get().removeArchived(mNativeSpacesBridge, entryId);
+    }
+
+    /** Empties this window's space's archive. */
+    public void clearArchive() {
+        SpacesBridgeJni.get().clearArchive(mNativeSpacesBridge);
+    }
+
+    /** How long this window's space's Today entries stay unseen before the archive (0: never). */
+    public void setArchiveAfter(int hours) {
+        SpacesBridgeJni.get().setArchiveAfter(mNativeSpacesBridge, hours);
+    }
+
+    /** Makes a pinned tab's or favorite's current page its pinned URL. */
+    public void useCurrentPageAsSavedUrl(String nodeId) {
+        SpacesBridgeJni.get().useCurrentPageAsSavedUrl(mNativeSpacesBridge, nodeId);
+    }
+
+    /**
+     * Returns a pinned tab's or favorite's pinned URL (empty if none); an entry with no tab goes
+     * back to it here, an open tab is for the caller to load it in.
+     */
+    public String backToSavedUrl(String nodeId) {
+        return SpacesBridgeJni.get().backToSavedUrl(mNativeSpacesBridge, nodeId);
+    }
+
     @NativeMethods
     interface Natives {
         long init(SpacesBridge caller, @JniType("Profile*") Profile profile);
@@ -180,5 +243,28 @@ public class SpacesBridge {
         void tabSelected(long nativeSpacesBridge, int tabId);
 
         void tabClosed(long nativeSpacesBridge, int tabId);
+
+        void tabClosureUndone(
+                long nativeSpacesBridge,
+                int tabId,
+                @JniType("std::string") String url,
+                @JniType("std::u16string") String title);
+
+        void archiveNode(long nativeSpacesBridge, @JniType("std::string") String nodeId);
+
+        @JniType("std::string")
+        String restoreArchived(long nativeSpacesBridge, @JniType("std::string") String entryId);
+
+        void removeArchived(long nativeSpacesBridge, @JniType("std::string") String entryId);
+
+        void clearArchive(long nativeSpacesBridge);
+
+        void setArchiveAfter(long nativeSpacesBridge, int hours);
+
+        void useCurrentPageAsSavedUrl(
+                long nativeSpacesBridge, @JniType("std::string") String nodeId);
+
+        @JniType("std::string")
+        String backToSavedUrl(long nativeSpacesBridge, @JniType("std::string") String nodeId);
     }
 }

@@ -5,6 +5,7 @@
 package it.cipi1965.compass.shell
 
 import android.content.Context
+import android.text.format.DateUtils
 import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
@@ -57,6 +58,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -137,8 +139,28 @@ object SidebarUi {
 
         fun onNewIncognitoTab()
 
-        /** Closes every Today tab of the space (Today's "Clear"). */
+        /** Archives every Today entry of the space, closing their tabs (Today's "Clear"). */
         fun onClearToday()
+
+        /** Archives a Today entry, closing its tab if it has one (undo brings it back). */
+        fun onArchiveNode(nodeId: String)
+
+        /** Puts an archived entry back at the top of Today and opens it at |url|. */
+        fun onRestoreArchived(entryId: String, url: String)
+
+        fun onRemoveArchived(entryId: String)
+
+        /** Empties the space's archive. */
+        fun onClearArchive()
+
+        /** How long the space's Today entries stay unseen before the archive; 0: never. */
+        fun onSetArchiveAfter(hours: Int)
+
+        /** Makes a pinned tab's or favorite's current page its pinned URL. */
+        fun onUseAsSavedUrl(nodeId: String)
+
+        /** Takes a pinned tab or favorite back to its pinned URL. */
+        fun onBackToSavedUrl(nodeId: String)
 
         fun onOpenSettings()
 
@@ -307,7 +329,7 @@ private fun FavoritesGrid(state: SidebarState, listener: SidebarUi.Listener) {
     }
 }
 
-/** The space's name and its ⋯ menu (rename, theme, delete). */
+/** The space's name and its ⋯ menu (rename, theme, the archive, delete). */
 @Composable
 private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
     val space = state.activeSpace ?: return
@@ -315,6 +337,8 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
     var renaming by remember { mutableStateOf(false) }
     var theming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var archive by remember { mutableStateOf(false) }
+    var archiveAfter by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 12.dp, top = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -338,6 +362,14 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                     menu = false
                     theming = true
                 }
+                MenuItem("Archive", R.drawable.compass_sym_archive) {
+                    menu = false
+                    archive = true
+                }
+                MenuItem("Archive Tabs After…", R.drawable.compass_sym_schedule) {
+                    menu = false
+                    archiveAfter = true
+                }
                 if (state.spaces.size > 1) {
                     HorizontalDivider()
                     MenuItem("Delete Space", R.drawable.compass_sym_delete, destructive = true) {
@@ -360,6 +392,13 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
             theming = false
         }) { theming = false }
     }
+    ArchiveSheet(archive, state, listener) { archive = false }
+    if (archiveAfter) {
+        ArchiveAfterDialog(state.archiveAfterHours, onPick = {
+            listener.onSetArchiveAfter(it)
+            archiveAfter = false
+        }) { archiveAfter = false }
+    }
     if (deleting) {
         AlertDialog(
             onDismissRequest = { deleting = false },
@@ -374,6 +413,103 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
             dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
         )
     }
+}
+
+/**
+ * The space's archive, newest first (SidebarScreen.swift, ArchiveView): a tap puts an entry back at
+ * the top of Today and opens it; × drops one; Clear drops them all.
+ */
+@Composable
+private fun ArchiveSheet(open: Boolean, state: SidebarState, listener: SidebarUi.Listener, onDismiss: () -> Unit) {
+    CompassSheet(open, onDismiss = onDismiss) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Archive", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            if (state.archive.isNotEmpty()) {
+                TextButton(onClick = { listener.onClearArchive() }) { Text("Clear") }
+            }
+            TextButton(onClick = onDismiss) { Text("Done") }
+        }
+        if (state.archive.isEmpty()) {
+            Text(
+                "Nothing archived",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+            )
+        } else {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 560.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+                items(state.archive, key = { it.id }) { entry ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .heightIn(min = 64.dp)
+                            .clickable {
+                                onDismiss()
+                                listener.onRestoreArchived(entry.id, entry.url)
+                            }
+                            .padding(start = 24.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        SiteIcon(entry.url, 20.dp)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                entry.title.ifEmpty { entry.url },
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (entry.archivedAt > 0) {
+                                Text(
+                                    DateUtils.getRelativeTimeSpanString(
+                                            entry.archivedAt,
+                                            System.currentTimeMillis(),
+                                            DateUtils.MINUTE_IN_MILLIS,
+                                        )
+                                        .toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape).clickable { listener.onRemoveArchived(entry.id) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Sym(R.drawable.compass_sym_close, 14f, MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "Archive Tabs After": the iOS app's choices (DataViews.swift, ArchiveAfter); 0 hours is never. */
+@Composable
+private fun ArchiveAfterDialog(hours: Int, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
+    val choices = listOf(12 to "12 Hours", 24 to "24 Hours", 7 * 24 to "7 Days", 30 * 24 to "30 Days", 0 to "Never")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Archive Tabs After") },
+        text = {
+            Column {
+                for ((value, label) in choices) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(value) }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = value == hours, onClick = { onPick(value) })
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
@@ -620,8 +756,17 @@ private fun EntryMenu(
                 action()
             }
         }
+        // A pinned tab's or favorite's pinned URL, while it's on another page (sidebar.md, "Pinned URL").
+        if (place != SidebarUi.EntryPlace.TODAY && node.isAwayFromSavedUrl) {
+            val kind = if (place == SidebarUi.EntryPlace.FAVORITES) "Favorite" else "Pinned"
+            Item("Use This Page as $kind URL", R.drawable.compass_sym_keep) { listener.onUseAsSavedUrl(node.id) }
+            Item("Back to $kind URL", R.drawable.compass_sym_undo) { listener.onBackToSavedUrl(node.id) }
+        }
         when (place) {
-            SidebarUi.EntryPlace.TODAY -> Item("Pin", R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
+            SidebarUi.EntryPlace.TODAY -> {
+                Item("Pin", R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
+                Item("Archive", R.drawable.compass_sym_archive) { listener.onArchiveNode(node.id) }
+            }
             SidebarUi.EntryPlace.PINNED -> Item("Unpin", R.drawable.compass_sym_keep_off) { listener.onUnpinNode(node.id) }
             SidebarUi.EntryPlace.FAVORITES -> {}
         }
