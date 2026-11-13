@@ -721,6 +721,12 @@ def _release(layout: Layout, args) -> None:
   if len(dmgs) != 1:
     raise CommandError('expected one .dmg in %s, found %d' % (output,
                                                               len(dmgs)))
+  # The build takes hours, and another release (Windows, say) may have come
+  # out since the start: begin again from the latest releases, or the feeds
+  # would drop it.
+  manifest = release.load()
+  if not args.no_upload:
+    release.check_against_server(manifest, release.fetch_manifest())
   added = release.add_mac_release(manifest, dmgs[0], args.channel,
                                   git_commit(layout.root), tools,
                                   notes=args.notes or '')
