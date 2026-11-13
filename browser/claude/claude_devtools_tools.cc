@@ -217,6 +217,127 @@ std::string FormatCookie(const base::DictValue& cookie, bool show_values) {
   return text + "\n";
 }
 
+// The page's Core Web Vitals and load timings, from its own performance
+// timeline (buffered observers), in milliseconds.
+constexpr char kVitalsScript[] = R"js((async () => {
+  const take = (type, extra) => new Promise((resolve) => {
+    const entries = [];
+    try {
+      const observer = new PerformanceObserver(
+          (list) => entries.push(...list.getEntries()));
+      observer.observe({type, buffered: true, ...extra});
+      setTimeout(() => { observer.disconnect(); resolve(entries); }, 100);
+    } catch (e) {
+      resolve(entries);
+    }
+  });
+  const [lcp, shifts, events, frames] = await Promise.all([
+    take('largest-contentful-paint'), take('layout-shift'),
+    take('event', {durationThreshold: 16}), take('long-animation-frame')]);
+  const nav = performance.getEntriesByType('navigation')[0];
+  const fcp = performance.getEntriesByName('first-contentful-paint')[0];
+  let cls = 0, session = 0, first = 0, last = 0;
+  for (const shift of shifts) {
+    if (shift.hadRecentInput) continue;
+    if (session && shift.startTime - last < 1000 &&
+        shift.startTime - first < 5000) {
+      session += shift.value;
+    } else {
+      session = shift.value;
+      first = shift.startTime;
+    }
+    last = shift.startTime;
+    cls = Math.max(cls, session);
+  }
+  const interactions = events.filter((e) => e.interactionId);
+  const largest = lcp[lcp.length - 1];
+  const name = (el) => el ?
+      el.localName + (el.id ? '#' + el.id : '') : '';
+  const resources = performance.getEntriesByType('resource').map((r) => ({
+    url: r.name, type: r.initiatorType, duration: r.duration,
+    size: r.transferSize || 0}));
+  return {
+    url: location.href,
+    ttfb: nav ? nav.responseStart : -1,
+    fcp: fcp ? fcp.startTime : -1,
+    dcl: nav ? nav.domContentLoadedEventEnd : -1,
+    load: nav ? nav.loadEventEnd : -1,
+    lcp: largest ? largest.startTime : -1,
+    lcpElement: largest ? name(largest.element) : '',
+    cls,
+    inp: interactions.reduce((m, e) => Math.max(m, e.duration), -1),
+    interactions: interactions.length,
+    longFrames: frames.length,
+    blocking: frames.reduce((t, f) => t + (f.blockingDuration || 0), 0),
+    resources: resources.length,
+    transfer: resources.reduce((t, r) => t + r.size, 0),
+    slowest: resources.sort((a, b) => b.duration - a.duration).slice(0, 5),
+  };
+})())js";
+
+// "good", "needs improvement" or "poor", by web.dev's thresholds.
+std::string Rate(double value, double good, double poor) {
+  return value <= good ? "good" : value <= poor ? "needs improvement" : "poor";
+}
+
+// A timing in milliseconds, or "n/a" for -1.
+std::string Ms(double ms) {
+  return ms < 0 ? std::string("n/a") : fmt::FormatDuration(ms / 1000);
+}
+
+double Metric(const base::ListValue* metrics, std::string_view name) {
+  if (!metrics) {
+    return 0;
+  }
+  for (const base::Value& metric : *metrics) {
+    if (metric.is_dict() && Str(metric.GetDict(), "name") == name) {
+      return metric.GetDict().FindDouble("value").value_or(0);
+    }
+  }
+  return 0;
+}
+
+struct DevicePreset {
+  const char* name;
+  const char* label;
+  int width;
+  int height;
+  double scale;
+  bool mobile;
+  const char* user_agent;
+};
+
+constexpr DevicePreset kDevices[] = {
+    {"iphone", "iPhone", 393, 852, 3, true,
+     "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) "
+     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Mobile/15E148 "
+     "Safari/604.1"},
+    {"android", "Android phone", 412, 915, 2.625, true,
+     "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, "
+     "like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"},
+    {"ipad", "iPad", 820, 1180, 2, true,
+     "Mozilla/5.0 (iPad; CPU OS 19_0 like Mac OS X) AppleWebKit/605.1.15 "
+     "(KHTML, like Gecko) Version/19.0 Mobile/15E148 Safari/604.1"},
+    {"laptop", "laptop", 1366, 768, 1, false, ""},
+};
+
+struct NetworkPreset {
+  const char* name;
+  bool offline;
+  double latency_ms;
+  // Bytes a second; -1 for no limit.
+  double download;
+  double upload;
+};
+
+constexpr NetworkPreset kNetworks[] = {
+    {"offline", true, 0, 0, 0},
+    {"slow_3g", false, 2000, 50 * 1000, 50 * 1000},
+    {"fast_3g", false, 563, 180 * 1000, 84 * 1000},
+    {"slow_4g", false, 150, 1600 * 1000, 750 * 1000},
+    {"none", false, 0, -1, -1},
+};
+
 bool Matches(const std::string& name, const std::string& filter) {
   return filter.empty() || base::ToLowerASCII(name).find(filter) !=
                                std::string::npos;
@@ -1307,6 +1428,405 @@ void ClaudeTools::RunStorageEdit(base::DictValue input) {
                      self->run_weak_factory_.GetWeakPtr(), count));
            },
            run_weak_factory_.GetWeakPtr(), url));
+}
+
+
+// ---- performance ----------------------------------------------------------
+
+void ClaudeTools::Performance(base::DictValue input) {
+  Send("Performance.enable", base::DictValue(),
+       base::BindOnce(
+           [](base::WeakPtr<ClaudeTools> self, Result enabled) {
+             if (!self) {
+               return;
+             }
+             self->Send(
+                 "Performance.getMetrics", base::DictValue(),
+                 base::BindOnce(
+                     [](base::WeakPtr<ClaudeTools> self, Result metrics) {
+                       if (!self) {
+                         return;
+                       }
+                       base::DictValue runtime;
+                       if (metrics.has_value()) {
+                         runtime = std::move(*metrics);
+                       }
+                       self->Send(
+                           "Runtime.evaluate",
+                           base::DictValue()
+                               .Set("expression", kVitalsScript)
+                               .Set("awaitPromise", true)
+                               .Set("returnByValue", true)
+                               .Set("timeout", 10000),
+                           base::BindOnce(
+                               [](base::WeakPtr<ClaudeTools> self,
+                                  base::DictValue runtime, Result evaluated) {
+                                 if (!self) {
+                                   return;
+                                 }
+                                 const base::DictValue* vitals =
+                                     evaluated.has_value()
+                                         ? evaluated->FindDictByDottedPath(
+                                               "result.value")
+                                         : nullptr;
+                                 std::string text;
+                                 if (vitals) {
+                                   const base::DictValue& v = *vitals;
+                                   auto num = [&](const char* key) {
+                                     return v.FindDouble(key).value_or(-1);
+                                   };
+                                   text = base::StrCat(
+                                       {"Performance of ", Str(v, "url"),
+                                        "\n\nLoading:\n"});
+                                   const double ttfb = num("ttfb");
+                                   base::StrAppend(
+                                       &text,
+                                       {"  Time to first byte: ", Ms(ttfb),
+                                        ttfb >= 0 ? " (" +
+                                                        Rate(ttfb, 800, 1800) +
+                                                        ")"
+                                                  : "",
+                                        "\n"});
+                                   const double fcp = num("fcp");
+                                   base::StrAppend(
+                                       &text,
+                                       {"  First contentful paint: ", Ms(fcp),
+                                        fcp >= 0 ? " (" +
+                                                       Rate(fcp, 1800, 3000) +
+                                                       ")"
+                                                 : "",
+                                        "\n"});
+                                   const double lcp = num("lcp");
+                                   const std::string lcp_element =
+                                       Str(v, "lcpElement");
+                                   base::StrAppend(
+                                       &text,
+                                       {"  Largest contentful paint: ", Ms(lcp),
+                                        lcp >= 0 ? " (" +
+                                                       Rate(lcp, 2500, 4000) +
+                                                       ")"
+                                                 : "",
+                                        lcp_element.empty()
+                                            ? ""
+                                            : ", " + lcp_element,
+                                        "\n"});
+                                   base::StrAppend(
+                                       &text, {"  DOMContentLoaded: ",
+                                               Ms(num("dcl")), "; load: ",
+                                               Ms(num("load")), "\n"});
+                                   const double cls =
+                                       std::max(0.0, num("cls"));
+                                   base::StrAppend(
+                                       &text,
+                                       {"\nStability and responsiveness:\n",
+                                        base::StringPrintf(
+                                            "  Cumulative layout shift: %.3f",
+                                            cls),
+                                        " (", Rate(cls, 0.1, 0.25), ")\n"});
+                                   const double inp = num("inp");
+                                   const int interactions =
+                                       v.FindInt("interactions").value_or(0);
+                                   base::StrAppend(
+                                       &text,
+                                       {"  Interaction to next paint: ",
+                                        inp >= 0
+                                            ? base::StrCat(
+                                                  {Ms(inp), " (",
+                                                   Rate(inp, 200, 500),
+                                                   "), the slowest of ",
+                                                   base::NumberToString(
+                                                       interactions),
+                                                   interactions == 1
+                                                       ? " interaction"
+                                                       : " interactions"})
+                                            : std::string(
+                                                  "no interactions yet"),
+                                        "\n"});
+                                   base::StrAppend(
+                                       &text,
+                                       {"  Long animation frames: ",
+                                        base::NumberToString(
+                                            v.FindInt("longFrames")
+                                                .value_or(0)),
+                                        ", blocking ",
+                                        Ms(std::max(0.0, num("blocking"))),
+                                        "\n"});
+                                   base::StrAppend(
+                                       &text,
+                                       {"\nResources: ",
+                                        base::NumberToString(
+                                            v.FindInt("resources")
+                                                .value_or(0)),
+                                        ", ",
+                                        fmt::FormatBytes(
+                                            std::max(0.0, num("transfer"))),
+                                        " transferred"});
+                                   if (const base::ListValue* slowest =
+                                           v.FindList("slowest");
+                                       slowest && !slowest->empty()) {
+                                     text += "; the slowest:\n";
+                                     for (const base::Value& r : *slowest) {
+                                       if (!r.is_dict()) {
+                                         continue;
+                                       }
+                                       const base::DictValue& d = r.GetDict();
+                                       base::StrAppend(
+                                           &text,
+                                           {"  ",
+                                            Ms(d.FindDouble("duration")
+                                                   .value_or(0)),
+                                            "  ", Str(d, "type"), "  ",
+                                            fmt::Cut(fmt::MaskSecretsInText(
+                                                         Str(d, "url")),
+                                                     kMaxListedUrl),
+                                            "\n"});
+                                     }
+                                   } else {
+                                     text += "\n";
+                                   }
+                                 } else {
+                                   text = base::StrCat(
+                                       {"The page's timings couldn't be read",
+                                        evaluated.has_value()
+                                            ? std::string()
+                                            : " (" + evaluated.error() + ")",
+                                        ".\n"});
+                                 }
+                                 const base::ListValue* metrics =
+                                     runtime.FindList("metrics");
+                                 if (metrics) {
+                                   base::StrAppend(
+                                       &text,
+                                       {"\nNow:\n  JavaScript heap: ",
+                                        fmt::FormatBytes(Metric(
+                                            metrics, "JSHeapUsedSize")),
+                                        " used of ",
+                                        fmt::FormatBytes(Metric(
+                                            metrics, "JSHeapTotalSize")),
+                                        "\n",
+                                        base::StringPrintf(
+                                            "  DOM nodes: %.0f; event "
+                                            "listeners: %.0f; frames: %.0f\n",
+                                            Metric(metrics, "Nodes"),
+                                            Metric(metrics,
+                                                   "JSEventListeners"),
+                                            Metric(metrics, "Frames")),
+                                        base::StringPrintf(
+                                            "  Layouts: %.0f (",
+                                            Metric(metrics, "LayoutCount")),
+                                        fmt::FormatDuration(Metric(
+                                            metrics, "LayoutDuration")),
+                                        base::StringPrintf(
+                                            "); style recalculations: %.0f (",
+                                            Metric(metrics,
+                                                   "RecalcStyleCount")),
+                                        fmt::FormatDuration(Metric(
+                                            metrics, "RecalcStyleDuration")),
+                                        "); script: ",
+                                        fmt::FormatDuration(Metric(
+                                            metrics, "ScriptDuration")),
+                                        "; all tasks: ",
+                                        fmt::FormatDuration(Metric(
+                                            metrics, "TaskDuration")),
+                                        "\n"});
+                                 }
+                                 self->Finish(ToolResult::Text(
+                                     std::move(text)));
+                               },
+                               self->run_weak_factory_.GetWeakPtr(),
+                               std::move(runtime)));
+                     },
+                     self->run_weak_factory_.GetWeakPtr()));
+           },
+           run_weak_factory_.GetWeakPtr()));
+}
+
+// ---- emulate --------------------------------------------------------------
+
+void ClaudeTools::Emulate(base::DictValue input) {
+  if (input.FindBool("reset").value_or(false)) {
+    // Letting go of the session undoes every override it made; the next
+    // tool attaches again.
+    const bool any = !emulating_.empty();
+    ResetDevTools();
+    Finish(ToolResult::Text(any ? "Emulation undone: the tab is as it was."
+                                : "Nothing was emulated."));
+    return;
+  }
+  std::vector<std::pair<std::string, base::DictValue>> commands;
+
+  // The viewport: a device, or a size.
+  const std::string* device_name = input.FindString("device");
+  const DevicePreset* device = nullptr;
+  if (device_name) {
+    for (const DevicePreset& preset : kDevices) {
+      if (*device_name == preset.name) {
+        device = &preset;
+      }
+    }
+    if (!device) {
+      Finish(ToolResult::Error(
+          "device must be iphone, android, ipad or laptop."));
+      return;
+    }
+  }
+  std::optional<int> width = input.FindInt("width");
+  std::optional<int> height = input.FindInt("height");
+  if (device || width || height) {
+    const int w = std::clamp(width.value_or(device ? device->width : 1280),
+                             200, 4000);
+    const int h = std::clamp(height.value_or(device ? device->height : 800),
+                             200, 4000);
+    const double scale = std::clamp(
+        input.FindDouble("scale").value_or(device ? device->scale : 1), 0.5,
+        4.0);
+    const bool mobile =
+        input.FindBool("mobile").value_or(device && device->mobile);
+    commands.emplace_back("Emulation.setDeviceMetricsOverride",
+                          base::DictValue()
+                              .Set("width", w)
+                              .Set("height", h)
+                              .Set("deviceScaleFactor", scale)
+                              .Set("mobile", mobile));
+    commands.emplace_back("Emulation.setTouchEmulationEnabled",
+                          base::DictValue().Set("enabled", mobile));
+    emulating_["viewport"] = base::StrCat(
+        {device ? std::string(device->label) + ", " : std::string(),
+         base::StringPrintf("%d×%d at %gx", w, h, scale),
+         mobile ? ", touch" : ""});
+  }
+  // The user agent: given, or the device's.
+  std::string user_agent = Str(input, "user_agent");
+  if (user_agent.empty() && device) {
+    user_agent = device->user_agent;
+  }
+  if (!user_agent.empty()) {
+    commands.emplace_back("Emulation.setUserAgentOverride",
+                          base::DictValue().Set("userAgent", user_agent));
+    emulating_["user agent"] = fmt::Cut(user_agent, 80);
+  }
+
+  // Media: they go together.
+  bool media_changed = false;
+  if (const std::string* scheme = input.FindString("color_scheme")) {
+    if (*scheme != "light" && *scheme != "dark") {
+      Finish(ToolResult::Error("color_scheme must be light or dark."));
+      return;
+    }
+    emulated_color_scheme_ = *scheme;
+    emulating_["color scheme"] = *scheme;
+    media_changed = true;
+  }
+  if (std::optional<bool> reduced = input.FindBool("reduced_motion")) {
+    emulated_reduced_motion_ = *reduced;
+    if (*reduced) {
+      emulating_["reduced motion"] = "on";
+    } else {
+      emulating_.erase("reduced motion");
+    }
+    media_changed = true;
+  }
+  if (const std::string* media = input.FindString("media")) {
+    if (*media != "print" && *media != "screen") {
+      Finish(ToolResult::Error("media must be print or screen."));
+      return;
+    }
+    emulated_media_type_ = *media == "print" ? "print" : "";
+    if (*media == "print") {
+      emulating_["media"] = "print";
+    } else {
+      emulating_.erase("media");
+    }
+    media_changed = true;
+  }
+  if (media_changed) {
+    base::ListValue features;
+    if (!emulated_color_scheme_.empty()) {
+      features.Append(base::DictValue()
+                          .Set("name", "prefers-color-scheme")
+                          .Set("value", emulated_color_scheme_));
+    }
+    if (emulated_reduced_motion_) {
+      features.Append(base::DictValue()
+                          .Set("name", "prefers-reduced-motion")
+                          .Set("value", "reduce"));
+    }
+    commands.emplace_back("Emulation.setEmulatedMedia",
+                          base::DictValue()
+                              .Set("media", emulated_media_type_)
+                              .Set("features", std::move(features)));
+  }
+
+  // The network and the CPU.
+  if (const std::string* network = input.FindString("network")) {
+    const NetworkPreset* preset = nullptr;
+    for (const NetworkPreset& candidate : kNetworks) {
+      if (*network == candidate.name) {
+        preset = &candidate;
+      }
+    }
+    if (!preset) {
+      Finish(ToolResult::Error(
+          "network must be offline, slow_3g, fast_3g, slow_4g or none."));
+      return;
+    }
+    commands.emplace_back("Network.emulateNetworkConditions",
+                          base::DictValue()
+                              .Set("offline", preset->offline)
+                              .Set("latency", preset->latency_ms)
+                              .Set("downloadThroughput", preset->download)
+                              .Set("uploadThroughput", preset->upload));
+    if (*network == "none") {
+      emulating_.erase("network");
+    } else {
+      emulating_["network"] = preset->name;
+    }
+  }
+  if (std::optional<double> slowdown = input.FindDouble("cpu_slowdown")) {
+    const double rate = std::clamp(*slowdown, 1.0, 20.0);
+    commands.emplace_back("Emulation.setCPUThrottlingRate",
+                          base::DictValue().Set("rate", rate));
+    if (rate > 1) {
+      emulating_["CPU"] = base::StringPrintf("%gx slower", rate);
+    } else {
+      emulating_.erase("CPU");
+    }
+  }
+  if (commands.empty()) {
+    Finish(ToolResult::Error(
+        "Say what to emulate: a device, width and height, color_scheme, "
+        "reduced_motion, media, network, cpu_slowdown or user_agent; or "
+        "reset."));
+    return;
+  }
+  const bool reload_needed = !user_agent.empty();
+  SendAll(std::move(commands),
+          base::BindOnce(
+              [](base::WeakPtr<ClaudeTools> self, bool reload_needed,
+                 Result result) {
+                if (!self) {
+                  return;
+                }
+                if (!result.has_value()) {
+                  self->Finish(ToolResult::Error(result.error()));
+                  return;
+                }
+                std::vector<std::string> parts;
+                for (const auto& [what, how] : self->emulating_) {
+                  parts.push_back(base::StrCat({what, ": ", how}));
+                }
+                std::string text = base::StrCat(
+                    {"Emulating ", base::JoinString(parts, "; "),
+                     ". It lasts while you work on this tab: it's undone "
+                     "when the chat stops, a minute after your last tool, "
+                     "or with reset."});
+                if (reload_needed) {
+                  text += " The user agent applies to new requests: navigate "
+                          "with \"reload\" to load the page with it.";
+                }
+                self->Finish(ToolResult::Text(std::move(text)));
+              },
+              run_weak_factory_.GetWeakPtr(), reload_needed));
 }
 
 }  // namespace compass::claude

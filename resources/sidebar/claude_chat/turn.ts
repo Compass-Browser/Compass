@@ -179,6 +179,11 @@ export class CompassClaudeTurnElement extends CrLitElement {
             `Clear ${short(input['store'])}` :
             `${input['action'] === 'set' ? 'Set' : 'Remove'} “${
                 short(input['name'])}” in ${short(input['store'])}`;
+      case 'performance':
+        return 'Measure performance';
+      case 'emulate':
+        return input['reset'] ? 'Stop emulating' :
+                                `Emulate ${short(input['device'] || '')}`.trim();
       // Claude Code's own tools.
       case 'Bash':
         return `Run ${short(input['command'])}`;

@@ -329,6 +329,8 @@ class ClaudeTools : public content::WebContentsObserver {
   void EditPageStorage(base::DictValue input);
   void RunStorageEdit(base::DictValue input);
   void OnCssEvent(const std::string& method, const base::DictValue& params);
+  void Performance(base::DictValue input);
+  void Emulate(base::DictValue input);
   // remember, update_memory, forget.
   ToolResult RunMemoryTool(const std::string& name,
                            const base::DictValue& input);
@@ -393,6 +395,13 @@ class ClaudeTools : public content::WebContentsObserver {
   };
   bool css_enabled_ = false;
   std::map<std::string, StyleSheet> style_sheets_;
+  // What emulate changed in this session ("viewport" → "393×852, 3x"),
+  // and the media it emulates, which go to DevTools together. Letting go of
+  // the session undoes them all.
+  std::map<std::string, std::string> emulating_;
+  std::string emulated_media_type_;
+  std::string emulated_color_scheme_;
+  bool emulated_reduced_motion_ = false;
   base::OnceClosure on_loaded_;
   base::OneShotTimer timeout_;
   base::OneShotTimer idle_;

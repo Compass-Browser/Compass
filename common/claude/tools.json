@@ -959,6 +959,112 @@
       }
     },
     {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "performance",
+        "description": "Measure the current tab like the Performance panel of the browser's developer tools: load timings (time to first byte, first and largest contentful paint, DOMContentLoaded, load), Core Web Vitals (largest contentful paint, cumulative layout shift, interaction to next paint) rated good, needs improvement or poor, long animation frames, the slowest resources, and now: JavaScript heap, DOM nodes, layouts and script time. The load timings are the page's own, from its last load: navigate with \"reload\" first to measure a fresh one.",
+        "input_schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "emulate",
+        "description": "Make the current tab behave like another device or setting, like the device mode of the browser's developer tools: a phone or tablet (viewport, pixel ratio, touch, user agent), a viewport size, dark or light mode, reduced motion, print media, a slow or offline network, a slower CPU. Changes add up across calls. They last while you work on this tab and are undone when the chat stops, a minute after your last tool, or with reset; screenshots show the emulated viewport. Say what you changed.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "device": {
+              "type": "string",
+              "enum": [
+                "iphone",
+                "android",
+                "ipad",
+                "laptop"
+              ],
+              "description": "A device's viewport, pixel ratio, touch and user agent."
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 200,
+              "maximum": 4000,
+              "description": "Viewport width in CSS pixels (overrides the device's)."
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 200,
+              "maximum": 4000,
+              "description": "Viewport height in CSS pixels."
+            },
+            "scale": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 4,
+              "description": "Device pixel ratio."
+            },
+            "mobile": {
+              "type": "boolean",
+              "description": "A mobile viewport, with touch."
+            },
+            "user_agent": {
+              "type": "string",
+              "description": "The user agent to send; it applies to new requests."
+            },
+            "color_scheme": {
+              "type": "string",
+              "enum": [
+                "light",
+                "dark"
+              ],
+              "description": "prefers-color-scheme."
+            },
+            "reduced_motion": {
+              "type": "boolean",
+              "description": "prefers-reduced-motion: reduce."
+            },
+            "media": {
+              "type": "string",
+              "enum": [
+                "print",
+                "screen"
+              ],
+              "description": "The CSS media type: print shows the page as it prints."
+            },
+            "network": {
+              "type": "string",
+              "enum": [
+                "offline",
+                "slow_3g",
+                "fast_3g",
+                "slow_4g",
+                "none"
+              ],
+              "description": "Network conditions; none removes the limit."
+            },
+            "cpu_slowdown": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 20,
+              "description": "How many times slower the CPU is (1 for normal)."
+            },
+            "reset": {
+              "type": "boolean",
+              "description": "Undo all emulation now."
+            }
+          }
+        }
+      }
+    },
+    {
       "scope": "memory",
       "platforms": [
         "desktop",

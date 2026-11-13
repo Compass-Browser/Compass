@@ -215,6 +215,20 @@ class ClaudeToolsBrowserTest : public InProcessBrowserTest {
     return list;
   }
 
+  // Whether |script| comes to give |expected| in the page within a few
+  // seconds (emulation reaches the renderer after DevTools answers).
+  template <typename T>
+  bool PageBecomes(const std::string& script, const T& expected) {
+    for (int i = 0; i < 50; ++i) {
+      if (content::EvalJs(contents(), script) == expected) {
+        return true;
+      }
+      Run("wait", R"({"seconds": 0.1})");
+    }
+    ADD_FAILURE() << script << " never gave " << expected;
+    return false;
+  }
+
   // The id ("r3") of the request on the line of |list| containing |part|.
   static std::string RequestId(const std::string& list,
                                const std::string& part) {
@@ -1003,6 +1017,62 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, EditPageStorage) {
   EXPECT_TRUE(Run("edit_page_storage",
                   R"({"store": "cookies", "action": "set"})").is_error);
   EXPECT_EQ(asked.size(), before);
+}
+
+// Load timings, vitals and runtime numbers.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, Performance) {
+  AllowDevTools();
+  ToolResult performance = Run("performance");
+  ASSERT_FALSE(performance.is_error) << Text(performance);
+  const std::string text = Text(performance);
+  EXPECT_THAT(text, HasSubstr("Performance of "));
+  EXPECT_THAT(text, HasSubstr("tools.html"));
+  EXPECT_THAT(text, HasSubstr("First contentful paint"));
+  EXPECT_THAT(text, HasSubstr("Cumulative layout shift"));
+  EXPECT_THAT(text, HasSubstr("JavaScript heap"));
+  EXPECT_THAT(text, HasSubstr("DOM nodes"));
+}
+
+// Emulation adds up across calls, and is undone by reset and by Stop().
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, EmulateIsUndone) {
+  AllowDevTools();
+  const int width = content::EvalJs(contents(), "innerWidth").ExtractInt();
+  const bool was_dark =
+      content::EvalJs(contents(),
+                      "matchMedia('(prefers-color-scheme: dark)').matches")
+          .ExtractBool();
+  const std::string other = was_dark ? "light" : "dark";
+  constexpr char kDark[] = "matchMedia('(prefers-color-scheme: dark)').matches";
+
+  ToolResult on = Run("emulate", R"({"width": 500, "height": 700,
+      "color_scheme": ")" + other + R"("})");
+  ASSERT_FALSE(on.is_error) << Text(on);
+  EXPECT_THAT(Text(on), HasSubstr("color scheme: " + other));
+  EXPECT_THAT(Text(on), HasSubstr("500×700"));
+  EXPECT_TRUE(PageBecomes("innerWidth", 500));
+  EXPECT_TRUE(PageBecomes(kDark, !was_dark));
+
+  // Print media keeps the color scheme.
+  ToolResult print = Run("emulate", R"({"media": "print"})");
+  ASSERT_FALSE(print.is_error) << Text(print);
+  EXPECT_TRUE(PageBecomes("matchMedia('print').matches", true));
+  EXPECT_TRUE(PageBecomes(kDark, !was_dark));
+
+  EXPECT_THAT(Text(Run("emulate", R"({"reset": true})")),
+              HasSubstr("Emulation undone"));
+  EXPECT_TRUE(PageBecomes("innerWidth", width));
+  EXPECT_TRUE(PageBecomes(kDark, was_dark));
+  EXPECT_TRUE(PageBecomes("matchMedia('print').matches", false));
+
+  // Stopping lets go of the tab, which undoes it too.
+  ASSERT_FALSE(Run("emulate", R"({"color_scheme": ")" + other + R"("})")
+                   .is_error);
+  EXPECT_TRUE(PageBecomes(kDark, !was_dark));
+  tools_->Stop();
+  EXPECT_TRUE(PageBecomes(kDark, was_dark));
+
+  EXPECT_TRUE(Run("emulate").is_error);
+  EXPECT_TRUE(Run("emulate", R"({"device": "toaster"})").is_error);
 }
 
 }  // namespace

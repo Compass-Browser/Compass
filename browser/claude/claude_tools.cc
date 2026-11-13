@@ -469,6 +469,10 @@ void ClaudeTools::ResetDevTools() {
   network_enabled_ = false;
   css_enabled_ = false;
   style_sheets_.clear();
+  emulating_.clear();
+  emulated_media_type_.clear();
+  emulated_color_scheme_.clear();
+  emulated_reduced_motion_ = false;
 }
 
 void ClaudeTools::Run(const std::string& name,
@@ -563,6 +567,8 @@ void ClaudeTools::Run(const std::string& name,
       {"inspect_element", &ClaudeTools::InspectElement},
       {"page_storage", &ClaudeTools::PageStorage},
       {"edit_page_storage", &ClaudeTools::EditPageStorage},
+      {"performance", &ClaudeTools::Performance},
+      {"emulate", &ClaudeTools::Emulate},
   };
   for (const auto& [tool, handler] : kHandlers) {
     if (name == tool) {
@@ -824,9 +830,15 @@ void ClaudeTools::OnAttach() {
   }
   // With the developer tools on, the tab's requests are recorded from the
   // first tool on, as the console is.
+  // A new attach starts clean: what an earlier session enabled or emulated
+  // ended with it.
   network_enabled_ = false;
   css_enabled_ = false;
   style_sheets_.clear();
+  emulating_.clear();
+  emulated_media_type_.clear();
+  emulated_color_scheme_.clear();
+  emulated_reduced_motion_ = false;
   if (devtools_allowed_ && devtools_allowed_.Run()) {
     EnsureNetwork(base::DoNothing());
   }
