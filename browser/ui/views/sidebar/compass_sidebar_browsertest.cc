@@ -27,6 +27,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/infobars/simple_alert_infobar_creator.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -497,6 +498,19 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
 // space, not during a swipe, and a grey space keeps the profile's theme.
 // A new window has its space's theme from the start: the tint's first
 // update runs while the window is built, before the browser has its window.
+// Undocked DevTools is a window of its own, not a tab in the space.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, UndockedDevToolsIsNoTab) {
+  SpaceModel& space = WindowFeatures::From(browser())->space_model();
+  const size_t today = space.today_root()->children().size();
+  const size_t pinned = space.pinned_root()->children().size();
+  DevToolsWindow* devtools =
+      DevToolsWindowTesting::OpenDevToolsWindowSync(browser(), false);
+  EXPECT_EQ(today, space.today_root()->children().size());
+  EXPECT_EQ(pinned, space.pinned_root()->children().size());
+  DevToolsWindowTesting::CloseDevToolsWindowSync(devtools);
+  EXPECT_EQ(today, space.today_root()->children().size());
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, NewWindowHasTheSpaceTheme) {
   SpaceModel& home = WindowFeatures::From(browser())->space_model();
   home.SetColor(SpaceColor::kBlue);

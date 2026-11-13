@@ -157,8 +157,8 @@ class WindowFeatures : public SpaceList::Observer {
   const raw_ptr<SpaceService> service_;
   raw_ptr<SpaceModel> space_;
   const bool is_parking_window_;
-  // A little window: its tabs aren't the sidebar's (see
-  // CreatingWindowOutsideSidebar()).
+  // A little window (see CreatingWindowOutsideSidebar()) or undocked
+  // DevTools: its tabs aren't the sidebar's.
   const bool outside_sidebar_;
   bool switching_ = false;
   bool swapped_away_ = false;

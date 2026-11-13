@@ -307,7 +307,10 @@ WindowFeatures::WindowFeatures(BrowserWindowInterface* browser)
       service_(SpaceService::Get(browser->GetProfile())),
       space_(&service_->space_list().active_space()),
       is_parking_window_(service_->creating_parking_window()),
-      outside_sidebar_(g_creating_window_outside_sidebar),
+      // DevTools in its own window is a window only, not a tab.
+      outside_sidebar_(g_creating_window_outside_sidebar ||
+                       browser->GetType() ==
+                           BrowserWindowInterface::TYPE_DEVTOOLS),
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {
   service_->space_list().AddObserver(this);
   if (is_parking_window_) {
