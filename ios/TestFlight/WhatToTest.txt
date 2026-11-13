@@ -1,7 +1,7 @@
-Claude can now save and edit files, with your OK each time, and auto picture in picture works on YouTube.
+Spaces that stay on this device, developer tools for Claude, and picture in picture on YouTube.
 
-- Settings → Claude → Files: choose Save Files (new files go to Compass's Downloads folder, in the Files app) or Use a Folder (pick a folder; Claude can list, read and write files in it, and nowhere else). Off by default.
-- Ask Claude for a file ("save these notes as a file", "fix the typos in notes.md"). Before each save or change a card shows what it will write: Allow, Allow for This Chat, or Deny.
-- YouTube: play a video with sound, then switch tab or scroll it off screen; it should keep playing in a picture-in-picture window.
-- If auto picture in picture doesn't start, Settings → Auto Picture in Picture → Copy Diagnostics, and paste it in your report.
-- Please also report: a folder that's forgotten after relaunching Compass, files in the wrong place, or a card that doesn't go away.
+- Spaces that don't sync: in a space's menu, turn off Sync to Other Devices. The space and its tabs disappear from your other devices and stay only on this one. Turn it back on to sync it again.
+- Claude's developer tools: Settings → Claude → Let Claude Use Developer Tools (off by default). Then ask Claude about the page: "which requests fail?", "why is this button blue?", "how fast does this page load?", "what's in this site's storage?". Changes to cookies or storage ask you first.
+- YouTube: play a video with sound, then switch tab or leave the app; it should keep playing in a picture-in-picture window. Videos now play in the page instead of going fullscreen.
+- Claude through a gateway or custom endpoint no longer fails with "A maximum of 4 blocks with cache_control".
+- Please report: a space that comes back after turning off sync, pages that load slowly or not at all with developer tools on, or picture in picture that doesn't start (Settings → Auto Picture in Picture → Copy Diagnostics).
