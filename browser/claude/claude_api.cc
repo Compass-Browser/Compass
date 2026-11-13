@@ -114,16 +114,59 @@ Endpoint EndpointFromPrefs(const PrefService& prefs) {
   return endpoint;
 }
 
-bool UsesMinimalCaching(const PrefService& prefs, const GURL& base_url) {
-  const std::string& remembered = prefs.GetString(prefs::kMinimalCachingUrl);
-  return !remembered.empty() && base_url != GURL(kDefaultBaseUrl) &&
-         remembered == base_url.spec();
+std::optional<CacheLevel> LowerCacheLevel(CacheLevel level) {
+  switch (level) {
+    case CacheLevel::kNormal:
+      return CacheLevel::kTopLevelOnly;
+    case CacheLevel::kTopLevelOnly:
+      return CacheLevel::kNone;
+    case CacheLevel::kNone:
+      return std::nullopt;
+  }
+  return std::nullopt;
 }
 
-void RememberMinimalCaching(PrefService& prefs, const GURL& base_url) {
-  if (base_url != GURL(kDefaultBaseUrl)) {
-    prefs.SetString(prefs::kMinimalCachingUrl, base_url.spec());
+bool IsTooManyCacheBreakpoints(std::string_view error) {
+  const std::string text = base::ToLowerASCII(error);
+  if (text.find("cache_control") == std::string::npos &&
+      text.find("cache control") == std::string::npos) {
+    return false;
   }
+  for (std::string_view word :
+       {"maximum", "blocks", "breakpoint", "too many", "at most", "limit"}) {
+    if (text.find(word) != std::string::npos) {
+      return true;
+    }
+  }
+  return false;
+}
+
+CacheLevel CacheLevelFor(const PrefService& prefs, const GURL& base_url) {
+  const std::string& remembered = prefs.GetString(prefs::kCacheLevelUrl);
+  if (remembered.empty() || base_url == GURL(kDefaultBaseUrl) ||
+      remembered != base_url.spec()) {
+    return CacheLevel::kNormal;
+  }
+  switch (prefs.GetInteger(prefs::kCacheLevel)) {
+    case static_cast<int>(CacheLevel::kTopLevelOnly):
+      return CacheLevel::kTopLevelOnly;
+    case static_cast<int>(CacheLevel::kNone):
+      return CacheLevel::kNone;
+    default:
+      return CacheLevel::kNormal;
+  }
+}
+
+void RememberCacheLevel(PrefService& prefs,
+                        const GURL& base_url,
+                        CacheLevel level) {
+  if (level == CacheLevel::kNormal || base_url == GURL(kDefaultBaseUrl)) {
+    prefs.ClearPref(prefs::kCacheLevelUrl);
+    prefs.ClearPref(prefs::kCacheLevel);
+    return;
+  }
+  prefs.SetString(prefs::kCacheLevelUrl, base_url.spec());
+  prefs.SetInteger(prefs::kCacheLevel, static_cast<int>(level));
 }
 
 std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json) {
@@ -162,6 +205,19 @@ std::string DescribeError(int http_status, std::string_view body) {
         return *message;
       }
     }
+    // A gateway's own shapes: {"message": …}, {"error": "…"}, {"detail": …}.
+    for (const char* key : {"message", "error", "detail"}) {
+      const std::string* message = dict->FindString(key);
+      if (message && !message->empty()) {
+        return *message;
+      }
+    }
+  }
+  // Or plain text: kept when it's about cache breakpoints, so the chat can
+  // step down (IsTooManyCacheBreakpoints()).
+  if (IsTooManyCacheBreakpoints(body.substr(0, 2048))) {
+    return std::string(base::TrimWhitespaceASCII(body.substr(0, 2048),
+                                                 base::TRIM_ALL));
   }
   switch (http_status) {
     case net::HTTP_UNAUTHORIZED:

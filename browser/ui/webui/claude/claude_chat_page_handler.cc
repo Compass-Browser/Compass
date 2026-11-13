@@ -260,24 +260,21 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   chat_devtools_ = chat_devtools_ || options.devtools;
   options.devtools_tools = chat_devtools_;
   // A gateway that adds cache breakpoints of its own refused the usual ones
-  // before: only the top-level one for it. Another URL forgets it.
-  PrefService* mutable_prefs = profile->GetPrefs();
-  if (!prefs->GetString(prefs::kMinimalCachingUrl).empty() &&
-      !UsesMinimalCaching(*prefs, endpoint.base_url)) {
-    mutable_prefs->ClearPref(prefs::kMinimalCachingUrl);
+  // before: the level that got through with it. Another URL forgets it.
+  if (!prefs->GetString(prefs::kCacheLevelUrl).empty() &&
+      CacheLevelFor(*prefs, endpoint.base_url) == CacheLevel::kNormal) {
+    RememberCacheLevel(*profile->GetPrefs(), endpoint.base_url,
+                       CacheLevel::kNormal);
   }
-  options.minimal_caching = UsesMinimalCaching(*prefs, endpoint.base_url);
+  options.cache_level = CacheLevelFor(*prefs, endpoint.base_url);
   base_url_ = endpoint.base_url;
-  retrying_ = false;
-  retry_request_.reset();
-  if (!options.minimal_caching) {
-    ChatOptions minimal = options;
-    minimal.minimal_caching = true;
-    retry_request_ = BuildChatRequest(messages->GetList().Clone(), minimal);
-  }
+  stepped_down_ = false;
+  shown_output_ = false;
+  // The same messages for every step down.
+  retry_options_ = options;
+  retry_messages_ = messages->GetList().Clone();
   ChatRequest request =
       BuildChatRequest(std::move(*messages).TakeList(), options);
-  streamed_ = false;
 
   scoped_refptr<network::SharedURLLoaderFactory> factory =
       loader_factory_ ? loader_factory_
@@ -345,7 +342,14 @@ void ClaudeChatPageHandler::OnStreamEvent(const SseParser::Event& event) {
   if (event.name == "ping") {
     return;
   }
-  streamed_ = true;
+  // Text or a tool call shows; thinking alone doesn't.
+  if (event.name == "content_block_delta" &&
+      event.data.find("\"text_delta\"") != std::string::npos) {
+    shown_output_ = true;
+  } else if (event.name == "content_block_start" &&
+             event.data.find("\"tool_use\"") != std::string::npos) {
+    shown_output_ = true;
+  }
   page_->OnStreamEvent(event.name, event.data);
 }
 
@@ -354,26 +358,31 @@ void ClaudeChatPageHandler::OnStreamDone(int request_id,
   if (request_id != request_id_) {
     return;
   }
-  std::optional<ChatRequest> retry = std::move(retry_request_);
-  retry_request_.reset();
-  if (error && IsTooManyCacheBreakpoints(*error) && retry && !streamed_ &&
-      client_) {
-    // An endpoint that adds cache breakpoints of its own refuses ours past
-    // the API's 4: ask again with only the top-level one, and from now on.
+  // A gateway that adds cache breakpoints of its own refuses ours past the
+  // API's 4: step down (only the top-level one, then none) with the same
+  // messages while it refuses and nothing showed yet, and remember for the
+  // endpoint the level that got through. Only the last error shows.
+  std::optional<CacheLevel> lower =
+      LowerCacheLevel(retry_options_.cache_level);
+  if (error && IsTooManyCacheBreakpoints(*error) && lower && retry_messages_ &&
+      !shown_output_ && client_) {
+    retry_options_.cache_level = *lower;
+    stepped_down_ = true;
     // Posted: the client is still finishing this request.
-    retrying_ = true;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&ClaudeChatPageHandler::SendRetry,
                        weak_factory_.GetWeakPtr(), request_id,
-                       std::move(*retry)));
+                       BuildChatRequest(retry_messages_->Clone(),
+                                        retry_options_)));
     return;
   }
-  if (retrying_ && !error) {
-    // It got through: the endpoint takes only the top-level breakpoint.
-    RememberMinimalCaching(*browser_->GetProfile()->GetPrefs(), base_url_);
+  if (stepped_down_ && !error) {
+    RememberCacheLevel(*browser_->GetProfile()->GetPrefs(), base_url_,
+                       retry_options_.cache_level);
   }
-  retrying_ = false;
+  stepped_down_ = false;
+  retry_messages_.reset();
   page_->OnStreamDone(error.value_or(std::string()));
 }
 

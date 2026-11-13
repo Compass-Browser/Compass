@@ -20,15 +20,30 @@ public struct ChatRequest: Sendable {
   /// top-level one.
   public static let maxCacheBreakpoints = 4
 
-  /// Whether `error` is the API refusing a request for having more
-  /// `cache_control` blocks than it takes ("A maximum of 4 blocks with
-  /// cache_control may be provided. Found 5."). Seen on iOS with requests
-  /// that carry two: something between Compass and the model (an endpoint,
-  /// a gateway, the token's account) adds its own. The chat then asks again
-  /// with `Options.minimalCaching`.
+  /// How many `cache_control` breakpoints a request carries. A gateway (a
+  /// custom base URL) can add its own and get the request refused ("A
+  /// maximum of 4 blocks with cache_control may be provided. Found 5."):
+  /// the chat then steps down, `normal` → `topLevelOnly` → `none`, and
+  /// remembers for the endpoint the level that got through.
+  public enum CacheLevel: Int, Sendable, CaseIterable {
+    /// The system prompt's last block, and the top-level (automatic) one.
+    case normal = 0
+    /// Only the top-level one, which caches the whole prefix too.
+    case topLevelOnly = 1
+    /// No `cache_control` at all.
+    case none = 2
+
+    /// The next step down, or nil at `none`.
+    public var lower: CacheLevel? { CacheLevel(rawValue: rawValue + 1) }
+  }
+
+  /// Whether `error` is a refusal for too many `cache_control` blocks, in
+  /// the API's words or a gateway's (any case, wrapped in its own message
+  /// or JSON).
   public static func isTooManyCacheBreakpoints(_ error: String?) -> Bool {
-    guard let error else { return false }
-    return error.contains("blocks with cache_control")
+    guard let error = error?.lowercased(), error.contains("cache_control") || error.contains("cache control")
+    else { return false }
+    return ["maximum", "blocks", "breakpoint", "too many", "at most", "limit"].contains { error.contains($0) }
   }
 
   public var body: JSONValue
@@ -56,10 +71,8 @@ public struct ChatRequest: Sendable {
     /// "Let Claude Use Developer Tools" (docs/design/claude.md, "Developer
     /// tools"): the context says whether they're on.
     public var devtools: Bool
-    /// Only the top-level (automatic) breakpoint, which caches the whole
-    /// prefix too: for an endpoint that refused the usual two
-    /// (`isTooManyCacheBreakpoints`).
-    public var minimalCaching: Bool = false
+    /// The cache breakpoints to send (`CacheLevel`).
+    public var cacheLevel: CacheLevel = .normal
     public var now: Date
 
     public init(
@@ -87,10 +100,10 @@ public struct ChatRequest: Sendable {
   public init(messages: [JSONValue], options: Options) {
     let ephemeral: JSONValue = ["type": "ephemeral"]
     // The prompt, then the chat's memory, cached up to the last of them.
-    // With minimal caching, none: the top-level breakpoint covers them.
+    // Below `normal`, none: the top-level breakpoint (if any) covers them.
     var system: [JSONValue] = [["type": "text", "text": .string(options.systemPrompt)]]
     if !options.memory.isEmpty { system.append(["type": "text", "text": .string(options.memory)]) }
-    if !options.minimalCaching, case .object(var last) = system[system.count - 1] {
+    if options.cacheLevel == .normal, case .object(var last) = system[system.count - 1] {
       last["cache_control"] = ephemeral
       system[system.count - 1] = .object(last)
     }
@@ -103,11 +116,11 @@ public struct ChatRequest: Sendable {
       "max_tokens": .number(Double(Self.maxTokens)),
       "system": .array(system),
       "messages": .array(messages),
-      // The conversation so far is cached too: each turn resends it.
-      "cache_control": ephemeral,
       "thinking": ["type": "adaptive", "display": "summarized"],
       "stream": true,
     ]
+    // The conversation so far is cached too: each turn resends it.
+    if options.cacheLevel != .none { body["cache_control"] = ephemeral }
     if !options.tools.isEmpty { body["tools"] = .array(options.tools) }
     var betas: [String] = []
     if options.claudeAPI, Self.fallbackModels.contains(options.model) {
@@ -151,5 +164,81 @@ public struct ChatRequest: Sendable {
       text += "):\n" + options.windowTabs
     }
     return text
+  }
+}
+
+/// The cache level an endpoint (a gateway, by its base URL) took last
+/// (`ChatRequest.CacheLevel`), kept in UserDefaults: one endpoint, the one
+/// in use. The Claude API itself always gets `normal`; another URL forgets
+/// it. Reads the older key (`ClaudeMinimalCachingURL`, minimal caching
+/// only) once.
+public struct CacheLevelMemory {
+  public static let urlKey = "ClaudeCacheLevelURL"
+  public static let levelKey = "ClaudeCacheLevel"
+  static let oldKey = "ClaudeMinimalCachingURL"
+
+  let defaults: UserDefaults
+
+  public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+  public func level(for baseURL: URL, isClaudeAPI: Bool) -> ChatRequest.CacheLevel {
+    if let old = defaults.string(forKey: Self.oldKey) {
+      defaults.removeObject(forKey: Self.oldKey)
+      if defaults.string(forKey: Self.urlKey) == nil {
+        defaults.set(old, forKey: Self.urlKey)
+        defaults.set(ChatRequest.CacheLevel.topLevelOnly.rawValue, forKey: Self.levelKey)
+      }
+    }
+    guard let remembered = defaults.string(forKey: Self.urlKey) else { return .normal }
+    guard !isClaudeAPI, remembered == baseURL.absoluteString else {
+      forget()
+      return .normal
+    }
+    return ChatRequest.CacheLevel(rawValue: defaults.integer(forKey: Self.levelKey)) ?? .normal
+  }
+
+  /// `level` got through with `baseURL` after a refusal.
+  public func remember(_ level: ChatRequest.CacheLevel, for baseURL: URL, isClaudeAPI: Bool) {
+    guard !isClaudeAPI, level != .normal else { return }
+    defaults.set(baseURL.absoluteString, forKey: Self.urlKey)
+    defaults.set(level.rawValue, forKey: Self.levelKey)
+  }
+
+  public func forget() {
+    defaults.removeObject(forKey: Self.urlKey)
+    defaults.removeObject(forKey: Self.levelKey)
+  }
+}
+
+extension ChatRequest {
+  /// What `send(messages:options:send:)` ended with.
+  public struct Outcome: Sendable {
+    /// The last attempt's error; nil when it got through.
+    public var error: String?
+    public var level: CacheLevel
+    /// A refusal for too many breakpoints made it step down.
+    public var steppedDown: Bool
+  }
+
+  /// Sends `messages` at `options.cacheLevel`, and while the endpoint refuses
+  /// for too many cache breakpoints, again one level lower (only the
+  /// top-level one, then none) with the same messages, as long as
+  /// `canStepDown()` (nothing shown yet, not stopped). `restart` runs before
+  /// each new attempt (what the refused one streamed goes).
+  @MainActor
+  public static func send(
+    messages: [JSONValue], options: Options, canStepDown: () -> Bool = { true }, restart: () -> Void = {},
+    send: (ChatRequest) async -> String?
+  ) async -> Outcome {
+    var options = options
+    var error = await send(ChatRequest(messages: messages, options: options))
+    var stepped = false
+    while isTooManyCacheBreakpoints(error), let lower = options.cacheLevel.lower, canStepDown() {
+      stepped = true
+      options.cacheLevel = lower
+      restart()
+      error = await send(ChatRequest(messages: messages, options: options))
+    }
+    return Outcome(error: error, level: options.cacheLevel, steppedDown: stepped)
   }
 }

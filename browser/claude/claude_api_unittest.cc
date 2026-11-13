@@ -120,20 +120,48 @@ TEST(ClaudeApiTest, EndpointFromPrefs) {
   EXPECT_TRUE(EndpointFromPrefs(prefs).allow_oauth_token);
 }
 
-// A gateway that refused the usual cache breakpoints is remembered by its
-// base URL; another URL, and the Claude API, don't use it.
-TEST(ClaudeApiTest, MinimalCachingPerEndpoint) {
+// A gateway that refused the cache breakpoints is remembered by its base
+// URL, with the level that got through; another URL, and the Claude API,
+// don't use it.
+TEST(ClaudeApiTest, CacheLevelPerEndpoint) {
   TestingPrefServiceSimple prefs;
   prefs::RegisterProfilePrefs(prefs.registry());
   const GURL gateway("https://gateway.test/anthropic/");
-  EXPECT_FALSE(UsesMinimalCaching(prefs, gateway));
-  RememberMinimalCaching(prefs, gateway);
-  EXPECT_TRUE(UsesMinimalCaching(prefs, gateway));
-  EXPECT_FALSE(UsesMinimalCaching(prefs, GURL("https://other.test/")));
-  EXPECT_FALSE(UsesMinimalCaching(prefs, GURL(kDefaultBaseUrl)));
-  prefs.ClearPref(prefs::kMinimalCachingUrl);
-  RememberMinimalCaching(prefs, GURL(kDefaultBaseUrl));
-  EXPECT_TRUE(prefs.GetString(prefs::kMinimalCachingUrl).empty());
+  EXPECT_EQ(CacheLevelFor(prefs, gateway), CacheLevel::kNormal);
+  RememberCacheLevel(prefs, gateway, CacheLevel::kNone);
+  EXPECT_EQ(CacheLevelFor(prefs, gateway), CacheLevel::kNone);
+  RememberCacheLevel(prefs, gateway, CacheLevel::kTopLevelOnly);
+  EXPECT_EQ(CacheLevelFor(prefs, gateway), CacheLevel::kTopLevelOnly);
+  EXPECT_EQ(CacheLevelFor(prefs, GURL("https://other.test/")),
+            CacheLevel::kNormal);
+  EXPECT_EQ(CacheLevelFor(prefs, GURL(kDefaultBaseUrl)), CacheLevel::kNormal);
+  RememberCacheLevel(prefs, GURL(kDefaultBaseUrl), CacheLevel::kNone);
+  EXPECT_TRUE(prefs.GetString(prefs::kCacheLevelUrl).empty());
+
+  EXPECT_EQ(LowerCacheLevel(CacheLevel::kNormal), CacheLevel::kTopLevelOnly);
+  EXPECT_EQ(LowerCacheLevel(CacheLevel::kTopLevelOnly), CacheLevel::kNone);
+  EXPECT_EQ(LowerCacheLevel(CacheLevel::kNone), std::nullopt);
+}
+
+// The refusal, in the API's words or a gateway's.
+TEST(ClaudeApiTest, TooManyCacheBreakpoints) {
+  EXPECT_TRUE(IsTooManyCacheBreakpoints(
+      "A maximum of 4 blocks with cache_control may be provided. Found 5."));
+  EXPECT_TRUE(IsTooManyCacheBreakpoints(
+      "A MAXIMUM OF 4 BLOCKS WITH CACHE_CONTROL MAY BE PROVIDED"));
+  EXPECT_TRUE(IsTooManyCacheBreakpoints(
+      R"(upstream 400: {"error":{"message":"A maximum of 4 blocks with )"
+      R"(cache_control may be provided. Found 6."}})"));
+  EXPECT_FALSE(IsTooManyCacheBreakpoints("Overloaded"));
+  EXPECT_FALSE(IsTooManyCacheBreakpoints("cache_control: unknown field"));
+  // A 400 body in a gateway's own shape, or plain text, keeps the words.
+  EXPECT_TRUE(IsTooManyCacheBreakpoints(DescribeError(
+      400, R"({"detail":"A maximum of 4 blocks with cache_control may be )"
+           R"(provided. Found 7."})")));
+  EXPECT_TRUE(IsTooManyCacheBreakpoints(DescribeError(
+      400, "Bad request: maximum of 4 blocks with cache_control exceeded")));
+  EXPECT_EQ(DescribeError(400, "<html>nope</html>"),
+            "The server answered with HTTP 400.");
 }
 
 TEST(ClaudeApiTest, ParseModelList) {

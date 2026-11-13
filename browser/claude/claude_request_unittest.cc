@@ -90,8 +90,8 @@ TEST(ClaudeRequestTest, Defaults) {
 }
 
 // Everything that can carry a breakpoint at once stays within the API's 4
-// (an endpoint may add its own); minimal caching keeps only the top-level
-// one, and the chat asks again with it on the API's refusal.
+// (a gateway may add its own); the lower levels keep only the top-level one,
+// then none, with the same messages.
 TEST(ClaudeRequestTest, CacheBreakpoints) {
   ChatOptions options;
   options.model = "claude-opus-5-5";
@@ -105,15 +105,19 @@ TEST(ClaudeRequestTest, CacheBreakpoints) {
   EXPECT_EQ(CountCacheBreakpoints(full), 2);
   EXPECT_LE(CountCacheBreakpoints(full), kMaxCacheBreakpoints);
 
-  options.minimal_caching = true;
-  const base::DictValue minimal =
+  options.cache_level = CacheLevel::kTopLevelOnly;
+  const base::DictValue top =
       BuildChatRequest(OneMessage(), options).body.Clone();
-  EXPECT_EQ(CountCacheBreakpoints(base::Value(minimal.Clone())), 1);
-  EXPECT_TRUE(minimal.FindDict("cache_control"));
+  EXPECT_EQ(CountCacheBreakpoints(base::Value(top.Clone())), 1);
+  EXPECT_TRUE(top.FindDict("cache_control"));
 
-  EXPECT_TRUE(IsTooManyCacheBreakpoints(
-      "A maximum of 4 blocks with cache_control may be provided. Found 5."));
-  EXPECT_FALSE(IsTooManyCacheBreakpoints("Overloaded"));
+  options.cache_level = CacheLevel::kNone;
+  const base::DictValue none =
+      BuildChatRequest(OneMessage(), options).body.Clone();
+  EXPECT_EQ(CountCacheBreakpoints(base::Value(none.Clone())), 0);
+  EXPECT_EQ(*none.FindList("messages"), *full.GetDict().FindList("messages"));
+  EXPECT_EQ(none.FindList("system")->size(),
+            full.GetDict().FindList("system")->size());
 }
 
 TEST(ClaudeRequestTest, Memory) {

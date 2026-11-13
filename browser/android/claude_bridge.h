@@ -19,6 +19,7 @@
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_tools.h"
 #include "compass/browser/claude/page_reader.h"
@@ -149,12 +150,12 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   bool memory_frozen_ = false;
   std::string memory_block_;
   bool memory_tools_ = false;
-  // Only the top-level cache breakpoint: the endpoint (a gateway adding its
-  // own) refused the usual ones (claude::UsesMinimalCaching()). |retrying_|:
-  // asking again after that refusal; its success is remembered.
+  // The cache breakpoints to send: lower when the endpoint (a gateway adding
+  // its own) refused them (claude::CacheLevelFor()). |stepped_down_|: the
+  // level that gets through is remembered.
   GURL base_url_;
-  bool minimal_caching_ = false;
-  bool retrying_ = false;
+  claude::CacheLevel cache_level_ = claude::CacheLevel::kNormal;
+  bool stepped_down_ = false;
   // Each memory change's state before it, for Undo.
   std::map<int, claude::MemoryChange> memory_undo_;
   int next_undo_id_ = 1;

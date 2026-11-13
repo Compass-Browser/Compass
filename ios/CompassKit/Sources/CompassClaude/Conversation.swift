@@ -138,6 +138,38 @@ public struct Conversation: Sendable {
     partialJSON = [:]
   }
 
+  /// Whether the reply being streamed shows anything yet: text or a tool
+  /// call (thinking alone doesn't count).
+  public var streamingTurnHasOutput: Bool {
+    guard let turn = streamingTurn else { return false }
+    return turn.content.contains { block in
+      switch block["type"]?.string {
+      case "text": return !(block["text"]?.string ?? "").isEmpty
+      case "tool_use", "server_tool_use": return true
+      default: return false
+      }
+    }
+  }
+
+  /// Retry: the last reply, which failed, goes, so the message it answered
+  /// (or the tool results) is sent again. messages() leaves out a message
+  /// whose reply failed, so without this Retry sent nothing ("messages: at
+  /// least one message is required").
+  public mutating func removeFailedReply() {
+    guard let last = turns.last, last.role == .assistant, last.error != nil, !last.streaming else { return }
+    turns.removeLast()
+    partialJSON = [:]
+  }
+
+  /// Starts the reply being streamed over, for the same request asked
+  /// again: what streamed (thinking) goes.
+  public mutating func restartReply() {
+    guard let last = turns.indices.last, turns[last].role == .assistant, turns[last].streaming else { return }
+    turns[last].content = []
+    turns[last].stopReason = nil
+    partialJSON = [:]
+  }
+
   /// Applies a streamed event to the reply being streamed.
   public mutating func apply(event name: String, data: String) {
     guard let last = turns.indices.last, turns[last].role == .assistant, turns[last].streaming,

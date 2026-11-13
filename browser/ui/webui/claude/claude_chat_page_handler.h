@@ -106,8 +106,8 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
                     std::optional<std::string> key);
   void OnStreamEvent(const SseParser::Event& event);
   void OnStreamDone(int request_id, std::optional<std::string> error);
-  // Sends |request| (minimal caching) for |request_id| after the endpoint
-  // refused the usual cache breakpoints.
+  // Sends |request| (a lower CacheLevel) for |request_id| after the
+  // endpoint refused the cache breakpoints.
   void SendRetry(int request_id, ChatRequest request);
   // The memory a chat gets, taken as it starts (|new_chat|) and kept for
   // the rest of it: it's in the system prompt (docs/design/claude.md,
@@ -197,13 +197,15 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   int32_t next_undo_id_ = 1;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;
-  // The request again with minimal caching, until it's sent once or the
-  // reply streams; null when it's already minimal.
-  std::optional<ChatRequest> retry_request_;
-  bool streamed_ = false;
-  // The retry is under way: its success is remembered for the endpoint
-  // (RememberMinimalCaching()).
-  bool retrying_ = false;
+  // The request's messages and options, sent again a CacheLevel lower when
+  // the endpoint refuses the cache breakpoints (until the reply ends).
+  std::optional<base::ListValue> retry_messages_;
+  ChatOptions retry_options_;
+  // Text or a tool call streamed: no stepping down then.
+  bool shown_output_ = false;
+  // It stepped down: the level that gets through is remembered
+  // (RememberCacheLevel()).
+  bool stepped_down_ = false;
   GURL base_url_;
   PrefChangeRegistrar pref_registrar_;
   base::CallbackListSubscription active_tab_subscription_;

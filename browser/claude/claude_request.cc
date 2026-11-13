@@ -136,10 +136,6 @@ int CountCacheBreakpoints(const base::Value& value) {
   return count;
 }
 
-bool IsTooManyCacheBreakpoints(std::string_view error) {
-  return error.find("blocks with cache_control") != std::string_view::npos;
-}
-
 ChatRequest BuildChatRequest(base::ListValue messages,
                              const ChatOptions& options) {
   ChatRequest request;
@@ -158,7 +154,7 @@ ChatRequest BuildChatRequest(base::ListValue messages,
     // Frozen when the chat started (ChatOptions::memory).
     system.Append(TextBlock(options.memory));
   }
-  if (!options.minimal_caching) {
+  if (options.cache_level == CacheLevel::kNormal) {
     system.back().GetDict().Set("cache_control", Ephemeral());
   }
 
@@ -178,7 +174,9 @@ ChatRequest BuildChatRequest(base::ListValue messages,
     request.body.Set("tools", std::move(tools));
   }
   // The conversation so far is cached too: each turn resends it.
-  request.body.Set("cache_control", Ephemeral());
+  if (options.cache_level != CacheLevel::kNone) {
+    request.body.Set("cache_control", Ephemeral());
+  }
   // Summaries of Claude's thinking, so the panel shows something while it
   // thinks (the default omits them).
   request.body.Set("thinking", base::DictValue()

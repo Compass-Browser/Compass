@@ -97,13 +97,35 @@ void AddBetas(const Endpoint& endpoint,
 // stored encrypted, see ClaudeCredentials).
 Endpoint EndpointFromPrefs(const PrefService& prefs);
 
-// Whether chats with |base_url| send only the top-level cache breakpoint:
-// it refused the usual ones before (prefs::kMinimalCachingUrl). Never for
-// the Claude API itself.
-bool UsesMinimalCaching(const PrefService& prefs, const GURL& base_url);
-// Remembers that |base_url| takes only the top-level breakpoint, after a
-// request with it got through.
-void RememberMinimalCaching(PrefService& prefs, const GURL& base_url);
+// How many cache_control breakpoints a chat request carries. A gateway (a
+// custom base URL) can add its own and get the request refused ("A maximum
+// of 4 blocks with cache_control may be provided. Found 5."): the chat then
+// steps down, kNormal → kTopLevelOnly → kNone, and remembers for the
+// endpoint the level that got through.
+enum class CacheLevel {
+  // The system prompt's last block, and the top-level (automatic) one.
+  kNormal = 0,
+  // Only the top-level one, which caches the whole prefix too.
+  kTopLevelOnly = 1,
+  // No cache_control at all.
+  kNone = 2,
+};
+// The next step down, or nullopt at kNone.
+std::optional<CacheLevel> LowerCacheLevel(CacheLevel level);
+
+// Whether |error| is a refusal for too many cache_control blocks, in the
+// API's words or a gateway's (any case, wrapped in its own message or JSON).
+bool IsTooManyCacheBreakpoints(std::string_view error);
+
+// The cache level for chats with |base_url|: the one that got through after
+// a refusal (prefs::kCacheLevelUrl, prefs::kCacheLevel), else kNormal. Never
+// below kNormal for the Claude API itself.
+CacheLevel CacheLevelFor(const PrefService& prefs, const GURL& base_url);
+// Remembers |level| for |base_url| (one endpoint, the one in use); kNormal,
+// or the Claude API, forgets it.
+void RememberCacheLevel(PrefService& prefs,
+                        const GURL& base_url,
+                        CacheLevel level);
 
 struct ModelInfo {
   std::string id;

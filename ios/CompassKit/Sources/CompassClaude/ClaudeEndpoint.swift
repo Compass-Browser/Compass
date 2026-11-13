@@ -132,6 +132,17 @@ public struct ClaudeEndpoint: Sendable {
   public static func describeError(status: Int, body: Data) -> String {
     if status == 0 { return "Couldn't reach the server. Check the connection and the endpoint URL." }
     if let message = JSONValue.parse(body)?["error"]?["message"]?.string, !message.isEmpty { return message }
+    // A gateway's own shapes: {"message": …}, {"error": "…"}, {"detail": …}.
+    if let json = JSONValue.parse(body) {
+      for message in [json["message"]?.string, json["error"]?.string, json["detail"]?.string] {
+        if let message, !message.isEmpty { return message }
+      }
+    }
+    // Or plain text: kept when it's about cache breakpoints, so the chat can
+    // step down (`ChatRequest.isTooManyCacheBreakpoints`).
+    if let text = String(data: body.prefix(2048), encoding: .utf8), ChatRequest.isTooManyCacheBreakpoints(text) {
+      return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     switch status {
     case 401:
       return "The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have "

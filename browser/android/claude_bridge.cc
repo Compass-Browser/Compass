@@ -201,9 +201,8 @@ void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
   claude::Endpoint endpoint = claude::EndpointFromPrefs(*profile_->GetPrefs());
   endpoint.api_key = *key;
   base_url_ = endpoint.base_url;
-  minimal_caching_ =
-      claude::UsesMinimalCaching(*profile_->GetPrefs(), base_url_);
-  retrying_ = false;
+  cache_level_ = claude::CacheLevelFor(*profile_->GetPrefs(), base_url_);
+  stepped_down_ = false;
   client_ = std::make_unique<claude::ClaudeClient>(
       profile_->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess(),
@@ -245,7 +244,7 @@ void ClaudeBridge::Request() {
     // The memory as a last, cached block (it stays the same all chat).
     base::DictValue memory =
         base::DictValue().Set("type", "text").Set("text", memory_block_);
-    if (!minimal_caching_) {
+    if (cache_level_ == claude::CacheLevel::kNormal) {
       memory.Set("cache_control", base::DictValue().Set("type", "ephemeral"));
     }
     request.Set(
@@ -255,11 +254,11 @@ void ClaudeBridge::Request() {
             .Append(std::move(memory)));
   }
   base::ListValue tools = claude::ClaudeTools::Definitions(memory_tools_);
-  if (minimal_caching_) {
+  if (cache_level_ != claude::CacheLevel::kNormal && !tools.empty()) {
+    tools.back().GetDict().Remove("cache_control");
+  }
+  if (cache_level_ == claude::CacheLevel::kTopLevelOnly) {
     // Only the top-level breakpoint, which caches the whole prefix.
-    if (!tools.empty()) {
-      tools.back().GetDict().Remove("cache_control");
-    }
     request.Set("cache_control", base::DictValue().Set("type", "ephemeral"));
   }
   request.Set("tools", std::move(tools));
@@ -337,23 +336,29 @@ void ClaudeBridge::OnEvent(const claude::SseParser::Event& event) {
 }
 
 void ClaudeBridge::OnDone(std::optional<std::string> error) {
-  if (error && !minimal_caching_ && blocks_.empty() &&
-      claude::IsTooManyCacheBreakpoints(*error)) {
+  // Text or a tool call streamed (thinking alone doesn't count).
+  const bool shown = std::ranges::any_of(blocks_, [](const Block& block) {
+    return (block.type == "text" && !block.text.empty()) ||
+           block.type == "tool_use";
+  });
+  std::optional<claude::CacheLevel> lower = claude::LowerCacheLevel(cache_level_);
+  if (error && lower && !shown && claude::IsTooManyCacheBreakpoints(*error)) {
     // A gateway that adds cache breakpoints of its own refused ours past the
-    // API's 4: ask again with only the top-level one. Posted: the client is
-    // still finishing this request.
-    minimal_caching_ = true;
-    retrying_ = true;
+    // API's 4: ask again a level lower (only the top-level one, then none),
+    // with the same messages (Request() sends conversation_, unchanged).
+    // Posted: the client is still finishing this request.
+    cache_level_ = *lower;
+    stepped_down_ = true;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&ClaudeBridge::Request,
                                   weak_factory_.GetWeakPtr()));
     return;
   }
-  if (retrying_ && !error) {
-    // It got through: this endpoint takes only the top-level breakpoint.
-    claude::RememberMinimalCaching(*profile_->GetPrefs(), base_url_);
+  if (stepped_down_ && !error) {
+    // It got through: remembered for this endpoint.
+    claude::RememberCacheLevel(*profile_->GetPrefs(), base_url_, cache_level_);
   }
-  retrying_ = false;
+  stepped_down_ = false;
   if (error) {
     Finish(error);
     return;

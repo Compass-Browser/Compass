@@ -105,6 +105,9 @@ final class ClaudeChat {
   func retry(app: AppModel) {
     guard !streaming, let last = conversation.turns.last, last.role == .assistant, last.error != nil else { return }
     streaming = true
+    // The failed reply goes: with it, messages() leaves out the message it
+    // answered (as for a new message), and Retry sent none.
+    conversation.removeFailedReply()
     let windowTabs = Self.windowTabs(app)
     task = Task { [weak self] in await self?.run(windowTabs: windowTabs) }
   }
@@ -226,38 +229,33 @@ final class ClaudeChat {
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
       oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine,
       devtools: settings.devtools)
-    options.minimalCaching = Self.usesMinimalCaching(endpoint)
+    let cacheMemory = CacheLevelMemory()
+    options.cacheLevel = cacheMemory.level(for: endpoint.baseURL, isClaudeAPI: endpoint.isClaudeAPI)
+    // The messages once, before the reply starts: every attempt sends them.
+    let messages = conversation.messages()
     conversation.startReply()
-    var error = await stream(ChatRequest(messages: conversation.messages(), options: options), endpoint, started)
     // A gateway that adds cache breakpoints of its own refuses ours past the
-    // API's 4: ask again with only the top-level one, and once that gets
-    // through, keep to it with this endpoint.
-    if !options.minimalCaching, ChatRequest.isTooManyCacheBreakpoints(error), streaming, !Task.isCancelled,
-      conversation.streamingTurn?.content.isEmpty ?? false
-    {
-      options.minimalCaching = true
-      error = await stream(ChatRequest(messages: conversation.messages(), options: options), endpoint, started)
-      if error == nil, !endpoint.isClaudeAPI {
-        UserDefaults.standard.set(endpoint.baseURL.absoluteString, forKey: Self.minimalCachingKey)
-      }
+    // API's 4: step down (only the top-level one, then none) while it
+    // refuses and nothing showed yet (thinking doesn't count), and remember
+    // for this endpoint the level that got through. Only the last attempt's
+    // error shows.
+    let outcome = await ChatRequest.send(
+      messages: messages, options: options,
+      canStepDown: { [weak self] in
+        guard let self else { return false }
+        return self.streaming && !Task.isCancelled && !self.conversation.streamingTurnHasOutput
+      },
+      restart: { [weak self] in self?.conversation.restartReply() },
+      send: { [weak self] request in
+        guard let self else { return nil }
+        return await self.stream(request, endpoint, started)
+      })
+    let error = outcome.error
+    if outcome.steppedDown, error == nil {
+      cacheMemory.remember(outcome.level, for: endpoint.baseURL, isClaudeAPI: endpoint.isClaudeAPI)
     }
     guard streaming, !Task.isCancelled else { return }  // stopped
     conversation.finishReply(error: settings.revision == started ? error : "The key or endpoint changed.")
-  }
-
-  /// The base URL of the endpoint (a gateway) that refused the usual cache
-  /// breakpoints; chats with it send only the top-level one
-  /// (`ChatRequest.Options.minimalCaching`). Another URL forgets it.
-  private static let minimalCachingKey = "ClaudeMinimalCachingURL"
-
-  private static func usesMinimalCaching(_ endpoint: ClaudeEndpoint) -> Bool {
-    let defaults = UserDefaults.standard
-    guard let remembered = defaults.string(forKey: minimalCachingKey) else { return false }
-    if endpoint.isClaudeAPI || remembered != endpoint.baseURL.absoluteString {
-      defaults.removeObject(forKey: minimalCachingKey)
-      return false
-    }
-    return true
   }
 
   private func stream(_ request: ChatRequest, _ endpoint: ClaudeEndpoint, _ started: Int) async -> String? {

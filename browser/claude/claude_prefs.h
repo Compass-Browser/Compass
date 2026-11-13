@@ -66,10 +66,10 @@ inline constexpr char kClaudeCodeOwnTools[] =
 // emulation) on the tab Claude acts on. Off by default; doesn't sync.
 inline constexpr char kDevTools[] = "compass.claude.devtools";
 // The endpoint (its base URL) that refused the usual cache breakpoints (a
-// gateway adding its own): chats with it send only the top-level one
-// (UsesMinimalCaching()). Empty for none; another URL doesn't use it.
-inline constexpr char kMinimalCachingUrl[] =
-    "compass.claude.minimal_caching_url";
+// gateway adding its own), and the CacheLevel that got through with it
+// (CacheLevelFor()). Empty for none; another URL doesn't use it.
+inline constexpr char kCacheLevelUrl[] = "compass.claude.cache_level_url";
+inline constexpr char kCacheLevel[] = "compass.claude.cache_level";
 
 enum class FilesAccess {
   kOff = 0,

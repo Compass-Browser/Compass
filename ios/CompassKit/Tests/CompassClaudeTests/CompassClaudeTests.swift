@@ -109,17 +109,140 @@ struct ChatRequestTests {
     let full = ChatRequest(messages: messages, options: options).body
     #expect(ChatRequest.cacheBreakpoints(in: full) == 2)
     #expect(ChatRequest.cacheBreakpoints(in: full) <= ChatRequest.maxCacheBreakpoints)
-    options.minimalCaching = true
+    options.cacheLevel = .topLevelOnly
     let minimal = ChatRequest(messages: messages, options: options).body
     #expect(ChatRequest.cacheBreakpoints(in: minimal) == 1)
     #expect(minimal["cache_control"] == ["type": "ephemeral"])
     #expect(minimal["system"]?.array?.allSatisfy { $0["cache_control"] == nil } == true)
+    options.cacheLevel = .none
+    let none = ChatRequest(messages: messages, options: options).body
+    #expect(ChatRequest.cacheBreakpoints(in: none) == 0)
+    // The same request otherwise.
+    #expect(none["system"]?.array?.count == full["system"]?.array?.count)
+    #expect(none["messages"] == full["messages"])
+  }
+
+  @Test func cacheLevelsStepDown() {
+    #expect(ChatRequest.CacheLevel.normal.lower == .topLevelOnly)
+    #expect(ChatRequest.CacheLevel.topLevelOnly.lower == ChatRequest.CacheLevel.none)
+    #expect(ChatRequest.CacheLevel.none.lower == nil)
   }
 
   @Test func recognizesTheTooManyBreakpointsError() {
     #expect(ChatRequest.isTooManyCacheBreakpoints("A maximum of 4 blocks with cache_control may be provided. Found 5."))
+    #expect(ChatRequest.isTooManyCacheBreakpoints("A MAXIMUM OF 4 BLOCKS WITH CACHE_CONTROL MAY BE PROVIDED"))
+    // Wrapped by a gateway.
+    #expect(ChatRequest.isTooManyCacheBreakpoints(
+      #"upstream error 400: {"type":"error","error":{"type":"invalid_request_error","message":"A maximum of 4 blocks with cache_control may be provided. Found 6."}}"#))
+    #expect(ChatRequest.isTooManyCacheBreakpoints("Too many cache_control breakpoints"))
     #expect(!ChatRequest.isTooManyCacheBreakpoints("Overloaded"))
+    #expect(!ChatRequest.isTooManyCacheBreakpoints("cache_control: unknown field"))
     #expect(!ChatRequest.isTooManyCacheBreakpoints(nil))
+    // A 400 body in a gateway's own shape, or plain text, keeps the words.
+    let wrapped = Data(#"{"detail":"Anthropic: A maximum of 4 blocks with cache_control may be provided. Found 7."}"#.utf8)
+    #expect(ChatRequest.isTooManyCacheBreakpoints(ClaudeEndpoint.describeError(status: 400, body: wrapped)))
+    let plain = Data("Bad request: maximum of 4 blocks with cache_control exceeded".utf8)
+    #expect(ChatRequest.isTooManyCacheBreakpoints(ClaudeEndpoint.describeError(status: 400, body: plain)))
+    #expect(ClaudeEndpoint.describeError(status: 400, body: Data("<html>nope</html>".utf8)) == "The server answered with HTTP 400.")
+  }
+
+  @Test func cacheLevelRememberedPerEndpoint() throws {
+    let defaults = try #require(UserDefaults(suiteName: "CacheLevelMemoryTests"))
+    defaults.removePersistentDomain(forName: "CacheLevelMemoryTests")
+    let memory = CacheLevelMemory(defaults: defaults)
+    let gateway = URL(string: "https://gateway.test/anthropic")!
+    let api = URL(string: "https://api.anthropic.com")!
+    #expect(memory.level(for: gateway, isClaudeAPI: false) == .normal)
+    memory.remember(.none, for: gateway, isClaudeAPI: false)
+    #expect(memory.level(for: gateway, isClaudeAPI: false) == ChatRequest.CacheLevel.none)
+    // Another URL forgets it.
+    #expect(memory.level(for: URL(string: "https://other.test")!, isClaudeAPI: false) == .normal)
+    #expect(memory.level(for: gateway, isClaudeAPI: false) == .normal)
+    // Never for the Claude API.
+    memory.remember(.topLevelOnly, for: api, isClaudeAPI: true)
+    #expect(memory.level(for: api, isClaudeAPI: true) == .normal)
+    // The older key: minimal caching for its URL.
+    defaults.set(gateway.absoluteString, forKey: "ClaudeMinimalCachingURL")
+    #expect(memory.level(for: gateway, isClaudeAPI: false) == .topLevelOnly)
+    #expect(defaults.string(forKey: "ClaudeMinimalCachingURL") == nil)
+    defaults.removePersistentDomain(forName: "CacheLevelMemoryTests")
+  }
+
+  /// A fake gateway: refuses with the API's words while the request has more
+  /// than `allowed` breakpoints of ours.
+  @MainActor
+  final class FakeGateway {
+    let allowed: Int
+    var requests: [JSONValue] = []
+    init(allowed: Int) { self.allowed = allowed }
+    func send(_ request: ChatRequest) async -> String? {
+      requests.append(request.body)
+      if (request.body["messages"]?.array ?? []).isEmpty { return "messages: at least one message is required" }
+      let ours = ChatRequest.cacheBreakpoints(in: request.body)
+      return ours > allowed ? "A maximum of 4 blocks with cache_control may be provided. Found \(ours + 4)." : nil
+    }
+  }
+
+  @MainActor @Test func stepsDownWithTheSameMessages() async {
+    var conversation = Conversation()
+    conversation.addUser(text: "Check why auto pip is failing")
+    let messages = conversation.messages()
+    conversation.startReply()
+    let options = ChatRequest.Options(model: "claude-opus-5-5", systemPrompt: "PROMPT", claudeAPI: false)
+    // A gateway that adds 4: only "none" gets through.
+    let gateway = FakeGateway(allowed: 0)
+    let outcome = await ChatRequest.send(
+      messages: messages, options: options, restart: { conversation.restartReply() }, send: gateway.send)
+    #expect(outcome.error == nil)
+    #expect(outcome.level == ChatRequest.CacheLevel.none)
+    #expect(outcome.steppedDown)
+    #expect(gateway.requests.count == 3)
+    for body in gateway.requests {
+      #expect(body["messages"]?.array?.isEmpty == false)
+      #expect(body["messages"] == .array(messages))
+    }
+    conversation.finishReply(error: outcome.error)
+    #expect(conversation.turns.allSatisfy { $0.error == nil })
+    #expect(conversation.turns.count == 2)
+
+    // One that adds 3: the top-level one gets through, in two requests.
+    let three = FakeGateway(allowed: 1)
+    let second = await ChatRequest.send(messages: messages, options: options, send: three.send)
+    #expect(second.error == nil && second.level == .topLevelOnly && three.requests.count == 2)
+    // Not a breakpoint refusal: no step down, its error.
+    let refused = await ChatRequest.send(messages: messages, options: options) { _ in "Overloaded" }
+    #expect(refused.error == "Overloaded" && !refused.steppedDown)
+    // Something showed already: no step down.
+    let shown = await ChatRequest.send(messages: messages, options: options, canStepDown: { false }, send: gateway.send)
+    #expect(shown.error != nil && shown.level == .normal)
+  }
+
+  /// Retry after a failed reply sends the message again (it sent none).
+  @Test func retryResendsTheMessage() {
+    var conversation = Conversation()
+    conversation.addUser(text: "hi")
+    conversation.startReply()
+    conversation.finishReply(error: "A maximum of 4 blocks with cache_control may be provided. Found 5.")
+    #expect(conversation.messages().isEmpty)
+    conversation.removeFailedReply()
+    #expect(conversation.messages().count == 1)
+    #expect(conversation.messages().first?["role"] == "user")
+    #expect(conversation.turns.allSatisfy { $0.error == nil })
+  }
+
+  @Test func restartReplyKeepsNothingAndThinkingIsNoOutput() {
+    var conversation = Conversation()
+    conversation.addUser(text: "hi")
+    conversation.startReply()
+    conversation.apply(event: "content_block_start", data: #"{"index":0,"content_block":{"type":"thinking","thinking":""}}"#)
+    conversation.apply(event: "content_block_delta", data: #"{"index":0,"delta":{"type":"thinking_delta","thinking":"hm"}}"#)
+    #expect(!conversation.streamingTurnHasOutput)
+    conversation.apply(event: "content_block_start", data: #"{"index":1,"content_block":{"type":"text","text":""}}"#)
+    conversation.apply(event: "content_block_delta", data: #"{"index":1,"delta":{"type":"text_delta","text":"Hi"}}"#)
+    #expect(conversation.streamingTurnHasOutput)
+    conversation.restartReply()
+    #expect(conversation.streamingTurn?.content.isEmpty == true)
+    #expect(!conversation.streamingTurnHasOutput)
   }
 
   @Test func bodyAsTheDesktopBuildsIt() {
