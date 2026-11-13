@@ -90,6 +90,38 @@ struct ClaudeEndpointTests {
 }
 
 struct ChatRequestTests {
+  /// Everything that can carry a breakpoint at once (a token's line,
+  /// memory, files, developer tools, tools, a page, earlier tool results)
+  /// stays within the API's 4; minimal caching keeps only the top-level one.
+  @Test func cacheBreakpointsStayWithinTheLimit() {
+    let tools: [JSONValue] = [
+      ["name": "read_page", "description": "d", "input_schema": ["type": "object"]],
+      ["name": "remember", "description": "d", "input_schema": ["type": "object"]],
+    ]
+    let messages: [JSONValue] = [
+      ["role": "user", "content": [["type": "text", "text": "<page>…</page>"], ["type": "text", "text": "hi"]]],
+      ["role": "assistant", "content": [["type": "tool_use", "id": "t1", "name": "read_page", "input": [:]]]],
+      ["role": "user", "content": [["type": "tool_result", "tool_use_id": "t1", "content": [["type": "text", "text": "ok"]]]]],
+    ]
+    var options = ChatRequest.Options(
+      model: "claude-opus-5-5", systemPrompt: "PROMPT", tools: tools, browserScope: true, windowTabs: "- a — https://a.test/",
+      claudeAPI: true, oauthToken: true, memory: "<memory>\n- x\n</memory>", files: "Files: on.", devtools: true)
+    let full = ChatRequest(messages: messages, options: options).body
+    #expect(ChatRequest.cacheBreakpoints(in: full) == 2)
+    #expect(ChatRequest.cacheBreakpoints(in: full) <= ChatRequest.maxCacheBreakpoints)
+    options.minimalCaching = true
+    let minimal = ChatRequest(messages: messages, options: options).body
+    #expect(ChatRequest.cacheBreakpoints(in: minimal) == 1)
+    #expect(minimal["cache_control"] == ["type": "ephemeral"])
+    #expect(minimal["system"]?.array?.allSatisfy { $0["cache_control"] == nil } == true)
+  }
+
+  @Test func recognizesTheTooManyBreakpointsError() {
+    #expect(ChatRequest.isTooManyCacheBreakpoints("A maximum of 4 blocks with cache_control may be provided. Found 5."))
+    #expect(!ChatRequest.isTooManyCacheBreakpoints("Overloaded"))
+    #expect(!ChatRequest.isTooManyCacheBreakpoints(nil))
+  }
+
   @Test func bodyAsTheDesktopBuildsIt() {
     let options = ChatRequest.Options(model: "claude-opus-5-5", systemPrompt: "PROMPT", claudeAPI: true)
     let request = ChatRequest(messages: [["role": "user", "content": "hi"]], options: options)

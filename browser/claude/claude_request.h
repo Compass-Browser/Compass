@@ -44,8 +44,26 @@ struct ChatOptions {
   // started: it's in the system prompt, which never changes in a chat. Empty
   // for none.
   std::string memory;
+  // Only the top-level (automatic) cache breakpoint, which caches the whole
+  // prefix too: for an endpoint that refused the usual ones
+  // (IsTooManyCacheBreakpoints()).
+  bool minimal_caching = false;
   base::Time now;
 };
+
+// The API takes at most this many cache_control blocks, the top-level one
+// included.
+inline constexpr int kMaxCacheBreakpoints = 4;
+
+// The cache_control fields anywhere in |value|.
+int CountCacheBreakpoints(const base::Value& value);
+
+// Whether |error| is the API refusing a request for having more cache_control
+// blocks than it takes ("A maximum of 4 blocks with cache_control may be
+// provided. Found 5."): something between Compass and the model (an endpoint,
+// a gateway, the token's account) can add its own. The chat then asks again
+// with ChatOptions::minimal_caching.
+bool IsTooManyCacheBreakpoints(std::string_view error);
 
 struct ChatRequest {
   ChatRequest();

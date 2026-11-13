@@ -16,6 +16,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/path_service.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -258,8 +259,16 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.devtools = prefs->GetBoolean(prefs::kDevTools);
   chat_devtools_ = chat_devtools_ || options.devtools;
   options.devtools_tools = chat_devtools_;
+  options.minimal_caching = minimal_caching_;
+  retry_request_.reset();
+  if (!minimal_caching_) {
+    ChatOptions minimal = options;
+    minimal.minimal_caching = true;
+    retry_request_ = BuildChatRequest(messages->GetList().Clone(), minimal);
+  }
   ChatRequest request =
       BuildChatRequest(std::move(*messages).TakeList(), options);
+  streamed_ = false;
 
   scoped_refptr<network::SharedURLLoaderFactory> factory =
       loader_factory_ ? loader_factory_
@@ -327,6 +336,7 @@ void ClaudeChatPageHandler::OnStreamEvent(const SseParser::Event& event) {
   if (event.name == "ping") {
     return;
   }
+  streamed_ = true;
   page_->OnStreamEvent(event.name, event.data);
 }
 
@@ -335,7 +345,34 @@ void ClaudeChatPageHandler::OnStreamDone(int request_id,
   if (request_id != request_id_) {
     return;
   }
+  std::optional<ChatRequest> retry = std::move(retry_request_);
+  retry_request_.reset();
+  if (error && IsTooManyCacheBreakpoints(*error) && retry && !streamed_ &&
+      client_) {
+    // An endpoint that adds cache breakpoints of its own refuses ours past
+    // the API's 4: ask again with only the top-level one, and from now on.
+    // Posted: the client is still finishing this request.
+    minimal_caching_ = true;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ClaudeChatPageHandler::SendRetry,
+                       weak_factory_.GetWeakPtr(), request_id,
+                       std::move(*retry)));
+    return;
+  }
   page_->OnStreamDone(error.value_or(std::string()));
+}
+
+void ClaudeChatPageHandler::SendRetry(int request_id, ChatRequest request) {
+  if (request_id != request_id_ || !client_) {
+    return;
+  }
+  client_->StreamMessage(
+      std::move(request.body), std::move(request.betas),
+      base::BindRepeating(&ClaudeChatPageHandler::OnStreamEvent,
+                          weak_factory_.GetWeakPtr()),
+      base::BindOnce(&ClaudeChatPageHandler::OnStreamDone,
+                     weak_factory_.GetWeakPtr(), request_id));
 }
 
 void ClaudeChatPageHandler::GetContext(GetContextCallback callback) {

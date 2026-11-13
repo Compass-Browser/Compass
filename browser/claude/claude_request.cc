@@ -122,6 +122,24 @@ bool SupportsDefaultFallback(const std::string& model) {
   return false;
 }
 
+int CountCacheBreakpoints(const base::Value& value) {
+  int count = 0;
+  if (value.is_dict()) {
+    for (const auto [key, child] : value.GetDict()) {
+      count += key == "cache_control" ? 1 : CountCacheBreakpoints(child);
+    }
+  } else if (value.is_list()) {
+    for (const base::Value& child : value.GetList()) {
+      count += CountCacheBreakpoints(child);
+    }
+  }
+  return count;
+}
+
+bool IsTooManyCacheBreakpoints(std::string_view error) {
+  return error.find("blocks with cache_control") != std::string_view::npos;
+}
+
 ChatRequest BuildChatRequest(base::ListValue messages,
                              const ChatOptions& options) {
   ChatRequest request;
@@ -140,18 +158,24 @@ ChatRequest BuildChatRequest(base::ListValue messages,
     // Frozen when the chat started (ChatOptions::memory).
     system.Append(TextBlock(options.memory));
   }
-  system.back().GetDict().Set("cache_control", Ephemeral());
+  if (!options.minimal_caching) {
+    system.back().GetDict().Set("cache_control", Ephemeral());
+  }
 
   request.body.Set("model", options.model);
   request.body.Set("max_tokens", kMaxTokens);
   request.body.Set("system", std::move(system));
   request.body.Set("messages", std::move(messages));
   if (options.tools) {
-    // Cached with the prompt: they come before it in the cache's order.
-    request.body.Set("tools",
-                     ClaudeTools::Definitions(options.memory_tools,
-                                              /*files=*/true,
-                                              options.devtools_tools));
+    // Cached with the prompt, by its breakpoint: they come before it in the
+    // cache's order, so theirs (Definitions() marks the last) would only
+    // take one of the API's 4.
+    base::ListValue tools = ClaudeTools::Definitions(
+        options.memory_tools, /*files=*/true, options.devtools_tools);
+    if (!tools.empty()) {
+      tools.back().GetDict().Remove("cache_control");
+    }
+    request.body.Set("tools", std::move(tools));
   }
   // The conversation so far is cached too: each turn resends it.
   request.body.Set("cache_control", Ephemeral());

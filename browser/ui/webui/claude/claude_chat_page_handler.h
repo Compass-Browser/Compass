@@ -18,6 +18,7 @@
 #include "base/files/file_path.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "compass/browser/claude/claude_request.h"
 #include "compass/browser/claude/page_reader.h"
 #include "compass/browser/claude/sse_parser.h"
 #include "compass/browser/ui/webui/claude/chat.mojom.h"
@@ -104,6 +105,9 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
                     std::optional<std::string> key);
   void OnStreamEvent(const SseParser::Event& event);
   void OnStreamDone(int request_id, std::optional<std::string> error);
+  // Sends |request| (minimal caching) for |request_id| after the endpoint
+  // refused the usual cache breakpoints.
+  void SendRetry(int request_id, ChatRequest request);
   // The memory a chat gets, taken as it starts (|new_chat|) and kept for
   // the rest of it: it's in the system prompt (docs/design/claude.md,
   // "Memory").
@@ -192,6 +196,13 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   int32_t next_undo_id_ = 1;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;
+  // Set once the endpoint refused the usual cache breakpoints
+  // (IsTooManyCacheBreakpoints()), for the rest of this page.
+  bool minimal_caching_ = false;
+  // The request again with minimal caching, until it's sent once or the
+  // reply streams.
+  std::optional<ChatRequest> retry_request_;
+  bool streamed_ = false;
   PrefChangeRegistrar pref_registrar_;
   base::CallbackListSubscription active_tab_subscription_;
   base::WeakPtrFactory<ClaudeChatPageHandler> weak_factory_{this};

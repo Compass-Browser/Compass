@@ -219,21 +219,39 @@ final class ClaudeChat {
     let started = settings.revision
     let memory = frozenMemory()
     if settings.devtools { chatDevTools = true }
-    let options = ChatRequest.Options(
+    var options = ChatRequest.Options(
       model: settings.model, systemPrompt: ClaudeSettings.systemPrompt,
       tools: ClaudeSettings.tools + (memory.tools ? ClaudeSettings.memoryTools : [])
         + (chatDevTools ? ClaudeSettings.devtoolsTools : []),
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
       oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine,
       devtools: settings.devtools)
-    let request = ChatRequest(messages: conversation.messages(), options: options)
+    options.minimalCaching = Self.minimalCaching
     conversation.startReply()
-    let error = await ClaudeClient.stream(request, endpoint: endpoint) { [weak self] name, data in
-      guard let self, self.streaming, settings.revision == started else { return }
-      self.conversation.apply(event: name, data: data)
+    var error = await stream(ChatRequest(messages: conversation.messages(), options: options), endpoint, started)
+    // An endpoint that adds cache breakpoints of its own refuses ours past
+    // the API's 4: ask again with only the top-level one, and from now on.
+    if !options.minimalCaching, ChatRequest.isTooManyCacheBreakpoints(error), streaming, !Task.isCancelled,
+      conversation.streamingTurn?.content.isEmpty ?? false
+    {
+      Self.minimalCaching = true
+      options.minimalCaching = true
+      error = await stream(ChatRequest(messages: conversation.messages(), options: options), endpoint, started)
     }
     guard streaming, !Task.isCancelled else { return }  // stopped
     conversation.finishReply(error: settings.revision == started ? error : "The key or endpoint changed.")
+  }
+
+  /// Set once an endpoint refused the usual cache breakpoints, for the rest
+  /// of the app's run (`ChatRequest.Options.minimalCaching`).
+  private static var minimalCaching = false
+
+  private func stream(_ request: ChatRequest, _ endpoint: ClaudeEndpoint, _ started: Int) async -> String? {
+    let settings = ClaudeSettings.shared
+    return await ClaudeClient.stream(request, endpoint: endpoint) { [weak self] name, data in
+      guard let self, self.streaming, settings.revision == started else { return }
+      self.conversation.apply(event: name, data: data)
+    }
   }
 
   /// Runs the reply's tool calls one after the other, then adds their

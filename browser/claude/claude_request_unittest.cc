@@ -71,14 +71,14 @@ TEST(ClaudeRequestTest, Defaults) {
             (std::vector<std::string>{"thinking-binding-controls-2026-08-01",
                                       "server-side-fallback-2026-07-01"}));
   // Every tool, the browser ones too (they refuse while the permission is
-  // off), the last one cached.
+  // off), cached by the system prompt's breakpoint after them.
   const base::ListValue& tools = *body.FindList("tools");
   ASSERT_FALSE(tools.empty());
   EXPECT_EQ(*tools[0].GetDict().FindString("name"), "read_page");
   EXPECT_TRUE(std::ranges::any_of(tools, [](const base::Value& tool) {
     return *tool.GetDict().FindString("name") == "close_tab";
   }));
-  EXPECT_TRUE(tools.back().GetDict().FindDict("cache_control"));
+  EXPECT_FALSE(tools.back().GetDict().FindDict("cache_control"));
   for (const base::Value& tool : tools) {
     EXPECT_TRUE(tool.GetDict().FindDict("input_schema"));
     EXPECT_FALSE(tool.GetDict().contains("scope"));
@@ -87,6 +87,33 @@ TEST(ClaudeRequestTest, Defaults) {
   }
   // No sampling parameters, which the API version refuses.
   EXPECT_FALSE(body.contains("temperature"));
+}
+
+// Everything that can carry a breakpoint at once stays within the API's 4
+// (an endpoint may add its own); minimal caching keeps only the top-level
+// one, and the chat asks again with it on the API's refusal.
+TEST(ClaudeRequestTest, CacheBreakpoints) {
+  ChatOptions options;
+  options.model = "claude-opus-5-5";
+  options.now = base::Time::Now();
+  options.oauth_token = true;
+  options.memory = "<memory>\n- [0123abcd] Prefers Italian\n</memory>";
+  options.memory_tools = true;
+  options.devtools = true;
+  options.devtools_tools = true;
+  const base::Value full(BuildChatRequest(OneMessage(), options).body.Clone());
+  EXPECT_EQ(CountCacheBreakpoints(full), 2);
+  EXPECT_LE(CountCacheBreakpoints(full), kMaxCacheBreakpoints);
+
+  options.minimal_caching = true;
+  const base::DictValue minimal =
+      BuildChatRequest(OneMessage(), options).body.Clone();
+  EXPECT_EQ(CountCacheBreakpoints(base::Value(minimal.Clone())), 1);
+  EXPECT_TRUE(minimal.FindDict("cache_control"));
+
+  EXPECT_TRUE(IsTooManyCacheBreakpoints(
+      "A maximum of 4 blocks with cache_control may be provided. Found 5."));
+  EXPECT_FALSE(IsTooManyCacheBreakpoints("Overloaded"));
 }
 
 TEST(ClaudeRequestTest, Memory) {
@@ -108,7 +135,7 @@ TEST(ClaudeRequestTest, Memory) {
       return *tool.GetDict().FindString("name") == name;
     })) << name;
   }
-  EXPECT_TRUE(tools.back().GetDict().FindDict("cache_control"));
+  EXPECT_FALSE(tools.back().GetDict().FindDict("cache_control"));
 
   EXPECT_EQ(SystemPromptText(options.memory),
             SystemPromptText() + "\n\n" + options.memory);

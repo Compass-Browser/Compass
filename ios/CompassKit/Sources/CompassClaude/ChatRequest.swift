@@ -16,6 +16,20 @@ public struct ChatRequest: Sendable {
   /// The models `fallbacks: "default"` works with.
   public static let fallbackModels: Set<String> = ["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]
   public static let fallbackBeta = "server-side-fallback-2026-07-01"
+  /// The API takes at most this many `cache_control` blocks, counting the
+  /// top-level one.
+  public static let maxCacheBreakpoints = 4
+
+  /// Whether `error` is the API refusing a request for having more
+  /// `cache_control` blocks than it takes ("A maximum of 4 blocks with
+  /// cache_control may be provided. Found 5."). Seen on iOS with requests
+  /// that carry two: something between Compass and the model (an endpoint,
+  /// a gateway, the token's account) adds its own. The chat then asks again
+  /// with `Options.minimalCaching`.
+  public static func isTooManyCacheBreakpoints(_ error: String?) -> Bool {
+    guard let error else { return false }
+    return error.contains("blocks with cache_control")
+  }
 
   public var body: JSONValue
   public var betas: [String]
@@ -42,6 +56,10 @@ public struct ChatRequest: Sendable {
     /// "Let Claude Use Developer Tools" (docs/design/claude.md, "Developer
     /// tools"): the context says whether they're on.
     public var devtools: Bool
+    /// Only the top-level (automatic) breakpoint, which caches the whole
+    /// prefix too: for an endpoint that refused the usual two
+    /// (`isTooManyCacheBreakpoints`).
+    public var minimalCaching: Bool = false
     public var now: Date
 
     public init(
@@ -69,12 +87,13 @@ public struct ChatRequest: Sendable {
   public init(messages: [JSONValue], options: Options) {
     let ephemeral: JSONValue = ["type": "ephemeral"]
     // The prompt, then the chat's memory, cached up to the last of them.
-    var system: [JSONValue] = options.memory.isEmpty
-      ? [["type": "text", "text": .string(options.systemPrompt), "cache_control": ephemeral]]
-      : [
-        ["type": "text", "text": .string(options.systemPrompt)],
-        ["type": "text", "text": .string(options.memory), "cache_control": ephemeral],
-      ]
+    // With minimal caching, none: the top-level breakpoint covers them.
+    var system: [JSONValue] = [["type": "text", "text": .string(options.systemPrompt)]]
+    if !options.memory.isEmpty { system.append(["type": "text", "text": .string(options.memory)]) }
+    if !options.minimalCaching, case .object(var last) = system[system.count - 1] {
+      last["cache_control"] = ephemeral
+      system[system.count - 1] = .object(last)
+    }
     system.append(["type": "text", "text": .string(Self.context(options))])
     if options.oauthToken {
       system.insert(["type": "text", "text": .string(Self.oauthSystemLine)], at: 0)
@@ -97,6 +116,20 @@ public struct ChatRequest: Sendable {
     }
     self.body = .object(body)
     self.betas = betas
+    assert(Self.cacheBreakpoints(in: self.body) <= Self.maxCacheBreakpoints)
+  }
+
+  /// The `cache_control` fields anywhere in `value` (the top-level one too).
+  public static func cacheBreakpoints(in value: JSONValue) -> Int {
+    switch value {
+    case .object(let object):
+      return (object["cache_control"] == nil ? 0 : 1)
+        + object.filter { $0.key != "cache_control" }.values.reduce(0) { $0 + cacheBreakpoints(in: $1) }
+    case .array(let array):
+      return array.reduce(0) { $0 + cacheBreakpoints(in: $1) }
+    default:
+      return 0
+    }
   }
 
   /// After the cached prompt: what changes from one conversation to another.
