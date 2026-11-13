@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm b/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm
+index 6538d613475ec60b5b5313ae9f2a95866ac2397c..943b56810932276afe5287f589519623a9916907 100644
+--- a/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm
++++ b/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm
+@@ -302,7 +302,10 @@ - (void)rebuildMenu {
+ 
+   BOOL hasContent = [self insertItemsIntoMenu:menu atOffset:0 fromDock:NO];
+ 
+-  _mainMenuItem.hidden = !hasContent;
++  // Compass: a space picks its profile, so the main menu has no Profiles
++  // menu (main_menu_builder.mm hides it). The Dock menu keeps the list.
++  _mainMenuItem.hidden = YES;
++  (void)hasContent;
+ }
+ 
+ - (NSMenuItem*)createItemWithTitle:(NSString*)title action:(SEL)sel {

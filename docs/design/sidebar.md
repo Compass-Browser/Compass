@@ -55,6 +55,13 @@ only the native `TabStripView`. Everything else in the region stays upstream.**
   groups menu (`IDC_SAVED_TAB_GROUPS_MENU`; folders are Compass's groups).
   History's "Your devices" section isn't built
   (`RecentTabsSubMenuModel::BuildTabsFromOtherDevices()`).
+- **The macOS menu bar** leaves out the same, plus what belongs to the hidden
+  toolbar: the View menu's full screen toolbar, full URLs, Lens, AI Mode and
+  search tools toggles, and History's Home. The Profiles menu is hidden (a
+  space picks its profile; the Dock menu keeps the list), and the Tab menu's
+  Group Tab goes with tab groups (`IDC_WINDOW_GROUP_TAB` and
+  `IDC_GROUP_TARGET_TAB` are removed commands). Test:
+  `CompassMainMenuBrowserTest`.
 
 Alternatives we rejected:
 

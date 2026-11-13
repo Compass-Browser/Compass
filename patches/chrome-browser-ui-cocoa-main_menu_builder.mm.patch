@@ -1,22 +1,40 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 047674248727a122fb3aee712981eefd0a4c3049..4a9453ab7cdc0d403b8ddedd20e36aa27268db90 100644
+index 047674248727a122fb3aee712981eefd0a4c3049..99403e33620ce6a35213851df8610f7444f0827c 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
-@@ -293,9 +293,10 @@
+@@ -293,23 +293,32 @@
        Item(IDS_VIEW_MENU_MAC)
            .tag(IDC_VIEW_MENU)
            .submenu({
-+              // Compass: no bookmarks bar, tabs are always vertical.
++              // Compass: no bookmarks bar, tabs are always vertical, and
++              // no toolbar, so none of its full screen, address and
++              // button toggles.
                Item(IDS_BOOKMARK_BAR_ALWAYS_SHOW_MAC)
                    .command_id(IDC_SHOW_BOOKMARK_BAR)
 -                  .remove_if(is_pwa),
 +                  .remove_if(true),
                Item(IDS_TOGGLE_FULLSCREEN_TOOLBAR_MAC)
-                   .command_id(IDC_TOGGLE_FULLSCREEN_TOOLBAR),
+-                  .command_id(IDC_TOGGLE_FULLSCREEN_TOOLBAR),
++                  .command_id(IDC_TOGGLE_FULLSCREEN_TOOLBAR)
++                  .remove_if(true),
                Item(IDS_CONTEXT_MENU_SHOW_FULL_URLS)
-@@ -309,7 +310,8 @@
+-                  .command_id(IDC_SHOW_FULL_URLS),
++                  .command_id(IDC_SHOW_FULL_URLS)
++                  .remove_if(true),
+               Item(IDS_CONTEXT_MENU_SHOW_GOOGLE_LENS_SHORTCUT)
+-                  .command_id(IDC_SHOW_GOOGLE_LENS_SHORTCUT),
++                  .command_id(IDC_SHOW_GOOGLE_LENS_SHORTCUT)
++                  .remove_if(true),
+                Item(IDS_AI_MODE_ENTRYPOINT_CONTEXT_MENU_SHOW)
+                    .string_format_1(
+                        l10n_util::GetStringUTF16(IDS_AI_MODE_ENTRYPOINT_LABEL))
+-                   .command_id(IDC_SHOW_AI_MODE_OMNIBOX_BUTTON),
++                   .command_id(IDC_SHOW_AI_MODE_OMNIBOX_BUTTON)
++                   .remove_if(true),
                Item(IDS_CONTEXT_MENU_SHOW_SEARCH_TOOLS)
-                   .command_id(IDC_SHOW_SEARCH_TOOLS),
+-                  .command_id(IDC_SHOW_SEARCH_TOOLS),
++                  .command_id(IDC_SHOW_SEARCH_TOOLS)
++                  .remove_if(true),
                 Item(IDS_SWITCH_TO_VERTICAL_TAB_MAC)
 -                   .command_id(IDC_TOGGLE_VERTICAL_TABS),
 +                   .command_id(IDC_TOGGLE_VERTICAL_TABS)
@@ -24,7 +42,19 @@ index 047674248727a122fb3aee712981eefd0a4c3049..4a9453ab7cdc0d403b8ddedd20e36aa2
                Item(IDS_VERTICAL_TABS_VIEW_MENU_TOGGLE_COLLAPSE)
                    .command_id(IDC_TOGGLE_VERTICAL_TABS_COLLAPSE)
                    .key_equivalent(@"L", NSEventModifierFlagCommand),
-@@ -425,6 +427,9 @@
+@@ -374,9 +383,10 @@
+       Item(IDS_HISTORY_MENU_MAC)
+           .tag(IDC_HISTORY_MENU)
+           .submenu({
++              // Compass: no home button or home page.
+               Item(IDS_HISTORY_HOME_MAC)
+                   .command_id(IDC_HOME)
+-                  .remove_if(is_pwa),
++                  .remove_if(true),
+               Item(IDS_HISTORY_BACK_MAC)
+                   .command_id(IDC_BACK),
+               Item(IDS_HISTORY_FORWARD_MAC)
+@@ -425,6 +435,9 @@
    NSMenuItem* item =
        Item(IDS_BOOKMARKS_MENU)
            .tag(AppMenuModel::kBookmarksMenuPlaceholder)
@@ -34,7 +64,35 @@ index 047674248727a122fb3aee712981eefd0a4c3049..4a9453ab7cdc0d403b8ddedd20e36aa2
            .submenu({
                Item(bookmarks_manager_string_id)
                    .command_id(IDC_SHOW_BOOKMARK_MANAGER),
-@@ -564,8 +569,10 @@
+@@ -451,6 +464,9 @@
+   NSMenuItem* item =
+       Item(IDS_PROFILES_MENU_NAME)
+           .tag(IDC_PROFILE_MAIN_MENU)
++          // Compass: a space picks its profile. Hidden, not removed:
++          // AppController keeps a profile menu bridge on this item.
++          .set_hidden(true)
+           .submenu({})
+           .Build();
+   // clang-format on
+@@ -546,12 +562,15 @@
+                   .command_id(IDC_PIN_TARGET_TAB)
+                   .is_alternate()
+                   .key_equivalent(@"", NSEventModifierFlagOption),
++              // Compass: folders are its groups (removed commands).
+               Item(IDS_GROUP_TAB_MAC)
+-                  .command_id(IDC_WINDOW_GROUP_TAB),
++                  .command_id(IDC_WINDOW_GROUP_TAB)
++                  .remove_if(true),
+               Item(IDS_GROUP_TARGET_TAB_MAC)
+                   .command_id(IDC_GROUP_TARGET_TAB)
+                   .is_alternate()
+-                  .key_equivalent(@"", NSEventModifierFlagOption),
++                  .key_equivalent(@"", NSEventModifierFlagOption)
++                  .remove_if(true),
+               Item(IDS_TAB_CXMENU_CLOSEOTHERTABS)
+                   .command_id(IDC_WINDOW_CLOSE_OTHER_TABS),
+               Item(is_rtl ? IDS_TAB_CXMENU_CLOSETABSTOLEFT
+@@ -564,8 +583,10 @@
                    .command_id(IDC_MOVE_TAB_TO_NEW_WINDOW),
                Item(IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT)
                    .command_id(IDC_NEW_SPLIT_TAB),

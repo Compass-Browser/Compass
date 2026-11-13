@@ -419,6 +419,7 @@ source_set("browser_tests") {
   ]
   if (is_mac) {
     sources += [
+      "cocoa/main_menu_browsertest.mm",
       "cocoa/shortcuts_mac_browsertest.mm",
       "views/little_window/little_window_browsertest.mm",
     ]
