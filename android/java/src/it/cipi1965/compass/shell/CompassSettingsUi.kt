@@ -28,7 +28,11 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -76,6 +80,9 @@ object CompassSettingsUi {
     interface Listener {
         fun onRow(row: Row)
 
+        /** Settings → On Launch: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
+        fun onSetOnLaunch(value: String)
+
         fun onDismiss()
     }
 
@@ -84,6 +91,8 @@ object CompassSettingsUi {
         var version by mutableStateOf("")
         /** Sync's line under "Sync": on, off, last synced. */
         var syncSummary by mutableStateOf("")
+        /** What a launch shows: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
+        var onLaunch by mutableStateOf(OnLaunch.SIDEBAR)
     }
 
     @JvmStatic
@@ -112,6 +121,13 @@ object CompassSettingsUi {
 private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
     BackHandler { listener.onDismiss() }
     fun open(row: CompassSettingsUi.Row) = listener.onRow(row)
+    var choosingOnLaunch by remember { mutableStateOf(false) }
+    if (choosingOnLaunch) {
+        OnLaunchDialog(state.onLaunch, onPick = {
+            choosingOnLaunch = false
+            listener.onSetOnLaunch(it)
+        }) { choosingOnLaunch = false }
+    }
     Box(
         Modifier.fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
@@ -168,7 +184,15 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     }
                 }
                 CardSection("Tabs and data") {
-                    SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete, first = true) {
+                    SettingsRow(
+                        "On Launch",
+                        R.drawable.compass_sym_view_sidebar,
+                        subtitle = if (state.onLaunch == OnLaunch.LAST_TAB) "Last Tab" else "Sidebar",
+                        first = true,
+                    ) {
+                        choosingOnLaunch = true
+                    }
+                    SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete) {
                         open(CompassSettingsUi.Row.CLEAR_DATA)
                     }
                     SettingsRow("Downloads", R.drawable.compass_sym_download) {
@@ -207,6 +231,35 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
             }
         }
     }
+}
+
+/** On Launch's choices (AppModel.swift, StartScreen). */
+@Composable
+private fun OnLaunchDialog(value: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("On Launch") },
+        text = {
+            Column {
+                for ((choice, label) in listOf(OnLaunch.SIDEBAR to "Sidebar", OnLaunch.LAST_TAB to "Last Tab")) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(choice) }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = choice == value, onClick = { onPick(choice) })
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                Text(
+                    "Last Tab opens on the tab you last looked at, if it's still open.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
