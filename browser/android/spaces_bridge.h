@@ -8,6 +8,7 @@
 #include <jni.h>
 
 #include <string>
+#include <vector>
 
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
@@ -67,9 +68,30 @@ class SpacesBridge : public SpacesAndroid::Observer {
                   const std::u16string& title);
   void TabSelected(JNIEnv* env, int32_t tab_id);
   void TabClosed(JNIEnv* env, int32_t tab_id);
+  void TabClosureUndone(JNIEnv* env,
+                        int32_t tab_id,
+                        const std::string& url,
+                        const std::u16string& title);
+
+  // The archive (docs/design/android.md, P1).
+  void ArchiveNode(JNIEnv* env, const std::string& node_id);
+  // Returns the restored entry's tab node ID (empty if none), which the
+  // shell opens.
+  std::string RestoreArchived(JNIEnv* env, const std::string& entry_id);
+  void RemoveArchived(JNIEnv* env, const std::string& entry_id);
+  // This window's space's archive and delay.
+  void ClearArchive(JNIEnv* env);
+  void SetArchiveAfter(JNIEnv* env, int32_t hours);
+
+  // Pinned URL (docs/design/android.md, P2): the pinned tab's or favorite's
+  // page becomes its pinned URL; and its pinned URL, where "Back to Pinned
+  // URL" goes (an unloaded entry's page is set to it here).
+  void UseCurrentPageAsSavedUrl(JNIEnv* env, const std::string& node_id);
+  std::string BackToSavedUrl(JNIEnv* env, const std::string& node_id);
 
   // SpacesAndroid::Observer:
   void OnSpacesChanged() override;
+  void OnTabsArchived(const std::vector<int>& tab_ids) override;
 
  private:
   base::android::ScopedJavaGlobalRef<jobject> java_object_;

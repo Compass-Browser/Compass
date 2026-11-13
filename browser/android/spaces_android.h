@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/supports_user_data.h"
+#include "base/timer/timer.h"
 #include "base/values.h"
 #include "base/uuid.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -43,6 +44,9 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   class Observer : public base::CheckedObserver {
    public:
     virtual void OnSpacesChanged() = 0;
+    // The archiver archived the entries of these open tabs, which should
+    // close now (without undo): they have no entry any more.
+    virtual void OnTabsArchived(const std::vector<int>& tab_ids) {}
   };
 
   // What sync keeps on the spaces (compass_spaces_sync_android.cc).
@@ -77,7 +81,10 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // emoji), the one the window shows ("active": |space_id|, or the list's
   // active space if there's no such space), its pinned and Today trees and
   // the favorites; each node has its id, type, title, url, "tab" (its tab, or
-  // -1) and children.
+  // -1), "saved_url" (a pinned tab's or favorite's pinned URL) and children.
+  // The shown space's archive comes as "archive" (id, title, url and
+  // "archived_at", in milliseconds since the epoch; newest first), with its
+  // "archive_after_hours" (0: never).
   std::string Snapshot(const base::Uuid& space_id) const;
   // |space_id|'s space, or the list's active one if there's no such space.
   // Each window shows a space of its own; the list's active space is the
@@ -100,10 +107,41 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // entry with no tab).
   void TabOpenedForNode(int tab_id, const base::Uuid& node_id);
   void TabUpdated(int tab_id, const GURL& url, const std::u16string& title);
-  void TabSelected(int tab_id);
-  // Today entries go when their tab closes; pinned tabs and favorites stay,
-  // unloaded, back at their pinned URL.
+  // |window| (any pointer that's the window's) now shows |tab_id|. Stamps
+  // the entry it shows, and the one the window showed before, as last
+  // active: the archiver's clock starts as an entry leaves the screen
+  // (docs/design/sidebar.md, "Today auto-archive").
+  void TabSelected(int tab_id, const void* window = nullptr);
+  // |window| is gone: what it showed may be archived.
+  void WindowClosed(const void* window);
+  // A Today entry goes to its space's archive when its tab closes
+  // (docs/design/android.md, P1); pinned tabs and favorites stay, unloaded,
+  // back at their pinned URL.
   void TabClosed(int tab_id);
+  // A closed tab came back (undo): its entry comes back out of the archive,
+  // at the top of Today, or a new Today entry is made for it.
+  void TabClosureUndone(int tab_id,
+                        const GURL& url,
+                        const std::u16string& title,
+                        const base::Uuid& space_id = base::Uuid());
+
+  // Archives the Today entry |node_id| (a tab or split). One with a tab
+  // should be archived by closing the tab instead; if it has one anyway, the
+  // tab is let go (observers see OnTabsArchived()).
+  void ArchiveNode(const base::Uuid& node_id);
+  // Puts the archived entry |entry_id| (of any space) back at the top of its
+  // space's Today, unloaded. Returns the tab node to open (a split's first
+  // pane), or null.
+  SidebarNode* RestoreArchived(const base::Uuid& entry_id);
+  void RemoveArchived(const base::Uuid& entry_id);
+  // |hours| 0: never.
+  void SetArchiveAfter(const base::Uuid& space_id, int hours);
+  // Archives idle Today entries now, as the timer does every 10 minutes
+  // (after 30 s for the first time).
+  void ArchiveIdleEntries();
+
+  // Makes the pinned tab's or favorite's current page its pinned URL.
+  void UseCurrentPageAsSavedUrl(const base::Uuid& node_id);
 
   // Moves |tab_id|'s entry to the end of its space's pinned tree, or of the
   // favorites; the tab stays open on it.
@@ -148,6 +186,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
  private:
   base::ListValue SnapshotSection(const SidebarNode& root) const;
   void OnLoaded();
+  // Whether |entry| shows a tab that a window shows.
+  bool IsShown(const SidebarNode& entry);
   // Tells observers, once per task however many changes it made.
   void Changed();
   void NotifyChanged();
@@ -173,6 +213,13 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // Today tab, in any space.
   SidebarNode* FindUnopenedEntry(const GURL& url);
   int current_tab_ = -1;
+  // The tab each window shows.
+  std::map<const void*, int> shown_tabs_;
+  // Tabs whose Today entry went to the archive as they closed, with the
+  // archived entry's ID, for undo. The most recent few.
+  std::map<int, base::Uuid> archived_closed_tabs_;
+  base::OneShotTimer first_archive_timer_;
+  base::RepeatingTimer archive_timer_;
   std::vector<base::OnceClosure> on_loaded_;
   bool notify_pending_ = false;
   // Destroyed first: sync's holder observes the list.

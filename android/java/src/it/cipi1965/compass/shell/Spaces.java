@@ -78,7 +78,8 @@ public class Spaces implements SidebarUi.Listener {
     public Spaces(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
         mTabs = activity.getTabModelSelector().getModel(false);
-        mBridge = new SpacesBridge(mTabs.getProfile(), this::onModelChanged);
+        mBridge =
+                new SpacesBridge(mTabs.getProfile(), this::onModelChanged, this::closeArchivedTab);
 
         // Tabs restored before the shell came up.
         for (int i = 0; i < mTabs.getCount(); i++) {
@@ -128,9 +129,10 @@ public class Spaces implements SidebarUi.Listener {
 
                     @Override
                     public void tabClosureUndone(Tab tab) {
-                        // Its entry went as it closed: a new one, at the top of Today.
-                        mBridge.tabOpened(
-                                tab.getId(), tab.getUrl().getSpec(), tab.getTitle(), false);
+                        // Its Today entry went to the archive as it closed: it comes back out, at
+                        // the top of Today (or a new entry, if there's none to bring back).
+                        mBridge.tabClosureUndone(
+                                tab.getId(), tab.getUrl().getSpec(), tab.getTitle());
                     }
 
                     // Not tabRemoved(): the tab moved to another window, and keeps its entry.
@@ -365,6 +367,33 @@ public class Spaces implements SidebarUi.Listener {
         return true;
     }
 
+    // The archiver archived this tab's Today entry (it went unseen for the space's delay): the tab
+    // closes, without undo; the entry is in the archive.
+    private void closeArchivedTab(int tabId) {
+        Tab tab = mTabs.getTabById(tabId);
+        if (tab == null) return;
+        mTabs.getTabRemover()
+                .closeTabs(
+                        org.chromium.chrome.browser.tabmodel.TabClosureParams.closeTab(tab)
+                                .allowUndo(false)
+                                .build(),
+                        /* allowDialog= */ false);
+    }
+
+    // Closes an entry's open tab, with undo (UndoToast); returns false if it has none here.
+    private boolean closeTabOf(String nodeId) {
+        int tabId = mBridge.tabFor(nodeId);
+        Tab tab = tabId != Tab.INVALID_TAB_ID ? mTabs.getTabById(tabId) : null;
+        if (tab == null) return false;
+        mTabs.getTabRemover()
+                .closeTabs(
+                        org.chromium.chrome.browser.tabmodel.TabClosureParams.closeTab(tab)
+                                .allowUndo(true)
+                                .build(),
+                        /* allowDialog= */ false);
+        return true;
+    }
+
     private int currentTabId() {
         Tab tab = mActivity.getActivityTabProvider().get();
         return tab != null ? tab.getId() : Tab.INVALID_TAB_ID;
@@ -397,20 +426,50 @@ public class Spaces implements SidebarUi.Listener {
 
     @Override
     public void onCloseNode(String nodeId) {
+        // Closing a Today entry's tab sends the entry to the archive (SpacesAndroid::TabClosed());
+        // undo is the shell's toast (UndoToast). One with no tab goes there directly.
+        if (!closeTabOf(nodeId)) mBridge.archiveNode(nodeId);
+    }
+
+    @Override
+    public void onArchiveNode(String nodeId) {
+        onCloseNode(nodeId);
+    }
+
+    @Override
+    public void onRestoreArchived(String entryId, String url) {
+        String nodeId = mBridge.restoreArchived(entryId);
+        if (!nodeId.isEmpty()) onNodeClicked(nodeId, url);
+    }
+
+    @Override
+    public void onRemoveArchived(String entryId) {
+        mBridge.removeArchived(entryId);
+    }
+
+    @Override
+    public void onClearArchive() {
+        mBridge.clearArchive();
+    }
+
+    @Override
+    public void onSetArchiveAfter(int hours) {
+        mBridge.setArchiveAfter(hours);
+    }
+
+    @Override
+    public void onUseAsSavedUrl(String nodeId) {
+        mBridge.useCurrentPageAsSavedUrl(nodeId);
+    }
+
+    @Override
+    public void onBackToSavedUrl(String nodeId) {
+        String url = mBridge.backToSavedUrl(nodeId);
+        if (url.isEmpty()) return;
         int tabId = mBridge.tabFor(nodeId);
         Tab tab = tabId != Tab.INVALID_TAB_ID ? mTabs.getTabById(tabId) : null;
-        if (tab != null) {
-            // Closing the tab removes a Today entry; a pinned one stays, unloaded.
-            mTabs.getTabRemover()
-                    .closeTabs(
-                            // Undo is the shell's toast (UndoToast).
-                            org.chromium.chrome.browser.tabmodel.TabClosureParams.closeTab(tab)
-                                    .allowUndo(true)
-                                    .build(),
-                            /* allowDialog= */ false);
-        } else {
-            mBridge.removeNode(nodeId);
-        }
+        // Its entry follows the tab (onUrlUpdated()).
+        if (tab != null) tab.loadUrl(new LoadUrlParams(url, PageTransition.AUTO_BOOKMARK));
     }
 
     @Override
@@ -481,17 +540,10 @@ public class Spaces implements SidebarUi.Listener {
 
     @Override
     public void onClearToday() {
-        // Every Today entry: its tab closes, and the entry with it; one step to undo.
+        // Every Today entry goes to the archive: its tab closes, and the entry with it; one step to
+        // undo.
         List<Tab> tabs = new ArrayList<>();
-        for (SidebarState.Node node : mState.getToday()) {
-            int tabId = mBridge.tabFor(node.id);
-            Tab tab = tabId != Tab.INVALID_TAB_ID ? mTabs.getTabById(tabId) : null;
-            if (tab != null) {
-                tabs.add(tab);
-            } else {
-                mBridge.removeNode(node.id);
-            }
-        }
+        clearEntries(mState.getToday(), tabs);
         if (tabs.isEmpty()) return;
         mTabs.getTabRemover()
                 .closeTabs(
@@ -499,6 +551,24 @@ public class Spaces implements SidebarUi.Listener {
                                 .allowUndo(true)
                                 .build(),
                         /* allowDialog= */ false);
+    }
+
+    // Today's entries, in its folders too (a folder closes with its last entry): those with a tab
+    // here go in |tabs|, to close; the others go to the archive now.
+    private void clearEntries(List<SidebarState.Node> nodes, List<Tab> tabs) {
+        for (SidebarState.Node node : nodes) {
+            if (node.isFolder()) {
+                clearEntries(node.children, tabs);
+                continue;
+            }
+            int tabId = mBridge.tabFor(node.id);
+            Tab tab = tabId != Tab.INVALID_TAB_ID ? mTabs.getTabById(tabId) : null;
+            if (tab != null) {
+                tabs.add(tab);
+            } else {
+                mBridge.archiveNode(node.id);
+            }
+        }
     }
 
     @Override

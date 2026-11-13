@@ -4,6 +4,7 @@
 
 #include "compass/browser/android/spaces_android.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/files/file_path.h"
@@ -35,6 +36,25 @@ constexpr base::FilePath::CharType kStoreFileName[] =
     FILE_PATH_LITERAL("Compass Sidebar.json");
 
 const char kUserDataKey[] = "compass_spaces_android";
+
+// The archiver's first run after the spaces load (restored tabs have taken
+// their entries by then), and how often it runs after that: the desktop's
+// (window_sync/space_service.cc).
+constexpr base::TimeDelta kFirstArchiveDelay = base::Seconds(30);
+constexpr base::TimeDelta kArchiveInterval = base::Minutes(10);
+
+// How many closed tabs' archived entries are kept for undo.
+constexpr size_t kMaxUndoableArchives = 50;
+
+// A Today entry: a tab or split under Today (maybe in a folder), not a
+// split's pane.
+bool IsTodayEntry(const SpaceModel& space, const SidebarNode& node) {
+  return space.today_root() && space.today_root()->Contains(&node) &&
+         &node != space.today_root() &&
+         (node.type() == SidebarNode::Type::kTab ||
+          node.type() == SidebarNode::Type::kSplit) &&
+         node.parent()->type() != SidebarNode::Type::kSplit;
+}
 
 }  // namespace
 
@@ -115,6 +135,27 @@ std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
   snapshot.Set("favorites", SnapshotSection(*list_.favorites().pinned_root()));
   snapshot.Set("pinned", SnapshotSection(*shown.pinned_root()));
   snapshot.Set("today", SnapshotSection(*shown.today_root()));
+  base::ListValue archive;
+  for (const ArchivedEntry& entry : shown.archive()) {
+    std::u16string title;
+    for (const ArchivedEntry::Tab& tab : entry.tabs) {
+      if (!title.empty()) {
+        title += u" \u00b7 ";
+      }
+      title += tab.title.empty() ? base::UTF8ToUTF16(tab.url.spec()) : tab.title;
+    }
+    base::DictValue dict;
+    dict.Set("id", entry.id.AsLowercaseString());
+    dict.Set("title", base::UTF16ToUTF8(title));
+    dict.Set("url", entry.tabs.empty() ? std::string()
+                                       : entry.tabs[0].url.spec());
+    dict.Set("archived_at",
+             entry.archived_at.InMillisecondsFSinceUnixEpochIgnoringNull());
+    archive.Append(std::move(dict));
+  }
+  snapshot.Set("archive", std::move(archive));
+  snapshot.Set("archive_after_hours",
+               static_cast<int>(shown.archive_after().InHours()));
   return base::WriteJson(snapshot).value_or("{}");
 }
 
@@ -146,6 +187,9 @@ base::ListValue SpacesAndroid::SnapshotSection(const SidebarNode& root) const {
     dict.Set("title", base::UTF16ToUTF8(node.display_title()));
     dict.Set("url", node.url().spec());
     dict.Set("tab", TabFor(node.id()));
+    if (node.saved_url().is_valid()) {
+      dict.Set("saved_url", node.saved_url().spec());
+    }
     if (!node.children().empty()) {
       dict.Set("children", SnapshotSection(node));
     }
@@ -251,9 +295,35 @@ void SpacesAndroid::TransferTab(const base::Uuid& from, const base::Uuid& to) {
   }
 }
 
-void SpacesAndroid::TabSelected(int tab_id) {
+void SpacesAndroid::TabSelected(int tab_id, const void* window) {
   current_tab_ = tab_id;
-  auto it = tabs_.find(tab_id);
+  const base::Time now = base::Time::Now();
+  auto stamp = [&](int id) {
+    auto it = tabs_.find(id);
+    if (it == tabs_.end()) {
+      return;
+    }
+    SidebarNode* node = FindNode(it->second);
+    if (SpaceModel* space = SpaceOf(node)) {
+      space->SetLastActive(node, now);
+    }
+  };
+  // The one the window leaves: its clock starts now.
+  auto shown = shown_tabs_.find(window);
+  if (shown != shown_tabs_.end() && shown->second != tab_id) {
+    stamp(shown->second);
+  }
+  shown_tabs_[window] = tab_id;
+  stamp(tab_id);
+}
+
+void SpacesAndroid::WindowClosed(const void* window) {
+  auto shown = shown_tabs_.find(window);
+  if (shown == shown_tabs_.end()) {
+    return;
+  }
+  auto it = tabs_.find(shown->second);
+  shown_tabs_.erase(shown);
   if (it == tabs_.end()) {
     return;
   }
@@ -279,19 +349,165 @@ void SpacesAndroid::TabClosed(int tab_id) {
     Changed();
     return;
   }
-  // A Today entry goes with its tab.
-  for (const SidebarNode* n = node; n; n = n->parent()) {
-    if (n == space->today_root()) {
-      space->Remove(node);
-      Changed();
-      return;
+  // A Today entry goes to the archive with its tab, as on iOS; a split's
+  // pane just goes.
+  if (IsTodayEntry(*space, *node)) {
+    space->Archive(node, base::Time::Now());
+    if (space->FindArchived(node_id)) {
+      archived_closed_tabs_[tab_id] = node_id;
+      if (archived_closed_tabs_.size() > kMaxUndoableArchives) {
+        // Tab IDs only grow: the smallest is the oldest.
+        archived_closed_tabs_.erase(archived_closed_tabs_.begin());
+      }
     }
+    Changed();
+    return;
+  }
+  if (space->today_root() && space->today_root()->Contains(node)) {
+    space->Remove(node);
+    Changed();
+    return;
   }
   // A pinned tab or favorite goes back to its pinned URL, unloaded.
   if (node->saved_url().is_valid() && node->url() != node->saved_url()) {
     space->SetUrl(node, node->saved_url());
   }
   Changed();
+}
+
+void SpacesAndroid::TabClosureUndone(int tab_id,
+                                     const GURL& url,
+                                     const std::u16string& title,
+                                     const base::Uuid& space_id) {
+  auto it = archived_closed_tabs_.find(tab_id);
+  if (it != archived_closed_tabs_.end()) {
+    const base::Uuid entry_id = it->second;
+    archived_closed_tabs_.erase(it);
+    for (const auto& space : list_.spaces()) {
+      if (!space->FindArchived(entry_id)) {
+        continue;
+      }
+      SidebarNode* node = space->Unarchive(entry_id, 0);
+      if (node && node->type() == SidebarNode::Type::kTab) {
+        empty_tabs_.erase(tab_id);
+        tabs_[tab_id] = node->id();
+        Changed();
+        return;
+      }
+      break;
+    }
+  }
+  // Its entry is gone (it wasn't worth archiving, or sync dropped it): a new
+  // one, at the top of Today.
+  TabOpened(tab_id, url, title, /*restored=*/false, space_id);
+}
+
+void SpacesAndroid::ArchiveNode(const base::Uuid& node_id) {
+  SidebarNode* node = FindNode(node_id);
+  SpaceModel* space = SpaceOf(node);
+  if (!node || !space || !IsTodayEntry(*space, *node)) {
+    return;
+  }
+  std::map<int, base::Uuid> before = tabs_;
+  space->Archive(node, base::Time::Now());
+  std::vector<int> let_go;
+  for (const auto& [tab_id, id] : before) {
+    if (!tabs_.contains(tab_id)) {
+      let_go.push_back(tab_id);
+    }
+  }
+  if (!let_go.empty()) {
+    for (Observer& observer : observers_) {
+      observer.OnTabsArchived(let_go);
+    }
+  }
+  Changed();
+}
+
+SidebarNode* SpacesAndroid::RestoreArchived(const base::Uuid& entry_id) {
+  for (const auto& space : list_.spaces()) {
+    if (!space->FindArchived(entry_id)) {
+      continue;
+    }
+    SidebarNode* node = space->Unarchive(entry_id, 0);
+    Changed();
+    if (node && node->type() == SidebarNode::Type::kSplit) {
+      return node->children().empty() ? nullptr
+                                       : node->children().front().get();
+    }
+    return node;
+  }
+  return nullptr;
+}
+
+void SpacesAndroid::RemoveArchived(const base::Uuid& entry_id) {
+  for (const auto& space : list_.spaces()) {
+    if (space->FindArchived(entry_id)) {
+      space->RemoveArchived(entry_id);
+      Changed();
+      return;
+    }
+  }
+}
+
+void SpacesAndroid::SetArchiveAfter(const base::Uuid& space_id, int hours) {
+  if (SpaceModel* space = list_.FindSpace(space_id)) {
+    space->SetArchiveAfter(base::Hours(std::max(hours, 0)));
+  }
+}
+
+bool SpacesAndroid::IsShown(const SidebarNode& entry) {
+  for (const auto& [window, tab_id] : shown_tabs_) {
+    auto it = tabs_.find(tab_id);
+    if (it == tabs_.end()) {
+      continue;
+    }
+    if (const SidebarNode* node = FindNode(it->second);
+        node && entry.Contains(node)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void SpacesAndroid::ArchiveIdleEntries() {
+  if (!loaded_) {
+    return;
+  }
+  std::map<int, base::Uuid> before = tabs_;
+  const base::Time now = base::Time::Now();
+  size_t archived = 0;
+  for (const auto& space : list_.spaces()) {
+    archived += space->ArchiveIdleEntries(
+        now, [&](const SidebarNode& entry) { return IsShown(entry); });
+  }
+  if (!archived) {
+    return;
+  }
+  // The archived entries' open tabs close (OnNodeWillBeRemoved() let them
+  // go).
+  std::vector<int> closed;
+  for (const auto& [tab_id, id] : before) {
+    if (!tabs_.contains(tab_id)) {
+      closed.push_back(tab_id);
+    }
+  }
+  if (!closed.empty()) {
+    for (Observer& observer : observers_) {
+      observer.OnTabsArchived(closed);
+    }
+  }
+  Changed();
+}
+
+void SpacesAndroid::UseCurrentPageAsSavedUrl(const base::Uuid& node_id) {
+  SidebarNode* node = FindNode(node_id);
+  SpaceModel* space = SpaceOf(node);
+  if (!node || !space || node->type() != SidebarNode::Type::kTab ||
+      !node->saved_url().is_valid() || !node->url().is_valid()) {
+    return;
+  }
+  space->SetSavedUrl(node, node->url(), node->title());
 }
 
 void SpacesAndroid::Pin(int tab_id, bool favorite) {
@@ -399,6 +615,10 @@ void SpacesAndroid::OnLoaded() {
   for (const PendingTab& tab : pending) {
     TabOpened(tab.id, tab.url, tab.title, /*restored=*/true, tab.space_id);
   }
+  first_archive_timer_.Start(FROM_HERE, kFirstArchiveDelay, this,
+                             &SpacesAndroid::ArchiveIdleEntries);
+  archive_timer_.Start(FROM_HERE, kArchiveInterval, this,
+                       &SpacesAndroid::ArchiveIdleEntries);
   std::vector<base::OnceClosure> callbacks;
   callbacks.swap(on_loaded_);
   for (base::OnceClosure& callback : callbacks) {
