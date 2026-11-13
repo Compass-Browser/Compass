@@ -118,12 +118,62 @@ object SidebarUi {
     }
 
     /** Where a drop goes, and the row that shows it (above it, below it, or into it). */
-    internal class DropTarget(
+    class DropTarget(
         @JvmField val parentId: String,
         @JvmField val beforeId: String,
         @JvmField val rowKey: String,
         @JvmField val edge: Edge,
     )
+
+    /** A row of the sidebar's list as laid out: its key (a node's ID, or a section's), place, height. */
+    class ListRow(@JvmField val key: Any, @JvmField val offset: Int, @JvmField val size: Int)
+
+    /** Each pinned and Today entry (not a split's panes): its parent's ID and its siblings. */
+    @JvmStatic
+    fun entryPlaces(state: SidebarState): Map<String, Pair<String, List<SidebarState.Node>>> {
+        val places = HashMap<String, Pair<String, List<SidebarState.Node>>>()
+        fun walk(parentId: String, nodes: List<SidebarState.Node>) {
+            for (node in nodes) {
+                places[node.id] = parentId to nodes
+                if (node.isFolder) walk(node.id, node.children)
+            }
+        }
+        walk(state.pinnedId, state.pinned)
+        walk(state.todayId, state.today)
+        return places
+    }
+
+    /**
+     * Where |nodeId|, dragged with its middle at |y| (the list's pixels), would drop, by the row
+     * there: above or below an entry, into a folder (its middle; not a live folder), at the top of
+     * Pinned or Today (their headers, or New Tab), or into the favorites. Null: nowhere.
+     */
+    @JvmStatic
+    fun dropTarget(state: SidebarState, rows: List<ListRow>, nodeId: String, y: Float): DropTarget? {
+        val over = rows.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: return null
+        val key = over.key as? String ?: return null
+        when (key) {
+            "favorites" -> return DropTarget(state.favoritesId, "", key, Edge.INSIDE)
+            "pinned-header", "pinned-empty" ->
+                return DropTarget(state.pinnedId, state.pinned.firstOrNull()?.id ?: "", key, Edge.BOTTOM)
+            "today-header", "new-tab" ->
+                return DropTarget(state.todayId, state.today.firstOrNull()?.id ?: "", key, Edge.BOTTOM)
+        }
+        if (key == nodeId) return null
+        val (parentId, siblings) = entryPlaces(state)[key] ?: return null
+        val node = siblings.firstOrNull { it.id == key } ?: return null
+        val at = (y - over.offset) / over.size.coerceAtLeast(1)
+        if (node.isFolder && !node.isLiveFolder && at > 0.25f && at < 0.75f) {
+            return DropTarget(node.id, "", key, Edge.INSIDE)
+        }
+        if (at < 0.5f) return DropTarget(parentId, node.id, key, Edge.TOP)
+        // Below an open folder: at the top of it.
+        if (node.isFolder && !node.isLiveFolder && !node.collapsed && node.children.isNotEmpty()) {
+            return DropTarget(node.id, node.children.first().id, key, Edge.BOTTOM)
+        }
+        val next = siblings.getOrNull(siblings.indexOf(node) + 1)
+        return DropTarget(parentId, next?.id ?: "", key, Edge.BOTTOM)
+    }
 
     /** A row's part in a drag: picking it up, moving, letting go. */
     internal interface RowDrag {
@@ -138,7 +188,7 @@ object SidebarUi {
         fun state(): EntryDrag
     }
 
-    internal enum class Edge {
+    enum class Edge {
         TOP,
         BOTTOM,
         INSIDE,
@@ -334,7 +384,7 @@ private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
         object : SidebarUi.RowDrag {
             override fun start(nodeId: String) {
                 val item = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == nodeId } ?: return
-                if (entryPlaces(state)[nodeId] == null) return
+                if (SidebarUi.entryPlaces(state)[nodeId] == null) return
                 drag.nodeId = nodeId
                 drag.dy = 0f
                 drag.startY = item.offset + item.size / 2f
@@ -390,49 +440,11 @@ private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
     }
 }
 
-/** Each pinned and Today entry (not a split's panes): its parent's ID and its siblings. */
-private fun entryPlaces(state: SidebarState): Map<String, Pair<String, List<SidebarState.Node>>> {
-    val places = HashMap<String, Pair<String, List<SidebarState.Node>>>()
-    fun walk(parentId: String, nodes: List<SidebarState.Node>) {
-        for (node in nodes) {
-            places[node.id] = parentId to nodes
-            if (node.isFolder) walk(node.id, node.children)
-        }
-    }
-    walk(state.pinnedId, state.pinned)
-    walk(state.todayId, state.today)
-    return places
-}
-
-/**
- * Where the dragged entry would drop, by the row under its center: above or below an entry, into
- * a folder (its middle), at the top of Pinned or Today (their headers), or into the favorites.
- */
+/** Where the drag's entry would drop now (SidebarUi.dropTarget()), from the list's rows. */
 private fun dropTarget(state: SidebarState, list: LazyListState, drag: SidebarUi.EntryDrag): SidebarUi.DropTarget? {
-    val y = drag.startY + drag.dy
-    val over = list.layoutInfo.visibleItemsInfo.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: return null
-    val key = over.key as? String ?: return null
-    when (key) {
-        "favorites" -> return SidebarUi.DropTarget(state.favoritesId, "", key, SidebarUi.Edge.INSIDE)
-        "pinned-header", "pinned-empty" ->
-            return SidebarUi.DropTarget(state.pinnedId, state.pinned.firstOrNull()?.id ?: "", key, SidebarUi.Edge.BOTTOM)
-        "today-header", "new-tab" ->
-            return SidebarUi.DropTarget(state.todayId, state.today.firstOrNull()?.id ?: "", key, SidebarUi.Edge.BOTTOM)
-    }
-    if (key == drag.nodeId) return null
-    val (parentId, siblings) = entryPlaces(state)[key] ?: return null
-    val node = siblings.firstOrNull { it.id == key } ?: return null
-    val at = (y - over.offset) / over.size.coerceAtLeast(1)
-    if (node.isFolder && !node.isLiveFolder && at > 0.25f && at < 0.75f) {
-        return SidebarUi.DropTarget(node.id, "", key, SidebarUi.Edge.INSIDE)
-    }
-    if (at < 0.5f) return SidebarUi.DropTarget(parentId, node.id, key, SidebarUi.Edge.TOP)
-    // Below an open folder: at the top of it.
-    if (node.isFolder && !node.isLiveFolder && !node.collapsed && node.children.isNotEmpty()) {
-        return SidebarUi.DropTarget(node.id, node.children.first().id, key, SidebarUi.Edge.BOTTOM)
-    }
-    val next = siblings.getOrNull(siblings.indexOf(node) + 1)
-    return SidebarUi.DropTarget(parentId, next?.id ?: "", key, SidebarUi.Edge.BOTTOM)
+    val nodeId = drag.nodeId ?: return null
+    val rows = list.layoutInfo.visibleItemsInfo.map { SidebarUi.ListRow(it.key, it.offset, it.size) }
+    return SidebarUi.dropTarget(state, rows, nodeId, drag.startY + drag.dy)
 }
 
 /** Where a drop would go, on the row that shows it: a line above or below it, or a fill. */

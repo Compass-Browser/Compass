@@ -459,8 +459,11 @@ Store.
   arm64 device (Pixel 9, Android 14) with gmsaas and adb, plus screenshots
   through adb.
 - **Unit tests.** The C++ sync and model unit tests run in the Android
-  build as well. The Kotlin bridges and UI get junit/Robolectric tests and
-  Compose instrumentation tests.
+  build as well. The shell's state and logic have junit/Robolectric tests
+  on the host's JVM (`//compass/android:compass_junit_tests`, `android/junit/`:
+  the sidebar's snapshot, drops, On Launch, the Claude sheet's state;
+  `out/<dir>/bin/run_compass_junit_tests`). Compose instrumentation tests
+  are still to come.
 - **End to end:**
   1. Pair with a desktop Compass by QR code.
   2. Spaces, the pinned tree, favorites and themes match both ways.
