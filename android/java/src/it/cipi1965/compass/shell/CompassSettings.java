@@ -21,6 +21,8 @@ import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.components.browser_ui.settings.SettingsNavigation.SettingsFragment;
+import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
+import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
@@ -105,7 +107,11 @@ public class CompassSettings implements CompassSettingsUi.Listener {
             }
             case CLEAR_DATA -> chromeSettings(SettingsFragment.CLEAR_BROWSING_DATA);
             case DOWNLOADS -> chromeSettings(SettingsFragment.DOWNLOADS);
-            case SITE_SETTINGS -> chromeSettings(SettingsFragment.SITE);
+            case SITE_SETTINGS -> {
+                loadSitePermissions();
+                mState.setPage(CompassSettingsUi.Page.SITE_SETTINGS);
+            }
+            case ALL_SITES -> chromeSettings(SettingsFragment.SITE);
             case PRIVACY -> {
                 loadPrivacy();
                 mState.setPage(CompassSettingsUi.Page.PRIVACY);
@@ -263,6 +269,42 @@ public class CompassSettings implements CompassSettingsUi.Listener {
             }
         }
         loadPrivacy();
+    }
+
+    // Site Settings' permissions: each one's title, what on means, and its default.
+    private static final Object[][] SITE_PERMISSIONS = {
+        {ContentSettingsType.GEOLOCATION, "Location", "Ask first"},
+        {ContentSettingsType.MEDIASTREAM_CAMERA, "Camera", "Ask first"},
+        {ContentSettingsType.MEDIASTREAM_MIC, "Microphone", "Ask first"},
+        {ContentSettingsType.NOTIFICATIONS, "Notifications", "Ask first"},
+        {ContentSettingsType.POPUPS, "Pop-ups and Redirects", "Allowed"},
+        {ContentSettingsType.AUTOMATIC_DOWNLOADS, "Automatic Downloads", "Ask first"},
+        {ContentSettingsType.SOUND, "Sound", "Allowed"},
+        {ContentSettingsType.JAVASCRIPT, "JavaScript", "Allowed"},
+    };
+
+    private void loadSitePermissions() {
+        Profile profile = profile();
+        List<CompassSettingsUi.SitePermission> permissions = new ArrayList<>();
+        for (Object[] row : SITE_PERMISSIONS) {
+            int type = (Integer) row[0];
+            permissions.add(
+                    new CompassSettingsUi.SitePermission(
+                            type,
+                            (String) row[1],
+                            (String) row[2],
+                            WebsitePreferenceBridge.isCategoryEnabled(profile, type),
+                            WebsitePreferenceBridge.isContentSettingManaged(profile, type)));
+        }
+        mState.setSitePermissions(permissions);
+    }
+
+    @Override
+    public void onSetSitePermission(int type, boolean on) {
+        Profile profile = profile();
+        if (WebsitePreferenceBridge.isContentSettingManaged(profile, type)) return;
+        WebsitePreferenceBridge.setCategoryEnabled(profile, type, on);
+        loadSitePermissions();
     }
 
     @Override

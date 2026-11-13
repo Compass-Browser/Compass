@@ -77,6 +77,8 @@ object CompassSettingsUi {
         PRIVACY,
         /** Chrome's Privacy and Security page, for what Compass's doesn't show. */
         MORE_PRIVACY,
+        /** Chrome's site settings: every site, and each permission's exceptions. */
+        ALL_SITES,
         ACCESSIBILITY,
         LANGUAGES,
         MORE,
@@ -88,7 +90,18 @@ object CompassSettingsUi {
         MAIN,
         SEARCH_ENGINE,
         PRIVACY,
+        SITE_SETTINGS,
     }
+
+    /** A permission's default on the Site Settings page: on asks first (or allows), off blocks. */
+    class SitePermission(
+        @JvmField val type: Int,
+        @JvmField val title: String,
+        /** What on means: "Ask first" or "Allowed". */
+        @JvmField val onLabel: String,
+        @JvmField val on: Boolean,
+        @JvmField val managed: Boolean,
+    )
 
     /** Safe Browsing's levels (Chrome's SafeBrowsingState). */
     object SafeBrowsing {
@@ -120,6 +133,9 @@ object CompassSettingsUi {
         /** Privacy: one of its switches. */
         fun onSetPrivacySwitch(which: PrivacySwitch, on: Boolean)
 
+        /** Site Settings: a permission's default (SitePermission.type, Chrome's ContentSettingsType). */
+        fun onSetSitePermission(type: Int, on: Boolean)
+
         /** Back from a page to the list. */
         fun onBack()
 
@@ -148,6 +164,7 @@ object CompassSettingsUi {
         /** Privacy: the switches that are on, and those policy sets. */
         var privacyOn by mutableStateOf<Set<PrivacySwitch>>(emptySet())
         var privacyManaged by mutableStateOf<Set<PrivacySwitch>>(emptySet())
+        var sitePermissions by mutableStateOf<List<SitePermission>>(emptyList())
     }
 
     @JvmStatic
@@ -169,6 +186,7 @@ object CompassSettingsUi {
                     when (state.page) {
                         Page.SEARCH_ENGINE -> SearchEnginePage(state, listener)
                         Page.PRIVACY -> PrivacyPage(state, listener)
+                        Page.SITE_SETTINGS -> SiteSettingsPage(state, listener)
                         Page.MAIN -> Settings(state, listener)
                     }
                 }
@@ -387,6 +405,46 @@ private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSetting
             }
         }
         if (state.safeBrowsingManaged || state.privacyManaged.isNotEmpty()) {
+            Text(
+                "Your organization manages some of these settings.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 24.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Settings → Site Settings, Compass's own page (docs/design/android.md, P8): each permission's
+ * default for every site; a site's own exceptions on Chrome's pages (All Sites).
+ */
+@Composable
+private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    SubPage("Site Settings", listener) {
+        CardSection("By default") {
+            for (permission in state.sitePermissions) {
+                SwitchRow(
+                    permission.title,
+                    if (permission.on) permission.onLabel else "Blocked",
+                    checked = permission.on,
+                    enabled = !permission.managed,
+                ) {
+                    listener.onSetSitePermission(permission.type, it)
+                }
+            }
+        }
+        CardSection("Sites") {
+            SettingsRow(
+                "All Sites and Exceptions",
+                R.drawable.compass_sym_public,
+                subtitle = "What each site may do, and its data",
+                first = true,
+            ) {
+                listener.onRow(CompassSettingsUi.Row.ALL_SITES)
+            }
+        }
+        if (state.sitePermissions.any { it.managed }) {
             Text(
                 "Your organization manages some of these settings.",
                 style = MaterialTheme.typography.bodyMedium,
