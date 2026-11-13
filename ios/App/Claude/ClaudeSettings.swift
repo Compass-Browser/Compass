@@ -42,6 +42,16 @@ final class ClaudeSettings {
   var memoryEnabled: Bool { didSet { defaults.set(memoryEnabled, forKey: "ClaudeMemoryEnabled") } }
   /// "Let Claude Save Memories": the memory tools are sent.
   var memorySave: Bool { didSet { defaults.set(memorySave, forKey: "ClaudeMemorySave") } }
+  /// "Let Claude Use Developer Tools" (off by default; docs/design/claude.md,
+  /// "Developer tools", iOS): the devtools tools are sent and work, the
+  /// pages record their requests, and the profiles' connections go through
+  /// Compass's local proxy (DevToolsNetwork).
+  var devtools: Bool {
+    didSet {
+      defaults.set(devtools, forKey: "ClaudeDevTools")
+      NotificationCenter.default.post(name: .claudeDevToolsChanged, object: nil)
+    }
+  }
   /// Settings → Claude → Files: what the file tools may do (off by
   /// default; docs/design/claude.md, "Files").
   var fileAccess: ClaudeFileAccess { didSet { defaults.set(fileAccess.rawValue, forKey: "ClaudeFilesAccess") } }
@@ -66,6 +76,7 @@ final class ClaudeSettings {
     acceptTokenRisks = defaults.bool(forKey: "ClaudeAcceptTokenRisks")
     memoryEnabled = defaults.object(forKey: "ClaudeMemoryEnabled") as? Bool ?? true
     memorySave = defaults.object(forKey: "ClaudeMemorySave") as? Bool ?? true
+    devtools = defaults.bool(forKey: "ClaudeDevTools")
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
     fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
     folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
@@ -189,7 +200,12 @@ final class ClaudeSettings {
   /// its `scope` stays here, ClaudeTools.scopes).
   /// Entries for other platforms (`"platforms": ["desktop"]`) are left
   /// out; an entry without `platforms` is for every platform.
-  static let tools: [JSONValue] = toolEntries.filter { $0["scope"]?.string != "memory" }.compactMap { $0["definition"] }
+  static let tools: [JSONValue] = toolEntries.filter { !["memory", "devtools"].contains($0["scope"]?.string ?? "") }
+    .compactMap { $0["definition"] }
+  /// The developer tools, sent while "Let Claude Use Developer Tools" is
+  /// on (and for the rest of a chat that had them).
+  static let devtoolsTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "devtools" }
+    .compactMap { $0["definition"] }
   /// The memory tools (remember, update_memory, forget), sent while Claude
   /// may save memories.
   static let memoryTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "memory" }
@@ -205,4 +221,9 @@ final class ClaudeSettings {
   private static func bundled(_ name: String, _ ext: String) -> String? {
     Bundle.main.url(forResource: name, withExtension: ext).flatMap { try? String(contentsOf: $0, encoding: .utf8) }
   }
+}
+
+extension Notification.Name {
+  /// ClaudeSettings.devtools changed (TabManager applies it).
+  static let claudeDevToolsChanged = Notification.Name("CompassClaudeDevToolsChanged")
 }

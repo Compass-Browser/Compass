@@ -124,6 +124,7 @@
 		F3F0081DEDB6744DFCFEAEE0 /* PasswordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */; };
 		F4617C5B4269A2A19EB32B09 /* CollapseBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726541D9BE66CA543B0C251A /* CollapseBarTests.swift */; };
 		F5974AB5BCD8BAFC89325E7B /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C93F45F6CF3D5B476056A454 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F9071FAB2EA0B14F40BAF4F3 /* ClaudeDevTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */; };
 		FB2330F39EA3A9117C43CC3F /* IncognitoLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E5E05E467281432E7022D1F /* IncognitoLockView.swift */; };
 		FE028562E531BD6A806D775F /* SidebarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D58A4E443A5A13110A7DDE /* SidebarScreen.swift */; };
 /* End PBXBuildFile section */
@@ -263,6 +264,7 @@
 		8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadActivity.swift; sourceTree = "<group>"; };
 		943E4453D17FD6C970BD7A46 /* SafariOpen.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SafariOpen.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeChatSheet.swift; sourceTree = "<group>"; };
+		961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeDevTools.swift; sourceTree = "<group>"; };
 		977A8F8485D4C21A1859E91F /* ClaudeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeClient.swift; sourceTree = "<group>"; };
 		99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		9A39CE1F85C9DDBFF66E4B03 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -640,6 +642,7 @@
 				5D8BE98AA2B25948FFDAB6AC /* ClaudeChat.swift */,
 				950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */,
 				977A8F8485D4C21A1859E91F /* ClaudeClient.swift */,
+				961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */,
 				02496055CC5CED2F7938BBFE /* ClaudeMemoryStore.swift */,
 				C58E338C0AAD40A46BE75135 /* ClaudeSettings.swift */,
 				BC434C43B181FD41FBA6CD32 /* ClaudeSettingsView.swift */,
@@ -968,6 +971,7 @@
 				A8C5CE015AFF427E149A3C30 /* ClaudeChat.swift in Sources */,
 				DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */,
 				B580D148EA2C68D000F5C041 /* ClaudeClient.swift in Sources */,
+				F9071FAB2EA0B14F40BAF4F3 /* ClaudeDevTools.swift in Sources */,
 				0BA524C95ED44728317C8441 /* ClaudeMemoryStore.swift in Sources */,
 				0B0677B675C2C7D395C3700F /* ClaudeSettings.swift in Sources */,
 				C56A4F87EBD3E7FEA87D2AD0 /* ClaudeSettingsView.swift in Sources */,

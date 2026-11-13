@@ -84,6 +84,12 @@ struct ClaudeSettingsView: View {
       }
 
       Section {
+        Toggle("Let Claude Use Developer Tools", isOn: $settings.devtools)
+      } footer: {
+        Text("Claude can inspect the page it works on as a web developer would: its requests and their answers, styles, cookies and storage, and performance, and try it as another device. Changes to cookies or storage ask you first. While on, Compass records the pages' requests and passes your profiles' connections through a proxy in the app, which sees where they go but never what they carry. Web pages can contain text written to trick Claude, so turn this on only when you need it.")
+      }
+
+      Section {
         Toggle("Use Memory", isOn: $settings.memoryEnabled)
         if settings.memoryEnabled {
           Toggle("Let Claude Save Memories", isOn: $settings.memorySave)

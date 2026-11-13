@@ -63,6 +63,10 @@ final class ClaudeChat {
   /// The memory this chat started with, and whether it may save more: in
   /// the system prompt, which never changes within a chat.
   @ObservationIgnored private var chatMemory: (block: String, tools: Bool)?
+  /// The developer tools were on at some message of this chat: their
+  /// definitions stay for the rest of it (a conversation's tools only grow,
+  /// as on the desktop); while off they refuse.
+  @ObservationIgnored private var chatDevTools = false
 
   /// The page's text, at most this long (the desktop's).
   static let maxPageChars = 50000
@@ -114,6 +118,7 @@ final class ClaudeChat {
     streaming = false
     actingTab = nil
     ClaudeTools.releaseRendering()
+    tools?.endEmulation()
   }
 
   func newChat() {
@@ -124,6 +129,7 @@ final class ClaudeChat {
     attachedURL = ""
     attachPage = true
     chatMemory = nil
+    chatDevTools = false
     allowedForChat = []
   }
 
@@ -212,11 +218,14 @@ final class ClaudeChat {
     }
     let started = settings.revision
     let memory = frozenMemory()
+    if settings.devtools { chatDevTools = true }
     let options = ChatRequest.Options(
       model: settings.model, systemPrompt: ClaudeSettings.systemPrompt,
-      tools: ClaudeSettings.tools + (memory.tools ? ClaudeSettings.memoryTools : []),
+      tools: ClaudeSettings.tools + (memory.tools ? ClaudeSettings.memoryTools : [])
+        + (chatDevTools ? ClaudeSettings.devtoolsTools : []),
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
-      oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine)
+      oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine,
+      devtools: settings.devtools)
     let request = ChatRequest(messages: conversation.messages(), options: options)
     conversation.startReply()
     let error = await ClaudeClient.stream(request, endpoint: endpoint) { [weak self] name, data in

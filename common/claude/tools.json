@@ -728,11 +728,12 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "network_requests",
-        "description": "List the current tab's network requests, like the Network panel of the browser's developer tools: an id (like \"r12\"), method, status, type, URL, size and time, oldest first. Requests are recorded from when you first used the tab in this chat; to see a page's own load, navigate with \"reload\" first. Use network_response with an id for headers and body.",
+        "description": "List the current tab's network requests, like the Network panel of the browser's developer tools: an id (like \"r12\"), method, status, type, URL, size and time, oldest first. Requests are recorded from when you first used the tab in this chat; to see a page's own load, navigate with \"reload\" first. Use network_response with an id for headers and body. On iOS: the page's own fetch and XHR requests come in full; other loads come from the page's timings (no headers or bodies), plus every connection the tab's site data opened (host and port only).",
         "input_schema": {
           "type": "object",
           "properties": {
@@ -784,7 +785,8 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "network_response",
@@ -819,11 +821,12 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "inspect_element",
-        "description": "Inspect one element of the current tab like the Elements panel of the browser's developer tools: its box (size, padding, border, margin), computed styles, the CSS rules that match it with their stylesheet and line (winning first), and its event listeners. Give a ref from read_page or find, or a CSS selector. Elements inside shadow roots or frames can't be inspected; use run_js there.",
+        "description": "Inspect one element of the current tab like the Elements panel of the browser's developer tools: its box (size, padding, border, margin), computed styles, the CSS rules that match it with their stylesheet and line (winning first), and its event listeners. Give a ref from read_page or find, or a CSS selector. Elements inside shadow roots or frames can't be inspected; use run_js there. On iOS: rules show without line numbers, and only listeners added since the page loaded with the developer tools on.",
         "input_schema": {
           "type": "object",
           "properties": {
@@ -853,7 +856,8 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "page_storage",
@@ -886,7 +890,8 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "edit_page_storage",
@@ -961,11 +966,12 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "performance",
-        "description": "Measure the current tab like the Performance panel of the browser's developer tools: load timings (time to first byte, first and largest contentful paint, DOMContentLoaded, load), Core Web Vitals (largest contentful paint, cumulative layout shift, interaction to next paint) rated good, needs improvement or poor, long animation frames, the slowest resources, and now: JavaScript heap, DOM nodes, layouts and script time. The load timings are the page's own, from its last load: navigate with \"reload\" first to measure a fresh one.",
+        "description": "Measure the current tab like the Performance panel of the browser's developer tools: load timings (time to first byte, first and largest contentful paint, DOMContentLoaded, load), Core Web Vitals (largest contentful paint, cumulative layout shift, interaction to next paint) rated good, needs improvement or poor, long animation frames, the slowest resources, and now: JavaScript heap, DOM nodes, layouts and script time. The load timings are the page's own, from its last load: navigate with \"reload\" first to measure a fresh one. On iOS some measures are unavailable (WebKit doesn't report them).",
         "input_schema": {
           "type": "object",
           "properties": {}
@@ -975,11 +981,12 @@
     {
       "scope": "devtools",
       "platforms": [
-        "desktop"
+        "desktop",
+        "ios"
       ],
       "definition": {
         "name": "emulate",
-        "description": "Make the current tab behave like another device or setting, like the device mode of the browser's developer tools: a phone or tablet (viewport, pixel ratio, touch, user agent), a viewport size, dark or light mode, reduced motion, print media, a slow or offline network, a slower CPU. Changes add up across calls. They last while you work on this tab and are undone when the chat stops, a minute after your last tool, or with reset; screenshots show the emulated viewport. Say what you changed.",
+        "description": "Make the current tab behave like another device or setting, like the device mode of the browser's developer tools: a phone or tablet (viewport, pixel ratio, touch, user agent), a viewport size, dark or light mode, reduced motion, print media, a slow or offline network, a slower CPU. Changes add up across calls. They last while you work on this tab and are undone when the chat stops, a minute after your last tool, or with reset; screenshots show the emulated viewport. Say what you changed. On iOS: the width comes by zoom; height, pixel ratio, touch, reduced motion, print media and the CPU can't be emulated; network conditions slow every tab of the profile.",
         "input_schema": {
           "type": "object",
           "properties": {

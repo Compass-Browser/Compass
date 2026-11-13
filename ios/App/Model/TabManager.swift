@@ -88,6 +88,21 @@ final class TabManager: NSObject {
     self.store = store
     self.siteSettings = siteSettings
     self.contentBlocking = contentBlocking
+    super.init()
+    // Claude's developer tools: the capture script and the proxy follow
+    // the setting (DevToolsNetwork).
+    NotificationCenter.default.addObserver(forName: .claudeDevToolsChanged, object: nil, queue: .main) { [weak self] _ in
+      MainActor.assumeIsolated { self?.applyDevTools() }
+    }
+    applyDevTools()
+  }
+
+  /// Claude's developer tools on or off: every profile's website data
+  /// through the local proxy or not, and the capture script in the live
+  /// tabs (from their next load) and new ones. Never Incognito's.
+  func applyDevTools() {
+    let views = live.filter { !isIncognito($0.key) }.map(\.value)
+    DevToolsNetwork.shared.apply(stores: allDataStores(), views: views)
   }
 
   /// The filter lists `site`'s settings allow, on `view` from its next load.
@@ -180,6 +195,9 @@ final class TabManager: NSObject {
       configuration.userContentController.addUserScript(AutoPiP.script)
       // Claude's read_console (ClaudeTools.swift).
       configuration.userContentController.addUserScript(ConsoleCapture.script)
+      // Claude's developer tools, while on (never in Incognito, which
+      // Claude can't use).
+      if !incognito { DevToolsNetwork.shared.addCapture(to: configuration.userContentController) }
       configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
       view = WKWebView(
         frame: .zero,
@@ -188,7 +206,9 @@ final class TabManager: NSObject {
     view.allowsBackForwardNavigationGestures = true
     view.isFindInteractionEnabled = true
     applyContentBlocking(view, site: SiteSettings.site(url))
-    view.isInspectable = true
+    // Safari's Web Inspector on a Mac can inspect the tab; never an
+    // Incognito one.
+    view.isInspectable = !incognito
     view.navigationDelegate = self
     view.uiDelegate = self
     return view
@@ -345,6 +365,7 @@ final class TabManager: NSObject {
     if let store = stores[profile] { return store }
     let store = WKWebsiteDataStore(forIdentifier: uuid)
     stores[profile] = store
+    DevToolsNetwork.shared.configure(store)
     return store
   }
 }

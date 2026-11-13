@@ -33,12 +33,23 @@ final class ClaudeTools {
 
   static let notPermitted =
     "Not permitted: the user hasn't turned on \"Let Claude use the whole browser\" (Compass settings, Claude). Without it, Claude can only use the tab the chat is about. Tell the user if the task needs more."
+  /// The desktop's kDevToolsOff.
+  static let devtoolsOff =
+    "Not permitted: the user hasn't turned on \"Let Claude use developer tools\" (Compass settings, Claude). Tell the user if the task needs it."
   static let screenshotMaxEdge: CGFloat = 1280
   static let maxJSChars = 20000
 
   /// The tab the page tools act on: the chat's tab when a message is
   /// sent, or one Claude opened or selected since.
-  var targetTab: String? { didSet { if targetTab != oldValue { screenshotScale = 1 } } }
+  var targetTab: String? {
+    didSet {
+      if targetTab != oldValue {
+        screenshotScale = 1
+        // Emulation is the tab's while Claude works on it.
+        endEmulation()
+      }
+    }
+  }
   /// The chat's tab at the last message (close_tab goes back to it).
   var taskTab: String?
   /// Tabs Claude opened in this chat: the only ones it may close.
@@ -47,8 +58,13 @@ final class ClaudeTools {
   private var screenshotScale: Double = 1
   /// read_console's "only new": the console entries already read.
   private var consoleRead = 0
+  /// network_requests' "only new" (ClaudeDevTools.swift).
+  var networkSeen = NetworkListing.Seen()
+  /// What emulate changed, until it's undone (ClaudeDevTools.swift).
+  var emulation: Emulation?
+  var emulationEnd: Task<Void, Never>?
 
-  private weak var app: AppModel?
+  private(set) weak var app: AppModel?
 
   /// What the user is asked before a file is written (docs/design/claude.md,
   /// "Files").
@@ -69,11 +85,13 @@ final class ClaudeTools {
   func reset() {
     screenshotScale = 1
     consoleRead = 0
+    networkSeen = NetworkListing.Seen()
   }
 
   /// A new chat: Claude's own tabs stay, but aren't its to close any more.
   func forget() {
     reset()
+    endEmulation()
     opened = []
   }
 
@@ -88,10 +106,15 @@ final class ClaudeTools {
 
   /// Runs one tool call.
   func run(_ name: String, input: JSONValue) async -> Result {
+    // Emulation ends a minute after Claude's last tool.
+    defer { scheduleEmulationEnd() }
     let scopes = Self.scopes
     guard let scope = scopes[name] else { return .error("Unknown tool: \(name).") }
     if scope == "memory" { return runMemoryTool(name, input: input) }
     if scope == "files" { return await runFileTool(name, input: input) }
+    if scope == "devtools" {
+      guard ClaudeSettings.shared.devtools else { return .error(Self.devtoolsOff) }
+    }
     if scope == "browser" {
       guard ClaudeSettings.shared.browserScope else { return .error(Self.notPermitted) }
       switch name {
@@ -134,6 +157,9 @@ final class ClaudeTools {
     case "screenshot": return await screenshot(view, input: input)
     case "read_console": return await readConsole(view, input: input)
     case "run_js": return await runJS(view, input: input)
+    case "network_requests", "network_response", "inspect_element", "page_storage", "edit_page_storage",
+      "performance", "emulate":
+      return await runDevTool(name, node: node, view: view, input: input)
     default: return .error("\(name) isn't available on iOS.")
     }
   }
@@ -433,7 +459,7 @@ final class ClaudeTools {
     return .object(object)
   }
 
-  private func agent(_ view: WKWebView, _ method: String, _ input: JSONValue) async -> Result {
+  func agent(_ view: WKWebView, _ method: String, _ input: JSONValue) async -> Result {
     let body = ClaudeSettings.pageAgent + "\n;return JSON.stringify(globalThis.__compassAgent.\(method)(JSON.parse(opts)));"
     let options = String(decoding: input.encoded(), as: UTF8.self)
     do {
