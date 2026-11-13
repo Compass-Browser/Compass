@@ -310,7 +310,17 @@ void PipStyle::LayOutBottomRow(VideoOverlayWindowViews* window,
   // [previous][time][timeline][next][mute][captions], centered on a line
   // kMargin plus the pill's padding above the bottom edge.
   const int padding = GetPillOutsets(Group::kBottom).left();
-  const int row_height = window->next_track_controls_view_->height();
+  // The buttons' height, whether or not they show: a hidden one can be
+  // 0x0 (no next track on most pages), which put the row half a button
+  // below the window's edge.
+  int row_height = 0;
+  for (views::View* button :
+       {static_cast<views::View*>(window->previous_track_controls_view_.get()),
+        static_cast<views::View*>(window->next_track_controls_view_.get()),
+        static_cast<views::View*>(window->toggle_mute_button_.get()),
+        static_cast<views::View*>(window->live_caption_button_.get())}) {
+    row_height = std::max(row_height, button->GetPreferredSize().height());
+  }
   const int center_y = size.height() - kMargin - padding - row_height / 2;
   auto place = [&](views::View* view, int x, int width, int height) {
     view->SetBounds(x, center_y - height / 2, width, height);
