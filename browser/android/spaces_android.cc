@@ -15,9 +15,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
@@ -45,6 +49,24 @@ constexpr base::TimeDelta kArchiveInterval = base::Minutes(10);
 
 // How many closed tabs' archived entries are kept for undo.
 constexpr size_t kMaxUndoableArchives = 50;
+
+// Whether Chrome's tab |tab_id| is playing sound: the archiver keeps its
+// entry, as the desktop's does.
+bool IsAudible(int tab_id) {
+  for (TabModel* model : TabModelList::models()) {
+    if (model->IsOffTheRecord()) {
+      continue;
+    }
+    for (int i = 0; i < model->GetTabCount(); ++i) {
+      TabAndroid* tab = model->GetTabAt(i);
+      if (tab && tab->GetAndroidId() == tab_id) {
+        content::WebContents* contents = tab->GetContents();
+        return contents && contents->IsCurrentlyAudible();
+      }
+    }
+  }
+  return false;
+}
 
 // A Today entry: a tab or split under Today (maybe in a folder), not a
 // split's pane.
@@ -456,6 +478,18 @@ void SpacesAndroid::SetArchiveAfter(const base::Uuid& space_id, int hours) {
   }
 }
 
+bool SpacesAndroid::IsPlayingSound(const SidebarNode& entry) const {
+  if (int tab_id = TabFor(entry.id()); tab_id != -1 && IsAudible(tab_id)) {
+    return true;
+  }
+  for (const auto& child : entry.children()) {
+    if (int tab_id = TabFor(child->id()); tab_id != -1 && IsAudible(tab_id)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool SpacesAndroid::IsShown(const SidebarNode& entry) {
   for (const auto& [window, tab_id] : shown_tabs_) {
     auto it = tabs_.find(tab_id);
@@ -479,7 +513,9 @@ void SpacesAndroid::ArchiveIdleEntries() {
   size_t archived = 0;
   for (const auto& space : list_.spaces()) {
     archived += space->ArchiveIdleEntries(
-        now, [&](const SidebarNode& entry) { return IsShown(entry); });
+        now, [&](const SidebarNode& entry) {
+          return IsShown(entry) || IsPlayingSound(entry);
+        });
   }
   if (!archived) {
     return;

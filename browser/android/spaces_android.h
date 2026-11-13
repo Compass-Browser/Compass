@@ -188,6 +188,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   void OnLoaded();
   // Whether |entry| shows a tab that a window shows.
   bool IsShown(const SidebarNode& entry);
+  // Whether a tab of |entry| (a tab, or a split's panes) plays sound.
+  bool IsPlayingSound(const SidebarNode& entry) const;
   // Tells observers, once per task however many changes it made.
   void Changed();
   void NotifyChanged();
