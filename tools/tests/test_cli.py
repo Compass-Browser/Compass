@@ -276,5 +276,8 @@ class WinCrossTest(unittest.TestCase):
       self.assertIn('target_os = "android"\n', text)
       self.assertIn('target_cpu = "arm64"\n', text)
       self.assertIn('import("//compass/config/args/portable.gn")', text)
-      self.assertTrue(text.rstrip().endswith(
-          'import("//compass/config/args/android.gn")'))
+      lines = text.rstrip().splitlines()
+      if sys.platform.startswith('linux'):
+        # The Mac host's V8 arg, back to V8's default after android.gn.
+        self.assertEqual(lines.pop(), 'v8_use_host_cpu_arm_features = true')
+      self.assertEqual(lines[-1], 'import("//compass/config/args/android.gn")')

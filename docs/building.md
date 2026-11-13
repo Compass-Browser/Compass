@@ -290,7 +290,9 @@ What makes the Mac host work:
   false`. On an Apple silicon host V8's `mksnapshot` runs natively, and by
   default it lets the builtins it writes use the instructions its compiler
   targets: the Mac's, which many Android CPUs lack (pages die of SIGILL on
-  their first JavaScript). On Linux it runs through a simulator.
+  their first JavaScript). On Linux it runs through a simulator, and the
+  arg doesn't build there: `compass gen` on Linux sets it back to `true`
+  in args.gn, after the import.
 
 Limits:
 
