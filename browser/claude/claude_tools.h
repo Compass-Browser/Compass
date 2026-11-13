@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -317,6 +318,17 @@ class ClaudeTools : public content::WebContentsObserver {
   // The developer tools (claude_devtools_tools.cc).
   void NetworkRequests(base::DictValue input);
   void NetworkResponse(base::DictValue input);
+  // inspect_element and page_storage run DevTools commands one after the
+  // other, gathering what they answer.
+  struct InspectState;
+  struct StorageState;
+  void InspectElement(base::DictValue input);
+  void InspectStep(std::unique_ptr<InspectState> state, int step, Result result);
+  void PageStorage(base::DictValue input);
+  void StorageStep(std::unique_ptr<StorageState> state, int step, Result result);
+  void EditPageStorage(base::DictValue input);
+  void RunStorageEdit(base::DictValue input);
+  void OnCssEvent(const std::string& method, const base::DictValue& params);
   // remember, update_memory, forget.
   ToolResult RunMemoryTool(const std::string& name,
                            const base::DictValue& input);
@@ -372,6 +384,15 @@ class ClaudeTools : public content::WebContentsObserver {
   uint64_t network_read_seq_ = 0;
   // Network.enable was sent in this session.
   bool network_enabled_ = false;
+  // CSS.enable was, and the style sheets it told of, by id: where a rule
+  // comes from.
+  struct StyleSheet {
+    std::string url;
+    int start_line = 0;
+    bool is_inline = false;
+  };
+  bool css_enabled_ = false;
+  std::map<std::string, StyleSheet> style_sheets_;
   base::OnceClosure on_loaded_;
   base::OneShotTimer timeout_;
   base::OneShotTimer idle_;

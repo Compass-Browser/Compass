@@ -20,7 +20,7 @@
 
 (() => {
   'use strict';
-  const VERSION = 1;
+  const VERSION = 2;
   if (globalThis.__compassAgent && globalThis.__compassAgent.version === VERSION) {
     return;
   }
@@ -1004,6 +1004,68 @@
         return {value: el.getAttribute('aria-checked') === 'true'};
       }
       throw new Error('That element isn\'t a form field.');
+    }),
+
+    // Desktop's developer tools (docs/design/claude.md, "Developer tools").
+    // A CSS selector that finds the element, for DevTools' DOM domain.
+    selector: wrap((opts) => {
+      const el = elementFor(opts.ref);
+      if (el.getRootNode() !== document) {
+        throw new Error('That element is inside a shadow root or a frame, ' +
+                        'which inspect_element can\'t reach. Use run_js ' +
+                        'with getComputedStyle instead.');
+      }
+      const parts = [];
+      for (let node = el; node && node.nodeType === Node.ELEMENT_NODE;
+           node = node.parentElement) {
+        if (node.id &&
+            document.querySelectorAll('#' + CSS.escape(node.id)).length === 1) {
+          parts.unshift('#' + CSS.escape(node.id));
+          break;
+        }
+        let part = CSS.escape(node.localName);
+        if (node.parentElement) {
+          part += `:nth-child(${
+              Array.prototype.indexOf.call(node.parentElement.children, node) + 1})`;
+        }
+        parts.unshift(part);
+      }
+      return {selector: parts.join(' > ')};
+    }),
+
+    // localStorage and sessionStorage, as [key, value] pairs (at most 500
+    // each); a store the page can't use says why.
+    storage: wrap(() => {
+      const read = (name) => {
+        try {
+          const store = globalThis[name];
+          const items = [];
+          for (let i = 0; i < store.length && i < 500; i++) {
+            const key = store.key(i);
+            items.push([key, store.getItem(key)]);
+          }
+          return {items, count: store.length};
+        } catch (e) {
+          return {error: String(e && e.message || e)};
+        }
+      };
+      return {origin: location.origin, localStorage: read('localStorage'),
+              sessionStorage: read('sessionStorage')};
+    }),
+
+    // Sets, removes or clears in localStorage or sessionStorage.
+    editStorage: wrap((opts) => {
+      const store = opts.store === 'sessionStorage' ? sessionStorage : localStorage;
+      if (opts.action === 'set') {
+        store.setItem(String(opts.name), String(opts.value ?? ''));
+      } else if (opts.action === 'remove') {
+        store.removeItem(String(opts.name));
+      } else if (opts.action === 'clear') {
+        store.clear();
+      } else {
+        throw new Error(`Unknown action ${opts.action}.`);
+      }
+      return {count: store.length};
     }),
 
     // Synthetic actions, used on iOS.

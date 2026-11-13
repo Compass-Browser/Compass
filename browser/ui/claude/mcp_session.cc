@@ -214,6 +214,11 @@ void McpSession::ListTools(const base::Value& id) {
            /*files=*/chat && !ClaudeCodeOwnToolsOn(profile_),
            /*devtools=*/profile_->GetPrefs()->GetBoolean(prefs::kDevTools))) {
     base::DictValue& dict = definition.GetDict();
+    // It asks the user in the chat first: other clients have no chat.
+    if (!chat && dict.FindString("name") &&
+        *dict.FindString("name") == "edit_page_storage") {
+      continue;
+    }
     base::DictValue tool;
     tool.Set("name", std::move(*dict.Find("name")));
     tool.Set("description", std::move(*dict.Find("description")));

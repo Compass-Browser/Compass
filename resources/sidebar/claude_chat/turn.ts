@@ -170,6 +170,15 @@ export class CompassClaudeTurnElement extends CrLitElement {
         return 'List network requests';
       case 'network_response':
         return `Read request ${short(input['id'])}`;
+      case 'inspect_element':
+        return `Inspect ${short(input['ref'] || input['selector'])}`;
+      case 'page_storage':
+        return 'Read the site\'s storage';
+      case 'edit_page_storage':
+        return input['action'] === 'clear' ?
+            `Clear ${short(input['store'])}` :
+            `${input['action'] === 'set' ? 'Set' : 'Remove'} “${
+                short(input['name'])}” in ${short(input['store'])}`;
       // Claude Code's own tools.
       case 'Bash':
         return `Run ${short(input['command'])}`;

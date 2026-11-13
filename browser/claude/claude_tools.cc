@@ -467,6 +467,8 @@ void ClaudeTools::Release() {
 void ClaudeTools::ResetDevTools() {
   devtools_.reset();
   network_enabled_ = false;
+  css_enabled_ = false;
+  style_sheets_.clear();
 }
 
 void ClaudeTools::Run(const std::string& name,
@@ -558,6 +560,9 @@ void ClaudeTools::Run(const std::string& name,
       {"close_tab", &ClaudeTools::CloseTab},
       {"network_requests", &ClaudeTools::NetworkRequests},
       {"network_response", &ClaudeTools::NetworkResponse},
+      {"inspect_element", &ClaudeTools::InspectElement},
+      {"page_storage", &ClaudeTools::PageStorage},
+      {"edit_page_storage", &ClaudeTools::EditPageStorage},
   };
   for (const auto& [tool, handler] : kHandlers) {
     if (name == tool) {
@@ -820,6 +825,8 @@ void ClaudeTools::OnAttach() {
   // With the developer tools on, the tab's requests are recorded from the
   // first tool on, as the console is.
   network_enabled_ = false;
+  css_enabled_ = false;
+  style_sheets_.clear();
   if (devtools_allowed_ && devtools_allowed_.Run()) {
     EnsureNetwork(base::DoNothing());
   }
@@ -829,6 +836,10 @@ void ClaudeTools::OnEvent(const std::string& method,
                           const base::DictValue& params) {
   if (method.starts_with("Network.")) {
     OnNetworkEvent(method, params);
+    return;
+  }
+  if (method.starts_with("CSS.")) {
+    OnCssEvent(method, params);
     return;
   }
   if (method == "Runtime.consoleAPICalled") {

@@ -817,6 +817,148 @@
       }
     },
     {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "inspect_element",
+        "description": "Inspect one element of the current tab like the Elements panel of the browser's developer tools: its box (size, padding, border, margin), computed styles, the CSS rules that match it with their stylesheet and line (winning first), and its event listeners. Give a ref from read_page or find, or a CSS selector. Elements inside shadow roots or frames can't be inspected; use run_js there.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string",
+              "description": "The element's ref, like \"e12\"."
+            },
+            "selector": {
+              "type": "string",
+              "description": "A CSS selector for the element, instead of a ref; the first match is inspected."
+            },
+            "properties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The computed properties to show (default: layout, box, flex and grid, color and font ones). [\"all\"] shows every one."
+            },
+            "user_agent": {
+              "type": "boolean",
+              "description": "Include the browser's own default rules (default false)."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "page_storage",
+        "description": "Read what the current tab's site stores, like the Application panel of the browser's developer tools: its cookies (name, domain, path, expiry and flags), localStorage and sessionStorage (keys and values), and IndexedDB database names. Cookie values, and storage values that look like credentials, are hidden unless show_values is true. Read-only: edit_page_storage changes them.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "store": {
+              "type": "string",
+              "enum": [
+                "cookies",
+                "localStorage",
+                "sessionStorage",
+                "indexedDB"
+              ],
+              "description": "Only this store (default all)."
+            },
+            "filter": {
+              "type": "string",
+              "description": "Only names or keys containing this text."
+            },
+            "show_values": {
+              "type": "boolean",
+              "description": "Show cookie values and credential-like values. Only when the user asked, in this chat, to see them (default false)."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "edit_page_storage",
+        "description": "Change what the current tab's site stores: set or delete a cookie, set or remove a localStorage or sessionStorage key, or clear one of them for the site. The user sees each change and approves it first. The page sees the change at once, but may need a reload to act on it.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "store": {
+              "type": "string",
+              "enum": [
+                "cookies",
+                "localStorage",
+                "sessionStorage"
+              ],
+              "description": "Where to change."
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "set",
+                "remove",
+                "clear"
+              ],
+              "description": "set a value, remove one, or clear the whole store for the site."
+            },
+            "name": {
+              "type": "string",
+              "description": "The cookie's name or the storage key (set, remove)."
+            },
+            "value": {
+              "type": "string",
+              "description": "The new value (set)."
+            },
+            "cookie": {
+              "type": "object",
+              "description": "A set cookie's attributes; by default it's for the page's host and path /, and lasts the session.",
+              "properties": {
+                "domain": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "expires": {
+                  "type": "number",
+                  "description": "When it expires, in seconds since 1970."
+                },
+                "secure": {
+                  "type": "boolean"
+                },
+                "http_only": {
+                  "type": "boolean"
+                },
+                "same_site": {
+                  "type": "string",
+                  "enum": [
+                    "Strict",
+                    "Lax",
+                    "None"
+                  ]
+                }
+              }
+            }
+          },
+          "required": [
+            "store",
+            "action"
+          ]
+        }
+      }
+    },
+    {
       "scope": "memory",
       "platforms": [
         "desktop",
