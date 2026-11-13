@@ -112,6 +112,9 @@ struct LiveFolderEditor: View {
                 if !p.manifest.description.isEmpty {
                   Text(p.manifest.description).font(.footnote).foregroundStyle(.secondary)
                 }
+                if live.isManual(p) {
+                  Text("Installed by hand, in Files").font(.footnote).foregroundStyle(.secondary)
+                }
               }
             }
           }
@@ -126,6 +129,17 @@ struct LiveFolderEditor: View {
       }
       Section {
         Button("Install a Plugin…", systemImage: "square.and.arrow.down") { installing = true }
+      } footer: {
+        Text("Or copy a plugin's folder (its manifest.json, script and icon) to Files › On My iPhone › Compass › Live Folder Plugins.")
+      }
+      if !live.manualProblems.isEmpty {
+        Section {
+          ForEach(live.manualProblems, id: \.self) { problem in
+            Text(problem).font(.footnote)
+          }
+        } header: {
+          Text("Not loaded from Live Folder Plugins")
+        }
       }
     }
     .navigationTitle("New Live Folder")

@@ -319,6 +319,16 @@ Done (`ios/CompassKit/Sources/CompassLiveFolders`, `ios/App/Model/LiveFolders.sw
   top of the app's bundle (a `plugins` folder would be its `PlugIns` on a
   case-insensitive disk); installed plugins go in `Live Plugins/<id>/`,
   from a manifest's address after a review, with the desktop's hash.
+- **Installed by hand:** `Documents/Live Folder Plugins/` (Files › On My
+  iPhone › Compass, made on first use with a Read Me) takes a plugin's
+  folder as it is: its `manifest.json`, with the entry and icon it names
+  beside it (`LivePluginPackage.manual(in:rules:)`, the same checks and
+  size limits as a fetched one). It's read again whenever the app comes to
+  the front; a plugin there wins over an installed one with the same ID,
+  shows "Installed by hand" in New Live Folder, and Remove deletes its
+  folder. Its source is the folder's file URL, so other devices syncing its
+  folders can't fetch it. Folders that aren't a valid plugin are listed
+  under "Not loaded from Live Folder Plugins", with why.
 - Sidebar: the plugin's icon (an SF Symbol for the built-ins, whose SVG
   icons UIKit can't draw; an installed plugin's PNG), a spinner, a warning
   with the error in the menu, unseen dots and a count on a closed folder;

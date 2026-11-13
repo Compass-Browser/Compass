@@ -70,6 +70,39 @@ enum AutoPiP {
   ///   picture-in-picture, so the app answers with enterSource/exitSource.
   ///   After its window closes or goes back to the page, a video isn't
   ///   moved again until it has been on screen.
+  /// Videos play in the page, not fullscreen: on the iPhone WebKit plays a
+  /// video inline only if it has `playsinline`, else it goes fullscreen as
+  /// it starts (YouTube's player, for one). Every video gets it as it's
+  /// added, before it can play; the player's own fullscreen button still
+  /// works. Main frame and frames alike (embeds), from the document's start.
+  static var inlineScript: WKUserScript {
+    WKUserScript(
+    source: """
+      (() => {
+        const inline = (video) => {
+          if (video.playsInline) return;
+          video.playsInline = true;
+          video.setAttribute("playsinline", "");
+          video.setAttribute("webkit-playsinline", "");
+        };
+        const scan = (root) => {
+          if (root instanceof HTMLVideoElement) inline(root);
+          if (root.querySelectorAll) for (const video of root.querySelectorAll("video")) inline(video);
+        };
+        new MutationObserver((records) => {
+          for (const record of records) for (const node of record.addedNodes) scan(node);
+        }).observe(document, { childList: true, subtree: true });
+        scan(document);
+        // A video made with document.createElement and played before it's
+        // in the page.
+        document.addEventListener("play", (event) => {
+          if (event.target instanceof HTMLVideoElement) inline(event.target);
+        }, true);
+      })();
+      """,
+    injectionTime: .atDocumentStart, forMainFrameOnly: false, in: world)
+  }
+
   static var script: WKUserScript {
     WKUserScript(
       source: """
@@ -90,7 +123,11 @@ enum AutoPiP {
             for (const v of videos) if ("autoPictureInPicture" in v && v.webkitPresentationMode !== "picture-in-picture") {
               v.autoPictureInPicture = v === one;
             }
-            if (one && !document.pictureInPictureElement) window.__compassAutoPiP = one;
+            // Not document.pictureInPictureElement: on YouTube WebKit keeps
+            // reporting one while no window is open. A video's own mode is
+            // what's on screen.
+            const inPiP = videos.some((v) => v.webkitPresentationMode === "picture-in-picture");
+            if (one && !inPiP) window.__compassAutoPiP = one;
             const state = one || call ? "playing" : "idle";
             if (state !== last) { last = state; post("state:" + state); }
           };
@@ -158,8 +195,7 @@ enum AutoPiP {
           // document.
           const inWindow = () => {
             const video = window.__compassAutoPiP;
-            return !!video && (document.pictureInPictureElement === video
-              || video.webkitPresentationMode === "picture-in-picture" || video.__compassEntering);
+            return !!video && (video.webkitPresentationMode === "picture-in-picture" || video.__compassEntering);
           };
           for (const type of ["visibilitychange", "webkitvisibilitychange", "pagehide", "blur"]) {
             window.addEventListener(type, (event) => {
@@ -192,7 +228,9 @@ enum AutoPiP {
     ((scroll) => {
       const videos = [...document.querySelectorAll("video")];
       if (!videos.length) return "no video";
-      if (document.pictureInPictureElement) return "already in PiP";
+      // A video's own mode, not document.pictureInPictureElement, which
+      // WebKit keeps set on YouTube with no window open.
+      if (videos.some((v) => v.webkitPresentationMode === "picture-in-picture")) return "already in PiP";
       if (videos.some((v) => v.webkitPresentationMode && v.webkitPresentationMode !== "inline")) return "already presented";
       const why = (v) => v.paused ? "paused" : v.ended ? "ended" : v.muted || v.volume === 0 ? "muted"
         : v.readyState < 2 ? "not ready"
