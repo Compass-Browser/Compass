@@ -564,10 +564,14 @@ def _gh(args: List[str], check: bool = True) -> subprocess.CompletedProcess:
                                                e.returncode))
 
 
-def github_has_commit(commit: str) -> bool:
-  return subprocess.run(
-      ['gh', 'api', 'repos/%s/commits/%s' % (GITHUB_REPO, commit), '--silent'],
-      capture_output=True).returncode == 0
+def github_commit(commit: str) -> Optional[str]:
+  """|commit|'s full hash if GitHub has it, else None. A release's target
+  must be a full hash or a branch; build sidecars record short ones."""
+  done = subprocess.run(
+      ['gh', 'api', 'repos/%s/commits/%s' % (GITHUB_REPO, commit), '--jq',
+       '.sha'], capture_output=True, text=True)
+  sha = done.stdout.strip()
+  return sha if done.returncode == 0 and len(sha) == 40 else None
 
 
 def github_release_args(release: Dict, target: Optional[str]) -> List[str]:
@@ -590,7 +594,7 @@ def publish_assets(release: Dict, paths: List[Path], commit: str = '') -> None:
   otherwise)."""
   tag = github_tag(release['version'])
   if _gh(['release', 'view', tag], check=False).returncode != 0:
-    target = commit if commit and github_has_commit(commit) else None
+    target = github_commit(commit) if commit else None
     _gh(github_release_args(release, target))
   _gh(['release', 'upload', tag, '--clobber'] + [str(p) for p in paths])
 

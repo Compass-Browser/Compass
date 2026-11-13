@@ -498,9 +498,12 @@ class GitHubReleaseTest(unittest.TestCase):
       code = 0
       if cmd[:3] == ['gh', 'release', 'view']:
         code = 0 if existing_release else 1
+      stdout = ''
       if cmd[:2] == ['gh', 'api']:
         code = 0 if has_commit else 1
-      return mock.Mock(returncode=code)
+        # GitHub answers with the full hash, also for a short one.
+        stdout = 'c' * 40 + '\n' if has_commit else ''
+      return mock.Mock(returncode=code, stdout=stdout)
 
     with mock.patch.object(release.subprocess, 'run', side_effect=fake_run):
       fn()
@@ -516,6 +519,13 @@ class GitHubReleaseTest(unittest.TestCase):
     self.assertEqual(['gh', 'release', 'upload', 'v20261103.0215', '--clobber',
                       str(Path('/s/a.dmg')), '--repo',
                       'Compass-Browser/Compass'], calls[3])
+
+  def test_a_short_commit_targets_its_full_hash(self):
+    r = self.MIXED['releases'][1]
+    calls = self._gh_calls(
+        lambda: release.publish_assets(r, [Path('/s/a.dmg')], 'ccccccc'))
+    create = calls[2]
+    self.assertEqual(create[create.index('--target') + 1], 'c' * 40)
 
   def test_publish_to_an_existing_release_only_uploads(self):
     r = self.MIXED['releases'][1]
