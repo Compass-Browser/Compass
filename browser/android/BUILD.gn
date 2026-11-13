@@ -50,11 +50,14 @@ source_set("spaces") {
     "spaces_bridge.cc",
     "spaces_bridge.h",
   ]
+  # The archiver asks Chrome's tab models which tabs play sound (their
+  # headers come with //chrome/browser, which this links into).
   deps = [
     "//base",
     "//chrome/browser/profiles:profile",
     "//compass/android:jni_headers",
     "//compass/browser/sidebar",
+    "//content/public/browser",
     "//url",
   ]
 }

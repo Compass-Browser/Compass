@@ -116,7 +116,8 @@ It costs:
   (`ArchiveNode()`). The archiver runs as on the desktop, 30 s after the
   spaces load and every 10 minutes after that: it archives the Today
   entries that went unseen for their space's delay and closes their tabs
-  (`OnTabsArchived()`, no undo). An entry shown in a window is kept; each
+  (`OnTabsArchived()`, no undo). An entry shown in a window is kept, and
+  so is one whose tab plays sound (Chrome's tab models); each
   window's bridge reports the tab it shows, and both the tab a window
   leaves and the one it shows are stamped as last active, so the clock
   starts when an entry leaves the screen. The space's ⋯ menu has
