@@ -98,7 +98,14 @@ McpSession::McpSession(Profile* profile, SendCallback send, AskCallback ask)
     : profile_(profile),
       send_(std::move(send)),
       ask_(std::move(ask)),
-      tools_(std::make_unique<ClaudeTabs>(profile, nullptr)) {}
+      tools_(std::make_unique<ClaudeTabs>(profile, nullptr)) {
+  // Without an approver, edit_page_storage refuses here.
+  tools_.SetDevTools(base::BindRepeating(
+      [](Profile* profile) {
+        return profile->GetPrefs()->GetBoolean(prefs::kDevTools);
+      },
+      base::Unretained(profile)));
+}
 
 McpSession::McpSession(Profile* profile,
                        SendCallback send,
@@ -201,9 +208,11 @@ void McpSession::ListTools(const base::Value& id) {
   // A chat's Claude Code gets the memory tools, and the file tools unless it
   // uses its own; other clients get neither (they have their own files).
   const bool chat = !chat_.is_null();
+  // The developer tools, while they're on.
   for (base::Value& definition : ClaudeTools::Definitions(
            /*memory=*/chat,
-           /*files=*/chat && !ClaudeCodeOwnToolsOn(profile_))) {
+           /*files=*/chat && !ClaudeCodeOwnToolsOn(profile_),
+           /*devtools=*/profile_->GetPrefs()->GetBoolean(prefs::kDevTools))) {
     base::DictValue& dict = definition.GetDict();
     base::DictValue tool;
     tool.Set("name", std::move(*dict.Find("name")));

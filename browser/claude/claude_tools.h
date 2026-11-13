@@ -165,7 +165,11 @@ class ClaudeTools : public content::WebContentsObserver {
   // caching.
   // |files|: the file tools (always sent where they exist, as the browser
   // tools; left out for MCP clients that have their own).
-  static base::ListValue Definitions(bool memory = false, bool files = true);
+  // |devtools|: the developer tools, sent only while "Let Claude use
+  // developer tools" is on (docs/design/claude.md, "Developer tools").
+  static base::ListValue Definitions(bool memory = false,
+                                     bool files = true,
+                                     bool devtools = false);
 
   // The memory the memory tools change, and whether they may now ("Let
   // Claude save memories"). Without it, they refuse.
@@ -179,6 +183,11 @@ class ClaudeTools : public content::WebContentsObserver {
   using Approver = base::RepeatingCallback<void(ApprovalRequest,
                                                 base::OnceCallback<void(bool)>)>;
   void SetFiles(FilesConfigGetter config, Approver approve);
+
+  // Whether the developer tools may run now ("Let Claude use developer
+  // tools"). Without it, they refuse. edit_page_storage asks through the
+  // approver SetFiles() gave.
+  void SetDevTools(base::RepeatingCallback<bool()> allowed);
 
   // The task's tab: the page tools act on it until select_tab or open_tab
   // picks another. Setting another one stops what runs.
@@ -203,6 +212,36 @@ class ClaudeTools : public content::WebContentsObserver {
     double time = 0;
   };
   using Result = base::expected<base::DictValue, std::string>;
+  // A request network_requests lists (Network.* events).
+  struct NetworkEntry {
+    NetworkEntry();
+    NetworkEntry(NetworkEntry&&);
+    NetworkEntry& operator=(NetworkEntry&&);
+    ~NetworkEntry();
+
+    uint64_t seq = 0;
+    // DevTools' id; a redirect keeps it, so the latest entry with it wins.
+    std::string request_id;
+    std::string method;
+    std::string url;
+    std::string type;
+    std::string mime_type;
+    int status = 0;
+    std::string status_text;
+    // Why it failed (net::ERR_…), when it did.
+    std::string error;
+    bool finished = false;
+    bool from_cache = false;
+    // DevTools' monotonic timestamps, in seconds.
+    double start = 0;
+    double end = 0;
+    // Bytes on the wire.
+    double size = 0;
+    base::DictValue request_headers;
+    base::DictValue response_headers;
+    std::string post_data;
+    bool has_post_data = false;
+  };
 
   void Finish(ToolResult result);
   // The page tools act on |contents| from now on, without stopping the
@@ -222,6 +261,15 @@ class ClaudeTools : public content::WebContentsObserver {
                   std::string text,
                   std::string source,
                   double time);
+  void OnNetworkEvent(const std::string& method,
+                      const base::DictValue& params);
+  NetworkEntry* FindNetworkEntry(const std::string& request_id);
+  // Lets go of the DevTools session and what lived in it.
+  void ResetDevTools();
+  // Whether the developer tools may run; an error result otherwise.
+  bool CheckDevTools();
+  // Records the tab's requests from now on (Network.enable), then |next|.
+  void EnsureNetwork(base::OnceClosure next);
 
   // The page agent, on the target.
   void Agent(const std::string& method,
@@ -266,6 +314,9 @@ class ClaudeTools : public content::WebContentsObserver {
   void OpenTab(base::DictValue input);
   void SelectTab(base::DictValue input);
   void CloseTab(base::DictValue input);
+  // The developer tools (claude_devtools_tools.cc).
+  void NetworkRequests(base::DictValue input);
+  void NetworkResponse(base::DictValue input);
   // remember, update_memory, forget.
   ToolResult RunMemoryTool(const std::string& name,
                            const base::DictValue& input);
@@ -283,6 +334,9 @@ class ClaudeTools : public content::WebContentsObserver {
                       std::string content,
                       base::expected<bool, std::string> exists);
   void FinishWithText(base::expected<std::string, std::string> text);
+  // Asks the user about |request|, then runs |then| (a change the user must
+  // allow, like edit_page_storage's).
+  void ApproveThen(ApprovalRequest request, base::OnceClosure then);
   // The browser tools ClaudeTabs runs.
   void RunBrowserTool(const std::string& name, base::DictValue input);
   void OnBrowserToolDone(TabsDelegate::Result result);
@@ -296,6 +350,7 @@ class ClaudeTools : public content::WebContentsObserver {
   base::RepeatingCallback<bool()> may_save_memory_;
   FilesConfigGetter files_config_;
   Approver approve_;
+  base::RepeatingCallback<bool()> devtools_allowed_;
   // Where file work runs (blocking).
   scoped_refptr<base::SequencedTaskRunner> file_runner_;
   // The tab the user's message was about (SetTarget()).
@@ -311,6 +366,12 @@ class ClaudeTools : public content::WebContentsObserver {
   std::deque<ConsoleEntry> console_;
   uint64_t next_console_seq_ = 1;
   uint64_t console_read_seq_ = 0;
+  // The requests since the developer tools first ran on the tab.
+  std::deque<NetworkEntry> network_;
+  uint64_t next_network_seq_ = 1;
+  uint64_t network_read_seq_ = 0;
+  // Network.enable was sent in this session.
+  bool network_enabled_ = false;
   base::OnceClosure on_loaded_;
   base::OneShotTimer timeout_;
   base::OneShotTimer idle_;

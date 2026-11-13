@@ -30,6 +30,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
                                 static_cast<int>(FilesAccess::kOff));
   registry->RegisterStringPref(kFilesFolder, std::string());
   registry->RegisterBooleanPref(kClaudeCodeOwnTools, false);
+  registry->RegisterBooleanPref(kDevTools, false);
 }
 
 }  // namespace compass::claude::prefs

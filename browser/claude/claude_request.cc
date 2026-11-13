@@ -94,6 +94,12 @@ std::string BuildMessageContext(const ChatOptions& options) {
   base::StrAppend(&context, {DescribeFilesAccess(options.files,
                                                  options.claude_code_own_tools),
                              "\n"});
+  context += options.devtools
+                 ? "Developer tools are on: you can inspect the tab's "
+                   "network, styles, storage and performance, and emulate "
+                   "devices.\n"
+                 : "Developer tools are off (the user can turn them on in "
+                   "Compass's Claude settings).\n";
   if (!options.window_tabs.empty()) {
     base::StrAppend(
         &context,
@@ -142,7 +148,10 @@ ChatRequest BuildChatRequest(base::ListValue messages,
   request.body.Set("messages", std::move(messages));
   if (options.tools) {
     // Cached with the prompt: they come before it in the cache's order.
-    request.body.Set("tools", ClaudeTools::Definitions(options.memory_tools));
+    request.body.Set("tools",
+                     ClaudeTools::Definitions(options.memory_tools,
+                                              /*files=*/true,
+                                              options.devtools_tools));
   }
   // The conversation so far is cached too: each turn resends it.
   request.body.Set("cache_control", Ephemeral());

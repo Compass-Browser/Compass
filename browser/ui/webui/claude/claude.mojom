@@ -67,6 +67,9 @@ struct SettingsState {
   string default_save_folder;
   // Claude Code mode's own tools (files, shell, web) in the folder.
   bool claude_code_own_tools;
+  // "Let Claude use developer tools" (docs/design/claude.md, "Developer
+  // tools").
+  bool devtools;
 };
 
 // A fact Claude saved about the user.
@@ -128,4 +131,5 @@ interface SettingsHandler {
   // No folder: "Save files" goes to Downloads again.
   ClearFilesFolder();
   SetClaudeCodeOwnTools(bool enabled);
+  SetDevTools(bool enabled);
 };

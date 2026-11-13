@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
+  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). `devtools` tools inspect the target tab like the browser's developer tools (network, styles, storage, performance, emulation), need the \"Let Claude use developer tools\" setting, are sent only when it's on, and ask the user before changing the page's storage (docs/design/claude.md, \"Developer tools\"). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
   "tools": [
     {
       "scope": "page",
@@ -722,6 +722,97 @@
               "description": "A device's name, from the list."
             }
           }
+        }
+      }
+    },
+    {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "network_requests",
+        "description": "List the current tab's network requests, like the Network panel of the browser's developer tools: an id (like \"r12\"), method, status, type, URL, size and time, oldest first. Requests are recorded from when you first used the tab in this chat; to see a page's own load, navigate with \"reload\" first. Use network_response with an id for headers and body.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "only_new": {
+              "type": "boolean",
+              "description": "Only requests since the last network_requests in this chat (default false)."
+            },
+            "url": {
+              "type": "string",
+              "description": "Only requests whose URL matches this regular expression."
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Document",
+                  "Stylesheet",
+                  "Image",
+                  "Media",
+                  "Font",
+                  "Script",
+                  "XHR",
+                  "Fetch",
+                  "EventSource",
+                  "WebSocket",
+                  "Manifest",
+                  "Ping",
+                  "Preflight",
+                  "Other"
+                ]
+              },
+              "description": "Only these resource types (default all)."
+            },
+            "failed": {
+              "type": "boolean",
+              "description": "Only requests that failed or got an HTTP error (status 400 or more)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "At most this many requests, the most recent ones (default 50)."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "devtools",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "network_response",
+        "description": "One request from network_requests in full: request and response headers, the request's body (form or JSON posts) and the response body as text. Values of headers that carry credentials (cookies, authorization, tokens) are hidden unless show_secrets is true. Binary bodies (images, fonts) aren't shown. Long bodies come in parts: use offset for the next one.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "The request's id from network_requests, like \"r12\"."
+            },
+            "body": {
+              "type": "boolean",
+              "description": "Include the response body (default true)."
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The body's character to start from (default 0)."
+            },
+            "show_secrets": {
+              "type": "boolean",
+              "description": "Show credential headers' values. Only when the user asked, in this chat, to see them (default false)."
+            }
+          },
+          "required": [
+            "id"
+          ]
         }
       }
     },

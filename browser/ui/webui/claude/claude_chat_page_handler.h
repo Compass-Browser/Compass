@@ -163,6 +163,8 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   // How the process (or the session to resume) was started: with Claude
   // Code's own tools, in this folder (empty without them).
   bool claude_code_own_tools_ = false;
+  // Whether the developer tools were on when Claude Code started.
+  bool claude_code_devtools_ = false;
   base::FilePath claude_code_folder_;
   // Counts processes started, so an answer for one that ended isn't written
   // to the next.
@@ -183,6 +185,8 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   // McpBridge::RegisterChat()'s token, while registered.
   std::string chat_token_;
   std::optional<ChatMemory> chat_memory_;
+  // The chat has the developer tools (once on, they stay in it).
+  bool chat_devtools_ = false;
   // What the memory tools changed in this page's chats, by undo id.
   std::map<int32_t, MemoryChange> memory_undo_;
   int32_t next_undo_id_ = 1;

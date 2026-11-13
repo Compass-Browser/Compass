@@ -36,6 +36,10 @@ struct ChatOptions {
   bool tools = true;
   // Send the memory tools too (remember, update_memory, forget).
   bool memory_tools = false;
+  // "Let Claude use developer tools", said in the context.
+  bool devtools = false;
+  // Send the developer tools (docs/design/claude.md, "Developer tools").
+  bool devtools_tools = false;
   // The <memory> block (FormatMemoryBlock()), as it was when the chat
   // started: it's in the system prompt, which never changes in a chat. Empty
   // for none.

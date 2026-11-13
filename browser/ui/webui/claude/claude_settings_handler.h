@@ -69,6 +69,7 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void ForgetMcpClient(const std::string& client) override;
   void SetMemoryEnabled(bool enabled) override;
   void SetMemorySave(bool enabled) override;
+  void SetDevTools(bool enabled) override;
   void GetMemories(GetMemoriesCallback callback) override;
   void AddMemory(const std::string& text, AddMemoryCallback callback) override;
   void UpdateMemory(const std::string& id,

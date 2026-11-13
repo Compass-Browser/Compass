@@ -102,6 +102,9 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
                           base::Unretained(browser_->GetProfile())),
       base::BindRepeating(&ClaudeChatPageHandler::AskApproval,
                           weak_factory_.GetWeakPtr()));
+  tools_.SetDevTools(base::BindRepeating(
+      [](PrefService* prefs) { return prefs->GetBoolean(prefs::kDevTools); },
+      browser_->GetProfile()->GetPrefs()));
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
@@ -112,6 +115,7 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
   pref_registrar_.Add(prefs::kFilesAccess, changed);
   pref_registrar_.Add(prefs::kFilesFolder, changed);
   pref_registrar_.Add(prefs::kClaudeCodeOwnTools, changed);
+  pref_registrar_.Add(prefs::kDevTools, changed);
   active_tab_subscription_ = browser_->RegisterActiveTabDidChange(
       base::BindRepeating(&ClaudeChatPageHandler::OnActiveTabChanged,
                           base::Unretained(this)));
@@ -246,6 +250,14 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
       FreezeMemory(/*new_chat=*/messages->GetList().size() == 1);
   options.memory = memory.block;
   options.memory_tools = memory.tools;
+  // The developer tools join a chat when they're turned on, and stay in it
+  // (refusing while off): a conversation's tools only ever grow.
+  if (messages->GetList().size() == 1) {
+    chat_devtools_ = false;
+  }
+  options.devtools = prefs->GetBoolean(prefs::kDevTools);
+  chat_devtools_ = chat_devtools_ || options.devtools;
+  options.devtools_tools = chat_devtools_;
   ChatRequest request =
       BuildChatRequest(std::move(*messages).TakeList(), options);
 
@@ -334,6 +346,8 @@ void ClaudeChatPageHandler::GetContext(GetContextCallback callback) {
   options.files = GetFilesConfig(browser_->GetProfile());
   options.claude_code_own_tools =
       UsesClaudeCode() && ClaudeCodeOwnToolsOn(browser_->GetProfile());
+  options.devtools =
+      browser_->GetProfile()->GetPrefs()->GetBoolean(prefs::kDevTools);
   options.window_tabs = WindowTabs();
   std::move(callback).Run(BuildMessageContext(options));
 }
@@ -411,6 +425,11 @@ void ClaudeChatPageHandler::SendToClaudeCode(base::ListValue messages) {
     // so a new one starts (the page keeps showing the conversation).
     EndClaudeCode(/*forget=*/true);
   } else if (claude_code_ &&
+             claude_code_devtools_ != prefs->GetBoolean(prefs::kDevTools)) {
+    // The developer tools came or went: Claude Code lists Compass's tools
+    // as it starts, so the conversation goes on in a new process.
+    EndClaudeCode(/*forget=*/false);
+  } else if (claude_code_ &&
              claude_code_model_ != prefs->GetString(prefs::kModel)) {
     // Another model: the same conversation, resumed on it.
     EndClaudeCode(/*forget=*/false);
@@ -477,6 +496,7 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   // one of the profile's.
   options.own_tools = ClaudeCodeOwnToolsOn(profile);
   claude_code_own_tools_ = options.own_tools;
+  claude_code_devtools_ = profile->GetPrefs()->GetBoolean(prefs::kDevTools);
   claude_code_folder_ = options.own_tools ? GetFilesConfig(profile).folder
                                           : base::FilePath();
   claude_code_model_ = options.model;

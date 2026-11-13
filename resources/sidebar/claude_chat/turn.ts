@@ -166,6 +166,10 @@ export class CompassClaudeTurnElement extends CrLitElement {
         return `Read “${short(input['path'])}”`;
       case 'write_file':
         return `Write “${short(input['path'])}”`;
+      case 'network_requests':
+        return 'List network requests';
+      case 'network_response':
+        return `Read request ${short(input['id'])}`;
       // Claude Code's own tools.
       case 'Bash':
         return `Run ${short(input['command'])}`;

@@ -182,6 +182,15 @@ bool IsFilesTool(const std::string& name) {
   return ScopeOf(name) == "files";
 }
 
+bool IsDevToolsTool(const std::string& name) {
+  return ScopeOf(name) == "devtools";
+}
+
+constexpr char kDevToolsOff[] =
+    "Not permitted: the user hasn't turned on \"Let Claude use developer "
+    "tools\" (Compass settings, Claude). Tell the user if the task needs "
+    "it.";
+
 constexpr char kFilesOff[] =
     "Not permitted: the user hasn't turned on file access (Compass settings, "
     "Claude, Files). Tell the user if the task needs it.";
@@ -280,11 +289,14 @@ void ClaudeTools::StopActing() {
 }
 
 // static
-base::ListValue ClaudeTools::Definitions(bool memory, bool files) {
+base::ListValue ClaudeTools::Definitions(bool memory,
+                                         bool files,
+                                         bool devtools) {
   base::ListValue definitions;
   for (const base::Value& tool : ToolEntries()) {
     const std::string scope = Describe(tool.GetDict(), "scope");
-    if ((!memory && scope == "memory") || (!files && scope == "files")) {
+    if ((!memory && scope == "memory") || (!files && scope == "files") ||
+        (!devtools && scope == "devtools")) {
       continue;
     }
     definitions.Append(tool.GetDict().FindDict("definition")->Clone());
@@ -300,6 +312,22 @@ base::ListValue ClaudeTools::Definitions(bool memory, bool files) {
 void ClaudeTools::SetFiles(FilesConfigGetter config, Approver approve) {
   files_config_ = std::move(config);
   approve_ = std::move(approve);
+}
+
+void ClaudeTools::SetDevTools(base::RepeatingCallback<bool()> allowed) {
+  devtools_allowed_ = std::move(allowed);
+}
+
+bool ClaudeTools::CheckDevTools() {
+  if (!devtools_allowed_) {
+    Finish(ToolResult::Error("The developer tools aren't available here."));
+    return false;
+  }
+  if (!devtools_allowed_.Run()) {
+    Finish(ToolResult::Error(kDevToolsOff));
+    return false;
+  }
+  return true;
 }
 
 void ClaudeTools::SetMemory(ClaudeMemory* memory,
@@ -377,6 +405,8 @@ void ClaudeTools::SetTarget(content::WebContents* contents) {
   Observe(contents);
   console_.clear();
   console_read_seq_ = 0;
+  network_.clear();
+  network_read_seq_ = 0;
   screenshot_scale_ = 1;
 }
 
@@ -384,11 +414,13 @@ void ClaudeTools::Retarget(content::WebContents* contents) {
   if (contents == web_contents()) {
     return;
   }
-  devtools_.reset();
+  ResetDevTools();
   capture_.RunAndReset();
   Observe(contents);
   console_.clear();
   console_read_seq_ = 0;
+  network_.clear();
+  network_read_seq_ = 0;
   screenshot_scale_ = 1;
   if (acting_) {
     // The tint follows Claude to the new tab.
@@ -427,8 +459,14 @@ void ClaudeTools::Stop() {
 
 void ClaudeTools::Release() {
   idle_.Stop();
-  devtools_.reset();
+  // Letting go of the session also undoes what emulate changed.
+  ResetDevTools();
   capture_.RunAndReset();
+}
+
+void ClaudeTools::ResetDevTools() {
+  devtools_.reset();
+  network_enabled_ = false;
 }
 
 void ClaudeTools::Run(const std::string& name,
@@ -447,6 +485,9 @@ void ClaudeTools::Run(const std::string& name,
     // No tab: files, with the setting and the user's approval. No timeout
     // either: the user may take a while to decide.
     RunFileTool(name, std::move(input));
+    return;
+  }
+  if (IsDevToolsTool(name) && !CheckDevTools()) {
     return;
   }
   content::WebContents* contents = web_contents();
@@ -515,6 +556,8 @@ void ClaudeTools::Run(const std::string& name,
       {"open_tab", &ClaudeTools::OpenTab},
       {"select_tab", &ClaudeTools::SelectTab},
       {"close_tab", &ClaudeTools::CloseTab},
+      {"network_requests", &ClaudeTools::NetworkRequests},
+      {"network_response", &ClaudeTools::NetworkResponse},
   };
   for (const auto& [tool, handler] : kHandlers) {
     if (name == tool) {
@@ -694,6 +737,30 @@ void ClaudeTools::ApproveThenWrite(
                               std::move(write)));
 }
 
+void ClaudeTools::ApproveThen(ApprovalRequest request,
+                              base::OnceClosure then) {
+  if (!approve_) {
+    Finish(ToolResult::Error("Compass can't ask the user here."));
+    return;
+  }
+  // No timeout while the user decides; Stop() still ends it.
+  timeout_.Stop();
+  approve_.Run(std::move(request),
+               base::BindOnce(
+                   [](base::WeakPtr<ClaudeTools> self, base::OnceClosure then,
+                      bool allowed) {
+                     if (!self) {
+                       return;
+                     }
+                     if (!allowed) {
+                       self->Finish(ToolResult::Error(kNotAllowed));
+                       return;
+                     }
+                     std::move(then).Run();
+                   },
+                   run_weak_factory_.GetWeakPtr(), std::move(then)));
+}
+
 void ClaudeTools::OnApproval(
     base::OnceCallback<base::expected<std::string, std::string>()> write,
     bool allowed) {
@@ -750,10 +817,20 @@ void ClaudeTools::OnAttach() {
        {"Runtime.enable", "Log.enable", "DOM.enable", "Overlay.enable"}) {
     devtools_->Send(method, base::DictValue(), base::DoNothing());
   }
+  // With the developer tools on, the tab's requests are recorded from the
+  // first tool on, as the console is.
+  network_enabled_ = false;
+  if (devtools_allowed_ && devtools_allowed_.Run()) {
+    EnsureNetwork(base::DoNothing());
+  }
 }
 
 void ClaudeTools::OnEvent(const std::string& method,
                           const base::DictValue& params) {
+  if (method.starts_with("Network.")) {
+    OnNetworkEvent(method, params);
+    return;
+  }
   if (method == "Runtime.consoleAPICalled") {
     std::vector<std::string> args;
     if (const base::ListValue* list = params.FindList("args")) {
@@ -1645,7 +1722,7 @@ void ClaudeTools::DidStopLoading() {
 void ClaudeTools::WebContentsDestroyed() {
   StopActing();
   capture_.ReplaceClosure(base::OnceClosure());
-  devtools_.reset();
+  ResetDevTools();
   Observe(nullptr);
   if (callback_) {
     Finish(ToolResult::Error("The tab Claude was using closed."));

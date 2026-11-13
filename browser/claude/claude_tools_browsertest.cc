@@ -4,9 +4,11 @@
 
 #include "compass/browser/claude/claude_tools.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_util.h"
@@ -74,6 +76,13 @@ class ClaudeToolsBrowserTest : public InProcessBrowserTest {
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         [](const net::test_server::HttpRequest& request)
             -> std::unique_ptr<net::test_server::HttpResponse> {
+          if (request.relative_url.starts_with("/api.json")) {
+            auto response =
+                std::make_unique<net::test_server::BasicHttpResponse>();
+            response->set_content_type("application/json");
+            response->set_content(R"({"name":"Ada","token":"t0ps3cret"})");
+            return response;
+          }
           if (request.relative_url != "/tools.html" &&
               request.relative_url != "/other.html") {
             return nullptr;
@@ -165,6 +174,38 @@ class ClaudeToolsBrowserTest : public InProcessBrowserTest {
     }
     const size_t start = at + strlen("Opened tab ");
     return text.substr(start, text.find(':', start) - start);
+  }
+
+  // The developer tools, on.
+  void AllowDevTools() {
+    tools_->SetDevTools(base::BindRepeating([] { return true; }));
+  }
+
+  // network_requests until |done| holds for its text, waiting between.
+  std::string ListRequestsUntil(
+      base::RepeatingCallback<bool(const std::string&)> done) {
+    std::string list;
+    for (int i = 0; i < 50; ++i) {
+      list = Text(Run("network_requests"));
+      if (done.Run(list)) {
+        break;
+      }
+      Run("wait", R"({"seconds": 0.1})");
+    }
+    return list;
+  }
+
+  // The id ("r3") of the request on the line of |list| containing |part|.
+  static std::string RequestId(const std::string& list,
+                               const std::string& part) {
+    for (const std::string& line : base::SplitString(
+             list, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+      if (line.find(part) != std::string::npos && line[0] == 'r') {
+        return line.substr(0, line.find(' '));
+      }
+    }
+    ADD_FAILURE() << "No request with " << part << " in:\n" << list;
+    return std::string();
   }
 
   std::unique_ptr<ClaudeTools> tools_;
@@ -730,6 +771,89 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, StopWhileAsking) {
   std::move(answer).Run(true);
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(base::PathExists(dir.GetPath().AppendASCII("late.md")));
+}
+
+// The developer tools are sent only with their setting, and refuse
+// without it, also when it's turned off mid-task (docs/design/claude.md,
+// "Developer tools").
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, DevToolsNeedTheSetting) {
+  auto has = [](const base::ListValue& definitions, std::string_view name) {
+    return std::ranges::any_of(definitions, [&](const base::Value& tool) {
+      const std::string* tool_name = tool.GetDict().FindString("name");
+      return tool_name && *tool_name == name;
+    });
+  };
+  EXPECT_FALSE(has(ClaudeTools::Definitions(), "network_requests"));
+  EXPECT_TRUE(has(ClaudeTools::Definitions(/*memory=*/false, /*files=*/true,
+                                           /*devtools=*/true),
+                  "network_requests"));
+  // Not given here: refused.
+  EXPECT_TRUE(Run("network_requests").is_error);
+
+  bool on = false;
+  tools_->SetDevTools(base::BindLambdaForTesting([&] { return on; }));
+  ToolResult off = Run("network_requests");
+  EXPECT_TRUE(off.is_error);
+  EXPECT_THAT(Text(off), HasSubstr("Let Claude use developer tools"));
+  on = true;
+  EXPECT_FALSE(Run("network_requests").is_error);
+  on = false;
+  EXPECT_TRUE(Run("network_response", R"({"id": "r1"})").is_error);
+  // The page tools don't need it.
+  EXPECT_FALSE(Run("read_console").is_error);
+}
+
+// Requests from the first tool on, with their headers and bodies; secrets
+// hidden unless asked for.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, NetworkRequests) {
+  AllowDevTools();
+  EXPECT_THAT(Text(Run("network_requests")),
+              HasSubstr("No requests recorded"));
+  ASSERT_TRUE(content::ExecJs(contents(), R"(
+      Promise.all([
+        fetch('/api.json?access_token=abc',
+              {headers: {'Authorization': 'Bearer secret1'}})
+            .then(r => r.text()),
+        fetch('/missing').then(r => r.status)]))"));
+  const std::string list = ListRequestsUntil(
+      base::BindRepeating([](const std::string& list) {
+        return list.find("/missing") != std::string::npos &&
+               list.find("api.json") != std::string::npos &&
+               list.find("pending") == std::string::npos;
+      }));
+  EXPECT_THAT(list, HasSubstr("GET 200 Fetch"));
+  EXPECT_THAT(list, HasSubstr("api.json?access_token=<hidden>"));
+  EXPECT_THAT(list, HasSubstr("GET 404 Fetch"));
+  EXPECT_THAT(list, ::testing::Not(HasSubstr("access_token=abc")));
+
+  const std::string failed =
+      Text(Run("network_requests", R"({"failed": true})"));
+  EXPECT_THAT(failed, HasSubstr("/missing"));
+  EXPECT_THAT(failed, ::testing::Not(HasSubstr("api.json")));
+  EXPECT_EQ(Text(Run("network_requests", R"({"only_new": true})")),
+            "No new requests.");
+  EXPECT_THAT(Text(Run("network_requests", R"({"url": "miss+ing"})")),
+              ::testing::Not(HasSubstr("api.json")));
+  EXPECT_TRUE(Run("network_requests", R"({"url": "("})").is_error);
+
+  const std::string id = RequestId(list, "api.json");
+  ToolResult response =
+      Run("network_response", R"({"id": ")" + id + R"("})");
+  ASSERT_FALSE(response.is_error) << Text(response);
+  EXPECT_THAT(Text(response), HasSubstr("Status: 200"));
+  EXPECT_THAT(Text(response), HasSubstr("authorization: <hidden"));
+  EXPECT_THAT(Text(response), HasSubstr(R"("name":"Ada")"));
+  EXPECT_THAT(Text(response), HasSubstr(R"("token":"<hidden>")"));
+  EXPECT_THAT(Text(response), ::testing::Not(HasSubstr("secret1")));
+  EXPECT_THAT(Text(response), ::testing::Not(HasSubstr("t0ps3cret")));
+
+  const std::string shown = Text(Run(
+      "network_response", R"({"id": ")" + id + R"(", "show_secrets": true})"));
+  EXPECT_THAT(shown, HasSubstr("Bearer secret1"));
+  EXPECT_THAT(shown, HasSubstr("t0ps3cret"));
+  EXPECT_THAT(shown, HasSubstr("access_token=abc"));
+
+  EXPECT_TRUE(Run("network_response", R"({"id": "r999"})").is_error);
 }
 
 }  // namespace

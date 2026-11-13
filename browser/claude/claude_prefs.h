@@ -61,6 +61,11 @@ inline constexpr char kFilesFolder[] = "compass.claude.files_folder";
 inline constexpr char kClaudeCodeOwnTools[] =
     "compass.claude.claude_code_own_tools";
 
+// "Let Claude use developer tools" (docs/design/claude.md, "Developer
+// tools"): the devtools tools (network, styles, storage, performance,
+// emulation) on the tab Claude acts on. Off by default; doesn't sync.
+inline constexpr char kDevTools[] = "compass.claude.devtools";
+
 enum class FilesAccess {
   kOff = 0,
   kSave = 1,

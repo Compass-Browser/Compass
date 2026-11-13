@@ -167,6 +167,7 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->files_folder = prefs->GetString(prefs::kFilesFolder);
   state->default_save_folder = DefaultSaveFolder(profile_).AsUTF8Unsafe();
   state->claude_code_own_tools = prefs->GetBoolean(prefs::kClaudeCodeOwnTools);
+  state->devtools = prefs->GetBoolean(prefs::kDevTools);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -253,6 +254,10 @@ void ClaudeSettingsHandler::SetMemoryEnabled(bool enabled) {
 
 void ClaudeSettingsHandler::SetMemorySave(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kMemorySave, enabled);
+}
+
+void ClaudeSettingsHandler::SetDevTools(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kDevTools, enabled);
 }
 
 void ClaudeSettingsHandler::SetFilesAccess(mojom::FilesAccess access) {

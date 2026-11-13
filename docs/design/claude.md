@@ -236,7 +236,22 @@ approves each write.
   - "Test connection";
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages;
   - Memory (above);
-  - Files (above).
+  - Files (above);
+  - Developer tools (below).
+
+### Developer tools
+
+Claude can inspect the tab it acts on as the browser's developer tools do:
+its requests, styles, storage and performance, and emulate other devices.
+Off by default (desktop only: iOS's web view has no DevTools protocol).
+
+- **The setting** (Settings, Claude, "Let Claude use developer tools"; `compass.claude.devtools`, a bool, off, doesn't sync), with a warning about pages' own instructions.
+- **Tools** (`tools.json`, `scope: "devtools"`, `platforms: ["desktop"]`): page tools that need the setting. `ClaudeTools::CheckDevTools()` refuses them while it's off (`SetDevTools()`'s callback reads the pref at each call), for the chat and MCP clients alike; `run_js` and `read_console` stay page tools.
+  - **Sent only while on**, unlike the browser and file tools: `Definitions(…, devtools)`. The API chat adds them when the setting is on and keeps them for the rest of the chat (`chat_devtools_`), so a conversation's tools only grow; Claude Code mode resumes its session in a new process when the setting changes (Claude Code lists Compass's tools as it starts); MCP clients get them in `tools/list` while it's on.
+  - **The context** says whether they're on; the system prompt's "Developer tools" section has the rules (secrets, page content as data, changes approved by the user).
+- **Network** (`network_requests`, `network_response`): with the setting on, `ClaudeTools::OnAttach()` sends `Network.enable` (bodies buffered, 50 MB in all, 10 MB each), so the requests are recorded from the first tool Claude uses on the tab, as the console is; earlier ones aren't there (the tool says to reload). Up to 500 requests (`NetworkEntry`, from `requestWillBeSent`, `responseReceived`, `loadingFinished`, `loadingFailed`), each with an id `r<n>`; a redirect ends one entry and starts the next. The list filters by URL pattern, types, failed, and `only_new`. `network_response` gives the headers, the request's body, and the response body (`Network.getResponseBody`) in 20,000-byte parts (`offset`), text only. The body is gone once Claude lets go of the tab.
+- **Secrets** (`devtools_format.{h,cc}`): header values whose names carry credentials (Authorization, Cookie, Set-Cookie, names with token, secret, password, session, auth, key…) or that look like one (JWTs, `Bearer`, `Basic`) show as `<hidden, N characters>`; so do such form, query and JSON fields in URLs and bodies (`MaskSecretsInText()`). `show_secrets: true` shows them, which the prompt reserves for when the user asked.
+- **Tests:** `ClaudeToolsBrowserTest.DevToolsNeedTheSetting` and `NetworkRequests`, `ClaudeSettingsHandlerBrowserTest.DevToolsSetting`, `ClaudeRequestTest.DevTools`, `DevToolsFormatTest.*`.
 
 ### Browser tools
 

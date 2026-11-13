@@ -162,6 +162,18 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest,
   EXPECT_FALSE(Test()->ok);
 }
 
+// "Let Claude use developer tools": off by default, local to the profile.
+IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, DevToolsSetting) {
+  EXPECT_FALSE(State()->devtools);
+  EXPECT_FALSE(prefs()->GetBoolean(prefs::kDevTools));
+  remote_->SetDevTools(true);
+  // Mojo keeps the order: the state read next has the change.
+  EXPECT_TRUE(State()->devtools);
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kDevTools));
+  remote_->SetDevTools(false);
+  EXPECT_FALSE(State()->devtools);
+}
+
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, EndpointRules) {
   // The key isn't sent in the clear to another computer.
   EXPECT_FALSE(SetEndpoint("http://gateway.example.com"));

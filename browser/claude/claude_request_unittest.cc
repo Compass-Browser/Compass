@@ -114,6 +114,28 @@ TEST(ClaudeRequestTest, Memory) {
             SystemPromptText() + "\n\n" + options.memory);
 }
 
+// The developer tools only when the chat has them; the context says
+// whether they're on.
+TEST(ClaudeRequestTest, DevTools) {
+  ChatOptions options;
+  options.model = "claude-opus-5-5";
+  options.now = base::Time::Now();
+  auto has_network = [](const ChatRequest& request) {
+    return std::ranges::any_of(
+        *request.body.FindList("tools"), [](const base::Value& tool) {
+          return *tool.GetDict().FindString("name") == "network_requests";
+        });
+  };
+  EXPECT_FALSE(has_network(BuildChatRequest(OneMessage(), options)));
+  EXPECT_NE(BuildMessageContext(options).find("Developer tools are off"),
+            std::string::npos);
+  options.devtools = true;
+  options.devtools_tools = true;
+  EXPECT_TRUE(has_network(BuildChatRequest(OneMessage(), options)));
+  EXPECT_NE(BuildMessageContext(options).find("Developer tools are on"),
+            std::string::npos);
+}
+
 TEST(ClaudeRequestTest, NoFallbackOnGatewaysOrOtherModels) {
   ChatOptions options;
   options.model = "claude-opus-5-5";
