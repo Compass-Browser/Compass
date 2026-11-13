@@ -201,7 +201,7 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
                 )
                 TextButton(onClick = { listener.onClearData() }) { Text("Clear…") }
             }
-            TextField(
+            @Suppress("DEPRECATION") TextField(
                 value = state.query,
                 onValueChange = { listener.onQuery(it) },
                 placeholder = { Text("Search history") },
