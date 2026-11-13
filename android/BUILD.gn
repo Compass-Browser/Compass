@@ -253,3 +253,21 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
     ":java",
   ]
 }
+
+# The shell's unit tests, on the host's JVM (Robolectric): the sidebar's and
+# the Claude sheet's state, drops (P5) and On Launch (P3). Run with
+# out/<dir>/bin/run_compass_junit_tests.
+robolectric_binary("compass_junit_tests") {
+  sources = [
+    "junit/src/it/cipi1965/compass/shell/ClaudeChatStateTest.java",
+    "junit/src/it/cipi1965/compass/shell/OnLaunchTest.java",
+    "junit/src/it/cipi1965/compass/shell/SidebarStateTest.java",
+  ]
+  deps = [
+    ":java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//third_party/junit",
+  ]
+}
