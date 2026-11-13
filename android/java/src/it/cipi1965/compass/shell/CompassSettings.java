@@ -51,6 +51,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
 
     public void show() {
         mState.setSyncSummary(mBar.syncSummary());
+        mState.setOnLaunch(OnLaunch.get());
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);
@@ -110,6 +111,12 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         } catch (android.content.ActivityNotFoundException e) {
             mActivity.startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
         }
+    }
+
+    @Override
+    public void onSetOnLaunch(String value) {
+        OnLaunch.set(value);
+        mState.setOnLaunch(OnLaunch.get());
     }
 
     @Override
