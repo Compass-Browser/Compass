@@ -131,6 +131,17 @@ It costs:
   an unloaded entry's page back to it ("Favorite URL" for favorites).
   Closing one's tab takes it back to its pinned URL, unloaded
   (`SpacesAndroid::TabClosed()`).
+- **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
+  **Sidebar** (the default: the sidebar comes up over the restored tab) or
+  **Last Tab** (the tab last shown, sidebar down; if there's none once
+  Chrome has restored its tabs, or it's on the start page or incognito,
+  the sidebar). It's the first window's launch in the app's process, and
+  only for a launch from the launcher: a link from another app, or
+  Compass's tile, widget and shortcuts, show what they open. The tab last
+  shown is the one Chrome restores as selected, and the space is the last
+  one a window switched to (the list's active space, which the sidebar
+  file keeps), so a launch opens on it. The setting is an app preference
+  (`compass_on_launch`), not synced, as on iOS.
 - **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
   desktop (chain, pairing, Nigori, the notifier), without what needs
   windows: the refresh on a window's activation becomes the app coming
@@ -407,8 +418,8 @@ two large pieces.
 |---|---|---|
 | P1 | Archive | **Done** (above, "The archive"). Closing a Today entry sends it to the space's archive; "Archive" in the sidebar's long-press menu; an archive view from the space menu (sidebar.md's rules, as on the desktop) |
 | P2 | Pinned URL | **Done** (above, "Pinned URL"). "Use This Page as Pinned URL" and "Back to Pinned URL" for a pinned tab or favorite; closing one goes back to its pinned URL |
-| P3 | On Launch | Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
-| P4 | Tab picker gesture | Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
+| P3 | On Launch | **Done** (above, "On Launch"). Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
+| P4 | Tab picker gesture | **Done** (C4: `CompassBarUi.kt`, "The bar"; the picker opens when the swipe ends rather than following the finger). Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
 | P5 | Sidebar drag and drop | Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |

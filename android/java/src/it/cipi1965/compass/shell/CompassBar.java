@@ -150,7 +150,9 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                 .setBoolean(Pref.SIGNIN_ALLOWED, false);
         redirectOmniboxFocus();
         // Compass's own intents (the tile, the widget, shortcuts, the share target).
-        handleIntent(mActivity.getIntent());
+        boolean handled = handleIntent(mActivity.getIntent());
+        // Settings → On Launch: the sidebar, or the tab last shown.
+        OnLaunch.run(mActivity, spaces, handled);
         spaces.setOnChanged(
                 () -> {
                     SidebarState.Space space = spaces.state().getActiveSpace();

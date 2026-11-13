@@ -72,6 +72,7 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/Favicons.kt",
     "java/src/it/cipi1965/compass/shell/FindBar.java",
     "java/src/it/cipi1965/compass/shell/FindBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/OnLaunch.java",
     "java/src/it/cipi1965/compass/shell/PageMenu.java",
     "java/src/it/cipi1965/compass/shell/PageMenuState.kt",
     "java/src/it/cipi1965/compass/shell/PageMenuUi.kt",
