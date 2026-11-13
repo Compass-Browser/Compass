@@ -212,8 +212,8 @@ ${this.getMenuSpace_() && !this.themeOpen_ ? html`
     </label>
     <button id="spaceSync" role="menuitemcheckbox"
         ?hidden="${!this.canChangeSpaceSync_()}"
-        aria-checked="${!!this.getMenuSpace_()!.synced}"
-        ?checked="${!!this.getMenuSpace_()!.synced}"
+        aria-checked="${this.getMenuSpace_()!.synced}"
+        ?checked="${this.getMenuSpace_()!.synced}"
         ?confirming="${this.confirmingUnsync_}"
         @click="${this.onSpaceSyncClick_}">
       <span>${this.getSpaceSyncLabel_()}</span>
