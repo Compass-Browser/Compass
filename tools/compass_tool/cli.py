@@ -62,8 +62,12 @@ def args_gn(layout: Layout, config: str, cpu: str | None) -> str:
     lines += [
         'target_os = "android"',
         'target_cpu = "%s"' % android.TARGETS[cpu],
-        'import("//compass/config/args/android.gn")',
     ]
+    lines.append('import("//compass/config/args/android.gn")')
+    if sys.platform.startswith('linux'):
+      # android.gn's Mac-host V8 arg doesn't build on Linux, where mksnapshot
+      # runs through the simulator: V8's default back.
+      lines.append('v8_use_host_cpu_arm_features = true')
   elif cpu == 'linux-x64':
     # Linux from Windows (docs/building.md, "Linux from Windows").
     lines += [

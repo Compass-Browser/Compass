@@ -14,7 +14,9 @@ android_static_analysis = "off"
 # it use the features its compiler targets (the Mac's: JSCVT, LSE, ...) in
 # the builtins it writes. Many Android CPUs don't have them, and the
 # renderer dies of SIGILL on the first JavaScript. Linux hosts run
-# mksnapshot through a simulator, where this doesn't come up.
+# mksnapshot through a simulator, where this doesn't come up and the arg
+# doesn't build (an unused function in V8's arm64 assembler): there
+# `compass gen` sets it back to true after this file (tools/compass_tool/cli.py).
 v8_use_host_cpu_arm_features = false
 
 # Desktop-class Android (docs/design/android.md, "Extensions"): turns on
