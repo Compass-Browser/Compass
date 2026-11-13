@@ -31,6 +31,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kFilesFolder, std::string());
   registry->RegisterBooleanPref(kClaudeCodeOwnTools, false);
   registry->RegisterBooleanPref(kDevTools, false);
+  registry->RegisterStringPref(kMinimalCachingUrl, std::string());
 }
 
 }  // namespace compass::claude::prefs

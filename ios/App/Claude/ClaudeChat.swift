@@ -226,25 +226,39 @@ final class ClaudeChat {
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
       oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine,
       devtools: settings.devtools)
-    options.minimalCaching = Self.minimalCaching
+    options.minimalCaching = Self.usesMinimalCaching(endpoint)
     conversation.startReply()
     var error = await stream(ChatRequest(messages: conversation.messages(), options: options), endpoint, started)
-    // An endpoint that adds cache breakpoints of its own refuses ours past
-    // the API's 4: ask again with only the top-level one, and from now on.
+    // A gateway that adds cache breakpoints of its own refuses ours past the
+    // API's 4: ask again with only the top-level one, and once that gets
+    // through, keep to it with this endpoint.
     if !options.minimalCaching, ChatRequest.isTooManyCacheBreakpoints(error), streaming, !Task.isCancelled,
       conversation.streamingTurn?.content.isEmpty ?? false
     {
-      Self.minimalCaching = true
       options.minimalCaching = true
       error = await stream(ChatRequest(messages: conversation.messages(), options: options), endpoint, started)
+      if error == nil, !endpoint.isClaudeAPI {
+        UserDefaults.standard.set(endpoint.baseURL.absoluteString, forKey: Self.minimalCachingKey)
+      }
     }
     guard streaming, !Task.isCancelled else { return }  // stopped
     conversation.finishReply(error: settings.revision == started ? error : "The key or endpoint changed.")
   }
 
-  /// Set once an endpoint refused the usual cache breakpoints, for the rest
-  /// of the app's run (`ChatRequest.Options.minimalCaching`).
-  private static var minimalCaching = false
+  /// The base URL of the endpoint (a gateway) that refused the usual cache
+  /// breakpoints; chats with it send only the top-level one
+  /// (`ChatRequest.Options.minimalCaching`). Another URL forgets it.
+  private static let minimalCachingKey = "ClaudeMinimalCachingURL"
+
+  private static func usesMinimalCaching(_ endpoint: ClaudeEndpoint) -> Bool {
+    let defaults = UserDefaults.standard
+    guard let remembered = defaults.string(forKey: minimalCachingKey) else { return false }
+    if endpoint.isClaudeAPI || remembered != endpoint.baseURL.absoluteString {
+      defaults.removeObject(forKey: minimalCachingKey)
+      return false
+    }
+    return true
+  }
 
   private func stream(_ request: ChatRequest, _ endpoint: ClaudeEndpoint, _ started: Int) async -> String? {
     let settings = ClaudeSettings.shared

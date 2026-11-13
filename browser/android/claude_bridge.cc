@@ -11,12 +11,14 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/claude/claude_request.h"
 #include "compass/browser/claude/claude_tools.h"
 #include "compass/browser/android/claude_tabs_android.h"
 #include "components/prefs/pref_service.h"
@@ -198,6 +200,10 @@ void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
   }
   claude::Endpoint endpoint = claude::EndpointFromPrefs(*profile_->GetPrefs());
   endpoint.api_key = *key;
+  base_url_ = endpoint.base_url;
+  minimal_caching_ =
+      claude::UsesMinimalCaching(*profile_->GetPrefs(), base_url_);
+  retrying_ = false;
   client_ = std::make_unique<claude::ClaudeClient>(
       profile_->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess(),
@@ -237,17 +243,26 @@ void ClaudeBridge::Request() {
     request.Set("system", prompt);
   } else {
     // The memory as a last, cached block (it stays the same all chat).
+    base::DictValue memory =
+        base::DictValue().Set("type", "text").Set("text", memory_block_);
+    if (!minimal_caching_) {
+      memory.Set("cache_control", base::DictValue().Set("type", "ephemeral"));
+    }
     request.Set(
         "system",
         base::ListValue()
             .Append(base::DictValue().Set("type", "text").Set("text", prompt))
-            .Append(base::DictValue()
-                        .Set("type", "text")
-                        .Set("text", memory_block_)
-                        .Set("cache_control",
-                             base::DictValue().Set("type", "ephemeral"))));
+            .Append(std::move(memory)));
   }
-  request.Set("tools", claude::ClaudeTools::Definitions(memory_tools_));
+  base::ListValue tools = claude::ClaudeTools::Definitions(memory_tools_);
+  if (minimal_caching_) {
+    // Only the top-level breakpoint, which caches the whole prefix.
+    if (!tools.empty()) {
+      tools.back().GetDict().Remove("cache_control");
+    }
+    request.Set("cache_control", base::DictValue().Set("type", "ephemeral"));
+  }
+  request.Set("tools", std::move(tools));
   request.Set("messages", conversation_.Clone());
   blocks_.clear();
   stop_reason_.clear();
@@ -322,6 +337,23 @@ void ClaudeBridge::OnEvent(const claude::SseParser::Event& event) {
 }
 
 void ClaudeBridge::OnDone(std::optional<std::string> error) {
+  if (error && !minimal_caching_ && blocks_.empty() &&
+      claude::IsTooManyCacheBreakpoints(*error)) {
+    // A gateway that adds cache breakpoints of its own refused ours past the
+    // API's 4: ask again with only the top-level one. Posted: the client is
+    // still finishing this request.
+    minimal_caching_ = true;
+    retrying_ = true;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&ClaudeBridge::Request,
+                                  weak_factory_.GetWeakPtr()));
+    return;
+  }
+  if (retrying_ && !error) {
+    // It got through: this endpoint takes only the top-level breakpoint.
+    claude::RememberMinimalCaching(*profile_->GetPrefs(), base_url_);
+  }
+  retrying_ = false;
   if (error) {
     Finish(error);
     return;

@@ -65,6 +65,11 @@ inline constexpr char kClaudeCodeOwnTools[] =
 // tools"): the devtools tools (network, styles, storage, performance,
 // emulation) on the tab Claude acts on. Off by default; doesn't sync.
 inline constexpr char kDevTools[] = "compass.claude.devtools";
+// The endpoint (its base URL) that refused the usual cache breakpoints (a
+// gateway adding its own): chats with it send only the top-level one
+// (UsesMinimalCaching()). Empty for none; another URL doesn't use it.
+inline constexpr char kMinimalCachingUrl[] =
+    "compass.claude.minimal_caching_url";
 
 enum class FilesAccess {
   kOff = 0,

@@ -97,6 +97,14 @@ void AddBetas(const Endpoint& endpoint,
 // stored encrypted, see ClaudeCredentials).
 Endpoint EndpointFromPrefs(const PrefService& prefs);
 
+// Whether chats with |base_url| send only the top-level cache breakpoint:
+// it refused the usual ones before (prefs::kMinimalCachingUrl). Never for
+// the Claude API itself.
+bool UsesMinimalCaching(const PrefService& prefs, const GURL& base_url);
+// Remembers that |base_url| takes only the top-level breakpoint, after a
+// request with it got through.
+void RememberMinimalCaching(PrefService& prefs, const GURL& base_url);
+
 struct ModelInfo {
   std::string id;
   std::string display_name;

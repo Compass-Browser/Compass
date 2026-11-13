@@ -120,6 +120,22 @@ TEST(ClaudeApiTest, EndpointFromPrefs) {
   EXPECT_TRUE(EndpointFromPrefs(prefs).allow_oauth_token);
 }
 
+// A gateway that refused the usual cache breakpoints is remembered by its
+// base URL; another URL, and the Claude API, don't use it.
+TEST(ClaudeApiTest, MinimalCachingPerEndpoint) {
+  TestingPrefServiceSimple prefs;
+  prefs::RegisterProfilePrefs(prefs.registry());
+  const GURL gateway("https://gateway.test/anthropic/");
+  EXPECT_FALSE(UsesMinimalCaching(prefs, gateway));
+  RememberMinimalCaching(prefs, gateway);
+  EXPECT_TRUE(UsesMinimalCaching(prefs, gateway));
+  EXPECT_FALSE(UsesMinimalCaching(prefs, GURL("https://other.test/")));
+  EXPECT_FALSE(UsesMinimalCaching(prefs, GURL(kDefaultBaseUrl)));
+  prefs.ClearPref(prefs::kMinimalCachingUrl);
+  RememberMinimalCaching(prefs, GURL(kDefaultBaseUrl));
+  EXPECT_TRUE(prefs.GetString(prefs::kMinimalCachingUrl).empty());
+}
+
 TEST(ClaudeApiTest, ParseModelList) {
   std::optional<std::vector<ModelInfo>> models = ParseModelList(R"({
     "data": [

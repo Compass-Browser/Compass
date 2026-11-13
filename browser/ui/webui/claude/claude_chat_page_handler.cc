@@ -259,9 +259,18 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.devtools = prefs->GetBoolean(prefs::kDevTools);
   chat_devtools_ = chat_devtools_ || options.devtools;
   options.devtools_tools = chat_devtools_;
-  options.minimal_caching = minimal_caching_;
+  // A gateway that adds cache breakpoints of its own refused the usual ones
+  // before: only the top-level one for it. Another URL forgets it.
+  PrefService* mutable_prefs = profile->GetPrefs();
+  if (!prefs->GetString(prefs::kMinimalCachingUrl).empty() &&
+      !UsesMinimalCaching(*prefs, endpoint.base_url)) {
+    mutable_prefs->ClearPref(prefs::kMinimalCachingUrl);
+  }
+  options.minimal_caching = UsesMinimalCaching(*prefs, endpoint.base_url);
+  base_url_ = endpoint.base_url;
+  retrying_ = false;
   retry_request_.reset();
-  if (!minimal_caching_) {
+  if (!options.minimal_caching) {
     ChatOptions minimal = options;
     minimal.minimal_caching = true;
     retry_request_ = BuildChatRequest(messages->GetList().Clone(), minimal);
@@ -352,7 +361,7 @@ void ClaudeChatPageHandler::OnStreamDone(int request_id,
     // An endpoint that adds cache breakpoints of its own refuses ours past
     // the API's 4: ask again with only the top-level one, and from now on.
     // Posted: the client is still finishing this request.
-    minimal_caching_ = true;
+    retrying_ = true;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&ClaudeChatPageHandler::SendRetry,
@@ -360,6 +369,11 @@ void ClaudeChatPageHandler::OnStreamDone(int request_id,
                        std::move(*retry)));
     return;
   }
+  if (retrying_ && !error) {
+    // It got through: the endpoint takes only the top-level breakpoint.
+    RememberMinimalCaching(*browser_->GetProfile()->GetPrefs(), base_url_);
+  }
+  retrying_ = false;
   page_->OnStreamDone(error.value_or(std::string()));
 }
 

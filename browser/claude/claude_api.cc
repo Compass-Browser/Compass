@@ -114,6 +114,18 @@ Endpoint EndpointFromPrefs(const PrefService& prefs) {
   return endpoint;
 }
 
+bool UsesMinimalCaching(const PrefService& prefs, const GURL& base_url) {
+  const std::string& remembered = prefs.GetString(prefs::kMinimalCachingUrl);
+  return !remembered.empty() && base_url != GURL(kDefaultBaseUrl) &&
+         remembered == base_url.spec();
+}
+
+void RememberMinimalCaching(PrefService& prefs, const GURL& base_url) {
+  if (base_url != GURL(kDefaultBaseUrl)) {
+    prefs.SetString(prefs::kMinimalCachingUrl, base_url.spec());
+  }
+}
+
 std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json) {
   std::optional<base::DictValue> dict =
       base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
