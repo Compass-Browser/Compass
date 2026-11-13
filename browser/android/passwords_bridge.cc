@@ -9,11 +9,15 @@
 #include "base/android/jni_string.h"
 #include "base/json/json_writer.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/stored_credential.h"
+#include "components/password_manager/core/browser/password_string.h"
+#include "url/gurl.h"
 
 // Must come after the class declaration.
 #include "compass/android/jni_headers/PasswordsBridge_jni.h"
@@ -48,6 +52,34 @@ std::u16string PasswordsBridge::PasswordAt(JNIEnv* env, int32_t index) {
     return std::u16string();
   }
   return credentials_[index].password_value.value();
+}
+
+void PasswordsBridge::Save(JNIEnv* env,
+                           const std::string& signon_realm,
+                           const std::u16string& username,
+                           const std::u16string& password) {
+  scoped_refptr<password_manager::PasswordStoreInterface> store =
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile_, ServiceAccessType::EXPLICIT_ACCESS);
+  GURL url(signon_realm);
+  if (!store || password.empty() || !url.is_valid()) {
+    return;
+  }
+  password_manager::StoredCredential credential;
+  credential.scheme = password_manager::PasswordForm::Scheme::kHtml;
+  credential.signon_realm = signon_realm;
+  credential.url = url;
+  credential.username_value = username;
+  credential.password_value =
+      password_manager::PasswordString(std::u16string(password));
+  credential.type = password_manager::PasswordForm::Type::kFormSubmission;
+  credential.in_store = password_manager::PasswordForm::Store::kProfileStore;
+  base::Time now = base::Time::Now();
+  credential.date_created = now;
+  credential.date_password_modified = now;
+  credential.date_last_used = now;
+  // The store replaces a login with the same primary key (site and username).
+  store->AddLogin(std::move(credential));
 }
 
 void PasswordsBridge::OnGetPasswordStoreResultsOrErrorFrom(

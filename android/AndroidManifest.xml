@@ -82,6 +82,11 @@
             <meta-data android:name="android.autofill"
                 android:resource="@xml/compass_autofill_service" />
         </service>
+        <activity android:name="it.cipi1965.compass.autofill.PasswordSaveActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity android:name="it.cipi1965.compass.autofill.PasswordPickerActivity"
             android:exported="false"
             android:excludeFromRecents="true"

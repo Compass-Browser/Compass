@@ -72,6 +72,11 @@ class PasswordPickerActivity : ComponentActivity() {
 
         /** How well a saved password's site fits the form: higher first, 0 not at all. */
         fun relevance(site: String, webDomain: String?, packageName: String): Int {
+            // An app's own login (saved from it: android://<hash>@<package>/).
+            if (site.startsWith("android://")) {
+                val app = site.substringAfter('@').substringBefore('/')
+                return if (app.isNotEmpty() && app == packageName) 3 else 0
+            }
             val host = site.substringAfter("://").substringBefore('/').removePrefix("www.").lowercase()
             if (host.isEmpty()) return 0
             if (!webDomain.isNullOrEmpty()) {

@@ -47,6 +47,7 @@ android_library("java") {
     "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
     "java/src/it/cipi1965/compass/autofill/CompassAutofillService.java",
     "java/src/it/cipi1965/compass/autofill/PasswordPickerActivity.kt",
+    "java/src/it/cipi1965/compass/autofill/PasswordSaveActivity.java",
     "java/src/it/cipi1965/compass/autofill/PasswordsBridge.java",
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
     "java/src/it/cipi1965/compass/extras/CompassIntents.java",
@@ -275,6 +276,7 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
 # out/<dir>/bin/run_compass_junit_tests.
 robolectric_binary("compass_junit_tests") {
   sources = [
+    "junit/src/it/cipi1965/compass/autofill/PasswordRelevanceTest.java",
     "junit/src/it/cipi1965/compass/shell/ClaudeChatStateTest.java",
     "junit/src/it/cipi1965/compass/shell/OnLaunchTest.java",
     "junit/src/it/cipi1965/compass/shell/SidebarStateTest.java",

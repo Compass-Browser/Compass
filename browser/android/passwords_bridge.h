@@ -37,6 +37,14 @@ class PasswordsBridge : public password_manager::PasswordStoreConsumer {
   // {"site", "url", "username"} in the order of PasswordAt().
   void Load(JNIEnv* env);
   std::u16string PasswordAt(JNIEnv* env, int32_t index);
+  // Saves a login from another app (CompassAutofillService's save request):
+  // |signon_realm| is "https://<domain>/" for a web view's form, or
+  // "android://<certificate hash>@<package>/" for an app's. Replaces the one
+  // with the same site and username, if any.
+  void Save(JNIEnv* env,
+            const std::string& signon_realm,
+            const std::u16string& username,
+            const std::u16string& password);
 
   // password_manager::PasswordStoreConsumer:
   void OnGetPasswordStoreResultsOrErrorFrom(

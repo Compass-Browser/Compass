@@ -216,8 +216,15 @@ It costs:
   an app's package words (com.example.app: example). The one picked fills
   the form; only its password crosses to Java. Compass's own pages fill
   through Chrome's autofill. The sidebar's "Passwords in other apps" opens
-  Android's setting to choose Compass. Saving from other apps isn't
-  offered.
+  Android's setting to choose Compass. Saving from other apps (P10): the
+  fill response carries a `SaveInfo` (password, and the username if there
+  is one) when Compass can tell whose login it is: a web view's domain
+  (`https://<domain>/`) or an app's signing certificate
+  (`android://<SHA-512, URL-safe base64>@<package>/`, Chrome's form for app
+  logins, affiliation_utils.h). When the user picks Save in Android's
+  prompt, `PasswordSaveActivity` starts the browser if needed and
+  `PasswordsBridge::Save()` adds the login (replacing one with the same
+  site and username). The picker lists an app's own saved logins first.
 - **Extras (C9),** in `it.cipi1965.compass.extras` and the manifest's
   `extra_application_definitions`: a Quick Settings tile (new tab with the
   command bar), widgets (search; Quick Actions: search, Incognito, Claude,
@@ -459,7 +466,7 @@ two large pieces.
 | P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | Search engine and privacy done (above, "Settings"); site settings still Chrome's. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
 | P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today and Quick Actions widgets (done, above); an Other Devices widget; app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
-| P10 | Passwords from other apps | Other apps' logins save into Compass (Autofill's save request), not only fill |
+| P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 
 Still Chrome's look, to restyle in Material You with the shell's layout:
 History, Downloads, a link's long-press menu, page info and permission

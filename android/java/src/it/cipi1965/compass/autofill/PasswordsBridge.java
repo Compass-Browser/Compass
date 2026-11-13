@@ -15,6 +15,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 /**
  * Java side of the saved passwords for the autofill picker (//compass/browser/android:
  * PasswordsBridge): each one's site and username as JSON; a password only for the one picked.
+ * Also saves the logins other apps' forms submit (PasswordSaveActivity).
  */
 @JNINamespace("compass")
 public class PasswordsBridge {
@@ -41,6 +42,14 @@ public class PasswordsBridge {
         return PasswordsBridgeJni.get().passwordAt(mNativePasswordsBridge, index);
     }
 
+    /**
+     * Saves another app's login: |signonRealm| is "https://<domain>/" (a web view's form) or
+     * "android://<certificate hash>@<package>/".
+     */
+    public void save(String signonRealm, String username, String password) {
+        PasswordsBridgeJni.get().save(mNativePasswordsBridge, signonRealm, username, password);
+    }
+
     @CalledByNative
     private void onLoaded(@JniType("std::string") String json) {
         mOnLoaded.onResult(json);
@@ -56,5 +65,11 @@ public class PasswordsBridge {
 
         @JniType("std::u16string")
         String passwordAt(long nativePasswordsBridge, int index);
+
+        void save(
+                long nativePasswordsBridge,
+                @JniType("std::string") String signonRealm,
+                @JniType("std::u16string") String username,
+                @JniType("std::u16string") String password);
     }
 }
