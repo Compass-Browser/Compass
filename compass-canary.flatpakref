@@ -1,0 +1,9 @@
+[Flatpak Ref]
+Name=io.github.Compass_Browser.Compass
+Branch=canary
+Title=Compass Canary
+Url=oci+https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/
+RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
+IsRuntime=false
+SuggestRemoteName=compass
+Homepage=https://compassbrowser.org
