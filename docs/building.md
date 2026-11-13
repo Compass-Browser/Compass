@@ -250,7 +250,10 @@ for Windows builds.
 ### Android from a Mac
 
 The Android app is built from the same checkout (docs/design/android.md):
-`--cpu android-arm64` builds it in `out/<Config>-android-arm64`. Chromium
+`--cpu android-arm64` builds it in `out/<Config>-android-arm64`.
+`--cpu android-x64` builds it for the Android emulator on an x86_64 host
+(Windows or Intel Mac), in `out/<Config>-android-x64`: the emulator's ARM
+translation crashes the arm64 build at startup. Chromium
 only supports Linux hosts for Android, and calls a Mac host "best-effort".
 On Apple silicon it does work, because Chromium's CIPD packages already come
 in Mac flavors: the JDK, the SDK build tools, the NDK (`darwin-x86_64`, run

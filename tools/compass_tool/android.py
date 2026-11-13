@@ -17,7 +17,9 @@ from pathlib import Path
 from typing import List
 
 # The --cpu value (layout.CROSS_TARGETS) and what it builds for.
-TARGETS = {'android-arm64': 'arm64'}
+# android-x64 is for the emulator on an x86_64 host, which can't run the
+# arm64 build through its ARM translation.
+TARGETS = {'android-arm64': 'arm64', 'android-x64': 'x64'}
 
 ELF_MAGIC = b'\x7fELF'
 

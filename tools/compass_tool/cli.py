@@ -1001,7 +1001,8 @@ def add_cpu_argument(p: argparse.ArgumentParser) -> None:
   p.add_argument('--cpu', choices=CPUS + CROSS_TARGETS,
                  help='build for this CPU in out/<Config>-<cpu> (default: '
                  'the host\'s, in out/<Config>); win-x64: Windows, from a Mac; '
-                 'android-arm64: Android; linux-x64: Linux, from Windows')
+                 'android-arm64: Android; android-x64: the Android emulator '
+                 'on an x86_64 host; linux-x64: Linux, from Windows')
 
 
 def add_universal_argument(p: argparse.ArgumentParser) -> None:

@@ -16,6 +16,7 @@ class MacHostTest(unittest.TestCase):
 
   def test_is_android(self):
     self.assertTrue(android.is_android('android-arm64'))
+    self.assertTrue(android.is_android('android-x64'))
     self.assertFalse(android.is_android('win-x64'))
     self.assertFalse(android.is_android(None))
 

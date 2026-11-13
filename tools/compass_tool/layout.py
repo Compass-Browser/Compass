@@ -25,9 +25,10 @@ CONFIGS = {
 # Builds for another OS than the host's, as --cpu values: out/<Config>-<target>.
 # win-x64: Windows from a Mac (docs/building.md, "Windows from a Mac").
 # android-arm64: Android, from a Mac or Linux (docs/building.md, "Android from
-# a Mac"; docs/design/android.md).
+# a Mac"; docs/design/android.md); android-x64, the same for the emulator on
+# an x86_64 host.
 # linux-x64: Linux, from Windows (docs/building.md, "Linux from Windows").
-CROSS_TARGETS = ('win-x64', 'android-arm64', 'linux-x64')
+CROSS_TARGETS = ('win-x64', 'android-arm64', 'android-x64', 'linux-x64')
 
 # Where a Windows host keeps its toolchain for linux-x64, inside src/ because
 # siso rejects paths outside it (docs/building.md, "Linux from Windows").
