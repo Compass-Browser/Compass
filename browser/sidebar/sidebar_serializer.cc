@@ -71,6 +71,13 @@ constexpr char kLiveSha256Key[] = "sha256";
 constexpr char kLiveRefreshedKey[] = "refreshed";
 constexpr char kLiveItemKey[] = "live_item";
 constexpr char kUnseenKey[] = "unseen";
+// A folder's SidebarNode::NameSource: "opener" or "claude"; none for the
+// user's (and in older files).
+constexpr char kNameSourceKey[] = "name_source";
+constexpr char kNameSourceOpener[] = "opener";
+constexpr char kNameSourceClaude[] = "claude";
+// A folder Claude named: its name before, for Undo Name.
+constexpr char kNameBeforeClaudeKey[] = "name_before_claude";
 
 base::DictValue SerializeLiveSource(const SidebarNode& folder) {
   const LiveSource& source = *folder.live_source();
@@ -190,6 +197,20 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       dict.Set(kTypeKey, kFolder);
       if (node.collapsed()) {
         dict.Set(kCollapsedKey, true);
+      }
+      switch (node.name_source()) {
+        case SidebarNode::NameSource::kOpener:
+          dict.Set(kNameSourceKey, kNameSourceOpener);
+          break;
+        case SidebarNode::NameSource::kClaude:
+          dict.Set(kNameSourceKey, kNameSourceClaude);
+          if (!node.name_before_claude().empty()) {
+            dict.Set(kNameBeforeClaudeKey,
+                     base::UTF16ToUTF8(node.name_before_claude()));
+          }
+          break;
+        case SidebarNode::NameSource::kUser:
+          break;
       }
       if (node.is_live_folder()) {
         dict.Set(kLiveKey, SerializeLiveSource(node));
@@ -351,6 +372,16 @@ bool DeserializeNode(const base::DictValue& dict,
       }
     }
     model.SetCollapsed(folder, dict.FindBool(kCollapsedKey).value_or(false));
+    if (const std::string* source = dict.FindString(kNameSourceKey)) {
+      if (*source == kNameSourceOpener) {
+        model.SetNameSource(folder, SidebarNode::NameSource::kOpener);
+      } else if (*source == kNameSourceClaude) {
+        model.SetNameSource(folder, SidebarNode::NameSource::kClaude);
+        if (const std::string* before = dict.FindString(kNameBeforeClaudeKey)) {
+          model.SetNameBeforeClaude(folder, base::UTF8ToUTF16(*before));
+        }
+      }
+    }
     if (children) {
       for (const base::Value& child : *children) {
         if (child.is_dict()) {

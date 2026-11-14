@@ -25,6 +25,7 @@
 #include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/claude/link_folder_namer.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
@@ -65,6 +66,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public LiveTabRegistry::Observer,
                            public claude::ClaudeActivity::Observer,
                            public LiveFolderService::Observer,
+                           public LinkFolderNamer::Observer,
                            public TabStripModelObserver {
  public:
   // What the entries' context menus offer (docs/design/sidebar.md, "Context
@@ -96,6 +98,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     kEditLiveSource,
     kMarkAllSeen,
     kConvertToPlainFolder,
+    // Claude's folder names (docs/design/ai-sidebar.md).
+    kUndoName,
+    kSuggestName,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
     // Then one per device in "Send to Your Devices", in their order.
@@ -215,12 +220,18 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // LiveFolderService::Observer:
   void OnLiveFolderStateChanged(const base::Uuid& folder_id) override;
 
+  // LinkFolderNamer::Observer:
+  void OnFolderNamed(const base::Uuid& folder_id) override;
+
   // Tells the page about a swipe across the sidebar (CompassSidebarView).
   void SendSwipe(sidebar::mojom::SwipePhase phase, float delta_x);
 
   // Node |id|'s context menu, or null if it has none. Its commands act on the
   // node, if it's still there, while this handler lives.
   std::unique_ptr<ui::SimpleMenuModel> CreateContextMenu(const std::string& id);
+  // Whether folder menus offer "Suggest a Name": Claude's sidebar names are
+  // on (docs/design/ai-sidebar.md), and the window isn't incognito.
+  bool CanSuggestNames();
   // Carries out |command|, other than a move to a space or a send, on node
   // |id|.
   void ExecuteMenuCommand(const std::string& id, int command);
@@ -344,6 +355,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   base::RepeatingClosure tree_shown_callback_;
   base::ScopedObservation<LiveFolderService, LiveFolderService::Observer>
       live_folders_observation_{this};
+  base::ScopedObservation<LinkFolderNamer, LinkFolderNamer::Observer>
+      namer_observation_{this};
   // The window's now playing widgets. Only with a page: unit tests have no
   // media session service.
   std::unique_ptr<NowPlayingTracker> now_playing_;

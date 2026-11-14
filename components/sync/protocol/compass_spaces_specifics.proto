@@ -127,6 +127,11 @@ message CompassNode {
   // The node stays a FOLDER, so a client without it shows a plain, empty
   // folder, and keeps this field when it changes the node.
   optional CompassLiveSource live_source = 15;
+  // FOLDERS: where the name came from (docs/design/ai-sidebar.md, "Names for
+  // link folders"): 1 OPENER (a link folder, named after its page), 2 CLAUDE.
+  // Not set: the user's, which Claude never changes; so a client without
+  // it (an older one) leaves every name alone.
+  optional int32 name_source = 16;
 }
 
 // Where a live folder's entries come from (compass::LiveSource).

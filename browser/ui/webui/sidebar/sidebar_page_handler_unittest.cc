@@ -33,7 +33,10 @@
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/space_list.h"
+#include "components/prefs/pref_service.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/window_sync/space_directory.h"
@@ -164,6 +167,9 @@ class FakePage : public sidebar::mojom::Page {
   }
   void StartRename(const std::string& id) override {
     events_.push_back("rename " + id);
+  }
+  void FolderNamed(const std::string& id) override {
+    events_.push_back("named " + id);
   }
   // No tracker without a page: see now_playing_browsertest.cc.
   void SetNowPlaying(
@@ -671,6 +677,49 @@ TEST_F(SidebarPageHandlerTest, FoldersInToday) {
   Settle();
   EXPECT_EQ(space_model().today_root()->children().size(), 1u);
   EXPECT_EQ(tab_strip_model()->count(), 1);
+}
+
+// Claude's folder names (docs/design/ai-sidebar.md): "Undo Name" while the
+// name is Claude's, "Suggest a Name" for other folders once the switch is
+// on and a key saved; renaming by hand makes the name the user's.
+TEST_F(SidebarPageHandlerTest, ClaudeFolderNameMenus) {
+  using NameSource = SidebarNode::NameSource;
+  SidebarNode* folder =
+      space_model().AddFolder(space_model().today_root(), 0, u"Rust Book");
+  space_model().Move(space_model().today_root()->children()[1].get(), folder,
+                     0);
+  const std::string id = folder->id().AsLowercaseString();
+
+  // Off: neither.
+  EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kSuggestName)));
+  EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kUndoName)));
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  prefs->SetBoolean(claude::prefs::kSidebarAi, true);
+  // Not set up yet: still none.
+  EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kSuggestName)));
+  prefs->SetString(claude::prefs::kApiKey, "encrypted");
+  EXPECT_THAT(MenuCommands(id), Contains(Command::kSuggestName));
+
+  // Claude named it: Undo Name instead, back to the name before, the user's.
+  space_model().MarkLinkFolder(folder);
+  space_model().SetFolderName(folder, u"Rust Async", NameSource::kClaude);
+  EXPECT_THAT(MenuCommands(id), Contains(Command::kUndoName));
+  EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kSuggestName)));
+  Choose(id, Command::kUndoName);
+  EXPECT_EQ(folder->title(), u"Rust Book");
+  EXPECT_EQ(folder->name_source(), NameSource::kUser);
+  EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kUndoName)));
+
+  // A rename by hand is the user's; leaving the name as it was isn't one.
+  space_model().SetFolderName(folder, u"Rust Async", NameSource::kClaude);
+  handler_remote_->RenameFolder(id, "Rust Async");
+  Settle();
+  EXPECT_EQ(folder->name_source(), NameSource::kClaude);
+  handler_remote_->RenameFolder(id, "Async");
+  Settle();
+  EXPECT_EQ(folder->title(), u"Async");
+  EXPECT_EQ(folder->name_source(), NameSource::kUser);
+  prefs->ClearPref(claude::prefs::kApiKey);
 }
 
 TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {

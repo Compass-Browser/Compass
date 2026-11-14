@@ -979,6 +979,9 @@ bool TabStripBridge::GetLinkFolderPlace(tabs::TabInterface* tab,
       // The opener's own folder takes its place.
       parent = space_model_->AddFolder(today, today->GetIndexOf(opener_entry),
                                        GetLinkFolderTitle(*opener_entry));
+      // Claude may name it (docs/design/ai-sidebar.md); only this device
+      // asks.
+      space_model_->MarkLinkFolder(parent);
       space_model_->Move(opener_entry, parent, 0);
     }
     place_after_previous(parent, parent->GetIndexOf(opener_entry) + 1);
@@ -993,6 +996,7 @@ bool TabStripBridge::GetLinkFolderPlace(tabs::TabInterface* tab,
       existing->type() != SidebarNode::Type::kFolder) {
     existing = space_model_->AddFolder(today, 0,
                                        GetLinkFolderTitle(*opener_entry));
+    space_model_->MarkLinkFolder(existing);
     link_folders_[opener_node->id()] = existing->id();
   }
   place_after_previous(existing, existing->children().size());

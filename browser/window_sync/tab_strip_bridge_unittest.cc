@@ -409,6 +409,10 @@ TEST_F(TabStripBridgeTest, LinksGatherWithTheirOpenerInAFolder) {
   EXPECT_THAT(Hosts(space_model().today_root()),
               ElementsAre("{a.test,c.test,d.test}", "b.test"));
   EXPECT_FALSE(TodayAt(0)->title().empty());
+  // Named after its opener, and Claude may name it (docs/design/
+  // ai-sidebar.md).
+  EXPECT_EQ(TodayAt(0)->name_source(), SidebarNode::NameSource::kOpener);
+  EXPECT_TRUE(TodayAt(0)->link_folder_here());
   EXPECT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "d.test",
                                         "b.test"));
   // The opener stays active.

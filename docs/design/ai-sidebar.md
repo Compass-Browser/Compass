@@ -5,7 +5,8 @@ answers in the command bar: names for link folders, Tidy Today, shorter tab
 titles, and Ask in the command bar. The chat panel and its tools are
 claude.md's; this doc reuses its endpoint, credentials and request code.
 
-Status: planned (14 November 2026). Desktop first, then iOS and Android.
+Status: A1 and A2 done on the desktop (14 November 2026); A3 to A7
+planned. Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -133,6 +134,43 @@ With the switch on:
   and the menus.
 - The sync field (`NameSource`) lands with the desktop, so iOS and Android
   keep it even before they ask Claude themselves.
+
+## As built (A1, A2)
+
+- `ClaudeQuick` streams the reply through `ClaudeClient` and collects
+  it (the client only streams); the 15 s timeout covers reading the key
+  too. Requests run side by side. The rate limit and back-off apply to
+  background requests; Suggest a Name skips the hourly limit and the
+  back-off (the user asked), though its errors count towards the back-off.
+  Refusals and replies that aren't one JSON object don't back off.
+- **Set up means a saved key** (the Claude API's or a gateway's). Claude
+  Code mode alone doesn't answer these requests yet (it would start a
+  `claude` process per request); the switch says so and stays off.
+- A subscription token gets Claude Code's line first in the system prompt,
+  as the chat's requests do; the cache levels are the chat's
+  (`CacheLevelFor()`), with no step-down retry (two breakpoints at most).
+- Names: 1–3 words, at most 32 characters (`SanitizeAiName()`: quotes
+  around and a full stop after are trimmed; emoji, control and format
+  characters, line breaks and markup drop the name).
+- The triggers live in `LinkFolderNamer` (`browser/ui/claude/`), a
+  per-profile service that observes the spaces, not in `browser/sidebar/`
+  (which can't depend on Claude). "The device that made the folder" is
+  `SidebarNode::link_folder_here()`, set by `TabStripBridge` and not
+  saved: after a restart a link folder isn't named again, though its name
+  and NameSource stay. Entries are the folder's children (a split or a
+  nested folder counts once); the request lists up to 20 tabs of the whole
+  folder.
+- Undo Name goes back to the name before Claude's first, saved with the
+  folder (`name_before_claude`) but not synced: another device shows
+  Claude's name without Undo Name, and offers Suggest a Name instead.
+  Renaming by hand only counts when the name changes.
+- "Suggest a Name" shows for any folder with entries (not live folders)
+  while the switch is on and a key is saved, in windows that aren't
+  incognito; its name is Claude's (kClaude), with Undo Name. A link folder
+  this device made can then be named again at its next threshold.
+- The sparkle is a CSS animation of the folder's icon and name in the
+  sidebar page (`Page.FolderNamed()`, sent only for Claude's automatic
+  names and suggestions).
 
 ## Milestones
 

@@ -597,6 +597,69 @@ void SpaceModel::SetTitle(SidebarNode* node, std::u16string title) {
   }
 }
 
+void SpaceModel::SetFolderName(SidebarNode* folder,
+                               std::u16string name,
+                               SidebarNode::NameSource source) {
+  CHECK_EQ(folder->type(), Type::kFolder);
+  if (folder->title_ == name && folder->name_source_ == source) {
+    return;
+  }
+  if (source == SidebarNode::NameSource::kClaude) {
+    // Claude's names follow one another; Undo Name goes back to the one
+    // before the first.
+    if (folder->name_source_ != SidebarNode::NameSource::kClaude) {
+      folder->name_before_claude_ = folder->title_;
+    }
+  } else {
+    folder->name_before_claude_.clear();
+  }
+  folder->title_ = std::move(name);
+  folder->name_source_ = source;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+void SpaceModel::SetNameSource(SidebarNode* folder,
+                               SidebarNode::NameSource source) {
+  CHECK_EQ(folder->type(), Type::kFolder);
+  if (folder->name_source_ == source) {
+    return;
+  }
+  folder->name_source_ = source;
+  if (source != SidebarNode::NameSource::kClaude) {
+    folder->name_before_claude_.clear();
+  }
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+void SpaceModel::SetNameBeforeClaude(SidebarNode* folder,
+                                     std::u16string name) {
+  CHECK_EQ(folder->type(), Type::kFolder);
+  if (folder->name_source_ == SidebarNode::NameSource::kClaude) {
+    folder->name_before_claude_ = std::move(name);
+  }
+}
+
+bool SpaceModel::UndoFolderName(SidebarNode* folder) {
+  if (folder->type() != Type::kFolder ||
+      folder->name_source_ != SidebarNode::NameSource::kClaude ||
+      folder->name_before_claude_.empty()) {
+    return false;
+  }
+  std::u16string before = folder->name_before_claude_;
+  SetFolderName(folder, std::move(before), SidebarNode::NameSource::kUser);
+  return true;
+}
+
+void SpaceModel::MarkLinkFolder(SidebarNode* folder) {
+  CHECK_EQ(folder->type(), Type::kFolder);
+  folder->link_folder_here_ = true;
+  SetNameSource(folder, SidebarNode::NameSource::kOpener);
+}
+
 void SpaceModel::SetCustomTitle(SidebarNode* tab, std::u16string title) {
   CHECK_EQ(tab->type(), Type::kTab);
   if (tab->custom_title_ == title) {

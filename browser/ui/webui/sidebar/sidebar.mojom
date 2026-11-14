@@ -465,6 +465,9 @@ interface Page {
   // Rename was chosen in folder |id|'s context menu: shows its name for
   // editing, as a double-click does.
   StartRename(string id);
+  // Claude just named folder |id| (docs/design/ai-sidebar.md): its new name
+  // fades in with a sparkle on its icon.
+  FolderNamed(string id);
   // The window's now playing widgets, top to bottom. Sent after the tree, and
   // whenever they change.
   SetNowPlaying(array<NowPlaying> items);

@@ -664,7 +664,10 @@ Result ClaudeTabs::RenameTab(const base::DictValue& input) {
     if (title16.empty()) {
       return Error("A folder needs a name.");
     }
-    space->SetTitle(node, std::move(title16));
+    // The user asked for it, through Claude: their name, which Claude's
+    // folder names don't replace (docs/design/ai-sidebar.md).
+    space->SetFolderName(node, std::move(title16),
+                         SidebarNode::NameSource::kUser);
   } else if (node->type() == SidebarNode::Type::kTab) {
     space->SetCustomTitle(node, std::move(title16));
   } else {

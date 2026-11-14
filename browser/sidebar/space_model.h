@@ -422,7 +422,26 @@ class SpaceModel {
   // Removes |node| and its subtree.
   void Remove(SidebarNode* node);
 
+  // Changes a node's title (a folder's name) and nothing else.
   void SetTitle(SidebarNode* node, std::u16string title);
+  // Names |folder|, recording where the name came from: going to kClaude
+  // keeps the name it had for Undo Name (name_before_claude()), any other
+  // source forgets it. Observers see one OnNodeChanged().
+  void SetFolderName(SidebarNode* folder,
+                     std::u16string name,
+                     SidebarNode::NameSource source);
+  // Sets where |folder|'s name came from, for loading and sync, which bring
+  // the name itself with SetTitle(). Leaving kClaude forgets the name before.
+  void SetNameSource(SidebarNode* folder, SidebarNode::NameSource source);
+  // Only while loading: the name Undo Name goes back to.
+  void SetNameBeforeClaude(SidebarNode* folder, std::u16string name);
+  // Undo Name: |folder| gets its name from before Claude's back, as the
+  // user's. False, and nothing changes, unless its name is Claude's and the
+  // one before is known.
+  bool UndoFolderName(SidebarNode* folder);
+  // Marks |folder| as a link folder this device made: named after its
+  // opener (kOpener), and Claude may name it (docs/design/ai-sidebar.md).
+  void MarkLinkFolder(SidebarNode* folder);
   // Names a tab; empty goes back to its page's title.
   void SetCustomTitle(SidebarNode* tab, std::u16string title);
   void SetUrl(SidebarNode* tab, const GURL& url);

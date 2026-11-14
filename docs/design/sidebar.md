@@ -793,7 +793,7 @@ an entry's menu under its row.
 | Today tab | Copy Link, Duplicate, Reload, Mute Tab · Pin, Add to Favorites, Move to Space ▸ · Close Tab |
 | Pinned tab | Copy Link, Duplicate, Use This Page as Pinned URL, Back to Pinned URL, Reload, Mute Tab · Unpin, Add to Favorites, Move to Space ▸ · Close Tab, Remove from Pinned |
 | Favorite | Copy Link, Duplicate, Use This Page as Favorite URL, Back to Favorite URL, Reload, Mute Tab · Close Tab, Remove from Favorites |
-| Folder | New Folder, Rename, Move to Space ▸ · Delete Folder |
+| Folder | New Folder, Rename, Undo Name or Suggest a Name (Claude, docs/design/ai-sidebar.md), Move to Space ▸ · Delete Folder |
 | Split | Pin or Unpin, Move to Space ▸ · Close Split |
 | Pane | Copy Link, Reload, Mute Tab · Close Tab |
 
@@ -1093,6 +1093,20 @@ node (upstream sets the opener for links). Foreground links (target=_blank,
 Cmd+Shift+click), typed URLs, the command bar and restored tabs open as
 before. The strip then follows the tree. There's no setting to turn it off
 yet.
+
+**Names from Claude** (docs/design/ai-sidebar.md, A2): a folder records where
+its name came from, `SidebarNode::NameSource`: `kOpener` for a link folder
+(`SpaceModel::MarkLinkFolder()`, which also marks it as made on this device,
+`link_folder_here()`, not saved), `kClaude` for Claude's, `kUser` for every
+other folder and any rename by hand (the page's `RenameFolder()`, Claude's
+`rename_tab` tool). It's saved (`"name_source"`, and Claude's previous name
+as `"name_before_claude"`) and synced (`CompassNode.name_source`). With
+"Name Folders and Tidy Tabs" on, `LinkFolderNamer` (`browser/ui/claude/`)
+names link folders this device made, in Today, whose name isn't the user's,
+at 3, 6 and 12 entries, 5 s after their last change. The folder's menu has
+**Undo Name** while its name is Claude's (and the one before is known), and
+**Suggest a Name** otherwise, with the switch on. The page shows Claude's
+new names with a sparkle on the folder's icon (`Page.FolderNamed()`).
 
 **Tests:** `TabStripBridgeTest.LinksGatherWithTheirOpenerInAFolder`,
 `LinksFromPinnedEntriesGatherAtTheTopOfToday`,

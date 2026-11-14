@@ -51,6 +51,7 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/sync/compass_sync_service.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
@@ -326,6 +327,13 @@ SidebarPageHandler::SidebarPageHandler(
           LiveFolderService::Get(browser_->GetProfile())) {
     live_folders_observation_.Observe(live_folders);
   }
+  // Claude's names for link folders; incognito windows have none.
+  if (!browser_->GetProfile()->IsOffTheRecord()) {
+    if (LinkFolderNamer* namer =
+            LinkFolderNamer::Get(browser_->GetProfile())) {
+      namer_observation_.Observe(namer);
+    }
+  }
   if (page_contents_) {
     now_playing_ = std::make_unique<NowPlayingTracker>(
         browser_, base::BindRepeating(&SidebarPageHandler::SendNowPlaying,
@@ -347,6 +355,7 @@ void SidebarPageHandler::StopObserving() {
   }
   registry().RemoveObserver(this);
   live_folders_observation_.Reset();
+  namer_observation_.Reset();
   claude::ClaudeActivity::RemoveObserver(this);
   features_->RemoveObserver(this);
   if (SpaceDirectory* directory = this->directory()) {
@@ -572,8 +581,16 @@ void SidebarPageHandler::AddFolder(const std::string& parent_id,
 void SidebarPageHandler::RenameFolder(const std::string& id,
                                       const std::string& title) {
   SidebarNode* node = FindNode(id);
-  if (node && node->type() == SidebarNode::Type::kFolder) {
-    space_model().SetTitle(node, base::UTF8ToUTF16(title));
+  if (!node || node->type() != SidebarNode::Type::kFolder) {
+    return;
+  }
+  // A name the user gives (or keeps editing) is theirs: Claude doesn't name
+  // the folder again (docs/design/ai-sidebar.md). Leaving the field as it
+  // was changes nothing.
+  const std::u16string title16 = base::UTF8ToUTF16(title);
+  if (title16 != node->title()) {
+    GetModelOf(node).SetFolderName(node, title16,
+                                   SidebarNode::NameSource::kUser);
   }
 }
 
@@ -982,6 +999,15 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
       }
     }
     menu->AddItem(kRename, u"Rename");
+    // Claude's names (docs/design/ai-sidebar.md): back to the name before
+    // Claude's, or one from Claude for a folder that has none of its.
+    if (node->name_source() == SidebarNode::NameSource::kClaude &&
+        !node->name_before_claude().empty()) {
+      menu->AddItem(kUndoName, u"Undo Name");
+    } else if (!node->is_live_folder() && !node->children().empty() &&
+               CanSuggestNames()) {
+      menu->AddItem(kSuggestName, u"Suggest a Name");
+    }
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
     menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
     menu->AddMoveToSpace(space_list.spaces(), space_model());
@@ -1111,6 +1137,18 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
     case kNewFolder:
       if (node->type() == SidebarNode::Type::kFolder) {
         space.AddFolder(node, node->children().size(), u"New Folder");
+      }
+      break;
+    case kUndoName:
+      if (node->type() == SidebarNode::Type::kFolder) {
+        GetModelOf(node).UndoFolderName(node);
+      }
+      break;
+    case kSuggestName:
+      if (node->type() == SidebarNode::Type::kFolder) {
+        if (LinkFolderNamer* namer = namer_observation_.GetSource()) {
+          namer->Suggest(node->id());
+        }
       }
       break;
     case kRename:
@@ -1321,6 +1359,22 @@ void SidebarPageHandler::OnNodeChanged(const SidebarNode& node) {
     page_->LiveFolderChanged(node.id().AsLowercaseString(),
                              ToMojoLiveFolder(node));
   }
+}
+
+void SidebarPageHandler::OnFolderNamed(const base::Uuid& folder_id) {
+  SidebarNode* folder = space_model().FindById(folder_id);
+  if (folder && observed_space_ == &space_model()) {
+    page_->FolderNamed(folder_id.AsLowercaseString());
+  }
+}
+
+bool SidebarPageHandler::CanSuggestNames() {
+  Profile* profile = browser_->GetProfile();
+  if (profile->IsOffTheRecord()) {
+    return false;
+  }
+  claude::ClaudeQuick* quick = claude::ClaudeQuick::Get(profile);
+  return quick && quick->IsEnabled();
 }
 
 void SidebarPageHandler::OnNodeWillBeRemoved(const SidebarNode& node) {

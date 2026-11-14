@@ -142,6 +142,25 @@ int TypeToProto(Type type) {
     }                                           \
   } while (false)
 
+// A folder's name_source: not set (0) for the user's, which is what a folder
+// from an older client reads as. Null for a value this client doesn't know,
+// which it passes on as it is.
+constexpr int kNameSourceOpener = 1;
+constexpr int kNameSourceClaude = 2;
+
+std::optional<SidebarNode::NameSource> NameSourceFromProto(int value) {
+  switch (value) {
+    case 0:
+      return SidebarNode::NameSource::kUser;
+    case kNameSourceOpener:
+      return SidebarNode::NameSource::kOpener;
+    case kNameSourceClaude:
+      return SidebarNode::NameSource::kClaude;
+    default:
+      return std::nullopt;
+  }
+}
+
 // The node's own fields: what it shows, not where it is.
 void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
   const bool tab = node.type() == Type::kTab;
@@ -164,6 +183,24 @@ void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
       proto.set_collapsed(true);
     } else {
       proto.clear_collapsed();
+    }
+  }
+  const SidebarNode::NameSource name_source =
+      node.type() == Type::kFolder ? node.name_source()
+                                   : SidebarNode::NameSource::kUser;
+  if (std::optional<SidebarNode::NameSource> remote =
+          NameSourceFromProto(proto.name_source());
+      remote && *remote != name_source) {
+    switch (name_source) {
+      case SidebarNode::NameSource::kOpener:
+        proto.set_name_source(kNameSourceOpener);
+        break;
+      case SidebarNode::NameSource::kClaude:
+        proto.set_name_source(kNameSourceClaude);
+        break;
+      case SidebarNode::NameSource::kUser:
+        proto.clear_name_source();
+        break;
     }
   }
   if (node.is_live_folder()) {
@@ -1948,6 +1985,12 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
         model->SetTitle(node, title);
       }
       model->SetCollapsed(node, remote.collapsed());
+      // Whose name it is: a name the user gave on another device stops
+      // Claude here too.
+      if (std::optional<SidebarNode::NameSource> name_source =
+              NameSourceFromProto(remote.name_source())) {
+        model->SetNameSource(node, *name_source);
+      }
       if (node->is_live_folder()) {
         if (std::optional<LiveSource> live = LiveSourceFromProto(remote)) {
           // Its settings, changed on another device.
@@ -2338,6 +2381,8 @@ SidebarNode* CompassSpacesSyncBridge::CopyNode(SpaceModel& model,
       }
       copy = model.AddFolder(parent, index, node.title());
       model.SetCollapsed(copy, node.collapsed());
+      model.SetNameSource(copy, node.name_source());
+      model.SetNameBeforeClaude(copy, node.name_before_claude());
       for (const auto& child : node.children()) {
         CopyNode(model, *child, copy, copy->children().size());
       }

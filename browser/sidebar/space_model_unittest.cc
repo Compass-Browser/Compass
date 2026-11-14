@@ -963,5 +963,52 @@ TEST_F(SpaceModelTest, SetLiveSource) {
   EXPECT_THAT(observer.events, ElementsAre("changed News"));
 }
 
+// Where a folder's name came from (docs/design/ai-sidebar.md): the user's
+// unless a link folder or Claude named it; Claude's names keep the one
+// before them for Undo Name.
+TEST_F(SpaceModelTest, FolderNameSources) {
+  using NameSource = SidebarNode::NameSource;
+  SidebarNode* folder = model_.AddFolder(model_.today_root(), 0, u"Rust Book");
+  Tab(folder, "a");
+  EXPECT_EQ(folder->name_source(), NameSource::kUser);
+  EXPECT_FALSE(folder->link_folder_here());
+  EXPECT_FALSE(model_.UndoFolderName(folder));
+
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  model_.MarkLinkFolder(folder);
+  EXPECT_EQ(folder->name_source(), NameSource::kOpener);
+  EXPECT_TRUE(folder->link_folder_here());
+
+  // Claude names it, twice: Undo Name goes back to the opener's name.
+  model_.SetFolderName(folder, u"Rust", NameSource::kClaude);
+  model_.SetFolderName(folder, u"Rust Async", NameSource::kClaude);
+  EXPECT_EQ(folder->title(), u"Rust Async");
+  EXPECT_EQ(folder->name_before_claude(), u"Rust Book");
+  EXPECT_TRUE(model_.UndoFolderName(folder));
+  EXPECT_EQ(folder->title(), u"Rust Book");
+  EXPECT_EQ(folder->name_source(), NameSource::kUser);
+  EXPECT_TRUE(folder->name_before_claude().empty());
+  EXPECT_FALSE(model_.UndoFolderName(folder));
+
+  // The user renames a name of Claude's: theirs now, nothing to undo.
+  model_.SetFolderName(folder, u"Async", NameSource::kClaude);
+  model_.SetFolderName(folder, u"Mine", NameSource::kUser);
+  EXPECT_EQ(folder->name_source(), NameSource::kUser);
+  EXPECT_FALSE(model_.UndoFolderName(folder));
+  // Nothing changes, nothing is told.
+  model_.SetFolderName(folder, u"Mine", NameSource::kUser);
+  model_.RemoveObserver(&observer);
+  EXPECT_THAT(observer.events,
+              ElementsAre("changed Rust Book", "changed Rust",
+                          "changed Rust Async", "changed Rust Book",
+                          "changed Async", "changed Mine"));
+
+  // Sync brings a source: one that leaves Claude's forgets the name before.
+  model_.SetFolderName(folder, u"Docs", NameSource::kClaude);
+  model_.SetNameSource(folder, NameSource::kOpener);
+  EXPECT_TRUE(folder->name_before_claude().empty());
+}
+
 }  // namespace
 }  // namespace compass

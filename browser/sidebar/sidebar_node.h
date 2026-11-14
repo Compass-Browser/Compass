@@ -58,6 +58,18 @@ class SidebarNode {
     kSplit,
   };
 
+  // Where a folder's name came from (docs/design/ai-sidebar.md, "Names for
+  // link folders"). Saved and synced; a folder without one (made by hand, by
+  // an older build or another client) is the user's.
+  enum class NameSource {
+    // Named after the page whose links it gathers (a link folder).
+    kOpener,
+    // Named by Claude.
+    kClaude,
+    // Named, or renamed, by the user: Claude never names it on its own.
+    kUser,
+  };
+
   // |id| is for nodes that keep an identity they had before (saved, or from
   // another device); an invalid one gets a fresh ID.
   SidebarNode(Type type,
@@ -80,6 +92,17 @@ class SidebarNode {
   const std::u16string& display_title() const {
     return custom_title_.empty() ? title_ : custom_title_;
   }
+  // Where a folder's name came from; kUser for other nodes.
+  NameSource name_source() const { return name_source_; }
+  // A folder's name before Claude named it, which Undo Name goes back to;
+  // empty while the name isn't Claude's, or isn't known (Claude named it on
+  // another device). Saved, not synced.
+  const std::u16string& name_before_claude() const {
+    return name_before_claude_;
+  }
+  // Whether this device made the folder for a page's links (in this
+  // session): only that device asks Claude to name it. Not saved.
+  bool link_folder_here() const { return link_folder_here_; }
   // The page a tab shows: follows its live tab's navigations.
   const GURL& url() const { return url_; }
   // A pinned tab's or favorite's own page, which its tab goes back to when
@@ -143,6 +166,9 @@ class SidebarNode {
   base::Time live_refreshed_;
   std::string live_item_key_;
   bool unseen_ = false;
+  NameSource name_source_ = NameSource::kUser;
+  std::u16string name_before_claude_;
+  bool link_folder_here_ = false;
   raw_ptr<SidebarNode> parent_ = nullptr;
   std::vector<std::unique_ptr<SidebarNode>> children_;
 };

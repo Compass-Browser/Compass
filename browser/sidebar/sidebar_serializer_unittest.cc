@@ -146,6 +146,45 @@ TEST(SidebarSerializerTest, RoundTripsTodayFolders) {
   EXPECT_TRUE(restored.today_root()->children()[0]->collapsed());
 }
 
+// Where a folder's name came from (docs/design/ai-sidebar.md), and the name
+// Undo Name goes back to. Whether this device made it isn't saved.
+TEST(SidebarSerializerTest, RoundTripsNameSources) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  SidebarNode* opener = model.AddFolder(today, 0, u"Rust Book");
+  model.MarkLinkFolder(opener);
+  SidebarNode* claude = model.AddFolder(today, 1, u"Docs");
+  model.MarkLinkFolder(claude);
+  model.SetFolderName(claude, u"Rust Async", SidebarNode::NameSource::kClaude);
+  SidebarNode* user = model.AddFolder(today, 2, u"Mine");
+  for (SidebarNode* folder : {opener, claude, user}) {
+    model.AddTab(folder, 0, GURL("https://a.test/"), u"A");
+  }
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  const auto& folders = restored.today_root()->children();
+  ASSERT_EQ(folders.size(), 3u);
+  EXPECT_EQ(folders[0]->name_source(), SidebarNode::NameSource::kOpener);
+  EXPECT_FALSE(folders[0]->link_folder_here());
+  EXPECT_EQ(folders[1]->title(), u"Rust Async");
+  EXPECT_EQ(folders[1]->name_source(), SidebarNode::NameSource::kClaude);
+  EXPECT_EQ(folders[1]->name_before_claude(), u"Docs");
+  EXPECT_EQ(folders[2]->name_source(), SidebarNode::NameSource::kUser);
+
+  // A file from before has none: the user's.
+  base::DictValue file = SerializeSpace(model);
+  base::DictValue* folder =
+      file.FindList("today")->front().GetIfDict();
+  ASSERT_TRUE(folder);
+  folder->Remove("name_source");
+  SpaceModel older;
+  DeserializeSpace(file, older);
+  EXPECT_EQ(older.today_root()->children()[0]->name_source(),
+            SidebarNode::NameSource::kUser);
+}
+
 TEST(SidebarSerializerTest, SavesTodayWithoutNewTabPages) {
   SpaceModel model;
   SidebarNode* today = model.today_root();

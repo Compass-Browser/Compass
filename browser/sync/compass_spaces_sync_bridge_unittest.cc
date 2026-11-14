@@ -703,6 +703,67 @@ TEST_F(CompassSpacesSyncBridgeTest, ConcurrentMovesIntoEachOtherConverge) {
   EXPECT_EQ(b->Push(), 0u);
 }
 
+// Where a folder's name came from (docs/design/ai-sidebar.md) syncs: a name
+// the user gives on one device stops Claude on the others. A folder from a
+// client without the field is the user's.
+TEST_F(CompassSpacesSyncBridgeTest, FolderNameSourcesRoundTrip) {
+  using NameSource = SidebarNode::NameSource;
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* work = FindByTitle(*space_a.pinned_root(), u"Work");
+  EXPECT_FALSE(server_.entities[Key(work->id())].node().has_name_source());
+  space_a.MarkLinkFolder(work);
+  EXPECT_EQ(a->Push(), 1u);
+  EXPECT_EQ(server_.entities[Key(work->id())].node().name_source(), 1);
+  b->Pull();
+  SidebarNode* work_b = b->space(0).FindById(work->id());
+  ASSERT_TRUE(work_b);
+  EXPECT_EQ(work_b->name_source(), NameSource::kOpener);
+  // Only the device that made it asks Claude.
+  EXPECT_FALSE(work_b->link_folder_here());
+  EXPECT_EQ(b->last_push(), 0u);
+
+  // Claude names it on A: the name and its source come together.
+  space_a.SetFolderName(work, u"Projects", NameSource::kClaude);
+  EXPECT_EQ(a->Push(), 1u);
+  EXPECT_EQ(server_.entities[Key(work->id())].node().name_source(), 2);
+  b->Pull();
+  EXPECT_EQ(work_b->title(), u"Projects");
+  EXPECT_EQ(work_b->name_source(), NameSource::kClaude);
+  // The name before isn't synced: no Undo Name on B.
+  EXPECT_TRUE(work_b->name_before_claude().empty());
+  EXPECT_EQ(b->last_push(), 0u);
+
+  // The user renames it on B: theirs everywhere, and the field goes.
+  b->space(0).SetFolderName(work_b, u"Job", NameSource::kUser);
+  EXPECT_EQ(b->Push(), 1u);
+  EXPECT_FALSE(server_.entities[Key(work->id())].node().has_name_source());
+  a->Pull();
+  EXPECT_EQ(work->title(), u"Job");
+  EXPECT_EQ(work->name_source(), NameSource::kUser);
+  EXPECT_EQ(a->last_push(), 0u);
+
+  // Another client's folder without the field is the user's.
+  sync_pb::CompassSpacesSpecifics folder;
+  const std::string key = Key(base::Uuid::GenerateRandomV4());
+  folder.mutable_node()->set_uuid(key);
+  folder.mutable_node()->set_space_uuid(Key(space_a.id()));
+  folder.mutable_node()->set_section(kSectionToday);
+  folder.mutable_node()->set_type(kNodeFolder);
+  folder.mutable_node()->set_title("Older");
+  std::map<std::string, std::optional<sync_pb::CompassSpacesSpecifics>>
+      latest = {{key, folder}};
+  b->ApplyRemote({key}, latest);
+  SidebarNode* older = b->space(0).FindById(base::Uuid::ParseLowercase(key));
+  ASSERT_TRUE(older);
+  EXPECT_EQ(older->name_source(), NameSource::kUser);
+}
+
 TEST_F(CompassSpacesSyncBridgeTest, InvalidPlacementGoesToTheRoot) {
   std::unique_ptr<Device> a = MakeDevice();
   SpaceModel& space_a = a->space(0);

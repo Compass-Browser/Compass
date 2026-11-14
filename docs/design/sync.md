@@ -602,8 +602,10 @@ reference. It's built by `//components/sync/protocol` (its
 - `CompassNode` (2): one per sidebar node. UUID, `space_uuid` (empty for
   favorites), `parent_uuid` (empty = the root of its section), `section`,
   `position`, `type`, URL, title, custom title, `collapsed`,
-  `last_active_time`, `archived_time`, and `saved_url`/`saved_title` (the
-  page a pinned tab goes back to).
+  `last_active_time`, `archived_time`, `saved_url`/`saved_title` (the
+  page a pinned tab goes back to), and a folder's `name_source` (1 OPENER,
+  2 CLAUDE; unset is the user's name, which Claude never changes:
+  docs/design/ai-sidebar.md).
 - `CompassProfile` (3): one per profile of the chain, in the home
   profile's account (see "Profiles").
 - `CompassFavicon` (4): one per host (see "Favicons").

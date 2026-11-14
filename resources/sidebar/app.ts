@@ -349,6 +349,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       router.startRename.addListener((id: string) => {
         this.getRow_(id)?.closest('compass-sidebar-node')?.startRename(id);
       }),
+      router.folderNamed.addListener((id: string) => this.onFolderNamed_(id)),
     ];
     // Diffs that arrive before the tree are about nodes the page doesn't know
     // yet, and the lookups below drop them. The tree already has them.
@@ -945,6 +946,21 @@ export class CompassSidebarAppElement extends CrLitElement {
   private getFocusableRows_(): HTMLElement[] {
     return Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(
         '#favorites .tile, #sections .tab, #sections .folder-row'));
+  }
+
+  // Claude just named folder |id| (docs/design/ai-sidebar.md): its icon
+  // sparkles and the new name fades in, once the name is shown.
+  private async onFolderNamed_(id: string) {
+    await this.updateComplete;
+    const row = this.getRow_(id);
+    if (!row) {
+      return;
+    }
+    row.classList.remove('claude-named');
+    // Restarts the animation if it's still running.
+    void row.offsetWidth;
+    row.classList.add('claude-named');
+    setTimeout(() => row.classList.remove('claude-named'), 1000);
   }
 
   private getRow_(id: string): HTMLElement|null {

@@ -32,6 +32,8 @@ source_set("ui") {
     "claude/claude_files_config.h",
     "claude/claude_tabs.cc",
     "claude/claude_tabs.h",
+    "claude/link_folder_namer.cc",
+    "claude/link_folder_namer.h",
     "live_folders/live_folder_host.cc",
     "live_folders/live_folder_host.h",
     "live_folders/live_folder_service.cc",
@@ -313,8 +315,10 @@ source_set("unit_tests") {
     "//compass/test:browser_window_test",
     ":ui",
     "//compass/browser/claude",
+    "//compass/browser/claude:prefs",
     "//compass/browser/sync",
     "//compass/browser/ui/webui/sync:mojo_bindings",
+    "//components/prefs",
     "//base",
     "//base/test:test_support",
     "//chrome/app:command_ids",
@@ -346,6 +350,7 @@ source_set("browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
     "arc_import/arc_importer_browsertest.cc",
+    "claude/link_folder_namer_browsertest.cc",
     "live_folders/live_folder_runtime_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/claude/claude_panel_browsertest.cc",

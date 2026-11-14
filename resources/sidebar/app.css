@@ -1002,6 +1002,52 @@ input.title-input {
   }
 }
 
+/* Claude just named the folder (docs/design/ai-sidebar.md): its icon
+ * sparkles and the new name fades in (app.ts, folderNamed). */
+.folder-row.claude-named .folder-icon {
+  animation: claude-named-sparkle 900ms ease-out;
+}
+
+.folder-row.claude-named .title {
+  animation: claude-named-fade 500ms ease-in;
+}
+
+@keyframes claude-named-sparkle {
+  0% {
+    filter: none;
+    transform: scale(1);
+  }
+  30% {
+    filter: drop-shadow(0 0 3px rgb(217, 119, 87))
+        drop-shadow(0 0 6px rgba(217, 119, 87, 0.6));
+    transform: scale(1.25) rotate(-8deg);
+  }
+  60% {
+    filter: drop-shadow(0 0 2px rgba(217, 119, 87, 0.8));
+    transform: scale(0.95) rotate(4deg);
+  }
+  100% {
+    filter: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes claude-named-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folder-row.claude-named .folder-icon,
+  .folder-row.claude-named .title {
+    animation: none;
+  }
+}
+
 .title-input {
   background: rgba(128, 128, 128, 0.15);
   border: 1px solid rgba(128, 128, 128, 0.4);
