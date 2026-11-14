@@ -175,10 +175,10 @@ def jwt_signing_input(info: dict, now: Optional[float] = None) -> str:
 
 def sign_rs256(private_key_pem: str, data: str) -> bytes:
   """RSASSA-PKCS1-v1_5 with SHA-256, by `openssl dgst` (LibreSSL's too). The
-  key goes through a file only the user can read, removed right after."""
+  key goes through a file only the user can read (mkstemp makes it so),
+  removed right after."""
   fd, key_path = tempfile.mkstemp(suffix='.pem')
   try:
-    os.fchmod(fd, 0o600)
     with os.fdopen(fd, 'w') as f:
       f.write(private_key_pem)
     result = subprocess.run(['openssl', 'dgst', '-sha256', '-sign', key_path],

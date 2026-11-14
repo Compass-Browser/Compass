@@ -6,6 +6,7 @@ import base64
 import contextlib
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -135,7 +136,7 @@ class CredentialsTest(unittest.TestCase):
 
   def test_missing_names_the_path(self):
     path = self.dir / 'play-service-account.json'
-    with self.assertRaisesRegex(CommandError, str(path)):
+    with self.assertRaisesRegex(CommandError, re.escape(str(path))):
       play.load_credentials(path)
 
   def test_checks_the_kind(self):
