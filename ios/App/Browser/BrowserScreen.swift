@@ -179,6 +179,15 @@ struct BrowserScreen: View {
                 bottomInset: underBar ? (app.barCollapsed ? Self.collapsedHeight : Self.barHeight) : 0,
                 obscuredBottom: underBar ? barInset : 0)
                 .id("\(pane.id)/\(ObjectIdentifier(view).hashValue)")
+                .overlay {
+                  if let reader = app.shownReader, reader.tabID == pane.id {
+                    ReaderScreen(
+                      page: reader,
+                      bottomInset: underBar ? (app.barCollapsed ? Self.collapsedHeight : Self.barHeight) : 0,
+                      obscuredBottom: underBar ? barInset : 0)
+                      .transition(.opacity)
+                  }
+                }
             } else {
               ElsewherePage(tab: pane)
             }
@@ -223,6 +232,18 @@ struct BrowserScreen: View {
           // The page runs under the bar; WKWebView insets its content by
           // the safe area, so the page's end still scrolls clear of it.
           .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
+          // Reader mode: the article over the page (Reader.swift).
+          .overlay {
+            if let reader = app.shownReader, reader.tabID == tab.id {
+              ReaderScreen(
+                page: reader,
+                topInset: node?.isSplit == true ? 0 : statusInset,
+                bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
+                obscuredBottom: barInset)
+                .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
+                .transition(.opacity)
+            }
+          }
       } else {
         emptyPage
       }
@@ -519,7 +540,8 @@ struct BrowserScreen: View {
           .foregroundStyle(app.shownTab == nil ? .secondary : .primary)
           .lineLimit(1)
       }
-      .padding(.horizontal, 14)
+      // Room for the Reader button, both sides so the host stays centered.
+      .padding(.horizontal, showsReaderButton ? 40 : 14)
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .background(Color.primary.opacity(0.07), in: Capsule())
@@ -529,6 +551,29 @@ struct BrowserScreen: View {
     .accessibilityLabel("Address")
     .accessibilityValue(host)
     .contextMenu { if app.shownTab != nil { addressMenu } }
+    .overlay(alignment: .trailing) {
+      if showsReaderButton { readerButton.transition(.scale.combined(with: .opacity)) }
+    }
+    .animation(.snappy(duration: 0.2), value: showsReaderButton)
+  }
+
+  /// The shown page reads as an article, or its reader is up.
+  private var showsReaderButton: Bool { app.shownReader != nil || app.canShowReader }
+
+  /// Reader mode (Reader.swift), a book at the address's end as on the
+  /// desktop's pill: the article over the page, or back to the page.
+  private var readerButton: some View {
+    let on = app.shownReader != nil
+    return Button { app.toggleReader() } label: {
+      Image(systemName: on ? "book.fill" : "book")
+        .font(.system(size: 16, weight: .semibold))
+        .foregroundStyle(on ? tint : .primary)
+        .frame(width: 40, height: 44)
+        .contentShape(Rectangle())
+    }
+    .padding(.trailing, 2)
+    .accessibilityLabel(on ? "Hide Reader" : "Show Reader")
+    .accessibilityIdentifier("BarReader")
   }
 
   /// The share sheet for the shown page, from the menu button (a popover
@@ -562,6 +607,11 @@ struct BrowserScreen: View {
     }
     Button("Find on Page", systemImage: "magnifyingglass") { app.findOnPage() }
       .disabled(view == nil)
+    if app.shownReader != nil || app.canShowReader {
+      Button(app.shownReader != nil ? "Hide Reader" : "Show Reader", systemImage: "book") {
+        app.toggleReader()
+      }
+    }
     if let site {
       Button(
         desktop ? "Request Mobile Site" : "Request Desktop Site",

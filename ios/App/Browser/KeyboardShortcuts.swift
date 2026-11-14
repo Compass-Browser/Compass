@@ -8,7 +8,7 @@ import WebKit
 /// Keyboard shortcuts with a hardware keyboard (iPad, or an iPhone with
 /// one), the desktop's where it has them (shortcuts.md): ⌘T and ⌘L the
 /// command bar, ⌘O Peek's Open, ⌘S the sidebar, ⌃1–9 the spaces, ⌘⇧C copy the link, ⌘⇧T
-/// reopen a closed tab.
+/// reopen a closed tab, ⌘⌥R Reader.
 /// iPadOS lists them in the menu bar and in the overlay ⌘ held down shows.
 struct BrowserCommands: Commands {
   let services: AppServices
@@ -65,6 +65,11 @@ struct BrowserCommands: Commands {
         .keyboardShortcut("r")
       Button("Reload Without Cache") { webView?.reloadFromOrigin() }
         .keyboardShortcut("r", modifiers: [.command, .shift])
+      // The desktop's Reader shortcut on a Mac (reader-mode.md): any web
+      // page; one without an article says so.
+      Button(app?.shownReader != nil ? "Hide Reader" : "Show Reader") { app?.toggleReader() }
+        .keyboardShortcut("r", modifiers: [.command, .option])
+        .disabled(peek != nil || app?.shownTab == nil)
     }
     CommandMenu("History") {
       Button("Back") { webView?.goBack() }

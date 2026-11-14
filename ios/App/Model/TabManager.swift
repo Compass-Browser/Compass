@@ -81,6 +81,8 @@ final class TabManager: NSObject {
   var muted: Set<String> = []
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
+  /// A new document in a tab (a link, back, a reload): tab ID.
+  var onCommitted: ((String) -> Void)?
   /// The page scrolled: (tab ID, how far down since the last call, whether
   /// the user is scrolling it, whether it's at its top).
   var onScroll: ((String, CGFloat, Bool, Bool) -> Void)?
@@ -459,7 +461,10 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
   }
 
   nonisolated func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-    MainActor.assumeIsolated { setConnecting(webView, false) }
+    MainActor.assumeIsolated {
+      setConnecting(webView, false)
+      if let id = live.first(where: { $0.value === webView })?.key { onCommitted?(id) }
+    }
   }
 
   nonisolated func webView(

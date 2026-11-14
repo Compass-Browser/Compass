@@ -8,8 +8,8 @@ import WebKit
 
 /// The bottom bar's menu: what to do with the shown page. On top, back,
 /// forward, the address (tap to edit), copy link and reload; then Find on
-/// Page, Ask Claude, Pin and Share; then Site Settings (where Desktop Site
-/// is) and Settings.
+/// Page, Reader, Ask Claude, Pin and Share; then Site Settings (where
+/// Desktop Site is) and Settings.
 struct PageMenu: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
@@ -29,6 +29,13 @@ struct PageMenu: View {
           dismiss()
           app.findOnPage()
         }
+        // Reader mode (Reader.swift): dimmed when the page isn't an article.
+        Tile(title: "Reader", symbol: "book", on: app.shownReader != nil) {
+          dismiss()
+          app.toggleReader()
+        }
+        .disabled(app.shownReader == nil && !app.canShowReader)
+        .accessibilityIdentifier("MenuReader")
         // Not in incognito (as the desktop).
         if !(tab.map { app.tabs.isIncognito($0.id) } ?? false) {
         Tile(title: "Ask Claude", symbol: "sparkles") {

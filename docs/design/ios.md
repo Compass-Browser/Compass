@@ -277,7 +277,7 @@ The phone syncs every profile of the chain, each in its own account, as the desk
   - The bottom bar hides on scroll down and shows on scroll up.
   - Swiping horizontally on the bar moves between the space's Today/Pinned entries, as in Safari: the page and the bar follow the finger and the neighbor (its last snapshot, or its icon and title when it isn't loaded, and its bar) slides in beside them. Let go past a third of the screen, or flick past half, and it takes over; otherwise both spring back. Past the space's ends the swipe only gives a little.
   - Swiping up on the bar opens, by where the finger starts: left of the address pill (back, forward) the tab picker, on the pill the sidebar (both follow the finger), right of it (key, new tab, menu) the command bar for a new tab. The pill's frame on screen is measured; thirds of the screen until it is.
-  - A long press on the address pill: Reload, Copy URL, Share, Find on Page, and Request Desktop Site / Request Mobile Site, which flips the site's Desktop Site setting (Site Settings) and reloads its tabs.
+  - A long press on the address pill: Reload, Copy URL, Share, Find on Page, Show/Hide Reader (on an article), and Request Desktop Site / Request Mobile Site, which flips the site's Desktop Site setting (Site Settings) and reloads its tabs.
   - A long press on the bar's … button: Share the shown page (its URL and title, as the menu's Share tile).
   - Splits on the phone open as one entry. A split of two shows both panes, one above the other (side by side in landscape), each under a title strip; the front pane is outlined and the bar acts on it, and a tap on a strip brings that pane to the front. Only the bottom pane runs under the bar. A split of three or four shows one pane at a time under a pane picker (segmented control). `AppModel.showsPanesTogether`.
 - **Tab picker** (`TabPicker`): the loaded tabs only, as cards with their snapshot (taken as a tab is left and as the picker opens, in memory), least recently shown at the left. Cards left of the centered one stack behind it; cards to its right lie on top. A tap shows a tab, a flick up closes it (a Today entry goes to the archive, anything else unloads), a drag down closes the picker. One button: + (new tab).
@@ -429,6 +429,20 @@ whose `AppModel.peek` the card shows (`App/Browser/Peek.swift`).
 Not done: the page in the card has no password AutoFill, isn't in history
 until opened, and Esc goes to the card before the page.
 
+### Reader mode
+
+The desktop's Reader ([reader-mode.md](reader-mode.md), "iOS"), on the
+shared package (`common/reader/`): a page that reads as an article gets a
+book at the end of the bar's address pill (the host stays centered); a tap
+shows the article over the tab in the shared reader page (its toolbar: ×,
+Listen, Aa with font, size, width and Auto, Light, Sepia or Dark), and
+again goes back to the page, untouched underneath. Also Show/Hide Reader
+in the pill's long-press menu, a Reader tile in the page menu, and ⌘⌥R.
+Settings are kept in UserDefaults; it works in Incognito and sends nothing
+anywhere. `ReaderMode` (`AppServices.reader`), `ReaderPage` and
+`AppModel.readers` in `App/Browser/Reader.swift`; tests `ReaderTests`
+(CompassKit) and `ReaderModeTests` (UI).
+
 ### Little windows
 
 The desktop's little windows ([little-window.md](little-window.md)) on an
@@ -521,7 +535,7 @@ An incognito space at the end of the space switcher; its tabs kept in memory whi
 - **Dragging panes** (`PaneStrip`): a pane's strip drags as its entry. Dropped on another pane's strip, a pane of the same split moves to that pane's left or right (the half it's dropped on, mirrored right to left), the front pane staying in front; any other tab (a sidebar row, another split's pane) joins the split there and comes to the front, while the split has room (four panes), as the desktop's split rows take drops (sidebar.md). Favorites, folders and splits don't go in. The strip highlights while a drop is over it. Dragged to the sidebar, a pane drops as any row does. `AppModel.dropOnPane`.
 - Bar swipes between entries move by the page's width (measured), not the window's. `SidebarPanel`'s sizes are the window's, not the screen's.
 - Debug: `-CompassOpenURLs "<a> <b>" -CompassSplit YES` splits the last two tabs.
-- **Keyboard shortcuts** (`BrowserCommands`, KeyboardShortcuts.swift; a hardware keyboard on iPad or iPhone; listed in the iPadOS menu bar and the ⌘-hold overlay): ⌘T new tab and ⌘L the address (command bar), ⌘S the sidebar, ⌘R and ⌘⇧R reload, ⌘[ and ⌘] back and forward, ⌘⇧C copy link, ⌘F find, ⌃Tab and ⌃⇧Tab the next and previous entry (wrapping), ⌘W close the tab (Today to the archive, others unload; Peek's card first), ⌃1–9 the spaces, ⌘N a new window, ⌘⇧N a new incognito tab, ⌘⇧T reopen a closed tab. Debug: `-CompassFreshStore YES` starts from an empty sidebar.
+- **Keyboard shortcuts** (`BrowserCommands`, KeyboardShortcuts.swift; a hardware keyboard on iPad or iPhone; listed in the iPadOS menu bar and the ⌘-hold overlay): ⌘T new tab and ⌘L the address (command bar), ⌘S the sidebar, ⌘R and ⌘⇧R reload, ⌘[ and ⌘] back and forward, ⌘⇧C copy link, ⌘F find, ⌃Tab and ⌃⇧Tab the next and previous entry (wrapping), ⌘W close the tab (Today to the archive, others unload; Peek's card first), ⌃1–9 the spaces, ⌘N a new window, ⌘⇧N a new incognito tab, ⌘⇧T reopen a closed tab, ⌘⌥R Reader. Debug: `-CompassFreshStore YES` starts from an empty sidebar.
 - **⌘W, ⌃Tab and ⌃⇧Tab come first** (`BrowserKeys`). As SwiftUI commands they didn't reliably reach the app: the system's Close Window kept ⌘W (Close Tab in `.saveItem` didn't help, and an AppDelegate `buildMenu` override isn't called under SwiftUI's lifecycle), a focused page took Tab (⌃Tab worked once), and root view controller key commands with `wantsPriorityOverSystemBehavior` didn't help either. So `UIApplication.sendEvent(_:)` is swapped for `compassSendEvent`, which looks at hardware key presses before anything else in the app does (a focused page's included: logged, ⌃Tab's presses arrive there and stop): in a browser window (one with an `AppModel`; a little window keeps its own ⌘W) those keys run their command and the press and its release go no further. With a sheet up (Settings, the command bar, an extension's popup) ⌃Tab passes through and ⌘W does nothing, except on Peek's card, which it closes. The Tabs menu still lists them (picked from the menu bar they act the same; Close Tab in a little window closes it).
 - **⌘W in the iPadOS 27 simulator** never reaches the app: not even the ⌘ press of the chord gets to `sendEvent` (⌘T's does), and nothing happens; once, right after the simulator booted, it did arrive and closed the tab. Removing the system's Close Window from the main menu (a swapped `buildMenu`) and giving the menu's Close Tab `wantsPriorityOverSystemBehavior` changed nothing, so neither is kept. It looks like the system's window management keeping ⌘W; on an iPad it's still to be checked (Open items). The pre-existing ⌘T test fails the same way in the simulator (its presses arrive, but the command bar doesn't open), also on main before these changes.
 - **Extensions' shortcuts.** Web extensions' manifest `commands` with keys (`WKWebExtension.Command`'s `activationKey` and `modifierFlags`, as WebKit reads them) run through `BrowserKeys` too: the press goes to the extension (`performCommand`: `commands.onCommand`, or its action for `_execute_action`) on the shown tab. Keys the browser or editing keep (above, ⌘C/V/X/A/Z/Q/H) stay the browser's, as Chrome keeps its own; keys with no modifier are never taken. The menu bar's Extensions menu lists every running extension's commands ("<extension>: <description>") with their keys.

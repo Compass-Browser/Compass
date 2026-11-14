@@ -107,6 +107,9 @@ final class AppModel {
   var showingDownloads = false
   /// The page Peek's card shows (Peek.swift).
   var peek: Peek?
+  /// Tabs in Reader (Reader.swift), by tab ID: shown while the tab is,
+  /// kept while it's away, gone when its page changes.
+  var readers: [String: ReaderPage] = [:]
   /// The scene this window is in (little windows open from it).
   @ObservationIgnored weak var windowScene: UIWindowScene?
   /// New Live Folder / Edit Source (LiveFolderEditor).
@@ -562,7 +565,7 @@ final class AppModel {
   /// Opens the find bar on the shown page, with `text` already searched.
   /// After a sheet has closed (it can't show while one is up).
   func findOnPage(_ text: String? = nil) {
-    guard let tab = shownTab, let view = tabs.live[tab.id] else { return }
+    guard let tab = shownTab, let view = shownReader?.webView ?? tabs.live[tab.id] else { return }
     Task {
       try? await Task.sleep(for: .milliseconds(450))
       view.findInteraction?.presentFindNavigator(showingReplace: false)

@@ -45,6 +45,20 @@ targets:
       # (docs/design/picture-in-picture.md, "Calls").
       - path: ../common/picture_in_picture/call_pip.js
         buildPhase: resources
+      # Reader mode, shared with the desktop (docs/design/reader-mode.md):
+      # Readability and reader.js run in pages; the rest is the reader page.
+      - path: ../common/reader/Readability.js
+        buildPhase: resources
+      - path: ../common/reader/Readability-readerable.js
+        buildPhase: resources
+      - path: ../common/reader/reader.js
+        buildPhase: resources
+      - path: ../common/reader/reader.html
+        buildPhase: resources
+      - path: ../common/reader/reader.css
+        buildPhase: resources
+      - path: ../common/reader/reader_view.js
+        buildPhase: resources
       # Live folder plugins: the SDK, the runtime scripts and the built-ins,
       # shared with the desktop (docs/design/live-folders.md). Folders at
       # the bundle's top, laid out as plugins/ is: a "plugins" folder would

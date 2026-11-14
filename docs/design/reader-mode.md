@@ -1,7 +1,7 @@
 # Reader mode
 
 Status: shared package done (`common/reader/`); desktop (Mac, Windows,
-Linux) in progress; iOS next, on the same package. Based on Chromium
+Linux) in progress; iOS done, on the same package ("iOS" below). Based on Chromium
 157.0.8103.51.
 
 ## Goal
@@ -209,3 +209,59 @@ with the fixtures served by the embedded test server:
   document leaves Reader; switching away hides and back shows it; the
   command bar's command and the shortcut toggle it.
 - `Incognito`: Reader works in an Incognito window.
+
+## iOS
+
+The same package in WKWebView (`ios/App/Browser/Reader.swift`); the files
+are bundled through `ios/project.yml`, as `common/claude/` is. Nothing goes
+anywhere; it works in Incognito.
+
+- **Is this an article?** When a tab's page finishes loading, and 1 s
+  after a URL change within the page (single-page apps),
+  `Readability-readerable.js` and `reader.js` `check()` run in the page in
+  Compass's own content world (`WKContentWorld` "CompassReader"), never the
+  page's. The scripts are evaluated as scripts there first (their globals
+  once per world), then `check()` or `parse()` is called. Only http(s)
+  pages; every tab, not only the shown one (`ReaderMode`, one per app;
+  `readerable` by tab and URL).
+- **The reader page.** Over the tab, a WKWebView of its own (`ReaderPage`)
+  loads the shared `reader.html` from `compass-reader://reader/`, a scheme
+  the app serves (`ReaderSchemeHandler`): only `reader.html`, `reader.css`,
+  `reader.js` and `reader_view.js`, with the desktop's Content Security
+  Policy as a header and as a `<meta>` (`default-src 'none'`, `script-src
+  'self'`, `img-src https: http: data:`, ...), and `no-referrer`. The page
+  uses the tab's website data store (Incognito's stays in memory). Once it
+  has loaded, the app hands it `parse()`'s result
+  (`compassReaderView.render()`); `reader_view.js` sanitizes it again, so
+  the look, the toolbar (×, Listen, Aa), the settings panel and the reading
+  time are the desktop's.
+- **`compassReaderHost`**: a user script at document start in the reader
+  page gives `reader_view.js` the settings from UserDefaults
+  (`compass.reader.settings`, the same JSON the desktop keeps in
+  localStorage), saves changes back through a script message, and makes ×
+  and Esc (with the settings panel closed) leave Reader. One set of
+  settings for the app, not per profile.
+- **Listen** is `reader_view.js`'s, with WebKit's `speechSynthesis` and
+  the system's local voices: nothing native.
+- **Where Reader shows** (ios.md, "Reader mode"): a book at the end of the
+  bar's address pill while the shown tab is an article or in Reader
+  (filled and tinted in Reader); Show/Hide Reader in the pill's long-press
+  menu; a Reader tile in the page menu (dimmed when the page isn't an
+  article); and ⌘⌥R with a hardware keyboard (the Mac's keys), which works
+  on any web page: one without an article shows "No article found on this
+  page."
+- **Leaving**: the book or ⌘⌥R again, the reader's ×, Esc, or a new
+  document committed in the tab (`TabManager.onCommitted`: a link, Back, a
+  reload). Reader is per tab: each window keeps its tabs' readers
+  (`AppModel.readers`), showing the shown tab's; switching away and back
+  shows it again.
+- **Links in the article** load in the tab, which leaves Reader; "Original
+  page" just leaves; `mailto:` goes to the system.
+- **Unlike the desktop**: Find on Page (⌘F) searches the article while
+  Reader is up; splits show the reader over the front pane.
+- **Tests**: `ReaderTests` in CompassKit (settings as `reader_view.js`
+  validates and stores them, reader.js answers, the served files and their
+  policy, links); UI test `ReaderModeTests` on the package's fixtures (the
+  book shows on the article and not on the sign-in page; the reader shows
+  the article without the page's ads; Aa → Sepia is kept for the next
+  reader; × goes back).

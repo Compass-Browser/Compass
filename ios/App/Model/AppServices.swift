@@ -34,6 +34,8 @@ final class AppServices {
   let siteSettings: SiteSettings
   let contentBlocking = ContentBlocking()
   let downloads = Downloads()
+  /// Reader mode: which pages read as articles, and the reader's look.
+  let reader = ReaderMode()
   let extensions: WebExtensions
   /// Live folders' plugins, refreshes and secrets.
   let liveFolders: LiveFolders
@@ -158,6 +160,8 @@ final class AppServices {
       for window in self?.windows ?? [] where window.peek?.page === page { window.closePeek() }
     }
     tabs.onPageLoaded = { [weak self] url, title, id in
+      // Reader mode, incognito too (it stays on the device).
+      if let self, let view = self.tabs.live[id] { self.reader.check(id, view) }
       guard let self, !self.tabs.isIncognito(id) else { return }  // no history in incognito
       self.sync.recordVisit(url: url, title: title, profile: self.accountProfile(ofTab: id))
     }
@@ -178,6 +182,12 @@ final class AppServices {
     tabs.onNavigated = { [weak self] id in
       self?.passwords.pageChanged(id)
       self?.owner(of: id)?.setBarCollapsed(false)
+      // Another page: it's checked again (Reader mode).
+      if let self, let view = self.tabs.live[id] { self.reader.pageChanged(id, view) }
+    }
+    // A new document leaves Reader, as on the desktop.
+    tabs.onCommitted = { [weak self] id in
+      for window in self?.windows ?? [] { window.closeReader(id) }
     }
     tabs.onScroll = { [weak self] id, dy, user, atTop in
       self?.owner(of: id)?.pageScrolled(id, dy, user: user, atTop: atTop)
