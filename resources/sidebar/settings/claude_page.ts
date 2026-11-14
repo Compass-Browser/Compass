@@ -48,6 +48,17 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
     setEnabled: (handler, on) => handler.setTidyToday(on),
     setModel: (handler, model) => handler.setTidyTodayModel(model),
   },
+  {
+    id: 'shortTabTitles',
+    name: 'Shorter Tab Titles',
+    description: 'Long tab titles read as short ones in the sidebar, from ' +
+        'the titles and sites of your tabs. Hover cards keep the full title, ' +
+        'and a name you give a tab always wins.',
+    enabled: state => state.shortTabTitles,
+    model: state => state.shortTabTitlesModel,
+    setEnabled: (handler, on) => handler.setShortTabTitles(on),
+    setModel: (handler, model) => handler.setShortTabTitlesModel(model),
+  },
 ];
 
 import {getTemplate} from './claude_page.html.js';

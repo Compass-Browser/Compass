@@ -85,6 +85,12 @@ inline constexpr char kNameLinkFoldersModel[] =
 inline constexpr char kTidyToday[] = "compass.claude.tidy_today";
 // The model "Tidy Today" asks.
 inline constexpr char kTidyTodayModel[] = "compass.claude.tidy_today_model";
+// "Shorter Tab Titles": the sidebar shows Claude's short titles for long tab
+// titles (display only; ShortTitler).
+inline constexpr char kShortTabTitles[] = "compass.claude.short_tab_titles";
+// The model "Shorter Tab Titles" asks.
+inline constexpr char kShortTabTitlesModel[] =
+    "compass.claude.short_tab_titles_model";
 
 enum class FilesAccess {
   kOff = 0,

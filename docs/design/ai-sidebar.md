@@ -6,7 +6,9 @@ titles, and Ask in the command bar. The chat panel and its tools are
 claude.md's; this doc reuses its endpoint, credentials and request code.
 
 Status: A1, A2 and A3 (Tidy Today) done on the desktop and on iOS (14
-November 2026); A4, A5 and A7 planned, and A6's A4 and A5. Desktop first, then iOS and Android.
+November 2026); A4 (Shorter tab titles) done on the desktop (14 November
+2026); A5 and A7 planned, and A6's A4 and A5. Desktop first, then iOS and
+Android.
 
 ## Goal
 
@@ -26,7 +28,7 @@ acts without a visible result the user can undo.
   and its own model picker (per profile; iOS UserDefaults to match):
   "Name Link Folders" (`compass.claude.name_link_folders`), "Tidy Today"
   (`compass.claude.tidy_today`), "Shorter Tab Titles"
-  (`compass.claude.short_titles`) and "Answer Questions in the Command
+  (`compass.claude.short_tab_titles`) and "Answer Questions in the Command
   Bar" (`compass.claude.command_bar_ask`). There's no master switch. Every
   switch needs Claude set up, and is disabled with a line saying so while
   it isn't.
@@ -104,7 +106,7 @@ With "Name Link Folders" on:
 ## 3. Shorter tab titles
 
 - With its own switch on, "Shorter Tab Titles"
-  (`compass.claude.short_titles`, with its model), a tab whose title is
+  (`compass.claude.short_tab_titles`, with its model), a tab whose title is
   longer than the row shows
   (about 40 characters, or with a site suffix like " · GitHub", " - YouTube",
   " | The Verge") gets a short title: "Pull request #123 · org/repo ·
@@ -235,6 +237,60 @@ With "Name Link Folders" on:
   `TidyButtonAndUndoToast` through the page, `NothingWithTheSwitchOff`: no
   button, no request).
 
+## As built (A4, Shorter tab titles)
+
+- **The switch and model:** "Shorter Tab Titles"
+  (`compass.claude.short_tab_titles`, off) and
+  `compass.claude.short_tab_titles_model` (default `claude-haiku-5-5`), a
+  row of `SIDEBAR_FEATURES`. (This section's first draft named the pref
+  `compass.claude.short_titles`; the built name is `short_tab_titles`, which
+  iOS's UserDefaults key matches.)
+- **Which tabs** (`ShortTitler::IsEligible()`): tab nodes of a space, in
+  Today (folders and split panes included) and in Pinned, without a custom
+  title, whose title `NeedsShortTitle()`: longer than 40 characters, or
+  ending with a site suffix (" · ", " - ", " | ", " — ", " – " or " :: "
+  and at most 30 characters after it). Not favorites: their tiles show no
+  title, so a request for them would buy nothing (the open question's
+  answer: Today and unnamed Pinned entries; a custom title always wins).
+- **`SidebarNode::short_title()`**, set by `SpaceModel::SetShortTitle()`:
+  not saved, not synced, not in `display_title()`. Observers hear
+  `OnNodeShortTitleChanged()`, not `OnNodeChanged()`, so the store and the
+  sync bridge never see it. `SetTitle()` with a new title drops it first.
+  The sidebar's row shows `customTitle || shortTitle || title`
+  (`Node.short_title`, `Page.NodeShortTitleChanged()`); its tooltip, Rename,
+  the hover card, the window title, the command bar and Claude's
+  descriptions keep the title.
+- **`ShortTitler`** (`browser/ui/claude/short_titler.*`), a per-profile
+  service like `LinkFolderNamer` (none off the record, so incognito's spaces
+  are never followed), made by the sidebar's page handler. It follows the
+  profile's spaces; an eligible tab whose (host, title) isn't cached waits
+  for the batch: one background `ClaudeQuick` request 10 s after the first
+  title waiting (`kBatchDelay`), or at once when 20 wait (`kMaxBatch`),
+  listing them as "<n>. <title> (<host>)". The "short_titles" prompt
+  section asks for `{"titles": {"<id>": "…"}}`; `ParseShortTitlesReply()`
+  keeps known ids whose title `SanitizeShortTitle()` keeps: the name rules
+  without the word limit, up to 40 characters (`kMaxShortTitleLength`). A
+  title that isn't shorter than the page's is none.
+- **Cache:** per (host, title), for the session (up to 2,000, then it
+  starts over), also "none", so a title seen again costs nothing; tabs with
+  the same title share one request and one answer. Requests count against
+  the hourly limit; one refused by it, the back-off or an error leaves those
+  titles long until they change.
+- **The switch off** (or the key removed) clears every short title and what
+  waits; on again, cached ones come back without a request, the rest are
+  asked for.
+- **Tests:** `ClaudeQuickTest.NeedsShortTitle`, `SanitizeShortTitle`,
+  `ParseShortTitlesReply`, `SidebarPrompts`; `ShortTitlerTest` (a fake
+  endpoint: nothing while off or not set up, the 10 s batch with hosts and
+  no paths, custom titles and short titles left out, the cache with
+  "none", a new title asking again and a user's name winning meanwhile, 20
+  at once, the switch clearing and restoring, Pinned but not favorites);
+  `SidebarPageHandlerTest.ShortTitles`;
+  `ClaudeSettingsHandlerBrowserTest.SidebarAiSettings`;
+  `ShortTitlerBrowserTest` with a fake Claude server (`ShowsShortTitles`:
+  the row shows it while its tooltip and the hover card keep the title, the
+  same title again makes no request, a name wins; `NothingWithTheSwitchOff`).
+
 ## As built on iOS (A6: A1–A3)
 
 Done on iOS (14 November 2026): `ClaudeQuick`, the prompts, the switch and
@@ -325,6 +381,4 @@ then Tidy Today (A3). Short titles and Ask (A4, A5) aren't on iOS yet.
 
 ## Open questions
 
-- Whether short titles should also apply to favorites and Pinned entries
-  (which often have the user's own name already).
 - Whether Tidy should also offer to archive tabs it can't group.

@@ -80,6 +80,9 @@ struct SettingsState {
   // "Tidy Today", and its model.
   bool tidy_today;
   string tidy_today_model;
+  // "Shorter Tab Titles", and its model.
+  bool short_tab_titles;
+  string short_tab_titles_model;
 };
 
 // A fact Claude saved about the user.
@@ -148,4 +151,7 @@ interface SettingsHandler {
   SetTidyToday(bool enabled);
   // Empty goes back to the default (Claude Haiku).
   SetTidyTodayModel(string model);
+  SetShortTabTitles(bool enabled);
+  // Empty goes back to the default (Claude Haiku).
+  SetShortTabTitlesModel(string model);
 };

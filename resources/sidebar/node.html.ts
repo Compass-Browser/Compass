@@ -17,7 +17,7 @@ ${this.isTab_() ? html`
       aria-selected="${this.isActive_(this.node!)}"
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
       ?claude="${this.node!.claude}" ?unseen="${this.node!.unseen}"
-      title="${this.getTitle_(this.node!)}" @click="${this.onTabClick_}"
+      title="${this.getFullTitle_(this.node!)}" @click="${this.onTabClick_}"
       @dblclick="${this.onTabDblclick_}" @mousedown="${this.onTabMousedown_}"
       @auxclick="${this.onTabAuxclick_}"
       @pointerleave="${this.onTabPointerleave_}">
@@ -25,7 +25,7 @@ ${this.isTab_() ? html`
     ${this.isEditing_(this.node!) ? html`
       <input class="title-input tab-title-input" spellcheck="false"
           autocomplete="off"
-          .value="${this.getTitle_(this.node!)}" aria-label="Tab name"
+          .value="${this.getFullTitle_(this.node!)}" aria-label="Tab name"
           @click="${this.onTitleInputClick_}"
           @dblclick="${this.onTitleInputDblclick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
@@ -53,7 +53,7 @@ ${this.isSplit_() ? html`
           aria-selected="${this.isActive_(pane)}"
           ?active="${this.isActive_(pane)}" ?unloaded="${!pane.live}"
           ?claude="${pane.claude}"
-          title="${this.getTitle_(pane)}" @click="${this.onTabClick_}"
+          title="${this.getFullTitle_(pane)}" @click="${this.onTabClick_}"
           @dblclick="${this.onTabDblclick_}"
           @mousedown="${this.onTabMousedown_}"
           @auxclick="${this.onTabAuxclick_}"
@@ -62,7 +62,7 @@ ${this.isSplit_() ? html`
         ${this.isEditing_(pane) ? html`
           <input class="title-input tab-title-input" spellcheck="false"
           autocomplete="off"
-              .value="${this.getTitle_(pane)}" aria-label="Tab name"
+              .value="${this.getFullTitle_(pane)}" aria-label="Tab name"
               @click="${this.onTitleInputClick_}"
               @dblclick="${this.onTitleInputDblclick_}"
               @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`

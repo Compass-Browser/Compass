@@ -110,7 +110,14 @@ export class CompassSidebarNodeElement extends CrLitElement {
     return this.node?.children ?? [];
   }
 
+  // What the row shows: the user's name, else Claude's short title
+  // (docs/design/ai-sidebar.md, "Shorter tab titles"), else the title.
   protected getTitle_(node: Node): string {
+    return node.customTitle || node.shortTitle || this.getFullTitle_(node);
+  }
+
+  // The row's tooltip and what Rename starts from: never the short title.
+  protected getFullTitle_(node: Node): string {
     return node.customTitle || node.title || node.url || 'New Tab';
   }
 
@@ -355,7 +362,7 @@ export class CompassSidebarNodeElement extends CrLitElement {
       if (title && title !== node.title) {
         handler.renameFolder(id, title);
       }
-    } else if (title !== this.getTitle_(node)) {
+    } else if (title !== this.getFullTitle_(node)) {
       handler.renameTab(id, title === node.title ? '' : title);
     }
   }

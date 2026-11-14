@@ -38,6 +38,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kNameLinkFoldersModel, "claude-haiku-5-5");
   registry->RegisterBooleanPref(kTidyToday, false);
   registry->RegisterStringPref(kTidyTodayModel, "claude-haiku-5-5");
+  registry->RegisterBooleanPref(kShortTabTitles, false);
+  registry->RegisterStringPref(kShortTabTitlesModel, "claude-haiku-5-5");
 }
 
 }  // namespace compass::claude::prefs

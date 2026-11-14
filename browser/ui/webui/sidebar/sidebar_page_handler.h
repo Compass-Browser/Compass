@@ -26,6 +26,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/claude/link_folder_namer.h"
+#include "compass/browser/ui/claude/short_titler.h"
 #include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
@@ -260,6 +261,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                    const SidebarNode& old_parent,
                    size_t old_index) override;
   void OnNodeChanged(const SidebarNode& node) override;
+  void OnNodeShortTitleChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnNodeWillMoveToSpace(const SidebarNode& node) override;
   void OnArchiveChanged(const SpaceModel& space) override;

@@ -78,6 +78,36 @@ struct TidyFolder {
 std::vector<TidyFolder> ParseTidyReply(const base::DictValue& reply,
                                        const std::vector<std::string>& ids);
 
+// Shorter tab titles (docs/design/ai-sidebar.md, "Shorter tab titles"): a
+// title longer than this many characters gets a short one, and so does one
+// with a site suffix (NeedsShortTitle()).
+inline constexpr size_t kLongTitleLength = 40;
+// The longest short title, in characters.
+inline constexpr size_t kMaxShortTitleLength = 40;
+// The longest site suffix NeedsShortTitle() takes for one (" · GitHub").
+inline constexpr size_t kMaxSiteSuffixLength = 30;
+
+// Whether |title| is worth a short title: longer than kLongTitleLength
+// characters, or ending with a site suffix (" · GitHub", " - YouTube", " |
+// The Verge", " — Site", " – Site").
+bool NeedsShortTitle(std::u16string_view title);
+
+// |title| as the sidebar may show it in place of a tab's title: trimmed
+// (also of quotes around it and a full stop at the end), its spaces
+// collapsed, 1 to kMaxShortTitleLength characters with a letter or digit,
+// and none of what SanitizeAiName() refuses (emoji, control characters, line
+// breaks, markup). Any number of words: unlike a name, a title may read as
+// a phrase ("PR #123: fix login"). Null if it can't be one.
+std::optional<std::u16string> SanitizeShortTitle(std::string_view title);
+
+// The short titles of Shorter Tab Titles' reply, {"titles": {"<id>": "…"}},
+// by id, as SanitizeShortTitle() left them: ids not in |ids|, and titles it
+// drops (or empty ones: no short title), are left out. Empty for a reply of
+// another shape.
+std::map<std::string, std::u16string> ParseShortTitlesReply(
+    const base::DictValue& reply,
+    const std::vector<std::string>& ids);
+
 // The section |id| ("## <id>") of |prompts| (common/claude/
 // sidebar_prompts.md's text), trimmed, with {locale} replaced by |locale|.
 // Empty if there's no such section.

@@ -147,6 +147,12 @@ class FakePage : public sidebar::mojom::Page {
   void NodeClaudeChanged(const std::string& id, bool claude) override {
     events_.push_back(hosts_[id] + (claude ? " claude" : " no claude"));
   }
+  // Short titles: kept, not recorded, so the other tests' sequences stay as
+  // they were.
+  void NodeShortTitleChanged(const std::string& id,
+                             const std::string& short_title) override {
+    short_titles_[id] = short_title;
+  }
   // Live folders: not recorded, so the other tests' sequences stay as they
   // were.
   void NodeLiveItemChanged(const std::string& id,
@@ -198,6 +204,7 @@ class FakePage : public sidebar::mojom::Page {
   uint32_t archive_after_hours() const { return archive_after_hours_; }
   bool synced() const { return synced_; }
   bool tidy_available() const { return tidy_available_; }
+  std::string short_title(const std::string& id) { return short_titles_[id]; }
   bool tidy_busy() const { return tidy_busy_; }
   std::vector<std::string> TakeToasts() { return std::move(toasts_); }
   int32_t last_undo_tidy_id() const { return last_undo_tidy_id_; }
@@ -216,6 +223,8 @@ class FakePage : public sidebar::mojom::Page {
   mojo::Receiver<sidebar::mojom::Page> receiver_{this};
   sidebar::mojom::TreePtr tree_;
   std::map<std::string, std::string> hosts_;
+  // Short titles by node id (NodeShortTitleChanged()).
+  std::map<std::string, std::string> short_titles_;
   std::vector<std::string> events_;
   std::string spaces_;
   uint32_t archive_after_hours_ = 0;
@@ -1614,6 +1623,30 @@ TEST_F(SidebarPageHandlerTest, RenamesTabs) {
   Settle();
   EXPECT_TRUE(folder->custom_title().empty());
   EXPECT_EQ(folder->title(), u"Work");
+}
+
+// Shorter Tab Titles (docs/design/ai-sidebar.md): a tab's short title
+// reaches the page, in the tree and as it changes, without a NodeChanged;
+// a new title drops it first.
+TEST_F(SidebarPageHandlerTest, ShortTitles) {
+  const std::string a = TodayId(0);
+  SidebarNode* node = space_model().today_root()->children()[0].get();
+  page_.TakeEvents();
+
+  space_model().SetShortTitle(node, u"Short");
+  Settle();
+  EXPECT_EQ(page_.short_title(a), "Short");
+  EXPECT_EQ(GetTree()->today->children[0]->short_title, "Short");
+  // Nothing saved or synced changed.
+  EXPECT_THAT(page_.TakeEvents(), IsEmpty());
+  // The page's title stays the title.
+  EXPECT_NE(GetTree()->today->children[0]->title, "Short");
+
+  space_model().SetTitle(node, u"Another page");
+  Settle();
+  EXPECT_EQ(page_.short_title(a), "");
+  EXPECT_TRUE(node->short_title().empty());
+  EXPECT_EQ(GetTree()->today->children[0]->short_title, "");
 }
 
 TEST_F(SidebarPageHandlerTest, SplitsAndSeparatesFromTheMenu) {

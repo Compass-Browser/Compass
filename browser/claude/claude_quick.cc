@@ -120,6 +120,87 @@ std::optional<std::u16string> SanitizeAiName(std::string_view name) {
   return text;
 }
 
+bool NeedsShortTitle(std::u16string_view title) {
+  const std::u16string trimmed(base::TrimWhitespace(title, base::TRIM_ALL));
+  size_t characters = 0;
+  for (base::i18n::UTF16CharIterator it(trimmed); !it.end(); it.Advance()) {
+    ++characters;
+  }
+  if (characters > kLongTitleLength) {
+    return true;
+  }
+  // A site's name after the page's: "Page · Site", "Page - Site", ...
+  static constexpr std::u16string_view kSeparators[] = {
+      u" \u00B7 ", u" - ", u" | ", u" \u2014 ", u" \u2013 ", u" :: "};
+  for (std::u16string_view separator : kSeparators) {
+    const size_t at = trimmed.rfind(separator);
+    if (at == std::u16string::npos || at == 0) {
+      continue;
+    }
+    const size_t suffix = trimmed.size() - at - separator.size();
+    if (suffix > 0 && suffix <= kMaxSiteSuffixLength) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::optional<std::u16string> SanitizeShortTitle(std::string_view title) {
+  std::u16string text;
+  if (!base::UTF8ToUTF16(title.data(), title.size(), &text)) {
+    return std::nullopt;
+  }
+  if (text.find_first_of(u"\r\n") != std::u16string::npos) {
+    return std::nullopt;
+  }
+  text = Trimmed(text);
+  while (text.size() >= 2 && IsQuote(text.front()) && IsQuote(text.back())) {
+    text = Trimmed(std::u16string_view(text).substr(1, text.size() - 2));
+  }
+  while (!text.empty() && (text.back() == u'.' || text.back() == u'\u3002')) {
+    text.pop_back();
+  }
+  text = base::CollapseWhitespace(text, /*trim_sequences_with_line_breaks=*/
+                                  true);
+  if (text.empty()) {
+    return std::nullopt;
+  }
+  size_t characters = 0;
+  bool has_alnum = false;
+  for (base::i18n::UTF16CharIterator it(text); !it.end(); it.Advance()) {
+    const UChar32 c = it.get();
+    if (IsRefused(c)) {
+      return std::nullopt;
+    }
+    has_alnum |= u_isalnum(c) != 0;
+    ++characters;
+  }
+  if (!has_alnum || characters > kMaxShortTitleLength) {
+    return std::nullopt;
+  }
+  return text;
+}
+
+std::map<std::string, std::u16string> ParseShortTitlesReply(
+    const base::DictValue& reply,
+    const std::vector<std::string>& ids) {
+  std::map<std::string, std::u16string> titles;
+  const base::DictValue* dict = reply.FindDict("titles");
+  if (!dict) {
+    return titles;
+  }
+  for (const std::string& id : ids) {
+    const std::string* title = dict->FindString(id);
+    if (!title) {
+      continue;
+    }
+    if (std::optional<std::u16string> sanitized = SanitizeShortTitle(*title)) {
+      titles.emplace(id, std::move(*sanitized));
+    }
+  }
+  return titles;
+}
+
 TidyFolder::TidyFolder() = default;
 TidyFolder::TidyFolder(TidyFolder&&) = default;
 TidyFolder& TidyFolder::operator=(TidyFolder&&) = default;

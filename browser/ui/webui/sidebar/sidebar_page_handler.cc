@@ -335,6 +335,8 @@ SidebarPageHandler::SidebarPageHandler(
             LinkFolderNamer::Get(browser_->GetProfile())) {
       namer_observation_.Observe(namer);
     }
+    // Shorter Tab Titles follows the profile's spaces from now on.
+    ShortTitler::Get(browser_->GetProfile());
     if (TodayTidier* tidier = TodayTidier::Get(browser_->GetProfile())) {
       tidier_observation_.Observe(tidier);
       tidy_prefs_.Init(browser_->GetProfile()->GetPrefs());
@@ -1389,6 +1391,11 @@ void SidebarPageHandler::OnNodeChanged(const SidebarNode& node) {
   }
 }
 
+void SidebarPageHandler::OnNodeShortTitleChanged(const SidebarNode& node) {
+  page_->NodeShortTitleChanged(node.id().AsLowercaseString(),
+                               base::UTF16ToUTF8(node.short_title()));
+}
+
 void SidebarPageHandler::TidyToday() {
   if (TodayTidier* tidier = tidier_observation_.GetSource()) {
     tidier->Tidy(space_model());
@@ -1872,6 +1879,7 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   result->type = ToMojoType(node.type());
   result->title = base::UTF16ToUTF8(node.title());
   result->custom_title = base::UTF16ToUTF8(node.custom_title());
+  result->short_title = base::UTF16ToUTF8(node.short_title());
   result->url = node.url();
   // Live in any window: activating it here moves it here.
   result->live = registry.GetTab(&node) != nullptr;

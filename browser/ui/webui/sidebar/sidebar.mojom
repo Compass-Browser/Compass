@@ -55,6 +55,10 @@ struct Node {
   string title;
   // The name the user gave a tab, shown instead of its title. Empty if none.
   string custom_title;
+  // Claude's short title for a tab's title ("Shorter Tab Titles",
+  // docs/design/ai-sidebar.md), shown when there's no custom title; the
+  // row's tooltip and the hover card keep the title. Empty if none.
+  string short_title;
   url.mojom.Url url;
   // Whether a tab node has a tab in this window. Pinned tab nodes can be
   // unloaded; Today's are always live.
@@ -457,6 +461,9 @@ interface Page {
   NodeLiveChanged(string id, bool live);
   NodeAudioChanged(string id, AudioState audio);
   NodeClaudeChanged(string id, bool claude);
+  // A tab's short title came or went (Node.short_title). A new title drops
+  // it before NodeChanged() brings the title.
+  NodeShortTitleChanged(string id, string short_title);
   // A tab's live folder entry state changed (it was opened, or left its
   // folder).
   NodeLiveItemChanged(string id, bool live_item, bool unseen);

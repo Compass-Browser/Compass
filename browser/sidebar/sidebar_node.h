@@ -88,10 +88,17 @@ class SidebarNode {
   // The name the user gave a tab, or empty. Kept while its page's title
   // changes, and saved.
   const std::u16string& custom_title() const { return custom_title_; }
-  // What the sidebar shows: the custom title, else the title.
+  // The custom title, else the title: what the command bar, Claude's
+  // descriptions and the tab strip show.
   const std::u16string& display_title() const {
     return custom_title_.empty() ? title_ : custom_title_;
   }
+  // A shorter title Claude gave the tab's title() ("Shorter Tab Titles",
+  // docs/design/ai-sidebar.md), or empty. Display only: the sidebar's row
+  // shows it when there's no custom title; the hover card, the window title
+  // and the command bar keep title(). Not saved or synced; cleared whenever
+  // title() changes.
+  const std::u16string& short_title() const { return short_title_; }
   // Where a folder's name came from; kUser for other nodes.
   NameSource name_source() const { return name_source_; }
   // A folder's name before Claude named it, which Undo Name goes back to;
@@ -156,6 +163,7 @@ class SidebarNode {
   const Type type_;
   std::u16string title_;
   std::u16string custom_title_;
+  std::u16string short_title_;
   GURL url_;
   GURL saved_url_;
   std::u16string saved_title_;

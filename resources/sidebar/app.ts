@@ -335,6 +335,14 @@ export class CompassSidebarAppElement extends CrLitElement {
       router.nodeAudioChanged.addListener(this.onNodeAudioChanged_.bind(this)),
       router.nodeClaudeChanged.addListener(
           this.onNodeClaudeChanged_.bind(this)),
+      router.nodeShortTitleChanged.addListener(
+          (id: string, shortTitle: string) => {
+            const node = this.nodes_.get(id);
+            if (node) {
+              node.shortTitle = shortTitle;
+              this.requestUpdate();
+            }
+          }),
       router.nodeLiveItemChanged.addListener(
           (id: string, liveItem: boolean, unseen: boolean) => {
             const node = this.nodes_.get(id);

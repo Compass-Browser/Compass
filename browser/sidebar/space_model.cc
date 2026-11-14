@@ -612,9 +612,24 @@ void SpaceModel::Remove(SidebarNode* node) {
 
 void SpaceModel::SetTitle(SidebarNode* node, std::u16string title) {
   CHECK_NE(node->type(), Type::kRoot);
+  if (node->title_ != title && !node->short_title_.empty()) {
+    // Claude's short title was for the old one.
+    SetShortTitle(node, std::u16string());
+  }
   node->title_ = std::move(title);
   for (auto& observer : observers_) {
     observer.OnNodeChanged(*node);
+  }
+}
+
+void SpaceModel::SetShortTitle(SidebarNode* tab, std::u16string short_title) {
+  CHECK_EQ(tab->type(), Type::kTab);
+  if (tab->short_title_ == short_title) {
+    return;
+  }
+  tab->short_title_ = std::move(short_title);
+  for (auto& observer : observers_) {
+    observer.OnNodeShortTitleChanged(*tab);
   }
 }
 

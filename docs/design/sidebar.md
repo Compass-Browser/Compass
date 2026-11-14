@@ -1141,6 +1141,14 @@ the name if there is one. `SpaceModel::SetCustomTitle()` notifies
 `RenameTab(id, title)`. The command bar shows the name and matches both
 it and the page title. Hover cards show the page's own title.
 
+**Short titles** (docs/design/ai-sidebar.md, A4): with "Shorter Tab Titles"
+on, a long title (over 40 characters, or with a site suffix) of a Today or
+Pinned tab without a name gets Claude's short one,
+`SidebarNode::short_title()`, which the row shows instead of the title (a
+name still wins). It's display only: not saved, not synced, dropped when the
+title changes, and the row's tooltip, Rename, the hover card, the window
+title and the command bar keep the page's title.
+
 Not kept: an archived entry comes back with its page title only, and a
 duplicated entry has no name.
 

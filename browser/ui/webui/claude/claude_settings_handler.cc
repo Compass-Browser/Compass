@@ -175,6 +175,9 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
       prefs->GetString(prefs::kNameLinkFoldersModel);
   state->tidy_today = prefs->GetBoolean(prefs::kTidyToday);
   state->tidy_today_model = prefs->GetString(prefs::kTidyTodayModel);
+  state->short_tab_titles = prefs->GetBoolean(prefs::kShortTabTitles);
+  state->short_tab_titles_model =
+      prefs->GetString(prefs::kShortTabTitlesModel);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -282,6 +285,14 @@ void ClaudeSettingsHandler::SetTidyToday(bool enabled) {
 
 void ClaudeSettingsHandler::SetTidyTodayModel(const std::string& model) {
   SetFeatureModel(prefs::kTidyTodayModel, model);
+}
+
+void ClaudeSettingsHandler::SetShortTabTitles(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kShortTabTitles, enabled);
+}
+
+void ClaudeSettingsHandler::SetShortTabTitlesModel(const std::string& model) {
+  SetFeatureModel(prefs::kShortTabTitlesModel, model);
 }
 
 void ClaudeSettingsHandler::SetFeatureModel(const char* pref,

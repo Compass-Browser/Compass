@@ -74,6 +74,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void SetNameLinkFoldersModel(const std::string& model) override;
   void SetTidyToday(bool enabled) override;
   void SetTidyTodayModel(const std::string& model) override;
+  void SetShortTabTitles(bool enabled) override;
+  void SetShortTabTitlesModel(const std::string& model) override;
   void GetMemories(GetMemoriesCallback callback) override;
   void AddMemory(const std::string& text, AddMemoryCallback callback) override;
   void UpdateMemory(const std::string& id,

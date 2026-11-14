@@ -408,6 +408,60 @@ TEST_F(ClaudeQuickTest, SidebarPrompts) {
   EXPECT_NE(tidy.find("{\"folders\""), std::string::npos);
   EXPECT_NE(tidy.find("it-IT"), std::string::npos);
   EXPECT_EQ(tidy.find("## "), std::string::npos);
+  // And Shorter Tab Titles'.
+  const std::string titles = SidebarPrompt("short_titles", "en");
+  EXPECT_NE(titles.find("{\"titles\""), std::string::npos);
+  EXPECT_EQ(titles.find("## "), std::string::npos);
+}
+
+// Shorter tab titles: which titles get one.
+TEST_F(ClaudeQuickTest, NeedsShortTitle) {
+  EXPECT_FALSE(NeedsShortTitle(u""));
+  EXPECT_FALSE(NeedsShortTitle(u"Tokio docs"));
+  EXPECT_FALSE(NeedsShortTitle(u"A title of exactly forty characters long"));
+  EXPECT_TRUE(
+      NeedsShortTitle(u"A title of a bit more than forty characters"));
+  // Site suffixes, however short the title.
+  EXPECT_TRUE(NeedsShortTitle(u"Pull request #123 \u00B7 org/repo"));
+  EXPECT_TRUE(NeedsShortTitle(u"Cats - YouTube"));
+  EXPECT_TRUE(NeedsShortTitle(u"Review | The Verge"));
+  EXPECT_TRUE(NeedsShortTitle(u"Home \u2014 Site"));
+  // A dash inside a word, or nothing before the separator, isn't one.
+  EXPECT_FALSE(NeedsShortTitle(u"Well-known facts"));
+  EXPECT_FALSE(NeedsShortTitle(u" - YouTube"));
+}
+
+// Short titles may be phrases of up to 40 characters, with ids and colons,
+// but nothing a name refuses.
+TEST_F(ClaudeQuickTest, SanitizeShortTitle) {
+  EXPECT_EQ(SanitizeShortTitle("PR #123: fix login"), u"PR #123: fix login");
+  EXPECT_EQ(SanitizeShortTitle("  \"Invoice  2026-031.\" "),
+            u"Invoice 2026-031");
+  EXPECT_EQ(SanitizeShortTitle("Five words are fine as well"),
+            u"Five words are fine as well");
+  EXPECT_EQ(SanitizeShortTitle(std::string(40, 'a')), std::u16string(40, 'a'));
+  EXPECT_FALSE(SanitizeShortTitle(std::string(41, 'a')));
+  EXPECT_FALSE(SanitizeShortTitle(""));
+  EXPECT_FALSE(SanitizeShortTitle("..."));
+  EXPECT_FALSE(SanitizeShortTitle("Line\nbreak"));
+  EXPECT_FALSE(SanitizeShortTitle("<b>Bold</b>"));
+  EXPECT_FALSE(SanitizeShortTitle("Fox \xF0\x9F\xA6\x8A"));
+}
+
+TEST_F(ClaudeQuickTest, ParseShortTitlesReply) {
+  const std::vector<std::string> ids = {"1", "2", "3", "4"};
+  std::optional<base::DictValue> reply = ParseQuickReply(
+      R"({"titles": {"1": "PR #123: fix login", "2": "", "3": "<b>x</b>",
+          "9": "Unknown", "4": 4}})");
+  ASSERT_TRUE(reply);
+  const std::map<std::string, std::u16string> titles =
+      ParseShortTitlesReply(*reply, ids);
+  ASSERT_EQ(titles.size(), 1u);
+  EXPECT_EQ(titles.at("1"), u"PR #123: fix login");
+  EXPECT_TRUE(ParseShortTitlesReply(base::DictValue(), ids).empty());
+  std::optional<base::DictValue> list = ParseQuickReply(R"({"titles": []})");
+  ASSERT_TRUE(list);
+  EXPECT_TRUE(ParseShortTitlesReply(*list, ids).empty());
 }
 
 }  // namespace

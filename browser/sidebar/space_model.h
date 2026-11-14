@@ -242,6 +242,9 @@ class SpaceModel {
     virtual void OnNodeWillMoveToSpace(const SidebarNode& node) {}
     // When |node| was last shown changed.
     virtual void OnNodeLastActiveChanged(const SidebarNode& node) {}
+    // A tab's short_title() changed (docs/design/ai-sidebar.md, "Shorter tab
+    // titles"). Not OnNodeChanged(): nothing is saved or synced.
+    virtual void OnNodeShortTitleChanged(const SidebarNode& node) {}
     // The space's name, color or archive delay changed.
     virtual void OnSpaceChanged(const SpaceModel& space) {}
     // Entries were archived, restored or dropped from the archive.
@@ -437,8 +440,12 @@ class SpaceModel {
   // Removes |node| and its subtree.
   void Remove(SidebarNode* node);
 
-  // Changes a node's title (a folder's name) and nothing else.
+  // Changes a node's title (a folder's name) and nothing else; a tab's new
+  // title drops its short title (observers see OnNodeShortTitleChanged()
+  // first).
   void SetTitle(SidebarNode* node, std::u16string title);
+  // Sets |tab|'s short title (Claude's, display only); empty for none.
+  void SetShortTitle(SidebarNode* tab, std::u16string short_title);
   // Names |folder|, recording where the name came from: going to kClaude
   // keeps the name it had for Undo Name (name_before_claude()), any other
   // source forgets it. Observers see one OnNodeChanged().

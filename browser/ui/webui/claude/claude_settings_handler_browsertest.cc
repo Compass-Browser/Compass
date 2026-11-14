@@ -174,8 +174,9 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, DevToolsSetting) {
   EXPECT_FALSE(State()->devtools);
 }
 
-// Claude in the sidebar (docs/design/ai-sidebar.md): "Name Link Folders"
-// and "Tidy Today" off, and their models Claude Haiku, by default.
+// Claude in the sidebar (docs/design/ai-sidebar.md): "Name Link Folders",
+// "Tidy Today" and "Shorter Tab Titles" off, and their models Claude Haiku,
+// by default; each its own.
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, SidebarAiSettings) {
   mojom::SettingsStatePtr state = State();
   EXPECT_TRUE(state->sidebar_supported);
@@ -202,6 +203,23 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, SidebarAiSettings) {
   EXPECT_TRUE(prefs()->GetBoolean(prefs::kTidyToday));
   remote_->SetTidyTodayModel(" ");
   EXPECT_EQ(State()->tidy_today_model, "claude-haiku-5-5");
+
+  // "Shorter Tab Titles": the same, its own.
+  EXPECT_FALSE(state->short_tab_titles);
+  EXPECT_EQ(state->short_tab_titles_model, "claude-haiku-5-5");
+  remote_->SetShortTabTitles(true);
+  remote_->SetShortTabTitlesModel("claude-sonnet-5-5");
+  state = State();
+  EXPECT_TRUE(state->short_tab_titles);
+  EXPECT_EQ(state->short_tab_titles_model, "claude-sonnet-5-5");
+  EXPECT_EQ(state->tidy_today_model, "claude-haiku-5-5");
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kShortTabTitles));
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kTidyToday));
+  remote_->SetShortTabTitles(false);
+  remote_->SetShortTabTitlesModel("");
+  state = State();
+  EXPECT_FALSE(state->short_tab_titles);
+  EXPECT_EQ(state->short_tab_titles_model, "claude-haiku-5-5");
 }
 
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, EndpointRules) {
