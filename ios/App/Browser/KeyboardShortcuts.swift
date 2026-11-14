@@ -121,12 +121,14 @@ struct BrowserCommands: Commands {
 }
 
 /// ⌘W, ⌃Tab, ⌃⇧Tab and extensions' shortcuts, taken before anything else
-/// sees them. As SwiftUI commands or root view controller key commands they
-/// didn't reliably reach the app: the system's Close Window keeps ⌘W, and a
-/// focused page takes Tab (⌃Tab worked once). So the app's `sendEvent`
-/// looks at hardware key presses first (`compassSendEvent`) and acts on
-/// these in a browser window (not a little window, which has its own ⌘W).
-/// The key's release is swallowed with its press.
+/// in the app sees them. As SwiftUI commands or root view controller key
+/// commands they didn't reliably reach the app: a focused page takes Tab
+/// (⌃Tab worked once). So the app's `sendEvent` looks at hardware key
+/// presses first (`compassSendEvent`) and acts on these in a browser window
+/// (not a little window, which has its own ⌘W). The key's release is
+/// swallowed with its press. ⌘W only gets here when iPadOS sends it: in the
+/// iPadOS 27 simulator the system keeps the whole ⌘W chord (docs/design/
+/// ios.md, "iPad").
 @MainActor enum BrowserKeys {
   private static var installed = false
   /// Key codes whose press was taken: their release is too.
