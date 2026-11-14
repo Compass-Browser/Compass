@@ -3,5 +3,6 @@ Spaces that stay on this device, developer tools for Claude, and picture in pict
 - Spaces that don't sync: in a space's menu, turn off Sync to Other Devices. The space and its tabs disappear from your other devices and stay only on this one. Turn it back on to sync it again.
 - Claude's developer tools: Settings → Claude → Let Claude Use Developer Tools (off by default). Then ask Claude about the page: "which requests fail?", "why is this button blue?", "how fast does this page load?", "what's in this site's storage?". Changes to cookies or storage ask you first.
 - YouTube: play a video with sound, then switch tab or leave the app; it should keep playing in a picture-in-picture window. Videos now play in the page instead of going fullscreen.
+- Leaving the app (swipe home) while a video plays with sound in the page now starts picture in picture on its own; coming back puts the video back in the page. If the window doesn't open or closes at once, please send Settings → Auto Picture in Picture → Copy Diagnostics.
 - Claude through a gateway or custom endpoint no longer fails with "A maximum of 4 blocks with cache_control".
 - Please report: a space that comes back after turning off sync, pages that load slowly or not at all with developer tools on, or picture in picture that doesn't start (Settings → Auto Picture in Picture → Copy Diagnostics).
