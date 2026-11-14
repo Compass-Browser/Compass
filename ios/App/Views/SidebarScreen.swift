@@ -512,8 +512,12 @@ struct NodeRow: View {
     }
     .contextMenu { menu }
     // Long press and drag to reorder: dropped on an entry, it goes before
-    // it (into it, for a folder).
-    .draggable(node.id) {
+    // it (into it, for a folder). On iPad, dropped beside the window, a
+    // tab opens in a new window (TabDrag); onto a split's pane strip, it
+    // joins the split (BrowserScreen).
+    .onDrag {
+      TabDrag.provider(entry: node.id, title: node.displayTitle, opensWindow: !node.isFolder)
+    } preview: {
       Label(node.displayTitle, systemImage: node.isFolder ? "folder" : "globe")
         .padding(8)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))

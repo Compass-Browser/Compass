@@ -39,6 +39,9 @@ final class Peek: Identifiable {
   var editAddress = 0
   /// Bumped by ⌘O in a little window of its own: it opens in its space.
   var openRequest = 0
+  /// Bumped by the menu bar's Close Tab (⌘W) in a little window of its
+  /// own: it closes.
+  var closeRequest = 0
   @ObservationIgnored private var observations: [NSKeyValueObservation] = []
 
   init(_ kind: Kind = .peek, page: WKWebView, source: String?, spaceID: String?, profile: String) {
@@ -378,6 +381,7 @@ struct LittleWindowScene: View {
               .accessibilityHidden(true)
           }
           .onChange(of: peek.openRequest) { open(peek, in: nil) }
+          .onChange(of: peek.closeRequest) { close(peek) }
       } else {
         Color(uiColor: .systemBackground)
       }

@@ -102,6 +102,36 @@ struct WindowTarget: Hashable, Codable {
   var token = UUID()
 }
 
+/// An entry dragged out of a window (a sidebar row, a split pane's title
+/// strip). Its drag item carries the entry's ID as text, for the sidebar's
+/// drops, and on iPad an `NSUserActivity` too: dropped where no window
+/// takes it (beside the window, on the screen's edge), iPadOS opens a new
+/// window with the activity, which shows the entry, its page moving there
+/// as with Open in New Window. The browser windows' WindowGroup gets the
+/// scene (the activity has no target content identifier, so the little
+/// windows' group doesn't match it); `AppDelegate` notes the entry for the
+/// scene's session, and the window shows it once it knows its scene.
+enum TabDrag {
+  static let activityType = "it.cipi1965.compass.tab"
+  static let entryKey = "entry"
+
+  @MainActor static func provider(entry id: String, title: String, opensWindow: Bool) -> NSItemProvider {
+    let provider = NSItemProvider(object: id as NSString)
+    if opensWindow, UIApplication.shared.supportsMultipleScenes {
+      let activity = NSUserActivity(activityType: activityType)
+      activity.title = title
+      activity.userInfo = [entryKey: id]
+      provider.registerObject(activity, visibility: .all)
+    }
+    return provider
+  }
+
+  /// The entry a dragged-out activity names.
+  static func entry(of activity: NSUserActivity) -> String? {
+    activity.activityType == activityType ? activity.userInfo?[entryKey] as? String : nil
+  }
+}
+
 /// One window: its own model (what it shows) over the app's services.
 struct WindowRoot: View {
   @Binding var target: WindowTarget?
@@ -114,7 +144,19 @@ struct WindowRoot: View {
         RootView()
           .environment(app)
           .background {
-            KeyWindowReader(window: { app.windowScene = $0.windowScene }) { AppServices.shared.activate(app) }
+            KeyWindowReader(window: { window in
+              app.windowScene = window.windowScene
+              // A window opened by dropping an entry dragged out of
+              // another (TabDrag).
+              if let session = window.windowScene?.session,
+                let entry = AppServices.shared.takeDraggedOut(for: session.persistentIdentifier)
+              {
+                showDragged(entry, in: app)
+              }
+            }) { AppServices.shared.activate(app) }
+          }
+          .onContinueUserActivity(TabDrag.activityType) { activity in
+            if let entry = TabDrag.entry(of: activity) { showDragged(entry, in: app) }
           }
           // Saved with the window: iPadOS restores it on this entry.
           .onChange(of: app.selectedNodeID) { _, id in
@@ -159,6 +201,14 @@ struct WindowRoot: View {
     }
   }
 
+  /// An entry dragged out of another window: shown here, and its page
+  /// moves here (the window is the key one).
+  private func showDragged(_ entry: String, in app: AppModel) {
+    guard let node = app.store.node(id: entry), !node.isFolder else { return }
+    if app.selectedNode !== node, app.shownTab !== node { app.show(node) }
+    AppServices.shared.activate(app)
+  }
+
   private func open(_ url: URL, in app: AppModel) {
     // The window that got the link is the one to act in.
     AppServices.shared.activate(app)
@@ -186,7 +236,7 @@ struct WindowRoot: View {
 /// Calls `becameKey` when this view's window becomes the key window (the
 /// one the user is in), and at once if it already is.
 struct KeyWindowReader: UIViewRepresentable {
-  /// The browser's ⌘W and ⌃⇧Tab (PriorityKeyCommands): not in a little
+  /// The browser's ⌘W, ⌃Tab and ⌃⇧Tab (BrowserKeys): not in a little
   /// window.
   var installsKeyCommands = true
   /// The window it's in, when that changes.
@@ -229,7 +279,7 @@ struct KeyWindowReader: UIViewRepresentable {
       ) { [weak self] _ in MainActor.assumeIsolated { self?.becameKey() } }
       if window.isKeyWindow { DispatchQueue.main.async { [weak self] in self?.becameKey() } }
       onWindow?(window)
-      if installsKeyCommands { PriorityKeyCommands.install(in: window) }
+      if installsKeyCommands { BrowserKeys.install() }
     }
   }
 }
@@ -266,7 +316,57 @@ struct ClosedToastView: View {
 struct RootView: View {
   @Environment(AppModel.self) private var app
   @Environment(\.horizontalSizeClass) private var sizeClass
+  /// The sidebar column's width (iPad), as the desktop's: dragged at its
+  /// edge between these, kept for every window and the next launch; a
+  /// double tap on the edge puts it back.
   static let columnWidth: CGFloat = 320
+  static let columnWidths: ClosedRange<CGFloat> = 240...480
+  /// The page keeps this much beside the column (a small Stage Manager
+  /// window): the column gives way, down to its narrowest.
+  static let minPageWidth: CGFloat = 400
+  @AppStorage("SidebarColumnWidth") private var storedColumnWidth = Double(RootView.columnWidth)
+  @Environment(\.layoutDirection) private var layoutDirection
+  @State private var windowWidth: CGFloat = 0
+  /// The column's width when the edge's drag started.
+  @State private var resizeStart: CGFloat?
+
+  /// The column's width in this window.
+  private var columnWidth: CGFloat {
+    Self.clampedColumnWidth(stored: CGFloat(storedColumnWidth), window: windowWidth)
+  }
+
+  static func clampedColumnWidth(stored: CGFloat, window: CGFloat) -> CGFloat {
+    let widest = window > 0 ? min(columnWidths.upperBound, window - minPageWidth) : columnWidths.upperBound
+    return max(columnWidths.lowerBound, min(stored, widest))
+  }
+
+  /// The column's trailing edge: dragged, it resizes the column; a double
+  /// tap goes back to the default width.
+  private var resizeEdge: some View {
+    Color.clear
+      .frame(width: 16)
+      .contentShape(Rectangle())
+      .offset(x: layoutDirection == .rightToLeft ? -8 : 8)
+      .gesture(
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+          .onChanged { value in
+            let start = resizeStart ?? columnWidth
+            resizeStart = start
+            let delta = layoutDirection == .rightToLeft ? -value.translation.width : value.translation.width
+            storedColumnWidth = Double(Self.clampedColumnWidth(stored: start + delta, window: windowWidth))
+          }
+          .onEnded { _ in resizeStart = nil }
+      )
+      .onTapGesture(count: 2) { storedColumnWidth = Double(Self.columnWidth) }
+      .accessibilityElement()
+      .accessibilityLabel("Sidebar width")
+      .accessibilityIdentifier("SidebarResize")
+      .accessibilityValue("\(Int(columnWidth)) points")
+      .accessibilityAdjustableAction { direction in
+        let step: CGFloat = direction == .increment ? 20 : -20
+        storedColumnWidth = Double(Self.clampedColumnWidth(stored: columnWidth + step, window: windowWidth))
+      }
+  }
 
   var body: some View {
     @Bindable var app = app
@@ -277,15 +377,19 @@ struct RootView: View {
     HStack(spacing: 0) {
       if app.isWide, app.showingSidebarColumn {
         SidebarScreen()
-          .frame(width: Self.columnWidth)
+          .frame(width: columnWidth)
           .background { SpaceTint(theme: app.selectedSpace?.theme ?? .blue).ignoresSafeArea() }
           .spaceAppearance(app.selectedSpace?.theme)
+          .overlay(alignment: .trailing) { resizeEdge }
+          // The edge's handle runs over the page's side.
+          .zIndex(1)
           .transition(.move(edge: .leading))
       }
       BrowserScreen(node: app.selectedNode)
         // Incognito, locked or covered: its page and bar don't show.
         .overlay { if app.incognitoPageHidden { IncognitoLockView() } }
     }
+    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
     .animation(.snappy(duration: 0.3), value: app.showingSidebarColumn)
     // iPad only: a Max iPhone in landscape is regular width too, and keeps
     // the phone's layout.

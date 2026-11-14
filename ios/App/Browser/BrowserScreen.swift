@@ -100,7 +100,10 @@ struct BrowserScreen: View {
       Group {
         if let node, app.showsPanesTogether(node) { panes(node) } else { page }
       }
-      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
+      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+        pageWidth = $0
+        app.pageWidth = $0
+      }
       .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusInset = $0 }
       .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { barInset = $0 }
       .overlay(alignment: .top) {
@@ -158,7 +161,7 @@ struct BrowserScreen: View {
   /// address, back and forward act on it) is outlined; a tap on a pane's
   /// title strip brings it to the front.
   private func panes(_ split: SidebarNode) -> some View {
-    let stacked = !app.isWide && verticalSizeClass != .compact
+    let stacked = app.stacksPanes(compactHeight: verticalSizeClass == .compact)
     let shown = Array(split.children.enumerated()).filter { $0.element.isPhoneVisible }
     let layout = stacked ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 6))
     return layout {
@@ -167,18 +170,7 @@ struct BrowserScreen: View {
         // Stacked, only the bottom pane runs under the bar.
         let underBar = !stacked || pane === shown.last?.element
         VStack(spacing: 0) {
-          Button { app.selectedPane = index } label: {
-            HStack(spacing: 6) {
-              SiteIcon(url: pane.url, size: 14)
-              Text(pane.displayTitle).font(.footnote.weight(front ? .semibold : .regular)).lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 28)
-            .contentShape(Rectangle())
-          }
-          .buttonStyle(.plain)
-          .foregroundStyle(front ? .primary : .secondary)
-          .accessibilityAddTraits(front ? .isSelected : [])
+          PaneStrip(pane: pane, front: front) { app.selectedPane = index }
           Group {
             if app.hasPage(pane.id) {
               let view = app.tabs.webView(for: pane)
@@ -723,5 +715,52 @@ struct ElsewherePage: View {
         .padding(24)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
       }
+  }
+}
+
+/// A split pane's title strip (shown together, `BrowserScreen.panes`): a
+/// tap brings the pane to the front. It drags as the pane's entry (to the
+/// sidebar, another pane's strip, or out to a new window: TabDrag), and
+/// takes drops as the desktop's split rows do: a pane of the same split
+/// moves to this pane's left or right (the half it's dropped on), another
+/// tab joins the split there while it has room (`SpaceStore.maxSplitPanes`).
+private struct PaneStrip: View {
+  @Environment(AppModel.self) private var app
+  @Environment(\.layoutDirection) private var layoutDirection
+  let pane: SidebarNode
+  let front: Bool
+  let select: () -> Void
+  @State private var width: CGFloat = 0
+  @State private var targeted = false
+
+  var body: some View {
+    Button(action: select) {
+      HStack(spacing: 6) {
+        SiteIcon(url: pane.url, size: 14)
+        Text(pane.displayTitle).font(.footnote.weight(front ? .semibold : .regular)).lineLimit(1)
+      }
+      .frame(maxWidth: .infinity)
+      .frame(height: 28)
+      .background(Color.accentColor.opacity(targeted ? 0.18 : 0), in: RoundedRectangle(cornerRadius: 8))
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(front ? .primary : .secondary)
+    .accessibilityAddTraits(front ? .isSelected : [])
+    .accessibilityIdentifier("PaneStrip")
+    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    .onDrag {
+      TabDrag.provider(entry: pane.id, title: pane.displayTitle, opensWindow: true)
+    } preview: {
+      Label(pane.displayTitle, systemImage: "globe")
+        .padding(8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+    .dropDestination(for: String.self) { ids, location in
+      guard let id = ids.first else { return false }
+      // The half it's dropped on, mirrored right to left.
+      let right = (location.x > width / 2) != (layoutDirection == .rightToLeft)
+      return withAnimation(.snappy) { app.dropOnPane(id, pane: pane, after: right) }
+    } isTargeted: { targeted = $0 }
   }
 }

@@ -142,7 +142,8 @@ targets:
         NSSupportsLiveActivities: true
         # Spotlight results open entries (CSSearchableItemActionType).
         # it.cipi1965.compass.little-window: a little window's scene (iPad).
-        NSUserActivityTypes: [com.apple.corespotlightitem, it.cipi1965.compass.little-window]
+        # it.cipi1965.compass.tab: an entry dragged out to a new window (iPad).
+        NSUserActivityTypes: [com.apple.corespotlightitem, it.cipi1965.compass.little-window, it.cipi1965.compass.tab]
         # Downloads show in the Files app (Documents/Downloads).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true

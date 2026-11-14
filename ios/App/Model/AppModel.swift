@@ -55,6 +55,9 @@ final class AppModel {
   /// and splits show their panes side by side.
   var isWide = false
   var showingSidebarColumn = true
+  /// The page's width: the window's, less the sidebar column (BrowserScreen
+  /// measures it). 0 until measured.
+  var pageWidth: CGFloat = 0
   /// The sidebar rests at half height (dragged there) instead of full.
   var sidebarHalf = false
   /// While a finger moves the sidebar (a swipe up on the browser's bar, a
@@ -154,8 +157,26 @@ final class AppModel {
   /// on the phone a split of two (one above the other, side by side in
   /// landscape). A bigger split on the phone shows one pane at a time,
   /// under a picker.
+  /// In a wide window only while each pane gets `minPaneWidth` of the page
+  /// (a small Stage Manager window, a wide sidebar column): else, as on
+  /// the phone, a split of two is stacked and a bigger one shows a pane at
+  /// a time.
   func showsPanesTogether(_ node: SidebarNode) -> Bool {
-    node.isSplit && (isWide || node.children.filter(\.isPhoneVisible).count == 2)
+    guard node.isSplit else { return false }
+    let count = node.children.filter(\.isPhoneVisible).count
+    return count == 2 || isWide && (pageWidth == 0 || pageWidth >= CGFloat(count) * Self.minPaneWidth)
+  }
+
+  /// A wide window's split panes are side by side only this wide or wider
+  /// (stacked otherwise, `stacksPanes`).
+  static let minPaneWidth: CGFloat = 280
+
+  /// A split of two shows one pane above the other: on the phone in
+  /// portrait (`compactHeight` false), and in a wide window whose page is
+  /// too narrow for both side by side.
+  func stacksPanes(compactHeight: Bool) -> Bool {
+    if isWide { return pageWidth > 0 && pageWidth < 2 * Self.minPaneWidth }
+    return !compactHeight
   }
 
   /// Whether the tab's page is in this window, or another window has it
@@ -705,6 +726,31 @@ final class AppModel {
     if peek != nil { return closePeek() }
     guard let node = selectedNode else { return }
     userClose([(node, closeKind(node))])
+  }
+
+  /// A tab dropped on a split pane's title strip (PaneStrip), beside it
+  /// (`after`: on its right). A pane of that split moves there, the front
+  /// pane staying in front; another tab joins the split there, in front,
+  /// while the split has room. Favorites stay favorites, and folders and
+  /// splits don't go into a split. Whether anything moved.
+  @discardableResult
+  func dropOnPane(_ id: String, pane: SidebarNode, after: Bool) -> Bool {
+    guard let split = pane.parent, split.isSplit, let moved = store.node(id: id), moved !== pane, moved.isTab,
+      moved.section != .favorites
+    else { return false }
+    let joining = moved.parent !== split
+    let front = shownTab
+    let siblings = split.children.filter { $0 !== moved }
+    guard let index = siblings.firstIndex(where: { $0 === pane }),
+      store.move(moved, to: split, at: index + (after ? 1 : 0))
+    else { return false }
+    if selectedNodeID == split.id {
+      let shown = joining ? moved : front
+      selectedPane = split.children.firstIndex { $0 === shown } ?? selectedPane
+    }
+    // Its page comes to this window.
+    services.activate(self)
+    return true
   }
 
   /// How a tab closes from the picker or ⌘W: a Today entry to the archive,

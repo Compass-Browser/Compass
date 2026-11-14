@@ -500,6 +500,61 @@ final class WebExtensions: NSObject {
     try? controller.unload(context)
     revision += 1
   }
+
+  // MARK: Commands
+
+  /// An extension's keyboard shortcut (its manifest's `commands`), for the
+  /// menu bar's Extensions menu.
+  struct Shortcut: Identifiable {
+    let id: String
+    let title: String
+    /// Nil when it has no keys, or keys the browser keeps.
+    let keyboardShortcut: KeyboardShortcut?
+    let perform: @MainActor () -> Void
+  }
+
+  /// The running extensions' commands that have keys, in the order the
+  /// extensions were added.
+  func shortcuts() -> [Shortcut] {
+    guard #available(iOS 18.4, *) else { return [] }
+    _ = revision
+    return records.compactMap { context($0.id) }.flatMap { context in
+      context.commands.compactMap { command -> Shortcut? in
+        guard let key = command.activationKey, !key.isEmpty else { return nil }
+        let flags = command.modifierFlags.intersection(BrowserKeys.modifiers)
+        let name = Self.name(of: context)
+        return Shortcut(
+          id: "\(context.uniqueIdentifier)/\(command.id)",
+          title: command.title.isEmpty ? name : "\(name): \(command.title)",
+          keyboardShortcut: BrowserKeys.isReserved(key.lowercased(), flags) ? nil : Self.shortcut(key, flags),
+          perform: { [weak context] in if let context { context.performCommand(command) } })
+      }
+    }
+  }
+
+  /// SwiftUI's form of a command's keys.
+  private static func shortcut(_ key: String, _ flags: UIKeyModifierFlags) -> KeyboardShortcut? {
+    let special: [String: KeyEquivalent] = [
+      UIKeyCommand.inputUpArrow: .upArrow, UIKeyCommand.inputDownArrow: .downArrow,
+      UIKeyCommand.inputLeftArrow: .leftArrow, UIKeyCommand.inputRightArrow: .rightArrow,
+      UIKeyCommand.inputHome: .home, UIKeyCommand.inputEnd: .end,
+      UIKeyCommand.inputPageUp: .pageUp, UIKeyCommand.inputPageDown: .pageDown,
+    ]
+    let equivalent: KeyEquivalent
+    if let mapped = special[key] {
+      equivalent = mapped
+    } else if key.count == 1, let character = key.lowercased().first {
+      equivalent = KeyEquivalent(character)
+    } else {
+      return nil
+    }
+    var modifiers: EventModifiers = []
+    if flags.contains(.command) { modifiers.insert(.command) }
+    if flags.contains(.control) { modifiers.insert(.control) }
+    if flags.contains(.alternate) { modifiers.insert(.option) }
+    if flags.contains(.shift) { modifiers.insert(.shift) }
+    return KeyboardShortcut(equivalent, modifiers: modifiers)
+  }
 }
 
 // MARK: - iOS 18.4
@@ -516,6 +571,26 @@ extension WebExtensions {
     return String(full.split(separator: " – ").first ?? Substring(full))
   }
   func context(_ id: String) -> WKWebExtensionContext? { contextsByID[id] as? WKWebExtensionContext }
+
+  /// The running extension's command with these keys (BrowserKeys: a key
+  /// pressed with `modifiers`), if one has them.
+  func command(key: String, modifiers: UIKeyModifierFlags) -> WKWebExtension.Command? {
+    for record in records {
+      guard let context = context(record.id) else { continue }
+      if let command = context.commands.first(where: {
+        $0.activationKey?.lowercased() == key && $0.modifierFlags.intersection(BrowserKeys.modifiers) == modifiers
+      }) {
+        return command
+      }
+    }
+    return nil
+  }
+
+  /// Runs a command as if its keys were pressed: `commands.onCommand` in the
+  /// extension (or its action, for `_execute_action`), on the shown tab.
+  func perform(_ command: WKWebExtension.Command) {
+    command.webExtensionContext?.performCommand(command)
+  }
 
   /// The running extensions with an action (a toolbar button), in the
   /// order they were added, for the page menu.

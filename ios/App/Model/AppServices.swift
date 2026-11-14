@@ -52,6 +52,9 @@ final class AppServices {
   /// A little window's page that's opening in a space while no browser
   /// window is open: the next one to come up takes it.
   @ObservationIgnored private var pendingAdopt: (peek: Peek, space: Space?)?
+  /// Entries dragged out of a window (TabDrag), by the session of the
+  /// window iPadOS opened for them, until that window takes its entry.
+  @ObservationIgnored private var draggedOut: [String: String] = [:]
   /// The little window the user is in: the keyboard commands act on its
   /// page. Nil once a browser window is the key one.
   private(set) weak var keyLittle: Peek?
@@ -258,6 +261,14 @@ final class AppServices {
   func takeLittle() -> Peek? { pendingLittle.isEmpty ? nil : pendingLittle.removeFirst() }
 
   func littleBecameKey(_ little: Peek) { keyLittle = little }
+
+  // MARK: Entries dragged out (iPad)
+
+  /// A scene is connecting for an entry dragged out of a window.
+  func noteDraggedOut(_ entry: String, session: String) { draggedOut[session] = entry }
+
+  /// The entry the window of `session` was opened for, once.
+  func takeDraggedOut(for session: String) -> String? { draggedOut.removeValue(forKey: session) }
 
   /// Open in <space> from a little window: into the last active browser
   /// window, or the next one to open.

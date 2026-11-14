@@ -79,6 +79,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         AppServices.shared?.system.handle(link)
       }
     }
+    // iPad: an entry dragged out of a window (TabDrag); the new window
+    // shows it.
+    if let entry = options.userActivities.lazy.compactMap(TabDrag.entry(of:)).first {
+      let id = session.persistentIdentifier
+      MainActor.assumeIsolated { AppServices.shared?.noteDraggedOut(entry, session: id) }
+    }
     let configuration = UISceneConfiguration(name: nil, sessionRole: session.role)
     configuration.delegateClass = SceneDelegate.self
     return configuration
