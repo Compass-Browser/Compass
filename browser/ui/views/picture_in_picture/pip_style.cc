@@ -307,23 +307,39 @@ void PipStyle::LayOutBottomRow(VideoOverlayWindowViews* window,
   views::View* const container = window->controls_container_view_;
   // Upstream's two rows (the timeline between previous and next, the time
   // under it on the left, mute and captions on the right) as one:
-  // [previous][time][timeline][next][mute][captions], centered on a line
-  // kMargin plus the pill's padding above the bottom edge.
+  // [previous][time][timeline][next][mute][captions]. The row's bottom is
+  // kMargin plus the pill's padding above the window's bottom edge, so its
+  // pill is as far from the bottom as the top pills are from the top; the
+  // controls are centered on each other inside it.
   const int padding = GetPillOutsets(Group::kBottom).left();
-  // The buttons' height, whether or not they show: a hidden one can be
-  // 0x0 (no next track on most pages), which put the row half a button
-  // below the window's edge.
+  // The row is as tall as its tallest shown control, at the size upstream
+  // gave it (OnUpdateControlsBounds()) or, for the labels, as placed below.
+  // Not the buttons' preferred sizes: a hidden previous or next track
+  // button is 0x0, and SimpleOverlayWindowImageButton then asks for its
+  // icon at size 0, which ImageModel takes as the icon's own canvas (960
+  // for the old skip icons), so it prefers 968x968.
+  views::View* const row[] = {
+      window->previous_track_controls_view_.get(),
+      window->progress_view_.get(),
+      window->next_track_controls_view_.get(),
+      window->toggle_mute_button_.get(),
+      window->live_caption_button_.get()};
   int row_height = 0;
-  for (views::View* button :
-       {static_cast<views::View*>(window->previous_track_controls_view_.get()),
-        static_cast<views::View*>(window->next_track_controls_view_.get()),
-        static_cast<views::View*>(window->toggle_mute_button_.get()),
-        static_cast<views::View*>(window->live_caption_button_.get())}) {
-    row_height = std::max(row_height, button->GetPreferredSize().height());
+  for (views::View* view : row) {
+    if (IsShown(view, container)) {
+      row_height = std::max(row_height, view->height());
+    }
   }
-  const int center_y = size.height() - kMargin - padding - row_height / 2;
+  for (views::Label* label :
+       {window->timestamp_.get(), window->live_status_.get()}) {
+    if (IsShown(label, container)) {
+      row_height = std::max(row_height, label->GetPreferredSize().height());
+    }
+  }
+  const int row_bottom = size.height() - kMargin - padding;
+  const int row_top = row_bottom - row_height;
   auto place = [&](views::View* view, int x, int width, int height) {
-    view->SetBounds(x, center_y - height / 2, width, height);
+    view->SetBounds(x, row_top + (row_height - height) / 2, width, height);
   };
 
   int left = kMargin + padding;

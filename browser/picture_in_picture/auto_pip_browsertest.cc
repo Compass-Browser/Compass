@@ -43,10 +43,12 @@
 #include "chrome/browser/ui/views/overlay/close_image_button.h"
 #include "chrome/browser/ui/views/overlay/minimize_button.h"
 #include "chrome/browser/ui/views/overlay/playback_image_button.h"
+#include "chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h"
 #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
 #include "compass/browser/ui/views/picture_in_picture/pip_style.h"
 #include "compass/browser/ui/views/picture_in_picture/pip_windows.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
+#include "services/media_session/public/cpp/media_position.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
@@ -384,6 +386,28 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, ClickThroughShortcut) {
   EXPECT_EQ(ShortcutSettings::Get().IsPipClickThroughOn(), false);
 }
 
+// The bottom row on its pill, at the bottom of |window|, as far from the
+// bottom edge as the top pills are from the top, clear of them, with |time|
+// (the time or the live badge) left of the timeline, on its line.
+void ExpectBottomRow(VideoOverlayWindowViews* window, views::View* time) {
+  const gfx::Size size = window->GetBounds().size();
+  const PipStyle::PillBounds pills = PipStyle::GetPillBoundsForTesting(window);
+  ASSERT_FALSE(pills.bottom.IsEmpty());
+  EXPECT_EQ(pills.bottom.bottom(), size.height() - pills.top_leading.y());
+  EXPECT_EQ(pills.bottom.bottom(), size.height() - pills.top_trailing.y());
+  EXPECT_GT(pills.bottom.y(), size.height() / 2);
+  EXPECT_FALSE(pills.bottom.Intersects(pills.top_leading));
+  EXPECT_FALSE(pills.bottom.Intersects(pills.top_trailing));
+  EXPECT_GE(pills.bottom.x(), PipStyle::kMargin);
+  EXPECT_LE(pills.bottom.right(), size.width() - PipStyle::kMargin);
+  EXPECT_LE(pills.bottom.height(), 40);
+  const gfx::Rect timeline = window->progress_view_for_testing()->bounds();
+  EXPECT_LT(time->bounds().right(), timeline.x());
+  EXPECT_NEAR(time->bounds().CenterPoint().y(), timeline.CenterPoint().y(),
+              1);
+  EXPECT_TRUE(pills.bottom.Contains(timeline));
+}
+
 // Compass's controls (PipStyle): no site name, back to tab top left,
 // minimize and close top right, each group on its pill inside the window,
 // and the window's colors seeded with the tab's space color.
@@ -410,7 +434,10 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipStyle) {
   const gfx::Rect back = window->back_to_tab_button_for_testing()->bounds();
   const gfx::Rect minimize = window->minimize_button_for_testing()->bounds();
   const gfx::Rect close = window->close_button_for_testing()->bounds();
-  EXPECT_LT(back.right(), size.width() / 2);
+  // Left, and clear of minimize (its title can reach past the middle of a
+  // small window in some languages).
+  EXPECT_LT(back.x(), size.width() / 2);
+  EXPECT_LT(back.right(), minimize.x());
   EXPECT_GT(minimize.x(), size.width() / 2);
   EXPECT_EQ(minimize.right(), close.x());
   EXPECT_EQ(back.y(), close.y());
@@ -427,16 +454,22 @@ IN_PROC_BROWSER_TEST_F(CompassAutoPipBrowserTest, PipStyle) {
   EXPECT_EQ(pills.top_trailing.right(), size.width() - PipStyle::kMargin);
   EXPECT_TRUE(pills.center.Contains(
       window->play_pause_controls_view_for_testing()->bounds()));
-  ASSERT_FALSE(pills.bottom.IsEmpty());
-  EXPECT_LE(pills.bottom.bottom(), size.height() - PipStyle::kMargin);
-  EXPECT_GE(pills.bottom.x(), PipStyle::kMargin);
-  EXPECT_LE(pills.bottom.right(), size.width() - PipStyle::kMargin);
-  // One bottom row: the time left of the timeline, on its line.
-  const gfx::Rect time = window->timestamp_for_testing()->bounds();
-  const gfx::Rect timeline = window->progress_view_for_testing()->bounds();
-  EXPECT_LT(time.right(), timeline.x());
-  EXPECT_EQ(time.CenterPoint().y(), timeline.CenterPoint().y());
-  EXPECT_LE(pills.bottom.height(), 40);
+  // The page has no previous or next track: those buttons are hidden (0x0),
+  // which once put the bottom row at the top of the window.
+  EXPECT_FALSE(window->next_track_controls_view_for_testing()->GetVisible());
+  ExpectBottomRow(window, window->timestamp_for_testing());
+
+  // A live stream: the live badge instead of the time. The window lays its
+  // controls out right away; checked before the page's own position comes
+  // in again.
+  window->SetMediaPosition(media_session::MediaPosition(
+      /*playback_rate=*/1, /*duration=*/base::TimeDelta::Max(),
+      /*position=*/base::Seconds(42), /*end_of_media=*/false));
+  // (Shown with the controls: GetVisible(), as the controls may have faded
+  // out by now.)
+  EXPECT_TRUE(window->live_status_for_testing()->GetVisible());
+  EXPECT_FALSE(window->timestamp_for_testing()->GetVisible());
+  ExpectBottomRow(window, window->live_status_for_testing());
 
   // A color change follows at the next layout (a resize here).
   WindowFeatures::From(browser())->space_model().SetColor(SpaceColor::kGreen);

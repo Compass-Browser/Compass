@@ -251,7 +251,13 @@ whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
 - **Bottom row:** upstream's two rows (the timeline between previous and
   next track, the time under it on the left, mute and captions on the
   right) are one: previous, the time, the timeline, next, mute, captions
-  (`LayOutBottomRow()`), `kMargin` from the window's edges. The time is as
+  (`LayOutBottomRow()`), `kMargin` from the window's edges: its pill is as
+  far from the bottom edge as the top pills are from the top, the controls
+  centered on each other. The row is as tall as its tallest shown control
+  at the size upstream gives it, not the buttons' preferred sizes: a
+  hidden previous or next track button is 0x0 and then prefers its icon's
+  canvas (968 DIP high for the old skip icons), which put the row at the
+  top of the window. The time is as
   wide as its longest text (the current time as long as the duration), so
   the timeline doesn't move as it counts. It's drawn by `PipTime` over
   upstream's label (made transparent), each digit centered in a cell as
@@ -275,7 +281,7 @@ whose `VideoOverlayWindowViews` names it a friend and calls it at the end of
   (`pip_tint.h`, in the `pip_windows` target both sides depend on); each
   layout asks again, so a color change shows at the next one.
 
-Test: `CompassAutoPipBrowserTest.PipStyle`.
+Test: `CompassAutoPipBrowserTest.PipStyle` (a video, then a live stream).
 
 ## Leaving the window
 
