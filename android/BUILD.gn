@@ -44,18 +44,29 @@ generate_jni("jni_headers") {
   ]
 }
 
+# The services the system binds by their class: the Quick Settings tile and
+# the autofill service. In the app bundle they have to be in the base module,
+# not the "chrome" split with the rest (b/169196314, create_app_bundle.py's
+# service check), so they use only Android's classes and name the activities
+# they start.
+android_library("base_java") {
+  sources = [
+    "java/src/it/cipi1965/compass/autofill/CompassAutofillService.java",
+    "java/src/it/cipi1965/compass/extras/CompassIntents.java",
+    "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
+  ]
+  deps = [ "//build/android:build_java" ]
+}
+
 android_library("java") {
   sources = [
     "java/src/it/cipi1965/compass/CompassShellHookImpl.java",
-    "java/src/it/cipi1965/compass/autofill/CompassAutofillService.java",
     "java/src/it/cipi1965/compass/autofill/PasswordPickerActivity.kt",
     "java/src/it/cipi1965/compass/autofill/PasswordSaveActivity.java",
     "java/src/it/cipi1965/compass/autofill/PasswordsBridge.java",
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
-    "java/src/it/cipi1965/compass/extras/CompassIntents.java",
     "java/src/it/cipi1965/compass/extras/DevicesWidgetProvider.java",
     "java/src/it/cipi1965/compass/extras/ListWidgetProvider.java",
-    "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
     "java/src/it/cipi1965/compass/extras/PairInviteActivity.java",
     "java/src/it/cipi1965/compass/extras/PinShareActivity.java",
     "java/src/it/cipi1965/compass/extras/QuickActionsWidgetProvider.java",
@@ -106,6 +117,7 @@ android_library("java") {
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
   ]
   deps = [
+    ":base_java",
     ":hook_java",
     ":symbols_resources",
     "//base:base_java",
@@ -290,7 +302,8 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
 # template in //chrome/android/BUILD.gn) with Compass's package, manifest and
 # Java. As there, the base module has the resources (Compass's icon and the
 # extras' among them) and the "chrome" isolated split has Chrome's Java;
-# Compass's shell goes with it, since it runs on Chrome's classes. The
+# Compass's shell goes with it, since it runs on Chrome's classes, except
+# :base_java's services, which the base module needs. The
 # manifest's extra definitions (widgets, tile, autofill) go to that split's
 # manifest (definitions_in_split). The APK above stays, for tests and the
 # GitHub release. Both take their versionCode from
@@ -307,6 +320,7 @@ chrome_public_apk_or_module_tmpl("compass_bundle__base_bundle_module") {
     }
   }
   deps = [
+    ":base_java",
     ":extras_resources",
     ":icon_resources",
   ]

@@ -9,7 +9,10 @@ import android.content.Intent;
 import android.os.Build;
 import android.service.quicksettings.TileService;
 
-/** A Quick Settings tile: a new tab, with the command bar open. */
+/**
+ * A Quick Settings tile: a new tab, with the command bar open. In :base_java, the app bundle's base
+ * module, as the system binds services by their class (b/169196314).
+ */
 public class NewTabTileService extends TileService {
     @Override
     @SuppressWarnings("deprecation") // startActivityAndCollapse(Intent), before Android 14.

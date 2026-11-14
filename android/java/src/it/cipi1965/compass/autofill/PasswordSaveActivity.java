@@ -16,9 +16,9 @@ import org.chromium.chrome.browser.profiles.ProfileManager;
  * user picked Save in Android's prompt), into Compass's passwords. It has no window of its own.
  */
 public class PasswordSaveActivity extends Activity {
-    static final String EXTRA_SIGNON_REALM = "it.cipi1965.compass.autofill.SIGNON_REALM";
-    static final String EXTRA_USERNAME = "it.cipi1965.compass.autofill.USERNAME";
-    static final String EXTRA_PASSWORD = "it.cipi1965.compass.autofill.PASSWORD";
+    static final String EXTRA_SIGNON_REALM = CompassAutofillService.EXTRA_SIGNON_REALM;
+    static final String EXTRA_USERNAME = CompassAutofillService.EXTRA_USERNAME;
+    static final String EXTRA_PASSWORD = CompassAutofillService.EXTRA_PASSWORD;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

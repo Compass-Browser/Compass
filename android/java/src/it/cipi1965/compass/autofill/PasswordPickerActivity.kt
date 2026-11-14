@@ -61,10 +61,10 @@ import org.json.JSONArray
  */
 class PasswordPickerActivity : ComponentActivity() {
     companion object {
-        const val EXTRA_USERNAME_ID = "it.cipi1965.compass.autofill.USERNAME_ID"
-        const val EXTRA_PASSWORD_ID = "it.cipi1965.compass.autofill.PASSWORD_ID"
-        const val EXTRA_WEB_DOMAIN = "it.cipi1965.compass.autofill.WEB_DOMAIN"
-        const val EXTRA_PACKAGE = "it.cipi1965.compass.autofill.PACKAGE"
+        const val EXTRA_USERNAME_ID = CompassAutofillService.EXTRA_USERNAME_ID
+        const val EXTRA_PASSWORD_ID = CompassAutofillService.EXTRA_PASSWORD_ID
+        const val EXTRA_WEB_DOMAIN = CompassAutofillService.EXTRA_WEB_DOMAIN
+        const val EXTRA_PACKAGE = CompassAutofillService.EXTRA_PACKAGE
 
         /** Words of a package name that say nothing of its site. */
         private val PACKAGE_NOISE =

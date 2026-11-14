@@ -41,8 +41,24 @@ import java.util.Locale;
  * the picker (PasswordPickerActivity), which unlocks with the screen lock and fills the one the
  * user picks. Pages in Compass itself fill through Chrome's own autofill. A login form's
  * submission can be saved into Compass's passwords (onSaveRequest()).
+ *
+ * <p>It's in :base_java, in the app bundle's base module, as the system binds services by their
+ * class (b/169196314): it names the activities it starts, which are in the "chrome" split, rather
+ * than referring to their classes.
  */
 public class CompassAutofillService extends AutofillService {
+    static final String PICKER_ACTIVITY = "it.cipi1965.compass.autofill.PasswordPickerActivity";
+    static final String SAVE_ACTIVITY = "it.cipi1965.compass.autofill.PasswordSaveActivity";
+    // The picker's extras.
+    static final String EXTRA_USERNAME_ID = "it.cipi1965.compass.autofill.USERNAME_ID";
+    static final String EXTRA_PASSWORD_ID = "it.cipi1965.compass.autofill.PASSWORD_ID";
+    static final String EXTRA_WEB_DOMAIN = "it.cipi1965.compass.autofill.WEB_DOMAIN";
+    static final String EXTRA_PACKAGE = "it.cipi1965.compass.autofill.PACKAGE";
+    // The save activity's.
+    static final String EXTRA_SIGNON_REALM = "it.cipi1965.compass.autofill.SIGNON_REALM";
+    static final String EXTRA_USERNAME = "it.cipi1965.compass.autofill.USERNAME";
+    static final String EXTRA_PASSWORD = "it.cipi1965.compass.autofill.PASSWORD";
+
     /** The fields of a login form, and whose form it is. */
     static class LoginFields {
         @Nullable AutofillId username;
@@ -67,11 +83,11 @@ public class CompassAutofillService extends AutofillService {
             callback.onSuccess(null);
             return;
         }
-        Intent picker = new Intent(this, PasswordPickerActivity.class);
-        picker.putExtra(PasswordPickerActivity.EXTRA_USERNAME_ID, fields.username);
-        picker.putExtra(PasswordPickerActivity.EXTRA_PASSWORD_ID, fields.password);
-        picker.putExtra(PasswordPickerActivity.EXTRA_WEB_DOMAIN, fields.webDomain);
-        picker.putExtra(PasswordPickerActivity.EXTRA_PACKAGE, fields.packageName);
+        Intent picker = new Intent().setClassName(this, PICKER_ACTIVITY);
+        picker.putExtra(EXTRA_USERNAME_ID, fields.username);
+        picker.putExtra(EXTRA_PASSWORD_ID, fields.password);
+        picker.putExtra(EXTRA_WEB_DOMAIN, fields.webDomain);
+        picker.putExtra(EXTRA_PACKAGE, fields.packageName);
         PendingIntent pending =
                 PendingIntent.getActivity(
                         this,
@@ -124,10 +140,10 @@ public class CompassAutofillService extends AutofillService {
             return;
         }
         String username = fields.username != null ? textOf(structure, fields.username) : null;
-        Intent intent = new Intent(this, PasswordSaveActivity.class);
-        intent.putExtra(PasswordSaveActivity.EXTRA_SIGNON_REALM, realm);
-        intent.putExtra(PasswordSaveActivity.EXTRA_USERNAME, username != null ? username : "");
-        intent.putExtra(PasswordSaveActivity.EXTRA_PASSWORD, password);
+        Intent intent = new Intent().setClassName(this, SAVE_ACTIVITY);
+        intent.putExtra(EXTRA_SIGNON_REALM, realm);
+        intent.putExtra(EXTRA_USERNAME, username != null ? username : "");
+        intent.putExtra(EXTRA_PASSWORD, password);
         PendingIntent pending =
                 PendingIntent.getActivity(
                         this,
