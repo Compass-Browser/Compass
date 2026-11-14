@@ -1137,6 +1137,53 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragToPinnedPinsATab) {
   }));
 }
 
+// Incognito has no Pinned: no section in its sidebar, and its space takes
+// nothing there (docs/design/sidebar.md, "Incognito"). Normal windows keep
+// theirs.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, IncognitoHasNoPinned) {
+  BrowserWindowInterface* incognito = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      incognito, GURL("data:text/html,<title>Secret</title>")));
+  auto* view = FindDescendant<CompassSidebarView>(
+      BrowserView::GetBrowserViewForBrowser(incognito));
+  ASSERT_TRUE(view);
+  content::WebContents* contents = view->GetWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(
+                                      kWaitForTitles,
+                                      base::ListValue().Append("Secret"))));
+
+  constexpr char kSections[] = R"(
+      (() => {
+        const root =
+            document.querySelector('compass-sidebar-app').shadowRoot;
+        return [...root.querySelectorAll('.section-header > span:first-child')]
+            .map(span => span.textContent.trim()).join() + '|' +
+            !!root.querySelector('#pinned');
+      })())";
+  EXPECT_EQ(content::EvalJs(contents, kSections), "Today|false");
+  EXPECT_EQ(content::EvalJs(sidebar_contents(), kSections),
+            "Pinned,Today|true");
+
+  SpaceModel& space = WindowFeatures::From(incognito)->space_model();
+  EXPECT_FALSE(space.has_pinned());
+  ASSERT_EQ(space.today_root()->children().size(), 1u);
+  EXPECT_FALSE(space.CanMove(space.today_root()->children()[0].get(),
+                             space.pinned_root()));
+  EXPECT_FALSE(space.CanContain(space.pinned_root(), SidebarNode::Type::kTab));
+  // Its favorites are its own, and stay.
+  SpaceModel& favorites =
+      WindowFeatures::From(incognito)->service().space_list().favorites();
+  EXPECT_TRUE(space.CanMoveToSpace(space.today_root()->children()[0].get(),
+                                   favorites, favorites.pinned_root()));
+  EXPECT_NE(&favorites, &WindowFeatures::From(browser())
+                             ->service()
+                             .space_list()
+                             .favorites());
+  EXPECT_TRUE(WindowFeatures::From(browser())->space_model().has_pinned());
+}
+
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
                        FavoritesStayAcrossSpacesAndReopen) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(

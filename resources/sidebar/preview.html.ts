@@ -14,23 +14,25 @@ export function getHtml(this: CompassSidebarPreviewElement) {
 <div id="spaceName">${this.getName_()}</div>
 ${this.tree ? html`
   <div id="sections">
-    <div class="section-header">
-      <span>Pinned</span>
-      <span id="newFolder" class="new-folder">
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M8 3v10M3 8h10"></path>
-        </svg>
-      </span>
-    </div>
-    <div class="section">
-      ${this.isPinnedEmpty_() ? html`
-        <div class="hint">Drag tabs here to pin them</div>` : nothing}
-      ${repeat(this.getPinned_(), (node: Node) => node.id, (node: Node) => html`
-        <compass-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
-            .profileId="${this.space?.profileId ?? null}">
-        </compass-sidebar-node>`)}
-    </div>
-    <div class="divider"></div>
+    ${this.hasPinned_() ? html`
+      <div class="section-header">
+        <span>Pinned</span>
+        <span id="newFolder" class="new-folder">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 3v10M3 8h10"></path>
+          </svg>
+        </span>
+      </div>
+      <div class="section">
+        ${this.isPinnedEmpty_() ? html`
+          <div class="hint">Drag tabs here to pin them</div>` : nothing}
+        ${repeat(this.getPinned_(), (node: Node) => node.id, (node: Node) => html`
+          <compass-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
+              .profileId="${this.space?.profileId ?? null}">
+          </compass-sidebar-node>`)}
+      </div>
+      <div class="divider"></div>
+    ` : nothing}
     <div class="section-header">
       <span>Today</span>
       <span id="newTodayFolder" class="new-folder">

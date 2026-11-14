@@ -443,6 +443,27 @@ void SpaceModel::MarkAllSeen(SidebarNode* folder) {
   }
 }
 
+void SpaceModel::RemovePinnedSection() {
+  CHECK_EQ(kind_, Kind::kSpace);
+  has_pinned_ = false;
+  std::vector<SidebarNode*> live_folders;
+  auto collect = [&live_folders](auto& self, SidebarNode* node) -> void {
+    if (node->is_live_folder()) {
+      live_folders.push_back(node);
+    }
+    for (const auto& child : node->children()) {
+      self(self, child.get());
+    }
+  };
+  collect(collect, pinned_root_.get());
+  for (SidebarNode* folder : live_folders) {
+    ConvertToPlainFolder(folder);
+  }
+  for (size_t index = 0; !pinned_root_->children().empty(); ++index) {
+    MoveNode(pinned_root_->children().front().get(), today_root_.get(), index);
+  }
+}
+
 bool SpaceModel::CanMove(const SidebarNode* node,
                          const SidebarNode* new_parent) const {
   if (!node || !new_parent || node->type() == Type::kRoot ||
@@ -916,6 +937,9 @@ bool SpaceModel::Contains(const SidebarNode* node) const {
 bool SpaceModel::CanContain(const SidebarNode* parent, Type type) const {
   if (kind_ == Kind::kFavorites) {
     return parent == pinned_root_.get() && type == Type::kTab;
+  }
+  if (!has_pinned_ && pinned_root_->Contains(parent)) {
+    return false;
   }
   switch (parent->type()) {
     case Type::kRoot:

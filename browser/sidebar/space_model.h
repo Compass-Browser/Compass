@@ -318,6 +318,17 @@ class SpaceModel {
   SidebarNode* today_root() { return today_root_.get(); }
   const SidebarNode* today_root() const { return today_root_.get(); }
 
+  // Whether the space has a Pinned section. An off-the-record profile's
+  // spaces don't: incognito is gone once its windows close, and Pinned is
+  // what stays (docs/design/sidebar.md, "Incognito"). Without one, nothing
+  // is added to or moved into pinned_root(), which stays empty. Favorites
+  // always have theirs.
+  bool has_pinned() const { return has_pinned_; }
+  // Takes the space's Pinned section away for good. Its entries move to the
+  // top of Today, in order; live folders become plain folders first, since
+  // only Pinned holds those.
+  void RemovePinnedSection();
+
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
@@ -385,6 +396,10 @@ class SpaceModel {
   void SetUnseen(SidebarNode* tab, bool unseen);
   // Marks every entry of |folder| seen.
   void MarkAllSeen(SidebarNode* folder);
+
+  // Whether |parent|, one of this model's nodes, may hold a new node of
+  // |type|. Use it to validate adds.
+  bool CanContain(const SidebarNode* parent, SidebarNode::Type type) const;
 
   // Whether |node| may be moved into |new_parent|. Use it to validate drops.
   bool CanMove(const SidebarNode* node, const SidebarNode* new_parent) const;
@@ -502,8 +517,6 @@ class SpaceModel {
   bool Contains(const SidebarNode* node) const;
 
  private:
-  bool CanContain(const SidebarNode* parent, SidebarNode::Type type) const;
-
   // Move() without its check, for ReplaceLiveItems(), which reorders entries
   // users can't.
   void MoveNode(SidebarNode* node, SidebarNode* new_parent, size_t index);
@@ -541,6 +554,7 @@ class SpaceModel {
   SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;
   bool synced_ = true;
+  bool has_pinned_ = true;
   std::vector<ArchivedEntry> archive_;
   std::unique_ptr<SidebarNode> pinned_root_;
   std::unique_ptr<SidebarNode> today_root_;

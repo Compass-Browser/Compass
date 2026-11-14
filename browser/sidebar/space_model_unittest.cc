@@ -1010,5 +1010,56 @@ TEST_F(SpaceModelTest, FolderNameSources) {
   EXPECT_TRUE(folder->name_before_claude().empty());
 }
 
+// Incognito (docs/design/sidebar.md, "Incognito").
+
+TEST_F(SpaceModelTest, WithoutPinnedEntriesMoveToToday) {
+  EXPECT_TRUE(model_.has_pinned());
+  Tab(model_.pinned_root(), "docs");
+  SidebarNode* work = model_.AddFolder(model_.pinned_root(), 1, u"Work");
+  Tab(work, "mail");
+  SidebarNode* live = model_.AddLiveFolder(work, 1, u"News", RssSource());
+  model_.ReplaceLiveItems(live, Items({"one"}), base::Time::Now(), NoneOpen);
+  Tab(model_.today_root(), "search");
+
+  model_.RemovePinnedSection();
+
+  EXPECT_FALSE(model_.has_pinned());
+  EXPECT_TRUE(model_.pinned_root()->children().empty());
+  // At the top of Today, in their order; nothing dropped.
+  EXPECT_THAT(Titles(model_.today_root()),
+              ElementsAre("docs", "Work", "search"));
+  EXPECT_THAT(Titles(work), ElementsAre("mail", "News"));
+  // The live folder is a plain one, its entry an ordinary tab, and nothing
+  // keeps a pinned URL.
+  EXPECT_FALSE(live->is_live_folder());
+  ASSERT_EQ(live->children().size(), 1u);
+  EXPECT_FALSE(live->children()[0]->is_live_item());
+  EXPECT_TRUE(model_.today_root()->children()[0]->saved_url().is_empty());
+}
+
+TEST_F(SpaceModelTest, WithoutPinnedNothingGoesThere) {
+  model_.RemovePinnedSection();
+  SidebarNode* tab = Tab(model_.today_root(), "a");
+  SidebarNode* folder = model_.AddFolder(model_.today_root(), 1, u"Folder");
+
+  EXPECT_FALSE(model_.CanContain(model_.pinned_root(), Type::kTab));
+  EXPECT_FALSE(model_.CanContain(model_.pinned_root(), Type::kFolder));
+  EXPECT_FALSE(model_.CanContain(model_.pinned_root(), Type::kSplit));
+  EXPECT_FALSE(model_.CanMove(tab, model_.pinned_root()));
+  EXPECT_FALSE(model_.CanMove(folder, model_.pinned_root()));
+  EXPECT_FALSE(model_.CanAddLiveFolder(model_.pinned_root()));
+  // Today works as before.
+  EXPECT_TRUE(model_.CanContain(model_.today_root(), Type::kTab));
+  EXPECT_TRUE(model_.CanMove(tab, folder));
+
+  // Nor from another space.
+  SpaceModel other;
+  SidebarNode* other_tab = other.AddTab(other.today_root(), 0,
+                                        GURL("https://b.test/"), u"b");
+  EXPECT_FALSE(
+      other.CanMoveToSpace(other_tab, model_, model_.pinned_root()));
+  EXPECT_TRUE(other.CanMoveToSpace(other_tab, model_, model_.today_root()));
+}
+
 }  // namespace
 }  // namespace compass

@@ -62,6 +62,10 @@ constexpr char kSpacePrefix[] = "s";
 // Enough to tell a profile's entries apart; list_tabs and the tools check.
 constexpr size_t kIdChars = 8;
 
+constexpr char kNoPinnedInIncognito[] =
+    "Incognito spaces have no Pinned section: nothing can be pinned there. "
+    "Use today instead.";
+
 std::string NodeId(const SidebarNode& node) {
   return kNodePrefix + node.id().AsLowercaseString().substr(0, kIdChars);
 }
@@ -313,8 +317,12 @@ std::string ClaudeTabs::ListTabs(const Context& context) {
     } else if (WindowShowing(*space)) {
       text += " [shown in another window]";
     }
-    text += ":\n  Pinned:\n";
-    entries(entries, *space->pinned_root(), 2);
+    text += ":\n";
+    // Incognito spaces have no Pinned.
+    if (space->has_pinned()) {
+      text += "  Pinned:\n";
+      entries(entries, *space->pinned_root(), 2);
+    }
     text += "  Today:\n";
     entries(entries, *space->today_root(), 2);
   }
@@ -622,6 +630,9 @@ Result ClaudeTabs::MoveTab(const base::DictValue& input) {
     } else {
       target = from;
     }
+    if (*to == "pinned" && !target->has_pinned()) {
+      return Error(kNoPinnedInIncognito);
+    }
     parent = *to == "pinned" ? target->pinned_root() : target->today_root();
   } else {
     return Error("to is pinned, today, favorites or folder.");
@@ -696,7 +707,13 @@ Result ClaudeTabs::CreateFolder(const base::DictValue& input) {
     space = &features->space_model();
   }
   const std::string* in = input.FindString("in");
-  SidebarNode* parent = space->pinned_root();
+  if (in && *in == "pinned" && !space->has_pinned()) {
+    return Error(kNoPinnedInIncognito);
+  }
+  // Pinned unless told otherwise; Today in an incognito space, which is all
+  // it has.
+  SidebarNode* parent =
+      space->has_pinned() ? space->pinned_root() : space->today_root();
   if (in && *in == "today") {
     parent = space->today_root();
   } else if (in && *in != "pinned") {
@@ -706,6 +723,9 @@ Result ClaudeTabs::CreateFolder(const base::DictValue& input) {
       return Error("in is pinned, today, or a folder_id.");
     }
     space = folder_space;
+  }
+  if (!space->CanContain(parent, SidebarNode::Type::kFolder)) {
+    return Error("The folder couldn't be made there.");
   }
   SidebarNode* folder = space->AddFolder(parent, parent->children().size(),
                                          base::UTF8ToUTF16(*name));

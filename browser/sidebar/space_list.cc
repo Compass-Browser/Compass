@@ -54,6 +54,9 @@ SpaceModel* SpaceList::AddSpace(size_t index,
     space->set_id(*id);
   }
   space->SetName(std::move(name));
+  if (!has_pinned_) {
+    space->RemovePinnedSection();
+  }
   SpaceModel* added =
       spaces_
           .insert(spaces_.begin() + std::min(index, spaces_.size()),
@@ -64,6 +67,13 @@ SpaceModel* SpaceList::AddSpace(size_t index,
     observer.OnSpaceAdded(*added);
   }
   return added;
+}
+
+void SpaceList::RemovePinnedSections() {
+  has_pinned_ = false;
+  for (const auto& space : spaces_) {
+    space->RemovePinnedSection();
+  }
 }
 
 void SpaceList::RemoveSpace(SpaceModel& space) {

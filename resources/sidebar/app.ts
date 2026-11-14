@@ -180,6 +180,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       dragActive_: {type: Boolean},
       linkDragging_: {type: Boolean},
       pinned_: {type: Object},
+      hasPinned_: {type: Boolean},
       today_: {type: Object},
       activeId_: {type: String},
       spaces_: {type: Array},
@@ -210,6 +211,8 @@ export class CompassSidebarAppElement extends CrLitElement {
   // drop zone too.
   protected accessor linkDragging_: boolean = false;
   protected accessor pinned_: Node|null = null;
+  // False in incognito, which has no Pinned section: Today takes its place.
+  protected accessor hasPinned_: boolean = true;
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
   protected accessor spaces_: Space[] = [];
@@ -1845,6 +1848,7 @@ export class CompassSidebarAppElement extends CrLitElement {
         favorites: this.favorites_,
         pinned: this.pinned_,
         today: this.today_,
+        hasPinned: this.hasPinned_,
         // What it shows when the window comes back to it.
         activeId: this.activeId_,
       });
@@ -2199,6 +2203,10 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (parent === this.favorites_) {
       return !dragged || dragged.type === NodeType.kTab;
     }
+    // Incognito has no Pinned (its root stays empty, so it's the only node).
+    if (!this.hasPinned_ && parent === this.pinned_) {
+      return false;
+    }
     for (let node: Node|undefined = parent; node;
          node = this.parents_.get(node.id)) {
       if (node === dragged) {
@@ -2262,6 +2270,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.index_(tree.today, null);
     this.favorites_ = tree.favorites;
     this.pinned_ = tree.pinned;
+    this.hasPinned_ = tree.hasPinned;
     this.today_ = tree.today;
     this.activeId_ = tree.activeId;
     if (stageTop !== null) {

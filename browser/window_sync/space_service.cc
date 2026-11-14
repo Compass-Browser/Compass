@@ -87,6 +87,11 @@ base::TimeDelta GetArchiveHour() {
 SpaceService::SpaceService(Profile* profile)
     : profile_(profile),
       parking_window_factory_(base::BindRepeating(&CreateParkingWindow)) {
+  // Incognito keeps nothing past its windows, so it has no Pinned
+  // (docs/design/sidebar.md, "Incognito").
+  if (profile->IsOffTheRecord()) {
+    space_list_.RemovePinnedSections();
+  }
   space_list_.AddObserver(this);
   registry_.AddObserver(this);
   for (const auto& space : space_list_.spaces()) {

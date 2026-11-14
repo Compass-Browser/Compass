@@ -67,7 +67,9 @@ void RestoreRemoved(const ClosedEntries::Entry& entry, SpaceModel& model) {
   }
   // Its parent is gone: the top of Today, where new entries go, or the end
   // of Pinned.
-  SidebarNode* root = entry.in_today && model.kind() == SpaceModel::Kind::kSpace
+  // Today in incognito, which has no Pinned.
+  SidebarNode* root = model.kind() == SpaceModel::Kind::kSpace &&
+                              (entry.in_today || !model.has_pinned())
                           ? model.today_root()
                           : model.pinned_root();
   DeserializeEntry(*entry.node, model, root,

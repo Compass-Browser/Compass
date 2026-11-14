@@ -1081,6 +1081,36 @@ TEST_F(SidebarPageHandlerTest, TodayEntryMenu) {
   EXPECT_EQ(space_model().today_root()->children().size(), 1u);
 }
 
+// An incognito window's space has no Pinned (docs/design/sidebar.md,
+// "Incognito"): its profile's SpaceService takes it away, as this does.
+TEST_F(SidebarPageHandlerTest, NothingPinsWithoutPinned) {
+  space_model().RemovePinnedSection();
+  EXPECT_FALSE(GetTree()->has_pinned);
+  const std::string a = TodayId(0);
+  EXPECT_THAT(MenuCommands(a),
+              ElementsAre(Command::kRename, Command::kCopyLink,
+                          Command::kDuplicate, Command::kReload, Command::kMute,
+                          Command::kAddToFavorites, Command::kCloseTab));
+
+  // Dragging, dropping a link, a new folder: Pinned refuses them all.
+  handler_remote_->MoveNode(a, PinnedId(), 0);
+  handler_remote_->OpenLink(GURL("https://c.test/"), PinnedId(), 0);
+  handler_remote_->AddFolder(PinnedId(), 0, "Work");
+  Settle();
+  EXPECT_TRUE(space_model().pinned_root()->children().empty());
+  EXPECT_EQ(space_model().today_root()->children().size(), 2u);
+
+  // A Today folder's menu has no Pin either.
+  SidebarNode* folder = space_model().AddFolder(
+      space_model().today_root(), 2, u"Trip");
+  EXPECT_THAT(MenuCommands(folder->id().AsLowercaseString()),
+              Not(Contains(Command::kPin)));
+
+  // Favorites stay.
+  Choose(a, Command::kAddToFavorites);
+  EXPECT_EQ(favorites().pinned_root()->children().size(), 1u);
+}
+
 TEST_F(SidebarPageHandlerTest, PinsAndUnpinsFromTheMenu) {
   const std::string b = TodayId(1);
   Choose(b, Command::kPin);

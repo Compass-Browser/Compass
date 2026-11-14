@@ -377,6 +377,7 @@ void SidebarPageHandler::RequestTree() {
   tree->favorites = ToMojo(*favorites().pinned_root());
   tree->pinned = ToMojo(*space_model().pinned_root());
   tree->today = ToMojo(*space_model().today_root());
+  tree->has_pinned = space_model().has_pinned();
   tree->active_id = GetActiveNodeId();
   page_->SetTree(std::move(tree));
   // Live folders' refreshing and errors.
@@ -560,9 +561,14 @@ void SidebarPageHandler::OpenLink(const GURL& url,
       !(url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile())) {
     return;
   }
+  SpaceModel& model = GetModelOf(parent);
+  // Not into an incognito space's Pinned, which it hasn't.
+  if (!model.CanContain(parent, SidebarNode::Type::kTab)) {
+    return;
+  }
   // The page's title replaces the URL once it loads.
-  SidebarNode* node = GetModelOf(parent).AddTab(parent, index, url,
-                                                base::UTF8ToUTF16(url.spec()));
+  SidebarNode* node =
+      model.AddTab(parent, index, url, base::UTF8ToUTF16(url.spec()));
   bridge().OpenNode(node);
 }
 
@@ -573,7 +579,8 @@ void SidebarPageHandler::AddFolder(const std::string& parent_id,
   if (!parent || index > parent->children().size() ||
       !space_model().Contains(parent) ||
       (parent->type() != SidebarNode::Type::kRoot &&
-       parent->type() != SidebarNode::Type::kFolder)) {
+       parent->type() != SidebarNode::Type::kFolder) ||
+      !space_model().CanContain(parent, SidebarNode::Type::kFolder)) {
     return;
   }
   space_model().AddFolder(parent, index, base::UTF8ToUTF16(title));
@@ -720,6 +727,7 @@ void SidebarPageHandler::GetSpaceTree(const std::string& id,
       ToMojo(*service.space_list().favorites().pinned_root(), registry);
   tree->pinned = ToMojo(*entry.space->pinned_root(), registry);
   tree->today = ToMojo(*entry.space->today_root(), registry);
+  tree->has_pinned = entry.space->has_pinned();
   // What the switch would show, for the preview to highlight.
   if (SidebarNode* shown = PredictShownEntry(service, *entry.space)) {
     tree->active_id = shown->id().AsLowercaseString();
@@ -983,6 +991,8 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
   auto menu = std::make_unique<NodeMenu>(weak_factory_.GetWeakPtr(), id);
   const bool favorite = favorites().Contains(node);
   const bool pinned = space_model().pinned_root()->Contains(node);
+  // Pin, or Unpin; neither in incognito, which has no Pinned.
+  const bool pin_item = pinned || space_model().has_pinned();
   const SpaceList& space_list = features_->service().space_list();
 
   if (node->type() == SidebarNode::Type::kFolder) {
@@ -1010,7 +1020,9 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
       menu->AddItem(kSuggestName, u"Suggest a Name");
     }
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
-    menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+    if (pin_item) {
+      menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+    }
     menu->AddMoveToSpace(space_list.spaces(), space_model());
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
     menu->AddItem(kRemove, u"Delete Folder");
@@ -1069,7 +1081,9 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
   }
   if (entry && !favorite) {
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
-    menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+    if (pin_item) {
+      menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+    }
     if (node->type() == SidebarNode::Type::kTab) {
       menu->AddItem(kAddToFavorites, u"Add to Favorites");
     }

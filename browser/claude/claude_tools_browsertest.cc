@@ -637,6 +637,51 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, OrganizesTheSidebar) {
   EXPECT_EQ(tools_->target(), contents());
 }
 
+// Incognito has no Pinned (docs/design/sidebar.md, "Incognito"): the tools
+// say so rather than pin there.
+IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, NothingPinsInIncognito) {
+  SetBrowserScope(true);
+  BrowserWindowInterface* incognito = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      incognito, embedded_test_server()->GetURL("/other.html")));
+  content::WebContents* page =
+      incognito->GetTabStripModel()->GetActiveWebContents();
+  const std::string id =
+      ClaudeTabs(incognito->GetProfile(), incognito).IdOf(page);
+  ASSERT_FALSE(id.empty());
+  ClaudeTools tools(
+      std::make_unique<ClaudeTabs>(incognito->GetProfile(), incognito));
+  tools.SetTarget(page);
+  auto run = [&tools](const std::string& name, const std::string& input) {
+    std::optional<base::DictValue> dict =
+        base::JSONReader::ReadDict(input, base::JSON_PARSE_RFC);
+    EXPECT_TRUE(dict) << input;
+    base::test::TestFuture<ToolResult> result;
+    tools.Run(name, std::move(*dict), result.GetCallback());
+    return result.Take();
+  };
+  SpaceModel& space = WindowFeatures::From(incognito)->space_model();
+
+  ToolResult moved =
+      run("move_tab", "{\"tab_id\": \"" + id + "\", \"to\": \"pinned\"}");
+  EXPECT_TRUE(moved.is_error);
+  EXPECT_THAT(Text(moved), HasSubstr("no Pinned"));
+  EXPECT_TRUE(run("create_folder", R"({"name": "Work", "in": "pinned"})")
+                  .is_error);
+  // A folder goes to Today, all it has.
+  ToolResult folder = run("create_folder", R"({"name": "Work"})");
+  EXPECT_FALSE(folder.is_error) << Text(folder);
+  EXPECT_TRUE(space.pinned_root()->children().empty());
+  EXPECT_TRUE(std::ranges::any_of(
+      space.today_root()->children(), [](const auto& child) {
+        return child->type() == SidebarNode::Type::kFolder &&
+               child->title() == u"Work";
+      }));
+  const std::string listed = Text(run("list_tabs", "{}"));
+  EXPECT_THAT(listed, HasSubstr("Today:"));
+  EXPECT_THAT(listed, ::testing::Not(HasSubstr("Pinned:")));
+}
+
 IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, SpacesAndUnloadedEntries) {
   SetBrowserScope(true);
   const std::string chat_id = IdOf(contents());

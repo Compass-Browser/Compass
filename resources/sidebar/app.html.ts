@@ -63,37 +63,39 @@ export function getHtml(this: CompassSidebarAppElement) {
         @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
         @drop="${this.onDrop_}" @dragend="${this.onDragend_}"
         @folder-toggle="${this.onFolderToggle_}">
-      <div class="section-header" data-flip="pinned-header">
-        <span>Pinned</span>
-        <button id="newLiveFolder" class="new-folder"
-            aria-label="New live folder" title="New live folder"
-            @click="${this.onNewLiveFolderClick_}">
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M2 4.2a.7.7 0 0 1 .7-.7h3.1l1.4 1.5h6.1a.7.7 0 0 1 .7.7
-                     v6.6a.7.7 0 0 1-.7.7H2.7a.7.7 0 0 1-.7-.7z
-                     M8.7 6.6 7.2 9h1.8l-1.5 2.4"></path>
-          </svg>
-        </button>
-        <button id="newFolder" class="new-folder" data-section="pinned"
-            aria-label="New folder" title="New folder"
-            @click="${this.onNewFolderClick_}">
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 3v10M3 8h10"></path>
-          </svg>
-        </button>
-      </div>
-      <div id="pinned" class="section" role="tree">
-        ${this.isPinnedEmpty_() ? html`
-          <div class="hint" data-flip="pinned-hint">
-            Drag tabs here to pin them
-          </div>` : nothing}
-        ${repeat(this.getPinned_(), (node: Node) => node.id,
-                 (node: Node) => html`
-          <compass-sidebar-node .node="${node}" .activeId="${this.activeId_}"
-              .profileId="${this.getProfileId_()}" pinned>
-          </compass-sidebar-node>`)}
-      </div>
-      <div class="divider" data-flip="divider"></div>
+      ${this.hasPinned_ ? html`
+        <div class="section-header" data-flip="pinned-header">
+          <span>Pinned</span>
+          <button id="newLiveFolder" class="new-folder"
+              aria-label="New live folder" title="New live folder"
+              @click="${this.onNewLiveFolderClick_}">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M2 4.2a.7.7 0 0 1 .7-.7h3.1l1.4 1.5h6.1a.7.7 0 0 1 .7.7
+                       v6.6a.7.7 0 0 1-.7.7H2.7a.7.7 0 0 1-.7-.7z
+                       M8.7 6.6 7.2 9h1.8l-1.5 2.4"></path>
+            </svg>
+          </button>
+          <button id="newFolder" class="new-folder" data-section="pinned"
+              aria-label="New folder" title="New folder"
+              @click="${this.onNewFolderClick_}">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 3v10M3 8h10"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="pinned" class="section" role="tree">
+          ${this.isPinnedEmpty_() ? html`
+            <div class="hint" data-flip="pinned-hint">
+              Drag tabs here to pin them
+            </div>` : nothing}
+          ${repeat(this.getPinned_(), (node: Node) => node.id,
+                   (node: Node) => html`
+            <compass-sidebar-node .node="${node}" .activeId="${this.activeId_}"
+                .profileId="${this.getProfileId_()}" pinned>
+            </compass-sidebar-node>`)}
+        </div>
+        <div class="divider" data-flip="divider"></div>
+      ` : nothing}
       <div class="section-header" data-flip="today-header">
         <span>Today</span>
         ${this.getToday_().length ? html`

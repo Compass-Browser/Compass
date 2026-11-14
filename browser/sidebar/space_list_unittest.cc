@@ -153,5 +153,20 @@ TEST(SpaceListTest, MovesSpacesBySlot) {
   list.RemoveObserver(&recorder);
 }
 
+// Off the record: no space has Pinned, later ones neither; Favorites stay.
+TEST(SpaceListTest, RemovesPinnedSections) {
+  SpaceList list;
+  EXPECT_TRUE(list.has_pinned());
+  list.RemovePinnedSections();
+  EXPECT_FALSE(list.has_pinned());
+  EXPECT_FALSE(list.active_space().has_pinned());
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  EXPECT_FALSE(work->has_pinned());
+  EXPECT_FALSE(work->CanContain(work->pinned_root(), SidebarNode::Type::kTab));
+  EXPECT_TRUE(list.favorites().has_pinned());
+  EXPECT_TRUE(list.favorites().CanContain(list.favorites().pinned_root(),
+                                          SidebarNode::Type::kTab));
+}
+
 }  // namespace
 }  // namespace compass

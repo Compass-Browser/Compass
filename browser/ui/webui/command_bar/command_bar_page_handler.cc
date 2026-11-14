@@ -740,7 +740,9 @@ bool CommandBarPageHandler::IsCommandAvailable(
       return features && !features->is_parking_window();
     case CommandBarCommand::kPinEntry: {
       const SidebarNode* node = GetActiveNode();
-      return node && !IsFavorite(*node) && !IsPinned(*node);
+      // Not in incognito, which has no Pinned.
+      return node && !IsFavorite(*node) && !IsPinned(*node) &&
+             features->space_model().has_pinned();
     }
     case CommandBarCommand::kUnpinEntry: {
       const SidebarNode* node = GetActiveNode();

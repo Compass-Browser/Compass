@@ -171,6 +171,9 @@ struct Tree {
   Node favorites;
   Node pinned;
   Node today;
+  // False for an incognito space, which has no Pinned section: the page
+  // leaves it out, and |pinned| stays empty.
+  bool has_pinned = true;
   // The node of the window's active tab, if it has one.
   string? active_id;
 };

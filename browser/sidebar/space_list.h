@@ -66,6 +66,11 @@ class SpaceList : public SpaceModel::Observer {
 
   SpaceModel& active_space() const { return *active_space_; }
 
+  // For an off-the-record profile: its spaces, and those added later, have
+  // no Pinned section (SpaceModel::RemovePinnedSection()).
+  void RemovePinnedSections();
+  bool has_pinned() const { return has_pinned_; }
+
   // The profile's Favorites, shared by its spaces (see SpaceModel::Kind).
   SpaceModel& favorites() { return favorites_; }
   const SpaceModel& favorites() const { return favorites_; }
@@ -81,6 +86,7 @@ class SpaceList : public SpaceModel::Observer {
   SpaceModel favorites_{SpaceModel::Kind::kFavorites};
   std::vector<std::unique_ptr<SpaceModel>> spaces_;
   raw_ptr<SpaceModel> active_space_;
+  bool has_pinned_ = true;
   base::ObserverList<Observer> observers_;
 };
 

@@ -370,7 +370,8 @@ history, so it can come in then.
   closing a window flushes. Changes that only touch Today are ignored.
   Logging out of macOS ends the session without closing windows or
   destroying the profile, so the interval is kept short.
-- Off-the-record profiles get a model but no store.
+- Off-the-record profiles get a model but no store, and no Pinned (see
+  "Incognito").
 - Node IDs aren't stored. They're only stable for a session.
 
 Today came later; see "Today persistence". Folder collapse state came
@@ -799,6 +800,8 @@ an entry's menu under its row.
 
 The two pinned URL items show only while the entry is on another page than
 its pinned URL (see "Pinned URL"); a pinned pane gets them too.
+In incognito, which has no Pinned, Pin and Unpin are left out (see
+"Incognito").
 
 - **Reload**, **Mute Tab** and **Close Tab** only for live tabs; a muted
   tab gets **Unmute Tab** instead (see "Sound"). An unloaded Today entry
@@ -1163,6 +1166,57 @@ animates while spaces slide (spaces.md, "Swiping") or with
 `prefers-reduced-motion`, which also turns off the CSS transitions (row
 hover and active backgrounds, a slight press scale, the space menu and the
 archive popping in).
+
+## Incognito
+
+Goal: an incognito window has no Pinned. Pinned is what stays across
+sessions, and incognito keeps nothing past its windows, so the section would
+only be a second, pointless Today.
+
+**The model enforces it.** An off-the-record profile's `SpaceService` calls
+`SpaceList::RemovePinnedSections()`, which takes Pinned away from its spaces
+(`SpaceModel::RemovePinnedSection()`) and from those added later.
+`SpaceModel::has_pinned()` is then false, and `CanContain()` refuses every
+node under `pinned_root()`, so `CanMove()`, `CanMoveToSpace()` and
+`CanAddLiveFolder()` refuse too, and `pinned_root()` stays empty. Entries
+already there when it's taken away move to the top of Today in their order,
+none dropped; live folders become plain folders first, since only Pinned
+holds those, and nothing keeps a pinned URL. Nothing fills an incognito
+space's Pinned today (no store, no sync, no import), so that's a safety net.
+
+**Nowhere to pin.**
+
+- The page: `Tree.has_pinned` is false, so the Pinned header (its live folder
+  and "+" buttons), its section, drop target and divider are left out, and
+  Today starts at the top. The swipe preview does the same. Drops on Pinned
+  are refused (`canDrop_()`), as `MoveNode()`, `OpenLink()` and `AddFolder()`
+  are in the handler.
+- Context menus: no Pin or Unpin, on a tab, a split or a Today folder.
+- The command bar: no "Pin tab" (`IsCommandAvailable()`).
+- Claude's tools, should they run on an incognito window: `move_tab` to
+  pinned and `create_folder` in pinned are errors that say incognito has no
+  Pinned; `create_folder` without `in` makes the folder in Today, and
+  `list_tabs` lists no Pinned. (The command bar has no Ask Claude off the
+  record.)
+- Undo closing puts an entry whose place is gone in Today.
+
+There's no keyboard shortcut or link menu item that pins on the desktop, and
+upstream's own pinned-tab flag (its Pin Tab command) isn't Compass's Pinned.
+
+**Favorites stay.** An incognito profile has its own `SpaceList`, so its
+Favorites are a model of their own, separate from the normal profile's: they
+start empty, are kept in memory only (no store) and go with the profile.
+They're not part of any space's Pinned, so they're left as they are: Add to
+Favorites, dragging to the tiles and the command bar's command work in
+incognito as elsewhere.
+
+**Tests:** `SpaceModelTest.WithoutPinnedEntriesMoveToToday` and
+`WithoutPinnedNothingGoesThere`, `SpaceListTest.RemovesPinnedSections`,
+`SidebarPageHandlerTest.NothingPinsWithoutPinned`,
+`CommandBarPageHandlerTest.NoPinInIncognito`, and the browser tests
+`CompassSidebarBrowserTest.IncognitoHasNoPinned` (no section, the model
+refuses, separate favorites) and
+`ClaudeToolsBrowserTest.NothingPinsInIncognito`.
 
 ## Risks
 

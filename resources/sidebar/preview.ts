@@ -74,6 +74,11 @@ export class CompassSidebarPreviewElement extends CrLitElement {
     return this.tree?.activeId ?? null;
   }
 
+  // False for an incognito space, which has no Pinned.
+  protected hasPinned_(): boolean {
+    return this.tree?.hasPinned ?? true;
+  }
+
   protected isPinnedEmpty_(): boolean {
     return !!this.tree && this.getPinned_().length === 0;
   }

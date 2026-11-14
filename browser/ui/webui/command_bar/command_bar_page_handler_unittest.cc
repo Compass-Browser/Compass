@@ -618,5 +618,28 @@ TEST_F(CommandBarPageHandlerTest, NoClaudeInIncognito) {
   incognito->GetTabStripModel()->CloseAllTabs();
 }
 
+// Incognito has no Pinned (docs/design/sidebar.md, "Incognito").
+TEST_F(CommandBarPageHandlerTest, NoPinInIncognito) {
+  std::unique_ptr<BrowserWindowInterface> incognito = CreateBrowser(
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true),
+      BrowserWindowInterface::TYPE_NORMAL, /*hosted_app=*/false);
+  AddTab(incognito.get(), GURL("https://private.test/"));
+  Settle();
+  EXPECT_FALSE(
+      WindowFeatures::From(incognito.get())->space_model().has_pinned());
+  mojo::Remote<command_bar::mojom::PageHandler> remote;
+  FakePage page;
+  auto handler = std::make_unique<CommandBarPageHandler>(
+      remote.BindNewPipeAndPassReceiver(), page.BindAndPassRemote(),
+      incognito.get(), /*controller=*/nullptr);
+  handler->Open(Mode::kCurrentEntry, std::u16string());
+  remote->Query("", false);
+  Settle();
+  EXPECT_THAT(page.LocalResults(), Contains("command Add to Favorites"));
+  EXPECT_THAT(page.LocalResults(), Not(Contains("command Pin tab")));
+  handler.reset();
+  incognito->GetTabStripModel()->CloseAllTabs();
+}
+
 }  // namespace
 }  // namespace compass
