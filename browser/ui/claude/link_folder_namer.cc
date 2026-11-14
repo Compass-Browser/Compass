@@ -16,7 +16,9 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "components/prefs/pref_service.h"
 
 namespace compass {
 
@@ -113,7 +115,7 @@ std::string LinkFolderNamer::DescribeFolder(const SidebarNode& folder) {
 }
 
 bool LinkFolderNamer::IsEnabled() const {
-  return quick_->IsEnabled();
+  return quick_->IsEnabled(claude::prefs::kNameLinkFolders);
 }
 
 void LinkFolderNamer::Suggest(const base::Uuid& folder_id) {
@@ -197,7 +199,7 @@ bool LinkFolderNamer::IsEligible(const SidebarNode& folder) const {
   if (folder.type() != SidebarNode::Type::kFolder ||
       !folder.link_folder_here() || folder.is_live_folder() ||
       folder.name_source() == SidebarNode::NameSource::kUser ||
-      !space_service_ || !quick_->IsEnabled()) {
+      !space_service_ || !IsEnabled()) {
     return false;
   }
   for (const auto& space : space_service_->space_list().spaces()) {
@@ -263,6 +265,9 @@ void LinkFolderNamer::Ask(const base::Uuid& folder_id, bool background) {
     return;
   }
   claude::QuickRequest request;
+  request.feature_pref = claude::prefs::kNameLinkFolders;
+  request.model =
+      profile_->GetPrefs()->GetString(claude::prefs::kNameLinkFoldersModel);
   request.system = claude::SidebarPrompt(
       "folder_name", g_browser_process->GetApplicationLocale());
   request.user = DescribeFolder(*folder);

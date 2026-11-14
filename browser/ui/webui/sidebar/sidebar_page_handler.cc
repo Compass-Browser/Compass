@@ -51,6 +51,7 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/sync/compass_sync_service.h"
@@ -1374,7 +1375,7 @@ bool SidebarPageHandler::CanSuggestNames() {
     return false;
   }
   claude::ClaudeQuick* quick = claude::ClaudeQuick::Get(profile);
-  return quick && quick->IsEnabled();
+  return quick && quick->IsEnabled(claude::prefs::kNameLinkFolders);
 }
 
 void SidebarPageHandler::OnNodeWillBeRemoved(const SidebarNode& node) {

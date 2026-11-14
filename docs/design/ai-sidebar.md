@@ -21,22 +21,28 @@ acts without a visible result the user can undo.
 
 ## Settings and privacy
 
-- **Off by default.** Settings → Claude → "Name Folders and Tidy Tabs"
-  (`compass.claude.sidebar_ai`, per profile; iOS UserDefaults
-  `ClaudeSidebarAI`). Ask in the command bar has its own switch,
-  "Answer Questions in the Command Bar" (`compass.claude.command_bar_ask`),
-  also off. Both need Claude set up (a key, a gateway or Claude Code); the
-  switches say so while it isn't.
+- **A switch per feature, each off by default.** Settings → Claude →
+  "Claude in the sidebar" lists the features, each a row of its own switch
+  and its own model picker (per profile; iOS UserDefaults to match):
+  "Name Link Folders" (`compass.claude.name_link_folders`), "Tidy Today"
+  (`compass.claude.tidy_today`), "Shorter Tab Titles"
+  (`compass.claude.short_titles`) and "Answer Questions in the Command
+  Bar" (`compass.claude.command_bar_ask`). There's no master switch. Every
+  switch needs Claude set up, and is disabled with a line saying so while
+  it isn't.
 - **What's sent:** for folder names, Tidy Today and short titles, only
   tab titles and hosts (never paths, query strings or page text). For Ask,
   the question, and the current tab's title and host when the user leaves
   "about this page" ticked.
-- **Never:** incognito tabs or windows, or a profile with the switch off.
+- **Never:** incognito tabs or windows, or a feature whose switch is off.
   Spaces that don't sync are included: nothing goes anywhere but the
   user's own Claude endpoint, which the chat already uses.
-- **Model:** a "Fast model" setting (`compass.claude.fast_model`, default
-  `claude-haiku-5-5`), listed with the chat's models; the chat keeps its
-  own. A gateway's model list applies to both.
+- **Model:** each feature has its own, next to its switch
+  (`compass.claude.<feature>_model`, e.g.
+  `compass.claude.name_link_folders_model`, default `claude-haiku-5-5`),
+  picked from the chat's model list (a gateway's too); the chat keeps its
+  own. `ClaudeQuick` takes the model, and the switch it checks, from the
+  calling feature.
 - **Cost guard:** at most 30 background requests an hour per profile;
   past that, folders keep their names until the next hour. Errors back
   off (1 min, then 10).
@@ -59,7 +65,7 @@ acts without a visible result the user can undo.
 ## 1. Names for link folders
 
 Link folders (sidebar.md, "Link folders") are named after their opener.
-With the switch on:
+With "Name Link Folders" on:
 
 - **When:** a link folder in Today reaches 3 entries, then 6, then 12;
   each time 5 s after its last change (debounced per folder), Claude names
@@ -76,10 +82,12 @@ With the switch on:
   and `kUser` so it stays) while the name is Claude's.
 - Folders made by hand ("+" in Today), Pinned folders and tab-group
   folders are never named automatically; their menu gets "Suggest a Name"
-  (one request, the name shown with Undo).
+  (one request, the name shown with Undo), also under "Name Link
+  Folders". "Undo Name" stays whenever a name is Claude's, switch or not.
 
 ## 2. Tidy Today
 
+- Its own switch, "Tidy Today" (`compass.claude.tidy_today`), and model.
 - "Tidy" in Today's header, beside "Clear" (shown on hover, as Clear is),
   and in the command bar. Disabled with fewer than 5 loose entries.
 - One request with Today's top-level loose entries (titles, hosts, ids;
@@ -94,7 +102,9 @@ With the switch on:
 
 ## 3. Shorter tab titles
 
-- With the switch on, a tab whose title is longer than the row shows
+- With its own switch on, "Shorter Tab Titles"
+  (`compass.claude.short_titles`, with its model), a tab whose title is
+  longer than the row shows
   (about 40 characters, or with a site suffix like " · GitHub", " - YouTube",
   " | The Verge") gets a short title: "Pull request #123 · org/repo ·
   GitHub" → "PR #123: fix login".
@@ -105,17 +115,18 @@ With the switch on:
 - Batched: titles that changed in the last 10 s go in one request (up to
   20), cached per (host, title) for the session, so navigating back costs
   nothing.
-- Settings has its own tick under the switch, "Shorter Tab Titles", for
-  those who want folder names but not this.
 
 ## 4. Ask in the command bar
 
-- With its switch on, a typed line that reads as a question (ends with
+- With its own switch on, "Answer Questions in the Command Bar"
+  (`compass.claude.command_bar_ask`, with its model; the answer streams on
+  that model), a typed line that reads as a question (ends with
   "?", or starts with who/what/why/how/…, in the browser's language) shows
   an "Ask Claude" row at the top; Tab or Return on it asks. Searching stays
   the default for everything else.
 - The answer streams into the command bar under the field (the chat's
-  streaming client, the chat model, no tools, a short-answer prompt),
+  streaming client, the feature's model, no tools, a short-answer
+  prompt),
   at most ~6 lines; "Continue in Chat" opens the panel with the question
   and answer as the conversation's start. Esc closes it as usual.
 - "About this page" (on when a page is shown) adds the tab's title and
@@ -143,9 +154,14 @@ With the switch on:
   background requests; Suggest a Name skips the hourly limit and the
   back-off (the user asked), though its errors count towards the back-off.
   Refusals and replies that aren't one JSON object don't back off.
+- **Settings:** "Claude in the sidebar" is built from `SIDEBAR_FEATURES`
+  in `claude_page.ts`, one row (switch and model picker) per feature;
+  only "Name Link Folders" exists so far. `QuickRequest` carries the
+  feature's switch (`feature_pref`) and model; `ClaudeQuick` refuses
+  (`kOff`) while that switch is off.
 - **Set up means a saved key** (the Claude API's or a gateway's). Claude
   Code mode alone doesn't answer these requests yet (it would start a
-  `claude` process per request); the switch says so and stays off.
+  `claude` process per request); the switches say so and stay off.
 - A subscription token gets Claude Code's line first in the system prompt,
   as the chat's requests do; the cache levels are the chat's
   (`CacheLevelFor()`), with no step-down retry (two breakpoints at most).
@@ -165,7 +181,7 @@ With the switch on:
   Claude's name without Undo Name, and offers Suggest a Name instead.
   Renaming by hand only counts when the name changes.
 - "Suggest a Name" shows for any folder with entries (not live folders)
-  while the switch is on and a key is saved, in windows that aren't
+  while "Name Link Folders" is on and a key is saved, in windows that aren't
   incognito; its name is Claude's (kClaude), with Undo Name. A link folder
   this device made can then be named again at its next threshold.
 - The sparkle is a CSS animation of the folder's icon and name in the
@@ -176,7 +192,7 @@ With the switch on:
 
 | # | Scope |
 |---|---|
-| A1 | `ClaudeQuick`, prompts file, settings switches and Fast model, cost guard; unit tests with a fake endpoint |
+| A1 | `ClaudeQuick`, prompts file, the settings' per-feature rows (switch and model), cost guard; unit tests with a fake endpoint |
 | A2 | Names for link folders: `NameSource` (model, store, sync field), triggers, Undo Name, Suggest a Name |
 | A3 | Tidy Today with Undo |
 | A4 | Shorter tab titles |
@@ -196,7 +212,7 @@ With the switch on:
   a link folder renamed at 3 entries and not after a manual rename; Tidy
   makes folders and Undo restores; short titles shown and the hover card
   keeps the full one; the command bar's Ask row and Continue in Chat.
-- Off by default: no request is made with the switch off (counted by the
+- Off by default: no request is made with a feature's switch off (counted by the
   fake server).
 
 ## Open questions

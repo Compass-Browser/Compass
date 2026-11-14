@@ -174,11 +174,11 @@ class LinkFolderNamerBrowserTest : public InProcessBrowserTest {
   raw_ptr<LinkFolderNamer> namer_ = nullptr;
 };
 
-// With the switch on, a link folder reaching 3 entries is named by Claude,
+// With "Name Link Folders" on, a link folder reaching 3 entries is named by Claude,
 // from its tabs' titles and hosts only.
 IN_PROC_BROWSER_TEST_F(LinkFolderNamerBrowserTest, NamesALinkFolderAtThree) {
-  browser()->GetProfile()->GetPrefs()->SetBoolean(claude::prefs::kSidebarAi,
-                                                  true);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
+      claude::prefs::kNameLinkFolders, true);
   OpenOpener();
   OpenLinkInBackground("one");
   SidebarNode* folder = LinkFolder();
@@ -216,8 +216,8 @@ IN_PROC_BROWSER_TEST_F(LinkFolderNamerBrowserTest, NamesALinkFolderAtThree) {
 
 // A folder the user renamed is theirs: Claude doesn't name it.
 IN_PROC_BROWSER_TEST_F(LinkFolderNamerBrowserTest, NotAfterAManualRename) {
-  browser()->GetProfile()->GetPrefs()->SetBoolean(claude::prefs::kSidebarAi,
-                                                  true);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
+      claude::prefs::kNameLinkFolders, true);
   OpenOpener();
   OpenLinkInBackground("one");
   SidebarNode* folder = LinkFolder();
@@ -230,10 +230,11 @@ IN_PROC_BROWSER_TEST_F(LinkFolderNamerBrowserTest, NotAfterAManualRename) {
   EXPECT_EQ(folder->title(), u"My Foxes");
 }
 
-// Off by default: no request, whatever the folders do.
+// "Name Link Folders" is off by default: no request, whatever the folders
+// do.
 IN_PROC_BROWSER_TEST_F(LinkFolderNamerBrowserTest, NoRequestWithTheSwitchOff) {
   EXPECT_FALSE(browser()->GetProfile()->GetPrefs()->GetBoolean(
-      claude::prefs::kSidebarAi));
+      claude::prefs::kNameLinkFolders));
   OpenOpener();
   for (const char* name : {"one", "two", "three"}) {
     OpenLinkInBackground(name);

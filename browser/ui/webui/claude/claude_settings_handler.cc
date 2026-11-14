@@ -169,9 +169,10 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->default_save_folder = DefaultSaveFolder(profile_).AsUTF8Unsafe();
   state->claude_code_own_tools = prefs->GetBoolean(prefs::kClaudeCodeOwnTools);
   state->devtools = prefs->GetBoolean(prefs::kDevTools);
-  state->sidebar_ai_supported = ClaudeQuick::Get(profile_) != nullptr;
-  state->sidebar_ai = prefs->GetBoolean(prefs::kSidebarAi);
-  state->fast_model = prefs->GetString(prefs::kFastModel);
+  state->sidebar_supported = ClaudeQuick::Get(profile_) != nullptr;
+  state->name_link_folders = prefs->GetBoolean(prefs::kNameLinkFolders);
+  state->name_link_folders_model =
+      prefs->GetString(prefs::kNameLinkFoldersModel);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -264,17 +265,19 @@ void ClaudeSettingsHandler::SetDevTools(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kDevTools, enabled);
 }
 
-void ClaudeSettingsHandler::SetSidebarAi(bool enabled) {
-  profile_->GetPrefs()->SetBoolean(prefs::kSidebarAi, enabled);
+void ClaudeSettingsHandler::SetNameLinkFolders(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kNameLinkFolders, enabled);
 }
 
-void ClaudeSettingsHandler::SetFastModel(const std::string& model) {
+void ClaudeSettingsHandler::SetNameLinkFoldersModel(
+    const std::string& model) {
   const std::string_view trimmed =
       base::TrimWhitespaceASCII(model, base::TRIM_ALL);
   if (trimmed.empty()) {
-    profile_->GetPrefs()->ClearPref(prefs::kFastModel);
+    profile_->GetPrefs()->ClearPref(prefs::kNameLinkFoldersModel);
   } else {
-    profile_->GetPrefs()->SetString(prefs::kFastModel, std::string(trimmed));
+    profile_->GetPrefs()->SetString(prefs::kNameLinkFoldersModel,
+                                    std::string(trimmed));
   }
 }
 

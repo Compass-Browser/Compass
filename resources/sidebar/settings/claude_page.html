@@ -222,6 +222,17 @@
   .compass-page .claude-scope .name {
     font-weight: 500;
   }
+
+  .compass-page .feature-model {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin: 8px 0 0 25px;
+  }
+
+  .compass-page .feature-model select {
+    min-width: 220px;
+  }
 </style>
 
 <p class="lead">Chat with Claude about the page you're on. Claude can read it,
@@ -304,11 +315,6 @@
 </div>
 <p class="note" id="testNote" hidden></p>
 
-<label class="field" for="fastModel">Fast model</label>
-<select id="fastModel"></select>
-<p class="hint">For Claude's small tasks in the sidebar, like naming
-  folders. A fast, inexpensive model is best.</p>
-
 <details id="advanced" class="api-only">
   <summary>Endpoint</summary>
   <label class="field" for="baseUrl">Base URL</label>
@@ -354,21 +360,17 @@
   </span>
 </label>
 
-<section id="sidebarAiSection">
-  <label class="claude-scope">
-    <input type="checkbox" id="sidebarAi">
-    <span>
-      <span class="name">Name Folders and Tidy Tabs</span>
-      <span class="hint block">Claude names the folders that gather a page's
-        links, from their tabs' titles and sites. Only titles and sites are
-        sent, to the endpoint above, never what pages contain; incognito
-        windows never. At most 30 requests an hour, on the fast model. Each
-        new name can be undone from the folder's menu.</span>
-      <span class="hint block" id="sidebarAiNeedsKey" hidden>Needs an API
-        key (or a gateway's) above. Claude Code mode doesn't do this
-        yet.</span>
-    </span>
-  </label>
+<section id="sidebarFeatures">
+  <div class="field">Claude in the sidebar</div>
+  <p class="hint">Small tasks Claude does on its own, each with its own
+    switch and model. Only tabs' titles and sites are sent, to the endpoint
+    above, never what pages contain; incognito windows never. At most 30
+    requests an hour.</p>
+  <p class="hint" id="sidebarNeedsKey" hidden>These need an API key (or a
+    gateway's) above. Claude Code mode doesn't do them yet.</p>
+  <!-- One row per feature (claude_page.ts, SIDEBAR_FEATURES): a switch, and
+       the model it asks. -->
+  <div id="sidebarFeatureRows"></div>
 </section>
 
 <section id="files">

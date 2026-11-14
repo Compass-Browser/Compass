@@ -38,8 +38,9 @@ class SharedURLLoaderFactory;
 // docs/design/ai-sidebar.md, "Shared core".
 namespace compass::claude {
 
-// The "Fast model" a new profile uses (prefs::kFastModel).
-inline constexpr char kDefaultFastModel[] = "claude-haiku-5-5";
+// The model a feature asks when its own setting names none (each feature's
+// model pref defaults to it, e.g. prefs::kNameLinkFoldersModel).
+inline constexpr char kDefaultQuickModel[] = "claude-haiku-5-5";
 
 // A name Claude gives (a folder's): at most this many characters and words.
 inline constexpr size_t kMaxAiNameLength = 32;
@@ -62,6 +63,11 @@ std::string SidebarPrompt(std::string_view id, std::string_view locale);
 
 // One request: a system prompt and one user message.
 struct QuickRequest {
+  // The feature's own switch (a boolean pref, e.g.
+  // prefs::kNameLinkFolders): nothing is sent while it's off.
+  std::string feature_pref;
+  // The model the feature's setting names; empty for kDefaultQuickModel.
+  std::string model;
   std::string system;
   std::string user;
   // Capped at ClaudeQuick::kMaxTokens.
@@ -84,7 +90,7 @@ base::DictValue BuildQuickRequest(const QuickRequest& request,
 std::optional<base::DictValue> ParseQuickReply(std::string_view text);
 
 enum class QuickError {
-  // "Name Folders and Tidy Tabs" is off.
+  // The feature's switch is off.
   kOff,
   // No key saved (or a subscription token whose risks aren't accepted).
   kNotSetUp,
@@ -103,7 +109,7 @@ enum class QuickError {
 };
 
 // A profile's short requests to Claude, through the chat's endpoint, key,
-// auth style and cache level (claude_api.h), on the "Fast model": one
+// auth style and cache level (claude_api.h), on the feature's model: one
 // system prompt and one user message, no tools, at most kMaxTokens, a JSON
 // object back within kTimeout. Never shows UI. Background requests are
 // limited to kMaxBackgroundPerHour an hour, and an error stops them for
@@ -138,8 +144,8 @@ class ClaudeQuick : public KeyedService {
   // Whether a key is saved: the Claude API's, or a gateway's. (Claude Code
   // mode alone doesn't answer these requests.)
   bool IsSetUp() const;
-  // IsSetUp(), and "Name Folders and Tidy Tabs" is on.
-  bool IsEnabled() const;
+  // IsSetUp(), and the feature's switch |feature_pref| is on.
+  bool IsEnabled(std::string_view feature_pref) const;
 
   // Sends |request|; |callback| gets the reply's JSON object or why not,
   // never before Ask() returns. Requests run side by side.

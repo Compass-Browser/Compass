@@ -35,8 +35,9 @@ class SpaceService;
 // link folders"): a link folder this device made (TabStripBridge), in Today,
 // whose name is still its opener's or Claude's, is named from its entries'
 // titles and hosts when it reaches 3, 6 and 12 entries, 5 s after its last
-// change. Only with "Name Folders and Tidy Tabs" on (ClaudeQuick); never
-// off the record. Also "Suggest a Name" for any folder, on request.
+// change. Only with "Name Link Folders" on (prefs::kNameLinkFolders, and
+// Claude set up: ClaudeQuick); never off the record. Also "Suggest a Name"
+// for any folder, on request, under the same switch.
 class LinkFolderNamer : public KeyedService,
                         public SpaceList::Observer,
                         public SpaceModel::Observer {
@@ -64,8 +65,8 @@ class LinkFolderNamer : public KeyedService,
   // The user message for |folder|: its tabs' titles and hosts, a line each.
   static std::string DescribeFolder(const SidebarNode& folder);
 
-  // Whether Claude may be asked at all ("Name Folders and Tidy Tabs" on,
-  // and set up).
+  // Whether Claude may be asked at all ("Name Link Folders" on, and Claude
+  // set up).
   bool IsEnabled() const;
   // Asks for a name for |folder_id| now, as the user did (Suggest a Name);
   // the name, if any, is Claude's, with Undo Name.

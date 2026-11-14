@@ -74,7 +74,7 @@ class ClaudeQuickTest : public testing::Test {
   ClaudeQuickTest() {
     prefs::RegisterProfilePrefs(prefs_.registry());
     prefs_.SetString(prefs::kApiKey, "encrypted");
-    prefs_.SetBoolean(prefs::kSidebarAi, true);
+    prefs_.SetBoolean(prefs::kNameLinkFolders, true);
     factory_.SetInterceptor(base::BindRepeating(
         [](std::vector<network::ResourceRequest>* requests,
            const network::ResourceRequest& request) {
@@ -98,6 +98,9 @@ class ClaudeQuickTest : public testing::Test {
   }
 
   ClaudeQuick::Result Ask(QuickRequest request = QuickRequest()) {
+    if (request.feature_pref.empty()) {
+      request.feature_pref = prefs::kNameLinkFolders;
+    }
     if (request.system.empty()) {
       request.system = "Name the folder.";
       request.user = "- Tokio docs (tokio.rs)";
@@ -146,7 +149,7 @@ TEST_F(ClaudeQuickTest, RequestShape) {
   EXPECT_EQ(requests_[0].url, GURL(kMessagesUrl));
   EXPECT_EQ(requests_[0].headers.GetHeader("x-api-key"), kKey);
   base::DictValue body = LastBody();
-  EXPECT_EQ(*body.FindString("model"), kDefaultFastModel);
+  EXPECT_EQ(*body.FindString("model"), kDefaultQuickModel);
   EXPECT_EQ(*body.FindInt("max_tokens"), ClaudeQuick::kMaxTokens);
   EXPECT_FALSE(body.Find("tools"));
   EXPECT_FALSE(body.Find("thinking"));
@@ -163,14 +166,16 @@ TEST_F(ClaudeQuickTest, RequestShape) {
   EXPECT_NE(base::WriteJson(*messages)->find("Tokio"), std::string::npos);
 }
 
-TEST_F(ClaudeQuickTest, FastModelAndCacheLevel) {
-  prefs_.SetString(prefs::kFastModel, "claude-sonnet-5-5");
+// The feature names its model; the chat's cache level applies.
+TEST_F(ClaudeQuickTest, FeatureModelAndCacheLevel) {
   prefs_.SetString(prefs::kBaseUrl, "https://gw.example.com");
   RememberCacheLevel(prefs_, GURL("https://gw.example.com/"),
                      CacheLevel::kNone);
   factory_.AddResponse("https://gw.example.com/v1/messages",
                        Reply("{\"name\": \"X\"}"));
-  ASSERT_TRUE(Ask().has_value());
+  QuickRequest request;
+  request.model = "claude-sonnet-5-5";
+  ASSERT_TRUE(Ask(request).has_value());
   base::DictValue body = LastBody();
   EXPECT_EQ(*body.FindString("model"), "claude-sonnet-5-5");
   EXPECT_EQ(CountCacheBreakpoints(base::Value(body.Clone())), 0);
@@ -192,10 +197,17 @@ TEST_F(ClaudeQuickTest, SubscriptionTokenSaysItIsClaudeCode) {
 }
 
 TEST_F(ClaudeQuickTest, OffOrNotSetUpSendsNothing) {
-  prefs_.SetBoolean(prefs::kSidebarAi, false);
-  EXPECT_FALSE(quick_->IsEnabled());
+  // Each feature asks only while its own switch is on.
+  prefs_.SetBoolean(prefs::kNameLinkFolders, false);
+  EXPECT_FALSE(quick_->IsEnabled(prefs::kNameLinkFolders));
   EXPECT_EQ(Ask().error(), QuickError::kOff);
-  prefs_.SetBoolean(prefs::kSidebarAi, true);
+  QuickRequest no_switch;
+  no_switch.feature_pref = "compass.claude.no_such_switch";
+  no_switch.system = "s";
+  no_switch.user = "u";
+  EXPECT_EQ(Ask(no_switch).error(), QuickError::kOff);
+  prefs_.SetBoolean(prefs::kNameLinkFolders, true);
+  EXPECT_TRUE(quick_->IsEnabled(prefs::kNameLinkFolders));
   prefs_.SetString(prefs::kApiKey, "");
   EXPECT_FALSE(quick_->IsSetUp());
   EXPECT_EQ(Ask().error(), QuickError::kNotSetUp);

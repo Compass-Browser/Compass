@@ -229,8 +229,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // Node |id|'s context menu, or null if it has none. Its commands act on the
   // node, if it's still there, while this handler lives.
   std::unique_ptr<ui::SimpleMenuModel> CreateContextMenu(const std::string& id);
-  // Whether folder menus offer "Suggest a Name": Claude's sidebar names are
-  // on (docs/design/ai-sidebar.md), and the window isn't incognito.
+  // Whether folder menus offer "Suggest a Name": "Name Link Folders" is on
+  // and Claude set up (docs/design/ai-sidebar.md), and the window isn't
+  // incognito.
   bool CanSuggestNames();
   // Carries out |command|, other than a move to a space or a send, on node
   // |id|.

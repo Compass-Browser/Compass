@@ -2,14 +2,42 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {Memory, Model, SettingsState} from '../claude.mojom-webui.js';
+import type {Memory, Model, SettingsHandlerRemote, SettingsState} from
+    '../claude.mojom-webui.js';
 import {AuthStyle, Backend, FilesAccess, SettingsHandler} from
     '../claude.mojom-webui.js';
 
 import {KNOWN_MODELS} from '../claude_models.js';
 
-// prefs::kFastModel's default (claude_quick.h, kDefaultFastModel).
-const FAST_MODEL_DEFAULT = 'claude-haiku-5-5';
+// A sidebar feature's model, by default (claude_quick.h, kDefaultQuickModel).
+const QUICK_MODEL_DEFAULT = 'claude-haiku-5-5';
+
+// Claude in the sidebar (docs/design/ai-sidebar.md): each feature is a row
+// of its own switch and the model it asks. A new feature adds an entry.
+interface SidebarFeature {
+  id: string;
+  name: string;
+  description: string;
+  enabled: (state: SettingsState) => boolean;
+  model: (state: SettingsState) => string;
+  setEnabled: (handler: SettingsHandlerRemote, on: boolean) => void;
+  setModel: (handler: SettingsHandlerRemote, model: string) => void;
+}
+
+const SIDEBAR_FEATURES: SidebarFeature[] = [
+  {
+    id: 'nameLinkFolders',
+    name: 'Name Link Folders',
+    description: 'Claude names the folders that gather a page\'s links, ' +
+        'from their tabs\' titles and sites, and folder menus offer ' +
+        '"Suggest a Name". Each new name can be undone from the folder\'s ' +
+        'menu.',
+    enabled: state => state.nameLinkFolders,
+    model: state => state.nameLinkFoldersModel,
+    setEnabled: (handler, on) => handler.setNameLinkFolders(on),
+    setModel: (handler, model) => handler.setNameLinkFoldersModel(model),
+  },
+];
 
 import {getTemplate} from './claude_page.html.js';
 import {CompassSettingsPage} from './page_base.js';
@@ -81,13 +109,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLSelectElement>('model').addEventListener('change', () => {
       this.handler_.setModel(this.$<HTMLSelectElement>('model').value);
     });
-    this.$<HTMLSelectElement>('fastModel').addEventListener('change', () => {
-      this.handler_.setFastModel(this.$<HTMLSelectElement>('fastModel').value);
-    });
-    this.$<HTMLInputElement>('sidebarAi').addEventListener('change', () => {
-      this.handler_.setSidebarAi(
-          this.$<HTMLInputElement>('sidebarAi').checked);
-    });
+    this.setUpSidebarFeatures_();
     this.$('saveEndpoint').addEventListener('click', () => this.saveEndpoint_());
     this.$<HTMLInputElement>('browserScope')
         .addEventListener('change', () => {
@@ -196,13 +218,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         state.baseUrl !== '' || state.authStyle === AuthStyle.kBearer;
     this.$<HTMLInputElement>('browserScope').checked = state.browserScope;
     this.$<HTMLInputElement>('devtools').checked = state.devtools;
-    // Claude in the sidebar (docs/design/ai-sidebar.md): it needs a key, or
-    // a gateway's; Claude Code mode doesn't answer these requests.
-    this.show('sidebarAiSection', state.sidebarAiSupported);
-    const sidebarAi = this.$<HTMLInputElement>('sidebarAi');
-    sidebarAi.checked = state.sidebarAi && state.hasKey;
-    sidebarAi.disabled = !state.hasKey;
-    this.show('sidebarAiNeedsKey', !state.hasKey);
+    this.renderSidebarFeatures_(state);
     this.$<HTMLInputElement>('acceptTokenRisks').checked =
         state.acceptTokenRisks;
     this.renderMcp_(state);
@@ -317,6 +333,55 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     return item;
   }
 
+  // Claude in the sidebar (docs/design/ai-sidebar.md): a row per feature,
+  // its switch and its model picker (the chat's models).
+  private setUpSidebarFeatures_() {
+    const rows = this.$('sidebarFeatureRows');
+    for (const feature of SIDEBAR_FEATURES) {
+      const label = document.createElement('label');
+      label.className = 'claude-scope';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.id = feature.id;
+      input.addEventListener(
+          'change', () => feature.setEnabled(this.handler_, input.checked));
+      const text = document.createElement('span');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = feature.name;
+      const description = document.createElement('span');
+      description.className = 'hint block';
+      description.textContent = feature.description;
+      text.append(name, description);
+      label.append(input, text);
+
+      const modelRow = document.createElement('div');
+      modelRow.className = 'feature-model';
+      const modelLabel = document.createElement('label');
+      modelLabel.htmlFor = `${feature.id}Model`;
+      modelLabel.textContent = 'Model';
+      const select = document.createElement('select');
+      select.id = `${feature.id}Model`;
+      select.addEventListener(
+          'change', () => feature.setModel(this.handler_, select.value));
+      modelRow.append(modelLabel, select);
+      rows.append(label, modelRow);
+    }
+  }
+
+  // Each switch is off, and can't be turned on, until Claude is set up (a
+  // key, or a gateway's; Claude Code mode doesn't answer these requests).
+  private renderSidebarFeatures_(state: SettingsState) {
+    this.show('sidebarFeatures', state.sidebarSupported);
+    for (const feature of SIDEBAR_FEATURES) {
+      const input = this.$<HTMLInputElement>(feature.id);
+      input.checked = feature.enabled(state) && state.hasKey;
+      input.disabled = !state.hasKey;
+      this.$<HTMLSelectElement>(`${feature.id}Model`).disabled = !state.hasKey;
+    }
+    this.show('sidebarNeedsKey', !state.hasKey);
+  }
+
   // "Allow MCP clients", how to add Compass to a client, the clients
   // always allowed.
   private renderMcp_(state: SettingsState) {
@@ -347,13 +412,16 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   }
 
   // The models a test listed, or the known ones, in the chat's picker and
-  // the Fast model's; the chosen one is always there, also a custom one (a
-  // gateway's).
+  // each sidebar feature's; the chosen one is always there, also a custom
+  // one (a gateway's).
   private renderModels_() {
     this.renderModelSelect_('model',
                             this.state_?.model || KNOWN_MODELS[0]!.id);
-    this.renderModelSelect_('fastModel',
-                            this.state_?.fastModel || FAST_MODEL_DEFAULT);
+    for (const feature of SIDEBAR_FEATURES) {
+      this.renderModelSelect_(
+          `${feature.id}Model`,
+          (this.state_ && feature.model(this.state_)) || QUICK_MODEL_DEFAULT);
+    }
   }
 
   private renderModelSelect_(id: string, chosen: string) {

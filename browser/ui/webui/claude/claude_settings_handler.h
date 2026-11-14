@@ -70,8 +70,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void SetMemoryEnabled(bool enabled) override;
   void SetMemorySave(bool enabled) override;
   void SetDevTools(bool enabled) override;
-  void SetSidebarAi(bool enabled) override;
-  void SetFastModel(const std::string& model) override;
+  void SetNameLinkFolders(bool enabled) override;
+  void SetNameLinkFoldersModel(const std::string& model) override;
   void GetMemories(GetMemoriesCallback callback) override;
   void AddMemory(const std::string& text, AddMemoryCallback callback) override;
   void UpdateMemory(const std::string& id,

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/i18n/char_iterator.h"
 #include "base/json/json_reader.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -24,7 +25,6 @@
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
-#include "third_party/icu/source/common/unicode/utf16.h"
 
 namespace compass::claude {
 
@@ -97,9 +97,8 @@ std::optional<std::u16string> SanitizeAiName(std::string_view name) {
   }
   size_t characters = 0;
   bool has_alnum = false;
-  for (size_t i = 0; i < text.size();) {
-    UChar32 c;
-    U16_NEXT(text.data(), i, text.size(), c);
+  for (base::i18n::UTF16CharIterator it(text); !it.end(); it.Advance()) {
+    const UChar32 c = it.get();
     if (IsRefused(c)) {
       return std::nullopt;
     }
@@ -216,8 +215,13 @@ bool ClaudeQuick::IsSetUp() const {
   return !prefs_->GetString(prefs::kApiKey).empty();
 }
 
-bool ClaudeQuick::IsEnabled() const {
-  return IsSetUp() && prefs_->GetBoolean(prefs::kSidebarAi);
+bool ClaudeQuick::IsEnabled(std::string_view feature_pref) const {
+  if (!IsSetUp() || feature_pref.empty()) {
+    return false;
+  }
+  const PrefService::Preference* pref =
+      prefs_->FindPreference(feature_pref);
+  return pref && pref->GetValue()->is_bool() && pref->GetValue()->GetBool();
 }
 
 size_t ClaudeQuick::RecentBackgroundRequests() {
@@ -243,7 +247,7 @@ void ClaudeQuick::Ask(QuickRequest request, Callback callback) {
     Finish(id, base::unexpected(QuickError::kNotSetUp));
     return;
   }
-  if (!prefs_->GetBoolean(prefs::kSidebarAi)) {
+  if (!IsEnabled(pending_.at(id)->request.feature_pref)) {
     Finish(id, base::unexpected(QuickError::kOff));
     return;
   }
@@ -285,9 +289,9 @@ void ClaudeQuick::OnKey(int id, std::optional<std::string> key) {
     return;
   }
   Pending& pending = *it->second;
-  const std::string model = prefs_->GetString(prefs::kFastModel);
+  const std::string& model = pending.request.model;
   base::DictValue body = BuildQuickRequest(
-      pending.request, model.empty() ? kDefaultFastModel : model,
+      pending.request, model.empty() ? kDefaultQuickModel : model,
       CacheLevelFor(*prefs_, endpoint.base_url), UsesOAuthToken(endpoint));
   pending.client = std::make_unique<ClaudeClient>(get_loader_factory_.Run(),
                                                   std::move(endpoint));

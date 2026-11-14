@@ -680,8 +680,9 @@ TEST_F(SidebarPageHandlerTest, FoldersInToday) {
 }
 
 // Claude's folder names (docs/design/ai-sidebar.md): "Undo Name" while the
-// name is Claude's, "Suggest a Name" for other folders once the switch is
-// on and a key saved; renaming by hand makes the name the user's.
+// name is Claude's, "Suggest a Name" for other folders once "Name Link
+// Folders" is on and a key saved; renaming by hand makes the name the
+// user's.
 TEST_F(SidebarPageHandlerTest, ClaudeFolderNameMenus) {
   using NameSource = SidebarNode::NameSource;
   SidebarNode* folder =
@@ -694,7 +695,7 @@ TEST_F(SidebarPageHandlerTest, ClaudeFolderNameMenus) {
   EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kSuggestName)));
   EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kUndoName)));
   PrefService* prefs = browser()->GetProfile()->GetPrefs();
-  prefs->SetBoolean(claude::prefs::kSidebarAi, true);
+  prefs->SetBoolean(claude::prefs::kNameLinkFolders, true);
   // Not set up yet: still none.
   EXPECT_THAT(MenuCommands(id), Not(Contains(Command::kSuggestName)));
   prefs->SetString(claude::prefs::kApiKey, "encrypted");

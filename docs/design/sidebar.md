@@ -1101,11 +1101,11 @@ its name came from, `SidebarNode::NameSource`: `kOpener` for a link folder
 other folder and any rename by hand (the page's `RenameFolder()`, Claude's
 `rename_tab` tool). It's saved (`"name_source"`, and Claude's previous name
 as `"name_before_claude"`) and synced (`CompassNode.name_source`). With
-"Name Folders and Tidy Tabs" on, `LinkFolderNamer` (`browser/ui/claude/`)
+"Name Link Folders" on, `LinkFolderNamer` (`browser/ui/claude/`)
 names link folders this device made, in Today, whose name isn't the user's,
 at 3, 6 and 12 entries, 5 s after their last change. The folder's menu has
 **Undo Name** while its name is Claude's (and the one before is known), and
-**Suggest a Name** otherwise, with the switch on. The page shows Claude's
+**Suggest a Name** otherwise, with that switch on. The page shows Claude's
 new names with a sparkle on the folder's icon (`Page.FolderNamed()`).
 
 **Tests:** `TabStripBridgeTest.LinksGatherWithTheirOpenerInAFolder`,
