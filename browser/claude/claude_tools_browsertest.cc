@@ -42,6 +42,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
@@ -94,6 +95,14 @@ class ClaudeToolsBrowserTest : public InProcessBrowserTest {
                 std::make_unique<net::test_server::BasicHttpResponse>();
             response->set_content_type("application/json");
             response->set_content(R"({"name":"Ada","token":"t0ps3cret"})");
+            return response;
+          }
+          if (request.relative_url == "/favicon.ico") {
+            // A 404 here would land in the console whenever the browser
+            // gets to it, racing the console tests.
+            auto response =
+                std::make_unique<net::test_server::BasicHttpResponse>();
+            response->set_code(net::HTTP_NO_CONTENT);
             return response;
           }
           if (request.relative_url == "/styled.html") {
