@@ -15,5 +15,8 @@ There's no build step. To preview it, serve this folder locally:
 python3 -m http.server -d website 8000
 ```
 
-To publish, copy `index.html`, `privacy.html`, `favicon.ico`, `compass.svg`,
+To publish, copy `index.html`, `privacy.html`, `compare.html`, `favicon.ico`, `compass.svg`,
 `compass-256.png` and the `changelog` folder to the web server's document root.
+
+`compare.html` is made from `COMPARE.md`: after editing that, run
+`python3 tools/make_compare_page.py`.
