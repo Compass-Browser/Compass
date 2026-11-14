@@ -1,0 +1,5 @@
+The first Compass for Android test build.
+- Spaces, pinned tabs, favorites and Today in a sidebar, synced end-to-end encrypted with Compass on your Mac and iPhone.
+- A bottom bar that scrolls away: swipe it to switch tabs, swipe up for all of them.
+- A command bar, Claude with your own key, and Chrome Web Store extensions.
+- Widgets, a Quick Settings tile, and your passwords in other apps.

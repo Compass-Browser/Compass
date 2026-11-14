@@ -14,6 +14,8 @@ assert(enable_extensions_core,
        "Compass for Android builds with is_desktop_android (config/args/android.gn)")
 import("//third_party/jni_zero/jni_zero.gni")
 import("//chrome/android/chrome_public_apk_tmpl.gni")
+import("//chrome/android/modules/chrome_bundle_tmpl.gni")
+import("//chrome/android/modules/chrome_feature_modules.gni")
 
 # What ChromeTabbedActivity calls once its UI is up. chrome_java depends on it
 # (patches/chrome-android-BUILD.gn.patch); the implementation is in :java and
@@ -281,6 +283,45 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
     ":icon_resources",
     ":java",
   ]
+}
+
+# The app bundle for Google Play (docs/building.md, "Android releases (Google
+# Play)"): out/<dir>/apks/Compass.aab. Upstream's chrome_public_bundle (a
+# template in //chrome/android/BUILD.gn) with Compass's package, manifest and
+# Java. As there, the base module has the resources (Compass's icon and the
+# extras' among them) and the "chrome" isolated split has Chrome's Java;
+# Compass's shell goes with it, since it runs on Chrome's classes. The
+# manifest's extra definitions (widgets, tile, autofill) go to that split's
+# manifest (definitions_in_split). The APK above stays, for tests and the
+# GitHub release. Both take their versionCode from
+# android_override_version_code (`compass play prepare`).
+chrome_public_apk_or_module_tmpl("compass_bundle__base_bundle_module") {
+  target_type = "android_app_bundle_module"
+  manifest_package = "it.cipi1965.compass"
+  jinja_input = "//compass/android/AndroidManifest.xml"
+  add_view_trace_events = true
+  srcjar_deps = []
+  foreach(_module_desc, chrome_module_descs) {
+    if (defined(_module_desc.jni_registration)) {
+      srcjar_deps += [ _module_desc.jni_registration ]
+    }
+  }
+  deps = [
+    ":extras_resources",
+    ":icon_resources",
+  ]
+}
+
+chrome_bundle("compass_bundle") {
+  bundle_name = "Compass"
+  base_module_target = ":compass_bundle__base_bundle_module"
+  manifest_package = "it.cipi1965.compass"
+  module_descs = chrome_module_descs
+  chrome_deps = [
+    ":java",
+    "//chrome/android:delegate_public_impl_java",
+  ]
+  add_view_trace_events = true
 }
 
 # The shell's unit tests, on the host's JVM (Robolectric): the sidebar's and

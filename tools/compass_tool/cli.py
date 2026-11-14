@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import (android, checkout, flatpak_remote, linux_package, mac_sign,
-               overrides, patches, release, sparkle, sync_server)
+               overrides, patches, play, release, sparkle, sync_server)
 from .layout import (CONFIGS, CROSS_TARGETS, LINUX_TOOLCHAIN_DIR, Layout,
                      detect, host_cpu)
 from .process import CommandError, depot_tool, run
@@ -913,6 +913,71 @@ def cmd_sync_server(layout: Layout, args) -> None:
   run(cmd, cwd, env=env, check=False)
 
 
+# Google Play (docs/building.md, "Android releases (Google Play)").
+PLAY_VERSION_CODE_ARG = 'android_override_version_code'
+PLAY_CPU = 'android-arm64'
+# Where the release machine keeps the service account's key, next to the
+# upload keystore.
+PLAY_CREDENTIALS = (Path.home() / 'Library' / 'Application Support' /
+                    'Compass Release' / 'android' / 'play-service-account.json')
+
+
+def cmd_play(layout: Layout, args) -> None:
+  version = args.version or release.new_version()
+  code = play.version_code(version)
+  if args.action == 'version-code':
+    print(code)
+    return
+  if args.action == 'prepare':
+    # The release build's versionCode, for the APK and every module of the
+    # bundle (android_override_version_code). versionName stays Chromium's
+    # version: on Android, version_info reads it from the manifest, so it's
+    # the browser's version for the user agent, extensions and the Web
+    # Store. The Compass version names the Play release instead.
+    args_file = layout.out_dir('release', PLAY_CPU) / 'args.gn'
+    if not args_file.is_file():
+      raise CommandError('%s is not set up; run `compass gen release --cpu %s`'
+                         % (args_file.parent, PLAY_CPU))
+    set_gn_arg(args_file, PLAY_VERSION_CODE_ARG, code)
+    print('version %s, versionCode %d (%s)' % (version, code, args_file))
+    return
+  # upload
+  if not args.version:
+    raise CommandError('upload: give the --version the bundle was built as')
+  aab = Path(args.aab) if args.aab else None
+  if not aab or not aab.is_file():
+    raise CommandError('upload: no app bundle at %s' % args.aab)
+  notes = play.release_notes(Path(args.notes_dir) if args.notes_dir else
+                             layout.root / 'android' / 'play')
+  body = play.track_release(args.track, version, code, args.status, notes,
+                            args.user_fraction)
+  credentials = Path(args.credentials) if args.credentials else \
+      PLAY_CREDENTIALS
+  if args.dry_run:
+    print('dry run: would read the service account key at %s%s' % (
+        credentials, '' if credentials.is_file() else ' (not there yet)'))
+    for line in play.describe(args.package, aab, body):
+      print(line)
+    return
+  info = play.load_credentials(credentials)
+  token = []
+
+  def access_token() -> str:
+    if not token:
+      token.append(play.service_account_token(info))
+    return token[0]
+
+  client = play.Client(access_token, args.package)
+  print('uploading as %s to %s, track %s' % (info['client_email'],
+                                             args.package, args.track))
+  try:
+    play.upload(client, aab, body, commit=not args.validate_only,
+                not_sent_for_review=args.not_sent_for_review)
+  except play.ApiError as e:
+    hint = play.explain(e)
+    raise CommandError(str(e) + ('\n' + hint if hint else ''))
+
+
 IOS_BUNDLE_ID = 'it.cipi1965.compass'
 IOS_DEFAULT_DEVICE = 'iPhone 18 Pro'
 
@@ -1288,6 +1353,37 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--fresh', action='store_true',
                  help='start from an empty database')
   s.set_defaults(func=cmd_sync_server)
+
+  s = sub.add_parser('play', help='Compass for Android on Google Play: the '
+                     'versionCode of a release, set it for the release build, '
+                     'or upload the app bundle to a testing track')
+  s.add_argument('action', choices=['version-code', 'prepare', 'upload'])
+  s.add_argument('--version', help='the release, YYYYMMDD.HHMM (default for '
+                 'version-code and prepare: now)')
+  s.add_argument('--aab', help='upload: the signed app bundle')
+  s.add_argument('--track', default='beta',
+                 help='upload: internal, alpha (closed testing), beta (open '
+                 'testing), production or a closed track\'s name (default: '
+                 '%(default)s)')
+  s.add_argument('--status', default='completed', choices=play.STATUSES,
+                 help='upload: the release\'s status (default: %(default)s; '
+                 'an app never published takes only draft)')
+  s.add_argument('--user-fraction', type=float,
+                 help='upload: with --status inProgress, the share of users')
+  s.add_argument('--notes-dir', help='upload: where whatsnew-<language>.txt '
+                 'are (default: android/play)')
+  s.add_argument('--credentials', help='upload: the service account\'s JSON '
+                 'key (default: %s)' % PLAY_CREDENTIALS)
+  s.add_argument('--package', default=play.PACKAGE,
+                 help='upload: default %(default)s')
+  s.add_argument('--dry-run', action='store_true',
+                 help='upload: print the requests, send nothing')
+  s.add_argument('--validate-only', action='store_true',
+                 help='upload: upload and validate, then throw the edit away')
+  s.add_argument('--not-sent-for-review', action='store_true',
+                 help='upload: commit with changesNotSentForReview (when Play '
+                 'asks for it)')
+  s.set_defaults(func=cmd_play)
 
   s = sub.add_parser('ios', help='Compass for iOS: gen the Xcode project, '
                      'test CompassKit, build, run in a headless simulator, '
