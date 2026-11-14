@@ -31,7 +31,9 @@ th:first-child, td:first-child {
 thead th:first-child { background: var(--chip); z-index: 2; }
 td.compass, th.compass { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
 thead th.compass { background: color-mix(in srgb, var(--accent) 16%, var(--chip)); }
-tr.group td { background: var(--bg); font-weight: 600; }
+tr.group td { position: static; max-width: none; border-right: 0; background: var(--bg); font-weight: 600; }
+/* The group title spans the table, so stick the text, not the cell. */
+tr.group span { display: inline-block; position: sticky; left: 10px; }
 .legend { color: var(--muted); font-size: 14px; }
 </style>
 </head>
@@ -147,7 +149,7 @@ tr.group td { background: var(--bg); font-weight: 600; }
 <th>Lilo</th>
 <th>Orion</th>
 </tr></thead><tbody>
-<tr class="group"><td colspan="12"><strong>Sidebar and tabs</strong></td></tr>
+<tr class="group"><td colspan="12"><span><strong>Sidebar and tabs</strong></span></td></tr>
 <tr>
 <td>Spaces with themes</td>
 <td class="compass">✅ colors, gradients, grain, icons</td>
@@ -288,7 +290,7 @@ tr.group td { background: var(--bg); font-weight: 600; }
 <td>✅</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><strong>Arc-style extras</strong></td></tr>
+<tr class="group"><td colspan="12"><span><strong>Arc-style extras</strong></span></td></tr>
 <tr>
 <td>Command bar, no toolbar</td>
 <td class="compass">✅</td>
@@ -415,7 +417,7 @@ tr.group td { background: var(--bg); font-weight: 600; }
 <td>?</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><strong>Web content</strong></td></tr>
+<tr class="group"><td colspan="12"><span><strong>Web content</strong></span></td></tr>
 <tr>
 <td>Chrome extensions, desktop / phone</td>
 <td class="compass">✅ / ✅</td>
@@ -486,7 +488,7 @@ tr.group td { background: var(--bg); font-weight: 600; }
 <td>❌</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><strong>AI</strong></td></tr>
+<tr class="group"><td colspan="12"><span><strong>AI</strong></span></td></tr>
 <tr>
 <td>AI chat panel that reads and acts on the page</td>
 <td class="compass">✅ Claude, with developer tools (network, elements, storage, performance) when allowed</td>
@@ -557,7 +559,7 @@ tr.group td { background: var(--bg); font-weight: 600; }
 <td>❌</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><strong>Sync and devices</strong></td></tr>
+<tr class="group"><td colspan="12"><span><strong>Sync and devices</strong></span></td></tr>
 <tr>
 <td>Sync</td>
 <td class="compass">✅ no account, end-to-end encrypted, self-hostable; a space can stay on one device</td>
@@ -600,7 +602,7 @@ tr.group td { background: var(--bg); font-weight: 600; }
 <td>❌</td>
 <td>✅ iPhone and iPad</td>
 </tr>
-<tr class="group"><td colspan="12"><strong>Moving in</strong></td></tr>
+<tr class="group"><td colspan="12"><span><strong>Moving in</strong></span></td></tr>
 <tr>
 <td>Import</td>
 <td class="compass">Arc (macOS): profiles, cookies, sidebar, archive</td>

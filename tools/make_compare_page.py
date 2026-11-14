@@ -47,7 +47,9 @@ th:first-child, td:first-child {
 thead th:first-child { background: var(--chip); z-index: 2; }
 td.compass, th.compass { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
 thead th.compass { background: color-mix(in srgb, var(--accent) 16%, var(--chip)); }
-tr.group td { background: var(--bg); font-weight: 600; }
+tr.group td { position: static; max-width: none; border-right: 0; background: var(--bg); font-weight: 600; }
+/* The group title spans the table, so stick the text, not the cell. */
+tr.group span { display: inline-block; position: sticky; left: 10px; }
 .legend { color: var(--muted); font-size: 14px; }
 </style>
 </head>
@@ -96,7 +98,7 @@ def table(lines: list) -> str:
     row = cells(line)
     # A group row: bold first cell, the rest empty.
     if row[0].startswith('**') and not any(row[1:]):
-      out.append('<tr class="group"><td colspan="%d">%s</td></tr>' %
+      out.append('<tr class="group"><td colspan="%d"><span>%s</span></td></tr>' %
                  (len(head), inline(row[0])))
       continue
     out.append('<tr>')
