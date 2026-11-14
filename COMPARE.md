@@ -1,8 +1,9 @@
 # Compass compared with other browsers
 
 How Compass compares with Arc, its successor Dia, and the browsers people
-move to from Arc. Written on 10 November 2026: other browsers change
-quickly, so check their sites before relying on a cell.
+move to from Arc. Written on 10 November 2026, the Compass column updated
+on 14 November: other browsers change quickly, so check their sites
+before relying on a cell.
 
 - The Compass column comes from this repository's code (`main`).
 - The Crest column comes from its site, changelog and repository.
@@ -24,7 +25,7 @@ successor is Dia (The Browser Company is part of Atlassian since October
 
 | Browser | Engine | Platforms | License / price | Status |
 |---|---|---|---|---|
-| **Compass** | Chromium | macOS 13+ (stable), Windows 10/11 (beta), iPhone and iPad (TestFlight), Android (in progress), Linux (packages build, not published) | BSD-3-Clause, free | Active |
+| **Compass** | Chromium | macOS 13+ (stable), Windows 10/11 (beta), iPhone and iPad (TestFlight), Linux (canary, Flatpak with updates), Android (in progress) | BSD-3-Clause, free | Active |
 | **Crest** | Chromium by default on Mac, WebKit for any site; WebKit only on iPhone/iPad | macOS 26.1+ (Apple silicon), iPhone, iPad | MPL-2.0, free | Early access (0.8.x) |
 | **Arc** | Chromium | macOS, Windows; Arc Search on iOS/Android | Free, closed | Shuts down 22 Dec 2026 |
 | **Dia** | Chromium | macOS (Apple silicon) | Free core features, paid Pro tier, closed | Active, adding Arc features |
@@ -54,9 +55,9 @@ successor is Dia (The Browser Company is part of Atlassian since October
 | **Arc-style extras** | | | | | | | | | | | |
 | Command bar, no toolbar | ✅ | ✅ | ✅ | ~ | ? | ✅ | ✅ Quick Commands | ❌ | ✅ | ? | ? |
 | Peek (preview a link without a tab) | ✅ | ✅ | ✅ | ? | ? | ✅ Glance | ❌ | ❌ | ? | ? | ✅ link preview |
-| Small windows for links from other apps | ✅ macOS | ✅ Quick Window | ✅ Little Arc | ? | ? | ❌ | ❌ | ❌ | ? | ? | ✅ link preview from any app |
+| Small windows for links from other apps | ✅ macOS, Windows, Linux | ✅ Quick Window | ✅ Little Arc | ? | ? | ❌ | ❌ | ❌ | ? | ? | ✅ link preview from any app |
 | Link routing to spaces (Air Traffic Control) | ❌ | ✅ | ✅ | ? | ? | ❌ | ❌ | ❌ | ? | ? | ? |
-| Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ? | ~ picture-in-picture |
+| Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ? | ~ picture-in-picture |
 | Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar) | ? | ✅ | ❌ | ❌ | ? | ~ feed reader | ❌ | ❌ | ❌ | ? |
 | Per-site CSS/JS (Boosts) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ Mods | ❌ | ❌ | ❌ | ❌ | ? |
 | Notes / canvas (Easels) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
@@ -68,15 +69,15 @@ successor is Dia (The Browser Company is part of Atlassian since October
 | Full-quality DRM video | ❌ no Widevine VMP | ✅ FairPlay through WebKit | ✅ | ✅ | ? | ~ | ✅ | ✅ | ✅ | ✅ | ? |
 | Mail, calendar, web panels | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ~ | ❌ | ❌ | ? |
 | **AI** | | | | | | | | | | | |
-| AI chat panel that reads and acts on the page | ✅ Claude | ❌ | ~ Arc Max | ✅ | ✅ | ❌ | ❌ by choice | ✅ Copilot | ✅ Airis | ? | ? |
-| Agent across tabs and windows | ✅ off by default | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ? | ? | ? |
+| AI chat panel that reads and acts on the page | ✅ Claude, with developer tools (network, elements, storage, performance) when allowed | ❌ | ~ Arc Max | ✅ | ✅ | ❌ | ❌ by choice | ✅ Copilot | ✅ Airis | ? | ? |
+| Agent across tabs and windows | ✅ desktop, iPhone and iPad; off by default | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ? | ? | ? |
 | MCP server for coding agents | ✅ macOS and Windows | ✅ Mac, per chosen space | ❌ | ? | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ? |
 | Own API key, Bedrock/Vertex, or Claude subscription via Claude Code | ✅ | — | ❌ | ❌ | ❌ | — | — | ❌ | ❌ | ? | ? |
-| AI memory across sessions | ✅ desktop and iPhone, synced end-to-end encrypted, each save shown with Undo | ❌ | ❌ | ✅ | ✅ kept on the Mac | ❌ | ❌ | ✅ | ? | ? | ? |
+| AI memory across sessions | ✅ desktop, iPhone and iPad, synced end-to-end encrypted, each save shown with Undo | ❌ | ❌ | ✅ | ✅ kept on the Mac | ❌ | ❌ | ✅ | ? | ? | ? |
 | **Sync and devices** | | | | | | | | | | | |
-| Sync | ✅ no account, end-to-end encrypted, self-hostable | ✅ iCloud; passwords through iCloud Keychain | Arc account | account | data stays local | Firefox account | Vivaldi account | Microsoft account | ? | ? | ✅ Mac and iPhone |
+| Sync | ✅ no account, end-to-end encrypted, self-hostable; a space can stay on one device | ✅ iCloud; passwords through iCloud Keychain | Arc account | account | data stays local | Firefox account | Vivaldi account | Microsoft account | ? | ? | ✅ Mac and iPhone |
 | Send tab to phone | ✅ | ? | ❌ | ? | ? | ✅ | ✅ | ✅ | ❌ | ? | ? |
-| Phone app with the same spaces | ✅ iPhone (beta), Android (in progress) | ✅ iPhone and iPad (App Store) | ~ Arc Search is separate | in progress | ❌ | ❌ | ✅ | ✅ | ❌ | ? | ✅ iPhone and iPad |
+| Phone app with the same spaces | ✅ iPhone and iPad (beta), Android (in progress) | ✅ iPhone and iPad (App Store) | ~ Arc Search is separate | in progress | ❌ | ❌ | ✅ | ✅ | ❌ | ? | ✅ iPhone and iPad |
 | **Moving in** | | | | | | | | | | | |
 | Import | Arc (macOS): profiles, cookies, sidebar, archive | Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more | — | Arc | ? | ? | ~ | ~ | ? | ? | Arc, Safari, Firefox, Brave |
 | Open source | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ~ | ❌ | ❌ | ✅ | ❌ Linux and Windows code to be released |
@@ -131,8 +132,8 @@ Features other browsers have that Compass doesn't, checked against the code:
 | Notes / canvas | Arc, Vivaldi | Not started |
 | Tree-style tabs | Orion, Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |
 | Translucent sidebar | Arc | Arc's gradients import; translucency and vibrancy don't (docs/design/arc-import.md) |
-| Linux download | Zen, Vivaldi, Edge | Packages build (`.tar.xz`, Flatpak); not on the website |
-| Little windows and Arc import on Windows | Arc | Little windows written, not tried; Arc import macOS only |
+| Arc import on Windows and Linux | — | macOS only |
+| Android release | Vivaldi, Edge | The app is built; Google Play testing being set up |
 
 ## Sources
 
