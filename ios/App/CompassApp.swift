@@ -21,6 +21,9 @@ struct CompassApp: App {
     // Tabs sent from other devices; a tap that launched the app arrives here.
     SentTabNotifications.shared.setUp(services: services)
     AutoPiP.configureAudioSession()
+    // Leaving the app moves a playing video to picture-in-picture, from the
+    // first moment iOS says so (scenePhase comes later).
+    AutoPiP.watchLeavingTheApp { [weak services] in services?.active?.leavingAppVideo() }
     // A best-effort sync while in the background (push needs the app open).
     // On the main queue: the handler is written in the App's init, so Swift
     // takes it as main-actor code and traps if it runs anywhere else (with
@@ -71,9 +74,8 @@ struct CompassApp: App {
       services.liveFolders.setActive(phase == .active)
       // Plugins copied into Files › Compass › Live Folder Plugins meanwhile.
       if phase == .active, old != .active { services.liveFolders.reloadPlugins() }
-      // Auto picture-in-picture: it has to start while the app is still on
-      // screen, so on the way out (inactive), not in the background.
-      if old == .active, phase == .inactive { app?.appActiveChanged(false) }
+      // Auto picture-in-picture: leaving the app starts it (AutoPiP, on
+      // resigning active), coming back puts the video back in the page.
       if phase == .active, old != .active { app?.appActiveChanged(true) }
       // Filter lists: checked at most daily.
       if phase == .active {

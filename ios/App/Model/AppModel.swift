@@ -8,6 +8,7 @@ import CompassModel
 import CompassShared
 import Foundation
 import SwiftUI
+import WebKit
 import Observation
 
 /// One window's state: the space and entry it shows, its sidebar, sheets
@@ -442,12 +443,22 @@ final class AppModel {
   }
 
   /// Back in the app: a video Compass moved to picture-in-picture comes
-  /// back. Leaving the app doesn't start one: iOS ends a window an app on
-  /// its way out starts (checked on an iPhone, iOS 27); the page's
-  /// `autoPictureInPicture` is set in case WebKit honors it.
+  /// back. Leaving it starts one (`leavingAppVideo`, AutoPiP).
   func appActiveChanged(_ active: Bool) {
-    guard active, let id = shownTab?.id else { return }
+    guard active else { return }
+    AutoPiP.backInApp()
+    guard let id = shownTab?.id else { return }
     AutoPiP.exit(tabs.live[id])
+  }
+
+  /// Leaving the app: the web view of the tab shown, if its page plays a
+  /// video with sound (or a call) and it's here, in the window.
+  func leavingAppVideo() -> WKWebView? {
+    guard let id = shownTab?.id else { return nil }
+    let playing = tabs.playingVideo.contains(id), view = tabs.live[id]
+    AutoPiP.note("leaving the app with \(id.prefix(8)): playing \(playing), here \(hasPage(id)), in a window \(view?.window != nil)")
+    guard playing, hasPage(id), let view, view.window != nil else { return nil }
+    return view
   }
 
   var shownTab: SidebarNode? {

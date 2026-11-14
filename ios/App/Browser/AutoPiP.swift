@@ -57,9 +57,9 @@ enum AutoPiP {
 
   /// Watches the page's videos:
   /// - the one playing with sound gets `autoPictureInPicture` (WebKit's
-  ///   AVKit "start automatically from inline"), in case WebKit honors it
-  ///   for apps: an app on its way out can't start one itself, and on iOS
-  ///   27 it doesn't (only Safari's own standby does);
+  ///   AVKit "start automatically from inline"), in case WebKit ever
+  ///   honors it for inline video (it doesn't: only for fullscreen and the
+  ///   standby under element fullscreen; leaving the app, below);
   /// - Compass is told whether there's one (`state:`), so a tab switch can
   ///   keep the page in the window before it starts it;
   /// - back inline from the window, still playing, is the window's "back to
@@ -248,7 +248,12 @@ enum AutoPiP {
       window.__compassAutoPiP = video;
       if (scroll) window.__compassAutoPiPScroll = video;
       if (video.requestPictureInPicture) {
-        video.requestPictureInPicture().catch((e) => {
+        // Resolved once the window is really up (the mode changes as it's
+        // asked for): leaving the app, Compass then tells WebKit again
+        // that the page is seen.
+        video.requestPictureInPicture().then(() => {
+          window.webkit.messageHandlers.\(handler).postMessage("log:in window");
+        }, (e) => {
           window.webkit.messageHandlers.\(handler).postMessage("log:request failed " + e.name + ": " + e.message);
           if (video.webkitSupportsPresentationMode && video.webkitSupportsPresentationMode("picture-in-picture")) {
             video.webkitSetPresentationMode("picture-in-picture");
@@ -357,5 +362,86 @@ enum AutoPiP {
   static func exit(_ view: WKWebView?) {
     guard let view else { return }
     view.evaluateJavaScript(exitSource, in: nil, in: world, completionHandler: nil)
+  }
+
+  // MARK: Leaving the app
+
+  /// WebKit in an app never starts picture-in-picture by itself for a
+  /// video playing in the page: AVKit's "start automatically" is only
+  /// armed for a video in fullscreen (or standing by under an element in
+  /// fullscreen), not from inline, and `autoPictureInPicture` is ignored.
+  /// So Compass starts it on the way out, as early as iOS says (the app
+  /// resigning active: the home swipe's first move, before the app is in
+  /// the background), from an app-evaluated script (a gesture for WebKit).
+  ///
+  /// What most likely ended it before (started on scenePhase going
+  /// inactive): the window takes a few hundred milliseconds to come up,
+  /// and if the app reaches the background first, WebKit counts the web
+  /// view as unseen (only a window already up keeps it seen), hides the
+  /// page and freezes it, and the window closed, the video paused. So the app holds a background task while it starts, and once
+  /// the window is up (the page's `log:in window`) with the app already in
+  /// the background, the web view is put back in its place, which has
+  /// WebKit look again: a page whose video is in picture-in-picture counts
+  /// as seen.
+  private static weak var leaving: WKWebView?
+  private static var leavingTask: UIBackgroundTaskIdentifier = .invalid
+  private static var observers: [NSObjectProtocol] = []
+
+  /// `candidate`: the web view of the tab shown in the window the user is
+  /// in, if its page plays a video with sound (or a call).
+  static func watchLeavingTheApp(_ candidate: @escaping @MainActor @Sendable () -> WKWebView?) {
+    guard observers.isEmpty else { return }
+    let center = NotificationCenter.default
+    observers.append(
+      center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in
+        MainActor.assumeIsolated { leaveApp(candidate()) }
+      })
+    observers.append(
+      center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+        MainActor.assumeIsolated {
+          if leaving != nil { note("in the background") }
+        }
+      })
+  }
+
+  static func leaveApp(_ view: WKWebView?) {
+    guard isOn, let view, view.window != nil else { return }
+    leaving = view
+    if leavingTask == .invalid {
+      leavingTask = UIApplication.shared.beginBackgroundTask(withName: "Auto Picture in Picture") {
+        MainActor.assumeIsolated { endLeavingTask() }
+      }
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(10))
+        endLeavingTask()
+      }
+    }
+    enter(view)
+  }
+
+  /// Back in the app: what was moved on the way out is the tab's again.
+  static func backInApp() {
+    leaving = nil
+    endLeavingTask()
+  }
+
+  private static func endLeavingTask() {
+    guard leavingTask != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(leavingTask)
+    leavingTask = .invalid
+  }
+
+  /// The page's window is up (`log:in window`).
+  static func inWindow(_ view: WKWebView) {
+    guard view === leaving else { return }
+    defer { endLeavingTask() }
+    guard UIApplication.shared.applicationState == .background, let superview = view.superview,
+      let index = superview.subviews.firstIndex(of: view)
+    else { return }
+    // The window came up after the app reached the background: WebKit
+    // checks whether the page is seen when the view moves to a window.
+    view.removeFromSuperview()
+    superview.insertSubview(view, at: index)
+    note("window up in the background: the page counts as seen again")
   }
 }

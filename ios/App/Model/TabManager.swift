@@ -747,6 +747,7 @@ final class MessageProxy: NSObject, WKScriptMessageHandler {
         if let log = message.body as? String, log.hasPrefix("log:") {
           // The window closed: a parked view leaves the lot.
           if log == "log:mode inline" { DispatchQueue.main.async { AutoPiP.unpark(view) } }
+          if log == "log:in window" { AutoPiP.inWindow(view) }
           AutoPiP.note("page \(id.prefix(8)): \(log.dropFirst(4))")
           return
         }
