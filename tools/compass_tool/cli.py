@@ -843,37 +843,30 @@ def win_build_info(installer: Path) -> dict:
 
 
 # Authenticode signing through Azure Artifact Signing (docs/design/updates.md,
-# "Windows"): signtool with Microsoft's dlib, set up on the machine that runs
-# build-win. Unset, the installers stay unsigned.
+# "Windows"), set up on the machine that runs build-win. Unset, the installers
+# and what they pack stay unsigned.
 WIN_SIGN_DLIB_ENV = 'COMPASS_WIN_SIGN_DLIB'
 WIN_SIGN_METADATA_ENV = 'COMPASS_WIN_SIGN_METADATA'
-WIN_TIMESTAMP_URL = 'http://timestamp.acs.microsoft.com'
+WIN_SIGN_DLIB_ARG = 'compass_win_sign_dlib'
+WIN_SIGN_METADATA_ARG = 'compass_win_sign_metadata'
 
 
-def find_signtool() -> Path:
-  kits = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'),
-              'Windows Kits', '10', 'bin')
-  found = sorted(kits.glob('10.*/x64/signtool.exe'))
-  if not found:
-    raise CommandError('no signtool.exe under %s (the Windows SDK)' % kits)
-  return found[-1]
-
-
-def sign_win(files: list[Path]) -> None:
+def win_signing() -> tuple[str, str] | None:
+  """The dlib and metadata.json, with forward slashes (GN strings)."""
   dlib = os.environ.get(WIN_SIGN_DLIB_ENV)
   metadata = os.environ.get(WIN_SIGN_METADATA_ENV)
   if not dlib or not metadata:
-    print('not signing: %s and %s are unset' % (WIN_SIGN_DLIB_ENV,
-                                                 WIN_SIGN_METADATA_ENV))
-    return
+    return None
   if sys.platform != 'win32':
-    raise CommandError('signing needs signtool, on Windows')
-  signtool = find_signtool()
-  run([str(signtool), 'sign', '/fd', 'SHA256', '/tr', WIN_TIMESTAMP_URL,
-       '/td', 'SHA256', '/dlib', dlib, '/dmdf', metadata] +
-      [str(f) for f in files], files[0].parent)
-  run([str(signtool), 'verify', '/pa'] + [str(f) for f in files],
-      files[0].parent)
+    raise CommandError('signing needs signtool, on Windows; unset %s' %
+                       WIN_SIGN_DLIB_ENV)
+  return dlib.replace('\\', '/'), metadata.replace('\\', '/')
+
+
+def sign_win(layout: Layout, signing: tuple[str, str],
+             files: list[Path]) -> None:
+  run([sys.executable, layout.root / 'build' / 'win_sign.py', '--dlib',
+       signing[0], '--metadata', signing[1]] + files, files[0].parent)
 
 
 def build_win(layout: Layout, args) -> Path:
@@ -897,6 +890,12 @@ def build_win(layout: Layout, args) -> Path:
   set_gn_arg(args_file, COMPASS_VERSION_ARG, version)
   set_gn_arg(args_file, WIN_BUILD_ARG, number, raw=True)
   set_gn_arg(args_file, WIN_UPDATER_ARG, 'true', raw=True)
+  signing = win_signing()
+  set_gn_arg(args_file, WIN_SIGN_DLIB_ARG, signing[0] if signing else '')
+  set_gn_arg(args_file, WIN_SIGN_METADATA_ARG, signing[1] if signing else '')
+  if not signing:
+    print('not signing: %s and %s are unset' % (WIN_SIGN_DLIB_ENV,
+                                                 WIN_SIGN_METADATA_ENV))
   chromium = upstream_chromium_version(layout.src)
   installer_version = chromium.replace('.0.', '.%d.' % number, 1)
   print('Compass %s for Windows: installer version %s' % (version,
@@ -914,7 +913,8 @@ def build_win(layout: Layout, args) -> Path:
   # The one with a window, for the website (installer/win).
   installer = out_dir / release.win_installer_name(version)
   shutil.copyfile(out_dir / (WIN_INSTALLER_TARGET + '.exe'), installer)
-  sign_win([setup, installer])
+  if signing:
+    sign_win(layout, signing, [setup, installer])
   import json
   setup.with_suffix('.json').write_text(json.dumps({
       'version': version,

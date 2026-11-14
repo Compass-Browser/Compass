@@ -252,20 +252,28 @@ browser decides when to run it.
   hour after the upgrade detector sees the update
   (`kDefaultVeryLowThreshold`, checked every 20 minutes). setup.exe leaves
   the old version folder until its next run.
-- **Signing:** `build-win` signs both installers (Authenticode, SHA-256,
-  timestamped) through Azure Artifact Signing when
-  `COMPASS_WIN_SIGN_DLIB` (the `Azure.CodeSigning.Dlib.dll` from the
-  `Microsoft.ArtifactSigning.Client` NuGet package, `bin\x64`) and
+- **Signing:** `build-win` signs both installers and every binary they
+  install (Authenticode, SHA-256, timestamped) through Azure Artifact
+  Signing when `COMPASS_WIN_SIGN_DLIB` (the `Azure.CodeSigning.Dlib.dll`
+  from the `Microsoft.ArtifactSigning.Client` NuGet package, `bin\x64`) and
   `COMPASS_WIN_SIGN_METADATA` (its `metadata.json`: endpoint, account,
   certificate profile) are set; the dlib signs in as an Entra app from
-  `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`. The
-  certificates last three days, so the timestamp is what keeps a signature
-  valid. A cross build from a Mac can't sign (signtool is Windows only).
-  `publish-win` hashes the files it's given, so the feeds match the signed
-  ones.
-- **Not done:** the binaries inside the installer (chrome.exe, chrome.dll,
-  setup.exe) aren't signed, so Smart App Control, where it's on, can still
-  block them. No differential updates (mini_installer is about 130 MB).
+  `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`. One script
+  does it, `build/win_sign.py`. The certificates last three days, so the
+  timestamp is what keeps a signature valid.
+  - Signed binaries can't stay in the out dir: siso builds an output again
+    when its file changed (checked: a signed `chrome_proxy.exe` was linked
+    again, unsigned). So `build-win` copies the gn args
+    `compass_win_sign_dlib`/`compass_win_sign_metadata` from the variables,
+    and `mini_installer_archive` (`create_installer_archive.py` and
+    mini_installer's `BUILD.gn` patches) signs the copies it stages: every
+    `.exe` and `.dll` without a valid signature (Microsoft's DLLs keep
+    theirs), and a copy of `setup.exe` before compressing it. `build-win`
+    then signs its copies of mini_installer and CompassInstaller.
+  - A cross build from a Mac can't sign (signtool is Windows only).
+    `publish-win` hashes the files it's given, so the feeds match the signed
+    ones.
+- **Not done:** no differential updates (mini_installer is about 130 MB).
 
 ## Linux: Flatpak
 

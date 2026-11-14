@@ -29,6 +29,13 @@ declare_args() {
   # chrome/VERSION before building, since many targets read that file
   # directly. 0 (upstream's) in dev builds.
   compass_win_build = 0
+
+  # Windows: Authenticode signing of the binaries mini_installer packs, with
+  # build/win_sign.py: the Azure Artifact Signing dlib and its metadata.json.
+  # `compass release build-win` sets them from COMPASS_WIN_SIGN_DLIB and
+  # COMPASS_WIN_SIGN_METADATA. Empty: unsigned.
+  compass_win_sign_dlib = ""
+  compass_win_sign_metadata = ""
 }
 
 # `compass` fetches Sparkle (tools/compass_tool/sparkle.py): the whole

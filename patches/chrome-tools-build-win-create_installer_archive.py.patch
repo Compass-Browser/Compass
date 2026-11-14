@@ -1,0 +1,46 @@
+diff --git a/chrome/tools/build/win/create_installer_archive.py b/chrome/tools/build/win/create_installer_archive.py
+index d11825421ef5018875aac86d11109cfd68178438..a4fec3c772d7fea2c25dbb6afb6a79ae8b2438e0 100644
+--- a/chrome/tools/build/win/create_installer_archive.py
++++ b/chrome/tools/build/win/create_installer_archive.py
+@@ -508,6 +508,10 @@ def PrepareSetupExec(options, current_version, prev_version):
+         )
+     else:
+         setup_file_path = os.path.join(options.build_dir, SETUP_EXEC)
++        if options.sign_dlib:  # Compass: a signed copy, not the build's.
++            setup_file_path = _CompassSign().signed_copy(
++                setup_file_path, options.staging_dir, options.sign_dlib,
++                options.sign_metadata)
+         # The mtime of the setup file gets baked into makecab's output,
+         # so if build_time is specified, then apply it here too.
+         mtimestamp = os.path.getmtime(setup_file_path)
+@@ -750,6 +754,12 @@ def main(options):
+             current_version,
+         )
+ 
++    if options.sign_dlib:  # Compass: docs/design/updates.md, "Windows".
++        _CompassSign().sign_tree(os.path.join(staging_dir, CHROME_DIR),
++                                 options.sign_dlib, options.sign_metadata)
++        if options.build_time:
++            OverwriteStagingBuildTime(options.build_time)
++
+     version_numbers = current_version.split('.')
+     current_build_number = version_numbers[2] + '.' + version_numbers[3]
+     prev_build_number = ''
+@@ -826,8 +836,17 @@ def main(options):
+         )
+ 
+ 
++def _CompassSign():
++    sys.path.insert(0, os.path.join(os.path.dirname(__file__), *['..'] * 4,
++                                    'compass', 'build'))
++    import win_sign
++    return win_sign
++
++
+ def _ParseOptions():
+     parser = optparse.OptionParser()
++    parser.add_option('--sign_dlib', help='Compass: Authenticode signing.')
++    parser.add_option('--sign_metadata', help='Compass: Authenticode signing.')
+     parser.add_option(
+         '-i',
+         '--input_file',

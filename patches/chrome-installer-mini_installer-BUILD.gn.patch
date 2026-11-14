@@ -1,8 +1,16 @@
 diff --git a/chrome/installer/mini_installer/BUILD.gn b/chrome/installer/mini_installer/BUILD.gn
-index df9408bb1666cce96dd4fa716205b446164641de..4e201a98985dcc66ee3494d8d6110def26b1f798 100644
+index df9408bb1666cce96dd4fa716205b446164641de..9dc6892719acadee20873b5df254988284116bf8 100644
 --- a/chrome/installer/mini_installer/BUILD.gn
 +++ b/chrome/installer/mini_installer/BUILD.gn
-@@ -152,6 +152,7 @@ action("mini_installer_archive") {
+@@ -7,6 +7,7 @@ import("//build/config/python.gni")
+ import("//build/config/ui.gni")
+ import("//build/timestamp.gni")
+ import("//chrome/process_version_rc_template.gni")
++import("//compass/browser/updates/updates.gni")
+ import("//third_party/dawn/scripts/dawn_features.gni")
+ import("//third_party/ffmpeg/ffmpeg_options.gni")
+ import("//third_party/icu/config.gni")
+@@ -152,6 +153,7 @@ action("mini_installer_archive") {
      "$root_out_dir/chrome.dll",
      "$root_out_dir/chrome_elf.dll",
      "$root_out_dir/chrome.exe",
@@ -10,7 +18,7 @@ index df9408bb1666cce96dd4fa716205b446164641de..4e201a98985dcc66ee3494d8d6110def
      "$root_out_dir/locales/en-US.pak",
      "$root_out_dir/setup.exe",
      "//chrome/tools/build/win/makecab.py",
-@@ -197,6 +198,7 @@ action("mini_installer_archive") {
+@@ -197,6 +199,7 @@ action("mini_installer_archive") {
      "//chrome/chrome_elf",
      "//chrome/common/win:eventlog_provider",
      "//chrome/installer/setup",
@@ -18,3 +26,17 @@ index df9408bb1666cce96dd4fa716205b446164641de..4e201a98985dcc66ee3494d8d6110def
      "//third_party/icu:icudata",
    ]
  
+@@ -218,6 +221,13 @@ action("mini_installer_archive") {
+   if (fast_archive_compression) {
+     args += [ "--fast_archive_compression" ]
+   }
++  if (compass_win_sign_metadata != "") {
++    inputs += [ "//compass/build/win_sign.py" ]
++    args += [
++      "--sign_dlib=$compass_win_sign_dlib",
++      "--sign_metadata=$compass_win_sign_metadata",
++    ]
++  }
+ 
+   if (enable_uncompressed_archive) {
+     outputs += [ packed_files_rc_file_uncompressed ]
