@@ -72,6 +72,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void SetDevTools(bool enabled) override;
   void SetNameLinkFolders(bool enabled) override;
   void SetNameLinkFoldersModel(const std::string& model) override;
+  void SetTidyToday(bool enabled) override;
+  void SetTidyTodayModel(const std::string& model) override;
   void GetMemories(GetMemoriesCallback callback) override;
   void AddMemory(const std::string& text, AddMemoryCallback callback) override;
   void UpdateMemory(const std::string& id,
@@ -90,6 +92,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void FileSelectionCanceled() override;
 
  private:
+  // A sidebar feature's model pref: |model|, trimmed; empty for the default.
+  void SetFeatureModel(const char* pref, const std::string& model);
   void OnKeyForTest(TestConnectionCallback callback,
                     std::optional<std::string> key);
   void OnModels(TestConnectionCallback callback,

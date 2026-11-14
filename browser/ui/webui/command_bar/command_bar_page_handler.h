@@ -54,6 +54,10 @@ enum class CommandBarCommand {
   kImportFromArc,
   // Opens compass://settings/shortcuts (docs/design/shortcuts.md).
   kKeyboardShortcuts,
+  // Asks Claude to group the window's Today into folders
+  // (docs/design/ai-sidebar.md, "Tidy Today"): only while "Tidy Today" is on
+  // and Today has 5 loose entries or more.
+  kTidyToday,
   // Opens the chat with Claude, asking it the typed text if any
   // (docs/design/claude.md, "Chat panel"). Not in the commands' list: its
   // row comes last, for any text.

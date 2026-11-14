@@ -5,8 +5,9 @@ answers in the command bar: names for link folders, Tidy Today, shorter tab
 titles, and Ask in the command bar. The chat panel and its tools are
 claude.md's; this doc reuses its endpoint, credentials and request code.
 
-Status: A1 and A2 done on the desktop and on iOS (14 November 2026);
-A3 to A5 and A7 planned, and A6's A3–A5. Desktop first, then iOS and Android.
+Status: A1 and A2 done on the desktop and on iOS (14 November 2026), A3
+(Tidy Today) on the desktop (14 November 2026); A4, A5 and A7 planned, and
+A6's A3–A5. Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -51,7 +52,8 @@ acts without a visible result the user can undo.
 
 - **`ClaudeQuick`** (`browser/claude/claude_quick.{h,cc}`): one short,
   non-streaming request — system prompt, one user message, `max_tokens`
-  ≤ 200, no tools, 15 s timeout — through the chat's endpoint, auth styles
+  ≤ 400 (Tidy's reply lists its entries; a name asks 60), no tools, 15 s
+  timeout — through the chat's endpoint, auth styles
   and cache levels (`ClaudeRequest`, `ClaudeApi`). Returns text or an
   error; never shows UI itself. Per profile, keyed service.
 - **Prompts** in `common/claude/sidebar_prompts.md` (one section per
@@ -187,6 +189,52 @@ With "Name Link Folders" on:
 - The sparkle is a CSS animation of the folder's icon and name in the
   sidebar page (`Page.FolderNamed()`, sent only for Claude's automatic
   names and suggestions).
+
+## As built (A3, Tidy Today)
+
+- **`TodayTidier`** (`browser/ui/claude/today_tidier.*`), a per-profile
+  service like `LinkFolderNamer` (none off the record): `Tidy(space)` sends
+  one `ClaudeQuick` request (the "tidy_today" prompt section, the feature's
+  model, `max_tokens` 400, not background: no hourly limit or back-off, as
+  Suggest a Name), listing up to 40 loose entries (Today's top-level tabs
+  and splits, from the top) as "<n>. <title> (<host>)", a split's titles
+  joined by " + ". The ids are those numbers, mapped back to the entries.
+  One tidy per space at a time (`IsBusy()`).
+- **The reply** (`ParseTidyReply()`, `claude_quick.*`): `{"folders":
+  [{"name", "entries"}]}`; unknown ids and ids already taken (in that folder
+  or an earlier one) are dropped, then a folder whose name
+  `SanitizeAiName()` drops, or with fewer than 2 entries left, goes; the
+  first 6 that pass are used. A reply of another shape, or with nothing
+  left, is "Claude found nothing to group."
+- **Applied** by `SpaceModel::TidyToday()`, synchronously, so sync sends one
+  change: each folder goes where its topmost entry was, its entries in
+  Today's order, named `kClaude` with "New Folder" as the name before (so
+  Undo Name works). Entries closed or moved meanwhile are skipped.
+  `SpaceModel::UndoTidy()`, also one go, empties the folders back into
+  Today and removes them, then puts Today's entries from before in their
+  order with what came since on top (where new entries go); something
+  dragged into a tidied folder since is left loose. The service keeps the
+  last 10 tidies for Undo (not saved).
+- **Header and toast:** the sidebar page gets `TidyChanged(available,
+  busy)` (the switch and the key, watched with a `PrefChangeRegistrar`;
+  never in incognito) and counts the loose entries itself. The toast
+  (`ShowToast(text, undo_tidy_id)`) shows for 8 s in each window showing the
+  space: "Tidied into N folders" with Undo, or the error ("Couldn't tidy
+  Today: Claude took too long.", "…couldn't be reached.", "…isn't set
+  up."). A switch turned off while Claude answers drops the answer.
+- **Command bar:** "Tidy Today" (`CommandBarCommand::kTidyToday`), listed
+  only when the window's space can be tidied (switch on, set up, 5 loose
+  entries, none on its way).
+- **Tests:** `ClaudeQuickTest.ParseTidyReply` (unknown, repeated and taken
+  ids, singletons, bad names, more than 6) and `SidebarPrompts`;
+  `SpaceModelTest.TidyTodayAndUndo` and `UndoTidyAfterChanges` (exact
+  restore, splits whole, folders and Pinned untouched);
+  `SidebarPageHandlerTest.TidyToday` (header state per switch and key, too
+  few entries, toast and Undo, nothing to group);
+  `ClaudeSettingsHandlerBrowserTest.SidebarAiSettings`;
+  `TodayTidierBrowserTest` with a fake Claude server (`TidiesAndUndoes`,
+  `TidyButtonAndUndoToast` through the page, `NothingWithTheSwitchOff`: no
+  button, no request).
 
 ## As built on iOS (A6, first part: A1, A2)
 

@@ -175,7 +175,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, DevToolsSetting) {
 }
 
 // Claude in the sidebar (docs/design/ai-sidebar.md): "Name Link Folders"
-// off, and its model Claude Haiku, by default.
+// and "Tidy Today" off, and their models Claude Haiku, by default.
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, SidebarAiSettings) {
   mojom::SettingsStatePtr state = State();
   EXPECT_TRUE(state->sidebar_supported);
@@ -189,6 +189,19 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, SidebarAiSettings) {
   EXPECT_TRUE(prefs()->GetBoolean(prefs::kNameLinkFolders));
   remote_->SetNameLinkFoldersModel("");
   EXPECT_EQ(State()->name_link_folders_model, "claude-haiku-5-5");
+
+  // "Tidy Today": a switch and a model of its own.
+  EXPECT_FALSE(state->tidy_today);
+  EXPECT_EQ(state->tidy_today_model, "claude-haiku-5-5");
+  remote_->SetTidyToday(true);
+  remote_->SetTidyTodayModel("claude-opus-5-5");
+  state = State();
+  EXPECT_TRUE(state->tidy_today);
+  EXPECT_EQ(state->tidy_today_model, "claude-opus-5-5");
+  EXPECT_EQ(state->name_link_folders_model, "claude-haiku-5-5");
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kTidyToday));
+  remote_->SetTidyTodayModel(" ");
+  EXPECT_EQ(State()->tidy_today_model, "claude-haiku-5-5");
 }
 
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, EndpointRules) {

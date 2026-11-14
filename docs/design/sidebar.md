@@ -973,6 +973,15 @@ moves it with its tabs.
   closes every Today tab, in folders and splits too, each as its close
   button would (`ClearToday()`; beforeunload can keep one), and removes the
   folders left without a tab. Pinned stays.
+- "Tidy", before Clear in Today's header and shown the same way, asks
+  Claude to group Today's loose entries into named folders
+  (docs/design/ai-sidebar.md, "Tidy Today"): only while its own switch,
+  "Tidy Today", is on and Claude is set up, never in incognito
+  (`Page.TidyChanged()`); disabled with fewer than 5 loose entries (tabs
+  and splits at Today's top), and pulsing as "Tidying…" while Claude
+  answers. The result is a toast at the bottom of the sidebar, "Tidied
+  into N folders" with Undo (`Page.ShowToast()`, `UndoTidy()`), or why it
+  didn't work. The command bar has "Tidy Today" too.
 - A Today folder closes when its last entry leaves: closed, archived,
   moved out or pinned, and so on up its emptied parents. A new folder,
   empty, stays until something has been in it. Sync's apply is exempt

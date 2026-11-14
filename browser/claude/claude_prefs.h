@@ -80,6 +80,11 @@ inline constexpr char kNameLinkFolders[] = "compass.claude.name_link_folders";
 // keeps kModel).
 inline constexpr char kNameLinkFoldersModel[] =
     "compass.claude.name_link_folders_model";
+// "Tidy Today": Today's header and the command bar offer "Tidy", which asks
+// Claude to group Today's loose entries into named folders.
+inline constexpr char kTidyToday[] = "compass.claude.tidy_today";
+// The model "Tidy Today" asks.
+inline constexpr char kTidyTodayModel[] = "compass.claude.tidy_today_model";
 
 enum class FilesAccess {
   kOff = 0,

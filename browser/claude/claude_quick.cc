@@ -5,11 +5,13 @@
 #include "compass/browser/claude/claude_quick.h"
 
 #include <algorithm>
+#include <set>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/i18n/char_iterator.h"
 #include "base/json/json_reader.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -116,6 +118,62 @@ std::optional<std::u16string> SanitizeAiName(std::string_view name) {
     return std::nullopt;
   }
   return text;
+}
+
+TidyFolder::TidyFolder() = default;
+TidyFolder::TidyFolder(TidyFolder&&) = default;
+TidyFolder& TidyFolder::operator=(TidyFolder&&) = default;
+TidyFolder::~TidyFolder() = default;
+
+std::vector<TidyFolder> ParseTidyReply(const base::DictValue& reply,
+                                       const std::vector<std::string>& ids) {
+  std::vector<TidyFolder> folders;
+  const base::ListValue* list = reply.FindList("folders");
+  if (!list) {
+    return folders;
+  }
+  const std::set<std::string> known(ids.begin(), ids.end());
+  std::set<std::string> taken;
+  for (const base::Value& item : *list) {
+    if (folders.size() == kMaxTidyFolders) {
+      break;
+    }
+    const base::DictValue* dict = item.GetIfDict();
+    const std::string* name = dict ? dict->FindString("name") : nullptr;
+    const base::ListValue* entries = dict ? dict->FindList("entries") : nullptr;
+    if (!name || !entries) {
+      continue;
+    }
+    std::optional<std::u16string> sanitized = SanitizeAiName(*name);
+    if (!sanitized) {
+      continue;
+    }
+    TidyFolder folder;
+    folder.name = std::move(*sanitized);
+    std::set<std::string> in_folder;
+    for (const base::Value& entry : *entries) {
+      // Ids are strings; a number for one is taken too.
+      std::string id;
+      if (entry.is_string()) {
+        id = entry.GetString();
+      } else if (entry.is_int()) {
+        id = base::NumberToString(entry.GetInt());
+      } else {
+        continue;
+      }
+      if (!known.contains(id) || taken.contains(id) ||
+          !in_folder.insert(id).second) {
+        continue;
+      }
+      folder.entries.push_back(std::move(id));
+    }
+    if (folder.entries.size() < kMinTidyFolderEntries) {
+      continue;
+    }
+    taken.insert(folder.entries.begin(), folder.entries.end());
+    folders.push_back(std::move(folder));
+  }
+  return folders;
 }
 
 std::string SidebarPromptFrom(std::string_view prompts,

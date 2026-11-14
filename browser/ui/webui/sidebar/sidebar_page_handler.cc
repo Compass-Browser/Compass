@@ -328,11 +328,21 @@ SidebarPageHandler::SidebarPageHandler(
           LiveFolderService::Get(browser_->GetProfile())) {
     live_folders_observation_.Observe(live_folders);
   }
-  // Claude's names for link folders; incognito windows have none.
+  // Claude's names for link folders, and Tidy Today; incognito windows
+  // have neither.
   if (!browser_->GetProfile()->IsOffTheRecord()) {
     if (LinkFolderNamer* namer =
             LinkFolderNamer::Get(browser_->GetProfile())) {
       namer_observation_.Observe(namer);
+    }
+    if (TodayTidier* tidier = TodayTidier::Get(browser_->GetProfile())) {
+      tidier_observation_.Observe(tidier);
+      tidy_prefs_.Init(browser_->GetProfile()->GetPrefs());
+      const base::RepeatingClosure send = base::BindRepeating(
+          &SidebarPageHandler::SendTidyState, base::Unretained(this),
+          /*force=*/false);
+      tidy_prefs_.Add(claude::prefs::kTidyToday, send);
+      tidy_prefs_.Add(claude::prefs::kApiKey, send);
     }
   }
   if (page_contents_) {
@@ -357,6 +367,8 @@ void SidebarPageHandler::StopObserving() {
   registry().RemoveObserver(this);
   live_folders_observation_.Reset();
   namer_observation_.Reset();
+  tidier_observation_.Reset();
+  tidy_prefs_.RemoveAll();
   claude::ClaudeActivity::RemoveObserver(this);
   features_->RemoveObserver(this);
   if (SpaceDirectory* directory = this->directory()) {
@@ -391,6 +403,7 @@ void SidebarPageHandler::RequestTree() {
   }
   SendArchive();
   SendNowPlaying();
+  SendTidyState(/*force=*/true);
 }
 
 void SidebarPageHandler::TreeShown() {
@@ -1374,6 +1387,60 @@ void SidebarPageHandler::OnNodeChanged(const SidebarNode& node) {
     page_->LiveFolderChanged(node.id().AsLowercaseString(),
                              ToMojoLiveFolder(node));
   }
+}
+
+void SidebarPageHandler::TidyToday() {
+  if (TodayTidier* tidier = tidier_observation_.GetSource()) {
+    tidier->Tidy(space_model());
+  }
+}
+
+void SidebarPageHandler::UndoTidy(int32_t undo_tidy_id) {
+  if (TodayTidier* tidier = tidier_observation_.GetSource()) {
+    tidier->Undo(undo_tidy_id);
+  }
+}
+
+void SidebarPageHandler::OnTidyBusyChanged(const base::Uuid& space_id) {
+  if (observed_space_ && space_id == space_model().id()) {
+    SendTidyState();
+  }
+}
+
+void SidebarPageHandler::OnTidied(const base::Uuid& space_id,
+                                  int undo_id,
+                                  size_t folders) {
+  if (!observed_space_ || space_id != space_model().id()) {
+    return;
+  }
+  page_->ShowToast(folders == 1 ? std::string("Tidied into 1 folder")
+                                : "Tidied into " +
+                                      base::NumberToString(folders) +
+                                      " folders",
+                   undo_id);
+}
+
+void SidebarPageHandler::OnTidyFailed(const base::Uuid& space_id,
+                                      const std::string& message) {
+  if (observed_space_ && space_id == space_model().id()) {
+    page_->ShowToast(message, 0);
+  }
+}
+
+void SidebarPageHandler::SendTidyState(bool force) {
+  if (!observed_space_) {
+    return;
+  }
+  TodayTidier* tidier = tidier_observation_.GetSource();
+  const bool available = tidier && tidier->IsEnabled() &&
+                         space_model().kind() == SpaceModel::Kind::kSpace;
+  const bool busy = tidier && tidier->IsBusy(space_model().id());
+  const std::pair<bool, bool> state(available, busy);
+  if (!force && tidy_state_ == state) {
+    return;
+  }
+  tidy_state_ = state;
+  page_->TidyChanged(available, busy);
 }
 
 void SidebarPageHandler::OnFolderNamed(const base::Uuid& folder_id) {

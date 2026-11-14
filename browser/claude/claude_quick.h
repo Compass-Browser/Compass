@@ -33,8 +33,8 @@ namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
 
-// Claude's small background requests for the sidebar: names for link
-// folders now, Tidy Today and short titles later. See
+// Claude's small requests for the sidebar: names for link folders and Tidy
+// Today now, short titles later. See
 // docs/design/ai-sidebar.md, "Shared core".
 namespace compass::claude {
 
@@ -51,6 +51,32 @@ inline constexpr size_t kMaxAiNameWords = 3;
 // at most kMaxAiNameLength characters, with no emoji, control characters,
 // line breaks or markup. Null if it can't be one.
 std::optional<std::u16string> SanitizeAiName(std::string_view name);
+
+// Tidy Today (docs/design/ai-sidebar.md): the most folders one reply makes,
+// and the fewest entries a folder takes.
+inline constexpr size_t kMaxTidyFolders = 6;
+inline constexpr size_t kMinTidyFolderEntries = 2;
+
+// A folder Tidy Today's reply asks for: its name (as SanitizeAiName() left
+// it) and its entries' ids, in the reply's order.
+struct TidyFolder {
+  TidyFolder();
+  TidyFolder(TidyFolder&&);
+  TidyFolder& operator=(TidyFolder&&);
+  ~TidyFolder();
+
+  std::u16string name;
+  std::vector<std::string> entries;
+};
+
+// The folders of Tidy Today's reply, {"folders": [{"name": "…", "entries":
+// ["<id>", …]}, …]}, that may be made: ids not in |ids|, or in this folder
+// or an earlier one already, are dropped; then a folder whose name
+// SanitizeAiName() drops, or with fewer than kMinTidyFolderEntries entries
+// left, is dropped. At most the first kMaxTidyFolders that pass. Empty for
+// a reply of another shape.
+std::vector<TidyFolder> ParseTidyReply(const base::DictValue& reply,
+                                       const std::vector<std::string>& ids);
 
 // The section |id| ("## <id>") of |prompts| (common/claude/
 // sidebar_prompts.md's text), trimmed, with {locale} replaced by |locale|.
@@ -73,7 +99,7 @@ struct QuickRequest {
   // Capped at ClaudeQuick::kMaxTokens.
   int max_tokens = 100;
   // An automatic request, which counts against the hourly limit and waits
-  // out the back-off. One the user asked for (Suggest a Name) doesn't.
+  // out the back-off. One the user asked for (Suggest a Name, Tidy) doesn't.
   bool background = true;
 };
 
@@ -117,7 +143,8 @@ enum class QuickError {
 // record and for guests: incognito never asks.
 class ClaudeQuick : public KeyedService {
  public:
-  static constexpr int kMaxTokens = 200;
+  // Enough for Tidy Today's reply, which lists its folders' entries.
+  static constexpr int kMaxTokens = 400;
   static constexpr base::TimeDelta kTimeout = base::Seconds(15);
   static constexpr size_t kMaxBackgroundPerHour = 30;
   static constexpr base::TimeDelta kFirstBackOff = base::Minutes(1);

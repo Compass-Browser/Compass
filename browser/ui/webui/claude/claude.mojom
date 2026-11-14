@@ -77,6 +77,9 @@ struct SettingsState {
   bool name_link_folders;
   // The model it asks (each feature has its own).
   string name_link_folders_model;
+  // "Tidy Today", and its model.
+  bool tidy_today;
+  string tidy_today_model;
 };
 
 // A fact Claude saved about the user.
@@ -142,4 +145,7 @@ interface SettingsHandler {
   SetNameLinkFolders(bool enabled);
   // Empty goes back to the default (Claude Haiku).
   SetNameLinkFoldersModel(string model);
+  SetTidyToday(bool enabled);
+  // Empty goes back to the default (Claude Haiku).
+  SetTidyTodayModel(string model);
 };

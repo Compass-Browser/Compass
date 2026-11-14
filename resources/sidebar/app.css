@@ -686,13 +686,109 @@ compass-sidebar-preview[side='next'] {
   margin-inline-start: 0;
 }
 
+/* Tidy Today (docs/design/ai-sidebar.md): beside Clear, shown as Clear is,
+ * and while Claude tidies. */
+#tidyToday {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  height: 20px;
+  margin-inline-start: auto;
+  opacity: 0;
+  padding: 0 6px;
+  text-transform: inherit;
+  transition: opacity 120ms;
+}
+
+#tidyToday + #clearToday,
+#tidyToday + #newTodayFolder {
+  margin-inline-start: 0;
+}
+
+#tidyToday:disabled {
+  cursor: default;
+}
+
+.section-header:hover #tidyToday:not(:disabled),
+#tidyToday:focus-visible {
+  opacity: 1;
+}
+
+.section-header:hover #tidyToday:disabled {
+  opacity: 0.4;
+}
+
+#tidyToday[busy] {
+  animation: tidy-busy 1.2s ease-in-out infinite;
+}
+
+@keyframes tidy-busy {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tidyToday[busy] {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
 .section-header:hover #clearToday,
 #clearToday:focus-visible {
   opacity: 1;
 }
 
-#clearToday:hover {
+#clearToday:hover,
+#tidyToday:hover:not(:disabled) {
   background: rgba(128, 128, 128, 0.2);
+}
+
+/* Tidy's result, with Undo, at the bottom of the sidebar. */
+#toast {
+  align-items: center;
+  backdrop-filter: blur(12px);
+  background: rgba(40, 40, 40, 0.92);
+  border-radius: 8px;
+  bottom: 44px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  color: white;
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  inset-inline: 10px;
+  padding: 6px 6px 6px 10px;
+  position: absolute;
+  z-index: 5;
+}
+
+#toast .text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#toast button {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  padding: 2px 6px;
+}
+
+#toastUndo {
+  font-weight: 600;
+}
+
+#toast button:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .new-folder:hover,

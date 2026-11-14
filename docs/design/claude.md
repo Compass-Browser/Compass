@@ -247,9 +247,11 @@ approves each write.
     Every switch is disabled, with a line saying why, until a key is saved
     (Claude Code mode alone doesn't answer these requests yet). For now:
     "Name Link Folders" (`compass.claude.name_link_folders`,
-    `compass.claude.name_link_folders_model`). The requests go through
-    `ClaudeQuick` (`browser/claude/claude_quick.*`), on the chat's endpoint,
-    auth style and cache level, with the calling feature's switch and model.
+    `compass.claude.name_link_folders_model`) and "Tidy Today"
+    (`compass.claude.tidy_today`, `compass.claude.tidy_today_model`). The
+    requests go through `ClaudeQuick` (`browser/claude/claude_quick.*`), on
+    the chat's endpoint, auth style and cache level, with the calling
+    feature's switch and model.
 
 ### Developer tools
 

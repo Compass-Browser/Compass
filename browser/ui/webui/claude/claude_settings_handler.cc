@@ -173,6 +173,8 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->name_link_folders = prefs->GetBoolean(prefs::kNameLinkFolders);
   state->name_link_folders_model =
       prefs->GetString(prefs::kNameLinkFoldersModel);
+  state->tidy_today = prefs->GetBoolean(prefs::kTidyToday);
+  state->tidy_today_model = prefs->GetString(prefs::kTidyTodayModel);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -271,13 +273,25 @@ void ClaudeSettingsHandler::SetNameLinkFolders(bool enabled) {
 
 void ClaudeSettingsHandler::SetNameLinkFoldersModel(
     const std::string& model) {
+  SetFeatureModel(prefs::kNameLinkFoldersModel, model);
+}
+
+void ClaudeSettingsHandler::SetTidyToday(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kTidyToday, enabled);
+}
+
+void ClaudeSettingsHandler::SetTidyTodayModel(const std::string& model) {
+  SetFeatureModel(prefs::kTidyTodayModel, model);
+}
+
+void ClaudeSettingsHandler::SetFeatureModel(const char* pref,
+                                            const std::string& model) {
   const std::string_view trimmed =
       base::TrimWhitespaceASCII(model, base::TRIM_ALL);
   if (trimmed.empty()) {
-    profile_->GetPrefs()->ClearPref(prefs::kNameLinkFoldersModel);
+    profile_->GetPrefs()->ClearPref(pref);
   } else {
-    profile_->GetPrefs()->SetString(prefs::kNameLinkFoldersModel,
-                                    std::string(trimmed));
+    profile_->GetPrefs()->SetString(pref, std::string(trimmed));
   }
 }
 

@@ -26,11 +26,13 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/claude/link_folder_namer.h"
+#include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/sync_device_info/remote_device_info.h"
 #include "ui/menus/simple_menu_model.h"
 
@@ -67,6 +69,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public claude::ClaudeActivity::Observer,
                            public LiveFolderService::Observer,
                            public LinkFolderNamer::Observer,
+                           public TodayTidier::Observer,
                            public TabStripModelObserver {
  public:
   // What the entries' context menus offer (docs/design/sidebar.md, "Context
@@ -147,6 +150,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ActivateNode(const std::string& id) override;
   void CloseNode(const std::string& id) override;
   void ClearToday() override;
+  void TidyToday() override;
+  void UndoTidy(int32_t undo_tidy_id) override;
   void NewTab() override;
   void SetNodeMuted(const std::string& id, bool muted) override;
   void MoveNode(const std::string& id,
@@ -222,6 +227,14 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   // LinkFolderNamer::Observer:
   void OnFolderNamed(const base::Uuid& folder_id) override;
+
+  // TodayTidier::Observer:
+  void OnTidyBusyChanged(const base::Uuid& space_id) override;
+  void OnTidied(const base::Uuid& space_id,
+                int undo_id,
+                size_t folders) override;
+  void OnTidyFailed(const base::Uuid& space_id,
+                    const std::string& message) override;
 
   // Tells the page about a swipe across the sidebar (CompassSidebarView).
   void SendSwipe(sidebar::mojom::SwipePhase phase, float delta_x);
@@ -314,6 +327,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
       const GURL& url);
   send_tab_to_self::SendTabToSelfModel* send_tab_model();
   void SendNowPlaying();
+  // Whether Today's header offers Tidy, and whether one is on its way
+  // (Page.TidyChanged()); sent when it changed, or with |force|.
+  void SendTidyState(bool force = false);
 
   // The node with |id| in the window's space or the favorites, or null if
   // there is none (the page can be behind).
@@ -358,6 +374,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
       live_folders_observation_{this};
   base::ScopedObservation<LinkFolderNamer, LinkFolderNamer::Observer>
       namer_observation_{this};
+  base::ScopedObservation<TodayTidier, TodayTidier::Observer>
+      tidier_observation_{this};
+  // Tidy Today's switch and the key: whether Today's header offers Tidy.
+  PrefChangeRegistrar tidy_prefs_;
+  // What Page.TidyChanged() last said: available, busy.
+  std::optional<std::pair<bool, bool>> tidy_state_;
   // The window's now playing widgets. Only with a page: unit tests have no
   // media session service.
   std::unique_ptr<NowPlayingTracker> now_playing_;

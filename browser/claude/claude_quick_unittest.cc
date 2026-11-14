@@ -12,6 +12,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -26,6 +27,7 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compass::claude {
@@ -321,6 +323,71 @@ TEST_F(ClaudeQuickTest, SanitizeAiName) {
   EXPECT_EQ(name("\xff\xfe"), "(dropped)");
 }
 
+// Tidy Today's reply (docs/design/ai-sidebar.md): folders of 2 or more
+// known entries, each in one folder, with names that pass, at most 6.
+TEST_F(ClaudeQuickTest, ParseTidyReply) {
+  const std::vector<std::string> ids = {"1", "2", "3", "4", "5",
+                                        "6", "7", "8", "9", "10",
+                                        "11", "12", "13", "14"};
+  auto parse = [&](std::string_view json) {
+    std::optional<base::DictValue> reply = ParseQuickReply(json);
+    EXPECT_TRUE(reply) << json;
+    const base::DictValue empty;
+    std::vector<std::string> folders;
+    for (const TidyFolder& folder :
+         ParseTidyReply(reply ? *reply : empty, ids)) {
+      folders.push_back(base::UTF16ToUTF8(folder.name) + ":" +
+                        base::JoinString(folder.entries, ","));
+    }
+    return folders;
+  };
+  using ::testing::ElementsAre;
+  using ::testing::IsEmpty;
+
+  EXPECT_THAT(parse(R"({"folders": [
+      {"name": "Rust Async", "entries": ["1", "4"]},
+      {"name": "Trip to Lisbon", "entries": ["2", "3", "5"]}]})"),
+              ElementsAre("Rust Async:1,4", "Trip to Lisbon:2,3,5"));
+  EXPECT_THAT(parse(R"({"folders": []})"), IsEmpty());
+  // Another shape: nothing.
+  EXPECT_THAT(parse(R"({"name": "X"})"), IsEmpty());
+  EXPECT_THAT(parse(R"({"folders": {"name": "X"}})"), IsEmpty());
+
+  // Unknown ids, and ids repeated in a folder or taken by an earlier one,
+  // are dropped; a folder left with one entry goes, and frees it.
+  EXPECT_THAT(parse(R"({"folders": [
+      {"name": "Docs", "entries": ["1", "99", "1", "2", "x", null]},
+      {"name": "Mail", "entries": ["2", "3"]},
+      {"name": "News", "entries": ["3", "4", "2"]}]})"),
+              ElementsAre("Docs:1,2", "News:3,4"));
+  // A number for an id is taken as one.
+  EXPECT_THAT(parse(R"({"folders": [{"name": "Docs", "entries": [5, 6]}]})"),
+              ElementsAre("Docs:5,6"));
+
+  // Singletons and folders without a name that passes are dropped.
+  EXPECT_THAT(parse(R"({"folders": [
+      {"name": "Alone", "entries": ["1"]},
+      {"name": "Four Words Are Many", "entries": ["2", "3"]},
+      {"name": "", "entries": ["4", "5"]},
+      {"entries": ["6", "7"]},
+      {"name": "Party \ud83c\udf89", "entries": ["8", "9"]},
+      {"name": "\"Recipes.\"", "entries": ["10", "11"]}]})"),
+              ElementsAre("Recipes:10,11"));
+
+  // At most six folders: the first six that pass.
+  EXPECT_THAT(parse(R"({"folders": [
+      {"name": "Bad", "entries": ["1"]},
+      {"name": "A", "entries": ["1", "2"]},
+      {"name": "B", "entries": ["3", "4"]},
+      {"name": "C", "entries": ["5", "6"]},
+      {"name": "D", "entries": ["7", "8"]},
+      {"name": "E", "entries": ["9", "10"]},
+      {"name": "F", "entries": ["11", "12"]},
+      {"name": "G", "entries": ["13", "14"]}]})"),
+              ElementsAre("A:1,2", "B:3,4", "C:5,6", "D:7,8", "E:9,10",
+                          "F:11,12"));
+}
+
 TEST_F(ClaudeQuickTest, SidebarPrompts) {
   constexpr char kPrompts[] =
       "# Prompts\n\nIntro, not sent.\n\n"
@@ -336,6 +403,11 @@ TEST_F(ClaudeQuickTest, SidebarPrompts) {
   EXPECT_NE(built.find("{\"name\""), std::string::npos);
   EXPECT_NE(built.find("en-US"), std::string::npos);
   EXPECT_EQ(built.find("{locale}"), std::string::npos);
+  // And Tidy Today's.
+  const std::string tidy = SidebarPrompt("tidy_today", "it-IT");
+  EXPECT_NE(tidy.find("{\"folders\""), std::string::npos);
+  EXPECT_NE(tidy.find("it-IT"), std::string::npos);
+  EXPECT_EQ(tidy.find("## "), std::string::npos);
 }
 
 }  // namespace

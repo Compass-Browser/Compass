@@ -36,6 +36,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kNameLinkFolders, false);
   // claude_quick.h's kDefaultQuickModel.
   registry->RegisterStringPref(kNameLinkFoldersModel, "claude-haiku-5-5");
+  registry->RegisterBooleanPref(kTidyToday, false);
+  registry->RegisterStringPref(kTidyTodayModel, "claude-haiku-5-5");
 }
 
 }  // namespace compass::claude::prefs

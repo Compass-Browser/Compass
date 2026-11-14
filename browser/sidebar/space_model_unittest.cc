@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <cmath>
 
 #include "compass/browser/sidebar/space_model.h"
@@ -1059,6 +1060,148 @@ TEST_F(SpaceModelTest, WithoutPinnedNothingGoesThere) {
   EXPECT_FALSE(
       other.CanMoveToSpace(other_tab, model_, model_.pinned_root()));
   EXPECT_TRUE(other.CanMoveToSpace(other_tab, model_, model_.today_root()));
+}
+
+// The titles of |parent|'s children, folders as "Name[a,b]" and splits as
+// "a+b".
+std::string Outline(const SidebarNode& parent) {
+  std::string text;
+  for (const auto& child : parent.children()) {
+    if (!text.empty()) {
+      text += " ";
+    }
+    switch (child->type()) {
+      case SidebarNode::Type::kFolder: {
+        std::string inner = Outline(*child);
+        std::ranges::replace(inner, ' ', ',');
+        text += base::UTF16ToUTF8(child->title()) + "[" + inner + "]";
+        break;
+      }
+      case SidebarNode::Type::kSplit: {
+        std::string panes = Outline(*child);
+        std::ranges::replace(panes, ' ', '+');
+        text += panes;
+        break;
+      }
+      default:
+        text += base::UTF16ToUTF8(child->title());
+    }
+  }
+  return text;
+}
+
+// Tidy Today (docs/design/ai-sidebar.md): each group becomes a folder named
+// by Claude where its topmost entry was; folders, Pinned and entries in no
+// group stay; Undo puts everything back exactly, splits too.
+TEST_F(SpaceModelTest, TidyTodayAndUndo) {
+  using NameSource = SidebarNode::NameSource;
+  SidebarNode* today = model_.today_root();
+  Tab(model_.pinned_root(), "pin");
+  SidebarNode* a = Tab(today, "a");
+  SidebarNode* b = Tab(today, "b");
+  SidebarNode* old_folder = model_.AddFolder(today, today->children().size(),
+                                             u"Old");
+  SidebarNode* inner = Tab(old_folder, "inner");
+  SidebarNode* c = Tab(today, "c");
+  SidebarNode* d = Tab(today, "d");
+  SidebarNode* split = model_.Split(d, Tab(today, "e"));
+  SidebarNode* f = Tab(today, "f");
+  SidebarNode* g = Tab(today, "g");
+  const std::string before = Outline(*today);
+  EXPECT_EQ(before, "a b Old[inner] c d+e f g");
+  EXPECT_TRUE(model_.IsLooseTodayEntry(a));
+  EXPECT_TRUE(model_.IsLooseTodayEntry(split));
+  EXPECT_FALSE(model_.IsLooseTodayEntry(old_folder));
+  EXPECT_FALSE(model_.IsLooseTodayEntry(inner));
+  EXPECT_FALSE(model_.IsLooseTodayEntry(split->children()[0].get()));
+  EXPECT_FALSE(
+      model_.IsLooseTodayEntry(model_.pinned_root()->children()[0].get()));
+
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+  std::vector<SpaceModel::TidyGroup> groups;
+  // In Claude's order; the folder takes Today's.
+  groups.emplace_back(u"Letters",
+                      std::vector<base::Uuid>{f->id(), split->id(), a->id()});
+  // Taken already, a folder, a pane, Pinned's, unknown: none count, and
+  // one entry left makes no folder.
+  groups.emplace_back(
+      u"Rest",
+      std::vector<base::Uuid>{a->id(), old_folder->id(), inner->id(),
+                              split->children()[1]->id(),
+                              model_.pinned_root()->children()[0]->id(),
+                              base::Uuid::GenerateRandomV4(), b->id()});
+  groups.emplace_back(u"More", std::vector<base::Uuid>{g->id(), c->id()});
+  SpaceModel::TodayTidy tidy = model_.TidyToday(std::move(groups));
+  model_.RemoveObserver(&observer);
+  EXPECT_EQ(Outline(*today), "Letters[a,d+e,f] b Old[inner] More[c,g]");
+  ASSERT_EQ(tidy.folders.size(), 2u);
+  SidebarNode* letters = model_.FindById(tidy.folders[0]);
+  ASSERT_TRUE(letters);
+  EXPECT_EQ(letters->name_source(), NameSource::kClaude);
+  // Undo Name works on it.
+  EXPECT_EQ(letters->name_before_claude(),
+            SpaceModel::kTidyFolderPlaceholder);
+  EXPECT_EQ(split->parent(), letters);
+  EXPECT_EQ(split->children().size(), 2u);
+  // Nothing removed: the entries keep their nodes (and live tabs).
+  EXPECT_THAT(observer.events,
+              ::testing::Not(Contains(::testing::StartsWith("removed"))));
+  EXPECT_EQ(Outline(*model_.pinned_root()), "pin");
+
+  // Undo: exactly as before, the same nodes, the folders gone.
+  EXPECT_TRUE(model_.UndoTidy(tidy));
+  EXPECT_EQ(Outline(*today), before);
+  EXPECT_EQ(today->children()[0].get(), a);
+  EXPECT_EQ(today->children()[4].get(), split);
+  EXPECT_EQ(split->children().size(), 2u);
+  EXPECT_FALSE(model_.FindById(tidy.folders[0]));
+  EXPECT_FALSE(model_.FindById(tidy.folders[1]));
+  EXPECT_EQ(inner->parent(), old_folder);
+  // Once.
+  EXPECT_FALSE(model_.UndoTidy(tidy));
+  EXPECT_EQ(Outline(*today), before);
+}
+
+// What changed after Tidy: a new entry stays on top, one added to a tidied
+// folder is left loose, one closed or moved out stays so; Undo needs one of
+// the folders still there.
+TEST_F(SpaceModelTest, UndoTidyAfterChanges) {
+  SidebarNode* today = model_.today_root();
+  SidebarNode* a = Tab(today, "a");
+  SidebarNode* b = Tab(today, "b");
+  SidebarNode* c = Tab(today, "c");
+  SidebarNode* d = Tab(today, "d");
+  Tab(today, "e");
+  std::vector<SpaceModel::TidyGroup> groups;
+  groups.emplace_back(u"One", std::vector<base::Uuid>{b->id(), d->id()});
+  groups.emplace_back(u"Two", std::vector<base::Uuid>{a->id(), c->id()});
+  SpaceModel::TodayTidy tidy = model_.TidyToday(std::move(groups));
+  EXPECT_EQ(Outline(*today), "Two[a,c] One[b,d] e");
+
+  model_.AddTab(today, 0, GURL("https://new.test/"), u"new");
+  SidebarNode* one = model_.FindById(tidy.folders[0]);
+  model_.AddTab(one, 1, GURL("https://added.test/"), u"added");
+  model_.Remove(c);
+  model_.Move(a, model_.pinned_root(), 0);
+  EXPECT_EQ(Outline(*today), "new One[b,added,d] e");
+  EXPECT_TRUE(model_.UndoTidy(tidy));
+  EXPECT_EQ(Outline(*today), "new added b d e");
+  EXPECT_EQ(Outline(*model_.pinned_root()), "a");
+
+  // A tidy whose folders are all gone can't be undone.
+  SidebarNode* f = Tab(today, "f");
+  std::vector<SpaceModel::TidyGroup> again;
+  again.emplace_back(u"Three", std::vector<base::Uuid>{b->id(), f->id()});
+  SpaceModel::TodayTidy second = model_.TidyToday(std::move(again));
+  ASSERT_EQ(second.folders.size(), 1u);
+  model_.Remove(model_.FindById(second.folders[0]));
+  EXPECT_FALSE(model_.UndoTidy(second));
+
+  // Nothing to group: no folders.
+  std::vector<SpaceModel::TidyGroup> none;
+  none.emplace_back(u"Alone", std::vector<base::Uuid>{d->id()});
+  EXPECT_TRUE(model_.TidyToday(std::move(none)).folders.empty());
 }
 
 }  // namespace

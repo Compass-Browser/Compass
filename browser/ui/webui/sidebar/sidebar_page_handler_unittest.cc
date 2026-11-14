@@ -9,9 +9,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback_helpers.h"
+#include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -171,6 +173,15 @@ class FakePage : public sidebar::mojom::Page {
   void FolderNamed(const std::string& id) override {
     events_.push_back("named " + id);
   }
+  // Tidy Today: kept apart from the events, which other tests compare whole.
+  void TidyChanged(bool available, bool busy) override {
+    tidy_available_ = available;
+    tidy_busy_ = busy;
+  }
+  void ShowToast(const std::string& text, int32_t undo_tidy_id) override {
+    toasts_.push_back(text + (undo_tidy_id ? " (Undo)" : ""));
+    last_undo_tidy_id_ = undo_tidy_id;
+  }
   // No tracker without a page: see now_playing_browsertest.cc.
   void SetNowPlaying(
       std::vector<sidebar::mojom::NowPlayingPtr> items) override {}
@@ -186,6 +197,10 @@ class FakePage : public sidebar::mojom::Page {
   }
   uint32_t archive_after_hours() const { return archive_after_hours_; }
   bool synced() const { return synced_; }
+  bool tidy_available() const { return tidy_available_; }
+  bool tidy_busy() const { return tidy_busy_; }
+  std::vector<std::string> TakeToasts() { return std::move(toasts_); }
+  int32_t last_undo_tidy_id() const { return last_undo_tidy_id_; }
   const std::vector<sidebar::mojom::ProfileOptionPtr>& profiles() const {
     return profiles_;
   }
@@ -205,6 +220,10 @@ class FakePage : public sidebar::mojom::Page {
   std::string spaces_;
   uint32_t archive_after_hours_ = 0;
   bool synced_ = true;
+  bool tidy_available_ = false;
+  bool tidy_busy_ = false;
+  std::vector<std::string> toasts_;
+  int32_t last_undo_tidy_id_ = 0;
   std::vector<sidebar::mojom::ProfileOptionPtr> profiles_;
   std::vector<sidebar::mojom::ArchivedEntryPtr> archive_;
 };
@@ -721,6 +740,122 @@ TEST_F(SidebarPageHandlerTest, ClaudeFolderNameMenus) {
   EXPECT_EQ(folder->title(), u"Async");
   EXPECT_EQ(folder->name_source(), NameSource::kUser);
   prefs->ClearPref(claude::prefs::kApiKey);
+}
+
+base::DictValue JsonDict(std::string_view json) {
+  return base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC)
+      .value_or(base::DictValue());
+}
+
+// Today's entries as hosts, folders as "Name[hosts]".
+std::string TodayOutline(const SpaceModel& space) {
+  std::string text;
+  for (const auto& entry : space.today_root()->children()) {
+    if (!text.empty()) {
+      text += " ";
+    }
+    if (entry->type() == SidebarNode::Type::kFolder) {
+      std::string inner;
+      for (const auto& child : entry->children()) {
+        inner += (inner.empty() ? "" : ",") + std::string(child->url().host());
+      }
+      text += base::UTF16ToUTF8(entry->title()) + "[" + inner + "]";
+    } else {
+      text += std::string(entry->url().host());
+    }
+  }
+  return text;
+}
+
+// Tidy Today (docs/design/ai-sidebar.md): Today's header offers Tidy only
+// with its own switch on and a key saved; Tidy needs 5 loose entries; its
+// result is a toast whose Undo puts Today back.
+TEST_F(SidebarPageHandlerTest, TidyToday) {
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  TodayTidier* tidier = TodayTidier::Get(browser()->GetProfile());
+  ASSERT_TRUE(tidier);
+  // Off by default.
+  EXPECT_FALSE(page_.tidy_available());
+  prefs->SetBoolean(claude::prefs::kTidyToday, true);
+  Settle();
+  // Not set up yet.
+  EXPECT_FALSE(page_.tidy_available());
+  prefs->SetString(claude::prefs::kApiKey, "encrypted");
+  Settle();
+  EXPECT_TRUE(page_.tidy_available());
+  EXPECT_FALSE(page_.tidy_busy());
+  // Another feature's switch isn't this one's.
+  prefs->SetBoolean(claude::prefs::kTidyToday, false);
+  prefs->SetBoolean(claude::prefs::kNameLinkFolders, true);
+  Settle();
+  EXPECT_FALSE(page_.tidy_available());
+  prefs->SetBoolean(claude::prefs::kTidyToday, true);
+  Settle();
+  EXPECT_TRUE(page_.tidy_available());
+
+  // Two loose entries: too few, Tidy does nothing.
+  EXPECT_FALSE(tidier->CanTidy(space_model()));
+  handler_remote_->TidyToday();
+  Settle();
+  EXPECT_FALSE(page_.tidy_busy());
+  EXPECT_THAT(page_.TakeToasts(), IsEmpty());
+
+  // A folder doesn't count; tabs do.
+  SidebarNode* today = space_model().today_root();
+  SidebarNode* folder = space_model().AddFolder(today, 2, u"Old");
+  space_model().AddTab(folder, 0, GURL("https://inner.test/"), u"Inner");
+  for (const char* host : {"c", "d"}) {
+    space_model().AddTab(today, today->children().size(),
+                         GURL(std::string("https://") + host + ".test/"),
+                         u"Tab");
+  }
+  EXPECT_EQ(TodayTidier::LooseEntries(space_model()).size(), 4u);
+  EXPECT_FALSE(tidier->CanTidy(space_model()));
+  space_model().AddTab(today, today->children().size(),
+                       GURL("https://e.test/"), u"Tab");
+  EXPECT_TRUE(tidier->CanTidy(space_model()));
+  const std::string before = TodayOutline(space_model());
+  EXPECT_EQ(before, "a.test b.test Old[inner.test] c.test d.test e.test");
+
+  // Claude's reply (ids 1 to 5: the loose entries in order).
+  std::vector<base::Uuid> ids;
+  for (const SidebarNode* entry : TodayTidier::LooseEntries(space_model())) {
+    ids.push_back(entry->id());
+  }
+  tidier->Apply(space_model(), ids, JsonDict(R"({"folders": [
+      {"name": "Letters", "entries": ["2", "4"]},
+      {"name": "Vowels", "entries": ["1", "5", "9"]}]})"));
+  Settle();
+  EXPECT_EQ(TodayOutline(space_model()),
+            "Vowels[a.test,e.test] Letters[b.test,d.test] Old[inner.test] "
+            "c.test");
+  EXPECT_THAT(page_.TakeToasts(), ElementsAre("Tidied into 2 folders (Undo)"));
+  // Undo Name is there for the folders Tidy named.
+  EXPECT_THAT(MenuCommands(TodayId(0)), Contains(Command::kUndoName));
+
+  handler_remote_->UndoTidy(page_.last_undo_tidy_id());
+  Settle();
+  EXPECT_EQ(TodayOutline(space_model()), before);
+  // Once.
+  handler_remote_->UndoTidy(page_.last_undo_tidy_id());
+  Settle();
+  EXPECT_EQ(TodayOutline(space_model()), before);
+
+  // Nothing to group: a toast without Undo.
+  tidier->Apply(space_model(), ids,
+                JsonDict(R"({"folders": []})"));
+  Settle();
+  EXPECT_THAT(page_.TakeToasts(),
+              ElementsAre("Claude found nothing to group."));
+  EXPECT_EQ(TodayOutline(space_model()), before);
+
+  // Off again: hidden.
+  prefs->SetBoolean(claude::prefs::kTidyToday, false);
+  Settle();
+  EXPECT_FALSE(page_.tidy_available());
+  EXPECT_FALSE(tidier->CanTidy(space_model()));
+  prefs->ClearPref(claude::prefs::kApiKey);
+  prefs->ClearPref(claude::prefs::kNameLinkFolders);
 }
 
 TEST_F(SidebarPageHandlerTest, SwitchesSpacesAndSendsTheirTree) {

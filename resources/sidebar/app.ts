@@ -61,6 +61,18 @@ const ARCHIVE_DELAYS: ArchiveDelay[] = [
 const MAX_SPLIT_PANES = 4;
 
 const HOVER_CARD_DELAY_MS = 500;
+
+// Tidy Today (docs/design/ai-sidebar.md): fewer loose entries than this
+// aren't worth tidying (TodayTidier::kMinEntries).
+const TIDY_MIN_ENTRIES = 5;
+// How long a toast stays.
+const TOAST_MS = 8000;
+
+// A message at the bottom of the sidebar, with Undo for a tidy.
+export interface Toast {
+  text: string;
+  undoTidyId: number;
+}
 // Crossing the gap between two rows doesn't hide the card.
 const HOVER_CARD_HIDE_DELAY_MS = 100;
 
@@ -195,6 +207,9 @@ export class CompassSidebarAppElement extends CrLitElement {
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
       liveEditor_: {type: Object},
+      tidyAvailable_: {type: Boolean},
+      tidyBusy_: {type: Boolean},
+      toast_: {type: Object},
     };
   }
 
@@ -235,6 +250,12 @@ export class CompassSidebarAppElement extends CrLitElement {
   // playing").
   protected accessor nowPlaying_: NowPlaying[] = [];
   protected accessor archiveOpen_: boolean = false;
+  // Tidy Today (docs/design/ai-sidebar.md): offered in Today's header, and
+  // waiting for Claude.
+  protected accessor tidyAvailable_: boolean = false;
+  protected accessor tidyBusy_: boolean = false;
+  protected accessor toast_: Toast|null = null;
+  private toastTimer_: number|null = null;
   // The spaces before and after the window's, kept built so a swipe shows
   // them at once. They change only between slides.
   protected accessor previews_: Preview[] = [];
@@ -353,6 +374,13 @@ export class CompassSidebarAppElement extends CrLitElement {
         this.getRow_(id)?.closest('compass-sidebar-node')?.startRename(id);
       }),
       router.folderNamed.addListener((id: string) => this.onFolderNamed_(id)),
+      router.tidyChanged.addListener((available: boolean, busy: boolean) => {
+        this.tidyAvailable_ = available;
+        this.tidyBusy_ = busy;
+      }),
+      router.showToast.addListener(
+          (text: string, undoTidyId: number) =>
+              this.showToast_({text, undoTidyId})),
     ];
     // Diffs that arrive before the tree are about nodes the page doesn't know
     // yet, and the lookups below drop them. The tree already has them.
@@ -370,6 +398,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.hideHoverCard_();
+    this.hideToast_();
     document.removeEventListener('dragover', this.onDocumentDragover_);
     document.removeEventListener('drop', this.onDocumentDrop_);
     document.removeEventListener('dragleave', this.onDocumentDragleave_);
@@ -900,6 +929,48 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected onClearTodayClick_() {
     this.browserProxy_.handler.clearToday();
+  }
+
+  // Tidy Today: Today's tabs and splits, not its folders.
+  protected getLooseTodayCount_(): number {
+    return this.getToday_().filter(node => node.type !== NodeType.kFolder)
+        .length;
+  }
+
+  protected canTidy_(): boolean {
+    return !this.tidyBusy_ && this.getLooseTodayCount_() >= TIDY_MIN_ENTRIES;
+  }
+
+  protected onTidyClick_() {
+    if (this.canTidy_()) {
+      this.browserProxy_.handler.tidyToday();
+    }
+  }
+
+  private showToast_(toast: Toast) {
+    this.hideToast_();
+    this.toast_ = toast;
+    this.toastTimer_ = setTimeout(() => this.hideToast_(), TOAST_MS);
+  }
+
+  private hideToast_() {
+    if (this.toastTimer_ !== null) {
+      clearTimeout(this.toastTimer_);
+      this.toastTimer_ = null;
+    }
+    this.toast_ = null;
+  }
+
+  protected onToastUndoClick_() {
+    const id = this.toast_?.undoTidyId ?? 0;
+    this.hideToast_();
+    if (id) {
+      this.browserProxy_.handler.undoTidy(id);
+    }
+  }
+
+  protected onToastCloseClick_() {
+    this.hideToast_();
   }
 
   protected onNewTabClick_() {

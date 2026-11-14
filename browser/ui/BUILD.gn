@@ -34,6 +34,8 @@ source_set("ui") {
     "claude/claude_tabs.h",
     "claude/link_folder_namer.cc",
     "claude/link_folder_namer.h",
+    "claude/today_tidier.cc",
+    "claude/today_tidier.h",
     "live_folders/live_folder_host.cc",
     "live_folders/live_folder_host.h",
     "live_folders/live_folder_service.cc",
@@ -351,6 +353,7 @@ source_set("browser_tests") {
   sources = [
     "arc_import/arc_importer_browsertest.cc",
     "claude/link_folder_namer_browsertest.cc",
+    "claude/today_tidier_browsertest.cc",
     "live_folders/live_folder_runtime_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/claude/claude_panel_browsertest.cc",

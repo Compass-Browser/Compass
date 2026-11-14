@@ -37,6 +37,17 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
     setEnabled: (handler, on) => handler.setNameLinkFolders(on),
     setModel: (handler, model) => handler.setNameLinkFoldersModel(model),
   },
+  {
+    id: 'tidyToday',
+    name: 'Tidy Today',
+    description: '"Tidy" in Today\'s header and the command bar asks ' +
+        'Claude to group Today\'s loose tabs into named folders, from their ' +
+        'titles and sites. Nothing is closed, and Undo puts every tab back.',
+    enabled: state => state.tidyToday,
+    model: state => state.tidyTodayModel,
+    setEnabled: (handler, on) => handler.setTidyToday(on),
+    setModel: (handler, model) => handler.setTidyTodayModel(model),
+  },
 ];
 
 import {getTemplate} from './claude_page.html.js';

@@ -457,6 +457,49 @@ class SpaceModel {
   // Marks |folder| as a link folder this device made: named after its
   // opener (kOpener), and Claude may name it (docs/design/ai-sidebar.md).
   void MarkLinkFolder(SidebarNode* folder);
+
+  // Tidy Today (docs/design/ai-sidebar.md, "Tidy Today"): a folder to make,
+  // named |name|, of Today's top-level entries |entries|.
+  struct TidyGroup {
+    TidyGroup();
+    TidyGroup(std::u16string name, std::vector<base::Uuid> entries);
+    TidyGroup(TidyGroup&&);
+    TidyGroup& operator=(TidyGroup&&);
+    ~TidyGroup();
+
+    std::u16string name;
+    std::vector<base::Uuid> entries;
+  };
+  // What UndoTidy() needs: Today's top-level entries before, in order, and
+  // the folders made.
+  struct TodayTidy {
+    TodayTidy();
+    TodayTidy(TodayTidy&&);
+    TodayTidy& operator=(TodayTidy&&);
+    ~TodayTidy();
+
+    std::vector<base::Uuid> before;
+    std::vector<base::Uuid> folders;
+  };
+  // The name a folder Tidy makes goes back to with Undo Name.
+  static constexpr char16_t kTidyFolderPlaceholder[] = u"New Folder";
+  // Whether |node| is a loose Today entry Tidy may group: a tab or split at
+  // the top of Today.
+  bool IsLooseTodayEntry(const SidebarNode* node) const;
+  // Puts each group's entries into a new Today folder named by Claude
+  // (kClaude; Undo Name goes back to kTidyFolderPlaceholder), at the place of
+  // its topmost entry, in Today's order. An id that isn't a loose Today
+  // entry, or is in an earlier group, is skipped, and a group left with
+  // fewer than 2 entries makes no folder. All in one go, so sync sends one
+  // change. Folders and their contents, and Pinned, are left alone.
+  TodayTidy TidyToday(std::vector<TidyGroup> groups);
+  // Undoes |tidy|: every entry from before that's still at the top of Today
+  // or in one of its folders goes back to its place, entries that came since
+  // stay above them, and the folders go (anything added to them since is
+  // left loose). One go too. False, and nothing changes, if none of its
+  // folders is still in Today.
+  bool UndoTidy(const TodayTidy& tidy);
+
   // Names a tab; empty goes back to its page's title.
   void SetCustomTitle(SidebarNode* tab, std::u16string title);
   void SetUrl(SidebarNode* tab, const GURL& url);

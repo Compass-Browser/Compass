@@ -43,6 +43,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -88,6 +89,7 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kSettings, u"Settings"},
     {CommandBarCommand::kImportFromArc, u"Import from Arc"},
     {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts"},
+    {CommandBarCommand::kTidyToday, u"Tidy Today"},
 };
 
 metrics::OmniboxEventProto::PageClassification GetPageClassification(
@@ -725,6 +727,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kKeyboardShortcuts:
       chrome::ShowSettingsSubPage(browser_, kShortcutsSettingsSubPage);
       break;
+    case CommandBarCommand::kTidyToday:
+      TodayTidier::Get(browser_->GetProfile())->Tidy(features->space_model());
+      break;
     case CommandBarCommand::kAskClaude:
       // Handled by Accept(), which has the question.
       break;
@@ -773,6 +778,15 @@ bool CommandBarPageHandler::IsCommandAvailable(
       return true;
     case CommandBarCommand::kImportFromArc:
       return !browser_->GetProfile()->IsOffTheRecord();
+    case CommandBarCommand::kTidyToday: {
+      // Never in incognito, whose profile has no TodayTidier.
+      if (browser_->GetProfile()->IsOffTheRecord() || !features ||
+          features->is_parking_window()) {
+        return false;
+      }
+      TodayTidier* tidier = TodayTidier::Get(browser_->GetProfile());
+      return tidier && tidier->CanTidy(features->space_model());
+    }
     case CommandBarCommand::kAskClaude:
       // The key and the settings are the profile's.
       return !browser_->GetProfile()->IsOffTheRecord();

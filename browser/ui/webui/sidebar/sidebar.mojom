@@ -307,6 +307,13 @@ interface PageHandler {
   // each (beforeunload can keep one), and removes the folders left without
   // a tab. The Today header's Clear button.
   ClearToday();
+  // Tidy Today (docs/design/ai-sidebar.md): asks Claude to group Today's
+  // loose entries into named folders. The Today header's Tidy button, shown
+  // while TidyChanged() says it's available. Ignored with fewer than 5 loose
+  // entries, or while one is on its way.
+  TidyToday();
+  // The Undo of the toast ShowToast() sent with |undo_tidy_id|.
+  UndoTidy(int32 undo_tidy_id);
   // Opens the command bar for a new entry (docs/design/command-bar.md).
   NewTab();
   // Mutes or unmutes a tab node's live tab: its speaker was clicked.
@@ -471,6 +478,15 @@ interface Page {
   // Claude just named folder |id| (docs/design/ai-sidebar.md): its new name
   // fades in with a sparkle on its icon.
   FolderNamed(string id);
+  // Tidy Today (docs/design/ai-sidebar.md): whether Today's header offers
+  // Tidy (its switch on, Claude set up, not incognito), and whether a tidy
+  // of the window's space waits for Claude. Sent after the tree, and
+  // whenever either changes. The page disables it with fewer than 5 loose
+  // entries.
+  TidyChanged(bool available, bool busy);
+  // A message at the bottom of the sidebar for a few seconds: |text|, with
+  // Undo calling UndoTidy(|undo_tidy_id|) unless that's 0.
+  ShowToast(string text, int32 undo_tidy_id);
   // The window's now playing widgets, top to bottom. Sent after the tree, and
   // whenever they change.
   SetNowPlaying(array<NowPlaying> items);

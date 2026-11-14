@@ -681,6 +681,108 @@ void SpaceModel::MarkLinkFolder(SidebarNode* folder) {
   SetNameSource(folder, SidebarNode::NameSource::kOpener);
 }
 
+SpaceModel::TidyGroup::TidyGroup() = default;
+SpaceModel::TidyGroup::TidyGroup(std::u16string name,
+                                 std::vector<base::Uuid> entries)
+    : name(std::move(name)), entries(std::move(entries)) {}
+SpaceModel::TidyGroup::TidyGroup(TidyGroup&&) = default;
+SpaceModel::TidyGroup& SpaceModel::TidyGroup::operator=(TidyGroup&&) =
+    default;
+SpaceModel::TidyGroup::~TidyGroup() = default;
+
+SpaceModel::TodayTidy::TodayTidy() = default;
+SpaceModel::TodayTidy::TodayTidy(TodayTidy&&) = default;
+SpaceModel::TodayTidy& SpaceModel::TodayTidy::operator=(TodayTidy&&) =
+    default;
+SpaceModel::TodayTidy::~TodayTidy() = default;
+
+bool SpaceModel::IsLooseTodayEntry(const SidebarNode* node) const {
+  return node && node->parent() == today_root_.get() &&
+         (node->type() == Type::kTab || node->type() == Type::kSplit);
+}
+
+SpaceModel::TodayTidy SpaceModel::TidyToday(std::vector<TidyGroup> groups) {
+  TodayTidy tidy;
+  SidebarNode* today = today_root_.get();
+  for (const auto& entry : today->children()) {
+    tidy.before.push_back(entry->id());
+  }
+  std::set<base::Uuid> taken;
+  for (TidyGroup& group : groups) {
+    std::vector<SidebarNode*> entries;
+    for (const base::Uuid& id : group.entries) {
+      SidebarNode* node = FindById(id);
+      if (IsLooseTodayEntry(node) && !taken.contains(id)) {
+        taken.insert(id);
+        entries.push_back(node);
+      }
+    }
+    if (entries.size() < 2 || group.name.empty()) {
+      continue;
+    }
+    std::ranges::sort(entries, [today](const SidebarNode* a,
+                                       const SidebarNode* b) {
+      return today->GetIndexOf(a) < today->GetIndexOf(b);
+    });
+    SidebarNode* folder = AddFolder(today, today->GetIndexOf(entries[0]),
+                                    kTidyFolderPlaceholder);
+    SetFolderName(folder, std::move(group.name),
+                  SidebarNode::NameSource::kClaude);
+    for (size_t i = 0; i < entries.size(); ++i) {
+      Move(entries[i], folder, i);
+    }
+    tidy.folders.push_back(folder->id());
+  }
+  return tidy;
+}
+
+bool SpaceModel::UndoTidy(const TodayTidy& tidy) {
+  SidebarNode* today = today_root_.get();
+  std::vector<SidebarNode*> folders;
+  for (const base::Uuid& id : tidy.folders) {
+    SidebarNode* folder = FindById(id);
+    if (folder && folder->type() == Type::kFolder &&
+        folder->parent() == today) {
+      folders.push_back(folder);
+    }
+  }
+  if (folders.empty()) {
+    return false;
+  }
+  {
+    // The folders go once they're emptied, by hand below.
+    KeepEmptyFolders keep;
+    for (SidebarNode* folder : folders) {
+      while (!folder->children().empty()) {
+        Move(folder->children().front().get(), today,
+             today->GetIndexOf(folder));
+      }
+      Remove(folder);
+    }
+  }
+  // Today's order: what came since on top, where new entries go, then the
+  // entries from before in their order.
+  const std::set<base::Uuid> before(tidy.before.begin(), tidy.before.end());
+  std::vector<SidebarNode*> order;
+  for (const auto& entry : today->children()) {
+    if (!before.contains(entry->id())) {
+      order.push_back(entry.get());
+    }
+  }
+  for (const base::Uuid& id : tidy.before) {
+    SidebarNode* node = FindById(id);
+    if (node && node->parent() == today) {
+      order.push_back(node);
+    }
+  }
+  for (size_t i = 0; i < order.size(); ++i) {
+    if (today->GetIndexOf(order[i]) != i) {
+      Move(order[i], today, i);
+    }
+  }
+  return true;
+}
+
 void SpaceModel::SetCustomTitle(SidebarNode* tab, std::u16string title) {
   CHECK_EQ(tab->type(), Type::kTab);
   if (tab->custom_title_ == title) {

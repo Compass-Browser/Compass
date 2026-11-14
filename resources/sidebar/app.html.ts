@@ -98,6 +98,13 @@ export function getHtml(this: CompassSidebarAppElement) {
       ` : nothing}
       <div class="section-header" data-flip="today-header">
         <span>Today</span>
+        ${this.tidyAvailable_ ? html`
+          <button id="tidyToday" ?busy="${this.tidyBusy_}"
+              ?disabled="${!this.canTidy_()}"
+              title="${this.tidyBusy_ ? 'Claude is tidying Today' :
+                  'Group Today\'s tabs into folders with Claude'}"
+              @click="${this.onTidyClick_}">${
+              this.tidyBusy_ ? 'Tidying\u2026' : 'Tidy'}</button>` : nothing}
         ${this.getToday_().length ? html`
           <button id="clearToday" title="Close all Today tabs"
               @click="${this.onClearTodayClick_}">Clear</button>` : nothing}
@@ -138,6 +145,15 @@ export function getHtml(this: CompassSidebarAppElement) {
         .space="${preview.space}" .tree="${preview.tree}"
         .entriesScrollTop="${preview.scrollTop}">
     </compass-sidebar-preview>`)}
+  ${this.toast_ ? html`
+    <div id="toast" role="status">
+      <span class="text">${this.toast_.text}</span>
+      ${this.toast_.undoTidyId ? html`
+        <button id="toastUndo" @click="${this.onToastUndoClick_}">Undo</button>
+      ` : nothing}
+      <button id="toastClose" aria-label="Dismiss" title="Dismiss"
+          @click="${this.onToastCloseClick_}">&times;</button>
+    </div>` : nothing}
 </div>
 ${this.liveEditor_ ? html`
   <compass-live-folder-editor .parentId="${this.liveEditor_.parentId}"
