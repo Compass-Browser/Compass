@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- Self-checking test for reader.js on the saved pages in fixtures/.
+     Needs an HTTP server (it fetches the fixtures): ReaderBrowserTest.
+     SharedTests serves common/reader/ and opens it. By hand:
+       python3 -m http.server -d common/reader 8000
+     then open http://localhost:8000/test/reader_test.html in any browser.
+     The title becomes "PASS" or "FAIL"; the body lists the failed checks. -->
+<html><head><meta charset="utf-8"><title>Reader test</title></head>
+<body>
+<pre id="log">RUNNING</pre>
+<script src="../Readability.js"></script>
+<script src="../Readability-readerable.js"></script>
+<script src="../reader.js"></script>
+<script src="reader_test.js"></script>
+</body></html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<!-- Copyright 2026 The Compass Authors
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+
+     Compass's reader view (docs/design/reader-mode.md), the same on desktop
+     and iOS. reader_view.js fills it from reader.js's article; its own
+     scripts are the only ones that run. -->
+<html lang="en" data-theme="auto" data-font="serif" data-width="medium">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>Reader</title>
+<link rel="stylesheet" href="reader.css">
+</head>
+<body>
+<div id="toolbar" role="toolbar" aria-label="Reader">
+  <button id="close" type="button" title="Leave Reader (Esc)"
+      aria-label="Leave Reader">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 19 5 17.6 10.6 12 5 6.4 6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4Z"/></svg>
+  </button>
+  <span class="spacer"></span>
+  <button id="listen" type="button" title="Listen" aria-label="Listen"
+      aria-pressed="false" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 20.7v-2.1q2.3-.6 3.6-2.5T19 12q0-2.1-1.4-4T14 5.5V3.3q3.1.7 5 3.1T21 12q0 3.2-2 5.6t-5 3.1ZM3 15V9h4l5-5v16l-5-5Zm11 1V8q1.2.6 1.8 1.6T16.5 12q0 1.3-.7 2.4T14 16Z"/></svg>
+  </button>
+  <button id="settings-button" type="button" title="Text and colors"
+      aria-label="Text and colors" aria-expanded="false"
+      aria-controls="settings">Aa</button>
+</div>
+
+<div id="settings" role="dialog" aria-label="Text and colors" hidden>
+  <div class="row" role="radiogroup" aria-label="Font">
+    <button type="button" data-setting="font" data-value="serif"
+        class="font-serif">Serif</button>
+    <button type="button" data-setting="font" data-value="sans"
+        class="font-sans">Sans</button>
+  </div>
+  <div class="row" aria-label="Text size">
+    <button type="button" id="smaller" aria-label="Smaller text">A</button>
+    <span id="size-label" aria-live="polite"></span>
+    <button type="button" id="larger" aria-label="Larger text">A</button>
+  </div>
+  <div class="row" role="radiogroup" aria-label="Width">
+    <button type="button" data-setting="width" data-value="narrow">Narrow</button>
+    <button type="button" data-setting="width" data-value="medium">Medium</button>
+    <button type="button" data-setting="width" data-value="wide">Wide</button>
+  </div>
+  <div class="row themes" role="radiogroup" aria-label="Theme">
+    <button type="button" data-setting="theme" data-value="auto"
+        class="swatch auto">Auto</button>
+    <button type="button" data-setting="theme" data-value="light"
+        class="swatch light">Light</button>
+    <button type="button" data-setting="theme" data-value="sepia"
+        class="swatch sepia">Sepia</button>
+    <button type="button" data-setting="theme" data-value="dark"
+        class="swatch dark">Dark</button>
+  </div>
+</div>
+
+<main id="page">
+  <header>
+    <p id="site"></p>
+    <h1 id="title"></h1>
+    <p id="byline"></p>
+    <p id="meta"></p>
+  </header>
+  <article id="content"></article>
+  <footer>
+    <a id="original" rel="noopener noreferrer">Original page</a>
+  </footer>
+</main>
+<p id="error" hidden></p>
+
+<script src="reader.js"></script>
+<script src="reader_view.js"></script>
+</body>
+</html>
