@@ -240,7 +240,8 @@ tools/compass release build-win --cpu win-x64   # the release installers
 ```
 
 Limits: Crashpad can't report crashes from a cross build (Chromium stubs
-out its `.asm`), and there's no Authenticode signature either way. A
+out its `.asm`), and it can't sign the installers (signtool is Windows
+only; docs/design/updates.md, "Windows"). A
 Windows release build's `compass_win_build` lives in `chrome/VERSION`,
 which the checkout's Mac builds share, so switching between a Windows
 release and a Mac build rebuilds what reads the version on both sides

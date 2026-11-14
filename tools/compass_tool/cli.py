@@ -842,6 +842,40 @@ def win_build_info(installer: Path) -> dict:
   return json.loads(sidecar.read_text())
 
 
+# Authenticode signing through Azure Artifact Signing (docs/design/updates.md,
+# "Windows"): signtool with Microsoft's dlib, set up on the machine that runs
+# build-win. Unset, the installers stay unsigned.
+WIN_SIGN_DLIB_ENV = 'COMPASS_WIN_SIGN_DLIB'
+WIN_SIGN_METADATA_ENV = 'COMPASS_WIN_SIGN_METADATA'
+WIN_TIMESTAMP_URL = 'http://timestamp.acs.microsoft.com'
+
+
+def find_signtool() -> Path:
+  kits = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'),
+              'Windows Kits', '10', 'bin')
+  found = sorted(kits.glob('10.*/x64/signtool.exe'))
+  if not found:
+    raise CommandError('no signtool.exe under %s (the Windows SDK)' % kits)
+  return found[-1]
+
+
+def sign_win(files: list[Path]) -> None:
+  dlib = os.environ.get(WIN_SIGN_DLIB_ENV)
+  metadata = os.environ.get(WIN_SIGN_METADATA_ENV)
+  if not dlib or not metadata:
+    print('not signing: %s and %s are unset' % (WIN_SIGN_DLIB_ENV,
+                                                 WIN_SIGN_METADATA_ENV))
+    return
+  if sys.platform != 'win32':
+    raise CommandError('signing needs signtool, on Windows')
+  signtool = find_signtool()
+  run([str(signtool), 'sign', '/fd', 'SHA256', '/tr', WIN_TIMESTAMP_URL,
+       '/td', 'SHA256', '/dlib', dlib, '/dmdf', metadata] +
+      [str(f) for f in files], files[0].parent)
+  run([str(signtool), 'verify', '/pa'] + [str(f) for f in files],
+      files[0].parent)
+
+
 def build_win(layout: Layout, args) -> Path:
   """Windows: builds the installer for a release, numbered so Chromium's
   installer updates to it. Prints the file for `release publish-win`, which
@@ -880,6 +914,7 @@ def build_win(layout: Layout, args) -> Path:
   # The one with a window, for the website (installer/win).
   installer = out_dir / release.win_installer_name(version)
   shutil.copyfile(out_dir / (WIN_INSTALLER_TARGET + '.exe'), installer)
+  sign_win([setup, installer])
   import json
   setup.with_suffix('.json').write_text(json.dumps({
       'version': version,
