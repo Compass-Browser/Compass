@@ -83,7 +83,8 @@
 .result[selected] .subtitle,
 .result[selected] .action,
 .result[selected] .glyph,
-.result[selected] .space-symbol {
+.result[selected] .space-symbol,
+.result[selected] .command-symbol {
   color: color-mix(in srgb, var(--color-sys-on-primary) 75%, transparent);
 }
 
@@ -107,8 +108,9 @@
   line-height: 16px;
 }
 
-/* A space's icon, as its switcher button shows it. */
-.space-symbol {
+/* A space's icon, as its switcher button shows it, and a command's. */
+.space-symbol,
+.command-symbol {
   color: var(--color-tab-search-secondary-foreground);
   fill: currentColor;
 }

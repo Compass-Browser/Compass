@@ -130,6 +130,8 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
     SpaceIcon space_icon;
     bool favorite = false;
     CommandBarCommand command = CommandBarCommand::kNewSpace;
+    // Commands and Claude's rows: their symbol (Result.command_symbol).
+    std::string command_symbol;
     // Other devices' tabs: the page to open.
     GURL url;
   };

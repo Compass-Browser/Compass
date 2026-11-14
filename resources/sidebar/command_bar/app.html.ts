@@ -49,11 +49,17 @@ ${this.isAsking_() ? html`
           <svg class="icon space-symbol" viewBox="${this.getSymbolViewBox_()}"
               aria-hidden="true">
             <path d="${this.getSpaceSymbol_(result)!.path}"></path>
+          </svg>` : html`${this.getCommandSymbol_(result) ? html`
+          <svg class="icon command-symbol"
+              viewBox="${this.getCommandViewBox_(
+                  this.getCommandSymbol_(result)!)}"
+              aria-hidden="true">
+            <path d="${this.getCommandSymbol_(result)!.path}"></path>
           </svg>` : html`${result.spaceEmoji ? html`
           <span class="icon space-emoji" aria-hidden="true">
             ${result.spaceEmoji}</span>` : html`
           <span class="icon glyph" aria-hidden="true">
-            ${this.getGlyph_(result)}</span>`}`}`}
+            ${this.getGlyph_(result)}</span>`}`}`}`}
         <span class="title">${result.title}</span>
         ${result.subtitle ? html`
           <span class="subtitle">${result.subtitle}</span>` : nothing}

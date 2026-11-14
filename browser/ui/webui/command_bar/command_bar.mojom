@@ -52,6 +52,10 @@ struct Result {
   // kAskClaude: what "About this page" would add, the current tab's title
   // (or host); empty when there's no page to add.
   string about_page;
+  // Commands and Claude's rows: the symbol the row shows, by a name the
+  // page's command_icons.ts knows ("settings", "history"...); the page
+  // shows "›" for one it doesn't. Empty for other kinds.
+  string command_symbol;
 };
 
 // Bootstraps the connection; called once by the page.

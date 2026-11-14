@@ -75,25 +75,33 @@ constexpr size_t kMaxOtherDeviceTabs = 6;
 struct CommandInfo {
   CommandBarCommand command;
   const char16_t* name;
+  // Its symbol in the page's command_icons.ts.
+  const char* symbol;
 };
 
 constexpr CommandInfo kCommands[] = {
-    {CommandBarCommand::kNewSpace, u"New space"},
-    {CommandBarCommand::kNewLocalSpace, u"New space on this device"},
-    {CommandBarCommand::kPinEntry, u"Pin tab"},
-    {CommandBarCommand::kUnpinEntry, u"Unpin tab"},
-    {CommandBarCommand::kAddFavorite, u"Add to Favorites"},
-    {CommandBarCommand::kRemoveFavorite, u"Remove from Favorites"},
-    {CommandBarCommand::kCopyUrl, u"Copy URL"},
-    {CommandBarCommand::kReload, u"Reload"},
-    {CommandBarCommand::kHistory, u"History"},
-    {CommandBarCommand::kDownloads, u"Downloads"},
-    {CommandBarCommand::kExtensions, u"Extensions"},
-    {CommandBarCommand::kSettings, u"Settings"},
-    {CommandBarCommand::kImportFromArc, u"Import from Arc"},
-    {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts"},
-    {CommandBarCommand::kTidyToday, u"Tidy Today"},
+    {CommandBarCommand::kNewSpace, u"New space", "add"},
+    {CommandBarCommand::kNewLocalSpace, u"New space on this device",
+     "cloud_off"},
+    {CommandBarCommand::kPinEntry, u"Pin tab", "keep"},
+    {CommandBarCommand::kUnpinEntry, u"Unpin tab", "keep_off"},
+    {CommandBarCommand::kAddFavorite, u"Add to Favorites", "star"},
+    {CommandBarCommand::kRemoveFavorite, u"Remove from Favorites", "remove"},
+    {CommandBarCommand::kCopyUrl, u"Copy URL", "link"},
+    {CommandBarCommand::kReload, u"Reload", "refresh"},
+    {CommandBarCommand::kHistory, u"History", "history"},
+    {CommandBarCommand::kDownloads, u"Downloads", "download"},
+    {CommandBarCommand::kExtensions, u"Extensions", "extension"},
+    {CommandBarCommand::kSettings, u"Settings", "settings"},
+    {CommandBarCommand::kImportFromArc, u"Import from Arc", "import"},
+    {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts",
+     "keyboard"},
+    {CommandBarCommand::kTidyToday, u"Tidy Today", "tidy"},
 };
+
+// Claude's rows: the chat's, and Ask in the command bar's.
+constexpr char kChatSymbol[] = "chat";
+constexpr char kAskSymbol[] = "sparkle";
 
 metrics::OmniboxEventProto::PageClassification GetPageClassification(
     Mode mode) {
@@ -433,6 +441,7 @@ void CommandBarPageHandler::Rebuild() {
       item.subtitle =
           std::u16string(base::TrimWhitespace(text_, base::TRIM_ALL));
       item.action = "Answer";
+      item.command_symbol = kAskSymbol;
       AssignId(item, "a:ask");
       items.push_back(std::move(item));
     }
@@ -467,6 +476,7 @@ void CommandBarPageHandler::Rebuild() {
     result->subtitle = base::UTF16ToUTF8(item.subtitle);
     result->action = item.action;
     result->icon_url = item.icon_url;
+    result->command_symbol = item.command_symbol;
     if (item.kind == ResultKind::kAskClaude) {
       std::string title;
       std::string host;
@@ -626,6 +636,7 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
     item.title = info.name;
     item.action = "Run";
     item.command = info.command;
+    item.command_symbol = info.symbol;
     AssignId(item, "c:" + base::NumberToString(static_cast<int>(info.command)));
     items.push_back(std::move(item));
   }
@@ -640,6 +651,7 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
   Item item;
   item.kind = ResultKind::kCommand;
   item.command = CommandBarCommand::kAskClaude;
+  item.command_symbol = kChatSymbol;
   if (words.empty() || ContainsAll(u"chat with claude", words)) {
     item.title = u"Chat with Claude";
     item.action = "Open";

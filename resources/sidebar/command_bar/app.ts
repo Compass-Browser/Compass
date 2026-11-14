@@ -10,6 +10,9 @@ import {Mode, ResultKind} from '../command_bar.mojom-webui.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from '../space_icons.js';
 
+import type {CommandSymbol} from './command_icons.js';
+import {COMMAND_SYMBOL_VIEW_BOX, findCommandSymbol} from './command_icons.js';
+
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {CommandBarBrowserProxy} from './browser_proxy.js';
@@ -364,6 +367,17 @@ export class CompassCommandBarAppElement extends CrLitElement {
 
   protected getSymbolViewBox_(): string {
     return SPACE_SYMBOL_VIEW_BOX;
+  }
+
+  // A command's symbol (command_icons.ts); null for other rows and for one
+  // the page doesn't know, which show the glyph.
+  protected getCommandSymbol_(result: Result): CommandSymbol|null {
+    return result.commandSymbol ? findCommandSymbol(result.commandSymbol) :
+                                  null;
+  }
+
+  protected getCommandViewBox_(symbol: CommandSymbol): string {
+    return symbol.viewBox || COMMAND_SYMBOL_VIEW_BOX;
   }
 
   // The glyph rows without a favicon or a space icon show.

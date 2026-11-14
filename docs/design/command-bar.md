@@ -124,7 +124,17 @@ per change:
   or with an empty query; nothing when Open tabs doesn't sync.
 - **Commands**: a fixed list (new space, pin or unpin the current entry,
   add it to or remove it from Favorites, copy URL, reload, history,
-  downloads, extensions, settings), matched by name. Commands that need an
+  downloads, extensions, settings), matched by name. Each shows a symbol of
+  its own: `kCommands[]` names it (`Result.command_symbol`), and the page
+  draws it from `command_icons.ts`, Material Symbols outline paths in the
+  space symbols' 960-unit view box (the sparkle's own is 24 units), sized
+  and colored as the other rows' icons, in light and dark: add (New
+  space), cloud_off (on this device), keep and keep_off (Pin, Unpin), star
+  and do_not_disturb_on (Add to and Remove from Favorites), link (Copy
+  URL), refresh, history, download, extension, settings, move_to_inbox
+  (Import from Arc), keyboard (Keyboard shortcuts), cleaning_services
+  (Tidy Today), chat_bubble (Claude's chat row) and auto_awesome (Ask
+  Claude's answer row). A name the page doesn't know shows the old "›". Commands that need an
   entry are left out when there's none. Pin and unpin are left out for a
   favorite. "Add to Favorites" puts the entry at the end of the grid (a
   pane leaves its split); its tab stays. "Remove from Favorites" moves it to

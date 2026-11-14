@@ -5,7 +5,9 @@
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -244,6 +246,62 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
                           "command Downloads", "command Extensions",
                           "command Settings", "command Import from Arc",
                           "command Keyboard shortcuts"));
+}
+
+// Each command has a symbol of its own (command_icons.ts); other rows
+// have none.
+TEST_F(CommandBarPageHandlerTest, CommandsHaveSymbols) {
+  // Every command an entry in Today offers.
+  OpenAndQuery(Mode::kCurrentEntry, "");
+  std::map<std::string, std::string> symbols;
+  for (const auto& result : page_.results()) {
+    if (result->kind == ResultKind::kCommand) {
+      EXPECT_FALSE(result->command_symbol.empty()) << result->title;
+      symbols[result->title] = result->command_symbol;
+    } else {
+      EXPECT_EQ(result->command_symbol, "") << result->title;
+    }
+  }
+  EXPECT_EQ(symbols["New space"], "add");
+  EXPECT_EQ(symbols["New space on this device"], "cloud_off");
+  EXPECT_EQ(symbols["Pin tab"], "keep");
+  EXPECT_EQ(symbols["Add to Favorites"], "star");
+  EXPECT_EQ(symbols["Copy URL"], "link");
+  EXPECT_EQ(symbols["Reload"], "refresh");
+  EXPECT_EQ(symbols["History"], "history");
+  EXPECT_EQ(symbols["Downloads"], "download");
+  EXPECT_EQ(symbols["Extensions"], "extension");
+  EXPECT_EQ(symbols["Settings"], "settings");
+  EXPECT_EQ(symbols["Import from Arc"], "import");
+  EXPECT_EQ(symbols["Keyboard shortcuts"], "keyboard");
+  EXPECT_EQ(symbols["Chat with Claude"], "chat");
+  // No two commands share one.
+  std::set<std::string> distinct;
+  for (const auto& [title, symbol] : symbols) {
+    EXPECT_TRUE(distinct.insert(symbol).second) << title;
+  }
+
+  // Pinned, its tab offers Unpin; a favorite, Remove from Favorites.
+  auto symbol_of = [&](const std::string& title) {
+    for (const auto& result : page_.results()) {
+      if (result->title == title) {
+        return result->command_symbol;
+      }
+    }
+    return std::string("(none)");
+  };
+  space_model().Move(TodayEntry(0), space_model().pinned_root(), 0);
+  Settle();
+  OpenAndQuery(Mode::kCurrentEntry, "unpin");
+  EXPECT_EQ(symbol_of("Unpin tab"), "keep_off");
+  space_model().Move(space_model().pinned_root()->children()[0].get(),
+                     space_model().today_root(), 0);
+  Settle();
+  OpenAndQuery(Mode::kCurrentEntry, "favorites");
+  handler_remote_->Accept(page_.IdOf("Add to Favorites"), "favorites", false);
+  Settle();
+  OpenAndQuery(Mode::kCurrentEntry, "favorites");
+  EXPECT_EQ(symbol_of("Remove from Favorites"), "remove");
 }
 
 TEST_F(CommandBarPageHandlerTest, EmptyCurrentEntryQueryShowsCommandsOnly) {
@@ -646,6 +704,7 @@ TEST_F(CommandBarPageHandlerTest, AskRowForQuestions) {
   EXPECT_EQ(ask.kind, ResultKind::kAskClaude);
   EXPECT_EQ(ask.title, "Ask Claude");
   EXPECT_EQ(ask.subtitle, "what is a fox?");
+  EXPECT_EQ(ask.command_symbol, "sparkle");
   // Enter asks: nothing is completed in the field.
   EXPECT_EQ(page_.inline_autocompletion(), "");
   EXPECT_EQ(page_.results().back()->title, "Ask in Chat");
