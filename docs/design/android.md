@@ -452,8 +452,10 @@ controls that count are the bottom ones, where Compass's bar is
   it brings to Android. Today Android gets `components/sync`, the protocol,
   strings, `common`, `browser:url_handler`, `browser:feature_overrides`,
   `browser/prefs` and `browser/updates:hooks`.
-- **Signing.** The upload keystore and the FCM service account are kept out
-  of the repository.
+- **Signing.** The upload keystore, the Play service account and the FCM
+  service account are kept out of the repository. Play holds the app
+  signing key (Play App Signing); the build is signed with the upload key
+  (building.md, "Android releases (Google Play)").
 
 ## Milestones
 
@@ -470,7 +472,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; list, open, select and close tabs); not yet tried with a real key |
 | C9 | Widgets, Quick Settings tile, shortcuts, share target | Done |
 | C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |
-| C11 | Release pipeline: official build, Play internal testing, APK on the GitHub release | Not started |
+| C11 | Release pipeline: official build, Play testing tracks, APK on the GitHub release | Working on it: the app bundle (`compass_bundle`), versionCodes from the release version, `compass play upload` to a track, and the listing and App content drafts in `android/play/` (building.md, "Android releases (Google Play)"); the app isn't on Play yet |
 
 ## Parity with iOS
 

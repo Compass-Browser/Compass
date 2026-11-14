@@ -307,6 +307,109 @@ Limits:
   config) took 8h41m on a Mac mini running other jobs. Builds after small
   changes are incremental.
 
+### Android releases (Google Play)
+
+Play takes an Android App Bundle. The release config builds two things
+from the same code: `compass_bundle` (`apks/Compass.aab`, for Play) and
+`compass_apk` (`apks/Compass.apk`, for the GitHub release).
+`compass_bundle` is upstream's `chrome_public_bundle` with Compass's
+package, manifest and Java (`android/BUILD.gn`): Chrome's Java and the
+shell in the `chrome` isolated split, the resources in the base module,
+and Chrome's on-demand feature modules.
+
+```sh
+version=$(date +%Y%m%d.%H%M)
+tools/compass gen release --cpu android-arm64
+tools/compass play prepare --version $version    # the versionCode, in args.gn
+tools/compass build -c release --cpu android-arm64 compass_bundle compass_apk
+# sign (below), check, then:
+tools/compass play upload --aab Compass-$version.aab --version $version
+```
+
+- **Versions.** A release's version is the date and time, `YYYYMMDD.HHMM`,
+  as on the other platforms. Its **versionCode** is `1YYDDDHHMM`: a 1, the
+  year's last two digits, the day of the year, the hour and the minute
+  (`20261114.1530` is `1263181530`; `compass play version-code`). It grows
+  with every release until 2099, stays under Play's limit of 2100000000,
+  and above Chromium's own codes (about 810000000 for 157), which the first
+  GitHub APKs had. `compass play prepare` writes it to args.gn as
+  `android_override_version_code`, which sets every module of the bundle
+  and the APK; it changes no native code, so the build after it only
+  repackages. The **versionName** stays Chromium's (`157.0.8103.51`):
+  Android's `version_info` reads the browser's version from the manifest,
+  so it's what the user agent, extensions' `minimum_chrome_version` and the
+  Web Store see. The Compass version is the name of the release on Play.
+- **Signing.** Play App Signing holds the key that signs what devices
+  install; the build is signed with the upload key, the release keystore
+  in `~/Library/Application Support/Compass Release/android/`
+  (`compass-release.jks`, alias `compass`, its password in `password`). The
+  build signs the bundle with Chromium's debug key, so the release drops
+  that signature (`zip -d Compass.aab 'META-INF/*.SF' 'META-INF/*.RSA'
+  'META-INF/MANIFEST.MF'`) and signs it as a JAR: `jarsigner -keystore
+  compass-release.jks -sigalg SHA256withRSA -digestalg SHA-256 Compass.aab
+  compass`. The APK is signed with `apksigner` and the same key.
+  An app Play signs with its own key and an APK signed with the upload key
+  can't update each other: someone moving from the GitHub APK to Play
+  reinstalls. To keep them interchangeable, give Play the release key as
+  the app signing key when enrolling (Play Console's "Use a different key"
+  with Google's PEPK tool) and make a new upload key.
+- **Checks** before the upload, with the bundletool Chromium ships
+  (`third_party/android_build_tools/bundletool/cipd/bundletool.jar`):
+  `validate --bundle=Compass.aab`, `dump manifest --bundle=Compass.aab
+  --xpath=/manifest/@android:versionCode` (the expected code), and
+  `build-apks` with the upload key (the split APKs devices would get).
+- **The upload** (`tools/compass_tool/play.py`) is one edit of the Play
+  Developer Publishing API: `edits.insert`, `edits.bundles.upload`,
+  `edits.tracks.update` (one release named after the version, with the
+  release notes) and `edits.commit`. It signs the service account's token
+  request (RS256) with `openssl`; nothing beyond Python's standard library.
+  - `--track`: `beta` (open testing, the default), `alpha` (closed
+    testing), `internal`, `production`, or a closed testing track's own
+    name.
+  - `--status completed` (the default) rolls the release out to the
+    track's testers. An app that has never been published only takes
+    `--status draft`; roll that one out in Play Console.
+  - Release notes come from `android/play/whatsnew-<language>.txt`
+    (`whatsnew-en-US.txt`; 500 characters each). Update it for every
+    release.
+  - `--dry-run` prints the requests and sends nothing; `--validate-only`
+    uploads and validates, then throws the edit away.
+  - The key is read from `~/Library/Application Support/Compass Release/android/play-service-account.json`
+    (`--credentials` for another path). Without it the upload stops and
+    names the path.
+
+Setting up Play once:
+
+1. In Play Console, create the app: Compass Browser, package
+   `it.cipi1965.compass` (fixed by the first upload), default language
+   English (United States), app, free.
+2. Fill in the store listing and App content from `android/play/`:
+   `listing-en-US.md` (texts), `icon.png` and `feature-graphic.png`,
+   `data-safety.md`, `app-content.md` (content rating, ads, app access,
+   audience) and `permissions.md` (sensitive permissions, foreground
+   services). Phone screenshots are still to be taken. The privacy policy
+   at compassbrowser.org/privacy has to cover Android first.
+3. Set up open testing (Testing → Open testing: countries, feedback
+   channel) or closed testing with a list of testers.
+4. Upload the first bundle by hand in Play Console (a release on the
+   track), which also enrolls the app in Play App Signing. Play's API
+   can't create an app's first release.
+5. In Google Cloud, in a project of the developer account's: enable the
+   Google Play Android Developer API, create a service account, and
+   download a JSON key for it. In Play Console, Users and permissions,
+   invite the service account's address with "Release to testing tracks"
+   (and "Release apps to production" if it should) for the app.
+6. Put the key on the release Mac at
+   `~/Library/Application Support/Compass Release/android/play-service-account.json`
+   (`chmod 600`), never in a repository.
+
+The graphics are rendered from `android/play/icon.svg` and
+`feature-graphic.svg` with any Chromium browser, for example:
+`Compass --headless --screenshot=icon.png --window-size=512,512
+icon.svg`. Check the size of the result: some versions of headless mode
+leave a strip at the bottom; render a taller window around an `<img>` of
+the SVG and crop.
+
 ### Linux from Windows
 
 Experimental. Chromium builds Linux only on Linux hosts, but nothing in GN
