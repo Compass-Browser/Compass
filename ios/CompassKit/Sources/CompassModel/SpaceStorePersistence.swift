@@ -31,6 +31,11 @@ struct SidebarSnapshot: Codable {
     /// saved as a cache, so the folder shows at once at launch.
     var liveItem: String?
     var unseen: Bool?
+    /// A folder's NameSource: "opener" or "claude" (the desktop's
+    /// "name_source"); absent for the user's, and in files from before.
+    var nameSource: String?
+    /// A folder Claude named: its name before, for Undo Name.
+    var nameBeforeClaude: String?
   }
 
   struct Live: Codable {
@@ -100,7 +105,10 @@ extension SpaceStore {
             plugin: $0.pluginID, config: $0.configJSON, source: $0.pluginURL.isEmpty ? nil : $0.pluginURL,
             sha256: $0.pluginSHA256.isEmpty ? nil : $0.pluginSHA256, refreshed: n.liveRefreshed)
         },
-        liveItem: n.isLiveItem ? n.liveItemKey : nil, unseen: n.unseen ? true : nil)
+        liveItem: n.isLiveItem ? n.liveItemKey : nil, unseen: n.unseen ? true : nil,
+        nameSource: n.isFolder ? Self.savedNameSource(n.nameSource) : nil,
+        nameBeforeClaude: n.isFolder && n.nameSource == .claude && !n.nameBeforeClaude.isEmpty
+          ? n.nameBeforeClaude : nil)
     }
     let snapshot = SidebarSnapshot(
       spaces: spaces.map { s in
@@ -148,6 +156,9 @@ extension SpaceStore {
         node.liveItemKey = key
         node.unseen = n.unseen ?? false
       }
+      if kind == .folder, let source = n.nameSource.flatMap(Self.loadedNameSource) {
+        rawSetNameSource(node, source, nameBeforeClaude: n.nameBeforeClaude ?? "")
+      }
       rawInsert(node, into: parent)
       n.children.forEach { build($0, into: node) }
     }
@@ -172,6 +183,23 @@ extension SpaceStore {
         let root = favorites(forProfile: profile)
         nodes.forEach { build($0, into: root) }
       }
+    }
+  }
+
+  /// A NameSource as saved: none for the user's.
+  nonisolated static func savedNameSource(_ source: SidebarNode.NameSource) -> String? {
+    switch source {
+    case .opener: "opener"
+    case .claude: "claude"
+    case .user: nil
+    }
+  }
+
+  nonisolated static func loadedNameSource(_ text: String) -> SidebarNode.NameSource? {
+    switch text {
+    case "opener": .opener
+    case "claude": .claude
+    default: nil
     }
   }
 

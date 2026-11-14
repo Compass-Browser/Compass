@@ -404,6 +404,18 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         }
         return (.cancel, preferences)
       }
+      // ⌘-click on a link (iPad, with a keyboard): in the background, with
+      // its opener in a Today folder, as "Open in Background" (AppModel's
+      // LinkFolders; docs/design/sidebar.md, "Link folders").
+      var commandClick = false
+      if #available(iOS 18.4, *) { commandClick = navigationAction.modifierFlags.contains(.command) }
+      if navigationAction.navigationType == .linkActivated, commandClick,
+        navigationAction.targetFrame?.isMainFrame != false, let url = navigationAction.request.url, Self.isWeb(url),
+        let onLinkAction, let id = live.first(where: { $0.value === webView })?.key, store.node(id: id) != nil
+      {
+        onLinkAction(.background, url, id)
+        return (.cancel, preferences)
+      }
       // <a download> links.
       let policy: WKNavigationActionPolicy = navigationAction.shouldPerformDownload ? .download : .allow
       if navigationAction.targetFrame?.isMainFrame != false {

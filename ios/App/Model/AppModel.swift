@@ -29,6 +29,11 @@ final class AppModel {
   var downloads: Downloads { services.downloads }
   var extensions: WebExtensions { services.extensions }
   var liveFolders: LiveFolders { services.liveFolders }
+  /// Claude's names for link folders (docs/design/ai-sidebar.md).
+  var namer: LinkFolderNamer { services.namer }
+  /// This window's link folders for pinned entries and favorites, and each
+  /// opener's last link (docs/design/sidebar.md, "Link folders").
+  @ObservationIgnored var linkFolders = LinkFolders()
   var directory: URL { services.directory }
   /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
   var system: SystemBridge { services.system }

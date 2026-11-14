@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassClaude
 import CompassModel
 import CompassShared
 import Foundation
@@ -39,6 +40,10 @@ final class AppServices {
   let directory: URL
   /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
   let system: SystemBridge
+  /// Claude's small background requests for the sidebar, and the link
+  /// folders' names (docs/design/ai-sidebar.md).
+  let quick: ClaudeQuick
+  let namer: LinkFolderNamer
 
   /// The open windows, in the order they opened.
   private(set) var windows: [AppModel] = []
@@ -106,6 +111,13 @@ final class AppServices {
       }
     #endif
     system = SystemBridge()
+    quick = ClaudeQuick(
+      endpoint: { ClaudeSettings.shared.endpoint },
+      isOn: { ClaudeSettings.shared.isOn($0) },
+      cacheLevel: { CacheLevelMemory().level(for: $0.baseURL, isClaudeAPI: $0.isClaudeAPI) })
+    namer = LinkFolderNamer(
+      store: store, quick: quick, prompts: ClaudeSettings.sidebarPrompts,
+      model: { ClaudeSettings.shared.nameLinkFoldersModel })
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
@@ -353,7 +365,7 @@ final class AppServices {
   private func observeForSaving() {
     withObservationTracking {
       _ = store.spaces.map {
-        ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count, $0.unseen, $0.liveSource) })
+        ($0.name, $0.theme, $0.allNodes.map { ($0.url, $0.title, $0.children.count, $0.unseen, $0.liveSource, $0.nameSource) })
       }
       _ = store.favoritesRoots.map(\.children.count)
       _ = store.spaces.map(\.profileUUID)

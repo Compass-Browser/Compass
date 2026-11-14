@@ -101,6 +101,7 @@
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		BC4149FED3CDEE2BAD4F8D46 /* DesktopViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44957DA68D5128D0EA074A29 /* DesktopViewport.swift */; };
 		C0068A5256393F91C60F6820 /* system_prompt.md in Resources */ = {isa = PBXBuildFile; fileRef = 63F0BDD32AEEADE2E9E92FB4 /* system_prompt.md */; };
+		ED2C1E1B30418B0D89BF4DA9 /* sidebar_prompts.md in Resources */ = {isa = PBXBuildFile; fileRef = 322EABAADCF5AD379C37ED6C /* sidebar_prompts.md */; };
 		C1495ED7DCCFC3B6C7173330 /* AutoPiPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */; };
 		C50098134F965E6A549044FE /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 97027B5518478021CC8B3BF5 /* CompassShared */; };
 		C56A4F87EBD3E7FEA87D2AD0 /* ClaudeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC434C43B181FD41FBA6CD32 /* ClaudeSettingsView.swift */; };
@@ -238,6 +239,7 @@
 		630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPickerTests.swift; sourceTree = "<group>"; };
 		63E181E09464F119B3A59058 /* SiteSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteSettingsView.swift; sourceTree = "<group>"; };
 		63F0BDD32AEEADE2E9E92FB4 /* system_prompt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = system_prompt.md; sourceTree = "<group>"; };
+		322EABAADCF5AD379C37ED6C /* sidebar_prompts.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = sidebar_prompts.md; sourceTree = "<group>"; };
 		65277AB39215D86443B8364F /* ThemeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeEditor.swift; sourceTree = "<group>"; };
 		66F0EE58F8587923AB5AD207 /* Downloads+Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Downloads+Background.swift"; sourceTree = "<group>"; };
 		6794D1252E649F6B927EAEF2 /* SearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEngine.swift; sourceTree = "<group>"; };
@@ -442,6 +444,7 @@
 			children = (
 				FD19DC720297F4780763BD8D /* page_agent.js */,
 				63F0BDD32AEEADE2E9E92FB4 /* system_prompt.md */,
+				322EABAADCF5AD379C37ED6C /* sidebar_prompts.md */,
 				CC39BF8C337268145C547E38 /* tools.json */,
 			);
 			path = claude;
@@ -953,6 +956,7 @@
 				EFE5325E6C5B519965DF8FC1 /* runtime in Resources */,
 				09F385C4C63426140B844B62 /* sdk in Resources */,
 				C0068A5256393F91C60F6820 /* system_prompt.md in Resources */,
+				ED2C1E1B30418B0D89BF4DA9 /* sidebar_prompts.md in Resources */,
 				A8639581727EF40CAC1556F8 /* tools.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

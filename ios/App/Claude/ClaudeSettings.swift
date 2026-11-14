@@ -62,6 +62,15 @@ final class ClaudeSettings {
   private var folderBookmark: Data? {
     didSet { defaults.set(folderBookmark, forKey: "ClaudeFilesFolder") }
   }
+  /// "Name Link Folders" (off by default; docs/design/ai-sidebar.md) and
+  /// the model it asks. Each Claude feature in the sidebar has its own
+  /// switch and model; the keys are the desktop's pref names.
+  var nameLinkFolders: Bool {
+    didSet { defaults.set(nameLinkFolders, forKey: ClaudeQuick.nameLinkFoldersKey) }
+  }
+  var nameLinkFoldersModel: String {
+    didSet { defaults.set(nameLinkFoldersModel, forKey: ClaudeQuick.nameLinkFoldersModelKey) }
+  }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -77,6 +86,8 @@ final class ClaudeSettings {
     memoryEnabled = defaults.object(forKey: "ClaudeMemoryEnabled") as? Bool ?? true
     memorySave = defaults.object(forKey: "ClaudeMemorySave") as? Bool ?? true
     devtools = defaults.bool(forKey: "ClaudeDevTools")
+    nameLinkFolders = defaults.bool(forKey: ClaudeQuick.nameLinkFoldersKey)
+    nameLinkFoldersModel = defaults.string(forKey: ClaudeQuick.nameLinkFoldersModelKey) ?? ClaudeQuick.defaultModel
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
     fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
     folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
@@ -188,14 +199,32 @@ final class ClaudeSettings {
 
   /// The picker's models: the listed (or known) ones, plus the saved one if
   /// it isn't among them (a gateway's own id).
-  var pickerModels: [ClaudeModel] {
-    models.contains { $0.id == model } ? models : [ClaudeModel(id: model, displayName: model)] + models
+  var pickerModels: [ClaudeModel] { pickerModels(including: model) }
+
+  /// The same for another picker's choice (a sidebar feature's model).
+  func pickerModels(including chosen: String) -> [ClaudeModel] {
+    models.contains { $0.id == chosen } ? models : [ClaudeModel(id: chosen, displayName: chosen)] + models
+  }
+
+  /// Whether Claude can answer the sidebar's small requests: a key is saved
+  /// (and usable) and the endpoint URL is valid.
+  var isSetUp: Bool { hasKey && (endpoint.map { !$0.needsTokenRisksAccepted } ?? false) }
+
+  /// A sidebar feature's switch, by its key (`ClaudeQuick`).
+  func isOn(_ feature: String) -> Bool {
+    switch feature {
+    case ClaudeQuick.nameLinkFoldersKey: nameLinkFolders
+    default: false
+    }
   }
 
   // MARK: Shared files (common/claude/, bundled)
 
   static let systemPrompt: String = bundled("system_prompt", "md") ?? ""
   static let pageAgent: String = bundled("page_agent", "js") ?? ""
+  /// The prompts of Claude's small requests in the sidebar
+  /// (docs/design/ai-sidebar.md), one section per feature.
+  static let sidebarPrompts: String = bundled("sidebar_prompts", "md") ?? ""
   /// The tool definitions sent to the API (each entry's `definition`;
   /// its `scope` stays here, ClaudeTools.scopes).
   /// Entries for other platforms (`"platforms": ["desktop"]`) are left

@@ -89,6 +89,24 @@ struct ClaudeSettingsView: View {
         Text("Claude can inspect the page it works on as a web developer would: its requests and their answers, styles, cookies and storage, and performance, and try it as another device. Changes to cookies or storage ask you first. While on, Compass records the pages' requests and passes your profiles' connections through a proxy in the app, which sees where they go but never what they carry. Web pages can contain text written to trick Claude, so turn this on only when you need it.")
       }
 
+      // Claude in the sidebar (docs/design/ai-sidebar.md): a row per
+      // feature, each with its own switch and model.
+      Section {
+        ClaudeFeatureRow(
+          title: "Name Link Folders",
+          description:
+            "Claude names the folders that gather a page's links, from their tabs' titles and sites, and folder menus offer “Suggest a Name”. Each new name can be undone from the folder's menu.",
+          isOn: $settings.nameLinkFolders, model: $settings.nameLinkFoldersModel,
+          models: settings.pickerModels(including: settings.nameLinkFoldersModel), ready: settings.isSetUp,
+          identifier: "ClaudeNameLinkFolders")
+      } header: {
+        Text("Claude in the Sidebar")
+      } footer: {
+        Text(
+          "Small tasks Claude does on its own, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; Incognito never. At most 30 requests an hour."
+        )
+      }
+
       Section {
         Toggle("Use Memory", isOn: $settings.memoryEnabled)
         if settings.memoryEnabled {
@@ -197,6 +215,44 @@ struct ClaudeSettingsView: View {
         testOK = false
         testResult = error.message
       }
+    }
+  }
+}
+
+/// One of Claude's features in the sidebar (Settings → Claude): its own
+/// switch and the model it asks, both disabled, with a line saying why,
+/// while Claude isn't set up. A new feature adds a row.
+struct ClaudeFeatureRow: View {
+  let title: String
+  let description: String
+  @Binding var isOn: Bool
+  @Binding var model: String
+  /// The chat picker's models (a gateway's list too).
+  let models: [ClaudeModel]
+  /// Claude is set up (a key saved).
+  let ready: Bool
+  let identifier: String
+
+  var body: some View {
+    Toggle(isOn: Binding(get: { isOn && ready }, set: { isOn = $0 })) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+        Text(description).font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .disabled(!ready)
+    .accessibilityIdentifier(identifier)
+    Picker("Model", selection: $model) {
+      ForEach(models) { model in
+        Text(model.displayName == model.id ? model.id : model.displayName).tag(model.id)
+      }
+    }
+    .disabled(!ready)
+    .accessibilityIdentifier(identifier + "Model")
+    if !ready {
+      Label("Needs Claude set up: save an API key (or a gateway's) above.", systemImage: "info.circle")
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
   }
 }

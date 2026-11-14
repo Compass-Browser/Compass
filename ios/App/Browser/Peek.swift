@@ -146,7 +146,11 @@ extension AppModel {
     case .newTab:
       openLink(url, in: space)
     case .background:
-      guard let space, let tab = store.addTab(url: url.absoluteString, to: space.today) else { return }
+      // With its opener, in a Today folder (LinkFolders).
+      guard let space,
+        let tab = linkFolders.addLink(url: url.absoluteString, from: node, in: space, store: store)
+          ?? store.addTab(url: url.absoluteString, to: space.today)
+      else { return }
       extensions.tabOpened(tab.id)
     case .incognito:
       openLink(url, in: store.incognito)

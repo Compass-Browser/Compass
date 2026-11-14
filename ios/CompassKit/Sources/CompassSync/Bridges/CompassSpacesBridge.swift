@@ -303,6 +303,12 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       n.clearSavedTitle()
     }
     if node.isFolder, node.collapsed { n.collapsed = true } else { n.clearCollapsed() }
+    // Where a folder's name came from (docs/design/ai-sidebar.md): unset for
+    // the user's. A value this client doesn't know is passed on as it is.
+    let nameSource = node.isFolder ? Self.protoNameSource(node.nameSource) : 0
+    if let remote = Self.nameSource(proto: n.nameSource), Self.protoNameSource(remote) != nameSource {
+      if nameSource == 0 { n.clearNameSource() } else { n.nameSource = nameSource }
+    }
     if let source = node.liveSource {
       var live = SyncPb_CompassLiveSource()
       live.pluginID = source.pluginID
@@ -354,6 +360,29 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     }
     specifics.node = n
     return specifics
+  }
+
+  /// CompassNode.name_source: 1 OPENER, 2 CLAUDE, unset (0) the user's, as
+  /// a folder from an older client reads.
+  static let nameSourceOpener: Int32 = 1
+  static let nameSourceClaude: Int32 = 2
+
+  /// The proto's name_source; nil for a value this client doesn't know.
+  static func nameSource(proto value: Int32) -> SidebarNode.NameSource? {
+    switch value {
+    case 0: .user
+    case nameSourceOpener: .opener
+    case nameSourceClaude: .claude
+    default: nil
+    }
+  }
+
+  static func protoNameSource(_ source: SidebarNode.NameSource) -> Int32 {
+    switch source {
+    case .opener: nameSourceOpener
+    case .claude: nameSourceClaude
+    case .user: 0
+    }
   }
 
   static func sameJSON(_ a: String, _ b: String) -> Bool {
@@ -647,6 +676,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         // Only pinned tabs and favorites keep one; a node without one (from
         // a client that predates it) keeps its own.
         if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
+        // Whose name it is: a name the user gave on another device stops
+        // Claude here too.
+        if node.isFolder, let source = Self.nameSource(proto: n.nameSource) { store.rawSetNameSource(node, source) }
         if node.isLiveFolder {
           if let live = Self.liveSource(n) {
             // Its settings, changed on another device.
@@ -672,6 +704,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         guard let root = root(for: n) else { continue }
         // A live folder, where one can be: Pinned.
         if kind == .folder, section == .pinned, let live = Self.liveSource(n) { store.rawSetLiveSource(node, live) }
+        if kind == .folder, let source = Self.nameSource(proto: n.nameSource) { store.rawSetNameSource(node, source) }
         store.rawInsert(node, into: root)
         if n.hasSavedURL { store.rawSetSavedURL(node, url: n.savedURL, title: n.savedTitle) }
       }

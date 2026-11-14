@@ -75,6 +75,19 @@ public final class SidebarNode: Identifiable {
     }
   }
 
+  /// Where a folder's name came from (docs/design/ai-sidebar.md, "Names
+  /// for link folders"; the desktop's SidebarNode::NameSource). Saved and
+  /// synced; a folder without one (made by hand, by an older build or
+  /// another client) is the user's.
+  public enum NameSource: Sendable, Equatable {
+    /// Named after the page whose links it gathers (a link folder).
+    case opener
+    /// Named by Claude.
+    case claude
+    /// Named, or renamed, by the user: Claude never names it on its own.
+    case user
+  }
+
   /// Lowercase UUID; the same on every synced device (the sync client tag).
   public let id: String
   public let kind: Kind
@@ -108,6 +121,15 @@ public final class SidebarNode: Identifiable {
   public internal(set) var liveItemKey: String = ""
   /// A live folder's entry that came with a refresh and hasn't been opened.
   public internal(set) var unseen = false
+  /// Where a folder's name came from; `.user` for other nodes.
+  public internal(set) var nameSource: NameSource = .user
+  /// A folder's name before Claude named it, which Undo Name goes back to;
+  /// empty while the name isn't Claude's, or isn't known (Claude named it
+  /// on another device). Saved, not synced.
+  public internal(set) var nameBeforeClaude = ""
+  /// Whether this device made the folder for a page's links (since the app
+  /// started): only that device asks Claude to name it. Not saved.
+  @ObservationIgnored public internal(set) var linkFolderHere = false
   /// Made a plain folder here, so sync clears its source on the server.
   @ObservationIgnored var liveSourceCleared = false
   @ObservationIgnored public internal(set) weak var parent: SidebarNode?

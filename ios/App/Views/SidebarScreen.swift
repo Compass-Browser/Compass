@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassClaude
 import CompassModel
 import CompassSync
 import SwiftUI
@@ -558,6 +559,19 @@ struct NodeRow: View {
               .font(.system(size: 15))
               .opacity(0.7)
               .contentTransition(.symbolEffect(.replace))
+              // Claude just named it (docs/design/ai-sidebar.md).
+              .overlay(alignment: .topTrailing) {
+                if app.namer.sparkling.contains(item.id) {
+                  Image(systemName: "sparkles")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.orange)
+                    .symbolEffect(.pulse)
+                    .offset(x: 7, y: -6)
+                    .transition(.scale.combined(with: .opacity))
+                    .accessibilityLabel("Named by Claude")
+                }
+              }
+              .animation(.spring(duration: 0.35), value: app.namer.sparkling.contains(item.id))
           }
         } else {
           SiteIcon(url: item.url, size: SidebarStyle.favicon).opacity(dimmed ? 0.55 : 1)
@@ -565,6 +579,9 @@ struct NodeRow: View {
         Text(title(item))
           .font(.system(size: 16, weight: item.isFolder || item.unseen ? .medium : .regular))
           .lineLimit(1)
+          // A folder's new name (Claude's, or Undo Name's) fades in.
+          .contentTransition(.opacity)
+          .animation(item.isFolder ? .easeInOut(duration: 0.35) : nil, value: item.title)
           .opacity(dimmed && !item.unseen ? 0.55 : 1)
         Spacer(minLength: 0)
         if item.isLiveFolder { LiveFolderStatus(folder: item) }
@@ -693,6 +710,15 @@ struct NodeRow: View {
     Button("Rename", systemImage: "pencil") {
       newTitle = node.isFolder ? node.title : node.displayTitle
       renaming = true
+    }
+    // Claude's names (docs/design/ai-sidebar.md): Undo Name while the name
+    // is Claude's, else Suggest a Name with "Name Link Folders" on.
+    if node.isFolder {
+      if app.namer.canUndo(node) {
+        Button("Undo Name", systemImage: "arrow.uturn.backward") { app.store.undoFolderName(node) }
+      } else if app.namer.canSuggest(node) {
+        Button("Suggest a Name", systemImage: "sparkles") { app.namer.suggest(node) }
+      }
     }
     SavedURLItems(tab: node)
     // Incognito: nothing that would copy it into synced lists (pinned,

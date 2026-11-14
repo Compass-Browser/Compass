@@ -64,6 +64,9 @@ public final class SpaceStore {
 
   /// Called after each local change (not for remote ones).
   @ObservationIgnored public var onLocalChange: ((SpaceStoreChange) -> Void)?
+  /// Also called after each local change, after `onLocalChange` (sync's):
+  /// for others that follow the sidebar (LinkFolderNamer).
+  @ObservationIgnored public var localChangeObservers: [(SpaceStoreChange) -> Void] = []
   /// The position suffix for a new or moved entity, by its UUID. Sync sets
   /// it (Chromium derives suffixes from client tag hashes); random otherwise.
   @ObservationIgnored public var suffixForID: (String) -> [UInt8] = { _ in UniquePosition.randomSuffix() }
@@ -368,15 +371,58 @@ public final class SpaceStore {
     remove(parent)
   }
 
+  /// Renames a tab (its custom title) or a folder. A folder renamed this
+  /// way is the user's from then on (`NameSource.user`): Claude never names
+  /// it again, here or on synced devices.
   public func rename(_ node: SidebarNode, customTitle: String) {
     if node.isFolder {
       guard node.title != customTitle else { return }
       node.title = customTitle
+      node.nameSource = .user
+      node.nameBeforeClaude = ""
     } else {
       guard node.customTitle != customTitle else { return }
       node.customTitle = customTitle
     }
     record { $0.putNodes.insert(node.id) }
+  }
+
+  /// Names `folder`, recording where the name came from: going to
+  /// `.claude` keeps the name it had for Undo Name (`nameBeforeClaude`),
+  /// any other source forgets it (the desktop's SpaceModel::SetFolderName).
+  public func setFolderName(_ folder: SidebarNode, _ name: String, source: SidebarNode.NameSource) {
+    guard folder.isFolder, folder.title != name || folder.nameSource != source else { return }
+    if source == .claude {
+      // Claude's names follow one another; Undo Name goes back to the one
+      // before the first.
+      if folder.nameSource != .claude { folder.nameBeforeClaude = folder.title }
+    } else {
+      folder.nameBeforeClaude = ""
+    }
+    folder.title = name
+    folder.nameSource = source
+    record { $0.putNodes.insert(folder.id) }
+  }
+
+  /// Undo Name: `folder` gets its name from before Claude's back, as the
+  /// user's. False, and nothing changes, unless its name is Claude's and the
+  /// one before is known.
+  @discardableResult
+  public func undoFolderName(_ folder: SidebarNode) -> Bool {
+    guard folder.isFolder, folder.nameSource == .claude, !folder.nameBeforeClaude.isEmpty else { return false }
+    setFolderName(folder, folder.nameBeforeClaude, source: .user)
+    return true
+  }
+
+  /// Marks `folder` as a link folder this device made: named after its
+  /// opener (`.opener`), and Claude may name it (docs/design/ai-sidebar.md).
+  public func markLinkFolder(_ folder: SidebarNode) {
+    guard folder.isFolder else { return }
+    folder.linkFolderHere = true
+    guard folder.nameSource != .opener else { return }
+    folder.nameSource = .opener
+    folder.nameBeforeClaude = ""
+    record { $0.putNodes.insert(folder.id) }
   }
 
   public func setCollapsed(_ node: SidebarNode, _ collapsed: Bool) {
@@ -733,6 +779,7 @@ public final class SpaceStore {
       guard !change.isEmpty else { return }
     }
     onLocalChange?(change)
+    for observer in localChangeObservers { observer(change) }
   }
 
   // MARK: Raw access for loading and sync (no invariants checked, no
@@ -778,6 +825,21 @@ public final class SpaceStore {
     guard node.isTab, !node.savedURL.isEmpty, !url.isEmpty else { return }
     node.savedURL = url
     node.savedTitle = title
+  }
+
+  /// Sets where a folder's name came from, as loaded or received (sync);
+  /// leaving `.claude` forgets the name before. `nameBeforeClaude` is only
+  /// for loading.
+  public func rawSetNameSource(
+    _ folder: SidebarNode, _ source: SidebarNode.NameSource, nameBeforeClaude: String? = nil
+  ) {
+    guard folder.isFolder else { return }
+    if folder.nameSource != source { folder.nameSource = source }
+    if source != .claude {
+      if !folder.nameBeforeClaude.isEmpty { folder.nameBeforeClaude = "" }
+    } else if let nameBeforeClaude {
+      folder.nameBeforeClaude = nameBeforeClaude
+    }
   }
 
   public func rawDetach(_ node: SidebarNode) { node.parent?.remove(node) }

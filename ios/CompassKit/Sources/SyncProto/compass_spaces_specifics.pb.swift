@@ -447,6 +447,19 @@ public nonisolated struct SyncPb_CompassNode: @unchecked Sendable {
   /// Clears the value of `liveSource`. Subsequent reads from it will return its default value.
   public mutating func clearLiveSource() {_uniqueStorage()._liveSource = nil}
 
+  /// FOLDERS: where the name came from (docs/design/ai-sidebar.md, "Names for
+  /// link folders"): 1 OPENER (a link folder, named after its page), 2 CLAUDE.
+  /// Not set: the user's, which Claude never changes; so a client without
+  /// it (an older one) leaves every name alone.
+  public var nameSource: Int32 {
+    get {_storage._nameSource ?? 0}
+    set {_uniqueStorage()._nameSource = newValue}
+  }
+  /// Returns true if `nameSource` has been explicitly set.
+  public var hasNameSource: Bool {_storage._nameSource != nil}
+  /// Clears the value of `nameSource`. Subsequent reads from it will return its default value.
+  public mutating func clearNameSource() {_uniqueStorage()._nameSource = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -957,7 +970,7 @@ nonisolated extension SyncPb_CompassColor: SwiftProtobuf.Message, SwiftProtobuf.
 
 nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassNode"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}section\0\u{1}position\0\u{1}type\0\u{1}url\0\u{1}title\0\u{3}custom_title\0\u{1}collapsed\0\u{3}last_active_time\0\u{3}archived_time\0\u{3}saved_url\0\u{3}saved_title\0\u{3}live_source\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}section\0\u{1}position\0\u{1}type\0\u{1}url\0\u{1}title\0\u{3}custom_title\0\u{1}collapsed\0\u{3}last_active_time\0\u{3}archived_time\0\u{3}saved_url\0\u{3}saved_title\0\u{3}live_source\0\u{3}name_source\0")
 
   fileprivate class _StorageClass {
     var _uuid: String? = nil
@@ -975,6 +988,7 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
     var _savedURL: String? = nil
     var _savedTitle: String? = nil
     var _liveSource: SyncPb_CompassLiveSource? = nil
+    var _nameSource: Int32? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1000,6 +1014,7 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
       _savedURL = source._savedURL
       _savedTitle = source._savedTitle
       _liveSource = source._liveSource
+      _nameSource = source._nameSource
     }
   }
 
@@ -1033,6 +1048,7 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
         case 13: try { try decoder.decodeSingularStringField(value: &_storage._savedURL) }()
         case 14: try { try decoder.decodeSingularStringField(value: &_storage._savedTitle) }()
         case 15: try { try decoder.decodeSingularMessageField(value: &_storage._liveSource) }()
+        case 16: try { try decoder.decodeSingularInt32Field(value: &_storage._nameSource) }()
         default: break
         }
       }
@@ -1090,6 +1106,9 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
       try { if let v = _storage._liveSource {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
       } }()
+      try { if let v = _storage._nameSource {
+        try visitor.visitSingularInt32Field(value: v, fieldNumber: 16)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1114,6 +1133,7 @@ nonisolated extension SyncPb_CompassNode: SwiftProtobuf.Message, SwiftProtobuf._
         if _storage._savedURL != rhs_storage._savedURL {return false}
         if _storage._savedTitle != rhs_storage._savedTitle {return false}
         if _storage._liveSource != rhs_storage._liveSource {return false}
+        if _storage._nameSource != rhs_storage._nameSource {return false}
         return true
       }
       if !storagesAreEqual {return false}
