@@ -106,11 +106,25 @@ struct ClaudeSettingsView: View {
           isOn: $settings.tidyToday, model: $settings.tidyTodayModel,
           models: settings.pickerModels(including: settings.tidyTodayModel), ready: settings.isSetUp,
           identifier: "ClaudeTidyToday")
+        ClaudeFeatureRow(
+          title: "Shorter Tab Titles",
+          description:
+            "Long tab titles read as short ones in the sidebar, “PR #123: fix login” for a pull request's whole title. Only in the sidebar's rows, never saved or synced; a name you give a tab wins.",
+          isOn: $settings.shortTabTitles, model: $settings.shortTabTitlesModel,
+          models: settings.pickerModels(including: settings.shortTabTitlesModel), ready: settings.isSetUp,
+          identifier: "ClaudeShortTabTitles")
+        ClaudeFeatureRow(
+          title: "Answer Questions in the Command Bar",
+          description:
+            "A question typed in the command bar gets an “Ask Claude” row, and a short answer under the field; “Continue in Chat” goes on from there. “About this page” sends the page's title and site, never what it contains.",
+          isOn: $settings.commandBarAsk, model: $settings.commandBarAskModel,
+          models: settings.pickerModels(including: settings.commandBarAskModel), ready: settings.isSetUp,
+          identifier: "ClaudeCommandBarAsk")
       } header: {
         Text("Claude in the Sidebar")
       } footer: {
         Text(
-          "Small tasks Claude does for you, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; Incognito never. At most 30 automatic requests an hour."
+          "Small tasks Claude does for you, each with its own switch and model. Only tabs' titles and sites are sent (and the questions you ask), to the endpoint above, never what pages contain; Incognito never. At most 30 automatic requests an hour."
         )
       }
 

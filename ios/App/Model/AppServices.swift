@@ -46,6 +46,8 @@ final class AppServices {
   let namer: LinkFolderNamer
   /// Tidy Today (docs/design/ai-sidebar.md), and its undos.
   let tidier: TodayTidier
+  /// Shorter tab titles in the sidebar's rows (docs/design/ai-sidebar.md).
+  let shortener: TabTitleShortener
 
   /// The open windows, in the order they opened.
   private(set) var windows: [AppModel] = []
@@ -123,6 +125,9 @@ final class AppServices {
     tidier = TodayTidier(
       store: store, quick: quick, prompts: ClaudeSettings.sidebarPrompts,
       model: { ClaudeSettings.shared.tidyTodayModel }, isShown: { $0.isPhoneVisible })
+    shortener = TabTitleShortener(
+      store: store, quick: quick, prompts: ClaudeSettings.sidebarPrompts,
+      model: { ClaudeSettings.shared.shortTabTitlesModel })
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)
@@ -206,6 +211,16 @@ final class AppServices {
         try? await Task.sleep(for: .seconds(60))
       }
     }
+  }
+
+  /// Ask in the command bar (docs/design/ai-sidebar.md): one per command
+  /// bar, streaming through the chat's client (ClaudeClient).
+  func makeAsker() -> CommandBarAsker {
+    CommandBarAsker(
+      quick: quick, prompts: ClaudeSettings.sidebarPrompts, model: { ClaudeSettings.shared.commandBarAskModel },
+      stream: { body, endpoint, onEvent in
+        await ClaudeClient.stream(ChatRequest(body: body), endpoint: endpoint, onEvent: onEvent)
+      })
   }
 
   var sidebarURL: URL { directory.appendingPathComponent("Sidebar.json") }

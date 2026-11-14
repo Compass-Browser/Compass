@@ -6,8 +6,8 @@ import Foundation
 
 /// Claude's small background requests for the sidebar (docs/design/
 /// ai-sidebar.md, "Shared core"; the desktop's browser/claude/
-/// claude_quick.*): names for link folders and Tidy Today now, short titles
-/// later. One system prompt and one user message, no tools, at most
+/// claude_quick.*): names for link folders, Tidy Today and short tab
+/// titles. (Ask in the command bar streams instead: `CommandBarAsker`.) One system prompt and one user message, no tools, at most
 /// `maxTokens`, through the chat's endpoint, key, auth style and cache
 /// level, on the feature's own model; one JSON object back within
 /// `timeout`. Never shows UI. Background requests are limited to
@@ -26,6 +26,9 @@ public final class ClaudeQuick {
   public nonisolated static let laterBackOff: TimeInterval = 10 * 60
   /// The model a feature asks when its setting names none.
   public nonisolated static let defaultModel = "claude-haiku-5-5"
+  /// "Answer Questions in the Command Bar"'s default: an answer the user
+  /// waits for and reads (the desktop's kDefaultAskModel).
+  public nonisolated static let defaultAskModel = "claude-sonnet-5-5"
   /// A reply this long isn't a name, or anything else these requests ask for.
   nonisolated static let maxReplyText = 8 * 1024
 
@@ -253,6 +256,15 @@ extension ClaudeQuick {
   /// Today's loose entries into named folders; and the model it asks.
   public nonisolated static let tidyTodayKey = "compass.claude.tidy_today"
   public nonisolated static let tidyTodayModelKey = "compass.claude.tidy_today_model"
+  /// "Shorter Tab Titles": long tab titles read as short ones in the
+  /// sidebar's rows (`TabTitleShortener`); and the model it asks.
+  public nonisolated static let shortTabTitlesKey = "compass.claude.short_tab_titles"
+  public nonisolated static let shortTabTitlesModelKey = "compass.claude.short_tab_titles_model"
+  /// "Answer Questions in the Command Bar": a question typed there gets an
+  /// "Ask Claude" row and a short answer under the field
+  /// (`CommandBarAsker`); and the model it streams on.
+  public nonisolated static let commandBarAskKey = "compass.claude.command_bar_ask"
+  public nonisolated static let commandBarAskModelKey = "compass.claude.command_bar_ask_model"
 }
 
 // MARK: Prompts and names

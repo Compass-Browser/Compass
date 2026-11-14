@@ -97,6 +97,13 @@ public struct ChatRequest: Sendable {
   /// What the API checks for before it accepts a token from `claude setup-token`.
   static let oauthSystemLine = "You are Claude Code, Anthropic's official CLI for Claude."
 
+  /// A request built elsewhere (Ask in the command bar's,
+  /// `CommandBarAsker.body`), for the chat's streaming client.
+  public init(body: JSONValue, betas: [String] = []) {
+    self.body = body
+    self.betas = betas
+  }
+
   public init(messages: [JSONValue], options: Options) {
     let ephemeral: JSONValue = ["type": "ephemeral"]
     // The prompt, then the chat's memory, cached up to the last of them.

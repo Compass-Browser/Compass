@@ -78,6 +78,21 @@ final class ClaudeSettings {
   var tidyTodayModel: String {
     didSet { defaults.set(tidyTodayModel, forKey: ClaudeQuick.tidyTodayModelKey) }
   }
+  /// "Shorter Tab Titles" (off by default) and the model it asks.
+  var shortTabTitles: Bool {
+    didSet { defaults.set(shortTabTitles, forKey: ClaudeQuick.shortTabTitlesKey) }
+  }
+  var shortTabTitlesModel: String {
+    didSet { defaults.set(shortTabTitlesModel, forKey: ClaudeQuick.shortTabTitlesModelKey) }
+  }
+  /// "Answer Questions in the Command Bar" (off by default) and the model
+  /// it asks.
+  var commandBarAsk: Bool {
+    didSet { defaults.set(commandBarAsk, forKey: ClaudeQuick.commandBarAskKey) }
+  }
+  var commandBarAskModel: String {
+    didSet { defaults.set(commandBarAskModel, forKey: ClaudeQuick.commandBarAskModelKey) }
+  }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -97,6 +112,10 @@ final class ClaudeSettings {
     nameLinkFoldersModel = defaults.string(forKey: ClaudeQuick.nameLinkFoldersModelKey) ?? ClaudeQuick.defaultModel
     tidyToday = defaults.bool(forKey: ClaudeQuick.tidyTodayKey)
     tidyTodayModel = defaults.string(forKey: ClaudeQuick.tidyTodayModelKey) ?? ClaudeQuick.defaultModel
+    shortTabTitles = defaults.bool(forKey: ClaudeQuick.shortTabTitlesKey)
+    shortTabTitlesModel = defaults.string(forKey: ClaudeQuick.shortTabTitlesModelKey) ?? ClaudeQuick.defaultModel
+    commandBarAsk = defaults.bool(forKey: ClaudeQuick.commandBarAskKey)
+    commandBarAskModel = defaults.string(forKey: ClaudeQuick.commandBarAskModelKey) ?? ClaudeQuick.defaultAskModel
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
     fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
     folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
@@ -224,6 +243,8 @@ final class ClaudeSettings {
     switch feature {
     case ClaudeQuick.nameLinkFoldersKey: nameLinkFolders
     case ClaudeQuick.tidyTodayKey: tidyToday
+    case ClaudeQuick.shortTabTitlesKey: shortTabTitles
+    case ClaudeQuick.commandBarAskKey: commandBarAsk
     default: false
     }
   }

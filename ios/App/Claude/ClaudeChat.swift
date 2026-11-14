@@ -136,6 +136,15 @@ final class ClaudeChat {
     allowedForChat = []
   }
 
+  /// "Continue in Chat" from the command bar's answer
+  /// (docs/design/ai-sidebar.md, "Ask in the command bar"): a new chat
+  /// that starts with the question and its answer.
+  func seed(question: String, answer: String) {
+    newChat()
+    conversation.addUser(text: question)
+    conversation.addAssistant(text: answer)
+  }
+
   /// Asks the user before a file is written; true to go ahead.
   func ask(_ request: ClaudeTools.Approval) async -> Bool {
     if allowedForChat.contains(request.tool) { return true }

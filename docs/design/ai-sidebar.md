@@ -7,8 +7,8 @@ claude.md's; this doc reuses its endpoint, credentials and request code.
 
 Status: A1, A2 and A3 (Tidy Today) done on the desktop and on iOS (14
 November 2026); A4 (Shorter tab titles) and A5 (Ask in the command bar)
-done on the desktop (14 November 2026); A7 planned, and A6's A4 and A5.
-Desktop first, then iOS and Android.
+done on the desktop and on iOS (14 November 2026), so A6 is done; A7
+planned. Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -356,11 +356,12 @@ With "Name Link Folders" on:
   in Chat's two turns and the next message's three messages;
   `NothingWithTheSwitchOff`).
 
-## As built on iOS (A6: A1–A3)
+## As built on iOS (A6: A1–A5)
 
 Done on iOS (14 November 2026): `ClaudeQuick`, the prompts, the switch and
 model of "Name Link Folders", link folders themselves, and their names;
-then Tidy Today (A3). Short titles and Ask (A4, A5) aren't on iOS yet.
+then Tidy Today (A3), shorter tab titles (A4) and Ask in the command bar
+(A5).
 
 - **`ClaudeQuick`** (`CompassKit/Sources/CompassClaude/ClaudeQuick.swift`):
   the desktop's rules (one system prompt and one user message, no tools,
@@ -416,6 +417,54 @@ then Tidy Today (A3). Short titles and Ask (A4, A5) aren't on iOS yet.
   duplicates, singletons, bad names, more than 6; the request; apply and
   undo through a fake endpoint; nothing sent with the switch off or in
   incognito; the switch turned off mid-request; errors; no hourly limit).
+- **Shorter tab titles** (`TabTitleShortener`, CompassClaude;
+  `AppServices.shortener`): the desktop's switch and model
+  (`compass.claude.short_tab_titles`, `compass.claude.short_tab_titles_model`,
+  default `claude-haiku-5-5`), tabs (`isEligible()`: Today and Pinned, not
+  favorites, no custom title, `isLong()` = `NeedsShortTitle()`), request
+  ("short_titles", "<n>. <title> (<host>)" under "The tabs:", background:
+  the hourly limit and back-off apply), batch (10 s after the first title
+  waiting, at once when 20 wait, 20 a request), reply
+  (`parseShortTitlesReply()`, `sanitizeShortTitle()` = `SanitizeShortTitle()`,
+  a title that isn't shorter is none) and cache (per (host, title) while
+  the app runs, "none" too, up to 2,000; a failed request caches nothing).
+  Only the sidebar's rows show them (`NodeRow`: split panes, the tab picker,
+  the command bar, the page menu, the chat and sync keep the page's title);
+  nothing on the node, so nothing is saved or synced; a custom title wins;
+  never in incognito. The switch off (or no key) hides them and drops what
+  waits; on again, cached ones come back without a request. iOS asks
+  for what the sidebar shows rather than following every tab: a row asks
+  (`want()`) when it shows, when its title changes and when the switch goes
+  on, so a title that failed is asked for again when its row shows next.
+- **Ask in the command bar** (`CommandBarAsker`, CompassClaude, one per
+  command bar): the desktop's switch and model
+  (`compass.claude.command_bar_ask`, `compass.claude.command_bar_ask_model`,
+  default `claude-sonnet-5-5`, `ClaudeQuick.defaultAskModel`).
+  `isQuestion()` is `LooksLikeQuestion()` (the same words and languages).
+  An "Ask Claude" card then tops the results and Return asks (otherwise
+  Return searches); "About This Page", on by default, shows while the shown
+  tab is an http(s) page outside incognito and puts `describePage()`'s line
+  ("I'm looking at a page titled "<title>" on <host>.") before the
+  question. **Streamed:** the app's chat client (`ClaudeClient.stream`) is
+  reused with the body `CommandBarAsker.body()` builds (the
+  "command_bar_ask" section, the feature's model, `max_tokens` 400,
+  `stream`, no tools, no thinking, the chat's cache level and
+  subscription-token line), so the answer grows in a card under the field;
+  60 s at most ("Claude took too long."). Another line in the field, or
+  closing the bar, drops it. "Continue in Chat" (or Return once answered)
+  opens the Claude sheet on a new chat whose first exchange is the question
+  (with the page line, if it went) and the answer (`ClaudeChat.seed`,
+  `Conversation.addAssistant`); nothing is sent until the user writes. The
+  user's action: no hourly limit or back-off; never in incognito; the
+  switch turned off mid-answer stops it.
+- **Tests:** `TabTitleShortenerTests` (parsing, sanitizing, long titles,
+  the cache per host and title, batching after the window and at once at
+  20, a longer answer dropped, the user's name wins, Pinned but not
+  favorites, nothing with the switch off or in incognito, the hourly limit,
+  errors not cached) and `CommandBarAskerTests` (`LooksLikeQuestion`'s
+  cases, the page line, the request shape, streaming, nothing sent with the
+  switch off or in incognito, errors, the timeout, cancel, the switch
+  turned off mid-answer, Continue in Chat's conversation).
 
 ## Milestones
 
@@ -426,7 +475,7 @@ then Tidy Today (A3). Short titles and Ask (A4, A5) aren't on iOS yet.
 | A3 | Tidy Today with Undo |
 | A4 | Shorter tab titles |
 | A5 | Ask in the command bar |
-| A6 | iOS: A1–A5 (A1–A3 done) |
+| A6 | iOS: A1–A5 (done) |
 | A7 | Android: A1–A5 |
 
 ## Tests

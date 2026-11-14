@@ -33,6 +33,8 @@ final class AppModel {
   var namer: LinkFolderNamer { services.namer }
   /// Tidy Today (docs/design/ai-sidebar.md).
   var tidier: TodayTidier { services.tidier }
+  /// Shorter tab titles in the sidebar (docs/design/ai-sidebar.md).
+  var shortener: TabTitleShortener { services.shortener }
   /// This window's link folders for pinned entries and favorites, and each
   /// opener's last link (docs/design/sidebar.md, "Link folders").
   @ObservationIgnored var linkFolders = LinkFolders()

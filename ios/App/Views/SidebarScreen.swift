@@ -606,6 +606,12 @@ struct NodeRow: View {
           .contentTransition(.opacity)
           .animation(item.isFolder ? .easeInOut(duration: 0.35) : nil, value: item.title)
           .opacity(dimmed && !item.unseen ? 0.55 : 1)
+          // Claude's short title for a long one (docs/design/ai-sidebar.md):
+          // asked for when the row shows, its title changes, or the switch
+          // goes on.
+          .task(id: item.isTab ? "\(app.shortener.isEnabled)\n\(item.customTitle)\n\(item.title)\n\(item.url)" : "") {
+            if item.isTab { app.shortener.want(item) }
+          }
         Spacer(minLength: 0)
         if item.isLiveFolder { LiveFolderStatus(folder: item) }
         if item.unseen {
@@ -667,8 +673,11 @@ struct NodeRow: View {
     return false
   }
 
+  /// The row's title: the user's name for it, else Claude's short title
+  /// ("Shorter Tab Titles"), else the page's.
   private func title(_ item: SidebarNode) -> String {
-    item.displayTitle.isEmpty ? "Untitled" : item.displayTitle
+    if item.isTab, let short = app.shortener.shortTitle(for: item) { return short }
+    return item.displayTitle.isEmpty ? "Untitled" : item.displayTitle
   }
 
   /// "Split With" a tab beside it, and "Add to Split": this tab into a

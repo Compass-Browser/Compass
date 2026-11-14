@@ -65,6 +65,13 @@ public struct Conversation: Sendable {
     turns.append(turn)
   }
 
+  /// A finished reply that didn't stream here: Ask in the command bar's
+  /// answer, when "Continue in Chat" starts a chat with it
+  /// (docs/design/ai-sidebar.md, "Ask in the command bar").
+  public mutating func addAssistant(text: String) {
+    turns.append(Turn(role: .assistant, content: [["type": "text", "text": .string(text)]]))
+  }
+
   public mutating func addToolResults(_ results: [JSONValue]) {
     turns.append(Turn(role: .user, isToolResults: true, content: results))
   }
