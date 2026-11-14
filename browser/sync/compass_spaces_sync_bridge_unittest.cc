@@ -1826,7 +1826,7 @@ TEST_F(CompassSpacesSyncBridgeTest, LocalSpaceIgnoresRemoteChanges) {
 
   a->Pull();
   EXPECT_EQ(second->name(), u"Second");
-  EXPECT_EQ(Describe(*second->pinned_root()), "S T");
+  EXPECT_EQ(Describe(*second->pinned_root()), "S,T");
   // A deleted it all again.
   EXPECT_GT(a->last_push(), 0u);
   EXPECT_FALSE(ServerHasSpace(server_, second->id()));
