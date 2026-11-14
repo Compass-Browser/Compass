@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COMPASS_BROWSER_SHORTCUTS_SHORTCUTS_WIN_H_
-#define COMPASS_BROWSER_SHORTCUTS_SHORTCUTS_WIN_H_
+#ifndef COMPASS_BROWSER_SHORTCUTS_SHORTCUTS_TABLE_H_
+#define COMPASS_BROWSER_SHORTCUTS_SHORTCUTS_TABLE_H_
 
 #include <optional>
 #include <string>
@@ -15,11 +15,12 @@
 
 namespace compass {
 
-// Compass's shortcuts and the user's on Windows (docs/design/shortcuts.md,
-// "Windows"). The browser's shortcuts are upstream's accelerator table
-// (GetAcceleratorList(), accelerator_table.cc), which every window registers
-// with its focus manager (BrowserView::LoadAccelerators()) and its menus
-// show; a hook at the table's end hands it to AdjustAcceleratorList().
+// Compass's shortcuts and the user's on Windows and Linux
+// (docs/design/shortcuts.md, "Windows and Linux"). The browser's shortcuts
+// are upstream's accelerator table (GetAcceleratorList(),
+// accelerator_table.cc), which every window registers with its focus manager
+// (BrowserView::LoadAccelerators()) and its menus show; a hook at the
+// table's end hands it to AdjustAcceleratorList().
 // The same API as shortcuts_mac.h, for the settings page.
 
 // The browser commands whose shortcuts the settings page lists and the user
@@ -61,4 +62,4 @@ std::optional<std::u16string> FindBuiltInShortcut(
 
 }  // namespace compass
 
-#endif  // COMPASS_BROWSER_SHORTCUTS_SHORTCUTS_WIN_H_
+#endif  // COMPASS_BROWSER_SHORTCUTS_SHORTCUTS_TABLE_H_

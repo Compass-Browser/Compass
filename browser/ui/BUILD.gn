@@ -240,28 +240,33 @@ source_set("ui") {
       sources += [ "claude/mcp_listener_posix.cc" ]
     }
   }
-  if (is_mac || is_win) {
+  if (is_mac || is_win || is_linux) {
     # The little window's shortcut from any app, as a system hot key.
     sources += [
       "views/little_window/little_window_hot_key.cc",
       "views/little_window/little_window_hot_key.h",
     ]
+    deps += [ "//ui/base/accelerators/global_accelerator_listener" ]
+  }
+  if (is_mac || is_win) {
     # chrome://compass-sync asks for Touch ID before showing the recovery
     # code. The sidebar tints picture-in-picture windows (InstallPipTint()).
     deps += [
       "//chrome/browser/device_reauth",
       "//compass/browser/ui/views/picture_in_picture:pip_windows",
-      "//ui/base/accelerators/global_accelerator_listener",
     ]
   }
-  if (is_win) {
+  if (is_win || is_linux) {
+    # The windows' shortcuts follow the user's; the shortcuts page reads
+    # upstream's accelerator table.
     sources += [
-      "views/frame/browser_view_accelerators_win.cc",
-      "views/frame/browser_view_accelerators_win.h",
-      "views/frame/browser_view_exchange_win.cc",
+      "views/frame/browser_view_accelerators.cc",
+      "views/frame/browser_view_accelerators.h",
     ]
-    # The shortcuts page reads upstream's accelerator table.
     deps += [ "//chrome/browser/ui:accelerator_table" ]
+  }
+  if (is_win) {
+    sources += [ "views/frame/browser_view_exchange_win.cc" ]
   }
   if (is_linux) {
     sources += [ "views/frame/browser_view_exchange_linux.cc" ]
@@ -345,6 +350,8 @@ source_set("browser_tests") {
     "views/command_bar/command_bar_browsertest.cc",
     "views/claude/claude_panel_browsertest.cc",
     "views/find_bar/find_bar_browsertest.cc",
+    "views/little_window/little_window_browsertest.cc",
+    "views/little_window/little_window_browsertest.h",
     "webui/claude/claude_settings_handler_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
     "views/peek/peek_browsertest.cc",
@@ -422,11 +429,20 @@ source_set("browser_tests") {
     "//ui/views:test_support",
     "//url",
   ]
+  if (is_win || is_linux) {
+    # The windows' shortcuts, Compass's and the user's.
+    sources += [ "views/frame/browser_view_accelerators_browsertest.cc" ]
+    deps += [ "//chrome/browser/ui:accelerator_table" ]
+  }
+  if (is_linux) {
+    # The little window's hot key.
+    deps += [ "//ui/base/accelerators/global_accelerator_listener" ]
+  }
   if (is_mac) {
     sources += [
       "cocoa/main_menu_browsertest.mm",
       "cocoa/shortcuts_mac_browsertest.mm",
-      "views/little_window/little_window_browsertest.mm",
+      "views/little_window/little_window_browsertest_mac.mm",
     ]
     deps += [
       "//compass/browser/ui/cocoa:shortcuts",

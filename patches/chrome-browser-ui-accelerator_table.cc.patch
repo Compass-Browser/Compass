@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/accelerator_table.cc b/chrome/browser/ui/accelerator_table.cc
-index a000ed9aeb15cf1efa518aa0cd4e833a4a49ec8c..84c74f68d61e56fdca7a79a5462f0938258484b5 100644
+index a000ed9aeb15cf1efa518aa0cd4e833a4a49ec8c..1857a72f8aff387f31677d566eb8df97b86dbffc 100644
 --- a/chrome/browser/ui/accelerator_table.cc
 +++ b/chrome/browser/ui/accelerator_table.cc
 @@ -16,6 +16,10 @@
@@ -7,36 +7,34 @@ index a000ed9aeb15cf1efa518aa0cd4e833a4a49ec8c..84c74f68d61e56fdca7a79a5462f0938
  #include "chrome/app/chrome_command_ids.h"
  #include "chrome/browser/ui/actions/command_id_to_action_id.h"
 +#include "compass/browser/ui/compass_command_ids.h"
-+#if BUILDFLAG(IS_WIN)
-+#include "compass/browser/shortcuts/shortcuts_win.h"
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
++#include "compass/browser/shortcuts/shortcuts_table.h"
 +#endif
  #include "printing/buildflags/buildflags.h"
  #include "ui/base/accelerators/accelerator.h"
  #include "ui/base/ui_base_features.h"
-@@ -318,7 +322,15 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
-                          std::begin(kDevToolsAcceleratorMap),
+@@ -319,8 +323,13 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
                           std::end(kDevToolsAcceleratorMap));
  
--#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
-+#if BUILDFLAG(IS_WIN)
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +    // Compass: Shift+Alt+N opens a little window (as Cmd+Option+N does on
 +    // macOS, where it was New Split Tab's too). Not Ctrl+Alt+N: Windows
 +    // reserves Ctrl+Alt (AltGr), see below. Compass splits by dragging a tab
 +    // onto another or from the menu.
-+    accelerators->emplace_back(AcceleratorMapping(
+     accelerators->emplace_back(AcceleratorMapping(
+-        {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN, IDC_NEW_SPLIT_TAB}));
 +        {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
 +         compass::kNewLittleWindowCommand}));
-+#elif BUILDFLAG(IS_LINUX)
-     accelerators->emplace_back(AcceleratorMapping(
-         {ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN, IDC_NEW_SPLIT_TAB}));
  #elif BUILDFLAG(IS_CHROMEOS)
-@@ -358,7 +370,25 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
+     accelerators->emplace_back(
+         AcceleratorMapping({ui::VKEY_N, ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN,
+@@ -358,7 +367,25 @@ std::vector<AcceleratorMapping> GetAcceleratorList() {
      }
    }
  
-+#if BUILDFLAG(IS_WIN)
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +  // Compass: its shortcuts over upstream's, then the user's
-+  // (compass/browser/shortcuts/shortcuts_win.h).
++  // (compass/browser/shortcuts/shortcuts_table.h).
 +  std::vector<compass::CommandAccelerator> list;
 +  for (const AcceleratorMapping& mapping : *accelerators) {
 +    list.push_back({ui::Accelerator(mapping.keycode, mapping.modifiers),

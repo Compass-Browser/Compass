@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "compass/browser/shortcuts/shortcuts_win.h"
+#include "compass/browser/shortcuts/shortcuts_table.h"
 
 #include <algorithm>
 #include <map>

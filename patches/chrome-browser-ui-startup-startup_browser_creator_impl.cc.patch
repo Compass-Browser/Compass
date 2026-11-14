@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index 1e34f398af7c05e1290c22270343b3fe03b7687b..2ab207c7a189aea9856da3244002cc2866224b57 100644
+index 1e34f398af7c05e1290c22270343b3fe03b7687b..409c33c1a607c1d8654c2ab5082cdef757a9f51b 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 @@ -97,6 +97,10 @@
  #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
  #endif
  
-+#if BUILDFLAG(IS_WIN)
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +#include "compass/browser/ui/views/little_window/little_window.h"
 +#endif
 +
@@ -17,7 +17,7 @@ index 1e34f398af7c05e1290c22270343b3fe03b7687b..2ab207c7a189aea9856da3244002cc28
  
  namespace {
  
-+#if BUILDFLAG(IS_WIN)
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +// Compass: the startup tabs without the command line's links, which open in
 +// little windows instead (docs/design/little-window.md).
 +class StartupTabProviderWithoutLinks : public StartupTabProviderImpl {
@@ -28,18 +28,19 @@ index 1e34f398af7c05e1290c22270343b3fe03b7687b..2ab207c7a189aea9856da3244002cc28
 +    return StartupTabs();
 +  }
 +};
-+#endif  // BUILDFLAG(IS_WIN)
++#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +
  // Utility functions ----------------------------------------------------------
  
  // On ChromeOS Ash check the previous apps launching history info to decide
-@@ -543,14 +560,47 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+@@ -543,14 +560,48 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
    const bool whats_new_enabled =
        whats_new::ShouldShowForState(local_state, promotions_enabled);
  
-+#if BUILDFLAG(IS_WIN)
-+  // Compass: links from other apps (Windows passes them on the command line)
-+  // open in little windows, as on macOS (docs/design/little-window.md). With
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
++  // Compass: links from other apps (Windows and Linux pass them on the
++  // command line, through the process singleton while Compass runs) open in
++  // little windows, as on macOS (docs/design/little-window.md). With
 +  // Compass running, that's all; at startup, the usual windows open first,
 +  // without the links, and the little windows over them.
 +  StartupTabs little_window_links;
@@ -69,23 +70,23 @@ index 1e34f398af7c05e1290c22270343b3fe03b7687b..2ab207c7a189aea9856da3244002cc28
    auto result = DetermineStartupTabs(
        StartupTabProviderImpl(), process_startup, is_incognito_or_guest,
        is_post_crash_launch, promotions_enabled, whats_new_enabled);
-+#endif  // BUILDFLAG(IS_WIN)
++#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
    StartupTabs tabs = std::move(result.tabs);
  
    // Return immediately if we start an async restore, since the remainder of
    // that process is self-contained.
    if (MaybeAsyncRestore(tabs, process_startup, is_post_crash_launch)) {
-+#if BUILDFLAG(IS_WIN)
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +    compass::OpenInLittleWindows(little_window_links, profile_);
 +#endif
      return;
    }
    BrowserOpenBehaviorOptions behavior_options = 0;
-@@ -597,6 +647,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+@@ -597,6 +648,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
  
    BrowserWindowInterface* browser = RestoreOrCreateBrowser(
        tabs, behavior, restore_options, process_startup, is_post_crash_launch);
-+#if BUILDFLAG(IS_WIN)
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +  compass::OpenInLittleWindows(little_window_links, profile_);
 +#endif
  

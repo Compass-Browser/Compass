@@ -30,10 +30,10 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/ui/cocoa/shortcuts_mac.h"
-#elif BUILDFLAG(IS_WIN)
+#elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 #include "chrome/browser/ui/accelerator_table.h"
-#include "compass/browser/shortcuts/shortcuts_win.h"
-#include "compass/browser/ui/views/frame/browser_view_accelerators_win.h"
+#include "compass/browser/shortcuts/shortcuts_table.h"
+#include "compass/browser/ui/views/frame/browser_view_accelerators.h"
 #endif
 
 namespace compass {
@@ -61,12 +61,12 @@ ui::Accelerator ToAccelerator(const sidebar::mojom::ShortcutKeys& keys) {
                          modifiers);
 }
 
-#if BUILDFLAG(IS_WIN)
-// Names for the keys upstream's text leaves blank on Windows (it names only
-// F1, F4, F6 and F11 among the function keys, and maps the rest through the
-// keyboard layout, which has no character for them) or writes like main
-// keyboard keys (the numpad's).
-std::u16string WinKeyName(ui::KeyboardCode key) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+// Names for the keys upstream's text leaves blank on Windows and Linux (it
+// names only F1, F4, F6 and F11 among the function keys, and maps the rest
+// through the keyboard layout, which has no character for them) or writes
+// like main keyboard keys (the numpad's).
+std::u16string KeyName(ui::KeyboardCode key) {
   if (key >= ui::VKEY_F1 && key <= ui::VKEY_F24) {
     return u"F" + base::NumberToString16(key - ui::VKEY_F1 + 1);
   }
@@ -105,8 +105,8 @@ std::u16string WinKeyName(ui::KeyboardCode key) {
 #endif
 
 std::string ToText(const ui::Accelerator& accelerator) {
-#if BUILDFLAG(IS_WIN)
-  const std::u16string name = WinKeyName(accelerator.key_code());
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  const std::u16string name = KeyName(accelerator.key_code());
   if (!name.empty()) {
     // Upstream's modifiers, before a key that has a name of its own.
     std::vector<std::u16string> parts =
@@ -173,7 +173,7 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
       return check;
     }
   }
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   if (std::optional<std::u16string> built_in =
           FindBuiltInShortcut(accelerator)) {
     check.error = "Already used by " + base::UTF16ToUTF8(*built_in) + ".";
@@ -192,8 +192,8 @@ ListedShortcut::~ListedShortcut() = default;
 std::vector<ListedShortcut> ListShortcuts() {
   ShortcutSettings& settings = ShortcutSettings::Get();
   std::vector<ListedShortcut> listed;
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   // The table's first load keeps the defaults (AdjustAcceleratorList()).
   GetAcceleratorList();
 #endif
@@ -255,7 +255,7 @@ void CompassSettingsUI::BindInterface(
 ShortcutsPageHandler::ShortcutsPageHandler(
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
     : receiver_(this, std::move(receiver)) {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   // The windows follow what changes here.
   BrowserViewAccelerators::Watch();
 #endif

@@ -19,12 +19,12 @@ source_set("shortcuts") {
     "//chrome/browser:browser_process",
     "//ui/events:events_base",
   ]
-  if (is_win) {
+  if (is_win || is_linux) {
     # Compass's shortcuts and the user's in upstream's accelerator table,
     # which calls in (see patches/).
     sources += [
-      "shortcuts_win.cc",
-      "shortcuts_win.h",
+      "shortcuts_table.cc",
+      "shortcuts_table.h",
     ]
     deps += [
       "//chrome/app:command_ids",
@@ -44,4 +44,11 @@ source_set("unit_tests") {
     "//ui/base",
     "//ui/events:events_base",
   ]
+  if (is_win || is_linux) {
+    sources += [ "shortcuts_table_unittest.cc" ]
+    deps += [
+      "//chrome/app:command_ids",
+      "//compass/browser/ui:app_menu_hooks",
+    ]
+  }
 }

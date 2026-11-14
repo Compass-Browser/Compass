@@ -57,7 +57,7 @@
 #include "ui/views/view_utils.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 #include "compass/browser/ui/views/little_window/little_window_hot_key.h"
 #endif
 
@@ -146,7 +146,7 @@ CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
       claude_panel_(browser) {
   InstallSwapPresenter();
   InstallPipTint();
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   // The little window's shortcut, from any app from now on.
   LittleWindowHotKey::Get().Start();
 #endif

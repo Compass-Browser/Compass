@@ -119,13 +119,14 @@ mix) opens as upstream does.
 
 ## From any app
 
-The shortcut (Cmd+Option+N, Shift+Alt+N on Windows, or the user's from
-the shortcuts page) works from any app, with or without a Compass window:
-`LittleWindowHotKey` (`little_window_hot_key.{h,cc}`, macOS and Windows)
+The shortcut (Cmd+Option+N, Shift+Alt+N on Windows and Linux, or the
+user's from the shortcuts page) works from any app, with or without a
+Compass window: `LittleWindowHotKey` (`little_window_hot_key.{h,cc}`)
 registers it as a system hot key through upstream's
 `GlobalAcceleratorListener` (a Carbon hot key on macOS, `RegisterHotKey()`
-on Windows), as picture-in-picture's click-through does, from the first
-Compass window on (`CompassSidebarView`) for as long as Compass runs.
+on Windows, a key grab on Linux's X11), as picture-in-picture's
+click-through does, from the first Compass window on
+(`CompassSidebarView`) for as long as Compass runs.
 
 - The hot key takes the keys while Compass is in front too. With a Compass
   window active, it opens the little window from it, as the window's
@@ -138,9 +139,40 @@ Compass window on (`CompassSidebarView`) for as long as Compass runs.
   shortcuts page records keys it lets them go, or it would take them.
 - If another app already holds the keys, registering fails and only
   Compass's own windows have the shortcut.
-- Linux: not yet (its shortcuts are upstream's).
-- Test: `LittleWindowBrowserTest.HotKeyFromAnyApp` (macOS). Windows: not
-  yet tried on a device.
+- Linux: X11 only. Under Wayland upstream's listener is the GlobalShortcuts
+  portal, which takes only extensions' shortcuts (registering fails), so
+  only Compass's windows have the shortcut there.
+- Test: `LittleWindowBrowserTest.HotKeyFromAnyApp` (macOS, Linux). Windows:
+  not yet tried on a device.
+
+## Windows and Linux
+
+Links from other apps arrive on the command line: Windows starts Compass
+with them, as Linux desktops do (`xdg-open`, the `.desktop` file's `%U`).
+With Compass running, the process singleton hands them to it
+(`StartupBrowserCreator::ProcessCommandLineAlreadyRunning()`).
+`StartupBrowserCreatorImpl::DetermineURLsAndLaunch()` (patch) opens them in
+little windows when `CanOpenInLittleWindows()` (not off the record, not
+with `--new-window` or `--same-tab`): with Compass running, nothing else
+opens; at startup, the usual windows open first without the links
+(`StartupTabProviderWithoutLinks`), then the little windows. Anything but
+web pages and files opens as upstream does.
+
+- The window is the same views code as on macOS: the frame in the space's
+  color, the bar (back, the editable address, **Open in <space>**, the
+  space menu), the page as a card, **Ctrl+O** to move it into a space,
+  900×940 at most 90% of the display. A link from another app opens on
+  the pointer's display (Compass can't see the other app's window).
+- **Shift+Alt+N** opens an empty one (`accelerator_table.cc` patch),
+  taking upstream's New Split Tab shortcut there as on macOS; not
+  Ctrl+Alt+N, which Windows reserves (AltGr).
+- The window keeps the platform's title bar above the bar, with its window
+  buttons: Windows' native one; on Linux the window manager's, as upstream's
+  popups have (the main window draws its own frame). Still
+  macOS-only: no title bar (the window buttons in the bar), placing it over
+  the opener's window, and keeping Compass's other windows behind it.
+- Tried on Linux (X11): `compass <url>` while Compass runs opens the page
+  in a little window over the main one, which gets no tab.
 
 ## Not done
 
@@ -151,21 +183,13 @@ Compass window on (`CompassSidebarView`) for as long as Compass runs.
   focused) instead of Arc's command bar.
 - Settings: off, and per-domain routing to spaces (Arc's Air Traffic
   Control).
-- Windows: written, not yet built or tried. Links from other
-  apps arrive on the command line, through the process singleton when
-  Compass is running. `StartupBrowserCreatorImpl::DetermineURLsAndLaunch()`
-  (patch) opens them in little windows when `CanOpenInLittleWindows()`
-  (not off the record, not with `--new-window` or `--same-tab`): with
-  Compass running, nothing else opens; at startup, the usual windows open
-  first without the links (`StartupTabProviderWithoutLinks`), then the
-  little windows. **Shift+Alt+N** opens an empty one (`accelerator_table.cc`
-  patch), taking upstream's New Split Tab shortcut as on macOS; Ctrl+Alt+N
-  can't be used, Windows reserves Ctrl+Alt (AltGr). Still macOS-only: the
-  frame (no native title bar; the window buttons in the bar), placing it
-  over the opener's window, and keeping Compass's other windows behind it.
-- Linux: the same hook would do, but it's Windows-only for now.
+- Windows: built, not yet tried on a device.
+- Windows and Linux: the platform's title bar (see "Windows and Linux").
 
-Tests: `LittleWindowBrowserTest.*` (`TheAddressCanBeEdited`,
-`DraggedOutTabMovesThere` among them)
-(`browser/ui/views/little_window/little_window_browsertest.mm`), including
-the real `application:openURLs:` path.
+Tests: `LittleWindowBrowserTest.*`, one suite on every platform
+(`browser/ui/views/little_window/little_window_browsertest.cc`:
+`TheAddressCanBeEdited`, `DraggedOutTabMovesThere` among them; on Windows
+and Linux `LinkFromAnotherApp` and `LinksFromAnotherApp` through the
+process singleton's path, and `ShortcutOpensOne`), and macOS's
+(`little_window_browsertest_mac.mm`), including the real
+`application:openURLs:` path.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "compass/browser/ui/views/frame/browser_view_accelerators_win.h"
+#include "compass/browser/ui/views/frame/browser_view_accelerators.h"
 
 #include "base/no_destructor.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"

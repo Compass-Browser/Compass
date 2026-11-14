@@ -2,25 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Little windows on every platform (docs/design/little-window.md); macOS's
+// own tests are in little_window_browsertest_mac.mm.
+
 #include "compass/browser/ui/views/little_window/little_window.h"
-#include "compass/browser/ui/views/little_window/little_window_hot_key.h"
-#include "compass/browser/shortcuts/shortcut_settings.h"
-#include "ui/base/accelerators/accelerator.h"
-#include "ui/events/event_constants.h"
-#include "ui/events/keycodes/keyboard_codes.h"
 
-#import <Cocoa/Cocoa.h>
-
+#include <memory>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/sys_string_conversions.h"
+#include "base/command_line.h"
+#include "base/files/file_path.h"
 #include "base/test/run_until.h"
+#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#import "chrome/browser/app_controller_mac.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -29,65 +30,71 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/test/base/in_process_browser_test.h"
+#include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/compass_command_ids.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
+#include "compass/browser/ui/views/little_window/little_window_browsertest.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
-#include "chrome/browser/ui/color/chrome_color_id.h"
-#include "ui/base/hit_test.h"
-#include "ui/base/page_transition_types.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/color/color_provider.h"
-#include "ui/views/background.h"
-#include "ui/views/controls/button/button.h"
-#include "ui/views/widget/widget.h"
-#include "ui/views/window/non_client_view.h"
-#include "compass/browser/sidebar/sidebar_node.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/accelerators/accelerator.h"
+#include "ui/base/hit_test.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/color/color_provider.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/views/background.h"
+#include "ui/views/controls/button/button.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/window/non_client_view.h"
 #include "url/gurl.h"
 
+#if !BUILDFLAG(IS_MAC)
+#include "chrome/browser/ui/startup/startup_browser_creator.h"
+#endif
+
+#if BUILDFLAG(IS_LINUX)
+#include "compass/browser/shortcuts/shortcut_settings.h"
+#include "compass/browser/ui/views/little_window/little_window_hot_key.h"
+#include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
+#endif
+
 namespace compass {
+
+void LittleWindowBrowserTest::SetUpOnMainThread() {
+  InProcessBrowserTest::SetUpOnMainThread();
+  ASSERT_TRUE(embedded_test_server()->Start());
+}
+
 namespace {
 
-class LittleWindowBrowserTest : public InProcessBrowserTest {
- public:
-  void SetUpOnMainThread() override {
-    InProcessBrowserTest::SetUpOnMainThread();
-    ASSERT_TRUE(embedded_test_server()->Start());
+#if !BUILDFLAG(IS_MAC)
+// Hands |urls| to the running Compass as another app does on Windows and
+// Linux: on the command line of a second Compass, which the process
+// singleton passes on (StartupBrowserCreator::
+// ProcessCommandLineAlreadyRunning()).
+void OpenFromAnotherApp(Profile* profile, const std::vector<GURL>& urls) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  for (const GURL& url : urls) {
+    command_line.AppendArg(url.spec());
   }
+  StartupBrowserCreator::ProcessCommandLineAlreadyRunning(
+      command_line, base::FilePath(),
+      {profile->GetPath(), StartupProfileMode::kBrowserWindow});
+}
 
- protected:
-  // The profile's little window, or null.
-  BrowserWindowInterface* FindLittleWindow() {
-    BrowserWindowInterface* found = nullptr;
-    ProfileBrowserCollection::GetForProfile(browser()->GetProfile())
-        ->ForEach([&](BrowserWindowInterface* window) {
-          if (IsLittleWindow(window)) {
-            found = window;
-          }
-          return !found;
-        });
-    return found;
-  }
-
-  content::WebContents* PageOf(BrowserWindowInterface* window) {
-    return window->GetTabStripModel()->GetActiveWebContents();
-  }
-};
-
-// A link another app opens (application:openURLs:) shows in a little window,
-// not as a tab of the window.
+// A link from another app shows in a little window, not as a tab of the
+// window, and nothing else opens.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinkFromAnotherApp) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
-  [AppController.sharedController
-      application:NSApp
-         openURLs:@[ [NSURL URLWithString:base::SysUTF8ToNSString(url.spec())] ]];
+  OpenFromAnotherApp(browser()->GetProfile(), {url});
 
   ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
   BrowserWindowInterface* little = FindLittleWindow();
@@ -98,6 +105,70 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinkFromAnotherApp) {
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
 }
 
+// Each of several links gets a little window of its own.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinksFromAnotherApp) {
+  OpenFromAnotherApp(browser()->GetProfile(),
+                     {embedded_test_server()->GetURL("/title1.html"),
+                      embedded_test_server()->GetURL("/title2.html")});
+  auto count_little_windows = [&] {
+    int count = 0;
+    ProfileBrowserCollection::GetForProfile(browser()->GetProfile())
+        ->ForEach([&](BrowserWindowInterface* window) {
+          count += IsLittleWindow(window) ? 1 : 0;
+          return true;
+        });
+    return count;
+  };
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return count_little_windows() == 2; }));
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+}
+
+// Shift+Alt+N, the window's shortcut, opens a little window, as
+// Cmd+Option+N does on macOS.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, ShortcutOpensOne) {
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser());
+  const ui::Accelerator keys(ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN);
+  ui::Accelerator found;
+  ASSERT_TRUE(browser_view->GetAccelerator(kNewLittleWindowCommand, &found));
+  EXPECT_EQ(found, keys);
+  EXPECT_TRUE(browser_view->AcceleratorPressed(keys));
+  ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
+  EXPECT_EQ(PageOf(FindLittleWindow())->GetVisibleURL().host(),
+            "new-tab-page");
+}
+#endif  // !BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_LINUX)
+// The shortcut is a system hot key too (on X11, a key grab), so it works
+// from any app, and not while the settings page records keys. A press opens
+// a little window on the new tab page.
+IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, HotKeyFromAnyApp) {
+  // Wayland has no key grabs: its portal takes only extensions' shortcuts.
+  ui::GlobalAcceleratorListener* listener =
+      ui::GlobalAcceleratorListener::GetInstance();
+  if (!listener || listener->IsRegistrationHandledExternally()) {
+    GTEST_SKIP() << "No system hot keys here";
+  }
+  LittleWindowHotKey& hot_key = LittleWindowHotKey::Get();
+  const ui::Accelerator keys(ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN);
+  EXPECT_TRUE(hot_key.listening());
+  EXPECT_EQ(hot_key.listening_accelerator(), keys);
+  ShortcutSettings::Get().SetRecording(true);
+  EXPECT_FALSE(hot_key.listening());
+  ShortcutSettings::Get().SetRecording(false);
+  EXPECT_TRUE(hot_key.listening());
+
+  ASSERT_FALSE(FindLittleWindow());
+  hot_key.OnKeyPressed(keys);
+  ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
+  BrowserWindowInterface* little = FindLittleWindow();
+  ASSERT_EQ(little->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "new-tab-page");
+}
+#endif  // BUILDFLAG(IS_LINUX)
+
 // Anything but web pages and files opens as upstream does.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OnlyWebPagesAndFiles) {
   std::vector<StartupTab> tabs;
@@ -107,8 +178,8 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OnlyWebPagesAndFiles) {
   EXPECT_FALSE(FindLittleWindow());
 }
 
-// Cmd+O moves the page (the same WebContents) into the window as the active
-// tab, and the little window closes.
+// Cmd+O (Ctrl+O) moves the page (the same WebContents) into the window as
+// the active tab, and the little window closes.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, OpenInSpaceMovesThePage) {
   BrowserWindowInterface* little = OpenLittleWindow(
       browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
@@ -144,29 +215,6 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, NewLittleWindowCommand) {
   EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "new-tab-page");
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
   EXPECT_TRUE(chrome::ExecuteCommand(little, kNewLittleWindowCommand));
-}
-
-// The shortcut is a system hot key too, so it works from any app, and not
-// while the settings page records keys. A press opens a little window on
-// the new tab page.
-IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, HotKeyFromAnyApp) {
-  LittleWindowHotKey& hot_key = LittleWindowHotKey::Get();
-  const ui::Accelerator keys(ui::VKEY_N,
-                             ui::EF_COMMAND_DOWN | ui::EF_ALT_DOWN);
-  EXPECT_TRUE(hot_key.listening());
-  EXPECT_EQ(hot_key.listening_accelerator(), keys);
-  ShortcutSettings::Get().SetRecording(true);
-  EXPECT_FALSE(hot_key.listening());
-  ShortcutSettings::Get().SetRecording(false);
-  EXPECT_TRUE(hot_key.listening());
-
-  ASSERT_FALSE(FindLittleWindow());
-  hot_key.OnKeyPressed(keys);
-  EXPECT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
-  BrowserWindowInterface* little = FindLittleWindow();
-  ASSERT_EQ(little->GetTabStripModel()->count(), 1);
-  EXPECT_EQ(PageOf(little)->GetVisibleURL().host(), "new-tab-page");
-  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
 }
 
 // Opening in a space the window doesn't show switches it there, and the
@@ -216,8 +264,8 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, PageSitsInTheFrame) {
                   .IsEmpty());
 }
 
-// No native title bar: the frame and the bar's empty space drag the window,
-// its controls and the page don't.
+// The frame and the bar's empty space drag the window, its controls and the
+// page don't.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, FrameDragsTheWindow) {
   BrowserWindowInterface* little = OpenLittleWindow(
       browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));

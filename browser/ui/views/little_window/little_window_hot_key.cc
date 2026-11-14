@@ -17,8 +17,8 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/ui/cocoa/shortcuts_mac.h"
-#elif BUILDFLAG(IS_WIN)
-#include "compass/browser/shortcuts/shortcuts_win.h"
+#elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#include "compass/browser/shortcuts/shortcuts_table.h"
 #endif
 
 namespace compass {

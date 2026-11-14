@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 1e352a02e9720c91917e329c22674fdd33451f4b..559f36f9531128e183374f92807a766c2e444fab 100644
+index 1e352a02e9720c91917e329c22674fdd33451f4b..fbf306b137a4f00a5de0576dce149f9edc64d9da 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -614,6 +614,8 @@ if (!is_android) {
@@ -36,8 +36,8 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..559f36f9531128e183374f92807a766c
    ]
 +  if (!is_android) {
 +    deps += [
-+      # Compass's Shift+Alt+N (a little window) on Windows, and its
-+      # shortcuts and the user's there.
++      # Compass's Shift+Alt+N (a little window) on Windows and
++      # Linux, and its shortcuts and the user's there.
 +      "//compass/browser/shortcuts",
 +      "//compass/browser/ui:app_menu_hooks",
 +    ]

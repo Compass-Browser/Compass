@@ -15,13 +15,13 @@
 
 namespace compass {
 
-// The new little window shortcut (Cmd+Option+N, Shift+Alt+N on Windows, or
-// the user's) from any app: a system hot key through upstream's
+// The new little window shortcut (Cmd+Option+N, Shift+Alt+N on Windows and
+// Linux, or the user's) from any app: a system hot key through upstream's
 // GlobalAcceleratorListener (a Carbon hot key on macOS, RegisterHotKey() on
-// Windows), as picture-in-picture's click-through. The hot key takes the
-// keys while Compass is in front too, so it opens the little window there
-// as the window's shortcut did. docs/design/little-window.md, "From any
-// app". macOS and Windows.
+// Windows, a key grab on Linux's X11; Wayland has none), as
+// picture-in-picture's click-through. The hot key takes the keys while
+// Compass is in front too, so it opens the little window there as the
+// window's shortcut did. docs/design/little-window.md, "From any app".
 class LittleWindowHotKey : public ui::GlobalAcceleratorListener::Observer,
                            public ShortcutSettings::Observer {
  public:

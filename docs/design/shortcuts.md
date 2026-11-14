@@ -1,7 +1,7 @@
 # Shortcuts
 
-Status: done (macOS); Windows written, not yet tried on a device. Based on
-Chromium 157.0.8103.51.
+Status: done (macOS, Linux); Windows built, not yet tried on a device.
+Based on Chromium 157.0.8103.51.
 
 ## Goal
 
@@ -17,7 +17,7 @@ wins and upstream's command loses it. The user can change them (see
 | Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
 | Shift+Alt+P (Windows) | The same, as Ctrl+Option+Cmd+P | Nothing |
 | Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md), from any app (a system hot key, little-window.md "From any app") | New Split Tab, which keeps its Tab menu item without a shortcut |
-| Shift+Alt+N (Windows) | A new little window, as Cmd+Option+N | New Split Tab |
+| Shift+Alt+N (Windows, Linux) | A new little window, as Cmd+Option+N | New Split Tab |
 | Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
 | Cmd+Z, Cmd+Shift+Z | Outside text, and only when the page passes on the keys: undo and redo closing sidebar entries (`kUndoCloseTabCommand`, `kRedoCloseTabCommand`, sidebar.md "Undo closing"). Cmd+Shift+T undoes the same | The Edit menu's Undo and Redo, which text keeps |
 
@@ -36,12 +36,13 @@ element; Cmd+Shift+M, there too, takes the profile menu's entry.
 Tests: `CompassShortcutsBrowserTest` resolves key events through
 `CommandForKeyEvent()`, as typing does, and runs the commands.
 
-On Windows the same shortcuts come with Ctrl for Cmd (see "Windows" below):
+On Windows and Linux the same shortcuts come with Ctrl for Cmd (see
+"Windows and Linux" below):
 Ctrl+Shift+C copies the link (inspect element keeps F12's developer tools
 and Ctrl+Shift+I), Ctrl+S opens or closes the sidebar (Save Page As keeps
 its menu item), Ctrl+Shift+M mutes the tab (the profile menu loses it),
 Ctrl+Shift+E chats with Claude. Undo and redo of closing tabs have no keys
-there: Ctrl+Z would come before the page. Linux's shortcuts are upstream's.
+there: Ctrl+Z would come before the page.
 
 ## Customizing
 
@@ -49,9 +50,10 @@ compass://settings/shortcuts ("Keyboard shortcuts" in the settings menu or
 the command bar; also alone on chrome://compass-settings, see settings.md)
 lists the shortcuts the user can change, by
 section: Compass's (command bar, address, sidebar, copy link, little window,
-picture-in-picture click-through), tabs, windows, browser pages, developer
-tools, and the nine space shortcuts. Clicking a shortcut's keys records the
-next keys pressed with ⌘, ⌃ or ⌥ (Esc cancels, Delete leaves it without a
+picture-in-picture click-through but on Linux, Claude), tabs, windows,
+browser pages, developer tools, and the nine space shortcuts, the same on
+every platform. Clicking a shortcut's keys records the next keys pressed
+with ⌘, ⌃ or ⌥ (Ctrl or Alt on Windows and Linux; Esc cancels, Delete leaves it without a
 shortcut). A changed shortcut shows its default and a Reset button; "Reset
 all" undoes every change. The page is meant to grow into Compass's settings
 (link routing for little windows is next, little-window.md).
@@ -113,9 +115,10 @@ get the focus. The pref is registered by a hook in `RegisterLocalState()`
   (`preventDefault()`), and `PipWindows` drops its global hot key. Recording
   ends on Esc, on keys, when the page loses focus and when it goes away.
 
-### How the browser follows it (Windows)
+### How the browser follows it (Windows and Linux)
 
-`compass/browser/shortcuts/shortcuts_win.{h,cc}` has the same API as
+Both are views and upstream's accelerator table, so they share the code.
+`compass/browser/shortcuts/shortcuts_table.{h,cc}` has the same API as
 `shortcuts_mac.h` for the page (`GetCustomizableCommands()`: macOS's list
 less undo and redo of closing tabs; `GetDefaultAccelerators()`,
 `GetAccelerators()`, `FindBuiltInShortcut()`).
@@ -128,22 +131,30 @@ less undo and redo of closing tabs; `GetDefaultAccelerators()`,
   over those. The first call keeps the result before the user's as the
   defaults the page shows.
 - **Changes and recording.** `BrowserViewAccelerators` (`browser/ui/views/
-  frame/browser_view_accelerators_win.{h,cc}`, a `BrowserView` friend,
-  patch) follows `ShortcutSettings`, from the moment a settings page opens:
+  frame/browser_view_accelerators.{h,cc}`, a `BrowserView` friend, patch)
+  follows `ShortcutSettings`, from the moment a settings page opens:
   on a change every window unregisters its accelerators, clears its table
   and loads it again; while the page records keys, the windows register
   none, so every key (Ctrl+T, Ctrl+W) reaches the page.
 - **Keys taken by upstream commands that aren't listed** (Ctrl+W, ...) are
   refused ("Already used by another browser shortcut").
-- **Spaces** and **click-through** work as on macOS; click-through can't
-  have the Windows key (picture-in-picture.md "Click-through").
-
-Linux's page lists only the space shortcuts.
+- **Spaces** work as on macOS (Ctrl+Shift+1–9). **Click-through** too on
+  Windows, where it can't have the Windows key (picture-in-picture.md
+  "Click-through"); Linux has no picture-in-picture click-through, so its
+  page doesn't list it.
+- **A little window from any app** follows the shortcut as on macOS, as an
+  X11 key grab on Linux (little-window.md "From any app").
+- Key names: upstream's text leaves most function keys blank there and
+  writes the numpad's like the main keys; the page names them itself
+  (`KeyName()`, "F13", "Num 5").
 
 Tests: `CompassShortcutsBrowserTest.CustomShortcuts`, `RecordingHoldsKeysBack`,
 `SpaceShortcuts`, `SettingsPage` (records keys by key events on the page, takes
-keys from another shortcut, refuses Quit's), and `ShortcutSettingsTest`
-(unit).
+keys from another shortcut, refuses Quit's; Close Tab's on Windows and
+Linux), `ShortcutSettingsTest` (unit); on Windows and Linux also
+`ArcShortcuts`, `MuteTabShortcut` and `ListsBrowserCommands`
+(`browser_view_accelerators_browsertest.cc`) and `ShortcutsTableTest`
+(unit: Compass's keys over upstream's table, then the user's).
 
 Not done: extension shortcuts (chrome://extensions/shortcuts has them), a
 search over the list, and other platforms' browser commands.

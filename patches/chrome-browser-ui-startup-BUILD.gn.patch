@@ -7,7 +7,7 @@ index d554afbea2e9361d7d1214de373204adff0f6f5f..a8a4f6c994a101140b982549ec2b2278
      "//url",
    ]
 +  if (!is_android) {
-+    # Compass: links from other apps open in little windows on Windows.
++    # Compass: links from other apps open in little windows (Windows, Linux).
 +    deps += [ "//compass/browser/ui" ]
 +  }
    public_deps = [ "//ui/base/unowned_user_data" ]
