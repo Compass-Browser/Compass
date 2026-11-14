@@ -91,7 +91,9 @@
 #include "ui/base/models/menu_model.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/events/event.h"
 #include "ui/events/event_constants.h"
+#include "ui/events/event_utils.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_container.h"
@@ -101,6 +103,7 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/views/controls/resize_area.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -691,6 +694,56 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, CollapsesAndResizes) {
     return region->width() == resized_width;
   }));
   EXPECT_TRUE(sidebar()->IsDrawn());
+}
+
+// Dragged narrower than the minimum (but not far enough to collapse), the
+// sidebar stops at the minimum (docs/design/window-frame.md, "Width").
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ResizeStopsAtTheMinimum) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::Widget* widget = browser_view()->GetWidget();
+  const int below = tabs::kVerticalTabStripUncollapsedMinWidth - 20;
+  ASSERT_GT(below, tabs::kVerticalTabStripCollapseSnapWidth);
+  region->OnResize(below - region->width(), /*done_resizing=*/true);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() == tabs::kVerticalTabStripUncollapsedMinWidth;
+  }));
+  EXPECT_TRUE(sidebar()->IsDrawn());
+}
+
+// A double click on the resize area puts the default width back.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DoubleClickResetsTheWidth) {
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  views::Widget* widget = browser_view()->GetWidget();
+  region->OnResize(
+      tabs::kVerticalTabStripUncollapsedMaxWidth - region->width(),
+      /*done_resizing=*/true);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() == tabs::kVerticalTabStripUncollapsedMaxWidth;
+  }));
+
+  views::ResizeArea* handle = region->resize_area_for_testing();
+  ASSERT_TRUE(handle);
+  const gfx::Point point(1, 10);
+  // The first click of the pair starts a drag as usual and ends it unmoved.
+  ui::MouseEvent first(ui::EventType::kMousePressed, point, point,
+                       ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  EXPECT_TRUE(handle->OnMousePressed(first));
+  ui::MouseEvent second(ui::EventType::kMousePressed, point, point,
+                        ui::EventTimeForNow(),
+                        ui::EF_LEFT_MOUSE_BUTTON | ui::EF_IS_DOUBLE_CLICK,
+                        ui::EF_LEFT_MOUSE_BUTTON);
+  // Not handled: no drag starts, so its release reports nothing.
+  EXPECT_FALSE(handle->OnMousePressed(second));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    widget->LayoutRootViewIfNecessary();
+    return region->width() == tabs::kVerticalTabStripDefaultUncollapsedWidth;
+  }));
+  EXPECT_EQ(region->width(), tabs::kVerticalTabStripDefaultUncollapsedWidth);
 }
 
 // Web pages follow the system's light or dark mode, not their space's

@@ -39,6 +39,8 @@ class WebContents;
 
 namespace views {
 class FocusManager;
+class ResizeArea;
+class ResizeAreaDelegate;
 class View;
 }  // namespace views
 
@@ -154,6 +156,13 @@ std::unique_ptr<views::View> CreateSidebar(BrowserWindowInterface* browser);
 // whole region with the window's space color (SidebarTint) and gives the
 // window its frame (WindowFrame).
 void InstallSidebar(views::View* sidebar, views::View* bottom_container);
+
+// The handle on the sidebar's trailing edge: upstream's resize area, plus a
+// double click that runs |reset| (back to the default width;
+// docs/design/window-frame.md, "Width").
+std::unique_ptr<views::ResizeArea> CreateSidebarResizeArea(
+    views::ResizeAreaDelegate* delegate,
+    base::RepeatingClosure reset);
 
 // Opening and closing (docs/design/window-frame.md, "Opening and closing"):
 // while the region's width animates, its header and sidebar keep the

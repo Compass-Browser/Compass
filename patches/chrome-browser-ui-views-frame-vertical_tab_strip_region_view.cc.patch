@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
-index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae12e80699c 100644
+index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..dff323efd7829746ed2ecce967093e830b607e39 100644
 --- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 +++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
 @@ -4,6 +4,9 @@
@@ -21,7 +21,20 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
            state_controller_, root_action_item, browser_view->browser()));
  
    auto content_area_view = std::make_unique<views::FlexLayoutView>();
-@@ -257,8 +260,10 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
+@@ -195,7 +198,11 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
+   // Views that go into the content area above
+   // --------------
+ 
+-  resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
++  // Compass: a double click puts the default width back.
++  resize_area_ = AddChildView(compass::CreateSidebarResizeArea(
++      this,
++      base::BindRepeating(&VerticalTabStripRegionView::ResetCompassSidebarWidth,
++                          base::Unretained(this))));
+   resize_area_->SetProperty(views::kViewIgnoredByLayoutKey, true);
+   resize_area_->SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
+   views::FocusRing::Install(resize_area_);
+@@ -257,8 +264,10 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
        if (motion == TabStripAnimations::kExpand) {
          update_state_controller_collapsed_callback_.Run(false);
        }
@@ -34,7 +47,7 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
        if (tab_strip_view()) {
          tab_strip_view()->SetIsAnimatingSize(true);
        }
-@@ -424,8 +429,17 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
+@@ -424,8 +433,17 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
      button_available_size.set_width(blend_target_width -
                                      2 * horizontal_padding);
    } else if (button_available_size.width().is_bounded()) {
@@ -54,7 +67,7 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
    }
    const gfx::Size button_size =
        top_button_container_->GetPreferredSize(button_available_size);
-@@ -485,12 +499,43 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
+@@ -485,12 +503,43 @@ views::ProposedLayout VerticalTabStripRegionView::CalculateProposedLayout(
                                      .bounds = organizer_bounds});
    }
  
@@ -98,7 +111,7 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
    // Manually position the resize area as it overlaps views handled by the flex
    // layout.
    resize_area_->SetBoundsRect(gfx::Rect(bounds().right() - resize_area_width_,
-@@ -722,8 +767,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
+@@ -722,8 +771,9 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
  
  void VerticalTabStripRegionView::OnResize(int resize_amount,
                                            bool done_resizing) {
@@ -110,7 +123,7 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
    if (!starting_width_on_resize_.has_value()) {
      starting_width_on_resize_ = width();
      state_controller_->SetIsResizing(true);
-@@ -810,7 +856,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
+@@ -810,7 +860,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
    // attached. target_collapse_state_ is still set so that when
    // SetTabStripView() is eventually called, the region view and all child
    // views initialize directly in the target collapse state.
@@ -119,10 +132,18 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
      return;
    }
    const auto motion =
-@@ -900,6 +946,39 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
+@@ -900,6 +950,47 @@ std::unique_ptr<views::View> VerticalTabStripRegionView::RemoveTabStripView(
    return BaseTabStripRegionView::RemoveTabStripView(view);
  }
  
++void VerticalTabStripRegionView::ResetCompassSidebarWidth() {
++  if (target_collapse_state_.collapsed) {
++    return;
++  }
++  OnResize(tabs::kVerticalTabStripDefaultUncollapsedWidth - width(),
++           /*done_resizing=*/true);
++}
++
 +void VerticalTabStripRegionView::InitializeTabStrip() {
 +  if (compass_sidebar_) {
 +    return;
@@ -159,7 +180,7 @@ index f3ab4f166bc179704f5d8ff79ded1165678f9ec9..04e8e95dd9fdb80817b2d756bbc8dae1
  void VerticalTabStripRegionView::OnCollapseStateChanged(
      tabs::VerticalTabStripCollapseState state) {
    // Apply padding immediately at the start of the animation by including
-@@ -1037,7 +1116,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+@@ -1037,7 +1128,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
      return;
    }
  

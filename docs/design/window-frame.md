@@ -73,6 +73,18 @@ buttons (`-[NSWindow standardWindowButton:]`'s `alphaValue`,
 to hidden at the collapsed width, so they go and come with the sidebar's
 slide (Cmd+S, the collapse button, hover). Not in fullscreen.
 
+## Width
+
+The sidebar is upstream's resize area on the region's trailing edge:
+dragged, it snaps to the default width (`kVerticalTabStripDefaultUncollapsedWidth`,
+240) when close to it, stops at 400, and collapses when dragged below half
+the minimum. The minimum is 180 rather than upstream's 126
+(`vertical_tab_strip_state.h` patch): narrower, the header's controls and
+the rows' titles don't fit. A double click on the handle puts the default
+width back (`CreateSidebarResizeArea()` in `compass_sidebar_view.cc`, which
+calls the region's `ResetCompassSidebarWidth()`; region patches); it starts
+no drag, so its release reports nothing. Collapsed, it does nothing.
+
 ## Opening and closing
 
 Upstream animates the region's width between expanded and collapsed (and
@@ -181,7 +193,8 @@ caption buttons hide until expanded),
 above the card, gone after the load),
 `CompassSidebarMotionBrowserTest.SlidesOutWithoutMovingDown` (steps the
 close: the page keeps its y and size), `CollapsesAndResizes` (collapsed
-width, the sidebar hidden and shown again). Header tests:
+width, the sidebar hidden and shown again), `ResizeStopsAtTheMinimum`,
+`DoubleClickResetsTheWidth`. Header tests:
 `RowLinesUpWithTrafficLights` (the row's center and the reported title bar
 height); collapsed, no
 controls or content setting icons are drawn; a bubble anchored to an

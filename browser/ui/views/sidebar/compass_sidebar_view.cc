@@ -49,6 +49,8 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/controls/resize_area.h"
+#include "ui/views/controls/resize_area_delegate.h"
 #include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -345,6 +347,36 @@ namespace {
 DEFINE_UI_CLASS_PROPERTY_KEY(bool, kHasFadeLayerKey, false)
 
 }  // namespace
+
+namespace {
+
+class SidebarResizeArea : public views::ResizeArea {
+ public:
+  SidebarResizeArea(views::ResizeAreaDelegate* delegate,
+                    base::RepeatingClosure reset)
+      : views::ResizeArea(delegate), reset_(std::move(reset)) {}
+
+  // views::ResizeArea:
+  bool OnMousePressed(const ui::MouseEvent& event) override {
+    if (event.IsOnlyLeftMouseButton() && event.GetClickCount() == 2) {
+      reset_.Run();
+      // Not handled: the press starts no drag, so its release reports none.
+      return false;
+    }
+    return views::ResizeArea::OnMousePressed(event);
+  }
+
+ private:
+  base::RepeatingClosure reset_;
+};
+
+}  // namespace
+
+std::unique_ptr<views::ResizeArea> CreateSidebarResizeArea(
+    views::ResizeAreaDelegate* delegate,
+    base::RepeatingClosure reset) {
+  return std::make_unique<SidebarResizeArea>(delegate, std::move(reset));
+}
 
 int GetSidebarSlideOffset(int width, int expanded_width, bool animating) {
   return animating ? std::max(0, expanded_width - width) : 0;

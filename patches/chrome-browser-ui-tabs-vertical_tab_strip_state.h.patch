@@ -1,8 +1,15 @@
 diff --git a/chrome/browser/ui/tabs/vertical_tab_strip_state.h b/chrome/browser/ui/tabs/vertical_tab_strip_state.h
-index 62ea6d7c9b3f8d8ce14c9ff180691fb0ded57540..853d117c775320e1a0b02d5f41c835dc0315f993 100644
+index 62ea6d7c9b3f8d8ce14c9ff180691fb0ded57540..8298f0f18b632899f2aa418b1f8ed2c2e5f07abd 100644
 --- a/chrome/browser/ui/tabs/vertical_tab_strip_state.h
 +++ b/chrome/browser/ui/tabs/vertical_tab_strip_state.h
-@@ -14,7 +14,10 @@ inline constexpr int kVerticalTabStripUncollapsedMinWidth = 126;
+@@ -10,11 +10,16 @@ namespace tabs {
+ inline constexpr int kVerticalTabStripDefaultUncollapsedWidth = 240;
+ // TODO(crbug.com/465833741): Replace constant with derived value based on
+ // caption buttons.
+-inline constexpr int kVerticalTabStripUncollapsedMinWidth = 126;
++// Compass: narrower, the sidebar's header and rows don't fit
++// (docs/design/window-frame.md, "Width").
++inline constexpr int kVerticalTabStripUncollapsedMinWidth = 180;
  // TODO(crbug.com/465832180): Replace constant based width final max width for
  // view.
  inline constexpr int kVerticalTabStripUncollapsedMaxWidth = 400;
