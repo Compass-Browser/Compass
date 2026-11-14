@@ -24,6 +24,20 @@ struct HistoryStoreTests {
     #expect(h.search("nothing here").isEmpty)
   }
 
+  // Claude's search_history "days": only pages visited since then, with
+  // words or without (the most recent).
+  @Test func searchesSince() throws {
+    let h = try HistoryStore()
+    h.add(visit(0, "https://swift.org/old", "Swift old"))
+    h.add(visit(100, "https://swift.org/new", "Swift new"))
+    h.add(visit(200, "https://other.org/", "Other"))
+    let since = Date(timeIntervalSince1970: 1_700_000_050)
+    #expect(h.search("swift", since: since).map(\.url) == ["https://swift.org/new"])
+    #expect(h.search("", since: since).map(\.url) == ["https://other.org/", "https://swift.org/new"])
+    #expect(h.recent(limit: 1, since: since).map(\.url) == ["https://other.org/"])
+    #expect(h.search("swift").count == 2)
+  }
+
   @Test func sameDeviceAndTimeIsOneVisit() throws {
     let h = try HistoryStore()
     h.add(visit(0, "https://a/", "Loading…"))

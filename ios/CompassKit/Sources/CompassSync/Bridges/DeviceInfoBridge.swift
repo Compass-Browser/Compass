@@ -63,6 +63,25 @@ public final class DeviceInfoBridge: DataTypeBridge, @unchecked Sendable {
     }
   }
 
+  /// This device's name, as other devices show it.
+  public var localName: String { local.name }
+
+  /// The devices a tab can be sent to, newest first, as Chromium's
+  /// SendTabToSelfBridge::GetTargetDeviceInfoSortedList(): those that take
+  /// sent tabs, seen in the last 10 days, not this one.
+  public func sendTargets(now: Date = Date()) -> [SyncDevice] {
+    let receiving = lock.withLock {
+      Set(devices.values.filter(\.featureFields.sendTabToSelfReceivingEnabled).map(\.cacheGuid))
+    }
+    return allDevices.filter {
+      !$0.isThisDevice && receiving.contains($0.cacheGUID)
+        && now.timeIntervalSince($0.lastUpdated) <= Self.sendTargetExpiry
+    }
+  }
+
+  /// Chromium's kDeviceExpiration.
+  public static let sendTargetExpiry: TimeInterval = 10 * 24 * 60 * 60
+
   public func apply(_ changes: [RemoteChange]) async {
     lock.withLock {
       for change in changes {

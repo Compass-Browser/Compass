@@ -17,8 +17,9 @@ import WebKit
 /// - a document-start script in the page world keeps the console
 ///   (`ConsoleCapture`), for read_console;
 /// - run_js runs in the page world.
-/// Browser tools (other tabs) are refused until I4 and without the
-/// whole-browser permission.
+/// Browser tools (other tabs, the sidebar, history, downloads, other
+/// devices) need the whole-browser permission; the sidebar's are
+/// CompassClaude's SidebarTools, as the desktop's ClaudeTabs.
 @MainActor
 final class ClaudeTools {
   struct Result {
@@ -117,13 +118,7 @@ final class ClaudeTools {
     }
     if scope == "browser" {
       guard ClaudeSettings.shared.browserScope else { return .error(Self.notPermitted) }
-      switch name {
-      case "list_tabs": return listTabs()
-      case "open_tab": return await openTab(input)
-      case "select_tab": return await selectTab(input)
-      case "close_tab": return closeTab(input)
-      default: return .error("\(name) isn't available on iOS.")
-      }
+      return await runBrowserTool(name, input: input)
     }
     guard let app, let id = targetTab, let node = app.store.node(id: id) else {
       return .error("The tab the chat is about was closed.")
@@ -263,56 +258,68 @@ final class ClaudeTools {
 
   // MARK: Tabs (browser scope)
 
-  /// A tab's id for Claude: its entry's UUID, shortened.
-  private static func shortID(_ id: String) -> String { String(id.prefix(8)) }
-
-  /// Every tab in the sidebar, loaded or not, by group: each space's
-  /// Pinned (folders flattened) then Today, newest first; then favorites.
-  /// Desktop-only pages are left out, as the phone's sidebar does.
-  private func allTabs() -> [(name: String, tabs: [SidebarNode])] {
-    guard let app else { return [] }
-    func tabs(_ nodes: [SidebarNode]) -> [SidebarNode] { nodes.flatMap(\.subtree).filter { $0.isTab && $0.isPhoneVisible } }
-    var groups = app.store.spaces.map { space in
-      ("Space \(space.name)", tabs(space.pinned.children + space.today.children.reversed()))
-    }
-    groups.append(("Favorites", tabs(app.store.favoritesRoots.flatMap(\.children))))
-    return groups
+  /// The sidebar tools (CompassClaude's SidebarTools) for this window.
+  private func sidebarTools(_ app: AppModel) -> SidebarTools {
+    let shown = app.selectedSpace.flatMap { $0.isIncognito ? nil : $0 }
+    var tools = SidebarTools(store: app.store, shownSpace: shown)
+    tools.otherWindowSpaces = Set(app.services.windows.filter { $0 !== app }.compactMap { $0.selectedSpace?.id })
+    // Desktop-only pages are left out, as the phone's sidebar does.
+    tools.isVisible = { $0.isPhoneVisible }
+    tools.profileName = { [weak app] profile in app?.sync.profileName(account: profile) }
+    return tools
   }
 
-  /// The tab an id (or its start) names, loaded or not.
-  private func tab(_ id: String?) -> SidebarNode? {
-    guard var id = id?.lowercased(), !id.isEmpty else { return nil }
-    // The desktop's ids start with "n" (a sidebar entry); accept them.
-    if id.hasPrefix("n"), id.count == 9 { id.removeFirst() }
-    let matches = allTabs().flatMap(\.tabs).filter { $0.id.lowercased().hasPrefix(id) }
-    return matches.count == 1 ? matches[0] : nil
+  private static func outcome(_ outcome: SidebarTools.Outcome) -> Result {
+    outcome.isError ? .error(outcome.text) : .text(outcome.text)
   }
 
-  /// Every tab, by space, as the desktop lists its windows': loaded or
-  /// not ("[not loaded]": select_tab or a page tool loads it).
-  private func listTabs() -> Result {
+  /// The browser tools: the desktop's ClaudeTabs::RunTool(), and
+  /// list_tabs, open_tab and select_tab.
+  private func runBrowserTool(_ name: String, input: JSONValue) async -> Result {
     guard let app else { return .error("No window.") }
-    let shown = Set(app.services.windows.flatMap(\.displayedTabIDs))
-    var text = ""
-    var count = 0
-    for group in allTabs() where !group.tabs.isEmpty {
-      text += "\(text.isEmpty ? "" : "\n")\(group.name):\n"
-      for tab in group.tabs {
-        count += 1
-        guard count <= 300 else { continue }
-        let view = app.tabs.live[tab.id]
-        let url = view?.url?.absoluteString ?? tab.url
-        let title = view?.title.flatMap { $0.isEmpty ? nil : $0 } ?? tab.displayTitle
-        text += "- \(Self.shortID(tab.id)): \(title.isEmpty ? url : title) — \(url)"
-        if view == nil { text += " [not loaded]" }
-        if shown.contains(tab.id) { text += " [front]" }
-        if tab.id == targetTab { text += " [you act on this]" }
-        if opened.contains(tab.id) { text += " [you opened it]" }
-        text += "\n"
+    let sidebar = sidebarTools(app)
+    switch name {
+    case "list_tabs": return listTabs(app, sidebar)
+    case "open_tab": return await openTab(input)
+    case "select_tab": return await selectTab(input)
+    case "close_tab": return closeTab(input)
+    case "activate_tab": return await activateTab(input)
+    case "move_tab": return Self.outcome(sidebar.move(input))
+    case "rename_tab": return Self.outcome(sidebar.rename(input))
+    case "create_folder": return Self.outcome(sidebar.createFolder(input))
+    case "split_tabs": return Self.outcome(sidebar.split(input))
+    case "mute_tab": return muteTab(input)
+    case "switch_space":
+      guard let space = sidebar.space(input["space"]?.string) else { return .error("No such space. list_tabs lists them.") }
+      guard app.visibleSpaces.contains(where: { $0 === space }) else { return .error("The window couldn't switch.") }
+      app.selectedSpaceID = space.id
+      return .text("The user's window shows \"\(space.name)\" now.")
+    case "create_space":
+      let (outcome, space) = sidebar.createSpace(input)
+      guard var text = outcome.isError ? nil : outcome.text, let space else { return Self.outcome(outcome) }
+      if input["show"] == true, app.visibleSpaces.contains(where: { $0 === space }) {
+        app.selectedSpaceID = space.id
+        text += " The user's window shows it."
       }
+      return .text(text)
+    case "search_history": return searchHistory(app, input)
+    case "list_downloads": return listDownloads(app, input)
+    case "send_tab_to_device": return sendTabToDevice(app, sidebar, input)
+    default: return .error("Tool \(name) isn't available here.")
     }
-    if count > 300 { text += "\n(\(count - 300) more tabs not listed.)\n" }
-    return .text(text.isEmpty ? "No tabs are open." : text)
+  }
+
+  /// The sidebar, as the desktop lists it (SidebarTools.listTabs), with
+  /// what's live: titles and URLs of loaded pages, and the marks.
+  private func listTabs(_ app: AppModel, _ sidebar: SidebarTools) -> Result {
+    let shown = Set(app.services.windows.flatMap(\.displayedTabIDs))
+    return .text(sidebar.listTabs { tab in
+      let view = app.tabs.live[tab.id]
+      return SidebarTools.TabState(
+        title: view?.title, url: view?.url?.absoluteString, loaded: view != nil, front: shown.contains(tab.id),
+        target: tab.id == targetTab, opened: opened.contains(tab.id), muted: app.tabs.muted.contains(tab.id),
+        playing: app.tabs.playingVideo.contains(tab.id))
+    })
   }
 
   private func openTab(_ input: JSONValue) async -> Result {
@@ -321,7 +328,7 @@ final class ClaudeTools {
     else { return .error("Claude can only open http and https web pages.") }
     // In the space of the tab Claude works on (else the shown one).
     let space = targetTab.flatMap { app.store.node(id: $0) }.flatMap { app.store.space(of: $0) } ?? app.selectedSpace
-    guard let space, let tab = app.store.addTab(url: url.absoluteString, to: space.today) else {
+    guard let space, !space.isIncognito, let tab = app.store.addTab(url: url.absoluteString, to: space.today) else {
       return .error("The tab couldn't be opened.")
     }
     app.extensions.tabOpened(tab.id)
@@ -331,12 +338,13 @@ final class ClaudeTools {
     let view = app.tabs.webView(for: tab)
     Self.keepRendering(view)
     await Self.waitForLoad(view)
-    return .text("Opened tab \(Self.shortID(tab.id)): \(view.url?.absoluteString ?? url.absoluteString) (\"\(view.title ?? "")\"). The page tools act on it now; select_tab goes back.")
+    return .text("Opened tab \(SidebarTools.nodeID(tab)): \(view.url?.absoluteString ?? url.absoluteString) (\"\(view.title ?? "")\"). The page tools act on it now; select_tab goes back.")
   }
 
   private func selectTab(_ input: JSONValue) async -> Result {
     let id = input["tab_id"]?.string ?? ""
-    guard let app, let tab = tab(id) else { return .error("No tab \(id). list_tabs gives the ids.") }
+    guard let app, let tab = sidebarTools(app).node(id) else { return .error("No tab \(id). list_tabs gives the ids.") }
+    guard tab.isTab else { return .error("\(id) is a folder or a split: use one of its tabs.") }
     targetTab = tab.id
     // Not loaded: it loads now, in the background.
     let wasLoaded = app.tabs.live[tab.id] != nil
@@ -345,38 +353,158 @@ final class ClaudeTools {
       Self.keepRendering(view)
       await Self.waitForLoad(view)
     }
-    var text = "The page tools act on tab \(Self.shortID(tab.id)) now: \(view.title ?? tab.displayTitle) — \(view.url?.absoluteString ?? tab.url)."
+    var text = "The page tools act on tab \(SidebarTools.nodeID(tab)) now: \(view.title ?? tab.displayTitle) — \(view.url?.absoluteString ?? tab.url)."
     if !["http", "https"].contains(view.url?.scheme?.lowercased() ?? "https") { text += " It's a browser page, which Claude can't use." }
     return .text(text)
   }
 
-  /// Closes a tab as Compass closes one: a tab Claude opened goes, a
-  /// Today tab goes to the archive, and a pinned tab or favorite unloads
-  /// (it stays in the sidebar). Any tab: the system prompt has Claude ask
-  /// the user first for theirs (the desktop's rule).
+  /// activate_tab: shows the tab in the chat's window (its space too), and
+  /// Claude acts on it.
+  private func activateTab(_ input: JSONValue) async -> Result {
+    let id = input["tab_id"]?.string ?? ""
+    guard let app else { return .error("No window to show it in.") }
+    guard var tab = sidebarTools(app).node(id) else { return .error("No tab \(id).") }
+    if tab.isSplit, let first = tab.children.first { tab = first }
+    guard tab.isTab else { return .error("That's a folder: activate one of its tabs.") }
+    let wasLoaded = app.tabs.live[tab.id] != nil
+    app.show(tab)
+    targetTab = tab.id
+    let view = app.tabs.webView(for: tab)
+    if !wasLoaded { await Self.waitForLoad(view) }
+    return .text("Showing \(id) (\"\(view.title ?? tab.displayTitle)\") to the user. The page tools act on it.")
+  }
+
+  /// Closes an entry as the desktop does, the iPhone's way: a tab Claude
+  /// opened goes; a Today entry goes to the space's archive (as the user's
+  /// close), or away with `remove`; a pinned entry or favorite unloads and
+  /// stays, back on its pinned URL, unless `remove`. The system prompt has
+  /// Claude ask before closing the user's tabs.
   private func closeTab(_ input: JSONValue) -> Result {
     let id = input["tab_id"]?.string ?? ""
-    guard let app, let tab = tab(id) else { return .error("No tab \(id). list_tabs gives the ids.") }
-    var text: String
-    for window in app.services.windows where window.shownTab?.id == tab.id || window.selectedNodeID == tab.id {
+    guard !id.isEmpty else { return .error("Give a tab_id from list_tabs.") }
+    guard let app, let node = sidebarTools(app).node(id) else { return .error("No tab \(id).") }
+    guard !node.isFolder else { return .error("That's a folder: close or move its tabs.") }
+    let remove = input["remove"] == true
+    let tabIDs = Set(node.tabs.map(\.id))
+    for window in app.services.windows where window.selectedNode.map({ node.contains($0) || $0.contains(node) }) == true {
       window.selectedNodeID = nil
     }
-    if opened.remove(tab.id) != nil {
-      app.close(tab)
-      text = "Closed tab \(Self.shortID(tab.id))."
-    } else if tab.section == .today, tab.parent?.isSplit != true {
-      app.tabs.unload(tab.id)
-      app.store.archive(tab)
-      text = "Closed tab \(Self.shortID(tab.id)); it's in the space's archive."
+    let favorite = node.section == .favorites
+    var text: String
+    if opened.contains(node.id) || remove || (node.section == .today && node.parent !== app.store.space(of: node)?.today) {
+      opened.subtract(tabIDs)
+      app.close(node)
+      text = "Closed \(id)\(favorite ? " and removed it from Favorites" : "")."
+    } else if node.parent === app.store.space(of: node)?.today {
+      for tab in node.tabs { app.tabs.unload(tab.id) }
+      app.store.archive(node)
+      text = "Closed \(id); it's in the space's archive."
     } else {
-      app.unloadClosed(tab)
-      text = "Unloaded tab \(Self.shortID(tab.id)); it stays in the sidebar (pinned or a favorite), back on its pinned URL."
+      let live = node.tabs.filter { app.tabs.live[$0.id] != nil }
+      for tab in node.tabs { app.unloadClosed(tab) }
+      text = live.isEmpty
+        ? "\(id) wasn't loaded; remove: true takes it out of the sidebar."
+        : "Closed \(id); it stays in the sidebar, unloaded (remove: true takes it out)."
     }
-    if tab.id == targetTab {
-      targetTab = taskTab.flatMap { $0 != tab.id && app.store.node(id: $0) != nil ? $0 : nil }
+    if let target = targetTab, tabIDs.contains(target) {
+      targetTab = taskTab.flatMap { !tabIDs.contains($0) && app.store.node(id: $0) != nil ? $0 : nil }
       text += targetTab != nil ? " The page tools act on the chat's tab again." : " The page tools have no tab: select_tab one."
     }
     return .text(text)
+  }
+
+  /// mute_tab: a loaded tab's media now and after it loads again; an
+  /// unloaded one when it loads (TabManager.muted, in memory).
+  private func muteTab(_ input: JSONValue) -> Result {
+    let id = input["tab_id"]?.string ?? ""
+    guard let value = input["muted"], value == true || value == false else { return .error("Give tab_id and muted.") }
+    guard let app, let tab = sidebarTools(app).node(id), tab.isTab else { return .error("No tab \(id).") }
+    let muted = value == true
+    if muted { app.tabs.muted.insert(tab.id) } else { app.tabs.muted.remove(tab.id) }
+    if let view = app.tabs.live[tab.id] { Self.setMuted(view, muted) }
+    return .text("\(muted ? "Muted" : "Unmuted") \(id).")
+  }
+
+  /// The script that keeps a tab's media muted, in every frame of its
+  /// next pages.
+  private static let muteUserScript = WKUserScript(
+    source: SidebarTools.muteScript, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: ClaudeChat.world)
+
+  /// Mutes (or unmutes) a tab's media: the page now (its main frame), and
+  /// its next pages through the user script. WebKit has no public way to
+  /// mute a web view, so it's the page's audio and video elements (not Web
+  /// Audio).
+  static func setMuted(_ view: WKWebView, _ muted: Bool) {
+    let controller = view.configuration.userContentController
+    let has = controller.userScripts.contains { $0 === muteUserScript }
+    if muted, !has { controller.addUserScript(muteUserScript) }
+    if !muted, has {
+      // One script can't be removed alone: the others go back.
+      let others = controller.userScripts.filter { $0 !== muteUserScript }
+      controller.removeAllUserScripts()
+      others.forEach(controller.addUserScript)
+    }
+    view.evaluateJavaScript(
+      muted ? SidebarTools.muteScript : SidebarTools.unmuteScript, in: nil, in: ClaudeChat.world, completionHandler: nil)
+  }
+
+  /// search_history: the History store (every profile's visits on this
+  /// phone and those synced), one row per page, newest first.
+  private func searchHistory(_ app: AppModel, _ input: JSONValue) -> Result {
+    let limit = Int(min(max(input["max_results"]?.number ?? 20, 1), 100))
+    let since = input["days"]?.number.flatMap { $0 >= 1 ? Date().addingTimeInterval(-$0 * 24 * 60 * 60) : nil }
+    let rows = app.sync.history.search(input["query"]?.string ?? "", limit: limit, since: since)
+    if rows.isEmpty { return .text("No matching history.") }
+    return .text(rows.map { SidebarTools.historyLine(title: $0.title, url: $0.url, date: $0.lastVisit) }.joined())
+  }
+
+  /// list_downloads: Compass's downloads (running, and the files in
+  /// Compass Browser › Downloads in the Files app), newest first.
+  private func listDownloads(_ app: AppModel, _ input: JSONValue) -> Result {
+    let limit = Int(min(max(input["limit"]?.number ?? 20, 1), 100))
+    let items = app.downloads.items.sorted { $0.date > $1.date }.prefix(limit)
+    if items.isEmpty { return .text("No downloads.") }
+    return .text(items.map { item in
+      let state = item.running ? "in progress" : item.failed == "Cancelled" ? "cancelled" : item.failed != nil ? "failed" : "done"
+      var total: Int64?
+      if item.file != nil { total = item.bytes }
+      if item.running, let progress = item.progress, progress > 0 { total = Int64(Double(item.bytes) / progress) }
+      let saved = item.file != nil
+        ? "Compass Browser › Downloads › \(item.name) in the Files app"
+        : "Compass Browser › Downloads in the Files app, once done"
+      return SidebarTools.downloadLine(
+        name: item.name, state: state, bytes: item.bytes, total: total, url: nil, savedAt: saved, date: item.date)
+    }.joined())
+  }
+
+  /// send_tab_to_device: SEND_TAB_TO_SELF to another device of the tab's
+  /// sync account (the desktop's ClaudeTabs::SendTabToDevice()).
+  private func sendTabToDevice(_ app: AppModel, _ sidebar: SidebarTools, _ input: JSONValue) -> Result {
+    let notSyncing = "Sending tabs needs Compass sync with another device."
+    guard app.sync.isOn else { return .error(notSyncing) }
+    // The tab: the one asked for, or the one Claude acts on.
+    let tab = input["tab_id"]?.string.map { sidebar.node($0) } ?? targetTab.flatMap { app.store.node(id: $0) }
+    let account = tab.map { app.sync.accountProfile(of: $0) }
+      ?? app.selectedSpace.map { app.sync.accountProfile(of: $0) } ?? ""
+    guard let devices = app.sync.sendTargets(account: account) else { return .error(notSyncing) }
+    guard let name = input["device"]?.string, !devices.isEmpty else {
+      if devices.isEmpty { return .text("No other devices sync with Compass.") }
+      return .text("Devices:\n" + devices.map { "- \($0.name)\n" }.joined())
+    }
+    guard let device = devices.first(where: { $0.name.lowercased() == name.lowercased() }) else {
+      return .error("No device \"\(name)\". Without device, the tool lists them.")
+    }
+    var url = "", title = ""
+    if let tab, tab.isTab {
+      let view = app.tabs.live[tab.id]
+      url = view?.url?.absoluteString ?? tab.url
+      title = view?.title.flatMap { $0.isEmpty ? nil : $0 } ?? tab.displayTitle
+    }
+    guard let parsed = URL(string: url), ["http", "https"].contains(parsed.scheme?.lowercased() ?? "") else {
+      return .error("Only web pages can be sent; give a tab_id.")
+    }
+    app.sync.sendTab(url: url, title: title, to: device, account: account)
+    return .text("Sent \(url) to \(device.name).")
   }
 
   /// Until the page has loaded (15 s at most), and a moment to settle.

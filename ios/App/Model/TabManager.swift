@@ -76,6 +76,9 @@ final class TabManager: NSObject {
   var onPictureInPictureScroll: ((String, Bool) -> Void)?
   /// Tabs whose page plays a video with sound (AutoPiP's candidates).
   var playingVideo: Set<String> = []
+  /// Tabs Claude muted (mute_tab): their media stays muted, also after
+  /// the tab loads again. In memory only.
+  var muted: Set<String> = []
   /// A tab's URL changed (its page's forms are gone).
   var onNavigated: ((String) -> Void)?
   /// The page scrolled: (tab ID, how far down since the last call, whether
@@ -146,6 +149,7 @@ final class TabManager: NSObject {
     }
     let view = makeWebView(for: node, url: URL(string: node.url))
     register(view, as: node.id)
+    if muted.contains(node.id) { ClaudeTools.setMuted(view, true) }
     if let state = restoring.removeValue(forKey: node.id) {
       view.interactionState = state
     } else if let url = URL(string: node.url), !node.url.isEmpty {

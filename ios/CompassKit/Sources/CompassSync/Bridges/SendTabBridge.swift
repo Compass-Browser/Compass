@@ -65,7 +65,7 @@ public final class SendTabBridge: DataTypeBridge, @unchecked Sendable {
         let entry = specifics.sendTabToSelf
         guard !entry.guid.isEmpty else { continue }
         entries[entry.guid] = entry
-        let shared = Date(timeIntervalSince1970: TimeInterval(entry.sharedTimeUsec) / 1_000_000)
+        let shared = Self.date(protoTime: entry.sharedTimeUsec)
         guard entry.targetDeviceSyncCacheGuid == cacheGUID, !entry.opened, !entry.notificationDismissed,
           !shown.contains(entry.guid), now.timeIntervalSince(shared) < Self.expiry,
           let url = URL(string: entry.url), url.scheme == "http" || url.scheme == "https"
@@ -87,6 +87,52 @@ public final class SendTabBridge: DataTypeBridge, @unchecked Sendable {
       try? data.write(to: stateURL, options: .atomic)
     }
     if !received.isEmpty { onReceived?(received.sorted { $0.sharedTime < $1.sharedTime }) }
+  }
+
+  /// A proto time: microseconds since the Windows epoch, as Chromium
+  /// writes them (send_tab_to_self_entry.cc, `TimeToProtoTime`).
+  public static func protoTime(_ date: Date) -> Int64 {
+    Int64((date.timeIntervalSince1970 * 1_000_000).rounded(.down)) + windowsEpochOffset
+  }
+
+  /// A proto time read back. Entries counted from 1970 (as the phone's
+  /// tests wrote them) are too small for the Windows epoch, and taken as
+  /// such.
+  public static func date(protoTime: Int64) -> Date {
+    let unix = protoTime >= windowsEpochOffset ? protoTime - windowsEpochOffset : protoTime
+    return Date(timeIntervalSince1970: TimeInterval(unix) / 1_000_000)
+  }
+
+  /// Microseconds from 1601 to 1970.
+  static let windowsEpochOffset: Int64 = 11_644_473_600_000_000
+
+  /// The entry Chromium's SendTabToSelfModel::SendEntry() writes: this
+  /// device's name as the sender, the target's cache GUID.
+  public static func entry(
+    guid: String, url: String, title: String, deviceName: String, target: String, now: Date = Date()
+  ) -> SyncPb_SendTabToSelfSpecifics {
+    var entry = SyncPb_SendTabToSelfSpecifics()
+    entry.guid = guid
+    entry.url = url
+    entry.title = title
+    entry.sharedTimeUsec = protoTime(now)
+    entry.deviceName = deviceName
+    entry.targetDeviceSyncCacheGuid = target
+    return entry
+  }
+
+  /// Sends a tab to another device of the account (Claude's
+  /// send_tab_to_device): it shows there as a notification. Returns the
+  /// entry's GUID.
+  @discardableResult
+  public func send(url: String, title: String, deviceName: String, to target: String, now: Date = Date()) async -> String {
+    let guid = UUID().uuidString.lowercased()
+    let entry = Self.entry(guid: guid, url: url, title: title, deviceName: deviceName, target: target, now: now)
+    lock.withLock { entries[guid] = entry }
+    var specifics = SyncPb_EntitySpecifics()
+    specifics.sendTabToSelf = entry
+    await engine.put(.sendTabToSelf, tag: guid, specifics: specifics)
+    return guid
   }
 
   /// The tab was opened from its notification: the entry says so, and the

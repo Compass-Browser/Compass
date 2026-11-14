@@ -357,6 +357,25 @@ final class SyncController {
     }
   }
 
+  /// The devices of an account a tab can be sent to (Claude's
+  /// send_tab_to_device); nil without that account.
+  func sendTargets(account: String) -> [SyncDevice]? {
+    accounts[account]?.deviceInfo.sendTargets()
+  }
+
+  /// Sends a page to another device of the account, as the desktop's "Send
+  /// to your devices" does: it shows there as a notification.
+  func sendTab(url: String, title: String, to device: SyncDevice, account: String) {
+    guard let account = accounts[account] else { return }
+    let sentTabs = account.sentTabs
+    let name = account.deviceInfo.localName
+    let target = device.cacheGUID
+    Task {
+      await sentTabs.send(url: url, title: title, deviceName: name, to: target)
+      syncSoon(after: 0)
+    }
+  }
+
   /// An icon from a page this phone loaded, for the account of the tab's
   /// space (written only if an entry there is on the host and it beats the
   /// account's).

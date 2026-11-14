@@ -43,7 +43,7 @@ let package = Package(
     ),
     .target(name: "CompassShared"),
     .target(name: "CompassModel", dependencies: ["CompassShared"]),
-    .target(name: "CompassClaude", dependencies: ["CompassShared"]),
+    .target(name: "CompassClaude", dependencies: ["CompassShared", "CompassModel"]),
     .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
     .target(
       name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude"]),
@@ -51,7 +51,7 @@ let package = Package(
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),
     .testTarget(name: "CompassSharedTests", dependencies: ["CompassShared"]),
-    .testTarget(name: "CompassClaudeTests", dependencies: ["CompassClaude"]),
+    .testTarget(name: "CompassClaudeTests", dependencies: ["CompassClaude", "CompassModel"]),
     .testTarget(name: "CompassLiveFoldersTests", dependencies: ["CompassLiveFolders"]),
   ],
   // BoringSSL's C++ needs C++17 (swift-crypto sets the same).

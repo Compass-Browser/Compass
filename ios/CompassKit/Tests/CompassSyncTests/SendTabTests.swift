@@ -82,6 +82,67 @@ struct SendTabBridgeTests {
   }
 }
 
+/// Sending from the phone (Claude's send_tab_to_device).
+struct SendTabSendingTests {
+  // Chromium counts from the Windows epoch; entries counted from 1970 still
+  // read right.
+  @Test func protoTimes() {
+    let date = Date(timeIntervalSince1970: 1_800_000_000.5)
+    #expect(SendTabBridge.protoTime(date) == 1_800_000_000_500_000 + 11_644_473_600_000_000)
+    #expect(SendTabBridge.date(protoTime: SendTabBridge.protoTime(date)) == date)
+    #expect(SendTabBridge.date(protoTime: 1_800_000_000_500_000) == date)
+  }
+
+  // The entry is the desktop's: this device as the sender, the target's
+  // cache GUID; the target's bridge shows it.
+  @Test func sentEntryShowsOnTheTarget() async {
+    let now = Date()
+    let entry = SendTabBridge.entry(
+      guid: "g1", url: "https://example.org/sent", title: "Sent", deviceName: "iPhone", target: "mac", now: now)
+    #expect(entry.deviceName == "iPhone")
+    #expect(entry.targetDeviceSyncCacheGuid == "mac")
+    #expect(!entry.opened)
+    var specifics = SyncPb_EntitySpecifics()
+    specifics.sendTabToSelf = entry
+    let received = Received()
+    let mac = SendTabBridge(engine: offlineEngine(), cacheGUID: "mac", stateURL: nil)
+    mac.onReceived = { received.add($0) }
+    await mac.apply([change(specifics, tag: "g1")])
+    #expect(received.all.map(\.url) == ["https://example.org/sent"])
+    #expect(abs(received.all[0].sharedTime.timeIntervalSince(now)) < 0.001)
+
+    let guid = await SendTabBridge(engine: offlineEngine(), cacheGUID: "phone", stateURL: nil)
+      .send(url: "https://example.org/b", title: "B", deviceName: "iPhone", to: "mac")
+    #expect(!guid.isEmpty)
+  }
+
+  // Targets: other devices that take sent tabs, seen in the last 10 days,
+  // newest first.
+  @Test func sendTargets() async {
+    func device(_ guid: String, receiving: Bool = true, daysAgo: Double = 0) -> RemoteChange {
+      var info = SyncPb_DeviceInfoSpecifics()
+      info.cacheGuid = guid
+      info.clientName = "Device \(guid)"
+      info.lastUpdatedTimestamp = Int64((Date().timeIntervalSince1970 - daysAgo * 24 * 60 * 60) * 1000)
+      info.featureFields.sendTabToSelfReceivingEnabled = receiving
+      var s = SyncPb_EntitySpecifics()
+      s.deviceInfo = info
+      return RemoteChange(
+        clientTagHash: ClientTagHash.make(type: .deviceInfo, tag: DeviceInfoBridge.tag(cacheGUID: guid)), specifics: s,
+        serverID: guid, version: 1, mtime: 0, ctime: 0, originatorCacheGUID: guid)
+    }
+    let devices = DeviceInfoBridge(local: .init(name: "iPhone", model: "iPhone", appVersion: "1"))
+    let engine = offlineEngine()
+    await devices.refreshLocal(engine: engine)
+    await devices.apply([
+      device("old-mac", daysAgo: 3), device("mac", daysAgo: 1), device("gone", daysAgo: 11),
+      device("no-receive", receiving: false),
+    ])
+    #expect(devices.localName == "iPhone")
+    #expect(devices.sendTargets().map(\.cacheGUID) == ["mac", "old-mac"])
+  }
+}
+
 /// The Mac's side in the server test: what SEND_TAB_TO_SELF holds.
 private final class EntryRecorder: DataTypeBridge, @unchecked Sendable {
   let dataType = DataType.sendTabToSelf

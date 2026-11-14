@@ -107,25 +107,32 @@ public final class HistoryStore {
   }
 
   /// Pages matching `text` (URL or title words), most recent first; with
-  /// a profile, that profile account's only (the command bar, M8).
-  public func search(_ text: String, limit: Int = 20, profile: String? = nil) -> [HistoryEntry] {
+  /// a profile, that profile account's only (the command bar, M8); with
+  /// `since`, visited since then (Claude's search_history).
+  public func search(_ text: String, limit: Int = 20, profile: String? = nil, since: Date? = nil) -> [HistoryEntry] {
     let words = text.lowercased().split { !$0.isLetter && !$0.isNumber }.map { "\"\($0)\"*" }
-    guard !words.isEmpty else { return recent(limit: limit, profile: profile) }
+    guard !words.isEmpty else { return recent(limit: limit, profile: profile, since: since) }
     return query(
       """
       SELECT v.url, v.title, MAX(v.time), COUNT(*) FROM visits_fts f JOIN visits v ON v.id = f.rowid
-      WHERE visits_fts MATCH ? AND (? OR v.profile = ?) GROUP BY v.url ORDER BY MAX(v.time) DESC LIMIT ?
+      WHERE visits_fts MATCH ? AND (? OR v.profile = ?) AND v.time >= ?
+      GROUP BY v.url ORDER BY MAX(v.time) DESC LIMIT ?
       """,
-      [.text(words.joined(separator: " ")), .int(profile == nil ? 1 : 0), .text(profile ?? ""), .int(Int64(limit))],
+      [
+        .text(words.joined(separator: " ")), .int(profile == nil ? 1 : 0), .text(profile ?? ""),
+        .int(since.map(Visit.time) ?? 0), .int(Int64(limit)),
+      ],
       entry)
   }
 
-  public func recent(limit: Int = 50, profile: String? = nil) -> [HistoryEntry] {
+  public func recent(limit: Int = 50, profile: String? = nil, since: Date? = nil) -> [HistoryEntry] {
     query(
       """
-      SELECT url, title, MAX(time), COUNT(*) FROM visits WHERE (? OR profile = ?)
+      SELECT url, title, MAX(time), COUNT(*) FROM visits WHERE (? OR profile = ?) AND time >= ?
       GROUP BY url ORDER BY MAX(time) DESC LIMIT ?
-      """, [.int(profile == nil ? 1 : 0), .text(profile ?? ""), .int(Int64(limit))], entry)
+      """,
+      [.int(profile == nil ? 1 : 0), .text(profile ?? ""), .int(since.map(Visit.time) ?? 0), .int(Int64(limit))],
+      entry)
   }
 
   public var count: Int {
