@@ -12,6 +12,7 @@
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_command_controller.h"
@@ -48,6 +49,7 @@
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/ui/views/reader/reader_mode.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -61,6 +63,7 @@
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/background.h"
 #include "cc/paint/paint_flags.h"
@@ -293,6 +296,11 @@ SidebarHeader::SidebarHeader(
   content_settings_ =
       AddChildView(std::make_unique<WebAppContentSettingsContainer>(
           browser_, this, this));
+  // Hidden until the active tab is an article.
+  auto reader = views::CreateVectorImageButton(base::BindRepeating(
+      &SidebarHeader::OnReaderPressed, base::Unretained(this)));
+  reader->SetVisible(false);
+  reader_ = AddChildView(std::move(reader));
 
   extensions_slot_ = AddChildView(CreateSlot());
   pinned_actions_slot_ = AddChildView(CreateSlot());
@@ -355,6 +363,7 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
                               static_cast<views::View*>(reload_.get()),
                               static_cast<views::View*>(pill_.get()),
                               static_cast<views::View*>(site_info_.get()),
+                              static_cast<views::View*>(reader_.get()),
                               extensions_slot_.get(),
                               pinned_actions_slot_.get()}) {
       layout.child_layouts.emplace_back(view, false, gfx::Rect());
@@ -507,10 +516,20 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
       site_info_.get(), show_site_info_,
       gfx::Rect(kSiteInfoInset, pill_center_y - kSiteInfoSize / 2,
                 kSiteInfoSize, kSiteInfoSize));
+  // Reader at the pill's right end, the content setting icons before it.
+  int icons_right = pill_bounds.right() - kSiteInfoInset;
+  layout.child_layouts.emplace_back(
+      reader_.get(), show_reader_,
+      gfx::Rect(icons_right - kSiteInfoSize,
+                pill_center_y - kSiteInfoSize / 2, kSiteInfoSize,
+                kSiteInfoSize));
+  if (show_reader_) {
+    icons_right -= kSiteInfoSize + kButtonGap;
+  }
   const gfx::Size icons_size = content_settings_->GetPreferredSize();
   layout.child_layouts.emplace_back(
       content_settings_.get(), icons_size.width() > 0,
-      gfx::Rect(pill_bounds.right() - kSiteInfoInset - icons_size.width(),
+      gfx::Rect(icons_right - icons_size.width(),
                 pill_center_y - icons_size.height() / 2, icons_size.width(),
                 icons_size.height()));
   layout.host_size.set_height(content_bottom + kPillMargin);
@@ -571,6 +590,7 @@ bool SidebarHeader::IsPositionInWindowCaption(const gfx::Point& point) {
        {static_cast<views::View*>(back_), static_cast<views::View*>(forward_),
         static_cast<views::View*>(reload_), static_cast<views::View*>(pill_),
         static_cast<views::View*>(site_info_),
+        static_cast<views::View*>(reader_),
         static_cast<views::View*>(content_settings_), extensions_slot_.get(),
         pinned_actions_slot_.get(), app_menu_slot_.get()}) {
     if (view->GetVisible() && view->bounds().Contains(point)) {
@@ -858,6 +878,7 @@ void SidebarHeader::UpdateForActiveTab() {
         views::IconColors(color, color));
   }
   UpdateContentSettingsIcons();
+  UpdateReaderButton();
   reload_->ChangeMode(contents && contents->IsLoading()
                           ? ReloadButton::Mode::kStop
                           : ReloadButton::Mode::kReload,
@@ -868,7 +889,10 @@ void SidebarHeader::UpdatePillInsets() {
   const int text_left = show_site_info_
                             ? kSiteInfoInset + kSiteInfoSize + kSiteInfoInset
                             : kPillHorizontalPadding;
-  const int icons_width = content_settings_->GetPreferredSize().width();
+  int icons_width = content_settings_->GetPreferredSize().width();
+  if (show_reader_) {
+    icons_width += kSiteInfoSize + (icons_width > 0 ? kButtonGap : 0);
+  }
   const int text_right = icons_width > 0
                              ? kSiteInfoInset + icons_width + kSiteInfoInset
                              : kPillHorizontalPadding;
@@ -876,6 +900,36 @@ void SidebarHeader::UpdatePillInsets() {
   const gfx::Insets insets = gfx::Insets::TLBR(0, text_left, 0, text_right);
   if (!pill_->GetBorder() || pill_->GetInsets() != insets) {
     pill_->SetBorder(views::CreateEmptyBorder(insets));
+  }
+}
+
+void SidebarHeader::UpdateReaderButton() {
+  ReaderMode* reader_mode = ReaderMode::From(browser_);
+  const bool show = reader_mode && reader_mode->IsAvailable();
+  const bool showing = reader_mode && reader_mode->IsShowing();
+  if (show == show_reader_ && showing == reader_showing_ &&
+      reader_->GetVisible() == show && !reader_->GetTooltipText().empty()) {
+    return;
+  }
+  show_reader_ = show;
+  reader_showing_ = showing;
+  // In Reader the book takes the accent color, as a pressed toggle.
+  const ui::ColorId color =
+      showing ? ui::kColorSysPrimary : ui::ColorId(kColorOmniboxText);
+  views::SetImageFromVectorIconWithColor(reader_, kMenuBookIcon,
+                                         kSiteInfoIconSize,
+                                         views::IconColors(color, color));
+  const std::u16string tooltip = showing ? u"Hide Reader" : u"Show Reader";
+  reader_->SetTooltipText(tooltip);
+  reader_->GetViewAccessibility().SetName(tooltip);
+  reader_->SetVisible(show);
+  UpdatePillInsets();
+  InvalidateLayout();
+}
+
+void SidebarHeader::OnReaderPressed() {
+  if (ReaderMode* reader_mode = ReaderMode::From(browser_)) {
+    reader_mode->Toggle();
   }
 }
 

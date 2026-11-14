@@ -20,6 +20,7 @@
 #include "compass/browser/ui/live_folders/live_folders_untrusted_ui.h"
 #include "compass/browser/ui/webui/live_folders/live_folders.mojom.h"
 #include "compass/browser/ui/webui/placeholder/compass_placeholder_ui.h"
+#include "compass/browser/ui/webui/reader/reader_untrusted_ui.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
@@ -42,6 +43,8 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   // Runs live folder plugins (docs/design/live-folders.md, "Runtime").
   map.AddUntrustedWebUIConfig(
       std::make_unique<LiveFoldersUntrustedUIConfig>());
+  // The reader view (docs/design/reader-mode.md).
+  map.AddUntrustedWebUIConfig(std::make_unique<ReaderUntrustedUIConfig>());
 
   // No bookmark manager: pinned tabs are the bookmarks. Upstream registers
   // it before calling here.

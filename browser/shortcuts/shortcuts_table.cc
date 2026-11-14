@@ -30,6 +30,7 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"little-window", kNewLittleWindowCommand, "Compass",
      "New little window"},
     {"claude", kToggleClaudeCommand, "Compass", "Chat with Claude"},
+    {"reader", kToggleReaderModeCommand, "Compass", "Reader mode"},
 
     {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
     {"next-tab", IDC_SELECT_NEXT_TAB, "Tabs", "Next tab"},
@@ -83,6 +84,9 @@ constexpr CompassDefault kCompassDefaults[] = {
      kToggleTabMuteCommand},
     {ui::VKEY_E, ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
      kToggleClaudeCommand},
+    // Was upstream's Reading mode, which Compass's Reader replaces.
+    {ui::VKEY_R, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
+     kToggleReaderModeCommand},
 };
 
 struct Tables {

@@ -48,6 +48,7 @@
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
+#include "compass/browser/ui/views/reader/reader_mode.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
@@ -97,6 +98,8 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts",
      "keyboard"},
     {CommandBarCommand::kTidyToday, u"Tidy Today", "tidy"},
+    {CommandBarCommand::kReaderMode, u"Reader Mode", "reader"},
+    {CommandBarCommand::kLeaveReaderMode, u"Leave Reader Mode", "reader"},
 };
 
 // Claude's rows: the chat's, and Ask in the command bar's.
@@ -896,6 +899,12 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kTidyToday:
       TodayTidier::Get(browser_->GetProfile())->Tidy(features->space_model());
       break;
+    case CommandBarCommand::kReaderMode:
+    case CommandBarCommand::kLeaveReaderMode:
+      if (ReaderMode* reader_mode = ReaderMode::From(browser_)) {
+        reader_mode->Toggle();
+      }
+      break;
     case CommandBarCommand::kAskClaude:
       // Handled by Accept(), which has the question.
       break;
@@ -952,6 +961,15 @@ bool CommandBarPageHandler::IsCommandAvailable(
       }
       TodayTidier* tidier = TodayTidier::Get(browser_->GetProfile());
       return tidier && tidier->CanTidy(features->space_model());
+    }
+    case CommandBarCommand::kReaderMode: {
+      ReaderMode* reader_mode = ReaderMode::From(browser_);
+      return reader_mode && reader_mode->IsAvailable() &&
+             !reader_mode->IsShowing();
+    }
+    case CommandBarCommand::kLeaveReaderMode: {
+      ReaderMode* reader_mode = ReaderMode::From(browser_);
+      return reader_mode && reader_mode->IsShowing();
     }
     case CommandBarCommand::kAskClaude:
       // The key and the settings are the profile's.

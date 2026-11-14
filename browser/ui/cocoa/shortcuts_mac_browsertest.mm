@@ -126,6 +126,9 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
   // Cmd+Option+N, upstream's new split tab, opens a little window.
   EXPECT_EQ(CommandForKeys(kVK_ANSI_N, kCommand | NSEventModifierFlagOption),
             kNewLittleWindowCommand);
+  // Cmd+Option+R, upstream's Reading mode, shows Compass's Reader.
+  EXPECT_EQ(CommandForKeys(kVK_ANSI_R, kCommand | NSEventModifierFlagOption),
+            kToggleReaderModeCommand);
 }
 
 // Cmd+Shift+M mutes the active tab, and unmutes it. It was upstream's

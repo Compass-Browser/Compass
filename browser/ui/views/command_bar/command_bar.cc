@@ -29,6 +29,7 @@
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/views/peek/peek.h"
+#include "compass/browser/ui/views/reader/reader_mode.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/undo_close.h"
@@ -229,7 +230,7 @@ bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
     return true;
   }
   if (claude::HandleClaudeCommand(browser, id) ||
-      HandlePeekCommand(browser, id) ||
+      HandlePeekCommand(browser, id) || HandleReaderCommand(browser, id) ||
       HandleLittleWindowCommand(browser, id) ||
       HandleAppMenuSyncCommand(browser, id)) {
     return true;

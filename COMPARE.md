@@ -67,7 +67,7 @@ since October 2025).
 | **Web content** | | | | | | | | | | | |
 | Chrome extensions, desktop / phone | ✅ / ✅ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ❌ Firefox add-ons | ✅ / ❌ | ✅ / ❌ | ~ / ❌ | ✅ / ❌ | ✅ / ✅ also Firefox add-ons |
 | Built-in ad blocker | ❌ (uBlock Origin Lite as an extension) | ✅ both engines, Mac, iPhone, iPad | ❌ | ❌ | ✅ per profile | ❌ | ✅ | ~ | ✅ | ✅ | ✅ |
-| Reader mode, on-device translation | ❌ | ✅ Reader on WebKit pages, translation in both engines | ❌ | ? | ~ Reader View | ✅ | ✅ | ✅ | ? | ✅ | ✅ on-device on macOS 26+ |
+| Reader mode, on-device translation | ~ Reader mode; translation not yet | ✅ Reader on WebKit pages, translation in both engines | ❌ | ? | ~ Reader View | ✅ | ✅ | ✅ | ? | ✅ | ✅ on-device on macOS 26+ |
 | Full-quality DRM video | ❌ no Widevine VMP | ✅ FairPlay through WebKit | ✅ | ✅ | ~ Widevine since 2.13 | ~ | ✅ | ✅ | ✅ | ~ FairPlay, no Widevine | ? |
 | Mail, calendar, web panels | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ~ | ❌ | ❌ | ? |
 | **AI** | | | | | | | | | | | |
@@ -103,8 +103,7 @@ replacement, also with spaces, Peek, small windows, splits and an MCP server.
 Crest has, Compass doesn't:
 
 - Link routing to spaces (Air Traffic Control).
-- A WebKit engine per site: full-quality DRM video and Reader mode on those
-  pages.
+- A WebKit engine per site: full-quality DRM video on those pages.
 - Built-in ad blocking and on-device page translation.
 - A translucent sidebar.
 - Import from almost every browser, not only Arc.
@@ -130,7 +129,7 @@ Features other browsers have that Compass doesn't, checked against the code:
 | Link routing to spaces | Arc, Crest, Dia, Zen, Phi, Lilo | Next after little windows (docs/design/shortcuts.md, little-window.md "Not done") |
 | Per-site CSS/JS | Arc (Boosts), Zen (Boosts, Mods) | Not started |
 | Built-in ad blocker | Vivaldi, SigmaOS, Orion, Crest, Phi, Lilo, Brave | Not started; extensions instead |
-| Reader mode, on-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started |
+| On-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
 | Import from browsers other than Arc | Crest, Orion, Zen, Phi, Lilo, Dia | Not started |
 | Notes / canvas | Arc, Vivaldi | Not started |

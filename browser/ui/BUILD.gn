@@ -62,6 +62,10 @@ source_set("ui") {
     "views/little_window/little_window.h",
     "views/peek/peek.cc",
     "views/peek/peek.h",
+    "views/reader/reader_mode.cc",
+    "views/reader/reader_mode.h",
+    "views/reader/reader_tab_state.cc",
+    "views/reader/reader_tab_state.h",
     "views/sidebar/sidebar_context_menu.cc",
     "views/sidebar/sidebar_context_menu.h",
     "views/sidebar/sidebar_header.cc",
@@ -94,6 +98,8 @@ source_set("ui") {
     "webui/empty/compass_empty_ui.h",
     "webui/placeholder/compass_placeholder_ui.cc",
     "webui/placeholder/compass_placeholder_ui.h",
+    "webui/reader/reader_untrusted_ui.cc",
+    "webui/reader/reader_untrusted_ui.h",
     "webui/settings/compass_settings_ui.cc",
     "webui/settings/compass_settings_ui.h",
     "webui/settings/settings_sections.cc",
@@ -132,6 +138,7 @@ source_set("ui") {
   ]
   deps = [
     ":space_icons_ts",
+    "//compass/browser/reader:assets",
     "//chrome/browser/first_run",
     "//compass/browser/arc_import",
     "//compass/browser/claude",
@@ -370,6 +377,7 @@ source_set("browser_tests") {
     "webui/claude/claude_settings_handler_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
     "views/peek/peek_browsertest.cc",
+    "views/reader/reader_mode_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
     "views/sidebar/compass_sidebar_browsertest.cc",
     "webui/settings/settings_sections_browsertest.cc",
@@ -379,8 +387,11 @@ source_set("browser_tests") {
   if (is_posix) {
     sources += [ "claude/mcp_bridge_browsertest.cc" ]
   }
-  # The plugin cases the runtime test reads.
-  data = [ "//compass/plugins/" ]
+  # The plugin cases the runtime test reads; Reader mode's pages and test.
+  data = [
+    "//compass/plugins/",
+    "//compass/common/reader/",
+  ]
   deps = [
     "//compass/browser/live_folders",
     "//services/network:test_support",

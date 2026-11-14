@@ -1,0 +1,31 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# common/reader/ (Reader mode, shared with iOS; docs/design/reader-mode.md)
+# as string constants: compass/browser/reader/reader_assets.h. The browser
+# runs the scripts in pages and serves the reader view from them.
+action("assets") {
+  script = "//compass/build/embed_text.py"
+  inputs = [
+    "//compass/common/reader/Readability.js",
+    "//compass/common/reader/Readability-readerable.js",
+    "//compass/common/reader/reader.js",
+    "//compass/common/reader/reader.html",
+    "//compass/common/reader/reader.css",
+    "//compass/common/reader/reader_view.js",
+  ]
+  outputs = [ "$target_gen_dir/reader_assets.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::reader::assets",
+    "kReadability=" + rebase_path(inputs[0], root_build_dir),
+    "kReaderable=" + rebase_path(inputs[1], root_build_dir),
+    "kReaderJs=" + rebase_path(inputs[2], root_build_dir),
+    "kReaderHtml=" + rebase_path(inputs[3], root_build_dir),
+    "kReaderCss=" + rebase_path(inputs[4], root_build_dir),
+    "kReaderViewJs=" + rebase_path(inputs[5], root_build_dir),
+  ]
+}

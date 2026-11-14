@@ -100,7 +100,8 @@ class CompassShortcutsBrowserTest : public InProcessBrowserTest {
 
 // Ctrl+Shift+C copies the page's link, Ctrl+S opens or closes the sidebar,
 // Ctrl+Shift+M mutes the tab, Ctrl+Shift+E chats with Claude, Shift+Alt+N
-// opens a little window and Ctrl+Shift+R reloads without the cache.
+// opens a little window, Shift+Alt+R shows Reader (upstream's Reading mode
+// keys) and Ctrl+Shift+R reloads without the cache.
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
   EXPECT_EQ(CommandForKeys(CtrlShift(ui::VKEY_C)), IDC_COPY_URL);
   EXPECT_EQ(CommandForKeys(Ctrl(ui::VKEY_S)),
@@ -110,6 +111,9 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, ArcShortcuts) {
   EXPECT_EQ(CommandForKeys(ui::Accelerator(
                 ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN)),
             kNewLittleWindowCommand);
+  EXPECT_EQ(CommandForKeys(ui::Accelerator(
+                ui::VKEY_R, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN)),
+            kToggleReaderModeCommand);
   EXPECT_EQ(CommandForKeys(CtrlShift(ui::VKEY_R)),
             IDC_RELOAD_BYPASSING_CACHE);
   // What they replace: inspect element keeps Ctrl+Shift+I's developer tools.

@@ -105,6 +105,10 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // bar updates its own.
   void UpdateContentSettingsIcons();
 
+  // Shows the Reader button while the active tab is an article or in Reader
+  // (docs/design/reader-mode.md), highlighted in Reader.
+  void UpdateReaderButton();
+
   // After a switch to another profile's space (sidebar_swap.cc): this
   // window's header grows or shrinks from |old|'s height to its own, and
   // its extensions and pinned actions fade in, instead of the page under it
@@ -123,6 +127,7 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   ReloadButton* reload_button_for_testing() { return reload_; }
   views::LabelButton* pill_for_testing() { return pill_; }
   views::ImageButton* site_info_button_for_testing() { return site_info_; }
+  views::ImageButton* reader_button_for_testing() { return reader_; }
   WebAppContentSettingsContainer* content_settings_for_testing() {
     return content_settings_;
   }
@@ -206,6 +211,7 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   void UpdatePillInsets();
   void OnPillPressed();
   void OnSiteInfoPressed();
+  void OnReaderPressed();
 
   const raw_ptr<tabs::VerticalTabStripStateController> state_controller_;
   const raw_ptr<BrowserWindowInterface> browser_;
@@ -217,8 +223,12 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   raw_ptr<ReloadButton> reload_ = nullptr;
   raw_ptr<views::LabelButton> pill_ = nullptr;
   raw_ptr<views::ImageButton> site_info_ = nullptr;
-  // Inside the pill, at its right.
+  // Inside the pill, at its right: the content setting icons, then Reader.
   raw_ptr<WebAppContentSettingsContainer> content_settings_ = nullptr;
+  raw_ptr<views::ImageButton> reader_ = nullptr;
+  // Whether the Reader button shows, and whether the tab is in Reader.
+  bool show_reader_ = false;
+  bool reader_showing_ = false;
   // Whether the active tab has page info to show.
   bool show_site_info_ = false;
   // Hold the toolbar's views while they are here. The layout shows and hides

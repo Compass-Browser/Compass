@@ -36,10 +36,15 @@ inline constexpr int kToggleClaudeCommand = 39953;
 inline constexpr int kUndoCloseTabCommand = 39954;
 inline constexpr int kRedoCloseTabCommand = 39955;
 
+// Cmd+Option+R (Shift+Alt+R on Windows and Linux): enters or leaves Reader
+// in the active tab (docs/design/reader-mode.md).
+inline constexpr int kToggleReaderModeCommand = 39956;
+
 inline bool IsCompassCommand(int id) {
   return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand ||
          id == kToggleTabMuteCommand || id == kToggleClaudeCommand ||
-         id == kUndoCloseTabCommand || id == kRedoCloseTabCommand;
+         id == kUndoCloseTabCommand || id == kRedoCloseTabCommand ||
+         id == kToggleReaderModeCommand;
 }
 
 // Upstream commands of features Compass removes: bookmarks and the reading

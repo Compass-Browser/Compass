@@ -1,8 +1,8 @@
 # Reader mode
 
 Status: shared package done (`common/reader/`); desktop (Mac, Windows,
-Linux) in progress; iOS done, on the same package ("iOS" below). Based on Chromium
-157.0.8103.51.
+Linux) done; iOS done, on the same package ("iOS" below). Based on
+Chromium 157.0.8103.51.
 
 ## Goal
 
@@ -89,10 +89,19 @@ platform uses them.
 
 Reader shows over the tab, not in it. The tab's `WebContents` is left alone:
 its URL, its history (back and forward), its scroll position and form
-state, its identity in the sidebar and in sync. On top of the content area,
-a frameless child widget (as Peek's card, docs/design/peek.md) holds a
-`views::WebView` with a second `WebContents`, of the tab's profile, showing
-`chrome-untrusted://compass-reader/`.
+state, its identity in the sidebar and in sync. A second `WebContents`, of
+the tab's profile, shows `chrome-untrusted://compass-reader/` in a
+`views::WebView` that is the last child of the pane showing the tab (its
+`ContentsContainerView`), with the bounds of the pane's page
+(`contents_view()`), so it covers the page and nothing else: the devtools
+dock and the other panes of a split stay as they are. The pane's layout
+manager only lays out the children it knows, so the view keeps the bounds
+`ReaderTabState` gives it, following the page's. As the last child it is
+drawn over the page on every platform (views orders native views by their
+z-order, as for upstream's own overlays in that pane). It's in the window's
+own widget: focus, the frame's active look and window moves need nothing
+special. (Peek's card, a child widget, was the other way; its window
+juggling buys nothing here.)
 
 Alternatives, and why not:
 
@@ -118,7 +127,7 @@ no access to the browser beyond what any page has. It serves the shared
 files from strings built into the browser (`//compass/browser/reader:assets`,
 as `common/claude/` is, `build/embed_text.py`), and the article as JSON:
 
-- `ReaderMode` puts the article into `ReaderArticleStore` under a random
+- `ReaderTabState` puts the article into `ReaderArticleStore` under a random
   128-bit token and loads `chrome-untrusted://compass-reader/?article=
   article/<token>.json`; `reader_view.js` fetches that. The store keeps
   one article per reader view, of its profile, dropped when the view
@@ -127,37 +136,42 @@ as `common/claude/` is, `build/embed_text.py`), and the article as JSON:
   (only `reader.js` and `reader_view.js`); `style-src 'self'`;
   `img-src https: http: data:` (the article's images; http images are
   upgraded as mixed content); `connect-src 'self'` (the article's JSON);
-  `font-src 'self'`; `frame-src 'none'`; `form-action 'none'`;
-  `frame-ancestors 'none'`. Even a script that got past the sanitizer would
+  `frame-src 'none'`; `object-src 'none'`; `form-action 'none'`;
+  `frame-ancestors 'none'`; Trusted Types off (the view sets sanitized
+  HTML with `innerHTML`). Even a script that got past the sanitizer would
   not run.
 - `<meta name="referrer" content="no-referrer">`: the article's images
   load without saying where from.
 
 ### Showing and leaving
 
-`compass::ReaderMode` (`browser/ui/views/reader/`), one per normal window,
-owned by the sidebar view next to Peek. Each tab's Reader state is
-`ReaderTabState`, user data on its `WebContents`:
+`compass::ReaderMode` (`browser/ui/views/reader/`), one per window with a
+sidebar, owned by the sidebar view next to Peek. Each tab's Reader state is
+`ReaderTabState`, user data on its `WebContents`, made when the tab first
+comes to the front. `ReaderMode` follows the active tab and the panes (a
+pane that shows another tab says so, `AddWebContentsAttachedCallback()`),
+puts each tab's view over the pane that shows it, and updates the header.
 
-- **Is this an article?** When the active tab finishes loading
-  (`DocumentOnLoadCompletedInPrimaryMainFrame`), and 1 s after a
-  same-document navigation (single-page apps), `ReaderMode` runs
+- **Is this an article?** When the page finishes loading
+  (`DocumentOnLoadCompletedInPrimaryMainFrame`, and once more 2 s later for
+  pages that build their text late), and 1 s after a same-document
+  navigation (single-page apps), `ReaderTabState` runs
   `Readability-readerable.js` and `reader.js` `check()` in the page's
   isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`, as Claude's page
-  agent, docs/design/claude.md). Only http(s) and file pages, only the
-  active tab: background tabs are checked when they come forward.
+  agent, docs/design/claude.md). Only http(s) and file pages; a tab that
+  was never in front isn't checked until it is.
 - **Entering**: `parse()` the same way, with Readability, then the reader
-  view over the content area, focused. A page that has no article still
-  enters: the view says "This page has no article to show." (the shortcut
-  works on any page, as in Safari).
+  view over the tab's pane, focused. On a page that isn't an article the
+  command and the shortcut still enter: the view shows what Readability
+  found, or says there's no article.
 - **Leaving**: Esc (after the reader page, which uses it to close its
   settings panel first), the Reader button or the shortcut again, the
   view's × button (`window.close()`, which reaches `CloseContents`), or
   anything that commits a new document in the tab (a link, Back, a reload,
   typing a URL). The page underneath gets the focus back.
-- **Switching tabs** hides the view; coming back to a tab that was in Reader
-  shows it again with the article it had. Reader is per tab; one reader view
-  per window shows the active tab's.
+- **Switching tabs** takes the view away (its `WebContents` stays with the
+  tab); coming back to a tab that was in Reader shows it again as it was.
+  Reader is per tab, so in a split each pane can be in Reader or not.
 - **Links in the article**: a plain click loads the link in the tab, which
   leaves Reader (the reader page is WebUI, so Blink sends every link to the
   browser as `OpenURLFromTab`); Cmd/Ctrl+click, middle click and
@@ -187,7 +201,11 @@ owned by the sidebar view next to Peek. Each tab's Reader state is
 
 ### Not in Reader
 
-- Little windows and other windows without a sidebar have no Reader.
+- Little windows and other windows without a sidebar have no Reader
+  (upstream's Reading mode commands do nothing there).
+- The page context menu's "Open in reading mode", when upstream shows it,
+  still opens Chromium's side panel: context menu commands don't go through
+  the browser's command controller.
 - Find on page (Cmd+F) searches the live page under the view, not the
   article. Printing prints the live page.
 - Pages that need a sign-in cookie for their images show them only if the
@@ -200,15 +218,21 @@ with the fixtures served by the embedded test server:
 
 - `SharedTests`: `reader_test.html` passes in Compass.
 - `ArticleShowsReader`: the article fixture loads, the pill's Reader button
-  appears; the toggle shows the reader view with the title and text, and
-  the tab's URL and history length haven't changed; the page underneath
-  still has its scripts' state; Esc leaves, the view goes, focus is back on
-  the page.
-- `NotAnArticle`: the sign-in fixture shows no Reader button.
-- `NavigationLeaves`, `TabSwitchKeepsReader`, `CommandAndShortcut`: a new
-  document leaves Reader; switching away hides and back shows it; the
-  command bar's command and the shortcut toggle it.
+  appears; pressing it shows the reader view over the tab's pane with the
+  title and text and none of the scripts, handlers, frames or forms; the
+  tab's URL and history length haven't changed and the page still has its
+  scripts' state; Esc leaves and the view goes.
+- `NotAnArticle`: the sign-in fixture shows no Reader button (and loses it
+  coming from an article); the command still enters.
+- `NavigationLeaves`, `LinkLoadsInTheTab`, `TabSwitchKeepsReader`,
+  `Commands`, `SettingsAreRemembered`: a new document leaves Reader; a link
+  in the article loads in the tab; switching away takes the view away and
+  back brings it; the Reader command and upstream's Reading mode commands
+  toggle it; the theme and font chosen stay for the next article.
 - `Incognito`: Reader works in an Incognito window.
+- The keys: `ShortcutsTableTest` and `CompassShortcutsBrowserTest`
+  (`ArcShortcuts` on Windows and Linux, its macOS twin in
+  `shortcuts_mac_browsertest.mm`).
 
 ## iOS
 

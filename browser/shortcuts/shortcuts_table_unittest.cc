@@ -37,6 +37,8 @@ std::vector<CommandAccelerator> UpstreamTable() {
       {Ctrl(ui::VKEY_W), IDC_CLOSE_TAB},
       {ui::Accelerator(ui::VKEY_N, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN),
        kNewLittleWindowCommand},
+      {ui::Accelerator(ui::VKEY_R, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN),
+       IDC_SHOW_READING_MODE_KEYBOARD},
   };
 }
 
@@ -76,6 +78,9 @@ TEST_F(ShortcutsTableTest, CompassKeysThenTheUsers) {
             IDC_TOGGLE_VERTICAL_TABS_COLLAPSE);
   EXPECT_EQ(CommandFor(list, CtrlShift(ui::VKEY_M)), kToggleTabMuteCommand);
   EXPECT_EQ(CommandFor(list, CtrlShift(ui::VKEY_E)), kToggleClaudeCommand);
+  EXPECT_EQ(CommandFor(list, ui::Accelerator(ui::VKEY_R, ui::EF_SHIFT_DOWN |
+                                                             ui::EF_ALT_DOWN)),
+            kToggleReaderModeCommand);
   EXPECT_EQ(CommandFor(list, Ctrl(ui::VKEY_R)), IDC_RELOAD);
   EXPECT_EQ(GetDefaultAccelerators(IDC_COPY_URL),
             std::vector<ui::Accelerator>{CtrlShift(ui::VKEY_C)});

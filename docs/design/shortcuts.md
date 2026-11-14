@@ -18,6 +18,8 @@ wins and upstream's command loses it. The user can change them (see
 | Shift+Alt+P (Windows) | The same, as Ctrl+Option+Cmd+P | Nothing |
 | Cmd+Option+N | A new little window (`kNewLittleWindowCommand`, little-window.md), from any app (a system hot key, little-window.md "From any app") | New Split Tab, which keeps its Tab menu item without a shortcut |
 | Shift+Alt+N (Windows, Linux) | A new little window, as Cmd+Option+N | New Split Tab |
+| Cmd+Option+R | Shows or hides Reader in the active tab (`kToggleReaderModeCommand`, reader-mode.md) | Chromium's Reading mode side panel, which Compass doesn't use |
+| Shift+Alt+R (Windows, Linux) | The same, as Cmd+Option+R | Chromium's Reading mode |
 | Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
 | Cmd+Z, Cmd+Shift+Z | Outside text, and only when the page passes on the keys: undo and redo closing sidebar entries (`kUndoCloseTabCommand`, `kRedoCloseTabCommand`, sidebar.md "Undo closing"). Cmd+Shift+T undoes the same | The Edit menu's Undo and Redo, which text keeps |
 
@@ -41,8 +43,8 @@ On Windows and Linux the same shortcuts come with Ctrl for Cmd (see
 Ctrl+Shift+C copies the link (inspect element keeps F12's developer tools
 and Ctrl+Shift+I), Ctrl+S opens or closes the sidebar (Save Page As keeps
 its menu item), Ctrl+Shift+M mutes the tab (the profile menu loses it),
-Ctrl+Shift+E chats with Claude. Undo and redo of closing tabs have no keys
-there: Ctrl+Z would come before the page.
+Ctrl+Shift+E chats with Claude, Shift+Alt+R shows Reader. Undo and redo of
+closing tabs have no keys there: Ctrl+Z would come before the page.
 
 ## Customizing
 
@@ -50,7 +52,7 @@ compass://settings/shortcuts ("Keyboard shortcuts" in the settings menu or
 the command bar; also alone on chrome://compass-settings, see settings.md)
 lists the shortcuts the user can change, by
 section: Compass's (command bar, address, sidebar, copy link, little window,
-picture-in-picture click-through but on Linux, Claude), tabs, windows,
+picture-in-picture click-through but on Linux, Claude, Reader), tabs, windows,
 browser pages, developer tools, and the nine space shortcuts, the same on
 every platform. Clicking a shortcut's keys records the next keys pressed
 with ⌘, ⌃ or ⌥ (Ctrl or Alt on Windows and Linux; Esc cancels, Delete leaves it without a

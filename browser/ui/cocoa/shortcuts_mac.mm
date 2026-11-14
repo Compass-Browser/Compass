@@ -39,6 +39,7 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"little-window", kNewLittleWindowCommand, "Compass",
      "New little window"},
     {"claude", kToggleClaudeCommand, "Compass", "Chat with Claude"},
+    {"reader", kToggleReaderModeCommand, "Compass", "Reader mode"},
 
     {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
     {"undo-close-tab", kUndoCloseTabCommand, "Tabs",
@@ -303,6 +304,10 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
     if (shortcut.chrome_command == IDC_SHOW_AVATAR_MENU) {
       // Cmd+Shift+M mutes the tab; the profile menu goes without a shortcut.
       shortcut.chrome_command = kToggleTabMuteCommand;
+    }
+    if (shortcut.chrome_command == IDC_SHOW_READING_MODE_KEYBOARD) {
+      // Cmd+Option+R: Compass's Reader in place of upstream's Reading mode.
+      shortcut.chrome_command = kToggleReaderModeCommand;
     }
   }
   shortcuts.push_back({/*command_key=*/true, /*shift_key=*/false,
