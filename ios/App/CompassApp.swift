@@ -285,6 +285,7 @@ struct KeyWindowReader: UIViewRepresentable {
 }
 
 /// The toast after a close: what closed, and Undo; after an undo, Redo.
+/// After Tidy Today: how many folders, and Undo; or why it didn't work.
 struct ClosedToastView: View {
   @Environment(AppModel.self) private var app
   let toast: ClosedToast
@@ -295,11 +296,18 @@ struct ClosedToastView: View {
         .font(.footnote.weight(.medium))
         .lineLimit(1)
         .truncationMode(.middle)
-      Button(toast.redo ? "Redo" : "Undo") {
-        withAnimation(.snappy) { app.closedToast = nil }
-        if toast.redo { app.redoClose() } else { app.undoClose() }
+      if toast.action != .none {
+        Button(toast.action == .redoClose ? "Redo" : "Undo") {
+          withAnimation(.snappy) { app.closedToast = nil }
+          switch toast.action {
+          case .undoClose: app.undoClose()
+          case .redoClose: app.redoClose()
+          case .undoTidy(let id): app.undoTidy(id)
+          case .none: break
+          }
+        }
+        .font(.footnote.weight(.semibold))
       }
-      .font(.footnote.weight(.semibold))
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 10)

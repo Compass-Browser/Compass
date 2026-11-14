@@ -70,7 +70,7 @@ struct ClaudeQuickTests {
     let body = ClaudeQuick.body(request, model: "claude-haiku-5-5", cacheLevel: .normal, oauthToken: false)
     #expect(body["model"] == "claude-haiku-5-5")
     // Capped, no tools, no thinking, not streamed.
-    #expect(body["max_tokens"]?.number == 200)
+    #expect(body["max_tokens"]?.number == 400)
     #expect(body["tools"] == nil && body["thinking"] == nil && body["stream"] == nil)
     #expect(body["system"]?.array?.count == 1)
     #expect(body["system"]?.array?.first?["text"] == "Prompt")

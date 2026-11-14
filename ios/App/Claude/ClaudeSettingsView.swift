@@ -99,11 +99,18 @@ struct ClaudeSettingsView: View {
           isOn: $settings.nameLinkFolders, model: $settings.nameLinkFoldersModel,
           models: settings.pickerModels(including: settings.nameLinkFoldersModel), ready: settings.isSetUp,
           identifier: "ClaudeNameLinkFolders")
+        ClaudeFeatureRow(
+          title: "Tidy Today",
+          description:
+            "Today's header offers “Tidy”: Claude groups Today's loose tabs into named folders, from their titles and sites. “Undo” puts everything back.",
+          isOn: $settings.tidyToday, model: $settings.tidyTodayModel,
+          models: settings.pickerModels(including: settings.tidyTodayModel), ready: settings.isSetUp,
+          identifier: "ClaudeTidyToday")
       } header: {
         Text("Claude in the Sidebar")
       } footer: {
         Text(
-          "Small tasks Claude does on its own, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; Incognito never. At most 30 requests an hour."
+          "Small tasks Claude does for you, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; Incognito never. At most 30 automatic requests an hour."
         )
       }
 

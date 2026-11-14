@@ -5,9 +5,8 @@ answers in the command bar: names for link folders, Tidy Today, shorter tab
 titles, and Ask in the command bar. The chat panel and its tools are
 claude.md's; this doc reuses its endpoint, credentials and request code.
 
-Status: A1 and A2 done on the desktop and on iOS (14 November 2026), A3
-(Tidy Today) on the desktop (14 November 2026); A4, A5 and A7 planned, and
-A6's A3–A5. Desktop first, then iOS and Android.
+Status: A1, A2 and A3 (Tidy Today) done on the desktop and on iOS (14
+November 2026); A4, A5 and A7 planned, and A6's A4 and A5. Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -236,16 +235,16 @@ With "Name Link Folders" on:
   `TidyButtonAndUndoToast` through the page, `NothingWithTheSwitchOff`: no
   button, no request).
 
-## As built on iOS (A6, first part: A1, A2)
+## As built on iOS (A6: A1–A3)
 
 Done on iOS (14 November 2026): `ClaudeQuick`, the prompts, the switch and
-model of "Name Link Folders", link folders themselves, and their names.
-Tidy Today, short titles and Ask (A3–A5) aren't on iOS yet.
+model of "Name Link Folders", link folders themselves, and their names;
+then Tidy Today (A3). Short titles and Ask (A4, A5) aren't on iOS yet.
 
 - **`ClaudeQuick`** (`CompassKit/Sources/CompassClaude/ClaudeQuick.swift`):
   the desktop's rules (one system prompt and one user message, no tools,
-  `max_tokens` ≤ 200, 15 s, one JSON object back, 30 background requests an
-  hour, back-off of 1 then 10 minutes, Suggest a Name exempt), with a plain
+  `max_tokens` ≤ 400, 15 s, one JSON object back, 30 background requests an
+  hour, back-off of 1 then 10 minutes, Suggest a Name and Tidy exempt), with a plain
   non-streamed request: the streaming client (`ClaudeClient`) is in the
   app target, not CompassKit, and a reply this short doesn't need one. `sanitizeAiName()` is
   `SanitizeAiName()` (Swift's Unicode properties stand in for ICU's:
@@ -269,8 +268,33 @@ Tidy Today, short titles and Ask (A3–A5) aren't on iOS yet.
 - **Never:** incognito (its changes never reach the namer, and its folders
   get no Suggest a Name), or with the switch off (`ClaudeQuick` refuses
   before anything is sent).
+- **Tidy Today** (`TodayTidier`, CompassClaude; `AppServices.tidier`): the
+  desktop's request, reply and limits (the "tidy_today" section, the
+  feature's model, `max_tokens` 400, not background; up to 40 loose
+  entries from Today's top as "<n>. <title> (<host>)", a split's titles
+  joined by " + "; `parseTidyReply()` is `ParseTidyReply()`: up to 6
+  folders of 2+ known, untaken ids). Loose entries are the ones the phone
+  shows (`isPhoneVisible`: the desktop's own pages stay out). "Tidy" sits
+  before "Clear" in Today's header, always visible (no hover on iOS) while
+  the switch is on and a key saved, never in incognito; dimmed below 5
+  loose entries, "Tidying…" with pulsing sparkles while Claude answers.
+  The result is the toast over the bar the closes use (`ClosedToast`):
+  "Tidied into N folders" with Undo for 8 s, or the desktop's error lines.
+  iOS's command bar lists no commands, so there's no "Tidy Today" there.
+- **Applied** by `SpaceStore.tidyToday(in:groups:)` and undone by
+  `undoTidy(_:)`, each one `batch`, so sync sends one change. Today's top
+  is the end of its children: a folder goes where its topmost (highest
+  index) entry was, its entries topmost first; Undo puts what came since
+  above the entries from before. Folders are `.claude` with "New Folder"
+  as the name before, so Undo Name works. The last 10 tidies can be
+  undone (not saved).
 - **Tests:** `ClaudeQuickTests`, `LinkFolderNamerTests` (fake endpoint),
-  `LinkFolderTests`, `NameSourceSyncTests`.
+  `LinkFolderTests`, `NameSourceSyncTests`, `TodayTidyTests` (apply and
+  exact undo, splits whole, folders and Pinned untouched, undo after
+  changes, incognito) and `TodayTidierTests` (reply parsing: bad ids,
+  duplicates, singletons, bad names, more than 6; the request; apply and
+  undo through a fake endpoint; nothing sent with the switch off or in
+  incognito; the switch turned off mid-request; errors; no hourly limit).
 
 ## Milestones
 
@@ -281,7 +305,7 @@ Tidy Today, short titles and Ask (A3–A5) aren't on iOS yet.
 | A3 | Tidy Today with Undo |
 | A4 | Shorter tab titles |
 | A5 | Ask in the command bar |
-| A6 | iOS: A1–A5 (A1, A2 done) |
+| A6 | iOS: A1–A5 (A1–A3 done) |
 | A7 | Android: A1–A5 |
 
 ## Tests

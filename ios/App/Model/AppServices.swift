@@ -44,6 +44,8 @@ final class AppServices {
   /// folders' names (docs/design/ai-sidebar.md).
   let quick: ClaudeQuick
   let namer: LinkFolderNamer
+  /// Tidy Today (docs/design/ai-sidebar.md), and its undos.
+  let tidier: TodayTidier
 
   /// The open windows, in the order they opened.
   private(set) var windows: [AppModel] = []
@@ -118,6 +120,9 @@ final class AppServices {
     namer = LinkFolderNamer(
       store: store, quick: quick, prompts: ClaudeSettings.sidebarPrompts,
       model: { ClaudeSettings.shared.nameLinkFoldersModel })
+    tidier = TodayTidier(
+      store: store, quick: quick, prompts: ClaudeSettings.sidebarPrompts,
+      model: { ClaudeSettings.shared.tidyTodayModel }, isShown: { $0.isPhoneVisible })
     let history = (try? HistoryStore(path: directory.appendingPathComponent("History.sqlite").path)) ?? (try! HistoryStore())
     history.expire()
     sync = SyncController(store: store, history: history, passwords: passwords, directory: directory)

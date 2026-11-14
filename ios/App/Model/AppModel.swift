@@ -31,6 +31,8 @@ final class AppModel {
   var liveFolders: LiveFolders { services.liveFolders }
   /// Claude's names for link folders (docs/design/ai-sidebar.md).
   var namer: LinkFolderNamer { services.namer }
+  /// Tidy Today (docs/design/ai-sidebar.md).
+  var tidier: TodayTidier { services.tidier }
   /// This window's link folders for pinned entries and favorites, and each
   /// opener's last link (docs/design/sidebar.md, "Link folders").
   @ObservationIgnored var linkFolders = LinkFolders()
@@ -114,7 +116,8 @@ final class AppModel {
   /// This window's Claude chat (docs/design/claude.md), and its sheet.
   let claude = ClaudeChat()
   var showingClaude = false
-  /// After a close: what closed, with Undo (userClose).
+  /// After a close: what closed, with Undo (userClose); after Tidy Today,
+  /// with Undo, or why it didn't work (tidyToday).
   var closedToast: ClosedToast?
   /// A shake: "Undo Close Tab" (shaken()).
   var showingUndoAlert = false
@@ -836,7 +839,7 @@ final class AppModel {
     step.spaceID = step.spaceID ?? selectedSpaceID
     step.reopenID = shown.map(\.id).flatMap { open.contains($0) ? $0 : nil } ?? open.first
     services.closed.push(step, keepRedo: keepRedo)
-    showClosedToast("Closed \(step.title)", redo: false)
+    showClosedToast("Closed \(step.title)", action: .undoClose)
   }
 
   /// Puts back what the user closed last: its entries return to their
@@ -852,7 +855,7 @@ final class AppModel {
       selectedSpaceID = id
     }
     services.closed.pushRedo(step)
-    showClosedToast("Reopened \(step.title)", redo: true)
+    showClosedToast("Reopened \(step.title)", action: .redoClose)
   }
 
   /// Closes again what the last undo put back.
@@ -862,15 +865,39 @@ final class AppModel {
   }
 
   /// After a close or an undo: a toast over the bar, with Undo (or Redo),
-  /// for a few seconds. The next one replaces it.
-  private func showClosedToast(_ text: String, redo: Bool) {
-    let toast = ClosedToast(text: text, redo: redo)
+  /// for a few seconds (a tidy's, 8). The next one replaces it.
+  private func showClosedToast(_ text: String, action: ClosedToast.Action) {
+    let toast = ClosedToast(text: text, action: action)
     withAnimation(.snappy) { closedToast = toast }
+    var seconds = 4.0
+    if case .undoTidy = action { seconds = 8 }
     Task { [weak self] in
-      try? await Task.sleep(for: .seconds(4))
+      try? await Task.sleep(for: .seconds(seconds))
       guard let self, self.closedToast == toast else { return }
       withAnimation(.snappy) { self.closedToast = nil }
     }
+  }
+
+  // MARK: Tidy Today (docs/design/ai-sidebar.md)
+
+  /// Today's Tidy: Claude groups `space`'s loose Today entries into named
+  /// folders; the toast says how many, with Undo, or why not.
+  func tidyToday(_ space: Space) {
+    guard tidier.canTidy(space) else { return }
+    Task { [weak self] in
+      guard let outcome = await self?.tidier.tidy(space), let self else { return }
+      switch outcome {
+      case .tidied(let undo, let folders):
+        self.showClosedToast(TodayTidier.text(folders: folders), action: .undoTidy(undo))
+      case .failed(let message):
+        self.showClosedToast(message, action: .none)
+      }
+    }
+  }
+
+  /// The toast's Undo after a tidy: every entry back, the folders gone.
+  func undoTidy(_ id: Int) {
+    withAnimation(SidebarStyle.motion) { _ = tidier.undo(id) }
   }
 
   /// The device was shaken (ShakeToUndo): the alert iOS shows for typing,
@@ -882,12 +909,22 @@ final class AppModel {
   }
 }
 
-/// The toast after a close (RootView).
+/// The toast after a close, or a tidy (RootView).
 struct ClosedToast: Equatable {
+  /// What its button does.
+  enum Action: Equatable {
+    case undoClose
+    /// After an undo.
+    case redoClose
+    /// After Tidy Today: `TodayTidier.undo(_:)`.
+    case undoTidy(Int)
+    /// A message only (Tidy Today didn't work).
+    case none
+  }
+
   let id = UUID()
   let text: String
-  /// Its button redoes (after an undo) instead of undoing.
-  let redo: Bool
+  let action: Action
 }
 
 /// What a launch shows (Settings → On Launch): the sidebar over an empty

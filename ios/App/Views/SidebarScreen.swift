@@ -185,6 +185,29 @@ struct SpacePage: View {
         }
 
         SectionHeader(title: "Today") {
+          // Tidy Today (docs/design/ai-sidebar.md): with its switch on and
+          // Claude set up, never in incognito; 5 loose entries at least.
+          let busy = app.tidier.isBusy(space)
+          if app.tidier.isAvailable(in: space), busy || !space.today.children.phoneVisible.isEmpty {
+            let enabled = app.tidier.canTidy(space)
+            Button {
+              app.tidyToday(space)
+            } label: {
+              HStack(spacing: 3) {
+                Image(systemName: "sparkles")
+                  .font(.system(size: 11, weight: .semibold))
+                  .symbolEffect(.pulse, isActive: busy)
+                Text(busy ? "Tidying…" : "Tidy")
+              }
+            }
+            .font(.system(size: 13, weight: .medium))
+            .buttonStyle(.plain)
+            .opacity(enabled || busy ? 0.6 : 0.3)
+            .disabled(!enabled)
+            .padding(.trailing, 8)
+            .accessibilityIdentifier("TidyToday")
+            .accessibilityHint(busy ? "Claude is grouping Today's tabs" : enabled ? "Claude groups Today's loose tabs into named folders" : "Needs 5 loose tabs in Today")
+          }
           if !space.today.children.phoneVisible.isEmpty {
             Button("Clear") {
               withAnimation(SidebarStyle.motion) {

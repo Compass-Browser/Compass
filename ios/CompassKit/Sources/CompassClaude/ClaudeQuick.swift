@@ -6,7 +6,7 @@ import Foundation
 
 /// Claude's small background requests for the sidebar (docs/design/
 /// ai-sidebar.md, "Shared core"; the desktop's browser/claude/
-/// claude_quick.*): names for link folders now, Tidy Today and short titles
+/// claude_quick.*): names for link folders and Tidy Today now, short titles
 /// later. One system prompt and one user message, no tools, at most
 /// `maxTokens`, through the chat's endpoint, key, auth style and cache
 /// level, on the feature's own model; one JSON object back within
@@ -19,7 +19,8 @@ import Foundation
 /// never asks: callers leave its entries out.
 @MainActor
 public final class ClaudeQuick {
-  public nonisolated static let maxTokens = 200
+  /// Enough for Tidy Today's reply, which lists its folders' entries.
+  public nonisolated static let maxTokens = 400
   public nonisolated static let maxBackgroundPerHour = 30
   public nonisolated static let firstBackOff: TimeInterval = 60
   public nonisolated static let laterBackOff: TimeInterval = 10 * 60
@@ -41,8 +42,8 @@ public final class ClaudeQuick {
     /// Capped at `maxTokens`.
     public var maxTokens: Int
     /// An automatic request, which counts against the hourly limit and
-    /// waits out the back-off. One the user asked for (Suggest a Name)
-    /// doesn't.
+    /// waits out the back-off. One the user asked for (Suggest a Name,
+    /// Tidy) doesn't.
     public var background: Bool
 
     public init(
@@ -248,6 +249,10 @@ extension ClaudeQuick {
   /// named as the desktop's prefs (browser/claude/claude_prefs.h).
   public nonisolated static let nameLinkFoldersKey = "compass.claude.name_link_folders"
   public nonisolated static let nameLinkFoldersModelKey = "compass.claude.name_link_folders_model"
+  /// "Tidy Today": Today's header offers Tidy, which asks Claude to group
+  /// Today's loose entries into named folders; and the model it asks.
+  public nonisolated static let tidyTodayKey = "compass.claude.tidy_today"
+  public nonisolated static let tidyTodayModelKey = "compass.claude.tidy_today_model"
 }
 
 // MARK: Prompts and names
@@ -312,6 +317,63 @@ public func sanitizeAiName(_ name: String) -> String? {
   let words = text.split(separator: " ").count
   guard words >= 1, words <= maxAiNameWords else { return nil }
   return text
+}
+
+// MARK: Tidy Today's reply
+
+/// Tidy Today (docs/design/ai-sidebar.md): the most folders one reply makes,
+/// and the fewest entries a folder takes.
+public let maxTidyFolders = 6
+public let minTidyFolderEntries = 2
+
+/// A folder Tidy Today's reply asks for: its name (as `sanitizeAiName()` left
+/// it) and its entries' ids, in the reply's order.
+public struct TidyFolder: Sendable, Equatable {
+  public var name: String
+  public var entries: [String]
+
+  public init(name: String, entries: [String]) {
+    self.name = name
+    self.entries = entries
+  }
+}
+
+/// The folders of Tidy Today's reply, `{"folders": [{"name": "…", "entries":
+/// ["<id>", …]}, …]}`, that may be made: ids not in `ids`, or in this folder
+/// or an earlier one already, are dropped; then a folder whose name
+/// `sanitizeAiName()` drops, or with fewer than `minTidyFolderEntries`
+/// entries left, is dropped. At most the first `maxTidyFolders` that pass.
+/// Empty for a reply of another shape. The desktop's ParseTidyReply().
+public func parseTidyReply(_ reply: [String: JSONValue], ids: [String]) -> [TidyFolder] {
+  guard let list = reply["folders"]?.array else { return [] }
+  let known = Set(ids)
+  var taken: Set<String> = []
+  var folders: [TidyFolder] = []
+  for item in list {
+    if folders.count == maxTidyFolders { break }
+    guard let name = item["name"]?.string, let entries = item["entries"]?.array,
+      let sanitized = sanitizeAiName(name)
+    else { continue }
+    var folder = TidyFolder(name: sanitized, entries: [])
+    var inFolder: Set<String> = []
+    for entry in entries {
+      // Ids are strings; a whole number for one is taken too.
+      let id: String
+      if let string = entry.string {
+        id = string
+      } else if let number = entry.number, number == number.rounded(), abs(number) < 1e15 {
+        id = String(Int(number))
+      } else {
+        continue
+      }
+      guard known.contains(id), !taken.contains(id), inFolder.insert(id).inserted else { continue }
+      folder.entries.append(id)
+    }
+    guard folder.entries.count >= minTidyFolderEntries else { continue }
+    taken.formUnion(folder.entries)
+    folders.append(folder)
+  }
+  return folders
 }
 
 /// What a name may not hold: emoji, control and format characters (which

@@ -71,6 +71,13 @@ final class ClaudeSettings {
   var nameLinkFoldersModel: String {
     didSet { defaults.set(nameLinkFoldersModel, forKey: ClaudeQuick.nameLinkFoldersModelKey) }
   }
+  /// "Tidy Today" (off by default) and the model it asks.
+  var tidyToday: Bool {
+    didSet { defaults.set(tidyToday, forKey: ClaudeQuick.tidyTodayKey) }
+  }
+  var tidyTodayModel: String {
+    didSet { defaults.set(tidyTodayModel, forKey: ClaudeQuick.tidyTodayModelKey) }
+  }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -88,6 +95,8 @@ final class ClaudeSettings {
     devtools = defaults.bool(forKey: "ClaudeDevTools")
     nameLinkFolders = defaults.bool(forKey: ClaudeQuick.nameLinkFoldersKey)
     nameLinkFoldersModel = defaults.string(forKey: ClaudeQuick.nameLinkFoldersModelKey) ?? ClaudeQuick.defaultModel
+    tidyToday = defaults.bool(forKey: ClaudeQuick.tidyTodayKey)
+    tidyTodayModel = defaults.string(forKey: ClaudeQuick.tidyTodayModelKey) ?? ClaudeQuick.defaultModel
     keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
     fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
     folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
@@ -214,6 +223,7 @@ final class ClaudeSettings {
   func isOn(_ feature: String) -> Bool {
     switch feature {
     case ClaudeQuick.nameLinkFoldersKey: nameLinkFolders
+    case ClaudeQuick.tidyTodayKey: tidyToday
     default: false
     }
   }
