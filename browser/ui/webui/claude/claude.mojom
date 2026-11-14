@@ -70,6 +70,12 @@ struct SettingsState {
   // "Let Claude use developer tools" (docs/design/claude.md, "Developer
   // tools").
   bool devtools;
+  // "Name Folders and Tidy Tabs" (docs/design/ai-sidebar.md); false where
+  // the profile can't use it (Guest). It needs a saved key (has_key).
+  bool sidebar_ai_supported;
+  bool sidebar_ai;
+  // The model of those requests, the "Fast model".
+  string fast_model;
 };
 
 // A fact Claude saved about the user.
@@ -132,4 +138,7 @@ interface SettingsHandler {
   ClearFilesFolder();
   SetClaudeCodeOwnTools(bool enabled);
   SetDevTools(bool enabled);
+  SetSidebarAi(bool enabled);
+  // Empty goes back to the default (Claude Haiku).
+  SetFastModel(string model);
 };

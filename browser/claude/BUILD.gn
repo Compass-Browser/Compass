@@ -40,6 +40,7 @@ action("assets") {
     "//compass/common/claude/system_prompt.md",
     "//compass/common/claude/tools.json",
     "//compass/common/claude/page_agent.js",
+    "//compass/common/claude/sidebar_prompts.md",
   ]
   outputs = [ "$target_gen_dir/claude_assets.h" ]
   args = [
@@ -50,6 +51,7 @@ action("assets") {
     "kSystemPrompt=" + rebase_path(inputs[0], root_build_dir),
     "kTools=" + rebase_path(inputs[1], root_build_dir),
     "kPageAgent=" + rebase_path(inputs[2], root_build_dir),
+    "kSidebarPrompts=" + rebase_path(inputs[3], root_build_dir),
   ]
 }
 
@@ -68,6 +70,8 @@ source_set("claude") {
     "claude_devtools_tools.cc",
     "claude_files.cc",
     "claude_files.h",
+    "claude_quick.cc",
+    "claude_quick.h",
     "claude_request.cc",
     "claude_request.h",
     "claude_tools.cc",
@@ -103,6 +107,7 @@ source_set("claude") {
     "//net",
     "//net/traffic_annotation",
     "//services/network/public/mojom",
+    "//third_party/icu",
     "//third_party/re2",
     "//ui/base",
     "//ui/gfx/geometry",
@@ -126,6 +131,7 @@ if (!is_android) {
       "claude_code_unittest.cc",
       "claude_files_unittest.cc",
       "claude_memory_unittest.cc",
+      "claude_quick_unittest.cc",
       "claude_request_unittest.cc",
       "devtools_format_unittest.cc",
       "key_events_unittest.cc",
@@ -139,6 +145,9 @@ if (!is_android) {
       "//base/test:test_support",
       "//components/prefs:test_support",
       "//net",
+      "//services/network:test_support",
+      "//services/network/public/cpp",
+      "//services/network/public/mojom",
       "//testing/gtest",
       "//url",
     ]

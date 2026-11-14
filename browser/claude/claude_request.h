@@ -16,6 +16,11 @@
 
 namespace compass::claude {
 
+// What the API checks for before it accepts a token from `claude
+// setup-token`: the system prompt's first block.
+inline constexpr char kOAuthSystemLine[] =
+    "You are Claude Code, Anthropic's official CLI for Claude.";
+
 // What a chat request needs beside the conversation.
 struct ChatOptions {
   std::string model;

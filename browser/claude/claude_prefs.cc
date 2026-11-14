@@ -33,6 +33,9 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kDevTools, false);
   registry->RegisterStringPref(kCacheLevelUrl, std::string());
   registry->RegisterIntegerPref(kCacheLevel, 0);
+  registry->RegisterBooleanPref(kSidebarAi, false);
+  // claude_quick.h's kDefaultFastModel.
+  registry->RegisterStringPref(kFastModel, "claude-haiku-5-5");
 }
 
 }  // namespace compass::claude::prefs

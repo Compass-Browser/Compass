@@ -304,6 +304,11 @@
 </div>
 <p class="note" id="testNote" hidden></p>
 
+<label class="field" for="fastModel">Fast model</label>
+<select id="fastModel"></select>
+<p class="hint">For Claude's small tasks in the sidebar, like naming
+  folders. A fast, inexpensive model is best.</p>
+
 <details id="advanced" class="api-only">
   <summary>Endpoint</summary>
   <label class="field" for="baseUrl">Base URL</label>
@@ -348,6 +353,23 @@
       their own, so only turn this on for pages you trust.</span>
   </span>
 </label>
+
+<section id="sidebarAiSection">
+  <label class="claude-scope">
+    <input type="checkbox" id="sidebarAi">
+    <span>
+      <span class="name">Name Folders and Tidy Tabs</span>
+      <span class="hint block">Claude names the folders that gather a page's
+        links, from their tabs' titles and sites. Only titles and sites are
+        sent, to the endpoint above, never what pages contain; incognito
+        windows never. At most 30 requests an hour, on the fast model. Each
+        new name can be undone from the folder's menu.</span>
+      <span class="hint block" id="sidebarAiNeedsKey" hidden>Needs an API
+        key (or a gateway's) above. Claude Code mode doesn't do this
+        yet.</span>
+    </span>
+  </label>
+</section>
 
 <section id="files">
   <div class="field">Files</div>

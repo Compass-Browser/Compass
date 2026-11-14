@@ -22,6 +22,7 @@
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/ui/claude/claude_files_config.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -168,6 +169,9 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->default_save_folder = DefaultSaveFolder(profile_).AsUTF8Unsafe();
   state->claude_code_own_tools = prefs->GetBoolean(prefs::kClaudeCodeOwnTools);
   state->devtools = prefs->GetBoolean(prefs::kDevTools);
+  state->sidebar_ai_supported = ClaudeQuick::Get(profile_) != nullptr;
+  state->sidebar_ai = prefs->GetBoolean(prefs::kSidebarAi);
+  state->fast_model = prefs->GetString(prefs::kFastModel);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -258,6 +262,20 @@ void ClaudeSettingsHandler::SetMemorySave(bool enabled) {
 
 void ClaudeSettingsHandler::SetDevTools(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kDevTools, enabled);
+}
+
+void ClaudeSettingsHandler::SetSidebarAi(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kSidebarAi, enabled);
+}
+
+void ClaudeSettingsHandler::SetFastModel(const std::string& model) {
+  const std::string_view trimmed =
+      base::TrimWhitespaceASCII(model, base::TRIM_ALL);
+  if (trimmed.empty()) {
+    profile_->GetPrefs()->ClearPref(prefs::kFastModel);
+  } else {
+    profile_->GetPrefs()->SetString(prefs::kFastModel, std::string(trimmed));
+  }
 }
 
 void ClaudeSettingsHandler::SetFilesAccess(mojom::FilesAccess access) {

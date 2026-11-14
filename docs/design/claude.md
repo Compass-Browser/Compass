@@ -240,6 +240,14 @@ approves each write.
   - Memory (above);
   - Files (above);
   - Developer tools (below).
+  - **Claude in the sidebar** (docs/design/ai-sidebar.md): the switch
+    "Name Folders and Tidy Tabs" (`compass.claude.sidebar_ai`, off; disabled,
+    with a line saying why, until a key is saved: Claude Code mode alone
+    doesn't answer these requests yet) and a "Fast model" picker under the
+    chat's (`compass.claude.fast_model`, default `claude-haiku-5-5`), from
+    the same model list. Their requests go through `ClaudeQuick`
+    (`browser/claude/claude_quick.*`), on the chat's endpoint, auth style
+    and cache level.
 
 ### Developer tools
 

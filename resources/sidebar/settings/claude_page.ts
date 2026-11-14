@@ -8,6 +8,9 @@ import {AuthStyle, Backend, FilesAccess, SettingsHandler} from
 
 import {KNOWN_MODELS} from '../claude_models.js';
 
+// prefs::kFastModel's default (claude_quick.h, kDefaultFastModel).
+const FAST_MODEL_DEFAULT = 'claude-haiku-5-5';
+
 import {getTemplate} from './claude_page.html.js';
 import {CompassSettingsPage} from './page_base.js';
 
@@ -77,6 +80,13 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         });
     this.$<HTMLSelectElement>('model').addEventListener('change', () => {
       this.handler_.setModel(this.$<HTMLSelectElement>('model').value);
+    });
+    this.$<HTMLSelectElement>('fastModel').addEventListener('change', () => {
+      this.handler_.setFastModel(this.$<HTMLSelectElement>('fastModel').value);
+    });
+    this.$<HTMLInputElement>('sidebarAi').addEventListener('change', () => {
+      this.handler_.setSidebarAi(
+          this.$<HTMLInputElement>('sidebarAi').checked);
     });
     this.$('saveEndpoint').addEventListener('click', () => this.saveEndpoint_());
     this.$<HTMLInputElement>('browserScope')
@@ -186,6 +196,13 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         state.baseUrl !== '' || state.authStyle === AuthStyle.kBearer;
     this.$<HTMLInputElement>('browserScope').checked = state.browserScope;
     this.$<HTMLInputElement>('devtools').checked = state.devtools;
+    // Claude in the sidebar (docs/design/ai-sidebar.md): it needs a key, or
+    // a gateway's; Claude Code mode doesn't answer these requests.
+    this.show('sidebarAiSection', state.sidebarAiSupported);
+    const sidebarAi = this.$<HTMLInputElement>('sidebarAi');
+    sidebarAi.checked = state.sidebarAi && state.hasKey;
+    sidebarAi.disabled = !state.hasKey;
+    this.show('sidebarAiNeedsKey', !state.hasKey);
     this.$<HTMLInputElement>('acceptTokenRisks').checked =
         state.acceptTokenRisks;
     this.renderMcp_(state);
@@ -329,11 +346,18 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         }));
   }
 
-  // The models a test listed, or the known ones; the chosen one is always
-  // there, also a custom one (a gateway's).
+  // The models a test listed, or the known ones, in the chat's picker and
+  // the Fast model's; the chosen one is always there, also a custom one (a
+  // gateway's).
   private renderModels_() {
-    const select = this.$<HTMLSelectElement>('model');
-    const chosen = this.state_?.model || KNOWN_MODELS[0]!.id;
+    this.renderModelSelect_('model',
+                            this.state_?.model || KNOWN_MODELS[0]!.id);
+    this.renderModelSelect_('fastModel',
+                            this.state_?.fastModel || FAST_MODEL_DEFAULT);
+  }
+
+  private renderModelSelect_(id: string, chosen: string) {
+    const select = this.$<HTMLSelectElement>(id);
     const models = [...this.models_];
     if (!models.some(m => m.id === chosen)) {
       models.unshift({id: chosen, displayName: chosen});

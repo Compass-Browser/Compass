@@ -174,6 +174,23 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, DevToolsSetting) {
   EXPECT_FALSE(State()->devtools);
 }
 
+// "Name Folders and Tidy Tabs" and the Fast model (docs/design/
+// ai-sidebar.md): off and Claude Haiku by default.
+IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, SidebarAiSettings) {
+  mojom::SettingsStatePtr state = State();
+  EXPECT_TRUE(state->sidebar_ai_supported);
+  EXPECT_FALSE(state->sidebar_ai);
+  EXPECT_EQ(state->fast_model, "claude-haiku-5-5");
+  remote_->SetSidebarAi(true);
+  remote_->SetFastModel(" claude-sonnet-5-5 ");
+  state = State();
+  EXPECT_TRUE(state->sidebar_ai);
+  EXPECT_EQ(state->fast_model, "claude-sonnet-5-5");
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kSidebarAi));
+  remote_->SetFastModel("");
+  EXPECT_EQ(State()->fast_model, "claude-haiku-5-5");
+}
+
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, EndpointRules) {
   // The key isn't sent in the clear to another computer.
   EXPECT_FALSE(SetEndpoint("http://gateway.example.com"));

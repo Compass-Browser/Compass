@@ -71,6 +71,12 @@ inline constexpr char kDevTools[] = "compass.claude.devtools";
 inline constexpr char kCacheLevelUrl[] = "compass.claude.cache_level_url";
 inline constexpr char kCacheLevel[] = "compass.claude.cache_level";
 
+// "Name Folders and Tidy Tabs" (docs/design/ai-sidebar.md): Claude's small
+// background requests for the sidebar (ClaudeQuick). Off by default.
+inline constexpr char kSidebarAi[] = "compass.claude.sidebar_ai";
+// The model of those requests, the "Fast model"; the chat keeps kModel.
+inline constexpr char kFastModel[] = "compass.claude.fast_model";
+
 enum class FilesAccess {
   kOff = 0,
   kSave = 1,
