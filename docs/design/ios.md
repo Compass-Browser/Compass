@@ -310,6 +310,12 @@ On the iPhone the sidebar is a system sheet over the browser (`.sheet` with `pre
 - **Motion.** A folder's children slide down from under its row as they fade in, and slide back up on close, in 0.22 s (`SidebarStyle.folder`). The rows below move with them, the chevron turns and the folder icon swaps. Every other change animates too (`SidebarStyle.motion`, keyed on the entries, favorites and the shown entry), including changes synced from other devices. The shown space's icon grows a little with a spring. Rows and tiles shrink slightly when pressed.
 - **Desktop-only pages hidden.** Entries that aren't web pages (`compass://`, `chrome://`, `about:`, `file:`…) still sync and stay in the store, but the phone doesn't show them: not in the sidebar, favorites, split panes, the bar's swipe between entries, or the command bar (open entries and "Tabs on <device>"). Folders always show. "Clear" archives only what's shown. The rule is `PhoneVisible` / `SidebarNode.isPhoneVisible` in `Theme.swift`.
 
+### Link folders and names from Claude
+
+- **Link folders** (sidebar.md, "Link folders"): a link opened in the background from a page (the link's long-press "Open in Background", or ⌘-click with a keyboard on iPad) gathers with its page in a Today folder named after it, by the desktop's rules: an opener loose in Today gets a folder in its place (a split goes in whole), one in a Today folder adds the link there, and a pinned entry or favorite gets a folder at the top of Today (the end of `today.children`: Today shows newest first), reused while it's there. Inside the folder a link goes after its opener's previous link, else right after the opener. `LinkFolders` in CompassModel (one per window, `AppModel.linkFolders`, not saved); folders made this way are `NameSource.opener` and `linkFolderHere`. Incognito links stay incognito, in an incognito folder. Tests: `LinkFolderTests`.
+- **NameSource** (ai-sidebar.md): `SidebarNode.nameSource` (`.opener`, `.claude`, `.user`) and `nameBeforeClaude` (Undo Name's), saved in the snapshot (`nameSource` "opener"/"claude", `nameBeforeClaude`) and synced as `CompassNode.name_source` (1, 2; unset is the user's, so a node from an older client reads as `.user`, and a value this client doesn't know is passed on as it is). `SpaceStore.rename` of a folder (the Rename alert, Claude's rename_tab) makes it the user's when the name changes; `setFolderName(_:_:source:)`, `undoFolderName`, `markLinkFolder`. Tests: `LinkFolderTests`, `NameSourceSyncTests`.
+- **Names from Claude** (ai-sidebar.md, A2): with Settings → Claude → "Name Link Folders" on, `LinkFolderNamer` (CompassClaude, `AppServices.namer`) names this device's link folders in Today whose name isn't the user's at 3, 6 and 12 entries, 5 s after their last change, through `ClaudeQuick` (claude.md, "iOS"). The store's `localChangeObservers` tell it what changed (incognito never reaches them). The name fades in, with sparkles on the folder's icon for a moment (`namer.sparkling`). A folder's long-press menu has **Undo Name** while its name is Claude's and the one before is known, else **Suggest a Name** (any folder with entries, not live folders, with the switch on, not incognito). Tests: `LinkFolderNamerTests`.
+
 ### Favicons
 
 - **Loading.** `Favicons` (App/Model) keeps icons by host in memory and in `Caches/Favicons` (`AsyncImage` kept no cache and left a letter when a redraw cancelled its load). Best first:
@@ -497,7 +503,7 @@ An incognito space at the end of the space switcher; its tabs kept in memory whi
   - An incognito entry's menu has no Pin, Archive, Add to Favorites or Move to Space; Pin is disabled in the page menu.
   - New Incognito Tab: ⌘⇧N, a long press on either "+" (the sidebar's, the bar's), and the Home Screen icon's menu (`compass://incognito`).
 - **Extensions.** The incognito space is a private window (`ExtensionWindow.isPrivate`); a context gets `hasAccessToPrivateData` from the extension's "Allow in Incognito" switch.
-- **Claude.** No Ask Claude tile or ⌘⇧E on incognito tabs; the sheet says "Not in Incognito"; tools refuse incognito tabs.
+- **Claude.** No Ask Claude tile or ⌘⇧E on incognito tabs; the sheet says "Not in Incognito"; tools refuse incognito tabs; incognito folders are never named by Claude (no request, no Suggest a Name).
 - Debug: `-CompassIncognitoURL <url>`.
 
 ### iPad

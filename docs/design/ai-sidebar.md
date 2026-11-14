@@ -5,8 +5,8 @@ answers in the command bar: names for link folders, Tidy Today, shorter tab
 titles, and Ask in the command bar. The chat panel and its tools are
 claude.md's; this doc reuses its endpoint, credentials and request code.
 
-Status: A1 and A2 done on the desktop (14 November 2026); A3 to A7
-planned. Desktop first, then iOS and Android.
+Status: A1 and A2 done on the desktop and on iOS (14 November 2026);
+A3 to A5 and A7 planned, and A6's A3–A5. Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -188,6 +188,42 @@ With "Name Link Folders" on:
   sidebar page (`Page.FolderNamed()`, sent only for Claude's automatic
   names and suggestions).
 
+## As built on iOS (A6, first part: A1, A2)
+
+Done on iOS (14 November 2026): `ClaudeQuick`, the prompts, the switch and
+model of "Name Link Folders", link folders themselves, and their names.
+Tidy Today, short titles and Ask (A3–A5) aren't on iOS yet.
+
+- **`ClaudeQuick`** (`CompassKit/Sources/CompassClaude/ClaudeQuick.swift`):
+  the desktop's rules (one system prompt and one user message, no tools,
+  `max_tokens` ≤ 200, 15 s, one JSON object back, 30 background requests an
+  hour, back-off of 1 then 10 minutes, Suggest a Name exempt), with a plain
+  non-streamed request: the streaming client (`ClaudeClient`) is in the
+  app target, not CompassKit, and a reply this short doesn't need one. `sanitizeAiName()` is
+  `SanitizeAiName()` (Swift's Unicode properties stand in for ICU's:
+  emoji presentation and modifiers, any non-ASCII emoji, regional
+  indicators). `common/claude/sidebar_prompts.md` is a bundle resource
+  (project.yml).
+- **Settings → Claude → Claude in the Sidebar:** a `ClaudeFeatureRow` per
+  feature, its own switch and model picker (the chat's list, a gateway's
+  too), disabled with a line saying why until a key is saved. UserDefaults
+  keys are the desktop's pref names.
+- **Link folders** (sidebar.md's rules, iOS's ways in): a link's
+  long-press "Open in Background", or ⌘-click on iPad
+  (`LinkFolders` in CompassModel, per window). Today's "top" is the end of
+  its children there (the sidebar shows Today newest first).
+- **Names:** `LinkFolderNamer` (CompassClaude), the desktop's triggers (3, 6
+  and 12 entries, 5 s), `linkFolderHere` (not saved), Undo Name and Suggest a
+  Name in the folder's long-press menu, sparkles on the folder's icon while
+  the new name fades in. `NameSource` is saved in the sidebar snapshot and
+  synced as `CompassNode.name_source`; a rename in the Rename alert (or by
+  Claude's rename_tab) makes a folder the user's.
+- **Never:** incognito (its changes never reach the namer, and its folders
+  get no Suggest a Name), or with the switch off (`ClaudeQuick` refuses
+  before anything is sent).
+- **Tests:** `ClaudeQuickTests`, `LinkFolderNamerTests` (fake endpoint),
+  `LinkFolderTests`, `NameSourceSyncTests`.
+
 ## Milestones
 
 | # | Scope |
@@ -197,7 +233,7 @@ With "Name Link Folders" on:
 | A3 | Tidy Today with Undo |
 | A4 | Shorter tab titles |
 | A5 | Ask in the command bar |
-| A6 | iOS: A1–A5 |
+| A6 | iOS: A1–A5 (A1, A2 done) |
 | A7 | Android: A1–A5 |
 
 ## Tests
