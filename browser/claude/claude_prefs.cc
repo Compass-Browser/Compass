@@ -40,6 +40,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kTidyTodayModel, "claude-haiku-5-5");
   registry->RegisterBooleanPref(kShortTabTitles, false);
   registry->RegisterStringPref(kShortTabTitlesModel, "claude-haiku-5-5");
+  registry->RegisterBooleanPref(kCommandBarAsk, false);
+  registry->RegisterStringPref(kCommandBarAskModel, kDefaultAskModel);
 }
 
 }  // namespace compass::claude::prefs

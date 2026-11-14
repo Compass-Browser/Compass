@@ -14,6 +14,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "compass/browser/claude/claude_prefs.h"
@@ -462,6 +463,105 @@ TEST_F(ClaudeQuickTest, ParseShortTitlesReply) {
   std::optional<base::DictValue> list = ParseQuickReply(R"({"titles": []})");
   ASSERT_TRUE(list);
   EXPECT_TRUE(ParseShortTitlesReply(*list, ids).empty());
+}
+
+// Ask in the command bar: what reads as a question.
+TEST_F(ClaudeQuickTest, LooksLikeQuestion) {
+  EXPECT_TRUE(LooksLikeQuestion(u"is it raining in Lisbon?", "en-US"));
+  EXPECT_TRUE(LooksLikeQuestion(u"  what is a fox  ", "en-US"));
+  EXPECT_TRUE(LooksLikeQuestion(u"What's the capital of Peru", "en-US"));
+  EXPECT_TRUE(LooksLikeQuestion(u"How do foxes hunt", "it-IT"));
+  EXPECT_TRUE(LooksLikeQuestion(u"cosa mangiano le volpi", "it-IT"));
+  EXPECT_TRUE(LooksLikeQuestion(u"Perch\u00E9 il cielo \u00E8 blu", "it"));
+  EXPECT_TRUE(LooksLikeQuestion(u"por qu\u00E9 llueve", "es-419"));
+  EXPECT_TRUE(LooksLikeQuestion(u"\u00BFllueve hoy en Madrid", "en-US"));
+  EXPECT_TRUE(LooksLikeQuestion(u"wie sp\u00E4t ist es", "de-DE"));
+  // Another language's words count only in that language.
+  EXPECT_FALSE(LooksLikeQuestion(u"cosa mangiano le volpi", "en-US"));
+  EXPECT_FALSE(LooksLikeQuestion(u"come together lyrics", "en-US"));
+  // Searches, URLs and single words aren't questions.
+  EXPECT_FALSE(LooksLikeQuestion(u"fox facts", "en-US"));
+  EXPECT_FALSE(LooksLikeQuestion(u"what?", "en-US"));
+  EXPECT_FALSE(LooksLikeQuestion(u"https://example.com/?q=what is", "en-US"));
+  EXPECT_FALSE(LooksLikeQuestion(u"", "en-US"));
+  EXPECT_FALSE(LooksLikeQuestion(u"whatever works", "en-US"));
+}
+
+// "About this page" is the tab's title and host, on one line.
+TEST_F(ClaudeQuickTest, DescribeAskPage) {
+  EXPECT_EQ(DescribeAskPage("", ""), "");
+  EXPECT_EQ(DescribeAskPage("Fox\npage", "fox.test"),
+            "I'm looking at a page titled \"Fox page\" on fox.test.");
+  EXPECT_EQ(DescribeAskPage("", "fox.test"),
+            "I'm looking at a page on fox.test.");
+}
+
+// Ask's answer streams in as plain text, on its own switch and model, with
+// no tools and no hourly limit.
+TEST_F(ClaudeQuickTest, StreamsAnswers) {
+  prefs_.SetBoolean(prefs::kCommandBarAsk, true);
+  Serve(Reply("Foxes are small canids.\nThey eat mice."));
+  QuickRequest request =
+      MakeAskRequest("what is a fox?", DescribeAskPage("Fox page", "fox.test"),
+                     "claude-sonnet-5-5", "en-US");
+  EXPECT_EQ(request.feature_pref, prefs::kCommandBarAsk);
+  EXPECT_FALSE(request.background);
+  std::vector<std::string> texts;
+  base::test::TestFuture<ClaudeQuick::Result> done;
+  quick_->Stream(std::move(request),
+                 base::BindLambdaForTesting(
+                     [&](const std::string& text) { texts.push_back(text); }),
+                 done.GetCallback());
+  ClaudeQuick::Result result = done.Take();
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result->FindString("text"),
+            "Foxes are small canids.\nThey eat mice.");
+  EXPECT_THAT(texts,
+              testing::ElementsAre("Foxes are small canids.\nThey eat mice."));
+  EXPECT_EQ(quick_->RecentBackgroundRequests(), 0u);
+
+  base::DictValue body = LastBody();
+  EXPECT_EQ(*body.FindString("model"), "claude-sonnet-5-5");
+  EXPECT_EQ(*body.FindInt("max_tokens"), ClaudeQuick::kMaxTokens);
+  EXPECT_FALSE(body.Find("tools"));
+  EXPECT_FALSE(body.Find("thinking"));
+  const base::ListValue* system = body.FindList("system");
+  ASSERT_TRUE(system);
+  EXPECT_NE((*system)[0].GetDict().FindString("text")->find("command bar"),
+            std::string::npos);
+  const base::ListValue* messages = body.FindList("messages");
+  ASSERT_TRUE(messages);
+  ASSERT_EQ(messages->size(), 1u);
+  const base::ListValue* content =
+      (*messages)[0].GetDict().FindList("content");
+  ASSERT_TRUE(content);
+  EXPECT_EQ(*(*content)[0].GetDict().FindString("text"),
+            "I'm looking at a page titled \"Fox page\" on fox.test.\n\n"
+            "what is a fox?");
+}
+
+// Nothing is sent with the switch off; a cancelled answer calls nothing.
+TEST_F(ClaudeQuickTest, StreamOffAndCancel) {
+  base::test::TestFuture<ClaudeQuick::Result> off;
+  quick_->Stream(MakeAskRequest("what is a fox?", "", "", "en"),
+                 base::DoNothing(), off.GetCallback());
+  EXPECT_EQ(off.Take().error(), QuickError::kOff);
+  EXPECT_TRUE(requests_.empty());
+
+  prefs_.SetBoolean(prefs::kCommandBarAsk, true);
+  Serve(Reply("An answer."));
+  bool called = false;
+  const int id = quick_->Stream(
+      MakeAskRequest("what is a fox?", "", "", "en"),
+      base::BindLambdaForTesting([&](const std::string&) { called = true; }),
+      base::BindLambdaForTesting(
+          [&](ClaudeQuick::Result) { called = true; }));
+  quick_->Cancel(id);
+  task_environment_.RunUntilIdle();
+  EXPECT_FALSE(called);
+  // The prompt asks for plain text, not JSON.
+  EXPECT_NE(SidebarPrompt("command_bar_ask", "en").find("Plain text"),
+            std::string::npos);
 }
 
 }  // namespace

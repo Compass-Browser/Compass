@@ -220,6 +220,20 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, SidebarAiSettings) {
   state = State();
   EXPECT_FALSE(state->short_tab_titles);
   EXPECT_EQ(state->short_tab_titles_model, "claude-haiku-5-5");
+
+  // "Answer Questions in the Command Bar": its own too, on Claude Sonnet by
+  // default.
+  EXPECT_FALSE(state->command_bar_ask);
+  EXPECT_EQ(state->command_bar_ask_model, "claude-sonnet-5-5");
+  remote_->SetCommandBarAsk(true);
+  remote_->SetCommandBarAskModel("claude-opus-5-5");
+  state = State();
+  EXPECT_TRUE(state->command_bar_ask);
+  EXPECT_EQ(state->command_bar_ask_model, "claude-opus-5-5");
+  EXPECT_FALSE(state->short_tab_titles);
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kCommandBarAsk));
+  remote_->SetCommandBarAskModel("");
+  EXPECT_EQ(State()->command_bar_ask_model, "claude-sonnet-5-5");
 }
 
 IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, EndpointRules) {

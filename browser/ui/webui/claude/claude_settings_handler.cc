@@ -178,6 +178,8 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->short_tab_titles = prefs->GetBoolean(prefs::kShortTabTitles);
   state->short_tab_titles_model =
       prefs->GetString(prefs::kShortTabTitlesModel);
+  state->command_bar_ask = prefs->GetBoolean(prefs::kCommandBarAsk);
+  state->command_bar_ask_model = prefs->GetString(prefs::kCommandBarAskModel);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -293,6 +295,14 @@ void ClaudeSettingsHandler::SetShortTabTitles(bool enabled) {
 
 void ClaudeSettingsHandler::SetShortTabTitlesModel(const std::string& model) {
   SetFeatureModel(prefs::kShortTabTitlesModel, model);
+}
+
+void ClaudeSettingsHandler::SetCommandBarAsk(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kCommandBarAsk, enabled);
+}
+
+void ClaudeSettingsHandler::SetCommandBarAskModel(const std::string& model) {
+  SetFeatureModel(prefs::kCommandBarAskModel, model);
 }
 
 void ClaudeSettingsHandler::SetFeatureModel(const char* pref,

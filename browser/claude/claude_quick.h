@@ -108,6 +108,19 @@ std::map<std::string, std::u16string> ParseShortTitlesReply(
     const base::DictValue& reply,
     const std::vector<std::string>& ids);
 
+// Ask in the command bar (docs/design/ai-sidebar.md, "Ask in the command
+// bar"): whether |text| reads as a question, in English or in |locale|'s
+// language (Italian, French, German, Spanish, Portuguese, Dutch): two words
+// or more, not a URL, and ending with a question mark (also "？" or "؟"),
+// starting with "¿", or starting with a question word ("how", "what",
+// "why"... ; "come", "perché"... in Italian).
+bool LooksLikeQuestion(std::u16string_view text, std::string_view locale);
+
+// "About this page": the line that names the current tab for Ask, by its
+// title and host only (never its URL's path or its text); empty for none.
+std::string DescribeAskPage(std::string_view page_title,
+                            std::string_view page_host);
+
 // The section |id| ("## <id>") of |prompts| (common/claude/
 // sidebar_prompts.md's text), trimmed, with {locale} replaced by |locale|.
 // Empty if there's no such section.
@@ -131,7 +144,18 @@ struct QuickRequest {
   // An automatic request, which counts against the hourly limit and waits
   // out the back-off. One the user asked for (Suggest a Name, Tidy) doesn't.
   bool background = true;
+  // A plain-text reply streamed as it comes (Stream()), not a JSON object.
+  bool stream = false;
 };
+
+// Ask's request (docs/design/ai-sidebar.md, "Ask in the command bar"): the
+// "command_bar_ask" prompt section, one user message of |page_line|
+// (DescribeAskPage(), may be empty) and |question|, |model| (empty for
+// kDefaultQuickModel), streamed, not background.
+QuickRequest MakeAskRequest(std::string_view question,
+                            std::string_view page_line,
+                            std::string_view model,
+                            std::string_view locale);
 
 // The Messages API body of |request|: |model|, no tools, no thinking, the
 // system prompt with the cache breakpoints |cache_level| allows (and Claude
@@ -164,6 +188,10 @@ enum class QuickError {
   kBadReply,
 };
 
+// What a QuickError means for the user, as a sentence ("Claude took too
+// long.").
+std::string DescribeQuickError(QuickError error);
+
 // A profile's short requests to Claude, through the chat's endpoint, key,
 // auth style and cache level (claude_api.h), on the feature's model: one
 // system prompt and one user message, no tools, at most kMaxTokens, a JSON
@@ -176,12 +204,16 @@ class ClaudeQuick : public KeyedService {
   // Enough for Tidy Today's reply, which lists its folders' entries.
   static constexpr int kMaxTokens = 400;
   static constexpr base::TimeDelta kTimeout = base::Seconds(15);
+  // A streamed answer's whole time (Stream()).
+  static constexpr base::TimeDelta kStreamTimeout = base::Seconds(60);
   static constexpr size_t kMaxBackgroundPerHour = 30;
   static constexpr base::TimeDelta kFirstBackOff = base::Minutes(1);
   static constexpr base::TimeDelta kLaterBackOff = base::Minutes(10);
 
   using Result = base::expected<base::DictValue, QuickError>;
   using Callback = base::OnceCallback<void(Result)>;
+  // A streamed answer's text so far, each time more comes.
+  using TextCallback = base::RepeatingCallback<void(const std::string&)>;
   using KeyCallback = base::OnceCallback<void(std::optional<std::string>)>;
   // Reads the saved key (ClaudeCredentials::GetApiKey()).
   using GetKey = base::RepeatingCallback<void(KeyCallback)>;
@@ -207,12 +239,22 @@ class ClaudeQuick : public KeyedService {
   // Sends |request|; |callback| gets the reply's JSON object or why not,
   // never before Ask() returns. Requests run side by side.
   void Ask(QuickRequest request, Callback callback);
+  // Sends |request| for a plain-text answer, streamed: |on_text| gets the
+  // text so far as it grows, then |callback| gets {"text": <all of it>} or
+  // why not (kRefused, kFailed, kTimeout after kStreamTimeout...). Returns
+  // an id for Cancel().
+  int Stream(QuickRequest request, TextCallback on_text, Callback callback);
+  // Drops request |id|: no callback runs.
+  void Cancel(int id);
 
   // Background requests sent in the last hour.
   size_t RecentBackgroundRequests();
 
  private:
   struct Pending;
+
+  // Ask() and Stream(): starts request |id|, now in pending_.
+  void Start(int id);
 
   void OnKey(int id, std::optional<std::string> key);
   void OnEvent(int id, const SseParser::Event& event);

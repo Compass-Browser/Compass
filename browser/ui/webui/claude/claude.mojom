@@ -83,6 +83,9 @@ struct SettingsState {
   // "Shorter Tab Titles", and its model.
   bool short_tab_titles;
   string short_tab_titles_model;
+  // "Answer Questions in the Command Bar", and its model.
+  bool command_bar_ask;
+  string command_bar_ask_model;
 };
 
 // A fact Claude saved about the user.
@@ -154,4 +157,7 @@ interface SettingsHandler {
   SetShortTabTitles(bool enabled);
   // Empty goes back to the default (Claude Haiku).
   SetShortTabTitlesModel(string model);
+  SetCommandBarAsk(bool enabled);
+  // Empty goes back to the default (Claude Sonnet).
+  SetCommandBarAskModel(string model);
 };

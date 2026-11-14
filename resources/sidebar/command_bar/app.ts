@@ -33,12 +33,25 @@ export class CompassCommandBarAppElement extends CrLitElement {
 
   static override get properties() {
     return {
+      aboutPage_: {type: Boolean},
+      answer_: {type: String},
+      answerDone_: {type: Boolean},
+      answerError_: {type: String},
+      asked_: {type: String},
       mode_: {type: Number},
       results_: {type: Array},
       selectedIndex_: {type: Number},
     };
   }
 
+  // Ask in the command bar (docs/design/ai-sidebar.md): "About this page"
+  // for the next question, the question asked (empty while there's none, and
+  // the results show), and its answer so far.
+  protected accessor aboutPage_: boolean = true;
+  protected accessor answer_: string = '';
+  protected accessor answerDone_: boolean = false;
+  protected accessor answerError_: string = '';
+  protected accessor asked_: string = '';
   protected accessor mode_: Mode = Mode.kNewEntry;
   protected accessor results_: Result[] = [];
   protected accessor selectedIndex_: number = 0;
@@ -66,6 +79,17 @@ export class CompassCommandBarAppElement extends CrLitElement {
     this.listenerIds_ = [
       router.open.addListener(this.onOpen_.bind(this)),
       router.setResults.addListener(this.onSetResults_.bind(this)),
+      router.onAnswer.addListener((text: string) => {
+        if (this.asked_) {
+          this.answer_ = text;
+        }
+      }),
+      router.onAnswerDone.addListener((error: string) => {
+        if (this.asked_) {
+          this.answerDone_ = true;
+          this.answerError_ = error;
+        }
+      }),
     ];
   }
 
@@ -86,6 +110,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
     this.typed_ = text;
     this.results_ = [];
     this.selectedIndex_ = 0;
+    this.clearAnswer_();
+    this.aboutPage_ = true;
     this.showPending_ = true;
     this.pointerPosition_ = null;
     const input = this.input_;
@@ -122,6 +148,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
   }
 
   protected onInput_(e: InputEvent) {
+    // A new line: the results again.
+    this.clearAnswer_();
     this.typed_ = this.input_.value;
     // After a deletion, completing would put back what was just deleted.
     this.browserProxy_.handler.query(
@@ -129,6 +157,19 @@ export class CompassCommandBarAppElement extends CrLitElement {
   }
 
   protected onKeydown_(e: KeyboardEvent) {
+    if (this.asked_) {
+      // The answer shows: Enter (or Tab) continues in the chat; Esc closes
+      // the bar, as always.
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (e.key === 'Enter' && !e.isComposing) {
+          this.continueInChat_();
+        }
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+      }
+      return;
+    }
     switch (e.key) {
       case 'ArrowDown':
       case 'ArrowUp': {
@@ -142,16 +183,26 @@ export class CompassCommandBarAppElement extends CrLitElement {
         break;
       }
       case 'Tab': {
-        // Focus stays in the field; Tab takes the completion to type on.
+        // Focus stays in the field; Tab takes the completion to type on, or
+        // asks on the "Ask Claude" row.
         e.preventDefault();
         if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-          this.takeCompletion_();
+          if (this.results_[this.selectedIndex_]?.kind ===
+              ResultKind.kAskClaude) {
+            this.ask_(this.results_[this.selectedIndex_]!);
+          } else {
+            this.takeCompletion_();
+          }
         }
         break;
       }
       case 'Enter': {
         e.preventDefault();
         const result = this.results_[this.selectedIndex_];
+        if (result?.kind === ResultKind.kAskClaude) {
+          this.ask_(result);
+          break;
+        }
         const newEntry = navigator.platform.startsWith('Mac') ? e.metaKey :
                                                                 e.ctrlKey;
         this.accept_(result ? result.id : 0, newEntry);
@@ -174,10 +225,70 @@ export class CompassCommandBarAppElement extends CrLitElement {
   }
 
   protected onResultClick_(e: MouseEvent) {
-    const index = this.getResultIndex_(e);
-    if (index !== -1) {
-      this.accept_(this.results_[index]!.id, e.metaKey || e.ctrlKey);
+    if ((e.target as HTMLElement).closest('.about')) {
+      // "About this page" on the Ask row: a switch, not the row.
+      this.aboutPage_ = !this.aboutPage_;
+      this.input_.focus();
+      return;
     }
+    const index = this.getResultIndex_(e);
+    if (index === -1) {
+      return;
+    }
+    const result = this.results_[index]!;
+    if (result.kind === ResultKind.kAskClaude) {
+      this.ask_(result);
+      return;
+    }
+    this.accept_(result.id, e.metaKey || e.ctrlKey);
+  }
+
+  // Asks Claude the row's question; the answer streams in under the field.
+  private ask_(result: Result) {
+    this.clearAnswer_();
+    this.asked_ = result.subtitle;
+    this.browserProxy_.handler.ask(
+        result.subtitle, this.aboutPage_ && result.aboutPage !== '');
+    this.input_.focus();
+  }
+
+  private continueInChat_() {
+    if (this.asked_) {
+      this.browserProxy_.handler.continueInChat();
+    }
+  }
+
+  protected onContinueClick_() {
+    this.continueInChat_();
+  }
+
+  protected getAnswerText_(): string {
+    if (this.answer_) {
+      return this.answer_;
+    }
+    return this.answerDone_ ? '' : 'Claude is answering…';
+  }
+
+  private clearAnswer_() {
+    this.asked_ = '';
+    this.answer_ = '';
+    this.answerDone_ = false;
+    this.answerError_ = '';
+  }
+
+  protected isAsking_(): boolean {
+    return this.asked_ !== '';
+  }
+
+  // The "About this page" switch shows on the Ask row when there's a page.
+  protected hasAboutPage_(result: Result): boolean {
+    return result.kind === ResultKind.kAskClaude && result.aboutPage !== '';
+  }
+
+  protected getAboutTitle_(result: Result): string {
+    return this.aboutPage_ ?
+        `Claude gets this tab's title and site: ${result.aboutPage}` :
+        'Only the question goes to Claude';
   }
 
   // Tab: the field's inline completion becomes typed text, caret at its end;
@@ -264,6 +375,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
         return '◐';
       case ResultKind.kCommand:
         return '›';
+      case ResultKind.kAskClaude:
+        return '✦';
       default:
         return '◦';
     }

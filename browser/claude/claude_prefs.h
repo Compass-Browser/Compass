@@ -91,6 +91,16 @@ inline constexpr char kShortTabTitles[] = "compass.claude.short_tab_titles";
 // The model "Shorter Tab Titles" asks.
 inline constexpr char kShortTabTitlesModel[] =
     "compass.claude.short_tab_titles_model";
+// "Answer Questions in the Command Bar": a typed line that reads as a
+// question gets an "Ask Claude" row at the top of the command bar, whose
+// short answer streams in under the field.
+inline constexpr char kCommandBarAsk[] = "compass.claude.command_bar_ask";
+// The model it asks: Claude Sonnet by default (kDefaultAskModel), quicker
+// than the chat's Opus and better at answers than Haiku.
+inline constexpr char kCommandBarAskModel[] =
+    "compass.claude.command_bar_ask_model";
+// kCommandBarAskModel's default.
+inline constexpr char kDefaultAskModel[] = "claude-sonnet-5-5";
 
 enum class FilesAccess {
   kOff = 0,

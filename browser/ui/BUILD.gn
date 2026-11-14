@@ -361,6 +361,7 @@ source_set("browser_tests") {
     "claude/today_tidier_browsertest.cc",
     "claude/short_titler_browsertest.cc",
     "live_folders/live_folder_runtime_browsertest.cc",
+    "views/command_bar/command_bar_ask_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/claude/claude_panel_browsertest.cc",
     "views/find_bar/find_bar_browsertest.cc",

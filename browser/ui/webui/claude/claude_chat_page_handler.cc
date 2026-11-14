@@ -755,11 +755,36 @@ void ClaudeChatPageHandler::ClosePanel() {
 
 void ClaudeChatPageHandler::TakeQuestion(TakeQuestionCallback callback) {
   ClaudePanel* panel = ClaudePanel::From(browser_);
-  std::move(callback).Run(panel ? panel->TakeQuestion() : std::string());
+  ClaudePanel::Pending pending =
+      panel ? panel->TakeQuestion() : ClaudePanel::Pending();
+  if (!pending.answer.empty()) {
+    StartNewChat();
+  }
+  std::move(callback).Run(pending.question, pending.context, pending.answer);
 }
 
 void ClaudeChatPageHandler::Ask(const std::string& question) {
   page_->OnAsk(question);
+}
+
+void ClaudeChatPageHandler::Continue(const std::string& question,
+                                     const std::string& context,
+                                     const std::string& answer) {
+  StartNewChat();
+  page_->OnContinue(question, context, answer);
+}
+
+void ClaudeChatPageHandler::StartNewChat() {
+  // A reply streaming in the page goes: the page stops it too.
+  ++request_id_;
+  if (client_) {
+    client_->Cancel();
+  }
+  tools_.Stop();
+  CancelApprovals(/*new_chat=*/true);
+  chat_memory_.reset();
+  chat_devtools_ = false;
+  EndClaudeCode(/*forget=*/true);
 }
 
 void ClaudeChatPageHandler::PrimaryPageChanged(content::Page& page) {

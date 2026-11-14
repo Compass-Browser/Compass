@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "base/i18n/case_conversion.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -17,6 +18,7 @@
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/predictors/autocomplete_action_predictor.h"
 #include "chrome/browser/predictors/autocomplete_action_predictor_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -42,6 +44,7 @@
 #include "components/sync_sessions/session_sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
@@ -176,10 +179,12 @@ void CommandBarPageHandler::SetOtherDeviceTabsGetterForTesting(
 }
 
 CommandBarPageHandler::~CommandBarPageHandler() {
+  CancelAnswer();
   autocomplete_->RemoveObserver(this);
 }
 
 void CommandBarPageHandler::Open(Mode mode, const std::u16string& text) {
+  CancelAnswer();
   mode_ = mode;
   // The page queries |text| first; that isn't an edit.
   text_ = text;
@@ -270,15 +275,133 @@ void CommandBarPageHandler::Accept(uint32_t id,
     case ResultKind::kOtherDeviceTab:
       AcceptOtherDeviceTab(item.url);
       break;
+    case ResultKind::kAskClaude:
+      // The page asks with Ask(); the bar stays open for the answer.
+      Ask(base::UTF16ToUTF8(item.subtitle), /*about_page=*/true);
+      return;
   }
   Close();
 }
 
 void CommandBarPageHandler::Close() {
+  CancelAnswer();
   autocomplete_->Stop(AutocompleteStopReason::kClobbered);
   if (controller_ && controller_->embedder()) {
     controller_->embedder()->CloseUI();
   }
+}
+
+void CommandBarPageHandler::Ask(const std::string& question,
+                                bool about_page) {
+  CancelAnswer();
+  const std::string trimmed(
+      base::TrimWhitespaceASCII(question, base::TRIM_ALL));
+  if (trimmed.empty()) {
+    return;
+  }
+  if (!IsAskAvailable()) {
+    claude::ClaudeQuick* quick =
+        browser_->GetProfile()->IsOffTheRecord()
+            ? nullptr
+            : claude::ClaudeQuick::Get(browser_->GetProfile());
+    page_->OnAnswerDone(claude::DescribeQuickError(
+        quick && quick->IsSetUp() ? claude::QuickError::kOff
+                                  : claude::QuickError::kNotSetUp));
+    return;
+  }
+  std::string title;
+  std::string host;
+  asked_question_ = trimmed;
+  asked_page_line_ = about_page && GetAboutPage(&title, &host)
+                         ? claude::DescribeAskPage(title, host)
+                         : std::string();
+  answer_.clear();
+  Profile* profile = browser_->GetProfile();
+  claude::QuickRequest request = claude::MakeAskRequest(
+      asked_question_, asked_page_line_,
+      profile->GetPrefs()->GetString(claude::prefs::kCommandBarAskModel),
+      g_browser_process->GetApplicationLocale());
+  answer_request_ = claude::ClaudeQuick::Get(profile)->Stream(
+      std::move(request),
+      base::BindRepeating(&CommandBarPageHandler::OnAnswerText,
+                          weak_factory_.GetWeakPtr()),
+      base::BindOnce(&CommandBarPageHandler::OnAnswerDone,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void CommandBarPageHandler::ContinueInChat() {
+  if (asked_question_.empty()) {
+    return;
+  }
+  const std::string question = asked_question_;
+  const std::string page_line = asked_page_line_;
+  // What came so far, if Claude is still answering.
+  const std::string answer = answer_;
+  CancelAnswer();
+  if (claude::ClaudePanel* panel = claude::ClaudePanel::From(browser_)) {
+    if (answer.empty()) {
+      panel->Ask(question);
+    } else {
+      panel->Continue(question, page_line, answer);
+    }
+  }
+  Close();
+}
+
+void CommandBarPageHandler::CancelAnswer() {
+  if (answer_request_) {
+    if (claude::ClaudeQuick* quick =
+            claude::ClaudeQuick::Get(browser_->GetProfile())) {
+      quick->Cancel(answer_request_);
+    }
+    answer_request_ = 0;
+  }
+}
+
+void CommandBarPageHandler::OnAnswerText(const std::string& text) {
+  answer_ = text;
+  page_->OnAnswer(text);
+}
+
+void CommandBarPageHandler::OnAnswerDone(
+    base::expected<base::DictValue, claude::QuickError> result) {
+  answer_request_ = 0;
+  if (!result.has_value()) {
+    page_->OnAnswerDone(claude::DescribeQuickError(result.error()));
+    return;
+  }
+  if (const std::string* text = result->FindString("text")) {
+    answer_ = std::string(base::TrimWhitespaceASCII(*text, base::TRIM_ALL));
+    page_->OnAnswer(answer_);
+  }
+  page_->OnAnswerDone(answer_.empty() ? "Claude gave no answer."
+                                      : std::string());
+}
+
+bool CommandBarPageHandler::IsAskAvailable() const {
+  Profile* profile = browser_->GetProfile();
+  if (profile->IsOffTheRecord()) {
+    return false;
+  }
+  claude::ClaudeQuick* quick = claude::ClaudeQuick::Get(profile);
+  return quick && quick->IsEnabled(claude::prefs::kCommandBarAsk);
+}
+
+bool CommandBarPageHandler::GetAboutPage(std::string* title,
+                                         std::string* host) const {
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  if (!tab) {
+    return false;
+  }
+  content::WebContents* contents = tab->GetContents();
+  const GURL& url = contents->GetLastCommittedURL();
+  // Web pages only: never the browser's own.
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+  *title = base::UTF16ToUTF8(contents->GetTitle());
+  *host = std::string(url.host());
+  return true;
 }
 
 void CommandBarPageHandler::OnResultChanged(AutocompleteController* controller,
@@ -290,6 +413,7 @@ void CommandBarPageHandler::Rebuild() {
   std::vector<Item> items;
   std::u16string inline_autocompletion;
   const bool empty = base::TrimWhitespace(text_, base::TRIM_ALL).empty();
+  ask_row_ = false;
 
   if (empty) {
     if (mode_ == Mode::kNewEntry) {
@@ -298,12 +422,30 @@ void CommandBarPageHandler::Rebuild() {
     AddCommandItems(items);
   } else {
     const AutocompleteResult& result = autocomplete_->result();
-    // The default match leads: it's what Enter takes.
+    // A question leads, with "Ask Claude", when its feature is on.
+    ask_row_ = IsAskAvailable() &&
+               claude::LooksLikeQuestion(
+                   text_, g_browser_process->GetApplicationLocale());
+    if (ask_row_) {
+      Item item;
+      item.kind = ResultKind::kAskClaude;
+      item.title = u"Ask Claude";
+      item.subtitle =
+          std::u16string(base::TrimWhitespace(text_, base::TRIM_ALL));
+      item.action = "Answer";
+      AssignId(item, "a:ask");
+      items.push_back(std::move(item));
+    }
+    // The default match comes next: it's what Enter takes without a
+    // question.
     size_t first_other = 0;
     if (!result.empty() && result.match_at(0).allowed_to_be_default_match) {
       const AutocompleteMatch& match = result.match_at(0);
       items.push_back(MatchItem(match, 0));
-      inline_autocompletion = match.inline_autocompletion;
+      // Enter asks: nothing is completed in the field.
+      if (!ask_row_) {
+        inline_autocompletion = match.inline_autocompletion;
+      }
       first_other = 1;
     }
     AddEntryItems(items);
@@ -325,6 +467,13 @@ void CommandBarPageHandler::Rebuild() {
     result->subtitle = base::UTF16ToUTF8(item.subtitle);
     result->action = item.action;
     result->icon_url = item.icon_url;
+    if (item.kind == ResultKind::kAskClaude) {
+      std::string title;
+      std::string host;
+      if (GetAboutPage(&title, &host)) {
+        result->about_page = title.empty() ? host : title;
+      }
+    }
     switch (item.space_icon.kind()) {
       case SpaceIcon::Kind::kNone:
         break;
@@ -494,6 +643,11 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
   if (words.empty() || ContainsAll(u"chat with claude", words)) {
     item.title = u"Chat with Claude";
     item.action = "Open";
+  } else if (ask_row_) {
+    // "Ask Claude" leads, answering here; this one asks in the chat.
+    item.title = u"Ask in Chat";
+    item.subtitle = question;
+    item.action = "Ask";
   } else {
     item.title = u"Ask Claude";
     item.subtitle = question;

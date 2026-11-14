@@ -130,8 +130,17 @@ per change:
   pane leaves its split); its tab stays. "Remove from Favorites" moves it to
   the top of the window's Today, as unpinning does.
 
-Order: the default omnibox match, entries, the other omnibox matches,
-tabs on other devices, spaces, commands. With an empty query in new-entry mode the list is the
+- **Ask Claude** ([ai-sidebar.md](ai-sidebar.md), A5): with "Answer
+  Questions in the Command Bar" on, a line that reads as a question leads
+  with an "Ask Claude" row (`ResultKind::kAskClaude`). Tab or Enter on it
+  asks, and Claude's short answer streams in under the field in place of
+  the results; Enter then (or "Continue in Chat") opens the chat with the
+  question and the answer, typing goes back to the results, Esc closes.
+  "About this page" on the row adds the current tab's title and host.
+
+Order: the Ask Claude row for a question, the default omnibox match,
+entries, the other omnibox matches, tabs on other devices, spaces,
+commands. With an empty query in new-entry mode the list is the
 window's Today entries, most recent first, then the commands.
 
 ### Accepting

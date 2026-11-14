@@ -86,7 +86,18 @@ void ClaudePanel::Ask(const std::string& question) {
   if (page_handler_) {
     page_handler_->Ask(question);
   } else {
-    pending_question_ = question;
+    pending_ = Pending{question, std::string(), std::string()};
+  }
+}
+
+void ClaudePanel::Continue(const std::string& question,
+                           const std::string& context,
+                           const std::string& answer) {
+  Show();
+  if (page_handler_) {
+    page_handler_->Continue(question, context, answer);
+  } else {
+    pending_ = Pending{question, context, answer};
   }
 }
 
@@ -100,8 +111,8 @@ void ClaudePanel::RemovePageHandler(ClaudeChatPageHandler* handler) {
   }
 }
 
-std::string ClaudePanel::TakeQuestion() {
-  return std::exchange(pending_question_, std::string());
+ClaudePanel::Pending ClaudePanel::TakeQuestion() {
+  return std::exchange(pending_, Pending());
 }
 
 bool ClaudePanel::IsShowing() const {

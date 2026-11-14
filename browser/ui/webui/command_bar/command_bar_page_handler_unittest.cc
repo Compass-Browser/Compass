@@ -22,9 +22,11 @@
 #include "chrome/test/base/search_test_utils.h"
 #include "components/omnibox/browser/omnibox_event_global_tracker.h"
 #include "components/omnibox/browser/omnibox_log.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -57,7 +59,20 @@ class FakePage : public command_bar::mojom::Page {
                   const std::string& inline_autocompletion) override {
     text_ = text;
     results_ = std::move(results);
+    inline_autocompletion_ = inline_autocompletion;
   }
+  void OnAnswer(const std::string& text) override { answer_ = text; }
+  void OnAnswerDone(const std::string& error) override {
+    answer_done_ = true;
+    answer_error_ = error;
+  }
+
+  const std::string& inline_autocompletion() const {
+    return inline_autocompletion_;
+  }
+  const std::string& answer() const { return answer_; }
+  bool answer_done() const { return answer_done_; }
+  const std::string& answer_error() const { return answer_error_; }
 
   const std::string& opened() const { return opened_; }
   const std::string& text() const { return text_; }
@@ -92,6 +107,9 @@ class FakePage : public command_bar::mojom::Page {
               "other " + std::string(result->icon_url.host()) + " " +
               result->subtitle.substr(0, result->subtitle.find(" · ")));
           break;
+        case ResultKind::kAskClaude:
+          names.push_back("ask " + result->subtitle);
+          break;
       }
     }
     return names;
@@ -99,7 +117,8 @@ class FakePage : public command_bar::mojom::Page {
 
   static bool IsClaudeRow(const command_bar::mojom::Result& result) {
     return result.kind == ResultKind::kCommand &&
-           (result.title == "Ask Claude" || result.title == "Chat with Claude");
+           (result.title == "Ask Claude" || result.title == "Chat with Claude" ||
+            result.title == "Ask in Chat");
   }
 
   // The ID of the first result titled |title| (or, for entries, whose host
@@ -119,6 +138,10 @@ class FakePage : public command_bar::mojom::Page {
   std::string opened_;
   std::string text_;
   std::vector<command_bar::mojom::ResultPtr> results_;
+  std::string inline_autocompletion_;
+  std::string answer_;
+  bool answer_done_ = false;
+  std::string answer_error_;
 };
 
 class CommandBarPageHandlerTest : public CompassBrowserWindowTest {
@@ -599,6 +622,61 @@ TEST_F(CommandBarPageHandlerTest, AsksClaude) {
   EXPECT_EQ(tab_strip_model()->count(), 2);
 }
 
+// Ask in the command bar (docs/design/ai-sidebar.md): with its own switch
+// on and Claude set up, a question leads with "Ask Claude", whose answer
+// shows in the bar; the chat's row says "Ask in Chat" then. Other text, or
+// the switch off, keeps the usual list.
+TEST_F(CommandBarPageHandlerTest, AskRowForQuestions) {
+  PrefService* prefs = profile()->GetPrefs();
+  // Off by default.
+  OpenAndQuery(Mode::kNewEntry, "what is a fox?");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_NE(page_.results().front()->kind, ResultKind::kAskClaude);
+  EXPECT_EQ(page_.results().back()->title, "Ask Claude");
+
+  // On, but not set up: no more.
+  prefs->SetBoolean(claude::prefs::kCommandBarAsk, true);
+  OpenAndQuery(Mode::kNewEntry, "what is a fox?");
+  EXPECT_NE(page_.results().front()->kind, ResultKind::kAskClaude);
+
+  prefs->SetString(claude::prefs::kApiKey, "encrypted");
+  OpenAndQuery(Mode::kNewEntry, " what is a fox? ");
+  ASSERT_FALSE(page_.results().empty());
+  const command_bar::mojom::Result& ask = *page_.results().front();
+  EXPECT_EQ(ask.kind, ResultKind::kAskClaude);
+  EXPECT_EQ(ask.title, "Ask Claude");
+  EXPECT_EQ(ask.subtitle, "what is a fox?");
+  // Enter asks: nothing is completed in the field.
+  EXPECT_EQ(page_.inline_autocompletion(), "");
+  EXPECT_EQ(page_.results().back()->title, "Ask in Chat");
+  EXPECT_EQ(page_.results().back()->subtitle, "what is a fox?");
+  // "About this page": the active tab's title, or its host without one.
+  EXPECT_EQ(ask.about_page, "a.test");
+
+  // A question word starts it too; other text doesn't.
+  OpenAndQuery(Mode::kNewEntry, "how do foxes hunt");
+  EXPECT_EQ(page_.results().front()->kind, ResultKind::kAskClaude);
+  OpenAndQuery(Mode::kNewEntry, "fox facts");
+  EXPECT_NE(page_.results().front()->kind, ResultKind::kAskClaude);
+  EXPECT_EQ(page_.results().back()->title, "Ask Claude");
+  OpenAndQuery(Mode::kNewEntry, "https://what.test/?");
+  EXPECT_NE(page_.results().front()->kind, ResultKind::kAskClaude);
+
+  // Another feature's switch isn't this one's.
+  prefs->SetBoolean(claude::prefs::kCommandBarAsk, false);
+  prefs->SetBoolean(claude::prefs::kShortTabTitles, true);
+  OpenAndQuery(Mode::kNewEntry, "what is a fox?");
+  EXPECT_NE(page_.results().front()->kind, ResultKind::kAskClaude);
+
+  // Asking with the switch off says why, and sends nothing.
+  handler_remote_->Ask("what is a fox?", true);
+  Settle();
+  EXPECT_TRUE(page_.answer_done());
+  EXPECT_EQ(page_.answer_error(), "It's turned off in Claude settings.");
+  EXPECT_EQ(page_.answer(), "");
+  prefs->ClearPref(claude::prefs::kApiKey);
+}
+
 TEST_F(CommandBarPageHandlerTest, NoClaudeInIncognito) {
   std::unique_ptr<BrowserWindowInterface> incognito = CreateBrowser(
       profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true),
@@ -609,11 +687,16 @@ TEST_F(CommandBarPageHandlerTest, NoClaudeInIncognito) {
       remote.BindNewPipeAndPassReceiver(), page.BindAndPassRemote(),
       incognito.get(), /*controller=*/nullptr);
   handler->Open(Mode::kCurrentEntry, std::u16string());
+  // Not even with Ask in the command bar on.
+  profile()->GetPrefs()->SetBoolean(claude::prefs::kCommandBarAsk, true);
+  profile()->GetPrefs()->SetString(claude::prefs::kApiKey, "encrypted");
   remote->Query("what is this?", false);
   Settle();
   for (const auto& result : page.results()) {
     EXPECT_FALSE(FakePage::IsClaudeRow(*result)) << result->title;
+    EXPECT_NE(result->kind, ResultKind::kAskClaude);
   }
+  profile()->GetPrefs()->ClearPref(claude::prefs::kApiKey);
   handler.reset();
   incognito->GetTabStripModel()->CloseAllTabs();
 }

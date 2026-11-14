@@ -127,6 +127,9 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   // that ended is dropped.
   private task_ = 0;
   private toolRounds_ = 0;
+  // Claude Code mode after Continue in Chat: the command bar's exchange,
+  // which the next message carries (Claude Code didn't see it).
+  private carryOver_ = '';
 
   override connectedCallback() {
     super.connectedCallback();
@@ -140,6 +143,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       router.onSetupChanged.addListener(this.applySetup_.bind(this)),
       router.onActivePageChanged.addListener(this.applyPage_.bind(this)),
       router.onAsk.addListener(this.ask_.bind(this)),
+      router.onContinue.addListener(this.continue_.bind(this)),
       router.onApproval.addListener(this.onApproval_.bind(this)),
       router.onApprovalCancelled.addListener(
           this.onApprovalCancelled_.bind(this)),
@@ -177,10 +181,44 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     await this.updateComplete;
     handler.showUI();
     this.input_.focus();
-    const {text} = await handler.takeQuestion();
-    if (text) {
+    const {text, context, answer} = await handler.takeQuestion();
+    if (answer) {
+      this.continue_(text, context, answer);
+    } else if (text) {
       this.ask_(text);
     }
+  }
+
+  // The command bar's "Continue in Chat": a new chat that starts with its
+  // question and Claude's answer there (docs/design/ai-sidebar.md, "Ask in
+  // the command bar"). Nothing is sent until the user writes.
+  private continue_(question: string, context: string, answer: string) {
+    if (this.streaming_) {
+      this.stop_();
+    }
+    this.conversation.clear();
+    this.attachedUrl_ = '';
+    this.attachPage_ = true;
+    const content: ContentBlock[] = [];
+    if (context) {
+      content.push({type: 'text', text: context});
+    }
+    content.push({type: 'text', text: question});
+    this.conversation.addUser({role: 'user', text: question, content});
+    this.conversation.turns.push({
+      role: 'assistant',
+      content: [{type: 'text', text: answer}],
+      streaming: false,
+    });
+    // Claude Code keeps its own conversation, which starts with the next
+    // message: that message carries the exchange.
+    this.carryOver_ = this.claudeCode_ ?
+        `Earlier, in the command bar, I asked: ${question}\n` +
+            `You answered: ${answer}` :
+        '';
+    this.stickToBottom_ = true;
+    this.changed_();
+    this.input_.focus();
   }
 
   // The command bar's "Ask Claude". While a reply streams, the question
@@ -294,6 +332,10 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     const {text: context} = await this.browserProxy_.handler.getContext();
     if (context) {
       content.push({type: 'text', text: context});
+    }
+    if (this.carryOver_) {
+      content.push({type: 'text', text: this.carryOver_});
+      this.carryOver_ = '';
     }
     if (this.pageReadable_ && this.attachPage_ &&
         this.pageUrl_ !== this.attachedUrl_) {
@@ -544,6 +586,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     if (this.streaming_) {
       this.stop_();
     }
+    this.carryOver_ = '';
     this.conversation.clear();
     this.attachedUrl_ = '';
     this.attachPage_ = true;

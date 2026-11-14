@@ -13,6 +13,10 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/types/expected.h"
+#include "base/values.h"
+#include "compass/browser/claude/claude_quick.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
@@ -89,6 +93,8 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
              bool prevent_inline_autocomplete) override;
   void Accept(uint32_t id, const std::string& text, bool new_entry) override;
   void Close() override;
+  void Ask(const std::string& question, bool about_page) override;
+  void ContinueInChat() override;
 
   // AutocompleteController::Observer:
   void OnResultChanged(AutocompleteController* controller,
@@ -159,6 +165,18 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   void RunCommand(CommandBarCommand command);
   bool IsCommandAvailable(CommandBarCommand command) const;
 
+  // Ask in the command bar (docs/design/ai-sidebar.md): whether "Answer
+  // Questions in the Command Bar" is on (and Claude set up); never in
+  // incognito.
+  bool IsAskAvailable() const;
+  // The current tab's title and host for "About this page", if it shows a
+  // web page.
+  bool GetAboutPage(std::string* title, std::string* host) const;
+  // Drops the answer on its way, if any.
+  void CancelAnswer();
+  void OnAnswerText(const std::string& text);
+  void OnAnswerDone(base::expected<base::DictValue, claude::QuickError> result);
+
   // The window's features, or null for a window without them, or one that
   // swapped away to another profile's space (SwitchWindowToSpace()): that one
   // has no bridge and closes in a moment, but its page can still call in.
@@ -187,6 +205,15 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   // IDs given out in this query, by result.
   std::map<std::string, uint32_t> ids_;
   uint32_t next_id_ = 1;
+  // Whether the latest list leads with the kAskClaude row.
+  bool ask_row_ = false;
+  // The question asked (Ask()), the page line sent with it, and the answer
+  // so far; the ClaudeQuick request on its way, or 0.
+  std::string asked_question_;
+  std::string asked_page_line_;
+  std::string answer_;
+  int answer_request_ = 0;
+  base::WeakPtrFactory<CommandBarPageHandler> weak_factory_{this};
 };
 
 }  // namespace compass

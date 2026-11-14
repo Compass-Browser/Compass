@@ -9,11 +9,14 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/i18n/case_conversion.h"
 #include "base/i18n/char_iterator.h"
 #include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
@@ -201,6 +204,104 @@ std::map<std::string, std::u16string> ParseShortTitlesReply(
   return titles;
 }
 
+bool LooksLikeQuestion(std::u16string_view text, std::string_view locale) {
+  const std::u16string lower = base::i18n::ToLower(
+      std::u16string(base::TrimWhitespace(text, base::TRIM_ALL)));
+  const std::vector<std::u16string_view> words = base::SplitStringPiece(
+      lower, u" ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (words.size() < 2 || lower.find(u"://") != std::u16string::npos) {
+    return false;
+  }
+  const char16_t last = lower.back();
+  if (last == u'?' || last == u'\uFF1F' || last == u'\u061F' ||
+      lower.front() == u'\u00BF') {
+    return true;
+  }
+  // The first word's letters ("what's" is "what").
+  std::u16string first;
+  for (base::i18n::UTF16CharIterator it(words[0]); !it.end(); it.Advance()) {
+    if (!u_isalpha(it.get())) {
+      break;
+    }
+    base::WriteUnicodeCharacter(it.get(), &first);
+  }
+  const std::u16string two_words =
+      std::u16string(words[0]) + u" " + std::u16string(words[1]);
+  // Question words by language ("<language>:<word>"), and pairs of words
+  // that start a question ("es:por qué").
+  static constexpr std::u16string_view kQuestionWords[] = {
+      u"en:who", u"en:what", u"en:why", u"en:how", u"en:when", u"en:where",
+      u"en:which", u"en:whose", u"en:whom",
+      u"it:chi", u"it:cosa", u"it:che", u"it:perch\u00E9", u"it:perche",
+      u"it:come", u"it:quando", u"it:dove", u"it:quale", u"it:quali",
+      u"it:quanto", u"it:quanta", u"it:quanti", u"it:quante",
+      u"fr:qui", u"fr:que", u"fr:quoi", u"fr:pourquoi", u"fr:comment",
+      u"fr:quand", u"fr:o\u00F9", u"fr:quel", u"fr:quelle", u"fr:quels",
+      u"fr:quelles", u"fr:combien", u"fr:est-ce que", u"fr:qu'est-ce que",
+      u"de:wer", u"de:was", u"de:warum", u"de:wieso", u"de:weshalb",
+      u"de:wie", u"de:wann", u"de:wo", u"de:welche", u"de:welcher",
+      u"de:welches", u"de:woher", u"de:wohin", u"de:wieviel",
+      u"es:qu\u00E9", u"es:qui\u00E9n", u"es:qui\u00E9nes", u"es:c\u00F3mo",
+      u"es:cu\u00E1ndo", u"es:d\u00F3nde", u"es:cu\u00E1l", u"es:cu\u00E1les",
+      u"es:cu\u00E1nto", u"es:cu\u00E1nta", u"es:cu\u00E1ntos",
+      u"es:cu\u00E1ntas", u"es:por qu\u00E9",
+      u"pt:quem", u"pt:como", u"pt:quando", u"pt:onde", u"pt:qual",
+      u"pt:quais", u"pt:quanto", u"pt:quanta", u"pt:quantos", u"pt:quantas",
+      u"pt:o que", u"pt:por que", u"pt:por qu\u00EA",
+      u"nl:wie", u"nl:wat", u"nl:waarom", u"nl:hoe", u"nl:wanneer",
+      u"nl:waar", u"nl:welke", u"nl:hoeveel",
+  };
+  const std::u16string language = base::ASCIIToUTF16(base::ToLowerASCII(
+      locale.substr(0, std::min(locale.find_first_of("-_"), locale.size()))));
+  for (std::u16string_view entry : kQuestionWords) {
+    const size_t colon = entry.find(u':');
+    const std::u16string_view code = entry.substr(0, colon);
+    const std::u16string_view word = entry.substr(colon + 1);
+    if ((code == u"en" || code == language) &&
+        (word == first || word == two_words)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string DescribeAskPage(std::string_view page_title,
+                            std::string_view page_host) {
+  if (page_title.empty() && page_host.empty()) {
+    return std::string();
+  }
+  std::string title(page_title);
+  std::ranges::replace_if(
+      title, [](char c) { return c == '\r' || c == '\n' || c == '\t'; }, ' ');
+  std::string text = "I'm looking at a page";
+  if (!title.empty()) {
+    base::StrAppend(&text, {" titled \"", title, "\""});
+  }
+  if (!page_host.empty()) {
+    base::StrAppend(&text, {" on ", page_host});
+  }
+  text += ".";
+  return text;
+}
+
+QuickRequest MakeAskRequest(std::string_view question,
+                            std::string_view page_line,
+                            std::string_view model,
+                            std::string_view locale) {
+  QuickRequest request;
+  request.feature_pref = prefs::kCommandBarAsk;
+  request.model = std::string(model);
+  request.system = SidebarPrompt("command_bar_ask", locale);
+  request.user = page_line.empty()
+                     ? std::string(question)
+                     : base::StrCat({page_line, "\n\n", question});
+  request.max_tokens = ClaudeQuick::kMaxTokens;
+  // The user asked: no hourly limit, no waiting out a back-off.
+  request.background = false;
+  request.stream = true;
+  return request;
+}
+
 TidyFolder::TidyFolder() = default;
 TidyFolder::TidyFolder(TidyFolder&&) = default;
 TidyFolder& TidyFolder::operator=(TidyFolder&&) = default;
@@ -326,9 +427,30 @@ std::optional<base::DictValue> ParseQuickReply(std::string_view text) {
   return base::JSONReader::ReadDict(trimmed, base::JSON_PARSE_RFC);
 }
 
+std::string DescribeQuickError(QuickError error) {
+  switch (error) {
+    case QuickError::kOff:
+      return "It's turned off in Claude settings.";
+    case QuickError::kNotSetUp:
+      return "Claude isn't set up.";
+    case QuickError::kRateLimited:
+    case QuickError::kBackingOff:
+    case QuickError::kFailed:
+      return "Claude couldn't be reached.";
+    case QuickError::kTimeout:
+      return "Claude took too long.";
+    case QuickError::kRefused:
+      return "Claude declined to answer.";
+    case QuickError::kBadReply:
+      return "Claude's answer didn't come through.";
+  }
+  return std::string();
+}
+
 struct ClaudeQuick::Pending {
   QuickRequest request;
   Callback callback;
+  TextCallback on_text;
   std::unique_ptr<ClaudeClient> client;
   base::OneShotTimer timer;
   std::string text;
@@ -377,11 +499,58 @@ void ClaudeQuick::PruneRecent(base::TimeTicks now) {
 void ClaudeQuick::Ask(QuickRequest request, Callback callback) {
   const int id = next_id_++;
   auto pending = std::make_unique<Pending>();
+  request.stream = false;
   pending->request = std::move(request);
   pending->callback = std::move(callback);
-  const bool background = pending->request.background;
   pending_.emplace(id, std::move(pending));
+  Start(id);
+}
 
+int ClaudeQuick::Stream(QuickRequest request,
+                        TextCallback on_text,
+                        Callback callback) {
+  const int id = next_id_++;
+  auto pending = std::make_unique<Pending>();
+  request.stream = true;
+  pending->request = std::move(request);
+  pending->callback = std::move(callback);
+  pending->on_text = std::move(on_text);
+  pending_.emplace(id, std::move(pending));
+  Start(id);
+  return id;
+}
+
+void ClaudeQuick::Cancel(int id) {
+  auto it = pending_.find(id);
+  if (it == pending_.end()) {
+    return;
+  }
+  Pending& pending = *it->second;
+  pending.finishing = true;
+  pending.timer.Stop();
+  pending.callback.Reset();
+  pending.on_text.Reset();
+  // Not from inside the client, which may be running this.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::WeakPtr<ClaudeQuick> quick, int id) {
+                       if (!quick) {
+                         return;
+                       }
+                       auto it = quick->pending_.find(id);
+                       if (it == quick->pending_.end()) {
+                         return;
+                       }
+                       if (it->second->client) {
+                         it->second->client->Cancel();
+                       }
+                       quick->pending_.erase(it);
+                     },
+                     weak_factory_.GetWeakPtr(), id));
+}
+
+void ClaudeQuick::Start(int id) {
+  const bool background = pending_.at(id)->request.background;
   if (!IsSetUp()) {
     Finish(id, base::unexpected(QuickError::kNotSetUp));
     return;
@@ -405,7 +574,8 @@ void ClaudeQuick::Ask(QuickRequest request, Callback callback) {
   }
   Pending& entry = *pending_.at(id);
   // The answer, or the time it took to give up, includes reading the key.
-  entry.timer.Start(FROM_HERE, kTimeout,
+  entry.timer.Start(FROM_HERE,
+                    entry.request.stream ? kStreamTimeout : kTimeout,
                     base::BindOnce(&ClaudeQuick::OnTimeout,
                                    weak_factory_.GetWeakPtr(), id));
   get_key_.Run(
@@ -443,7 +613,7 @@ void ClaudeQuick::OnKey(int id, std::optional<std::string> key) {
 
 void ClaudeQuick::OnEvent(int id, const SseParser::Event& event) {
   auto it = pending_.find(id);
-  if (it == pending_.end()) {
+  if (it == pending_.end() || it->second->finishing) {
     return;
   }
   Pending& pending = *it->second;
@@ -467,6 +637,9 @@ void ClaudeQuick::OnEvent(int id, const SseParser::Event& event) {
   if (type && *type == "text_delta" && text &&
       pending.text.size() < kMaxReplyText) {
     pending.text.append(*text);
+    if (pending.on_text) {
+      pending.on_text.Run(pending.text);
+    }
   }
 }
 
@@ -482,6 +655,10 @@ void ClaudeQuick::OnDone(int id, std::optional<std::string> error) {
   }
   if (pending.stop_reason == "refusal") {
     Finish(id, base::unexpected(QuickError::kRefused));
+    return;
+  }
+  if (pending.request.stream) {
+    Finish(id, base::DictValue().Set("text", pending.text));
     return;
   }
   std::optional<base::DictValue> reply = ParseQuickReply(pending.text);
@@ -531,7 +708,10 @@ void ClaudeQuick::RunFinished(int id, Result result) {
     backing_off_until_ = base::TimeTicks::Now() +
                          (failures_ == 1 ? kFirstBackOff : kLaterBackOff);
   }
-  std::move(pending->callback).Run(std::move(result));
+  // None after Cancel().
+  if (pending->callback) {
+    std::move(pending->callback).Run(std::move(result));
+  }
 }
 
 // static

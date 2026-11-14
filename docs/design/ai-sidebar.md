@@ -6,9 +6,9 @@ titles, and Ask in the command bar. The chat panel and its tools are
 claude.md's; this doc reuses its endpoint, credentials and request code.
 
 Status: A1, A2 and A3 (Tidy Today) done on the desktop and on iOS (14
-November 2026); A4 (Shorter tab titles) done on the desktop (14 November
-2026); A5 and A7 planned, and A6's A4 and A5. Desktop first, then iOS and
-Android.
+November 2026); A4 (Shorter tab titles) and A5 (Ask in the command bar)
+done on the desktop (14 November 2026); A7 planned, and A6's A4 and A5.
+Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -290,6 +290,71 @@ With "Name Link Folders" on:
   `ShortTitlerBrowserTest` with a fake Claude server (`ShowsShortTitles`:
   the row shows it while its tooltip and the hover card keep the title, the
   same title again makes no request, a name wins; `NothingWithTheSwitchOff`).
+
+## As built (A5, Ask in the command bar)
+
+- **The switch and model:** "Answer Questions in the Command Bar"
+  (`compass.claude.command_bar_ask`, off) and
+  `compass.claude.command_bar_ask_model`, whose default is
+  `claude-sonnet-5-5` (`prefs::kDefaultAskModel`): an answer the user waits
+  for and reads, so better than Haiku, and quicker than the chat's Opus.
+  The chat's model isn't used: each feature has its own.
+- **Which lines** (`LooksLikeQuestion(text, locale)`, `claude_quick.*`):
+  two words or more, no "://", and ending with "?" (also "？" or "؟"),
+  starting with "¿", or starting with a question word: English's (who,
+  what, why, how, when, where, which, whose, whom; "what's" counts) always,
+  and the browser language's for Italian, French, German, Spanish,
+  Portuguese and Dutch, including two-word starts ("por qué", "est-ce
+  que", "o que"). Verbs like "is" or "can" don't start one without a "?":
+  "can opener" is a search.
+- **The row:** with the switch on and Claude set up (never off the record),
+  such a line gets `ResultKind::kAskClaude`, "Ask Claude" with the question
+  as its subtitle, first, above the default suggestion; the field then
+  completes nothing inline, and the chat's row at the end reads "Ask in
+  Chat". Tab or Enter on it, or a click, asks (`PageHandler.Ask(question,
+  about_page)`); elsewhere they do what they did.
+- **"About this page":** a small switch on the row, on by default, shown
+  when the active tab is a web page (http or https; `Result.about_page`
+  carries its title). On, the request starts with "I'm looking at a page
+  titled "<title>" on <host>." (`DescribeAskPage()`); the page's text never
+  goes.
+- **The request** (`MakeAskRequest()`): `ClaudeQuick::Stream()`, the chat's
+  streaming client (`ClaudeClient`) on the chat's endpoint, key, auth style
+  and cache level, the feature's model, the "command_bar_ask" prompt
+  section (plain text, at most about 6 short lines, the answer first),
+  `max_tokens` 400, no tools, no thinking, not background (no hourly limit
+  or back-off), 60 s at most (`kStreamTimeout`). `Page.OnAnswer(text)`
+  brings the text so far as it grows, `OnAnswerDone(error)` the end.
+  Another Ask, a new opening of the bar, or Close drops the answer on its
+  way (`ClaudeQuick::Cancel()`).
+- **The answer** replaces the results under the field: plain text, line
+  breaks kept, about 6 lines high, then it scrolls; "Claude is answering…"
+  until the first words; an error line ("Claude took too long.") if it
+  fails. Enter, or the "Continue in Chat" button, continues; typing goes
+  back to the results; Esc closes the bar, as always.
+- **Continue in Chat** (`PageHandler.ContinueInChat()`,
+  `ClaudePanel::Continue()`, `chat.mojom` `Page.OnContinue()` and
+  `TakeQuestion()`'s answer for a panel that wasn't loaded): the panel opens
+  with a new chat whose first exchange is the question (with the page line
+  before it in the message, if it was sent) and the answer, as plain user
+  and assistant messages; nothing is sent until the user writes, and the
+  next message goes on from them. The handler starts a new chat as a first
+  message would (approvals, memory and developer tools frozen anew, Claude
+  Code's session forgotten). Claude Code keeps its own conversation, so in
+  Claude Code mode the next message carries the exchange as a text block.
+  Without an answer yet, Continue asks the question in the chat instead.
+- **Tests:** `ClaudeQuickTest.LooksLikeQuestion`, `DescribeAskPage`,
+  `StreamsAnswers` (request shape: model, no tools, the page line,
+  `max_tokens`, the prompt; the text as it grows; no hourly limit),
+  `StreamOffAndCancel`; `CommandBarPageHandlerTest.AskRowForQuestions`
+  (off, not set up, on; the row first, no inline completion, "Ask in Chat";
+  other text; another feature's switch) and `NoClaudeInIncognito`;
+  `ClaudeSettingsHandlerBrowserTest.SidebarAiSettings`;
+  `CommandBarAskBrowserTest` with a fake Claude server
+  (`AsksAndContinuesInChat`: the row with "About this page", Enter, the
+  streamed answer, the request's title and host without the path, Continue
+  in Chat's two turns and the next message's three messages;
+  `NothingWithTheSwitchOff`).
 
 ## As built on iOS (A6: A1–A3)
 

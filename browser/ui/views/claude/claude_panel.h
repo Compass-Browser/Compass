@@ -62,8 +62,22 @@ class ClaudePanel {
   void SetPageHandler(ClaudeChatPageHandler* handler);
   // |handler| goes away; forgotten if it's still the page's.
   void RemovePageHandler(ClaudeChatPageHandler* handler);
-  // The question asked before the page connected, once.
-  std::string TakeQuestion();
+  // The command bar's "Continue in Chat": shows the panel with a new chat
+  // whose first exchange is |question| (sent with |context|, the page line,
+  // before it) and |answer|. Waits for the page if it isn't loaded yet.
+  void Continue(const std::string& question,
+                const std::string& context,
+                const std::string& answer);
+
+  // What the command bar asked before the page connected: a question, or a
+  // whole exchange (with an answer) for Continue in Chat.
+  struct Pending {
+    std::string question;
+    std::string context;
+    std::string answer;
+  };
+  // The question or exchange asked before the page connected, once.
+  Pending TakeQuestion();
 
   // The page's contents while the panel shows; null otherwise. (Upstream's
   // SidePanelUI::GetWebContentsForTest() would make a new page each call.)
@@ -81,7 +95,7 @@ class ClaudePanel {
   std::unique_ptr<WebUIContentsWrapperT<ClaudeChatUI>> contents_;
   // The panel's view, while it exists.
   views::ViewTracker view_;
-  std::string pending_question_;
+  Pending pending_;
   ui::ScopedUnownedUserData<ClaudePanel> scoped_data_holder_;
 };
 

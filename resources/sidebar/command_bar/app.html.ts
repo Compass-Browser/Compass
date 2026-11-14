@@ -21,7 +21,21 @@ export function getHtml(this: CompassCommandBarAppElement) {
       placeholder="${this.getPlaceholder_()}"
       @input="${this.onInput_}" @keydown="${this.onKeydown_}">
 </div>
-${this.results_.length ? html`
+${this.isAsking_() ? html`
+  <div id="answer" role="region" aria-live="polite" aria-label="Claude's answer">
+    <div class="answer-text" ?pending="${!this.answer_ && !this.answerDone_}">
+      ${this.getAnswerText_()}
+    </div>
+    ${this.answerError_ ? html`
+      <div class="answer-error">${this.answerError_}</div>` : nothing}
+    <div class="answer-actions">
+      <span class="hint">Esc to close</span>
+      <button id="continueInChat" class="continue"
+          ?disabled="${!this.answerDone_ && !this.answer_}"
+          @click="${this.onContinueClick_}">Continue in Chat
+        <span class="key" aria-hidden="true">↵</span></button>
+    </div>
+  </div>` : html`${this.results_.length ? html`
   <div id="results" role="listbox"
       @pointermove="${this.onResultPointermove_}"
       @click="${this.onResultClick_}">
@@ -43,9 +57,14 @@ ${this.results_.length ? html`
         <span class="title">${result.title}</span>
         ${result.subtitle ? html`
           <span class="subtitle">${result.subtitle}</span>` : nothing}
+        ${this.hasAboutPage_(result) ? html`
+          <button class="about" ?on="${this.aboutPage_}"
+              aria-pressed="${this.aboutPage_}"
+              title="${this.getAboutTitle_(result)}">About this page</button>` :
+          nothing}
         <span class="action">${result.action}</span>
       </div>`)}
-  </div>` : nothing}
+  </div>` : nothing}`}
 <!--_html_template_end_-->`;
   // clang-format on
 }

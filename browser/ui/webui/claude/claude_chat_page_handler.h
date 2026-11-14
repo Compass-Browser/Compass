@@ -87,6 +87,11 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
 
   // The command bar's "Ask Claude", while the page is connected.
   void Ask(const std::string& question);
+  // The command bar's "Continue in Chat", while the page is connected: a
+  // new chat that starts with the command bar's exchange.
+  void Continue(const std::string& question,
+                const std::string& context,
+                const std::string& answer);
 
   // content::WebContentsObserver (the active tab):
   void PrimaryPageChanged(content::Page& page) override;
@@ -144,6 +149,9 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
                    base::OnceCallback<void(bool)> done);
   // Denies what waits; with |new_chat|, forgets "Allow for this chat" too.
   void CancelApprovals(bool new_chat);
+  // A chat starts that the page didn't start with one message (Continue in
+  // Chat): what a first message would end does end.
+  void StartNewChat();
   // Claude Code asks whether one of its own tools may run.
   void OnClaudeCodePermission(std::string tool,
                               std::string request_id,

@@ -22,6 +22,8 @@ interface SidebarFeature {
   model: (state: SettingsState) => string;
   setEnabled: (handler: SettingsHandlerRemote, on: boolean) => void;
   setModel: (handler: SettingsHandlerRemote, model: string) => void;
+  // The model when its setting names none; QUICK_MODEL_DEFAULT if unset.
+  defaultModel?: string;
 }
 
 const SIDEBAR_FEATURES: SidebarFeature[] = [
@@ -58,6 +60,19 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
     model: state => state.shortTabTitlesModel,
     setEnabled: (handler, on) => handler.setShortTabTitles(on),
     setModel: (handler, model) => handler.setShortTabTitlesModel(model),
+  },
+  {
+    id: 'commandBarAsk',
+    name: 'Answer Questions in the Command Bar',
+    description: 'A question typed in the command bar gets an "Ask Claude" ' +
+        'row; its short answer shows right there, and "Continue in Chat" ' +
+        'takes it to the chat. Only the question goes, with the current ' +
+        'tab\'s title and site when "About this page" is on.',
+    enabled: state => state.commandBarAsk,
+    model: state => state.commandBarAskModel,
+    setEnabled: (handler, on) => handler.setCommandBarAsk(on),
+    setModel: (handler, model) => handler.setCommandBarAskModel(model),
+    defaultModel: 'claude-sonnet-5-5',
   },
 ];
 
@@ -442,7 +457,8 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     for (const feature of SIDEBAR_FEATURES) {
       this.renderModelSelect_(
           `${feature.id}Model`,
-          (this.state_ && feature.model(this.state_)) || QUICK_MODEL_DEFAULT);
+          (this.state_ && feature.model(this.state_)) ||
+              feature.defaultModel || QUICK_MODEL_DEFAULT);
     }
   }
 

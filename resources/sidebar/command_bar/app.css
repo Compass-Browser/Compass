@@ -151,3 +151,76 @@
 .result[selected] .action {
   visibility: visible;
 }
+
+/* "About this page" on the Ask row: a small switch. */
+.about {
+  background: none;
+  border: 1px solid var(--color-tab-search-divider);
+  border-radius: 10px;
+  color: inherit;
+  flex: none;
+  font: inherit;
+  font-size: 11px;
+  opacity: 0.6;
+  padding: 1px 8px;
+}
+
+.about[on] {
+  border-color: currentColor;
+  opacity: 1;
+}
+
+/* Claude's answer, under the field: about six lines, then it scrolls. */
+#answer {
+  border-top: 1px solid var(--color-tab-search-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 8px;
+  padding: 12px 14px;
+}
+
+.answer-text {
+  line-height: 20px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.answer-text[pending] {
+  color: var(--color-tab-search-secondary-foreground);
+}
+
+.answer-error {
+  color: var(--color-tab-search-secondary-foreground);
+}
+
+.answer-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.answer-actions .hint {
+  color: var(--color-tab-search-secondary-foreground);
+  margin-inline-end: auto;
+}
+
+.continue {
+  background: var(--color-sys-primary);
+  border: none;
+  border-radius: 8px;
+  color: var(--color-sys-on-primary);
+  font: inherit;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+.continue:disabled {
+  opacity: 0.5;
+}
+
+.continue .key {
+  margin-inline-start: 6px;
+  opacity: 0.75;
+}

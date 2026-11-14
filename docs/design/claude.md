@@ -87,7 +87,7 @@ yet.
   - In tests, `ClaudePanel::web_contents_for_testing()` reads the view the panel made. Upstream's `SidePanelUI::GetWebContentsForTest()` builds a new view, and so a new page, on each call.
   - The panel shows once the page calls `ShowUI()`.
 - **Shortcut.** `kToggleClaudeCommand` (`compass_command_ids.h`), default Cmd+Shift+E on macOS (`AdjustShortcutsNotInMenu()`; Cmd+E stays "Use Selection for Find"). It's customizable as "Chat with Claude".
-- **Command bar.** The last row of every query (not in Incognito) is Claude's (`CommandBarCommand::kAskClaude`). With no text, or text naming it, it's "Chat with Claude", which opens the panel. Otherwise it's "Ask Claude", with the text as its subtitle; Enter opens the panel and sends the text, with the page attached (`ClaudePanel::Ask()`). A page that isn't loaded yet collects the question with `TakeQuestion()`; an open one gets `Page.OnAsk()`. While a reply streams, the question waits in the field.
+- **Command bar.** The last row of every query (not in Incognito) is Claude's (`CommandBarCommand::kAskClaude`). With no text, or text naming it, it's "Chat with Claude", which opens the panel. Otherwise it's "Ask Claude", with the text as its subtitle; Enter opens the panel and sends the text, with the page attached (`ClaudePanel::Ask()`). With "Answer Questions in the Command Bar" on, a question gets a short answer in the bar itself instead (docs/design/ai-sidebar.md, A5), this row reads "Ask in Chat", and the answer's "Continue in Chat" starts a new chat with that exchange (`ClaudePanel::Continue()`, `Page.OnContinue()`). A page that isn't loaded yet collects the question with `TakeQuestion()`; an open one gets `Page.OnAsk()`. While a reply streams, the question waits in the field.
 - **The page** (`resources/sidebar/claude_chat/`):
   - `conversation.ts` keeps the conversation. It puts each streamed reply together from its events into the same content blocks the API returns (text, thinking with its signature, fallback blocks, tool use), so they go back unchanged in the next request.
   - `markdown.ts` renders replies with `createElement` and text nodes only, never `innerHTML`.
@@ -250,7 +250,10 @@ approves each write.
     `compass.claude.name_link_folders_model`), "Tidy Today"
     (`compass.claude.tidy_today`, `compass.claude.tidy_today_model`) and
     "Shorter Tab Titles" (`compass.claude.short_tab_titles`,
-    `compass.claude.short_tab_titles_model`). The
+    `compass.claude.short_tab_titles_model`) and "Answer Questions in the
+    Command Bar" (`compass.claude.command_bar_ask`,
+    `compass.claude.command_bar_ask_model`, whose default is
+    `claude-sonnet-5-5`; its answer streams through the chat's client). The
     requests go through `ClaudeQuick` (`browser/claude/claude_quick.*`), on
     the chat's endpoint, auth style and cache level, with the calling
     feature's switch and model.

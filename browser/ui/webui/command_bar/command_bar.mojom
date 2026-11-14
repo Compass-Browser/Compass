@@ -26,6 +26,10 @@ enum ResultKind {
   // An open tab of another device of the sync chain (SESSIONS); opens as a
   // new Today entry.
   kOtherDeviceTab,
+  // "Ask Claude" for a typed question, at the top: Tab or Enter asks
+  // (PageHandler.Ask()), and the answer shows under the field
+  // (docs/design/ai-sidebar.md, "Ask in the command bar").
+  kAskClaude,
 };
 
 struct Result {
@@ -45,6 +49,9 @@ struct Result {
   // kinds.
   string space_emoji;
   string space_symbol;
+  // kAskClaude: what "About this page" would add, the current tab's title
+  // (or host); empty when there's no page to add.
+  string about_page;
 };
 
 // Bootstraps the connection; called once by the page.
@@ -66,6 +73,14 @@ interface PageHandler {
   // |new_entry| opens an omnibox suggestion as a new entry in either mode.
   Accept(uint32 id, string text, bool new_entry);
   Close();
+  // The kAskClaude row: asks Claude |question| (with the current tab's title
+  // and host if |about_page|); the answer comes as Page.OnAnswer() calls,
+  // then Page.OnAnswerDone(). The bar stays open. A new Ask, Open() or
+  // Close() drops the one before.
+  Ask(string question, bool about_page);
+  // "Continue in Chat": the chat panel opens with the question and the
+  // answer as its conversation's start; the bar closes.
+  ContinueInChat();
 };
 
 // Implemented by the page.
@@ -78,4 +93,8 @@ interface Page {
   // result would; empty for none.
   SetResults(string text, array<Result> results,
              string inline_autocompletion);
+  // The answer to Ask() so far (all of it, each time more comes).
+  OnAnswer(string text);
+  // The answer is complete; |error|, if not empty, says why it isn't.
+  OnAnswerDone(string error);
 };

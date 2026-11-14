@@ -86,8 +86,11 @@ interface PageHandler {
   OpenLink(string url);
   ClosePanel();
   // A question asked from the command bar before the page connected, once;
-  // empty if none. Later ones come as Page.OnAsk().
-  TakeQuestion() => (string text);
+  // empty if none. Later ones come as Page.OnAsk(). With an |answer| it's
+  // the command bar's "Continue in Chat" instead: a new chat that starts
+  // with |text| (|context|, the page line sent with it, before it in the
+  // message) and |answer|, as Page.OnContinue() would.
+  TakeQuestion() => (string text, string context, string answer);
   // Undoes what a memory tool did: |undo_id| is its result's "memory.undo".
   // False if it can't (already undone, or the memory changed since).
   UndoMemory(int32 undo_id) => (bool undone);
@@ -110,6 +113,10 @@ interface Page {
   OnActivePageChanged(ActivePage page);
   // The command bar's "Ask Claude": send |text|, with the page attached.
   OnAsk(string text);
+  // The command bar's "Continue in Chat": a new chat whose first exchange
+  // is |question| (sent with |context| before it, if any) and |answer|.
+  // Nothing is sent until the user writes.
+  OnContinue(string question, string context, string answer);
 
   // A tool asks before it acts: the panel shows |title| and |detail| with
   // Allow, Allow for this chat and Deny, and answers with AnswerApproval().
