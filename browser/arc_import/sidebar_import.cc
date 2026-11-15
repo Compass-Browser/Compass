@@ -230,6 +230,14 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
   return added;
 }
 
+void AddItems(SpaceList& list,
+              SpaceModel& model,
+              SidebarNode* parent,
+              const std::vector<Item>& items,
+              std::optional<base::Time> last_active) {
+  Builder(list, model, last_active).AddAll(parent, items);
+}
+
 base::Uuid ArcDerivedId(std::string_view arc_id) {
   if (arc_id.empty()) {
     return base::Uuid();

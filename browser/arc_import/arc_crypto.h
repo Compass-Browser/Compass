@@ -21,7 +21,10 @@ class ChromiumMacCipher {
  public:
   static constexpr std::string_view kPrefix = "v10";
 
-  explicit ChromiumMacCipher(std::string_view keychain_password);
+  // |iterations|: Chromium's macOS PBKDF2 rounds; Linux's "v10" scheme is the
+  // same with the password "peanuts" and one round.
+  explicit ChromiumMacCipher(std::string_view keychain_password,
+                             uint32_t iterations = 1003);
   ChromiumMacCipher(const ChromiumMacCipher&);
   ChromiumMacCipher& operator=(const ChromiumMacCipher&);
   ~ChromiumMacCipher();

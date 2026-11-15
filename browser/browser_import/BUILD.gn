@@ -1,0 +1,84 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Import from other browsers (docs/design/browser-import.md): the readers
+# and the mapping to spaces, without browser dependencies.
+source_set("browser_import") {
+  sources = [
+    "chromium_crypto.cc",
+    "chromium_crypto.h",
+    "chromium_reader.cc",
+    "chromium_reader.h",
+    "detect.cc",
+    "detect.h",
+    "profile_reader.cc",
+    "profile_reader.h",
+    "source.cc",
+    "source.h",
+    "space_import.cc",
+    "space_import.h",
+  ]
+  deps = [
+    "//components/sessions",
+    "//components/tab_groups",
+    "//crypto",
+    "//sql",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/browser/arc_import",
+    "//compass/browser/sidebar",
+    "//url",
+  ]
+  if (is_mac) {
+    sources += [ "chromium_crypto_mac.mm" ]
+    frameworks = [
+      "Foundation.framework",
+      "Security.framework",
+    ]
+  }
+  if (is_win) {
+    libs = [ "crypt32.lib" ]
+  }
+}
+
+# Synthetic profiles of other browsers, for the unit and browser tests.
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "test_fixtures.cc",
+    "test_fixtures.h",
+  ]
+  deps = [
+    "//base",
+    "//components/sessions",
+    "//components/tab_groups",
+    "//sql",
+    "//sql:test_support",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "chromium_crypto_unittest.cc",
+    "chromium_reader_unittest.cc",
+    "detect_unittest.cc",
+    "space_import_unittest.cc",
+  ]
+  deps = [
+    ":browser_import",
+    ":test_support",
+    "//base",
+    "//base/test:test_support",
+    "//components/sessions",
+    "//components/tab_groups",
+    "//compass/browser/arc_import",
+    "//compass/browser/sidebar",
+    "//sql",
+    "//sql:test_support",
+    "//testing/gtest",
+  ]
+}

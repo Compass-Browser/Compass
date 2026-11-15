@@ -20,7 +20,7 @@ index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..b79f9953afd04bed760e047ca93db5c7
 +  r.COMPASS_SHORTCUTS = r.BASIC.createSection(
 +      '/shortcuts', 'compassShortcuts', 'Keyboard shortcuts');
 +  r.COMPASS_ARC_IMPORT = r.BASIC.createSection(
-+      '/importArc', 'compassArcImport', 'Import from Arc');
++      '/importArc', 'compassArcImport', 'Import from Another Browser');
 +  r.COMPASS_CLAUDE = r.BASIC.createSection('/claude', 'compassClaude',
 +                                           'Claude');
  

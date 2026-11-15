@@ -21,6 +21,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/arc_import/arc_importer.h"
+#include "compass/browser/ui/browser_import/browser_importer.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -211,6 +212,78 @@ void ArcImportPageHandler::OpenImported() {
   if (space) {
     SwitchWindowToSpace(browser, imported_profile_.get(), *space);
   }
+}
+
+void ArcImportPageHandler::GetBrowsers(GetBrowsersCallback callback) {
+  browser_import::GetBrowserImportOverview(
+      Profile::FromWebUI(web_ui_),
+      base::BindOnce(&ArcImportPageHandler::OnBrowsers,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ArcImportPageHandler::OnBrowsers(
+    GetBrowsersCallback callback,
+    std::vector<browser_import::ProfileOverview> profiles) {
+  std::vector<sidebar::mojom::BrowserImportProfilePtr> entries;
+  for (const browser_import::ProfileOverview& profile : profiles) {
+    auto entry = sidebar::mojom::BrowserImportProfile::New();
+    entry->id = profile.source.id;
+    entry->browser =
+        base::UTF16ToUTF8(browser_import::BrowserName(profile.source.browser));
+    entry->name = base::UTF16ToUTF8(profile.source.name);
+    for (const std::u16string& space : profile.spaces) {
+      entry->spaces.push_back(base::UTF16ToUTF8(space));
+    }
+    entry->bookmark_count = profile.bookmarks;
+    entry->tab_count = profile.tabs;
+    entry->running = profile.running;
+    entry->imported = profile.imported;
+    entry->history = profile.history;
+    entry->passwords = profile.passwords;
+    entries.push_back(std::move(entry));
+  }
+  std::move(callback).Run(std::move(entries));
+}
+
+void ArcImportPageHandler::ImportBrowsers(
+    std::vector<sidebar::mojom::BrowserImportChoicePtr> choices,
+    ImportBrowsersCallback callback) {
+  std::vector<browser_import::BrowserImportChoice> chosen;
+  for (const auto& choice : choices) {
+    chosen.push_back({choice->id, choice->bookmarks, choice->tabs,
+                      choice->history, choice->passwords});
+  }
+  browser_import::ImportFromBrowsers(
+      Profile::FromWebUI(web_ui_), std::move(chosen),
+      base::BindOnce(&ArcImportPageHandler::OnBrowsersImported,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ArcImportPageHandler::OnBrowsersImported(
+    ImportBrowsersCallback callback,
+    browser_import::BrowserImportResult result) {
+  if (result.first_space.is_valid()) {
+    imported_profile_ = Profile::FromWebUI(web_ui_)->GetWeakPtr();
+    imported_space_ = result.first_space;
+  }
+  std::vector<sidebar::mojom::BrowserImportSummaryPtr> summaries;
+  for (const browser_import::BrowserImportSummary& summary :
+       result.summaries) {
+    auto entry = sidebar::mojom::BrowserImportSummary::New();
+    entry->name = base::UTF16ToUTF8(summary.name);
+    for (const std::u16string& space : summary.spaces) {
+      entry->spaces.push_back(base::UTF16ToUTF8(space));
+    }
+    entry->pinned = summary.pinned;
+    entry->today = summary.today;
+    entry->favorites = summary.favorites;
+    entry->history = summary.history;
+    entry->passwords = summary.passwords;
+    entry->passwords_skipped = summary.passwords_skipped;
+    entry->problems = summary.problems;
+    summaries.push_back(std::move(entry));
+  }
+  std::move(callback).Run(std::move(summaries));
 }
 
 }  // namespace compass

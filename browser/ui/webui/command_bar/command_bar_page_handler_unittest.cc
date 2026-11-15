@@ -244,7 +244,8 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
                           "command Copy URL",
                           "command Reload", "command History",
                           "command Downloads", "command Extensions",
-                          "command Settings", "command Import from Arc",
+                          "command Settings",
+                          "command Import from Another Browser",
                           "command Keyboard shortcuts"));
 }
 
@@ -272,7 +273,7 @@ TEST_F(CommandBarPageHandlerTest, CommandsHaveSymbols) {
   EXPECT_EQ(symbols["Downloads"], "download");
   EXPECT_EQ(symbols["Extensions"], "extension");
   EXPECT_EQ(symbols["Settings"], "settings");
-  EXPECT_EQ(symbols["Import from Arc"], "import");
+  EXPECT_EQ(symbols["Import from Another Browser"], "import");
   EXPECT_EQ(symbols["Keyboard shortcuts"], "keyboard");
   EXPECT_EQ(symbols["Chat with Claude"], "chat");
   // No two commands share one.

@@ -21,15 +21,15 @@ crypto::SubtlePassKey MakeCryptoPassKey() {
 namespace {
 
 constexpr char kSalt[] = "saltysalt";
-constexpr uint32_t kIterations = 1003;
 constexpr std::array<uint8_t, 16> kIv = {' ', ' ', ' ', ' ', ' ', ' ',
                                          ' ', ' ', ' ', ' ', ' ', ' ',
                                          ' ', ' ', ' ', ' '};
 
 }  // namespace
 
-ChromiumMacCipher::ChromiumMacCipher(std::string_view keychain_password) {
-  crypto::kdf::Pbkdf2HmacSha1({.iterations = kIterations},
+ChromiumMacCipher::ChromiumMacCipher(std::string_view keychain_password,
+                                     uint32_t iterations) {
+  crypto::kdf::Pbkdf2HmacSha1({.iterations = iterations},
                               base::as_byte_span(keychain_password),
                               base::as_byte_span(std::string_view(kSalt)),
                               key_, MakeCryptoPassKey());

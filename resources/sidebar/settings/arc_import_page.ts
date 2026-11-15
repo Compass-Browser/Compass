@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {ArcImportProfile, ArcImportSpace, ArcImportState} from '../sidebar.mojom-webui.js';
+import type {ArcImportProfile, ArcImportSpace, ArcImportState, BrowserImportChoice, BrowserImportProfile, BrowserImportSummary} from '../sidebar.mojom-webui.js';
 import {ArcImportHandler} from '../sidebar.mojom-webui.js';
 
 import {getTemplate} from './arc_import_page.html.js';
 import {CompassSettingsPage} from './page_base.js';
 
-// Importing from Arc: compass://settings/importArc, and alone on
-// chrome://compass-import. See docs/design/arc-import.md.
+// Importing from another browser: compass://settings/importArc, and alone
+// on chrome://compass-import. Other browsers' profiles first (each becomes
+// a space), then Arc's (each becomes a profile), when Arc is there. See
+// docs/design/browser-import.md and docs/design/arc-import.md.
 
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? `1 ${one}` : `${count} ${many}`;
@@ -31,9 +33,10 @@ function checkbox(className: string, value: string): HTMLInputElement {
 export class CompassArcImportPageElement extends CompassSettingsPage {
   private handler_ = ArcImportHandler.getRemote();
   private state_: ArcImportState|null = null;
+  private browsers_: BrowserImportProfile[] = [];
 
   protected get pageTitle() {
-    return 'Import from Arc';
+    return 'Import from Another Browser';
   }
 
   protected getPageTemplate() {
@@ -51,8 +54,215 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     this.$('import').addEventListener('click', () => this.import_());
     this.$('open').addEventListener('click', () => this.handler_.openImported());
 
+    this.$('importBrowsers')
+        .addEventListener('click', () => this.importBrowsers_());
+    this.$('browsersRefresh')
+        .addEventListener('click', () => this.refreshBrowsers_());
+    this.$('openBrowsers')
+        .addEventListener('click', () => this.handler_.openImported());
+    this.$('browsersAgain').addEventListener('click', () => {
+      this.show('browsersDone', false);
+      this.refreshBrowsers_();
+    });
+
+    this.refreshBrowsers_();
     this.refresh_();
   }
+
+  // Other browsers ---------------------------------------------------------
+
+  private async refreshBrowsers_() {
+    this.show('browsersChooser', false);
+    this.show('browsersLoading', true);
+    ({profiles: this.browsers_} = await this.handler_.getBrowsers());
+    this.renderBrowsers_();
+  }
+
+  private browserChoices_(): BrowserImportChoice[] {
+    const choices: BrowserImportChoice[] = [];
+    for (const row of this.querySelectorAll<HTMLElement>(
+             '#browsers li.browser')) {
+      const check =
+          row.querySelector<HTMLInputElement>('.browser-check')!;
+      if (!check.checked || check.disabled) {
+        continue;
+      }
+      const option = (kind: string) =>
+          !!row.querySelector<HTMLInputElement>(
+                   `.option-check[data-kind="${kind}"]:checked`);
+      const choice = {
+        id: check.value,
+        bookmarks: option('bookmarks'),
+        tabs: option('tabs'),
+        history: option('history'),
+        passwords: option('passwords'),
+      };
+      if (choice.bookmarks || choice.tabs || choice.history ||
+          choice.passwords) {
+        choices.push(choice);
+      }
+    }
+    return choices;
+  }
+
+  private updateBrowsersButton_() {
+    this.$<HTMLButtonElement>('importBrowsers').disabled =
+        this.browserChoices_().length === 0;
+  }
+
+  private renderOption_(kind: string, text: string, enabled: boolean):
+      HTMLLIElement {
+    const item = document.createElement('li');
+    const label = document.createElement('label');
+    const input = checkbox('option-check', kind);
+    input.dataset['kind'] = kind;
+    input.checked = enabled;
+    input.disabled = !enabled;
+    input.addEventListener('change', () => this.updateBrowsersButton_());
+    const name = document.createElement('span');
+    name.textContent = text;
+    label.append(input, name);
+    item.append(label);
+    return item;
+  }
+
+  private renderBrowser_(profile: BrowserImportProfile): HTMLLIElement {
+    const item = document.createElement('li');
+    item.className = 'browser';
+    const available = !profile.running && !profile.imported;
+    item.classList.toggle('unavailable', !available);
+    const label = document.createElement('label');
+    const input = checkbox('browser-check', profile.id);
+    input.checked = available;
+    input.disabled = !available;
+    const text = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = profile.name ?
+        `${profile.browser} \u2013 ${profile.name}` :
+        profile.browser;
+    const details = document.createElement('div');
+    details.className = 'details';
+    const counts = [
+      plural(profile.bookmarkCount, 'bookmark', 'bookmarks'),
+      plural(profile.tabCount, 'open tab', 'open tabs'),
+    ];
+    if (profile.spaces.length > 1) {
+      counts.push(plural(profile.spaces.length, 'space', 'spaces'));
+    }
+    details.textContent = profile.running ?
+        `${profile.browser} is open. Quit it to import from it.` :
+        profile.imported ? 'Imported already.' :
+                           counts.join(' \u00b7 ');
+    text.append(name, details);
+    label.append(input, text);
+    item.append(label);
+
+    const options = document.createElement('ul');
+    options.className = 'options';
+    options.append(
+        this.renderOption_('bookmarks', 'Bookmarks to Pinned', available),
+        this.renderOption_('tabs', 'Open tabs to Today', available));
+    if (profile.history) {
+      options.append(this.renderOption_('history', 'History', available));
+    }
+    if (profile.passwords) {
+      options.append(
+          this.renderOption_('passwords', 'Passwords', available));
+    }
+    item.append(options);
+    input.addEventListener('change', () => {
+      for (const option of options.querySelectorAll<HTMLInputElement>(
+               '.option-check')) {
+        option.disabled = !input.checked;
+      }
+      this.updateBrowsersButton_();
+    });
+    return item;
+  }
+
+  private renderBrowsers_() {
+    this.show('browsersLoading', false);
+    this.show('browsersNone', this.browsers_.length === 0);
+    this.show('browsersChooser', this.browsers_.length > 0);
+    this.show(
+        'browsersRunning', this.browsers_.some(profile => profile.running));
+    this.show(
+        'keychainNotice',
+        navigator.userAgent.includes('Mac') &&
+            this.browsers_.some(profile => profile.passwords));
+    this.$('browsers').replaceChildren(
+        ...this.browsers_.map(profile => this.renderBrowser_(profile)));
+    this.updateBrowsersButton_();
+  }
+
+  private describeSummary_(summary: BrowserImportSummary): HTMLLIElement {
+    const item = document.createElement('li');
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = summary.name;
+    const parts = [];
+    if (summary.spaces.length) {
+      parts.push(`${summary.spaces.length === 1 ? 'Space' : 'Spaces'} ${
+          summary.spaces.join(', ')}`);
+    }
+    if (summary.pinned) {
+      parts.push(`${plural(summary.pinned, 'tab', 'tabs')} in Pinned`);
+    }
+    if (summary.today) {
+      parts.push(`${plural(summary.today, 'tab', 'tabs')} in Today`);
+    }
+    if (summary.favorites) {
+      parts.push(plural(summary.favorites, 'favorite', 'favorites'));
+    }
+    if (summary.history > 0) {
+      parts.push(plural(summary.history, 'history page', 'history pages'));
+    } else if (summary.history < 0) {
+      parts.push('history');
+    }
+    if (summary.passwords > 0) {
+      parts.push(plural(summary.passwords, 'password', 'passwords'));
+    } else if (summary.passwords < 0) {
+      parts.push('passwords');
+    }
+    const details = document.createElement('div');
+    details.className = 'details';
+    details.textContent =
+        parts.length ? parts.join(' \u00b7 ') : 'Nothing was imported.';
+    item.append(name, details);
+    const problems = [...summary.problems];
+    if (summary.passwordsSkipped) {
+      problems.push(`${
+          plural(summary.passwordsSkipped, 'password', 'passwords')} ` +
+          'couldn\'t be decrypted and stayed behind.');
+    }
+    for (const problem of problems) {
+      const line = document.createElement('div');
+      line.className = 'details';
+      line.textContent = problem;
+      item.append(line);
+    }
+    return item;
+  }
+
+  private async importBrowsers_() {
+    const choices = this.browserChoices_();
+    if (!choices.length) {
+      return;
+    }
+    this.show('browsersChooser', false);
+    this.show('browsersImporting', true);
+    const {summaries} = await this.handler_.importBrowsers(choices);
+    this.show('browsersImporting', false);
+    this.show('browsersDone', true);
+    this.$('browsersSummary')
+        .replaceChildren(
+            ...summaries.map(summary => this.describeSummary_(summary)));
+    this.show(
+        'openBrowsers', summaries.some(summary => summary.spaces.length > 0));
+  }
+
+  // Arc ---------------------------------------------------------------------
 
   // New profiles to import.
   private chosenProfiles_(): string[] {
@@ -150,6 +360,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
       return;
     }
     this.show('loading', false);
+    this.show('arcSection', state.found);
     this.show('notFound', !state.found);
     this.show('chooser', state.found);
     this.show('arcRunning', state.arcRunning);

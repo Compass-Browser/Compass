@@ -130,6 +130,7 @@ struct ArcOverview {
 void GetArcOverview(base::OnceCallback<void(ArcOverview)> callback);
 
 // On the first run, if Arc is on this Mac and nothing was imported from it,
+// or another browser has profiles here (docs/design/browser-import.md),
 // opens the import page (compass://settings/importArc) in the process's
 // first normal window. Called by the sidebar of each window.
 void MaybeOfferImportOnFirstRun(BrowserWindowInterface* browser);

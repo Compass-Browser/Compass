@@ -14,7 +14,7 @@ index 0e2111a106d6c0f9f5d6fa6a3e21f8feeb5e08e4..0b75c91330a346de116159503dca2bf5
    html_source->OverrideContentSecurityPolicy(
        network::mojom::CSPDirectiveName::WorkerSrc,
        "worker-src blob: chrome://resources 'self';");
-+  // Compass's sections: Sync, Keyboard shortcuts, Import from Arc.
++  // Compass's sections: Sync, Shortcuts, Import from Another Browser.
 +  compass_sections_ = compass::SettingsSections::Create(web_ui, html_source);
  
    AddSettingsPageUIHandler(std::make_unique<AppearanceHandler>(web_ui));

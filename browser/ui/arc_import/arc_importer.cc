@@ -31,6 +31,7 @@
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/arc_import/arc_crypto.h"
 #include "compass/browser/arc_import/sidebar_import.h"
+#include "compass/browser/browser_import/detect.h"
 #include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "compass/browser/window_sync/space_directory.h"
@@ -384,10 +385,14 @@ void ReadOverviewThen(base::OnceCallback<void(ArcOverview)> callback) {
 bool g_offer_considered = false;
 std::optional<bool> g_first_run_for_testing;
 
-// Whether |sidebar| exists and nothing was imported yet. Blocking.
+// Whether Arc's sidebar exists and nothing was imported from it yet, or
+// another browser has profiles (docs/design/browser-import.md). Blocking.
 bool ShouldOffer(const ArcPaths& paths, const base::FilePath& user_data) {
-  return !paths.sidebar.empty() && base::PathExists(paths.sidebar) &&
-         FindImported(user_data).empty();
+  if (!paths.sidebar.empty() && base::PathExists(paths.sidebar) &&
+      FindImported(user_data).empty()) {
+    return true;
+  }
+  return !browser_import::DetectProfiles().empty();
 }
 
 }  // namespace

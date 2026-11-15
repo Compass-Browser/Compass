@@ -570,7 +570,57 @@ struct ArcImportState {
   array<ArcImportProfile> profiles;
 };
 
-// Browser-side handler for chrome://compass-import: importing from Arc.
+// A profile of another browser chrome://compass-import offers
+// (docs/design/browser-import.md).
+struct BrowserImportProfile {
+  // Stable: "<browser>:<profile folder>".
+  string id;
+  // "Chrome", "Firefox", ...
+  string browser;
+  // The profile's own name (empty for Safari).
+  string name;
+  // The spaces it brings, in order.
+  array<string> spaces;
+  // Tabs its bookmarks (and favorites) give, and its open tabs.
+  int32 bookmark_count;
+  int32 tab_count;
+  // Its browser is open: it must be quit first.
+  bool running;
+  // Its spaces are here already.
+  bool imported;
+  // History and passwords can come along on this platform.
+  bool history;
+  bool passwords;
+};
+
+// What to bring from one profile.
+struct BrowserImportChoice {
+  string id;
+  bool bookmarks;
+  bool tabs;
+  bool history;
+  bool passwords;
+};
+
+// What one profile's import did.
+struct BrowserImportSummary {
+  // As its space is named ("Chrome", "Firefox, Work" with an en dash).
+  string name;
+  array<string> spaces;
+  int32 pinned;
+  int32 today;
+  int32 favorites;
+  // History pages and passwords imported; -1: through Chromium's importer,
+  // which doesn't count them.
+  int32 history;
+  int32 passwords;
+  // Passwords that couldn't be decrypted.
+  int32 passwords_skipped;
+  array<string> problems;
+};
+
+// Browser-side handler for chrome://compass-import: importing from Arc and
+// from other browsers.
 interface ArcImportHandler {
   GetState() => (ArcImportState state);
   // Asks Arc to quit; answers once it has, or false after a few seconds.
@@ -587,6 +637,13 @@ interface ArcImportHandler {
           array<string> failed);
   // Shows the first imported space in this window.
   OpenImported();
+
+  // Other browsers' profiles on this computer.
+  GetBrowsers() => (array<BrowserImportProfile> profiles);
+  // Imports |choices| into this page's profile, one after another, and
+  // answers with what each did.
+  ImportBrowsers(array<BrowserImportChoice> choices)
+      => (array<BrowserImportSummary> summaries);
 };
 
 // One shortcut on chrome://compass-settings (docs/design/shortcuts.md

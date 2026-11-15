@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_ARC_IMPORT_SIDEBAR_IMPORT_H_
 #define COMPASS_BROWSER_ARC_IMPORT_SIDEBAR_IMPORT_H_
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "compass/browser/arc_import/arc_sidebar.h"
 
 namespace compass {
+class SidebarNode;
 class SpaceList;
 class SpaceModel;
 }  // namespace compass
@@ -48,6 +50,17 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
                                        base::Time now,
                                        ArcImportInto into =
                                            ArcImportInto::kNewProfile);
+
+// Adds |items| at the end of |parent|, a node of |model| (one of |list|'s
+// spaces or its favorites), as AddArcSidebar() adds a space's: folders,
+// splits and tabs with derived IDs (ArcDerivedId() of Item::id) where free.
+// |last_active| overrides the tabs' own last active times. For other
+// browsers' imports too (docs/design/browser-import.md).
+void AddItems(SpaceList& list,
+              SpaceModel& model,
+              SidebarNode* parent,
+              const std::vector<Item>& items,
+              std::optional<base::Time> last_active);
 
 // The ID an Arc item or space with |arc_id| gets: a name-based UUID
 // (version 8, RFC 9562) from SHA-256 of Arc's ID. Invalid (empty) for an

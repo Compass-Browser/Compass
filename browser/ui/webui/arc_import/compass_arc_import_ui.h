@@ -32,6 +32,11 @@ struct ArcImportResult;
 struct ArcOverview;
 }  // namespace arc
 
+namespace browser_import {
+struct BrowserImportResult;
+struct ProfileOverview;
+}  // namespace browser_import
+
 class CompassArcImportUI;
 
 class CompassArcImportUIConfig
@@ -40,12 +45,12 @@ class CompassArcImportUIConfig
   CompassArcImportUIConfig();
 };
 
-// chrome://compass-import (compass://compass-import): importing from Arc.
-// Lists Arc's profiles and spaces, asks to quit Arc, imports the chosen
-// profiles and shows the first imported space. See
-// docs/design/arc-import.md.
-// The page side of importing from Arc. Owned by chrome://compass-import
-// and by chrome://settings (SettingsSections). See docs/design/arc-import.md.
+// The page side of importing from Arc and from other browsers. Owned by
+// chrome://compass-import and by chrome://settings (SettingsSections). Lists
+// Arc's profiles and spaces, asks to quit Arc, imports the chosen profiles;
+// lists other browsers' profiles and imports them into this profile; shows
+// the first imported space. See docs/design/arc-import.md and
+// docs/design/browser-import.md.
 class ArcImportPageHandler : public sidebar::mojom::ArcImportHandler {
  public:
   ArcImportPageHandler(
@@ -62,11 +67,19 @@ class ArcImportPageHandler : public sidebar::mojom::ArcImportHandler {
               const std::vector<std::string>& spaces,
               ImportCallback callback) override;
   void OpenImported() override;
+  void GetBrowsers(GetBrowsersCallback callback) override;
+  void ImportBrowsers(
+      std::vector<sidebar::mojom::BrowserImportChoicePtr> choices,
+      ImportBrowsersCallback callback) override;
 
  private:
   void OnOverview(GetStateCallback callback, arc::ArcOverview overview);
   void CheckArcQuit(QuitArcCallback callback, int attempts_left);
   void OnImported(ImportCallback callback, arc::ArcImportResult result);
+  void OnBrowsers(GetBrowsersCallback callback,
+                  std::vector<browser_import::ProfileOverview> profiles);
+  void OnBrowsersImported(ImportBrowsersCallback callback,
+                          browser_import::BrowserImportResult result);
 
   const raw_ptr<content::WebUI> web_ui_;
   // The first imported space, and its profile.
@@ -78,8 +91,8 @@ class ArcImportPageHandler : public sidebar::mojom::ArcImportHandler {
   base::WeakPtrFactory<ArcImportPageHandler> weak_factory_{this};
 };
 
-// chrome://compass-import (compass://compass-import): importing from Arc
-// alone, as compass://settings/importArc shows it.
+// chrome://compass-import (compass://compass-import): "Import from Another
+// Browser" alone, as compass://settings/importArc shows it.
 class CompassArcImportUI : public ui::MojoWebUIController {
  public:
   explicit CompassArcImportUI(content::WebUI* web_ui);

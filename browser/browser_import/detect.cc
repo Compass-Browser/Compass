@@ -1,0 +1,156 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "compass/browser/browser_import/detect.h"
+
+#include <initializer_list>
+#include <set>
+#include <string>
+#include <utility>
+
+#include "base/base_paths.h"
+#include "base/files/file_util.h"
+#include "base/json/json_reader.h"
+#include "base/no_destructor.h"
+#include "base/path_service.h"
+#include "base/strings/strcat.h"
+#include "build/build_config.h"
+#include "compass/browser/browser_import/chromium_reader.h"
+
+namespace compass::browser_import {
+
+namespace {
+
+std::optional<std::vector<BrowserRoot>>& RootsForTesting() {
+  static base::NoDestructor<std::optional<std::vector<BrowserRoot>>> roots;
+  return *roots;
+}
+
+base::FilePath Join(base::FilePath base, std::initializer_list<const char*> parts) {
+  for (const char* part : parts) {
+    base = base.AppendASCII(part);
+  }
+  return base;
+}
+
+std::optional<base::DictValue> ReadJsonDict(const base::FilePath& path) {
+  std::string json;
+  if (!base::ReadFileToString(path, &json)) {
+    return std::nullopt;
+  }
+  std::optional<base::Value> value = base::JSONReader::Read(
+      json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  if (!value || !value->is_dict()) {
+    return std::nullopt;
+  }
+  return std::move(*value).TakeDict();
+}
+
+void AddChromiumProfiles(Browser browser,
+                         const base::FilePath& root,
+                         std::vector<SourceProfile>& out) {
+  std::optional<base::DictValue> local_state =
+      ReadJsonDict(root.AppendASCII("Local State"));
+  if (!local_state) {
+    return;
+  }
+  std::vector<SourceProfile> found;
+  for (const ChromiumProfileInfo& info : ParseChromiumProfiles(*local_state)) {
+    const base::FilePath path = root.AppendASCII(info.dir);
+    if (!base::DirectoryExists(path)) {
+      continue;
+    }
+    SourceProfile profile;
+    profile.browser = browser;
+    profile.path = path;
+    profile.root = root;
+    profile.name = info.name;
+    profile.id = base::StrCat({BrowserKey(browser), ":", info.dir});
+    found.push_back(std::move(profile));
+  }
+  for (SourceProfile& profile : found) {
+    profile.several = found.size() > 1;
+    out.push_back(std::move(profile));
+  }
+}
+
+}  // namespace
+
+std::vector<BrowserRoot> CandidateRoots() {
+  if (RootsForTesting()) {
+    return *RootsForTesting();
+  }
+  std::vector<BrowserRoot> roots;
+#if BUILDFLAG(IS_WIN)
+  base::FilePath local;
+  if (base::PathService::Get(base::DIR_LOCAL_APP_DATA, &local)) {
+    roots.push_back(
+        {Browser::kChrome, Join(local, {"Google", "Chrome", "User Data"})});
+    roots.push_back(
+        {Browser::kEdge, Join(local, {"Microsoft", "Edge", "User Data"})});
+    roots.push_back(
+        {Browser::kBrave,
+         Join(local, {"BraveSoftware", "Brave-Browser", "User Data"})});
+    roots.push_back({Browser::kVivaldi, Join(local, {"Vivaldi", "User Data"})});
+  }
+#elif BUILDFLAG(IS_MAC)
+  base::FilePath support;  // ~/Library/Application Support
+  if (base::PathService::Get(base::DIR_APP_DATA, &support)) {
+    roots.push_back({Browser::kChrome, Join(support, {"Google", "Chrome"})});
+    roots.push_back({Browser::kEdge, Join(support, {"Microsoft Edge"})});
+    roots.push_back(
+        {Browser::kBrave, Join(support, {"BraveSoftware", "Brave-Browser"})});
+    roots.push_back({Browser::kVivaldi, Join(support, {"Vivaldi"})});
+  }
+#elif BUILDFLAG(IS_LINUX)
+  const base::FilePath home = base::GetHomeDir();
+  const base::FilePath config = home.AppendASCII(".config");
+  // Distribution packages, then Flatpak's.
+  roots.push_back({Browser::kChrome, Join(config, {"google-chrome"})});
+  roots.push_back(
+      {Browser::kChrome,
+       Join(home, {".var", "app", "com.google.Chrome", "config",
+                   "google-chrome"})});
+  roots.push_back({Browser::kEdge, Join(config, {"microsoft-edge"})});
+  roots.push_back(
+      {Browser::kBrave, Join(config, {"BraveSoftware", "Brave-Browser"})});
+  roots.push_back(
+      {Browser::kBrave,
+       Join(home, {".var", "app", "com.brave.Browser", "config",
+                   "BraveSoftware", "Brave-Browser"})});
+  roots.push_back({Browser::kVivaldi, Join(config, {"vivaldi"})});
+#endif
+  return roots;
+}
+
+void SetRootsForTesting(std::optional<std::vector<BrowserRoot>> roots) {
+  RootsForTesting() = std::move(roots);
+}
+
+std::vector<SourceProfile> DetectProfiles() {
+  std::vector<SourceProfile> profiles;
+  std::set<Browser> found;
+  for (const BrowserRoot& root : CandidateRoots()) {
+    if (found.contains(root.browser) || !base::DirectoryExists(root.root)) {
+      continue;
+    }
+    const size_t before = profiles.size();
+    if (IsChromiumBased(root.browser)) {
+      AddChromiumProfiles(root.browser, root.root, profiles);
+    }
+    if (profiles.size() > before) {
+      found.insert(root.browser);
+    }
+  }
+  return profiles;
+}
+
+bool IsRunning(const SourceProfile& profile) {
+  if (IsChromiumBased(profile.browser)) {
+    return IsChromiumRunning(profile.root);
+  }
+  return false;
+}
+
+}  // namespace compass::browser_import

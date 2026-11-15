@@ -36,7 +36,7 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..0188cf4c11dd33d6b7d42b6dc46f6c57
 +        <a role="menuitem" id="compassArcImport" href="/importArc"
 +            class="cr-nav-menu-item">
 +          <cr-icon icon="settings20:archive"></cr-icon>
-+          <span class="menu-label">Import from Arc</span>
++          <span class="menu-label">Import from Another Browser</span>
 +          <cr-ripple></cr-ripple>
 +        </a>
 +        <a role="menuitem" id="compassClaude" href="/claude"
