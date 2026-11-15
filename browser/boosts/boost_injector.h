@@ -50,8 +50,8 @@ class BoostInjector : public KeyedService, public BoostStore::Observer {
   static BoostInjector* Get(Profile* profile);
 
   // |done| runs once what's registered matches the store (at once if it
-  // does now). For tests, and for Claude's tools, which reload the tab after
-  // a save.
+  // does now, or if the extension couldn't load). For tests, and for
+  // Claude's tools, which answer once a save applies.
   void WhenRegistered(base::OnceClosure done);
 
   // The script ids registered now, for tests.
@@ -83,6 +83,8 @@ class BoostInjector : public KeyedService, public BoostStore::Observer {
   };
 
   void OnExtensionSystemReady();
+  // The extension couldn't load: Boosts don't run, and nobody waits.
+  void Fail();
   void OnRootReady(bool ok);
   // What the store's enabled Boosts need, by id.
   std::map<std::string, Script> Wanted() const;
@@ -106,6 +108,7 @@ class BoostInjector : public KeyedService, public BoostStore::Observer {
   scoped_refptr<base::SequencedTaskRunner> file_runner_;
   // The extension is loaded, and the store too: passes can run.
   bool ready_ = false;
+  bool failed_ = false;
   bool updating_ = false;
   bool again_ = false;
   // Registered scripts by id, as they were registered.

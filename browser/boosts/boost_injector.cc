@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/hash/hash.h"
 #include "base/logging.h"
+#include "base/one_shot_event.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -104,6 +105,7 @@ void BoostInjector::OnExtensionSystemReady() {
 void BoostInjector::OnRootReady(bool ok) {
   if (!ok) {
     LOG(ERROR) << "[compass-boosts] can't create " << root_;
+    Fail();
     return;
   }
   const extensions::ExtensionId id =
@@ -111,6 +113,7 @@ void BoostInjector::OnRootReady(bool ok) {
                                                       root_);
   if (id != kBoostsExtensionId) {
     LOG(ERROR) << "[compass-boosts] the extension didn't load (" << id << ")";
+    Fail();
     return;
   }
   store_->WhenLoaded(base::BindOnce(
@@ -123,8 +126,16 @@ void BoostInjector::OnRootReady(bool ok) {
       weak_factory_.GetWeakPtr()));
 }
 
+void BoostInjector::Fail() {
+  failed_ = true;
+  std::vector<base::OnceClosure> callbacks = std::move(when_registered_);
+  for (base::OnceClosure& callback : callbacks) {
+    std::move(callback).Run();
+  }
+}
+
 void BoostInjector::WhenRegistered(base::OnceClosure done) {
-  if (ready_ && !updating_ && !again_) {
+  if (failed_ || (ready_ && !updating_ && !again_)) {
     std::move(done).Run();
     return;
   }
