@@ -90,15 +90,15 @@ base::DictValue Boost::ToDict() const {
 
 // static
 std::optional<Boost> Boost::FromDict(const base::DictValue& dict) {
-  const std::string* id = dict.FindString("id");
-  const std::string* match = dict.FindString("match");
-  if (!id || !match) {
+  const std::string* id_value = dict.FindString("id");
+  const std::string* match_value = dict.FindString("match");
+  if (!id_value || !match_value) {
     return std::nullopt;
   }
   Boost boost;
-  boost.id = *id;
-  boost.match = *match;
-  boost.name = StringOr(dict, "name", *match);
+  boost.id = *id_value;
+  boost.match = *match_value;
+  boost.name = StringOr(dict, "name", *match_value);
   boost.css = StringOr(dict, "css", "");
   boost.js = StringOr(dict, "js", "");
   boost.js_world = StringOr(dict, "js_world", kIsolatedWorld);
@@ -156,35 +156,35 @@ base::expected<BoostMatch, std::string> BoostMatch::Parse(
   if (!canonical.is_valid() || canonical.host().empty()) {
     return invalid();
   }
-  std::string host(canonical.host());
-  while (host.ends_with('.')) {
-    host.pop_back();
+  std::string name(canonical.host());
+  while (name.ends_with('.')) {
+    name.pop_back();
   }
-  if (host.empty()) {
+  if (name.empty()) {
     return invalid();
   }
-  if (!parsed.subdomains && host.starts_with(kWww) &&
-      host.size() > strlen(kWww)) {
+  if (!parsed.subdomains && name.starts_with(kWww) &&
+      name.size() > strlen(kWww)) {
     // "www.example.com" is example.com, which covers it.
-    host = host.substr(strlen(kWww));
+    name = name.substr(strlen(kWww));
   }
   if (parsed.subdomains &&
-      (host.find('.') == std::string::npos || IsIpAddress(host))) {
+      (name.find('.') == std::string::npos || IsIpAddress(name))) {
     // "*.com" would be most of the web.
     return base::unexpected(base::StrCat(
         {"\"", match, "\" covers too much: name a site's domain, like "
                       "\"*.example.com\"."}));
   }
-  parsed.host = std::move(host);
+  parsed.host = std::move(name);
 
-  std::string path(path_part);
-  while (path.ends_with('*') || path.ends_with('/')) {
-    path.pop_back();
+  std::string prefix(path_part);
+  while (prefix.ends_with('*') || prefix.ends_with('/')) {
+    prefix.pop_back();
   }
-  if (path.find_first_of("*?# ") != std::string::npos) {
+  if (prefix.find_first_of("*?# ") != std::string::npos) {
     return invalid();
   }
-  parsed.path = std::move(path);
+  parsed.path = std::move(prefix);
   return parsed;
 }
 
@@ -193,17 +193,17 @@ std::string BoostMatch::ToString() const {
 }
 
 bool BoostMatch::MatchesHost(std::string_view page_host) const {
-  std::string_view host = page_host;
-  while (host.ends_with('.')) {
-    host.remove_suffix(1);
+  std::string_view page = page_host;
+  while (page.ends_with('.')) {
+    page.remove_suffix(1);
   }
-  if (host == this->host) {
+  if (page == host) {
     return true;
   }
   if (subdomains) {
-    return host.ends_with(base::StrCat({".", this->host}));
+    return page.ends_with(base::StrCat({".", host}));
   }
-  return host.starts_with(kWww) && host.substr(strlen(kWww)) == this->host;
+  return page.starts_with(kWww) && page.substr(strlen(kWww)) == host;
 }
 
 bool BoostMatch::Matches(const GURL& url) const {
