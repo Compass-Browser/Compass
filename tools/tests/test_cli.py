@@ -219,6 +219,36 @@ class IosXcconfigTest(unittest.TestCase):
                        ios_xcconfig_args(ios))
 
 
+class IosTestCleanTest(unittest.TestCase):
+
+  def test_build_dropped_only_when_sync_proto_changes(self):
+    from compass_tool.cli import clean_if_sync_proto_changed
+    with tempfile.TemporaryDirectory() as d:
+      kit = Path(d)
+      proto = kit / 'Sources' / 'SyncProto'
+      proto.mkdir(parents=True)
+      (proto / 'a.pb.swift').write_text('struct A { var x = 1 }\n')
+      products = kit / '.build' / 'out' / 'Products'
+
+      def build():
+        products.mkdir(parents=True, exist_ok=True)
+        clean_if_sync_proto_changed(kit)
+
+      # No stamp yet (a tree built before the check): from scratch once.
+      build()
+      self.assertFalse(products.exists())
+      build()
+      self.assertTrue(products.exists())
+      (kit / 'Sources' / 'Other.swift').write_text('// not SyncProto\n')
+      build()
+      self.assertTrue(products.exists())
+      (proto / 'a.pb.swift').write_text('struct A { var x = 1; var y = 2 }\n')
+      build()
+      self.assertFalse(products.exists())
+      build()
+      self.assertTrue(products.exists())
+
+
 if __name__ == '__main__':
   unittest.main()
 

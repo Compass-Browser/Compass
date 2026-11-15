@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import shutil
 import sys
@@ -1068,6 +1069,7 @@ def cmd_ios(layout: Layout, args) -> None:
       env['COMPASS_SYNC_SERVER'] = str(binary)
     elif args.sync_server:
       env['COMPASS_SYNC_SERVER'] = str(Path(args.sync_server).resolve())
+    clean_if_sync_proto_changed(ios / 'CompassKit')
     sys.exit(run(cmd, ios / 'CompassKit', env=env, check=False).returncode)
   run(['xcodebuild', '-quiet', '-project', 'Compass.xcodeproj', '-scheme',
        'Compass'] + ios_xcconfig_args(ios) + [
@@ -1093,6 +1095,42 @@ def cmd_ios(layout: Layout, args) -> None:
 
 
 IOS_TEAM = '4M33B5HNDS'
+
+
+# SwiftPM's incremental build can keep a SyncProto object compiled against an
+# older layout of a message it nests by value: a oneof case holds the message
+# itself (entity_specifics.pb.swift's compassSpaces holds a
+# SyncPb_CompassSpacesSpecifics, whose oneof holds a SyncPb_CompassSpace).
+# After a checkout adds or drops a field there, a stale object releases the
+# wrong fields and the tests die with SIGSEGV (a run that compiled SyncProto
+# and then stopped at an error elsewhere left it so). The generated code
+# changes rarely, so `compass ios test` builds from scratch whenever it does.
+SYNC_PROTO_STAMP = 'compass-syncproto.sha256'
+
+
+def sync_proto_digest(kit: Path) -> str:
+  """A hash of CompassKit's generated protobuf sources."""
+  h = hashlib.sha256()
+  for f in sorted((kit / 'Sources' / 'SyncProto').glob('*.swift')):
+    h.update(f.name.encode() + b'\0' + f.read_bytes() + b'\0')
+  return h.hexdigest()
+
+
+def clean_if_sync_proto_changed(kit: Path) -> None:
+  """Drops CompassKit's build products when SyncProto changed since the last
+  `compass ios test`, then records the new hash."""
+  build = kit / '.build'
+  stamp = build / SYNC_PROTO_STAMP
+  digest = sync_proto_digest(kit)
+  if stamp.is_file() and stamp.read_text().strip() == digest:
+    return
+  out = build / 'out'
+  if out.exists():
+    print('SyncProto changed since the last test build: building CompassKit '
+          'from scratch', flush=True)
+    shutil.rmtree(out)
+  build.mkdir(exist_ok=True)
+  stamp.write_text(digest + '\n')
 
 
 def ios_xcconfig_args(ios: Path) -> list:
