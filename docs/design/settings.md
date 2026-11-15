@@ -8,10 +8,12 @@ Compass's own settings are sections of upstream's `chrome://settings`
 | Sync | `/sync` | `<compass-sync-page>` | chrome://compass-sync |
 | Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings |
 | Links from Other Apps | `/links` | `<compass-links-page>` | none |
+| Boosts | `/boosts` | `<compass-boosts-page>` | chrome://compass-settings/boosts.html |
 | Import from Another Browser | `/importArc` | `<compass-arc-import-page>` | chrome://compass-import |
 
 The command bar ("Keyboard shortcuts", "Import from Another Browser",
-"Route this site to space…", which opens `/links?add=<domain>`) and the
+"Route this site to space…", which opens `/links?add=<domain>`; "Boost
+this site…", which opens `/boosts?add=<host>`) and the
 app menu's sync row open the sections (`chrome::ShowSettingsSubPage()`,
 which reuses an open settings tab). Sync is hidden where upstream hides the
 people page (guest). Import from Another Browser is listed everywhere: it

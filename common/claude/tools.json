@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). `devtools` tools inspect the target tab like the browser's developer tools (network, styles, storage, performance, emulation), need the \"Let Claude use developer tools\" setting, are sent only when it's on, and ask the user before changing the page's storage (docs/design/claude.md, \"Developer tools\"). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
+  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). `devtools` tools inspect the target tab like the browser's developer tools (network, styles, storage, performance, emulation), need the \"Let Claude use developer tools\" setting, are sent only when it's on, and ask the user before changing the page's storage (docs/design/claude.md, \"Developer tools\"). `boosts` tools list, save and delete the profile's Boosts (per-site CSS and JavaScript), need the \"Let Claude make Boosts\" setting, are sent only when it's on, and ask the user before any change that gives a Boost JavaScript to run, and before deleting one that has some; CSS-only changes save at once and the chat offers Undo (docs/design/boosts.md). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
   "tools": [
     {
       "scope": "page",
@@ -1261,6 +1261,101 @@
           "required": [
             "path",
             "content"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "boosts",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "list_boosts",
+        "description": "List the user's Boosts: per-site CSS and JavaScript that Compass adds to pages, made by the user or by you. With host, only those that apply on that site, with their code; without it, all of them (with their code only while that is short). Check here before making a Boost for a site: change the one it has rather than adding another.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "A site's host, like \"github.com\": only the Boosts that apply there."
+            }
+          }
+        }
+      }
+    },
+    {
+      "scope": "boosts",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "save_boost",
+        "description": "Make a Boost, or change one (by id): CSS and/or JavaScript that Compass adds to every page the match covers, from now on and on the user's other devices. Use it when the user wants a site changed for good (\"always hide…\", \"make this site…\"), not for a one-off (run_js). Prefer CSS; add JavaScript only when CSS can't do it, and keep it small and specific to the site. The CSS goes in at document start, the JavaScript runs once the page has loaded, in an isolated world unless js_world is \"main\" (needed only to reach the page's own variables). Never send page data anywhere from a Boost. Any change that gives the Boost JavaScript to run (new code, another world, other sites) asks the user first; CSS-only changes save at once and the user can undo them. Fields you leave out keep their value when changing a Boost. At most 256 KB of CSS and JavaScript together. Returns the Boost's id and needs_reload: reload the tab (navigate to its URL) to see the change.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "The Boost to change (list_boosts gives the ids); leave it out to make a new one."
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "A short name the user will recognize in settings, like \"Quieter GitHub\"."
+            },
+            "match": {
+              "type": "string",
+              "description": "Where it applies: a host (\"example.com\", which also covers www.example.com), or a domain and all its subdomains (\"*.example.com\"), optionally followed by a path prefix (\"github.com/settings\"). http and https pages only."
+            },
+            "css": {
+              "type": "string",
+              "description": "A style sheet for the matching pages. Use !important where the site's own styles would win."
+            },
+            "js": {
+              "type": "string",
+              "description": "JavaScript for the matching pages, run once each page has loaded. The user approves it first."
+            },
+            "js_world": {
+              "type": "string",
+              "enum": [
+                "isolated",
+                "main"
+              ],
+              "description": "\"isolated\" (default): the page's DOM, apart from its scripts. \"main\": with the page's own scripts and variables."
+            },
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether it applies (default true). The user can turn it on and off in settings."
+            }
+          },
+          "required": [
+            "name",
+            "match"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "boosts",
+      "platforms": [
+        "desktop",
+        "ios"
+      ],
+      "definition": {
+        "name": "delete_boost",
+        "description": "Delete a Boost, by the id list_boosts gives: when the user asks, or it no longer works. Deleting one that has JavaScript asks the user first.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
           ]
         }
       }

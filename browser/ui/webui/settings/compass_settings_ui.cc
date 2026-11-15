@@ -17,6 +17,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/theme_source.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -460,6 +461,85 @@ void ShortcutsPageHandler::RemoveLinkRule(const std::string& domain,
                                           RemoveLinkRuleCallback callback) {
   if (SpaceList* list = GetSpaceList()) {
     list->RemoveLinkRule(domain);
+  }
+  std::move(callback).Run();
+}
+
+// Boosts ----------------------------------------------------------------------
+
+namespace {
+
+sidebar::mojom::BoostPtr ToMojo(const boosts::Boost& boost) {
+  return sidebar::mojom::Boost::New(boost.id, boost.name, boost.match,
+                                    boost.css, boost.js, boost.js_world,
+                                    boost.enabled, boost.author);
+}
+
+}  // namespace
+
+boosts::BoostStore* ShortcutsPageHandler::GetBoostStore() {
+  // Not off the record: the Boosts are the original profile's.
+  Profile* profile = profile_ ? profile_->GetOriginalProfile() : nullptr;
+  boosts::BoostStore* store = profile ? boosts::BoostStore::Get(profile)
+                                      : nullptr;
+  return store && store->loaded() ? store : nullptr;
+}
+
+void ShortcutsPageHandler::GetBoosts(GetBoostsCallback callback) {
+  std::vector<sidebar::mojom::BoostPtr> result;
+  if (boosts::BoostStore* store = GetBoostStore()) {
+    for (const boosts::Boost& boost : store->boosts()) {
+      result.push_back(ToMojo(boost));
+    }
+  }
+  std::move(callback).Run(std::move(result));
+}
+
+void ShortcutsPageHandler::SaveBoost(sidebar::mojom::BoostPtr boost,
+                                     SaveBoostCallback callback) {
+  boosts::BoostStore* store = GetBoostStore();
+  if (!store) {
+    std::move(callback).Run(nullptr, "Boosts aren't available here.");
+    return;
+  }
+  boosts::Boost edited;
+  if (!boost->id.empty()) {
+    const boosts::Boost* existing = store->Find(boost->id);
+    if (!existing) {
+      std::move(callback).Run(nullptr, "This Boost was deleted.");
+      return;
+    }
+    edited = *existing;
+  }
+  edited.name = boost->name;
+  edited.match = boost->match;
+  edited.css = boost->css;
+  edited.js = boost->js;
+  edited.js_world = boost->js_world;
+  edited.enabled = boost->enabled;
+  // The user's, unless Claude made it (Save() keeps the author).
+  base::expected<boosts::Boost, std::string> saved =
+      store->Save(std::move(edited));
+  if (!saved.has_value()) {
+    std::move(callback).Run(nullptr, saved.error());
+    return;
+  }
+  std::move(callback).Run(ToMojo(*saved), std::string());
+}
+
+void ShortcutsPageHandler::SetBoostEnabled(const std::string& id,
+                                           bool enabled,
+                                           SetBoostEnabledCallback callback) {
+  if (boosts::BoostStore* store = GetBoostStore()) {
+    store->SetEnabled(id, enabled);
+  }
+  std::move(callback).Run();
+}
+
+void ShortcutsPageHandler::DeleteBoost(const std::string& id,
+                                       DeleteBoostCallback callback) {
+  if (boosts::BoostStore* store = GetBoostStore()) {
+    store->Remove(id);
   }
   std::move(callback).Run();
 }

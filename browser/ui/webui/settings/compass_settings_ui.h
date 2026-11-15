@@ -25,6 +25,10 @@ namespace compass {
 class CompassSettingsUI;
 class SpaceList;
 
+namespace boosts {
+class BoostStore;
+}  // namespace boosts
+
 class CompassSettingsUIConfig
     : public content::DefaultWebUIConfig<CompassSettingsUI> {
  public:
@@ -86,11 +90,21 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
                    SetLinkRuleCallback callback) override;
   void RemoveLinkRule(const std::string& domain,
                       RemoveLinkRuleCallback callback) override;
+  void GetBoosts(GetBoostsCallback callback) override;
+  void SaveBoost(sidebar::mojom::BoostPtr boost,
+                 SaveBoostCallback callback) override;
+  void SetBoostEnabled(const std::string& id,
+                       bool enabled,
+                       SetBoostEnabledCallback callback) override;
+  void DeleteBoost(const std::string& id,
+                   DeleteBoostCallback callback) override;
 
  private:
   // The profile's spaces, if it has them (not off the record: the rules
   // are the original profile's).
   SpaceList* GetSpaceList();
+  // The profile's Boosts, once loaded; null for none (Guest).
+  boosts::BoostStore* GetBoostStore();
 
   const raw_ptr<Profile> profile_;
   bool recording_ = false;

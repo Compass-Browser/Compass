@@ -61,7 +61,7 @@ since October 2025).
 | Link routing to spaces (Air Traffic Control) | ✅ links from other apps, by domain | ✅ | ✅ | ✅ Link Rules to profiles | ✅ URL Rules | ✅ Space Routing | ❌ | ❌ | ? | ✅ | ? |
 | Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ~ picture-in-picture | ~ picture-in-picture |
 | Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar) | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
-| Per-site CSS/JS (Boosts) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
+| Per-site CSS/JS (Boosts) | ✅ by hand or by Claude, synced; desktop and iOS | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
 | Notes / canvas (Easels) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
 | Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | |
@@ -125,7 +125,6 @@ Features other browsers have that Compass doesn't, checked against the code:
 
 | Missing | Who has it | State in Compass |
 |---|---|---|
-| Per-site CSS/JS | Arc (Boosts), Zen (Boosts, Mods) | Not started |
 | Built-in ad blocker | Vivaldi, SigmaOS, Orion, Crest, Phi, Lilo, Brave | Not started; extensions instead |
 | On-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest | Blocked: no Widevine VMP signature (docs/design/widevine.md) |

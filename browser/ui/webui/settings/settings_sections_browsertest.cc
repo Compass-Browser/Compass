@@ -10,6 +10,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "base/uuid.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -88,6 +89,8 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
             "/importArc");
   EXPECT_EQ(WaitFor("deepQuery('a#compassClaude')?.getAttribute('href')"),
             "/claude");
+  EXPECT_EQ(WaitFor("deepQuery('a#compassBoosts')?.getAttribute('href')"),
+            "/boosts");
 
   ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) +
                                               "deepQuery('a#compassShortcuts')"
@@ -176,6 +179,56 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, LinksSection) {
                       "\"gitlab.com\"] button:last-child').click();"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return !spaces.link_rules().Find("gitlab.com"); }));
+}
+
+// compass://settings/boosts (docs/design/boosts.md): "?add=" opens the
+// editor on a host, saving makes the Boost (the user's), a Boost Claude made
+// has its badge, the switch turns one off, and Delete removes one.
+IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, BoostsSection) {
+  boosts::BoostStore* store = boosts::BoostStore::Get(browser()->GetProfile());
+  ASSERT_TRUE(base::test::RunUntil([&] { return store->loaded(); }));
+  boosts::Boost claudes;
+  claudes.match = "gitlab.com";
+  claudes.css = "a {}";
+  claudes.author = boosts::kAuthorClaude;
+  ASSERT_TRUE(store->Save(claudes).has_value());
+
+  Open("chrome://settings/boosts?add=www.GitHub.com");
+  EXPECT_EQ(WaitFor("deepQuery('compass-boosts-page .compass-title')"
+                    "?.textContent"),
+            "Boosts");
+  EXPECT_EQ(WaitFor("deepQuery('compass-boosts-page .boosts-badge')"
+                    "?.textContent"),
+            "by Claude");
+  EXPECT_EQ(WaitFor("deepQuery('compass-boosts-page #boostForm')?.hidden === "
+                    "false && "
+                    "deepQuery('compass-boosts-page #boostMatch')?.value"),
+            "www.GitHub.com");
+
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-boosts-page #boostCss').value = "
+                      "'header { display: none }';"
+                      "deepQuery('compass-boosts-page #saveBoost').click();"));
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return store->boosts().size() == 2u; }));
+  const boosts::Boost& mine = store->boosts()[1];
+  EXPECT_EQ(mine.match, "github.com");
+  EXPECT_EQ(mine.author, boosts::kAuthorUser);
+  EXPECT_TRUE(mine.enabled);
+  const std::string id = mine.id;
+  const std::string row =
+      "deepQuery('compass-boosts-page li[data-id=\"" + id + "\"]";
+  EXPECT_EQ(WaitFor(row + "')?.textContent.includes('CSS')"), true);
+
+  ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) + row +
+                                              " input').click();"));
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !store->Find(id)->enabled; }));
+
+  ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) + row +
+                                              " button:last-child').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !store->Find(id); }));
 }
 
 // compass://settings/sync shows sync's status (off in a new profile).

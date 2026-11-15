@@ -706,9 +706,32 @@ struct LinkRule {
   bool broken;
 };
 
+// A Boost (docs/design/boosts.md): CSS and JavaScript for the pages |match|
+// covers. |js_world| is "isolated" or "main"; |author| "user" or "claude".
+struct Boost {
+  string id;
+  string name;
+  string match;
+  string css;
+  string js;
+  string js_world;
+  bool enabled;
+  string author;
+};
+
 // Browser-side handler for chrome://compass-settings, and for
-// compass://settings' Keyboard shortcuts and Links from Other Apps sections.
+// compass://settings' Keyboard shortcuts, Links from Other Apps and Boosts
+// sections.
 interface SettingsHandler {
+  // Boosts (compass://settings/boosts): the profile's, oldest first.
+  GetBoosts() => (array<Boost> boosts);
+  // Adds |boost| (an empty id: a new one, the user's) or updates the one
+  // with its id. The Boost as saved, or null and why not (no such site
+  // pattern, too big, nothing to run).
+  SaveBoost(Boost boost) => (Boost? saved, string error);
+  SetBoostEnabled(string id, bool enabled) => ();
+  DeleteBoost(string id) => ();
+
   // Link routing (compass://settings/links): the profile's rules, by domain,
   // and its spaces in the switcher's order.
   GetLinkRules() => (array<LinkRule> rules, array<LinkRuleSpace> spaces);

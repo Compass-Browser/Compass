@@ -15,6 +15,7 @@ build_webui("build") {
 
   static_files = [
     "arc_import.html",
+    "boosts.html",
     "claude_chat.html",
     "command_bar.html",
     "compass_sync.html",
@@ -68,6 +69,7 @@ build_webui("build") {
   # markup is in their .html file.
   web_component_files = [
     "settings/arc_import_page.ts",
+    "settings/boosts_page.ts",
     "settings/claude_page.ts",
     "settings/links_page.ts",
     "settings/shortcuts_page.ts",

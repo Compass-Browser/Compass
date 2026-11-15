@@ -40,6 +40,7 @@
 #include "ui/gfx/image/image.h"
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/common/channel_info.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
@@ -126,7 +127,8 @@ class SpacesSyncHolder : public SpaceService::Attachment,
                          public CompassSpacesSyncBridge::Delegate,
                          public SpaceList::Observer,
                          public SpaceDirectory::Observer,
-                         public claude::ClaudeMemory::Observer {
+                         public claude::ClaudeMemory::Observer,
+                         public boosts::BoostStore::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpaceService* service)
       : profile_(profile), service_(service) {
@@ -149,6 +151,11 @@ class SpacesSyncHolder : public SpaceService::Attachment,
       memory_ = memory->GetWeakPtr();
       memory->AddObserver(this);
     }
+    // So do Boosts (docs/design/boosts.md).
+    if (boosts::BoostStore* store = boosts::BoostStore::Get(profile)) {
+      boosts_ = store->GetWeakPtr();
+      store->AddObserver(this);
+    }
   }
   SpacesSyncHolder(const SpacesSyncHolder&) = delete;
   SpacesSyncHolder& operator=(const SpacesSyncHolder&) = delete;
@@ -161,6 +168,9 @@ class SpacesSyncHolder : public SpaceService::Attachment,
     service_->space_list().RemoveObserver(this);
     if (memory_) {
       memory_->RemoveObserver(this);
+    }
+    if (boosts_) {
+      boosts_->RemoveObserver(this);
     }
     bridge_.reset();
   }
@@ -206,6 +216,59 @@ class SpacesSyncHolder : public SpaceService::Attachment,
 
   // claude::ClaudeMemory::Observer:
   void OnMemoriesChanged() override { bridge_->NotifyLocalChange(); }
+
+  std::optional<std::vector<sync_pb::CompassBoost>> GetLocalBoosts()
+      override {
+    if (!boosts_ || !boosts_->loaded()) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassBoost> list;
+    for (const boosts::Boost& boost : boosts_->boosts()) {
+      sync_pb::CompassBoost& entity = list.emplace_back();
+      entity.set_id(boost.id);
+      entity.set_name(boost.name);
+      entity.set_match(boost.match);
+      entity.set_css(boost.css);
+      entity.set_js(boost.js);
+      entity.set_js_world(boost.js_world);
+      entity.set_enabled(boost.enabled);
+      entity.set_author(boost.author);
+      entity.set_create_time(
+          boost.created.ToDeltaSinceWindowsEpoch().InMicroseconds());
+      entity.set_update_time(
+          boost.updated.ToDeltaSinceWindowsEpoch().InMicroseconds());
+    }
+    return list;
+  }
+
+  void ApplyBoosts(const std::vector<sync_pb::CompassBoost>& changed,
+                   const std::set<std::string>& deleted) override {
+    if (!boosts_) {
+      return;
+    }
+    std::vector<boosts::Boost> list;
+    for (const sync_pb::CompassBoost& entity : changed) {
+      boosts::Boost& boost = list.emplace_back();
+      boost.id = entity.id();
+      boost.name = entity.name();
+      boost.match = entity.match();
+      boost.css = entity.css();
+      boost.js = entity.js();
+      boost.js_world =
+          entity.js_world().empty() ? boosts::kIsolatedWorld : entity.js_world();
+      boost.enabled = entity.enabled();
+      boost.author =
+          entity.author().empty() ? boosts::kAuthorUser : entity.author();
+      boost.created = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(entity.create_time()));
+      boost.updated = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(entity.update_time()));
+    }
+    boosts_->ApplyRemote(list, deleted);
+  }
+
+  // boosts::BoostStore::Observer:
+  void OnBoostsChanged() override { bridge_->NotifyLocalChange(); }
 
   void DeleteSpace(SpaceModel& space) override {
     ::compass::DeleteSpace(profile_, space);
@@ -527,6 +590,7 @@ class SpacesSyncHolder : public SpaceService::Attachment,
   const raw_ptr<SpaceService> service_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   base::WeakPtr<claude::ClaudeMemory> memory_;
+  base::WeakPtr<boosts::BoostStore> boosts_;
   bool syncing_order_ = false;
   bool directory_pull_pending_ = false;
   base::CallbackListSubscription favicons_changed_;

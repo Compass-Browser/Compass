@@ -74,7 +74,9 @@ interface PageHandler {
   // tab. |input_json| is the tool_use's input; |result_json| is
   // {"content": [blocks], "is_error": bool}, the tool_result's, and for a
   // memory tool that changed something "memory": {"kind", "text", "undo"}
-  // (UndoMemory()), which isn't part of the tool_result.
+  // (UndoMemory()), and for a Boost tool that did "boost": {"kind" (saved,
+  // updated, deleted), "text" (its match), "undo"} (UndoBoost()), which
+  // aren't part of the tool_result.
   RunTool(string name, string input_json) => (string result_json);
   // Stops the reply and any tool; no OnStreamDone follows.
   Stop();
@@ -94,6 +96,9 @@ interface PageHandler {
   // Undoes what a memory tool did: |undo_id| is its result's "memory.undo".
   // False if it can't (already undone, or the memory changed since).
   UndoMemory(int32 undo_id) => (bool undone);
+  // Undoes what a Boost tool did: |undo_id| is its result's "boost.undo".
+  // False if it can't (already undone, the list full).
+  UndoBoost(int32 undo_id) => (bool undone);
 
   // Answers OnApproval(|id|).
   AnswerApproval(int32 id, ApprovalDecision decision);

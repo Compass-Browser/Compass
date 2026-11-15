@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index c35c985ddf3447612e803fc595cdae2b514953a7..0188cf4c11dd33d6b7d42b6dc46f6c57ca6e30e3 100644
+index c35c985ddf3447612e803fc595cdae2b514953a7..322185399a77ff86c3c4106030c786908cf7bc16 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
 @@ -2,9 +2,10 @@
@@ -15,10 +15,12 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..0188cf4c11dd33d6b7d42b6dc46f6c57
              class="cr-nav-menu-item">
  <if expr="not _google_chrome">
            <cr-icon icon="settings:person"></cr-icon>
-@@ -15,6 +16,38 @@
+@@ -13,6 +14,44 @@
+           <cr-icon icon="settings-internal:google-g"></cr-icon>
+ </if>
            <span class="menu-label">$i18n{peoplePageTitle}</span>
-           <cr-ripple></cr-ripple>
-         </a>
++          <cr-ripple></cr-ripple>
++        </a>
 +        <!-- Compass's sections (compass/resources/sidebar/settings). -->
 +        <a role="menuitem" id="compassSync" href="/sync"
 +            ?hidden="${this.shouldHideMenuItem_(this.pageVisibility_?.people)}"
@@ -39,6 +41,12 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..0188cf4c11dd33d6b7d42b6dc46f6c57
 +          <span class="menu-label">Links from Other Apps</span>
 +          <cr-ripple></cr-ripple>
 +        </a>
++        <a role="menuitem" id="compassBoosts" href="/boosts"
++            class="cr-nav-menu-item">
++          <cr-icon icon="settings:palette"></cr-icon>
++          <span class="menu-label">Boosts</span>
++          <cr-ripple></cr-ripple>
++        </a>
 +        <a role="menuitem" id="compassArcImport" href="/importArc"
 +            class="cr-nav-menu-item">
 +          <cr-icon icon="settings20:archive"></cr-icon>
@@ -49,12 +57,10 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..0188cf4c11dd33d6b7d42b6dc46f6c57
 +            class="cr-nav-menu-item">
 +          <cr-icon icon="settings20:button-magic"></cr-icon>
 +          <span class="menu-label">Claude</span>
-+          <cr-ripple></cr-ripple>
-+        </a>
+           <cr-ripple></cr-ripple>
+         </a>
          <a role="menuitem" id="autofill" href="/autofill"
-             @click="${this.onAutofillClick_}"
-             class="cr-nav-menu-item"
-@@ -65,9 +98,9 @@
+@@ -65,9 +104,9 @@
            <cr-ripple></cr-ripple>
          </a>
  </if>

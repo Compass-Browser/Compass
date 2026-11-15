@@ -8,6 +8,7 @@
 if (!is_android) {
   group("browser") {
     public_deps = [
+      "//compass/browser/boosts",
       "//compass/browser/shortcuts",
       "//compass/browser/sidebar",
       "//compass/browser/updates",

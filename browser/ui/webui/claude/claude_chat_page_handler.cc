@@ -25,6 +25,8 @@
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "compass/browser/boosts/boost_injector.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_code.h"
@@ -106,6 +108,24 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
   tools_.SetDevTools(base::BindRepeating(
       [](PrefService* prefs) { return prefs->GetBoolean(prefs::kDevTools); },
       browser_->GetProfile()->GetPrefs()));
+  // Boosts (docs/design/boosts.md): Claude's changes apply to pages loaded
+  // once the injector has them.
+  tools_.SetBoosts(
+      boosts::BoostStore::Get(browser_->GetProfile()),
+      base::BindRepeating(
+          [](PrefService* prefs) { return prefs->GetBoolean(prefs::kBoosts); },
+          browser_->GetProfile()->GetPrefs()),
+      base::BindRepeating(
+          [](base::WeakPtr<Profile> profile, base::OnceClosure done) {
+            boosts::BoostInjector* injector =
+                profile ? boosts::BoostInjector::Get(profile.get()) : nullptr;
+            if (!injector) {
+              std::move(done).Run();
+              return;
+            }
+            injector->WhenRegistered(std::move(done));
+          },
+          browser_->GetProfile()->GetWeakPtr()));
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
@@ -117,6 +137,7 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
   pref_registrar_.Add(prefs::kFilesFolder, changed);
   pref_registrar_.Add(prefs::kClaudeCodeOwnTools, changed);
   pref_registrar_.Add(prefs::kDevTools, changed);
+  pref_registrar_.Add(prefs::kBoosts, changed);
   active_tab_subscription_ = browser_->RegisterActiveTabDidChange(
       base::BindRepeating(&ClaudeChatPageHandler::OnActiveTabChanged,
                           base::Unretained(this)));
@@ -259,6 +280,13 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.devtools = prefs->GetBoolean(prefs::kDevTools);
   chat_devtools_ = chat_devtools_ || options.devtools;
   options.devtools_tools = chat_devtools_;
+  // So do the Boost tools.
+  if (messages->GetList().size() == 1) {
+    chat_boosts_ = false;
+  }
+  options.boosts = prefs->GetBoolean(prefs::kBoosts);
+  chat_boosts_ = chat_boosts_ || options.boosts;
+  options.boosts_tools = chat_boosts_;
   // A gateway that adds cache breakpoints of its own refused the usual ones
   // before: the level that got through with it. Another URL forgets it.
   if (!prefs->GetString(prefs::kCacheLevelUrl).empty() &&
@@ -309,6 +337,7 @@ const ClaudeChatPageHandler::ChatMemory& ClaudeChatPageHandler::FreezeMemory(
 
 std::string ClaudeChatPageHandler::ToolResultJson(ToolResult result) {
   std::optional<MemoryChange> change = std::move(result.memory_change);
+  std::optional<BoostChange> boost_change = std::move(result.boost_change);
   base::DictValue dict = std::move(result).ToDict();
   if (change) {
     const int32_t undo_id = next_undo_id_++;
@@ -317,6 +346,15 @@ std::string ClaudeChatPageHandler::ToolResultJson(ToolResult result) {
                            .Set("text", change->text)
                            .Set("undo", undo_id));
     memory_undo_.emplace(undo_id, std::move(*change));
+  }
+  if (boost_change) {
+    // "Saved Boost for github.com", with Undo (docs/design/boosts.md).
+    const int32_t undo_id = next_undo_id_++;
+    dict.Set("boost", base::DictValue()
+                          .Set("kind", boost_change->kind)
+                          .Set("text", boost_change->match)
+                          .Set("undo", undo_id));
+    boost_undo_.emplace(undo_id, std::move(*boost_change));
   }
   std::string json;
   base::JSONWriter::Write(dict, &json);
@@ -333,6 +371,21 @@ void ClaudeChatPageHandler::UndoMemory(int32_t undo_id,
   }
   const MemoryChange change = std::move(it->second);
   memory_undo_.erase(it);
+  const bool undone = change.before ? store->Restore(*change.before)
+                                    : store->Remove(change.id).has_value();
+  std::move(callback).Run(undone);
+}
+
+void ClaudeChatPageHandler::UndoBoost(int32_t undo_id,
+                                      UndoBoostCallback callback) {
+  auto it = boost_undo_.find(undo_id);
+  boosts::BoostStore* store = boosts::BoostStore::Get(browser_->GetProfile());
+  if (it == boost_undo_.end() || !store) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const BoostChange change = std::move(it->second);
+  boost_undo_.erase(it);
   const bool undone = change.before ? store->Restore(*change.before)
                                     : store->Remove(change.id).has_value();
   std::move(callback).Run(undone);
@@ -678,13 +731,14 @@ void ClaudeChatPageHandler::OnClaudeCodePermission(std::string tool,
 
 void ClaudeChatPageHandler::AskApproval(ApprovalRequest request,
                                         base::OnceCallback<void(bool)> done) {
-  if (allowed_for_chat_.contains(request.tool)) {
+  if (!request.always_ask && allowed_for_chat_.contains(request.tool)) {
     std::move(done).Run(true);
     return;
   }
   const int32_t id = next_approval_id_++;
   PendingApproval pending;
   pending.tool = request.tool;
+  pending.always_ask = request.always_ask;
   pending.done = std::move(done);
   approvals_.emplace(id, std::move(pending));
   page_->OnApproval(id, request.title, request.detail);
@@ -703,7 +757,8 @@ void ClaudeChatPageHandler::AnswerApproval(
   if (it == approvals_.end()) {
     return;
   }
-  if (decision == chat::mojom::ApprovalDecision::kAllowForChat) {
+  if (decision == chat::mojom::ApprovalDecision::kAllowForChat &&
+      !it->second.always_ask) {
     allowed_for_chat_.insert(it->second.tool);
   }
   base::OnceCallback<void(bool)> done = std::move(it->second.done);
@@ -784,6 +839,7 @@ void ClaudeChatPageHandler::StartNewChat() {
   CancelApprovals(/*new_chat=*/true);
   chat_memory_.reset();
   chat_devtools_ = false;
+  chat_boosts_ = false;
   EndClaudeCode(/*forget=*/true);
 }
 

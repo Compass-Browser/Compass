@@ -82,6 +82,7 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void ClosePanel() override;
   void TakeQuestion(TakeQuestionCallback callback) override;
   void UndoMemory(int32_t undo_id, UndoMemoryCallback callback) override;
+  void UndoBoost(int32_t undo_id, UndoBoostCallback callback) override;
   void AnswerApproval(int32_t id,
                       chat::mojom::ApprovalDecision decision) override;
 
@@ -188,6 +189,8 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
     PendingApproval& operator=(PendingApproval&&);
     ~PendingApproval();
     std::string tool;
+    // ApprovalRequest::always_ask: "Allow for this chat" allows it once.
+    bool always_ask = false;
     base::OnceCallback<void(bool)> done;
   };
   // Approvals the panel shows, by id.
@@ -200,8 +203,12 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   std::optional<ChatMemory> chat_memory_;
   // The chat has the developer tools (once on, they stay in it).
   bool chat_devtools_ = false;
+  // The chat has the Boost tools, likewise.
+  bool chat_boosts_ = false;
   // What the memory tools changed in this page's chats, by undo id.
   std::map<int32_t, MemoryChange> memory_undo_;
+  // What the Boost tools changed, by undo id (the same counter).
+  std::map<int32_t, BoostChange> boost_undo_;
   int32_t next_undo_id_ = 1;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;

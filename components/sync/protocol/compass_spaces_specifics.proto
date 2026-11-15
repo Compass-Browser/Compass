@@ -29,8 +29,8 @@ package sync_pb;
 import "components/sync/protocol/unique_position.proto";
 
 // One entity per space and per sidebar node, and in the home profile's
-// account one per profile of the chain; icons, Claude's memories and link
-// rules. The client tag is `uuid`.
+// account one per profile of the chain; icons, Claude's memories, link
+// rules and Boosts. The client tag is `uuid` (a Boost's `id`).
 message CompassSpacesSpecifics {
   oneof entity {
     CompassSpace space = 1;
@@ -39,6 +39,7 @@ message CompassSpacesSpecifics {
     CompassFavicon favicon = 4;
     CompassMemory memory = 5;
     CompassLinkRule link_rule = 6;
+    CompassBoost boost = 7;
   }
 }
 
@@ -223,4 +224,34 @@ message CompassLinkRule {
   // device doesn't have (deleted, or not synced yet) is kept and routes
   // nothing. An entity without it is ignored.
   optional string space_uuid = 3;
+}
+
+// A Boost (docs/design/boosts.md): CSS and JavaScript the user or Claude
+// made for a site, in the account of the profile it belongs to. Clients that
+// predate it ignore it (their IsEntityDataValid() refuses it). Not in
+// proto_visitors.h: its code stays out of sync-internals. A deleted Boost is
+// a deleted entity, as a memory is: no tombstone field.
+message CompassBoost {
+  // A random UUID, lowercase. Also the client tag.
+  optional string id = 1;
+  // What the user calls it ("Quieter GitHub").
+  optional string name = 2;
+  // Where it applies: a host ("example.com", which also covers
+  // "www.example.com") or a domain and its subdomains ("*.example.com"),
+  // optionally followed by a path prefix ("github.com/settings"). Lowercase,
+  // IDN as punycode; http and https pages only.
+  optional string match = 3;
+  // Inserted at document start. At most 256 KB together with `js`.
+  optional string css = 4;
+  // Run at document idle.
+  optional string js = 5;
+  // Where `js` runs: "isolated" (also absent or unknown) or "main".
+  optional string js_world = 6;
+  optional bool enabled = 7;
+  // Who made it: "user" or "claude".
+  optional string author = 8;
+  // In microseconds since the Windows epoch, as CompassMemory's.
+  optional int64 create_time = 9;
+  // The last edit; of two edits, the later wins.
+  optional int64 update_time = 10;
 }

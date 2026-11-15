@@ -24,6 +24,7 @@
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -53,6 +54,9 @@ struct ApprovalRequest {
   std::string title;
   // What it writes (the start of it), or runs.
   std::string detail;
+  // Asked every time: "Allow for this chat" doesn't cover it (a Boost's
+  // JavaScript, docs/design/boosts.md).
+  bool always_ask = false;
 };
 
 // What a memory tool changed, so the chat can undo it.
@@ -69,6 +73,23 @@ struct MemoryChange {
   std::string text;
   // The memory before the change; none if it's new.
   std::optional<MemoryEntry> before;
+};
+
+// What a Boost tool changed, so the chat can undo it
+// (docs/design/boosts.md, "Claude").
+struct BoostChange {
+  BoostChange();
+  BoostChange(const BoostChange&);
+  BoostChange& operator=(const BoostChange&);
+  ~BoostChange();
+
+  // "saved", "updated" or "deleted".
+  std::string kind;
+  std::string id;
+  // The Boost's match now (deleted: what it was), as the chat shows it.
+  std::string match;
+  // The Boost before the change; none if it's new.
+  std::optional<boosts::Boost> before;
 };
 
 // What a tool returns: the tool_result's content blocks (text, image).
@@ -88,6 +109,8 @@ struct ToolResult {
   bool is_error = false;
   // A memory tool's change; not part of the tool_result.
   std::optional<MemoryChange> memory_change;
+  // A Boost tool's change; not part of the tool_result either.
+  std::optional<BoostChange> boost_change;
 };
 
 // The browser around ClaudeTools, for the browser tools (list_tabs,
@@ -168,9 +191,12 @@ class ClaudeTools : public content::WebContentsObserver {
   // tools; left out for MCP clients that have their own).
   // |devtools|: the developer tools, sent only while "Let Claude use
   // developer tools" is on (docs/design/claude.md, "Developer tools").
+  // |boosts|: the Boost tools, sent only while "Let Claude make Boosts" is
+  // on (docs/design/boosts.md).
   static base::ListValue Definitions(bool memory = false,
                                      bool files = true,
-                                     bool devtools = false);
+                                     bool devtools = false,
+                                     bool boosts = false);
 
   // The memory the memory tools change, and whether they may now ("Let
   // Claude save memories"). Without it, they refuse.
@@ -189,6 +215,15 @@ class ClaudeTools : public content::WebContentsObserver {
   // tools"). Without it, they refuse. edit_page_storage asks through the
   // approver SetFiles() gave.
   void SetDevTools(base::RepeatingCallback<bool()> allowed);
+
+  // The Boosts the Boost tools change, and whether they may now ("Let
+  // Claude make Boosts"). |when_applied| runs its callback once a change is
+  // registered, so pages loaded from then on get it (BoostInjector); may be
+  // null. Without a store, the tools refuse. JavaScript changes ask through
+  // the approver SetFiles() gave.
+  void SetBoosts(boosts::BoostStore* store,
+                 base::RepeatingCallback<bool()> allowed,
+                 base::RepeatingCallback<void(base::OnceClosure)> when_applied);
 
   // The task's tab: the page tools act on it until select_tab or open_tab
   // picks another. Setting another one stops what runs.
@@ -336,6 +371,12 @@ class ClaudeTools : public content::WebContentsObserver {
                            const base::DictValue& input);
   // save_file, list_files, read_file, write_file.
   void RunFileTool(const std::string& name, base::DictValue input);
+  // list_boosts, save_boost, delete_boost (claude_boost_tools.cc).
+  void RunBoostTool(const std::string& name, base::DictValue input);
+  void SaveBoost(boosts::Boost boost, std::optional<boosts::Boost> before);
+  void DeleteBoost(boosts::Boost before);
+  // Finishes with |text| and |change| once the change is registered.
+  void FinishBoostChange(BoostChange change, std::string text);
   // Asks the user about |request|, then runs |write| on the file sequence.
   void ApproveThenWrite(
       ApprovalRequest request,
@@ -365,6 +406,9 @@ class ClaudeTools : public content::WebContentsObserver {
   FilesConfigGetter files_config_;
   Approver approve_;
   base::RepeatingCallback<bool()> devtools_allowed_;
+  base::WeakPtr<boosts::BoostStore> boosts_;
+  base::RepeatingCallback<bool()> boosts_allowed_;
+  base::RepeatingCallback<void(base::OnceClosure)> boosts_applied_;
   // Where file work runs (blocking).
   scoped_refptr<base::SequencedTaskRunner> file_runner_;
   // The tab the user's message was about (SetTarget()).

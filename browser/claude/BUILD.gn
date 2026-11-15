@@ -63,6 +63,7 @@ source_set("claude") {
     "claude_activity.h",
     "claude_api.cc",
     "claude_api.h",
+    "claude_boost_tools.cc",
     "claude_client.cc",
     "claude_client.h",
     "claude_credentials.cc",
@@ -92,6 +93,7 @@ source_set("claude") {
     ":memory",
     ":prefs",
     "//base",
+    "//compass/browser/boosts:store",
     "//services/network/public/cpp",
     "//url",
   ]

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index a281709c54cd71589a57e0360ec757c0c38efb08..dbeb05baecac62d1bd0ba4cfa3a5ea448fd25450 100644
+index a281709c54cd71589a57e0360ec757c0c38efb08..a28c6ed63449af2529ed2176557a653b49dd1c02 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -259,6 +259,12 @@
+@@ -259,6 +259,13 @@
  #include "chrome/browser/sync/local_or_syncable_bookmark_sync_service_factory.h"
  #include "chrome/browser/sync/prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.h"
  #include "chrome/browser/sync/sync_service_factory.h"
@@ -11,11 +11,12 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..dbeb05baecac62d1bd0ba4cfa3a5ea44
 +#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +#include "compass/browser/ui/claude/mcp_service.h"
 +#include "compass/browser/ui/live_folders/live_folder_service.h"
++#include "compass/browser/boosts/boost_injector.h"
 +#endif
  #include "chrome/browser/sync/user_event_service_factory.h"
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/themes/theme_service_factory.h"
-@@ -1517,6 +1523,13 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -1517,6 +1524,16 @@
    sync_file_system::SyncFileSystemServiceFactory::GetInstance();
  #endif
    SyncServiceFactory::GetInstance();
@@ -25,6 +26,9 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..dbeb05baecac62d1bd0ba4cfa3a5ea44
 +#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +  compass::claude::McpServiceFactory::GetInstance();
 +  compass::LiveFolderServiceFactory::GetInstance();
++  // Boosts: the store, and what runs them (docs/design/boosts.md).
++  compass::boosts::BoostStoreFactory::GetInstance();
++  compass::boosts::BoostInjectorFactory::GetInstance();
 +#endif
    tab_groups::TabGroupSyncServiceFactory::GetInstance();
    TabRestoreServiceFactory::GetInstance();
