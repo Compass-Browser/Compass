@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Optional
 
 from . import (android, checkout, flatpak_remote, linux_package, mac_sign,
-               overrides, patches, play, release, sparkle, sync_server)
+               overrides, package_managers, patches, play, release, sparkle,
+               sync_server)
 from .layout import (CONFIGS, CROSS_TARGETS, LINUX_TOOLCHAIN_DIR, Layout,
                      detect, host_cpu)
 from .process import CommandError, depot_tool, run
@@ -729,9 +730,37 @@ def publish_linux(args) -> None:
   print('published %s for Linux (%s)' % (version, channel))
 
 
+def release_packages(args) -> None:
+  """`release packages <version>`: the Homebrew cask and the winget pull
+  request for a published release, again (publish and publish-win do it
+  themselves). With --no-upload, prints them instead."""
+  if not args.version:
+    raise CommandError('packages: which version?')
+  found = release.find(release.fetch_manifest(), args.version)
+  if args.no_upload:
+    try:
+      if found.get('mac'):
+        mac = found['mac']
+        print('# %s\n%s' % (package_managers.CASK_PATH, package_managers.cask(
+            found['version'], mac['sha256'],
+            mac.get('minimum_system_version') or
+            package_managers.DEFAULT_MINIMUM_MACOS)))
+      if found.get('win'):
+        for path, text in package_managers.winget_manifests(found).items():
+          print('# %s\n%s' % (path, text))
+    except package_managers.PackageError as e:
+      raise CommandError(str(e))
+    return
+  if not package_managers.after_release(found, args.no_package_managers):
+    raise CommandError('%s has no macOS or Windows build' % args.version)
+
+
 def _release(layout: Layout, args) -> None:
   if args.action == 'publish-linux':
     publish_linux(args)
+    return
+  if args.action == 'packages':
+    release_packages(args)
     return
   manifest = release.load()
   # Everything that writes the feeds starts from the server's releases: a
@@ -802,6 +831,10 @@ def _release(layout: Layout, args) -> None:
       release.upload(feeds)
     print('released %s for Windows: %s' % (
         added['version'], release.archive_url(added['win'])))
+    if not args.no_upload:
+      # winget-pkgs: a pull request for the new version. Never fails the
+      # release (it's out by now).
+      package_managers.after_win_release(added, args.no_package_managers)
     return
   # publish (macOS): a new version, built, signed, notarized, fed.
   tools = sparkle.ensure(layout.root) / 'bin'
@@ -832,6 +865,9 @@ def _release(layout: Layout, args) -> None:
     release.upload(feeds)
   print('released %s on %s: %s' % (added['version'], args.channel,
                                    release.archive_url(added['mac'])))
+  if not args.no_upload:
+    # The Homebrew tap's cask. Never fails the release (it's out by now).
+    package_managers.after_mac_release(added, args.no_package_managers)
 
 
 def win_build_info(installer: Path) -> dict:
@@ -1373,14 +1409,16 @@ def parser() -> argparse.ArgumentParser:
 
   s = sub.add_parser('release', help='publish a macOS release to the update '
                      'feeds, build or publish a Windows one, publish a Linux '
-                     'one, promote one (canary to beta, beta to stable), or '
-                     'list them')
+                     'one, promote one (canary to beta, beta to stable), '
+                     'list them, or redo one\'s Homebrew cask and winget '
+                     'pull request (packages)')
   s.add_argument('action', choices=['publish', 'build-win', 'publish-win',
                                     'publish-linux', 'promote', 'list',
-                                    'feeds'],
+                                    'feeds', 'packages'],
                  nargs='?', default='publish')
   s.add_argument('version', nargs='?',
-                 help='promote: the version; publish, build-win: instead of the '
+                 help='promote, packages: the version; publish, build-win: '
+                 'instead of the '
                  'time; publish-win: instead of the .json\'s')
   s.add_argument('--channel', choices=release.CHANNELS, default='canary',
                  help='publish, publish-win: the channel (default: '
@@ -1403,7 +1441,11 @@ def parser() -> argparse.ArgumentParser:
                  help='build-win, publish-win: the Windows build number '
                  '(default: the next one, or the .json\'s)')
   s.add_argument('--no-upload', action='store_true',
-                 help='write the feeds locally only')
+                 help='write the feeds locally only (packages: print the '
+                 'cask and the winget manifests)')
+  s.add_argument('--no-package-managers', action='store_true',
+                 help='publish, publish-win: leave the Homebrew cask and '
+                 'winget alone (also COMPASS_SKIP_PACKAGE_MANAGERS=1)')
   s.add_argument('-c', '--config', choices=sorted(CONFIGS), default='release')
   s.add_argument('--identity', help='as for sign')
   s.add_argument('--keychain-profile', default=mac_sign.DEFAULT_NOTARY_PROFILE,

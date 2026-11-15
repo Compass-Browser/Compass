@@ -74,6 +74,13 @@ Details: [docs/design/sync.md](docs/design/sync.md).
 | Windows 10/11, 64-bit | Beta | [compassbrowser.org](https://compassbrowser.org/#download) |
 | iPhone | Beta | [TestFlight](https://testflight.apple.com/join/SE4bmbk1) |
 
+Or with a package manager:
+
+```sh
+brew install --cask compass-browser/tap/compass   # macOS, Homebrew
+winget install Compass.Browser                    # Windows (once winget-pkgs accepts it)
+```
+
 The desktop builds update themselves: Sparkle on macOS, Compass's own
 updater on Windows ([docs/design/updates.md](docs/design/updates.md)).
 

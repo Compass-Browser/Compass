@@ -108,6 +108,10 @@ tools/compass release promote 20261103.0215   # one channel up: canary to
 tools/compass release list
 tools/compass release feeds            # rewrite and upload the feeds
 tools/compass release publish-win 20261103.0215 --installer mini_installer.exe
+tools/compass release packages 20261103.0215  # the Homebrew cask and winget
+                                       #   pull request again (publish and
+                                       #   publish-win do them; "Package
+                                       #   managers" below)
 ```
 
 Every command that writes the feeds (`publish`, `publish-win`, `promote`,
@@ -339,6 +343,60 @@ software center, and take the new version at the next start.
   (`org.freedesktop.portal.Flatpak.CreateUpdateMonitor`, signal
   `UpdateAvailable`), which a Linux-only `UpgradeDetector` could turn into
   Chromium's relaunch prompt.
+
+## Package managers: Homebrew and winget
+
+Compass is also installable with `brew install --cask
+compass-browser/tap/compass` on macOS and `winget install Compass.Browser`
+on Windows. Both offer the newest release, which is canary today, and both
+leave updates to Compass's own updaters.
+
+- **Homebrew:** the cask `compass` lives in our tap,
+  [Compass-Browser/homebrew-tap](https://github.com/Compass-Browser/homebrew-tap)
+  (`Casks/compass.rb`), not in the official homebrew-cask. It points at the
+  GitHub release's `Compass-<version>.dmg` (universal), with
+  `auto_updates true` (Sparkle updates the app; `brew upgrade` leaves it
+  alone without `--greedy`), `depends_on macos: :ventura` (from
+  `LSMinimumSystemVersion`), a `livecheck` on `canary.json`'s `mac.version`,
+  and `zap` paths for the profile, caches and preferences.
+  `brew audit --strict --online` reports one problem we accept: the
+  release is a GitHub prerelease, as every canary is.
+- **winget:** the package `Compass.Browser` in
+  [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), one
+  version per Windows release (the Compass version, e.g. 20261115.1718).
+  The installer is `CompassSetup-<version>.exe` (mini_installer: `exe`,
+  per-user, x64), silent with `--do-not-launch-chrome` as the updater runs
+  it, `UpgradeBehavior: install`. Setup registers itself under
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Compass` with
+  the installer's Chromium version as `DisplayVersion` (`MAJOR.N.BUILD.PATCH`,
+  "Installer versions" above), so the manifest's `ProductCode` is `Compass`
+  and `AppsAndFeaturesEntries` maps that `DisplayVersion` to the package
+  version; without it winget couldn't tell which version is installed.
+  The CompassInstaller with a window isn't used: winget wants a silent
+  installer.
+- **Automation** (`tools/compass_tool/package_managers.py`): after
+  uploading the feeds, `release publish` commits the new cask to the tap
+  and `release publish-win` opens a pull request to winget-pkgs (new
+  manifests in `manifests/c/Compass/Browser/<version>/`, on a branch of a
+  fork of winget-pkgs under the account `gh` is signed in as, made the
+  first time). Both go through `gh api` with gh's own sign-in, so the
+  release machine's gh account needs push access to the tap; nothing else
+  is configured and no token is stored. They do nothing when the tap has
+  that version or a newer one, or winget-pkgs has the version or an open
+  pull request for it. A failure only prints a warning: the release is out
+  by then. `--no-package-managers` or `COMPASS_SKIP_PACKAGE_MANAGERS=1`
+  skips them; `release packages <version>` does them again for a published
+  release (`--no-upload` prints the cask and manifests instead).
+- **winget review:** each pull request goes through winget-pkgs' automated
+  validation (schema, installer download and hash, a test install in a
+  sandbox) and, for a new package, a moderator. The pull request's author
+  has to have signed Microsoft's CLA once (the bot asks on the first one).
+  The first version (20261115.1718) was submitted by hand with the same
+  code.
+- **SmartScreen:** a newly signed installer has no SmartScreen reputation
+  yet, so on some machines Windows asks before running it, also when
+  winget runs it. That goes away as the signing certificate builds
+  reputation.
 
 ## Not done
 
