@@ -17,6 +17,7 @@
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
 #include "compass/browser/browser_import/chromium_reader.h"
+#include "compass/browser/browser_import/firefox_reader.h"
 
 namespace compass::browser_import {
 
@@ -75,6 +76,34 @@ void AddChromiumProfiles(Browser browser,
   }
 }
 
+void AddFirefoxProfiles(Browser browser,
+                        const base::FilePath& root,
+                        std::vector<SourceProfile>& out) {
+  std::string ini;
+  if (!base::ReadFileToString(root.AppendASCII("profiles.ini"), &ini)) {
+    return;
+  }
+  std::vector<SourceProfile> found;
+  for (const FirefoxProfileInfo& info : ParseProfilesIni(ini, root)) {
+    if (!base::DirectoryExists(info.path)) {
+      continue;
+    }
+    SourceProfile profile;
+    profile.browser = browser;
+    profile.path = info.path;
+    profile.root = root;
+    profile.app_path = FirefoxAppPath(info.path);
+    profile.name = info.name;
+    profile.id = base::StrCat(
+        {BrowserKey(browser), ":", info.path.BaseName().AsUTF8Unsafe()});
+    found.push_back(std::move(profile));
+  }
+  for (SourceProfile& profile : found) {
+    profile.several = found.size() > 1;
+    out.push_back(std::move(profile));
+  }
+}
+
 }  // namespace
 
 std::vector<BrowserRoot> CandidateRoots() {
@@ -94,6 +123,11 @@ std::vector<BrowserRoot> CandidateRoots() {
          Join(local, {"BraveSoftware", "Brave-Browser", "User Data"})});
     roots.push_back({Browser::kVivaldi, Join(local, {"Vivaldi", "User Data"})});
   }
+  base::FilePath roaming;
+  if (base::PathService::Get(base::DIR_ROAMING_APP_DATA, &roaming)) {
+    roots.push_back({Browser::kFirefox, Join(roaming, {"Mozilla", "Firefox"})});
+    roots.push_back({Browser::kZen, Join(roaming, {"zen"})});
+  }
 #elif BUILDFLAG(IS_MAC)
   base::FilePath support;  // ~/Library/Application Support
   if (base::PathService::Get(base::DIR_APP_DATA, &support)) {
@@ -102,6 +136,8 @@ std::vector<BrowserRoot> CandidateRoots() {
     roots.push_back(
         {Browser::kBrave, Join(support, {"BraveSoftware", "Brave-Browser"})});
     roots.push_back({Browser::kVivaldi, Join(support, {"Vivaldi"})});
+    roots.push_back({Browser::kFirefox, Join(support, {"Firefox"})});
+    roots.push_back({Browser::kZen, Join(support, {"zen"})});
   }
 #elif BUILDFLAG(IS_LINUX)
   const base::FilePath home = base::GetHomeDir();
@@ -120,6 +156,18 @@ std::vector<BrowserRoot> CandidateRoots() {
        Join(home, {".var", "app", "com.brave.Browser", "config",
                    "BraveSoftware", "Brave-Browser"})});
   roots.push_back({Browser::kVivaldi, Join(config, {"vivaldi"})});
+  roots.push_back({Browser::kFirefox, Join(home, {".mozilla", "firefox"})});
+  roots.push_back({Browser::kFirefox, Join(config, {"mozilla", "firefox"})});
+  roots.push_back(
+      {Browser::kFirefox,
+       Join(home, {"snap", "firefox", "common", ".mozilla", "firefox"})});
+  roots.push_back({Browser::kFirefox,
+                   Join(home, {".var", "app", "org.mozilla.firefox",
+                               ".mozilla", "firefox"})});
+  roots.push_back({Browser::kZen, Join(home, {".zen"})});
+  roots.push_back({Browser::kZen, Join(config, {"zen"})});
+  roots.push_back(
+      {Browser::kZen, Join(home, {".var", "app", "app.zen_browser.zen", ".zen"})});
 #endif
   return roots;
 }
@@ -138,6 +186,8 @@ std::vector<SourceProfile> DetectProfiles() {
     const size_t before = profiles.size();
     if (IsChromiumBased(root.browser)) {
       AddChromiumProfiles(root.browser, root.root, profiles);
+    } else if (IsFirefoxBased(root.browser)) {
+      AddFirefoxProfiles(root.browser, root.root, profiles);
     }
     if (profiles.size() > before) {
       found.insert(root.browser);
@@ -149,6 +199,9 @@ std::vector<SourceProfile> DetectProfiles() {
 bool IsRunning(const SourceProfile& profile) {
   if (IsChromiumBased(profile.browser)) {
     return IsChromiumRunning(profile.root);
+  }
+  if (IsFirefoxBased(profile.browser)) {
+    return IsFirefoxProfileInUse(profile.path);
   }
   return false;
 }

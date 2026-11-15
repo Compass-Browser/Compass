@@ -9,9 +9,11 @@
 
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
+#include "base/strings/strcat.h"
 #include "build/build_config.h"
 #include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/browser_import/chromium_reader.h"
+#include "compass/browser/browser_import/firefox_reader.h"
 
 namespace compass::browser_import {
 
@@ -64,6 +66,31 @@ void ReadChromiumProfile(const SourceProfile& profile,
   }
 }
 
+void ReadFirefoxProfile(const SourceProfile& profile,
+                        const ReadOptions& options,
+                        ProfileData& data) {
+  std::vector<arc::Item> bookmarks;
+  if (options.bookmarks) {
+    bookmarks = ReadFirefoxBookmarks(profile.path.AppendASCII("places.sqlite"),
+                                     base::StrCat({profile.id, ":"}));
+  }
+  if (profile.browser == Browser::kZen) {
+    std::optional<base::DictValue> state;
+    if (options.tabs) {
+      state = ReadZenSidebarState(profile.path);
+    }
+    data.sidebar = ZenSidebar(profile, std::move(bookmarks),
+                              state ? &*state : nullptr, options.tabs);
+    return;
+  }
+  std::optional<base::DictValue> session;
+  if (options.tabs) {
+    session = ReadFirefoxSession(profile.path);
+  }
+  data.sidebar = FirefoxSidebar(profile, std::move(bookmarks),
+                                session ? &*session : nullptr, options.tabs);
+}
+
 }  // namespace
 
 ProfileData::ProfileData() = default;
@@ -76,6 +103,8 @@ ProfileData ReadProfile(const SourceProfile& profile,
   ProfileData data;
   if (IsChromiumBased(profile.browser)) {
     ReadChromiumProfile(profile, options, data);
+  } else if (IsFirefoxBased(profile.browser)) {
+    ReadFirefoxProfile(profile, options, data);
   }
   return data;
 }
@@ -85,11 +114,20 @@ bool CanImportHistory(Browser browser) {
 }
 
 bool CanImportPasswords(Browser browser) {
+  if (IsFirefoxBased(browser)) {
+    // Chromium's Firefox importer decrypts them with the browser's NSS,
+    // which it doesn't load on macOS.
+#if BUILDFLAG(IS_MAC)
+    return false;
+#else
+    return true;
+#endif
+  }
   return IsChromiumBased(browser);
 }
 
 bool ImportsHistoryThroughChromium(Browser browser) {
-  return false;
+  return IsFirefoxBased(browser);
 }
 
 }  // namespace compass::browser_import

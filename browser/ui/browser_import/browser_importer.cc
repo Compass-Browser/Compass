@@ -4,16 +4,22 @@
 
 #include "compass/browser/ui/browser_import/browser_importer.h"
 
+#include <algorithm>
 #include <map>
+#include <optional>
 #include <memory>
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/importer/external_process_importer_host.h"
+#include "chrome/browser/importer/importer_progress_observer.h"
 #include "chrome/browser/importer/profile_writer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/browser_import/detect.h"
@@ -26,6 +32,8 @@
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/url_row.h"
 #include "components/password_manager/core/browser/password_form.h"
+#include "components/user_data_importer/common/importer_data_types.h"
+#include "components/user_data_importer/common/importer_type.h"
 
 namespace compass::browser_import {
 
@@ -120,13 +128,13 @@ password_manager::PasswordForm ToPasswordForm(const LoginEntry& login) {
 }
 
 history::VisitSource VisitSourceFor(Browser browser) {
-  // Chromium has no source for Chromium-based browsers; any "imported" one
+  // Chromium has no source for Chromium-based browsers; an "imported" one
   // keeps the visits apart from browsing.
   return history::SOURCE_IE_IMPORTED;
 }
 
 // Imports one profile after another, then deletes itself.
-class Importer {
+class Importer : public importer::ImporterProgressObserver {
  public:
   Importer(Profile* target,
            std::vector<BrowserImportChoice> choices,
@@ -135,6 +143,12 @@ class Importer {
         choices_(std::move(choices)),
         callback_(std::move(callback)),
         runner_(ReadRunner()) {}
+
+  ~Importer() override {
+    if (host_) {
+      host_->set_observer(nullptr);
+    }
+  }
 
   void Start() {
     runner_->PostTaskAndReplyWithResult(
@@ -251,6 +265,55 @@ class Importer {
           base::UTF16ToUTF8(BrowserName(job.profile.browser)) +
           " encrypts them with.");
     }
+
+    // Firefox-based: history and passwords through Chromium's importer.
+    uint16_t items = 0;
+    if (ImportsHistoryThroughChromium(job.profile.browser)) {
+      if (job.choice.history && CanImportHistory(job.profile.browser)) {
+        items |= user_data_importer::HISTORY;
+        summary.history = -1;
+      }
+      if (job.choice.passwords && CanImportPasswords(job.profile.browser)) {
+        items |= user_data_importer::PASSWORDS;
+        summary.passwords = -1;
+      }
+    }
+    if (!items) {
+      Finish(std::move(summary));
+      return;
+    }
+    pending_ = std::move(summary);
+    user_data_importer::SourceProfile source;
+    source.importer_name = BrowserName(job.profile.browser);
+    source.importer_type = user_data_importer::TYPE_FIREFOX;
+    source.source_path = job.profile.path;
+    source.app_path = job.profile.app_path;
+    source.services_supported = items;
+    source.locale = g_browser_process->GetApplicationLocale();
+    source.profile = job.profile.name;
+    // Deletes itself once done, after telling ImportEnded().
+    host_ = new ExternalProcessImporterHost();
+    host_->set_headless();
+    host_->set_observer(this);
+    host_->StartImportSettings(source, profile, items,
+                               new ProfileWriter(profile));
+  }
+
+  // importer::ImporterProgressObserver:
+  void ImportStarted() override {}
+  void ImportItemStarted(user_data_importer::ImportItem item) override {}
+  void ImportItemEnded(user_data_importer::ImportItem item) override {}
+  void ImportEnded() override {
+    host_ = nullptr;
+    // May come from within StartImportSettings() (a locked profile).
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&Importer::OnChromiumImportEnded,
+                                  weak_factory_.GetWeakPtr()));
+  }
+
+  void OnChromiumImportEnded() {
+    BrowserImportSummary summary = std::move(*pending_);
+    pending_.reset();
     Finish(std::move(summary));
   }
 
@@ -274,6 +337,9 @@ class Importer {
   std::vector<Job> jobs_;
   size_t next_ = 0;
   ProfileData data_;
+  // While Chromium's importer runs.
+  std::optional<BrowserImportSummary> pending_;
+  raw_ptr<ExternalProcessImporterHost> host_ = nullptr;
   BrowserImportResult result_;
   base::WeakPtrFactory<Importer> weak_factory_{this};
 };

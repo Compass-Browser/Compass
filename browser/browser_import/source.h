@@ -27,13 +27,13 @@ enum class Browser {
   kEdge,
   kBrave,
   kVivaldi,
+  kFirefox,
+  kZen,
 };
 
 inline constexpr Browser kAllBrowsers[] = {
-    Browser::kChrome,
-    Browser::kEdge,
-    Browser::kBrave,
-    Browser::kVivaldi,
+    Browser::kChrome,  Browser::kEdge,    Browser::kBrave,
+    Browser::kVivaldi, Browser::kFirefox, Browser::kZen,
 };
 
 // As the page and the spaces name it: "Chrome", "Edge", ...
@@ -44,6 +44,8 @@ std::optional<Browser> BrowserFromKey(std::string_view key);
 
 // Chromium-based: profiles in a "User Data" folder (chromium_reader.h).
 bool IsChromiumBased(Browser browser);
+// Firefox-based: profiles listed in profiles.ini (firefox_reader.h).
+bool IsFirefoxBased(Browser browser);
 
 // One profile of another browser on this computer.
 struct SourceProfile {

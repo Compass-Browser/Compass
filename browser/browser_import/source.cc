@@ -21,6 +21,10 @@ std::u16string BrowserName(Browser browser) {
       return u"Brave";
     case Browser::kVivaldi:
       return u"Vivaldi";
+    case Browser::kFirefox:
+      return u"Firefox";
+    case Browser::kZen:
+      return u"Zen";
   }
 }
 
@@ -34,6 +38,10 @@ std::string_view BrowserKey(Browser browser) {
       return "brave";
     case Browser::kVivaldi:
       return "vivaldi";
+    case Browser::kFirefox:
+      return "firefox";
+    case Browser::kZen:
+      return "zen";
   }
 }
 
@@ -53,7 +61,14 @@ bool IsChromiumBased(Browser browser) {
     case Browser::kBrave:
     case Browser::kVivaldi:
       return true;
+    case Browser::kFirefox:
+    case Browser::kZen:
+      return false;
   }
+}
+
+bool IsFirefoxBased(Browser browser) {
+  return browser == Browser::kFirefox || browser == Browser::kZen;
 }
 
 SourceProfile::SourceProfile() = default;

@@ -12,6 +12,8 @@ source_set("browser_import") {
     "chromium_reader.h",
     "detect.cc",
     "detect.h",
+    "firefox_reader.cc",
+    "firefox_reader.h",
     "profile_reader.cc",
     "profile_reader.h",
     "source.cc",
@@ -66,6 +68,7 @@ source_set("unit_tests") {
     "chromium_crypto_unittest.cc",
     "chromium_reader_unittest.cc",
     "detect_unittest.cc",
+    "firefox_reader_unittest.cc",
     "space_import_unittest.cc",
   ]
   deps = [

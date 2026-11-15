@@ -220,4 +220,118 @@ bool WriteChromiumUserData(const base::FilePath& user_data,
   return true;
 }
 
+bool WriteFirefoxPlaces(const base::FilePath& path) {
+  sql::Database db(sql::test::kTestTag);
+  if (!db.Open(path) ||
+      !db.Execute("CREATE TABLE moz_places (id INTEGER PRIMARY KEY, "
+                  "url LONGVARCHAR, title LONGVARCHAR)") ||
+      !db.Execute("CREATE TABLE moz_bookmarks (id INTEGER PRIMARY KEY, "
+                  "type INTEGER, fk INTEGER DEFAULT NULL, parent INTEGER, "
+                  "position INTEGER, title LONGVARCHAR, guid TEXT)")) {
+    return false;
+  }
+  // Places, then the tree: the root (1), its folders, and the entries.
+  const std::string statements[] = {
+      "INSERT INTO moz_places VALUES (1, 'https://toolbar.test/', 'Page')",
+      "INSERT INTO moz_places VALUES (2, 'https://news.test/daily', 'Daily')",
+      "INSERT INTO moz_places VALUES (3, 'https://unfiled.test/', 'Unfiled')",
+      "INSERT INTO moz_places VALUES (4, 'place:sort=8&maxResults=10', '')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(1, 2, NULL, 0, 0, '', 'root________')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(2, 2, NULL, 1, 0, 'menu', 'menu________')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(3, 2, NULL, 1, 1, 'toolbar', 'toolbar_____')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(5, 2, NULL, 1, 3, 'unfiled', 'unfiled_____')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(6, 2, NULL, 1, 4, 'mobile', 'mobile______')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(10, 1, 1, 3, 0, 'Toolbar link', 'toolbarlink1')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(11, 2, NULL, 3, 1, 'News', 'newsfolder01')",
+      "INSERT INTO moz_bookmarks VALUES (12, 1, 2, 11, 0, NULL, 'dailylink001')",
+      "INSERT INTO moz_bookmarks VALUES (13, 3, NULL, 3, 2, '', 'separator001')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(14, 1, 4, 2, 0, 'Most Visited', 'mostvisited1')",
+      "INSERT INTO moz_bookmarks VALUES "
+      "(15, 1, 3, 5, 0, 'Unfiled', 'unfiledlink1')",
+  };
+  for (const std::string& statement : statements) {
+    if (!db.Execute(statement)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+std::string MakeFirefoxSessionJson() {
+  return R"json({
+  "version": ["sessionrestore", 1],
+  "windows": [{
+    "tabs": [
+      {"entries": [{"url": "https://pinned.test/", "title": "Pinned"}],
+       "index": 1, "pinned": true, "lastAccessed": 1700000000000},
+      {"entries": [{"url": "https://first.test/", "title": "First"},
+                   {"url": "https://first.test/next", "title": "Next"}],
+       "index": 2, "lastAccessed": 1700000001000},
+      {"entries": [{"url": "https://read.test/a", "title": "A"}],
+       "index": 1, "groupId": "g1"},
+      {"entries": [{"url": "https://read.test/b", "title": "B"}],
+       "index": 1, "groupId": "g1"},
+      {"entries": [{"url": "about:newtab", "title": "New Tab"}], "index": 1}
+    ],
+    "groups": [{"id": "g1", "name": "Reading", "color": "blue",
+                "collapsed": false}]
+  }],
+  "_closedWindows": []
+})json";
+}
+
+std::string MakeZenSessionsJson() {
+  return R"json({
+  "spaces": [
+    {"uuid": "{play}", "name": "Play", "icon": "", "position": 2000},
+    {"uuid": "{work}", "name": "Work", "icon": "💼",
+     "position": 1000,
+     "theme": {"type": "gradient", "gradientColors": [
+       {"c": [59, 130, 246], "isCustom": false, "type": "explicit-lightness"},
+       {"c": [139, 92, 246], "isCustom": false, "type": "explicit-lightness"}
+     ], "opacity": 0.5}}
+  ],
+  "folders": [
+    {"id": "f-docs", "name": "Docs", "pinned": true, "parentId": null,
+     "workspaceId": "{work}", "splitViewGroup": false},
+    {"id": "f-specs", "name": "Specs", "pinned": true, "parentId": "f-docs",
+     "workspaceId": "{work}", "splitViewGroup": false}
+  ],
+  "groups": [],
+  "tabs": [
+    {"entries": [{"url": "https://mail.test/", "title": "Mail"}],
+     "index": 1, "pinned": true, "zenEssential": true,
+     "zenWorkspace": "{work}", "zenSyncId": "t-mail"},
+    {"entries": [{"url": "https://docs.test/guide", "title": "Guide"}],
+     "index": 1, "pinned": true, "groupId": "f-docs",
+     "zenWorkspace": "{work}", "zenSyncId": "t-guide"},
+    {"entries": [{"url": "https://docs.test/spec", "title": "Spec"}],
+     "index": 1, "pinned": true, "groupId": "f-specs",
+     "zenWorkspace": "{work}", "zenSyncId": "t-spec"},
+    {"entries": [{"url": "https://board.test/item/7", "title": "Item 7"}],
+     "index": 1, "pinned": true, "zenWorkspace": "{work}",
+     "zenSyncId": "t-board", "zenStaticLabel": "Board",
+     "_zenPinnedInitialState": {"entry": {"url": "https://board.test/",
+                                          "title": "Board home"}}},
+    {"entries": [{"url": "https://work.test/open", "title": "Open"}],
+     "index": 1, "zenWorkspace": "{work}", "zenSyncId": "t-open",
+     "lastAccessed": 1700000000000},
+    {"entries": [{"url": "https://play.test/", "title": "Game"}],
+     "index": 1, "zenWorkspace": "{play}", "zenSyncId": "t-game"},
+    {"entries": [{"url": "about:blank"}], "index": 1, "zenIsEmpty": true,
+     "zenWorkspace": "{play}"},
+    {"entries": [{"url": "https://glance.test/"}], "index": 1,
+     "zenIsGlance": true, "zenWorkspace": "{play}"}
+  ]
+})json";
+}
+
 }  // namespace compass::browser_import::test
