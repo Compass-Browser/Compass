@@ -138,8 +138,14 @@ ones of what ships (not tests or build tools) in the release folder's
 `symbols/<version>/`: `arm64.tar.gz` and `x64.tar.gz`, plus `uuids.txt`
 (`dwarfdump --uuid`, to match a report's binary images). `release
 build-win` does the same with the shipped binaries' PDBs (`x64.tar.gz`) on
-the Windows build machine. They're never published. The newest 40 versions
-are kept, and any older one a channel still offers.
+the Windows build machine. They're never published. The newest 20 versions
+are kept (about 1.3 GB each for a universal Mac release), and any older one
+a channel still offers.
+
+Go by the report's UUID, not its version: a report from a Compass that
+installed an update while it ran names the new version, from the bundle's
+Info.plist, while the crashed process ran the old binaries
+(`grep <UUID> symbols/*/uuids.txt`).
 
 ```sh
 # offsets = frame address - "Compass Framework" load address, from the report
@@ -147,9 +153,12 @@ tools/compass release symbolicate 20261114.1035 0x65a6ca8 0x65a7878
 tools/compass release symbolicate <version> <offsets> --cpu x64 --binary 'Compass Helper (Renderer)'
 ```
 
-Builds are deterministic: a release whose symbols weren't kept can be built
-again from its commit (`release list`) with its `compass_version` in args.gn,
-and its `Compass Framework` gets the same UUID as the report's.
+A release whose symbols weren't kept can be built again from its commit
+(`release list`, with the Chromium checkout's patches put back to that
+commit's) and its `compass_version` in args.gn. Its `Compass Framework` had
+the same code at the same addresses as the released one, though not the same
+UUID: check by disassembling the frames in the released binary (from the
+.dmg) and the rebuilt one.
 
 ## macOS: Sparkle
 

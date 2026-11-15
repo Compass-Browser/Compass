@@ -32,9 +32,10 @@ from .process import CommandError, run
 
 SYMBOLS_DIR = release.RELEASE_DIR / 'symbols'
 VERSION_RE = re.compile(r'^\d{8}\.\d{4}$')
-# Versions kept; older ones are removed when a release adds its own, unless
-# a channel still offers them.
-KEEP = 40
+# Versions kept (about 1.3 GB each for a universal Mac release: the
+# framework's dSYM is 2.2 GB per CPU, 560 MB packed); older ones are removed
+# when a release adds its own, unless a channel still offers them.
+KEEP = 20
 
 # Windows: the binaries the installer ships (chrome/installer/mini_installer/
 # chrome.release), whose <name>.pdb are kept.
