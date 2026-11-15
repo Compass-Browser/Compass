@@ -6,6 +6,7 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/run_loop.h"
 #include "base/test/test_future.h"
@@ -22,7 +23,9 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "base/test/run_until.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "build/build_config.h"
 #include "compass/browser/arc_import/arc_crypto.h"
+#include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -36,6 +39,13 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "net/cookies/canonical_cookie.h"
+#include "net/cookies/cookie_constants.h"
+#include "net/extras/sqlite/cookie_crypto_delegate.h"
+#include "net/extras/sqlite/sqlite_persistent_cookie_store.h"
+#include "net/log/net_log_with_source.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "sql/database.h"
 #include "sql/statement.h"
@@ -46,7 +56,55 @@
 namespace compass::arc {
 namespace {
 
+// Arc's key: macOS, its Keychain password; Windows, the AES key its Local
+// State keeps DPAPI-wrapped.
 constexpr char kArcPassword[] = "arc test password";
+#if BUILDFLAG(IS_WIN)
+constexpr char kArcWindowsKey[] = "arc test key, 32 bytes, for GCM.";
+static_assert(sizeof(kArcWindowsKey) - 1 == ChromiumWindowsCipher::kKeySize);
+#endif
+
+// |plaintext| encrypted as Arc does on this platform.
+std::string ArcEncrypt(std::string_view plaintext) {
+#if BUILDFLAG(IS_WIN)
+  return ChromiumWindowsCipher(kArcWindowsKey).Encrypt(plaintext);
+#else
+  return ChromiumMacCipher(kArcPassword).Encrypt(plaintext);
+#endif
+}
+
+// Writes Arc's Local State |json|, with its key on Windows.
+void WriteArcLocalState(std::string_view json) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  std::optional<base::Value> local_state = base::JSONReader::Read(
+      json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  ASSERT_TRUE(local_state && local_state->is_dict());
+#if BUILDFLAG(IS_WIN)
+  const std::string wrapped =
+      browser_import::WrapWindowsKeyForTesting(kArcWindowsKey);
+  ASSERT_FALSE(wrapped.empty());
+  local_state->GetDict().SetByDottedPath("os_crypt.encrypted_key", wrapped);
+#endif
+  const base::FilePath user_data = GetArcPaths().user_data;
+  ASSERT_TRUE(base::CreateDirectory(user_data));
+  ASSERT_TRUE(base::WriteFile(user_data.AppendASCII("Local State"),
+                              *base::WriteJson(*local_state)));
+}
+
+// Encrypts the cookies Chromium's cookie store writes as Arc would.
+class ArcCookieCrypto : public net::CookieCryptoDelegate {
+ public:
+  void Init(base::OnceClosure callback) override { std::move(callback).Run(); }
+  bool EncryptString(const std::string& plaintext,
+                     std::string* ciphertext) override {
+    *ciphertext = ArcEncrypt(plaintext);
+    return true;
+  }
+  bool DecryptString(const std::string& ciphertext,
+                     std::string* plaintext) override {
+    return false;
+  }
+};
 
 class ArcImporterBrowserTest : public InProcessBrowserTest {
  protected:
@@ -63,6 +121,7 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
     SetArcKeychainPasswordForTesting(kArcPassword);
     SetArcRunningForTesting(false);
     arc_profile_ = paths.user_data.AppendASCII("Default");
+    ASSERT_NO_FATAL_FAILURE(WriteArcLocalState("{}"));
   }
 
   void TearDownOnMainThread() override {
@@ -72,50 +131,47 @@ class ArcImporterBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
-  scoped_refptr<os_crypt_async::Encryptor> GetEncryptor() {
-    base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
-    g_browser_process->os_crypt_async()->GetInstance(future.GetCallback());
-    return future.Take();
-  }
-
-  // Makes an "Arc profile" from real Chromium data: this browser's cookie
-  // database with a cookie for a.test, re-encrypted with Arc's key.
+  // Makes an "Arc profile" with real Chromium data: a cookie database with
+  // a cookie for a.test, written by Chromium's cookie store with Arc's key,
+  // where this platform keeps it (Windows: in "Network"). This browser's own
+  // database can't be copied on Windows: the network service holds it
+  // locked.
   void MakeArcProfileWithCookie() {
-    ::Profile* profile = browser()->GetProfile();
-    ASSERT_TRUE(content::SetCookie(profile, GURL("https://a.test/"),
-                                   "session=1; max-age=3600"));
-    base::test::TestFuture<void> flushed;
-    profile->GetDefaultStoragePartition()
-        ->GetCookieManagerForBrowserProcess()
-        ->FlushCookieStore(flushed.GetCallback());
-    ASSERT_TRUE(flushed.Wait());
-
-    scoped_refptr<os_crypt_async::Encryptor> encryptor = GetEncryptor();
-    const ChromiumMacCipher arc_cipher(kArcPassword);
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    ASSERT_TRUE(base::CreateDirectory(arc_profile_));
-    ASSERT_TRUE(base::CopyFile(profile->GetPath().AppendASCII("Cookies"),
-                               arc_profile_.AppendASCII("Cookies")));
-    sql::Database db(sql::Database::Tag("Test"));
-    ASSERT_TRUE(db.Open(arc_profile_.AppendASCII("Cookies")));
-    std::vector<std::pair<int64_t, std::string>> rows;
+#if BUILDFLAG(IS_WIN)
+    const base::FilePath arc_cookies =
+        arc_profile_.AppendASCII("Network").AppendASCII("Cookies");
+#else
+    const base::FilePath arc_cookies = arc_profile_.AppendASCII("Cookies");
+#endif
     {
-      sql::Statement select(db.GetUniqueStatement(
-          "SELECT rowid, encrypted_value FROM cookies"));
-      while (select.Step()) {
-        rows.emplace_back(select.ColumnInt64(0), select.ColumnBlobAsString(1));
-      }
+      base::ScopedAllowBlockingForTesting allow_blocking;
+      ASSERT_TRUE(base::CreateDirectory(arc_cookies.DirName()));
     }
-    ASSERT_FALSE(rows.empty());
-    for (const auto& [rowid, value] : rows) {
-      std::string plaintext;
-      ASSERT_TRUE(encryptor->DecryptString(value, &plaintext));
-      sql::Statement update(db.GetUniqueStatement(
-          "UPDATE cookies SET encrypted_value=? WHERE rowid=?"));
-      update.BindBlob(0, arc_cipher.Encrypt(plaintext));
-      update.BindInt64(1, rowid);
-      ASSERT_TRUE(update.Run());
-    }
+    scoped_refptr<base::SequencedTaskRunner> background =
+        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
+    auto store = base::MakeRefCounted<net::SQLitePersistentCookieStore>(
+        arc_cookies, base::SequencedTaskRunner::GetCurrentDefault(),
+        background, /*restore_old_session_cookies=*/false,
+        std::make_unique<ArcCookieCrypto>(),
+        /*enable_exclusive_access=*/false);
+    base::test::TestFuture<std::vector<std::unique_ptr<net::CanonicalCookie>>>
+        loaded;
+    store->Load(loaded.GetCallback(), net::NetLogWithSource());
+    ASSERT_TRUE(loaded.Wait());
+    std::unique_ptr<net::CanonicalCookie> cookie =
+        net::CanonicalCookie::CreateForTesting(
+            GURL("https://a.test/"), "session=1; max-age=3600",
+            base::Time::Now(), net::CookieSourceType::kHTTP);
+    ASSERT_TRUE(cookie);
+    store->AddCookie(*cookie);
+    base::test::TestFuture<void> flushed;
+    store->Flush(flushed.GetCallback());
+    ASSERT_TRUE(flushed.Wait());
+    // Closed on the background sequence.
+    store = nullptr;
+    base::RunLoop closed;
+    background->PostTask(FROM_HERE, closed.QuitClosure());
+    closed.Run();
   }
 
   // Arc's preferences: a protected one (the home page) with Arc's
@@ -176,7 +232,13 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsCookiesAndSettings) {
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, FailsWithoutArcsKey) {
   ASSERT_NO_FATAL_FAILURE(WriteArcPreferences());
   SetArcKeychainPasswordForTesting(std::optional<std::string>());
-  // "No password" is what a refused Keychain prompt gives.
+  // "No password" is what a refused Keychain prompt gives; on Windows, a
+  // Local State without the key.
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::WriteFile(
+        GetArcPaths().user_data.AppendASCII("Local State"), "{}"));
+  }
   ProfileImport result = Import();
   EXPECT_FALSE(result.profile);
   EXPECT_FALSE(result.copy.ok);
@@ -238,8 +300,7 @@ void WriteArcSidebar(std::string_view more_spaces = "") {
     "a1", {"sidebarItem": {"id": "a1", "data": {"tab": {
              "savedURL": "https://archived.test/", "savedTitle": "Gone"}}},
            "archivedAt": 100, "source": {"space": {"_0": "s1"}}}]})json"));
-  ASSERT_TRUE(
-      base::WriteFile(paths.user_data.AppendASCII("Local State"), kLocalState));
+  ASSERT_NO_FATAL_FAILURE(WriteArcLocalState(kLocalState));
 }
 
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportsProfilesAndSpaces) {

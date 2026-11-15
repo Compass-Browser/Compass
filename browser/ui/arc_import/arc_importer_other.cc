@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The parts of the Arc importer that talk to Arc itself, for platforms other
-// than macOS (see arc_importer_mac.mm). Arc's profiles aren't found there
-// (GetArcPaths() is empty), so these only keep the testing hooks working.
+// The parts of the Arc importer that talk to Arc itself, for platforms
+// without Arc (see arc_importer_mac.mm, arc_importer_win.cc). Arc's profiles
+// aren't found there (GetArcPaths() is empty), so these only keep the testing
+// hooks working.
 
 #include <optional>
 #include <string>

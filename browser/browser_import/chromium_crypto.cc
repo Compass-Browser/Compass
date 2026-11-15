@@ -4,19 +4,13 @@
 
 #include "compass/browser/browser_import/chromium_crypto.h"
 
-#include <array>
-#include <vector>
-
 #include "base/base64.h"
-#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "compass/browser/arc_import/arc_crypto.h"
-#include "crypto/aead.h"
-#include "crypto/random.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -27,9 +21,6 @@
 namespace compass::browser_import {
 
 namespace {
-
-constexpr std::string_view kV10 = "v10";
-constexpr size_t kGcmNonceSize = 12;
 
 std::optional<std::string>& KeyForTesting() {
   static base::NoDestructor<std::optional<std::string>> key;
@@ -82,31 +73,12 @@ void SetChromiumKeyForTesting(std::optional<std::string> key) {
 
 std::optional<std::string> DecryptWindowsValue(std::string_view key,
                                                std::string_view value) {
-  if (!value.starts_with(kV10) ||
-      value.size() < kV10.size() + kGcmNonceSize) {
-    return std::nullopt;
-  }
-  value.remove_prefix(kV10.size());
-  const std::string_view nonce = value.substr(0, kGcmNonceSize);
-  const std::string_view ciphertext = value.substr(kGcmNonceSize);
-  std::optional<std::vector<uint8_t>> plaintext = crypto::aead::Open(
-      crypto::aead::AES_256_GCM, base::as_byte_span(key),
-      base::as_byte_span(ciphertext), base::as_byte_span(nonce), {});
-  if (!plaintext) {
-    return std::nullopt;
-  }
-  return std::string(plaintext->begin(), plaintext->end());
+  return arc::ChromiumWindowsCipher(key).Decrypt(value);
 }
 
 std::string EncryptWindowsValueForTesting(std::string_view key,
                                           std::string_view plaintext) {
-  std::array<uint8_t, kGcmNonceSize> nonce;
-  crypto::RandBytes(nonce);
-  std::vector<uint8_t> sealed = crypto::aead::Seal(
-      crypto::aead::AES_256_GCM, base::as_byte_span(key),
-      base::as_byte_span(plaintext), nonce, {});
-  return std::string(kV10) + std::string(nonce.begin(), nonce.end()) +
-         std::string(sealed.begin(), sealed.end());
+  return arc::ChromiumWindowsCipher(key).Encrypt(plaintext);
 }
 
 #if BUILDFLAG(IS_WIN)

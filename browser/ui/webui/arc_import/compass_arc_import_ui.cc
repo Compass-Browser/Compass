@@ -153,7 +153,7 @@ void ArcImportPageHandler::Import(const std::vector<std::string>& profiles,
                                   ImportCallback callback) {
   // Its databases are in use while it runs.
   if (arc::IsArcRunning() || (profiles.empty() && spaces.empty())) {
-    std::move(callback).Run({}, {}, profiles);
+    std::move(callback).Run({}, {}, profiles, 0);
     return;
   }
   arc::ArcImportChoice choice;
@@ -195,7 +195,7 @@ void ArcImportPageHandler::OnImported(ImportCallback callback,
     }
   }
   std::move(callback).Run(names(result.profiles), names(result.updated),
-                          result.failed);
+                          result.failed, result.undecryptable);
 }
 
 void ArcImportPageHandler::OpenImported() {

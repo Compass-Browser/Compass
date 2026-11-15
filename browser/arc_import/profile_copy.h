@@ -26,6 +26,10 @@ struct CopyResult {
   int reencrypted = 0;
   // Cookies Arc's key couldn't decrypt, left out.
   int dropped_cookies = 0;
+  // Values encrypted with an app-bound key ("v20", Windows), which only Arc
+  // itself can read: cookies among them are left out (not counted in
+  // |dropped_cookies|), other values stay as they were.
+  int app_bound = 0;
 };
 
 // Copies the Arc profile folder |from| to |to|, a new folder (it must not

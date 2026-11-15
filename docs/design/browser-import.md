@@ -92,7 +92,8 @@ read; the browsers that write them also write version 3 (Dia does).
   Safe Storage", "Brave Safe Storage", "Vivaldi Safe Storage", "Dia Safe
   Storage"); `arc::ChromiumMacCipher`, as for Arc. macOS asks whether
   Compass may use the item; the page says so first.
-- Windows: `v10` + 12-byte nonce + AES-256-GCM; the key is Local State's
+- Windows: `v10` + 12-byte nonce + AES-256-GCM (`arc::ChromiumWindowsCipher`,
+  as for Arc on Windows); the key is Local State's
   `os_crypt.encrypted_key` ("DPAPI" + a blob `CryptUnprotectData` opens
   for the same Windows user). `v20` values (Chrome's app-bound encryption,
   Chrome 127 and later for some data) only Chrome can open: they're
@@ -228,7 +229,8 @@ before shows as imported. After the import a summary says, per profile,
 the spaces made and how many tabs went to Pinned and Today, history pages,
 passwords, and what didn't work (passwords that couldn't be decrypted,
 Safari without Full Disk Access). "Open my spaces" shows the first new
-space. Arc's section follows when Arc is there (macOS).
+space. Arc's section follows when Arc is there (macOS,
+Windows).
 
 **First run:** the first window opens the page if Arc's sidebar is there
 and wasn't imported (arc-import.md), or if any other browser has a

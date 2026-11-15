@@ -632,11 +632,12 @@ interface ArcImportHandler {
   // of |spaces| (Arc space IDs) that are theirs. Spaces of profiles imported
   // before go into the Compass profile each became. macOS asks whether
   // Compass may use Arc's Keychain key. Answers with the names of the
-  // profiles made and of those that got spaces, and the Arc profiles
-  // (folders) that failed.
+  // profiles made and of those that got spaces, the Arc profiles (folders)
+  // that failed, and how many cookies and passwords couldn't be decrypted
+  // (left behind).
   Import(array<string> profiles, array<string> spaces)
       => (array<string> imported, array<string> updated,
-          array<string> failed);
+          array<string> failed, int32 undecryptable);
   // Shows the first imported space in this window.
   OpenImported();
 

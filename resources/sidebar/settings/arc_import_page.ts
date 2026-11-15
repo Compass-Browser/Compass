@@ -13,6 +13,11 @@ import {CompassSettingsPage} from './page_base.js';
 // a space), then Arc's (each becomes a profile), when Arc is there. See
 // docs/design/browser-import.md and docs/design/arc-import.md.
 
+// macOS asks before Compass reads another browser's Keychain key.
+function isMac(): boolean {
+  return navigator.userAgent.includes('Mac');
+}
+
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? `1 ${one}` : `${count} ${many}`;
 }
@@ -190,8 +195,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
         'browsersRunning', this.browsers_.some(profile => profile.running));
     this.show(
         'keychainNotice',
-        navigator.userAgent.includes('Mac') &&
-            this.browsers_.some(profile => profile.passwords));
+        isMac() && this.browsers_.some(profile => profile.passwords));
     this.$('browsers').replaceChildren(
         ...this.browsers_.map(profile => this.renderBrowser_(profile)));
     this.updateBrowsersButton_();
@@ -365,6 +369,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     this.show('notFound', !state.found);
     this.show('chooser', state.found);
     this.show('arcRunning', state.arcRunning);
+    this.show('arcKeychainNotice', state.found && isMac());
     this.$('profiles').replaceChildren(
         ...state.profiles.map(profile => this.renderProfile_(profile)));
     this.updateImportButton_();
@@ -383,7 +388,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     }
     this.show('chooser', false);
     this.show('importing', true);
-    const {imported, updated, failed} =
+    const {imported, updated, failed, undecryptable} =
         await this.handler_.import(profiles, spaces);
     this.show('importing', false);
     this.show('done', true);
@@ -394,6 +399,12 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     if (updated.length) {
       sentences.push(`Added new spaces to ${updated.join(', ')}.`);
     }
+    if (undecryptable) {
+      sentences.push(`${
+          plural(undecryptable, 'cookie or password',
+                 'cookies and passwords')} couldn't be decrypted and ` +
+          'stayed behind: you may have to sign in again on some sites.');
+    }
     this.$('doneText').textContent =
         sentences.length ? sentences.join(' ') : 'Nothing was imported.';
     this.show('failedText', failed.length > 0);
@@ -401,8 +412,9 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
         `Couldn't import ${
             failed.length === 1 ? 'one profile' :
                                   `${failed.length} profiles`}` +
-            '. Check that Arc is closed and that Compass was allowed to use ' +
-            '"Arc Safe Storage", then try again.' :
+            (isMac() ? '. Check that Arc is closed and that Compass was ' +
+                     'allowed to use "Arc Safe Storage", then try again.' :
+                       '. Check that Arc is closed, then try again.') :
         '';
     this.show('open', imported.length > 0 || updated.length > 0);
   }

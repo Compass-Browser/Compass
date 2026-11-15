@@ -1,8 +1,8 @@
 # Import from Arc
 
 Status: done (reader, profile copy, sidebar, archive, the import page);
-not yet run end to end on a real Arc install. macOS only. Based on Chromium
-157.0.8103.51.
+not yet run end to end on a real Arc install. macOS and Windows (below,
+"Windows"). Based on Chromium 157.0.8103.51.
 
 ## Goal
 
@@ -28,6 +28,10 @@ Decisions:
 | Sidebar | `~/Library/Application Support/Arc/StorableSidebar.json` |
 | Archive | `StorableArchiveItems.json` (same folder) |
 | Encryption key | Keychain generic password "Arc Safe Storage" |
+
+Windows: see "Windows" below. `GetArcPaths()` (`arc_import/arc_paths.h`:
+`MacArcPaths()`, `FindWindowsArcPaths()`) finds them on each platform; it's
+blocking, so it runs on the import's background sequence.
 
 `StorableSidebar.json` → `sidebar.containers[1]` (the local one; `[0]` is
 `{"global": …}`), which holds three Swift-encoded dictionaries, as flat
@@ -137,9 +141,10 @@ bar's "Import from Another Browser". chrome://compass-import
 (`CompassArcImportUI`, `resources/sidebar/arc_import.{html,ts}`,
 `sidebar.mojom` `ArcImportHandler`) shows the same section alone. It lists
 Arc's profiles with their spaces, tab counts and "N archived". While Arc
-runs it says so, with a "Quit Arc" button (`NSRunningApplication terminate`,
-then waits up to 10 s), and won't import, since Arc's databases are open. It
-explains the "Arc Safe Storage" prompt, imports the checked profiles, and
+runs it says so, with a "Quit Arc" button (macOS: `NSRunningApplication
+terminate`; Windows: `WM_CLOSE` to Arc's windows), then waits up to 10 s,
+and won't import, since Arc's databases are open. On macOS it explains the
+"Arc Safe Storage" prompt. It imports the checked profiles, and
 "Open my spaces" switches the window to the first imported space.
 
 ### Encryption
@@ -155,6 +160,14 @@ are deleted (a cookie lost rather than garbage); other values are left as
 they were. `ChromiumMacCipher` implements Chromium's macOS scheme for Arc's
 side; a one-line `crypto/subtle_passkey.h` patch lets Compass derive the
 key. Reading Arc's key makes macOS ask once whether Compass may use "Arc Safe Storage"; the page says so first.
+
+On Windows the scheme is Chromium's Windows one (below, "Windows"):
+`ChromiumWindowsCipher`. `GetArcDecryptor()` picks the platform's.
+Values with an app-bound key (`v20`) aren't decrypted; cookies among them
+are deleted, other values left; they're counted (`CopyResult::app_bound`).
+The page's summary says how many cookies and passwords couldn't be
+decrypted and stayed behind (`ArcImportResult::undecryptable`: the cookies
+Arc's key didn't decrypt plus the app-bound values).
 
 ### Choosing
 
@@ -193,6 +206,82 @@ profile was imported from Arc, or another browser has profiles here
 considers it; a later run never offers it again (the command bar's "Import
 from Another Browser" and Settings still do).
 
+## Windows
+
+Arc for Windows is the same app (Swift, on Chromium) shipped as an MSIX
+package, `TheBrowserCompany.Arc` (package family
+`TheBrowserCompany.Arc_ttt1ap7aakyb4`; the suffix is the publisher's ID,
+so Compass matches the name, not the whole folder).
+
+| Data | Where |
+|---|---|
+| Arc's folder | `%LOCALAPPDATA%\Packages\TheBrowserCompany.Arc_<publisher ID>\LocalCache\Local\Arc` |
+| Profiles (Chromium) | `User Data\<Default, Profile N>` in it; names in `Local State` as on macOS |
+| Cookies | `<profile>\Network\Cookies` (Chromium's network service folder on Windows) |
+| Disk cache | In the profile (`<profile>\Cache`), copied with it |
+| Sidebar, archive | `StorableSidebar.json`, `StorableArchiveItems.json` in Arc's folder |
+| Encryption key | `User Data\Local State` → `os_crypt.encrypted_key` |
+
+**Why there.** An MSIX app's writes to `%LOCALAPPDATA%` are redirected to
+its package's `LocalCache\Local`; Arc's manifest (version 1.128.0.436)
+declares no exceptions to that, so its `%LOCALAPPDATA%\Arc` lands in the
+package folder. Any app of the same Windows user can read it.
+`FindWindowsArcPaths()` lists `%LOCALAPPDATA%\Packages`, takes the folders
+named `TheBrowserCompany.Arc_*` in name order, and uses the first whose Arc
+folder has `User Data`.
+
+**Format.** `StorableSidebar.json` and `StorableArchiveItems.json` are the
+same Swift encoding as on macOS (Zen reads both platforms' with one parser,
+below); `ParseSidebar()` and `ParseArchive()` are shared.
+
+**Encryption.** Chromium on Windows: `Local State`'s
+`os_crypt.encrypted_key` is base64 of "DPAPI" and a blob that
+`CryptUnprotectData` opens for the same Windows user (no prompt), giving a
+32-byte key; a value is `v10`, a 12-byte nonce, then AES-256-GCM ciphertext
+and tag (`ChromiumWindowsCipher`; `browser_import::UnwrapWindowsKey()`
+unwraps the key). Chrome 127's app-bound encryption (`v20`, a second key
+only the browser's elevation service can open) needs that service, which
+an installer registers; Arc's MSIX declares no service (no
+`windows.service` extension), so Arc's values should all be `v10`. Any
+`v20` value is skipped and counted, as above.
+
+**Running and quitting.** Arc runs as `Arc.exe` from its package folder
+(`WindowsApps\TheBrowserCompany.Arc_…`). `IsArcRunning()` looks for
+processes named `Arc.exe` whose image path has `\TheBrowserCompany.Arc_`
+(another app's `Arc.exe` doesn't count); `QuitArc()` posts `WM_CLOSE` to
+their visible top-level windows (`arc_importer_win.cc`).
+
+**Preferences.** Windows enforces protected preferences as macOS does;
+`SignImportedPreferences()` is the same.
+
+### How Zen does it
+
+Zen (MPL-2.0; read, not copied) imports Arc on macOS and Windows through
+Firefox's Chromium migrator:
+
+- [`arc_browser_migrator.patch`](https://github.com/zen-browser/desktop/blob/5e53b8123a82799a0071cb26029a3f451f5c3d10/src/external-patches/firefox/arc_browser_migrator.patch)
+  adds an `ArcProfileMigrator` (`ChromeProfileMigrator` with "Arc Safe
+  Storage") and Arc's User Data to `ChromeMigrationUtils`: macOS
+  `~/Library/Application Support/Arc/User Data`; Windows `LocalAppData`,
+  `Packages`, a folder whose name starts with `TheBrowserCompany.Arc_`,
+  `LocalCache\Local\Arc\User Data`, trying matching folders in sorted
+  order (its test adds decoys: another package, and an Arc package without
+  data that sorts first). The sidebar is `StorableSidebar.json` next to
+  User Data on both.
+- [`ZenProfileMigrators.sys.mjs`](https://github.com/zen-browser/desktop/blob/5e53b8123a82799a0071cb26029a3f451f5c3d10/src/zen/migration/ZenProfileMigrators.sys.mjs)
+  and [`ZenMigrationUtils.sys.mjs`](https://github.com/zen-browser/desktop/blob/5e53b8123a82799a0071cb26029a3f451f5c3d10/src/zen/migration/ZenMigrationUtils.sys.mjs)
+  turn the sidebar into Zen spaces, pins, folders and essentials (other
+  Arc profiles into containers), with one parser for both platforms: the
+  `global` container's items, Little Arc's (`littleBrowser`) skipped.
+- Passwords on Windows go through Firefox's
+  [`ChromeWindowsLoginCrypto`](https://github.com/mozilla-firefox/firefox/blob/f43afc2eee18f682d5653ab290dbf9825abb731e/browser/components/migration/ChromeWindowsLoginCrypto.sys.mjs):
+  the DPAPI-unwrapped `os_crypt.encrypted_key`, `v10` + 12-byte nonce +
+  AES-256-GCM; anything else is tried as plain DPAPI, `v20` has no
+  handling. Firefox's migrator doesn't bring cookies.
+
+Compass differs in what it brings (the whole profile, cookies included,
+re-encrypted, as on macOS), and finds the same folder the same way.
+
 ## Arc features in Compass
 
 Features Arc has that the import would otherwise drop:
@@ -208,10 +297,15 @@ Features Arc has that the import would otherwise drop:
 
 ## Tests
 
-`ArcSidebarTest.*`, `ChromiumMacCipherTest.*`, `ProfileCopyTest.*`,
-`SidebarImportTest.*` (unit) and `ArcImporterBrowserTest.*` (browser). One
-browser test builds an "Arc profile" from real Chromium data (this browser's
-cookie database, re-encrypted with an Arc test key) plus Arc-signed
+`ArcSidebarTest.*`, `ArcPathsTest.*`, `WindowsArcPathsTest.*` (a fake
+`%LOCALAPPDATA%` with decoy packages), `ChromiumMacCipherTest.*`,
+`ChromiumWindowsCipherTest.*`, `ProfileCopyTest.*`,
+`ProfileCopyWindowsTest.*` (Windows' layout and scheme, with app-bound
+values), `SidebarImportTest.*` (unit; synthetic data, on every platform)
+and `ArcImporterBrowserTest.*` (browser). One browser test builds an "Arc
+profile" from real Chromium data (this browser's cookie database, where
+this platform keeps it, re-encrypted with an Arc test key: on Windows a
+test key wrapped with DPAPI into Arc's Local State) plus Arc-signed
 preferences, imports it, and checks the cookie through the network service,
 the home page, and that nothing was reset.
 
@@ -221,3 +315,6 @@ the home page, and that nothing was reset.
   are there; Web Store updates then continue. To check.
 - Passwords in Arc may also be in the Keychain-synced iCloud Passwords; not
   touched.
+- Windows: not yet checked against a signed-in Arc install (its folder,
+  `v10`-only values and `Arc.exe` closing on `WM_CLOSE` come from its
+  package manifest and Zen's importer, not from a real profile).

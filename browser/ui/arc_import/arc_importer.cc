@@ -31,6 +31,7 @@
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/arc_import/arc_crypto.h"
 #include "compass/browser/arc_import/sidebar_import.h"
+#include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/browser_import/detect.h"
 #include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
@@ -66,27 +67,31 @@ std::optional<base::DictValue> ReadJsonDict(const base::FilePath& path) {
   return std::move(*value).TakeDict();
 }
 
-// Copies the profile on a blocking thread: reads Arc's key, then copies and
-// re-encrypts with Compass's |encryptor|.
+// Copies the profile on a blocking thread: finds Arc, reads its key, then
+// copies and re-encrypts with Compass's |encryptor|.
 CopyResult CopyOnPool(const std::string& arc_dir,
-                      const base::FilePath& from,
                       const base::FilePath& to,
-                      const base::FilePath& from_cache,
                       const base::FilePath& to_cache,
                       scoped_refptr<os_crypt_async::Encryptor> encryptor) {
-  std::optional<std::string> password = ReadArcKeychainPassword();
-  if (!password) {
-    LOG(ERROR) << "Arc import: no access to Arc's Keychain password";
+  const ArcPaths arc = GetArcPaths();
+  if (arc.user_data.empty()) {
     return CopyResult();
   }
-  const ChromiumMacCipher arc_cipher(*password);
+  ArcDecryptor decrypt = GetArcDecryptor(arc.user_data);
+  if (!decrypt) {
+    LOG(ERROR) << "Arc import: no access to Arc's key";
+    return CopyResult();
+  }
+  // Where the cache is in the profile (Windows), it comes with it.
+  const base::FilePath from_cache =
+      arc.cache.empty() ? base::FilePath() : arc.cache.AppendASCII(arc_dir);
   CopyResult result = CopyProfile(
-      from, to, from_cache, to_cache,
+      arc.user_data.AppendASCII(arc_dir), to, from_cache, to_cache,
       base::BindRepeating(
-          [](const ChromiumMacCipher& arc_cipher,
+          [](const ArcDecryptor& decrypt,
              const os_crypt_async::Encryptor* encryptor,
              std::string_view value) -> std::optional<std::string> {
-            std::optional<std::string> plaintext = arc_cipher.Decrypt(value);
+            std::optional<std::string> plaintext = decrypt.Run(value);
             std::string ciphertext;
             if (!plaintext ||
                 !encryptor->EncryptString(*plaintext, &ciphertext)) {
@@ -94,7 +99,7 @@ CopyResult CopyOnPool(const std::string& arc_dir,
             }
             return ciphertext;
           },
-          arc_cipher, base::RetainedRef(encryptor)));
+          decrypt, base::RetainedRef(encryptor)));
   if (result.ok && !SignImportedPreferences(to, arc_dir)) {
     base::DeletePathRecursively(to);
     return CopyResult();
@@ -134,7 +139,6 @@ void StartCopy(const std::string& arc_dir,
                std::u16string name,
                base::OnceCallback<void(ProfileImport)> callback,
                scoped_refptr<os_crypt_async::Encryptor> encryptor) {
-  const ArcPaths arc = GetArcPaths();
   const base::FilePath to = g_browser_process->profile_manager()
                                 ->GenerateNextProfileDirectoryPath();
   base::FilePath to_cache;
@@ -145,9 +149,7 @@ void StartCopy(const std::string& arc_dir,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})
       ->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&CopyOnPool, arc_dir, arc.user_data.AppendASCII(arc_dir),
-                     to,
-                     arc.cache.AppendASCII(arc_dir), to_cache,
+      base::BindOnce(&CopyOnPool, arc_dir, to, to_cache,
                      std::move(encryptor)),
       base::BindOnce(&OnCopied, to, std::move(name),
                      std::move(callback)));
@@ -247,6 +249,10 @@ class WholeImport {
 
  private:
   void OnProfileImported(ProfileImport import) {
+    if (import.profile) {
+      result_.undecryptable +=
+          import.copy.dropped_cookies + import.copy.app_bound;
+    }
     OnProfileReady(import.profile);
   }
 
@@ -343,10 +349,9 @@ std::map<std::string, ImportedProfile> FindImported(
   return imported;
 }
 
-ArcOverview ReadOverview(const ArcPaths& paths,
-                         const base::FilePath& user_data) {
+ArcOverview ReadOverview(const base::FilePath& user_data) {
   ArcOverview overview;
-  overview.sidebar = ReadSidebar(paths);
+  overview.sidebar = ReadSidebar(GetArcPaths());
   overview.imported = FindImported(user_data);
   return overview;
 }
@@ -377,7 +382,7 @@ void OnOverviewForImport(ArcImportChoice choice,
 void ReadOverviewThen(base::OnceCallback<void(ArcOverview)> callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&ReadOverview, GetArcPaths(),
+      base::BindOnce(&ReadOverview,
                      g_browser_process->profile_manager()->user_data_dir()),
       std::move(callback));
 }
@@ -387,7 +392,8 @@ std::optional<bool> g_first_run_for_testing;
 
 // Whether Arc's sidebar exists and nothing was imported from it yet, or
 // another browser has profiles (docs/design/browser-import.md). Blocking.
-bool ShouldOffer(const ArcPaths& paths, const base::FilePath& user_data) {
+bool ShouldOffer(const base::FilePath& user_data) {
+  const ArcPaths paths = GetArcPaths();
   if (!paths.sidebar.empty() && base::PathExists(paths.sidebar) &&
       FindImported(user_data).empty()) {
     return true;
@@ -444,7 +450,7 @@ void MaybeOfferImportOnFirstRun(BrowserWindowInterface* browser) {
   }
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&ShouldOffer, GetArcPaths(),
+      base::BindOnce(&ShouldOffer,
                      g_browser_process->profile_manager()->user_data_dir()),
       base::BindOnce(
           [](base::WeakPtr<BrowserWindowInterface> browser, bool offer) {
@@ -465,24 +471,52 @@ ArcPaths GetArcPaths() {
   if (PathsForTesting()) {
     return *PathsForTesting();
   }
-  ArcPaths paths;
 #if BUILDFLAG(IS_MAC)
   base::FilePath app_support;
   base::FilePath caches;
-  if (base::PathService::Get(base::DIR_APP_DATA, &app_support)) {
-    paths.user_data = app_support.AppendASCII("Arc").AppendASCII("User Data");
-    paths.sidebar =
-        app_support.AppendASCII("Arc").AppendASCII("StorableSidebar.json");
-    paths.archive = app_support.AppendASCII("Arc").AppendASCII(
-        "StorableArchiveItems.json");
+  if (!base::PathService::Get(base::DIR_APP_DATA, &app_support)) {
+    return ArcPaths();
   }
-  if (base::PathService::Get(base::DIR_CACHE, &caches)) {
-    paths.cache = caches.AppendASCII("Arc").AppendASCII("User Data");
+  base::PathService::Get(base::DIR_CACHE, &caches);
+  return MacArcPaths(app_support, caches);
+#elif BUILDFLAG(IS_WIN)
+  base::FilePath local_app_data;
+  if (!base::PathService::Get(base::DIR_LOCAL_APP_DATA, &local_app_data)) {
+    return ArcPaths();
   }
+  return FindWindowsArcPaths(local_app_data).value_or(ArcPaths());
+#else
+  // Arc doesn't exist elsewhere: nothing to import.
+  return ArcPaths();
 #endif
-  // Elsewhere the paths stay empty: Arc's data isn't found, so there is
-  // nothing to import (Arc for Windows keeps it inside its MSIX package).
-  return paths;
+}
+
+ArcDecryptor GetArcDecryptor(const base::FilePath& user_data) {
+#if BUILDFLAG(IS_WIN)
+  std::optional<base::DictValue> local_state =
+      ReadJsonDict(user_data.Append(chrome::kLocalStateFilename));
+  std::optional<std::string> key =
+      local_state ? browser_import::UnwrapWindowsKey(*local_state)
+                  : std::nullopt;
+  if (!key || key->size() != ChromiumWindowsCipher::kKeySize) {
+    return ArcDecryptor();
+  }
+  return base::BindRepeating(
+      [](const ChromiumWindowsCipher& cipher, std::string_view value) {
+        return cipher.Decrypt(value);
+      },
+      ChromiumWindowsCipher(*key));
+#else
+  std::optional<std::string> password = ReadArcKeychainPassword();
+  if (!password) {
+    return ArcDecryptor();
+  }
+  return base::BindRepeating(
+      [](const ChromiumMacCipher& cipher, std::string_view value) {
+        return cipher.Decrypt(value);
+      },
+      ChromiumMacCipher(*password));
+#endif
 }
 
 void SetArcPathsForTesting(std::optional<ArcPaths> paths) {

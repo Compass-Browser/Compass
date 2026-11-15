@@ -9,12 +9,14 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/uuid.h"
+#include "compass/browser/arc_import/arc_paths.h"
 #include "compass/browser/arc_import/arc_sidebar.h"
 #include "compass/browser/arc_import/profile_copy.h"
 
@@ -23,18 +25,9 @@ class Profile;
 
 namespace compass::arc {
 
-// Where Arc keeps its data (docs/design/arc-import.md).
-struct ArcPaths {
-  // Its Chromium profiles: ~/Library/Application Support/Arc/User Data.
-  base::FilePath user_data;
-  // Their disk caches: ~/Library/Caches/Arc/User Data.
-  base::FilePath cache;
-  // ~/Library/Application Support/Arc/StorableSidebar.json.
-  base::FilePath sidebar;
-  // ~/Library/Application Support/Arc/StorableArchiveItems.json.
-  base::FilePath archive;
-};
-
+// Where Arc keeps its data on this computer (macOS: ~/Library/...; Windows:
+// inside its MSIX package's folder). Empty paths where Arc isn't found or
+// doesn't exist. Blocking (Windows looks for the package's folder).
 ArcPaths GetArcPaths();
 void SetArcPathsForTesting(std::optional<ArcPaths> paths);
 
@@ -43,6 +36,16 @@ void SetArcPathsForTesting(std::optional<ArcPaths> paths);
 // Blocking.
 std::optional<std::string> ReadArcKeychainPassword();
 void SetArcKeychainPasswordForTesting(std::optional<std::string> password);
+
+// Decrypts a value Arc encrypted; nullopt if it can't.
+using ArcDecryptor =
+    base::RepeatingCallback<std::optional<std::string>(std::string_view)>;
+
+// Arc's decryptor, for its profiles in |user_data|: macOS, with its
+// Keychain password (ChromiumMacCipher); Windows, with the key in its Local
+// State, which DPAPI unwraps for this Windows user (ChromiumWindowsCipher).
+// A null callback if the key can't be had. Blocking.
+ArcDecryptor GetArcDecryptor(const base::FilePath& user_data);
 
 struct ProfileImport {
   // The loaded Compass profile, or null if the import failed.
@@ -73,6 +76,9 @@ struct ArcImportResult {
   std::vector<raw_ptr<::Profile>> updated;
   // Arc profile folders that failed (copy, Keychain, load).
   std::vector<std::string> failed;
+  // Cookies and passwords that couldn't come along: cookies Arc's key didn't
+  // decrypt, and values with an app-bound key (CopyResult).
+  int undecryptable = 0;
   // The first space imported, to show it.
   base::Uuid first_space;
 };
@@ -129,8 +135,8 @@ struct ArcOverview {
 };
 void GetArcOverview(base::OnceCallback<void(ArcOverview)> callback);
 
-// On the first run, if Arc is on this Mac and nothing was imported from it,
-// or another browser has profiles here (docs/design/browser-import.md),
+// On the first run, if Arc is on this computer and nothing was imported from
+// it, or another browser has profiles here (docs/design/browser-import.md),
 // opens the import page (compass://settings/importArc) in the process's
 // first normal window. Called by the sidebar of each window.
 void MaybeOfferImportOnFirstRun(BrowserWindowInterface* browser);
@@ -138,8 +144,8 @@ void MaybeOfferImportOnFirstRun(BrowserWindowInterface* browser);
 // (nullopt: as first_run::IsChromeFirstRun() says).
 void SetFirstRunForArcImportOfferForTesting(std::optional<bool> first_run);
 
-// Whether Arc is open, and asking it to quit (macOS). QuitArc() returns
-// whether it asked.
+// Whether Arc is open, and asking it to quit (macOS: the app; Windows: its
+// windows are asked to close). QuitArc() returns whether it asked.
 bool IsArcRunning();
 bool QuitArc();
 void SetArcRunningForTesting(std::optional<bool> running);

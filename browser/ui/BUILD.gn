@@ -304,6 +304,8 @@ source_set("ui") {
       "//compass/browser/ui/cocoa:shortcuts",
       "//compass/browser/ui/cocoa:spaces_menu_hooks",
     ]
+  } else if (is_win) {
+    sources += [ "arc_import/arc_importer_win.cc" ]
   } else {
     sources += [ "arc_import/arc_importer_other.cc" ]
   }
@@ -406,6 +408,7 @@ source_set("browser_tests") {
     "//services/network:test_support",
     "//services/network/public/cpp",
     "//compass/browser/claude",
+    "//net:extras",
     "//net:test_support",
     ":ui",
     "//components/content_settings/core/browser",

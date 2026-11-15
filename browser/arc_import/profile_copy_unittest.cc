@@ -7,6 +7,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/test/bind.h"
 #include "compass/browser/arc_import/arc_crypto.h"
 #include "sql/database.h"
 #include "sql/statement.h"
@@ -155,6 +156,120 @@ TEST_F(ProfileCopyTest, ReencryptsCookiesAndPasswords) {
 TEST_F(ProfileCopyTest, NeverOverwrites) {
   ASSERT_TRUE(base::CreateDirectory(compass_));
   EXPECT_FALSE(Copy().ok);
+}
+
+constexpr char kArcWindowsKey[] = "0123456789abcdef0123456789abcdef";
+constexpr char kCompassWindowsKey[] = "fedcba9876543210fedcba9876543210";
+
+TEST(ChromiumWindowsCipherTest, RoundTripsAndRejectsOtherKeys) {
+  const ChromiumWindowsCipher arc(kArcWindowsKey);
+  const std::string encrypted = arc.Encrypt("secret cookie");
+  EXPECT_TRUE(encrypted.starts_with("v10"));
+  // "v10", the nonce, the ciphertext, the 16-byte tag.
+  EXPECT_EQ(encrypted.size(), 3u + 12u + 13u + 16u);
+  EXPECT_EQ(arc.Decrypt(encrypted), "secret cookie");
+  // A fresh nonce each time.
+  EXPECT_NE(arc.Encrypt("secret cookie"), encrypted);
+  EXPECT_FALSE(ChromiumWindowsCipher(kCompassWindowsKey).Decrypt(encrypted));
+  // Tampered with.
+  std::string tampered = encrypted;
+  tampered.back() ^= 1;
+  EXPECT_FALSE(arc.Decrypt(tampered));
+  // App-bound values, short ones, others, and a key of the wrong size.
+  std::string app_bound = encrypted;
+  app_bound[1] = '2';
+  EXPECT_TRUE(app_bound.starts_with(kAppBoundPrefix));
+  EXPECT_FALSE(arc.Decrypt(app_bound));
+  EXPECT_FALSE(arc.Decrypt("v10short"));
+  EXPECT_FALSE(arc.Decrypt("plain"));
+  EXPECT_FALSE(ChromiumWindowsCipher("short key").Decrypt(encrypted));
+}
+
+// Arc for Windows' layout: cookies in Network/Cookies, the cache inside the
+// profile, values in Windows' scheme, some with an app-bound key.
+TEST(ProfileCopyWindowsTest, ReencryptsAndSkipsAppBoundValues) {
+  base::ScopedTempDir dir;
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  const base::FilePath arc = dir.GetPath().AppendASCII("Arc/Default");
+  const base::FilePath compass = dir.GetPath().AppendASCII("Compass/Profile 2");
+  const ChromiumWindowsCipher arc_cipher(kArcWindowsKey);
+  const ChromiumWindowsCipher compass_cipher(kCompassWindowsKey);
+  const std::string app_bound =
+      std::string(kAppBoundPrefix) + "app-bound ciphertext";
+  ASSERT_TRUE(base::CreateDirectory(arc.AppendASCII("Network")));
+  ASSERT_TRUE(base::CreateDirectory(arc.AppendASCII("Cache/Cache_Data")));
+  ASSERT_TRUE(
+      base::WriteFile(arc.AppendASCII("Cache/Cache_Data/index"), "idx"));
+  {
+    sql::Database cookies(sql::Database::Tag("Test"));
+    ASSERT_TRUE(cookies.Open(arc.AppendASCII("Network/Cookies")));
+    ASSERT_TRUE(cookies.Execute(
+        "CREATE TABLE cookies (host_key TEXT, encrypted_value BLOB)"));
+    for (const auto& [host, value] :
+         {std::pair<std::string, std::string>{"a.test",
+                                              arc_cipher.Encrypt("session=1")},
+          {"b.test", app_bound}}) {
+      sql::Statement insert(
+          cookies.GetUniqueStatement("INSERT INTO cookies VALUES (?, ?)"));
+      insert.BindString(0, host);
+      insert.BindBlob(1, value);
+      ASSERT_TRUE(insert.Run());
+    }
+  }
+  {
+    sql::Database logins(sql::Database::Tag("Test"));
+    ASSERT_TRUE(logins.Open(arc.AppendASCII("Login Data")));
+    ASSERT_TRUE(logins.Execute(
+        "CREATE TABLE logins (origin_url TEXT, password_value BLOB)"));
+    for (const auto& [origin, value] :
+         {std::pair<std::string, std::string>{"https://a.test/",
+                                              arc_cipher.Encrypt("hunter2")},
+          {"https://b.test/", app_bound}}) {
+      sql::Statement insert(
+          logins.GetUniqueStatement("INSERT INTO logins VALUES (?, ?)"));
+      insert.BindString(0, origin);
+      insert.BindBlob(1, value);
+      ASSERT_TRUE(insert.Run());
+    }
+  }
+
+  int reencrypt_calls = 0;
+  CopyResult result = CopyProfile(
+      arc, compass, base::FilePath(), base::FilePath(),
+      base::BindLambdaForTesting(
+          [&](std::string_view value) -> std::optional<std::string> {
+            ++reencrypt_calls;
+            std::optional<std::string> plain = arc_cipher.Decrypt(value);
+            return plain ? std::optional(compass_cipher.Encrypt(*plain))
+                         : std::nullopt;
+          }));
+  ASSERT_TRUE(result.ok);
+  EXPECT_EQ(result.reencrypted, 2);
+  EXPECT_EQ(result.app_bound, 2);
+  EXPECT_EQ(result.dropped_cookies, 0);
+  // App-bound values aren't even tried.
+  EXPECT_EQ(reencrypt_calls, 2);
+  EXPECT_TRUE(
+      base::PathExists(compass.AppendASCII("Cache/Cache_Data/index")));
+
+  sql::Database cookies(sql::Database::Tag("Test"));
+  ASSERT_TRUE(cookies.Open(compass.AppendASCII("Network/Cookies")));
+  sql::Statement cookie(cookies.GetUniqueStatement(
+      "SELECT host_key, encrypted_value FROM cookies"));
+  ASSERT_TRUE(cookie.Step());
+  EXPECT_EQ(cookie.ColumnString(0), "a.test");
+  EXPECT_EQ(compass_cipher.Decrypt(cookie.ColumnBlobAsString(1)), "session=1");
+  EXPECT_FALSE(cookie.Step());
+
+  sql::Database logins(sql::Database::Tag("Test"));
+  ASSERT_TRUE(logins.Open(compass.AppendASCII("Login Data")));
+  sql::Statement password(logins.GetUniqueStatement(
+      "SELECT password_value FROM logins ORDER BY origin_url"));
+  ASSERT_TRUE(password.Step());
+  EXPECT_EQ(compass_cipher.Decrypt(password.ColumnBlobAsString(0)), "hunter2");
+  // The app-bound password stays as it was.
+  ASSERT_TRUE(password.Step());
+  EXPECT_EQ(password.ColumnBlobAsString(0), app_bound);
 }
 
 }  // namespace

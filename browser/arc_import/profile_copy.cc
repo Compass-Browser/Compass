@@ -28,10 +28,11 @@ constexpr const char* kSkippedNames[] = {
     "SingletonSocket", "RunningChromeVersion",
 };
 
-// The profile's databases with encrypted values.
+// The profile's databases with encrypted values. Chromium on Windows keeps
+// its cookies in the network service's folder ("Network").
 constexpr const char* kEncryptedDatabases[] = {
-    "Cookies",          "Login Data", "Login Data For Account",
-    "Web Data",         "Account Web Data",
+    "Cookies",  "Network/Cookies",  "Login Data", "Login Data For Account",
+    "Web Data", "Account Web Data",
 };
 
 // Encrypted cookies Arc's key can't decrypt are left out (a cookie lost
@@ -98,7 +99,9 @@ std::vector<std::string> ColumnNames(sql::Database& db,
 }
 
 // Re-encrypts every value of |db| that starts with "v10". Values that don't
-// decrypt are left as they are, except cookies, which are deleted.
+// decrypt are left as they are, except cookies, which are deleted. Values
+// with an app-bound key ("v20", Windows) only the browser that wrote them can
+// read: they're counted, and handled as values that don't decrypt.
 bool ReencryptDatabase(const base::FilePath& path,
                        const Reencrypt& reencrypt,
                        CopyResult& result) {
@@ -127,7 +130,8 @@ bool ReencryptDatabase(const base::FilePath& path,
       const std::string query =
           "SELECT rowid, " + quoted_column + " FROM " + quoted_table +
           " WHERE typeof(" + quoted_column + ")='blob' AND substr(" +
-          quoted_column + ",1,3)=CAST('v10' AS BLOB)";
+          quoted_column +
+          ",1,3) IN (CAST('v10' AS BLOB), CAST('v20' AS BLOB))";
       // Tables without a rowid hold nothing Chromium encrypts.
       if (!db.IsSQLValid(query)) {
         continue;
@@ -140,7 +144,12 @@ bool ReencryptDatabase(const base::FilePath& path,
         }
       }
       for (const auto& [rowid, value] : values) {
-        std::optional<std::string> converted = reencrypt.Run(value);
+        const bool app_bound = value.starts_with(kAppBoundPrefix);
+        if (app_bound) {
+          ++result.app_bound;
+        }
+        std::optional<std::string> converted =
+            app_bound ? std::nullopt : reencrypt.Run(value);
         if (converted) {
           sql::Statement update(db.GetUniqueStatement(
               "UPDATE " + quoted_table + " SET " + quoted_column +
@@ -158,7 +167,9 @@ bool ReencryptDatabase(const base::FilePath& path,
           if (!remove.Run()) {
             return false;
           }
-          ++result.dropped_cookies;
+          if (!app_bound) {
+            ++result.dropped_cookies;
+          }
         }
       }
     }
