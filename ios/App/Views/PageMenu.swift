@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassModel
 import SwiftUI
 import WebKit
@@ -9,13 +10,14 @@ import WebKit
 /// The bottom bar's menu: what to do with the shown page. On top, back,
 /// forward, the address (tap to edit), copy link and reload; then Find on
 /// Page, Reader, Ask Claude, Pin and Share; then Site Settings (where
-/// Desktop Site is) and Settings.
+/// Desktop Site is), Boost This Site and Settings.
 struct PageMenu: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
   @State private var copied = false
   @State private var showingDownloads = false
   @State private var showingArchive = false
+  @State private var showingBoosts = false
 
   var body: some View {
     let _ = app.tabs.revision
@@ -67,6 +69,17 @@ struct PageMenu: View {
             action: { app.showingSiteSettings = true }) {
           Image(systemName: "slider.horizontal.3").menuIcon(.blue)
         }
+        if let page = boostablePage(tab, view) {
+          let active = BoostStore.shared.matching(page).count
+          Row(
+            title: "Boost This Site",
+            subtitle: active == 0 ? "Restyle it with CSS or JavaScript" : "\(active) Boost\(active == 1 ? "" : "s") on this page",
+            trailing: "chevron.right", action: { showingBoosts = true }
+          ) {
+            Image(systemName: "wand.and.stars").menuIcon(.pink)
+          }
+          .accessibilityIdentifier("MenuBoosts")
+        }
         Row(title: "Settings", subtitle: "Sync, passwords, search engine", trailing: "chevron.right",
             action: {
               dismiss()
@@ -86,7 +99,7 @@ struct PageMenu: View {
     .frame(maxHeight: .infinity, alignment: .top)
     .background(SpaceTint(theme: app.selectedSpace?.theme ?? .blue))
     .spaceAppearance(app.selectedSpace?.theme)
-    .presentationDetents([.height(404 + extensionsHeight(tab, view))])
+    .presentationDetents([.height(404 + extensionsHeight(tab, view) + (boostablePage(tab, view) == nil ? 0 : 56))])
     .presentationDragIndicator(.visible)
     .sheet(isPresented: Binding(get: { app.showingSiteSettings }, set: { app.showingSiteSettings = $0 })) {
       SiteSettingsView(site: site)
@@ -97,6 +110,20 @@ struct PageMenu: View {
       }
     }
     .sheet(isPresented: $showingArchive) { ArchiveView(space: nil) }
+    .sheet(isPresented: $showingBoosts) {
+      if let page = boostablePage(tab, view) {
+        NavigationStack { SiteBoostsView(url: page) { view?.reload() } }
+      }
+    }
+  }
+
+  /// The shown page, when Boosts can apply to it: a web page, not in
+  /// Incognito.
+  private func boostablePage(_ tab: SidebarNode?, _ view: WKWebView?) -> URL? {
+    guard let tab, !app.tabs.isIncognito(tab.id),
+      let url = view?.url ?? URL(string: tab.url), BoostMatch.suggested(for: url) != nil
+    else { return nil }
+    return url
   }
 
   private func extensionsHeight(_ tab: SidebarNode?, _ view: WKWebView?) -> CGFloat {

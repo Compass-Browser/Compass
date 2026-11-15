@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassClaude
 import SwiftUI
 import UniformTypeIdentifiers
@@ -87,6 +88,16 @@ struct ClaudeSettingsView: View {
         Toggle("Let Claude Use Developer Tools", isOn: $settings.devtools)
       } footer: {
         Text("Claude can inspect the page it works on as a web developer would: its requests and their answers, styles, cookies and storage, and performance, and try it as another device. Changes to cookies or storage ask you first. While on, Compass records the pages' requests and passes your profiles' connections through a proxy in the app, which sees where they go but never what they carry. Web pages can contain text written to trick Claude, so turn this on only when you need it.")
+      }
+
+      Section {
+        Toggle("Let Claude Make Boosts", isOn: $settings.boosts)
+          .accessibilityIdentifier("ClaudeBoosts")
+        NavigationLink { BoostsView() } label: {
+          LabeledContent("Boosts", value: "\(BoostStore.shared.boosts.count)")
+        }
+      } footer: {
+        Text("Claude can restyle a site for you with a Boost, CSS that applies each time you visit, and change the Boosts it made. CSS saves at once, with Undo in the chat. JavaScript always asks you first, showing the code. Boosts sync with your spaces, end-to-end encrypted.")
       }
 
       // Claude in the sidebar (docs/design/ai-sidebar.md): a row per

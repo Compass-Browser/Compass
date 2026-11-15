@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassClaude
 import Foundation
 import Observation
@@ -52,6 +53,9 @@ final class ClaudeSettings {
       NotificationCenter.default.post(name: .claudeDevToolsChanged, object: nil)
     }
   }
+  /// "Let Claude Make Boosts" (off by default; docs/design/boosts.md): the
+  /// Boost tools are sent and work. Boosts made by hand don't need it.
+  var boosts: Bool { didSet { defaults.set(boosts, forKey: BoostTools.settingKey) } }
   /// Settings → Claude → Files: what the file tools may do (off by
   /// default; docs/design/claude.md, "Files").
   var fileAccess: ClaudeFileAccess { didSet { defaults.set(fileAccess.rawValue, forKey: "ClaudeFilesAccess") } }
@@ -108,6 +112,7 @@ final class ClaudeSettings {
     memoryEnabled = defaults.object(forKey: "ClaudeMemoryEnabled") as? Bool ?? true
     memorySave = defaults.object(forKey: "ClaudeMemorySave") as? Bool ?? true
     devtools = defaults.bool(forKey: "ClaudeDevTools")
+    boosts = defaults.bool(forKey: BoostTools.settingKey)
     nameLinkFolders = defaults.bool(forKey: ClaudeQuick.nameLinkFoldersKey)
     nameLinkFoldersModel = defaults.string(forKey: ClaudeQuick.nameLinkFoldersModelKey) ?? ClaudeQuick.defaultModel
     tidyToday = defaults.bool(forKey: ClaudeQuick.tidyTodayKey)
@@ -260,11 +265,16 @@ final class ClaudeSettings {
   /// its `scope` stays here, ClaudeTools.scopes).
   /// Entries for other platforms (`"platforms": ["desktop"]`) are left
   /// out; an entry without `platforms` is for every platform.
-  static let tools: [JSONValue] = toolEntries.filter { !["memory", "devtools"].contains($0["scope"]?.string ?? "") }
+  static let tools: [JSONValue] = toolEntries.filter { !["memory", "devtools", "boosts"].contains($0["scope"]?.string ?? "") }
     .compactMap { $0["definition"] }
   /// The developer tools, sent while "Let Claude Use Developer Tools" is
   /// on (and for the rest of a chat that had them).
   static let devtoolsTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "devtools" }
+    .compactMap { $0["definition"] }
+  /// The Boost tools (list_boosts, save_boost, delete_boost), sent while
+  /// "Let Claude Make Boosts" is on (and for the rest of a chat that had
+  /// them).
+  static let boostTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "boosts" }
     .compactMap { $0["definition"] }
   /// The memory tools (remember, update_memory, forget), sent while Claude
   /// may save memories.

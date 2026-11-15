@@ -205,6 +205,9 @@ final class TabManager: NSObject {
       // Claude's developer tools, while on (never in Incognito, which
       // Claude can't use).
       if !incognito { DevToolsNetwork.shared.addCapture(to: configuration.userContentController) }
+      // Boosts: per-site CSS and JavaScript (BoostInjector); not in
+      // Incognito, which keeps no Boost store on the desktop either.
+      if !incognito { BoostInjector.shared.attach(configuration.userContentController) }
       configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
       view = WKWebView(
         frame: .zero,

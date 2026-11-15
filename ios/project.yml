@@ -111,6 +111,8 @@ targets:
         product: CompassClaude
       - package: CompassKit
         product: CompassLiveFolders
+      - package: CompassKit
+        product: CompassBoosts
     info:
       path: App/Info.plist
       properties:

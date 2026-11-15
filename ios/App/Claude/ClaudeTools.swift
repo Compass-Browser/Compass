@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassClaude
 import CompassModel
 import UIKit
@@ -27,6 +28,8 @@ final class ClaudeTools {
     var isError = false
     /// What a memory tool changed, for the chat's Undo; not sent.
     var memoryChange: MemoryChange?
+    /// What a Boost tool changed, for the chat's Undo; not sent.
+    var boostChange: BoostChange?
 
     static func text(_ text: String) -> Result { Result(content: [["type": "text", "text": .string(text)]]) }
     static func error(_ text: String) -> Result { Result(content: [["type": "text", "text": .string(text)]], isError: true) }
@@ -75,6 +78,10 @@ final class ClaudeTools {
     var title: String
     /// The content's start (ClaudeFiles.preview).
     var detail: String
+    /// "Allow for This Chat" is offered: not for a Boost's JavaScript,
+    /// which the user sees each time.
+    var allowForChat = true
+    var symbol = "doc.badge.plus"
   }
 
   /// Asks the user (the chat's approval card); without it, nothing is
@@ -105,6 +112,14 @@ final class ClaudeTools {
     var before: MemoryEntry?
   }
 
+  /// What a Boost tool did: "saved", "updated" or "deleted", the Boost
+  /// (deleted: as it was), and the Boost before (none if new).
+  struct BoostChange {
+    var kind: String
+    var boost: Boost
+    var before: Boost?
+  }
+
   /// Runs one tool call.
   func run(_ name: String, input: JSONValue) async -> Result {
     // Emulation ends a minute after Claude's last tool.
@@ -113,6 +128,7 @@ final class ClaudeTools {
     guard let scope = scopes[name] else { return .error("Unknown tool: \(name).") }
     if scope == "memory" { return runMemoryTool(name, input: input) }
     if scope == "files" { return await runFileTool(name, input: input) }
+    if scope == "boosts" { return await runBoostTool(name, input: input) }
     if scope == "devtools" {
       guard ClaudeSettings.shared.devtools else { return .error(Self.devtoolsOff) }
     }
@@ -242,6 +258,62 @@ final class ClaudeTools {
     var result = Result.text("Forgotten.")
     result.memoryChange = MemoryChange(kind: "forgot", id: before.id, text: before.text, before: before)
     return result
+  }
+
+  /// list_boosts, save_boost, delete_boost: the Boosts, no tab needed, while
+  /// "Let Claude Make Boosts" is on (docs/design/boosts.md). JavaScript
+  /// that's new, changed or moved, and deleting a Boost that has some, ask
+  /// the user first; the rest saves at once, with Undo in the chat.
+  private func runBoostTool(_ name: String, input: JSONValue) async -> Result {
+    guard ClaudeSettings.shared.boosts else { return .error(BoostTools.notPermitted) }
+    let store = BoostStore.shared
+    switch name {
+    case "list_boosts":
+      return .text(BoostTools.list(store.list, host: input["host"]?.string))
+    case "save_boost":
+      let enabled: Bool? = input["enabled"] == true ? true : input["enabled"] == false ? false : nil
+      let draft = BoostDraft(
+        id: input["id"]?.string, name: input["name"]?.string ?? "", match: input["match"]?.string ?? "",
+        css: input["css"]?.string, js: input["js"]?.string, jsWorld: input["js_world"]?.string, enabled: enabled)
+      let boost: Boost
+      switch store.resolve(draft, author: .claude) {
+      case .failure(let failure): return .error(failure.description)
+      case .success(let resolved): boost = resolved
+      }
+      let before = store.find(boost.id)
+      if boost == before { return .text(BoostTools.saved(boost)) }
+      if BoostList.needsApproval(boost, before: before) {
+        let title =
+          before == nil || before?.js.isEmpty == true
+          ? "Run JavaScript on \(boost.match) (“\(boost.name)”)" : "Change the JavaScript of “\(boost.name)”"
+        let approval = Approval(
+          tool: name, title: title, detail: BoostTools.approvalDetail(boost, before: before), allowForChat: false,
+          symbol: "wand.and.stars")
+        guard await approve?(approval) == true else { return .error(BoostTools.denied) }
+        // The Boost may have changed while the user looked: only what was
+        // shown is saved.
+        guard store.find(boost.id) == before else { return .error("The Boost changed meanwhile. Nothing was saved.") }
+      }
+      guard store.put(boost) else { return .error(BoostList.Failure.full.description) }
+      var result = Result.text(BoostTools.saved(boost))
+      result.boostChange = BoostChange(kind: before == nil ? "saved" : "updated", boost: boost, before: before)
+      return result
+    case "delete_boost":
+      let id = input["id"]?.string ?? ""
+      guard let boost = store.find(id) else { return .error(BoostList.Failure.notFound(id).description) }
+      if BoostList.deleteNeedsApproval(boost) {
+        let approval = Approval(
+          tool: name, title: "Delete “\(boost.name)” on \(boost.match)", detail: boost.js, allowForChat: false,
+          symbol: "trash")
+        guard await approve?(approval) == true else { return .error(BoostTools.deleteDenied) }
+      }
+      guard let removed = store.remove(boost.id) else { return .error(BoostList.Failure.notFound(id).description) }
+      var result = Result.text(BoostTools.deleted(removed))
+      result.boostChange = BoostChange(kind: "deleted", boost: removed, before: removed)
+      return result
+    default:
+      return .error("\(name) isn't available on iOS.")
+    }
   }
 
   /// tools.json's scopes, by tool name.

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassCrypto
 import CompassModel
 import CompassShared
@@ -52,6 +53,16 @@ struct SettingsView: View {
               Text(ClaudeSettings.shared.hasKey ? "On" : "Off").foregroundStyle(.secondary)
             }
           }
+          NavigationLink { BoostsView() } label: {
+            HStack {
+              SettingsLabel("Boosts", "wand.and.stars", .pink)
+              Spacer()
+              if !BoostStore.shared.boosts.isEmpty {
+                Text("\(BoostStore.shared.boosts.filter(\.enabled).count)").foregroundStyle(.secondary)
+              }
+            }
+          }
+          .accessibilityIdentifier("SettingsBoosts")
           if #available(iOS 18.4, *) {
             NavigationLink { ExtensionsView() } label: {
               HStack {
