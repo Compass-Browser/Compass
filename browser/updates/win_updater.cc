@@ -40,7 +40,7 @@
 // Windows updates: Compass reads its channel's manifest, downloads the newer
 // installer (Chromium's mini_installer), checks its size, hash and Ed25519
 // signature, and runs it. The installer updates in place: with the browser
-// running it leaves new_chrome.exe and the new version folder, upstream's
+// running it leaves new_compass.exe and the new version folder, upstream's
 // installed-version monitor sees the new version in the registry, and the
 // app menu offers to relaunch, which swaps the executable
 // (docs/design/updates.md, "Windows").
@@ -138,7 +138,7 @@ class WinUpdater : public Updater {
     Check();
   }
 
-  // Chromium's relaunch swaps in new_chrome.exe.
+  // Chromium's relaunch swaps in new_compass.exe.
   bool InstallAndRelaunch() override { return false; }
 
  private:

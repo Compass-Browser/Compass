@@ -95,7 +95,7 @@ def browser_binary(layout: Layout, out_dir: Path) -> Path:
     name = product_name(layout)
     return out_dir / (name + '.app') / 'Contents' / 'MacOS' / name
   if sys.platform == 'win32':
-    return out_dir / 'chrome.exe'
+    return out_dir / 'compass.exe'
   return out_dir / 'chrome'
 
 

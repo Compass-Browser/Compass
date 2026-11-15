@@ -13,7 +13,7 @@ namespace compass::win {
 // (patches/chrome-browser-profiles-profile_shortcut_manager_win.cc.patch).
 // Before that, a second profile renamed the desktop shortcut after the
 // first ("Your Chromium - Compass") and added one per profile. Those go, in
-// the background: shortcuts on the user's desktop to this chrome.exe with a
+// the background: shortcuts on the user's desktop to this compass.exe with a
 // --profile-directory, named "<profile> - <product>". If any went and no
 // plain shortcut is left, the plain one is made again. Idempotent; run at
 // each launch.

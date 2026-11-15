@@ -153,8 +153,8 @@ void Launch(const std::wstring& user_data_dir, bool explicit_dir) {
   if (dir.empty()) {
     return;
   }
-  const std::wstring chrome = dir + L"\\chrome.exe";
-  std::wstring command = L"\"" + chrome + L"\"";
+  const std::wstring browser = dir + L"\\compass.exe";
+  std::wstring command = L"\"" + browser + L"\"";
   if (explicit_dir) {
     command += L" \"--user-data-dir=" + user_data_dir + L"\"";
   }
@@ -164,7 +164,7 @@ void Launch(const std::wstring& user_data_dir, bool explicit_dir) {
   startup.wShowWindow = SW_SHOWMINNOACTIVE;
   PROCESS_INFORMATION process = {};
   // No inherited handles: the client waits for its pipes to close.
-  if (::CreateProcessW(chrome.c_str(), command.data(), nullptr, nullptr,
+  if (::CreateProcessW(browser.c_str(), command.data(), nullptr, nullptr,
                        FALSE, 0, nullptr, nullptr, &startup, &process)) {
     ::CloseHandle(process.hThread);
     ::CloseHandle(process.hProcess);

@@ -1,0 +1,19 @@
+diff --git a/chrome/installer/util/util_constants.h b/chrome/installer/util/util_constants.h
+index 825aba2569510ae7692e1dce9c155856b652f4f1..aea96e3a7fb03c4ac270ea3e55832697f5d44040 100644
+--- a/chrome/installer/util/util_constants.h
++++ b/chrome/installer/util/util_constants.h
+@@ -393,9 +393,11 @@ inline constexpr char kGoogleUpdateIsMachineEnvVar[] = "GoogleUpdateIsMachine";
+ // Active Setup.
+ inline constexpr wchar_t kActiveSetupExe[] = L"chrmstp.exe";
+ inline constexpr wchar_t kChromeDll[] = L"chrome.dll";
+-inline constexpr wchar_t kChromeExe[] = L"chrome.exe";
+-inline constexpr wchar_t kChromeNewExe[] = L"new_chrome.exe";
+-inline constexpr wchar_t kChromeOldExe[] = L"old_chrome.exe";
++// Compass: compass.exe. Installs from before keep a chrome.exe that starts
++// it (//compass/installer/win/legacy_chrome_exe.h).
++inline constexpr wchar_t kChromeExe[] = L"compass.exe";
++inline constexpr wchar_t kChromeNewExe[] = L"new_compass.exe";
++inline constexpr wchar_t kChromeOldExe[] = L"old_compass.exe";
+ inline constexpr wchar_t kChromeProxyExe[] = L"chrome_proxy.exe";
+ inline constexpr wchar_t kChromeProxyNewExe[] = L"new_chrome_proxy.exe";
+ inline constexpr wchar_t kChromeProxyOldExe[] = L"old_chrome_proxy.exe";

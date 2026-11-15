@@ -188,7 +188,7 @@ browser decides when to run it.
 
 - **Installer:** `mini_installer.exe` (per-user, `%LOCALAPPDATA%\Compass`).
   A newer one updates an installed copy in place. When the browser is
-  running, setup.exe leaves `new_chrome.exe` and the new version folder.
+  running, setup.exe leaves `new_compass.exe` and the new version folder.
   Upstream's installed-version monitor sees the new version in the registry
   (`pv`), the app menu offers to relaunch, and the relaunch swaps the
   executable. That's all upstream behaviour; nothing is patched for it.
@@ -246,7 +246,7 @@ browser decides when to run it.
   the rest and names it in its `.json`; `publish-win` uploads it next to
   CompassSetup and lists it as `win.installer` in the feeds, which the
   website's Windows links use. The updater keeps running mini_installer.
-- **After an update:** the installer stages `new_chrome.exe` and sets the
+- **After an update:** the installer stages `new_compass.exe` and sets the
   registry's `pv`; the About page offers Relaunch at once. The app menu's
   "Relaunch to update" comes at upstream's first notification stage, an
   hour after the upgrade detector sees the update
@@ -274,6 +274,53 @@ browser decides when to run it.
     `publish-win` hashes the files it's given, so the feeds match the signed
     ones.
 - **Not done:** no differential updates (mini_installer is about 130 MB).
+
+### Windows: compass.exe
+
+The browser is `compass.exe` (it was Chromium's `chrome.exe` until November
+2026): `chrome_initial`'s output name and the installer's names
+(`util_constants.h`: `compass.exe`, `new_compass.exe`, `old_compass.exe`;
+`compass.VisualElementsManifest.xml`), with `chrome_constants.cc`,
+`chrome_proxy.exe` and `compass-mcp.exe` to match (patches/README.md). The
+Authenticode signature, the AppUserModelID and the ProgIds' names don't
+change.
+
+Installs from before still have `Application\chrome.exe`, and things point
+at it that setup can't all find: taskbar pins, shortcuts anywhere, the
+default browser's registration, other apps, and the running older browser,
+whose "Relaunch to update" starts `chrome.exe` (it knows no other name).
+Setup (`compass/installer/win/legacy_chrome_exe.cc`, called from the
+`install_worker.cc` patch) does two things on such an install, at every
+update:
+
+- **A `chrome.exe` stub.** In place of `chrome.exe` it puts
+  `legacy_chrome.exe` from the version folder (`installer/win`,
+  `legacy_chrome_main.cc`): plain Win32 with Compass's icon (550 KB, most
+  of it the icon) that starts `compass.exe` next to it with the same arguments, the same
+  window state and shortcut (which ties the windows to a pin), and only the
+  `--wait-for-parent-handle` handle inherited, then exits. A running
+  `chrome.exe` is moved aside (Windows allows that for a running program),
+  so an update from a running older browser works as before: setup installs
+  `compass.exe` directly (it isn't in use), the older browser sees the new
+  `pv` and offers to relaunch, its relaunch starts the stub, and the stub
+  starts the new `compass.exe`, which waits for the old browser to exit.
+  `new_chrome.exe`, `old_chrome.exe` and `chrome.VisualElementsManifest.xml`
+  go. New installs get no `chrome.exe`.
+- **Repointing.** A last, best-effort step moves Compass's registration
+  from `chrome.exe` to `compass.exe` under the same suffix (the one whose
+  `StartMenuInternet` key opens `chrome.exe`; ProgIds and Default Programs
+  entries keep their names, so the user's default browser choice, which
+  names the ProgId, stays), deletes `App Paths\chrome.exe` when it's
+  Compass's (Chrome uses the same key), and retargets the shortcuts to
+  `chrome.exe` on the desktop, in the Start menu, Quick Launch, the startup
+  folder and the taskbar pins (`User Pinned`, with the jump lists' implicit
+  shortcuts), with their icons, keeping their arguments and AppUserModelID.
+  Upstream's own registration after it then finds `compass.exe` registered.
+
+The stub is the fallback for what isn't repointed, so it stays. Uninstalling
+removes it with the rest of `Application`. Unit tests:
+`LegacyChromeExe*Test`, `LegacyShortcutsTest`, `LegacyRegistrationTest`
+(compass_unittests).
 
 ## Linux: Flatpak
 

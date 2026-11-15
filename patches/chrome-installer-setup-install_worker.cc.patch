@@ -1,12 +1,20 @@
 diff --git a/chrome/installer/setup/install_worker.cc b/chrome/installer/setup/install_worker.cc
-index a8e1e6e39477dc789fde5dcd16b4c405f702c56a..a0000770a370adacf1ecee11b7808098f23780da 100644
+index a8e1e6e39477dc789fde5dcd16b4c405f702c56a..bfda11c64708a3dd3e3868cb95f7025d9b695b44 100644
 --- a/chrome/installer/setup/install_worker.cc
 +++ b/chrome/installer/setup/install_worker.cc
-@@ -344,6 +344,17 @@ void AddChromeWorkItems(const InstallParams& install_params,
+@@ -71,6 +71,7 @@
+ #include "chrome/installer/util/shell_util.h"
+ #include "chrome/installer/util/util_constants.h"
+ #include "chrome/installer/util/work_item_list.h"
++#include "compass/installer/win/legacy_chrome_exe.h"
+ 
+ #if BUILDFLAG(USE_GOOGLE_UPDATE_INTEGRATION)
+ #include "chrome/installer/setup/channel_override_work_item.h"
+@@ -344,6 +345,21 @@ void AddChromeWorkItems(const InstallParams& install_params,
            WorkItem::MoveTreeOptions{.lenient_deletion = true})),
        /*else_item=*/std::move(not_in_use_list)));
  
-+  // Compass: compass-mcp.exe, next to chrome.exe, where MCP clients' configs
++  // Compass: compass-mcp.exe, next to compass.exe, where MCP clients' configs
 +  // point. It doesn't depend on the version, so a running one (a client's
 +  // MCP server) is moved aside rather than waited for: Windows lets a running
 +  // program be renamed. Best effort: Compass works without it.
@@ -17,6 +25,23 @@ index a8e1e6e39477dc789fde5dcd16b4c405f702c56a..a0000770a370adacf1ecee11b7808098
 +          WorkItem::MoveTreeOptions{.lenient_deletion = true})
 +      ->set_best_effort(true);
 +
++  // Compass: a chrome.exe that starts compass.exe, on installs from before.
++  compass::installer::AddLegacyChromeExeWorkItems(
++      target_path, target_version_dir, temp_path, install_list);
++
    // Update the version key now that chrome.exe or new_chrome.exe is in place.
    AddVersionKeyWorkItems(install_params, install_list);
  
+@@ -1099,6 +1115,12 @@ void AddInstallWorkItems(const InstallParams& install_params,
+ 
+   // Append the tasks that run after the installation.
+   AppendPostInstallTasks(install_params, install_list);
++
++  // Compass: then points chrome.exe's registrations and shortcuts at
++  // compass.exe.
++  compass::installer::AddLegacyChromeExeMigrationWorkItem(
++      installer_state.target_path(), installer_state.system_install(),
++      install_list);
+ }
+ 
+ void AddNativeNotificationWorkItems(

@@ -50,6 +50,12 @@ as "Unknown Publisher" or "no signature was present in the subject". Community
 posts say newer 1Password builds let the user add a browser as trusted; that
 isn't confirmed. If neither works, Compass needs an Authenticode certificate.
 
+The browser is `compass.exe`, not `chrome.exe` (updates.md, "Windows:
+compass.exe"). Compass's code looks up no host by the browser's file name,
+and it's signed as before; whether 1Password's check also wants a browser
+named `chrome.exe` isn't known (an unsigned or unknown Chromium was refused
+under either name).
+
 Not yet checked on a Windows machine. To check, with 1Password and Compass
 installed:
 

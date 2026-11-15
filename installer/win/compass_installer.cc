@@ -202,7 +202,7 @@ std::wstring InstalledCompass() {
   if (length == 0 || length > MAX_PATH) {
     return std::wstring();
   }
-  return std::wstring(local_app_data) + L"\\Compass\\Application\\chrome.exe";
+  return std::wstring(local_app_data) + L"\\Compass\\Application\\compass.exe";
 }
 
 bool OpenCompass() {

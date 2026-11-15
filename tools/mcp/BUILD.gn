@@ -5,7 +5,7 @@
 # compass-mcp: MCP clients (Claude Code, Claude Desktop, ...) run it; it
 # relays their stdio to the running browser's MCP bridge. Plain POSIX or
 # Win32, no Chromium libraries, so it runs from the app bundle (or next to
-# chrome.exe) in any build. See docs/design/claude.md, D6.
+# compass.exe) in any build. See docs/design/claude.md, D6.
 executable("compass-mcp") {
   sources = [ "compass_mcp_common.h" ]
   if (is_win) {

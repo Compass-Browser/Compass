@@ -1,5 +1,5 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index f1d133b6cda978b105c6110b279fdd75a1b2f061..e88f4d0adc588485cc0f700ef29c148e6b32f306 100644
+index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e057f51246 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
 @@ -32,6 +32,7 @@ import("//tools/resources/generate_resource_allowlist.gni")
@@ -10,17 +10,54 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..e88f4d0adc588485cc0f700ef29c148e
  
  assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
  
-@@ -246,6 +247,9 @@ if (!is_android && !is_mac) {
+@@ -86,13 +87,14 @@ if (is_win) {
+ 
+     # initialexe/ is used so that the we can reorder imports and write back to
+     # the final destination at $root_out_dir/.
++    # Compass: the browser is compass.exe (docs/design/updates.md, "Windows").
+     inputs = [
+-      "$root_out_dir/initialexe/chrome.exe",
+-      "$root_out_dir/initialexe/chrome.exe.pdb",
++      "$root_out_dir/initialexe/compass.exe",
++      "$root_out_dir/initialexe/compass.exe.pdb",
+     ]
+     outputs = [
+-      "$root_out_dir/chrome.exe",
+-      "$root_out_dir/chrome.exe.pdb",
++      "$root_out_dir/compass.exe",
++      "$root_out_dir/compass.exe.pdb",
+     ]
+     args = [
+       "-i",
+@@ -101,6 +103,8 @@ if (is_win) {
+       rebase_path("$root_out_dir", root_build_dir),
+       "-a",
+       current_cpu,
++      "-e",
++      "compass.exe",
+     ]
+     deps = [ ":chrome_initial" ]
+   }
+@@ -155,7 +159,7 @@ if (!is_android && !is_mac) {
+   }
+ 
+   if (is_win) {
+-    _chrome_output_name = "initialexe/chrome"
++    _chrome_output_name = "initialexe/compass"
+   } else {
+     _chrome_output_name = "chrome"
+   }
+@@ -246,6 +250,9 @@ if (!is_android && !is_mac) {
          "//chrome/notification_helper",
          "//chrome/windows_services/elevated_tracing_service",
          "//components/crash/win:chrome_wer",
 +
-+        # Compass: compass-mcp.exe, next to chrome.exe.
++        # Compass: compass-mcp.exe, next to compass.exe.
 +        "//compass/tools/mcp:compass-mcp",
        ]
  
        if (is_chrome_branded) {
-@@ -540,10 +544,15 @@ if (is_win) {
+@@ -540,10 +547,15 @@ if (is_win) {
      }
    }
  
@@ -37,7 +74,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..e88f4d0adc588485cc0f700ef29c148e
      extra_substitutions = [
        "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
        "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
-@@ -569,8 +578,16 @@ if (is_win) {
+@@ -569,8 +581,16 @@ if (is_win) {
        ":chrome_app_strings_bundle_data",
        ":chrome_resources",
        ":chrome_versioned_bundle_data",
@@ -54,7 +91,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..e88f4d0adc588485cc0f700ef29c148e
      if (enable_updater) {
        bundle_deps += [ ":chromium_updater_privileged_helper" ]
      }
-@@ -673,12 +690,12 @@ if (is_win) {
+@@ -673,12 +693,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {
@@ -69,7 +106,33 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..e88f4d0adc588485cc0f700ef29c148e
      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
    }
  
-@@ -1860,7 +1877,9 @@ if (is_win && enable_resource_allowlist_generation) {
+@@ -1706,9 +1726,11 @@ copy("visual_elements_resources") {
+   sources = [
+     "//chrome/app/theme/$branding_path_component/win/tiles/Logo.png",
+     "//chrome/app/theme/$branding_path_component/win/tiles/SmallLogo.png",
+-    "app/visual_elements_resources/chrome.VisualElementsManifest.xml",
+   ]
+ 
++  # Compass: named after compass.exe.
++  deps = [ ":compass_visual_elements_manifest" ]
++
+   if (is_chrome_branded) {
+     sources += [
+       "//chrome/app/theme/$branding_path_component/win/tiles/LogoBeta.png",
+@@ -1723,6 +1745,12 @@ copy("visual_elements_resources") {
+   outputs = [ "$root_out_dir/{{source_file_part}}" ]
+ }
+ 
++copy("compass_visual_elements_manifest") {
++  sources =
++      [ "app/visual_elements_resources/chrome.VisualElementsManifest.xml" ]
++  outputs = [ "$root_out_dir/compass.VisualElementsManifest.xml" ]
++}
++
+ group("resources") {
+   public_deps = [
+     "//chrome/browser:resources",
+@@ -1860,7 +1888,9 @@ if (is_win && enable_resource_allowlist_generation) {
  }
  
  if (is_linux || is_chromeos) {

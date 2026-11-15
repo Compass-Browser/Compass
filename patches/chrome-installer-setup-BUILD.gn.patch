@@ -1,0 +1,12 @@
+diff --git a/chrome/installer/setup/BUILD.gn b/chrome/installer/setup/BUILD.gn
+index e7e695f652355604ceea7d9739dcb95f73769fad..e62bdd6bc1f6fe0601f0ec599edbd456efe0a722 100644
+--- a/chrome/installer/setup/BUILD.gn
++++ b/chrome/installer/setup/BUILD.gn
+@@ -127,6 +127,7 @@ if (is_win) {
+       "//components/metrics:client_info",
+       "//components/metrics:metrics_pref_names",
+       "//components/version_info:channel",
++      "//compass/installer/win:legacy_chrome_exe",
+       "//crypto",
+       "//third_party/crashpad/crashpad/client",
+       "//third_party/crashpad/crashpad/util",

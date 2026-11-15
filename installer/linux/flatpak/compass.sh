@@ -6,4 +6,4 @@
 # zypak runs Chromium's sandbox through Flatpak's, without setuid.
 export CHROME_WRAPPER=/app/bin/compass
 export CHROME_DESKTOP=io.github.Compass_Browser.Compass.desktop
-exec zypak-wrapper /app/compass/chrome --no-default-browser-check "$@"
+exec zypak-wrapper /app/compass/compass --no-default-browser-check "$@"

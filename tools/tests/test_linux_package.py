@@ -34,8 +34,12 @@ class BuildFilesTest(unittest.TestCase):
       out = make_out_dir(Path(tmp), REQUIRED + ('chrome_sandbox', 'libEGL.so',
                                                 'MEIPreload/manifest.json',
                                                 'obj/x.o', 'args.gn'))
-      names = [name for name, _ in linux_package.build_files(out)]
+      files = dict(linux_package.build_files(out))
+      names = list(files)
     self.assertIn('chrome-sandbox', names)
+    # The browser is `compass` in the package, `chrome` in the out dir.
+    self.assertEqual(files['compass'].name, 'chrome')
+    self.assertNotIn('chrome', names)
     self.assertIn('libEGL.so', names)
     self.assertIn('locales/en-US.pak', names)
     self.assertIn('MEIPreload/manifest.json', names)
@@ -73,14 +77,14 @@ class IconsTest(unittest.TestCase):
 class ModesTest(unittest.TestCase):
 
   def test_modes(self):
-    self.assertEqual(linux_package.mode_for('chrome'), 0o755)
     self.assertEqual(linux_package.mode_for('compass'), 0o755)
+    self.assertEqual(linux_package.mode_for('chrome_crashpad_handler'), 0o755)
     self.assertEqual(linux_package.mode_for('chrome-sandbox'), 0o4755)
     self.assertEqual(linux_package.mode_for('resources.pak'), 0o644)
     self.assertEqual(linux_package.mode_for('libEGL.so'), 0o644)
 
   def test_strippable(self):
-    self.assertTrue(linux_package.strippable('chrome'))
+    self.assertTrue(linux_package.strippable('compass'))
     self.assertTrue(linux_package.strippable('libvulkan.so.1'))
     self.assertFalse(linux_package.strippable('resources.pak'))
 
@@ -97,13 +101,17 @@ class TarballTest(unittest.TestCase):
         members = {m.name: m for m in tar.getmembers()}
         desktop = tar.extractfile(
             'Compass-20261109.2000-linux-x64/compass.desktop').read().decode()
+        browser = tar.extractfile(
+            'Compass-20261109.2000-linux-x64/compass').read()
     top = 'Compass-20261109.2000-linux-x64/'
-    self.assertEqual(members[top + 'chrome'].mode, 0o755)
+    # The browser itself, no launcher script and no `chrome`.
+    self.assertEqual(browser, b'chrome')
+    self.assertNotIn(top + 'chrome', members)
     self.assertEqual(members[top + 'compass'].mode, 0o755)
     self.assertEqual(members[top + 'chrome-sandbox'].mode, 0o4755)
     self.assertEqual(members[top + 'chrome-sandbox'].uid, 0)
     self.assertEqual(members[top + 'resources.pak'].mode, 0o644)
-    self.assertGreater(members[top + 'chrome'].mtime, 0)
+    self.assertGreater(members[top + 'compass'].mtime, 0)
     self.assertTrue(members[top + 'locales'].isdir())
     self.assertTrue(members[top.rstrip('/')].isdir())
     self.assertIn(top + 'README', members)
@@ -130,6 +138,13 @@ class FlatpakTest(unittest.TestCase):
     ])
     self.assertIn('app-id: ' + linux_package.APP_ID, manifest)
     self.assertIn('rm -f /app/compass/chrome-sandbox', manifest)
+    # Existing installs keep updating: same app id and command.
+    self.assertIn('command: compass\n', manifest)
+    launcher = (REPO_ROOT / 'installer' / 'linux' / 'flatpak' /
+                'compass.sh').read_text()
+    self.assertIn('zypak-wrapper /app/compass/compass ', launcher)
+    self.assertIn('CHROME_DESKTOP=' + linux_package.APP_ID + '.desktop',
+                  launcher)
     self.assertIn('Icon=' + linux_package.APP_ID + '\n', desktop)
     self.assertRegex(metainfo,
                      r'<release version="1.2" date="\d{4}-\d\d-\d\d"/>')

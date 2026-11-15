@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/process_singleton_posix.cc b/chrome/browser/process_singleton_posix.cc
+index 9a83a1d2d2f9bf68ac8b832744b34fbe00ca724e..f3f5c8e64b5ac4e8997dda90e6b177378a86ed9d 100644
+--- a/chrome/browser/process_singleton_posix.cc
++++ b/chrome/browser/process_singleton_posix.cc
+@@ -386,9 +386,13 @@ bool IsChromeProcess(pid_t pid) {
+     return true;
+ 
+   base::FilePath other_chrome_path(base::GetProcessExecutablePath(pid));
++  // Compass: Linux packages name the browser `compass` (docs/building.md,
++  // "Linux packages").
+   return (!other_chrome_path.empty() &&
+-          other_chrome_path.BaseName() ==
+-              base::FilePath(chrome::kBrowserProcessExecutableName));
++          (other_chrome_path.BaseName() ==
++               base::FilePath(chrome::kBrowserProcessExecutableName) ||
++           other_chrome_path.BaseName() ==
++               base::FilePath(FILE_PATH_LITERAL("compass"))));
+ }
+ 
+ // A helper class to hold onto a socket.

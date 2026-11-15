@@ -498,9 +498,12 @@ tools\compass.bat package --cpu linux-x64 --build --flatpak
 two files into `out\Portable-linux-x64`, named after the release version
 (`--version`, by default date.time as for releases):
 
-- `Compass-<version>-linux-x64.tar.xz`: the browser with symbols stripped,
-  plus a `compass` launcher, a `.desktop` file, the icons and a README. The
-  Unix modes are set by `tools/compass_tool/linux_package.py`, since NTFS
+- `Compass-<version>-linux-x64.tar.xz`: the browser with symbols stripped
+  (named `compass`; the out dir's `chrome`), a `.desktop` file, the icons and
+  a README. Until November 2026 a `compass` script started `chrome`; the
+  process singleton takes either name for a running browser, and with no
+  `CHROME_DESKTOP` the desktop file is `compass.desktop` (patches/README.md).
+  The Unix modes are set by `tools/compass_tool/linux_package.py`, since NTFS
   doesn't record them. `chrome-sandbox` is setuid root, for distributions
   that restrict user namespaces (Ubuntu 24.04 and later). Unpacking as a
   regular user drops that bit, and the README says how to restore it.

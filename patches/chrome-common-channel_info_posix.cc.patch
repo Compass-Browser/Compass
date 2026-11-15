@@ -1,0 +1,14 @@
+diff --git a/chrome/common/channel_info_posix.cc b/chrome/common/channel_info_posix.cc
+index f6bcb3cc8e8d620db3c5a0459a8e9220c20923b2..7891033f76177b69225f8c10d2c7c425f203a0c3 100644
+--- a/chrome/common/channel_info_posix.cc
++++ b/chrome/common/channel_info_posix.cc
+@@ -148,7 +148,8 @@ std::string GetDesktopName(base::Environment* env) {
+   if (name.has_value() && !name.value().empty()) {
+     return name.value();
+   }
+-  return "chromium-browser.desktop";
++  // Compass: the Linux package's (installer/linux/compass.desktop.in).
++  return "compass.desktop";
+ #endif
+ }
+ #endif  // BUILDFLAG(IS_LINUX)

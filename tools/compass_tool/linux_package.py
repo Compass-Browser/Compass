@@ -24,9 +24,12 @@ from .process import CommandError, run
 
 APP_ID = 'io.github.Compass_Browser.Compass'
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
-# Executables in the out dir, by what they're called in the package.
+# Executables in the out dir, by what they're called in the package. The
+# browser is `compass` (until 2026-11 a `compass` script started `chrome`);
+# Chromium's process singleton accepts either name (process_singleton_posix.cc
+# patch).
 EXECUTABLES = {
-    'chrome': 'chrome',
+    'compass': 'chrome',
     'chrome_crashpad_handler': 'chrome_crashpad_handler',
     'chrome-sandbox': 'chrome_sandbox',
 }
@@ -69,7 +72,7 @@ def build_files(out_dir: Path) -> Iterator[Tuple[str, Path]]:
   """(name in the package, file in the out dir) for everything the browser
   needs at run time. Missing required files raise; optional ones (the
   context snapshot, the sandbox before it's built) are left out."""
-  required = {'chrome', 'chrome_crashpad_handler', 'resources.pak',
+  required = {'compass', 'chrome_crashpad_handler', 'resources.pak',
               'icudtl.dat', 'locales'}
   for name, built in EXECUTABLES.items():
     yield from _present(out_dir, name, built, name in required)
@@ -99,7 +102,7 @@ def _present(out_dir: Path, name: str, built: str,
 def mode_for(name: str) -> int:
   if name == 'chrome-sandbox':
     return SANDBOX_MODE
-  if name in EXECUTABLES or name in ('compass',):
+  if name in EXECUTABLES:
     return 0o755
   return 0o644
 
@@ -131,10 +134,9 @@ def desktop_entry(repo_root: Path, command: str, icon: str) -> str:
 
 
 def extra_files(repo_root: Path, src: Path) -> List[Tuple[str, bytes]]:
-  """The launcher, desktop file and icons that go next to the build."""
+  """The desktop file, README and icons that go next to the build."""
   linux = installer_dir(repo_root)
-  files = [('compass', (linux / 'compass').read_bytes()),
-           ('compass.desktop',
+  files = [('compass.desktop',
             desktop_entry(repo_root, 'compass', 'compass').encode()),
            ('README', (linux / 'README').read_bytes())]
   for size, path in icon_files(src):

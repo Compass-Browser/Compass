@@ -1,0 +1,48 @@
+diff --git a/build/win/reorder-imports.py b/build/win/reorder-imports.py
+index 11602df2777ec3fdecb319bce04110488f329b32..2e721200585ee69e0202dae39c7e8357ce81e8b8 100644
+--- a/build/win/reorder-imports.py
++++ b/build/win/reorder-imports.py
+@@ -18,7 +18,7 @@ sys.path.insert(
+ import pefile
+ 
+ 
+-def reorder_imports(input_dir, output_dir, architecture):
++def reorder_imports(input_dir, output_dir, architecture, exe='chrome.exe'):
+     """Swap chrome_elf.dll to be the first import of chrome.exe.
+     Also copy over any related files that might be needed
+     (pdbs, manifests etc.).
+@@ -27,8 +27,8 @@ def reorder_imports(input_dir, output_dir, architecture):
+     # correct executable in the first place, so that this script
+     # only needs to verify that and not write a whole new exe.
+ 
+-    input_image = os.path.join(input_dir, 'chrome.exe')
+-    output_image = os.path.join(output_dir, 'chrome.exe')
++    input_image = os.path.join(input_dir, exe)
++    output_image = os.path.join(output_dir, exe)
+ 
+     # pefile mmap()s the whole executable, and then parses parts of
+     # it into python data structures for ease of processing.
+@@ -90,7 +90,7 @@ def reorder_imports(input_dir, output_dir, architecture):
+ 
+     pe.write(filename=output_image)
+ 
+-    for fname in glob.iglob(os.path.join(input_dir, 'chrome.exe.*')):
++    for fname in glob.iglob(os.path.join(input_dir, exe + '.*')):
+         shutil.copy(fname, os.path.join(output_dir, os.path.basename(fname)))
+     return 0
+ 
+@@ -107,11 +107,13 @@ def main(argv):
+     parser.add_option(
+         '-a', '--arch', help='architecture of build (optional)', default='ia32'
+     )
++    # Compass: its browser is compass.exe.
++    parser.add_option('-e', '--exe', help='the executable', default='chrome.exe')
+     opts, args = parser.parse_args()
+ 
+     if not opts.input or not opts.output:
+         parser.error('Please provide and input and output directory')
+-    return reorder_imports(opts.input, opts.output, opts.arch)
++    return reorder_imports(opts.input, opts.output, opts.arch, opts.exe)
+ 
+ 
+ if __name__ == "__main__":

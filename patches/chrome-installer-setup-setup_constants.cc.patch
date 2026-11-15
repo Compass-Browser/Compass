@@ -1,0 +1,15 @@
+diff --git a/chrome/installer/setup/setup_constants.cc b/chrome/installer/setup/setup_constants.cc
+index ddfac6307d16e2be7a376433389fd0ea0716b1b7..19a6c7c6e0e63ee64e7e1029ba6ad2ff85d4f662 100644
+--- a/chrome/installer/setup/setup_constants.cc
++++ b/chrome/installer/setup/setup_constants.cc
+@@ -10,7 +10,9 @@ namespace installer {
+ const wchar_t kChromeArchive[] = L"chrome.7z";
+ const wchar_t kChromeCompressedArchive[] = L"chrome.packed.7z";
+ const char kVisualElements[] = "VisualElements";
+-const wchar_t kVisualElementsManifest[] = L"chrome.VisualElementsManifest.xml";
++// Compass: named after compass.exe.
++const wchar_t kVisualElementsManifest[] =
++    L"compass.VisualElementsManifest.xml";
+ 
+ // Sub directory of install source package under install temporary directory.
+ const wchar_t kInstallSourceDir[] = L"source";

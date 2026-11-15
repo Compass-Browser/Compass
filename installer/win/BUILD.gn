@@ -34,3 +34,47 @@ executable("compass_installer") {
     "//chrome/installer/mini_installer",
   ]
 }
+
+# chrome.exe on installs from before the browser became compass.exe
+# (legacy_chrome_exe.h): starts compass.exe with the same arguments. Packed
+# into the version folder by mini_installer (chrome.release patch); setup
+# puts it in place of an existing chrome.exe.
+executable("legacy_chrome") {
+  sources = [
+    "legacy_chrome.rc",
+    "legacy_chrome_main.cc",
+  ]
+  configs -= [ "//build/config/win:console" ]
+  configs += [ "//build/config/win:windowed" ]
+  include_dirs = [ "//chrome/app/theme/chromium/win" ]
+  inputs = [ "//chrome/app/theme/chromium/win/chromium.ico" ]
+  deps = [ "//build/win:default_exe_manifest" ]
+}
+
+# Setup's side of it (chrome/installer/setup/install_worker.cc patch).
+source_set("legacy_chrome_exe") {
+  sources = [
+    "legacy_chrome_exe.cc",
+    "legacy_chrome_exe.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/install_static:install_static_util",
+    "//chrome/installer/util:with_no_strings",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "legacy_chrome_exe_unittest.cc" ]
+  deps = [
+    ":legacy_chrome_exe",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/install_static:install_static_util",
+    "//chrome/install_static/test:test_support",
+    "//chrome/installer/util:strings",
+    "//chrome/installer/util:with_no_strings",
+    "//testing/gtest",
+  ]
+}
