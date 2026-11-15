@@ -429,6 +429,33 @@ whose `AppModel.peek` the card shows (`App/Browser/Peek.swift`).
 Not done: the page in the card has no password AutoFill, isn't in history
 until opened, and Esc goes to the card before the page.
 
+### Links to apps
+
+WKWebView can't load a link to an app (`zoommtg://`, `spotify:`, `tel:`),
+so the tab's navigation handler cancels it and hands it to iOS, as Safari
+does. Schemes the browser loads itself (http, https, about, data, blob,
+javascript, file, webkit-extension, the reader page's) go on as before;
+Compass's own (`compass://`, `compass-pair://`) are ignored when a page
+uses them. `tel:`, `mailto:`, `sms:` and `facetime:` go straight to iOS,
+which asks itself. Any other scheme opens at once after a tap; without
+one (a redirect, a script) an **Open in app?** alert asks first (one at a
+time), so a site can't jump into an app on its own. A frame never opens
+an app: its navigation is cancelled quietly. When no app opens it, the
+toast says "No app can open this link" and the tab stays on its page.
+`target=_blank` links to apps open the app instead of a new tab.
+
+Universal links: a tapped https link (main frame) to another site (host
+without "www.", a subdomain counts as the same site; no public suffix
+list) is offered to iOS with `universalLinksOnly`; when no app claims it,
+the tab loads it, and that load isn't offered again. Never for typed
+addresses, back/forward, reloads, redirects, ⌘-click, same-site links, or
+Incognito (a private page doesn't hand its links to signed-in apps).
+Site Settings' **Open Links in Apps** (default on; per site and in
+Global Site Settings) turns universal links off: the page's site and the
+link's must both allow it. App schemes don't follow it. The decision is
+`AppLinks.decide` (CompassShared), tests `AppLinksTests`; `TabManager`
+carries it out.
+
 ### Reader mode
 
 The desktop's Reader ([reader-mode.md](reader-mode.md), "iOS"), on the

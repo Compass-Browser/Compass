@@ -72,6 +72,7 @@
 		6B4422888FFBC85F970255E8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79254E7DBBF744D531F94471 /* SettingsView.swift */; };
 		6EB35E925912692C22E0147F /* DownloadActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */; };
 		72F8C63524881FB3B1F47014 /* PasswordScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B3AE54B9A79E0A0CE08BE6 /* PasswordScript.swift */; };
+		7410F55D44E1FA28F9908CB6 /* app_links.html in Resources */ = {isa = PBXBuildFile; fileRef = F8EFD6EB825EB023B36C4979 /* app_links.html */; };
 		75239D1EE578D0DDEB16FE09 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */; };
 		7598D44550B210AA7140D1F8 /* ReaderModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBDBBEE8F8A1C01341937F3 /* ReaderModeTests.swift */; };
 		77BB3947A1EB7858694EB215 /* Favicons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD52168629F96C8A4ABCDBDF /* Favicons.swift */; };
@@ -122,6 +123,7 @@
 		D046A20E1300E3C323FEDA9C /* DataViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41B59BC81621FE63D557277 /* DataViews.swift */; };
 		D465E09D0FA16A486D5E8F2F /* sidebar_prompts.md in Resources */ = {isa = PBXBuildFile; fileRef = 08518A5F6349D80C5AAF9F5E /* sidebar_prompts.md */; };
 		D4B8E15F68B8C746C443EA7C /* CompassClaude in Frameworks */ = {isa = PBXBuildFile; productRef = 24FEC5B35F68102FF9D4F4D3 /* CompassClaude */; };
+		D4D41D0A674BE84B26C94009 /* AppLinksUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		D9FCF2EE9F5EBAFB6D60998C /* builtin in Resources */ = {isa = PBXBuildFile; fileRef = A26F722BF810E843DE8DD904 /* builtin */; };
 		DC7CC89BA34E3FCF8F18A976 /* KeyboardShortcutsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */; };
@@ -293,6 +295,7 @@
 		9F4313D13751DA68130C8883 /* BoostsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostsTests.swift; sourceTree = "<group>"; };
 		A26F722BF810E843DE8DD904 /* builtin */ = {isa = PBXFileReference; lastKnownFileType = folder; name = builtin; path = ../plugins/builtin; sourceTree = SOURCE_ROOT; };
 		A41B59BC81621FE63D557277 /* DataViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViews.swift; sourceTree = "<group>"; };
+		A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLinksUITests.swift; sourceTree = "<group>"; };
 		A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordManager.swift; sourceTree = "<group>"; };
 		A7AF403DBCF719F2BAF33C80 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
 		A7B26BA178A765562EB20045 /* PushService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushService.entitlements; sourceTree = "<group>"; };
@@ -336,6 +339,7 @@
 		F4A5EB9B8FCF536C41FE6951 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F4F43805D9720EF9C6F0FE03 /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		F4F82A3BEBB78D75AD38C677 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
+		F8EFD6EB825EB023B36C4979 /* app_links.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = app_links.html; sourceTree = "<group>"; };
 		FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeEditorTests.swift; sourceTree = "<group>"; };
 		FCA6BBB62A731CFB983B3B3B /* DownloadActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadActivityWidget.swift; sourceTree = "<group>"; };
 		FD19DC720297F4780763BD8D /* page_agent.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = page_agent.js; sourceTree = "<group>"; };
@@ -413,6 +417,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		334045412C4AF8221879C3E4 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				F8EFD6EB825EB023B36C4979 /* app_links.html */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
 		4A142CA980B5085415C4A0A3 /* Share */ = {
 			isa = PBXGroup;
 			children = (
@@ -427,6 +439,7 @@
 		4EDF2C416F9996DA147F9EFF /* UITests */ = {
 			isa = PBXGroup;
 			children = (
+				A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */,
 				5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */,
 				9F4313D13751DA68130C8883 /* BoostsTests.swift */,
 				726541D9BE66CA543B0C251A /* CollapseBarTests.swift */,
@@ -442,6 +455,7 @@
 				7F689366907A8A4E495F06FC /* SwipeUpZonesTests.swift */,
 				630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */,
 				FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */,
+				334045412C4AF8221879C3E4 /* Fixtures */,
 			);
 			path = UITests;
 			sourceTree = "<group>";
@@ -794,6 +808,7 @@
 			buildConfigurationList = 1C43D12E4D36DE74131258F4 /* Build configuration list for PBXNativeTarget "CompassUITests" */;
 			buildPhases = (
 				AA153FEAB387E9FB1995F041 /* Sources */,
+				2210D8A10CC647A211A1A4D4 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -985,6 +1000,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		2210D8A10CC647A211A1A4D4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7410F55D44E1FA28F9908CB6 /* app_links.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2CBF7B534F4F412E795496D2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1129,6 +1152,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4D41D0A674BE84B26C94009 /* AppLinksUITests.swift in Sources */,
 				C1495ED7DCCFC3B6C7173330 /* AutoPiPTests.swift in Sources */,
 				86684A54CA9356438E5AEAAC /* BoostsTests.swift in Sources */,
 				F4617C5B4269A2A19EB32B09 /* CollapseBarTests.swift in Sources */,

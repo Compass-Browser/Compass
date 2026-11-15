@@ -156,6 +156,11 @@ final class AppServices {
       guard let self, let window = self.owner(of: source) ?? self.active else { return }
       window.open(action, url, from: source)
     }
+    // A link no app could open: the toast, in the tab's window.
+    tabs.onMessage = { [weak self] text, source in
+      guard let self else { return }
+      (source.flatMap { self.owner(of: $0) } ?? self.active)?.showMessage(text)
+    }
     tabs.onPageClosed = { [weak self] page in
       for window in self?.windows ?? [] where window.peek?.page === page { window.closePeek() }
     }

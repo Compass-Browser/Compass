@@ -12,6 +12,9 @@ import Observation
 final class SiteSettings {
   enum Option: String, Codable, CaseIterable {
     case blockAds, blockCookieBanners, collapseBar, swipeToNavigate, desktopSite
+    /// A tapped link to another site opens in the app that claims it (a
+    /// universal link). Links to app schemes open either way (AppLinks).
+    case openLinksInApps
 
     /// Off for desktopSite, on for the rest.
     var defaultValue: Bool { self != .desktopSite }

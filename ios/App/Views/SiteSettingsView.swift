@@ -23,9 +23,12 @@ struct SiteSettingsView: View {
           toggle(.collapseBar, "Collapse Bottom Bar", "rectangle.bottomhalf.inset.filled", .purple)
           toggle(.swipeToNavigate, "Swipe to Navigate", "hand.draw.fill", .green)
           toggle(.desktopSite, "Desktop Site", "desktopcomputer", .blue)
+          toggle(.openLinksInApps, "Open Links in Apps", "arrow.up.forward.app.fill", .indigo)
         } footer: {
           if site != nil {
             Text("Changes here apply to this site only. Defaults for every site are in Settings.")
+          } else {
+            Text("Open Links in Apps: a tapped link to another site opens in its app, if one is installed. Never in Incognito.")
           }
         }
         if site == nil { filterLists }

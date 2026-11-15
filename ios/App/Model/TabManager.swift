@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassModel
+import CompassShared
 import Foundation
 import Observation
 import WebKit
@@ -65,6 +66,13 @@ final class TabManager: NSObject {
     /// A new Pinned entry of the tab's space.
     case pin
   }
+  /// A short message for the toast: (text, the tab it's about, if any).
+  var onMessage: ((String, String?) -> Void)?
+  /// A universal link iOS had no app for: the tab loads it, and this load
+  /// doesn't try again (AppLinks).
+  @ObservationIgnored private var universalLinkRetry: URL?
+  /// "Open in app?" is up: a page asking again meanwhile is dropped.
+  @ObservationIgnored private var askingToOpenApp = false
   /// A page that isn't a tab (a peeked one) closed itself (`window.close()`).
   var onPageClosed: ((WKWebView) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
@@ -421,6 +429,21 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         onLinkAction(.background, url, id)
         return (.cancel, preferences)
       }
+      // Links to apps: app schemes, and universal links (AppLinks).
+      if let url = navigationAction.request.url {
+        let isMainFrame = navigationAction.targetFrame?.isMainFrame != false
+        let retry = isMainFrame && universalLinkRetry == url
+        if retry { universalLinkRetry = nil }
+        let decision = AppLinks.decide(
+          .init(
+            url: url, page: webView.url, isMainFrame: isMainFrame,
+            isUserTap: navigationAction.navigationType == .linkActivated,
+            isIncognito: !webView.configuration.websiteDataStore.isPersistent,
+            openLinksInApps: siteSettings.value(.openLinksInApps, site: SiteSettings.site(webView.url))
+              && siteSettings.value(.openLinksInApps, site: SiteSettings.site(url)),
+            isRetry: retry))
+        if handle(decision, in: webView, request: navigationAction.request) { return (.cancel, preferences) }
+      }
       // <a download> links.
       let policy: WKNavigationActionPolicy = navigationAction.shouldPerformDownload ? .download : .allow
       if navigationAction.targetFrame?.isMainFrame != false {
@@ -669,6 +692,55 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
     return controller
   }
 
+  // MARK: Links to apps (docs/design/ios.md, "Links to apps")
+
+  /// Carries out what AppLinks decided. True: the navigation is cancelled
+  /// (the tab stays on its page, no error page).
+  private func handle(_ decision: AppLinks.Decision, in webView: WKWebView, request: URLRequest) -> Bool {
+    let id = live.first(where: { $0.value === webView })?.key
+    switch decision {
+    case .allow:
+      return false
+    case .ignore:
+      return true
+    case .openSystem(let url), .openApp(let url):
+      openInApp(url, tab: id)
+      return true
+    case .askToOpenApp(let url):
+      askToOpenApp(url, from: webView.url, tab: id)
+      return true
+    case .tryUniversalLink(let url):
+      UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { [weak self, weak webView] opened in
+        guard !opened, let self, let webView else { return }
+        // No app claims it: the tab loads it after all, once.
+        self.universalLinkRetry = url
+        webView.load(request)
+      }
+      return true
+    }
+  }
+
+  private func openInApp(_ url: URL, tab: String?) {
+    UIApplication.shared.open(url) { [weak self] opened in
+      if !opened { self?.onMessage?("No app can open this link", tab) }
+    }
+  }
+
+  /// A page going to an app without a tap: asked first, as Safari does.
+  private func askToOpenApp(_ url: URL, from page: URL?, tab: String?) {
+    guard !askingToOpenApp else { return }
+    let who = SiteSettings.site(page).map { "\u{201C}\($0)\u{201D}" } ?? "This page"
+    let alert = UIAlertController(
+      title: "Open in app?", message: "\(who) wants to open another app.", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in self?.askingToOpenApp = false })
+    alert.addAction(
+      UIAlertAction(title: "Open", style: .default) { [weak self] _ in
+        self?.askingToOpenApp = false
+        self?.openInApp(url, tab: tab)
+      })
+    askingToOpenApp = Presenter.present(alert)
+  }
+
   nonisolated private static func isWeb(_ url: URL) -> Bool {
     let scheme = url.scheme?.lowercased()
     return scheme == "http" || scheme == "https"
@@ -685,6 +757,17 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
   ) -> WKWebView? {
     MainActor.assumeIsolated { () -> WKWebView? in
       let url = navigationAction.request.url
+      // A link to an app with target=_blank: no new tab, the app (AppLinks;
+      // web links go on as before).
+      if let url, !(url.scheme.map { AppLinks.browserSchemes.contains($0.lowercased()) } ?? true) {
+        let decision = AppLinks.decide(
+          .init(
+            url: url, page: webView.url, isMainFrame: true,
+            isUserTap: navigationAction.navigationType == .linkActivated,
+            isIncognito: !webView.configuration.websiteDataStore.isPersistent))
+        _ = handle(decision, in: webView, request: navigationAction.request)
+        return nil
+      }
       if onPeek != nil, let id = live.first(where: { $0.value === webView })?.key, let node = store.node(id: id),
         node.section == .pinned || node.section == .favorites, url.map(Self.isWeb) ?? true
       {

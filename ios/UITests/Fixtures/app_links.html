@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>App links</title>
+<style>a { display: block; font-size: 32px; padding: 24px; }</style>
+<h1>App links</h1>
+<a href="compass-uitest-no-such-app://open">Open the missing app</a>
+<script>
+  // ?redirect: the page goes to an app on its own, without a tap.
+  if (location.search === '?redirect') {
+    setTimeout(() => { location.href = 'compass-uitest-no-such-app://redirect'; }, 1000);
+  }
+</script>

@@ -869,6 +869,10 @@ final class AppModel {
     userClose(step.entries.compactMap { entry in store.node(id: entry.node.id).map { ($0, entry.close) } }, keepRedo: true)
   }
 
+  /// A short message in the toast, without a button ("No app can open
+  /// this link").
+  func showMessage(_ text: String) { showClosedToast(text, action: .none) }
+
   /// After a close or an undo: a toast over the bar, with Undo (or Redo),
   /// for a few seconds (a tidy's, 8). The next one replaces it.
   private func showClosedToast(_ text: String, action: ClosedToast.Action) {
