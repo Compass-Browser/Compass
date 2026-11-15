@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_multi_source_observation.h"
 #include "base/supports_user_data.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -46,6 +47,7 @@ base::TimeDelta GetArchiveHour();
 // See docs/design/sidebar.md, slice d, and docs/design/spaces.md.
 class SpaceService : public base::SupportsUserData::Data,
                      public SpaceList::Observer,
+                     public SpaceModel::Observer,
                      public LiveTabRegistry::Observer {
  public:
   // Creates the parking window for a profile. Tests can't create real
@@ -119,6 +121,12 @@ class SpaceService : public base::SupportsUserData::Data,
   void OnSpaceAdded(SpaceModel& space) override;
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
 
+  // SpaceModel::Observer, for every space and the favorites: a parked tab's
+  // entry can go while no window shows its space (idle archiving, sync,
+  // Claude), and no TabStripBridge then hears of it. Its tab closes, so the
+  // registry never keeps the removed node.
+  void OnNodeWillBeRemoved(const SidebarNode& node) override;
+
   // LiveTabRegistry::Observer: keeps each tab node's muted() in step with
   // its live tab (the registry mutes a muted node's tab when it opens).
   void OnNodeMutingChanged(const SidebarNode& node, bool muted) override;
@@ -130,6 +138,11 @@ class SpaceService : public base::SupportsUserData::Data,
 
   // Sets the muted() of the node |id|, if it's still there.
   void SetNodeMuted(const base::Uuid& id, bool muted);
+
+  // Unregisters the parked tabs of |node| and the nodes under it, and closes
+  // them in a task (the strip may be notifying).
+  void CloseParkedTabsUnder(const SidebarNode* node);
+  void CloseParkedTabs(std::vector<tabs::TabHandle> tabs);
 
   const raw_ptr<Profile> profile_;
   SpaceList space_list_;
@@ -154,6 +167,10 @@ class SpaceService : public base::SupportsUserData::Data,
 
   // Observes the spaces too.
   std::unique_ptr<Attachment> sync_attachment_;
+
+  // The spaces and the favorites (see OnNodeWillBeRemoved()).
+  base::ScopedMultiSourceObservation<SpaceModel, SpaceModel::Observer>
+      space_observations_{this};
 
   base::WeakPtrFactory<SpaceService> weak_factory_{this};
 };

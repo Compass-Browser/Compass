@@ -295,5 +295,65 @@ TEST_F(SpaceSwitchTest, AFavoriteMovedIntoAnotherSpaceLeavesTheWindow) {
   EXPECT_THAT(Hosts(parking_->GetTabStripModel()), ElementsAre("a.test"));
 }
 
+// An entry can go while no window shows its space: no TabStripBridge hears
+// of it, yet its tab must not stay parked with the removed node (switching
+// back to the space read the freed node).
+TEST_F(SpaceSwitchTest, ARemovedEntryClosesItsParkedTab) {
+  OpenTabs(browser(), {"a.test", "b.test"});
+  SwitchTo(browser(), *work_);
+  ASSERT_TRUE(parking_);
+  SidebarNode* a = home_->today_root()->children()[0].get();
+  tabs::TabInterface* parked = features().registry().GetTab(a);
+  ASSERT_TRUE(parked);
+
+  home_->Remove(a);
+
+  EXPECT_FALSE(features().registry().GetNode(parked));
+  Settle();
+  EXPECT_THAT(Hosts(parking_->GetTabStripModel()), ElementsAre("b.test"));
+
+  SwitchTo(browser(), *home_);
+  EXPECT_THAT(Hosts(strip()), ElementsAre("b.test"));
+  EXPECT_THAT(Hosts(home_->today_root()), ElementsAre("b.test"));
+}
+
+// The hourly archiving goes through every space, shown or not.
+TEST_F(SpaceSwitchTest, ArchivingAnotherSpaceClosesItsParkedTabs) {
+  OpenTabs(browser(), {"a.test", "b.test"});
+  SwitchTo(browser(), *work_);
+  ASSERT_TRUE(parking_);
+  for (const auto& entry : home_->today_root()->children()) {
+    home_->SetLastActive(entry.get(), base::Time::Now());
+  }
+
+  ArchiveIdleTodayEntries(profile(),
+                          base::Time::Now() + kDefaultArchiveAfter * 2);
+  Settle();
+
+  EXPECT_TRUE(home_->today_root()->children().empty());
+  EXPECT_EQ(home_->archive().size(), 2u);
+  EXPECT_TRUE(parking_->GetTabStripModel()->empty());
+
+  SwitchTo(browser(), *home_);
+  EXPECT_EQ(strip()->count(), 1);
+  EXPECT_TRUE(IsEmptyTab(strip()->GetActiveTab()));
+}
+
+// A space sync removes (another device deleted it) goes with its nodes.
+TEST_F(SpaceSwitchTest, ARemovedSpaceClosesItsParkedTabs) {
+  OpenTabs(browser(), {"a.test", "b.test"});
+  SwitchTo(browser(), *work_);
+  ASSERT_TRUE(parking_);
+  tabs::TabInterface* parked = parking_->GetTabStripModel()->GetTabAtIndex(0);
+
+  SpaceModel* home = home_;
+  home_ = nullptr;
+  list().RemoveSpace(*home);
+
+  EXPECT_FALSE(features().registry().GetNode(parked));
+  Settle();
+  EXPECT_TRUE(parking_->GetTabStripModel()->empty());
+}
+
 }  // namespace
 }  // namespace compass

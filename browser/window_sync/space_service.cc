@@ -18,6 +18,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+#include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "compass/browser/sidebar/sidebar_store.h"
 #include "compass/browser/window_sync/space_directory.h"
@@ -94,6 +95,7 @@ SpaceService::SpaceService(Profile* profile)
   }
   space_list_.AddObserver(this);
   registry_.AddObserver(this);
+  space_observations_.AddObservation(&space_list_.favorites());
   for (const auto& space : space_list_.spaces()) {
     OnSpaceAdded(*space);
   }
@@ -120,6 +122,7 @@ SpaceService::~SpaceService() {
   // These observe the list, so they go first.
   sync_attachment_.reset();
   store_.reset();
+  space_observations_.RemoveAllObservations();
   registry_.RemoveObserver(this);
   space_list_.RemoveObserver(this);
 }
@@ -231,11 +234,69 @@ void SpaceService::OnSpaceAdded(SpaceModel& space) {
     matcher->OnLoaded();
   }
   matchers_[&space] = std::move(matcher);
+  space_observations_.AddObservation(&space);
 }
 
 void SpaceService::OnSpaceWillBeRemoved(SpaceModel& space) {
+  // Its nodes go with it, without OnNodeWillBeRemoved(). DeleteSpace()
+  // closed its parked tabs already; a space sync removes hasn't.
+  CloseParkedTabsUnder(space.today_root());
+  if (space.pinned_root()) {
+    CloseParkedTabsUnder(space.pinned_root());
+  }
+  if (space_observations_.IsObservingSource(&space)) {
+    space_observations_.RemoveObservation(&space);
+  }
   matchers_.erase(&space);
   last_active_nodes_.erase(&space);
+}
+
+void SpaceService::OnNodeWillBeRemoved(const SidebarNode& node) {
+  CloseParkedTabsUnder(&node);
+}
+
+void SpaceService::CloseParkedTabsUnder(const SidebarNode* node) {
+  std::vector<tabs::TabHandle> parked;
+  std::vector<const SidebarNode*> pending = {node};
+  while (!pending.empty()) {
+    const SidebarNode* next = pending.back();
+    pending.pop_back();
+    tabs::TabInterface* tab = registry_.GetTab(next);
+    // A tab in a window is its TabStripBridge's
+    // (TabStripBridge::OnNodeWillBeRemoved()); parked ones have no bridge.
+    if (tab && IsParkingWindow(tab->GetBrowserWindowInterface())) {
+      parked.push_back(tab->GetHandle());
+    }
+    for (const auto& child : next->children()) {
+      pending.push_back(child.get());
+    }
+  }
+  if (parked.empty()) {
+    return;
+  }
+  for (const tabs::TabHandle& handle : parked) {
+    registry_.Unregister(handle.Get());
+  }
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&SpaceService::CloseParkedTabs,
+                                weak_factory_.GetWeakPtr(), std::move(parked)));
+}
+
+void SpaceService::CloseParkedTabs(std::vector<tabs::TabHandle> tabs) {
+  BrowserWindowInterface* parking = parking_window();
+  if (!parking) {
+    return;
+  }
+  TabStripModel* strip = parking->GetTabStripModel();
+  for (const tabs::TabHandle& handle : tabs) {
+    tabs::TabInterface* tab = handle.Get();
+    // Still parked and still without an entry: one that moved on, or that
+    // took another entry since, stays.
+    const int index = tab ? strip->GetIndexOfTab(tab) : TabStripModel::kNoTab;
+    if (index != TabStripModel::kNoTab && !registry_.GetNode(tab)) {
+      strip->CloseWebContentsAt(index, CLOSE_NONE);
+    }
+  }
 }
 
 void SpaceService::OnNodeMutingChanged(const SidebarNode& node, bool muted) {
