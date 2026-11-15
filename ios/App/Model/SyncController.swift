@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassClaude
 import CompassCrypto
 import CompassModel
@@ -285,6 +286,11 @@ final class SyncController {
       spaces.localMemories = { memory.entries }
       spaces.onMemories = { changed, deleted in memory.applyRemote(changed, deleted: deleted) }
       memory.onChange = { [weak spaces] entries in spaces?.memoriesChanged(entries) }
+      // So do the Boosts (docs/design/boosts.md, "Sync").
+      let boosts = BoostStore.shared
+      spaces.localBoosts = { boosts.boosts }
+      spaces.onBoosts = { changed, deleted in boosts.applyRemote(changed, deleted: deleted) }
+      boosts.onChange = { [weak spaces] list in spaces?.boostsChanged(list) }
     }
     account.cacheGUID = cacheGUID
     account.authKey = authKey

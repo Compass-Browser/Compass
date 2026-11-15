@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassClaude
 import SwiftUI
 
@@ -87,7 +88,9 @@ struct ClaudeChatSheet: View {
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 14) {
           ForEach(chat.conversation.turns.filter { !$0.isToolResults }) { turn in
-            TurnView(turn: turn, tools: chat.toolViews, undoMemory: { chat.undoMemory($0) }) {
+            TurnView(
+              turn: turn, tools: chat.toolViews, undoMemory: { chat.undoMemory($0) }, undoBoost: { chat.undoBoost($0) }
+            ) {
               chat.retry(app: app)
             }.id(turn.id)
           }
@@ -166,7 +169,7 @@ private struct ApprovalCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Label(approval.title, systemImage: "doc.badge.plus")
+      Label(approval.title, systemImage: approval.symbol)
         .font(.subheadline.weight(.semibold))
       if !approval.detail.isEmpty {
         ScrollView {
@@ -183,8 +186,10 @@ private struct ApprovalCard: View {
         Button("Deny", role: .cancel) { answer(.deny) }
           .accessibilityIdentifier("ClaudeApprovalDeny")
         Spacer()
-        Button("Allow for This Chat") { answer(.allowForChat) }
-          .accessibilityIdentifier("ClaudeApprovalAllowChat")
+        if approval.allowForChat {
+          Button("Allow for This Chat") { answer(.allowForChat) }
+            .accessibilityIdentifier("ClaudeApprovalAllowChat")
+        }
         Button("Allow") { answer(.allow) }
           .buttonStyle(.borderedProminent)
           .accessibilityIdentifier("ClaudeApprovalAllow")
@@ -206,6 +211,7 @@ private struct TurnView: View {
   let turn: Conversation.Turn
   let tools: [String: ClaudeChat.ToolView]
   let undoMemory: (String) -> Void
+  let undoBoost: (String) -> Void
   let retry: () -> Void
 
   var body: some View {
@@ -237,6 +243,8 @@ private struct TurnView: View {
             if let id = block["id"]?.string {
               if let view = tools[id], let change = view.memory {
                 MemoryRow(change: change, undone: view.memoryUndone) { undoMemory(id) }
+              } else if let view = tools[id], let change = view.boost {
+                BoostRow(change: change, undone: view.boostUndone) { undoBoost(id) }
               } else {
                 ToolRow(name: block["name"]?.string ?? "", input: block["input"], view: tools[id])
               }
@@ -296,6 +304,39 @@ private struct ThinkingView: View {
       if open {
         Text(text).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
       }
+    }
+  }
+}
+
+/// What a Boost tool changed, with Undo (docs/design/boosts.md): "Saved
+/// Boost for github.com".
+private struct BoostRow: View {
+  let change: ClaudeTools.BoostChange
+  let undone: Bool
+  let undo: () -> Void
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      Image(systemName: change.kind == "deleted" ? "trash" : "wand.and.stars")
+      Text("\(verb) for \(change.boost.parsedMatch?.site ?? change.boost.match): \(change.boost.name)")
+        .strikethrough(undone)
+        .lineLimit(2)
+      Spacer(minLength: 0)
+      if undone {
+        Text("Undone")
+      } else {
+        Button("Undo", action: undo).font(.caption.weight(.medium))
+      }
+    }
+    .font(.caption)
+    .foregroundStyle(.secondary)
+  }
+
+  private var verb: String {
+    switch change.kind {
+    case "deleted": "Deleted Boost"
+    case "updated": "Updated Boost"
+    default: "Saved Boost"
     }
   }
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassBoosts
 import CompassClaude
 import Foundation
 import Observation
@@ -25,6 +26,9 @@ final class ClaudeChat {
     /// What a memory tool changed: shown as a line with Undo.
     var memory: ClaudeTools.MemoryChange?
     var memoryUndone = false
+    /// What a Boost tool changed: shown as a line with Undo.
+    var boost: ClaudeTools.BoostChange?
+    var boostUndone = false
   }
 
   /// A write waiting for the user (the approval card).
@@ -33,6 +37,9 @@ final class ClaudeChat {
     let tool: String
     let title: String
     let detail: String
+    /// "Allow for This Chat" is offered (not for a Boost's JavaScript).
+    let allowForChat: Bool
+    let symbol: String
   }
 
   enum Decision {
@@ -67,6 +74,8 @@ final class ClaudeChat {
   /// definitions stay for the rest of it (a conversation's tools only grow,
   /// as on the desktop); while off they refuse.
   @ObservationIgnored private var chatDevTools = false
+  /// The same for the Boost tools.
+  @ObservationIgnored private var chatBoosts = false
 
   /// The page's text, at most this long (the desktop's).
   static let maxPageChars = 50000
@@ -133,6 +142,7 @@ final class ClaudeChat {
     attachPage = true
     chatMemory = nil
     chatDevTools = false
+    chatBoosts = false
     allowedForChat = []
   }
 
@@ -147,9 +157,11 @@ final class ClaudeChat {
 
   /// Asks the user before a file is written; true to go ahead.
   func ask(_ request: ClaudeTools.Approval) async -> Bool {
-    if allowedForChat.contains(request.tool) { return true }
+    if request.allowForChat && allowedForChat.contains(request.tool) { return true }
     guard streaming else { return false }
-    let approval = Approval(tool: request.tool, title: request.title, detail: request.detail)
+    let approval = Approval(
+      tool: request.tool, title: request.title, detail: request.detail, allowForChat: request.allowForChat,
+      symbol: request.symbol)
     return await withCheckedContinuation { continuation in
       waiting[approval.id] = continuation
       approvals.append(approval)
@@ -159,7 +171,7 @@ final class ClaudeChat {
   /// The card's answer.
   func answer(_ id: UUID, _ decision: Decision) {
     guard let continuation = waiting.removeValue(forKey: id) else { return }
-    if decision == .allowForChat, let approval = approvals.first(where: { $0.id == id }) {
+    if decision == .allowForChat, let approval = approvals.first(where: { $0.id == id }), approval.allowForChat {
       allowedForChat.insert(approval.tool)
     }
     approvals.removeAll { $0.id == id }
@@ -181,6 +193,18 @@ final class ClaudeChat {
     let undone = change.before.map { memory.restore($0) } ?? (memory.remove(change.id) != nil)
     if undone {
       view.memoryUndone = true
+      toolViews[toolID] = view
+    }
+  }
+
+  /// A Boost line's Undo: the Boost goes back to what it was (or away, if
+  /// Claude made it).
+  func undoBoost(_ toolID: String) {
+    guard var view = toolViews[toolID], let change = view.boost, !view.boostUndone else { return }
+    let store = BoostStore.shared
+    let undone = change.before.map { store.restore($0) } ?? (store.remove(change.boost.id) != nil)
+    if undone {
+      view.boostUndone = true
       toolViews[toolID] = view
     }
   }
@@ -231,10 +255,11 @@ final class ClaudeChat {
     let started = settings.revision
     let memory = frozenMemory()
     if settings.devtools { chatDevTools = true }
+    if settings.boosts { chatBoosts = true }
     var options = ChatRequest.Options(
       model: settings.model, systemPrompt: ClaudeSettings.systemPrompt,
       tools: ClaudeSettings.tools + (memory.tools ? ClaudeSettings.memoryTools : [])
-        + (chatDevTools ? ClaudeSettings.devtoolsTools : []),
+        + (chatDevTools ? ClaudeSettings.devtoolsTools : []) + (chatBoosts ? ClaudeSettings.boostTools : []),
       browserScope: settings.browserScope, windowTabs: windowTabs, claudeAPI: endpoint.isClaudeAPI,
       oauthToken: endpoint.usesOAuthToken, memory: memory.block, files: settings.filesContextLine,
       devtools: settings.devtools)
@@ -290,7 +315,8 @@ final class ClaudeChat {
       toolViews[id] = ToolView()
       actingTab = tools.targetTab
       let result = await tools.run(call["name"]?.string ?? "", input: call["input"] ?? .object([:]))
-      var view = ToolView(running: false, isError: result.isError, memory: result.memoryChange)
+      var view = ToolView(
+        running: false, isError: result.isError, memory: result.memoryChange, boost: result.boostChange)
       for block in result.content {
         if let text = block["text"]?.string { view.text += text }
         if let data = block["source"]?["data"]?.string, let bytes = Data(base64Encoded: data) {

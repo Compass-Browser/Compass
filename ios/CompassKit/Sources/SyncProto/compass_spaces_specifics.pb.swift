@@ -102,6 +102,14 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .linkRule(newValue)}
   }
 
+  public var boost: SyncPb_CompassBoost {
+    get {
+      if case .boost(let v)? = entity {return v}
+      return SyncPb_CompassBoost()
+    }
+    set {entity = .boost(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
@@ -111,6 +119,7 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     case favicon(SyncPb_CompassFavicon)
     case memory(SyncPb_CompassMemory)
     case linkRule(SyncPb_CompassLinkRule)
+    case boost(SyncPb_CompassBoost)
 
   }
 
@@ -786,13 +795,140 @@ public nonisolated struct SyncPb_CompassLinkRule: Sendable {
   fileprivate var _spaceUuid: String? = nil
 }
 
+/// Per-site CSS and JavaScript (docs/design/boosts.md), in the account of
+/// the profile it belongs to. Clients that predate it ignore it.
+///
+/// Written by hand to match compass_spaces_specifics.proto's CompassBoost
+/// until gen_protos.sh is rerun with it.
+public nonisolated struct SyncPb_CompassBoost: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A random UUID, lowercase. Also the client tag.
+  public var id: String {
+    get {_id ?? String()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasId: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearId() {self._id = nil}
+
+  /// What the user calls it.
+  public var name: String {
+    get {_name ?? String()}
+    set {_name = newValue}
+  }
+  /// Returns true if `name` has been explicitly set.
+  public var hasName: Bool {self._name != nil}
+  /// Clears the value of `name`. Subsequent reads from it will return its default value.
+  public mutating func clearName() {self._name = nil}
+
+  /// Where it applies: "example.com" (and www.), "*.example.com" (and every
+  /// subdomain), optionally followed by a path prefix ("github.com/settings").
+  public var match: String {
+    get {_match ?? String()}
+    set {_match = newValue}
+  }
+  /// Returns true if `match` has been explicitly set.
+  public var hasMatch: Bool {self._match != nil}
+  /// Clears the value of `match`. Subsequent reads from it will return its default value.
+  public mutating func clearMatch() {self._match = nil}
+
+  /// Added at document start, in every frame.
+  public var css: String {
+    get {_css ?? String()}
+    set {_css = newValue}
+  }
+  /// Returns true if `css` has been explicitly set.
+  public var hasCss: Bool {self._css != nil}
+  /// Clears the value of `css`. Subsequent reads from it will return its default value.
+  public mutating func clearCss() {self._css = nil}
+
+  /// Run at document end, in every frame.
+  public var js: String {
+    get {_js ?? String()}
+    set {_js = newValue}
+  }
+  /// Returns true if `js` has been explicitly set.
+  public var hasJs: Bool {self._js != nil}
+  /// Clears the value of `js`. Subsequent reads from it will return its default value.
+  public mutating func clearJs() {self._js = nil}
+
+  /// "isolated" (the default) or "main".
+  public var jsWorld: String {
+    get {_jsWorld ?? String()}
+    set {_jsWorld = newValue}
+  }
+  /// Returns true if `jsWorld` has been explicitly set.
+  public var hasJsWorld: Bool {self._jsWorld != nil}
+  /// Clears the value of `jsWorld`. Subsequent reads from it will return its default value.
+  public mutating func clearJsWorld() {self._jsWorld = nil}
+
+  /// Applied while true.
+  public var enabled: Bool {
+    get {_enabled ?? false}
+    set {_enabled = newValue}
+  }
+  /// Returns true if `enabled` has been explicitly set.
+  public var hasEnabled: Bool {self._enabled != nil}
+  /// Clears the value of `enabled`. Subsequent reads from it will return its default value.
+  public mutating func clearEnabled() {self._enabled = nil}
+
+  /// "user" or "claude".
+  public var author: String {
+    get {_author ?? String()}
+    set {_author = newValue}
+  }
+  /// Returns true if `author` has been explicitly set.
+  public var hasAuthor: Bool {self._author != nil}
+  /// Clears the value of `author`. Subsequent reads from it will return its default value.
+  public mutating func clearAuthor() {self._author = nil}
+
+  /// In microseconds since the Windows epoch.
+  public var createTime: Int64 {
+    get {_createTime ?? 0}
+    set {_createTime = newValue}
+  }
+  /// Returns true if `createTime` has been explicitly set.
+  public var hasCreateTime: Bool {self._createTime != nil}
+  /// Clears the value of `createTime`. Subsequent reads from it will return its default value.
+  public mutating func clearCreateTime() {self._createTime = nil}
+
+  /// The last edit; of two edits, the later wins.
+  public var updateTime: Int64 {
+    get {_updateTime ?? 0}
+    set {_updateTime = newValue}
+  }
+  /// Returns true if `updateTime` has been explicitly set.
+  public var hasUpdateTime: Bool {self._updateTime != nil}
+  /// Clears the value of `updateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateTime() {self._updateTime = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: String? = nil
+  fileprivate var _name: String? = nil
+  fileprivate var _match: String? = nil
+  fileprivate var _css: String? = nil
+  fileprivate var _js: String? = nil
+  fileprivate var _jsWorld: String? = nil
+  fileprivate var _enabled: Bool? = nil
+  fileprivate var _author: String? = nil
+  fileprivate var _createTime: Int64? = nil
+  fileprivate var _updateTime: Int64? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0\u{1}boost\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -878,6 +1014,19 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .linkRule(v)
         }
       }()
+      case 7: try {
+        var v: SyncPb_CompassBoost?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .boost(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .boost(v)
+        }
+      }()
       default: break
       }
     }
@@ -912,6 +1061,10 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
     case .linkRule?: try {
       guard case .linkRule(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .boost?: try {
+      guard case .boost(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     }()
     case nil: break
     }
@@ -1468,6 +1621,85 @@ nonisolated extension SyncPb_CompassLinkRule: SwiftProtobuf.Message, SwiftProtob
     if lhs._uuid != rhs._uuid {return false}
     if lhs._domain != rhs._domain {return false}
     if lhs._spaceUuid != rhs._spaceUuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassBoost: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassBoost"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}match\0\u{1}css\0\u{1}js\0\u{3}js_world\0\u{1}enabled\0\u{1}author\0\u{3}create_time\0\u{3}update_time\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._name) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._match) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._css) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self._js) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self._jsWorld) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self._enabled) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self._author) }()
+      case 9: try { try decoder.decodeSingularInt64Field(value: &self._createTime) }()
+      case 10: try { try decoder.decodeSingularInt64Field(value: &self._updateTime) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._name {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._match {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._css {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._js {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._jsWorld {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 6)
+    } }()
+    try { if let v = self._enabled {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._author {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._createTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._updateTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 10)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassBoost, rhs: SyncPb_CompassBoost) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs._name != rhs._name {return false}
+    if lhs._match != rhs._match {return false}
+    if lhs._css != rhs._css {return false}
+    if lhs._js != rhs._js {return false}
+    if lhs._jsWorld != rhs._jsWorld {return false}
+    if lhs._enabled != rhs._enabled {return false}
+    if lhs._author != rhs._author {return false}
+    if lhs._createTime != rhs._createTime {return false}
+    if lhs._updateTime != rhs._updateTime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -22,6 +22,8 @@ let package = Package(
     .library(name: "CompassClaude", targets: ["CompassClaude"]),
     // Live folder plugins in JavaScriptCore (docs/design/live-folders.md).
     .library(name: "CompassLiveFolders", targets: ["CompassLiveFolders"]),
+    // Per-site CSS and JavaScript (docs/design/boosts.md).
+    .library(name: "CompassBoosts", targets: ["CompassBoosts"]),
   ],
   dependencies: [
     // Must match the protoc-gen-swift that generated Sources/SyncProto
@@ -45,14 +47,17 @@ let package = Package(
     .target(name: "CompassModel", dependencies: ["CompassShared"]),
     .target(name: "CompassClaude", dependencies: ["CompassShared", "CompassModel"]),
     .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
+    .target(name: "CompassBoosts"),
     .target(
-      name: "CompassSync", dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude"]),
+      name: "CompassSync",
+      dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude", "CompassBoosts"]),
     .testTarget(name: "CompassCryptoTests", dependencies: ["CompassCrypto"]),
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),
     .testTarget(name: "CompassSharedTests", dependencies: ["CompassShared"]),
     .testTarget(name: "CompassClaudeTests", dependencies: ["CompassClaude", "CompassModel"]),
     .testTarget(name: "CompassLiveFoldersTests", dependencies: ["CompassLiveFolders"]),
+    .testTarget(name: "CompassBoostsTests", dependencies: ["CompassBoosts"]),
   ],
   // BoringSSL's C++ needs C++17 (swift-crypto sets the same).
   cxxLanguageStandard: .cxx17
