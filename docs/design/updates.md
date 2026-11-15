@@ -129,6 +129,28 @@ GitHub release the latest, non-prerelease one. The local mirror of the site live
 `~/Library/Application Support/Compass Release/site` (it keeps old .dmg
 files, for deltas).
 
+## Symbols
+
+Release builds ship stripped, so a crash report only has offsets into
+`Compass Framework`. Official builds make dSYMs (and PDBs on Windows) next to
+the binaries, but the next build overwrites them, so `publish` keeps the
+ones of what ships (not tests or build tools) in the release folder's
+`symbols/<version>/`: `arm64.tar.gz` and `x64.tar.gz`, plus `uuids.txt`
+(`dwarfdump --uuid`, to match a report's binary images). `release
+build-win` does the same with the shipped binaries' PDBs (`x64.tar.gz`) on
+the Windows build machine. They're never published. The newest 40 versions
+are kept, and any older one a channel still offers.
+
+```sh
+# offsets = frame address - "Compass Framework" load address, from the report
+tools/compass release symbolicate 20261114.1035 0x65a6ca8 0x65a7878
+tools/compass release symbolicate <version> <offsets> --cpu x64 --binary 'Compass Helper (Renderer)'
+```
+
+Builds are deterministic: a release whose symbols weren't kept can be built
+again from its commit (`release list`) with its `compass_version` in args.gn,
+and its `Compass Framework` gets the same UUID as the report's.
+
 ## macOS: Sparkle
 
 Sparkle 2 (`tools/compass_tool/sparkle.py` pins the release and checks its

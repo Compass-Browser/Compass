@@ -16,6 +16,7 @@ from typing import Optional
 
 from . import (android, checkout, flatpak_remote, linux_package, mac_sign,
                overrides, package_managers, patches, play, release, sparkle,
+               symbols,
                sync_server)
 from .layout import (CONFIGS, CROSS_TARGETS, LINUX_TOOLCHAIN_DIR, Layout,
                      detect, host_cpu)
@@ -762,6 +763,12 @@ def _release(layout: Layout, args) -> None:
   if args.action == 'packages':
     release_packages(args)
     return
+  if args.action == 'symbolicate':
+    if not args.version or not args.offsets:
+      raise CommandError('symbolicate: which version, and which offsets?')
+    print(symbols.symbolicate(args.version, args.offsets,
+                              args.cpu or 'arm64', args.binary), end='')
+    return
   manifest = release.load()
   # Everything that writes the feeds starts from the server's releases: a
   # stale local copy would drop the ones it lacks (build-win only reads the
@@ -868,6 +875,27 @@ def _release(layout: Layout, args) -> None:
   if not args.no_upload:
     # The Homebrew tap's cask. Never fails the release (it's out by now).
     package_managers.after_mac_release(added, args.no_package_managers)
+  # The dSYMs of each CPU's build (a universal app's are in the per-CPU out
+  # directories it was merged from).
+  if args.universal:
+    out_dirs = {cpu: layout.out_dir(args.config, cpu) for cpu in CPUS}
+  else:
+    out_dirs = {args.cpu or host_cpu(): layout.out_dir(args.config, args.cpu)}
+  keep_symbols(lambda: symbols.archive_mac(added['version'], out_dirs,
+                                           product_name(layout)), manifest)
+
+
+def keep_symbols(archive, manifest: Optional[dict] = None) -> None:
+  """Keeps a release's symbols (compass_tool/symbols.py). A failure only
+  warns: the release is out by then."""
+  try:
+    for path in archive():
+      print('symbols: %s (%d MB)' % (path, path.stat().st_size >> 20))
+    if manifest is not None:
+      for version in symbols.prune(manifest):
+        print('symbols: removed %s\'s' % version)
+  except (CommandError, OSError) as e:
+    print('warning: symbols not kept: %s' % e, file=sys.stderr)
 
 
 def win_build_info(installer: Path) -> dict:
@@ -939,9 +967,9 @@ def build_win(layout: Layout, args) -> Path:
                                                        installer_version))
   # mini_installer packs every <version>.manifest in the out dir, so earlier
   # builds' would ride along in the version folder.
-  for manifest in out_dir.glob('*.*.*.*.manifest'):
-    if manifest.name != installer_version + '.manifest':
-      manifest.unlink()
+  for stale in out_dir.glob('*.*.*.*.manifest'):
+    if stale.name != installer_version + '.manifest':
+      stale.unlink()
   build(layout, args.config,
         ['chrome', 'mini_installer', WIN_INSTALLER_TARGET], args.jobs,
         args.skip_patches, args.cpu)
@@ -960,6 +988,7 @@ def build_win(layout: Layout, args) -> Path:
       'commit': git_commit(layout.root, mark_dirty=True),
       'installer': installer.name,
   }, indent=2) + '\n')
+  keep_symbols(lambda: symbols.archive_win(version, out_dir), manifest)
   print('built %s and %s\npublish them from the release Mac: compass '
         'release publish-win --installer CompassSetup-%s.exe (with its .json '
         'and %s)' % (setup, installer, version, installer.name))
@@ -1410,16 +1439,22 @@ def parser() -> argparse.ArgumentParser:
   s = sub.add_parser('release', help='publish a macOS release to the update '
                      'feeds, build or publish a Windows one, publish a Linux '
                      'one, promote one (canary to beta, beta to stable), '
-                     'list them, or redo one\'s Homebrew cask and winget '
-                     'pull request (packages)')
+                     'list them, redo one\'s Homebrew cask and winget '
+                     'pull request (packages), or symbolicate a crash from one')
   s.add_argument('action', choices=['publish', 'build-win', 'publish-win',
                                     'publish-linux', 'promote', 'list',
-                                    'feeds', 'packages'],
+                                    'feeds', 'packages', 'symbolicate'],
                  nargs='?', default='publish')
   s.add_argument('version', nargs='?',
-                 help='promote, packages: the version; publish, build-win: '
-                 'instead of the '
-                 'time; publish-win: instead of the .json\'s')
+                 help='promote, packages, symbolicate: the version; publish, '
+                 'build-win: instead of the time; publish-win: instead of the '
+                 '.json\'s')
+  s.add_argument('offsets', nargs='*',
+                 help='symbolicate: frames as offsets into the binary (crash '
+                 'report address minus its load address), 0x... or decimal')
+  s.add_argument('--binary', default=symbols.DEFAULT_BINARY,
+                 help='symbolicate: whose dSYM (default: %(default)s); '
+                 '--cpu picks the CPU (default: arm64)')
   s.add_argument('--channel', choices=release.CHANNELS, default='canary',
                  help='publish, publish-win: the channel (default: '
                  '%(default)s)')
