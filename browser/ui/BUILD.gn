@@ -387,6 +387,7 @@ source_set("browser_tests") {
     "views/reader/reader_mode_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
     "views/sidebar/compass_sidebar_browsertest.cc",
+    "webui/select_popup_browsertest.cc",
     "webui/settings/settings_sections_browsertest.cc",
     "webui/sidebar/now_playing_browsertest.cc",
     "removed_features_browsertest.cc",
@@ -400,6 +401,7 @@ source_set("browser_tests") {
     "//compass/common/reader/",
   ]
   deps = [
+    "//components/viz/common",
     "//compass/browser/live_folders",
     "//services/network:test_support",
     "//services/network/public/cpp",

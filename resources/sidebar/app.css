@@ -535,8 +535,22 @@ compass-sidebar-preview[side='next'] {
   border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 6px;
   color: inherit;
+  color-scheme: light dark;
   font: inherit;
   padding: 3px 4px;
+}
+
+/* The open menus, in the sidebar's mode. On Windows and Linux blink draws
+ * them itself: on the <select>'s background, white when that is
+ * translucent, with the <select>'s text (light in dark mode) on it
+ * (2026-11-14). The options' field colors, in the <select>'s color scheme,
+ * make it upstream's menu for a dark or light <select>; the highlighted
+ * item keeps the system's selection colors (html.css, !important). */
+#spaceProfile option,
+#archiveDelay option,
+.live-editor-field option {
+  background-color: Field;
+  color: FieldText;
 }
 
 #spaceProfile[hidden] {
@@ -1403,6 +1417,8 @@ input.title-input {
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   border-radius: 6px;
   color: inherit;
+  /* Its open menu takes the sidebar's mode (#archiveDelay option). */
+  color-scheme: light dark;
   font: inherit;
   padding: 5px 7px;
 }
