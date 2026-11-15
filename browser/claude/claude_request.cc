@@ -96,6 +96,9 @@ std::string BuildMessageContext(const ChatOptions& options) {
                    "devices.\n"
                  : "Developer tools are off (the user can turn them on in "
                    "Compass's Claude settings).\n";
+  if (options.boosts) {
+    context += "You can make Boosts (list_boosts, save_boost, delete_boost).\n";
+  }
   if (!options.window_tabs.empty()) {
     base::StrAppend(
         &context,
@@ -163,7 +166,8 @@ ChatRequest BuildChatRequest(base::ListValue messages,
     // cache's order, so theirs (Definitions() marks the last) would only
     // take one of the API's 4.
     base::ListValue tools = ClaudeTools::Definitions(
-        options.memory_tools, /*files=*/true, options.devtools_tools);
+        options.memory_tools, /*files=*/true, options.devtools_tools,
+        options.boosts_tools);
     if (!tools.empty()) {
       tools.back().GetDict().Remove("cache_control");
     }

@@ -206,9 +206,38 @@ class TestDelegate : public CompassSpacesSyncBridge::Delegate {
       memories->erase(key);
     }
   }
+  std::optional<std::vector<sync_pb::CompassBoost>> GetLocalBoosts()
+      override {
+    if (!boosts) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassBoost> list;
+    for (const auto& [key, boost] : *boosts) {
+      list.push_back(boost);
+    }
+    return list;
+  }
+  void ApplyBoosts(const std::vector<sync_pb::CompassBoost>& changed,
+                   const std::set<std::string>& deleted) override {
+    if (!boosts) {
+      return;
+    }
+    for (const sync_pb::CompassBoost& boost : changed) {
+      auto it = boosts->find(boost.id());
+      if (it == boosts->end() ||
+          boost.update_time() >= it->second.update_time()) {
+        (*boosts)[boost.id()] = boost;
+      }
+    }
+    for (const std::string& key : deleted) {
+      boosts->erase(key);
+    }
+  }
 
   // Claude's memories by id; nullopt: not loaded.
   std::optional<std::map<std::string, sync_pb::CompassMemory>> memories;
+  // Boosts by id; nullopt: not loaded.
+  std::optional<std::map<std::string, sync_pb::CompassBoost>> boosts;
   // Synced icons handed over, by host: their PNG.
   std::map<std::string, std::string> favicons;
   int favicons_writable = 0;
@@ -358,6 +387,7 @@ class Device {
         : specifics.has_favicon() ? specifics.favicon().uuid()
         : specifics.has_memory()  ? specifics.memory().uuid()
         : specifics.has_link_rule() ? specifics.link_rule().uuid()
+        : specifics.has_boost()     ? specifics.boost().id()
                                     : specifics.node().uuid());
     return data;
   }
@@ -1776,6 +1806,83 @@ TEST_F(CompassSpacesSyncBridgeTest, MemoryEntitiesAreValid) {
   EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
   EXPECT_EQ(a->bridge().GetStorageKey(data), specifics.memory().uuid());
   data.specifics.mutable_compass_spaces()->mutable_memory()->set_uuid("x");
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+}
+
+// Boosts (docs/design/boosts.md) --------------------------------------------
+
+sync_pb::CompassBoost Boost(const std::string& match,
+                            const std::string& css,
+                            int64_t update_time) {
+  sync_pb::CompassBoost boost;
+  boost.set_id(base::Uuid::GenerateRandomV4().AsLowercaseString());
+  boost.set_name(match);
+  boost.set_match(match);
+  boost.set_css(css);
+  boost.set_js_world("isolated");
+  boost.set_enabled(true);
+  boost.set_author("claude");
+  boost.set_create_time(1);
+  boost.set_update_time(update_time);
+  return boost;
+}
+
+// Boosts sync as memories do: added, edited, turned off and deleted on one
+// device, the same on the others; a device whose Boosts aren't loaded (or
+// don't sync) leaves the account's alone.
+TEST_F(CompassSpacesSyncBridgeTest, BoostsSync) {
+  std::unique_ptr<Device> a = MakeDevice();
+  const sync_pb::CompassBoost boost =
+      Boost("*.github.com", "header{display:none}", 10);
+  const std::string key = boost.id();
+  a->delegate().boosts.emplace();
+  (*a->delegate().boosts)[key] = boost;
+  a->Join();
+  ASSERT_TRUE(server_.entities.contains(key));
+  EXPECT_EQ(server_.entities[key].boost().match(), "*.github.com");
+  EXPECT_EQ(server_.entities[key].boost().author(), "claude");
+
+  std::unique_ptr<Device> b = MakeDevice();
+  b->delegate().boosts.emplace();
+  b->Join();
+  ASSERT_TRUE(b->delegate().boosts->contains(key));
+  EXPECT_EQ(b->delegate().boosts->at(key).css(), "header{display:none}");
+  EXPECT_EQ(b->Push(), 0u) << "no echo";
+
+  // JavaScript syncs too; turning it off is an edit.
+  sync_pb::CompassBoost edited = boost;
+  edited.set_js("document.title = 'x'");
+  edited.set_js_world("main");
+  edited.set_enabled(false);
+  edited.set_update_time(20);
+  (*b->delegate().boosts)[key] = edited;
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(a->delegate().boosts->at(key).js(), "document.title = 'x'");
+  EXPECT_EQ(a->delegate().boosts->at(key).js_world(), "main");
+  EXPECT_FALSE(a->delegate().boosts->at(key).enabled());
+  EXPECT_EQ(a->Push(), 0u) << "no echo";
+
+  // Not loaded: nothing of the account's goes.
+  std::unique_ptr<Device> c = MakeDevice();
+  c->Join();
+  EXPECT_TRUE(server_.entities.contains(key));
+
+  a->delegate().boosts->erase(key);
+  a->Push();
+  EXPECT_FALSE(server_.entities.contains(key));
+  b->Pull();
+  EXPECT_FALSE(b->delegate().boosts->contains(key));
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, BoostEntitiesAreValid) {
+  std::unique_ptr<Device> a = MakeDevice();
+  sync_pb::CompassSpacesSpecifics specifics;
+  *specifics.mutable_boost() = Boost("example.com", "a{}", 1);
+  syncer::EntityData data = Device::Data(specifics);
+  EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
+  EXPECT_EQ(a->bridge().GetStorageKey(data), specifics.boost().id());
+  data.specifics.mutable_compass_spaces()->mutable_boost()->set_id("x");
   EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
 }
 

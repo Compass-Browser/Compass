@@ -655,6 +655,11 @@ CompassSpacesSyncBridge::Delegate::GetLocalMemories() {
   return std::nullopt;
 }
 
+std::optional<std::vector<sync_pb::CompassBoost>>
+CompassSpacesSyncBridge::Delegate::GetLocalBoosts() {
+  return std::nullopt;
+}
+
 std::string CompassSpacesSyncBridge::Delegate::GetProfileUuid() {
   return std::string();
 }
@@ -822,6 +827,11 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
   if (memories) {
     AddLocalMemories(*memories, local);
   }
+  const std::optional<std::vector<sync_pb::CompassBoost>> boosts =
+      delegate_ ? delegate_->GetLocalBoosts() : std::nullopt;
+  if (boosts) {
+    AddLocalBoosts(*boosts, local);
+  }
   AddLocalLinkRules(local);
   const base::TimeTicks now = base::TimeTicks::Now();
   std::optional<base::TimeTicks> next_send;
@@ -876,6 +886,13 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     if (specifics.has_memory()) {
       // Deleted here, unless the memory isn't loaded (or doesn't sync).
       if (memories) {
+        gone.push_back(key);
+      }
+      continue;
+    }
+    if (specifics.has_boost()) {
+      // Deleted here, unless the Boosts aren't loaded (or don't sync).
+      if (boosts) {
         gone.push_back(key);
       }
       continue;
@@ -1138,6 +1155,41 @@ void CompassSpacesSyncBridge::AddLocalMemories(
     }
     if (entity.update_time() != memory.update_time()) {
       entity.set_update_time(memory.update_time());
+    }
+    out[key] = std::move(specifics);
+  }
+}
+
+void CompassSpacesSyncBridge::AddLocalBoosts(
+    const std::vector<sync_pb::CompassBoost>& boosts,
+    Mirror& out) const {
+  for (const sync_pb::CompassBoost& boost : boosts) {
+    const std::string& key = boost.id();
+    if (!ParseKey(key).is_valid() || out.contains(key)) {
+      continue;
+    }
+    sync_pb::CompassSpacesSpecifics specifics;
+    auto it = mirror_.find(key);
+    if (it != mirror_.end() && it->second.has_boost()) {
+      // Keeps what this version doesn't know.
+      specifics = it->second;
+    }
+    sync_pb::CompassBoost& entity = *specifics.mutable_boost();
+    COMPASS_SET_STRING(entity, id, key);
+    COMPASS_SET_STRING(entity, name, boost.name());
+    COMPASS_SET_STRING(entity, match, boost.match());
+    COMPASS_SET_STRING(entity, css, boost.css());
+    COMPASS_SET_STRING(entity, js, boost.js());
+    COMPASS_SET_STRING(entity, js_world, boost.js_world());
+    COMPASS_SET_STRING(entity, author, boost.author());
+    if (!entity.has_enabled() || entity.enabled() != boost.enabled()) {
+      entity.set_enabled(boost.enabled());
+    }
+    if (entity.create_time() != boost.create_time()) {
+      entity.set_create_time(boost.create_time());
+    }
+    if (entity.update_time() != boost.update_time()) {
+      entity.set_update_time(boost.update_time());
     }
     out[key] = std::move(specifics);
   }
@@ -1427,7 +1479,8 @@ bool CompassSpacesSyncBridge::WasDeletedLocally(
     const sync_pb::CompassSpacesSpecifics& specifics,
     const Mirror& local) const {
   if (specifics.has_profile() || specifics.has_favicon() ||
-      specifics.has_memory() || specifics.has_link_rule()) {
+      specifics.has_memory() || specifics.has_link_rule() ||
+      specifics.has_boost()) {
     // SendLocalChangesTo() decides.
     return false;
   }
@@ -1640,6 +1693,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   // Memories that came or went.
   std::vector<sync_pb::CompassMemory> memories;
   std::set<std::string> deleted_memories;
+  // Boosts that came or went.
+  std::vector<sync_pb::CompassBoost> boosts;
+  std::set<std::string> deleted_boosts;
   // Link rules that came, and the domains of those that went.
   std::vector<sync_pb::CompassLinkRule> link_rules;
   std::vector<std::string> deleted_link_rules;
@@ -1654,6 +1710,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
       }
       if (it != mirror_.end() && it->second.has_memory()) {
         deleted_memories.insert(key);
+      }
+      if (it != mirror_.end() && it->second.has_boost()) {
+        deleted_boosts.insert(key);
       }
       if (it != mirror_.end() && it->second.has_link_rule()) {
         deleted_link_rules.push_back(it->second.link_rule().domain());
@@ -1674,6 +1733,10 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     }
     if (specifics.has_memory()) {
       memories.push_back(specifics.memory());
+      continue;
+    }
+    if (specifics.has_boost()) {
+      boosts.push_back(specifics.boost());
       continue;
     }
     if (specifics.has_link_rule()) {
@@ -1722,6 +1785,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     }
     if (delegate_ && (!memories.empty() || !deleted_memories.empty())) {
       delegate_->ApplyMemories(memories, deleted_memories);
+    }
+    if (delegate_ && (!boosts.empty() || !deleted_boosts.empty())) {
+      delegate_->ApplyBoosts(boosts, deleted_boosts);
     }
     // Link rules: the later commit wins. One without a space this version
     // can read is left alone (it stays in the mirror); one for a space
@@ -2762,6 +2828,9 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
   if (specifics.has_link_rule()) {
     return specifics.link_rule().uuid();
   }
+  if (specifics.has_boost()) {
+    return specifics.boost().id();
+  }
   return specifics.node().uuid();
 }
 
@@ -2814,7 +2883,8 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
       entity_data.specifics.compass_spaces();
   if (!specifics.has_space() && !specifics.has_node() &&
       !specifics.has_profile() && !specifics.has_favicon() &&
-      !specifics.has_memory() && !specifics.has_link_rule()) {
+      !specifics.has_memory() && !specifics.has_link_rule() &&
+      !specifics.has_boost()) {
     return false;
   }
   if (specifics.has_link_rule()) {

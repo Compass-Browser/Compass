@@ -239,7 +239,8 @@ approves each write.
   - the toggle "Let Claude use the whole browser", with a short warning about prompt injection from web pages;
   - Memory (above);
   - Files (above);
-  - Developer tools (below).
+  - Developer tools (below);
+  - Boosts (below).
   - **Claude in the sidebar** (docs/design/ai-sidebar.md): a list of
     features, each a row of its own switch (off by default) and its own
     model picker (the chat's models, a gateway's list too; default
@@ -297,6 +298,29 @@ for what's missing.
 - **emulate:** the device's user agent (`customUserAgent`, from the next load) and width (by `pageZoom`: WebKit lays out in bounds / zoom CSS pixels), the color scheme (`overrideUserInterfaceStyle`), and network conditions through the proxy (offline refuses new connections; the presets add latency and limit bandwidth), which apply to the profile's new connections, every tab of it. Height, pixel ratio, touch, reduced motion, print media and the CPU can't be emulated. Undone with `reset`, Stop, a new chat, Claude moving to another tab, or a minute after its last tool.
 - **Web Inspector:** tabs are inspectable from Safari on a Mac (`isInspectable`), except Incognito ones.
 - **Tests:** `DevToolsFormatTests`, `NetworkListingTests` and `LocalProxyTests` (a CONNECT tunnel through the proxy to a local server, bytes and timings recorded; 407 without the password; refused and emulated-offline connections) in `CompassClaudeTests`.
+
+### Boosts
+
+Claude can make and change Boosts, per-site CSS and JavaScript
+(docs/design/boosts.md, "Claude"), with "Let Claude make Boosts"
+(`compass.claude.boosts`, off, doesn't sync; Settings, Claude).
+
+- **Tools** (`tools.json`, `scope: "boosts"`, `platforms: ["desktop",
+  "ios"]`): `list_boosts {host?}`, `save_boost {id?, name, match, css?, js?,
+  js_world?, enabled?}` (returns `{id, needs_reload: true}`), `delete_boost
+  {id}`. Sent only while the setting is on and kept for the rest of a chat
+  that had them (`Definitions(…, boosts)`, `chat_boosts_`); refused while
+  it's off (`ClaudeTools::RunBoostTool()`, `claude_boost_tools.cc`). No tab
+  needed. Not for MCP clients or Claude Code mode yet.
+- **Approval:** any change that gives a Boost JavaScript to run, and
+  deleting one that has some, ask first (`ApproveThen()`, the code shown),
+  every time (`ApprovalRequest::always_ask`: "Allow for this chat" covers
+  only that one). CSS-only changes save at once.
+- **Undo:** each change shows as "Saved Boost for <site>" (or "Updated",
+  "Deleted") with Undo, as memory's line (`chat.mojom` `UndoBoost()`).
+- **Prompt:** `system_prompt.md`, "Boosts"; the context says when they're
+  on.
+- **Tests:** `BoostToolsBrowserTest.SaveBoost`, `ListAndSetting`.
 
 ### Browser tools
 

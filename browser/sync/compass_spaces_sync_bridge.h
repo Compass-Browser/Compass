@@ -185,6 +185,16 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     virtual void ApplyMemories(
         const std::vector<sync_pb::CompassMemory>& changed,
         const std::set<std::string>& deleted) {}
+
+    // Boosts (docs/design/boosts.md), as memories: the profile's Boosts as
+    // entities once they're loaded; nullopt otherwise, and where Boosts
+    // don't sync (Android): the account's are then left alone.
+    virtual std::optional<std::vector<sync_pb::CompassBoost>>
+    GetLocalBoosts();
+    // Boosts another device added or changed, and ones it deleted (keys).
+    // Called while applying; the later of two edits wins.
+    virtual void ApplyBoosts(const std::vector<sync_pb::CompassBoost>& changed,
+                             const std::set<std::string>& deleted) {}
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -303,6 +313,9 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // The memory entities of |memories| (GetLocalMemories()) into |out|.
   void AddLocalMemories(const std::vector<sync_pb::CompassMemory>& memories,
                         Mirror& out) const;
+  // The Boost entities of |boosts| (GetLocalBoosts()) into |out|.
+  void AddLocalBoosts(const std::vector<sync_pb::CompassBoost>& boosts,
+                      Mirror& out) const;
   // The list's link rules as entities into |out|, except those for a space
   // that stays on this device.
   void AddLocalLinkRules(Mirror& out) const;

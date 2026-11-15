@@ -1,0 +1,40 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Boosts</title>
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <style>
+      body {
+        background: var(--color-sys-base, #fff);
+        color: var(--color-sys-on-surface, #1f1f1f);
+        margin: 0;
+      }
+
+      /* A thin thumb on a transparent track, as the sidebar's. */
+      html {
+        /* Form controls follow the theme, as the page does. */
+        color-scheme: light dark;
+        scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+            transparent;
+        scrollbar-width: thin;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 680px;
+        padding: 40px 24px 72px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Also a section of compass://settings (/boosts); see
+         settings/page_base.ts. Served by chrome://compass-settings, whose
+         SettingsHandler it uses. -->
+    <main>
+      <compass-boosts-page></compass-boosts-page>
+    </main>
+    <script type="module" src="settings/standalone.js"></script>
+  </body>
+</html>

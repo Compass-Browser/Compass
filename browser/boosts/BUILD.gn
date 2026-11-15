@@ -1,0 +1,92 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Boosts: per-site CSS and JavaScript (docs/design/boosts.md).
+
+# The store, with the match patterns. Few deps: sync, Claude's tools and the
+# settings page use it.
+source_set("store") {
+  sources = [
+    "boost_store.cc",
+    "boost_store.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/core",
+  ]
+  deps = [ "//url" ]
+}
+
+if (!is_android) {
+  # resources/boosts/manifest.json as a string constant:
+  # compass/browser/boosts/boosts_assets.h.
+  action("assets") {
+    script = "//compass/build/embed_text.py"
+    inputs = [ "//compass/resources/boosts/manifest.json" ]
+    outputs = [ "$target_gen_dir/boosts_assets.h" ]
+    args = [
+      "--out",
+      rebase_path(outputs[0], root_build_dir),
+      "--namespace",
+      "compass::boosts::assets",
+      "kManifest=" + rebase_path(inputs[0], root_build_dir),
+    ]
+  }
+
+  # The component extension and its content scripts. Registered with the
+  # profile's services by chrome_browser_main_extra_parts_profiles.cc (see
+  # patches/chrome-browser-profiles-chrome_browser_main_extra_parts_profiles.cc.patch).
+  source_set("boosts") {
+    sources = [
+      "boost_injector.cc",
+      "boost_injector.h",
+    ]
+    public_deps = [ ":store" ]
+    deps = [
+      ":assets",
+      "//base",
+      "//chrome/browser/extensions",
+      "//chrome/browser/profiles:profile",
+      "//extensions/browser",
+      "//extensions/common",
+      "//extensions/common:mojom",
+    ]
+  }
+
+  source_set("unit_tests") {
+    testonly = true
+    sources = [ "boost_store_unittest.cc" ]
+    deps = [
+      ":store",
+      "//base",
+      "//base/test:test_support",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "boosts_browsertest.cc" ]
+    deps = [
+      ":boosts",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//compass/browser/claude",
+      "//compass/browser/claude:prefs",
+      "//components/prefs",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//net:test_support",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
+}

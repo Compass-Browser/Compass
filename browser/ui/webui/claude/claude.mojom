@@ -70,6 +70,8 @@ struct SettingsState {
   // "Let Claude use developer tools" (docs/design/claude.md, "Developer
   // tools").
   bool devtools;
+  // "Let Claude make Boosts" (docs/design/boosts.md).
+  bool boosts;
   // Claude in the sidebar (docs/design/ai-sidebar.md): false where the
   // profile can't use it (Guest). Each feature has its own switch, which
   // needs a saved key (has_key). "Name Link Folders":
@@ -148,6 +150,7 @@ interface SettingsHandler {
   ClearFilesFolder();
   SetClaudeCodeOwnTools(bool enabled);
   SetDevTools(bool enabled);
+  SetBoosts(bool enabled);
   SetNameLinkFolders(bool enabled);
   // Empty goes back to the default (Claude Haiku).
   SetNameLinkFoldersModel(string model);

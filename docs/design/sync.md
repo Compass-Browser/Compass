@@ -621,6 +621,13 @@ reference. It's built by `//components/sync/protocol` (its
   the `space_uuid`. Kept while its space is missing; not uploaded for a
   space that stays on this device; one without `space_uuid` is ignored
   and left on the server. See docs/design/link-routing.md, "Sync".
+- `CompassBoost` (7): one per Boost (per-site CSS and JavaScript) of the
+  profile, in its account: `id` (a UUID, the client tag), `name`, `match`,
+  `css`, `js`, `js_world`, `enabled`, `author`, `create_time`,
+  `update_time` (the later edit wins). Handled as memories are
+  (`Delegate::GetLocalBoosts()`, `ApplyBoosts()`; nothing deleted while the
+  file isn't read; a deleted Boost is a deleted entity); Android leaves
+  them alone. See docs/design/boosts.md, "Sync".
 
 Choices: proto2 with `optional` fields, as all sync protos; the enums are
 `int32` fields with 0 = unset (`section` 1 PINNED, 2 TODAY, 3 FAVORITES, 4

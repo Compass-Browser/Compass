@@ -186,6 +186,10 @@ bool IsDevToolsTool(const std::string& name) {
   return ScopeOf(name) == "devtools";
 }
 
+bool IsBoostsTool(const std::string& name) {
+  return ScopeOf(name) == "boosts";
+}
+
 constexpr char kDevToolsOff[] =
     "Not permitted: the user hasn't turned on \"Let Claude use developer "
     "tools\" (Compass settings, Claude). Tell the user if the task needs "
@@ -229,6 +233,11 @@ MemoryChange::MemoryChange() = default;
 MemoryChange::MemoryChange(const MemoryChange&) = default;
 MemoryChange& MemoryChange::operator=(const MemoryChange&) = default;
 MemoryChange::~MemoryChange() = default;
+
+BoostChange::BoostChange() = default;
+BoostChange::BoostChange(const BoostChange&) = default;
+BoostChange& BoostChange::operator=(const BoostChange&) = default;
+BoostChange::~BoostChange() = default;
 
 ToolResult::ToolResult() = default;
 ToolResult::ToolResult(ToolResult&&) = default;
@@ -291,12 +300,13 @@ void ClaudeTools::StopActing() {
 // static
 base::ListValue ClaudeTools::Definitions(bool memory,
                                          bool files,
-                                         bool devtools) {
+                                         bool devtools,
+                                         bool boosts) {
   base::ListValue definitions;
   for (const base::Value& tool : ToolEntries()) {
     const std::string scope = Describe(tool.GetDict(), "scope");
     if ((!memory && scope == "memory") || (!files && scope == "files") ||
-        (!devtools && scope == "devtools")) {
+        (!devtools && scope == "devtools") || (!boosts && scope == "boosts")) {
       continue;
     }
     definitions.Append(tool.GetDict().FindDict("definition")->Clone());
@@ -491,6 +501,12 @@ void ClaudeTools::Run(const std::string& name,
     // No tab: files, with the setting and the user's approval. No timeout
     // either: the user may take a while to decide.
     RunFileTool(name, std::move(input));
+    return;
+  }
+  if (IsBoostsTool(name)) {
+    // No tab either: the profile's Boosts, with the setting, and the user's
+    // approval for JavaScript.
+    RunBoostTool(name, std::move(input));
     return;
   }
   if (IsDevToolsTool(name) && !CheckDevTools()) {

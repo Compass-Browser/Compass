@@ -28,6 +28,9 @@ inline constexpr char kClaudeSettingsSubPage[] = "claude";
 // Links from Other Apps (docs/design/link-routing.md); "links?add=<domain>"
 // opens it with a new rule for the domain being made.
 inline constexpr char kLinksSettingsSubPage[] = "links";
+// Boosts (docs/design/boosts.md); "boosts?add=<host>" opens the editor on a
+// host, "boosts?edit=<id>" on a Boost.
+inline constexpr char kBoostsSettingsSubPage[] = "boosts";
 
 // Compass's sections of chrome://settings: Sync (/sync), Keyboard shortcuts
 // (/shortcuts), Links from Other Apps (/links, served by the shortcuts'

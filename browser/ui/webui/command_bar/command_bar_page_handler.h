@@ -63,6 +63,9 @@ enum class CommandBarCommand {
   // domain (docs/design/link-routing.md): only for a page with a domain,
   // never off the record.
   kRouteSiteToSpace,
+  // Opens compass://settings/boosts with the editor on the current tab's
+  // host (docs/design/boosts.md): only for a web page, never off the record.
+  kBoostSite,
   // Asks Claude to group the window's Today into folders
   // (docs/design/ai-sidebar.md, "Tidy Today"): only while "Tidy Today" is on
   // and Today has 5 loose entries or more.
@@ -196,6 +199,9 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   // (NormalizeLinkRuleDomain()); nullopt for a page without one, and off the
   // record.
   std::optional<std::string> GetActiveRuleDomain() const;
+  // The active tab's host for a Boost (an http or https page, not off the
+  // record), or null.
+  std::optional<std::string> GetActiveBoostHost() const;
   // The sidebar node of the window's active tab, or null.
   SidebarNode* GetActiveNode() const;
   // Whether |node| (or the split or folder holding it) is in Pinned.

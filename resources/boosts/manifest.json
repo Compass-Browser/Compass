@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Compass Boosts",
+  "description": "Runs your Boosts: the CSS and JavaScript you or Claude made for sites. Built in; its scripts come from the browser, not from this manifest (docs/design/boosts.md).",
+  "version": "1",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoOcFWwMz/x85PVZlAC8vpLo0A/JFBjHVlwOIqO/4arbX2C+SJBXOD0qYCHRsrjpS3XofR7a/cWLn4CHPkgTn/VNbyLBXIKCj9FVC4owZ6y7vkf47KFggntLghbTxMRfbDybsyVZfEv+FqxwYFRE7tjuTtz2CjOd+8Ird3QLCswHx1p4W22SWrgOKUpLDtO59vK5pkXeLL91MOF/BQaHIA0cClUupxcIVsr/xFkfArOI0Qm49oB6pjRMlUK6LMLZWtaVTzTWjdDT3Mpgjbb+71a96OdZapwNnga13m/66y//Pqe/IMacpO3fk4Zq2OASHtPUMVXkDQG6yUYX6uFJyLwIDAQAB",
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}

@@ -169,6 +169,7 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->default_save_folder = DefaultSaveFolder(profile_).AsUTF8Unsafe();
   state->claude_code_own_tools = prefs->GetBoolean(prefs::kClaudeCodeOwnTools);
   state->devtools = prefs->GetBoolean(prefs::kDevTools);
+  state->boosts = prefs->GetBoolean(prefs::kBoosts);
   state->sidebar_supported = ClaudeQuick::Get(profile_) != nullptr;
   state->name_link_folders = prefs->GetBoolean(prefs::kNameLinkFolders);
   state->name_link_folders_model =
@@ -270,6 +271,10 @@ void ClaudeSettingsHandler::SetMemorySave(bool enabled) {
 
 void ClaudeSettingsHandler::SetDevTools(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kDevTools, enabled);
+}
+
+void ClaudeSettingsHandler::SetBoosts(bool enabled) {
+  profile_->GetPrefs()->SetBoolean(prefs::kBoosts, enabled);
 }
 
 void ClaudeSettingsHandler::SetNameLinkFolders(bool enabled) {

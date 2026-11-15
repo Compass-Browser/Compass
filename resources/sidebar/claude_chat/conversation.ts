@@ -55,17 +55,23 @@ export interface ToolView {
   text?: string;
   // A screenshot, as a data: URL.
   image?: string;
-  // What a memory tool changed (remember, update_memory, forget).
+  // What a memory tool changed (remember, update_memory, forget), or a
+  // Boost tool (save_boost, delete_boost; then `boost` is set).
   memory?: MemoryView;
 }
 
 export interface MemoryView {
-  // "saved", "updated" or "forgot".
+  // "saved", "updated" or "forgot"; for a Boost "saved", "updated" or
+  // "deleted".
   kind: string;
+  // The memory's text; a Boost's match.
   text: string;
-  // PageHandler.UndoMemory()'s id; absent in Claude Code mode.
+  // PageHandler.UndoMemory()'s id (UndoBoost()'s for a Boost); absent in
+  // Claude Code mode.
   undo?: number;
   undone?: boolean;
+  // A Boost's change, not a memory's.
+  boost?: boolean;
 }
 
 // How many screenshots the request keeps; older ones are replaced by a note

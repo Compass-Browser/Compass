@@ -144,6 +144,7 @@ source_set("ui") {
     "//chrome/browser/first_run",
     "//chrome/browser/importer",
     "//compass/browser/arc_import",
+    "//compass/browser/boosts",
     "//compass/browser/browser_import",
     "//compass/browser/claude",
     "//components/history/core/browser",

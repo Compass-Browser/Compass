@@ -91,6 +91,7 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kRemoveFavorite, u"Remove from Favorites", "remove"},
     {CommandBarCommand::kRouteSiteToSpace, u"Route this site to space\u2026",
      "alt_route"},
+    {CommandBarCommand::kBoostSite, u"Boost this site\u2026", "sparkle"},
     {CommandBarCommand::kCopyUrl, u"Copy URL", "link"},
     {CommandBarCommand::kReload, u"Reload", "refresh"},
     {CommandBarCommand::kHistory, u"History", "history"},
@@ -907,6 +908,12 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
           browser_, std::string(kLinksSettingsSubPage) +
                         "?add=" + GetActiveRuleDomain().value_or(""));
       break;
+    case CommandBarCommand::kBoostSite:
+      // The editor on the host (canonical, so plain ASCII, safe in a query).
+      chrome::ShowSettingsSubPage(
+          browser_, std::string(kBoostsSettingsSubPage) +
+                        "?add=" + GetActiveBoostHost().value_or(""));
+      break;
     case CommandBarCommand::kTidyToday:
       TodayTidier::Get(browser_->GetProfile())->Tidy(features->space_model());
       break;
@@ -967,6 +974,8 @@ bool CommandBarPageHandler::IsCommandAvailable(
     case CommandBarCommand::kRouteSiteToSpace:
       return features && !features->is_parking_window() &&
              GetActiveRuleDomain().has_value();
+    case CommandBarCommand::kBoostSite:
+      return GetActiveBoostHost().has_value();
     case CommandBarCommand::kTidyToday: {
       // Never in incognito, whose profile has no TodayTidier.
       if (browser_->GetProfile()->IsOffTheRecord() || !features ||
@@ -1002,6 +1011,22 @@ std::optional<std::string> CommandBarPageHandler::GetActiveRuleDomain() const {
   }
   return NormalizeLinkRuleDomain(
       tab->GetContents()->GetLastCommittedURL().spec());
+}
+
+std::optional<std::string> CommandBarPageHandler::GetActiveBoostHost() const {
+  // Boosts are the profile's: never off the record.
+  if (browser_->GetProfile()->IsOffTheRecord()) {
+    return std::nullopt;
+  }
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  if (!tab || !tab->GetContents()) {
+    return std::nullopt;
+  }
+  const GURL& url = tab->GetContents()->GetLastCommittedURL();
+  if (!url.SchemeIsHTTPOrHTTPS() || url.host().empty()) {
+    return std::nullopt;
+  }
+  return std::string(url.host());
 }
 
 WindowFeatures *CommandBarPageHandler::GetFeatures() const {

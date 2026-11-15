@@ -65,6 +65,10 @@ inline constexpr char kClaudeCodeOwnTools[] =
 // tools"): the devtools tools (network, styles, storage, performance,
 // emulation) on the tab Claude acts on. Off by default; doesn't sync.
 inline constexpr char kDevTools[] = "compass.claude.devtools";
+// "Let Claude make Boosts" (docs/design/boosts.md): the Boost tools
+// (list_boosts, save_boost, delete_boost). Off by default; doesn't sync.
+// Boosts the user makes by hand don't depend on it.
+inline constexpr char kBoosts[] = "compass.claude.boosts";
 // The endpoint (its base URL) that refused the usual cache breakpoints (a
 // gateway adding its own), and the CacheLevel that got through with it
 // (CacheLevelFor()). Empty for none; another URL doesn't use it.

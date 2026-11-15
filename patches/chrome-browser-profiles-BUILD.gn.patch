@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index f569264cf0e530634f9e064054511b25ca2273d2..7560aac1abda9d0c6cfca394ced945f8e41a8daa 100644
+index f569264cf0e530634f9e064054511b25ca2273d2..17cd18a02960487adb9eb5bb5c3698d7c34fd3a4 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
-@@ -567,6 +567,7 @@ source_set("profile_io_data") {
+@@ -567,6 +567,7 @@
    sources = [ "profile_io_data.cc" ]
  
    deps = [
@@ -10,7 +10,7 @@ index f569264cf0e530634f9e064054511b25ca2273d2..7560aac1abda9d0c6cfca394ced945f8
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -910,6 +911,14 @@ source_set("profiles_extra_parts_impl") {
+@@ -910,6 +911,16 @@
      "//services/network/public/cpp",
      "//ui/webui:buildflags",
    ]
@@ -21,6 +21,8 @@ index f569264cf0e530634f9e064054511b25ca2273d2..7560aac1abda9d0c6cfca394ced945f8
 +    deps += [ "//compass/browser/ui" ]
 +    # Claude's memory (docs/design/claude.md, "Memory").
 +    deps += [ "//compass/browser/claude:memory" ]
++    # Boosts (docs/design/boosts.md).
++    deps += [ "//compass/browser/boosts" ]
 +  }
  
    public_deps = [ "//chrome/browser/search/background" ]

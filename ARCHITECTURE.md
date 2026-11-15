@@ -298,8 +298,11 @@ auto-PiP helpers and overlay window. See
   pinned folders filled by JavaScript plugins (RSS, GitHub, links from a
   page, calendar) that run on every platform
   ([docs/design/live-folders.md](docs/design/live-folders.md)).
-- **Boosts** (not started): per-site CSS/JS injection, planned as a built-in
-  component extension so it reuses Chromium's content-script machinery.
+- **Boosts:** per-site CSS and JavaScript, made by hand in settings or by
+  Claude, synced with the spaces. On the desktop, a built-in component
+  extension whose dynamic content scripts are the enabled Boosts, so
+  injection is Chromium's content-script machinery
+  ([docs/design/boosts.md](docs/design/boosts.md)).
 
 ## 12. Build configurations
 

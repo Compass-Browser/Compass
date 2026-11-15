@@ -32,6 +32,8 @@ interface ToolResultJson {
   content: ContentBlock[];
   is_error: boolean;
   memory?: MemoryView;
+  // A Boost tool's change (docs/design/boosts.md).
+  boost?: MemoryView;
 }
 
 function toolView(result: ToolResultJson): ToolView {
@@ -47,7 +49,8 @@ function toolView(result: ToolResultJson): ToolView {
     text,
     image: source ? `data:${source.media_type};base64,${source.data}` :
                     undefined,
-    memory: result.memory,
+    memory: result.memory ??
+        (result.boost ? {...result.boost, boost: true} : undefined),
   };
 }
 
@@ -542,14 +545,17 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.attachPage_ = !this.attachPage_;
   }
 
-  // A memory chip's Undo: the browser puts the memory back as it was.
+  // A memory chip's Undo: the browser puts the memory back as it was. A
+  // Boost's chip, likewise for the Boost.
   protected async onTurnUndoMemory_(e: CustomEvent<string>) {
     const view = this.conversation.tools.get(e.detail);
     const undo = view?.memory?.undo;
     if (!view?.memory || undo === undefined || view.memory.undone) {
       return;
     }
-    const {undone} = await this.browserProxy_.handler.undoMemory(undo);
+    const {undone} = view.memory.boost ?
+        await this.browserProxy_.handler.undoBoost(undo) :
+        await this.browserProxy_.handler.undoMemory(undo);
     if (undone) {
       view.memory.undone = true;
       this.changed_();

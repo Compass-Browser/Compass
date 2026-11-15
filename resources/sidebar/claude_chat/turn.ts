@@ -101,6 +101,12 @@ export class CompassClaudeTurnElement extends CrLitElement {
     if (!memory) {
       return '';
     }
+    if (memory.boost) {
+      const verb = memory.kind === 'deleted' ? 'Deleted' :
+          memory.kind === 'updated'          ? 'Updated' :
+                                               'Saved';
+      return `${verb} Boost for ${memory.text}`;
+    }
     const verb = memory.kind === 'forgot' ? 'Forgot' :
         memory.kind === 'updated'         ? 'Updated memory' :
                                             'Saved to memory';
@@ -157,6 +163,13 @@ export class CompassClaudeTurnElement extends CrLitElement {
         return `Update memory “${short(input['text'])}”`;
       case 'forget':
         return 'Forget a memory';
+      case 'list_boosts':
+        return input['host'] ? `List Boosts for ${short(input['host'])}` :
+                               'List Boosts';
+      case 'save_boost':
+        return `Save Boost for ${short(input['match'])}`;
+      case 'delete_boost':
+        return 'Delete a Boost';
       case 'save_file':
         return `Save “${short(input['name'])}”`;
       case 'list_files':

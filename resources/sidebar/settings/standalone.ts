@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 // The standalone pages (chrome://compass-sync, chrome://compass-settings,
-// chrome://compass-import): one of Compass's settings sections alone, as
-// the end-to-end steps and browser tests drive them.
+// chrome://compass-settings/boosts.html, chrome://compass-import): one of
+// Compass's settings sections alone, as the end-to-end steps and browser
+// tests drive them.
 import './arc_import_page.js';
+import './boosts_page.js';
 import './shortcuts_page.js';
 import './sync_page.js';
 
