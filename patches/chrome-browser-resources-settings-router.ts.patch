@@ -2,12 +2,13 @@ diff --git a/chrome/browser/resources/settings/router.ts b/chrome/browser/resour
 index 47b4a045f34719247364c5955c272f499e22c595..4df501389754e7c689ae7cffba2fa34d8c671482 100644
 --- a/chrome/browser/resources/settings/router.ts
 +++ b/chrome/browser/resources/settings/router.ts
-@@ -27,6 +27,10 @@ export interface SettingsRoutes {
+@@ -27,6 +27,11 @@ export interface SettingsRoutes {
    CAPTIONS: Route;
    CLEAR_BROWSER_DATA: Route;
    COMPARE: Route;
 +  COMPASS_ARC_IMPORT: Route;
 +  COMPASS_CLAUDE: Route;
++  COMPASS_LINKS: Route;
 +  COMPASS_SHORTCUTS: Route;
 +  COMPASS_SYNC: Route;
    CONTACT_INFO: Route;

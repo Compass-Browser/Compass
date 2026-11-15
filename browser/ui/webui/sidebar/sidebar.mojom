@@ -686,8 +686,39 @@ struct ShortcutCheck {
   string conflict_label;
 };
 
-// Browser-side handler for chrome://compass-settings.
+// A space a link rule can name (docs/design/link-routing.md), as the
+// switcher shows it.
+struct LinkRuleSpace {
+  string id;
+  // "Space <n>" for one without a name.
+  string name;
+  SpaceColor? color;
+  SpaceIcon? icon;
+};
+
+// Links from other apps on |domain| (and its subdomains) open in the space
+// |space_id|. |broken|: the profile has no such space any more (it was
+// deleted), so the rule routes nothing.
+struct LinkRule {
+  string domain;
+  string space_id;
+  bool broken;
+};
+
+// Browser-side handler for chrome://compass-settings, and for
+// compass://settings' Keyboard shortcuts and Links from Other Apps sections.
 interface SettingsHandler {
+  // Link routing (compass://settings/links): the profile's rules, by domain,
+  // and its spaces in the switcher's order.
+  GetLinkRules() => (array<LinkRule> rules, array<LinkRuleSpace> spaces);
+  // Gives |domain| (as typed: a domain or a URL, normalized here) the rule
+  // for |space_id|, and removes |replacing|'s rule if it's another domain
+  // (an edited rule). Returns the normalized domain, or null (and changes
+  // nothing) if |domain| isn't one or there's no space |space_id|.
+  SetLinkRule(string domain, string space_id, string replacing)
+      => (string? domain);
+  RemoveLinkRule(string domain) => ();
+
   GetShortcuts() => (array<Shortcut> shortcuts);
   // While the page records keys, the browser's shortcuts don't run, so the
   // keys reach it.

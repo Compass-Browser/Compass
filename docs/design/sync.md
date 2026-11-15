@@ -594,7 +594,7 @@ nudge delay.
 reference. It's built by `//components/sync/protocol` (its
 `protocol_sources.gni` lists it by its `//compass` path; `proto_in_dir` is
 `//`, so the import path is `compass/components/sync/protocol/...`).
-`CompassSpacesSpecifics` has a oneof of five entities:
+`CompassSpacesSpecifics` has a oneof of six entities:
 
 - `CompassSpace` (1): one per space. UUID, name, color, icon,
   `directory_position`, `profile_uuid`, `archive_after_seconds`, and the
@@ -615,6 +615,12 @@ reference. It's built by `//components/sync/protocol` (its
   the mirror, and hands remote ones to `Delegate::ApplyMemories()`; while
   the profile's memory isn't loaded, the account's are left alone. See
   docs/design/claude.md, "Memory".
+- `CompassLinkRule` (6): one per link rule of the profile (Arc's Air
+  Traffic Control): `uuid` derived from the domain (as a favicon's from its
+  host, with the prefix `compass-link-rule:`), the normalized `domain` and
+  the `space_uuid`. Kept while its space is missing; not uploaded for a
+  space that stays on this device; one without `space_uuid` is ignored
+  and left on the server. See docs/design/link-routing.md, "Sync".
 
 Choices: proto2 with `optional` fields, as all sync protos; the enums are
 `int32` fields with 0 = unset (`section` 1 PINNED, 2 TODAY, 3 FAVORITES, 4

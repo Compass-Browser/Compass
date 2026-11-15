@@ -357,7 +357,8 @@ class Device {
         specifics.has_space()     ? specifics.space().uuid()
         : specifics.has_favicon() ? specifics.favicon().uuid()
         : specifics.has_memory()  ? specifics.memory().uuid()
-                                  : specifics.node().uuid());
+        : specifics.has_link_rule() ? specifics.link_rule().uuid()
+                                    : specifics.node().uuid());
     return data;
   }
 
@@ -1778,6 +1779,142 @@ TEST_F(CompassSpacesSyncBridgeTest, MemoryEntitiesAreValid) {
   EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
 }
 
+// Link rules (docs/design/link-routing.md) ----------------------------------
+
+sync_pb::CompassSpacesSpecifics LinkRuleSpecifics(const std::string& domain,
+                                                  const std::string& space) {
+  sync_pb::CompassSpacesSpecifics specifics;
+  sync_pb::CompassLinkRule& rule = *specifics.mutable_link_rule();
+  rule.set_uuid(LinkRuleKey(domain));
+  rule.set_domain(domain);
+  if (!space.empty()) {
+    rule.set_space_uuid(space);
+  }
+  return specifics;
+}
+
+// Set, changed and removed on one device, the same on the others; nothing
+// echoes.
+TEST_F(CompassSpacesSyncBridgeTest, LinkRulesSync) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SpaceModel* work = a->list().AddSpace(1, u"Work");
+  const base::Uuid home_id = a->space(0).id();
+  const base::Uuid work_id = work->id();
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  ASSERT_EQ(b->list().spaces().size(), 2u);
+
+  const std::string key = LinkRuleKey("github.com");
+  ASSERT_TRUE(a->list().SetLinkRule("github.com", work_id));
+  EXPECT_EQ(a->Push(), 1u);
+  ASSERT_TRUE(server_.entities.contains(key));
+  EXPECT_EQ(server_.entities[key].link_rule().domain(), "github.com");
+  EXPECT_EQ(server_.entities[key].link_rule().space_uuid(),
+            work_id.AsLowercaseString());
+
+  b->Pull();
+  ASSERT_TRUE(b->list().link_rules().Find("github.com"));
+  EXPECT_EQ(*b->list().link_rules().Find("github.com"), work_id);
+  EXPECT_EQ(b->list().FindRoutedSpace(GURL("https://gist.github.com/")),
+            &b->space(1));
+  EXPECT_EQ(b->last_push(), 0u) << "no echo";
+
+  ASSERT_TRUE(b->list().SetLinkRule("github.com", home_id));
+  EXPECT_EQ(b->Push(), 1u);
+  a->Pull();
+  EXPECT_EQ(*a->list().link_rules().Find("github.com"), home_id);
+  EXPECT_EQ(a->last_push(), 0u) << "no echo";
+
+  ASSERT_TRUE(a->list().RemoveLinkRule("github.com"));
+  EXPECT_EQ(a->Push(), 1u);
+  EXPECT_FALSE(server_.entities.contains(key));
+  b->Pull();
+  EXPECT_TRUE(b->list().link_rules().empty());
+}
+
+// A rule outlives its space, everywhere: deleting the space keeps it (broken)
+// and it still syncs.
+TEST_F(CompassSpacesSyncBridgeTest, LinkRuleOutlivesItsSpace) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SpaceModel* work = a->list().AddSpace(1, u"Work");
+  const base::Uuid work_id = work->id();
+  ASSERT_TRUE(a->list().SetLinkRule("github.com", work_id));
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  a->list().RemoveSpace(*work);
+  a->Push();
+  b->Pull();
+  ASSERT_EQ(b->list().spaces().size(), 1u);
+  ASSERT_TRUE(b->list().link_rules().Find("github.com"));
+  EXPECT_FALSE(b->list().FindRoutedSpace(GURL("https://github.com/")));
+  EXPECT_TRUE(server_.entities.contains(LinkRuleKey("github.com")));
+}
+
+// A space that stays on this device keeps its rules here too; turning its
+// sync off deletes them elsewhere.
+TEST_F(CompassSpacesSyncBridgeTest, LinkRuleOfLocalSpaceStaysHere) {
+  std::unique_ptr<Device> a = MakeDevice();
+  SpaceModel* work = a->list().AddSpace(1, u"Work");
+  ASSERT_TRUE(a->list().SetLinkRule("github.com", work->id()));
+  a->Join();
+  const std::string key = LinkRuleKey("github.com");
+  ASSERT_TRUE(server_.entities.contains(key));
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  ASSERT_TRUE(b->list().link_rules().Find("github.com"));
+
+  work->SetSynced(false);
+  a->Push();
+  EXPECT_FALSE(server_.entities.contains(key));
+  EXPECT_TRUE(a->list().link_rules().Find("github.com"));
+  b->Pull();
+  EXPECT_FALSE(b->list().link_rules().Find("github.com"));
+}
+
+// Entities: keyed by their normalized domain. One without a space (a field
+// this version needs, missing) is ignored and stays on the server; a server
+// without rules (older clients) changes nothing here.
+TEST_F(CompassSpacesSyncBridgeTest, LinkRuleEntities) {
+  std::unique_ptr<Device> a = MakeDevice();
+  const std::string space = a->space(0).id().AsLowercaseString();
+  syncer::EntityData data =
+      Device::Data(LinkRuleSpecifics("github.com", space));
+  EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
+  EXPECT_EQ(a->bridge().GetStorageKey(data), LinkRuleKey("github.com"));
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(
+      Device::Data(LinkRuleSpecifics("GitHub.com", space))));
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(
+      Device::Data(LinkRuleSpecifics("localhost", space))));
+  data.specifics.mutable_compass_spaces()->mutable_link_rule()->set_uuid(
+      LinkRuleKey("gitlab.com"));
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+  // The key is stable: other clients (iOS) derive it the same way.
+  EXPECT_EQ(LinkRuleKey("github.com"), LinkRuleKey("github.com"));
+  EXPECT_NE(LinkRuleKey("github.com"), FaviconKey("github.com"));
+  EXPECT_TRUE(base::Uuid::ParseLowercase(LinkRuleKey("github.com")).is_valid());
+
+  // A rule set before joining a chain without rules goes up.
+  ASSERT_TRUE(a->list().SetLinkRule("example.com", a->space(0).id()));
+  a->Join();
+  EXPECT_TRUE(server_.entities.contains(LinkRuleKey("example.com")));
+
+  // A rule without a space.
+  const std::string key = LinkRuleKey("gitlab.com");
+  server_.entities[key] = LinkRuleSpecifics("gitlab.com", std::string());
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+  EXPECT_FALSE(b->list().link_rules().Find("gitlab.com"));
+  ASSERT_TRUE(b->list().link_rules().Find("example.com"));
+  EXPECT_TRUE(server_.entities.contains(key)) << "not deleted";
+  EXPECT_FALSE(server_.entities[key].link_rule().has_space_uuid());
+  // Set here, it gets one, and keeps what this version doesn't know.
+  ASSERT_TRUE(b->list().SetLinkRule("gitlab.com", b->space(0).id()));
+  EXPECT_EQ(b->Push(), 1u);
+  EXPECT_EQ(server_.entities[key].link_rule().space_uuid(), space);
+}
 
 // Spaces that don't sync (docs/design/sync.md) ------------------------------
 

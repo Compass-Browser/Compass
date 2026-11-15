@@ -9,18 +9,23 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/uuid.h"
+#include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_model.h"
+
+class GURL;
 
 namespace compass {
 
 // A profile's spaces, in the switcher's order, and the active one: the space
-// new windows open in. Never empty. Also holds the profile's Favorites. See docs/design/spaces.md.
+// new windows open in. Never empty. Also holds the profile's Favorites and
+// its link rules. See docs/design/spaces.md.
 class SpaceList : public SpaceModel::Observer {
  public:
   class Observer : public base::CheckedObserver {
@@ -35,6 +40,8 @@ class SpaceList : public SpaceModel::Observer {
     // |space| moved to another place in the list.
     virtual void OnSpaceMoved(const SpaceModel& space) {}
     virtual void OnActiveSpaceChanged() {}
+    // A link rule was set or removed (docs/design/link-routing.md).
+    virtual void OnLinkRulesChanged() {}
   };
 
   // Starts with one space, "Home", which is active.
@@ -76,6 +83,17 @@ class SpaceList : public SpaceModel::Observer {
   const SpaceModel& favorites() const { return favorites_; }
   void SetActiveSpace(SpaceModel& space);
 
+  // Link routing (docs/design/link-routing.md): the profile's rules, which
+  // send links from other apps on a domain to a space. Rules outlive their
+  // spaces; a rule whose space is gone routes nothing.
+  const LinkRules& link_rules() const { return link_rules_; }
+  // Sets |domain|'s rule (|domain| normalized, see NormalizeLinkRuleDomain())
+  // and returns whether it changed anything.
+  bool SetLinkRule(std::string_view domain, const base::Uuid& space_id);
+  bool RemoveLinkRule(std::string_view domain);
+  // The space |url| goes to by the rules, if its rule's space exists.
+  SpaceModel* FindRoutedSpace(const GURL& url) const;
+
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
@@ -87,6 +105,7 @@ class SpaceList : public SpaceModel::Observer {
   std::vector<std::unique_ptr<SpaceModel>> spaces_;
   raw_ptr<SpaceModel> active_space_;
   bool has_pinned_ = true;
+  LinkRules link_rules_;
   base::ObserverList<Observer> observers_;
 };
 

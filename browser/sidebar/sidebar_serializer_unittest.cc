@@ -471,6 +471,56 @@ TEST(SidebarSerializerTest, LocalOnlyRoundTrips) {
   EXPECT_FALSE(restored.spaces()[1]->synced());
 }
 
+// Link rules (docs/design/link-routing.md) are saved with the spaces, a
+// rule whose space is gone included.
+TEST(SidebarSerializerTest, LinkRulesRoundTrip) {
+  SpaceList list;
+  SpaceModel* work = list.AddSpace(1, u"Work");
+  const base::Uuid gone = base::Uuid::GenerateRandomV4();
+  ASSERT_TRUE(list.SetLinkRule("github.com", work->id()));
+  ASSERT_TRUE(list.SetLinkRule("gist.github.com", list.spaces()[0]->id()));
+  ASSERT_TRUE(list.SetLinkRule("example.org", gone));
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue* rules = data.FindList("link_rules");
+  ASSERT_TRUE(rules);
+  EXPECT_EQ(rules->size(), 3u);
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.link_rules().rules(), list.link_rules().rules());
+  EXPECT_EQ(restored.FindRoutedSpace(GURL("https://github.com/x")),
+            restored.spaces()[1].get());
+  EXPECT_EQ(restored.FindRoutedSpace(GURL("https://gist.github.com/")),
+            restored.spaces()[0].get());
+  // Kept, but routes nothing.
+  ASSERT_TRUE(restored.link_rules().Find("example.org"));
+  EXPECT_FALSE(restored.FindRoutedSpace(GURL("https://example.org/")));
+}
+
+// Older files have no rules; unreadable rules are left out.
+TEST(SidebarSerializerTest, LinkRulesMissingOrUnreadable) {
+  std::optional<base::Value> older = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "Home"}]})", base::JSON_PARSE_RFC);
+  SpaceList list;
+  EXPECT_EQ(DeserializeSpaceList(older->GetDict(), list), 1u);
+  EXPECT_TRUE(list.link_rules().empty());
+
+  const std::string space = list.spaces()[0]->id().AsLowercaseString();
+  std::optional<base::Value> data = base::JSONReader::Read(
+      R"({"version": 2, "spaces": [{"name": "Home", "id": ")" + space +
+          R"("}], "link_rules": [{"domain": "github.com", "space": ")" +
+          space +
+          R"("}, {"domain": "GitHub .com", "space": ")" + space +
+          R"("}, {"domain": "example.com"}, {"domain": "example.net",
+          "space": "nope"}, 7]})",
+      base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  SpaceList read;
+  DeserializeSpaceList(data->GetDict(), read);
+  ASSERT_EQ(read.link_rules().size(), 1u);
+  EXPECT_EQ(read.link_rules().rules()[0].domain, "github.com");
+}
+
 TEST(SidebarSerializerTest, OlderFilesGetTheDefaultArchiveDelay) {
   std::optional<base::Value> data = base::JSONReader::Read(
       R"({"version": 2, "spaces": [{"name": "Home", "archive_after_hours": 0},

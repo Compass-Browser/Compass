@@ -59,6 +59,10 @@ enum class CommandBarCommand {
   kImportFromArc,
   // Opens compass://settings/shortcuts (docs/design/shortcuts.md).
   kKeyboardShortcuts,
+  // Opens compass://settings/links making a rule for the current tab's
+  // domain (docs/design/link-routing.md): only for a page with a domain,
+  // never off the record.
+  kRouteSiteToSpace,
   // Asks Claude to group the window's Today into folders
   // (docs/design/ai-sidebar.md, "Tidy Today"): only while "Tidy Today" is on
   // and Today has 5 loose entries or more.
@@ -188,6 +192,10 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   // swapped away to another profile's space (SwitchWindowToSpace()): that one
   // has no bridge and closes in a moment, but its page can still call in.
   WindowFeatures *GetFeatures() const;
+  // The domain a link rule for the active tab would name
+  // (NormalizeLinkRuleDomain()); nullopt for a page without one, and off the
+  // record.
+  std::optional<std::string> GetActiveRuleDomain() const;
   // The sidebar node of the window's active tab, or null.
   SidebarNode* GetActiveNode() const;
   // Whether |node| (or the split or folder holding it) is in Pinned.

@@ -9,7 +9,11 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "base/uuid.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -78,6 +82,8 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
             "/sync");
   EXPECT_EQ(WaitFor("deepQuery('a#compassShortcuts')?.getAttribute('href')"),
             "/shortcuts");
+  EXPECT_EQ(WaitFor("deepQuery('a#compassLinks')?.getAttribute('href')"),
+            "/links");
   EXPECT_EQ(WaitFor("deepQuery('a#compassArcImport')?.getAttribute('href')"),
             "/importArc");
   EXPECT_EQ(WaitFor("deepQuery('a#compassClaude')?.getAttribute('href')"),
@@ -127,6 +133,49 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ShortcutsSection) {
                             /*alt=*/false, /*command=*/false);
   ASSERT_TRUE(base::test::RunUntil(
       [] { return !ShortcutSettings::Get().recording(); }));
+}
+
+// compass://settings/links (docs/design/link-routing.md): "?add=" opens the
+// form for a domain, saving makes the rule, a rule whose space is gone is
+// listed as broken, and Delete removes one.
+IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, LinksSection) {
+  SpaceList& spaces =
+      SpaceService::Get(browser()->GetProfile())->space_list();
+  SpaceModel* work = spaces.AddSpace(spaces.spaces().size(), u"Work");
+  ASSERT_TRUE(
+      spaces.SetLinkRule("gitlab.com", base::Uuid::GenerateRandomV4()));
+
+  Open("chrome://settings/links?add=www.GitHub.com");
+  EXPECT_EQ(WaitFor("deepQuery('compass-links-page .compass-title')"
+                    "?.textContent"),
+            "Links from Other Apps");
+  EXPECT_EQ(WaitFor("deepQuery('compass-links-page li[data-domain="
+                    "\"gitlab.com\"] .links-broken')?.textContent"),
+            "Space deleted: opens in a little window");
+  EXPECT_EQ(WaitFor("deepQuery('compass-links-page #linkRuleForm')?.hidden === "
+                    "false && "
+                    "deepQuery('compass-links-page #linkDomain')?.value"),
+            "www.GitHub.com");
+
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-links-page #linkSpace').value = '" +
+                      work->id().AsLowercaseString() +
+                      "'; deepQuery('compass-links-page #saveLinkRule')"
+                      ".click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return spaces.link_rules().Find("github.com"); }));
+  EXPECT_EQ(*spaces.link_rules().Find("github.com"), work->id());
+  EXPECT_EQ(WaitFor("deepQuery('compass-links-page li[data-domain="
+                    "\"github.com\"]')?.textContent.includes('Work')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-links-page li[data-domain="
+                      "\"gitlab.com\"] button:last-child').click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !spaces.link_rules().Find("gitlab.com"); }));
 }
 
 // compass://settings/sync shows sync's status (off in a new profile).

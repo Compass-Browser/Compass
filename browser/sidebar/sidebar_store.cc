@@ -103,6 +103,10 @@ void SidebarStore::OnActiveSpaceChanged() {
   ScheduleSave();
 }
 
+void SidebarStore::OnLinkRulesChanged() {
+  ScheduleSave();
+}
+
 void SidebarStore::OnNodeAdded(const SidebarNode& node) {
   ScheduleSave();
 }

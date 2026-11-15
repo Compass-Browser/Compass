@@ -29,6 +29,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "crypto/hash.h"
 #include "components/sync/base/client_tag_hash.h"
@@ -47,9 +48,12 @@
 
 namespace compass::sync {
 
-std::string FaviconKey(std::string_view host) {
+namespace {
+
+// The first 16 bytes of SHA-256(|text|), shaped as a version-5 UUID.
+std::string HashKey(const std::string& text) {
   const std::array<uint8_t, crypto::hash::kSha256Size> digest =
-      crypto::hash::Sha256("compass-favicon:" + base::ToLowerASCII(host));
+      crypto::hash::Sha256(text);
   std::array<uint8_t, 16> b;
   std::copy_n(digest.begin(), 16, b.begin());
   b[6] = (b[6] & 0x0f) | 0x50;
@@ -57,6 +61,16 @@ std::string FaviconKey(std::string_view host) {
   const std::string hex = base::HexEncodeLower(b);
   return hex.substr(0, 8) + "-" + hex.substr(8, 4) + "-" + hex.substr(12, 4) +
          "-" + hex.substr(16, 4) + "-" + hex.substr(20, 12);
+}
+
+}  // namespace
+
+std::string FaviconKey(std::string_view host) {
+  return HashKey("compass-favicon:" + base::ToLowerASCII(host));
+}
+
+std::string LinkRuleKey(std::string_view domain) {
+  return HashKey("compass-link-rule:" + std::string(domain));
 }
 
 namespace {
@@ -808,6 +822,7 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
   if (memories) {
     AddLocalMemories(*memories, local);
   }
+  AddLocalLinkRules(local);
   const base::TimeTicks now = base::TimeTicks::Now();
   std::optional<base::TimeTicks> next_send;
   throttled_.clear();
@@ -861,6 +876,14 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     if (specifics.has_memory()) {
       // Deleted here, unless the memory isn't loaded (or doesn't sync).
       if (memories) {
+        gone.push_back(key);
+      }
+      continue;
+    }
+    if (specifics.has_link_rule()) {
+      // Removed here, or its space now stays on this device. A rule this
+      // version can't read (no space) stays.
+      if (ParseKey(specifics.link_rule().space_uuid()).is_valid()) {
         gone.push_back(key);
       }
       continue;
@@ -1116,6 +1139,28 @@ void CompassSpacesSyncBridge::AddLocalMemories(
     if (entity.update_time() != memory.update_time()) {
       entity.set_update_time(memory.update_time());
     }
+    out[key] = std::move(specifics);
+  }
+}
+
+void CompassSpacesSyncBridge::AddLocalLinkRules(Mirror& out) const {
+  for (const LinkRule& rule : list_->link_rules().rules()) {
+    // A space that stays on this device: its rules do too.
+    if (const SpaceModel* space = list_->FindSpace(rule.space_id);
+        space && !space->synced()) {
+      continue;
+    }
+    const std::string key = LinkRuleKey(rule.domain);
+    sync_pb::CompassSpacesSpecifics specifics;
+    auto it = mirror_.find(key);
+    if (it != mirror_.end() && it->second.has_link_rule()) {
+      // Keeps what this version doesn't know.
+      specifics = it->second;
+    }
+    sync_pb::CompassLinkRule& entity = *specifics.mutable_link_rule();
+    COMPASS_SET_STRING(entity, uuid, key);
+    COMPASS_SET_STRING(entity, domain, rule.domain);
+    COMPASS_SET_STRING(entity, space_uuid, Key(rule.space_id));
     out[key] = std::move(specifics);
   }
 }
@@ -1382,7 +1427,7 @@ bool CompassSpacesSyncBridge::WasDeletedLocally(
     const sync_pb::CompassSpacesSpecifics& specifics,
     const Mirror& local) const {
   if (specifics.has_profile() || specifics.has_favicon() ||
-      specifics.has_memory()) {
+      specifics.has_memory() || specifics.has_link_rule()) {
     // SendLocalChangesTo() decides.
     return false;
   }
@@ -1595,6 +1640,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   // Memories that came or went.
   std::vector<sync_pb::CompassMemory> memories;
   std::set<std::string> deleted_memories;
+  // Link rules that came, and the domains of those that went.
+  std::vector<sync_pb::CompassLinkRule> link_rules;
+  std::vector<std::string> deleted_link_rules;
   // Hosts whose icons or entries came: their icons go to the delegate.
   std::set<std::string> favicon_hosts;
   for (const std::unique_ptr<syncer::EntityChange>& change : changes) {
@@ -1606,6 +1654,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
       }
       if (it != mirror_.end() && it->second.has_memory()) {
         deleted_memories.insert(key);
+      }
+      if (it != mirror_.end() && it->second.has_link_rule()) {
+        deleted_link_rules.push_back(it->second.link_rule().domain());
       }
       mirror_.erase(key);
       unparked_.erase(key);
@@ -1623,6 +1674,10 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     }
     if (specifics.has_memory()) {
       memories.push_back(specifics.memory());
+      continue;
+    }
+    if (specifics.has_link_rule()) {
+      link_rules.push_back(specifics.link_rule());
       continue;
     }
     if (specifics.has_favicon()) {
@@ -1667,6 +1722,18 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     }
     if (delegate_ && (!memories.empty() || !deleted_memories.empty())) {
       delegate_->ApplyMemories(memories, deleted_memories);
+    }
+    // Link rules: the later commit wins. One without a space this version
+    // can read is left alone (it stays in the mirror); one for a space
+    // missing here is kept, and routes nothing until the space comes.
+    for (const std::string& domain : deleted_link_rules) {
+      list_->RemoveLinkRule(domain);
+    }
+    for (const sync_pb::CompassLinkRule& rule : link_rules) {
+      const base::Uuid space_id = ParseKey(rule.space_uuid());
+      if (space_id.is_valid()) {
+        list_->SetLinkRule(rule.domain(), space_id);
+      }
     }
     const std::set<std::string> created = ApplySpaces(spaces, deleted);
     // Nodes that waited for a space that just came.
@@ -2692,6 +2759,9 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
   if (specifics.has_memory()) {
     return specifics.memory().uuid();
   }
+  if (specifics.has_link_rule()) {
+    return specifics.link_rule().uuid();
+  }
   return specifics.node().uuid();
 }
 
@@ -2744,8 +2814,14 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
       entity_data.specifics.compass_spaces();
   if (!specifics.has_space() && !specifics.has_node() &&
       !specifics.has_profile() && !specifics.has_favicon() &&
-      !specifics.has_memory()) {
+      !specifics.has_memory() && !specifics.has_link_rule()) {
     return false;
+  }
+  if (specifics.has_link_rule()) {
+    // Keyed by its domain, which must be one this version can match.
+    const sync_pb::CompassLinkRule& rule = specifics.link_rule();
+    return NormalizeLinkRuleDomain(rule.domain()) == rule.domain() &&
+           rule.uuid() == LinkRuleKey(rule.domain());
   }
   if (specifics.has_favicon()) {
     // Keyed by its host, so two devices' icons for a host are one entity.
@@ -2782,6 +2858,12 @@ void CompassSpacesSyncBridge::OnSpaceRemoved() {
 }
 
 void CompassSpacesSyncBridge::OnSpaceMoved(const SpaceModel& space) {
+  if (!applying_remote_) {
+    ScheduleSendLocalChanges();
+  }
+}
+
+void CompassSpacesSyncBridge::OnLinkRulesChanged() {
   if (!applying_remote_) {
     ScheduleSendLocalChanges();
   }

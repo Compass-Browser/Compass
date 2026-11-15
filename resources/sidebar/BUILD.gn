@@ -69,6 +69,7 @@ build_webui("build") {
   web_component_files = [
     "settings/arc_import_page.ts",
     "settings/claude_page.ts",
+    "settings/links_page.ts",
     "settings/shortcuts_page.ts",
     "settings/sync_page.ts",
   ]

@@ -6,6 +6,8 @@ source_set("sidebar") {
   sources = [
     "closed_entries.cc",
     "closed_entries.h",
+    "link_rules.cc",
+    "link_rules.h",
     "sidebar_node.cc",
     "sidebar_node.h",
     "sidebar_serializer.cc",
@@ -22,12 +24,14 @@ source_set("sidebar") {
     "//skia",
     "//url",
   ]
+  deps = [ "//net" ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = [
     "closed_entries_unittest.cc",
+    "link_rules_unittest.cc",
     "sidebar_serializer_unittest.cc",
     "sidebar_store_unittest.cc",
     "space_list_unittest.cc",

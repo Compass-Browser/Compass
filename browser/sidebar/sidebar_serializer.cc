@@ -35,6 +35,10 @@ constexpr char kVersionKey[] = "version";
 constexpr char kActiveKey[] = "active";
 constexpr char kSpacesKey[] = "spaces";
 constexpr char kFavoritesKey[] = "favorites";
+// Link routing (docs/design/link-routing.md): [{"domain", "space"}...].
+constexpr char kLinkRulesKey[] = "link_rules";
+constexpr char kDomainKey[] = "domain";
+constexpr char kSpaceKey[] = "space";
 constexpr char kIdKey[] = "id";
 constexpr char kNameKey[] = "name";
 constexpr char kColorKey[] = "color";
@@ -567,6 +571,13 @@ base::DictValue SerializeSpaceList(const SpaceList& list) {
   data.Set(kSpacesKey, std::move(spaces));
   data.Set(kFavoritesKey,
            SerializeSection(*list.favorites().pinned_root(), false));
+  base::ListValue link_rules;
+  for (const LinkRule& rule : list.link_rules().rules()) {
+    link_rules.Append(base::DictValue()
+                          .Set(kDomainKey, rule.domain)
+                          .Set(kSpaceKey, rule.space_id.AsLowercaseString()));
+  }
+  data.Set(kLinkRulesKey, std::move(link_rules));
   return data;
 }
 
@@ -690,6 +701,19 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
       space->SetSynced(false);
     }
     DeserializeSpace(*saved[i], *space);
+  }
+  // Missing in older files. Rules whose space is gone stay (settings list
+  // them as broken); unreadable ones are left out. A rule set before the
+  // file loaded wins.
+  if (const base::ListValue* link_rules = data.FindList(kLinkRulesKey)) {
+    for (const base::Value& entry : *link_rules) {
+      const base::DictValue* dict = entry.GetIfDict();
+      const std::string* domain = dict ? dict->FindString(kDomainKey) : nullptr;
+      const std::string* space = dict ? dict->FindString(kSpaceKey) : nullptr;
+      if (domain && space && !list.link_rules().Find(*domain)) {
+        list.SetLinkRule(*domain, base::Uuid::ParseLowercase(*space));
+      }
+    }
   }
   return saved.size();
 }

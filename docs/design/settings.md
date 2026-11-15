@@ -7,10 +7,12 @@ Compass's own settings are sections of upstream's `chrome://settings`
 |---|---|---|---|
 | Sync | `/sync` | `<compass-sync-page>` | chrome://compass-sync |
 | Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings |
+| Links from Other Apps | `/links` | `<compass-links-page>` | none |
 | Import from Another Browser | `/importArc` | `<compass-arc-import-page>` | chrome://compass-import |
 
-The command bar ("Keyboard shortcuts", "Import from Another Browser") and
-the app menu's sync row open the sections (`chrome::ShowSettingsSubPage()`,
+The command bar ("Keyboard shortcuts", "Import from Another Browser",
+"Route this site to space…", which opens `/links?add=<domain>`) and the
+app menu's sync row open the sections (`chrome::ShowSettingsSubPage()`,
 which reuses an open settings tab). Sync is hidden where upstream hides the
 people page (guest). Import from Another Browser is listed everywhere: it
 lists the other browsers' profiles found (browser-import.md), and Arc's
@@ -55,7 +57,10 @@ end-to-end sync steps (`tools/sync_e2e/`) and browser tests drive them with
   settings_menu.html and settings_main.html (patches).
 - **Mojo:** the same interfaces as the standalone pages
   (`sidebar.mojom` `SettingsHandler`, `ArcImportHandler`, `compass_sync.mojom`
-  `PageHandlerFactory`). Their implementations are classes of their own
+  `PageHandlerFactory`). Links from Other Apps uses `SettingsHandler` too
+  (`GetLinkRules()`, `SetLinkRule()`, `RemoveLinkRule()`, for the page's
+  profile; [link-routing.md](link-routing.md)), so it needs no broker entry
+  of its own. Their implementations are classes of their own
   (`ShortcutsPageHandler`, `ArcImportPageHandler`, `SyncPageHandlerFactory`),
   owned by the standalone controllers and by `SettingsSections`.
   `settings::SettingsUI` gets a templated `BindInterface()` that hands them
@@ -68,6 +73,6 @@ end-to-end sync steps (`tools/sync_e2e/`) and browser tests drive them with
 
 - Strings are English only, as on the standalone pages.
 - The menu icons are upstream's closest (`cr:sync`, `settings20:keyboard-lock`,
-  `settings20:archive`); adding Compass icons means patching settings'
+  `cr:open-in-new`, `settings20:archive`); adding Compass icons means patching settings'
   icons.html.ts (a late `<cr-iconset>` would trip `cr-icon`'s assert).
 - Search doesn't highlight matches inside the sections.

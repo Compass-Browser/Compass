@@ -29,7 +29,8 @@ class SettingsSectionsImpl : public SettingsSections {
   void Bind(mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
       override {
     shortcuts_.reset();
-    shortcuts_ = std::make_unique<ShortcutsPageHandler>(std::move(receiver));
+    shortcuts_ = std::make_unique<ShortcutsPageHandler>(
+        Profile::FromWebUI(web_ui_), std::move(receiver));
   }
 
   void Bind(mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver)

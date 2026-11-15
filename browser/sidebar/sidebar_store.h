@@ -54,6 +54,7 @@ class SidebarStore : public SpaceList::Observer,
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
   void OnSpaceMoved(const SpaceModel& space) override;
   void OnActiveSpaceChanged() override;
+  void OnLinkRulesChanged() override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;

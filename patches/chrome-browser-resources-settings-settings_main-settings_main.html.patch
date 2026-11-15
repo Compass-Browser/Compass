@@ -2,7 +2,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
 index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..6c55c17feeb7d10367dfc3b3161a9f8a41a7362c 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
-@@ -52,14 +52,43 @@
+@@ -52,14 +52,49 @@
      show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
    <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
      <div slot="view" id="people">
@@ -32,6 +32,12 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..6c55c17feeb7d10367dfc3b3161a9f8a
 +      <compass-shortcuts-page></compass-shortcuts-page>
 +    </template>
 +  </div>
++  <div slot="view" id="compassLinks">
++    <template is="dom-if" if="[[renderPlugin_(
++        routes_.COMPASS_LINKS, lastRoute_, inSearchMode_)]]">
++      <compass-links-page></compass-links-page>
++    </template>
++  </div>
 +  <div slot="view" id="compassArcImport">
 +    <template is="dom-if" if="[[renderPlugin_(
 +        routes_.COMPASS_ARC_IMPORT, lastRoute_, inSearchMode_)]]">
@@ -48,7 +54,7 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..6c55c17feeb7d10367dfc3b3161a9f8a
    <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
      <div slot="view" id="privacy">
        <template is="dom-if" if="[[renderPlugin_(
-@@ -130,14 +159,7 @@
+@@ -130,14 +165,7 @@
    </template>
  </if>
  

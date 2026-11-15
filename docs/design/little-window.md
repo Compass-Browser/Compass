@@ -32,6 +32,12 @@ and close it, or keep it and move it into a space.
   active window to it.
 - The address can be edited, as in a normal window's location bar
   (suggestions, Enter loads it in the little window; Cmd+L focuses it).
+- A link whose domain has a link rule opens in the rule's space instead,
+  as a new Today tab ([link-routing.md](link-routing.md), Arc's Air
+  Traffic Control). Only links from other apps are routed.
+- The space menu also has **Always Open <domain> in ›**, which makes that
+  rule and moves the page there; with it, the ⌄ button shows with one
+  space too when the page has a domain.
 - **Cmd+Option+N** opens an empty little window (the new tab page) centered
   on the current window's display, with the address focused. It
   takes upstream's New Split Tab shortcut; Compass splits by dragging a tab
@@ -55,7 +61,9 @@ mix) opens as upstream does.
   `OpenStartupTabsInBrowserWithProfile()` once the profile is loaded (also
   for the URLs a cold launch was started with). A patch there asks
   `compass::OpenInLittleWindows()` first
-  (`browser/ui/views/little_window/`).
+  (`browser/ui/views/little_window/`), which routes each link by the
+  profile's link rules (`OpenLinkFromAnotherApp()`,
+  [link-routing.md](link-routing.md)) or opens a little window.
 - The opener: before any window opens, the frontmost on-screen window of
   another app (`CGWindowListCopyWindowInfo`, `little_window_mac.mm`). Its
   display places the window. After showing it, Compass's windows above the
@@ -181,8 +189,8 @@ web pages and files opens as upstream does.
 - A File menu item.
 - A new little window starts on the new tab page (with the address
   focused) instead of Arc's command bar.
-- Settings: off, and per-domain routing to spaces (Arc's Air Traffic
-  Control).
+- Settings: off. (Per-domain routing to spaces, Arc's Air Traffic Control,
+  is done: [link-routing.md](link-routing.md).)
 - Windows: built, not yet tried on a device.
 - Windows and Linux: the platform's title bar (see "Windows and Linux").
 

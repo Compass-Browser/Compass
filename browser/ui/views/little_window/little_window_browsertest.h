@@ -5,6 +5,8 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_LITTLE_WINDOW_LITTLE_WINDOW_BROWSERTEST_H_
 #define COMPASS_BROWSER_UI_VIEWS_LITTLE_WINDOW_LITTLE_WINDOW_BROWSERTEST_H_
 
+#include <vector>
+
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
@@ -14,6 +16,7 @@
 #include "content/public/browser/web_contents.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace compass {
 
@@ -26,6 +29,12 @@ class LittleWindowBrowserTest : public InProcessBrowserTest {
   void SetUpOnMainThread() override;
 
  protected:
+  // Hands |urls| to Compass as another app does: application:openURLs: on
+  // macOS (little_window_browsertest_mac.mm), the command line of a second
+  // Compass, passed on by the process singleton, on Windows and Linux
+  // (little_window_browsertest.cc).
+  void OpenLinksFromAnotherApp(const std::vector<GURL>& urls);
+
   // The profile's little window, or null.
   BrowserWindowInterface* FindLittleWindow() {
     BrowserWindowInterface* found = nullptr;

@@ -19,7 +19,7 @@ class SpaceModel;
 
 // The on-disk form of a profile's spaces:
 //   {"version": 2, "active": "<space id>", "spaces": [<space>...],
-//    "favorites": [<node>...]}
+//    "favorites": [<node>...], "link_rules": [<rule>...]}
 //   <space> = {"id": "...", "name": "...", "color": "grey"|"blue"|...,
 //              "archive_after_hours": 12, "pinned": [<node>...],
 //              "today": [<node>...], "archive": [<archived>...]}
@@ -38,6 +38,9 @@ class SpaceModel;
 // have one; "archive_after_hours" is 0 for never, and missing in older files
 // (the default applies).
 // "favorites" holds tabs only, and is missing in older files.
+// <rule> = {"domain": "github.com", "space": "<space id>"}: a link rule
+// (docs/design/link-routing.md), missing in older files. A rule's space may
+// be gone; the rule stays.
 // Version 1 files held one space's "pinned" and "today" at the top level.
 // Today holds tabs and splits; its tabs that aren't worth restoring (see
 // IsRestorableURL()) are left out. Node IDs are stored (sync identifies nodes

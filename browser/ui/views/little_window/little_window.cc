@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
 #include "base/scoped_observation.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/vector_icons/vector_icons.h"
+#include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
@@ -48,6 +50,7 @@
 #include "compass/browser/ui/views/sidebar/space_icon_image.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/base_window.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -392,27 +395,49 @@ class LittleSpaceMenuButton : public views::ImageButton,
   LittleSpaceMenuButton& operator=(const LittleSpaceMenuButton&) = delete;
   ~LittleSpaceMenuButton() override = default;
 
+  // Shown with more than one space to pick, or a site to make a rule for.
   void Update() {
     SpaceService* service = SpaceService::Get(browser_->GetProfile());
-    SetVisible(service && service->space_list().spaces().size() > 1);
+    SetVisible(service && (service->space_list().spaces().size() > 1 ||
+                           GetRuleDomain()));
   }
 
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int command_id) const override {
+    if (command_id >= kAlwaysOpenCommand) {
+      // The space the site's rule already names.
+      const size_t index = command_id - kAlwaysOpenCommand;
+      SpaceService* service = SpaceService::Get(browser_->GetProfile());
+      const base::Uuid* ruled =
+          service && !rule_domain_.empty()
+              ? service->space_list().link_rules().Find(rule_domain_)
+              : nullptr;
+      return ruled && index < space_ids_.size() && *ruled == space_ids_[index];
+    }
     const SpaceModel* target = GetTargetSpace(browser_->GetProfile());
     return target && command_id >= 0 &&
            static_cast<size_t>(command_id) < space_ids_.size() &&
            target->id() == space_ids_[command_id];
   }
   void ExecuteCommand(int command_id, int event_flags) override {
-    if (command_id < 0 || static_cast<size_t>(command_id) >= space_ids_.size()) {
+    const bool always = command_id >= kAlwaysOpenCommand;
+    const size_t index = always ? command_id - kAlwaysOpenCommand
+                                : static_cast<size_t>(command_id);
+    if (command_id < 0 || index >= space_ids_.size()) {
       return;
+    }
+    // "Always Open <domain> in <space>": a link rule
+    // (docs/design/link-routing.md), then the page moves there too.
+    if (always && !rule_domain_.empty()) {
+      if (SpaceService* service = SpaceService::Get(browser_->GetProfile())) {
+        service->space_list().SetLinkRule(rule_domain_, space_ids_[index]);
+      }
     }
     // After the menu: the window closes.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&LittleSpaceMenuButton::OpenIn,
-                                  weak_factory_.GetWeakPtr(),
-                                  space_ids_[command_id]));
+        FROM_HERE,
+        base::BindOnce(&LittleSpaceMenuButton::OpenIn,
+                       weak_factory_.GetWeakPtr(), space_ids_[index]));
   }
 
   // views::View:
@@ -432,6 +457,20 @@ class LittleSpaceMenuButton : public views::ImageButton,
  private:
   static constexpr int kMenuIconSize = 16;
   static constexpr int kSpaceIconSize = 16;
+  // "Always Open <domain> in"'s items: this plus the space's index.
+  static constexpr int kAlwaysOpenCommand = 1000;
+  static constexpr int kAlwaysOpenSubmenuCommand = 999;
+
+  // The domain a rule for the page would name, if it can have one: not off
+  // the record (rules are the profile's), and a web page with a domain.
+  std::optional<std::string> GetRuleDomain() const {
+    content::WebContents* page =
+        browser_->GetTabStripModel()->GetActiveWebContents();
+    if (!page || browser_->GetProfile()->IsOffTheRecord()) {
+      return std::nullopt;
+    }
+    return NormalizeLinkRuleDomain(page->GetVisibleURL().spec());
+  }
 
   void ShowMenu() {
     SpaceService* service = SpaceService::Get(browser_->GetProfile());
@@ -439,18 +478,30 @@ class LittleSpaceMenuButton : public views::ImageButton,
       return;
     }
     model_ = std::make_unique<ui::SimpleMenuModel>(this);
+    always_model_ = std::make_unique<ui::SimpleMenuModel>(this);
     space_ids_.clear();
+    rule_domain_ = GetRuleDomain().value_or(std::string());
     const auto& spaces = service->space_list().spaces();
     for (size_t i = 0; i < spaces.size(); ++i) {
       space_ids_.push_back(spaces[i]->id());
       model_->AddCheckItem(static_cast<int>(i),
                            GetSpaceName(*spaces[i], i));
+      always_model_->AddCheckItem(kAlwaysOpenCommand + static_cast<int>(i),
+                                  GetSpaceName(*spaces[i], i));
       // Its icon, as the switcher shows it (docs/design/spaces.md).
       ui::ImageModel icon =
           GetSpaceIconImage(spaces[i]->icon(), kSpaceIconSize);
       if (!icon.IsEmpty()) {
         model_->SetIcon(i, icon);
+        always_model_->SetIcon(i, icon);
       }
+    }
+    if (!rule_domain_.empty()) {
+      model_->AddSeparator(ui::NORMAL_SEPARATOR);
+      model_->AddSubMenu(
+          kAlwaysOpenSubmenuCommand,
+          u"Always Open " + base::UTF8ToUTF16(rule_domain_) + u" in",
+          always_model_.get());
     }
     runner_ = std::make_unique<views::MenuRunner>(
         model_.get(), views::MenuRunner::HAS_MNEMONICS);
@@ -471,9 +522,13 @@ class LittleSpaceMenuButton : public views::ImageButton,
 
   const raw_ptr<BrowserWindowInterface> browser_;
   std::unique_ptr<ui::SimpleMenuModel> model_;
+  // "Always Open <domain> in", a submenu of |model_|.
+  std::unique_ptr<ui::SimpleMenuModel> always_model_;
   std::unique_ptr<views::MenuRunner> runner_;
   // The menu's spaces, by command id.
   std::vector<base::Uuid> space_ids_;
+  // The page's domain when the menu opened; empty if it can't have a rule.
+  std::string rule_domain_;
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       widget_observation_{this};
   base::WeakPtrFactory<LittleSpaceMenuButton> weak_factory_{this};
@@ -543,10 +598,95 @@ bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
   if (!profile || !CanOpenInLittleWindows(tabs)) {
     return false;
   }
+  std::vector<GURL> urls;
   for (const StartupTab& tab : tabs) {
-    OpenLittleWindow(profile, tab.url);
+    urls.push_back(tab.url);
+  }
+  // The rules come with the spaces' file: until it's in (a cold start), the
+  // links wait for it.
+  SpaceService* service =
+      profile->IsOffTheRecord() ? nullptr : SpaceService::Get(profile);
+  if (service && !service->loaded()) {
+    service->RunWhenLoaded(base::BindOnce(
+        [](base::WeakPtr<Profile> profile, std::vector<GURL> urls) {
+          if (profile) {
+            for (const GURL& url : urls) {
+              OpenLinkFromAnotherApp(profile.get(), url);
+            }
+          }
+        },
+        profile->GetWeakPtr(), std::move(urls)));
+    return true;
+  }
+  for (const GURL& url : urls) {
+    OpenLinkFromAnotherApp(profile, url);
   }
   return true;
+}
+
+BrowserWindowInterface* OpenLinkFromAnotherApp(Profile* profile,
+                                               const GURL& url) {
+  // Never off the record: rules are the profile's, and an incognito window
+  // is never a target.
+  SpaceService* service =
+      profile->IsOffTheRecord() ? nullptr : SpaceService::GetIfExists(profile);
+  SpaceModel* space =
+      service ? service->space_list().FindRoutedSpace(url) : nullptr;
+  if (space) {
+    if (BrowserWindowInterface* routed = OpenLinkInSpace(profile, url, *space)) {
+      return routed;
+    }
+  }
+  return OpenLittleWindow(profile, url);
+}
+
+namespace {
+
+// The window to open something in |space| (one of |profile|'s spaces): the
+// last active one showing it, else the last active one switched to it, else
+// a new one showing it. Null if none could be made. Never off the record:
+// FindLastActiveWindow() takes |profile|'s own windows only.
+BrowserWindowInterface* GetWindowForSpace(Profile* profile, SpaceModel* space) {
+  BrowserWindowInterface* target =
+      space ? FindLastActiveWindowShowing(profile, *space) : nullptr;
+  if (!target) {
+    target = FindLastActiveWindow(profile);
+  }
+  if (!target) {
+    target = CreateBrowserWindow(
+        BrowserWindowCreateParams(profile, /*from_user_gesture=*/true));
+    if (!target) {
+      return nullptr;
+    }
+  }
+  // Not showing |space|: the window switches to it.
+  WindowFeatures* features = WindowFeatures::From(target);
+  if (space && features && &features->space_model() != space) {
+    target = SwitchWindowToSpace(target, profile, *space);
+  }
+  return target;
+}
+
+}  // namespace
+
+BrowserWindowInterface* OpenLinkInSpace(Profile* profile,
+                                        const GURL& url,
+                                        SpaceModel& space) {
+  if (profile->IsOffTheRecord()) {
+    return nullptr;
+  }
+  BrowserWindowInterface* target = GetWindowForSpace(profile, &space);
+  if (!target) {
+    return nullptr;
+  }
+  // A new tab, which the strip's bridge makes a Today entry of the space.
+  NavigateParams navigate(target, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+  navigate.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  navigate.window_action = NavigateParams::WindowAction::kShowWindow;
+  Navigate(&navigate);
+  target->GetWindow()->Show();
+  target->GetWindow()->Activate();
+  return target;
 }
 
 namespace {
@@ -739,26 +879,10 @@ BrowserWindowInterface* OpenLittleWindowInSpace(BrowserWindowInterface* browser,
   if (from->empty()) {
     return nullptr;
   }
-  Profile* profile = browser->GetProfile();
   BrowserWindowInterface* target =
-      space ? FindLastActiveWindowShowing(profile, *space) : nullptr;
+      GetWindowForSpace(browser->GetProfile(), space);
   if (!target) {
-    target = FindLastActiveWindow(profile);
-  }
-  if (!target) {
-    target = CreateBrowserWindow(
-        BrowserWindowCreateParams(profile, /*from_user_gesture=*/true));
-    if (!target) {
-      return nullptr;
-    }
-  }
-  // Not showing |space|: the window switches to it.
-  WindowFeatures* features = WindowFeatures::From(target);
-  if (space && features && &features->space_model() != space) {
-    target = SwitchWindowToSpace(target, profile, *space);
-    if (!target) {
-      return nullptr;
-    }
+    return nullptr;
   }
   // The strip's bridge makes it a Today entry, as any new tab. The little
   // window, left without tabs, closes.

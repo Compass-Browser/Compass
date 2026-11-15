@@ -25,9 +25,14 @@ inline constexpr char kSyncSettingsSubPage[] = "sync";
 inline constexpr char kShortcutsSettingsSubPage[] = "shortcuts";
 inline constexpr char kArcImportSettingsSubPage[] = "importArc";
 inline constexpr char kClaudeSettingsSubPage[] = "claude";
+// Links from Other Apps (docs/design/link-routing.md); "links?add=<domain>"
+// opens it with a new rule for the domain being made.
+inline constexpr char kLinksSettingsSubPage[] = "links";
 
 // Compass's sections of chrome://settings: Sync (/sync), Keyboard shortcuts
-// (/shortcuts), Import from Arc (/importArc) and Claude (/claude). settings::SettingsUI owns
+// (/shortcuts), Links from Other Apps (/links, served by the shortcuts'
+// handler), Import from Arc (/importArc) and Claude (/claude).
+// settings::SettingsUI owns
 // one (patches/chrome-browser-ui-webui-settings-settings_ui.{h,cc}.patch)
 // and hands it the sections' interfaces. See docs/design/settings.md.
 //

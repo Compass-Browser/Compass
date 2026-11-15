@@ -29,15 +29,24 @@
 #include "url/gurl.h"
 
 namespace compass {
+
+void LittleWindowBrowserTest::OpenLinksFromAnotherApp(
+    const std::vector<GURL>& urls) {
+  NSMutableArray<NSURL*>* ns_urls = [NSMutableArray array];
+  for (const GURL& url : urls) {
+    [ns_urls
+        addObject:[NSURL URLWithString:base::SysUTF8ToNSString(url.spec())]];
+  }
+  [AppController.sharedController application:NSApp openURLs:ns_urls];
+}
+
 namespace {
 
 // A link another app opens (application:openURLs:) shows in a little window,
 // not as a tab of the window.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinkFromAnotherApp) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
-  [AppController.sharedController
-      application:NSApp
-         openURLs:@[ [NSURL URLWithString:base::SysUTF8ToNSString(url.spec())] ]];
+  OpenLinksFromAnotherApp({url});
 
   ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
   BrowserWindowInterface* little = FindLittleWindow();

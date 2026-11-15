@@ -13,10 +13,15 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
+#include "compass/browser/sidebar/link_rules.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
@@ -24,6 +29,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/webui/webui_util.h"
@@ -249,12 +255,14 @@ CompassSettingsUI::~CompassSettingsUI() = default;
 void CompassSettingsUI::BindInterface(
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver) {
   handler_.reset();
-  handler_ = std::make_unique<ShortcutsPageHandler>(std::move(receiver));
+  handler_ = std::make_unique<ShortcutsPageHandler>(
+      Profile::FromWebUI(web_ui()), std::move(receiver));
 }
 
 ShortcutsPageHandler::ShortcutsPageHandler(
+    Profile* profile,
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
-    : receiver_(this, std::move(receiver)) {
+    : profile_(profile), receiver_(this, std::move(receiver)) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   // The windows follow what changes here.
   BrowserViewAccelerators::Watch();
@@ -373,5 +381,87 @@ void ShortcutsPageHandler::ResetAllShortcuts(
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(CompassSettingsUI)
+
+SpaceList* ShortcutsPageHandler::GetSpaceList() {
+  Profile* profile = profile_ ? profile_->GetOriginalProfile() : nullptr;
+  SpaceService* service = profile ? SpaceService::Get(profile) : nullptr;
+  return service ? &service->space_list() : nullptr;
+}
+
+namespace {
+
+// Null for grey, as the sidebar page has it.
+sidebar::mojom::SpaceColorPtr LinkRuleSpaceColor(SpaceColor color) {
+  if (color.is_grey()) {
+    return nullptr;
+  }
+  const SkColor tint = *color.tint();
+  return sidebar::mojom::SpaceColor::New(SkColorGetR(tint), SkColorGetG(tint),
+                                         SkColorGetB(tint));
+}
+
+// Null for none.
+sidebar::mojom::SpaceIconPtr LinkRuleSpaceIcon(const SpaceIcon& icon) {
+  switch (icon.kind()) {
+    case SpaceIcon::Kind::kNone:
+      return nullptr;
+    case SpaceIcon::Kind::kEmoji:
+      return sidebar::mojom::SpaceIcon::NewEmoji(icon.value());
+    case SpaceIcon::Kind::kSymbol:
+      return sidebar::mojom::SpaceIcon::NewSymbol(icon.value());
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+void ShortcutsPageHandler::GetLinkRules(GetLinkRulesCallback callback) {
+  std::vector<sidebar::mojom::LinkRulePtr> rules;
+  std::vector<sidebar::mojom::LinkRuleSpacePtr> spaces;
+  if (SpaceList* list = GetSpaceList()) {
+    for (const LinkRule& rule : list->link_rules().rules()) {
+      rules.push_back(sidebar::mojom::LinkRule::New(
+          rule.domain, rule.space_id.AsLowercaseString(),
+          !list->FindSpace(rule.space_id)));
+    }
+    for (size_t i = 0; i < list->spaces().size(); ++i) {
+      const SpaceModel& space = *list->spaces()[i];
+      spaces.push_back(sidebar::mojom::LinkRuleSpace::New(
+          space.id().AsLowercaseString(),
+          space.name().empty()
+              ? "Space " + base::NumberToString(i + 1)
+              : base::UTF16ToUTF8(space.name()),
+          LinkRuleSpaceColor(space.color()), LinkRuleSpaceIcon(space.icon())));
+    }
+  }
+  std::move(callback).Run(std::move(rules), std::move(spaces));
+}
+
+void ShortcutsPageHandler::SetLinkRule(const std::string& domain,
+                                       const std::string& space_id,
+                                       const std::string& replacing,
+                                       SetLinkRuleCallback callback) {
+  SpaceList* list = GetSpaceList();
+  const std::optional<std::string> normalized =
+      NormalizeLinkRuleDomain(domain);
+  const base::Uuid id = base::Uuid::ParseLowercase(space_id);
+  if (!list || !normalized || !id.is_valid() || !list->FindSpace(id)) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  if (!replacing.empty() && replacing != *normalized) {
+    list->RemoveLinkRule(replacing);
+  }
+  list->SetLinkRule(*normalized, id);
+  std::move(callback).Run(*normalized);
+}
+
+void ShortcutsPageHandler::RemoveLinkRule(const std::string& domain,
+                                          RemoveLinkRuleCallback callback) {
+  if (SpaceList* list = GetSpaceList()) {
+    list->RemoveLinkRule(domain);
+  }
+  std::move(callback).Run();
+}
 
 }  // namespace compass

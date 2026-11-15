@@ -9,6 +9,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "url/gurl.h"
 
 namespace compass {
 
@@ -124,6 +125,34 @@ void SpaceList::SetActiveSpace(SpaceModel& space) {
   for (Observer& observer : observers_) {
     observer.OnActiveSpaceChanged();
   }
+}
+
+bool SpaceList::SetLinkRule(std::string_view domain,
+                            const base::Uuid& space_id) {
+  const base::Uuid* existing = link_rules_.Find(domain);
+  if ((existing && *existing == space_id) ||
+      !link_rules_.Set(domain, space_id)) {
+    return false;
+  }
+  for (Observer& observer : observers_) {
+    observer.OnLinkRulesChanged();
+  }
+  return true;
+}
+
+bool SpaceList::RemoveLinkRule(std::string_view domain) {
+  if (!link_rules_.Remove(domain)) {
+    return false;
+  }
+  for (Observer& observer : observers_) {
+    observer.OnLinkRulesChanged();
+  }
+  return true;
+}
+
+SpaceModel* SpaceList::FindRoutedSpace(const GURL& url) const {
+  const std::optional<LinkRule> rule = link_rules_.Match(url);
+  return rule ? FindSpace(rule->space_id) : nullptr;
 }
 
 void SpaceList::AddObserver(Observer* observer) {

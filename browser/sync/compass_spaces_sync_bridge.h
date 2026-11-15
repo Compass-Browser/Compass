@@ -68,6 +68,11 @@ inline constexpr int kFaviconMaxPixels = 64;
 // SHA-256("compass-favicon:" + lowercase host), shaped as a version-5 UUID.
 std::string FaviconKey(std::string_view host);
 
+// A link rule entity's UUID (and client tag) for |domain| (normalized, see
+// NormalizeLinkRuleDomain()): the same shape as FaviconKey(), from
+// SHA-256("compass-link-rule:" + domain). See docs/design/link-routing.md.
+std::string LinkRuleKey(std::string_view domain);
+
 // A space of the switcher (SpaceDirectory), of any profile, and the directory
 // position its profile's bridge last synced for it, if known (slice 5).
 struct DirectorySlot {
@@ -252,6 +257,7 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   void OnSpaceWillBeRemoved(SpaceModel& space) override;
   void OnSpaceRemoved() override;
   void OnSpaceMoved(const SpaceModel& space) override;
+  void OnLinkRulesChanged() override;
 
   // SpaceModel::Observer:
   void OnNodeAdded(const SidebarNode& node) override;
@@ -297,6 +303,9 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // The memory entities of |memories| (GetLocalMemories()) into |out|.
   void AddLocalMemories(const std::vector<sync_pb::CompassMemory>& memories,
                         Mirror& out) const;
+  // The list's link rules as entities into |out|, except those for a space
+  // that stays on this device.
+  void AddLocalLinkRules(Mirror& out) const;
   // The CompassProfile entities of the mirror.
   std::vector<sync_pb::CompassProfile> MirrorProfiles() const;
   // Hands the spaces' synced positions to the delegate.

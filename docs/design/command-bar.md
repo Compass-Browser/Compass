@@ -123,16 +123,18 @@ per change:
   new Today entry of the window's space, in either mode. Not in incognito
   or with an empty query; nothing when Open tabs doesn't sync.
 - **Commands**: a fixed list (new space, pin or unpin the current entry,
-  add it to or remove it from Favorites, copy URL, reload, history,
-  downloads, extensions, settings), matched by name. Each shows a symbol of
+  add it to or remove it from Favorites, route this site to a space, copy
+  URL, reload, history, downloads, extensions, settings), matched by name. Each shows a symbol of
   its own: `kCommands[]` names it (`Result.command_symbol`), and the page
   draws it from `command_icons.ts`, Material Symbols outline paths in the
   space symbols' 960-unit view box (the sparkle's own is 24 units, the
   book's 20, from upstream's `menu_book.icon`), sized
   and colored as the other rows' icons, in light and dark: add (New
   space), cloud_off (on this device), keep and keep_off (Pin, Unpin), star
-  and do_not_disturb_on (Add to and Remove from Favorites), link (Copy
-  URL), refresh, history, download, extension, settings, move_to_inbox
+  and do_not_disturb_on (Add to and Remove from Favorites), alt_route
+  (Route this site to space…, which opens compass://settings/links with a
+  rule for the tab's domain being made: [link-routing.md](link-routing.md);
+  only for a page with a domain, not in incognito), link (Copy URL), refresh, history, download, extension, settings, move_to_inbox
   (Import from Arc), keyboard (Keyboard shortcuts), cleaning_services
   (Tidy Today), menu_book (Reader Mode and Leave Reader Mode,
   [reader-mode.md](reader-mode.md), while the active tab is an article or

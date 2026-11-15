@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -17,9 +18,12 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 
+class Profile;
+
 namespace compass {
 
 class CompassSettingsUI;
+class SpaceList;
 
 class CompassSettingsUIConfig
     : public content::DefaultWebUIConfig<CompassSettingsUI> {
@@ -50,9 +54,12 @@ std::vector<ListedShortcut> ListShortcuts();
 // recorded by pressing them. Owned by chrome://compass-settings and by
 // chrome://settings (SettingsSections). See docs/design/shortcuts.md
 // "Customizing".
+// Keyboard shortcuts (docs/design/shortcuts.md) and, for |profile|, links
+// from other apps (docs/design/link-routing.md).
 class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
  public:
-  explicit ShortcutsPageHandler(
+  ShortcutsPageHandler(
+      Profile* profile,
       mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver);
   ShortcutsPageHandler(const ShortcutsPageHandler&) = delete;
   ShortcutsPageHandler& operator=(const ShortcutsPageHandler&) = delete;
@@ -72,8 +79,20 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
   void ResetShortcut(const std::string& id,
                      ResetShortcutCallback callback) override;
   void ResetAllShortcuts(ResetAllShortcutsCallback callback) override;
+  void GetLinkRules(GetLinkRulesCallback callback) override;
+  void SetLinkRule(const std::string& domain,
+                   const std::string& space_id,
+                   const std::string& replacing,
+                   SetLinkRuleCallback callback) override;
+  void RemoveLinkRule(const std::string& domain,
+                      RemoveLinkRuleCallback callback) override;
 
  private:
+  // The profile's spaces, if it has them (not off the record: the rules
+  // are the original profile's).
+  SpaceList* GetSpaceList();
+
+  const raw_ptr<Profile> profile_;
   bool recording_ = false;
   mojo::Receiver<sidebar::mojom::SettingsHandler> receiver_;
 };

@@ -41,8 +41,10 @@ class SpaceModel;
 // are all web pages or files, and there is at least one.
 bool CanOpenInLittleWindows(const std::vector<StartupTab>& tabs);
 
-// Opens each of |tabs| in a little window of |profile|, if they are all web
-// pages or files; otherwise opens none and returns false. Called where links
+// Opens each of |tabs| as OpenLinkFromAnotherApp() does (in a little window
+// of |profile|, or in a space a link rule names), if they are all web pages
+// or files; otherwise opens none and returns false. Before |profile|'s spaces
+// have loaded, the links wait for them (and their rules). Called where links
 // from other apps arrive: OpenStartupTabsInBrowserWithProfile() on macOS
 // (app_controller_mac.mm), StartupBrowserCreatorImpl on Windows, whose
 // links come on the command line (see patches/).
@@ -52,6 +54,24 @@ bool OpenInLittleWindows(const std::vector<StartupTab>& tabs,
 // Opens |url|, from another app, in a new little window of |profile| over
 // that app's window, and returns it.
 BrowserWindowInterface* OpenLittleWindow(Profile* profile, const GURL& url);
+
+// Link routing (Arc's Air Traffic Control, docs/design/link-routing.md):
+// |url|, a link from another app, opens in the space a rule of |profile|
+// names for its domain (OpenLinkInSpace()), else in a little window
+// (OpenLittleWindow()). Off the record, always a little window. Returns the
+// window it opened in. Only links from other apps are routed: links inside
+// Compass never come here.
+BrowserWindowInterface* OpenLinkFromAnotherApp(Profile* profile,
+                                               const GURL& url);
+
+// Opens |url| as a new Today tab of |space|, one of |profile|'s spaces: in
+// the last active window showing it, else the last active normal window
+// switched to it, else a new window; then activates that window and returns
+// it. Null off the record (an incognito window is never used) or if no
+// window could be made.
+BrowserWindowInterface* OpenLinkInSpace(Profile* profile,
+                                        const GURL& url,
+                                        SpaceModel& space);
 
 // Cmd+Option+N, Shift+Alt+N on Windows (kNewLittleWindowCommand,
 // docs/design/shortcuts.md): a new little window on the new tab page, centered on |from|'s display.

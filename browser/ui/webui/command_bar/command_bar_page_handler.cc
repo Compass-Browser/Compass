@@ -45,6 +45,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
@@ -88,6 +89,8 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kUnpinEntry, u"Unpin tab", "keep_off"},
     {CommandBarCommand::kAddFavorite, u"Add to Favorites", "star"},
     {CommandBarCommand::kRemoveFavorite, u"Remove from Favorites", "remove"},
+    {CommandBarCommand::kRouteSiteToSpace, u"Route this site to space\u2026",
+     "alt_route"},
     {CommandBarCommand::kCopyUrl, u"Copy URL", "link"},
     {CommandBarCommand::kReload, u"Reload", "refresh"},
     {CommandBarCommand::kHistory, u"History", "history"},
@@ -897,6 +900,13 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kKeyboardShortcuts:
       chrome::ShowSettingsSubPage(browser_, kShortcutsSettingsSubPage);
       break;
+    case CommandBarCommand::kRouteSiteToSpace:
+      // The section's form, filled in with the domain (a normalized one is
+      // plain ASCII, safe in a query).
+      chrome::ShowSettingsSubPage(
+          browser_, std::string(kLinksSettingsSubPage) +
+                        "?add=" + GetActiveRuleDomain().value_or(""));
+      break;
     case CommandBarCommand::kTidyToday:
       TodayTidier::Get(browser_->GetProfile())->Tidy(features->space_model());
       break;
@@ -954,6 +964,9 @@ bool CommandBarPageHandler::IsCommandAvailable(
       return true;
     case CommandBarCommand::kImportFromArc:
       return !browser_->GetProfile()->IsOffTheRecord();
+    case CommandBarCommand::kRouteSiteToSpace:
+      return features && !features->is_parking_window() &&
+             GetActiveRuleDomain().has_value();
     case CommandBarCommand::kTidyToday: {
       // Never in incognito, whose profile has no TodayTidier.
       if (browser_->GetProfile()->IsOffTheRecord() || !features ||
@@ -976,6 +989,19 @@ bool CommandBarPageHandler::IsCommandAvailable(
       // The key and the settings are the profile's.
       return !browser_->GetProfile()->IsOffTheRecord();
   }
+}
+
+std::optional<std::string> CommandBarPageHandler::GetActiveRuleDomain() const {
+  // Rules are the profile's: never off the record.
+  if (browser_->GetProfile()->IsOffTheRecord()) {
+    return std::nullopt;
+  }
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  if (!tab || !tab->GetContents()) {
+    return std::nullopt;
+  }
+  return NormalizeLinkRuleDomain(
+      tab->GetContents()->GetLastCommittedURL().spec());
 }
 
 WindowFeatures *CommandBarPageHandler::GetFeatures() const {

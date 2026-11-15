@@ -241,6 +241,7 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
               ElementsAre("entry b.test", "entry a.test", "command New space",
                           "command New space on this device",
                           "command Pin tab", "command Add to Favorites",
+                          "command Route this site to space\u2026",
                           "command Copy URL",
                           "command Reload", "command History",
                           "command Downloads", "command Extensions",
@@ -275,6 +276,7 @@ TEST_F(CommandBarPageHandlerTest, CommandsHaveSymbols) {
   EXPECT_EQ(symbols["Settings"], "settings");
   EXPECT_EQ(symbols["Import from Another Browser"], "import");
   EXPECT_EQ(symbols["Keyboard shortcuts"], "keyboard");
+  EXPECT_EQ(symbols["Route this site to space\u2026"], "alt_route");
   EXPECT_EQ(symbols["Chat with Claude"], "chat");
   // No two commands share one.
   std::set<std::string> distinct;

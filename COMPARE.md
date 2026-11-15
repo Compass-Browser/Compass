@@ -58,7 +58,7 @@ since October 2025).
 | Command bar, no toolbar | ✅ | ✅ | ✅ | ~ | ? | ✅ | ✅ Quick Commands | ❌ | ✅ | ✅ | ? |
 | Peek (preview a link without a tab) | ✅ | ✅ | ✅ | ? | ✅ Peek View | ✅ Glance | ❌ | ❌ | ? | ✅ | ✅ link preview |
 | Small windows for links from other apps | ✅ macOS, Windows, Linux | ✅ Quick Window | ✅ Little Arc | ? | ✅ Kiosk | ❌ | ❌ | ❌ | ? | ✅ Little window | ✅ link preview from any app |
-| Link routing to spaces (Air Traffic Control) | ❌ | ✅ | ✅ | ✅ Link Rules to profiles | ✅ URL Rules | ✅ Space Routing | ❌ | ❌ | ? | ✅ | ? |
+| Link routing to spaces (Air Traffic Control) | ✅ links from other apps, by domain | ✅ | ✅ | ✅ Link Rules to profiles | ✅ URL Rules | ✅ Space Routing | ❌ | ❌ | ? | ✅ | ? |
 | Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ~ picture-in-picture | ~ picture-in-picture |
 | Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar) | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
 | Per-site CSS/JS (Boosts) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
@@ -102,7 +102,6 @@ replacement, also with spaces, Peek, small windows, splits and an MCP server.
 
 Crest has, Compass doesn't:
 
-- Link routing to spaces (Air Traffic Control).
 - A WebKit engine per site: full-quality DRM video on those pages.
 - Built-in ad blocking and on-device page translation.
 - A translucent sidebar.
@@ -126,7 +125,6 @@ Features other browsers have that Compass doesn't, checked against the code:
 
 | Missing | Who has it | State in Compass |
 |---|---|---|
-| Link routing to spaces | Arc, Crest, Dia, Zen, Phi, Lilo | Next after little windows (docs/design/shortcuts.md, little-window.md "Not done") |
 | Per-site CSS/JS | Arc (Boosts), Zen (Boosts, Mods) | Not started |
 | Built-in ad blocker | Vivaldi, SigmaOS, Orion, Crest, Phi, Lilo, Brave | Not started; extensions instead |
 | On-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |

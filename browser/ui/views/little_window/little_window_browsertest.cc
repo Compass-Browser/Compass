@@ -41,6 +41,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -70,31 +71,36 @@ namespace compass {
 
 void LittleWindowBrowserTest::SetUpOnMainThread() {
   InProcessBrowserTest::SetUpOnMainThread();
+  // Any host (github.test...) is the test server.
+  host_resolver()->AddRule("*", "127.0.0.1");
   ASSERT_TRUE(embedded_test_server()->Start());
 }
 
-namespace {
-
 #if !BUILDFLAG(IS_MAC)
-// Hands |urls| to the running Compass as another app does on Windows and
-// Linux: on the command line of a second Compass, which the process
-// singleton passes on (StartupBrowserCreator::
+// As another app does on Windows and Linux: on the command line of a second
+// Compass, which the process singleton passes on (StartupBrowserCreator::
 // ProcessCommandLineAlreadyRunning()).
-void OpenFromAnotherApp(Profile* profile, const std::vector<GURL>& urls) {
+void LittleWindowBrowserTest::OpenLinksFromAnotherApp(
+    const std::vector<GURL>& urls) {
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   for (const GURL& url : urls) {
     command_line.AppendArg(url.spec());
   }
   StartupBrowserCreator::ProcessCommandLineAlreadyRunning(
       command_line, base::FilePath(),
-      {profile->GetPath(), StartupProfileMode::kBrowserWindow});
+      {browser()->GetProfile()->GetPath(), StartupProfileMode::kBrowserWindow});
 }
+#endif  // !BUILDFLAG(IS_MAC)
+
+namespace {
+
+#if !BUILDFLAG(IS_MAC)
 
 // A link from another app shows in a little window, not as a tab of the
 // window, and nothing else opens.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinkFromAnotherApp) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
-  OpenFromAnotherApp(browser()->GetProfile(), {url});
+  OpenLinksFromAnotherApp({url});
 
   ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
   BrowserWindowInterface* little = FindLittleWindow();
@@ -107,9 +113,8 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinkFromAnotherApp) {
 
 // Each of several links gets a little window of its own.
 IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, LinksFromAnotherApp) {
-  OpenFromAnotherApp(browser()->GetProfile(),
-                     {embedded_test_server()->GetURL("/title1.html"),
-                      embedded_test_server()->GetURL("/title2.html")});
+  OpenLinksFromAnotherApp({embedded_test_server()->GetURL("/title1.html"),
+                           embedded_test_server()->GetURL("/title2.html")});
   auto count_little_windows = [&] {
     int count = 0;
     ProfileBrowserCollection::GetForProfile(browser()->GetProfile())
@@ -376,6 +381,138 @@ IN_PROC_BROWSER_TEST_F(LittleWindowBrowserTest, DraggedOutTabMovesThere) {
   EXPECT_EQ(PageOf(little), page);
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
   EXPECT_FALSE(in_today());
+}
+
+// Link routing (docs/design/link-routing.md) --------------------------------
+
+// Whether |space|'s Today has an entry on |url|.
+bool TodayHas(const SpaceModel& space, const GURL& url) {
+  for (const auto& entry : space.today_root()->children()) {
+    if (entry->url() == url) {
+      return true;
+    }
+  }
+  return false;
+}
+
+class LinkRoutingBrowserTest : public LittleWindowBrowserTest {
+ protected:
+  SpaceList& spaces() {
+    return SpaceService::Get(browser()->GetProfile())->space_list();
+  }
+  // A new space "Work" whose rule takes github.test (and its subdomains).
+  SpaceModel* AddWorkSpaceWithRule() {
+    SpaceModel* work = spaces().AddSpace(spaces().spaces().size(), u"Work");
+    EXPECT_TRUE(spaces().SetLinkRule("github.test", work->id()));
+    return work;
+  }
+  GURL GitHubUrl() {
+    return embedded_test_server()->GetURL("gist.github.test", "/title1.html");
+  }
+};
+
+// A link whose domain has a rule opens as a new Today tab of the rule's
+// space: here the frontmost window, switched to it, and no little window.
+IN_PROC_BROWSER_TEST_F(LinkRoutingBrowserTest, MatchingLinkOpensInTheSpace) {
+  SpaceModel* work = AddWorkSpaceWithRule();
+  WindowFeatures* features = WindowFeatures::From(browser());
+  ASSERT_NE(&features->space_model(), work);
+  const GURL url = GitHubUrl();
+
+  OpenLinksFromAnotherApp({url});
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return TodayHas(*work, url); }));
+  EXPECT_EQ(&features->space_model(), work);
+  content::WebContents* page =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(page));
+  EXPECT_EQ(page->GetLastCommittedURL(), url);
+  EXPECT_FALSE(FindLittleWindow());
+}
+
+// A window already showing the space takes it; the others stay as they are.
+IN_PROC_BROWSER_TEST_F(LinkRoutingBrowserTest, WindowShowingTheSpaceTakesIt) {
+  SpaceModel* work = AddWorkSpaceWithRule();
+  BrowserWindowInterface* second = CreateBrowser(browser()->GetProfile());
+  BrowserWindowInterface* showing_work =
+      SwitchWindowToSpace(second, browser()->GetProfile(), *work);
+  ASSERT_TRUE(showing_work);
+  ASSERT_EQ(&WindowFeatures::From(showing_work)->space_model(), work);
+  SpaceModel& home = WindowFeatures::From(browser())->space_model();
+  ASSERT_NE(&home, work);
+  const int browser_tabs = browser()->tab_strip_model()->count();
+  const GURL url = GitHubUrl();
+
+  OpenLinksFromAnotherApp({url});
+
+  EXPECT_TRUE(base::test::RunUntil([&] { return TodayHas(*work, url); }));
+  content::WebContents* active =
+      showing_work->GetTabStripModel()->GetActiveWebContents();
+  ASSERT_TRUE(active);
+  EXPECT_EQ(active->GetVisibleURL(), url);
+  EXPECT_EQ(&WindowFeatures::From(showing_work)->space_model(), work);
+  EXPECT_EQ(&WindowFeatures::From(browser())->space_model(), &home);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), browser_tabs);
+  EXPECT_FALSE(FindLittleWindow());
+}
+
+// A link no rule matches opens in a little window, as before.
+IN_PROC_BROWSER_TEST_F(LinkRoutingBrowserTest, OtherLinkOpensALittleWindow) {
+  SpaceModel* work = AddWorkSpaceWithRule();
+  const GURL url =
+      embedded_test_server()->GetURL("notgithub.test", "/title1.html");
+
+  OpenLinksFromAnotherApp({url});
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
+  ASSERT_TRUE(content::WaitForLoadStop(PageOf(FindLittleWindow())));
+  EXPECT_EQ(PageOf(FindLittleWindow())->GetLastCommittedURL(), url);
+  EXPECT_NE(&WindowFeatures::From(browser())->space_model(), work);
+  EXPECT_FALSE(TodayHas(*work, url));
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+}
+
+// A rule whose space was deleted is ignored (and kept, for settings to show
+// as broken): the link opens in a little window.
+IN_PROC_BROWSER_TEST_F(LinkRoutingBrowserTest, RuleToDeletedSpaceFallsBack) {
+  SpaceModel* work = AddWorkSpaceWithRule();
+  spaces().RemoveSpace(*work);
+  ASSERT_TRUE(spaces().link_rules().Find("github.test"));
+  const GURL url = GitHubUrl();
+
+  OpenLinksFromAnotherApp({url});
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return FindLittleWindow(); }));
+  ASSERT_TRUE(content::WaitForLoadStop(PageOf(FindLittleWindow())));
+  EXPECT_EQ(PageOf(FindLittleWindow())->GetLastCommittedURL(), url);
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+  EXPECT_TRUE(spaces().link_rules().Find("github.test"));
+}
+
+// Incognito is never used: with an incognito window in front, a routed link
+// goes to a normal window of the profile; off the record nothing is routed.
+IN_PROC_BROWSER_TEST_F(LinkRoutingBrowserTest, NeverIncognito) {
+  SpaceModel* work = AddWorkSpaceWithRule();
+  BrowserWindowInterface* incognito =
+      CreateIncognitoBrowser(browser()->GetProfile());
+  ASSERT_TRUE(incognito);
+  const int incognito_tabs = incognito->tab_strip_model()->count();
+  const GURL url = GitHubUrl();
+
+  OpenLinksFromAnotherApp({url});
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return TodayHas(*work, url); }));
+  EXPECT_EQ(&WindowFeatures::From(browser())->space_model(), work);
+  EXPECT_EQ(incognito->tab_strip_model()->count(), incognito_tabs);
+
+  Profile* off_the_record = incognito->GetProfile();
+  EXPECT_FALSE(OpenLinkInSpace(off_the_record, url, *work));
+  BrowserWindowInterface* little =
+      OpenLinkFromAnotherApp(off_the_record, GitHubUrl());
+  ASSERT_TRUE(little);
+  EXPECT_TRUE(IsLittleWindow(little));
+  EXPECT_EQ(little->GetProfile(), off_the_record);
+  EXPECT_EQ(incognito->tab_strip_model()->count(), incognito_tabs);
 }
 
 }  // namespace
