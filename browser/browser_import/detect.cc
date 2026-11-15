@@ -133,6 +133,9 @@ std::vector<BrowserRoot> CandidateRoots() {
         {Browser::kBrave,
          Join(local, {"BraveSoftware", "Brave-Browser", "User Data"})});
     roots.push_back({Browser::kVivaldi, Join(local, {"Vivaldi", "User Data"})});
+    roots.push_back({Browser::kDia, Join(local, {"Dia", "User Data"})});
+    roots.push_back({Browser::kDia,
+                     Join(local, {"TheBrowserCompany", "Dia", "User Data"})});
   }
   base::FilePath roaming;
   if (base::PathService::Get(base::DIR_ROAMING_APP_DATA, &roaming)) {
@@ -147,6 +150,7 @@ std::vector<BrowserRoot> CandidateRoots() {
     roots.push_back(
         {Browser::kBrave, Join(support, {"BraveSoftware", "Brave-Browser"})});
     roots.push_back({Browser::kVivaldi, Join(support, {"Vivaldi"})});
+    roots.push_back({Browser::kDia, Join(support, {"Dia", "User Data"})});
     roots.push_back({Browser::kFirefox, Join(support, {"Firefox"})});
     roots.push_back({Browser::kZen, Join(support, {"zen"})});
   }

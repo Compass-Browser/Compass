@@ -7,13 +7,15 @@ Compass's own settings are sections of upstream's `chrome://settings`
 |---|---|---|---|
 | Sync | `/sync` | `<compass-sync-page>` | chrome://compass-sync |
 | Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings |
-| Import from Arc | `/importArc` | `<compass-arc-import-page>` | chrome://compass-import |
+| Import from Another Browser | `/importArc` | `<compass-arc-import-page>` | chrome://compass-import |
 
-The command bar ("Keyboard shortcuts", "Import from Arc") and the app menu's
-sync row open the sections (`chrome::ShowSettingsSubPage()`, which reuses an
-open settings tab). Sync is hidden where upstream hides the people page
-(guest). Import from Arc is listed everywhere; off macOS it says Arc wasn't
-found.
+The command bar ("Keyboard shortcuts", "Import from Another Browser") and
+the app menu's sync row open the sections (`chrome::ShowSettingsSubPage()`,
+which reuses an open settings tab). Sync is hidden where upstream hides the
+people page (guest). Import from Another Browser is listed everywhere: it
+lists the other browsers' profiles found (browser-import.md), and Arc's
+when Arc is there (arc-import.md). Its path is still `/importArc`, the
+Arc import's.
 
 Upstream's **On startup** section is gone (no menu item, view or route;
 upstream does the same for a guest): Compass's sidebar brings back its

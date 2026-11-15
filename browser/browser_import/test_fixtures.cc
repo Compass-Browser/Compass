@@ -86,6 +86,15 @@ std::vector<uint8_t> MakeChromiumSessionFile(
         }
         Append(file, sessions::CreateTabGroupCommand(tab, it->second));
       }
+      if (fixture.untitled_group) {
+        const tab_groups::TabGroupId group =
+            tab_groups::TabGroupId::GenerateNew();
+        const tab_groups::TabGroupVisualData visual(
+            u"", tab_groups::TabGroupColorId::kGrey);
+        Append(file,
+               sessions::CreateTabGroupMetadataUpdateCommand(group, &visual));
+        Append(file, sessions::CreateTabGroupCommand(tab, group));
+      }
       if (!fixture.vivaldi_workspace.empty()) {
         base::Pickle pickle;
         pickle.WriteInt(tab.id());

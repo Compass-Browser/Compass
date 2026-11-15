@@ -175,6 +175,43 @@ TEST(ChromiumReaderTest, VivaldiWorkspacesBecomeSpaces) {
   EXPECT_TRUE(sidebar.spaces[2].today.empty());
 }
 
+// Dia keeps its sidebar pins as pinned tabs, each in an untitled tab group
+// (its group names aren't in the session file): they go to Pinned, loose.
+TEST(ChromiumReaderTest, DiasPinnedTabsGoToPinned) {
+  std::vector<uint8_t> file = test::MakeChromiumSessionFile(
+      {{{"https://pin-a.test/", u"Pin A", /*pinned=*/true, u"", "", true},
+        {"https://pin-b.test/", u"Pin B", /*pinned=*/true, u"", "", true},
+        {"https://open.test/", u"Open"}}});
+  std::optional<std::vector<SessionTab>> tabs = ParseChromiumSessionFile(file);
+  ASSERT_TRUE(tabs);
+  ASSERT_EQ(tabs->size(), 3u);
+  EXPECT_FALSE((*tabs)[0].group.empty());
+  EXPECT_NE((*tabs)[0].group, (*tabs)[1].group);
+  EXPECT_TRUE((*tabs)[0].group_title.empty());
+
+  base::DictValue bookmarks = Dict(test::MakeChromiumBookmarksJson());
+  SourceProfile profile = Profile(Browser::kDia);
+  profile.id = "dia:Default";
+  profile.name = u"Personal";
+  profile.several = true;
+  ImportedSidebar sidebar =
+      ChromiumSidebar(profile, &bookmarks, nullptr, *tabs, true, true);
+  ASSERT_EQ(sidebar.spaces.size(), 1u);
+  const arc::Space& space = sidebar.spaces[0];
+  EXPECT_EQ(space.name, u"Dia \u2013 Personal");
+  // The bookmarks first, then the pins.
+  ASSERT_EQ(space.pinned.size(), 5u);
+  EXPECT_EQ(space.pinned[3].url, GURL("https://pin-a.test/"));
+  EXPECT_EQ(space.pinned[4].url, GURL("https://pin-b.test/"));
+  ASSERT_EQ(space.today.size(), 1u);
+  EXPECT_EQ(space.today[0].url, GURL("https://open.test/"));
+
+  // Pinned tabs of other browsers stay in Today.
+  profile.browser = Browser::kChrome;
+  sidebar = ChromiumSidebar(profile, nullptr, nullptr, *tabs, false, true);
+  EXPECT_EQ(sidebar.spaces[0].today.size(), 3u);
+}
+
 TEST(ChromiumReaderTest, HistoryAndLogins) {
   base::ScopedTempDir dir;
   ASSERT_TRUE(dir.CreateUniqueTempDir());

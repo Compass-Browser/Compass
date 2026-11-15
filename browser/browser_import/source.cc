@@ -21,6 +21,8 @@ std::u16string BrowserName(Browser browser) {
       return u"Brave";
     case Browser::kVivaldi:
       return u"Vivaldi";
+    case Browser::kDia:
+      return u"Dia";
     case Browser::kFirefox:
       return u"Firefox";
     case Browser::kZen:
@@ -40,6 +42,8 @@ std::string_view BrowserKey(Browser browser) {
       return "brave";
     case Browser::kVivaldi:
       return "vivaldi";
+    case Browser::kDia:
+      return "dia";
     case Browser::kFirefox:
       return "firefox";
     case Browser::kZen:
@@ -64,6 +68,7 @@ bool IsChromiumBased(Browser browser) {
     case Browser::kEdge:
     case Browser::kBrave:
     case Browser::kVivaldi:
+    case Browser::kDia:
       return true;
     case Browser::kFirefox:
     case Browser::kZen:

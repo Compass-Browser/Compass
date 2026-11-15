@@ -91,8 +91,10 @@ std::vector<VivaldiWorkspace> ParseVivaldiWorkspaces(
     const base::DictValue& preferences);
 
 // A Chromium profile's sidebar (docs/design/browser-import.md, "Mapping"):
-// one space named |space_name| with the bookmarks in Pinned and the open
-// tabs in Today; for Vivaldi, a space per workspace for the tabs in it.
+// one space named after the profile with the bookmarks in Pinned and the
+// open tabs in Today; for Vivaldi, a space per workspace for the tabs in
+// it; for Dia, whose pinned tabs are Arc-like sidebar pins, those in Pinned
+// after the bookmarks.
 // |bookmarks| (Bookmarks file), |preferences| and |tabs| may be null/empty.
 ImportedSidebar ChromiumSidebar(const SourceProfile& profile,
                                 const base::DictValue* bookmarks,

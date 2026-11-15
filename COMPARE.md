@@ -81,7 +81,7 @@ since October 2025).
 | Send tab to phone | ✅ | ? | ❌ | ? | ? | ✅ | ✅ | ✅ | ❌ | ? | ? |
 | Phone app with the same spaces | ✅ iPhone and iPad (beta), Android (in progress) | ✅ iPhone and iPad (App Store) | ~ Arc Search is separate | in progress | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ iPhone and iPad |
 | **Moving in** | | | | | | | | | | | |
-| Import | Arc (macOS): profiles, cookies, sidebar, archive | Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more | — | Arc, Chrome | Arc, Zen, Chrome | Arc and Dia spaces and profiles | ~ | ~ | ? | ~ bookmarks, history, sign-ins from many browsers | Arc, Safari, Firefox, Brave |
+| Import | Arc (macOS): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces | Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more | — | Arc, Chrome | Arc, Zen, Chrome | Arc and Dia spaces and profiles | ~ | ~ | ? | ~ bookmarks, history, sign-ins from many browsers | Arc, Safari, Firefox, Brave |
 | Open source | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ~ | ❌ | ❌ | ✅ | ❌ Linux and Windows code to be released |
 
 ## What only Compass has
@@ -106,7 +106,7 @@ Crest has, Compass doesn't:
 - A WebKit engine per site: full-quality DRM video on those pages.
 - Built-in ad blocking and on-device page translation.
 - A translucent sidebar.
-- Import from almost every browser, not only Arc.
+- Import from a few more browsers (Opera, Comet and others).
 - Private Spaces locked with Face ID or Touch ID, and Sub-Spaces.
 - An App Store release for iPhone and iPad, and a Homebrew cask.
 
@@ -131,7 +131,6 @@ Features other browsers have that Compass doesn't, checked against the code:
 | Built-in ad blocker | Vivaldi, SigmaOS, Orion, Crest, Phi, Lilo, Brave | Not started; extensions instead |
 | On-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
-| Import from browsers other than Arc | Crest, Orion, Zen, Phi, Lilo, Dia | Not started |
 | Notes / canvas | Arc, Vivaldi | Not started |
 | Tree-style tabs | Orion, Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |
 | Translucent sidebar | Arc, Crest, Zen | Arc's gradients import; translucency and vibrancy don't (docs/design/arc-import.md) |

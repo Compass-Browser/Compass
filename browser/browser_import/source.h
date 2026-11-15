@@ -27,6 +27,8 @@ enum class Browser {
   kEdge,
   kBrave,
   kVivaldi,
+  // The Browser Company's, after Arc.
+  kDia,
   kFirefox,
   kZen,
   // macOS only.
@@ -34,8 +36,9 @@ enum class Browser {
 };
 
 inline constexpr Browser kAllBrowsers[] = {
-    Browser::kChrome,  Browser::kEdge, Browser::kBrave,  Browser::kVivaldi,
-    Browser::kFirefox, Browser::kZen,  Browser::kSafari,
+    Browser::kChrome,  Browser::kEdge,    Browser::kBrave,
+    Browser::kVivaldi, Browser::kDia,     Browser::kFirefox,
+    Browser::kZen,     Browser::kSafari,
 };
 
 // As the page and the spaces name it: "Chrome", "Edge", ...

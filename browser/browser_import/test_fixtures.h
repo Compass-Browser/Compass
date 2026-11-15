@@ -26,6 +26,8 @@ struct FixtureTab {
   std::u16string group;
   // Vivaldi: the workspace ID its tab data names.
   std::string vivaldi_workspace;
+  // In a tab group of its own with no title, as Dia keeps its pins.
+  bool untitled_group = false;
 };
 
 // A Chromium session file (version 3) with one normal window per element

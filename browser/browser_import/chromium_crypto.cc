@@ -67,6 +67,8 @@ std::string_view KeychainService(Browser browser) {
       return "Brave Safe Storage";
     case Browser::kVivaldi:
       return "Vivaldi Safe Storage";
+    case Browser::kDia:
+      return "Dia Safe Storage";
     case Browser::kFirefox:
     case Browser::kZen:
     case Browser::kSafari:

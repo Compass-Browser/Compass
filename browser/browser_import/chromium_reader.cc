@@ -434,14 +434,23 @@ ImportedSidebar ChromiumSidebar(const SourceProfile& profile,
     workspaces = ParseVivaldiWorkspaces(*preferences);
   }
   std::vector<SessionTab> loose;
+  std::vector<SessionTab> pinned;
   std::map<std::string, std::vector<SessionTab>> by_workspace;
   for (const SessionTab& tab : tabs) {
+    if (profile.browser == Browser::kDia && tab.pinned) {
+      pinned.push_back(tab);
+      continue;
+    }
     const bool known = std::ranges::any_of(
         workspaces, [&](const VivaldiWorkspace& workspace) {
           return workspace.id == tab.workspace;
         });
     (known ? by_workspace[tab.workspace] : loose).push_back(tab);
   }
+  std::vector<arc::Item> pins =
+      TodayFromTabs(pinned, base::StrCat({prefix, "pinned:"}));
+  main.pinned.insert(main.pinned.end(), std::make_move_iterator(pins.begin()),
+                     std::make_move_iterator(pins.end()));
   main.today = TodayFromTabs(loose, base::StrCat({prefix, "today:"}));
   sidebar.spaces.push_back(std::move(main));
   for (const VivaldiWorkspace& workspace : workspaces) {

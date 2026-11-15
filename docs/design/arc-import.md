@@ -131,7 +131,9 @@ spaces show in the switcher.
 ### Page
 
 compass://settings/importArc, a section of the settings page (settings.md),
-opened by the command bar's "Import from Arc". chrome://compass-import
+"Import from Another Browser" (other browsers first: browser-import.md;
+Arc's section after them, shown when Arc is there), opened by the command
+bar's "Import from Another Browser". chrome://compass-import
 (`CompassArcImportUI`, `resources/sidebar/arc_import.{html,ts}`,
 `sidebar.mojom` `ArcImportHandler`) shows the same section alone. It lists
 Arc's profiles with their spaces, tab counts and "N archived". While Arc
@@ -185,10 +187,11 @@ which reads the Preferences files, sees the new state at once.
 On the first run (`first_run::IsChromeFirstRun()`; upstream's first-run
 experience is off, privacy.md), the first normal window opens
 compass://settings/importArc if Arc's `StorableSidebar.json` exists and no
-profile was imported from Arc (`MaybeOfferImportOnFirstRun()`, posted by
+profile was imported from Arc, or another browser has profiles here
+(browser-import.md) (`MaybeOfferImportOnFirstRun()`, posted by
 `CompassSidebarView` once the window is built). Only that first window
 considers it; a later run never offers it again (the command bar's "Import
-from Arc" and Settings still do).
+from Another Browser" and Settings still do).
 
 ## Arc features in Compass
 
