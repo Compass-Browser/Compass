@@ -215,6 +215,16 @@ InstallModes:
 InstallerSwitches:
   Silent: %(silent)s
   SilentWithProgress: %(silent)s
+  Log: --verbose-logging --log-file="<LOGPATH>"
+ExpectedReturnCodes:
+- InstallerReturnCode: 60
+  ReturnResponse: installInProgress
+- InstallerReturnCode: 22
+  ReturnResponse: cancelledByUser
+- InstallerReturnCode: 4
+  ReturnResponse: downgrade
+- InstallerReturnCode: 3
+  ReturnResponse: alreadyInstalled
 UpgradeBehavior: install
 Protocols:
 - http

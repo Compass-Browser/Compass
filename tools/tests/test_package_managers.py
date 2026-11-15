@@ -136,6 +136,8 @@ class WingetManifestTest(unittest.TestCase):
     for line in ('InstallerType: exe', 'Scope: user',
                  '  Silent: --do-not-launch-chrome',
                  '  SilentWithProgress: --do-not-launch-chrome',
+                 '  Log: --verbose-logging --log-file="<LOGPATH>"',
+                 '- InstallerReturnCode: 4', '  ReturnResponse: downgrade',
                  'UpgradeBehavior: install', 'ProductCode: Compass',
                  'ReleaseDate: 2026-11-15', '- Architecture: x64',
                  '  InstallerSha256: ' + WIN_SHA.upper(),
