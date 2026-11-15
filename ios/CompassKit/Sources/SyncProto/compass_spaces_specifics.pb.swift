@@ -45,7 +45,8 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
 }
 
 /// One entity per space and per sidebar node, and in the home profile's
-/// account one per profile of the chain. The client tag is `uuid`.
+/// account one per profile of the chain; icons, Claude's memories and link
+/// rules. The client tag is `uuid`.
 public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -93,6 +94,14 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .memory(newValue)}
   }
 
+  public var linkRule: SyncPb_CompassLinkRule {
+    get {
+      if case .linkRule(let v)? = entity {return v}
+      return SyncPb_CompassLinkRule()
+    }
+    set {entity = .linkRule(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
@@ -101,6 +110,7 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     case profile(SyncPb_CompassProfile)
     case favicon(SyncPb_CompassFavicon)
     case memory(SyncPb_CompassMemory)
+    case linkRule(SyncPb_CompassLinkRule)
 
   }
 
@@ -718,13 +728,71 @@ public nonisolated struct SyncPb_CompassMemory: Sendable {
   fileprivate var _updateTime: Int64? = nil
 }
 
+/// A link rule (docs/design/link-routing.md): links from other apps on
+/// `domain` or its subdomains open in the space `space_uuid` instead of a
+/// little window. One per domain, in the account of the profile it belongs
+/// to. Clients that predate it ignore it (their IsEntityDataValid() refuses
+/// it). Two devices that make a rule for the same domain make the same
+/// entity; the later commit wins.
+public nonisolated struct SyncPb_CompassLinkRule: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// UUID-shaped, from the domain, as CompassFavicon's from its host: the
+  /// first 16 bytes of SHA-256("compass-link-rule:" + domain), with byte 6 =
+  /// (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted lowercase
+  /// 8-4-4-4-12. Also the client tag.
+  public var uuid: String {
+    get {_uuid ?? String()}
+    set {_uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {self._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {self._uuid = nil}
+
+  /// Normalized: lowercase ASCII (IDN as punycode), no "www." prefix, no
+  /// trailing dot, port or path; a registrable domain or a name under one
+  /// ("github.com", "gist.github.com"). A rule for a domain covers its
+  /// subdomains; the most specific rule wins.
+  public var domain: String {
+    get {_domain ?? String()}
+    set {_domain = newValue}
+  }
+  /// Returns true if `domain` has been explicitly set.
+  public var hasDomain: Bool {self._domain != nil}
+  /// Clears the value of `domain`. Subsequent reads from it will return its default value.
+  public mutating func clearDomain() {self._domain = nil}
+
+  /// The space's ID (CompassSpace.uuid), lowercase. A rule whose space this
+  /// device doesn't have (deleted, or not synced yet) is kept and routes
+  /// nothing. An entity without it is ignored.
+  public var spaceUuid: String {
+    get {_spaceUuid ?? String()}
+    set {_spaceUuid = newValue}
+  }
+  /// Returns true if `spaceUuid` has been explicitly set.
+  public var hasSpaceUuid: Bool {self._spaceUuid != nil}
+  /// Clears the value of `spaceUuid`. Subsequent reads from it will return its default value.
+  public mutating func clearSpaceUuid() {self._spaceUuid = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _uuid: String? = nil
+  fileprivate var _domain: String? = nil
+  fileprivate var _spaceUuid: String? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -797,6 +865,19 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .memory(v)
         }
       }()
+      case 6: try {
+        var v: SyncPb_CompassLinkRule?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .linkRule(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .linkRule(v)
+        }
+      }()
       default: break
       }
     }
@@ -827,6 +908,10 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
     case .memory?: try {
       guard case .memory(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .linkRule?: try {
+      guard case .linkRule(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
     case nil: break
     }
@@ -1339,6 +1424,50 @@ nonisolated extension SyncPb_CompassMemory: SwiftProtobuf.Message, SwiftProtobuf
     if lhs._text != rhs._text {return false}
     if lhs._createTime != rhs._createTime {return false}
     if lhs._updateTime != rhs._updateTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassLinkRule: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassLinkRule"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}domain\0\u{3}space_uuid\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._domain) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._spaceUuid) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._uuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._domain {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._spaceUuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassLinkRule, rhs: SyncPb_CompassLinkRule) -> Bool {
+    if lhs._uuid != rhs._uuid {return false}
+    if lhs._domain != rhs._domain {return false}
+    if lhs._spaceUuid != rhs._spaceUuid {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

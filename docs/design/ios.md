@@ -475,7 +475,8 @@ card, over whatever the window shows, in its little-window mode:
     reads it.
 
 Links from Compass's own extensions and widgets (`compass://open`) still
-open as tabs: they name their space.
+open as tabs: they name their space. A link with a link routing rule opens
+in the rule's space instead (below, "Links routed to spaces").
 
 **iPad.** When the window the link arrives in is one of several on screen
 (smaller than the screen: Stage Manager, iPadOS's windowed apps, Split
@@ -498,6 +499,74 @@ waiting page. One iPadOS restores after a relaunch has no page and closes.
 If iPadOS refuses the request, the card shows instead.
 
 Not done: the address has no suggestions.
+
+### Links routed to spaces
+
+The desktop's link rules ([link-routing.md](link-routing.md)): a web link
+from another app on a domain with a rule opens as a new Today tab of the
+rule's space, shown, instead of the little window.
+
+- **Which links.** Compass as the default browser (`onOpenURL`, http and
+  https), and the share sheet with "Share Sheet Opens a Little Window" on
+  (the Inbox's `little` action). Not the share sheet's form or "Open in
+  Compass" in Safari, where the space is picked by hand; not
+  `compass://open` from Compass's own widgets, extensions and shortcuts,
+  which name their space; not links from pages inside Compass.
+- **No rule** (or the rule's space isn't here): as before, the little
+  window, or a new Today tab of the shown space with Open in a Little
+  Window off.
+- **Where** (`AppServices.openLinkFromOtherApp`): the window the link
+  arrived in if it shows the rule's space, else the active window if it
+  does, else any window showing it (iPad; brought to the front); with
+  none, the window it arrived in switches to the space.
+- **Never incognito.** Rules name only `spaces` (`setLinkRule` refuses the
+  incognito space, and a rule naming it routes nothing); a link arriving
+  while incognito is shown goes to the rule's space, outside incognito.
+- **Rules** (`SpaceStore.linkRules`, saved with the store as
+  `linkRules`): one per profile and domain, as the desktop's `LinkRules`.
+  They outlive their spaces: a rule whose space isn't here routes nothing
+  (Settings says "Space deleted"). Matching (`LinkRouting`, CompassModel)
+  is the desktop's: the link's host, then each parent domain, the most
+  specific first; http(s) on a domain name only. Normalizing follows
+  `NormalizeLinkRuleDomain()`: lowercase, IDN as punycode (its own RFC 3492
+  encoder), no leading `www.` or `*.`, no trailing dot, port or path, a URL
+  works; refused: spaces, other schemes, IP addresses, single names. iOS
+  has no public suffix list: bare suffixes are refused by a short list of
+  country second-level registries (`co.uk`, `com.au`, `ne.jp`), so a
+  rarer one (`kawasaki.jp`) is accepted here; the desktop then ignores
+  that rule's entity.
+- **Profiles.** A rule is the profile of the space it's made for, synced
+  in that profile's account. A link is matched against every profile's
+  rules; between two profiles' rules for one domain, the shown space's
+  profile wins, else the home's.
+- **Sync** (`CompassSpacesBridge+LinkRules.swift`): the `CompassLinkRule`
+  entities, keyed by `linkRuleUUID(domain:)` (the desktop's
+  `LinkRuleKey()`, from the same derivation as favicons'). Applied without
+  echo; a deletion removes the rule. An entity without `space_uuid`, with
+  a domain that doesn't normalize to itself or with the wrong key is kept
+  in the mirror only, never deleted; setting that domain's rule here
+  fills it in and keeps unknown fields. A rule for a space that stays on
+  this device isn't uploaded, and turning the space's sync off deletes
+  it on the others. The initial merge sends this device's rules the chain
+  doesn't have. The Swift proto was edited by hand (no protoc on the
+  build machines); `ios/scripts/gen_protos.sh` regenerates it.
+- **UI.**
+  - Settings → Links from Other Apps → **Sites in Spaces**: the rules by
+    domain (the domain, the space's icon on its color and name, or "Space
+    deleted"), a tap to edit, a swipe to delete; **Add Site** opens the
+    form: the site (a domain or a URL; a note under it when it isn't one)
+    and the space.
+  - A little window's **⌄** menu: **Always Open <domain> in ›** with the
+    profile's spaces, the one the domain's rule names checked. Picking one
+    makes (or changes) the rule and opens the page there. The ⌄ shows with
+    one space too, when the page has a domain.
+- Tests: `LinkRoutingTests` (normalizing and refusing, IDN, subdomains,
+  the most specific, look-alikes, case, ports and paths, only web pages,
+  the store, the routing decision, deleted spaces, incognito, profiles,
+  saving) and `LinkRoutingSyncTests` (the desktop's key, the wire shape,
+  both directions without echo, a rule outliving its space, an entity
+  without `space_uuid` and invalid ones, local spaces, the initial merge,
+  a round trip between two stores).
 
 ### Incognito
 

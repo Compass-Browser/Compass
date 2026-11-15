@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassCrypto
+import CompassModel
 import CompassShared
 import CompassSync
 import LocalAuthentication
@@ -132,6 +133,7 @@ struct SettingsView: View {
         } footer: {
           Text("Links from other apps reach Compass when it's your default browser (Settings → Apps → Default Browser App).")
         }
+        LinkRulesSection()
         Section {
           Toggle(isOn: $spotlight) {
             VStack(alignment: .leading, spacing: 2) {
@@ -561,5 +563,160 @@ struct SearchEnginePicker: View {
       }
     }
     .navigationTitle("Search Engine")
+  }
+}
+
+// MARK: Link rules (docs/design/link-routing.md)
+
+/// Settings → Links from Other Apps → Sites: link rules, a domain → a space
+/// each, as the desktop's settings section. A rule whose space was deleted
+/// says so until it's edited or deleted. They sync with the spaces.
+struct LinkRulesSection: View {
+  @Environment(AppModel.self) private var app
+  @State private var editing: LinkRuleDraft?
+
+  private var rules: [LinkRule] {
+    app.store.linkRules.sorted {
+      (LinkRouting.displayDomain($0.domain), $0.profile) < (LinkRouting.displayDomain($1.domain), $1.profile)
+    }
+  }
+
+  var body: some View {
+    Section {
+      ForEach(rules) { rule in
+        Button {
+          editing = LinkRuleDraft(
+            original: rule.id, domain: LinkRouting.displayDomain(rule.domain),
+            spaceID: app.store.spaces.contains { $0.id == rule.spaceID } ? rule.spaceID : defaultSpaceID)
+        } label: {
+          LinkRuleRow(rule: rule, space: app.store.spaces.first { $0.id == rule.spaceID })
+        }
+        .foregroundStyle(.primary)
+        .swipeActions {
+          Button("Delete", role: .destructive) { app.store.removeLinkRule(rule.domain, profile: rule.profile) }
+        }
+      }
+      Button {
+        editing = LinkRuleDraft(original: nil, domain: "", spaceID: defaultSpaceID)
+      } label: {
+        Label("Add Site", systemImage: "plus")
+      }
+    } header: {
+      Text("Sites in Spaces")
+    } footer: {
+      Text(
+        "A link from another app to one of these sites, or to its subdomains, opens as a new tab in that space. The most specific site wins; other links open as above. Never in Incognito."
+      )
+    }
+    .sheet(item: $editing) { draft in LinkRuleEditor(draft: draft) }
+  }
+
+  private var defaultSpaceID: String {
+    let shown = app.selectedSpace.flatMap { $0.isIncognito ? nil : $0 }
+    return (shown ?? app.store.spaces.first)?.id ?? ""
+  }
+}
+
+struct LinkRuleDraft: Identifiable {
+  let id = UUID()
+  /// The rule being edited; nil for a new one.
+  var original: LinkRule.ID?
+  var domain: String
+  var spaceID: String
+}
+
+/// A rule: the site, then its space's icon on its color and its name.
+private struct LinkRuleRow: View {
+  let rule: LinkRule
+  let space: Space?
+
+  var body: some View {
+    HStack(spacing: 10) {
+      Text(LinkRouting.displayDomain(rule.domain)).lineLimit(1)
+      Spacer(minLength: 8)
+      if let space {
+        HStack(spacing: 6) {
+          SpaceIcon(space: space, size: 11)
+            .foregroundStyle(.white)
+            .frame(width: 20, height: 20)
+            .background(Circle().fill(space.theme.accent))
+          Text(space.name.isEmpty ? "Space" : space.name).foregroundStyle(.secondary).lineLimit(1)
+        }
+      } else {
+        Label("Space deleted", systemImage: "exclamationmark.triangle.fill")
+          .foregroundStyle(.orange)
+          .font(.subheadline)
+      }
+    }
+    .accessibilityElement(children: .combine)
+  }
+}
+
+/// Adding or editing a rule: the site (a domain or a URL) and its space.
+private struct LinkRuleEditor: View {
+  @Environment(AppModel.self) private var app
+  @Environment(\.dismiss) private var dismiss
+  @State var draft: LinkRuleDraft
+  @FocusState private var focused: Bool
+
+  private var normalized: String? { LinkRouting.normalizedDomain(draft.domain) }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          TextField("example.com", text: $draft.domain)
+            .keyboardType(.URL)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .focused($focused)
+            .onAppear { focused = draft.original == nil }
+        } header: {
+          Text("Site")
+        } footer: {
+          if let normalized {
+            Text("Links to \(LinkRouting.displayDomain(normalized)) and its subdomains.")
+          } else if !draft.domain.trimmingCharacters(in: .whitespaces).isEmpty {
+            Text("Not a domain: type one like example.com, or a link.").foregroundStyle(.red)
+          }
+        }
+        Section("Opens In") {
+          Picker("Space", selection: $draft.spaceID) {
+            ForEach(app.store.spaces, id: \.id) { space in
+              Label {
+                Text(space.name.isEmpty ? "Space" : space.name)
+              } icon: {
+                SpaceIcon(space: space, size: 16).foregroundStyle(space.theme.accent)
+              }
+              .tag(space.id)
+            }
+          }
+          .pickerStyle(.inline)
+          .labelsHidden()
+        }
+      }
+      .navigationTitle(draft.original == nil ? "Add Site" : "Edit Site")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save", action: save).disabled(normalized == nil || app.store.space(id: draft.spaceID) == nil)
+        }
+      }
+    }
+    .presentationDetents([.medium, .large])
+  }
+
+  private func save() {
+    guard let domain = normalized, let space = app.store.space(id: draft.spaceID) else { return }
+    app.store.batch {
+      if let original = draft.original,
+        original != LinkRule.ID(profile: app.store.linkRuleProfile(space.profileUUID), domain: domain)
+      {
+        app.store.removeLinkRule(original.domain, profile: original.profile)
+      }
+      app.store.setLinkRule(domain, to: space)
+    }
+    dismiss()
   }
 }

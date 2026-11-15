@@ -200,7 +200,9 @@ final class SystemBridge {
       case .open:
         app.openLink(url, in: space)
       case .little:
-        app.showLittleWindow(url)
+        // A link from another app with no space chosen: a rule's space,
+        // else the little window it asked for.
+        AppServices.shared.openLinkFromOtherApp(url, in: app, littleWindows: true)
       case .pin:
         guard let space = space ?? app.selectedSpace else { continue }
         let parent = item.folderID.flatMap(app.store.node(id:)).flatMap { $0.isFolder ? $0 : nil } ?? space.pinned

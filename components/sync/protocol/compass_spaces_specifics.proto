@@ -29,7 +29,8 @@ package sync_pb;
 import "components/sync/protocol/unique_position.proto";
 
 // One entity per space and per sidebar node, and in the home profile's
-// account one per profile of the chain. The client tag is `uuid`.
+// account one per profile of the chain; icons, Claude's memories and link
+// rules. The client tag is `uuid`.
 message CompassSpacesSpecifics {
   oneof entity {
     CompassSpace space = 1;
@@ -37,6 +38,7 @@ message CompassSpacesSpecifics {
     CompassProfile profile = 3;
     CompassFavicon favicon = 4;
     CompassMemory memory = 5;
+    CompassLinkRule link_rule = 6;
   }
 }
 
@@ -198,4 +200,27 @@ message CompassMemory {
   optional int64 create_time = 3;
   // The last edit; of two edits, the later wins.
   optional int64 update_time = 4;
+}
+
+// A link rule (docs/design/link-routing.md): links from other apps on
+// `domain` or its subdomains open in the space `space_uuid` instead of a
+// little window. One per domain, in the account of the profile it belongs
+// to. Clients that predate it ignore it (their IsEntityDataValid() refuses
+// it). Two devices that make a rule for the same domain make the same
+// entity; the later commit wins.
+message CompassLinkRule {
+  // UUID-shaped, from the domain, as CompassFavicon's from its host: the
+  // first 16 bytes of SHA-256("compass-link-rule:" + domain), with byte 6 =
+  // (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted lowercase
+  // 8-4-4-4-12. Also the client tag.
+  optional string uuid = 1;
+  // Normalized: lowercase ASCII (IDN as punycode), no "www." prefix, no
+  // trailing dot, port or path; a registrable domain or a name under one
+  // ("github.com", "gist.github.com"). A rule for a domain covers its
+  // subdomains; the most specific rule wins.
+  optional string domain = 2;
+  // The space's ID (CompassSpace.uuid), lowercase. A rule whose space this
+  // device doesn't have (deleted, or not synced yet) is kept and routes
+  // nothing. An entity without it is ignored.
+  optional string space_uuid = 3;
 }

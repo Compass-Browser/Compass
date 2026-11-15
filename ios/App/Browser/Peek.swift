@@ -318,30 +318,42 @@ struct PeekCard: View {
   }
 
   /// Open in <space>, and ⌄ for the profile's other spaces (with more
-  /// than one), as the desktop's little window.
+  /// than one), as the desktop's little window, and Always Open <domain>
+  /// in › <space>: a link rule (docs/design/link-routing.md). The ⌄ shows
+  /// with one space too when the page has a domain.
   private var openIn: some View {
     let spaces = peek.spaces(in: store)
     let target = peek.spaceID.flatMap(store.space(id:)) ?? spaces.first
+    let domain = peek.url.flatMap(LinkRouting.suggestedDomain(for:))
+    let hasMenu = spaces.count > 1 || (domain != nil && target != nil)
     return HStack(spacing: 0) {
       Button { open(nil) } label: {
         Text("Open in \(target.map(Self.name) ?? "Space")")
           .font(.subheadline.weight(.semibold))
           .lineLimit(1)
           .padding(.leading, 14)
-          .padding(.trailing, spaces.count > 1 ? 6 : 14)
+          .padding(.trailing, hasMenu ? 6 : 14)
           .frame(maxWidth: 200, minHeight: 34)
       }
       .accessibilityHint("Opens the page as a new tab in this space")
-      if spaces.count > 1 {
+      if hasMenu {
         Menu {
-          ForEach(spaces, id: \.id) { space in
-            Button { open(space) } label: {
-              if space.id == target?.id {
-                Label(Self.name(space), systemImage: "checkmark")
-              } else if case .symbol(let symbol)? = SpaceIcon.parse(space.icon) {
-                Label(Self.name(space), systemImage: symbol)
-              } else {
-                Text(Self.name(space))
+          if spaces.count > 1 {
+            ForEach(spaces, id: \.id) { space in
+              Button { open(space) } label: { spaceLabel(space, checked: space.id == target?.id) }
+            }
+          }
+          if let domain, let target {
+            // The space the domain's rule names, checked.
+            let ruled = store.linkRule(domain: domain, profile: target.profileUUID)?.spaceID
+            Section {
+              Menu {
+                ForEach(spaces, id: \.id) { space in
+                  Button { always(domain, space) } label: { spaceLabel(space, checked: space.id == ruled) }
+                }
+              } label: {
+                Label(
+                  "Always Open \(LinkRouting.displayDomain(domain)) in", systemImage: "arrow.triangle.turn.up.right.diamond")
               }
             }
           }
@@ -352,11 +364,27 @@ struct PeekCard: View {
             .padding(.trailing, 12)
             .frame(minHeight: 34)
         }
-        .accessibilityLabel("Open in Another Space")
+        .accessibilityLabel(spaces.count > 1 ? "Open in Another Space" : "More")
       }
     }
     .foregroundStyle(.white)
     .background(Capsule().fill(Color.accentColor))
+  }
+
+  @ViewBuilder private func spaceLabel(_ space: Space, checked: Bool) -> some View {
+    if checked {
+      Label(Self.name(space), systemImage: "checkmark")
+    } else if case .symbol(let symbol)? = SpaceIcon.parse(space.icon) {
+      Label(Self.name(space), systemImage: symbol)
+    } else {
+      Text(Self.name(space))
+    }
+  }
+
+  /// Always Open <domain> in <space>: the rule, then the page opens there.
+  private func always(_ domain: String, _ space: Space) {
+    store.setLinkRule(domain, to: space)
+    open(space)
   }
 
   private static func name(_ space: Space) -> String { space.name.isEmpty ? "Space" : space.name }

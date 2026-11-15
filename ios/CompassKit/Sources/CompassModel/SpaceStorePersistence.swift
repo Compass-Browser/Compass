@@ -75,6 +75,15 @@ struct SidebarSnapshot: Codable {
   /// Other profiles' favorites, by profile UUID (M8).
   var profileFavorites: [String: [Node]]?
   var homeProfileUUID: String?
+  /// Link routing's rules (absent for none, and in files from before).
+  var linkRules: [LinkRuleRecord]?
+
+  struct LinkRuleRecord: Codable {
+    var domain: String
+    var space: String
+    /// The profile's UUID; absent for the home profile.
+    var profile: String?
+  }
 }
 
 extension SidebarSnapshot.SpaceRecord {
@@ -123,7 +132,10 @@ extension SpaceStore {
           archive: s.archive.children.map(node), unknownFields: s.unknownFields)
       }, favorites: favorites.children.map(node),
       profileFavorites: profileFavorites.isEmpty ? nil : profileFavorites.mapValues { $0.children.map(node) },
-      homeProfileUUID: homeProfileUUID.isEmpty ? nil : homeProfileUUID)
+      homeProfileUUID: homeProfileUUID.isEmpty ? nil : homeProfileUUID,
+      linkRules: linkRules.isEmpty
+        ? nil
+        : linkRules.map { .init(domain: $0.domain, space: $0.spaceID, profile: $0.profile.isEmpty ? nil : $0.profile) })
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .millisecondsSince1970
     encoder.outputFormatting = .sortedKeys
@@ -178,6 +190,8 @@ extension SpaceStore {
         record.archive.forEach { build($0, into: space.archive) }
         rawInsertSpace(space)
       }
+      rawReplaceLinkRules(
+        (snapshot.linkRules ?? []).map { LinkRule(domain: $0.domain, spaceID: $0.space, profile: $0.profile ?? "") })
       snapshot.favorites.forEach { build($0, into: favorites) }
       for (profile, nodes) in snapshot.profileFavorites ?? [:] {
         let root = favorites(forProfile: profile)

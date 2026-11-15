@@ -21,7 +21,14 @@ extension CompassSpacesBridge {
 
   /// The entity's UUID (and client tag) for a host.
   public static func faviconUUID(host: String) -> String {
-    var b = Array(SHA256.hash(data: Data(("compass-favicon:" + host.lowercased()).utf8)).prefix(16))
+    derivedUUID("compass-favicon:" + host.lowercased())
+  }
+
+  /// A UUID-shaped key from a string, as the desktop derives favicons' and
+  /// link rules': the first 16 bytes of its SHA-256, version 5 and variant
+  /// bits set, lowercase 8-4-4-4-12.
+  static func derivedUUID(_ seed: String) -> String {
+    var b = Array(SHA256.hash(data: Data(seed.utf8)).prefix(16))
     b[6] = (b[6] & 0x0f) | 0x50
     b[8] = (b[8] & 0x3f) | 0x80
     let hex = b.map { String(format: "%02x", $0) }.joined()

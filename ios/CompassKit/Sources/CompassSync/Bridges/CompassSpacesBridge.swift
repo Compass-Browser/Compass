@@ -230,6 +230,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     case .profile(let profile): profile.uuid
     case .favicon(let favicon): favicon.uuid
     case .memory(let memory): memory.uuid
+    case .linkRule(let rule): rule.uuid
     case nil: nil
     }
   }
@@ -437,6 +438,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       guard let node = store.node(id: id), owns(node) else { continue }
       for n in [node] + node.children { commitThrottled(n) }
     }
+    linkRulesChanged(change.linkRules, spaces: change.putSpaces)
     drain()
     if !change.deletedNodes.isEmpty { collectFavicons() }
   }
@@ -547,6 +549,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var favicons: [(String, Data)] = []
     var memories: [MemoryEntry] = []
     var deletedMemories: Set<String> = []
+    var putRules: [SyncPb_CompassLinkRule] = []
+    var deletedRules: [SyncPb_CompassLinkRule] = []
     let byHash = Dictionary(
       mirror.keys.map { (ClientTagHash.make(type: .compassSpaces, tag: $0), $0) }, uniquingKeysWith: { a, _ in a })
     for change in changes {
@@ -560,11 +564,13 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         case .profile: profilesChanged = true
         case .favicon(let f): if !f.host.isEmpty && !f.png.isEmpty { favicons.append((f.host, f.png)) }
         case .memory(let m): memories.append(Self.memoryEntry(m))
+        case .linkRule(let r): putRules.append(r)
         case nil: break
         }
       } else if let id = byHash[change.clientTagHash] {
         if case .profile = mirror[id]?.entity { profilesChanged = true }
         if case .memory = mirror[id]?.entity { deletedMemories.insert(id) }
+        if case .linkRule(let r)? = mirror[id]?.entity { deletedRules.append(r) }
         mirror[id] = nil
         deleted.insert(id)
       }
@@ -595,6 +601,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       applyNodeDeletions(deleted)
       place()
     }
+    if !putRules.isEmpty || !deletedRules.isEmpty { applyLinkRules(putRules, deleted: deletedRules) }
     recreateKeptEntries()
     // Fix-ups (cycles, invalid placements, normalized splits) commit;
     // everything else equals the mirror and doesn't.
@@ -905,6 +912,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     if isHome, let memories = localMemories?() {
       for memory in memories { add(memory.id, desired(memory)) }
     }
+    for (id, specifics) in localLinkRules { add(id, specifics) }
     tracking = true
     saveMirror()
     return result

@@ -274,6 +274,36 @@ final class AppServices {
     for id in window.displayedTabIDs { claim(id, for: window) }
   }
 
+  // MARK: Links from other apps
+
+  /// A web link from another app (Compass the default browser, or the
+  /// share sheet's little window) that arrived in `window`. A link routing
+  /// rule (docs/design/link-routing.md) makes it a new Today tab of the
+  /// rule's space, shown in a window already showing that space (iPad: the
+  /// one it arrived in, else the active one, else any), else in `window`,
+  /// which switches to that space. Without a rule, a little window
+  /// (`littleWindows`), or a new Today tab of the shown space.
+  func openLinkFromOtherApp(_ url: URL, in window: AppModel, littleWindows: Bool = LittleWindows.isOn) {
+    // Between two profiles' rules for one domain, the shown space's.
+    let profile = window.selectedSpace.flatMap { $0.isIncognito ? nil : $0.profileUUID }
+    switch store.opening(forLinkFromAnotherApp: url, littleWindows: littleWindows, preferring: profile) {
+    case .space(let id):
+      guard let space = store.space(id: id) else { return window.openLink(url) }
+      let showing = [window] + [active].compactMap { $0 } + windows
+      let target = showing.first { $0.selectedSpaceID == id } ?? window
+      target.openLink(url, in: space)
+      guard target !== window else { return }
+      activate(target)
+      if let session = target.windowScene?.session {
+        UIApplication.shared.activateSceneSession(for: UISceneSessionActivationRequest(session: session)) { _ in }
+      }
+    case .littleWindow:
+      window.showLittleWindow(url)
+    case .shownSpace:
+      window.openLink(url)
+    }
+  }
+
   // MARK: Little windows (iPad)
 
   /// Asks iPadOS for a little window's scene, prominent (centered over the

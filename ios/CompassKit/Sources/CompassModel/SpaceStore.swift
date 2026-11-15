@@ -15,10 +15,12 @@ public struct SpaceStoreChange: Sendable, Equatable {
   /// Today entries whose URL, title or last-active time changed (sync
   /// throttles these; everything else goes at once).
   public var todayChurn: Set<String> = []
+  /// Link rules set, changed or removed (`SpaceStore.linkRules` says which).
+  public var linkRules: Set<LinkRule.ID> = []
 
   public var isEmpty: Bool {
     putSpaces.isEmpty && putNodes.isEmpty && deletedSpaces.isEmpty && deletedNodes.isEmpty
-      && todayChurn.isEmpty
+      && todayChurn.isEmpty && linkRules.isEmpty
   }
 }
 
@@ -58,6 +60,10 @@ public final class SpaceStore {
   /// The other profiles' favorites, by profile UUID (root ID
   /// "favorites:<uuid>").
   public private(set) var profileFavorites: [String: SidebarNode] = [:]
+  /// Link routing's rules (docs/design/link-routing.md): one per profile
+  /// and domain, by profile (the home's, empty, first) then domain. They
+  /// outlive their spaces: a rule whose space is gone routes nothing.
+  public private(set) var linkRules: [LinkRule] = []
   /// The home profile's sync UUID once the chain's profile list gives it;
   /// empty before. A space with an empty profile or this one is the home's.
   public var homeProfileUUID = ""
@@ -230,6 +236,84 @@ public final class SpaceStore {
   public func setArchiveAfter(_ space: Space, _ interval: TimeInterval?) {
     space.archiveAfter = interval
     record { $0.putSpaces.insert(space.id) }
+  }
+
+  // MARK: Link routing (docs/design/link-routing.md)
+
+  /// A rule's profile as kept: empty for the home profile.
+  public func linkRuleProfile(_ profile: String) -> String { isHome(profile) ? "" : profile }
+
+  /// The rule for `domain` (normalized) in `profile`, if any.
+  public func linkRule(domain: String, profile: String) -> LinkRule? {
+    let profile = linkRuleProfile(profile)
+    return linkRules.first { $0.domain == domain && $0.profile == profile }
+  }
+
+  /// The space a link from another app opens in, by the rules: the most
+  /// specific rule whose space is here (a rule outlives its space, and
+  /// then routes nothing); between two profiles' rules for one domain,
+  /// `profile`'s, else the home's. Never incognito. nil: it opens as before.
+  public func linkSpace(for url: URL, preferring profile: String? = nil) -> Space? {
+    let live = linkRules.filter { rule in spaces.contains { $0.id == rule.spaceID } }
+    let preferred = profile.map(linkRuleProfile)
+    let ordered = live.filter { $0.profile == preferred } + live.filter { $0.profile != preferred }
+    guard let rule = LinkRouting.rule(for: url, in: ordered) else { return nil }
+    return spaces.first { $0.id == rule.spaceID }
+  }
+
+  /// How a web link from another app opens (Compass the default browser,
+  /// the share sheet's little window): in a rule's space as a new Today
+  /// tab, else in a little window (`littleWindows`, the setting), else as
+  /// a new Today tab of the shown space. Never in incognito: rules name
+  /// only `spaces`, and the app opens the others outside incognito.
+  public func opening(forLinkFromAnotherApp url: URL, littleWindows: Bool, preferring profile: String? = nil)
+    -> LinkOpening
+  {
+    if let space = linkSpace(for: url, preferring: profile) { return .space(space.id) }
+    return littleWindows ? .littleWindow : .shownSpace
+  }
+
+  /// Links from other apps on `domain` (and its subdomains) open in
+  /// `space`. The rule is its profile's, one per domain, so it replaces
+  /// the one the domain had. Returns the normalized domain, or nil if
+  /// `domain` isn't one (or the space is incognito).
+  @discardableResult
+  public func setLinkRule(_ domain: String, to space: Space) -> String? {
+    guard !space.isIncognito, spaces.contains(where: { $0 === space }),
+      let domain = LinkRouting.normalizedDomain(domain)
+    else { return nil }
+    let rule = LinkRule(domain: domain, spaceID: space.id, profile: linkRuleProfile(space.profileUUID))
+    guard !linkRules.contains(rule) else { return domain }
+    rawSetLinkRule(rule)
+    record { $0.linkRules.insert(rule.id) }
+    return domain
+  }
+
+  /// Removes `profile`'s rule for `domain` (normalized).
+  public func removeLinkRule(_ domain: String, profile: String) {
+    guard let rule = linkRule(domain: domain, profile: profile) else { return }
+    rawRemoveLinkRule(rule.id)
+    record { $0.linkRules.insert(rule.id) }
+  }
+
+  /// Sets a rule as received (sync, loading): it replaces its profile's
+  /// rule for the domain.
+  public func rawSetLinkRule(_ rule: LinkRule) {
+    var rules = linkRules.filter { $0.id != rule.id }
+    rules.append(rule)
+    linkRules = rules.sorted { ($0.profile, $0.domain) < ($1.profile, $1.domain) }
+  }
+
+  public func rawRemoveLinkRule(_ id: LinkRule.ID) {
+    linkRules.removeAll { $0.id == id }
+  }
+
+  /// Every rule at once (loading); unreadable ones are left out.
+  public func rawReplaceLinkRules(_ rules: [LinkRule]) {
+    linkRules = []
+    for rule in rules where LinkRouting.normalizedDomain(rule.domain) == rule.domain && !rule.spaceID.isEmpty {
+      rawSetLinkRule(LinkRule(domain: rule.domain, spaceID: rule.spaceID, profile: linkRuleProfile(rule.profile)))
+    }
   }
 
   /// "Sync to your other devices": off keeps the space on this device and
