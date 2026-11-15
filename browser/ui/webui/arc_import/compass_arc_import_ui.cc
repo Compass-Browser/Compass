@@ -240,6 +240,7 @@ void ArcImportPageHandler::OnBrowsers(
     entry->imported = profile.imported;
     entry->history = profile.history;
     entry->passwords = profile.passwords;
+    entry->note = profile.note;
     entries.push_back(std::move(entry));
   }
   std::move(callback).Run(std::move(entries));

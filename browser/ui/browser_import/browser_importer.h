@@ -39,6 +39,8 @@ struct ProfileOverview {
   // What can come along on this platform.
   bool history = false;
   bool passwords = false;
+  // Why some of it can't be read, if so (Safari without Full Disk Access).
+  std::string note;
 };
 
 // The profiles of other browsers on this computer, for |target| (whose

@@ -16,6 +16,8 @@ source_set("browser_import") {
     "firefox_reader.h",
     "profile_reader.cc",
     "profile_reader.h",
+    "safari_reader.cc",
+    "safari_reader.h",
     "source.cc",
     "source.h",
     "space_import.cc",
@@ -34,7 +36,10 @@ source_set("browser_import") {
     "//url",
   ]
   if (is_mac) {
-    sources += [ "chromium_crypto_mac.mm" ]
+    sources += [
+      "chromium_crypto_mac.mm",
+      "safari_reader_mac.mm",
+    ]
     frameworks = [
       "Foundation.framework",
       "Security.framework",
@@ -69,6 +74,7 @@ source_set("unit_tests") {
     "chromium_reader_unittest.cc",
     "detect_unittest.cc",
     "firefox_reader_unittest.cc",
+    "safari_reader_unittest.cc",
     "space_import_unittest.cc",
   ]
   deps = [

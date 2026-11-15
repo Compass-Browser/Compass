@@ -29,11 +29,13 @@ enum class Browser {
   kVivaldi,
   kFirefox,
   kZen,
+  // macOS only.
+  kSafari,
 };
 
 inline constexpr Browser kAllBrowsers[] = {
-    Browser::kChrome,  Browser::kEdge,    Browser::kBrave,
-    Browser::kVivaldi, Browser::kFirefox, Browser::kZen,
+    Browser::kChrome,  Browser::kEdge, Browser::kBrave,  Browser::kVivaldi,
+    Browser::kFirefox, Browser::kZen,  Browser::kSafari,
 };
 
 // As the page and the spaces name it: "Chrome", "Edge", ...

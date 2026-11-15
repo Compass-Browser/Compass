@@ -591,6 +591,8 @@ struct BrowserImportProfile {
   // History and passwords can come along on this platform.
   bool history;
   bool passwords;
+  // Why some of it can't be read, if so; empty otherwise.
+  string note;
 };
 
 // What to bring from one profile.

@@ -14,6 +14,7 @@
 #include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/browser_import/chromium_reader.h"
 #include "compass/browser/browser_import/firefox_reader.h"
+#include "compass/browser/browser_import/safari_reader.h"
 
 namespace compass::browser_import {
 
@@ -91,6 +92,45 @@ void ReadFirefoxProfile(const SourceProfile& profile,
                                 session ? &*session : nullptr, options.tabs);
 }
 
+#if BUILDFLAG(IS_MAC)
+void ReadSafariProfile(const SourceProfile& profile,
+                       const ReadOptions& options,
+                       ProfileData& data) {
+  std::vector<arc::Item> bookmarks;
+  bool unreadable = false;
+  if (options.bookmarks) {
+    std::optional<base::DictValue> plist =
+        ReadPlist(profile.path.AppendASCII("Bookmarks.plist"));
+    if (plist) {
+      bookmarks =
+          ParseSafariBookmarks(*plist, base::StrCat({profile.id, ":"}));
+    } else {
+      unreadable = true;
+    }
+  }
+  std::vector<SessionTab> tabs;
+  if (options.tabs) {
+    for (const base::FilePath& path : SafariLastSessionPaths(profile.path)) {
+      if (std::optional<base::DictValue> plist = ReadPlist(path)) {
+        tabs = ParseSafariLastSession(*plist);
+        break;
+      }
+    }
+  }
+  data.sidebar = SafariSidebar(profile, std::move(bookmarks), tabs);
+  if (options.history) {
+    const base::FilePath history = profile.path.AppendASCII("History.db");
+    data.history = ReadSafariHistory(history, kMaxHistoryEntries);
+    unreadable |= data.history.empty() && !base::PathIsReadable(history);
+  }
+  if (unreadable) {
+    data.problems.push_back(
+        "Compass needs Full Disk Access to read Safari's bookmarks and "
+        "history (System Settings, Privacy & Security, Full Disk Access).");
+  }
+}
+#endif
+
 }  // namespace
 
 ProfileData::ProfileData() = default;
@@ -106,6 +146,11 @@ ProfileData ReadProfile(const SourceProfile& profile,
   } else if (IsFirefoxBased(profile.browser)) {
     ReadFirefoxProfile(profile, options, data);
   }
+#if BUILDFLAG(IS_MAC)
+  if (profile.browser == Browser::kSafari) {
+    ReadSafariProfile(profile, options, data);
+  }
+#endif
   return data;
 }
 
@@ -123,6 +168,8 @@ bool CanImportPasswords(Browser browser) {
     return true;
 #endif
   }
+  // Safari's are in the Keychain (or iCloud Keychain), which Compass can't
+  // read; Safari exports them to a file instead.
   return IsChromiumBased(browser);
 }
 

@@ -59,7 +59,11 @@ std::vector<Found> FindProfiles() {
     entry.overview.history = CanImportHistory(profile.browser);
     entry.overview.passwords = CanImportPasswords(profile.browser);
     // Only the sidebar: no Keychain prompt, no history yet.
-    entry.sidebar = ReadProfile(profile, ReadOptions()).sidebar;
+    ProfileData data = ReadProfile(profile, ReadOptions());
+    entry.sidebar = std::move(data.sidebar);
+    if (!data.problems.empty()) {
+      entry.overview.note = data.problems.front();
+    }
     for (const arc::Space& space : entry.sidebar.spaces) {
       entry.overview.spaces.push_back(space.name);
       entry.overview.bookmarks += CountTabs(space.pinned);
@@ -128,6 +132,9 @@ password_manager::PasswordForm ToPasswordForm(const LoginEntry& login) {
 }
 
 history::VisitSource VisitSourceFor(Browser browser) {
+  if (browser == Browser::kSafari) {
+    return history::SOURCE_SAFARI_IMPORTED;
+  }
   // Chromium has no source for Chromium-based browsers; an "imported" one
   // keeps the visits apart from browsing.
   return history::SOURCE_IE_IMPORTED;
@@ -259,6 +266,8 @@ class Importer : public importer::ImporterProgressObserver {
     }
     summary.passwords = static_cast<int>(data_.logins.size());
     summary.passwords_skipped = data_.logins_skipped;
+    summary.problems.insert(summary.problems.end(), data_.problems.begin(),
+                            data_.problems.end());
     if (data_.no_password_key) {
       summary.problems.push_back(
           "Its passwords couldn't be read: Compass wasn't given the key " +

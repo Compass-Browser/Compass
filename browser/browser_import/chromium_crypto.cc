@@ -69,6 +69,7 @@ std::string_view KeychainService(Browser browser) {
       return "Vivaldi Safe Storage";
     case Browser::kFirefox:
     case Browser::kZen:
+    case Browser::kSafari:
       return "";
   }
 }

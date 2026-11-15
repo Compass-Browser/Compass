@@ -104,6 +104,17 @@ void AddFirefoxProfiles(Browser browser,
   }
 }
 
+// Safari has one profile Compass reads, its default one.
+void AddSafariProfile(const base::FilePath& root,
+                      std::vector<SourceProfile>& out) {
+  SourceProfile profile;
+  profile.browser = Browser::kSafari;
+  profile.path = root;
+  profile.root = root;
+  profile.id = base::StrCat({BrowserKey(Browser::kSafari), ":Default"});
+  out.push_back(std::move(profile));
+}
+
 }  // namespace
 
 std::vector<BrowserRoot> CandidateRoots() {
@@ -139,6 +150,8 @@ std::vector<BrowserRoot> CandidateRoots() {
     roots.push_back({Browser::kFirefox, Join(support, {"Firefox"})});
     roots.push_back({Browser::kZen, Join(support, {"zen"})});
   }
+  roots.push_back(
+      {Browser::kSafari, Join(base::GetHomeDir(), {"Library", "Safari"})});
 #elif BUILDFLAG(IS_LINUX)
   const base::FilePath home = base::GetHomeDir();
   const base::FilePath config = home.AppendASCII(".config");
@@ -188,6 +201,8 @@ std::vector<SourceProfile> DetectProfiles() {
       AddChromiumProfiles(root.browser, root.root, profiles);
     } else if (IsFirefoxBased(root.browser)) {
       AddFirefoxProfiles(root.browser, root.root, profiles);
+    } else if (root.browser == Browser::kSafari) {
+      AddSafariProfile(root.root, profiles);
     }
     if (profiles.size() > before) {
       found.insert(root.browser);

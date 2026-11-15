@@ -39,6 +39,8 @@ struct ProfileData {
   int logins_skipped = 0;
   // Passwords were asked for but the browser's key couldn't be read.
   bool no_password_key = false;
+  // What couldn't be read, in words for the page.
+  std::vector<std::string> problems;
 };
 
 // Reads |profile| as |options| say. Blocking (and, for passwords on macOS,

@@ -25,6 +25,8 @@ std::u16string BrowserName(Browser browser) {
       return u"Firefox";
     case Browser::kZen:
       return u"Zen";
+    case Browser::kSafari:
+      return u"Safari";
   }
 }
 
@@ -42,6 +44,8 @@ std::string_view BrowserKey(Browser browser) {
       return "firefox";
     case Browser::kZen:
       return "zen";
+    case Browser::kSafari:
+      return "safari";
   }
 }
 
@@ -63,6 +67,7 @@ bool IsChromiumBased(Browser browser) {
       return true;
     case Browser::kFirefox:
     case Browser::kZen:
+    case Browser::kSafari:
       return false;
   }
 }

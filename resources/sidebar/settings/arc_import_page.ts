@@ -153,6 +153,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     details.textContent = profile.running ?
         `${profile.browser} is open. Quit it to import from it.` :
         profile.imported ? 'Imported already.' :
+        profile.note     ? profile.note :
                            counts.join(' \u00b7 ');
     text.append(name, details);
     label.append(input, text);
