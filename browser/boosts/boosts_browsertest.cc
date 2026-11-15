@@ -68,7 +68,7 @@ class BoostsBrowserTest : public InProcessBrowserTest {
     WaitForStore();
   }
 
-  Profile* profile() { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
   BoostStore* store() { return BoostStore::Get(profile()); }
   content::WebContents* contents() {
     return browser()->tab_strip_model()->GetActiveWebContents();
@@ -270,8 +270,8 @@ IN_PROC_BROWSER_TEST_F(BoostToolsBrowserTest, SaveBoost) {
   // JavaScript: asked, every time, with the code shown.
   claude::ToolResult with_js =
       Run("save_boost", R"({"id": ")" + id +
-                            R"(", "name": "Colors", "match": "a.test",
-                            "js": "console.log('boost')"})");
+                            R"x(", "name": "Colors", "match": "a.test",
+                            "js": "console.log('boost')"})x");
   ASSERT_FALSE(with_js.is_error) << Text(with_js);
   ASSERT_EQ(requests_.size(), 1u);
   EXPECT_TRUE(requests_[0].always_ask);
@@ -295,8 +295,8 @@ IN_PROC_BROWSER_TEST_F(BoostToolsBrowserTest, SaveBoost) {
   allow_ = false;
   claude::ToolResult denied =
       Run("save_boost", R"({"id": ")" + id +
-                            R"(", "name": "Colors", "match": "a.test",
-                            "js": "alert(1)"})");
+                            R"x(", "name": "Colors", "match": "a.test",
+                            "js": "alert(1)"})x");
   EXPECT_TRUE(denied.is_error);
   EXPECT_EQ(requests_.size(), 2u);
   EXPECT_EQ(store()->Find(id)->js, "console.log('boost')");

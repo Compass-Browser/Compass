@@ -84,10 +84,11 @@ base::DictValue Listed(const boosts::Boost& boost, bool with_code) {
                              .Set("author", boost.author)
                              .Set("js_world", boost.js_world);
   if (with_code) {
-    dict.Set("css", boost.css).Set("js", boost.js);
+    dict.Set("css", boost.css);
+    dict.Set("js", boost.js);
   } else {
-    dict.Set("css_chars", static_cast<int>(boost.css.size()))
-        .Set("js_chars", static_cast<int>(boost.js.size()));
+    dict.Set("css_chars", static_cast<int>(boost.css.size()));
+    dict.Set("js_chars", static_cast<int>(boost.js.size()));
   }
   return dict;
 }
