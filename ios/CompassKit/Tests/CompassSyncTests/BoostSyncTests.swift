@@ -73,10 +73,15 @@ struct BoostSyncTests {
     let b = bridge()
     b.boostsChanged([sample])
     #expect(b.mirror[sample.id]?.boost.js == sample.js)
+    await b.flush()
+    #expect(await b.engine.hasPendingChanges)
+    #expect(await b.engine.knownTags(.compassSpaces).contains(sample.id))
+    // Gone here: deleted from the account (never committed, so it just
+    // goes).
     b.boostsChanged([])
     #expect(b.mirror[sample.id] == nil)
     await b.flush()
-    #expect(await b.engine.hasPendingChanges)
+    #expect(await !b.engine.knownTags(.compassSpaces).contains(sample.id))
   }
 
   @Test func remoteChangesArrive() {
@@ -101,11 +106,13 @@ struct BoostSyncTests {
     var older = sample
     older.name = "older"
     older.updateTime = sample.updateTime - 1
-    #expect(!list.applyRemote([older], deleted: []))
+    let ok1 = !list.applyRemote([older], deleted: [])
+    #expect(ok1)
     var newer = sample
     newer.name = "newer"
     newer.updateTime = sample.updateTime + 1
-    #expect(list.applyRemote([newer], deleted: []))
+    let ok2 = list.applyRemote([newer], deleted: [])
+    #expect(ok2)
     #expect(list.find(sample.id)?.name == "newer")
   }
 }

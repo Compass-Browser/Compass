@@ -108,7 +108,8 @@ struct BoostListTests {
     #expect(made.name == "Hide ads" && made.match == "example.com" && made.author == .claude)
     #expect(made.jsWorld == .isolated && made.enabled && made.js.isEmpty)
     #expect(made.createTime == Boost.windowsMicros(now) && made.updateTime == made.createTime)
-    #expect(list.put(made))
+    let ok1 = list.put(made)
+    #expect(ok1)
 
     // Absent fields stay; an update is newer, keeps its author.
     let later = now.addingTimeInterval(10)
@@ -124,9 +125,11 @@ struct BoostListTests {
 
     list.put(edited)
     #expect(list.matching(URL(string: "https://www.example.com/")!).map(\.id) == [made.id])
-    let removed = try #require(list.remove(made.id))
+    let removedBoost = list.remove(made.id)
+    let removed = try #require(removedBoost)
     #expect(list.boosts.isEmpty)
-    #expect(list.restore(removed, now: now))
+    let ok2 = list.restore(removed, now: now)
+    #expect(ok2)
     #expect(list.find(made.id)?.js == "x()")
     #expect(list.find(made.id)!.updateTime >= removed.updateTime)
   }
@@ -151,12 +154,14 @@ struct BoostListTests {
     var list = BoostList()
     for i in 0..<BoostList.maxBoosts {
       let boost = try list.resolve(BoostDraft(name: "b\(i)", match: "a.com"), author: .user).get()
-      #expect(list.put(boost))
+      let ok3 = list.put(boost)
+      #expect(ok3)
     }
     #expect(list.resolve(BoostDraft(name: "one more", match: "a.com"), author: .user) == .failure(.full))
     // Sync isn't capped.
     let remote = Boost(name: "remote", match: "a.com", createTime: 5, updateTime: 5)
-    #expect(list.applyRemote([remote], deleted: []))
+    let ok4 = list.applyRemote([remote], deleted: [])
+    #expect(ok4)
     #expect(list.boosts.count == BoostList.maxBoosts + 1)
   }
 
@@ -189,14 +194,19 @@ struct BoostListTests {
   @Test func applyRemoteLaterWins() {
     let id = UUID().uuidString.lowercased()
     var list = BoostList(boosts: [Boost(id: id, name: "local", match: "a.com", createTime: 1, updateTime: 10)])
-    #expect(!list.applyRemote([Boost(id: id, name: "older", match: "a.com", createTime: 1, updateTime: 5)], deleted: []))
+    let ok5 = !list.applyRemote([Boost(id: id, name: "older", match: "a.com", createTime: 1, updateTime: 5)], deleted: [])
+    #expect(ok5)
     #expect(list.find(id)?.name == "local")
-    #expect(list.applyRemote([Boost(id: id, name: "newer", match: "a.com", createTime: 1, updateTime: 20)], deleted: []))
+    let ok6 = list.applyRemote([Boost(id: id, name: "newer", match: "a.com", createTime: 1, updateTime: 20)], deleted: [])
+    #expect(ok6)
     #expect(list.find(id)?.name == "newer")
     // Invalid ones are ignored: not a UUID, a pattern not normalized.
-    #expect(!list.applyRemote([Boost(id: "x", name: "bad", match: "a.com")], deleted: []))
-    #expect(!list.applyRemote([Boost(name: "bad", match: "A.com")], deleted: []))
-    #expect(list.applyRemote([], deleted: [id]))
+    let ok7 = !list.applyRemote([Boost(id: "x", name: "bad", match: "a.com")], deleted: [])
+    #expect(ok7)
+    let ok8 = !list.applyRemote([Boost(name: "bad", match: "A.com")], deleted: [])
+    #expect(ok8)
+    let ok9 = list.applyRemote([], deleted: [id])
+    #expect(ok9)
     #expect(list.boosts.isEmpty)
   }
 

@@ -96,6 +96,7 @@ private struct BoostRow: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
+      .accessibilityIdentifier("BoostRow")
       Toggle(
         "Enabled",
         isOn: Binding(get: { boost.enabled }, set: { BoostStore.shared.setEnabled(boost.id, $0) })
@@ -238,6 +239,10 @@ struct SiteBoostsView: View {
       Section {
         ForEach(boosts) { boost in
           BoostRow(boost: boost) { editing = EditorTarget(boost: boost, match: boost.match) }
+        }
+        .onDelete { offsets in
+          for id in offsets.map({ boosts[$0].id }) { store.remove(id) }
+          reload()
         }
         Button {
           editing = EditorTarget(boost: nil, match: suggested)
