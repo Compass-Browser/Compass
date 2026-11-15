@@ -10,8 +10,8 @@ same page.
 
 Move to Compass from the browsers people use without losing their place:
 bookmarks, the tabs they have open, browsing history and saved passwords,
-and, for browsers with spaces of their own (Zen, Vivaldi's workspaces),
-those spaces.
+and, for browsers with spaces of their own (Zen, Vivaldi's workspaces,
+Safari's tab groups), those spaces.
 
 Decisions:
 
@@ -23,8 +23,8 @@ Decisions:
 - **Bookmarks as Pinned folders.** The bookmark tree becomes Pinned's tree;
   the bookmarks bar's entries come first, at the top level, then the
   browser's other roots ("Other bookmarks", "Bookmarks Menu"...) as folders.
-- **Spaces stay spaces.** Zen's spaces and Vivaldi's workspaces each become
-  a Compass space, as Arc's do.
+- **Spaces stay spaces.** Zen's spaces, Vivaldi's workspaces and Safari's
+  tab groups each become a Compass space, as Arc's do.
 - **History and passwords through Chromium.** They go into Compass's
   history and password store through upstream's `ProfileWriter`, the way
   chrome://settings/importData writes them; Firefox's and Zen's go through
@@ -138,12 +138,49 @@ them.
 | Data | File | Read as |
 |---|---|---|
 | Bookmarks | `~/Library/Safari/Bookmarks.plist` (`WebBookmarkTypeList` with `Title` and `Children`, `WebBookmarkTypeLeaf` with `URLString` and `URIDictionary.title`; top-level lists `BookmarksBar`, `BookmarksMenu`, `com.apple.ReadingList`) | `ReadPlist()`, `ParseSafariBookmarks()` |
-| Last session's tabs | `LastSession.plist` (`SessionWindows[].TabStates[]`: `TabURL`, `TabTitle`; `IsPrivateWindow`), in Safari's container or `~/Library/Safari` | `ParseSafariLastSession()` |
+| Last session's tabs | `LastSession.plist` (`SessionWindows[].TabStates[]`: `TabURL`, `TabTitle`; `IsPrivateWindow`), in Safari's container or `~/Library/Safari`; where there's none (recent Safari), SafariTabs.db's windows (below) | `ParseSafariLastSession()`, `ReadSafariTabs()` |
+| Tab groups | `SafariTabs.db` (SQLite, Safari 15 and later) in Safari's container (`~/Library/Containers/com.apple.Safari/Data/Library/Safari`), or `~/Library/Safari` | `ReadSafariTabs()` |
 | History | `~/Library/Safari/History.db` (`history_items`, `history_visits`; times in seconds since 2001) | `ReadSafariHistory()` |
 
 `ReadPlist()` turns a property list into `base::Value`s, so the parsing
-runs, and is tested, on every platform. `~/Library/Safari` is protected:
-Compass needs Full Disk Access to read it; without it the page says so.
+runs, and is tested, on every platform. `~/Library/Safari` and Safari's
+container are protected: Compass needs Full Disk Access to read them;
+without it the page says so.
+
+**SafariTabs.db** keeps tabs as bookmarks, in a `bookmarks` table
+(`id`, `parent`, `type` 0 for a tab and 1 for a folder, `subtype`,
+`special_id`, `hidden`, `deleted`, `order_index`, `external_uuid`, `title`,
+`url`, and binary-plist `extra_attributes`/`local_attributes`), as Safari's
+own queries (in its WebBookmarks framework) read it:
+
+- Root is row 0 (`parent` NULL). Under it, with `type` 1, `special_id` 0:
+  the **tab groups** of the default profile (`subtype` 0, `hidden` 0, in
+  `order_index` order) and the **profiles** (`subtype` 2; the default one
+  has an empty title and `external_uuid` "DefaultProfile"; its symbol is
+  `SymbolImageName` in `extra_attributes`, its color a keyed-archived
+  `ProfileColor` in the `settings` table). Another profile's groups are
+  its children (or in a `subtype` 3 list under it).
+- A group's **tabs** are its `type` 0 children (title and URL in their
+  columns; a new tab has an empty URL). A pinned tab's attributes carry
+  `PinnedAddress` and `PinnedTitle` (the page it was pinned at). Its
+  start page's favorites are in a child folder titled
+  `TopScopedBookmarkList`.
+- Safari's own lists have no parent: `pinned` and `privatePinned` (the
+  pinned tabs of windows outside tab groups), `recentlyClosed`, a hidden
+  `Recovered` one, and each window's unnamed groups (`Local`, `Private`).
+  The `windows` table names each window's (`local_tab_group_id`,
+  `private_tab_group_id`, the group it shows in `active_tab_group_id`,
+  `date_closed`, `is_last_session`).
+
+`ReadSafariTabs()` reads every row not `deleted` once and walks the tree:
+named groups (the default profile's, then each other profile's), and the
+open windows' tabs (`pinned`'s children, then each window's `Local`
+group; private ones left out). The pinned flag is found by looking for
+`PinnedAddress` in the attributes' bytes, so nothing there is decoded and
+the reader is tested on every platform. The layout is from Safari's
+schema and queries and a Safari install's structure (no data); a filled
+tab group, and its pinned tabs and favorites in particular, haven't been
+checked against a real install yet.
 
 ### Dia
 
@@ -173,6 +210,7 @@ Dia install lays them out (structure only).
 | Pinned tabs (Chrome, Edge, Brave, Vivaldi, Firefox, Safari) | Today, first, as they were |
 | Dia's pinned tabs | Pinned, after the bookmarks |
 | Vivaldi workspace | A space of its own (name, emoji), with its tabs in Today |
+| Safari tab group | A space of its own, after the "Safari" space, named after the group ("<group> – <profile>" for a profile other than the default), in a palette color no space has: its tabs in Today in Safari's order, pinned ones first; its start page's favorites in Pinned. Empty groups are left out |
 | Zen space | A space of its own: name, emoji icon, theme colors (the first gradient color as the space's, up to two more as its gradient) |
 | Zen pinned tabs and folders | That space's Pinned, folders nested; a pinned tab at the page it was pinned at, with the user's name for it |
 | Zen split view in a folder | A split |
@@ -186,8 +224,9 @@ Not imported: cookies (other browsers' cookies would have to be written
 into Compass's live cookie store, and Chrome's are app-bound on Windows;
 Arc's come along only because an Arc profile becomes a new Compass
 profile before it loads), extensions, settings, autofill, open windows'
-layout, Firefox containers, Zen's Boosts and Mods, Safari's tab groups
-(SafariTabs.db), Safari profiles other than the default, Safari's passwords
+layout, Firefox containers, Zen's Boosts and Mods, Safari profiles other
+than the default (their tab groups aside: bookmarks, history, open
+windows), Safari profiles' symbols and colors, Safari's passwords
 (in the Keychain), Firefox's and Zen's passwords on macOS (upstream's
 Firefox importer doesn't decrypt them there).
 
@@ -242,7 +281,8 @@ Unit (`compass_unittests`), with synthetic profiles
 (`browser/browser_import/test_fixtures.{h,cc}`: Bookmarks JSON, session
 files built from upstream's session commands, History and Login Data
 databases, places.sqlite, session stores and Zen's sidebar state as
-mozLz4, Safari's plists as values):
+mozLz4, Safari's plists as values; SafariTabs.db is written in
+`safari_reader_unittest.cc`):
 `ChromiumReaderTest.*`, `ChromiumCryptoTest.*`, `DetectTest.*`,
 `FirefoxReaderTest.*`, `SafariReaderTest.*`, `SpaceImportTest.*`.
 
@@ -258,4 +298,6 @@ the page.
 - Dia on Windows: its folder is a guess.
 - Firefox's passwords on macOS: upstream's importer doesn't do them;
   reading `logins.json` with the profile's `key4.db` (NSS) would.
-- Safari's tab groups (SafariTabs.db) as spaces.
+- Safari's tab groups against a real install with filled groups: pinned
+  tabs in a group (`PinnedAddress`) and the start page's favorites
+  (`TopScopedBookmarkList`) are inferred from Safari's schema, not seen.

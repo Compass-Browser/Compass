@@ -109,15 +109,34 @@ void ReadSafariProfile(const SourceProfile& profile,
     }
   }
   std::vector<SessionTab> tabs;
+  std::vector<SafariTabGroup> groups;
   if (options.tabs) {
+    bool have_session = false;
     for (const base::FilePath& path : SafariLastSessionPaths(profile.path)) {
       if (std::optional<base::DictValue> plist = ReadPlist(path)) {
         tabs = ParseSafariLastSession(*plist);
+        have_session = true;
         break;
       }
     }
+    // Tab groups, and (where Safari keeps no LastSession.plist) the open
+    // windows' tabs.
+    for (const base::FilePath& path : SafariTabsPaths(profile.path)) {
+      if (!base::PathExists(path)) {
+        continue;
+      }
+      if (std::optional<SafariTabs> safari_tabs = ReadSafariTabs(path)) {
+        groups = std::move(safari_tabs->groups);
+        if (!have_session) {
+          tabs = std::move(safari_tabs->open_tabs);
+        }
+      } else {
+        unreadable |= !base::PathIsReadable(path);
+      }
+      break;
+    }
   }
-  data.sidebar = SafariSidebar(profile, std::move(bookmarks), tabs);
+  data.sidebar = SafariSidebar(profile, std::move(bookmarks), tabs, groups);
   if (options.history) {
     const base::FilePath history = profile.path.AppendASCII("History.db");
     data.history = ReadSafariHistory(history, kMaxHistoryEntries);
@@ -125,8 +144,9 @@ void ReadSafariProfile(const SourceProfile& profile,
   }
   if (unreadable) {
     data.problems.push_back(
-        "Compass needs Full Disk Access to read Safari's bookmarks and "
-        "history (System Settings, Privacy & Security, Full Disk Access).");
+        "Compass needs Full Disk Access to read Safari's bookmarks, tab "
+        "groups and history (System Settings, Privacy & Security, Full Disk "
+        "Access).");
   }
 }
 #endif
