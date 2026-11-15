@@ -235,7 +235,7 @@ base::expected<Boost, std::string> NormalizeBoost(Boost boost) {
   boost.match = match.ToString();
 
   std::u16string name = base::CollapseWhitespace(
-      base::UTF8ToUTF16(boost.name), /*trim_sequences_with_line_breaks=*/true);
+      base::UTF8ToUTF16(boost.name), /*trim_sequences_with_line_breaks=*/false);
   if (name.empty()) {
     name = base::UTF8ToUTF16(boost.match);
   }

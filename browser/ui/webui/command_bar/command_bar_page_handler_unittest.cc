@@ -242,6 +242,7 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
                           "command New space on this device",
                           "command Pin tab", "command Add to Favorites",
                           "command Route this site to space\u2026",
+                          "command Boost this site\u2026",
                           "command Copy URL",
                           "command Reload", "command History",
                           "command Downloads", "command Extensions",

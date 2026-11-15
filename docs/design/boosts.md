@@ -192,7 +192,11 @@ look inside `COMPASS_SPACES` (docs/design/sync.md), so it needs no change.
   `MainWorldJsSeesPageGlobals`, `DisableEditAndDelete`;
   `BoostToolsBrowserTest.SaveBoost` (CSS saves at once, JavaScript asks
   every time, a denial saves nothing, fields left out are kept, deleting
-  JavaScript asks) and `ListAndSetting`.
+  JavaScript asks) and `ListAndSetting`;
+  `SettingsSectionsBrowserTest.BoostsSection` (the menu item, `?add=`,
+  saving, the badge, the switch, Delete);
+  `CommandBarPageHandlerTest.EmptyNewEntryQueryShowsRecentEntries` lists
+  "Boost this site…".
 
 ## Not in v1
 
