@@ -7,7 +7,8 @@ feeds yet; canary builds are left out), the privacy policy (also linked from the
 app's Settings), and a changelog for each platform in `changelog/`
 (`/changelog/mac`, `/changelog/windows`, `/changelog/linux`,
 `/changelog/ios`), written by hand
-for each release.
+for each release, and `/boost` (`boost.html`), which shows a shared Boost from
+its link (docs/design/boosts.md, "Sharing") without sending it anywhere.
 
 There's no build step. To preview it, serve this folder locally:
 
@@ -15,7 +16,8 @@ There's no build step. To preview it, serve this folder locally:
 python3 -m http.server -d website 8000
 ```
 
-To publish, copy `index.html`, `privacy.html`, `compare.html`, `favicon.ico`, `compass.svg`,
+To publish, copy `index.html`, `privacy.html`, `compare.html`, `boost.html`,
+`boost.js`, `boost-page.js`, `favicon.ico`, `compass.svg`,
 `compass-256.png` and the `changelog` folder to the web server's document root.
 
 `compare.html` is made from `COMPARE.md`: after editing that, run

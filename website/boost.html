@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>A Boost for Compass Browser</title>
+<meta name="description" content="A Boost someone shared: CSS and JavaScript that Compass Browser adds to a site.">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/changelog/changelog.css">
+<style>
+  .boost-site { color: var(--muted); margin: -8px 0 20px; font-size: 18px; overflow-wrap: anywhere; }
+  .open {
+    background: color-mix(in srgb, var(--blue) 10%, transparent);
+    border-radius: 18px; padding: 18px 22px; margin: 0 0 16px;
+  }
+  .open p { margin: 0 0 10px; }
+  .open p:last-child { margin: 0; }
+  .downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+  .downloads a {
+    padding: 6px 14px; border-radius: 999px; background: var(--surface);
+    border: 1px solid var(--line); color: var(--text); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+  }
+  .warning {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-radius: 12px; padding: 12px 16px; margin: 0 0 16px;
+  }
+  h3 { font-size: 15px; margin: 16px 0 6px; }
+  article h3:first-child { margin-top: 0; }
+  pre {
+    margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--chip);
+    font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto;
+  }
+  .world { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+  .error { color: var(--accent); font-weight: 600; }
+</style>
+<script type="module" src="/boost-page.js"></script>
+</head>
+<body>
+<main>
+<p class="back"><a href="/">Compass Browser</a></p>
+
+<div id="boost" hidden>
+  <h1 id="name"></h1>
+  <p class="boost-site">for <span id="site"></span></p>
+  <div class="open">
+    <p><strong>Open this link in Compass to add this Boost.</strong> Compass shows you the Boost again and asks before adding it.</p>
+    <p class="downloads"><a href="/#download">Download Compass</a><a href="/changelog/mac">Mac</a><a href="/changelog/windows">Windows</a><a href="/changelog/linux">Linux</a></p>
+  </div>
+  <p id="warning" class="warning" hidden></p>
+  <article>
+    <div id="css-block">
+      <h3>CSS</h3>
+      <pre id="css"></pre>
+    </div>
+    <div id="js-block">
+      <h3>JavaScript</h3>
+      <pre id="js"></pre>
+      <p id="world" class="world"></p>
+    </div>
+  </article>
+</div>
+
+<div id="about">
+  <h1>Boosts</h1>
+  <p id="error" class="error" hidden></p>
+  <p class="intro">A Boost changes how a site looks or works: CSS and JavaScript that Compass Browser adds to every page of that site. Make one in Compass (Settings &rarr; Boosts, or &ldquo;Boost this site&rdquo; in the command bar), or ask Claude to make one. Share a Boost from its Share button, and whoever opens the link in Compass can add it.</p>
+  <p class="intro">A shared Boost travels inside its link, after the <code>#</code>, which browsers never send to a server: this page reads it on your device.</p>
+  <p class="downloads"><a href="/#download">Download Compass</a></p>
+</div>
+</main>
+</body>
+</html>
