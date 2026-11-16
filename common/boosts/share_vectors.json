@@ -1,0 +1,88 @@
+[
+  {
+    "name": "css_and_isolated_js",
+    "json": "{\"v\":1,\"name\":\"Quieter GitHub ✨\",\"match\":\"github.com\",\"css\":\"header .AppHeader-globalBar { display: none !important; }\\n\",\"js\":\"document.title = '🧭 ' + document.title;\\n\",\"js_world\":\"isolated\"}",
+    "fragment": "VYy9CsIwFIVf5Zqlg1pwbXHQxa7ugtwmoY3kj-RGkdI3ERx18aV8Ah_BKC5uh_Od7wzsyKrFjFk0klVsm5QkGWCjqEktPC93NmMGifcZdor61JbcmVzyGHPVSxR5Xq68b75x3mnXol5jgAGEil7juQLrrISJMt4FQks1jDubPw6fC-F4MtJSSYq0hCUUr-vtAQVM4R_VP2d_ckGLbKroNJIUbHwD",
+    "expected": {
+      "name": "Quieter GitHub ✨",
+      "match": "github.com",
+      "css": "header .AppHeader-globalBar { display: none !important; }\n",
+      "js": "document.title = '🧭 ' + document.title;\n",
+      "js_world": "isolated"
+    }
+  },
+  {
+    "name": "css_only_match_normalized",
+    "json": "{\"v\":1,\"name\":\"\",\"match\":\"https://www.Example.com/docs/*\",\"css\":\"body { font-size: 18px; }\"}",
+    "fragment": "DcpLCoAgEADQq8gswxR3YesOYmoY5AdmyEq8e-7e4jW4QSsOyUQPGoBDNGTDYCAqqKWstYrtMbFcXtgcpcsW5TSiRRxtz-5ljR050Yzn5zVTS3lW1qH_",
+    "expected": {
+      "name": "example.com/docs",
+      "match": "example.com/docs",
+      "css": "body { font-size: 18px; }",
+      "js": "",
+      "js_world": "isolated"
+    }
+  },
+  {
+    "name": "main_world_unknown_keys",
+    "json": "{\"v\":1,\"name\":\"Main world\",\"match\":\"*.example.org\",\"js\":\"window.compassBoosted = true;\",\"js_world\":\"main\",\"id\":\"ignored\",\"author\":\"claude\",\"enabled\":false,\"future\":{\"x\":1}}",
+    "fragment": "Jc5LCsMwDATQqwQtizF069JN9z1DUW0lcbGt4E8cCLl7lXYnnoZhdljBXBUkjAQGnujT0DkHBwoiVjsLXjRtGJdAmvMk_imC3SfHXVuOC5byYC6V3HAfam50-4Ve_x4jPT6J-PP2U-JMZzu2OnMWsgGbIxFK-A7yMyOGQgrGVluWVTtssvE4vg",
+    "expected": {
+      "name": "Main world",
+      "match": "*.example.org",
+      "css": "",
+      "js": "window.compassBoosted = true;",
+      "js_world": "main"
+    }
+  },
+  {
+    "name": "newer_version",
+    "fragment": "q1YqU7Iy0lHKS8xNVbJS8kksSS1S0lHKTSxJzgDyUysScwtyUvWS83OBosnFxUCxxOpapVoA",
+    "error": "newer"
+  },
+  {
+    "name": "no_version",
+    "fragment": "q1bKS8xNVbJSqlDSUcpNLEnOALJTKxJzC3JS9ZLzc4GiycXFQLHE6lqlWgA",
+    "error": "invalid"
+  },
+  {
+    "name": "decompression_bomb",
+    "fragment": "7cgxCoNAEEDRq8jUErC19CabZSGFowFDCIh3d0-R6r3u_zO-MU9jbCVbzLHs-Ywxsnzqq2f7lXyv7VH37LceR38DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH9RziuuGw",
+    "error": "too_big"
+  },
+  {
+    "name": "not_base64url",
+    "fragment": "not*base64!",
+    "error": "invalid"
+  },
+  {
+    "name": "not_deflate",
+    "fragment": "_____yBub3QgZGVmbGF0ZQ",
+    "error": "invalid"
+  },
+  {
+    "name": "not_json",
+    "fragment": "qy7JyCxWyCzOUy9RyCrOzwMA",
+    "error": "invalid"
+  },
+  {
+    "name": "bad_match",
+    "fragment": "q1YqU7Iy1FHKS8xNVbJSqlDSUcpNLEnOALLTSgqs9PVTKxJzC3JS9ZLzc4FyycXFQJnE6lqlWgA",
+    "error": "refused"
+  },
+  {
+    "name": "nothing_to_run",
+    "fragment": "q1YqU7Iy1FHKS8xNVbJSqlDSUcpNLEnOALJTKxJzC3JS9ZLzc5VqAQ",
+    "error": "refused"
+  },
+  {
+    "name": "name_too_long",
+    "fragment": "q1YqU7Iy1FHKS8xNVbJSyqMHUNJRyk0sSc4A2pdakZhbkJOql5yfCxRNLi4GiiVW1yrVAgA",
+    "error": "refused"
+  },
+  {
+    "name": "code_over_256_kb",
+    "fragment": "7cjBCQIxAEXBXv55EbymmxgCIkaFiCyIvZsSPMvM6fHeeaUct9zq6CnZs2XUZzuv7nsdj2s_tPtYt825XgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOCvZMtlpuQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_yOcL",
+    "error": "refused"
+  }
+]
