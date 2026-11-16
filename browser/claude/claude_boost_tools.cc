@@ -65,6 +65,8 @@ std::string WorldName(const boosts::Boost& boost) {
 // Whether saving |boost| over |before| (none: new) gives JavaScript to run
 // that the user hasn't allowed: new or other code, another world, other
 // sites, or a disabled Boost turned on. Taking JavaScript out never asks.
+// Who made the Boost doesn't matter: Claude's own, the user's and one
+// shared with the user (author "shared") all ask alike.
 bool NeedsApproval(const boosts::Boost& boost,
                    const std::optional<boosts::Boost>& before) {
   if (IsBlank(boost.js) || !boost.enabled) {

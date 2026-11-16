@@ -707,7 +707,8 @@ struct LinkRule {
 };
 
 // A Boost (docs/design/boosts.md): CSS and JavaScript for the pages |match|
-// covers. |js_world| is "isolated" or "main"; |author| "user" or "claude".
+// covers. |js_world| is "isolated" or "main"; |author| "user", "claude" or
+// "shared" (added from someone's link or file).
 struct Boost {
   string id;
   string name;
@@ -731,6 +732,26 @@ interface SettingsHandler {
   SaveBoost(Boost boost) => (Boost? saved, string error);
   SetBoostEnabled(string id, bool enabled) => ();
   DeleteBoost(string id) => ();
+
+  // Sharing (docs/design/boosts.md, "Sharing"). The link that shares |id|
+  // (https://compassbrowser.org/boost#…), or empty when there's no such
+  // Boost or the link would be over 64 KB (share a file then).
+  GetBoostShareLink(string id) => (string link);
+  // Copies that link. False if there's none.
+  CopyBoostShareLink(string id) => (bool copied);
+  // Asks where to save |id| as <name>.compassboost and saves it there.
+  // False if the user canceled or it couldn't be written.
+  SaveBoostFile(string id) => (bool saved);
+  // Asks for a .compassboost file: its Boost as a link's |payload| (the
+  // part after "#"), for PreviewSharedBoost(); empty if canceled, with
+  // |error| when the file isn't a Boost.
+  ChooseBoostFile() => (string payload, string error);
+  // What a link's |payload| would add, checked as a save is: the Boost
+  // (no id, the author "shared"), or null and why not.
+  PreviewSharedBoost(string payload) => (Boost? boost, string error);
+  // Adds |payload|'s Boost as a new one, on, the author "shared". Never
+  // replaces a Boost. The saved Boost, or null and why not.
+  AddSharedBoost(string payload) => (Boost? saved, string error);
 
   // Link routing (compass://settings/links): the profile's rules, by domain,
   // and its spaces in the switcher's order.

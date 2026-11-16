@@ -253,7 +253,7 @@ base::expected<Boost, std::string> NormalizeBoost(Boost boost) {
     return base::unexpected(
         "js_world is \"isolated\" (the default) or \"main\".");
   }
-  if (boost.author != kAuthorClaude) {
+  if (boost.author != kAuthorClaude && boost.author != kAuthorShared) {
     boost.author = kAuthorUser;
   }
   if (base::TrimWhitespaceASCII(boost.css, base::TRIM_ALL).empty() &&

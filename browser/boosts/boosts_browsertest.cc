@@ -321,6 +321,29 @@ IN_PROC_BROWSER_TEST_F(BoostToolsBrowserTest, SaveBoost) {
   EXPECT_EQ(requests_.size(), 4u);
 }
 
+// A Boost someone shared: Claude changing its JavaScript asks, as for any
+// other, and the Boost stays the shared one.
+IN_PROC_BROWSER_TEST_F(BoostToolsBrowserTest, SharedBoostAsksForJs) {
+  Boost shared;
+  shared.match = "a.test";
+  shared.js = "console.log('shared')";
+  shared.author = kAuthorShared;
+  base::expected<Boost, std::string> saved = store()->Save(shared);
+  ASSERT_TRUE(saved.has_value());
+  EXPECT_EQ(saved->author, kAuthorShared);
+
+  claude::ToolResult changed =
+      Run("save_boost", R"({"id": ")" + saved->id +
+                            R"x(", "name": "a.test", "match": "a.test",
+                            "js": "console.log('claude')"})x");
+  ASSERT_FALSE(changed.is_error) << Text(changed);
+  ASSERT_EQ(requests_.size(), 1u);
+  EXPECT_NE(requests_[0].detail.find("console.log('shared')"),
+            std::string::npos);
+  EXPECT_EQ(store()->Find(saved->id)->author, kAuthorShared);
+  EXPECT_EQ(store()->Find(saved->id)->js, "console.log('claude')");
+}
+
 IN_PROC_BROWSER_TEST_F(BoostToolsBrowserTest, ListAndSetting) {
   EXPECT_EQ(Text(Run("list_boosts", "{}")), "No Boosts yet.");
   Save("*.a.test", kCss);

@@ -8,15 +8,22 @@
 #include <memory>
 #include <utility>
 
+#include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/browser/ui/webui/theme_source.h"
+#include "compass/browser/boosts/boost_share.h"
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/link_rules.h"
@@ -27,12 +34,15 @@
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
 #include "content/public/browser/url_data_source.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 #include "ui/webui/webui_util.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -257,13 +267,17 @@ void CompassSettingsUI::BindInterface(
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver) {
   handler_.reset();
   handler_ = std::make_unique<ShortcutsPageHandler>(
-      Profile::FromWebUI(web_ui()), std::move(receiver));
+      Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
+      std::move(receiver));
 }
 
 ShortcutsPageHandler::ShortcutsPageHandler(
     Profile* profile,
+    content::WebContents* web_contents,
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
-    : profile_(profile), receiver_(this, std::move(receiver)) {
+    : profile_(profile),
+      web_contents_(web_contents),
+      receiver_(this, std::move(receiver)) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   // The windows follow what changes here.
   BrowserViewAccelerators::Watch();
@@ -273,6 +287,9 @@ ShortcutsPageHandler::ShortcutsPageHandler(
 ShortcutsPageHandler::~ShortcutsPageHandler() {
   // The page went away while recording.
   SetRecording(false);
+  if (file_dialog_) {
+    file_dialog_->ListenerDestroyed();
+  }
 }
 
 void ShortcutsPageHandler::GetShortcuts(GetShortcutsCallback callback) {
@@ -542,6 +559,191 @@ void ShortcutsPageHandler::DeleteBoost(const std::string& id,
     store->Remove(id);
   }
   std::move(callback).Run();
+}
+
+// Sharing Boosts (docs/design/boosts.md, "Sharing") ---------------------------
+
+namespace {
+
+std::string ReadBoostFile(const base::FilePath& path) {
+  // One byte over the limit is enough to refuse it as too big.
+  std::string contents;
+  base::ReadFileToStringWithMaxSize(path, &contents,
+                                    boosts::kMaxSharedBoostBytes + 1);
+  return contents;
+}
+
+bool WriteBoostFile(const base::FilePath& path, const std::string& json) {
+  return base::WriteFile(path, json);
+}
+
+}  // namespace
+
+std::string ShortcutsPageHandler::ShareLinkFor(const std::string& id) {
+  boosts::BoostStore* store = GetBoostStore();
+  const boosts::Boost* boost = store ? store->Find(id) : nullptr;
+  if (!boost) {
+    return std::string();
+  }
+  std::string link = boosts::ShareLink(*boost);
+  return link.size() > boosts::kMaxShareLinkBytes ? std::string() : link;
+}
+
+void ShortcutsPageHandler::GetBoostShareLink(
+    const std::string& id,
+    GetBoostShareLinkCallback callback) {
+  std::move(callback).Run(ShareLinkFor(id));
+}
+
+void ShortcutsPageHandler::CopyBoostShareLink(
+    const std::string& id,
+    CopyBoostShareLinkCallback callback) {
+  const std::string link = ShareLinkFor(id);
+  if (!link.empty()) {
+    ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
+        .WriteText(base::UTF8ToUTF16(link));
+  }
+  std::move(callback).Run(!link.empty());
+}
+
+void ShortcutsPageHandler::SaveBoostFile(const std::string& id,
+                                         SaveBoostFileCallback callback) {
+  boosts::BoostStore* store = GetBoostStore();
+  const boosts::Boost* boost = store ? store->Find(id) : nullptr;
+  if (!boost || file_dialog_ || !web_contents_) {
+    // One dialog at a time; none without the page's window.
+    std::move(callback).Run(false);
+    return;
+  }
+  file_json_ = boosts::ToSharedJson(*boost, /*pretty=*/true);
+  save_callback_ = std::move(callback);
+  ui::SelectFileDialog::FileTypeInfo types;
+  types.extensions = {{FILE_PATH_LITERAL("compassboost")}};
+  types.extension_description_overrides = {u"Compass Boost"};
+  file_dialog_ = ui::SelectFileDialog::Create(
+      this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
+  file_dialog_->SelectFile(
+      ui::SelectFileDialog::SELECT_SAVEAS_FILE, u"Save Boost",
+      DownloadPrefs::FromBrowserContext(profile_)->DownloadPath().Append(
+          base::FilePath::FromUTF8Unsafe(boosts::ShareFileName(*boost))),
+      &types, /*file_type_index=*/1, FILE_PATH_LITERAL("compassboost"),
+      web_contents_->GetTopLevelNativeWindow());
+}
+
+void ShortcutsPageHandler::ChooseBoostFile(ChooseBoostFileCallback callback) {
+  if (file_dialog_ || !web_contents_) {
+    std::move(callback).Run(std::string(), std::string());
+    return;
+  }
+  choose_callback_ = std::move(callback);
+  ui::SelectFileDialog::FileTypeInfo types;
+  types.extensions = {{FILE_PATH_LITERAL("compassboost")}};
+  types.extension_description_overrides = {u"Compass Boost"};
+  types.include_all_files = true;
+  file_dialog_ = ui::SelectFileDialog::Create(
+      this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
+  file_dialog_->SelectFile(
+      ui::SelectFileDialog::SELECT_OPEN_FILE, u"Import a Boost",
+      DownloadPrefs::FromBrowserContext(profile_)->DownloadPath(), &types,
+      /*file_type_index=*/1, base::FilePath::StringType(),
+      web_contents_->GetTopLevelNativeWindow());
+}
+
+void ShortcutsPageHandler::FileSelected(const ui::SelectedFileInfo& file,
+                                        int index) {
+  file_dialog_.reset();
+  if (save_callback_) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(&WriteBoostFile, file.path(), std::move(file_json_)),
+        std::move(save_callback_));
+    file_json_.clear();
+    return;
+  }
+  if (choose_callback_) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(&ReadBoostFile, file.path()),
+        base::BindOnce(&ShortcutsPageHandler::OnBoostFileRead,
+                       weak_factory_.GetWeakPtr()));
+  }
+}
+
+void ShortcutsPageHandler::FileSelectionCanceled() {
+  file_dialog_.reset();
+  file_json_.clear();
+  if (save_callback_) {
+    std::move(save_callback_).Run(false);
+  }
+  if (choose_callback_) {
+    std::move(choose_callback_).Run(std::string(), std::string());
+  }
+}
+
+void ShortcutsPageHandler::OnBoostFileRead(std::string contents) {
+  if (!choose_callback_) {
+    return;
+  }
+  base::expected<boosts::Boost, boosts::ShareError> boost =
+      boosts::ParseSharedJson(contents);
+  if (!boost.has_value()) {
+    std::move(choose_callback_).Run(std::string(), boost.error().message);
+    return;
+  }
+  // The same preview as a link's.
+  std::move(choose_callback_).Run(boosts::EncodeShareFragment(*boost),
+                                  std::string());
+}
+
+void ShortcutsPageHandler::PreviewSharedBoost(
+    const std::string& payload,
+    PreviewSharedBoostCallback callback) {
+  boosts::BoostStore* store = GetBoostStore();
+  if (!store) {
+    std::move(callback).Run(nullptr, "Boosts aren't available here.");
+    return;
+  }
+  base::expected<boosts::Boost, boosts::ShareError> boost =
+      boosts::DecodeShareFragment(payload);
+  if (!boost.has_value()) {
+    std::move(callback).Run(nullptr, boost.error().message);
+    return;
+  }
+  if (store->boosts().size() >= boosts::kMaxBoosts) {
+    std::move(callback).Run(
+        nullptr, base::StrCat({"There are already ",
+                               base::NumberToString(boosts::kMaxBoosts),
+                               " Boosts. Delete one that's no longer needed "
+                               "first."}));
+    return;
+  }
+  std::move(callback).Run(ToMojo(*boost), std::string());
+}
+
+void ShortcutsPageHandler::AddSharedBoost(const std::string& payload,
+                                          AddSharedBoostCallback callback) {
+  boosts::BoostStore* store = GetBoostStore();
+  if (!store) {
+    std::move(callback).Run(nullptr, "Boosts aren't available here.");
+    return;
+  }
+  base::expected<boosts::Boost, boosts::ShareError> boost =
+      boosts::DecodeShareFragment(payload);
+  if (!boost.has_value()) {
+    std::move(callback).Run(nullptr, boost.error().message);
+    return;
+  }
+  // No id: always a new Boost, never one that's there.
+  boost->id.clear();
+  boost->enabled = true;
+  boost->author = boosts::kAuthorShared;
+  base::expected<boosts::Boost, std::string> saved =
+      store->Save(std::move(*boost));
+  if (!saved.has_value()) {
+    std::move(callback).Run(nullptr, saved.error());
+    return;
+  }
+  std::move(callback).Run(ToMojo(*saved), std::string());
 }
 
 }  // namespace compass

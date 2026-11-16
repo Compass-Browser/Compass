@@ -11,14 +11,21 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 
 class Profile;
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace compass {
 
@@ -60,10 +67,13 @@ std::vector<ListedShortcut> ListShortcuts();
 // "Customizing".
 // Keyboard shortcuts (docs/design/shortcuts.md) and, for |profile|, links
 // from other apps (docs/design/link-routing.md).
-class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
+class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler,
+                             public ui::SelectFileDialog::Listener {
  public:
+  // |web_contents|: the page's, for the file dialogs Boosts' sharing opens.
   ShortcutsPageHandler(
       Profile* profile,
+      content::WebContents* web_contents,
       mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver);
   ShortcutsPageHandler(const ShortcutsPageHandler&) = delete;
   ShortcutsPageHandler& operator=(const ShortcutsPageHandler&) = delete;
@@ -98,8 +108,27 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
                        SetBoostEnabledCallback callback) override;
   void DeleteBoost(const std::string& id,
                    DeleteBoostCallback callback) override;
+  void GetBoostShareLink(const std::string& id,
+                         GetBoostShareLinkCallback callback) override;
+  void CopyBoostShareLink(const std::string& id,
+                          CopyBoostShareLinkCallback callback) override;
+  void SaveBoostFile(const std::string& id,
+                     SaveBoostFileCallback callback) override;
+  void ChooseBoostFile(ChooseBoostFileCallback callback) override;
+  void PreviewSharedBoost(const std::string& payload,
+                          PreviewSharedBoostCallback callback) override;
+  void AddSharedBoost(const std::string& payload,
+                      AddSharedBoostCallback callback) override;
+
+  // ui::SelectFileDialog::Listener:
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void FileSelectionCanceled() override;
 
  private:
+  // The share link for |id|, if there's such a Boost and the link isn't too
+  // long.
+  std::string ShareLinkFor(const std::string& id);
+  void OnBoostFileRead(std::string contents);
   // The profile's spaces, if it has them (not off the record: the rules
   // are the original profile's).
   SpaceList* GetSpaceList();
@@ -107,8 +136,16 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler {
   boosts::BoostStore* GetBoostStore();
 
   const raw_ptr<Profile> profile_;
+  const raw_ptr<content::WebContents> web_contents_;
   bool recording_ = false;
+  // The file dialog open for sharing, one at a time: saving |file_json_|,
+  // or choosing a file to import.
+  scoped_refptr<ui::SelectFileDialog> file_dialog_;
+  std::string file_json_;
+  SaveBoostFileCallback save_callback_;
+  ChooseBoostFileCallback choose_callback_;
   mojo::Receiver<sidebar::mojom::SettingsHandler> receiver_;
+  base::WeakPtrFactory<ShortcutsPageHandler> weak_factory_{this};
 };
 
 // chrome://compass-settings (compass://compass-settings): the keyboard

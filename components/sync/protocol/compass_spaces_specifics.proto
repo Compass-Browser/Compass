@@ -248,7 +248,9 @@ message CompassBoost {
   // Where `js` runs: "isolated" (also absent or unknown) or "main".
   optional string js_world = 6;
   optional bool enabled = 7;
-  // Who made it: "user" or "claude".
+  // Who made it: "user", "claude" or "shared" (added from a link or a file
+  // someone shared; docs/design/boosts.md, "Sharing"). Clients keep a value
+  // they don't know as it is.
   optional string author = 8;
   // In microseconds since the Windows epoch, as CompassMemory's.
   optional int64 create_time = 9;

@@ -35,9 +35,11 @@ namespace compass::boosts {
 // "isolated" and "main": where a Boost's JavaScript runs.
 inline constexpr char kIsolatedWorld[] = "isolated";
 inline constexpr char kMainWorld[] = "main";
-// Who made a Boost.
+// Who made a Boost: the user, Claude, or someone who shared it with the
+// user (added from a link or a file; docs/design/boosts.md, "Sharing").
 inline constexpr char kAuthorUser[] = "user";
 inline constexpr char kAuthorClaude[] = "claude";
+inline constexpr char kAuthorShared[] = "shared";
 
 // A Boost's CSS and JavaScript together, at most, in bytes.
 inline constexpr size_t kMaxBoostBytes = 256 * 1024;
@@ -66,7 +68,7 @@ struct Boost {
   // runs as isolated.
   std::string js_world = kIsolatedWorld;
   bool enabled = true;
-  // kAuthorUser or kAuthorClaude: who made it.
+  // kAuthorUser, kAuthorClaude or kAuthorShared: who made it.
   std::string author = kAuthorUser;
   base::Time created;
   base::Time updated;

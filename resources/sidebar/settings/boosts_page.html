@@ -136,6 +136,89 @@
     padding: 4px 14px;
   }
 
+  .compass-page .boosts-share {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 0 10px 34px;
+  }
+
+  .compass-page .boosts-page .boosts-share button {
+    padding: 4px 14px;
+  }
+
+  .compass-page .boosts-share-note {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .compass-page .boosts-import {
+    border-top: 1px solid var(--color-sys-divider,
+        var(--cr-separator-color, rgba(0, 0, 0, 0.12)));
+    margin: 14px 0 0;
+    padding: 14px 0 0;
+  }
+
+  .compass-page .boosts-import h3 {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 0 10px;
+  }
+
+  .compass-page .boosts-import dl {
+    display: grid;
+    gap: 4px 12px;
+    grid-template-columns: max-content 1fr;
+    margin: 0 0 10px;
+  }
+
+  .compass-page .boosts-import dt {
+    opacity: 0.6;
+  }
+
+  .compass-page .boosts-import dd {
+    font-weight: 500;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .compass-page .boosts-code-label {
+    display: block;
+    font-size: 12px;
+    margin: 10px 0 4px;
+  }
+
+  .compass-page .boosts-code {
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    border-radius: 8px;
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 12px;
+    margin: 0 0 4px;
+    max-height: 320px;
+    overflow: auto;
+    padding: 8px 10px;
+    tab-size: 2;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .compass-page .boosts-import .boosts-hint {
+    font-size: 12px;
+    opacity: 0.6;
+  }
+
+  .compass-page .boosts-warning {
+    background: var(--color-sys-error-container,
+        var(--cr-fallback-color-error-container, #f9dedc));
+    border-radius: 8px;
+    color: var(--color-sys-on-error-container, #410e0b);
+    font-size: 13px;
+    margin: 0 0 6px;
+    padding: 8px 12px;
+  }
+
   .compass-page .boosts-note {
     color: var(--color-sys-error, var(--cr-fallback-color-error, #b3261e));
     font-size: 12px;
@@ -148,7 +231,8 @@
     adds to every page of a site, on all your devices. Make them here, or
     ask Claude (turn on "Let Claude make Boosts" in Claude's settings).
     JavaScript in a Boost can read and change the pages it runs on, so only
-    keep code you trust.
+    keep code you trust. Share a Boost as a link or a file; Boosts others
+    share with you are marked Shared.
   </p>
   <ul id="boosts" class="boosts-list"></ul>
   <p id="noBoosts" class="boosts-empty" hidden>No Boosts yet.</p>
@@ -186,7 +270,35 @@
       </button>
     </div>
   </form>
+  <section id="boostImport" class="boosts-import" hidden
+      aria-labelledby="importHeading">
+    <h3 id="importHeading">Add a shared Boost</h3>
+    <div id="importDetails">
+      <dl>
+        <dt>Name</dt>
+        <dd id="importName"></dd>
+        <dt>Site</dt>
+        <dd id="importMatch"></dd>
+      </dl>
+      <p id="importWarning" class="boosts-warning" hidden></p>
+      <div id="importCssBlock">
+        <span class="boosts-code-label">CSS</span>
+        <pre id="importCss" class="boosts-code"></pre>
+      </div>
+      <div id="importJsBlock">
+        <span class="boosts-code-label">JavaScript</span>
+        <pre id="importJs" class="boosts-code"></pre>
+        <span id="importWorld" class="boosts-hint"></span>
+      </div>
+    </div>
+    <p id="importNote" class="boosts-note" hidden></p>
+    <div class="boosts-buttons">
+      <button id="confirmImport">Add Boost</button>
+      <button id="cancelImport" class="secondary">Cancel</button>
+    </div>
+  </section>
   <div class="boosts-buttons">
     <button id="addBoost" class="secondary">Add Boost</button>
+    <button id="importBoost" class="secondary">Import…</button>
   </div>
 </div>

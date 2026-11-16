@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 1e352a02e9720c91917e329c22674fdd33451f4b..fbf306b137a4f00a5de0576dce149f9edc64d9da 100644
+index 1e352a02e9720c91917e329c22674fdd33451f4b..200432d1b7431f767a218087bff0fb2d8902a581 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -614,6 +614,8 @@ if (!is_android) {
@@ -45,12 +45,13 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..fbf306b137a4f00a5de0576dce149f9e
    if (is_mac) {
      deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
    }
-@@ -1437,6 +1452,12 @@ source_set("tab_helpers_impl") {
+@@ -1437,6 +1452,13 @@ source_set("tab_helpers_impl") {
      "//ui/accessibility:ax_base",
      "//ui/webui:buildflags",
    ]
 +  if (!is_android) {
 +    deps += [
++      "//compass/browser/boosts:link",
 +      "//compass/browser/picture_in_picture:call_pip",
 +      "//compass/browser/web_store",
 +    ]
@@ -58,7 +59,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..fbf306b137a4f00a5de0576dce149f9e
  
    if (is_android) {
      deps += [
-@@ -1506,6 +1527,8 @@ if (!is_android) {
+@@ -1506,6 +1528,8 @@ if (!is_android) {
    source_set("core") {
      sources = [ "browser.cc" ]
      deps = [

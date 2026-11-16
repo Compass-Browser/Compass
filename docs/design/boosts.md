@@ -22,7 +22,7 @@ A Boost is:
 | `js` | run at document idle |
 | `js_world` | `"isolated"` (default) or `"main"` |
 | `enabled` | |
-| `author` | `"user"` or `"claude"`: who made it; edits don't change it |
+| `author` | `"user"`, `"claude"` or `"shared"` (added from someone's link or file, see Sharing): who made it; edits don't change it; a value a client doesn't know is kept |
 | `create_time`, `update_time` | microseconds since the Windows epoch, as `CompassMemory`'s |
 
 Limits: 256 KB of CSS and JavaScript together per Boost, 200 Boosts per
@@ -113,7 +113,9 @@ A section of chrome://settings, **Boosts** (`/boosts`, after Links from
 Other Apps; `resources/sidebar/settings/boosts_page.{ts,html}` on
 `CompassSettingsPage`, with the route, router, menu and main patches; see
 settings.md). The Boosts are listed by site, each with a switch, its kinds
-(CSS, JavaScript), a "by Claude" badge for Claude's, Edit and Delete. The
+(CSS, JavaScript), a "by Claude" badge for Claude's and "Shared" for
+shared ones, Share, Edit and Delete; Import… is next to Add Boost (see
+Sharing). The
 editor has the name, the site pattern (with what it covers), the CSS and
 the JavaScript in monospace text areas (Tab indents) and where the
 JavaScript runs. `?add=<host>` opens the editor on a host (or its Boost if
@@ -134,6 +136,97 @@ the header that shows Boosts are active on the page and turns them off for
 the tab (it needs per-tab state the content scripts don't have; a later
 version could match the tab's URL against the store and reload without the
 extension's scripts).
+
+## Sharing
+
+A Boost can be shared as a link or a file and added by whoever opens it,
+on any Compass client. The format is the same everywhere (desktop:
+`browser/boosts/boost_share.{h,cc}`, target `:share`; iOS has its own
+codec), and every client tests against the vectors in
+`common/boosts/share_vectors.json`.
+
+**Shared JSON**, UTF-8:
+`{"v":1,"name":…,"match":…,"css":…,"js":…,"js_world":"isolated"|"main"}`.
+`css`, `js` and `js_world` may be absent (desktop leaves out an empty
+`css` or `js`, and `js_world` without `js`). No id, author, times or
+`enabled`: those belong to the profile that adds it. Readers ignore keys
+they don't know; a `v` other than 1 is refused ("This Boost was made by a
+newer Compass"). Key order and escaping don't matter (desktop's JSON writer
+escapes `<` as `<`; iOS doesn't escape `/`).
+
+**Link:** `https://compassbrowser.org/boost#` followed by base64url
+(RFC 4648 §5, no padding; readers accept padding) of the raw DEFLATE
+(RFC 1951, no zlib or gzip header) of the compact JSON. The payload is only
+in the fragment, which browsers never send, so it never reaches a server.
+Readers also accept `www.compassbrowser.org`, `/boost/` and `/boost.html`.
+A link over 64 KB isn't offered: share a file.
+
+**Test vectors** (`common/boosts/share_vectors.json`): a JSON array. Each
+entry has a `name` and a `fragment`. One that decodes also has `json`, the
+JSON its fragment holds (as a string), and `expected`, the Boost it adds
+once normalized; encoders may write other bytes, so tests compare by
+decoding. One that must fail has `error` instead: `newer` (`v` isn't 1),
+`too_big` (over 512 KB decompressed), `invalid` (not a shared Boost) or
+`refused` (the rules for saving a Boost).
+
+**File:** `<name>.compassboost` (characters file systems refuse become
+`-`), the same JSON pretty-printed, uncompressed. MIME type
+`application/vnd.compassbrowser.boost+json`, UTType
+`org.compassbrowser.boost`.
+
+**Adding one** is the same as saving a Boost (`NormalizeBoost()`: the match
+normalized, the 100-character name, a Boost needs CSS or JavaScript, 256 KB
+of code, the 200-Boost count), and more than 512 KB decompressed (or a file
+over 512 KB) is refused before parsing, as a decompression bomb guard. It
+always goes through a preview the user confirms: the name, the site, the
+full CSS and JavaScript as text, and, with JavaScript, "This Boost runs
+JavaScript on <site>. Only add it if you trust whoever shared it." and
+which world it runs in. Confirming adds a **new** Boost (a new id, on,
+author `"shared"`); it never replaces one, so the same link twice gives two.
+After that it is like any other Boost: it syncs, and the user can edit it.
+Claude's approval doesn't look at the author: changing a shared Boost's
+JavaScript asks as usual. Claude has no tool to share or import.
+
+**Desktop.**
+
+- *Share* in a Boost's row opens Copy Link (hidden, with a note, when the
+  link would be too long) and Save File… (a save dialog in Downloads).
+  `SettingsHandler`: `GetBoostShareLink()`, `CopyBoostShareLink()` (the
+  browser writes the clipboard), `SaveBoostFile()`.
+- *Links.* `BoostLinkInterceptor` (`boost_link_interceptor.{h,cc}`, target
+  `:link`), a tab helper attached by upstream's `TabHelpers` (the existing
+  `patches/chrome-browser-ui-tab_helpers.cc.patch` and
+  `chrome-browser-ui-BUILD.gn.patch` call and depend on it), watches each
+  tab's primary main frame navigations (start and redirects). A share link
+  is stopped before it loads, and `chrome://settings/boosts?import=<payload>`
+  opens instead: in the same tab if it had nothing committed yet (a link
+  from another app, a new tab), else in a new foreground tab next to it, so
+  the page with the link stays. Both renderer-initiated (a link in a page)
+  and browser-initiated (typed, from another app) navigations are caught. A
+  payload with characters outside base64url gives an empty `import=`, which
+  the page shows as a broken link.
+- *Incognito.* The preview opens through `WebContents::OpenURL()`, and
+  `chrome::Navigate()` never opens settings off the record: it opens it in
+  a normal window of the original profile (a singleton tab), whose Boosts
+  get it. Nothing about the Boost stays in the incognito tab.
+- *Import…* opens a file dialog (`.compassboost`, or any file);
+  `ChooseBoostFile()` reads at most 512 KB on a background thread, checks
+  it, and hands the page the link payload for it, so files and links share
+  the preview (`PreviewSharedBoost()`, `AddSharedBoost()`, which decode and
+  check the payload again).
+- Not done: opening a `.compassboost` file with Compass (it needs file
+  associations in each installer and the Mac Info.plist) and dropping one
+  on a window (it would need upstream's drop handling patched). Import…
+  covers both.
+
+**Website.** `website/boost.html` (`/boost`) reads `location.hash` in the
+page (`boost.js`, with `DecompressionStream('deflate-raw')` and the same
+512 KB guard), shows the name, site, CSS and JavaScript as text only, never
+runs or inserts them, and says to open the link in Compass, with download
+links. Without a fragment, or with a broken one, it explains Boosts. It
+makes no requests (its CSP has `connect-src 'none'`) and has no analytics.
+`tools/tests/test_website_boost.py` runs `boost.js` on the shared vectors
+in Node.
 
 ## Claude
 
@@ -185,14 +278,20 @@ look inside `COMPASS_SPACES` (docs/design/sync.md), so it needs no change.
   matching, URL patterns), `NormalizeBoostTest.ChecksWhatsSaved`,
   `BoostStoreTest.*` (save, update, persist, the file's shape, limits,
   unreadable entries, sync's later-edit-wins, waiting for the file),
-  `CompassSpacesSyncBridgeTest.BoostsSync` and `BoostEntitiesAreValid`.
+  `CompassSpacesSyncBridgeTest.BoostsSync` and `BoostEntitiesAreValid`,
+  `BoostShareTest.*` (the shared vectors, round trips, the JSON's keys,
+  refusals, the 512 KB guard, link URLs and file names).
 - `compass_browsertests` (`browser/boosts/boosts_browsertest.cc`):
   `BoostsBrowserTest.CssAppliesAtDocumentStart` (the computed color at
   DOMContentLoaded), `SubdomainsAndPaths`, `IsolatedJsDoesntSeePageGlobals`,
   `MainWorldJsSeesPageGlobals`, `DisableEditAndDelete`;
   `BoostToolsBrowserTest.SaveBoost` (CSS saves at once, JavaScript asks
   every time, a denial saves nothing, fields left out are kept, deleting
-  JavaScript asks) and `ListAndSetting`;
+  JavaScript asks), `SharedBoostAsksForJs` and `ListAndSetting`;
+  `BoostShareBrowserTest.LinkInAPageOpensThePreview` (a new tab with the
+  preview, the page left alone, confirming adds a shared Boost, twice gives
+  two), `LinkInANewTab`, `BrokenLink`, `IncognitoOpensANormalWindow` and
+  `ShareCopiesALinkThatDecodes`;
   `SettingsSectionsBrowserTest.BoostsSection` (the menu item, `?add=`,
   saving, the badge, the switch, Delete);
   `CommandBarPageHandlerTest.EmptyNewEntryQueryShowsRecentEntries` lists
