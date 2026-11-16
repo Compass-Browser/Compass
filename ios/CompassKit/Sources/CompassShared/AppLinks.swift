@@ -25,6 +25,9 @@ public enum AppLinks {
     /// Cancelled; iOS opens the app that claims the link (a universal
     /// link), else the tab loads it after all.
     case tryUniversalLink(URL)
+    /// Cancelled; the shared Boost in the link's fragment is shown, to add
+    /// or not (`boostShareFragment`), Incognito tabs too.
+    case importBoost(fragment: String)
   }
 
   /// What WebKit says about the navigation, and what the tab knows.
@@ -67,6 +70,7 @@ public enum AppLinks {
 
   public static func decide(_ n: Navigation) -> Decision {
     let scheme = n.url.scheme?.lowercased() ?? ""
+    if n.isMainFrame, let fragment = boostShareFragment(n.url) { return .importBoost(fragment: fragment) }
     if scheme.isEmpty || browserSchemes.contains(scheme) {
       return universalLink(n) ? .tryUniversalLink(n.url) : .allow
     }
@@ -84,6 +88,18 @@ public enum AppLinks {
       ["http", "https"].contains(page.scheme?.lowercased() ?? "")
     else { return false }
     return !sameSite(n.url, page)
+  }
+
+  /// A shared Boost's link (docs/design/boosts.md, "Sharing"):
+  /// https://compassbrowser.org/boost (or /boost/, /boost.html) with a
+  /// fragment, which carries the Boost. The fragment, else nil.
+  public static func boostShareFragment(_ url: URL) -> String? {
+    guard url.scheme?.lowercased() == "https", let host = url.host()?.lowercased(),
+      host == "compassbrowser.org" || host == "www.compassbrowser.org", url.port == nil, url.user() == nil,
+      ["/boost", "/boost/", "/boost.html"].contains(url.path(percentEncoded: true)),
+      let fragment = url.fragment(percentEncoded: true), !fragment.isEmpty
+    else { return nil }
+    return fragment
   }
 
   /// Same host, or one a subdomain of the other ("www." aside). No public

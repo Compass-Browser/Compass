@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import BackgroundTasks
+import CompassBoosts
 import CompassCrypto
 import CompassShared
 import CoreSpotlight
@@ -221,6 +222,17 @@ struct WindowRoot: View {
     // link routing rule; else a little window (the card, Peek.swift) over
     // whatever the window shows, where Open in <space> makes it a tab; with
     // the setting off, a new tab of the shown space.
+    // A shared Boost's link (Compass as the default browser): the preview
+    // at once, as a tab would show it.
+    if let fragment = AppLinks.boostShareFragment(url) {
+      BoostSharing.preview(fragment: fragment)
+      return
+    }
+    // A .compassboost file from Files, Mail or AirDrop.
+    if url.isFileURL, url.pathExtension.lowercased() == SharedBoost.fileExtension {
+      BoostSharing.preview(file: url)
+      return
+    }
     if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
       AppServices.shared.openLinkFromOtherApp(url, in: app)
       return

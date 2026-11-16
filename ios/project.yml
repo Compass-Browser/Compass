@@ -165,6 +165,20 @@ targets:
         # Downloads show in the Files app (Documents/Downloads).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        # Shared Boosts (docs/design/boosts.md, "Sharing"): .compassboost
+        # files open in Compass from Files, Mail and AirDrop.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Compass Boost
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes: [org.compassbrowser.boost]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: org.compassbrowser.boost
+            UTTypeDescription: Compass Boost
+            UTTypeConformsTo: [public.json]
+            UTTypeTagSpecification:
+              public.filename-extension: [compassboost]
+              public.mime-type: [application/vnd.compassbrowser.boost+json]
         CompassKeychainGroup: $(AppIdentifierPrefix)it.cipi1965.compass.shared
         # The join form's default server: COMPASS_SYNC_SERVER, set in
         # ios/Local.xcconfig (gitignored; `compass ios` passes it). Empty

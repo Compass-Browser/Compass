@@ -9,6 +9,7 @@ import SwiftUI
 /// with its switch; tap to edit, swipe to delete, + to add one.
 struct BoostsView: View {
   @State private var editing: EditorTarget?
+  @State private var importing = false
 
   private var store: BoostStore { .shared }
 
@@ -32,11 +33,15 @@ struct BoostsView: View {
           }
         }
       }
-      if !store.boosts.isEmpty {
-        Section {
-        } footer: {
-          Text(Self.about)
+      Section {
+        Button {
+          importing = true
+        } label: {
+          Label("Import from Link or File…", systemImage: "square.and.arrow.down")
         }
+        .accessibilityIdentifier("BoostsImport")
+      } footer: {
+        if !store.boosts.isEmpty { Text(Self.about) }
       }
     }
     .navigationTitle("Boosts")
@@ -51,6 +56,9 @@ struct BoostsView: View {
     }
     .sheet(item: $editing) { target in
       NavigationStack { BoostEditor(boost: target.boost, match: target.match) }
+    }
+    .sheet(isPresented: $importing) {
+      NavigationStack { BoostImportView() }
     }
   }
 
@@ -87,6 +95,7 @@ private struct BoostRow: View {
             if !boost.css.isEmpty { Text("CSS") }
             if !boost.js.isEmpty { Text(boost.jsWorld == .main ? "JS (page)" : "JS") }
             if boost.author == .claude { Label("Claude", systemImage: "sparkles") }
+            if boost.author == .shared { Label("Shared", systemImage: "person.2") }
           }
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -102,6 +111,15 @@ private struct BoostRow: View {
         isOn: Binding(get: { boost.enabled }, set: { BoostStore.shared.setEnabled(boost.id, $0) })
       )
       .labelsHidden()
+    }
+    .contextMenu { BoostShareButtons(boost: boost) }
+    .swipeActions(edge: .leading) {
+      Button {
+        BoostSharing.shareLink(boost)
+      } label: {
+        Label("Share", systemImage: "square.and.arrow.up")
+      }
+      .tint(.blue)
     }
   }
 }
@@ -167,6 +185,10 @@ struct BoostEditor: View {
           if original.author == .claude {
             Label("Made by Claude", systemImage: "sparkles").foregroundStyle(.secondary)
           }
+          if original.author == .shared {
+            Label("Shared", systemImage: "person.2").foregroundStyle(.secondary)
+              .accessibilityIdentifier("BoostSharedLabel")
+          }
           Button("Delete Boost", role: .destructive) { confirmingDelete = true }
         }
       }
@@ -179,6 +201,17 @@ struct BoostEditor: View {
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {
         Button("Cancel") { dismiss() }
+      }
+      if let original {
+        // The Boost as saved (not edits made here since).
+        ToolbarItem(placement: .primaryAction) {
+          Menu {
+            BoostShareButtons(boost: BoostStore.shared.find(original.id) ?? original)
+          } label: {
+            Label("Share", systemImage: "square.and.arrow.up")
+          }
+          .accessibilityIdentifier("BoostShare")
+        }
       }
       ToolbarItem(placement: .confirmationAction) {
         Button("Save", action: save)

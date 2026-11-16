@@ -31,6 +31,7 @@
 		1C967DE91A01640B9FCEDB3D /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E5F45F164FB346FCC2A5E35 /* manifest.json */; };
 		20FC5390B0E23578AE53F568 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6794D1252E649F6B927EAEF2 /* SearchEngine.swift */; };
 		23141F90C369B5DC02D45FD7 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = C1F5E18C01FE8E9B53C5726A /* CompassSync */; };
+		25374AD619591E0A785F35A3 /* BoostShareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E79C7A3A8E519D0FED01CB /* BoostShareTests.swift */; };
 		260F78091B521A8355230F80 /* CompassBoosts in Frameworks */ = {isa = PBXBuildFile; productRef = 1980E8CE8C789AC0100CEC88 /* CompassBoosts */; };
 		272DCD0A5FEABCFDE4F042C6 /* reader.html in Resources */ = {isa = PBXBuildFile; fileRef = 121F2E2D11833164E2ED927E /* reader.html */; };
 		2827204F714A0D874CE9DB14 /* Peek.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B64020D5018ABB32C63EBF /* Peek.swift */; };
@@ -51,6 +52,7 @@
 		445E4DD954C74DA28619C050 /* images in Resources */ = {isa = PBXBuildFile; fileRef = 7A263C425888FF1A16E210FB /* images */; };
 		48C7984F94A06309C7BF16C5 /* AutoPiP.swift in Sources */ = {isa = PBXBuildFile; fileRef = C653E784866DBD8FD0997D3B /* AutoPiP.swift */; };
 		4968D00362621422D48BCA8B /* CommandBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56591060B5711506971F138C /* CommandBar.swift */; };
+		4E1DC01DA3B10B7F37934786 /* BoostSharing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4634D8BDAA2EE60FDE7B2DC7 /* BoostSharing.swift */; };
 		4FA408CE7C5ACAE6EAF6D738 /* StartScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF087B09F1E59FE957A0DB0 /* StartScreenTests.swift */; };
 		52CAE07BC110A1BA1D083B48 /* BoostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2288FA33F3EB3596A5878C2A /* BoostStore.swift */; };
 		53FC4E8AFD76D21BB8E10B22 /* DownloadActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217A2B9DD3B37AE3A8F454AC /* DownloadActivityAttributes.swift */; };
@@ -217,6 +219,7 @@
 		0CCF6B36608F188B62BBA5B9 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceWidget.swift; sourceTree = "<group>"; };
 		0DED477E2FD46B08248E91DD /* PushService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PushService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		10E79C7A3A8E519D0FED01CB /* BoostShareTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostShareTests.swift; sourceTree = "<group>"; };
 		121F2E2D11833164E2ED927E /* reader.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = reader.html; sourceTree = "<group>"; };
 		12C73A507682F7CC7AA86E87 /* SentTabNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentTabNotifications.swift; sourceTree = "<group>"; };
 		14E7D81BB646C68E067A7734 /* reader.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = reader.css; sourceTree = "<group>"; };
@@ -248,6 +251,7 @@
 		40E0A58F6209D1FDB5E4BF4A /* AutoFill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutoFill.entitlements; sourceTree = "<group>"; };
 		422BACAC56A4986C56AD585E /* ClaudeTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeTools.swift; sourceTree = "<group>"; };
 		44957DA68D5128D0EA074A29 /* DesktopViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopViewport.swift; sourceTree = "<group>"; };
+		4634D8BDAA2EE60FDE7B2DC7 /* BoostSharing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostSharing.swift; sourceTree = "<group>"; };
 		47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsTests.swift; sourceTree = "<group>"; };
 		4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsActions.swift; sourceTree = "<group>"; };
@@ -441,6 +445,7 @@
 			children = (
 				A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */,
 				5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */,
+				10E79C7A3A8E519D0FED01CB /* BoostShareTests.swift */,
 				9F4313D13751DA68130C8883 /* BoostsTests.swift */,
 				726541D9BE66CA543B0C251A /* CollapseBarTests.swift */,
 				D248EE47245F87391C4DDC09 /* DownloadsTests.swift */,
@@ -485,6 +490,7 @@
 			isa = PBXGroup;
 			children = (
 				0BA66EDD62DA7EDDCAE8EC28 /* BoostInjector.swift */,
+				4634D8BDAA2EE60FDE7B2DC7 /* BoostSharing.swift */,
 				2288FA33F3EB3596A5878C2A /* BoostStore.swift */,
 				40590731E81A5477EA1EB9E0 /* BoostsView.swift */,
 			);
@@ -1056,6 +1062,7 @@
 				B159BC77B926F2ED10CD78EC /* AppServices.swift in Sources */,
 				48C7984F94A06309C7BF16C5 /* AutoPiP.swift in Sources */,
 				60D32768A50D0D762FDB522C /* BoostInjector.swift in Sources */,
+				4E1DC01DA3B10B7F37934786 /* BoostSharing.swift in Sources */,
 				52CAE07BC110A1BA1D083B48 /* BoostStore.swift in Sources */,
 				1A57273DD4D0DCACDB91A21E /* BoostsView.swift in Sources */,
 				F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */,
@@ -1154,6 +1161,7 @@
 			files = (
 				D4D41D0A674BE84B26C94009 /* AppLinksUITests.swift in Sources */,
 				C1495ED7DCCFC3B6C7173330 /* AutoPiPTests.swift in Sources */,
+				25374AD619591E0A785F35A3 /* BoostShareTests.swift in Sources */,
 				86684A54CA9356438E5AEAAC /* BoostsTests.swift in Sources */,
 				F4617C5B4269A2A19EB32B09 /* CollapseBarTests.swift in Sources */,
 				8DAFAAAC75CDF3AB68D09D02 /* DownloadsTests.swift in Sources */,

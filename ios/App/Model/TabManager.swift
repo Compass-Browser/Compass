@@ -717,6 +717,11 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         webView.load(request)
       }
       return true
+    case .importBoost(let fragment):
+      // A shared Boost's link: the preview, to add it or not (Incognito
+      // tabs too; it goes to the Boosts all the same).
+      BoostSharing.preview(fragment: fragment, incognito: !webView.configuration.websiteDataStore.isPersistent)
+      return true
     }
   }
 

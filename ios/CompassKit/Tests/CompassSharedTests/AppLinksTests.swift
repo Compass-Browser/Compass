@@ -98,6 +98,31 @@ final class AppLinksTests: XCTestCase {
     XCTAssertEqual(decide("https://open.spotify.com/", main: false), .allow)
   }
 
+  /// A shared Boost's link opens the preview instead of the page: tapped
+  /// or not, Incognito too, in the main frame only.
+  func testBoostShareLinks() {
+    for link in [
+      "https://compassbrowser.org/boost#abc-_1", "https://compassbrowser.org/boost/#abc-_1",
+      "https://compassbrowser.org/boost.html#abc-_1", "https://www.compassbrowser.org/boost#abc-_1",
+      "HTTPS://CompassBrowser.org/boost#abc-_1", "https://compassbrowser.org/boost?ref=x#abc-_1",
+    ] {
+      XCTAssertEqual(decide(link), .importBoost(fragment: "abc-_1"), link)
+      XCTAssertEqual(decide(link, tap: false, incognito: true), .importBoost(fragment: "abc-_1"), link)
+      XCTAssertEqual(decide(link, page: nil), .importBoost(fragment: "abc-_1"), link)
+    }
+    XCTAssertEqual(decide("https://compassbrowser.org/boost#abc", main: false), .allow)
+    for link in [
+      "https://compassbrowser.org/boost", "https://compassbrowser.org/boost#", "http://compassbrowser.org/boost#abc",
+      "https://compassbrowser.org/boosts#abc", "https://compassbrowser.org/boost/x#abc",
+      "https://compassbrowser.org/#abc", "https://compassbrowser.org:8443/boost#abc",
+      "https://user@compassbrowser.org/boost#abc", "https://compassbrowser.org.example.com/boost#abc",
+      "https://example.com/boost#abc", "compass://boost#abc",
+    ] {
+      XCTAssertNil(AppLinks.boostShareFragment(URL(string: link)!), link)
+    }
+    XCTAssertEqual(decide("https://compassbrowser.org/boost", tap: false), .allow)
+  }
+
   func testSameSite() {
     XCTAssertTrue(AppLinks.sameSite(URL(string: "https://WWW.Example.com/")!, page))
     XCTAssertTrue(AppLinks.sameSite(URL(string: "https://example.com./")!, page))

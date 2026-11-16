@@ -15,9 +15,10 @@ public struct Boost: Codable, Equatable, Sendable, Identifiable {
     case isolated, main
   }
 
-  /// Who made the Boost.
+  /// Who made the Boost: by hand, Claude, or added from a Boost someone
+  /// shared (SharedBoost).
   public enum Author: String, Codable, Sendable {
-    case user, claude
+    case user, claude, shared
   }
 
   /// A lowercase UUID; also its sync client tag.
