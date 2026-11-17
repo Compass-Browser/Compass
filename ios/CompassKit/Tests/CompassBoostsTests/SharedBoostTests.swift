@@ -208,7 +208,12 @@ struct SharedBoostTests {
       if let json {
         #expect(decoded == SharedBoost.decode(json: json), "\(entry["name"] ?? fragment)")
       }
-      if entry["error"] != nil || entry["valid"] as? Bool == false {
+      if entry["error"] as? String == "refused" {
+        // It decodes, but adding it breaks a save rule (match, name, size,
+        // nothing to run): refused by resolveShared, as on the desktop.
+        let shared = try #require(try? decoded.get(), "\(entry["name"] ?? fragment)")
+        #expect((try? BoostList().resolveShared(shared).get()) == nil, "\(entry["name"] ?? fragment)")
+      } else if entry["error"] != nil || entry["valid"] as? Bool == false {
         #expect((try? decoded.get()) == nil, "\(entry["name"] ?? fragment)")
       } else if json != nil {
         #expect((try? decoded.get()) != nil, "\(entry["name"] ?? fragment)")
