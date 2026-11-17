@@ -225,7 +225,15 @@ fun CardRow(
     ) {
         icon()
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Its own color: outside a Surface (the command bar draws a plain background)
+            // LocalContentColor is black.
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (subtitle.isNotEmpty()) {
                 Text(
                     subtitle,
