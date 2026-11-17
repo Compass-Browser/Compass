@@ -1,0 +1,13 @@
+diff --git a/gin/v8_platform_page_allocator.cc b/gin/v8_platform_page_allocator.cc
+index 46a517bc009fe9527d78ae720263def21e9b2d23..6f78b873854f82621f9ea582b155023f857a9cf2 100644
+--- a/gin/v8_platform_page_allocator.cc
++++ b/gin/v8_platform_page_allocator.cc
+@@ -17,7 +17,7 @@ namespace {
+ 
+ template <typename T>
+ T IfBtiEnabledOr(T enabled_value, T disabled_value) {
+-#if defined(__ARM_FEATURE_BTI_DEFAULT)
++#if defined(__ARM_FEATURE_BTI_DEFAULT) && !defined(COMPASS_V8_WITHOUT_BTI)
+   return base::CPU::GetInstanceNoAllocation().has_bti() ? enabled_value
+                                                         : disabled_value;
+ #else

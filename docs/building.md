@@ -284,6 +284,18 @@ What makes the Mac host work:
     Linux host toolchains only to speed up `gn gen`;
   - `build-config-android-config.gni.patch` lists the JDK's `.so` files as
     build inputs only on a Linux host (the Mac JDK has `.dylib`s).
+  - The gin patches keep V8's code pages unguarded by BTI. On an
+    Apple silicon host `build/config/arm.gni` sets
+    `arm_control_flow_integrity = "none"`, so `mksnapshot` writes builtins
+    without BTI landing pads, but clang turns BTI on by default for
+    `aarch64-linux-android`, so gin's page allocator would map V8's code
+    with BTI on CPUs that have it (Tensor G3 and other Armv9 cores; Apple
+    silicon emulators don't). The first JavaScript then dies of SIGILL in
+    `JSEntry` (the crash's `pst` has BTYPE set). With no branch protection,
+    `gin-BUILD.gn.patch` defines `COMPASS_V8_WITHOUT_BTI` and
+    `gin-v8_platform_page_allocator.cc.patch` then never asks for BTI pages.
+    (A compile flag on gin doesn't work: clang refuses the precompiled
+    modules built with the default branch protection.)
 - **Fix-ups** that `compass gen` and `compass build` apply to the checkout
   after every sync (`tools/compass_tool/android.py`):
   - the Mac JDK is a bundle, so its `Contents/Home/*` is linked into

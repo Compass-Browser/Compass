@@ -1,0 +1,22 @@
+diff --git a/gin/BUILD.gn b/gin/BUILD.gn
+index ac87f68f7ed7cb3eb20d505a59b5edb9f74b4280..ea2537948c93dda37fde1aafdd8e78a511357f54 100644
+--- a/gin/BUILD.gn
++++ b/gin/BUILD.gn
+@@ -115,6 +115,17 @@ component("gin") {
+     frameworks = [ "CoreFoundation.framework" ]
+   }
+ 
++  # Compass: without branch protection (an Apple silicon host,
++  # build/config/arm.gni) V8's builtins have no BTI landing pads, so V8's
++  # code mustn't be guarded with BTI (v8_platform_page_allocator.cc;
++  # docs/building.md, "Android from a Mac").
++  if (current_cpu == "arm64") {
++    import("//build/config/arm.gni")
++    if (arm_control_flow_integrity == "none") {
++      defines += [ "COMPASS_V8_WITHOUT_BTI" ]
++    }
++  }
++
+   configs += [ "//v8:external_startup_data" ]
+ }
+ 
