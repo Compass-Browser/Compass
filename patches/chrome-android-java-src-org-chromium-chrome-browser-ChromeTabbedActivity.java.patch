@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index 10fca9f85ad296ad836e55f5a420667d32c50181..6066b59ddbe92d1d87afb004611e55c1c041eb0b 100644
+index 10fca9f85ad296ad836e55f5a420667d32c50181..71b7455ade184ed5aa4c5e99fefb65b23a41e11d 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -53,6 +53,7 @@ import androidx.lifecycle.LifecycleRegistry;
@@ -20,7 +20,23 @@ index 10fca9f85ad296ad836e55f5a420667d32c50181..6066b59ddbe92d1d87afb004611e55c1
      // Name of the ChromeTabbedActivity alias that handles MAIN intents.
      public static final String MAIN_LAUNCHER_ACTIVITY_NAME = "com.google.android.apps.chrome.Main";
  
-@@ -1680,6 +1684,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+@@ -1622,7 +1626,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+ 
+     @Override
+     protected OneshotSupplier<ProfileProvider> createProfileProvider() {
+-        return new ActivityProfileProvider(getLifecycleDispatcher());
++        OneshotSupplier<ProfileProvider> chromes =
++                new ActivityProfileProvider(getLifecycleDispatcher());
++        // Compass: a window shows one profile's spaces (docs/design/android.md, "Profiles").
++        it.cipi1965.compass.CompassShellHook hook =
++                ServiceLoaderUtil.maybeCreate(it.cipi1965.compass.CompassShellHook.class);
++        OneshotSupplier<ProfileProvider> compass =
++                hook != null ? hook.createProfileProvider(this, getWindowId(), chromes) : null;
++        return compass != null ? compass : chromes;
+     }
+ 
+     @Override
+@@ -1680,6 +1691,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
  
              super.finishNativeInitialization();
  
@@ -35,7 +51,7 @@ index 10fca9f85ad296ad836e55f5a420667d32c50181..6066b59ddbe92d1d87afb004611e55c1
              TabbedStartupCoordinator.onNativeInitialized(originalProfile);
  
              if (BottomBarConfigUtils.shouldShowSettingsToggle(this)) {
-@@ -1992,6 +2004,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+@@ -1992,6 +2011,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
  
      @Override
      public void onNewIntentWithNative(Intent intent) {
@@ -44,7 +60,7 @@ index 10fca9f85ad296ad836e55f5a420667d32c50181..6066b59ddbe92d1d87afb004611e55c1
          try {
              TraceEvent.begin("ChromeTabbedActivity.onNewIntentWithNative");
              if (IntentHandler.isActorNotificationIntent(intent)) {
-@@ -4729,6 +4743,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+@@ -4729,6 +4750,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                  RecordUserAction.record("MobileMenuRecentEntry");
              }
          } else if (id == R.id.extensions_menu_menu_id) {
@@ -53,7 +69,7 @@ index 10fca9f85ad296ad836e55f5a420667d32c50181..6066b59ddbe92d1d87afb004611e55c1
              ExtensionsToolbarCoordinator coordinator =
                      assumeNonNull(getToolbarManager()).getExtensionsToolbarCoordinator();
              assumeNonNull(coordinator);
-@@ -5633,6 +5649,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
+@@ -5633,6 +5656,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
  
      @Override
      public boolean dispatchKeyEvent(KeyEvent event) {

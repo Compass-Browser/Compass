@@ -8,13 +8,16 @@ import android.app.Activity;
 import android.content.Intent;
 import android.view.KeyEvent;
 
+import it.cipi1965.compass.profiles.WindowProfiles;
 import it.cipi1965.compass.shell.CompassBar;
 import it.cipi1965.compass.shell.StartPage;
 
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.ServiceImpl;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 
@@ -28,6 +31,12 @@ public class CompassShellHookImpl implements CompassShellHook {
             Activity activity, BottomControlsStacker bottomControls) {
         mBar = new CompassBar((ChromeTabbedActivity) activity, bottomControls);
         mBar.attach();
+    }
+
+    @Override
+    public @Nullable OneshotSupplier<ProfileProvider> createProfileProvider(
+            Activity activity, int windowId, OneshotSupplier<ProfileProvider> chromes) {
+        return WindowProfiles.createProvider(activity, windowId, chromes);
     }
 
     @Override

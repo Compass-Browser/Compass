@@ -192,6 +192,7 @@ std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
     base::DictValue dict;
     dict.Set("own", profile == profile_);
     dict.Set("profile", base::UTF16ToUTF8(SpaceDirectory::GetProfileName(profile)));
+    dict.Set("profile_dir", profile->GetPath().BaseName().AsUTF8Unsafe());
     dict.Set("id", space->id().AsLowercaseString());
     dict.Set("name", base::UTF16ToUTF8(space->name()));
     std::string tint;

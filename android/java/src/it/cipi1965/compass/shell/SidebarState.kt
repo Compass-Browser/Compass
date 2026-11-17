@@ -26,6 +26,8 @@ class SidebarState {
         /** Its profile's name, and whether it's this window's profile (docs/design/android.md, "Profiles"). */
         @JvmField val profile: String = "",
         @JvmField val own: Boolean = true,
+        /** Its profile's directory, for the window that shows it. */
+        @JvmField val profileDir: String = "",
     )
 
     /** A folder of a space's pinned tree; |depth| 0 is in the root. */
@@ -123,6 +125,7 @@ class SidebarState {
                     SpaceTheme.fromJson(it),
                     it.optString("profile"),
                     it.optBoolean("own", true),
+                    it.optString("profile_dir"),
                 )
             }
         spaces = allSpaces.filter { it.own }

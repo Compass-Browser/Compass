@@ -47,6 +47,7 @@ source_set("spaces") {
   sources = [
     "spaces_android.cc",
     "spaces_android.h",
+    "profiles_bridge.cc",
     "spaces_bridge.cc",
     "spaces_bridge.h",
 

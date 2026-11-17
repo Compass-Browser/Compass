@@ -621,6 +621,16 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
 
     @Override
     public void onSpaceClicked(String spaceId) {
+        // A space of another profile shows in that profile's window, in place of this one
+        // (docs/design/android.md, "Profiles").
+        for (SidebarState.Space space : mState.getAllSpaces()) {
+            if (space.id.equals(spaceId) && !space.own && !space.profileDir.isEmpty()) {
+                onDismiss();
+                it.cipi1965.compass.profiles.WindowProfiles.show(
+                        mActivity, space.profileDir, spaceId);
+                return;
+            }
+        }
         mBridge.setActiveSpace(spaceId);
     }
 

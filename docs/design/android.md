@@ -180,10 +180,33 @@ It costs:
   wider gap where the profile changes, and the space header names the
   profile when there's more than one. `SidebarState.spaces` stays the
   window's profile's (moves, swipes, shortcuts), `allSpaces` is the row.
-  Still to come: a window takes the profile of the space it shows
-  (phase 2: a window per profile, brought forward in place of the other,
-  as the desktop's window swap), and Move to Profile and Settings ›
-  Profiles (phase 3).
+- **Profiles, phase 2: a window per profile.** Chrome on Android gives a
+  window one regular profile (`ActivityProfileProvider`:
+  `getLastUsedRegularProfile()`) and two tab models, so a window shows one
+  profile's spaces, and showing another profile's space swaps windows, as
+  the desktop swaps a window's view (profiles-in-place.md):
+  - `ChromeTabbedActivity.createProfileProvider()` asks
+    `CompassShellHook.createProfileProvider()` first (patch); the window
+    has its ID by then. `WindowProfiles` keeps each window's profile (its
+    directory's name, by window ID, in app preferences; none is Chrome's
+    own) and, once Chrome's provider is ready, loads that profile
+    (`ProfilesBridge`: `ProfileManager::LoadProfileByPath()`, only an
+    existing profile in the user data directory) and provides it, with its
+    primary OTR profile for incognito. A profile that's gone gives the
+    window back to Chrome's.
+  - Tapping another profile's space (`Spaces.onSpaceClicked()`) sends
+    `ACTION_OPEN_SPACE` with the profile's directory to a window of that
+    profile (a shown one, else one closed with its tabs, through
+    `MultiWindowUtils.launchIntentInMaybeClosedWindow()`), or opens a new
+    window for it as Chrome's own new windows, without animation. The
+    window left behind leaves Recents (`AppTask.setExcludeFromRecents()`)
+    until it's resumed again, so Recents shows the window in use.
+  - The shell's own parts already take the window's tab model's profile
+    (spaces, bar, settings, sync, history, extensions, Claude), so they
+    follow. Chrome's own code that reads `getLastUsedRegularProfile()`
+    (about 90 files: downloads, notifications, some settings) still acts
+    on that profile; `PasswordSaveActivity` (saves from other apps) too.
+  - Still to come (phase 3): Move to Profile and Settings › Profiles.
 - **Claude (C8).** The desktop's Claude client, key storage and page
   reader (`//compass/browser/claude`, without Claude Code) build for
   Android. `ClaudeBridge` runs a chat about the page on screen: each

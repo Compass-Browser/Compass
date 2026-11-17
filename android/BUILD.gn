@@ -29,6 +29,7 @@ android_library("hook_java") {
     "//base:base_java",
     "//build/android:build_java",
     "//chrome/browser/browser_controls/android:java",
+    "//chrome/browser/profiles/android:java",
     "//chrome/browser/tab:java",
     "//chrome/browser/ui/android/native_page:java",
   ]
@@ -37,6 +38,7 @@ android_library("hook_java") {
 # For //compass/browser/android: the natives of the Java bridges.
 generate_jni("jni_headers") {
   sources = [
+    "java/src/it/cipi1965/compass/profiles/ProfilesBridge.java",
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
@@ -115,6 +117,8 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/ThemeEditorUi.kt",
     "java/src/it/cipi1965/compass/shell/UndoToast.java",
     "java/src/it/cipi1965/compass/shell/UndoToastUi.kt",
+    "java/src/it/cipi1965/compass/profiles/ProfilesBridge.java",
+    "java/src/it/cipi1965/compass/profiles/WindowProfiles.java",
     "java/src/it/cipi1965/compass/spaces/SpacesBridge.java",
     "java/src/it/cipi1965/compass/sync/SyncBridge.java",
   ]

@@ -8,8 +8,10 @@ import android.app.Activity;
 import android.content.Intent;
 import android.view.KeyEvent;
 
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 
@@ -43,6 +45,16 @@ public interface CompassShellHook {
     /** A key event for the activity: true if it was one of the shell's shortcuts. */
     default boolean dispatchKeyEvent(KeyEvent event) {
         return false;
+    }
+
+    /**
+     * The profiles |activity|'s window shows, in place of |chromes| (the last used regular
+     * profile): a window shows one profile's spaces (docs/design/android.md, "Profiles"). Called
+     * on an instance of its own from onCreate, once the window has its ID; null for Chrome's.
+     */
+    default @Nullable OneshotSupplier<ProfileProvider> createProfileProvider(
+            Activity activity, int windowId, OneshotSupplier<ProfileProvider> chromes) {
+        return null;
     }
 
 }
